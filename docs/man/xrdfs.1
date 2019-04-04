@@ -43,7 +43,7 @@ Get directory listing.
 \fI-D\fR show duplicate entries
 
 .RE
-\fBlocate\fR \fI[-n]\fR \fI[-r]\fR \fI[-d]\fR \fI<path>\fR
+\fBlocate\fR \fI[-n]\fR \fI[-r]\fR \fI[-d]\fR \fI[-m]\fR \fI[-i]\fR \fI[-p]\fR \fI<path>\fR
 .RS 3
 Get the locations of the path.
 .br
@@ -56,6 +56,8 @@ Get the locations of the path.
 \fI-m\fR prefer host names to IP addresses
 .br
 \fI-i\fR ignore network dependencies (IPv6/IPv4)
+.br
+\fI-p\fR be passive: ignore tried/triedrc cgi opaque info
 
 
 .RE

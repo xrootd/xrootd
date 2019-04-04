@@ -500,6 +500,12 @@ XRD_MAXMETALINKWAIT
 The maximum time in seconds a clinet can be stalled by the server if a Metalink redirector is available (defaults to 60s).
 .RE
 
+XRD_PRESERVELOCATETRIED
+.RS 5
+If set to 1 XRootD client will preserve tired/triedrc cgi opaque info for kXR_locate request accross redirects/retries,
+if set to 0 XRootD client will treat kXR_locate as any other passive request.
+.RE
+
 .SH RETURN CODES
 .RE
 \fB50\fR  : generic error (e.g. config, internal, data, OS, command line option)

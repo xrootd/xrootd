@@ -672,6 +672,11 @@ XRootDStatus DoLocate( FileSystem                      *fs,
       flags |= OpenFlags::Force;
     else if( args[i] == "-d" )
       doDeepLocate = true;
+    else if( args[i] == "-p" )
+    {
+      Env *env = DefaultEnv::GetEnv();
+      env->PutInt( "PreserveLocateTried", 0 );
+    }
     else if( !hasPath )
     {
       path = args[i];
@@ -1561,14 +1566,15 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries\n\n"                                );
 
-  printf( "   locate [-n] [-r] [-d] <path>\n"                                 );
+  printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                                 );
   printf( "     Get the locations of the path.\n"                             );
   printf( "     -r refresh, don't use cached locations\n"                     );
   printf( "     -n make the server return the response immediately even\n"    );
   printf( "        though it may be incomplete\n"                             );
   printf( "     -d do a recursive (deep) locate\n"                            );
   printf( "     -m|-h prefer host names to IP addresses\n"                    );
-  printf( "     -i ignore network dependencies\n\n"                           );
+  printf( "     -i ignore network dependencies\n"                             );
+  printf( "     -p be passive: ignore tried/triedrc cgi opaque info\n\n"      );
 
   printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"                );
   printf( "     Creates a directory/tree of directories.\n\n"                 );

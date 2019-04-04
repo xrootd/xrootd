@@ -298,6 +298,60 @@ namespace XrdCl
         req->header.dlen = newDlen;
         break;
       }
+      case kXR_locate:
+      {
+        Env *env = DefaultEnv::GetEnv();
+        int preserveLocateTried = DefaultPreserveLocateTried;
+        env->GetInt( "PreserveLocateTried", preserveLocateTried );
+
+        if( !preserveLocateTried ) break;
+
+        //----------------------------------------------------------------------
+        // In case of locate we only want to preserve tried/triedrc CGI info
+        //----------------------------------------------------------------------
+        URL::ParamsMap triedCgi;
+        URL::ParamsMap::const_iterator itr = newCgi.find( "triedrc" );
+        if( itr != newCgi.end() )
+          triedCgi[itr->first] = itr->second;
+        itr = newCgi.find( "tried" );
+        if( itr != newCgi.end() )
+          triedCgi[itr->first] = itr->second;
+
+        //----------------------------------------------------------------------
+        // Is there anything to do?
+        //----------------------------------------------------------------------
+        if( triedCgi.empty() ) break;
+
+        //----------------------------------------------------------------------
+        // Get the pointer to the appropriate path
+        //----------------------------------------------------------------------
+        char *path = msg->GetBuffer( 24 );
+        size_t length = req->header.dlen;
+
+        //----------------------------------------------------------------------
+        // Create a fake URL from an existing CGI
+        //----------------------------------------------------------------------
+        std::string strpath( path, length );
+        std::ostringstream o;
+        o << "fake://fake:111/" << strpath;
+
+        URL currentPath( o.str() );
+        URL::ParamsMap currentCgi = currentPath.GetParams();
+        MergeCGI( currentCgi, triedCgi, replace );
+        currentPath.SetParams( currentCgi );
+        std::string pathWitParams = currentPath.GetPathWithParams();
+
+        //----------------------------------------------------------------------
+        // Write the path with the new cgi appended to the message
+        //----------------------------------------------------------------------
+        uint32_t newDlen = pathWitParams.size();
+        msg->ReAllocate( 24+newDlen );
+        req  = (ClientRequest *)msg->GetBuffer();
+        path = msg->GetBuffer( 24 );
+        memcpy( path, pathWitParams.c_str(), pathWitParams.size() );
+        req->header.dlen = newDlen;
+        break;
+      }
     }
     XRootDTransport::SetDescription( msg );
   }

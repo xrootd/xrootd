@@ -72,6 +72,7 @@ namespace XrdCl
   const int DefaultAioSignal            = 0;
   const int DefaultPreferIPv4           = 0;
   const int DefaultMaxMetalinkWait      = 60;
+  const int DefaultPreserveLocateTried  = 1;
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";

@@ -292,6 +292,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "AioSignal",            DefaultAioSignal            );
     REGISTER_VAR_INT( varsInt, "PreferIPv4",           DefaultPreferIPv4           );
     REGISTER_VAR_INT( varsInt, "MaxMetalinkWait",      DefaultMaxMetalinkWait      );
+    REGISTER_VAR_INT( varsInt, "PreserveLocateTried",  DefaultPreserveLocateTried  );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );
