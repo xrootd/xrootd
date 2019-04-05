@@ -398,46 +398,6 @@ void AdjustFileInfo( XrdCpFile *file )
 };
 
 //------------------------------------------------------------------------------
-// Get a list of files and a list of directories inside a remote directory
-//------------------------------------------------------------------------------
-XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
-                                const XrdCl::URL         &url,
-                                std::vector<std::string> *&files,
-                                std::vector<std::string> *&directories )
-{
-  using namespace XrdCl;
-  DirectoryList *list;
-  XRootDStatus   status;
-  Log *log = DefaultEnv::GetLog();
-
-  status = fs->DirList( url.GetPath(), DirListFlags::Stat, list );
-  if( !status.IsOK() )
-  {
-    log->Error( AppMsg, "Error listing directory: %s",
-                        status.ToStr().c_str());
-    return status;
-  }
-
-  for ( DirectoryList::Iterator it = list->Begin(); it != list->End(); ++it )
-  {
-    if ( (*it)->GetStatInfo()->TestFlags( StatInfo::IsDir ) )
-    {
-      std::string directory = (*it)->GetName();
-      directories->push_back( directory );
-    }
-    else
-    {
-      std::string file = (*it)->GetName();
-      files->push_back( file );
-    }
-  }
-
-  delete list;
-
-  return XRootDStatus();
-}
-
-//------------------------------------------------------------------------------
 // Recursively index all files and directories inside a remote directory
 //------------------------------------------------------------------------------
 XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
@@ -450,7 +410,8 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
   log->Debug( AppMsg, "Indexing %s", basePath.c_str() );
 
   DirectoryList *dirList = 0;
-  XRootDStatus st = fs->DirList( URL( basePath ).GetPath(), DirListFlags::Recursive, dirList );
+  XRootDStatus st = fs->DirList( URL( basePath ).GetPath(), DirListFlags::Recursive
+      | DirListFlags::Locate, dirList );
   if( !st.IsOK() )
   {
     log->Info( AppMsg, "Failed to get directory listing for %s: %s",
