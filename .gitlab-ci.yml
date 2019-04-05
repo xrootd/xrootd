@@ -76,7 +76,7 @@ build:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git
+    - yum install --nogpg -y gcc-c++ rpm-build which git python-srpm-macros
     - cd packaging/
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
@@ -103,7 +103,7 @@ build:slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ rpm-build which tar git
+    - yum install --nogpg -y gcc-c++ rpm-build which tar git python-srpm-macros
     - cd packaging/
     - ./makesrpm.sh --define "_with_python3 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
@@ -405,7 +405,7 @@ weekly:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git cppunit-devel
+    - yum install --nogpg -y gcc-c++ rpm-build which git cppunit-devel python-srpm-macros
     - xrootd_version=$(git tag | grep '^v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
     - xrootd_version=${xrootd_version:1}
     - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
@@ -436,7 +436,7 @@ weekly:slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ rpm-build which tar git cppunit-devel
+    - yum install --nogpg -y gcc-c++ rpm-build which tar git cppunit-devel python-srpm-macros
     - xrootd_version=$(git tag | grep '^v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
     - xrootd_version=${xrootd_version:1}
     - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
