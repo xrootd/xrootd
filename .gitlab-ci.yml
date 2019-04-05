@@ -317,7 +317,6 @@ release:cc7-x86_64:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
 
 release:slc6-x86_64:
   stage: build:rpm
@@ -344,7 +343,6 @@ release:slc6-x86_64:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
 
 release:deb_ubuntu_bionic:
   <<: *deb_ubuntu_bionic_def
@@ -352,7 +350,6 @@ release:deb_ubuntu_bionic:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
 
 release:deb_ubuntu_artful:
   <<: *deb_ubuntu_artful_def
@@ -360,7 +357,6 @@ release:deb_ubuntu_artful:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
 
 release:deb_ubuntu_xenial:
   <<: *deb_ubuntu_xenial_def
@@ -368,7 +364,6 @@ release:deb_ubuntu_xenial:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
 
 release:pypi:
   stage: build:rpm
@@ -388,7 +383,6 @@ release:pypi:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
   allow_failure: true
 
 publish:pypi:
@@ -404,7 +398,6 @@ publish:pypi:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
   allow_failure: true
 
 
@@ -629,7 +622,6 @@ publish:rhel:release:
     - web
   except:
     - branches 
-    - /^(?!v[0-9]+).*/
 
 publish:debian:release:
   stage: publish
@@ -652,7 +644,6 @@ publish:debian:release:
     - web
   except:
     - branches
-    - /^(?!v[0-9]+).*/
 
 publish:weekly:
   stage: publish
