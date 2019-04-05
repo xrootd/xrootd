@@ -294,7 +294,7 @@ release:cc7-x86_64:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git
+    - yum install --nogpg -y gcc-c++ rpm-build which git python-srpm-macros
     - mkdir cc-7-x86_64
     - git archive --prefix=xrootd-${CI_COMMIT_TAG#"v"}/ --format=tar tags/$CI_COMMIT_TAG | gzip -9fn > xrootd-${CI_COMMIT_TAG#"v"}.tar.gz
     - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-x86_64
@@ -322,7 +322,7 @@ release:slc6-x86_64:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git tar
+    - yum install --nogpg -y gcc-c++ rpm-build which git tar python-srpm-macros
     - mkdir slc-6-x86_64
     - cd packaging/
     - git checkout tags/${CI_COMMIT_TAG}
