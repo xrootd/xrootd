@@ -50,13 +50,23 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   struct RedirectEntry
   {
-      RedirectEntry( const URL &from, const URL &to ) : from( from ), to( to )
+      enum Type
+      {
+        EntryRedirect,
+        EntryRedirectOnWait,
+        EntryRetry,
+        EntryWait
+      };
+
+      RedirectEntry( const URL &from, const URL &to, Type type ) :
+        from( from ), to( to ), type( type )
       {
 
       }
 
       URL          from;
       URL          to;
+      Type         type;
       XRootDStatus status;
 
       std::string ToString( bool prevok = true )
@@ -66,9 +76,19 @@ namespace XrdCl
 
         if( prevok )
         {
-          if( tostr == fromstr )
-            return "Retrying: " + tostr;
-          return "Redirected from: " + fromstr + " to: " + tostr;
+          switch( type )
+          {
+            case EntryRedirect: return "Redirected from: " + fromstr + " to: "
+                + tostr;
+
+            case EntryRedirectOnWait: return "Server responded with wait. "
+                "Falling back to virtual redirector: " + tostr;
+
+            case EntryRetry: return "Retrying: " + tostr;
+
+            case EntryWait: return "Waited at server request. Resending: "
+                + tostr;
+          }
         }
         return "Failed at: " + fromstr + ", retrying at: " + tostr;
       }
@@ -380,7 +400,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Retry the request at another server
       //------------------------------------------------------------------------
-      Status RetryAtServer( const URL &url );
+      Status RetryAtServer( const URL &url, RedirectEntry::Type entryType );
 
       //------------------------------------------------------------------------
       //! Unpack the message and call the response handler

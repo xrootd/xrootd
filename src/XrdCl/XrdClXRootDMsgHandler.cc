@@ -593,7 +593,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Send the request to the new location
         //----------------------------------------------------------------------
-        HandleError( RetryAtServer(newUrl) );
+        HandleError( RetryAtServer( newUrl, RedirectEntry::EntryRedirect ) );
         return;
       }
 
@@ -637,7 +637,7 @@ namespace XrdCl
           if( pAggregatedWaitTime > maxWait )
           {
             UpdateTriedCGI();
-            HandleError( RetryAtServer( pLoadBalancer.url ) );
+            HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRedirectOnWait ) );
             return;
           }
         }
@@ -1129,7 +1129,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::WaitDone( time_t )
   {
-    HandleError( RetryAtServer(pUrl) );
+    HandleError( RetryAtServer( pUrl, RedirectEntry::EntryWait ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1874,7 +1874,7 @@ namespace XrdCl
         UpdateTriedCGI(status.errNo);
         if( status.errNo == kXR_NotFound )
           SwitchOnRefreshFlag();
-        HandleError( RetryAtServer( pLoadBalancer.url ) );
+        HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRetry ) );
         delete pResponse;
         pResponse = 0;
         return;
@@ -1913,7 +1913,7 @@ namespace XrdCl
         pLoadBalancer.url.GetLocation() != pUrl.GetLocation() )
     {
       UpdateTriedCGI();
-      HandleError( RetryAtServer( pLoadBalancer.url ) );
+      HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRetry ) );
       return;
     }
     else
@@ -1924,7 +1924,7 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
-        HandleError( RetryAtServer( pUrl ) );
+        HandleError( RetryAtServer( pUrl, RedirectEntry::EntryRetry ) );
         return;
       }
       pStatus = status;
@@ -1936,7 +1936,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Retry the message at another server
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::RetryAtServer( const URL &url )
+  Status XRootDMsgHandler::RetryAtServer( const URL &url, RedirectEntry::Type entryType )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -1944,7 +1944,7 @@ namespace XrdCl
     // Set up a redirect entry
     //--------------------------------------------------------------------------
     if( pRdirEntry ) pRedirectTraceBack.push_back( std::move( pRdirEntry ) );
-    pRdirEntry.reset( new RedirectEntry( pUrl, url ) );
+    pRdirEntry.reset( new RedirectEntry( pUrl.GetHostId(), url.GetHostId(), entryType ) );
 
     if( pUrl.GetLocation() != url.GetLocation() )
     {
