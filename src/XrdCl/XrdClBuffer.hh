@@ -24,6 +24,7 @@
 #include <new>
 #include <cstring>
 #include <string>
+#include <utility>
 
 namespace XrdCl
 {
