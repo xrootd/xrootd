@@ -411,7 +411,7 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
 
   DirectoryList *dirList = 0;
   XRootDStatus st = fs->DirList( URL( basePath ).GetPath(), DirListFlags::Recursive
-      | DirListFlags::Locate, dirList );
+      | DirListFlags::Locate | DirListFlags::Merge, dirList );
   if( !st.IsOK() )
   {
     log->Info( AppMsg, "Failed to get directory listing for %s: %s",
