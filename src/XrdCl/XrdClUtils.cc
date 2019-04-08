@@ -274,17 +274,22 @@ namespace XrdCl
     delete fs;
 
     if( !st.IsOK() )
+    {
+      std::string msg = st.GetErrorMessage();
+      msg += " Got an error while querying the checksum!";
+      st.SetErrorMessage( msg );
       return st;
+    }
 
     if( !cksResponse )
-      return XRootDStatus( stError, errInternal );
+      return XRootDStatus( stError, errInternal, 0, "Got invalid response while querying the checksum!" );
 
     std::vector<std::string> elems;
     Utils::splitString( elems, cksResponse->ToString(), " " );
     delete cksResponse;
 
     if( elems.size() != 2 )
-      return XRootDStatus( stError, errInvalidResponse );
+      return XRootDStatus( stError, errInvalidResponse, 0, "Got invalid response while querying the checksum!" );
 
     if( elems[0] != checkSumType )
       return XRootDStatus( stError, errCheckSumError );
