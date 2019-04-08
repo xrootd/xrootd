@@ -337,7 +337,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pUrl.IsLocalFile() && pUrl.IsMetalink() )
     {
-      pHosts->back().flags    = kXR_isManager;
+      pHosts->back().flags    = kXR_isManager | kXR_attrMeta;
       pHosts->back().protocol = kXR_PROTOCOLVERSION;
     }
     //--------------------------------------------------------------------------
@@ -460,9 +460,9 @@ namespace XrdCl
         // Keep the info about this server if we still need to find a load
         // balancer
         //----------------------------------------------------------------------
+        uint32_t flags = pHosts->back().flags;
         if( !pHasLoadBalancer )
         {
-          uint32_t flags = pHosts->back().flags;
           if( flags & kXR_isManager )
           {
             //------------------------------------------------------------------
@@ -484,6 +484,14 @@ namespace XrdCl
             }
           }
         }
+
+        //----------------------------------------------------------------------
+        // If the redirect comes from a data server safe the URL because
+        // in case of a failure we will use it as the effective data server URL
+        // for the tried CGI opaque info
+        //----------------------------------------------------------------------
+        if( flags & kXR_isServer )
+          pEffectiveDataServerUrl = new URL( pHosts->back().url );
 
         //----------------------------------------------------------------------
         // Build the URL and check it's validity
@@ -1869,7 +1877,8 @@ namespace XrdCl
       if( pLoadBalancer.url.IsValid() &&
           pUrl.GetLocation() != pLoadBalancer.url.GetLocation() &&
           (status.errNo == kXR_FSError || status.errNo == kXR_IOError ||
-          status.errNo == kXR_ServerError || status.errNo == kXR_NotFound) )
+          status.errNo == kXR_ServerError || status.errNo == kXR_NotFound ||
+          ( ( pLoadBalancer.flags & kXR_attrMeta ) && status.errNo == kXR_NotAuthorized ) ) )
       {
         UpdateTriedCGI(status.errNo);
         if( status.errNo == kXR_NotFound )
@@ -2023,7 +2032,24 @@ namespace XrdCl
   void XRootDMsgHandler::UpdateTriedCGI(uint32_t errNo)
   {
     URL::ParamsMap cgi;
-    std::string    tried = pUrl.GetHostName();
+    std::string    tried;
+
+    //--------------------------------------------------------------------------
+    // In case a data server responded with a kXR_redirect and we fail at the
+    // node where we were redirected to, the original data server should be
+    // included in the tried CGI opaque info (instead of the current one).
+    //--------------------------------------------------------------------------
+    if( pEffectiveDataServerUrl )
+    {
+      tried = pEffectiveDataServerUrl->GetHostName();
+      delete pEffectiveDataServerUrl;
+      pEffectiveDataServerUrl = 0;
+    }
+    //--------------------------------------------------------------------------
+    // Otherwise use the current URL.
+    //--------------------------------------------------------------------------
+    else
+      tried = pUrl.GetHostName();
 
     // Report the reason for the failure to the next location
     //

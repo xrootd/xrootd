@@ -122,6 +122,7 @@ namespace XrdCl
         pResponse( 0 ),
         pResponseHandler( respHandler ),
         pUrl( *url ),
+        pEffectiveDataServerUrl( 0 ),
         pSidMgr( sidMgr ),
         pLFileHandler( lFileHandler ),
         pExpiration( 0 ),
@@ -183,14 +184,17 @@ namespace XrdCl
         for( it = pPartialResps.begin(); it != pPartialResps.end(); ++it )
           delete *it;
 
-        pRequest         = reinterpret_cast<Message*>( 0xDEADBEEF );
-        pResponse        = reinterpret_cast<Message*>( 0xDEADBEEF );
-        pResponseHandler = reinterpret_cast<ResponseHandler*>( 0xDEADBEEF );
-        pPostMaster      = reinterpret_cast<PostMaster*>( 0xDEADBEEF );
-        pSidMgr          = reinterpret_cast<SIDManager*>( 0xDEADBEEF );
-        pLFileHandler    = reinterpret_cast<LocalFileHandler*>( 0xDEADBEEF );
-        pHosts           = reinterpret_cast<HostList*>( 0xDEADBEEF );
-        pChunkList       = reinterpret_cast<ChunkList*>( 0xDEADBEEF );
+        delete pEffectiveDataServerUrl;
+
+        pRequest                = reinterpret_cast<Message*>( 0xDEADBEEF );
+        pResponse               = reinterpret_cast<Message*>( 0xDEADBEEF );
+        pResponseHandler        = reinterpret_cast<ResponseHandler*>( 0xDEADBEEF );
+        pPostMaster             = reinterpret_cast<PostMaster*>( 0xDEADBEEF );
+        pSidMgr                 = reinterpret_cast<SIDManager*>( 0xDEADBEEF );
+        pLFileHandler           = reinterpret_cast<LocalFileHandler*>( 0xDEADBEEF );
+        pHosts                  = reinterpret_cast<HostList*>( 0xDEADBEEF );
+        pChunkList              = reinterpret_cast<ChunkList*>( 0xDEADBEEF );
+        pEffectiveDataServerUrl = reinterpret_cast<URL*>( 0xDEADBEEF );
 
         Log *log = DefaultEnv::GetLog();
         log->Debug( ExDbgMsg, "[%s] Destroying MsgHandler: 0x%x.",
@@ -500,6 +504,7 @@ namespace XrdCl
       std::vector<Message *>          pPartialResps;
       ResponseHandler                *pResponseHandler;
       URL                             pUrl;
+      URL                            *pEffectiveDataServerUrl;
       PostMaster                     *pPostMaster;
       SIDManager                     *pSidMgr;
       LocalFileHandler               *pLFileHandler;

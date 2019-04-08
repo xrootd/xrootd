@@ -173,6 +173,7 @@ namespace XrdCl
     msgHandler->SetFollowMetalink( true );
 
     HostInfo info( url, true );
+    info.flags = kXR_isManager | kXR_attrMeta;
     sendParams.loadBalancer = info;
     msgHandler->SetLoadBalancer( info );
 
