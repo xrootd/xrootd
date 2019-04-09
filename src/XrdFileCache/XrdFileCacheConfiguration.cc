@@ -316,6 +316,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       "       pfc.blocksize %lld\n"
                       "       pfc.prefetch %d\n"
                       "       pfc.ram %.fg\n"
+                      "       pfc.writequeue %d %d\n"
                       "       # Total available disk: %lld\n"
                       "       pfc.diskusage %lld %lld files %lld %lld %lld purgeinterval %d purgecoldfiles %d\n"
                       "       pfc.spaces %s %s\n"
@@ -324,7 +325,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       config_filename,
                       m_configuration.m_bufferSize,
                       m_configuration.m_prefetch_max_blocks,
-                      rg, sP.Total,
+                      rg,
+                      m_configuration.m_wqueue_blocks, m_configuration.m_wqueue_threads,
+                      sP.Total,
                       m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM,
                       m_configuration.m_fileUsageBaseline, m_configuration.m_fileUsageNominal, m_configuration.m_fileUsageMax,
                       m_configuration.m_purgeInterval, m_configuration.m_purgeColdFilesAge,
@@ -476,6 +479,17 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       long long minRAM = m_isClient ? 256 * 1024 * 1024 : 1024 * 1024 * 1024;
       long long maxRAM = 256 * minRAM;
       if ( XrdOuca2x::a2sz(m_log, "get RAM available", cwg.GetWord(), &m_configuration.m_RamAbsAvailable, minRAM, maxRAM))
+      {
+         return false;
+      }
+   }
+   else if ( part == "writequeue")
+   {
+      if (XrdOuca2x::a2i(m_log, "Error getting pfc.writequeue num-blocks", cwg.GetWord(), &m_configuration.m_wqueue_blocks, 1, 1024))
+      {
+         return false;
+      }
+      if (XrdOuca2x::a2i(m_log, "Error getting pfc.writequeue num-threads", cwg.GetWord(), &m_configuration.m_wqueue_threads, 1, 16))
       {
          return false;
       }

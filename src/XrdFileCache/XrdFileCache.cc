@@ -83,8 +83,11 @@ XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
    }
    err.Say("------ Proxy file cache initialization completed.");
 
-   pthread_t tid1;
-   XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdFileCache WriteTasks ");
+   for (int wti = 0; wti < factory.RefConfiguration().m_wqueue_threads; ++wti)
+   {
+      pthread_t tid1;
+      XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdFileCache WriteTasks ");
+   }
 
    if (factory.RefConfiguration().m_prefetch_max_blocks > 0)
    {
@@ -265,10 +268,12 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
 
 void Cache::ProcessWriteTasks()
 {
+   std::vector<Block*> blks_to_write(m_configuration.m_wqueue_blocks);
+
    while (true)
    {
       m_writeQ.condVar.Lock();
-      while (m_writeQ.queue.empty())
+      while (m_writeQ.size == 0)
       {
          m_writeQ.condVar.Wait();
       }
@@ -276,14 +281,28 @@ void Cache::ProcessWriteTasks()
       // MT -- optimize to pop several blocks if they are available (or swap the list).
       // This makes sense especially for smallish block sizes.
 
-      Block* block = m_writeQ.queue.front();
-      m_writeQ.queue.pop_front();
-      m_writeQ.size--;
-      m_writeQ.writes_between_purges += block->get_size();
-      TRACE(Dump, "Cache::ProcessWriteTasks for block " <<  (void*)(block) << " path " << block->m_file->lPath());
+      int n_pushed = std::min(m_writeQ.size, m_configuration.m_wqueue_blocks);
+
+      for (int bi = 0; bi < n_pushed; ++bi)
+      {
+         Block* block = m_writeQ.queue.front();
+         m_writeQ.queue.pop_front();
+         m_writeQ.writes_between_purges += block->get_size();
+
+         blks_to_write[bi] = block;
+
+         TRACE(Dump, "Cache::ProcessWriteTasks for block " <<  (void*)(block) << " path " << block->m_file->lPath());
+      }
+      m_writeQ.size -= n_pushed;
+
       m_writeQ.condVar.UnLock();
 
-      block->m_file->WriteBlockToDisk(block);
+      for (int bi = 0; bi < n_pushed; ++bi)
+      {
+         Block* block = blks_to_write[bi];
+
+         block->m_file->WriteBlockToDisk(block);
+      }
    }
 }
 
