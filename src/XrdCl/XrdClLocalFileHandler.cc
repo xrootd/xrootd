@@ -427,8 +427,8 @@ namespace XrdCl
       return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
                            strerror( errno ) );
     }
-    return XRootDStatus();
 #endif
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
