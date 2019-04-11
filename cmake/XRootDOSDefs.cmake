@@ -75,10 +75,8 @@ endif()
 #-------------------------------------------------------------------------------
 if( APPLE )
   set( MacOSX TRUE )
-
-  if( DEFINED XROOTD_MACOSX_RPATH )
-    set( CMAKE_MACOSX_RPATH ${XROOTD_MACOSX_RPATH} )
-  else()
+  
+  if( NOT DEFINED CMAKE_MACOSX_RPATH )
     set( CMAKE_MACOSX_RPATH 1 )
   endif()
 
