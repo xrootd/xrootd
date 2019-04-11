@@ -76,6 +76,12 @@ endif()
 if( APPLE )
   set( MacOSX TRUE )
 
+  if( DEFINED XROOTD_MACOSX_RPATH )
+    set( CMAKE_MACOSX_RPATH ${XROOTD_MACOSX_RPATH} )
+  else()
+    set( CMAKE_MACOSX_RPATH 1 )
+  endif()
+
   # this is here because of Apple deprecating openssl and krb5
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )
 
