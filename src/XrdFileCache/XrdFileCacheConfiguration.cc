@@ -489,7 +489,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       {
          return false;
       }
-      if (XrdOuca2x::a2i(m_log, "Error getting pfc.writequeue num-threads", cwg.GetWord(), &m_configuration.m_wqueue_threads, 1, 16))
+      if (XrdOuca2x::a2i(m_log, "Error getting pfc.writequeue num-threads", cwg.GetWord(), &m_configuration.m_wqueue_threads, 1, 64))
       {
          return false;
       }
