@@ -1701,7 +1701,7 @@ do{     if (!strcmp("mdhold",  val))
    else if (!strcmp("retries", val))
            {if (!(val = CFile.GetWord()))
                {eDest->Emsg("Config","retries value not specified.");    return 1;}
-            if (XrdOuca2x::a2i(*eDest, "retries value", val, &rTry, 1))  return 1;
+            if (XrdOuca2x::a2i(*eDest, "retries value", val, &rTry, 0))  return 1;
            }
    else {eDest->Emsg("Config", "invalid dfs option '",val,"'."); return 1;}
   } while((val = CFile.GetWord()));

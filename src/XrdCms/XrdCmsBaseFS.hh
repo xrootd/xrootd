@@ -133,7 +133,7 @@ static const int dfltStgTries = 3;
 
        void             SetTries(bool xdfs, int tcnt)
                                 {if (xdfs) dfsMaxTries = 
-                                           (tcnt < 1 ? dfltDfsTries : tcnt);
+                                           (tcnt < 0 ? dfltDfsTries : tcnt);
                                     else   stgMaxTries =
                                            (tcnt < 1 ? dfltStgTries : tcnt);
                                 }
