@@ -67,6 +67,8 @@ struct Configuration
       m_bufferSize(1024*1024),
       m_RamAbsAvailable(0),
       m_NRamBuffers(-1),
+      m_wqueue_blocks(1),
+      m_wqueue_threads(1),
       m_prefetch_max_blocks(10),
       m_hdfsbsize(128*1024*1024),
       m_flushCnt(100)
@@ -98,6 +100,8 @@ struct Configuration
    long long m_bufferSize;              //!< prefetch buffer size, default 1MB
    long long m_RamAbsAvailable;         //!< available from configuration
    int       m_NRamBuffers;             //!< number of total in-memory cache blocks, cached
+   int       m_wqueue_blocks;           //!< maximum number of blocks written per write-queue loop
+   int       m_wqueue_threads;          //!< number of threads writing blocks to disk
    int       m_prefetch_max_blocks;     //!< maximum number of blocks to prefetch per file
 
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
@@ -280,12 +284,12 @@ private:
 
    struct WriteQ
    {
-      WriteQ() : condVar(0), size(0), writes_between_purges(0) {}
+      WriteQ() : condVar(0), writes_between_purges(0), size(0) {}
 
       XrdSysCondVar     condVar;      //!< write list condVar
-      size_t            size;         //!< cache size of a container
       std::list<Block*> queue;        //!< container
       long long         writes_between_purges; //!< upper bound on amount of bytes written between two purge passes
+      int               size;         //!< current size of write queue
    };
 
    WriteQ m_writeQ;
