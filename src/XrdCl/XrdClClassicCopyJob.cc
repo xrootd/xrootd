@@ -1044,7 +1044,7 @@ namespace
     private:
 
 
-      XrdCl::XCpCtx           *pXCpCtx;
+      XrdCl::XCpCtx            *pXCpCtx;
       const XrdCl::URL         *pUrl;
       std::vector<std::string>  pReplicas;
       uint32_t                  pChunkSize;
@@ -1508,6 +1508,9 @@ namespace XrdCl
 
       processed += chunkInfo.length;
       if( progress ) progress->JobProgress( pJobId, processed, size );
+
+      if( progress->ShouldCancel( pJobId ) )
+        return XRootDStatus( stError, errOperationInterrupted, kXR_Cancelled, "The copy-job has been cancelled!" );
     }
 
     st = dest->Flush();
