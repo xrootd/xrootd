@@ -73,14 +73,9 @@ namespace XrdCl
 
       static void UnloadHandler( const std::string &trProt )
       {
-        TransportManager *trManager    = DefaultEnv::GetTransportManager();
-        TransportHandler *trHandler    = trManager->GetHandler( trProt );
-        XRootDTransport  *xrdTransport = dynamic_cast<XRootDTransport*>( trHandler );
-        if( !xrdTransport ) return;
-
-        PluginUnloadHandler *me = xrdTransport->pSecUnloadHandler;
-        XrdSysRWLockHelper scope( me->lock, false ); // obtain write lock
-        me->unloaded = true;
+        TransportManager *trManager = DefaultEnv::GetTransportManager();
+        TransportHandler *trHandler = trManager->GetHandler( trProt );
+        trHandler->WaitBeforeExit();
       }
 
       void Register( const std::string &protocol )
@@ -1427,6 +1422,15 @@ namespace XrdCl
     }
 
     return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Wait before exit
+  //------------------------------------------------------------------------
+  void XRootDTransport::WaitBeforeExit()
+  {
+    XrdSysRWLockHelper scope( pSecUnloadHandler->lock, false ); // obtain write lock
+    pSecUnloadHandler->unloaded = true;
   }
 
   //----------------------------------------------------------------------------
