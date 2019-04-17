@@ -227,13 +227,53 @@ if test $? -ne 0; then
   exit 5
 fi
 
-git archive --prefix=xrootd/ --format=tar $COMMIT | gzip -9fn > \
-      $RPMSOURCES/xrootd.tar.gz
+git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
+if test ${?} -eq 0; then
+  TAG="`git describe --tags --abbrev=0 --exact-match`"
+fi
+
+git archive --prefix=xrootd/ --format=tar $COMMIT > $RPMSOURCES/xrootd.tar
 
 if test $? -ne 0; then
   echo "[!] Unable to create the source tarball" 1>&2
   exit 6
 fi
+
+#-------------------------------------------------------------------------------
+# Make sure submodules are in place
+#-------------------------------------------------------------------------------
+git submodule init
+git submodule update --recursive
+
+#-------------------------------------------------------------------------------
+# Add XrdClHttp sub-module to our tarball
+#-------------------------------------------------------------------------------
+cd src/XrdClHttp
+
+if [ -z ${TAG+x} ]; then
+  COMMIT=`git log --pretty=format:"%H" -1`
+else
+  COMMIT=$TAG
+fi
+
+git archive --prefix=xrootd/src/XrdClHttp/ --format=tar $COMMIT > $RPMSOURCES/xrdcl-http.tar
+if test $? -ne 0; then
+  echo "[!] Unable to create the xrdcl-http source tarball" 1>&2
+  exit 6
+fi
+
+tar --concatenate --file $RPMSOURCES/xrootd.tar $RPMSOURCES/xrdcl-http.tar
+if test $? -ne 0; then
+  echo "[!] Unable to add xrdcl-http to xrootd tarball" 1>&2
+  exit 6
+fi
+
+cd - > /dev/null
+
+#-------------------------------------------------------------------------------
+# gzip the tarball
+#-------------------------------------------------------------------------------
+gzip -9fn $RPMSOURCES/xrootd.tar
 
 #-------------------------------------------------------------------------------
 # Check if we need some other versions

@@ -100,6 +100,10 @@ BuildRequires: ceph-devel >= 0.87
     %endif
 %endif
 
+%if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
+BuildRequires: davix-devel
+%endif
+
 BuildRequires:	doxygen
 BuildRequires:	graphviz
 %if %{?rhel}%{!?rhel:0} == 5
@@ -354,6 +358,19 @@ Ceph back-end plug-in for XRootD.
 %endif
 
 #-------------------------------------------------------------------------------
+# xrdcl-http
+#-------------------------------------------------------------------------------
+%if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
+%package -n xrdcl-http
+Summary:  HTTP client plug-in for XRootD client
+Group:    System Environment/Libraries
+Requires: %{name}-client = %{epoch}:%{version}-%{release}
+%description -n xrdcl-http
+xrdcl-http is an XRootD client plugin which allows XRootD to interact 
+with HTTP repositories.
+%endif
+
+#-------------------------------------------------------------------------------
 # tests
 #-------------------------------------------------------------------------------
 %if %{?_with_tests:1}%{!?_with_tests:0}
@@ -423,6 +440,9 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DENABLE_CEPH=TRUE \
 %else
       -DENABLE_CEPH=FALSE \
+%endif
+%if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
+      -DXRDCLHTTP_SUBMODULE=TRUE \
 %endif
       -DUSE_LIBC_SEMAPHORE=%{use_libc_semaphore} ../
 
@@ -551,6 +571,9 @@ install -m 644 packaging/common/xrootd-http.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xr
 # client plug-in config
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d
 install -m 644 packaging/common/client-plugin.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
+%if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
+install -m 644 src/XrdClHttp/config/http.client.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/xrdcl-http-plugin.conf
+%endif
 
 # client config
 install -m 644 packaging/common/client.conf $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.conf
@@ -876,6 +899,13 @@ fi
 %{_libdir}/libXrdCephPosix.so*
 %endif
 
+%if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
+%files -n xrdcl-http
+%defattr(-,root,root,-)
+%{_libdir}/libXrdClHttp-4.so
+%{_sysconfdir}/xrootd/client.plugins.d/xrdcl-http-plugin.conf
+%endif
+
 %if %{?_with_tests:1}%{!?_with_tests:0}
 %files tests
 %defattr(-,root,root,-)
@@ -935,6 +965,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Wed Apr 17 2019 Michal Simon <michal.simon@cern.ch> - 4.10.0-1
+- Create add xrdcl-http package
+
 * Tue Jan 08 2019 Edgar Fajardo <emfajard@ucsd.edu>
 - Create config dir /etc/xrootd/config.d
 

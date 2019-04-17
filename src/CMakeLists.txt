@@ -21,6 +21,10 @@ if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
 endif()
 
+if( XRDCLHTTP_SUBMODULE )
+  add_subdirectory( XrdClHttp )
+endif()
+
 include( XrdServer )
 include( XrdDaemons )
 include( XrdFrm )
