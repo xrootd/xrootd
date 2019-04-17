@@ -25,6 +25,8 @@
 #ifndef __XRD_CL_POST_MASTER_INTERFACES_HH__
 #define __XRD_CL_POST_MASTER_INTERFACES_HH__
 
+#include "XrdCl/XrdClXRootDResponses.hh"
+
 #include <stdint.h>
 #include <ctime>
 
@@ -39,6 +41,7 @@ namespace XrdCl
   class Channel;
   class Message;
   class URL;
+  class Tls;
 
   //----------------------------------------------------------------------------
   //! Message filter
@@ -145,6 +148,25 @@ namespace XrdCl
       };
 
       //------------------------------------------------------------------------
+      //! Read message body directly from TLS layer - called if Examine returns
+      //! Raw flag - only TLS related errors may be returned here
+      //!
+      //! @param msg       the corresponding message header
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data is needed
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status ReadMessageBody( Message   *msg,
+                                      Tls       *tls,
+                                      uint32_t  &bytesRead )
+      {
+        (void)msg; (void)tls; (void)bytesRead;
+        return Status( stOK, suDone );
+      }
+
+      //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
       //!
       //! @param event     type of the event
@@ -197,20 +219,14 @@ namespace XrdCl
       virtual bool IsRaw() const { return false; }
 
       //------------------------------------------------------------------------
-      //! Write message body directly to a socket - called if IsRaw returns
-      //! true - only socket related errors may be returned here
+      //! Get message body - called if IsRaw returns true
       //!
-      //! @param socket    the socket to read from
-      //! @param bytesRead number of bytes read by the method
-      //! @return          stOK & suDone if the whole body has been processed
-      //!                  stOK & suRetry if more data needs to be written
-      //!                  stError on failure
+      //! @param asyncOffset  :  the current async offset
+      //! @return             :  the list of chunks
       //------------------------------------------------------------------------
-      virtual Status WriteMessageBody( int       socket,
-                                       uint32_t &bytesRead )
+      virtual ChunkList* GetMessageBody( uint32_t *&asyncOffset )
       {
-        (void)socket; (void)bytesRead;
-        return Status();
+        return 0;
       }
   };
 
@@ -340,6 +356,20 @@ namespace XrdCl
       virtual Status GetHeader( Message *message, int socket ) = 0;
 
       //------------------------------------------------------------------------
+      //! Read a message header from the TLS layer (non-blocking mode),
+      //! so if there is not enough data the function should return suRetry
+      //! in which case it will be called again when more data arrives, with
+      //! the data previously read stored in the message buffer
+      //!
+      //! @param message the message buffer
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual Status GetHeader( Message *message, Tls *tls ) = 0;
+
+      //------------------------------------------------------------------------
       //! Read the message body from the socket, the socket is non-blocking,
       //! the method may be called multiple times - see GetHeader for details
       //!
@@ -350,6 +380,18 @@ namespace XrdCl
       //!                stError on failure
       //------------------------------------------------------------------------
       virtual Status GetBody( Message *message, int socket ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Read the message body from the TLS layer (non-blocking mode),
+      //! the method may be called multiple times - see GetHeader for details
+      //!
+      //! @param message the message buffer containing the header
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual Status GetBody( Message *message, Tls *tls ) = 0;
 
       //------------------------------------------------------------------------
       //! Initialize channel
@@ -445,6 +487,17 @@ namespace XrdCl
                                 uint16_t   subStream,
                                 uint32_t   bytesSent,
                                 AnyObject &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Wait before exit
+      //------------------------------------------------------------------------
+      virtual void WaitBeforeExit() = 0;
+
+      //------------------------------------------------------------------------
+      //! Get signature for given message
+      //------------------------------------------------------------------------
+      virtual Status GetSignature( Message *toSign, Message *&sign,
+                                   AnyObject &channelData ) = 0;
   };
 }
 

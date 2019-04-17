@@ -381,7 +381,7 @@ namespace XrdCl
       // Secure the message if necessary
       //------------------------------------------------------------------------
       delete pSignature; pSignature = 0;
-      XRootDStatus st = GetSignature( pOutgoing, pSignature );
+      XRootDStatus st = pTransport->GetSignature( pOutgoing, pSignature, *pChannelData );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -390,13 +390,9 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Try to write everything at once: signature, request and raw data
-    // (this is only supported if pOutHandler is an instance of XRootDMsgHandler)
+    // Write everything at once: signature, request and raw data
     //--------------------------------------------------------------------------
     Status st = WriteMessageAndRaw( pOutgoing, pSignature );
-    if( !st.IsOK() && st.code == errNotSupported )   //< this part should go away
-      st = WriteSeparately( pOutgoing, pSignature ); //< once we can add GetMsgBody
-                                                     //< to OutgoingMsgHandler interface !!!
     if( !st.IsOK() )
     {
       OnFault( st );
@@ -564,21 +560,12 @@ namespace XrdCl
 
   Status AsyncSocketHandler::WriteMessageAndRaw( Message *toWrite, Message *&sign )
   {
-    // once we can add 'GetMessageBody' to OutgoingMsghandler
-    // interface we can get rid of the ugly dynamic_cast
-    static XRootDMsgHandler *xrdHandler = 0;
     ChunkList *chunks = 0;
     uint32_t  *asyncOffset = 0;
 
     if( pOutHandler->IsRaw() )
     {
-      if( xrdHandler != pOutHandler )
-        xrdHandler = dynamic_cast<XRootDMsgHandler*>( pOutHandler );
-
-      if( !xrdHandler )
-        return Status( stError, errNotSupported );
-
-      chunks = xrdHandler->GetMessageBody( asyncOffset );
+      chunks = pOutHandler->GetMessageBody( asyncOffset );
       Log    *log = DefaultEnv::GetLog();
       log->Dump( AsyncSockMsg, "[%s] Will write the payload in one go with "
                  "the header for message: %s (0x%x).", pStreamName.c_str(),
@@ -594,50 +581,6 @@ namespace XrdCl
     }
 
     return st;
-  }
-
-  Status AsyncSocketHandler::WriteSeparately( Message *toWrite, Message *&sign )
-  {
-    //------------------------------------------------------------------------
-    // Write the message if not already written
-    //------------------------------------------------------------------------
-    Status st;
-    if( !pOutMsgDone )
-    {
-      if( !(st = WriteVMessage( toWrite, sign, 0, 0 )).IsOK() )
-        return st;
-
-      if( st.code == suRetry )
-        return st;
-
-      Log *log = DefaultEnv::GetLog();
-
-      if( pOutHandler && pOutHandler->IsRaw() )
-      {
-        log->Dump( AsyncSockMsg, "[%s] Will call raw handler to write payload "
-                   "for message: %s (0x%x).", pStreamName.c_str(),
-                   pOutgoing->GetDescription().c_str(), pOutgoing );
-      }
-
-      pOutMsgDone = true;
-    }
-
-    //------------------------------------------------------------------------
-    // Check if the handler needs to be called
-    //------------------------------------------------------------------------
-    if( pOutHandler && pOutHandler->IsRaw() )
-    {
-      uint32_t bytesWritten = 0;
-      st = pOutHandler->WriteMessageBody( pSocket->GetFD(), bytesWritten );
-      pOutMsgSize += bytesWritten;
-      if( !st.IsOK() )
-        return st;
-
-      if( st.code == suRetry )
-        return st;
-    }
-
-    return Status();
   }
 
   //----------------------------------------------------------------------------
@@ -962,19 +905,6 @@ namespace XrdCl
     time_t now = time(0);
     if( now > pConnectionStarted+pConnectionTimeout )
       OnFaultWhileHandshaking( Status( stError, errSocketTimeout ) );
-  }
-
-  //------------------------------------------------------------------------
-  // Get signature for given message
-  //------------------------------------------------------------------------
-  Status AsyncSocketHandler::GetSignature( Message *toSign, Message *&sign )
-  {
-    // ideally the 'GetSignature' method should be in  TransportHandler interface
-    // however due to ABI compatibility for the time being this workaround has to
-    // be employed
-    XRootDTransport *xrootdTransport = dynamic_cast<XRootDTransport*>( pTransport );
-    if( !xrootdTransport ) return Status( stError, errNotSupported );
-    return xrootdTransport->GetSignature( toSign, sign, *pChannelData );
   }
 
   //------------------------------------------------------------------------

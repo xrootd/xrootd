@@ -257,6 +257,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual Status GetSignature( Message *toSign, Message *&sign,
                                    AnyObject &channelData );
+      //------------------------------------------------------------------------
+      //! Wait until the program can safely exit
+      //------------------------------------------------------------------------
+      virtual void WaitBeforeExit();
 
     private:
 

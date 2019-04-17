@@ -39,8 +39,7 @@ namespace XrdCl
                                                 AnyObject        *channelData,
                                                 uint16_t          subStreamNum ):
     AsyncSocketHandler( poller, transport, channelData, subStreamNum ),
-    pXrdTransport( dynamic_cast<XRootDTransport*>( transport ) ),
-    pXrdHandler( 0 ),
+    pTransport( transport ),
     pCorked( false ),
     pWrtHdrDone( false ),
     pTlsHSRevert( None ),
@@ -148,20 +147,10 @@ namespace XrdCl
 
     if( pOutHandler->IsRaw() )
     {
-      if( pXrdHandler != pOutHandler )
-      {
-        pXrdHandler = dynamic_cast<XRootDMsgHandler*>( pOutHandler );
-        if( !pXrdHandler )
-        {
-          OnFault( Status( stError, errNotSupported ) );
-          return;
-        }
-      }
-
       if( !pWrtBody )
       {
         uint32_t  *asyncOffset = 0;
-        pWrtBody = pXrdHandler->GetMessageBody( asyncOffset );
+        pWrtBody = pOutHandler->GetMessageBody( asyncOffset );
         pCurrentChunk = pWrtBody->begin();
       }
 
@@ -356,7 +345,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pHeaderDone )
     {
-      st = pXrdTransport->GetHeader( pIncoming, pTls.get() );
+      st = pTransport->GetHeader( pIncoming, pTls.get() );
       OnTlsRead( st );
 
       if( !st.IsOK() )
@@ -386,17 +375,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pIncHandler.first )
     {
-      if( pXrdHandler != pIncHandler.first )
-        pXrdHandler = dynamic_cast<XRootDMsgHandler*>( pIncHandler.first );
-
-      if( !pXrdHandler )
-      {
-        OnFault( Status( stError, errNotSupported ) );
-        return;
-      }
-
       uint32_t bytesRead = 0;
-      st = pXrdHandler->ReadMessageBody( pIncoming, pTls.get(), bytesRead );
+      st = pIncHandler.first->ReadMessageBody( pIncoming, pTls.get(), bytesRead );
       OnTlsRead( st );
 
       if( !st.IsOK() )
@@ -413,7 +393,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else
     {
-      st = pXrdTransport->GetBody( pIncoming, pTls.get() );
+      st = pTransport->GetBody( pIncoming, pTls.get() );
       OnTlsRead( st );
 
       if( !st.IsOK() )
@@ -485,7 +465,7 @@ namespace XrdCl
     Log    *log = DefaultEnv::GetLog();
     if( !pHeaderDone )
     {
-      st = pXrdTransport->GetHeader( toRead, pTls.get() );
+      st = pTransport->GetHeader( toRead, pTls.get() );
       if( st.IsOK() && st.code == suDone )
       {
         log->Dump( AsyncSockMsg,
@@ -497,7 +477,7 @@ namespace XrdCl
         return st;
     }
 
-    st = pXrdTransport->GetBody( toRead, pTls.get() );
+    st = pTransport->GetBody( toRead, pTls.get() );
     if( st.IsOK() && st.code == suDone )
     {
       log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",

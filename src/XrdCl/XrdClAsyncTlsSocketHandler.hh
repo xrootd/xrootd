@@ -159,8 +159,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
-      XRootDTransport               *pXrdTransport;
-      XRootDMsgHandler              *pXrdHandler;
+      TransportHandler              *pTransport;
       std::unique_ptr<Tls>           pTls;
       bool                           pCorked;
       bool                           pWrtHdrDone;

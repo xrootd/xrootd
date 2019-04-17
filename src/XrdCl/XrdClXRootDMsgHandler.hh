@@ -305,7 +305,7 @@ namespace XrdCl
       //! @param asyncOffset  :  the current async offset
       //! @return             :  the list of chunks
       //------------------------------------------------------------------------
-      ChunkList* GetMessageBody( uint32_t *&asyncOffset )
+      virtual ChunkList* GetMessageBody( uint32_t *&asyncOffset )
       {
         asyncOffset = &pAsyncOffset;
         return pChunkList;

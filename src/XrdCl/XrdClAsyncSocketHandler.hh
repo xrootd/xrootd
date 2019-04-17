@@ -165,10 +165,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual void OnWriteWhileHandshaking();
 
-
+      //------------------------------------------------------------------------
+      // Write the message and it's signature in one go with writev
+      //------------------------------------------------------------------------
       Status WriteMessageAndRaw( Message *toWrite, Message *&sign );
-
-      Status WriteSeparately( Message *toWrite, Message *&sign );
 
       //------------------------------------------------------------------------
       // Write the current message
@@ -227,11 +227,6 @@ namespace XrdCl
       // Handle timeout event while handshaking
       //------------------------------------------------------------------------
       void OnTimeoutWhileHandshaking();
-
-      //------------------------------------------------------------------------
-      // Get signature for given message
-      //------------------------------------------------------------------------
-      Status GetSignature( Message *toSign, Message *&sign );
 
       //------------------------------------------------------------------------
       // Initialize the iovec with given message
