@@ -64,6 +64,10 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+#ifndef O_DIRECT
+#define O_DIRECT 0
+#endif
+
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/
