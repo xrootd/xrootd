@@ -181,6 +181,8 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
 {
     int open_result;
     while (1) {
+        int orig_ucap = fh.error.getUCap();
+        fh.error.setUCap(orig_ucap | XrdOucEI::uIPv64);
         open_result = fh.open(resource.c_str(), mode, openMode, &sec,
                               authz.empty() ? NULL: authz.c_str());
         if ((open_result == SFS_STALL) || (open_result == SFS_STARTED)) {
