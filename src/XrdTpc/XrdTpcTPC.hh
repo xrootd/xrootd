@@ -31,7 +31,7 @@ private:
 
     static std::string GetAuthz(XrdHttpExtReq &req);
 
-    int RedirectTransfer(XrdHttpExtReq &req, XrdOucErrInfo &error);
+    int RedirectTransfer(const std::string &redirect_resource, XrdHttpExtReq &req, XrdOucErrInfo &error);
 
     int OpenWaitStall(XrdSfsFile &fh, const std::string &resource, int mode,
                       int openMode, const XrdSecEntity &sec,
