@@ -84,6 +84,7 @@ verb(req->requestverb), headers(req->allheaders) {
   int envlen = 0;
   
   headers["xrd-http-query"] = req->opaque?req->opaque->Env(envlen):"";
+  headers["xrd-http-fullresource"] = req->resourceplusopaque.c_str();
   headers["xrd-http-prot"] = prot->isHTTPS()?"https":"http";
   
   // These fields usually identify the client that connected
