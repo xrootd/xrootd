@@ -83,7 +83,7 @@ namespace
    std::string dsProperty("DataServer");
    XrdSsiMutex sidMutex;
 
-   Atomic(uint32_t) sidVal = 0;
+   Atomic(uint32_t) sidVal(0);
 }
 
 /******************************************************************************/
