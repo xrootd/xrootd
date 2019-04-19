@@ -28,7 +28,10 @@
 /******************************************************************************/
 
 #include "XrdSsi/XrdSsiEvent.hh"
+#include "XrdSsi/XrdSsiTrace.hh"
 #include "Xrd/XrdScheduler.hh"
+
+using namespace XrdSsi;
 
 /******************************************************************************/
 /*                     S t a t i c s   &   G l o b a l s                      */
@@ -52,7 +55,13 @@ extern XrdScheduler *schedP;
   
 void XrdSsiEvent::AddEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp)
 {
+   EPNAME("AddEvent");
    XrdSsiMutexMon monMutex(evMutex);
+
+// Indicate there is pending event here
+//
+   DEBUG("Add event; isClear=" <<isClear <<" running=" <<running);
+   isClear = false;
 
 // If the base object has no status then we need to set it and schedule
 // ourselves for processing if not already running.
@@ -93,6 +102,7 @@ void XrdSsiEvent::AddEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp)
   
 void XrdSsiEvent::ClrEvent(XrdSsiEvent::EventData *fdP)
 {
+   EPNAME("ClrEvent");
    EventData *xdP, *edP = fdP;
 
 // This method may be safely called on a undeleted EventData object even if
@@ -120,11 +130,14 @@ void XrdSsiEvent::ClrEvent(XrdSsiEvent::EventData *fdP)
    if (fdP->response) {delete fdP->response; fdP->response = 0;}
 
 // If we are clearing our events then indicate we are not running. Note that
-// this method is only called when cleaning up so we can't be running
+// this method is only called when cleaning up so we can't be running. We don't
+// trace clears on event copies as they always occur.
 //
    if (fdP == &thisEvent)
-      {lastEvent = 0;
+      {DEBUG("Self running=" <<running);
+       lastEvent = 0;
        running   = false;
+       isClear   = true;
       }
 }
 
@@ -143,6 +156,7 @@ void XrdSsiEvent::DoIt()
    evMutex.Lock();
 do{thisEvent.Move2(myEvent);
    lastEvent = 0;
+   isClear   = true;
    evMutex.UnLock();
    edP = &myEvent;
    while(edP && XeqEvent(edP->status, &edP->response)) {edP = edP->next;}

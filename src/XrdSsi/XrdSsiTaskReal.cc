@@ -65,8 +65,6 @@ XrdSsiSessReal voidSession(0, "voidSession", 0);
 
 std::string pName("ReadRecovery");
 std::string pValue("false");
-
-const char *tident  = 0;
 char        zedData = 0;
 }
 
@@ -145,7 +143,7 @@ bool XrdSsiTaskReal::Ask4Resp()
 
 // Do some debugging
 //
-   DEBUG("Calling fcntl id=" <<tskID);
+   DEBUG("Calling fcntl.");
 
 // Issue the command to field the response
 //
@@ -186,7 +184,7 @@ void XrdSsiTaskReal::Finished(XrdSsiRequest        &rqstR,
 
 // Do some debugging
 //
-   DEBUG("Request="<<&rqstR<<" cancel="<<cancel<<" task="<<this);
+   DEBUG("Request="<<&rqstR<<" cancel="<<cancel);
 
 // We should do an unbind here but that is overkill. All we need to do is
 // clear the pointer to the request object.
@@ -197,7 +195,7 @@ void XrdSsiTaskReal::Finished(XrdSsiRequest        &rqstR,
 // handler will clean things up.
 //
    if (Kill()) sessP->TaskFinished(this);
-      else {DEBUG("Removal deferred; Task="<<this<<" id=" <<tskID);}
+      else {DEBUG("Task removal deferred.");}
 }
 
 /******************************************************************************/
@@ -219,7 +217,7 @@ XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
 //
    response->Get(buffP);
    if (!buffP || !(cdP = buffP->GetBuffer()))
-      {DEBUG("Responding with stream id=" <<tskID);
+      {DEBUG("Responding with stream.");
        return isStream;
       }
 
@@ -237,8 +235,7 @@ XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
    if (mdP->tag == XrdSsiRRInfoAttn::alrtResp)
       {char hexBuff[16],dotBuff[4];
        dbuff = cdP+pxL; dbL = mdL;
-       DEBUG("Posting " <<dbL <<" byte alert (0x" <<DUMPIT(dbuff,dbL)
-             <<"); id=" <<tskID);
+       DEBUG("Posting "<<dbL<<" byte alert (0x"<<DUMPIT(dbuff,dbL)<<")");
        return isAlert;
       }
 
@@ -246,8 +243,7 @@ XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
 //
    if (mdL)
       {char hexBuff[16],dotBuff[4];
-       DEBUG(mdL <<" byte metadata (0x" <<DUMPIT(cdP+pxL,mdL)
-                 <<") set; id=" <<tskID);
+       DEBUG(mdL <<" byte metadata set (0x" <<DUMPIT(cdP+pxL,mdL)<<")");
        SetMetadata(cdP+pxL, mdL);
       }
 
@@ -256,10 +252,10 @@ XrdSsiTaskReal::respType XrdSsiTaskReal::GetResp(XrdCl::AnyObject **respP,
         if (mdP->tag == XrdSsiRRInfoAttn::fullResp)
            {dbuff = (dbL ? cdP+mdL+pxL : &zedData);
             xResp = isData;
-            DEBUG("Responding with data id=" <<tskID);
+            DEBUG("Responding with " <<dbL <<" data bytes.");
            }
    else    {xResp = isStream;
-            DEBUG("Responding with stream id=" <<tskID);
+            DEBUG("Responding with stream.");
            }
 
 // Save the response buffer if we will be referecing it later
@@ -285,8 +281,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 
 // Do some debugging
 //
-   DEBUG("Status="<<statName[tStat]<<" defer=" <<defer<<" mhPend="<<mhPend
-         <<" id=" <<tskID);
+   DEBUG("Status="<<statName[tStat]<<" defer=" <<defer<<" mhPend="<<mhPend);
 
 // Regardless of the state, remove this task from the hold queue if there
 //
@@ -322,6 +317,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
    if (tStat == isWrite && mhPend)
       {XrdSysSemaphore wSem(0);
        wPost = &wSem;
+       DEBUG("Waiting for write event.");
        sessP->UnLock();
        wSem.Wait();
        sessP->Lock();
@@ -332,7 +328,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 // that, for now, we ignore any errors as we don't have a recovery plan.
 //
    rInfo.Id(tskID); rInfo.Cmd(XrdSsiRRInfo::Can);
-   DEBUG("Sending cancel request id=" <<tskID);
+   DEBUG("Sending cancel request.");
    XrdCl::XRootDStatus Status = sessP->epFile.Truncate(rInfo.Info(), tmOut);
 
 
@@ -340,6 +336,7 @@ bool XrdSsiTaskReal::Kill() // Called with session mutex locked!
 // the message handler will dispose of the task.
 //
    tStat = isDead;
+   DEBUG("Returning " <<!(mhPend || defer));
    return !(mhPend || defer);
 }
   
@@ -539,7 +536,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef,
 
 // Check if this is a proper call or we have reached EOF
 //
-   DEBUG("Sync Status=" <<statName[tStat] <<" id=" <<tskID);
+   DEBUG("ReadSync status=" <<statName[tStat]);
    if (tStat != isReady)
       {if (tStat == isDone) return 0;
        eRef.Set("Stream is not active", ENODEV);
@@ -555,6 +552,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef,
    epStatus = sessP->epFile.Read(rrInfo.Info(),(uint32_t)blen,buff,ubRead,tmOut);
    if (epStatus.IsOK())
       {if (ibRead < blen) {tStat = isDone; last = true;}
+       DEBUG("ReadSync returning " <<ibRead <<" bytes.");
        return ibRead;
       }
 
@@ -562,7 +560,7 @@ int XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef,
 //
    XrdSsiUtils::SetErr(epStatus, eRef);
    tStat = isDone;
-   DEBUG("Task Sync SetBuff error id=" <<tskID);
+   DEBUG("ReadSync error; " <<epStatus.ToStr());
    return -1;
 }
 
@@ -577,7 +575,7 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen)
 
 // Check if this is a proper call or we have reached EOF
 //
-   DEBUG("Async Status=" <<statName[tStat] <<" id=" <<tskID);
+   DEBUG("ReadAsync Status=" <<statName[tStat]);
    if (tStat != isReady)
       {eRef.Set("Stream is not active", ENODEV);
        return false;
@@ -615,7 +613,7 @@ bool XrdSsiTaskReal::SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen)
 //
    XrdSsiUtils::SetErr(epStatus, eRef);
    tStat = isDone;
-   DEBUG("Task Async SetBuff error id=" <<tskID);
+   DEBUG("ReadAsync error; " <<epStatus.ToStr());
    return false;
 }
 
@@ -634,7 +632,7 @@ bool XrdSsiTaskReal::XeqEnd(bool getLock)
 // Check if finished has been called while we were defered
 //
    if (tStat == isDead)
-      {DEBUG("Task Handler calling TaskFinished.");
+      {DEBUG("Calling TaskFinished; mhPend="<<mhPend<<" defer="<<defer);
        sessP->UnLock();
        sessP->TaskFinished(this);
        return false;
@@ -674,19 +672,19 @@ bool XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 
 // Do some debugging
 //
-   DEBUG(" sess="<<(sessP==&voidSession?"no":"ok") <<" id=" <<tskID
-              <<" aOK="<<aOK<<' '<<statName[tStat]
-              <<" clrT=" <<Xrd::hex <<myCaller
-              <<" xeqT=" <<pthread_self() <<Xrd::dec);
+   DEBUG(" aOK="<<aOK<<" status="<<statName[tStat]);
 
 // Affect proper response
 //
    switch(tStat)
          {case isWrite:
                if (!aOK) return RespErr(status); // Unlocks the mutex!
-               DEBUG("Write complete id=" <<tskID);
-               if (wPost) {wPost->Post(); wPost = 0;}
-                  else {DEBUG("Calling RelBuff id=" <<tskID);
+               DEBUG("Write completed.");
+               if (wPost)
+                  {DEBUG("Posting killer.");
+                   wPost->Post(); wPost = 0;
+                  }
+                  else {DEBUG("Calling RelBuff.");
                         ReleaseRequestBuffer();
                         if (tStat == isWrite) return Ask4Resp();
                        }

@@ -238,7 +238,7 @@ void XrdSsiServReal::ProcessRequest(XrdSsiRequest  &reqRef,
 void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj, bool reuse)
 {
    EPNAME("Recycle");
-   static const char *tident = "ServRecycle";
+   static const char *tident = 0;
    const char *resKey;
 
 // Clear all pending events (likely not needed)
@@ -253,7 +253,8 @@ void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj, bool reuse)
 //
    myMutex.Lock();
    actvSes--;
-   DEBUG("reuse=" <<reuse <<"; sessions: free=" <<freeCnt <<" active=" <<actvSes);
+   DEBUG("Sess " <<sObj->GetSID() <<"# reuse=" <<reuse <<" free=" <<freeCnt
+                <<" active=" <<actvSes);
    if (!reuse || freeCnt >= freeMax) {myMutex.UnLock(); delete sObj;}
       else {sObj->nextSess = freeSes;
             freeSes = sObj;

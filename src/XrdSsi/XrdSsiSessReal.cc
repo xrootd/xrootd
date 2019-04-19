@@ -81,7 +81,9 @@ using namespace XrdSsi;
 namespace
 {
    std::string dsProperty("DataServer");
-   const char *tident = 0;
+   XrdSsiMutex sidMutex;
+
+   Atomic(uint32_t) sidVal = 0;
 }
 
 /******************************************************************************/
@@ -139,8 +141,9 @@ XrdSsiSessReal::~XrdSsiSessReal()
 /******************************************************************************/
   
 void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
-                                 int uent, bool hold)
+                                 int uent, bool hold, bool newSID)
 {
+   EPNAME("InitSession");
    requestP  = 0;
    uEnt      = uent;
    attBase   = 0;
@@ -156,6 +159,17 @@ void XrdSsiSessReal::InitSession(XrdSsiServReal *servP, const char *sName,
    sessName  = (sName ? strdup(sName) : 0);
    if (sessNode) free(sessNode);
    sessNode  = 0;
+   if (newSID)
+      {if (servP == 0) sessID = 0xffffffff;
+          else {Atomic_BEG(sidMutex);
+                sessID = Atomic_INC(sidVal);
+                Atomic_END(sidMutex);
+                snprintf(tident, sizeof(tident), "S %u#", sessID);
+                DEBUG("new sess for "<<sName<<" uent="<<uent<<" hold="<<hold);
+               }
+      } else {
+       DEBUG("reuse sess for "<<sName<<" uent="<<uent<<" hold="<<hold);
+      }
 }
 
 /******************************************************************************/
@@ -179,17 +193,17 @@ XrdSsiTaskReal *XrdSsiSessReal::NewTask(XrdSsiRequest *reqP)
             alocLeft--;
            }
 
-// We always set a new task ID to avoid ID collisions. his is good for over
+// We always set a new task ID to avoid ID collisions. This is good for over
 // 194 days if we have 1 request/second. In practice. this will work for a
 // couple of years before wrapping. By then the ID's should be free.
 //
-   tP->SetTaskID(nextTID++);
+   tP->SetTaskID(nextTID++, sessID);
    nextTID &= XrdSsiRRInfo::idMax;
 
 // Initialize the task and return its pointer
 //
    tP->Init(reqP, reqP->GetTimeOut());
-   DEBUG("Task=" <<tP <<" processing id=" <<nextTID-1);
+   DEBUG("New task=" <<tP <<" id=" <<tP->ID());
 
 // Insert the task into our list of tasks
 //
@@ -250,12 +264,13 @@ void XrdSsiSessReal::RelTask(XrdSsiTaskReal *tP) // sessMutex locked!
 
 // Do some debugging here
 //
-   DEBUG((isHeld ? "Recycling" : "Deleting")<<" task="<<tP<<" id=" <<tP->ID());
+   DEBUG((isHeld ? "Recycling":"Deleting")<<" task="<<tP<<" id=" <<tP->ID());
 
 // Delete this task or place it on the free list
 //
    if (!isHeld) delete tP;
-      else {tP->attList.next = freeTask;
+      else {tP->ClrEvent();
+            tP->attList.next = freeTask;
             freeTask = tP;
            }
 }
@@ -336,10 +351,6 @@ void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
    if (tP == attBase || tP->attList.next != tP)
       {REMOVE(attBase, attList, tP);}
 
-// Clear any pending task events and decrease active count
-//
-   tP->ClrEvent();
-
 // Return the request entry number
 //
    XrdSsi::sidScale.retEnt(uEnt);
@@ -385,7 +396,6 @@ void XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
 // Clear any pending events
 //
    DEBUG("Closing " <<sessName);
-   ClrEvent();
 
 // If the file is not open (it might be due to an open error) then do a
 // shutdown right away. Otherwise, try to close if successful the event

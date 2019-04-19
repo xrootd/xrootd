@@ -45,20 +45,18 @@ virtual void DoIt();
 
 virtual void HandleResponse(XrdCl::XRootDStatus *status,
                             XrdCl::AnyObject *response)
-                           {myCaller = pthread_self();
-                            AddEvent(status, response);
-                           }
+                           {AddEvent(status, response);}
 
 virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject **resp) = 0;
 
-             XrdSsiEvent(const char *hName="") : XrdJob(hName),  lastEvent(0),
-                                                 running(false)
-                                                 {}
+             XrdSsiEvent() : XrdJob(tident),  lastEvent(0),
+                             running(false),  isClear(true)
+                             {*tident = 0;}
 
-            ~XrdSsiEvent() {ClrEvent();}
-
+            ~XrdSsiEvent() {if (!isClear) ClrEvent(&thisEvent);}
 protected:
-pthread_t     myCaller;
+
+char   tident[24]; //"c %u#%u" with %u max 10 digits
 
 private:
 struct EventData
@@ -82,6 +80,7 @@ XrdSsiMutex   evMutex;
 EventData     thisEvent;
 EventData    *lastEvent;
 bool          running;
+bool          isClear;
 static
 EventData    *freeEvent;
 };

@@ -49,10 +49,13 @@ XrdSsiSessReal  *nextSess;
 
 const char      *GetKey() {return resKey;}
 
+uint32_t         GetSID() {return sessID;}
+
         void     InitSession(XrdSsiServReal *servP,
                              const char     *sName,
                              int             uent,
-                             bool            hold);
+                             bool            hold,
+                             bool            newSID=false);
 
         void     Lock() {sessMutex.Lock();}
 
@@ -82,10 +85,9 @@ XrdSsiMutex     *MutexP() {return &sessMutex;}
                                 const char     *sName,
                                 int             uent,
                                 bool            hold=false)
-                               : XrdSsiEvent("SessReal"),
-                                 sessMutex(XrdSsiMutex::Recursive),
+                               : sessMutex(XrdSsiMutex::Recursive),
                                  resKey(0), sessName(0), sessNode(0)
-                                 {InitSession(servP, sName, uent, hold);}
+                                 {InitSession(servP, sName, uent, hold, true);}
 
                 ~XrdSsiSessReal();
 
@@ -104,6 +106,7 @@ XrdSsiRequest   *requestP;
 char            *resKey;
 char            *sessName;
 char            *sessNode;
+uint32_t         sessID;
 uint32_t         nextTID;
 uint32_t         alocLeft;
 int16_t          uEnt;     // User index for scaling

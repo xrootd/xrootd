@@ -29,6 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdio.h>
+
 #include "XrdSsi/XrdSsiErrInfo.hh"
 #include "XrdSsi/XrdSsiEvent.hh"
 #include "XrdSsi/XrdSsiPacer.hh"
@@ -83,13 +85,15 @@ int    SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen, bool &last);
 
 bool   SetBuff(XrdSsiErrInfo &eRef, char *buff, int blen);
 
-void   SetTaskID(uint32_t tid) {tskID = tid;}
+void   SetTaskID(uint32_t tid, uint32_t sid)
+                {tskID = tid;
+                 snprintf(tident, sizeof(tident), "T %u#%u", sid, tid);
+                }
 
 bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
 
        XrdSsiTaskReal(XrdSsiSessReal *sP)
-                     : XrdSsiEvent("TaskReal"),
-                       XrdSsiStream(XrdSsiStream::isPassive),
+                     : XrdSsiStream(XrdSsiStream::isPassive),
                        sessP(sP), mdResp(0), wPost(0), tskID(0),
                        mhPend(false), defer(false)
                     {}
