@@ -453,7 +453,8 @@ void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
    if (Parms.Grab   <  0) errMon = Parms.Grab;
    if (Parms.xEcho  >= 0) doEcho = Parms.xEcho != 0;
    if (Parms.autoRM >= 0) autoRM = Parms.autoRM != 0;
-                          noids  = Parms.oidsOK == 0;
+
+   noids  = Parms.oidsOK == 0;
 
 // Record all delegated auths
 //
