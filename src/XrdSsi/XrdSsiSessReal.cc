@@ -342,26 +342,37 @@ void XrdSsiSessReal::Shutdown(XrdCl::XRootDStatus &epStatus, bool onClose)
   
 void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
 {
+   EPNAME("TaskFin");
 // Lock our mutex
 //
    sessMutex.Lock();
 
-// Remove task from the task list if it's in it
+// Remove task from the task list if it's in it and release the task object.
 //
    if (tP == attBase || tP->attList.next != tP)
       {REMOVE(attBase, attList, tP);}
+   RelTask(tP);
 
 // Return the request entry number
 //
    XrdSsi::sidScale.retEnt(uEnt);
 
-// Place the task on the free list. If we can shutdown, then unprovision which
-// will drive a shutdown. The returns without the sessMutex, otherwise we must
+// If we are waiting for a provision to finish, simply exit as the event
+// handler will notice that there is no task and will unprovision. Otherwise
+//
+
+
+// if we can shutdown, then unprovision which will drive a shutdown. Note
+// that Unprovision() returns without the sessMutex, otherwise we must
 // unlock it before we return.
 //
-   RelTask(tP);
-   if (!isHeld && !attBase) Unprovision();
-      else sessMutex.UnLock();
+   if (!inOpen)
+      {if (!isHeld && !attBase) Unprovision();
+          else sessMutex.UnLock();
+      } else {
+       DEBUG("Unprovision deferred for " <<sessName);
+       sessMutex.UnLock();
+      }
 }
 
 /******************************************************************************/
