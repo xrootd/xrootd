@@ -1878,10 +1878,11 @@ namespace XrdCl
           pUrl.GetLocation() != pLoadBalancer.url.GetLocation() &&
           (status.errNo == kXR_FSError || status.errNo == kXR_IOError ||
           status.errNo == kXR_ServerError || status.errNo == kXR_NotFound ||
+          status.errNo == kXR_Overloaded ||
           ( ( pLoadBalancer.flags & kXR_attrMeta ) && status.errNo == kXR_NotAuthorized ) ) )
       {
         UpdateTriedCGI(status.errNo);
-        if( status.errNo == kXR_NotFound )
+        if( status.errNo == kXR_NotFound || status.errNo == kXR_Overloaded )
           SwitchOnRefreshFlag();
         HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRetry ) );
         delete pResponse;
