@@ -132,6 +132,7 @@ namespace XrdCl
         pHasSessionId( false ),
         pChunkList( 0 ),
         pRedirectCounter( 0 ),
+        pNotAuthorizedCounter( 0 ),
 
         pAsyncOffset( 0 ),
         pAsyncReadSize( 0 ),
@@ -470,7 +471,7 @@ namespace XrdCl
       //! @param   reuqest : the request in question
       //! @return          : true if yes, false if no
       //------------------------------------------------------------------------
-      bool IsRetryable( Message *request );
+      bool IsRetriable( Message *request );
 
       //------------------------------------------------------------------------
       //! Check if for given request and Metalink redirector  it is OK to omit
@@ -481,6 +482,15 @@ namespace XrdCl
       //! @return          : true if yes, false if no
       //------------------------------------------------------------------------
       bool OmitWait( Message *request, const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Checks if the given error returned by server is retriable.
+      //!
+      //! @param   status  : the status returned by the server
+      //! @return          : true if the load-balancer is a MetaManager and the
+      //!                    error is retriable for MetaManagers
+      //------------------------------------------------------------------------
+      bool RetriableErrorResponse( const Status &status );
 
       //------------------------------------------------------------------------
       //! Dump the redirect-trace-back into the log file
@@ -520,6 +530,7 @@ namespace XrdCl
       ChunkList                      *pChunkList;
       std::vector<ChunkStatus>        pChunkStatus;
       uint16_t                        pRedirectCounter;
+      uint16_t                        pNotAuthorizedCounter;
 
       uint32_t                        pAsyncOffset;
       uint32_t                        pAsyncReadSize;

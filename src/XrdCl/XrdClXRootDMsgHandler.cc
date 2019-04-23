@@ -1874,12 +1874,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( status.code == errErrorResponse )
     {
-      if( pLoadBalancer.url.IsValid() &&
-          pUrl.GetLocation() != pLoadBalancer.url.GetLocation() &&
-          (status.errNo == kXR_FSError || status.errNo == kXR_IOError ||
-          status.errNo == kXR_ServerError || status.errNo == kXR_NotFound ||
-          status.errNo == kXR_Overloaded ||
-          ( ( pLoadBalancer.flags & kXR_attrMeta ) && status.errNo == kXR_NotAuthorized ) ) )
+      if( RetriableErrorResponse( status ) )
       {
         UpdateTriedCGI(status.errNo);
         if( status.errNo == kXR_NotFound || status.errNo == kXR_Overloaded )
@@ -1928,7 +1923,7 @@ namespace XrdCl
     }
     else
     {
-      if( !status.IsFatal() && IsRetryable( pRequest ) )
+      if( !status.IsFatal() && IsRetriable( pRequest ) )
       {
         log->Info( XRootDMsg, "[%s] Retrying request: %s.",
                    pUrl.GetHostId().c_str(),
@@ -2167,7 +2162,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Check if it is OK to retry this request
   //------------------------------------------------------------------------
-  bool XRootDMsgHandler::IsRetryable( Message *request )
+  bool XRootDMsgHandler::IsRetriable( Message *request )
   {
     std::string value;
     DefaultEnv::GetEnv()->GetString( "OpenRecovery", value );
@@ -2225,6 +2220,53 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Checks if the given error returned by server is retriable.
+  //------------------------------------------------------------------------
+  bool XRootDMsgHandler::RetriableErrorResponse( const Status &status )
+  {
+    // we can only retry error response if we have a valid load-balancer and
+    // it is not our current URL
+    if( !( pLoadBalancer.url.IsValid() &&
+           pUrl.GetLocation() != pLoadBalancer.url.GetLocation() ) )
+      return false;
+
+    // following errors are retriable at any load-balancer
+    if( status.errNo == kXR_FSError     || status.errNo == kXR_IOError  ||
+        status.errNo == kXR_ServerError || status.errNo == kXR_NotFound ||
+        status.errNo == kXR_Overloaded  || status.errNo == kXR_NoMemory )
+      return true;
+
+    // check if the load-balancer is a meta-manager, if yes there are
+    // more errors that can be recovered
+    if( !( pLoadBalancer.flags & kXR_attrMeta ) ) return false;
+
+    // those errors are retriable for meta-managers
+    if( status.errNo == kXR_Unsupported || status.errNo == kXR_FileLocked )
+      return true;
+
+    // in case of not-authorized error there is an imposed upper limit
+    // on how many times we can retry this error
+    if( status.errNo == kXR_NotAuthorized )
+    {
+      int limit = DefaultNotAuthorizedRetryLimit;
+      DefaultEnv::GetEnv()->GetInt( "NotAuthorizedRetryLimit", limit );
+      bool ret = pNotAuthorizedCounter < limit;
+      ++pNotAuthorizedCounter;
+      if( !ret )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( XRootDMsg,
+                    "[%s] Reached limit of NotAuthorized retries!",
+                    pUrl.GetHostId().c_str() );
+      }
+      return ret;
+    }
+
+    // otherwise it is a non-retriable error
+    return false;
+  }
+
+  //------------------------------------------------------------------------
   // Dump the redirect-trace-back into the log file
   //------------------------------------------------------------------------
   void XRootDMsgHandler::DumpRedirectTraceBack()
@@ -2248,7 +2290,13 @@ namespace XrdCl
       sstrm << '\t' << counter << ". "
             << (*itr)->ToString( (*prev)->status.IsOK() ) << '\n';
 
-    bool warn = !pStatus.IsOK() && ( pStatus.code == errNotFound || pStatus.code == errRedirectLimit );
+    int authlimit = DefaultNotAuthorizedRetryLimit;
+    DefaultEnv::GetEnv()->GetInt( "NotAuthorizedRetryLimit", authlimit );
+
+    bool warn = !pStatus.IsOK() &&
+              ( pStatus.code == errNotFound ||
+                pStatus.code == errRedirectLimit ||
+                ( pStatus.code == errAuthFailed && pNotAuthorizedCounter >= authlimit ) );
 
     Log *log = DefaultEnv::GetLog();
     if( warn )
