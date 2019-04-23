@@ -527,7 +527,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 //
    if (oflags & isStream)
       {if (XrdPosixObject::CanStream()) Opts |= XrdPosixFile::isStrm;
-          else {errno = EMFILE; return -1;}
+      else {errno = EMFILE; return -1;} //is EMFILE the only correct errno?
       }
 
 // Translate create vs simple open. Always make dirpath on create!
@@ -544,13 +544,15 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // Allocate the new file object
 //
    if (!(fp = new XrdPosixFile(aOK, path, cbP, Opts)))
-      {errno = EMFILE;
+      {// can execution ever reach here?
+       // if it can, is EMFILE correct?
+       errno = EMFILE;
        return -1;
       }
 
 // Check if all went well during allocation
 //
-   if (!aOK) {delete fp; return -1;}
+   if (!aOK) {delete fp; return -1;} //why not set errno here?
 
 // If we have a cache, then issue a prepare as the cache may want to defer the
 // open request ans we have a lot more work to do.

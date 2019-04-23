@@ -95,7 +95,8 @@ XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
    fOpen = strdup(path); aOK = true;
    if (!XrdPosixGlobals::theN2N || !XrdPosixGlobals::theCache) fPath = fOpen;
       else if (!XrdPosixXrootPath::P2L("file",path,fPath)) aOK = false;
-              else if (!fPath) fPath = fOpen;
+              else if (!fPath) fPath = fOpen;   //         ^
+   // Why not set errno ---------- here -------------------|
 
 // Check for structured file check
 //

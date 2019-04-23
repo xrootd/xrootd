@@ -96,7 +96,8 @@ int XrdFfsPosix_mkdir(const char *path, mode_t mode)
 
 int XrdFfsPosix_rmdir(const char *path)
 {
-/* Note: Xrootd returns ENOSYS rather than ENOTEMPTY when a directory is not empty */
+/* TODO: check this */
+/* Note: Xrootd returns ENOTSUP rather than ENOTEMPTY when a directory is not empty */
     return XrdPosixXrootd::Rmdir(path);
 }
 
