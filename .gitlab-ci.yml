@@ -300,10 +300,10 @@ release:cc7-x86_64:
     - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-x86_64
     - cd packaging/
     - git checkout tags/${CI_COMMIT_TAG}
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" -D "dist .el7" 
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" -D "dist .el7" 
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el7" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el7" *.src.rpm
     - cd ..
     - cp packaging/RPMS/*.rpm cc-7-x86_64
     - cp packaging/*src.rpm   cc-7-x86_64
@@ -444,10 +444,10 @@ weekly:slc6:
     - ((a[2]++)) || true
     - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
     - cd packaging/
-    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1"
+    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1" --define "_with_xrdclhttp 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir epel-6/
     - cp packaging/*.src.rpm epel-6
