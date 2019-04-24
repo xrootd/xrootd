@@ -16,7 +16,9 @@ def tmptree(tmpdir):
     return tmpdir
 
 
-def test_local_glob(tmptree):
+@pytest.mark.parametrize("modify", [lambda x: x, lambda x: Path("root://localhost:/") / x])
+def test_glob(tmptree, modify):
+    tmptree = modify(tmptree)
     assert glob.glob(str(tmptree / "not-there")) == norm_glob.glob(str(tmptree / "not-there"))
     assert len(glob.glob(str(tmptree / "not-there"))) == 0
     assert len(glob.glob(str(tmptree / "not-there*"))) == 0
@@ -24,12 +26,7 @@ def test_local_glob(tmptree):
     assert len(glob.glob(str(tmptree / "subdir1" / "*txt"))) == 3
     assert len(glob.glob(str(tmptree / "subdir*" / "*txt"))) == 3
 
-
-def test_xrootd_glob(tmptree):
-    tmptree = Path("root://localhost:") / tmptree
-    assert glob.glob(str(tmptree / "not-there")) == norm_glob.glob(str(tmptree / "not-there"))
-    assert len(glob.glob(str(tmptree / "not-there"))) == 0
-    assert len(glob.glob(str(tmptree / "not-there*"))) == 0
-    assert len(glob.glob(str(tmptree / "sub*"))) == 2
-    assert len(glob.glob(str(tmptree / "subdir1" / "*txt"))) == 3
-    assert len(glob.glob(str(tmptree / "subdir*" / "*txt"))) == 3
+    with pytest.raises(RuntimeError) as excinfo:
+        glob.glob(str(tmptree / "not-there"), raise_error=True)
+    assert "[ERROR]" in str(excinfo.value)
+    assert str(tmptree) in str(excinfo.value)
