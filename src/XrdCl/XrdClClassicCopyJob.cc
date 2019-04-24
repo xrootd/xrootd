@@ -1507,10 +1507,12 @@ namespace XrdCl
         return st;
 
       processed += chunkInfo.length;
-      if( progress ) progress->JobProgress( pJobId, processed, size );
-
-      if( progress->ShouldCancel( pJobId ) )
-        return XRootDStatus( stError, errOperationInterrupted, kXR_Cancelled, "The copy-job has been cancelled!" );
+      if( progress )
+      {
+        progress->JobProgress( pJobId, processed, size );
+        if( progress->ShouldCancel( pJobId ) )
+          return XRootDStatus( stError, errOperationInterrupted, kXR_Cancelled, "The copy-job has been cancelled!" );
+      }
     }
 
     st = dest->Flush();
