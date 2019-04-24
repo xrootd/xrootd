@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
+from .glob_funcs import glob, iglob
 from .filesystem import FileSystem as FileSystem
 from .file import File as File
 from .url import URL as URL
