@@ -17,6 +17,7 @@ def tmptree(tmpdir):
 
 
 def test_local_glob(tmptree):
+    assert glob.glob(str(tmptree / "not-there")) == norm_glob.glob(str(tmptree / "not-there"))
     assert len(glob.glob(str(tmptree / "not-there"))) == 0
     assert len(glob.glob(str(tmptree / "not-there*"))) == 0
     assert len(glob.glob(str(tmptree / "sub*"))) == 2
