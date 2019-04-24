@@ -45,17 +45,17 @@ def split_url(url):
     return domain, path
 
 
-def glob(pathname):
+def glob(pathname, raise_error=False):
     # Let normal python glob try first
     try_glob = gl.glob(pathname)
     if try_glob:
         return try_glob
 
     # Else try xrootd instead
-    return xrootd_glob(pathname)
+    return xrootd_glob(pathname, raise_error=raise_error)
 
 
-def xrootd_glob(pathname):
+def xrootd_glob(pathname, raise_error):
     # Split the pathname into a directory and basename
     dirs, basename = os.path.split(pathname)
 
@@ -74,7 +74,9 @@ def xrootd_glob(pathname):
 
         status, dirlist = query.dirlist(path)
         if status.error:
-            continue
+            if not raise_error:
+                continue
+            raise RuntimeError("'{!s}' for path '{}'".format(status, dirname))
 
         for entry in dirlist.dirlist:
             filename = entry.name
