@@ -1648,7 +1648,7 @@ int XrdCmsConfig::xdfs(XrdSysError *eDest, XrdOucStream &CFile)
 {
     int Opts = XrdCmsBaseFS::DFSys | (isProxy ? XrdCmsBaseFS::Immed : 0)
              | (!isManager && isServer ? XrdCmsBaseFS::Servr: 0);
-    int Hold = 0, limCent = 0, limFix = 0, limV = 0, qMax = 0, rTry = 0;
+    int Hold = 0, limCent = 0, limFix = 0, limV = 0, qMax = 0, rTry = -1;
     char *val;
 
 // If we are a meta-manager or a peer, ignore this option
