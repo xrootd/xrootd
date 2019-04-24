@@ -413,10 +413,10 @@ weekly:cc7:
     - ((a[2]++)) || true
     - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
     - cd packaging/
-    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1"
+    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1" --define "_with_xrdclhttp 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir epel-7/
     - cp packaging/*.src.rpm epel-7
@@ -444,10 +444,10 @@ weekly:slc6:
     - ((a[2]++)) || true
     - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
     - cd packaging/
-    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1" --define "_with_xrdclhttp 1"
+    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1"
     - yum-builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir epel-6/
     - cp packaging/*.src.rpm epel-6
