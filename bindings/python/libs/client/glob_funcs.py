@@ -51,10 +51,6 @@ def glob(pathname):
     if try_glob:
         return try_glob
 
-    # If pathname does not contain a wildcard:
-    if not gl.has_magic(pathname):
-        return [pathname]
-
     # Else try xrootd instead
     return xrootd_glob(pathname)
 
@@ -76,7 +72,10 @@ def xrootd_glob(pathname):
         if not query:
             raise RuntimeError("Cannot prepare xrootd query")
 
-        _, dirlist = query.dirlist(path)
+        status, dirlist = query.dirlist(path)
+        if status.error:
+            continue
+
         for entry in dirlist.dirlist:
             filename = entry.name
             if filename in [".", ".."]:
