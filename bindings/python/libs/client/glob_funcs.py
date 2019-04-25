@@ -45,26 +45,49 @@ def split_url(url):
     return domain, path
 
 
-def glob(pathname, raise_error=False):
+def iglob(pathname, raise_error=False):
+    """
+    Generates paths based on a wild-carded path, potentially via xrootd.
+
+    Multiple wild-cards can be present in the path.
+
+    Args:
+      pathname (str):  The wild-carded path to be expanded.
+      raise_error (bool):  Whether or not to let xrootd raise an error if
+          there's a problem.  If False (default), and there's a problem for a
+          particular directory or file, then that will simply be skipped,
+          likely resulting in an empty list.
+
+    Yields:
+      (str): A single path that matches the wild-carded string
+    """
     # Let normal python glob try first
-    try_glob = gl.glob(pathname)
-    if try_glob:
-        return try_glob
+    generator = gl.iglob(pathname)
+    path = next(generator, None)
+    if path is not None:
+        yield path
+        for path in generator:
+            yield path
+        return
 
     # Else try xrootd instead
-    return xrootd_glob(pathname, raise_error=raise_error)
+    for path in xrootd_iglob(pathname, raise_error=raise_error):
+        yield path
 
 
-def xrootd_glob(pathname, raise_error):
+def xrootd_iglob(pathname, raise_error):
+    """Handles the actual interaction with xrootd
+
+    Provides a python generator over files that match the wild-card expression.
+    """
     # Split the pathname into a directory and basename
     dirs, basename = os.path.split(pathname)
 
     if gl.has_magic(dirs):
-        dirs = xrootd_glob(dirs)
+        dirs = list(xrootd_iglob(dirs, raise_error))
     else:
         dirs = [dirs]
 
-    files = []
     for dirname in dirs:
         host, path = split_url(dirname)
         query = FileSystem(host)
@@ -84,11 +107,23 @@ def xrootd_glob(pathname, raise_error):
                 continue
             if not fnmatch.fnmatchcase(filename, basename):
                 continue
-            files.append(os.path.join(dirname, filename))
-
-    return files
+            yield os.path.join(dirname, filename)
 
 
-def iglob(pathname):
-    for name in glob(pathname):
-        yield name
+def glob(pathname, raise_error=False):
+    """
+    Creates a list of paths that match pathname.
+
+    Multiple wild-cards can be present in the path.
+
+    Args:
+      pathname (str):  The wild-carded path to be expanded.
+      raise_error (bool):  Whether or not to let xrootd raise an error if
+          there's a problem.  If False (default), and there's a problem for a
+          particular directory or file, then that will simply be skipped,
+          likely resulting in an empty list.
+
+    Returns:
+      (str): A single path that matches the wild-carded string
+    """
+    return list(iglob(pathname, raise_error=raise_error))
