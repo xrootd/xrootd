@@ -82,6 +82,7 @@ int         SUPDelay;     // Maximum delay when server count falls below min
 int         SUSDelay;     // Maximum delay when suspended
 int         MaxLoad;      // Maximum load
 int         MaxDelay;     // Maximum load delay
+int         MaxRetries;   // Maximum number of non-DFS select retries
 int         MsgTTL;       // Maximum msg lifetime
 int         RefReset;     // Min seconds    before a global ref count reset
 int         RefTurn;      // Min references before a global ref count reset
@@ -107,7 +108,7 @@ int         P_pag;        // % PAG Capacity in load factor
 char        DoMWChk;      // When true (default) perform multiple write check
 char        DoHnTry;      // When true (default) use hostnames for try redirs
 char        nbSQ;         // Non-blocking send queue handling option
-char        Rsvd;         // Reserved for alignment
+char        MultiSrc;     // Allow retries via 'tried=' and 'cms.sadd' cgi
 
 int         DiskMin;      // Minimum MB needed of space in a partition
 int         DiskHWM;      // Minimum MB needed of space to requalify

@@ -1022,6 +1022,64 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 }
   
 /******************************************************************************/
+/*                           d o _ S e l A v o i d                            */
+/******************************************************************************/
+
+int XrdCmsNode::do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel, char *Avoid)
+{
+   XrdNetAddr avoidAddr;
+   char *Comma;
+   int avNum = 0;
+
+// Process the avoid list
+//
+   Sel.InfoP = 0;
+   do {if ((Comma = index(Avoid,','))) *Comma = '\0';
+       if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
+          else if (!avoidAddr.Set(Avoid,0))
+                          Sel.nmask |= Cluster.getMask(&avoidAddr);
+       Avoid = Comma+1; avNum++;
+      } while(Comma && *Avoid);
+
+// Check why we have an avoid list. For dfs style clusters, the limits on
+// selections are handled by the basefs object.
+//
+   if (baseFS.isDFS())
+      {if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL)
+          Sel.Opts |= XrdCmsSelect::NoTryLim;
+       return 0;
+      }
+
+// This is a standard cluster, check if client is expanding the server base
+// and whether or not this is allowed in this cluster.
+//
+   if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL)
+      {if (!Config.MultiSrc)
+         {static const char *msrcmsg =
+                 "Cluster does not support multi-source access.";
+          static int msrclen = strlen(msrcmsg)+1;
+          strncpy(Sel.Resp.Data, msrcmsg, sizeof(Sel.Resp.Data));
+          Sel.Resp.DLen = msrclen;
+          return -1;
+         }
+      }
+
+// Check if we exceeded the retry count
+//
+   if (avNum > Config.MaxRetries)
+      {static const char *mtrymsg = "Cluster retry limit exceeded.";
+       static int mtrylen = strlen(mtrymsg)+1;
+       strncpy(Sel.Resp.Data, mtrymsg, sizeof(Sel.Resp.Data));
+       Sel.Resp.DLen = mtrylen;
+       return -1;
+      }
+
+// We suceeded, indicate selection can proceed.
+//
+   return 0;
+}
+  
+/******************************************************************************/
 /*                             d o _ S e l e c t                              */
 /******************************************************************************/
   
@@ -1036,7 +1094,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
    XrdCmsRRQInfo reqInfo(Instance,RSlot,Arg.Request.streamid,Config.QryMinum);
    XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.Path, Arg.PathLen-1);
    struct iovec ioV[2];
-   char theopts[16], *Avoid, *toP = theopts;
+   char theopts[16], *toP = theopts;
    XrdNetIF::ifType ifType;
    int rc, bytes;
 
@@ -1099,24 +1157,12 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 // Check if an avoid node present. If so, this is ineligible for fast redirect.
 //
    Sel.nmask = SMask_t(0);
-   if ((Avoid = Arg.Avoid))
-      {XrdNetAddr avoidAddr;
-       char *Comma;
-       DEBUGR(theopts <<' ' <<Arg.Path <<" avoiding " <<Avoid);
-       if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL)
-          Sel.Opts |= XrdCmsSelect::NoTryLim;
-       Sel.InfoP = 0;
-       do {if ((Comma = index(Avoid,','))) *Comma = '\0';
-           if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
-              else if (!avoidAddr.Set(Avoid,0))
-                              Sel.nmask |= Cluster.getMask(&avoidAddr);
-           Avoid = Comma+1;
-          } while(Comma && *Avoid);
-      } else DEBUGR(theopts <<' ' <<Arg.Path);
+   if (Arg.Avoid) rc = do_SelAvoid(Arg, Sel, Arg.Avoid);
+      else rc = 0;
 
 // Perform selection
 //
-   if ((rc = Cluster.Select(Sel)))
+   if (rc || (rc = Cluster.Select(Sel)))
       {if (rc > 0)
           {Arg.Request.rrCode = kYR_wait;
            Sel.Resp.Port      = rc;

@@ -666,7 +666,9 @@ void XrdCmsConfig::ConfigDefaults(void)
    SUPDelay = 15;
    SUSDelay = 30;
    MaxLoad  = 0x7fffffff;
+   MaxRetries= 0x7fffffff;
    MsgTTL   = 7;
+   MultiSrc = 1;
    PortTCP  = 0;
    PortSUP  = 0;
    P_cpu    = 0;
@@ -2645,6 +2647,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
                                        [io <p>] [runq <p>]
                                        [mem <p>] [pag <p>] [space <p>]
                                        [fuzz <p>] [maxload <p>] [refreset <sec>]
+                                       [maxretries <n>] [[no]multisrc]
                 [affinity [default] {none | weak | strong | strict}]
 
              <p>      is the percentage to include in the load as a value
@@ -2679,17 +2682,32 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"pag",      100, &P_pag},
         {"space",    100, &P_dsk},
         {"maxload",  100, &MaxLoad},
+        {"maxtries",4096, &MaxRetries},
         {"refreset", -1,  &RefReset},
         {"affinity", -2,  0},
         {"tryhname",   1, &V_hntry}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
 
+    static struct keywdopts {const char *opname; int xval; char *oploc;}
+           kwopts[] =
+       {
+        {"nomultisrc", 0, &MultiSrc},
+        {"multisrc",   1, &MultiSrc}
+       };
+    int kwnopts = sizeof(kwopts)/sizeof(struct keywdopts);
+
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "sched option not specified"); return 1;}
 
     while (val)
-          {for (i = 0; i < numopts; i++)
+          {for (i = 0; i < kwnopts; i++)
+               if (!strcmp(val, kwopts[i].opname))
+                  {*kwopts[i].oploc = kwopts[i].xval;
+                   val = CFile.GetWord();
+                   continue;
+                  }
+           for (i = 0; i < numopts; i++)
                if (!strcmp(val, scopts[i].opname))
                   {if (!(val = CFile.GetWord()))
                       {eDest->Emsg("Config", "sched ", scopts[i].opname,
