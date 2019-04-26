@@ -33,6 +33,8 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 
+#include "XrdSys/XrdSysPthread.hh"
+
 #include <sys/uio.h>
 
 #include <list>
@@ -127,6 +129,7 @@ namespace XrdCl
         pLFileHandler( lFileHandler ),
         pExpiration( 0 ),
         pRedirectAsAnswer( false ),
+        pOksofarAsAnswer( false ),
         pHosts( 0 ),
         pHasLoadBalancer( false ),
         pHasSessionId( false ),
@@ -157,7 +160,12 @@ namespace XrdCl
 
         pAggregatedWaitTime( 0 ),
 
-        pMsgInFly( false )
+        pMsgInFly( false ),
+
+        pDirListStarted( false ),
+        pDirListWithStat( false ),
+
+        pCV( 0 )
 
       {
         pPostMaster = DefaultEnv::GetPostMaster();
@@ -309,6 +317,15 @@ namespace XrdCl
       void SetRedirectAsAnswer( bool redirectAsAnswer )
       {
         pRedirectAsAnswer = redirectAsAnswer;
+      }
+
+      //------------------------------------------------------------------------
+      //! Treat the kXR_oksofar response as a valid answer to the message
+      //! and notify the handler with the URL as a response
+      //------------------------------------------------------------------------
+      void SetOksofarAsAnswer( bool oksofarAsAnswer )
+      {
+        pOksofarAsAnswer = oksofarAsAnswer;
       }
 
       //------------------------------------------------------------------------
@@ -522,6 +539,7 @@ namespace XrdCl
       Status                          pLastError;
       time_t                          pExpiration;
       bool                            pRedirectAsAnswer;
+      bool                            pOksofarAsAnswer;
       HostList                       *pHosts;
       bool                            pHasLoadBalancer;
       HostInfo                        pLoadBalancer;
@@ -559,6 +577,20 @@ namespace XrdCl
       RedirectTraceBack               pRedirectTraceBack;
 
       bool                            pMsgInFly;
+
+      //------------------------------------------------------------------------
+      // if we are serving chunked data to the user's handler in case of
+      // kXR_dirlist we need to memorize if the response contains stat info or
+      // not (the information is only encoded in the first chunk)
+      //------------------------------------------------------------------------
+      bool                            pDirListStarted;
+      bool                            pDirListWithStat;
+
+      //------------------------------------------------------------------------
+      // synchronization is needed in case the MsgHandler has been configured
+      // to serve kXR_oksofar as a response to the user's handler
+      //------------------------------------------------------------------------
+      XrdSysCondVar                   pCV;
   };
 }
 

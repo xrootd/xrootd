@@ -41,7 +41,8 @@
 #include <sys/stat.h>
 
 #include <memory>
-
+#include <algorithm>
+#include <iterator>
 
 namespace
 {
@@ -473,20 +474,38 @@ namespace
       RecursiveDirListCtx( const XrdCl::URL &url, const std::string &path,
                            XrdCl::DirListFlags::Flags flags,
                            XrdCl::ResponseHandler *handler, time_t expires ) :
-        pending( 1 ), dirList( new XrdCl::DirectoryList() ),
-        expires( expires ), handler( handler ), flags( flags ),
-        fs( new XrdCl::FileSystem( url ) )
+                             finalst( 0 ), pending( 1 ),
+                             dirList( new XrdCl::DirectoryList() ), expires( expires ),
+                             handler( handler ), flags( flags ),
+                             fs( new XrdCl::FileSystem( url ) )
       {
         dirList->SetParentName( path );
       }
 
       ~RecursiveDirListCtx()
       {
+        delete finalst;
         delete dirList;
         delete fs;
       }
 
-      XrdCl::XRootDStatus         status;
+      void UpdateStatus( const XrdCl::XRootDStatus &st )
+      {
+        using namespace XrdCl;
+
+        if( !finalst )
+        {
+          finalst = st.IsOK() ? new XRootDStatus() : new XRootDStatus( st );
+          return;
+        }
+
+        // if they disagree set the status to partial
+        if( ( finalst->IsOK() && !st.IsOK() ) ||
+            ( !finalst->IsOK() && st.IsOK() ) )
+          *finalst = XRootDStatus( stOK, suPartial );
+      }
+
+      XrdCl::XRootDStatus        *finalst;
       int                         pending;
       XrdCl::DirectoryList       *dirList;
       time_t                      expires;
@@ -494,22 +513,6 @@ namespace
       XrdCl::DirListFlags::Flags  flags;
       XrdCl::FileSystem          *fs;
       XrdSysMutex                 mtx;
-  };
-
-  //----------------------------------------------------------------------------
-  // Exception for a recursive dirlist handler
-  //----------------------------------------------------------------------------
-  struct RecDirLsErr
-  {
-      RecDirLsErr() : status( 0 ) { }
-
-      RecDirLsErr( const XrdCl::XRootDStatus &st ) :
-        status( new XrdCl::XRootDStatus( st ) )
-      {
-
-      }
-
-      XrdCl::XRootDStatus *status;
   };
 
   //----------------------------------------------------------------------------
@@ -542,34 +545,23 @@ namespace
       {
         using namespace XrdCl;
 
+        Log *log = DefaultEnv::GetLog();
+        bool finalrsp = !( status->IsOK() && status->code == XrdCl::suContinue );
         XrdSysMutexHelper scoped( pCtx->mtx );
 
-        try
+        // check if we have to continue with the same handler (the response
+        // has been chunked), if not we can decrement the number of pending
+        // DieLists
+        if( finalrsp )
+        --pCtx->pending;
+
+        pCtx->UpdateStatus( *status );
+
+        if( status->IsOK() )
         {
-          // decrement the number of pending DieLists
-          --pCtx->pending;
-
-          // check if the job hasn't failed somewhere else,
-          // if yes we just give up
-          if( !pCtx->status.IsOK() )
-            throw RecDirLsErr();
-
-          // check if we failed, if yes update the global status
-          // for all call-backs and call the user handler
-          if( !status->IsOK() )
-            throw RecDirLsErr( *status );
-
-          // check if we got a response ...
-          if( !response )
-            throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
-
           // get the response
           DirectoryList *dirList = 0;
           response->Get( dirList );
-
-          // check if the response is not empty ...
-          if( !dirList )
-            throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
 
           std::string parent = pCtx->dirList->GetParentName();
 
@@ -579,12 +571,14 @@ namespace
             DirectoryList::ListEntry *entry = *itr;
             StatInfo *info = entry->GetStatInfo();
             if( !info )
-              throw RecDirLsErr( XRootDStatus( stError, errNotSupported ) );
+            {
+              log->Error( FileMsg, "Recursive directory list operation for %s failed: "
+                          "kXR_dirlist with stat operation not supported.",
+                          parent.c_str() );
+              pCtx->UpdateStatus( XRootDStatus( stError, errNotSupported ) );
+              continue;
+            }
             std::string path = dirList->GetParentName() + entry->GetName();
-
-            // check the prefix
-            if( path.find( parent ) != 0 )
-              throw RecDirLsErr( XRootDStatus( stError, errInternal ) );
 
             // add new entry to the result
             path = path.substr( parent.size() );
@@ -611,44 +605,58 @@ namespace
               {
                 timeout = pCtx->expires - ::time( 0 );
                 if( timeout <= 0 )
-                  throw RecDirLsErr( XRootDStatus( stError, errOperationExpired ) );
+                {
+                  log->Error( FileMsg, "Recursive directory list operation for %s expired.",
+                              parent.c_str() );
+                  pCtx->UpdateStatus( XRootDStatus( stError, errOperationExpired ) );
+                  break;
+                }
               }
               // send the request
-              XRootDStatus st = pCtx->fs->DirList( parent + path, flags, handler, timeout );
+              std::string child = parent + path;
+              XRootDStatus st = pCtx->fs->DirList( child, flags, handler, timeout );
               if( !st.IsOK() )
-                throw RecDirLsErr( st );
+              {
+                log->Error( FileMsg, "Recursive directory list operation for %s failed: ",
+                            child.c_str(), st.ToString().c_str() );
+                pCtx->UpdateStatus( st );
+                continue;
+              }
             }
           }
-
-          if( pCtx->pending == 0 )
-          {
-            AnyObject *resp = new AnyObject();
-            resp->Set( pCtx->dirList );
-            pCtx->dirList = 0; // dirList is no longer owned by pCtx
-            pCtx->handler->HandleResponse( new XRootDStatus(), resp );
-          }
         }
-        catch( RecDirLsErr &ex )
+
+        // if there are no more outstanding dirlist queries we can finalize the request
+        if( pCtx->pending == 0 )
         {
-          if( ex.status )
-          {
-            pCtx->status = *ex.status;
-            pCtx->handler->HandleResponse( ex.status, 0 );
-          }
+          AnyObject *resp = new AnyObject();
+          resp->Set( pCtx->dirList );
+          pCtx->dirList = 0; // dirList is no longer owned by pCtx
+          pCtx->handler->HandleResponse( pCtx->finalst, resp );
+          pCtx->finalst = 0; // status is no longer owned by pCtx
+
+          // finalize the common context
+          scoped.UnLock();
+          delete pCtx;
+        }
+        // if the user requested chunked response we give what we have to the user handler
+        else if( status->IsOK() && ( pCtx->flags & DirListFlags::Chunked ) )
+        {
+          std::string parent = pCtx->dirList->GetParentName();
+          AnyObject *resp = new AnyObject();
+          resp->Set( pCtx->dirList );
+          pCtx->dirList = new XrdCl::DirectoryList();
+          pCtx->dirList->SetParentName( parent );
+          pCtx->handler->HandleResponse( new XRootDStatus( stOK, suContinue ), resp );
         }
 
-        // clean up the context if necessary
-        bool delctx = ( pCtx->pending == 0 );
-        scoped.UnLock();
-        if( delctx )
-          delete pCtx;
         // clean up the arguments
         delete status;
         delete response;
-        // and finally commit suicide
-        delete this;
+        // if we wont be continuing with the same handler, it can be deleted
+        if( finalrsp )
+          delete this;
       }
-
 
     private:
 
@@ -686,7 +694,8 @@ namespace
   {
     public:
 
-      MergeDirListHandler( XrdCl::ResponseHandler *handler ) : pHandler( handler )
+      MergeDirListHandler( bool allowChunked, XrdCl::ResponseHandler *handler ) :
+        allowChunked( allowChunked ), pHandler( handler )
       {
 
       }
@@ -694,6 +703,10 @@ namespace
       virtual void HandleResponse( XrdCl::XRootDStatus *status,
                                    XrdCl::AnyObject    *response )
       {
+        XrdSysMutexHelper lck( mtx );
+
+        bool finalrsp = !( status->IsOK() && status->code == XrdCl::suContinue );
+
         try
         {
           if( !status->IsOK() )
@@ -708,7 +721,11 @@ namespace
           if( !dirlist )
             throw MergeDirLsErr();
 
-          Merge( dirlist );
+          if( allowChunked )
+            MergeChunked( dirlist );
+          else
+            Merge( dirlist );
+
           response->Set( dirlist );
           pHandler->HandleResponse( status, response );
         }
@@ -718,7 +735,51 @@ namespace
           pHandler->HandleResponse( err.status, err.response );
         }
 
-        delete this;
+        if( finalrsp )
+        {
+          lck.UnLock();
+          delete this;
+        }
+      }
+
+      void MergeChunked( XrdCl::DirectoryList *&response )
+      {
+        using namespace XrdCl;
+
+        std::set<ListEntry*, less> unique;
+        // set of unique list entries from the response
+        std::set<ListEntry*, less> tmp( response->Begin(), response->End() );
+        // all the unique list entries that were not reported so far
+        std::set_difference( tmp.begin(),         tmp.end(),
+                             uniquesofar.begin(), uniquesofar.end(),
+                             std::inserter( unique, unique.end() ) );
+
+        // we update the set of unique list entries that were already
+        // reported to the user's handler
+        for( auto itr = unique.begin(); itr != unique.end(); ++itr )
+        {
+          ListEntry *ent = *itr;
+          if( !uniquesofar.count( ent ) )
+          {
+            StatInfo  *info   = ent->GetStatInfo() ? new StatInfo( *ent->GetStatInfo() ) : 0;
+            ListEntry *newent = new ListEntry( ent->GetHostAddress(), ent->GetName(), info );
+            uniquesofar.insert( newent );
+          }
+        }
+
+        DirectoryList *dirlist = new DirectoryList();
+        dirlist->SetParentName( response->GetParentName() );
+        for( auto itr = unique.begin(); itr != unique.end(); ++itr )
+        {
+          ListEntry *entry = *itr;
+          dirlist->Add( new ListEntry( entry->GetHostAddress(),
+                                       entry->GetName(),
+                                       entry->GetStatInfo() ) );
+          entry->SetStatInfo( 0 );
+        }
+
+        delete response;
+        response = dirlist;
       }
 
       static void Merge( XrdCl::DirectoryList *&response )
@@ -738,7 +799,7 @@ namespace
 
         delete response;
         response = dirlist;
-      }
+}
 
     private:
 
@@ -773,7 +834,10 @@ namespace
         }
       };
 
-      XrdCl::ResponseHandler *pHandler;
+      bool                        allowChunked;
+      XrdSysMutex                 mtx;
+      std::set<ListEntry*, less>  uniquesofar;
+      XrdCl::ResponseHandler     *pHandler;
   };
 }
 
@@ -810,8 +874,11 @@ namespace XrdCl
               break;
             }
         }
+
+        bool finalrsp = !( status->IsOK() && status->code == suContinue );
         pUserHandler->HandleResponseWithHosts( status, response, hostList );
-        delete this;
+        if( finalrsp )
+          delete this;
       }
 
     private:
@@ -1443,10 +1510,12 @@ namespace XrdCl
       handler = new RecursiveDirListHandler( *pUrl, url.GetPath(), flags, handler, timeout );
 
     if( flags & DirListFlags::Merge )
-      handler = new MergeDirListHandler( handler );
+      handler = new MergeDirListHandler( flags & DirListFlags::Chunked, handler );
 
     msg->Append( fPath.c_str(), fPath.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
+    if( flags & DirListFlags::Chunked )
+      params.chunkedResponse = true;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
@@ -1461,6 +1530,12 @@ namespace XrdCl
                                     DirectoryList       *&response,
                                     uint16_t              timeout )
   {
+    //--------------------------------------------------------------------------
+    // Chunked response is only possible for async DirList call
+    //--------------------------------------------------------------------------
+    if( flags & DirListFlags::Chunked )
+      return XRootDStatus( stError, errNotSupported );
+
     //--------------------------------------------------------------------------
     // We do the deep locate and ask all the returned servers for the list
     //--------------------------------------------------------------------------

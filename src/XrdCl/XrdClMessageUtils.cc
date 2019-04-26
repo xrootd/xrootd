@@ -94,6 +94,7 @@ namespace XrdCl
     msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr, lFileHandler );
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
+    msgHandler->SetOksofarAsAnswer( sendParams.chunkedResponse );
     msgHandler->SetChunkList( sendParams.chunkList );
     msgHandler->SetRedirectCounter( sendParams.redirectLimit );
     msgHandler->SetStateful( sendParams.stateful );
@@ -168,6 +169,7 @@ namespace XrdCl
     msgHandler = new XRootDMsgHandler( msg, handler, &url, 0, lFileHandler );
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
+    msgHandler->SetOksofarAsAnswer( sendParams.chunkedResponse );
     msgHandler->SetChunkList( sendParams.chunkList );
     msgHandler->SetRedirectCounter( sendParams.redirectLimit );
     msgHandler->SetFollowMetalink( true );
