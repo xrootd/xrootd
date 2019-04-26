@@ -2682,37 +2682,30 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"pag",      100, &P_pag},
         {"space",    100, &P_dsk},
         {"maxload",  100, &MaxLoad},
-        {"maxtries",4096, &MaxRetries},
+        {"maxretries",0x7fffffff, &MaxRetries},
         {"refreset", -1,  &RefReset},
         {"affinity", -2,  0},
+        {"nomultisrc",-3, (int *)&MultiSrc},
+        {"multisrc",  -3, (int *)&MultiSrc},
         {"tryhname",   1, &V_hntry}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
-
-    static struct keywdopts {const char *opname; int xval; char *oploc;}
-           kwopts[] =
-       {
-        {"nomultisrc", 0, &MultiSrc},
-        {"multisrc",   1, &MultiSrc}
-       };
-    int kwnopts = sizeof(kwopts)/sizeof(struct keywdopts);
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "sched option not specified"); return 1;}
 
     while (val)
-          {for (i = 0; i < kwnopts; i++)
-               if (!strcmp(val, kwopts[i].opname))
-                  {*kwopts[i].oploc = kwopts[i].xval;
-                   val = CFile.GetWord();
-                   continue;
-                  }
-           for (i = 0; i < numopts; i++)
+          {for (i = 0; i < numopts; i++)
                if (!strcmp(val, scopts[i].opname))
                   {if (!(val = CFile.GetWord()))
                       {eDest->Emsg("Config", "sched ", scopts[i].opname,
                                    "argument not specified.");
                        return 1;
+                      }
+                   if (scopts[i].maxv == -3)
+                      {char *cloc = (char *)scopts[i].oploc;
+                       *cloc = (strncmp(val, "no", 2) ? 1 : 0);
+                       break;
                       }
                    if (scopts[i].maxv == -2)
                       {if (!xschedm(val, eDest, CFile)) return 1;
