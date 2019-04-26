@@ -2697,7 +2697,7 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
     while (val)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, scopts[i].opname))
-                  {if (!(val = CFile.GetWord()))
+                  {if (scopts[i].maxv != -3 && !(val = CFile.GetWord()))
                       {eDest->Emsg("Config", "sched ", scopts[i].opname,
                                    "argument not specified.");
                        return 1;
