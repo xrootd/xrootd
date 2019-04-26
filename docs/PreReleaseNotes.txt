@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Allow better handling for proxy caching clusters.
   * **[Server]** Allow configurable posc sync level.
   * **[Server]** Implement framework for a kXR_prepare plug-in.
 
