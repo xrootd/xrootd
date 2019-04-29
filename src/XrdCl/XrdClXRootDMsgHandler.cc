@@ -101,6 +101,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   uint16_t XRootDMsgHandler::Examine( Message *msg )
   {
+    //--------------------------------------------------------------------------
+    // if the MsgHandler is already being used to process another request
+    // (kXR_oksofar) we need to wait
+    //--------------------------------------------------------------------------
+    if( pOksofarAsAnswer )
+    {
+      XrdSysCondVarHelper lck( pCV );
+      while( pResponse != 0 ) pCV.Wait();
+    }
+
     if( msg->GetSize() < 8 )
       return Ignore;
 
@@ -225,8 +235,12 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request "
                    "%s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
-        pResponse = 0;
-        pPartialResps.push_back( msg );
+
+        if( !pOksofarAsAnswer )
+        {
+          pResponse = 0;
+          pPartialResps.push_back( msg );
+        }
 
         //----------------------------------------------------------------------
         // For kXR_read we either read in raw mode if the message has not
@@ -240,12 +254,12 @@ namespace XrdCl
           {
             pReadRawStarted = false;
             pAsyncMsgSize   = dlen;
-            return Take | Raw | NoProcess;
+            return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
           }
           else
           {
             pReadRawCurrentOffset += dlen;
-            return Take | NoProcess;
+            return Take | ( pOksofarAsAnswer ? 0 : NoProcess );
           }
         }
 
@@ -258,13 +272,13 @@ namespace XrdCl
           {
             pAsyncMsgSize      = dlen;
             pReadVRawMsgOffset = 0;
-            return Take | Raw | NoProcess;
+            return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
           }
           else
-            return Take | NoProcess;
+            return Take | ( pOksofarAsAnswer ? 0 : NoProcess );
         }
 
-        return Take | NoProcess;
+        return Take | ( pOksofarAsAnswer ? 0 : NoProcess );
       }
 
       //------------------------------------------------------------------------
@@ -389,6 +403,19 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
         pStatus   = Status();
+        HandleResponse();
+        return;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_ok - we're serving partial result to the user
+      //------------------------------------------------------------------------
+      case kXR_oksofar:
+      {
+        log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request %s",
+                   pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
+        pStatus   = Status( stOK, suContinue );
         HandleResponse();
         return;
       }
@@ -1193,14 +1220,30 @@ namespace XrdCl
         pSidMgr->ReleaseSID( req->header.streamid );
     }
 
-    pResponseHandler->HandleResponseWithHosts( status, response, pHosts );
+    bool finalrsp = !( pStatus.IsOK() && pStatus.code == suContinue );
+
+    HostList *hosts = pHosts;
+    if( !finalrsp )
+      pHosts = new HostList( *hosts );
+
+    pResponseHandler->HandleResponseWithHosts( status, response, hosts );
 
     //--------------------------------------------------------------------------
-    // As much as I hate to say this, we cannot do more, so we commit
-    // a suicide... just make sure that this is the last stateful thing
-    // we'll ever do
+    // if it is the final response there is nothing more to do ...
     //--------------------------------------------------------------------------
-    delete this;
+    if( finalrsp )
+      delete this;
+    //--------------------------------------------------------------------------
+    // on the other hand if it is not the final response, we have to keep the
+    // MsgHandler and delete the current response
+    //--------------------------------------------------------------------------
+    else
+    {
+      XrdSysCondVarHelper lck( pCV );
+      delete pResponse;
+      pResponse = 0;
+      pCV.Broadcast();
+    }
   }
 
 
@@ -1256,7 +1299,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We only handle the kXR_ok responses further down
     //--------------------------------------------------------------------------
-    if( rsp->hdr.status != kXR_ok )
+    if( !( rsp->hdr.status == kXR_ok || ( pOksofarAsAnswer &&
+        rsp->hdr.status == kXR_oksofar ) ) )
       return 0;
 
     Buffer    buff;
@@ -1457,7 +1501,19 @@ namespace XrdCl
         nullBuffer[length] = 0;
         memcpy( nullBuffer, buffer, length );
 
-        if( data->ParseServerResponse( pUrl.GetHostId(), nullBuffer ) == false )
+        bool invalidrsp = false;
+
+        if( !pDirListStarted )
+        {
+          pDirListWithStat = DirectoryList::HasStatInfo( nullBuffer );
+          pDirListStarted  = true;
+
+          invalidrsp = !data->ParseServerResponse( pUrl.GetHostId(), nullBuffer );
+        }
+        else
+          invalidrsp = !data->ParseServerResponse( pUrl.GetHostId(), nullBuffer, pDirListWithStat );
+
+        if( invalidrsp )
         {
           delete data;
           delete obj;

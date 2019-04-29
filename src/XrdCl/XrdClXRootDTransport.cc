@@ -912,6 +912,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDTransport::UnMarshallRequest( Message *msg )
   {
+    if( !msg->IsMarshalled() ) return Status( stOK, suAlreadyDone );
     // We rely on the marshaling process to be symmetric!
     // First we unmarshall the request ID and the length because
     // MarshallRequest() relies on these, and then we need to unmarshall these

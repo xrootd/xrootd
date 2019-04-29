@@ -510,6 +510,7 @@ namespace XrdCl
   class DirectoryList
   {
     public:
+
       //------------------------------------------------------------------------
       //! Directory entry
       //------------------------------------------------------------------------
@@ -687,9 +688,23 @@ namespace XrdCl
       bool ParseServerResponse( const std::string &hostId,
                                 const char *data );
 
+      //------------------------------------------------------------------------
+      //! Parse chunked server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const std::string &hostId,
+                                const char *data,
+                                bool isDStat );
+
+      //------------------------------------------------------------------------
+      //! Returns true if data contain stat info
+      //------------------------------------------------------------------------
+      static bool HasStatInfo( const char *data );
+
     private:
       DirList     pDirList;
       std::string pParent;
+
+      static const std::string dStatPrefix;
   };
 
   //----------------------------------------------------------------------------

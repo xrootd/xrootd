@@ -128,12 +128,13 @@ namespace XrdCl
   struct MessageSendParams
   {
     MessageSendParams():
-      timeout(0), expires(0), followRedirects(true), stateful(true),
-      hostList(0), chunkList(0), redirectLimit(0) {}
+      timeout(0), expires(0), followRedirects(true), chunkedResponse(false),
+      stateful(true), hostList(0), chunkList(0), redirectLimit(0) {}
     uint16_t         timeout;
     time_t           expires;
     HostInfo         loadBalancer;
     bool             followRedirects;
+    bool             chunkedResponse;
     bool             stateful;
     HostList        *hostList;
     ChunkList       *chunkList;

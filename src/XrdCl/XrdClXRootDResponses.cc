@@ -238,6 +238,8 @@ namespace XrdCl
     return true;
   }
 
+  const std::string DirectoryList::dStatPrefix = ".\n0 0 0 0";
+
   //----------------------------------------------------------------------------
   // DirectoryList constructor
   //----------------------------------------------------------------------------
@@ -266,14 +268,23 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Check what kind of response we're dealing with
     //--------------------------------------------------------------------------
-    std::string dat          = data;
-    std::string dStatPrefix = ".\n0 0 0 0";
-    bool        isDStat     = false;
+    bool isDStat = HasStatInfo( data );
+    data += dStatPrefix.size();
+    return ParseServerResponse( hostId, data, isDStat );
+  }
 
-    if( !dat.compare( 0, dStatPrefix.size(), dStatPrefix ) )
-      isDStat = true;
+  //------------------------------------------------------------------------
+  //! Parse chunked server response and fill up the object
+  //------------------------------------------------------------------------
+  bool DirectoryList::ParseServerResponse( const std::string &hostId,
+                                           const char *data,
+                                           bool isDStat )
+  {
+    if( !data )
+      return false;
 
-    std::vector<std::string>           entries;
+    std::string dat = data;
+    std::vector<std::string> entries;
     std::vector<std::string>::iterator it;
     Utils::splitString( entries, dat, "\n" );
 
@@ -293,7 +304,7 @@ namespace XrdCl
     if( (entries.size() < 2) || (entries.size() % 2) )
       return false;
 
-    it = entries.begin(); ++it; ++it;
+    it = entries.begin(); //++it; ++it;
     for( ; it != entries.end(); ++it )
     {
       ListEntry *entry = new ListEntry( hostId, *it );
@@ -306,5 +317,14 @@ namespace XrdCl
         return false;
     }
     return true;
+  }
+
+  //------------------------------------------------------------------------
+  // Returns true if data contain stat info
+  //------------------------------------------------------------------------
+  bool DirectoryList::HasStatInfo( const char *data )
+  {
+    std::string dat = data;
+    return !dat.compare( 0, dStatPrefix.size(), dStatPrefix );
   }
 }
