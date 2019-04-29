@@ -44,6 +44,31 @@ extern XrdOucCache2              *theCache;
 using namespace XrdPosixGlobals;
 
 /******************************************************************************/
+/*                             C a c h e P a t h                              */
+/******************************************************************************/
+
+int XrdPosixCache::CachePath(const char *url, char *buff, int blen)
+{
+   return theCache->LocalFilePath(url, buff, blen, XrdOucCache2::ForInfo);
+}
+
+/******************************************************************************/
+/*                            C a c h e Q u e r y                             */
+/******************************************************************************/
+
+int XrdPosixCache::CacheQuery(const char *url, bool hold)
+{
+
+   int rc = theCache->LocalFilePath(url, 0, 0,
+                                    (hold ? XrdOucCache2::ForAccess
+                                          : XrdOucCache2::ForInfo)
+                                   );
+   if (!rc) return 1;
+   if (rc == -EREMOTE) return 0;
+   return -1;
+}
+  
+/******************************************************************************/
 /*                                 R m d i r                                  */
 /******************************************************************************/
   

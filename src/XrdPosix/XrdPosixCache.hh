@@ -36,29 +36,100 @@ class XrdPosixCache
 {
 public:
 
-// Remove directory from the cache.
-//
+//-----------------------------------------------------------------------------
+//! Convert a logical path to the path of the corresonding entry in the cache.
+//!
+//! @param  url     -> url of the directory or file to be converted.
+//! @param  buff    -> buffer to receive the result.
+//! @param  blen    The length of the buffer (should be at least 1024).
+//!
+//! @return =0      Buffer holds the result.
+//! @return <0      Conversion failed, the return value is -errno.
+//-----------------------------------------------------------------------------
+
+int           CachePath(const char *url, char *buff, int blen);
+
+//-----------------------------------------------------------------------------
+//! Check cache status of a file.
+//!
+//! @param  url     -> url of the logical file to be checked in the cache.
+//! @param  hold    When true, the file purge time is extended to allow the
+//!                 file to be accessed before eligible for purging. When
+//!                 false (the default) only status information is returned.
+//!
+//! @return >0      The file is fully cached.
+//! @return =0      The file exists in the cache but is not fully cached.
+//! @return <0      The file does not exist in the cache.
+//-----------------------------------------------------------------------------
+
+int           CacheQuery(const char *url, bool hold=false);
+
+//-----------------------------------------------------------------------------
+//! Remove directory from the cache.
+//!
+//! @param  path    -> filepath of directory to be removed
+//!
+//! @return 0       This method is currently not supported.
+//-----------------------------------------------------------------------------
+
 int           Rmdir(const char* path);
 
-// Rename an entry in the cache.
-//
+//-----------------------------------------------------------------------------
+//! Rename a file or directory in the cache.
+//!
+//! @param  oldpath -> filepath of existing directory or file.
+//! @param  newpath -> filepath the directory or file is to have.
+//!
+//! @return 0       This method is currently not supported.
+//-----------------------------------------------------------------------------
+
 int           Rename(const char* oldPath, const char* newPath);
 
-// Get item information from the cache.
-//
+//-----------------------------------------------------------------------------
+//! Rename a file or directory in the cache.
+//!
+//! @param  path    -> filepath of existing directory or file. This is the
+//!                    actual path in the cache (see CachePath()).
+//! @param  sbuff   Reference to the stat structure to hold the information.
+//!
+//! @return =0      The sbuff hold the information.
+//! @return !0      The file or direcory does not exist in the cache.
+//-----------------------------------------------------------------------------
+
 int           Stat(const char *path, struct stat &sbuff);
 
-// Get cache statistics.
-//
+//-----------------------------------------------------------------------------
+//! Rename a file or directory in the cache.
+//!
+//! @param  Stat    Reference to the statistics object to be filled in.
+//-----------------------------------------------------------------------------
+
 void          Statistics(XrdOucCacheStats &Stats);
 
-// Truncate a file in the cache.
-//
+//-----------------------------------------------------------------------------
+//! Truncate a file in the cache.
+//!
+//! @param  path    -> filepath of file to be truncated.
+//! @param  size    The size in bytes the file should have.
+//!
+//! @return 0       This method is currently not supported.
+//-----------------------------------------------------------------------------
+
 int           Truncate(const char* path, off_t size);
 
-// Unlink file in the cache.
-//
+//-----------------------------------------------------------------------------
+//! Remove a file from the cache.
+//!
+//! @param  path    -> filepath of file to be removed.
+//!
+//! @return 0       This method is currently not supported.
+//-----------------------------------------------------------------------------
+
 int           Unlink(const char* path);
+
+//-----------------------------------------------------------------------------
+//! Constructor and destructor.
+//-----------------------------------------------------------------------------
 
               XrdPosixCache() {}
              ~XrdPosixCache() {}
