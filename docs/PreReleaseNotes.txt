@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[POSIX]** Add methods to the cache mngt objecT to get status of a cached file.
   * **[Server]** Allow better handling for proxy caching clusters.
   * **[Server]** Allow configurable posc sync level.
   * **[Server]** Implement framework for a kXR_prepare plug-in.
