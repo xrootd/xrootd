@@ -662,7 +662,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
     redirdest += buf;
   }
 
-  redirdest += resource.c_str();
+  redirdest += resourceplusopaque.c_str();
   
   // Here we put back the opaque info, if any
   if (vardata) {
@@ -924,8 +924,26 @@ int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
 
-  
-  
+  /// If we have to add extra header information, add it here.
+  if (!hdr2cgistr.empty()) {
+    const char *p = strchr(resourceplusopaque.c_str(), '?');
+    if (p) {
+      resourceplusopaque.append("&");
+    } else {
+      resourceplusopaque.append("?");
+    }
+
+    char *q = quote(hdr2cgistr.c_str());
+    resourceplusopaque.append(q);
+    TRACEI(DEBUG, "Appended header fields to opaque info: '" << hdr2cgistr << "'");
+    free(q);
+
+    // Once we've appended the authorization to the full resource+opaque string,
+    // reset the authz to empty: this way, any operation that triggers repeated ProcessHTTPReq
+    // calls won't also trigger multiple copies of the authz.
+    hdr2cgistr = "";
+    }
+
   // Verify if we have an external handler for this request
   if (reqstate == 0) {
     XrdHttpExtHandler *exthandler = prot->FindMatchingExtHandler(*this);
@@ -939,27 +957,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       return 1; // There was an error and a response was sent
     }
   }
-  
-  /// If we have to add extra header information, add it here.
-  if (!hdr2cgistr.empty()) {
-    const char *p = strchr(resourceplusopaque.c_str(), '?');
-    if (p) {
-      resourceplusopaque.append("&");
-    } else {
-      resourceplusopaque.append("?");
-    }
-    
-    char *q = quote(hdr2cgistr.c_str());
-    resourceplusopaque.append(q);
-    TRACEI(DEBUG, "Appended header fields to opaque info: '" << hdr2cgistr << "'");
-    free(q);
-    
-    // Once we've appended the authorization to the full resource+opaque string,
-    // reset the authz to empty: this way, any operation that triggers repeated ProcessHTTPReq
-    // calls won't also trigger multiple copies of the authz.
-    hdr2cgistr = "";
-    }
-  
+
   //
   // Here we process the request locally
   //

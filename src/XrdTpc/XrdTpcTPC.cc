@@ -163,7 +163,7 @@ std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
     return authz;
 }
 
-int TPCHandler::RedirectTransfer(XrdHttpExtReq &req, XrdOucErrInfo &error) {
+int TPCHandler::RedirectTransfer(const std::string &redirect_resource, XrdHttpExtReq &req, XrdOucErrInfo &error) {
     int port;
     const char *host = error.getErrText(port);
     if ((host == NULL) || (*host == '\0') || (port == 0)) {
@@ -171,7 +171,7 @@ int TPCHandler::RedirectTransfer(XrdHttpExtReq &req, XrdOucErrInfo &error) {
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
     std::stringstream ss;
-    ss << "Location: http" << (m_desthttps ? "s" : "") << "://" << host << ":" << port << "/" << req.resource;
+    ss << "Location: http" << (m_desthttps ? "s" : "") << "://" << host << ":" << port << "/" << redirect_resource;
     return req.SendSimpleResp(307, NULL, const_cast<char *>(ss.str().c_str()), NULL, 0);
 }
 
@@ -420,6 +420,12 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         char msg[] = "Failed to initialize internal transfer resources";
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
+    auto query_header = req.headers.find("xrd-http-fullresource");
+    std::string redirect_resource = req.resource;
+    if (query_header != req.headers.end()) {
+        redirect_resource = query_header->second;
+    }
+
     char *name = req.GetSecEntity().name;
     AtomicBeg(m_monid_mutex);
     uint64_t file_monid = AtomicInc(m_monid);
@@ -436,7 +442,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     int open_results = OpenWaitStall(*fh, full_url, SFS_O_RDONLY, 0644,
                                      req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_results) {
-        return RedirectTransfer(req, fh->error);
+        return RedirectTransfer(redirect_resource, req, fh->error);
     } else if (SFS_OK != open_results) {
         int code;
         char msg_generic[] = "Failed to open local resource";
@@ -478,6 +484,11 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             char msg[] = "Failed to initialize internal transfer file handle";
             return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
+    auto query_header = req.headers.find("xrd-http-fullresource");
+    std::string redirect_resource = req.resource;
+    if (query_header != req.headers.end()) {
+        redirect_resource = query_header->second;
+    }
     std::string authz = GetAuthz(req);
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
     auto overwrite_header = req.headers.find("Overwrite");
@@ -506,7 +517,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
                                     req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_result) {
-        return RedirectTransfer(req, fh->error);
+        return RedirectTransfer(redirect_resource, req, fh->error);
     } else if (SFS_OK != open_result) {
         int code;
         char msg_generic[] = "Failed to open local resource";
