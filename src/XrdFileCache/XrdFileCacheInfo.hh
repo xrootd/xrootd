@@ -85,21 +85,21 @@ public:
    ~Info();
 
    //---------------------------------------------------------------------
-   //! \brief Mark block as downloaded
+   //! \brief Mark block as written to disk
    //!
    //! @param i block index
    //---------------------------------------------------------------------
    void SetBitWritten(int i);
 
    //---------------------------------------------------------------------
-   //! \brief Mark block as disk written
+   //! \brief Mark block as synced to disk
    //!
    //! @param i block index
    //---------------------------------------------------------------------
    void SetBitSynced(int i);
 
    //---------------------------------------------------------------------
-   //! \brief Mark all blocks as writte.
+   //! \brief Mark all blocks as synced to disk
    //---------------------------------------------------------------------
    void SetAllBitsSynced();
 
@@ -202,7 +202,7 @@ public:
    long long GetBufferSize() const;
 
    //---------------------------------------------------------------------
-   //! Test if block at the given index is downlaoded
+   //! Test if block at the given index is downloaded
    //---------------------------------------------------------------------
    bool TestBit(int i) const;
 

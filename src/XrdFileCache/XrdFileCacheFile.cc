@@ -830,14 +830,13 @@ void File::WriteBlockToDisk(Block* b)
       }
 
       XrdSysCondVarHelper _lck(m_downloadCond);
-      // XXXX MT - I suspect there might be a conrer case where block is not deallocated.
-      // Try to catch the case in debuggger.
+
       dec_ref_count(b);
 
       return;
    }
 
-   // set bit fetched
+   // Set written bit.
    TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size=" <<  size);
    int pfIdx =  (b->m_offset - m_offset) / m_cfi.GetBufferSize();
 
@@ -850,10 +849,10 @@ void File::WriteBlockToDisk(Block* b)
       if (b->m_prefetch)
          m_cfi.SetBitPrefetch(pfIdx);
 
-      // clLog()->Dump(XrdCl::AppMsg, "File::WriteToDisk() dec_ref_count %d %s", pfIdx, lPath());
       dec_ref_count(b);
 
-      // set bit synced
+      // Set synced bit or stash block index if in actual sync.
+      // Synced state is only written out to cinfo file when data file is synced.
       if (m_in_sync)
       {
          m_writes_during_sync.push_back(pfIdx);
@@ -882,12 +881,23 @@ void File::WriteBlockToDisk(Block* b)
 void File::Sync()
 {
    TRACEF(Dump, "File::Sync()");
-   m_output->Fsync();
 
-   Stats loc_stats = m_stats.Clone();
-   m_cfi.WriteIOStat(loc_stats);
-   m_cfi.Write(m_infoFile);
-   m_infoFile->Fsync();
+   int ret = m_output->Fsync();
+   if (ret == XrdOssOK)
+   {
+      Stats loc_stats = m_stats.Clone();
+      m_cfi.WriteIOStat(loc_stats);
+      m_cfi.Write(m_infoFile);
+      int cret = m_infoFile->Fsync();
+      if (cret != XrdOssOK)
+      {
+         TRACEF(Error, "File::Sync cinfo file sync error " << cret);
+      }
+   }
+   else
+   {
+      TRACEF(Error, "File::Sync data file sync error " << ret << ", cinfo file has not been updated");
+   }
 
    int written_while_in_sync;
    {
@@ -900,7 +910,7 @@ void File::Sync()
       m_writes_during_sync.clear();
       m_in_sync = false;
    }
-   TRACEF(Dump, "File::Sync() "<< written_while_in_sync  << " blocks written during sync.");
+   TRACEF(Dump, "File::Sync "<< written_while_in_sync  << " blocks written during sync");
 }
 
 //------------------------------------------------------------------------------
