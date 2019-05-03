@@ -269,7 +269,8 @@ namespace XrdCl
     // Check what kind of response we're dealing with
     //--------------------------------------------------------------------------
     bool isDStat = HasStatInfo( data );
-    data += dStatPrefix.size();
+    if( isDStat )
+      data += dStatPrefix.size();
     return ParseServerResponse( hostId, data, isDStat );
   }
 

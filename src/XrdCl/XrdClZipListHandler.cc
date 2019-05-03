@@ -111,6 +111,8 @@ namespace XrdCl
   void ZipListHandler::DoDirList( time_t timeLeft )
   {
     FileSystem fs( pUrl );
+    // remove the Zip flag so we don't enter an infinite loop
+    pFlags &= ~DirListFlags::Zip;
     XRootDStatus st = fs.DirList( pUrl.GetPath(), pFlags, pHandler , timeLeft );
     pStep = DONE; // no matter whether it works or not, either way we are done
     if( !st.IsOK() )

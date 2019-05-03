@@ -1482,10 +1482,7 @@ namespace XrdCl
     URL url = URL( path );
     std::string fPath = FilterXrdClCgi( path );
 
-    // check if it could be a ZIP archive
-    static const std::string zip_sufix = ".zip";
-    if( path.size() >= zip_sufix.size() &&
-        std::equal( zip_sufix.rbegin(), zip_sufix.rend(), path.rbegin() ) )
+    if( flags & DirListFlags::Zip )
     {
       // stat the file to check if it is a directory or a file
       // the ZIP handler will take care of the rest
@@ -1535,6 +1532,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( flags & DirListFlags::Chunked )
       return XRootDStatus( stError, errNotSupported );
+
+    //--------------------------------------------------------------------------
+    // If the path ends with '.zip' extension add Zip flag
+    //--------------------------------------------------------------------------
+    static const std::string zip_sufix = ".zip";
+    if( path.size() >= zip_sufix.size() &&
+        std::equal( zip_sufix.rbegin(), zip_sufix.rend(), path.rbegin() ) )
+      flags |= DirListFlags::Zip;
 
     //--------------------------------------------------------------------------
     // We do the deep locate and ask all the returned servers for the list

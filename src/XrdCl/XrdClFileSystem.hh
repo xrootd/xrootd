@@ -153,13 +153,14 @@ namespace XrdCl
   {
     enum Flags
     {
-      None      = 0, //!< Nothing special
-      Stat      = 1, //!< Stat each entry
-      Locate    = 2, //!< Locate all servers hosting the directory and send
-                     //!< the dirlist request to all of them
+      None      = 0,  //!< Nothing special
+      Stat      = 1,  //!< Stat each entry
+      Locate    = 2,  //!< Locate all servers hosting the directory and send
+                      //!< the dirlist request to all of them
       Recursive = 4,  //!< Do a recursive listing
-      Merge     = 8,
-      Chunked   = 16
+      Merge     = 8,  //!< Merge duplicates
+      Chunked   = 16, //!< Serve chunked results for better performance
+      Zip       = 32  //!< List content of ZIP files
     };
   };
   XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )

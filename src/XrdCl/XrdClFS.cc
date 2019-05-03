@@ -255,6 +255,11 @@ XRootDStatus DoLS( FileSystem                      *fs,
       // show duplicates
       flags &= ~DirListFlags::Merge;
     }
+    else if( args[i] == "-Z" )
+    {
+      // check if file is a ZIP archive if yes list content
+      flags |= DirListFlags::Zip;
+    }
     else
       path = args[i];
   }
@@ -1559,14 +1564,15 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Modify permissions. Permission string example:\n"             );
   printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   ls [-l] [-u] [-R] [-D] [dirname]\n"                             );
+  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [dirname]\n"                        );
   printf( "     Get directory listing.\n"                                     );
   printf( "     -l stat every entry and pring long listing\n"                 );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
-  printf( "     -D show duplicate entries\n\n"                                );
+  printf( "     -D show duplicate entries"                                    );
+  printf( "     -Z if a ZIP archive list its content\n\n"                     );
 
-  printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                                 );
+  printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
   printf( "     Get the locations of the path.\n"                             );
   printf( "     -r refresh, don't use cached locations\n"                     );
   printf( "     -n make the server return the response immediately even\n"    );

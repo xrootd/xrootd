@@ -71,10 +71,10 @@ namespace XrdCl
       //! @param timeout : operation timeout
       //------------------------------------------------------------------------
       ZipListHandler( const URL           &url,
-                         const std::string   &path,
-                         DirListFlags::Flags  flags,
-                         ResponseHandler     *handler,
-                         uint16_t             timeout = 0 ) :
+                      const std::string   &path,
+                      DirListFlags::Flags  flags,
+                      ResponseHandler     *handler,
+                      uint16_t             timeout = 0 ) :
         pUrl( url ), pFlags( flags ), pHandler( handler ),
         pTimeout( timeout ), pStartTime( time( 0 ) ),
         pZip( pFile ), pStep( STAT )
