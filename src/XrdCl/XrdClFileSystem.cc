@@ -553,7 +553,7 @@ namespace
         // has been chunked), if not we can decrement the number of pending
         // DieLists
         if( finalrsp )
-        --pCtx->pending;
+          --pCtx->pending;
 
         pCtx->UpdateStatus( *status );
 

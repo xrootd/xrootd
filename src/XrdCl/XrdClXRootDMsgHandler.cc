@@ -1208,9 +1208,14 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
+    // Is it a final response?
+    //--------------------------------------------------------------------------
+    bool finalrsp = !( pStatus.IsOK() && pStatus.code == suContinue );
+
+    //--------------------------------------------------------------------------
     // Release the stream id
     //--------------------------------------------------------------------------
-    if( pSidMgr )
+    if( pSidMgr && finalrsp )
     {
       ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
       if( !status->IsOK() && pMsgInFly &&
@@ -1219,8 +1224,6 @@ namespace XrdCl
       else
         pSidMgr->ReleaseSID( req->header.streamid );
     }
-
-    bool finalrsp = !( pStatus.IsOK() && pStatus.code == suContinue );
 
     HostList *hosts = pHosts;
     if( !finalrsp )
