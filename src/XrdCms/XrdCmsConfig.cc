@@ -62,6 +62,7 @@
 #include "XrdCms/XrdCmsRole.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
 #include "XrdCms/XrdCmsSecurity.hh"
+#include "XrdCms/XrdCmsSelect.hh"
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsSupervisor.hh"
 #include "XrdCms/XrdCmsTrace.hh"
@@ -758,6 +759,13 @@ void XrdCmsConfig::ConfigDefaults(void)
    adsMon      = 0;
    adsProt     = 0;
    nbSQ        = 1;
+
+   mrRdrHost   = 0;
+   mrRdrHLen   = 0;
+   mrRdrPort   = 0;
+   msRdrHost   = 0;
+   msRdrHLen   = 0;
+   msRdrPort   = 0;
 
 // Compute the time zone we are in
 //
@@ -2647,7 +2655,8 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
                                        [io <p>] [runq <p>]
                                        [mem <p>] [pag <p>] [space <p>]
                                        [fuzz <p>] [maxload <p>] [refreset <sec>]
-                                       [maxretries <n>] [[no]multisrc]
+                                       [maxretries <n>[@<host>:<port>]]
+                                       [nomultisrc[@<host>:<port>]]
                 [affinity [default] {none | weak | strong | strict}]
 
              <p>      is the percentage to include in the load as a value
@@ -2682,11 +2691,8 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"pag",      100, &P_pag},
         {"space",    100, &P_dsk},
         {"maxload",  100, &MaxLoad},
-        {"maxretries",0x7fffffff, &MaxRetries},
         {"refreset", -1,  &RefReset},
         {"affinity", -2,  0},
-        {"nomultisrc",-3, (int *)&MultiSrc},
-        {"multisrc",  -3, (int *)&MultiSrc},
         {"tryhname",   1, &V_hntry}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
@@ -2702,11 +2708,6 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
                                    "argument not specified.");
                        return 1;
                       }
-                   if (scopts[i].maxv == -3)
-                      {char *cloc = (char *)scopts[i].oploc;
-                       *cloc = (strncmp(val, "no", 2) ? 1 : 0);
-                       break;
-                      }
                    if (scopts[i].maxv == -2)
                       {if (!xschedm(val, eDest, CFile)) return 1;
                        break;
@@ -2721,7 +2722,11 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
                    break;
                   }
            if (i >= numopts)
-              eDest->Say("Config warning: ignoring invalid sched option '",val,"'.");
+              {int rc = xschedx(val, eDest, CFile);
+               if (rc < 0) return 1;
+               if (rc > 0) eDest->Say("Config warning: "
+                                  "ignoring invalid sched option '",val,"'.");
+              }
            val = CFile.GetWord();
           }
 
@@ -2763,6 +2768,104 @@ int XrdCmsConfig::xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile)
 
    eDest->Emsg("Config", "Invalid sched affinity -", val);
    return 0;
+}
+
+/******************************************************************************/
+
+int XrdCmsConfig::xschedx(char *val, XrdSysError *eDest, XrdOucStream &CFile)
+{
+
+// Check for maxretries
+//
+   if (!strcmp(val, "maxretries"))
+      {if (!(val = CFile.GetWord()))
+          {eDest->Emsg("Config","sched ","maxretries argument not specified.");
+           return -1;
+          }
+       if (!xschedy(val, eDest, mrRdrHost, mrRdrHLen, mrRdrPort)) return -1;
+       if (XrdOuca2x::a2i(*eDest,"sched value",val,&MaxRetries,0)) return -1;
+       return 0;
+      }
+
+// Check for unqualified nomultisrc
+//
+   if (!strcmp(val, "nomultisrc"))
+      {MultiSrc = 0;
+       if (msRdrHost)
+          {free(msRdrHost);
+           msRdrHost = 0;
+           msRdrHLen = 0;
+          }
+       return 0;
+      }
+
+// Check for qualified nomultisrc
+//                    12345678901
+   if (!strncmp(val, "nomultisrc@", 11))
+      {if (!xschedy(val, eDest, msRdrHost, msRdrHLen, msRdrPort)) return -1;
+       MultiSrc = 0;
+       return 0;
+      }
+
+   return 1;
+}
+
+/******************************************************************************/
+
+bool XrdCmsConfig::xschedy(char *val, XrdSysError *eDest, char *&host,
+                           int &hlen, int &port)
+{
+   const char *badTarget = "Invalid sched redirect target '%s'%s";
+   XrdNetAddr netAddr;
+   char *at, hName[XrdCmsSelect::SelDSZ];
+   const char *eText = "not a redirect target";
+
+// Free the host name if present
+//
+   if (host) {free(host); host = 0; hlen = port = 0;}
+
+// Check if we have an at sign
+//
+   if (!(at = index(val, '@'))) return true;
+   if (!*(at+1))
+      {snprintf(hName, sizeof(hName),
+                "Missing sched redirect target after '%s'.", val);
+       eDest->Emsg("Config", hName);
+       return false;
+      }
+   *at = 0; val = at + 1;
+
+// Make sure this is not a named pipe
+//
+   if (*val == '/')
+      {snprintf(hName, sizeof(hName), badTarget, val, ".");
+       eDest->Emsg("Config", hName);
+       return false;
+      }
+
+// Parse the host and port
+//
+   if ((eText = netAddr.Set(val)))
+      {snprintf(hName, sizeof(hName), badTarget, val, ";");
+       eDest->Emsg("Config", hName, eText);
+       return false;
+      }
+
+// Now get the host name and port
+//
+   if (!netAddr.Format(hName, sizeof(hName), XrdNetAddrInfo::fmtAuto,
+                                             XrdNetAddrInfo::noPort))
+      {snprintf(hName, sizeof(hName), badTarget, val, ".");
+       eDest->Emsg("Config", hName);
+       return false;
+      }
+
+// Set values and return
+//
+    host = strdup(hName);
+    hlen = strlen(hName)+1;
+    port = netAddr.Port();
+    return true;
 }
 
 /******************************************************************************/

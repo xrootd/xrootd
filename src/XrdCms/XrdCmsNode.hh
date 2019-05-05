@@ -109,7 +109,8 @@ const  char  *do_PrepAdd(XrdCmsRRData &Arg);
 const  char  *do_PrepDel(XrdCmsRRData &Arg);
 const  char  *do_Rm(XrdCmsRRData &Arg);
 const  char  *do_Rmdir(XrdCmsRRData &Arg);
-       int    do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel, char *Avoid);
+       int    do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel,
+                          char *Avoid, bool &doRedir);
 const  char  *do_Select(XrdCmsRRData &Arg);
 static int    do_SelPrep(XrdCmsPrepArgs &Arg);
 const  char  *do_Space(XrdCmsRRData &Arg);

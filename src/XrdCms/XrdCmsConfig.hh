@@ -130,6 +130,13 @@ int         adsPort;      // Alternate server port
 int         adsMon;       // Alternate server monitoring
 char       *adsProt;      // Alternate server protocol
 
+char       *mrRdrHost;    // Maxretries redirect target
+int         mrRdrHLen;
+int         mrRdrPort;
+char       *msRdrHost;    // Nomultisrc redirect target
+int         msRdrHLen;
+int         msRdrPort;
+
 XrdVersionInfo  *myVInfo; // xrootd version used in compilation
 
 XrdOucName2Name *xeq_N2N; // Server or Manager (non-null if library loaded)
@@ -230,6 +237,8 @@ int  xrmtrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xrole(XrdSysError *edest, XrdOucStream &CFile);
 int  xsched(XrdSysError *edest, XrdOucStream &CFile);
 int  xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile);
+int  xschedx(char *val, XrdSysError *eDest, XrdOucStream &CFile);
+bool xschedy(char *val, XrdSysError *eDest, char *&host, int &hlen, int &port);
 int  xsecl(XrdSysError *edest, XrdOucStream &CFile);
 int  xspace(XrdSysError *edest, XrdOucStream &CFile);
 int  xsubc(XrdSysError *edest, XrdOucStream &CFile);

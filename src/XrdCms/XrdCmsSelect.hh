@@ -80,9 +80,11 @@ struct {SMask_t wf;     // Out: Writable locations
         SMask_t bf;     // Out: Bounced  locations
        }        Vec;
 
-struct {int  Port;      // Out: Target node port number
-        char Data[256]; // Out: Target node or error message
-        int  DLen;      // Out: Length of Data including null byte
+static const int SelDSZ = 256;
+
+struct {int  Port;         // Out: Target node port number
+        char Data[SelDSZ]; // Out: Target node or error message
+        int  DLen;         // Out: Length of Data including null byte
        }     Resp;
 
              XrdCmsSelect(int opts=0, char *thePath=0, int thePLen=0)

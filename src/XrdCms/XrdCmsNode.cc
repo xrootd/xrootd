@@ -82,6 +82,11 @@ namespace
 {
 XrdNetIF::ifType ifVec[4] = {XrdNetIF::PublicV4, XrdNetIF::Public46,
                              XrdNetIF::PublicV6, XrdNetIF::Public64};
+
+const char *msrcmsg = "Cluster does not support multi-source access.";
+int msrclen = strlen(msrcmsg)+1;
+const char *mtrymsg = "Cluster retry limit exceeded.";
+int mtrylen = strlen(mtrymsg)+1;
 };
   
 /******************************************************************************/
@@ -1025,7 +1030,8 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 /*                           d o _ S e l A v o i d                            */
 /******************************************************************************/
 
-int XrdCmsNode::do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel, char *Avoid)
+int XrdCmsNode::do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel,
+                            char *Avoid, bool &doRedir)
 {
    XrdNetAddr avoidAddr;
    char *Comma;
@@ -1053,24 +1059,31 @@ int XrdCmsNode::do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel, char *Avoid)
 // This is a standard cluster, check if client is expanding the server base
 // and whether or not this is allowed in this cluster.
 //
-   if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL)
-      {if (!Config.MultiSrc)
-         {static const char *msrcmsg =
-                 "Cluster does not support multi-source access.";
-          static int msrclen = strlen(msrcmsg)+1;
-          strncpy(Sel.Resp.Data, msrcmsg, sizeof(Sel.Resp.Data));
-          Sel.Resp.DLen = msrclen;
-          return -1;
-         }
+   if ((Arg.Opts & CmsSelectRequest::kYR_tryRSEL) && !Config.MultiSrc)
+      {if (Config.msRdrHost)
+          {strcpy(Sel.Resp.Data, Config.msRdrHost); // Gauranteed to fit!
+           Sel.Resp.DLen = Config.msRdrHLen;
+           Sel.Resp.Port = Config.msRdrPort;
+           doRedir = true;
+          } else {
+           strncpy(Sel.Resp.Data, msrcmsg, sizeof(Sel.Resp.Data));
+           Sel.Resp.DLen = msrclen;
+          }
+       return -1;
       }
 
 // Check if we exceeded the retry count
 //
    if (avNum > Config.MaxRetries)
-      {static const char *mtrymsg = "Cluster retry limit exceeded.";
-       static int mtrylen = strlen(mtrymsg)+1;
-       strncpy(Sel.Resp.Data, mtrymsg, sizeof(Sel.Resp.Data));
-       Sel.Resp.DLen = mtrylen;
+      {if (Config.mrRdrHost)
+          {strcpy(Sel.Resp.Data, Config.mrRdrHost); // Gauranteed to fit!
+           Sel.Resp.DLen = Config.mrRdrHLen;
+           Sel.Resp.Port = Config.mrRdrPort;
+           doRedir = true;
+          } else {
+           strncpy(Sel.Resp.Data, mtrymsg, sizeof(Sel.Resp.Data));
+           Sel.Resp.DLen = mtrylen;
+          }
        return -1;
       }
 
@@ -1156,13 +1169,14 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 
 // Check if an avoid node present. If so, this is ineligible for fast redirect.
 //
+   bool doRedir = false;
    Sel.nmask = SMask_t(0);
-   if (Arg.Avoid) rc = do_SelAvoid(Arg, Sel, Arg.Avoid);
+   if (Arg.Avoid) rc = do_SelAvoid(Arg, Sel, Arg.Avoid, doRedir);
       else rc = 0;
 
 // Perform selection
 //
-   if (rc || (rc = Cluster.Select(Sel)))
+   if (!doRedir && (rc || (rc = Cluster.Select(Sel))))
       {if (rc > 0)
           {Arg.Request.rrCode = kYR_wait;
            Sel.Resp.Port      = rc;
