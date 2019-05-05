@@ -49,6 +49,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucBuffer.hh
   XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCache.hh
+  XrdOuc/XrdOucCacheCM.hh
   XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.hh
   XrdOuc/XrdOucChain.hh
