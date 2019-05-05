@@ -234,11 +234,14 @@ XrdOucCache   *Create(Parms &Params, XrdOucCacheIO::aprParms *aprP=0)
                      {return this;}
 
 //------------------------------------------------------------------------------
-//! Supply environmental information to the cache for optimization. This is
-//! only called server-side but is optional and might not be called. The
-//! environmental information should only be used for optimizations. When
-//! called, it is gauranteed to occur before any active use of the cache and
-//! is essentially serialized (i.e. the main start-up thread is used).
+//! Supply environmental information to the cache. This is only called on the
+//! server but is optional and might not be called. When it is called, it is
+//! gauranteed to occur before any active use of the cache and is essentially
+//! serialized (i.e. the main start-up thread is used). The environmental
+//! information should only be used to optimize processing. For instance,
+//! when cache monitoring is enabled, the variable "pfc.gStream*" is defined
+//! and is a pointer to a gStream object that can be used to report statistical
+//! information to a monitoring collector.
 //!
 //! @param  theEnv - Reference to environmental information.
 //------------------------------------------------------------------------------
