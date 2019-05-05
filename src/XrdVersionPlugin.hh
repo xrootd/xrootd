@@ -91,6 +91,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCksCalcInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCksInit                    )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCmsGetClient               )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCmsgetVnId                 )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCryptosslFactoryObject     )\
         XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdFileCacheGetDecision       )\
         XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdgetProtocol                )\
@@ -100,7 +101,10 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysLogPInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssGetStorageSystem        )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssStatInfoInit            )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssStatInfoInit2           )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOucGetCache                )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOucGetCache2               )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOucCacheCMInit             )\
         XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdOucgetName2Name            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecGetProtocol             )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecgetService              )\
@@ -123,6 +127,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSfsGetFileSystem           )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSfsGetFileSystem2          )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysGetXAttrObject          )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSysLogPInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetMonitor               )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetPlugIn                )\
                              { 0, 0, 0,  0,  0, 0}
