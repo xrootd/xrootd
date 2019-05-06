@@ -74,9 +74,13 @@ MkDirFlags = enum(
 )
 
 DirListFlags = enum(
-  NONE   = 0,
-  STAT   = 1,
-  LOCATE = 2
+  NONE      = 0,
+  STAT      = 1,
+  LOCATE    = 2,
+  RECURSIVE = 4,
+  MERGE     = 8,
+  CHUNKED   = 16,
+  ZIP       = 32
 )
 
 PrepareFlags = enum(

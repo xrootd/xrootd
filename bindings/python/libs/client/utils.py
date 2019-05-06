@@ -30,7 +30,7 @@ class CallbackWrapper(object):
   def __call__(self, status, response, *argv):
     self.status = XRootDStatus(status)
     self.response = response
-    if self.responsetype:
+    if self.responsetype and self.response:
       self.response = self.responsetype(response)
     if argv:
       self.hostlist = HostList(argv[0])

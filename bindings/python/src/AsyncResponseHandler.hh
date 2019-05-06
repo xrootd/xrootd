@@ -131,6 +131,11 @@ namespace PyXRootD
         }
 
         //----------------------------------------------------------------------
+        //  Check if it is a final response or if it is just a chunk
+        //----------------------------------------------------------------------
+        bool finalrsp = !( status->IsOK() && status->code == XrdCl::suContinue );
+
+        //----------------------------------------------------------------------
         // Invoke the Python callback
         //----------------------------------------------------------------------
         PyObject *callbackResult = PyObject_CallObject( this->callback, args );
@@ -152,15 +157,18 @@ namespace PyXRootD
         Py_XDECREF( pyresponse );
         Py_XDECREF( pyhostlist );
         Py_XDECREF( callbackResult );
-        Py_XDECREF( this->callback );
+        if( finalrsp )
+          Py_XDECREF( this->callback );
 
         PyGILState_Release( state );
 
         delete status;
         delete response;
         delete hostList;
-        // Commit suicide...
-        delete this;
+
+        if( finalrsp )
+          // Commit suicide...
+          delete this;
       }
 
       //------------------------------------------------------------------------
@@ -216,6 +224,11 @@ namespace PyXRootD
         }
 
         //----------------------------------------------------------------------
+        //  Check if it is a final response or if it is just a chunk
+        //----------------------------------------------------------------------
+        bool finalrsp = !( status->IsOK() && status->code == XrdCl::suContinue );
+
+        //----------------------------------------------------------------------
         // Invoke the Python callback
         //----------------------------------------------------------------------
         PyObject *callbackResult = PyObject_CallObject( this->callback, args );
@@ -233,14 +246,17 @@ namespace PyXRootD
         Py_XDECREF( pystatus );
         Py_XDECREF( pyresponse );
         Py_XDECREF( callbackResult );
-        Py_XDECREF( this->callback );
+        if( finalrsp )
+          Py_XDECREF( this->callback );
 
         PyGILState_Release( state );
 
         delete status;
         delete response;
-        // Commit suicide...
-        delete this;
+
+        if( finalrsp )
+          // Commit suicide...
+          delete this;
       }
 
       //------------------------------------------------------------------------

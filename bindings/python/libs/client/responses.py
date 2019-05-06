@@ -77,6 +77,78 @@ class XRootDStatus(Struct):
   :var shellcode: Status code that may be returned to the shell
   :var     errno: Errno, if any
   """
+
+  #----------------------------------------------------------------------------
+  # Additional info for the stOK status
+  #----------------------------------------------------------------------------
+  suDone            = 0
+  suContinue        = 1
+  suRetry           = 2
+  suPartial         = 3
+  suAlreadyDone     = 4
+
+  #----------------------------------------------------------------------------
+  # Generic errors
+  #----------------------------------------------------------------------------
+  errNone           = 0; # No error
+  errRetry          = 1; # Try again for whatever reason
+  errUnknown        = 2; # Unknown error
+  errInvalidOp      = 3; # The operation cannot be performed in the
+                         # given circumstances
+  errFcntl          = 4; # failed manipulate file descriptor
+  errPoll           = 5; # error while polling descriptors
+  errConfig         = 6; # System misconfigured
+  errInternal       = 7; # Internal error
+  errUnknownCommand = 8;
+  errInvalidArgs    = 9;
+  errInProgress     = 10;
+  errUninitialized  = 11;
+  errOSError        = 12;
+  errNotSupported   = 13;
+  errDataError      = 14; # data is corrupted
+  errNotImplemented = 15; # Operation is not implemented
+  errNoMoreReplicas = 16; # No more replicas to try
+  errPipelineFailed = 17; # Pipeline failed and operation couldn't be executed
+
+  #----------------------------------------------------------------------------
+  # Socket related errors
+  #----------------------------------------------------------------------------
+  errInvalidAddr        = 101;
+  errSocketError        = 102;
+  errSocketTimeout      = 103;
+  errSocketDisconnected = 104;
+  errPollerError        = 105;
+  errSocketOptError     = 106;
+  errStreamDisconnect   = 107;
+  errConnectionError    = 108;
+  errInvalidSession     = 109;
+
+  #----------------------------------------------------------------------------
+  # Post Master related errors
+  #----------------------------------------------------------------------------
+  errInvalidMessage       = 201;
+  errHandShakeFailed      = 202;
+  errLoginFailed          = 203;
+  errAuthFailed           = 204;
+  errQueryNotSupported    = 205;
+  errOperationExpired     = 206;
+  errOperationInterrupted = 207;
+
+  #----------------------------------------------------------------------------
+  # XRootD related errors
+  #----------------------------------------------------------------------------
+  errNoMoreFreeSIDs     = 301;
+  errInvalidRedirectURL = 302;
+  errInvalidResponse    = 303;
+  errNotFound           = 304;
+  errCheckSumError      = 305;
+  errRedirectLimit      = 306;
+
+  errErrorResponse      = 400;
+  errRedirect           = 401;
+
+  errResponseNegative   = 500; # Query response was negative
+
   def __init__(self, status):
     super(XRootDStatus, self).__init__(status)
 
