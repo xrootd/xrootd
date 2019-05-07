@@ -92,6 +92,8 @@ static XrdPssSys   XrdProxySS;
 
        XrdOucSid    *sidP   = 0;
 
+       XrdOucEnv    *envP   = 0;
+
 static const char *ofslclCGI = "ofs.lcl=1";
 
 static const char *osslclCGI = "oss.lcl=1";
@@ -114,15 +116,17 @@ XrdVERSIONINFO(XrdOssGetStorageSystem,XrdPss);
 //
 extern "C"
 {
-XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
-                               XrdSysLogger *Logger,
-                               const char   *config_fn,
-                               const char   *parms)
+XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
+                                XrdSysLogger *Logger,
+                                const char   *cFN,
+                                const char   *parms,
+                                XrdOucEnv    *envp)
 {
 
 // Ignore the parms (we accept none for now) and call the init routine
 //
-   return (XrdProxySS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdProxySS);
+   envP = envp;
+   return (XrdProxySS.Init(Logger, cFN) ? 0 : (XrdOss *)&XrdProxySS);
 }
 }
  
@@ -148,7 +152,7 @@ XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
 
   Output:   Returns zero upon success otherwise (-errno).
 */
-int XrdPssSys::Init(XrdSysLogger *lp, const char *configfn)
+int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN)
 {
    int NoGo;
    const char *tmp;
@@ -157,11 +161,11 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *configfn)
 //
    SysTrace.SetLogger(lp);
    eDest.logger(lp);
-   eDest.Say("Copr.  2018, Stanford University, Pss Version " XrdVSTRING);
+   eDest.Say("Copr.  2019, Stanford University, Pss Version " XrdVSTRING);
 
 // Initialize the subsystems
 //
-   tmp = ((NoGo=Configure(configfn)) ? "failed." : "completed.");
+   tmp = ((NoGo = Configure(cFN)) ? "failed." : "completed.");
    eDest.Say("------ Proxy storage system initialization ", tmp);
 
 // All done.

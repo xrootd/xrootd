@@ -44,15 +44,16 @@
 
 namespace XrdXrootdMonInfo
 {
-extern long long mySID;
+extern XrdScheduler *Sched;
+extern XrdSysError  *eDest;
+extern long long     mySID;
+extern int32_t       startTime;
 }
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
                           
-XrdSysError         *XrdXrootdMonFile::eDest    = 0;
-XrdScheduler        *XrdXrootdMonFile::Sched    = 0;
 XrdSysMutex          XrdXrootdMonFile::bfMutex;
 XrdSysMutex          XrdXrootdMonFile::fmMutex;
 XrdXrootdMonFMap     XrdXrootdMonFile::fmMap[XrdXrootdMonFMap::mapNum];
@@ -239,7 +240,7 @@ void XrdXrootdMonFile::DoIt()
 
 // Reschedule ourselves
 //
-   XrdXrootdMonitor::Sched->Schedule((XrdJob *)this, time(0)+repTime);
+   XrdXrootdMonInfo::Sched->Schedule((XrdJob *)this, time(0)+repTime);
 }
 
 /******************************************************************************/
@@ -318,21 +319,16 @@ void XrdXrootdMonFile::DoXFR(XrdXrootdFileStats *fsP)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
+bool XrdXrootdMonFile::Init(int bfsz)
 {
    XrdXrootdMonFile *mfP;
    int alignment, pagsz = getpagesize();
-
-// Set the variables
-//
-   Sched = sp;
-   eDest = errp;
 
 // Allocate a socket buffer
 //
    alignment = (bfsz < pagsz ? 1024 : pagsz);
    if (posix_memalign((void **)&repBuff, alignment, bfsz))
-      {eDest->Emsg("MonFile", "Unable to allocate monitor buffer.");
+      {XrdXrootdMonInfo::eDest->Emsg("MonFile", "Unable to allocate monitor buffer.");
        return false;
       }
 
@@ -341,7 +337,7 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
    repHdr = (XrdXrootdMonHeader *)repBuff;
    repHdr->code = XROOTD_MON_MAPFSTA;
    repHdr->pseq = 0;
-   repHdr->stod = XrdXrootdMonitor::startTime;
+   repHdr->stod = XrdXrootdMonInfo::startTime;
 
 // Set the time record (always present)
 //
@@ -389,7 +385,7 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 
 // Schedule an the flushes
 //
-   XrdXrootdMonitor::Sched->Schedule((XrdJob *)mfP, time(0)+repTime);
+   XrdXrootdMonInfo::Sched->Schedule((XrdJob *)mfP, time(0)+repTime);
    return true;
 }
   

@@ -70,6 +70,10 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.hh
   XrdXml/XrdXmlReader.hh
+  XrdXrootd/XrdXrootdMonData.hh
+  XrdXrootd/XrdXrootdGStream.hh
+  XrdXrootd/XrdXrootdBridge.hh
+  XrdHttp/XrdHttpSecXtractor.hh
 )
 
 if( NOT XRDCL_ONLY )

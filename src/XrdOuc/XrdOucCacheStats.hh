@@ -46,10 +46,10 @@ long long    BytesGet;   // Number of bytes delivered from the cache
 long long    BytesPass;  // Number of bytes read but not cached
 long long    BytesWrite; // Total number of bytes written from the cache
 long long    BytesPut;   // Number of bytes updated in the cache
-int          Hits;       // Number of times wanted data was in the cache
-int          Miss;       // Number of times wanted data was *not* in the cache
-int          HitsPR;     // Number of pages wanted data was just preread
-int          MissPR;     // Number of pages wanted data was just    read
+long long    Hits;       // Number of times wanted data was in the cache
+long long    Miss;       // Number of times wanted data was *not* in the cache
+long long    HitsPR;     // Number of pages wanted data was just preread
+long long    MissPR;     // Number of pages wanted data was just    read
 
 inline void Get(XrdOucCacheStats &Dst)
                {sMutex.Lock();

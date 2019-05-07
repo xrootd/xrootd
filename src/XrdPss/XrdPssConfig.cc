@@ -68,6 +68,8 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 
+#include "XrdXrootd/XrdXrootdGStream.hh"
+
 /******************************************************************************/
 /*                               d e f i n e s                                */
 /******************************************************************************/
@@ -118,6 +120,8 @@ extern XrdSysError      eDest;
 
 extern XrdOucSid       *sidP;
 
+extern XrdOucEnv       *envP;
+
 extern XrdSysTrace      SysTrace;
 
 static const int maxHLen = 1024;
@@ -156,9 +160,9 @@ int XrdPssSys::Configure(const char *cfn)
 //
    XrdOucEnv::Export("XRDXROOTD_NOPOSC", "1");
 
-// Create a configurator
+// Create a configurator. It will be deleted when we are done.
 //
-   psxConfig = new XrdOucPsx(myVersion, cfn, eDest.logger()); // Deleted later
+   psxConfig = new XrdOucPsx(myVersion, cfn, eDest.logger(), envP);
 
 // Set debug level if so wanted
 //
@@ -669,7 +673,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // of domain. Composite listings are normally disabled for out of domain nodes.
 //
    if (!index(mval, '.') || !strcmp(getDomain(mval), getDomain(myHost)))
-      XrdPosixXrootd::setEnv("DirlistDflt", 1);
+      XrdPosixConfig::SetEnv("DirlistDflt", 1);
 
 // All done
 //

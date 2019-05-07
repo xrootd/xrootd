@@ -35,8 +35,6 @@
 #include "XrdXrootd/XrdXrootdMonFMap.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 
-class XrdScheduler;
-class XrdSysError;
 class XrdXrootdFileStats;
 class XrdXrootdMonHeader;
 class XrdXrootdMonTrace;
@@ -53,7 +51,7 @@ static void Disc(unsigned int usrID);
 
        void DoIt();
 
-static bool Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz=65472);
+static bool Init(int bfsz=65472);
 
 static void Open(XrdXrootdFileStats *fsP,
                  const char *Path, unsigned int uDID, bool isRW);
@@ -68,8 +66,6 @@ static void                 DoXFR(XrdXrootdFileStats *fsP);
 static void                 Flush();
 static char                *GetSlot(int slotSZ);
                           
-static XrdSysError         *eDest;
-static XrdScheduler        *Sched;
 static XrdSysMutex          bfMutex;
 static XrdSysMutex          fmMutex;
 static XrdXrootdMonFMap     fmMap[XrdXrootdMonFMap::mapNum];

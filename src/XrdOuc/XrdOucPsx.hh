@@ -94,8 +94,9 @@ bool                 xLfn2Pfn;
 bool                 xPfn2Lfn;
 bool                 xNameLib;
 
-          XrdOucPsx(XrdVersionInfo *vInfo, const char *cfn, XrdSysLogger *lp=0)
-                   : configFN(strdup(cfn)), theLogger(lp), theEnv(0),
+          XrdOucPsx(XrdVersionInfo *vInfo, const char *cfn,
+                    XrdSysLogger *lp=0,    XrdOucEnv  *vp=0)
+                   : configFN(strdup(cfn)), theLogger(lp), theEnv(vp),
                      theN2N(0), theCache(0), theCache2(0), initCCM(0),
                      mCache(0), setFirst(0), setLast(0), maxRHCB(0),
                      traceLvl(0), debugLvl(0), cioWait(0), cioTries(0),

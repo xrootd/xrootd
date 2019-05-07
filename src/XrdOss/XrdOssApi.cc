@@ -104,7 +104,6 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
    extern XrdSysError OssEroute;
    XrdOucPinLoader *myLib;
    XrdOss          *ossP;
-   XrdOss          *(*ep)(XrdOss *, XrdSysLogger *, const char *, const char *);
 
 // Verify that versions are compatible.
 //
@@ -123,16 +122,28 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
    OssEroute.logger(Logger);
    if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
                                      "osslib",   OssLib))) return 0;
-
-// Now get the entry point of the object creator
+// Declare the interface versions
 //
-   ep = (XrdOss *(*)(XrdOss *, XrdSysLogger *, const char *, const char *))
-                    (myLib->Resolve("XrdOssGetStorageSystem"));
-   if (!ep) return 0;
+   XrdOssGetStorageSystem_t  getOSS1;
+   const char               *epName1 = "XrdOssGetStorageSystem";
+   XrdOssGetStorageSystem2_t getOSS2;
+   const char               *epName2 = "XrdOssGetStorageSystem2";
 
-// Get the Object now
+// First try finding version 2 of the initializer. If that fails try version 1.
+// In the process, we will get an oss object if we succeed at all.
 //
-   if ((ossP = ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms)) && envP)
+   getOSS2 = (XrdOssGetStorageSystem2_t)myLib->Resolve(epName2);
+   if (getOSS2) ossP = getOSS2((XrdOss *)&myOssSys, Logger,   config_fn,
+                                                    OssParms, envP);
+      else {getOSS1 = (XrdOssGetStorageSystem_t)myLib->Resolve(epName1);
+            if (!getOSS1) return 0;
+            ossP = getOSS1((XrdOss *)&myOssSys, Logger, config_fn, OssParms);
+           }
+
+// Call the legacy EnvInfo() method and set what library we are using if it
+// differs from what we wre passed.
+//
+   if (ossP && envP)
       {ossP->EnvInfo(envP);
        if (envP && strcmp(OssLib, myLib->Path()))
           envP->Put("oss.lib", myLib->Path());

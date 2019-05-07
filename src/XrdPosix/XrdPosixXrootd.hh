@@ -373,20 +373,6 @@ static bool    myFD(int fd);
                XrdPosixXrootd(int maxfd=255, int maxdir=0, int maxthr=0);
               ~XrdPosixXrootd();
 
-// The following methods were always considered private. They are no longer
-// used and will be removed on the next major release! They are only here for
-// now to keep ABI compatability for the 4.x and prior releases.
-//
-static void    setCache(XrdOucCache *cP);
-static void    setCache(XrdOucCache2 *cP);
-static void    setDebug(int val, bool doDebug=false);
-static void    setEnv(const char *kword, int kval);
-static void    setIPV4(bool userv4);
-static void    setLogger(XrdSysLogger *logP);
-static void    setNumCB(int numcb);
-static void    setN2N(XrdOucName2Name *pN2N, int opts=0);
-static void    setSched(XrdScheduler *sP);
-
 private:
 
 static int  Fault(XrdPosixFile *fp, int ecode);

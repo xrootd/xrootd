@@ -246,6 +246,8 @@ virtual        ~XrdOss() {}
 //! @param  parms      -> Any parameters specified after the path on the
 //!                       ofs.osslib directive. If there are no parameters, the
 //!                       pointer may be zero.
+//! @param  envP       -> **Version2 Only** pointer to environmental info.
+//!                       This pointer may be nil if no such information exists.
 //!
 //! @return Success:   -> an instance of the XrdOss object to be used as the
 //!                       underlying storage system.
@@ -254,11 +256,40 @@ virtual        ~XrdOss() {}
 //! The object creation function must be declared as an extern "C" function
 //! in the plug-in shared library as follows:
 //------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+//! The typedef that describes the XRdOssStatInfoInit external.
+//------------------------------------------------------------------------------
+
+typedef XrdOss *(*XrdOssGetStorageSystem_t) (XrdOss        *native_oss,
+                                             XrdSysLogger  *Logger,
+                                             const char    *config_fn,
+                                             const char    *parms);
+
+typedef XrdOss *(*XrdOssGetStorageSystem2_t)(XrdOss       *native_oss,
+                                             XrdSysLogger *Logger,
+                                             const char   *config_fn,
+                                             const char   *parms,
+                                             XrdOucEnv    *envP);
+
 /*!
     extern "C" XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
                                               XrdSysLogger *Logger,
                                               const char   *config_fn,
                                               const char   *parms);
+
+    An alternate entry point may be defined in lieu of the previous entry point.
+    The plug-in loaer looks for this entry point first before reverting to the
+    older version 1 entry point/ Version 2 differs in that an extra parameter,
+    the environmental pointer, is passed. Note that this pointer is also
+    supplied via the EnvInfo() method. This, many times, is not workable as
+    environmental information is needed as initialization time.
+
+    extern "C" XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
+                                               XrdSysLogger *Logger,
+                                               const char   *config_fn,
+                                               const char   *parms,
+                                               XrdOucEnv    *envP);
 */
 
 //------------------------------------------------------------------------------

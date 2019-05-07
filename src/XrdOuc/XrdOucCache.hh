@@ -279,6 +279,8 @@ virtual    ~XrdOucCacheIO() {}  // Always use Detach() instead of direct delete!
    such associations.
 */
 
+class XrdOucEnv;
+
 class XrdOucCache
 {
 public:
@@ -405,7 +407,8 @@ virtual       ~XrdOucCache() {}
    {
    XrdOucCache *XrdOucGetCache(XrdSysLogger *Logger, // Where messages go
                                const char   *Config, // Config file used
-                               const char   *Parms); // Optional parm string
+                               const char   *Parms,  // Optional parm string
+                               XrdOucEnv    *envP);  // Optional environment
    }
 
    When Logger is null, you should use cerr to output messages. Otherwise,
@@ -419,4 +422,7 @@ virtual       ~XrdOucCache() {}
    a null pointer otherwise. The instance is used to create actual caches using
    the object's Create() method.
 */
+
+typedef XrdOucCache *(*XrdOucCache_t)(XrdSysLogger *, const char *,
+                                        const char *, XrdOucEnv  *);
 #endif
