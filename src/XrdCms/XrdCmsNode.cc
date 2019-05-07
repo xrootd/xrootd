@@ -1059,17 +1059,19 @@ int XrdCmsNode::do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel,
 // This is a standard cluster, check if client is expanding the server base
 // and whether or not this is allowed in this cluster.
 //
-   if ((Arg.Opts & CmsSelectRequest::kYR_tryRSEL) && !Config.MultiSrc)
+   if ((Arg.Opts & CmsSelectRequest::kYR_tryMSRC) && !Config.MultiSrc)
       {if (Config.msRdrHost)
           {strcpy(Sel.Resp.Data, Config.msRdrHost); // Gauranteed to fit!
            Sel.Resp.DLen = Config.msRdrHLen;
            Sel.Resp.Port = Config.msRdrPort;
            doRedir = true;
-          } else {
-           strncpy(Sel.Resp.Data, msrcmsg, sizeof(Sel.Resp.Data));
-           Sel.Resp.DLen = msrclen;
+           return -1;
           }
-       return -1;
+       strncpy(Sel.Resp.Data, msrcmsg, sizeof(Sel.Resp.Data));
+       Sel.Resp.DLen = msrclen;
+       if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL) Sel.Resp.Port = kYR_EPERM;
+          else Sel.Resp.Port = kYR_ENOENT;
+       return XrdCmsCluster::RetryOut;
       }
 
 // Check if we exceeded the retry count
@@ -1184,11 +1186,13 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            DEBUGR("delay " <<rc <<' ' <<Arg.Path);
           } else {
            Arg.Request.rrCode = kYR_error;
-           if (rc != XrdCmsCluster::RetryErr) Sel.Resp.Port = kYR_ENOENT;
-              else {int rtRC = (Arg.Opts & CmsSelectRequest::kYR_tryMASK)
-                               >> CmsSelectRequest::kYR_trySHFT;
-                    Sel.Resp.Port = rtEC[rtRC];
-                   }
+           if (rc != XrdCmsCluster::RetryOut)
+              {if (rc != XrdCmsCluster::RetryErr) Sel.Resp.Port = kYR_ENOENT;
+                  else {int rtRC = (Arg.Opts & CmsSelectRequest::kYR_tryMASK)
+                                 >> CmsSelectRequest::kYR_trySHFT;
+                        Sel.Resp.Port = rtEC[rtRC];
+                       }
+              }
            DEBUGR("failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);
           }
       } else if (!Sel.Resp.DLen) return 0;

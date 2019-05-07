@@ -422,6 +422,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                Data.Opts |= CmsSelectRequest::kYR_trySVER;
        else if (!strcmp(triedRC, "resel"))
                Data.Opts |= CmsSelectRequest::kYR_tryRSEL;
+       else if (!strcmp(triedRC, "reseg"))
+               Data.Opts |= CmsSelectRequest::kYR_tryRSEG;
       }
   }
 

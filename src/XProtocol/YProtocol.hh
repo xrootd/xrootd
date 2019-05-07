@@ -509,7 +509,9 @@ enum  {kYR_refresh = 0x00000001,
        kYR_trySVER = 0x00030000,  // Retry due to server error (triedrc=srverr)
        kYR_tryMASK = 0x00030000,  // Mask to isolate retry reason
        kYR_trySHFT = 16,          // Amount to shift right
-       kYR_tryRSEL = 0x00040000,  // Retry for reselection     (triedrc=resel)
+       kYR_tryRSEL = 0x00040000,  // Retry for reselection LCL (triedrc=resel)
+       kYR_tryRSEG = 0x00080000,  // Retry for reselection GBL (triedrc=resel)
+       kYR_tryMSRC = 0x000C0000,  // Retry for multisource operation
        kYR_aWeak   = 0x00100000,  // Affinity: weak
        kYR_aStrong = 0x00200000,  // Affinity: strong
        kYR_aStrict = 0x00300000,  // Affinity: strict
