@@ -320,13 +320,6 @@ release:deb_ubuntu_bionic:
   except:
     - branches
 
-release:deb_ubuntu_artful:
-  <<: *deb_ubuntu_artful_def
-  only:
-    - web
-  except:
-    - branches
-
 release:deb_ubuntu_xenial:
   <<: *deb_ubuntu_xenial_def
   only:
@@ -546,7 +539,7 @@ publish:rhel:
     
 publish:debian:
   stage: publish
-  image: ubuntu:artful
+  image: ubuntu:bionic
   script: 
     - apt-get update
     - apt-get install -y sudo apt-utils sssd
@@ -559,7 +552,6 @@ publish:debian:
     - docker_node
   dependencies:
     - build:deb_ubuntu_bionic
-    - build:deb_ubuntu_artful
     - build:deb_ubuntu_xenial
   only:
     - master
@@ -594,7 +586,7 @@ publish:rhel:release:
 
 publish:debian:release:
   stage: publish
-  image: ubuntu:artful
+  image: ubuntu:bionic
   script:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd
@@ -607,7 +599,6 @@ publish:debian:release:
     - docker_node
   dependencies:
     - release:deb_ubuntu_bionic
-    - release:deb_ubuntu_artful
     - release:deb_ubuntu_xenial
   only:
     - web
