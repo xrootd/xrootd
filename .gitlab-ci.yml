@@ -542,7 +542,7 @@ publish:debian:
   image: ubuntu:bionic
   script: 
     - apt-get update
-    - apt-get install -y sudo apt-utils sssd
+    - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
     - chown -R stci:def-cg /home/stci
     - chmod -R 700 /home/stci
@@ -589,7 +589,7 @@ publish:debian:release:
   image: ubuntu:bionic
   script:
     - apt-get update
-    - apt-get install -y sudo apt-utils sssd
+    - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
     - chown -R stci:def-cg /home/stci
     - chmod -R 700 /home/stci
