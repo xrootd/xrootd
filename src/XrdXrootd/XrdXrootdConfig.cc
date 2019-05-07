@@ -67,6 +67,7 @@
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
+#include "XrdXrootd/XrdXrootdGSReal.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
@@ -272,6 +273,16 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (pi->theEnv) myEnv.PutPtr("xrdEnv*", pi->theEnv);
 
+// Initialize monitoring (it won't do anything if it wasn't enabled)
+//
+   if (!XrdXrootdMonitor::Init(Sched, &eDest, pi->myName, pi->myProg,
+                               myInst, Port)) return 0;
+
+// Config g-stream objects, as needed. This needs to be done before we
+// load any plugins but after we initialize monitoring.
+//
+   ConfigGStream(myEnv);
+
 // Get the filesystem to be used
 //
    if (FSLib[0])
@@ -417,11 +428,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
           } while(xp);
       }
 
-// Initialize monitoring (it won't do anything if it wasn't enabled)
-//
-   if (!XrdXrootdMonitor::Init(Sched, &eDest, pi->myName, pi->myProg,
-                               myInst, Port)) return 0;
-
 // Add all jobs that we can run to the admin object
 //
    if (JobCKS) XrdXrootdAdmin::addJob("chksum", JobCKS);
@@ -563,6 +569,35 @@ void XrdXrootdProtocol::PidFile()
     if (xop) eDest.Emsg("Config", errno, xop, pidFN);
 }
 
+/******************************************************************************/
+/*                         C o n f i g G S t r e a m                          */
+/******************************************************************************/
+
+void XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv)
+{
+   struct GSTable {const char *pin; int Mode; char Type;} gsObj[] =
+                  {{"ccm", XROOTD_MON_CCM, XROOTD_MON_GSCCM},
+                   {"pfc", XROOTD_MON_PFC, XROOTD_MON_GSPFC}
+                  };
+   int numgs = sizeof(gsObj)/sizeof(struct GSTable);
+   int flint = XrdXrootdMonitor::Flushing();
+   char vbuff[64];
+
+// For each enabled monitoring provider, allocate a g-stream and put
+// its address in our environment.
+//
+   for (int i = 0; i < numgs; i++)
+       {if (XrdXrootdMonitor::ModeEnabled(gsObj[i].Mode))
+           {XrdXrootdGStream *gs = new XrdXrootdGSReal(gsObj[i].pin,
+                                                       gsObj[i].Type,
+                                                       gsObj[i].Mode, flint);
+            snprintf(vbuff, sizeof(vbuff), "%s.gStream*", gsObj[i].pin);
+            myEnv.PutPtr(vbuff, (void *)gs);
+           }
+       }
+}
+
+  
 /******************************************************************************/
 /*                        C o n f i g S e c u r i t y                         */
 /******************************************************************************/
@@ -1162,7 +1197,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
                                       [rnums <cnt>] [window <sec>]
                                       dest [Events] <host:port>
 
-   Events: [files] [fstat] [info] [io] [iov] [redir] [user]
+   Events: [ccm] [files] [fstat] [info] [io] [iov] [pfc] [redir] [user]
 
          all                enables monitoring for all connections.
          auth               add authentication information to "user".
@@ -1182,11 +1217,13 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
          window <sec>       time (seconds, M, H) between timing marks.
          dest               specified routing information. Up to two dests
                             may be specified.
+         ccm                monitor cache context management
          files              only monitors file open/close events.
          fstats             vectors the "f" stream to the destination
          info               monitors client appid and info requests.
          io                 monitors I/O requests, and files open/close events.
          iov                like I/O but also unwinds vector reads.
+         pfc                monitor proxy file cache
          redir              monitors request redirections
          user               monitors user login and disconnect events.
          <host:port>        where monitor records are to be sentvia UDP.
@@ -1284,12 +1321,14 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
     for (i = 0; i < 2; i++)
         {if (strcmp("dest", val)) break;
          while((val = Config.GetWord()))
-                   if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
+                   if (!strcmp("ccm",  val)) monMode[i] |=  XROOTD_MON_CCM;
+              else if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
               else if (!strcmp("fstat",val)) monMode[i] |=  XROOTD_MON_FSTA;
               else if (!strcmp("info", val)) monMode[i] |=  XROOTD_MON_INFO;
               else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
               else if (!strcmp("iov",  val)) monMode[i] |= (XROOTD_MON_IO
                                                            |XROOTD_MON_IOV);
+              else if (!strcmp("pfc",  val)) monMode[i] |=  XROOTD_MON_PFC;
               else if (!strcmp("redir",val)) monMode[i] |=  XROOTD_MON_REDR;
               else if (!strcmp("user", val)) monMode[i] |=  XROOTD_MON_USER;
               else break;

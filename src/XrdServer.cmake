@@ -39,6 +39,8 @@ add_library(
   XrdXrootd/XrdXrootdProtocol.cc        XrdXrootd/XrdXrootdProtocol.hh
   XrdXrootd/XrdXrootdResponse.cc        XrdXrootd/XrdXrootdResponse.hh
   XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
+  XrdXrootd/XrdXrootdGSReal.cc          XrdXrootd/XrdXrootdGSReal.hh
+  XrdXrootd/XrdXrootdGStream.cc         XrdXrootd/XrdXrootdGStream.hh
   XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
   XrdXrootd/XrdXrootdTransPend.cc       XrdXrootd/XrdXrootdTransPend.hh
   XrdXrootd/XrdXrootdTransSend.cc       XrdXrootd/XrdXrootdTransSend.hh

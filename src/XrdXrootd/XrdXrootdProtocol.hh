@@ -208,6 +208,7 @@ static void  PidFile();
 static int   rpCheck(char *fn, char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
+static void  ConfigGStream(XrdOucEnv &myEnv);
 static int   Squash(char *);
        int   StatGen(struct stat &buf, char *xxBuff, int xxLen, bool xa=false);
 static int   xapath(XrdOucStream &Config);

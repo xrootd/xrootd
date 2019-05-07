@@ -185,22 +185,14 @@ bool XrdOucPsx::ConfigCache(XrdSysError &eDest)
 // Get the Object now
 //
    if (isCache2)
-     {XrdOucCache2     *(*ep)(XrdSysLogger *, const char *, const char *);
-      ep = (XrdOucCache2 *(*)(XrdSysLogger *, const char *, const char *))
-         (myLib.Resolve(cName));
-
+     {XrdOucCache2_t ep = (XrdOucCache2_t)myLib.Resolve(cName);
       if (!ep) return false;
-
-      theCache2 = (XrdOucCache2*)ep(eDest.logger(), configFN, cParm);
+      theCache2 = (XrdOucCache2*)ep(eDest.logger(), configFN, cParm, theEnv);
       return theCache2 != 0;
      } else {
-      XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
-      ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
-         (myLib.Resolve(cName));
-
+      XrdOucCache_t ep = (XrdOucCache_t)myLib.Resolve(cName);
       if (!ep) return false;
-
-      theCache = (XrdOucCache*)ep(eDest.logger(), configFN, cParm);
+      theCache = (XrdOucCache*)ep(eDest.logger(), configFN, cParm, theEnv);
       return theCache != 0;
      }
 }

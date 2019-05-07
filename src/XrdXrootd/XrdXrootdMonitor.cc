@@ -55,8 +55,6 @@
 /*                     S t a t i c   A l l o c a t i o n                      */
 /******************************************************************************/
 
-XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
-XrdSysError       *XrdXrootdMonitor::eDest      = 0;
 char              *XrdXrootdMonitor::idRec      = 0;
 int                XrdXrootdMonitor::idLen      = 0;
 char              *XrdXrootdMonitor::Dest1      = 0;
@@ -67,7 +65,6 @@ int                XrdXrootdMonitor::monMode2   = 0;
 XrdNetMsg         *XrdXrootdMonitor::InetDest2  = 0;
 XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
 XrdSysMutex        XrdXrootdMonitor::windowMutex;
-kXR_int32          XrdXrootdMonitor::startTime  = 0;
 int                XrdXrootdMonitor::monRlen    = 0;
 XrdXrootdMonitor::MonRdrBuff
                    XrdXrootdMonitor::rdrMon[XrdXrootdMonitor::rdrMax];
@@ -108,7 +105,13 @@ extern          XrdOucTrace       *XrdXrootdTrace;
 
 namespace XrdXrootdMonInfo
 {
-long long mySID = 0;
+XrdScheduler   *Sched     = 0;
+XrdSysError    *eDest     = 0;
+char           *monHost   = 0;
+long long       mySID     = 0;
+int32_t         startTime = htonl(time(0));
+int             seq       = 0;
+XrdSysMutex     seqMutex;
 }
 
 using namespace XrdXrootdMonInfo;
@@ -558,7 +561,6 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 //
    Sched = sp;
    eDest = errp;
-   startTime = htonl(Now);
 
 // Generate our server ID
 //
@@ -571,6 +573,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
    if (sidSize >= (int)sizeof(sidName)) sName[sizeof(sidName)-1] = 0;
    strcpy(sidName, sName);
    free(sName);
+   monHost = strdup(iHost);
 
 // There is nothing to do unless we have been enabled via Defaults()
 //
@@ -626,7 +629,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 // If we are monitoring file stats then start that up
 //
    if (!Sched || !monFSTAT) monFSTAT = 0;
-      else if (!XrdXrootdMonFile::Init(Sched, eDest)) return 0;
+      else if (!XrdXrootdMonFile::Init()) return 0;
 
 // If we are not monitoring redirections, we are done!
 //
@@ -899,9 +902,7 @@ unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
   
 void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
                                   const char          id, int size)
-{  static XrdSysMutex seqMutex;
-   static int         seq = 0;
-          int         myseq;
+{  int myseq;
 
 // Generate a new sequence number
 //

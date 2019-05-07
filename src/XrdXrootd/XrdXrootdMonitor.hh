@@ -54,6 +54,8 @@
 #define XROOTD_MON_REDR    64
 #define XROOTD_MON_IOV    128
 #define XROOTD_MON_FSTA   256
+#define XROOTD_MON_CCM    512
+#define XROOTD_MON_PFC   1024
 
 #define XROOTD_MON_FSLFN    1
 #define XROOTD_MON_FSOPS    2
@@ -113,11 +115,16 @@ static void              Defaults(int msz,     int rsz,     int wsz,
                                   int flush,   int flash,   int iDent, int rnm,
                                   int fsint=0, int fsopt=0, int fsion=0);
 
+static int               Flushing() {return autoFlush;}
+
 static void              Ident() {Send(-1, idRec, idLen);}
 
 static int               Init(XrdScheduler *sp,    XrdSysError *errp,
                               const char   *iHost, const char  *iProg,
                               const char   *iName, int Port);
+
+static bool              ModeEnabled(int mode)
+                                    {return ((monMode1|monMode2) & mode) != 0;}
 
        void              Open(kXR_unt32 dictid, off_t fsize);
 
@@ -125,6 +132,8 @@ static int               Redirect() {return monREDR;}
 
 static int               Redirect(kXR_unt32  mID, const char *hName, int Port,
                                   const char opC, const char *Path);
+
+static int               Send(int mmode, void *buff, int size);
 
 static time_t            Tick();
 
@@ -222,12 +231,9 @@ static kXR_unt32         GetDictID();
 static kXR_unt32         Map(char  code, XrdXrootdMonitor::User &uInfo,
                              const char *path);
        void              Mark();
-static int               Send(int mmode, void *buff, int size);
 static void              startClock();
 static void              unAlloc(XrdXrootdMonitor *monp);
 
-static XrdScheduler      *Sched;
-static XrdSysError       *eDest;
 static XrdSysMutex        windowMutex;
 static char              *idRec;
 static int                idLen;
@@ -245,7 +251,6 @@ static int                lastRnt;
 static int                autoFlash;
 static int                autoFlush;
 static int                FlushTime;
-static kXR_int32          startTime;
        kXR_int32          lastWindow;
 static kXR_int32          currWindow;
 static int                rdrTOD;

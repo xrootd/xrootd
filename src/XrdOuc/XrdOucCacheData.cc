@@ -152,8 +152,8 @@ XrdOucCacheIO *XrdOucCacheData::Detach()
           {char sBuff[4096];
            snprintf(sBuff, sizeof(sBuff),
                           "Cache: Stats: %lld Read; %lld Get; %lld Pass; "
-                          "%lld Write; %lld Put; %d Hits; %d Miss; "
-                          "%lld pead; %d HitsPR; %d MissPR; Path %s\n",
+                          "%lld Write; %lld Put; %lld Hits; %lld Miss; "
+                          "%lld pead; %lld HitsPR; %lld MissPR; Path %s\n",
                           Statistics.BytesRead, Statistics.BytesGet,
                           Statistics.BytesPass, Statistics.BytesWrite,
                           Statistics.BytesPut,

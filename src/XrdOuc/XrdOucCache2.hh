@@ -364,6 +364,10 @@ virtual       ~XrdOucCache2() {}
 //!                is no configuration file is present.
 //! @param Parms   Pointer to any parameters specified after the shared library
 //!                path. If Parms is null, there are no parameters.
+//! @param envP    Pointer to environmental information. The most relevant
+//!                is whether or not -stream monitoring is enabled.
+//!                XrdXrootdGStream *gstm = envP->(XrddXrootdGStream *)
+//!                                         GetPtr("pfc.gStream*");
 //! @return        A usable, fully configured, instance of an XrdOucCache2
 //!                object upon success and a null pointer otherwise. This
 //!                instance is used for all operations defined by methods in
@@ -373,6 +377,10 @@ virtual       ~XrdOucCache2() {}
 //! {
 //! XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *Logger, // Where messages go
 //!                               const char   *Config, // Config file used
-//!                               const char   *Parms); // Optional parm string
-//! }
+//!                               const char   *Parms,  // Optional parm string
+//! }                             XrdOucEnv    *envP);  // Optional environment
+
+typedef XrdOucCache2 *(*XrdOucCache2_t)(XrdSysLogger *, const char *,
+                                          const char *, XrdOucEnv  *);
+
 #endif
