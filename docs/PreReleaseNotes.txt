@@ -13,6 +13,7 @@ Prerelease Notes
   * **[Server]** Allow better handling for proxy caching clusters.
   * **[Server]** Allow configurable posc sync level.
   * **[Server]** Implement framework for a kXR_prepare plug-in.
+  * **[Server]** Implement simple g-stream monitoring for medium level repotring.
   * **[SSI]** Export request scaling interface.
   * **[SSI]** Add generic Control() method for future use.
   * **[SSI]** Simplify GetResponseData() to return void not enum (breaks ABI).
