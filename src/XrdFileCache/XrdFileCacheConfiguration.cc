@@ -305,7 +305,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    // Set tracing to debug if this is set in environment
    char* cenv = getenv("XRDDEBUG");
-   if (cenv && ! strcmp(cenv,"1")) m_trace->What = 4;
+   if (cenv && ! strcmp(cenv,"1") && m_trace->What < 4) m_trace->What = 4;
 
    if (retval)
    {
