@@ -131,9 +131,9 @@ build:fedora-rawhide:
     - tags
     - schedules
 
-build:fedora-26:
+build:fedora-30:
   stage: build:rpm
-  image: fedora:26
+  image: fedora:30
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
@@ -142,13 +142,13 @@ build:fedora-26:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-26/
-    - cp packaging/*.src.rpm fc-26
-    - cp packaging/RPMS/* fc-26
+    - mkdir fc-30/
+    - cp packaging/*.src.rpm fc-30
+    - cp packaging/RPMS/* fc-30
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-26/
+    - fc-30/
   tags:
     - docker_node
   only:
@@ -158,9 +158,9 @@ build:fedora-26:
     - tags
     - schedules
 
-build:fedora-25:
+build:fedora-29:
   stage: build:rpm
-  image: fedora:25
+  image: fedora:29
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
@@ -169,13 +169,13 @@ build:fedora-25:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-25/
-    - cp packaging/*.src.rpm fc-25
-    - cp packaging/RPMS/* fc-25
+    - mkdir fc-29/
+    - cp packaging/*.src.rpm fc-29
+    - cp packaging/RPMS/* fc-29
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-25/
+    - fc-29/
   tags:
     - docker_node
   only:
@@ -185,9 +185,9 @@ build:fedora-25:
     - tags
     - schedules
 
-build:fedora-24:
+build:fedora-28:
   stage: build:rpm
-  image: fedora:24
+  image: fedora:28
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
@@ -196,13 +196,13 @@ build:fedora-24:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-24/
-    - cp packaging/*.src.rpm fc-24
-    - cp packaging/RPMS/* fc-24
+    - mkdir fc-28/
+    - cp packaging/*.src.rpm fc-28
+    - cp packaging/RPMS/* fc-28
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-24/
+    - fc-28/
   tags:
     - docker_node
   only:
