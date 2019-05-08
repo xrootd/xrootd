@@ -3096,7 +3096,7 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
                    UsrProxy.c_str(), PxyValid.c_str(),
                    DepLength, DefBits};
    ProxyOut_t po = {hs->PxyChain, sessionKsig, hs->Cbck };
-   if (QueryProxy(1, &cachePxy, "Proxy:0",
+   if (QueryProxy(1, &cachePxy, UsrProxy.c_str(),
                   sessionCF, hs->TimeStamp, &pi, &po) != 0) {
       emsg = "error getting user proxies";
       hs->Chain = 0;
