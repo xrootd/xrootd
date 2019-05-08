@@ -49,8 +49,8 @@ if( BUILD_MACAROONS )
   include( XrdMacaroons )
 endif()
 
-if( BUILD_CEPH )
-  include( XrdCeph )
+if( XRDCEPH_SUBMODULE )
+  add_subdirectory( XrdCeph )
 endif()
 
 #-------------------------------------------------------------------------------

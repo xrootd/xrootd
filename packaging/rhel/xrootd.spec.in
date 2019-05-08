@@ -437,9 +437,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DENABLE_TESTS=FALSE \
 %endif
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
-      -DENABLE_CEPH=TRUE \
-%else
-      -DENABLE_CEPH=FALSE \
+      -DXRDCEPH_SUBMODULE=TRUE \
 %endif
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
       -DXRDCLHTTP_SUBMODULE=TRUE \
