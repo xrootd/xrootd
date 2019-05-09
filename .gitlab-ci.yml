@@ -214,6 +214,18 @@ build:deb_ubuntu_xenial:
     - tags
     - schedules
 
+build:deb_ubuntu_disco:
+  image: ubuntu:disco
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: disco
+  only:
+    - master
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules
+
 build:macosx:
   stage: build:rpm
   script:
@@ -311,6 +323,15 @@ release:deb_ubuntu_xenial:
   <<: *deb_ubuntu_build_def
   variables:
     DIST: xenial
+  only:
+    - web
+  except:
+    - branches
+
+release:deb_ubuntu_disco:
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: disco
   only:
     - web
   except:
@@ -542,6 +563,7 @@ publish:debian:
   dependencies:
     - build:deb_ubuntu_bionic
     - build:deb_ubuntu_xenial
+    - build:deb_ubuntu_disco
   only:
     - master
     - /^stable-.*$/
@@ -589,6 +611,7 @@ publish:debian:release:
   dependencies:
     - release:deb_ubuntu_bionic
     - release:deb_ubuntu_xenial
+    - release:deb_ubuntu_disco
   only:
     - web
   except:
