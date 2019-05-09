@@ -6,9 +6,8 @@ stages:
   - publish
   - clean
 
-.template:deb_ubuntu_bionic: &deb_ubuntu_bionic_def
+.template:deb_ubuntu_build: &deb_ubuntu_build_def
   stage: build:rpm
-  image: ubuntu:bionic
   script:
     - apt-get update
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
@@ -16,37 +15,15 @@ stages:
     - mk-build-deps --build-dep debian/control
     - gdebi -n xrootd-build-deps-depends*.deb
     - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution bionic -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
-    - mkdir bionic
-    - cp deb_packages/*.deb  bionic
-    - cp deb_packages/*.ddeb bionic
+    - mkdir ${DIST}/
+    - cp deb_packages/*.deb ${DIST}/
+    - if [[ $DEBUG = true ]] ; then cp deb_packages/*.ddeb ${DIST}/; fi
   artifacts:
     expire_in: 1 day
     paths:
-    - bionic/
-  tags:
-    - docker_node
-
-.template:deb_ubuntu_xenial: &deb_ubuntu_xenial_def
-  stage: build:rpm
-  image: ubuntu:xenial
-  script:
-    - apt-get update
-    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core # pkg-create-dbgsym
-    - cp -R packaging/debian/ .
-    - mk-build-deps --build-dep debian/control
-    - gdebi -n xrootd-build-deps-depends*.deb
-    - version=`./genversion.sh --print-only`
-    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution xenial -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
-    - dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages"
-    - mkdir xenial
-    - cp deb_packages/*.deb  xenial
-#    - cp ../*.ddeb  xenial
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - xenial/
+    - ${DIST}/
   tags:
     - docker_node
 
@@ -213,7 +190,11 @@ build:fedora-28:
     - schedules
  
 build:deb_ubuntu_bionic:
-  <<: *deb_ubuntu_bionic_def
+  image: ubuntu:bionic
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: bionic
+    DEBUG: true
   only:
     - master
     - /^stable-.*$/
@@ -222,7 +203,22 @@ build:deb_ubuntu_bionic:
     - schedules 
  
 build:deb_ubuntu_xenial:
-  <<: *deb_ubuntu_xenial_def
+  image: ubuntu:xenial
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: xenial
+  only:
+    - master
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules
+
+build:deb_ubuntu_disco:
+  image: ubuntu:disco
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: disco
   only:
     - master
     - /^stable-.*$/
@@ -314,14 +310,28 @@ release:slc6-x86_64:
     - branches
 
 release:deb_ubuntu_bionic:
-  <<: *deb_ubuntu_bionic_def
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: bionic
+    DEBUG: true
   only:
     - web
   except:
     - branches
 
 release:deb_ubuntu_xenial:
-  <<: *deb_ubuntu_xenial_def
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: xenial
+  only:
+    - web
+  except:
+    - branches
+
+release:deb_ubuntu_disco:
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: disco
   only:
     - web
   except:
@@ -553,6 +563,7 @@ publish:debian:
   dependencies:
     - build:deb_ubuntu_bionic
     - build:deb_ubuntu_xenial
+    - build:deb_ubuntu_disco
   only:
     - master
     - /^stable-.*$/
@@ -600,6 +611,7 @@ publish:debian:release:
   dependencies:
     - release:deb_ubuntu_bionic
     - release:deb_ubuntu_xenial
+    - release:deb_ubuntu_disco
   only:
     - web
   except:
