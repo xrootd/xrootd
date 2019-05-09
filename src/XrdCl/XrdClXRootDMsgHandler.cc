@@ -110,6 +110,17 @@ namespace XrdCl
       XrdSysCondVarHelper lck( pCV );
       while( pResponse != 0 ) pCV.Wait();
     }
+    else
+    {
+      if( pResponse )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Warning( ExDbgMsg, "[%s] MsgHandler is examining a response although "
+                                "it already owns a response: 0x%x (message: %s ).",
+                      pUrl.GetHostId().c_str(), this,
+                      pRequest->GetDescription().c_str() );
+      }
+    }
 
     if( msg->GetSize() < 8 )
       return Ignore;
