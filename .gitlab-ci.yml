@@ -19,7 +19,7 @@ stages:
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages"
     - mkdir ${DIST}/
     - cp deb_packages/*.deb ${DIST}/
-    - if [[ $DEBUG = true ]] ; then cp deb_packages/*.ddeb ${DIST}/; fi
+    - if [[ $DEBUG = "true" ]] ; then cp deb_packages/*.ddeb ${DIST}/; fi
   artifacts:
     expire_in: 1 day
     paths:
@@ -194,7 +194,7 @@ build:deb_ubuntu_bionic:
   <<: *deb_ubuntu_build_def
   variables:
     DIST: bionic
-    DEBUG: true
+    DEBUG: "true"
   only:
     - master
     - /^stable-.*$/
@@ -313,7 +313,7 @@ release:deb_ubuntu_bionic:
   <<: *deb_ubuntu_build_def
   variables:
     DIST: bionic
-    DEBUG: true
+    DEBUG: "true"
   only:
     - web
   except:
