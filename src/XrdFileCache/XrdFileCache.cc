@@ -742,6 +742,13 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    std::string f_name = url.GetPath();
    std::string i_name = f_name + ".cinfo";
 
+   // Do not allow write access.
+   if (oflags & (O_WRONLY | O_RDWR))
+   {
+      TRACE(Warning, "Cache::Prepare write access requested on file " << f_name << ". Denying access.");
+      return -ENOTSUP;
+   }
+
    // Intercept xrdpfc_command requests.
    if (m_configuration.m_allow_xrdpfc_command && strncmp("/xrdpfc_command/", f_name.c_str(), 16) == 0)
    {
