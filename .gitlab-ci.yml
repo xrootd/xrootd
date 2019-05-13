@@ -316,6 +316,7 @@ release:slc6-x86_64:
     - branches
 
 release:deb_ubuntu_bionic:
+  image: ubuntu:bionic
   <<: *deb_ubuntu_build_def
   variables:
     DIST: bionic
@@ -326,6 +327,7 @@ release:deb_ubuntu_bionic:
     - branches
 
 release:deb_ubuntu_xenial:
+  image: ubuntu:xenial
   <<: *deb_ubuntu_build_def
   variables:
     DIST: xenial
@@ -335,6 +337,7 @@ release:deb_ubuntu_xenial:
     - branches
 
 release:deb_ubuntu_disco:
+  image: ubuntu:disco
   <<: *deb_ubuntu_build_def
   variables:
     DIST: disco
