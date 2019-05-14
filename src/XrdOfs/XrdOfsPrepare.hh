@@ -36,12 +36,12 @@
 //! Class XrdOfsPrepare is used to customize the kXR_prepare request. It is an
 //! OFS layer plugin and loaded via the ofs.preplib directive.
 
-class XrdOfs;
 class XrdOss;
 class XrdOucEnv;
 class XrdOucErrInfo;
 class XrdSecEntity;
 class XrdSfsPrep;
+class XrdSfs;
   
 class XrdOfsPrepare
 {
@@ -130,7 +130,7 @@ virtual     ~XrdOfsPrepare() {}
 //!                  may be null though that would be impossible.
 //! @param  parms -> Argument string specified on the namelib directive. It may
 //!                  be null or point to a null string if no parms exist.
-//! @param  theOfs-> Pointer to the OFS plugin.
+//! @param  theSfs-> Pointer to the SFS plugin.
 //! @param  theOSs-> Pointer to the OSS plugin.
 //!
 //! @return Success: A pointer to an instance of the XrdOfsPrepare object.
@@ -142,7 +142,7 @@ class XrdSysError;
 typedef XrdOfsPrepare *(*XrdOfsgetPrepare_t)(XrdSysError *eDest,
                                              const char  *confg,
                                              const char  *parms,
-                                             XrdOfs      *theOfs,
+                                             XrdSfs      *theSfs,
                                              XrdOss      *theOss,
                                              XrdOucEnv   *envP
                                             );
@@ -150,7 +150,7 @@ typedef XrdOfsPrepare *(*XrdOfsgetPrepare_t)(XrdSysError *eDest,
 #define XrdOfsgetPrepareArguments            XrdSysError *eDest,\
                                              const char  *confg,\
                                              const char  *parms,\
-                                             XrdOfs      *theOfs,\
+                                             XrdSfs      *theSfs,\
                                              XrdOss      *theOss,\
                                              XrdOucEnv   *envP
 /*
