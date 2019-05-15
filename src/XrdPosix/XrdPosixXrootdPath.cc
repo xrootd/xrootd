@@ -161,7 +161,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 {
    EPNAME("P2L");
    const char *urlP, *slash, *quest;
-   char *outP, pfnBuff[1032], lfnBuff[1032];
+   char *outP, *lfnP, pfnBuff[1032], lfnBuff[1032];
    int cgiLen, lfnLen, pfnLen, pfxLen, n;
    bool notOurs = true;
 
@@ -218,7 +218,8 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
           {errno = n;
            return 0;
           }
-      }
+       lfnP = lfnBuff;
+      } else lfnP = pfnBuff;
 
 // If only the path is wanted, then adjust lengths
 //
@@ -226,7 +227,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 
 // Allocate storage to assemble the new url
 //
-   lfnLen = strlen(lfnBuff);
+   lfnLen = strlen(lfnP);
    if (!(relP = (char *)malloc(pfxLen + lfnLen + cgiLen + 1)))
       {errno = ENOMEM;
        return 0;
@@ -236,7 +237,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 // Assemble the new url, we know we have room to do this
 //
    if (pfxLen) {strncpy(outP, inP, pfxLen); outP += pfxLen;}
-   strcpy( outP, lfnBuff);
+   strcpy( outP, lfnP);
    if (cgiLen) strcpy(outP+lfnLen, quest);
 
 // Do some debugging
