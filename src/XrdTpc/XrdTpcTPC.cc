@@ -31,15 +31,40 @@ XrdSysMutex TPCHandler::m_monid_mutex;
 XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
 
 
-static std::string prepareURL(const XrdHttpExtReq &req) {
+// We need to utilize the full URL (including the query string), not just the
+// resource name.  The query portion is hidden in the `xrd-http-query` header;
+// we take this out and combine it with the resource name.
+//
+// One special key is `authz`; this is always stripped out and copied to the Authorization
+// header (which will later be used for XrdSecEntity).  The latter copy is only done if
+// the Authorization header is not already present.
+static std::string prepareURL(XrdHttpExtReq &req) {
   std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-query");
   if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
 
-  std::string query = iter->second;
-  if (query[0] == '&') {
-    query = query.substr(1);
+  auto has_authz_header = req.headers.find("Authorization") != req.headers.end();
+
+  std::istringstream requestStream(iter->second);
+  std::string token;
+  std::stringstream result;
+  bool found_first_header = false;
+  while (std::getline(requestStream, token, '&')) {
+    if (token.empty()) {
+      continue;
+    } else if (!strncmp(token.c_str(), "authz=", 6)) {
+      if (!has_authz_header) {
+        req.headers["Authorization"] = token.substr(6);
+        has_authz_header = true;
+      }
+    } else if (!found_first_header) {
+      result << "?" << token;
+      found_first_header = true;
+    } else {
+      result << "&" << token;
+    }
   }
-  return req.resource + "?" + query;
+
+  return req.resource + result.str().c_str();
 }
 
 
@@ -435,9 +460,9 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         char msg[] = "Failed to initialize internal transfer file handle";
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
-    std::string authz = GetAuthz(req);
-
     std::string full_url = prepareURL(req);
+
+    std::string authz = GetAuthz(req);
 
     int open_results = OpenWaitStall(*fh, full_url, SFS_O_RDONLY, 0644,
                                      req.GetSecEntity(), authz);
@@ -489,7 +514,6 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     if (query_header != req.headers.end()) {
         redirect_resource = query_header->second;
     }
-    std::string authz = GetAuthz(req);
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
     auto overwrite_header = req.headers.find("Overwrite");
     if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
@@ -513,6 +537,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         }
     }
     std::string full_url = prepareURL(req);
+    std::string authz = GetAuthz(req);
 
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
                                     req.GetSecEntity(), authz);
