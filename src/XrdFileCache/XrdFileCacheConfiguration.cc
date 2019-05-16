@@ -189,10 +189,12 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       return false;
    }
 
-   // Reduce buffersize in case of client caching
+   // Adjust default parameters for client/serverless caching
    if (m_isClient)
    {
-      m_configuration.m_bufferSize = 256 * 1024;
+      m_configuration.m_bufferSize     = 256 * 1024;
+      m_configuration.m_wqueue_blocks  = 8;
+      m_configuration.m_wqueue_threads = 1;
    }
 
    // Actual parsing of the config file.

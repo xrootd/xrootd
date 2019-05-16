@@ -67,8 +67,8 @@ struct Configuration
       m_bufferSize(1024*1024),
       m_RamAbsAvailable(0),
       m_NRamBuffers(-1),
-      m_wqueue_blocks(1),
-      m_wqueue_threads(1),
+      m_wqueue_blocks(16),
+      m_wqueue_threads(4),
       m_prefetch_max_blocks(10),
       m_hdfsbsize(128*1024*1024),
       m_flushCnt(100)
