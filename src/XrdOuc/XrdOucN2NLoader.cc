@@ -27,6 +27,11 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
+
+#include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
   
 #include "XrdVersion.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -54,7 +59,18 @@ XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
 //
    if (!libName)
       {if (!XrdSysPlugin::VerCmp(urVer, myVer)) return 0;
-       if (lclRoot) XrdOucEnv::Export("XRDLCLROOT", lclRoot);
+       if (lclRoot)
+          {struct stat Stat;
+           if (stat(lclRoot, &Stat))
+              {eRoute->Emsg("N2N", errno, "use localroot", lclRoot);
+               return 0;
+              }
+           if (!S_ISDIR(Stat.st_mode))
+              {eRoute->Emsg("N2N", ENOTDIR, "use localroot", lclRoot);
+               return 0;
+              }
+           XrdOucEnv::Export("XRDLCLROOT", lclRoot);
+          }
        if (rmtRoot) XrdOucEnv::Export("XRDRMTROOT", rmtRoot);
        n2nP = XrdOucgetName2Name(eRoute, cFN, libParms, lclRoot, rmtRoot);
        if (XrdOucN2NVec_P && envP)
