@@ -220,6 +220,7 @@ static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
 static int   xfsL(XrdOucStream &Config, char *val, int lix);
 static int   xfso(XrdOucStream &Config);
+static int   xgpf(XrdOucStream &Config);
 static int   xpidf(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
@@ -293,6 +294,8 @@ static char               *FSLib[2];
 static int                 FSLvn[2];
 static char               *digLib;    // Normally zero for now
 static char               *digParm;
+static char               *gpfLib;    // Normally zero for default
+static char               *gpfParm;
 static char               *Notify;
 static const char         *myCName;
 static int                 myCNlen;
@@ -320,9 +323,10 @@ static int    usxMaxVsz;
 static char  *usxParms;
 
 static const char Req_TLSData  = 0x01;
-static const char Req_TLSLogin = 0x02;
-static const char Req_TLSSess  = 0x04;
-static const char Req_TLSTPC   = 0x08;
+static const char Req_TLSGPFile= 0x02;
+static const char Req_TLSLogin = 0x04;
+static const char Req_TLSSess  = 0x08;
+static const char Req_TLSTPC   = 0x10;
 
 static char   tlsCap;    // TLS requirements for capable clients
 static char   tlsNot;    // TLS requirements for incapable clients
