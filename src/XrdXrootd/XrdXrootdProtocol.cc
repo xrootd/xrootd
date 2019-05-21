@@ -65,6 +65,8 @@ XrdSfsFileSystem     *XrdXrootdProtocol::digFS    = 0;
 char                 *XrdXrootdProtocol::FSLib[2] = {0, 0};
 int                   XrdXrootdProtocol::FSLvn[2] = {0, 0};
 char                 *XrdXrootdProtocol::digLib   = 0;
+char                 *XrdXrootdProtocol::gpfParm  = 0;
+char                 *XrdXrootdProtocol::gpfLib   = 0;
 char                 *XrdXrootdProtocol::digParm  = 0;
 XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
 XrdSecService        *XrdXrootdProtocol::CIA      = 0;

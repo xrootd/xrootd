@@ -520,6 +520,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("export",        xexp);
              else if TS_Xeq("fslib",         xfsl);
              else if TS_Xeq("fsoverload",    xfso);
+             else if TS_Xeq("gpflib",        xgpf);
              else if TS_Xeq("log",           xlog);
              else if TS_Xeq("monitor",       xmon);
              else if TS_Xeq("pidpath",       xpidf);
@@ -628,7 +629,7 @@ int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
 //
    if (tlsCtx) xEnv.PutPtr("XrdTLSContext*", (void *)tlsCtx);
 
-// Check if we need to loadanything
+// Check if we need to load anything
 //
    if (!SecLib)
       {eDest.Say("Config warning: 'xrootd.seclib' not specified;"
@@ -884,7 +885,7 @@ int XrdXrootdProtocol::xdig(XrdOucStream &Config)
 // Get the path
 //
    if (!(val = Config.GetWord()))
-      {eDest.Emsg("Config", "digfslib not specified"); return 1;}
+      {eDest.Emsg("Config", "diglib not specified"); return 1;}
 
 // Make sure it refers to an internal one
 //
@@ -1143,6 +1144,49 @@ int XrdXrootdProtocol::xfso(XrdOucStream &Config)
    return 0;
 }
 
+/******************************************************************************/
+/*                                  x g p f                                   */
+/******************************************************************************/
+
+/* Function: xgpf
+
+   Purpose:  To parse the directive: gpflib <path> <parms>
+
+             <path>    library path to use or default to use the builtin one.
+             parms     optional parameters.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xgpf(XrdOucStream &Config)
+{
+    char parms[4096], *val;
+
+// Remove any previous parameters
+//
+   if (gpfLib)  {free(gpfLib);  gpfLib  = 0;}
+   if (gpfParm) {free(gpfParm); gpfParm = 0;}
+
+// Get the path
+//
+   if (!(val = Config.GetWord()))
+      {eDest.Emsg("Config", "gpflib not specified"); return 1;}
+
+// If this refers to out default, then keep the library pointer nil
+//
+   if (strcmp(val, "default")) gpfLib = strdup(val);
+
+// Grab the parameters
+//
+    if (!Config.GetRest(parms, sizeof(parms)))
+       {eDest.Emsg("Config", "gpflib parameters too long"); return 1;}
+    gpfParm = strdup(parms);
+
+// All done
+//
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                  x l o g                                   */
 /******************************************************************************/
@@ -1714,9 +1758,10 @@ int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
                        all     Requires all of the below.
                        data    All bound sockets must use TLS. When specified,
                                session is implied unless login is specified.
+                       gpfile  getile and putfile requests must use TLS
                        login   Logins and all subsequent requests must use TLS
                        none    Turns all requirements off (default).
-                       off     Synonym for off.
+                       off     Synonym for none.
                        session All requests after login must use TLS
                        tpc     Third party copy requests must use TLS
 
@@ -1731,6 +1776,7 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
        {
         {"all",      kXR_tlsAny,   Req_TLSAll},
         {"data",     kXR_tlsData,  Req_TLSData},
+        {"gpfile",   kXR_tlsGPFile,Req_TLSGPFile},
         {"login",    kXR_tlsLogin, Req_TLSLogin},
         {"session",  kXR_tlsSess,  Req_TLSSess},
         {"tpc",      kXR_tlsTPC,   Req_TLSTPC}
