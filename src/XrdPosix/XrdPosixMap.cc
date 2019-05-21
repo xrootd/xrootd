@@ -92,7 +92,7 @@ int XrdPosixMap::mapCode(int rc)
         case XrdCl::errQueryNotSupported:  return ENOTSUP;
         case XrdCl::errOperationExpired:   return ESTALE;
         case XrdCl::errNoMoreFreeSIDs:     return ENOSR;
-//      case XrdCl::errInvalidRedirectURL: return ?????;
+        case XrdCl::errInvalidRedirectURL: return ESPIPE;
         case XrdCl::errInvalidResponse:    return EBADMSG;
         case XrdCl::errNotFound:           return EIDRM;
         case XrdCl::errCheckSumError:      return EILSEQ;
@@ -126,7 +126,7 @@ XrdCl::Access::Mode XrdPosixMap::Mode2Access(mode_t mode)
 /*                                R e s u l t                                 */
 /******************************************************************************/
   
-int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
+int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status, bool retneg1)
 {
    std::string eText;
    int eNum;
@@ -154,5 +154,5 @@ int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
 // Return
 //
    errno = eNum;
-   return -1;
+   return (retneg1 ? -1 : -eNum);
 }

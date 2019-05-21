@@ -77,7 +77,7 @@ void Print::printFile(const std::string& path)
 
    int cntd = 0;
    for (int i = 0; i < cfi.GetSizeInBits(); ++i)
-      if (cfi.TestBit(i)) cntd++;
+      if (cfi.TestBitWritten(i)) cntd++;
 
    const Info::Store& store = cfi.RefStoredData();
    char   creationBuff[1000];
@@ -107,7 +107,7 @@ void Print::printFile(const std::string& path)
       {
          if (i % 64 == 0)
             printf("\n%*d ", n_db, i);
-         printf("%c", cfi.TestBit(i) ? 'x' : '.');
+         printf("%c", cfi.TestBitWritten(i) ? 'x' : '.');
       }
       printf("\n");
    }

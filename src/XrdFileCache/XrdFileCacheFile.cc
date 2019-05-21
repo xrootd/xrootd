@@ -53,6 +53,7 @@ const char *File::m_traceID = "File";
 File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_ref_cnt(0),
    m_is_open(false),
+   m_in_shutdown(false),
    m_output(0),
    m_infoFile(0),
    m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
@@ -93,6 +94,8 @@ File::~File()
    TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
 }
 
+//------------------------------------------------------------------------------
+
 File* File::FileOpen(const std::string &path, long long offset, long long fileSize)
 {
    File *file = new File(path, offset, fileSize);
@@ -106,13 +109,52 @@ File* File::FileOpen(const std::string &path, long long offset, long long fileSi
 
 //------------------------------------------------------------------------------
 
+void File::initiate_emergency_shutdown()
+{
+   // Called from Cache::UnlinkCommon() when the file is currently open.
+   // CacheUnlink is also called on FSync error.
+   //
+   // From this point onward the file will not be written to, cinfo file will
+   // not be updated, and all new read requests will return -ENOENT.
+   //
+   // File's entry in the Cache's active map is set to nullptr and will be
+   // removed from there shortly, in any case, well before this File object
+   // shuts down. So we do not communicate to Cache about our destruction when
+   // it happens.
+
+   {
+      XrdSysCondVarHelper _lck(m_downloadCond);
+
+      m_in_shutdown = true;
+
+      if (m_prefetchState != kStopped && m_prefetchState != kComplete)
+      {
+         m_prefetchState = kStopped;
+         cache()->DeRegisterPrefetchFile(this);
+      }
+   }
+}
+
+//------------------------------------------------------------------------------
+
 void File::BlockRemovedFromWriteQ(Block* b)
 {
-   m_downloadCond.Lock();
+   TRACEF(Dump, "File::BlockRemovedFromWriteQ() block = " << (void*) b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
+
+   XrdSysCondVarHelper _lck(m_downloadCond);
    dec_ref_count(b);
-   TRACEF(Dump, "File::BlockRemovedFromWriteQ() check write queues block = "
-          << (void*)b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
-   m_downloadCond.UnLock();
+}
+
+void File::BlocksRemovedFromWriteQ(std::list<Block*>& blocks)
+{
+   TRACEF(Dump, "File::BlocksRemovedFromWriteQ() n_blocks = " << blocks.size());
+
+   XrdSysCondVarHelper _lck(m_downloadCond);
+
+   for (std::list<Block*>::iterator i = blocks.begin(); i != blocks.end(); ++i)
+   {
+      dec_ref_count(*i);
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -197,7 +239,7 @@ bool File::FinalizeSyncBeforeExit()
    // This method is called after corresponding IO is detached from PosixCache.
 
    XrdSysCondVarHelper _lck(m_downloadCond);
-   if ( m_is_open )
+   if (m_is_open && ! m_in_shutdown)
    {
      if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detachTimeIsLogged)
      {
@@ -283,6 +325,8 @@ void File::RemoveIO(IO *io)
 
 bool File::Open()
 {
+   // Sets errno accordingly.
+
    TRACEF(Dump, "File::Open() open file for disk cache");
 
    if (m_is_open)
@@ -308,16 +352,20 @@ bool File::Open()
    myEnv.Put("oss.asize",  size_str);
    myEnv.Put("oss.cgroup", conf.m_data_space.c_str());
 
-   if (myOss.Create(myUser, m_filename.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
+   int res;
+
+   if ((res = myOss.Create(myUser, m_filename.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Create failed for data file " << m_filename << ERRNO_AND_ERRSTR);
+      TRACEF(Error, "File::Open() Create failed " << ERRNO_AND_ERRSTR(-res));
+      errno = -res;
       return false;
    }
 
    m_output = myOss.newFile(myUser);
-   if (m_output->Open(m_filename.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
+   if ((res = m_output->Open(m_filename.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed for data file " << m_filename << ERRNO_AND_ERRSTR);
+      TRACEF(Error, "File::Open() Open failed " << ERRNO_AND_ERRSTR(-res));
+      errno = -res;
       delete m_output; m_output = 0;
       return false;
    }
@@ -325,17 +373,19 @@ bool File::Open()
    // Create the info file.
    myEnv.Put("oss.asize", "64k"); // TODO: Calculate? Get it from configuration? Do not know length of access lists ...
    myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
-   if (myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
+   if ((res = myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Create failed for info file " << ifn << ERRNO_AND_ERRSTR);
+      TRACE(Error, "File::Open() Create failed for info file " << ifn << ERRNO_AND_ERRSTR(-res));
+      errno = -res;
       m_output->Close(); delete m_output; m_output = 0;
       return false;
    }
 
    m_infoFile = myOss.newFile(myUser);
-   if (m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
+   if ((res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed for info file " << ifn  << ERRNO_AND_ERRSTR);
+      TRACEF(Error, "File::Open() Open failed for info file " << ifn  << ERRNO_AND_ERRSTR(-res));
+      errno = -res;
       delete m_infoFile; m_infoFile = 0;
       m_output->Close(); delete m_output;   m_output   = 0;
       return false;
@@ -431,17 +481,22 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
    long long off     = i * BS;
    long long this_bs = (i == last_block) ? m_fileSize - off : BS;
 
-   Block *b = new Block(this, io, off, this_bs, prefetch); // should block be reused to avoid recreation
+   // 1. Should blocks be reused to avoid recreation? There is block pool in Xrd
+   // 2, Memalign to page size
+   Block *b = new (std::nothrow) Block(this, io, off, this_bs, prefetch);
 
-   m_block_map[i] = b;
-
-   // Actual Read request is issued in ProcessBlockRequests().
-   TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << " address " << (void*) b);
-
-   if (m_prefetchState == kOn && (int) m_block_map.size() >= Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+   if (b)
    {
-      m_prefetchState = kHold;
-      cache()->DeRegisterPrefetchFile(this);
+      m_block_map[i] = b;
+
+      // Actual Read request is issued in ProcessBlockRequests().
+      TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << " address " << (void*) b);
+
+      if (m_prefetchState == kOn && (int) m_block_map.size() >= Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+      {
+         m_prefetchState = kHold;
+         cache()->DeRegisterPrefetchFile(this);
+      }
    }
 
    return b;
@@ -529,7 +584,7 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
       if (rs != size)
       {
          TRACEF(Error, "File::ReadBlocksFromDisk incomplete size = " <<  rs << " idx = " << *ii);
-         return -1;
+         return -EIO;
       }
 
       total += rs;
@@ -542,34 +597,40 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
 int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 {
-   if ( ! isOpen())
-   {
-      return io->GetInput()->Read(iUserBuff, iUserOff, iUserSize);
-   }
-
    const long long BS = m_cfi.GetBufferSize();
 
    Stats loc_stats;
 
-   // lock
-   // loop over reqired blocks:
-   //   - if on disk, ok;
-   //   - if in ram or incoming, inc ref-count
-   //   - if not available, request and inc ref count
-   // before requesting the hell and more (esp. for sparse readv) assess if
-   //   passing the req to client is actually better.
-   // unlock
-
    BlockList_t blks;
-   bool preProcOK = true;
-
-   m_downloadCond.Lock();
 
    const int idx_first = iUserOff / BS;
    const int idx_last  = (iUserOff + iUserSize - 1) / BS;
 
    BlockList_t blks_to_request, blks_to_process, blks_processed;
    IntList_t   blks_on_disk,    blks_direct;
+
+   // lock
+   // loop over reqired blocks:
+   //   - if on disk, ok;
+   //   - if in ram or incoming, inc ref-count
+   //   - if not available, request and inc ref count before requesting the
+   //     hell and more (esp. for sparse readvs).
+   //     assess if passing the req to client is actually better.
+   // unlock
+
+   m_downloadCond.Lock();
+
+   if ( ! m_is_open)
+   {
+      m_downloadCond.UnLock();
+      TRACEF(Error, "File::Read file is not open");
+      return io->GetInput()->Read(iUserBuff, iUserOff, iUserSize);
+   }
+   if (m_in_shutdown)
+   {
+      m_downloadCond.UnLock();
+      return -ENOENT;
+   }
 
    for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
    {
@@ -580,11 +641,11 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       if (bi != m_block_map.end())
       {
          inc_ref_count(bi->second);
-         TRACEF(Dump, "File::Read() " << iUserBuff << "inc_ref_count for existing block << " << bi->second << " idx = " <<  block_idx);
+         TRACEF(Dump, "File::Read() " << (void*) iUserBuff << "inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
          blks_to_process.push_front(bi->second);
       }
       // On disk?
-      else if (m_cfi.TestBit(offsetIdx(block_idx)))
+      else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
       {
          TRACEF(Dump, "File::Read() read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
          blks_on_disk.push_back(block_idx);
@@ -593,15 +654,10 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       else
       {
          // Is there room for one more RAM Block?
-         if (cache()->RequestRAMBlock())
+         Block *b;
+         if (cache()->RequestRAMBlock() && (b = PrepareBlockRequest(block_idx, io, false)) != 0)
          {
             TRACEF(Dump, "File::Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
-            Block *b = PrepareBlockRequest(block_idx, io, false);
-            if ( ! b)
-            {
-               preProcOK = false;
-               break;
-            }
             inc_ref_count(b);
             blks_to_process.push_back(b);
             blks_to_request.push_back(b);
@@ -617,17 +673,10 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
    m_downloadCond.UnLock();
 
-   if ( ! preProcOK)
-   {
-      for (BlockList_i i = blks_to_process.begin(); i != blks_to_process.end(); ++i)
-         dec_ref_count(*i);
-      return -1;
-   }
-
    ProcessBlockRequests(blks_to_request, false);
 
    long long bytes_read = 0;
-   bool      error_cond = false;
+   int       error_cond = 0; // to be set to -errno
 
    // First, send out any direct requests.
    // TODO Could send them all out in a single vector read.
@@ -639,15 +688,8 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       direct_handler = new DirectResponseHandler(blks_direct.size());
 
       direct_size = RequestBlocksDirect(io, direct_handler, blks_direct, iUserBuff, iUserOff, iUserSize);
-      // failed to send direct client request
-      if (direct_size < 0)
-      {
-         for (BlockList_i i = blks_to_process.begin(); i!= blks_to_process.end(); ++i )
-            dec_ref_count(*i);
-         delete direct_handler;
-         return -1;
-      }
-      TRACEF(Dump, "File::Read() direct read finished, size = " << direct_size);
+
+      TRACEF(Dump, "File::Read() direct read requests sent out, size = " << direct_size);
    }
 
    // Second, read blocks from disk.
@@ -662,7 +704,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       }
       else
       {
-         error_cond = true;
+         error_cond = rc;
          TRACEF(Error, "File::Read() failed read from disk");
       }
    }
@@ -734,10 +776,9 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             // It has failed ... report only the first error.
             if ( ! error_cond)
             {
-               error_cond = true;
-               errno = -(*bi)->m_errno;
+               error_cond = (*bi)->m_errno;
                TRACEF(Error, "File::Read() io " << io << ", block "<< (*bi)->m_offset/BS <<
-                      " finished with error " << errno << " " << strerror(errno));
+                      " finished with error " << -error_cond << " " << strerror(-error_cond));
             }
          }
          ++bi;
@@ -747,8 +788,9 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       finished.clear();
    }
 
-   // Fourth, make sure all direct requests have arrived
-   if (direct_handler != 0 && bytes_read >= 0)
+   // Fourth, make sure all direct requests have arrived.
+   // This can not be skipped as responses write into request memory buffers.
+   if (direct_handler != 0)
    {
       TRACEF(Dump, "File::Read() waiting for direct requests ");
 
@@ -769,9 +811,8 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          // Set error and report only if this is the first error in this read.
          if ( ! error_cond)
          {
-            error_cond = true;
-            errno = -direct_handler->m_errno;
-            TRACEF(Error, "File::Read(), direct read finished with error " << errno << " " << strerror(errno));
+            error_cond = direct_handler->m_errno;
+            TRACEF(Error, "File::Read(), direct read finished with error " << -error_cond << " " << strerror(-error_cond));
          }
       }
 
@@ -796,7 +837,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       m_prefetchHitCnt += prefetchHitsRam;
       for (IntList_i d = blks_on_disk.begin(); d !=  blks_on_disk.end(); ++d)
       {
-         if (m_cfi.TestPrefetchBit(offsetIdx(*d)))
+         if (m_cfi.TestBitPrefetch(offsetIdx(*d)))
             m_prefetchHitCnt++;
       }
       m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
@@ -804,7 +845,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
    m_stats.AddStats(loc_stats);
 
-   return error_cond ? -1ll : bytes_read;
+   return error_cond ? error_cond : bytes_read;
 }
 
 //------------------------------------------------------------------------------
@@ -836,18 +877,19 @@ void File::WriteBlockToDisk(Block* b)
       return;
    }
 
+   const int blk_idx =  (b->m_offset - m_offset) / m_cfi.GetBufferSize();
+
    // Set written bit.
    TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size=" <<  size);
-   int pfIdx =  (b->m_offset - m_offset) / m_cfi.GetBufferSize();
 
    bool schedule_sync = false;
    {
       XrdSysCondVarHelper _lck(m_downloadCond);
 
-      m_cfi.SetBitWritten(pfIdx);
+      m_cfi.SetBitWritten(blk_idx);
 
       if (b->m_prefetch)
-         m_cfi.SetBitPrefetch(pfIdx);
+         m_cfi.SetBitPrefetch(blk_idx);
 
       dec_ref_count(b);
 
@@ -855,13 +897,14 @@ void File::WriteBlockToDisk(Block* b)
       // Synced state is only written out to cinfo file when data file is synced.
       if (m_in_sync)
       {
-         m_writes_during_sync.push_back(pfIdx);
+         m_writes_during_sync.push_back(blk_idx);
       }
       else
       {
-         m_cfi.SetBitSynced(pfIdx);
+         m_cfi.SetBitSynced(blk_idx);
          ++m_non_flushed_cnt;
-         if (m_non_flushed_cnt >= Cache::GetInstance().RefConfiguration().m_flushCnt)
+         if (m_non_flushed_cnt >= Cache::GetInstance().RefConfiguration().m_flushCnt &&
+             ! m_in_shutdown)
          {
             schedule_sync     = true;
             m_in_sync         = true;
@@ -882,7 +925,8 @@ void File::Sync()
 {
    TRACEF(Dump, "File::Sync()");
 
-   int ret = m_output->Fsync();
+   int ret     = m_output->Fsync();
+   bool errorp = false;
    if (ret == XrdOssOK)
    {
       Stats loc_stats = m_stats.Clone();
@@ -892,11 +936,27 @@ void File::Sync()
       if (cret != XrdOssOK)
       {
          TRACEF(Error, "File::Sync cinfo file sync error " << cret);
+         errorp = true;
       }
    }
    else
    {
       TRACEF(Error, "File::Sync data file sync error " << ret << ", cinfo file has not been updated");
+      errorp = true;
+   }
+
+   if (errorp)
+   {
+      TRACEF(Error, "File::Sync failed, unlinking local files and initiating shutdown of File object");
+
+      Cache::GetInstance().Unlink(m_filename.c_str());
+
+      XrdSysCondVarHelper _lck(&m_downloadCond);
+
+      m_writes_during_sync.clear();
+      m_in_sync = false;
+
+      return;
    }
 
    int written_while_in_sync;
@@ -1059,8 +1119,11 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
       b->set_downloaded();
       // Increase ref-count for the writer.
       TRACEF(Dump, "File::ProcessBlockResponse inc_ref_count " <<  (int)(b->m_offset/BufferSize()));
-      inc_ref_count(b);
-      cache()->AddWriteTask(b, true);
+      if ( ! m_in_shutdown)
+      {
+         inc_ref_count(b);
+         cache()->AddWriteTask(b, true);
+      }
    }
    else
    {
@@ -1120,7 +1183,7 @@ void File::Prefetch()
       // Select block(s) to fetch.
       for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
       {
-         if ( ! m_cfi.TestBit(f))
+         if ( ! m_cfi.TestBitWritten(f))
          {
             int f_act = f + m_offset / m_cfi.GetBufferSize();
 

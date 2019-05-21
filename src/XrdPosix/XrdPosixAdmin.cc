@@ -56,7 +56,7 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 //
    xStatus = Xrd.DeepLocate(Url.GetPathWithParams(),XrdCl::OpenFlags::None,info);
    if (!xStatus.IsOK())
-      {num = XrdPosixMap::Result(xStatus);
+      {num = XrdPosixMap::Result(xStatus, false);
        return 0;
       }
 

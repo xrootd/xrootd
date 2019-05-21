@@ -30,12 +30,11 @@ public:
 
    using XrdOucCacheIO2::Trunc;
 
-   virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
+   virtual int Trunc(long long Offset) { return -ENOTSUP; }
 
    using XrdOucCacheIO2::Write;
 
-   virtual int Write(char *Buffer, long long Offset, int Length)
-   { errno = ENOTSUP; return -1; }
+   virtual int Write(char *Buffer, long long Offset, int Length) { return -ENOTSUP; }
 
    virtual void Update(XrdOucCacheIO2 &iocp);
 

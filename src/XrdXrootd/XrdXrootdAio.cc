@@ -116,14 +116,9 @@ XrdXrootdAio *XrdXrootdAio::Alloc(XrdXrootdAioReq *arp, int bsize)
   
 void XrdXrootdAio::doneRead()
 {
-// Plase this aio request on the completed queue
+// Place this aio request on the completed queue
 //
    aioReq->aioDone = this;
-
-// Extract out any error conditions (keep only the first one)
-//
-   if (Result >= 0) aioReq->aioTotal += Result;
-      else if (!aioReq->aioError) aioReq->aioError = Result;
 
 // Schedule the associated arp to redrive the I/O
 //
@@ -553,13 +548,31 @@ void XrdXrootdAioReq::endRead()
    aiop = aioDone;
    aioDone = aiop->Next;
 
-// If we encountered an error, send off the error message now and terminate
+// If we encountered an error, send off the error message now and terminate.
+// Note that the first error will cancel all in-transit requests with the
+// same error code for consistency, even should they have succeeded.
 //
-   if (aioError
-   || (myIOLen > 0 && aiop->Result == aiop->buffp->bsize && (aioError=Read())))
-      {sendError((char *)aiop->TIdent);
+   if (aioError || aiop->Result < 0)
+      {if (!aioError) aioError = aiop->Result;
+       sendError((char *)aiop->TIdent);
        Recycle(1, aiop);
        return;
+      }
+
+// Add up total bytes read
+//
+   aioTotal += aiop->Result;
+
+// Check if we should continue this operation
+//
+   if (myIOLen > 0 && aiop->Result == aiop->buffp->bsize)
+      {int rc = Read();
+       if (rc)
+          {if (!aioError) aioError = rc;
+           sendError((char *)aiop->TIdent);
+           Recycle(1, aiop);
+           return;
+          }
       }
 
 // We may or may not have an I/O request in flight. However, send off
@@ -651,7 +664,7 @@ void XrdXrootdAioReq::sendError(char *tident)
            (aioType == 'r' ? "read" : "write"), myFile->XrdSfsp->FName(),
            eDest->ec2text(aioError));
 
-// Please the error message in the log
+// Place the error message in the log
 //
    eDest->Emsg("aio", tident, mbuff);
 
@@ -659,7 +672,7 @@ void XrdXrootdAioReq::sendError(char *tident)
 //
    rc = XProtocol::mapError(aioError);
 
-// Send the erro back to the client (ignore any errors)
+// Send the xroot error back to the client (ignore any errors)
 //
    Response.Send((XErrorCode)rc, mbuff);
 }

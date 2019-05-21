@@ -33,7 +33,7 @@
 #define XRD_TRACE GetTrace()->
 #endif
 
-#define ERRNO_AND_ERRSTR ", errno=" << errno << ", err=" << strerror(errno)
+#define ERRNO_AND_ERRSTR(err_code) ", err_code=" << err_code << ", err_str=" << strerror(err_code)
 
 #define TRACE(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
@@ -61,7 +61,7 @@
 
 #else
 
-#define ERRNO_AND_ERRSTR
+#define ERRNO_AND_ERRSTR(err_code)
 #define TRACE(act,x)
 #define TRACE_PC(act, pre_code, x)
 #define TRACEIO(act, x)

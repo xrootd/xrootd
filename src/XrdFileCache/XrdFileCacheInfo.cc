@@ -61,7 +61,7 @@ struct FpHelper
          if (warnp)
          {
             TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
-                                   << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+                                   << " ret=" << ret << " error=" << ((ret < 0) ? strerror(-ret) : "<no error>"));
          }
          return true;
       }
@@ -81,7 +81,7 @@ struct FpHelper
       if (ret != size)
       {
          TRACE(Warning, f_ttext << " off=" << f_off << " size=" << size
-                                << " ret=" << ret << " error=" << ((ret < 0) ? strerror(errno) : "<no error>"));
+                                << " ret=" << ret << " error=" << ((ret < 0) ? strerror(ret) : "<no error>"));
          return true;
       }
       f_off += ret;
@@ -334,9 +334,10 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
    std::string trace_pfx("Info:::Write() ");
    trace_pfx += fname + " ";
 
-   if (XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait))
+   int rc;
+   if ((rc = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait)))
    {
-      TRACE(Error, trace_pfx << " lock failed " << strerror(errno));
+      TRACE(Error, trace_pfx << " lock failed " << strerror(rc));
       return false;
    }
 

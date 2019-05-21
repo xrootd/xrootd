@@ -114,7 +114,8 @@ void FillFileMapRecurse(XrdOssDF* iOssDF, const std::string& path, FPurgeState& 
             // We could also check if it is currently opened with Cache::HaveActiveFileWihtLocalPath()
             // This is not really necessary because we do that check before unlinking the file
             Info cinfo(Cache::GetInstance().GetTrace());
-            if (fh->Open(np.c_str(), O_RDONLY, 0600, env) == XrdOssOK && cinfo.Read(fh, np))
+            int open_rs;
+            if ((open_rs = fh->Open(np.c_str(), O_RDONLY, 0600, env)) == XrdOssOK && cinfo.Read(fh, np))
             {
                time_t accessTime;
                if (cinfo.GetLatestDetachTime(accessTime))
@@ -151,7 +152,7 @@ void FillFileMapRecurse(XrdOssDF* iOssDF, const std::string& path, FPurgeState& 
             }
             else
             {
-               TRACE(Warning, "FillFileMapRecurse() can't open or read " << np << ", err " << strerror(errno)
+               TRACE(Warning, "FillFileMapRecurse() can't open or read " << np << ", open exit status " << strerror(-open_rs)
                                                                          << "; purging.");
                XrdOss* oss = Cache::GetInstance().GetOss();
                oss->Unlink(np.c_str());

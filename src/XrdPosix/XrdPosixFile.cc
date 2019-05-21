@@ -328,6 +328,8 @@ int XrdPosixFile::Fstat(struct stat &buf)
 /******************************************************************************/
 /*                        H a n d l e R e s p o n s e                         */
 /******************************************************************************/
+
+// Note: This response handler is only used for async open requests!
   
 void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
                                   XrdCl::AnyObject    *response)
@@ -341,7 +343,8 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
    if (!(status->IsOK()))          rc = XrdPosixMap::Result(*status);
       else if (!Finalize(&Status)) rc = XrdPosixMap::Result(Status);
 
-// Issue callback with the correct result
+// Issue XrdPosixCallBack callback with the correct result. Note: errors are
+// indicated with result set to -1 and errno set to the error number.
 //
    xeqCB->Complete(rc);
 
@@ -391,7 +394,7 @@ int XrdPosixFile::Read (char *Buff, long long Offs, int Len)
    Status = clFile.Read((uint64_t)Offs, (uint32_t)Len, Buff, bytes);
    unRef();
 
-   return (Status.IsOK() ? (int)bytes : XrdPosixMap::Result(Status));
+   return (Status.IsOK() ? (int)bytes : XrdPosixMap::Result(Status, false));
 }
   
 /******************************************************************************/
@@ -411,7 +414,7 @@ void XrdPosixFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
 // Check status
 //
    if (!Status.IsOK())
-      {rhp->Sched(-XrdPosixMap::Result(Status));
+      {rhp->Sched(XrdPosixMap::Result(Status, false));
        unRef();
       }
 }
@@ -448,7 +451,7 @@ int XrdPosixFile::ReadV (const XrdOucIOVec *readV, int n)
 
 // Return appropriate result
 //
-   return (Status.IsOK() ? nbytes : XrdPosixMap::Result(Status));
+   return (Status.IsOK() ? nbytes : XrdPosixMap::Result(Status, false));
 }
 
 /******************************************************************************/
@@ -480,7 +483,7 @@ void XrdPosixFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
 // Return appropriate result
 //
    if (!Status.IsOK())
-      {rhp->Sched(-XrdPosixMap::Result(Status));
+      {rhp->Sched(XrdPosixMap::Result(Status, false));
        unRef();
       }
 }
@@ -533,7 +536,7 @@ int XrdPosixFile::Sync()
 
 // Return result
 //
-   return XrdPosixMap::Result(Status);
+   return XrdPosixMap::Result(Status, false);
 }
 
 /******************************************************************************/
@@ -550,7 +553,7 @@ void XrdPosixFile::Sync(XrdOucCacheIOCB &iocb)
 
 // Check status
 //
-   if (!Status.IsOK()) rhp->Sched(-XrdPosixMap::Result(Status));
+   if (!Status.IsOK()) rhp->Sched(XrdPosixMap::Result(Status, false));
 }
   
 /******************************************************************************/
@@ -606,7 +609,7 @@ void XrdPosixFile::Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
 // Check status
 //
    if (!Status.IsOK())
-      {rhp->Sched(-XrdPosixMap::Result(Status));
+      {rhp->Sched(XrdPosixMap::Result(Status));
        unRef();
       }
 }

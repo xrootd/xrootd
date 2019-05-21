@@ -111,11 +111,14 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
    {
       static const char* err_prefix = "ExecuteCommandUrl: /xrdpfc_command/create_file: ";
       static const char* usage =
-         "Usage: create_file [-s filesize] [-b blocksize] [-t access_time] [-d access_duration]\n"
-         " Notes:\n"
-         " . Default filesize=1G, blocksize=<as configured>, access_time=-10, access_duration=10.\n"
-         " . -t and -d can be given multiple times to record several accesses.\n"
-         " . Negative arguments given to -t are interpreted as relative to now.\n";
+         "Usage: create_file/ [-h] [-s filesize] [-b blocksize] [-t access_time] [-d access_duration]/<path>\n"
+         "  Creates a cache file with given parameters. Data in file is random.\n"
+         "  Useful for cache purge testing.\n"
+         "Notes:\n"
+         "  . If no options are needed one should still leave a space between / separators, ie., '/ /'\n"
+         "  . Default filesize=1G, blocksize=<as configured>, access_time=-10, access_duration=10.\n"
+         "  . -t and -d can be given multiple times to record several accesses.\n"
+         "  . Negative arguments given to -t are interpreted as relative to now.\n";
 
       const Configuration &conf = m_configuration;
 
@@ -126,7 +129,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
       std::vector<char*> argv;
       SplitParser ap(token, " ");
       int argc = ap.fill_argv(argv);
-      
+
       long long   file_size    = ONE_GB;
       long long   block_size   = conf.m_bufferSize;
       int         access_time    [MAX_ACCESSES];
@@ -228,14 +231,14 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          int cret;
          if ((cret = GetOss()->Create(myUser, file_path.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Create failed for data file " << file_path << ", cret=" << cret << ERRNO_AND_ERRSTR);
+            TRACE(Error, err_prefix << "Create failed for data file " << file_path << ", " << ERRNO_AND_ERRSTR(-cret));
             return;
          }
 
          XrdOssDF *myFile = GetOss()->newFile(myUser);
-         if (myFile->Open(file_path.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
+         if ((cret = myFile->Open(file_path.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Open failed for data file " << file_path << ERRNO_AND_ERRSTR);
+            TRACE(Error, err_prefix << "Open failed for data file " << file_path << ", " << ERRNO_AND_ERRSTR(-cret));
             delete myFile;
             return;
          }
@@ -244,17 +247,17 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
          myEnv.Put("oss.asize", "64k"); // TODO: Calculate? Get it from configuration? Do not know length of access lists ...
          myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
-         if (GetOss()->Create(myUser, cinfo_path.c_str(), 0600, myEnv, XRDOSS_mkpath) != XrdOssOK)
+         if ((cret = GetOss()->Create(myUser, cinfo_path.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Create failed for info file " << cinfo_path << ERRNO_AND_ERRSTR);
+            TRACE(Error, err_prefix << "Create failed for info file " << cinfo_path << ", " << ERRNO_AND_ERRSTR(-cret));
             myFile->Close(); delete myFile;
             return;
          }
 
          XrdOssDF *myInfoFile = GetOss()->newFile(myUser);
-         if (myInfoFile->Open(cinfo_path.c_str(), O_RDWR, 0600, myEnv) != XrdOssOK)
+         if ((cret = myInfoFile->Open(cinfo_path.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
          {
-            TRACE(Error, err_prefix << "Open failed for info file " << cinfo_path << ERRNO_AND_ERRSTR);
+            TRACE(Error, err_prefix << "Open failed for info file " << cinfo_path << ", " << ERRNO_AND_ERRSTR(-cret));
             delete myInfoFile;
             myFile->Close(); delete myFile;
             return;
@@ -262,9 +265,9 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
          // Allocate space for the data file.
 
-         if (posix_fallocate(myFile->getFD(), 0, file_size))
+         if ((cret = posix_fallocate(myFile->getFD(), 0, file_size)))
          {
-            TRACE(Error, err_prefix << "posix_fallocate failed for data file " << file_path << ERRNO_AND_ERRSTR);
+            TRACE(Error, err_prefix << "posix_fallocate failed for data file " << file_path << ", " << ERRNO_AND_ERRSTR(cret));
          }
 
          // Fill up cinfo.
@@ -294,8 +297,64 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
             m_writeQ.writes_between_purges += file_size;
          }
       }
+   }
 
-      return;
+   //================================================================
+   // remove_file
+   //================================================================
+
+   else if (token == "remove_file")
+   {
+      static const char* err_prefix = "ExecuteCommandUrl: /xrdpfc_command/remove_file: ";
+      static const char* usage =
+         "Usage: remove_file/ [-h] /<path>\n"
+         "  Removes given file from the cache unless it is currently open.\n"
+         "  Useful for removal of stale files or duplicate files in a caching cluster.\n"
+         "Notes:\n"
+         "  . If no options are needed one should still leave a space between / separators, ie., '/ /'\n";
+
+      token = cp.get_token();
+
+      TRACE(Debug, err_prefix << "Entered with argument string '" << token <<"'.");
+
+      std::vector<char*> argv;
+      SplitParser ap(token, " ");
+      int argc = ap.fill_argv(argv);
+
+      XrdOucArgs  Spec(&m_log, err_prefix, "hvs:b:t:d:",
+                       "help",         1, "h",
+                       (const char *) 0);
+
+      Spec.Set(argc, &argv[0]);
+      char theOpt;
+
+      while ((theOpt = Spec.getopt()) != (char) -1)
+      {
+         switch (theOpt)
+         {
+            case 'h': {
+               m_log.Say(err_prefix, " -- printing help, no action will be taken\n", usage);
+               return;
+            }
+            default: {
+               TRACE(Error, err_prefix << "Unhandled command argument.");
+               return;
+            }
+         }
+      }
+      if (Spec.getarg())
+      {
+         TRACE(Error, err_prefix << "Options must take up all the arguments.");
+         return;
+      }
+
+      std::string f_name(cp.get_reminder());
+
+      TRACE(Debug, err_prefix << "file argument '" << f_name << "'.");
+
+      int ret = UnlinkCommon(f_name, true);
+
+      TRACE(Info, err_prefix << "returned with status " << ret);
    }
 
    //================================================================

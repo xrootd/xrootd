@@ -79,39 +79,52 @@ using namespace XrdFileCache;
 
 int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
 {
-   if ( ! isOpen())
-   {
-      return io->GetInput()->ReadV(readV, n);
-   }
-
-   TRACEF(Dump, "ReadV for " << n << " chunks.");
+   TRACEF(Dump, "File::ReadV for " << n << " chunks.");
 
    if ( ! VReadValidate(readV, n))
    {
-      errno = EINVAL;
-      return -1;
+      return -EINVAL;
    }
 
    Stats loc_stats;
 
    int bytesRead = 0;
 
+   BlockList_t                    blks_to_request;
    ReadVBlockListRAM              blocks_to_process;
    std::vector<ReadVChunkListRAM> blks_processed;
    ReadVBlockListDisk             blocks_on_disk;
    std::vector<XrdOucIOVec>       chunkVec;
    DirectResponseHandler         *direct_handler = 0;
 
-   // TODO The following call never fails (other than with out of mem exception).
-   // This should be implemented in PrepareBlockRequest().
-   if ( ! VReadPreProcess(io, readV, n, blocks_to_process, blocks_on_disk, chunkVec))
+   m_downloadCond.Lock();
+
+   if ( ! m_is_open)
    {
-      bytesRead = -1;
-      errno = ENOMEM;
+      m_downloadCond.UnLock();
+      TRACEF(Error, "File::ReadV file is not open");
+      return io->GetInput()->ReadV(readV, n);
+   }
+
+   if (m_in_shutdown)
+   {
+      m_downloadCond.UnLock();
+      return -ENOENT;
+   }
+
+   VReadPreProcess(io, readV, n, blks_to_request, blocks_to_process, blocks_on_disk, chunkVec);
+
+   m_downloadCond.UnLock();
+
+   // ----------------------------------------------------------------
+
+   // request blocks that need to be fetched
+   if (bytesRead >= 0)
+   {
+      ProcessBlockRequests(blks_to_request, false);
    }
 
    // issue a client read
-
    if (bytesRead >= 0)
    {
       if ( ! chunkVec.empty())
@@ -151,8 +164,9 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
       }
    }
 
-   // check direct requests have arrived, get bytes read from read handle
-   if (bytesRead >= 0 && direct_handler != 0)
+   // Wait for direct requests to arrive.
+   // We have to wait on those as they will write to request memory buffers.
+   if (direct_handler != 0)
    {
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
 
@@ -161,18 +175,20 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
          direct_handler->m_cond.Wait();
       }
 
-      if (direct_handler->m_errno == 0)
+      if (bytesRead >= 0)
       {
-         for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
+         if (direct_handler->m_errno == 0)
          {
-            bytesRead += i->size;
-            loc_stats.m_BytesMissed += i->size;
+            for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
+            {
+               bytesRead += i->size;
+               loc_stats.m_BytesMissed += i->size;
+            }
          }
-      }
-      else
-      {
-         errno = -direct_handler->m_errno;
-         bytesRead = -1;
+         else
+         {
+            bytesRead = direct_handler->m_errno;
+         }
       }
    }
 
@@ -219,14 +235,13 @@ bool File::VReadValidate(const XrdOucIOVec *vr, int n)
 
 //------------------------------------------------------------------------------
 
-bool File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
+void File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
+                           BlockList_t              &blks_to_request,
                            ReadVBlockListRAM        &blocks_to_process,
                            ReadVBlockListDisk       &blocks_on_disk,
                            std::vector<XrdOucIOVec> &chunkVec)
 {
-   BlockList_t blks_to_request;
-
-   m_downloadCond.Lock();
+   // Must be called under downloadCond lock.
 
    for (int iov_idx = 0; iov_idx < n; iov_idx++)
    {
@@ -245,7 +260,7 @@ bool File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
 
             TRACEF(Dump, "VReadPreProcess block "<< block_idx <<" in map");
          }
-         else if (m_cfi.TestBit(offsetIdx(block_idx)))
+         else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
          {
             blocks_on_disk.AddEntry(block_idx, iov_idx);
 
@@ -253,11 +268,9 @@ bool File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
          }
          else
          {
-            if (Cache::GetInstance().RequestRAMBlock())
+            Block *b;
+            if (Cache::GetInstance().RequestRAMBlock() && (b = PrepareBlockRequest(block_idx, io, false)) != 0)
             {
-               Block *b = PrepareBlockRequest(block_idx, io, false);
-               // TODO this can not fail (other than out of memory which we don't handle).
-               if (! b) return false;
                inc_ref_count(b);
                blocks_to_process.AddEntry(b, iov_idx);
                blks_to_request.push_back(b);
@@ -278,12 +291,6 @@ bool File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
          }
       }
    }
-
-   m_downloadCond.UnLock();
-
-   ProcessBlockRequests(blks_to_request, false);
-
-   return true;
 }
 
 //------------------------------------------------------------------------------
@@ -307,17 +314,22 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
 
          int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off - m_offset, size);
-         if (rs >= 0)
-         {
-            bytes_read += rs;
-         }
-         else
-         {
-            // ofs read should set the errno
-            TRACEF(Error, "VReadFromDisk FAILED block=" << blockIdx << " chunk=" << chunkIdx << " off= " << off  << " blk_off=" <<  blk_off << " size = " << size <<  "chunOff " << readV[chunkIdx].offset);
 
-            return -1;
+         if (rs < 0)
+         {
+            TRACEF(Error, "VReadFromDisk FAILED rs=" << rs << " block=" << blockIdx << " chunk=" << chunkIdx << " off=" << off  <<
+                          " blk_off=" <<  blk_off << " size=" << size <<  " chunkOff=" << readV[chunkIdx].offset);
+            return rs;
          }
+
+         if (rs != size)
+         {
+            TRACEF(Error, "VReadFromDisk FAILED incomplete read rs=" << rs << " block=" << blockIdx << " chunk=" << chunkIdx << " off=" << off  <<
+                          " blk_off=" <<  blk_off << " size=" << size <<  " chunkOff=" << readV[chunkIdx].offset);
+            return -EIO;
+         }
+
+         bytes_read += rs;
       }
    }
 
@@ -380,8 +392,8 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
             for (std::vector<int>::iterator chunkIt = bi->arr->begin(); chunkIt < bi->arr->end(); ++chunkIt)
             {
                long long off;      // offset in user buffer
-               long long blk_off;      // offset in block
-               long long size;      // size to copy
+               long long blk_off;  // offset in block
+               long long size;     // size to copy
 
                int block_idx = bi->block->m_offset/m_cfi.GetBufferSize();
                overlap(block_idx, m_cfi.GetBufferSize(), readV[*chunkIt].offset, readV[*chunkIt].size, off, blk_off, size);
@@ -391,10 +403,9 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
          }
          else
          {
-            bytes_read = -1;
-            errno = -bi->block->m_errno;
+            bytes_read = bi->block->m_errno;
             TRACEF(Error, "File::VReadProcessBlocks() io " << io << ", block "<< bi->block <<
-                   " finished with error " << errno << " " << strerror(errno));
+                   " finished with error " << -bytes_read << " " << strerror(-bytes_read));
             break;
          }
 

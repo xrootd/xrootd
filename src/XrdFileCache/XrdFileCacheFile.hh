@@ -151,6 +151,9 @@ public:
    //! Handle removal of a block from Cache's write queue.
    void BlockRemovedFromWriteQ(Block*);
 
+   //! Handle removal of a set of blocks from Cache's write queue.
+   void BlocksRemovedFromWriteQ(std::list<Block*>&);
+
    //! Open file handle for data file and info file on local disk.
    bool Open();
 
@@ -215,17 +218,24 @@ public:
    void StopPrefetchingOnIO(IO *io);
    void RemoveIO(IO *io);
 
-   // These three methods are called under Cache's m_active lock
+   //========================================================================
+   // The following methods are called under Cache's m_active lock
+   //========================================================================
+
    int get_ref_cnt() { return   m_ref_cnt; }
    int inc_ref_cnt() { return ++m_ref_cnt; }
    int dec_ref_cnt() { return --m_ref_cnt; }
+
+   void initiate_emergency_shutdown();
+   bool is_in_emergency_shutdown() { return m_in_shutdown; }
 
 private:
    enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
 
    int            m_ref_cnt;            //!< number of references from IO or sync
    
-   bool           m_is_open;            //!< open state
+   bool           m_is_open;            //!< open state (presumably not needed anymore)
+   bool           m_in_shutdown;        //!< file is in emergency shutdown due to irrecoverable error or unlink request
 
    XrdOssDF      *m_output;             //!< file handle for data file on disk
    XrdOssDF      *m_infoFile;           //!< file handle for data-info file on disk
@@ -305,7 +315,8 @@ private:
 
    // VRead
    bool VReadValidate     (const XrdOucIOVec *readV, int n);
-   bool VReadPreProcess   (IO *io, const XrdOucIOVec *readV, int n,
+   void VReadPreProcess   (IO *io, const XrdOucIOVec *readV, int n,
+                           BlockList_t&        blks_to_request,
                            ReadVBlockListRAM&  blks_to_process,
                            ReadVBlockListDisk& blks_on_disk,
                            std::vector<XrdOucIOVec>& chunkVec);
