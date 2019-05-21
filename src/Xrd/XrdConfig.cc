@@ -555,7 +555,10 @@ int XrdConfig::Configure(int argc, char **argv)
    if (PortTLS > 0 && !XrdGlobal::tlsCtx)
       {Log.Say("Config TLS port specification ignored; TLS not configured!");
        PortTLS = -1;
-      }
+      } else {
+       ProtInfo.tlsCtx  = XrdGlobal::tlsCtx;
+       ProtInfo.tlsPort = PortTLS;
+     }
 
 // Put largest buffer size in the env
 //
