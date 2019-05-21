@@ -95,11 +95,12 @@
 
 #define kXR_haveTLS   0x80000000
 #define kXR_gotoTLS   0x40000000
-#define kXR_tlsAny    0x0f000000
+#define kXR_tlsAny    0x1f000000
 #define kXR_tlsData   0x01000000
-#define kXR_tlsLogin  0x02000000
-#define kXR_tlsSess   0x04000000
-#define kXR_tlsTPC    0x08000000
+#define kXR_tlsGPFile 0x02000000
+#define kXR_tlsLogin  0x04000000
+#define kXR_tlsSess   0x08000000
+#define kXR_tlsTPC    0x10000000
 
 #define kXR_maxReqRetry 10
 
@@ -571,8 +572,9 @@ enum ExpectFlags {
    kXR_ExpMask   = 0x0f, // Isolate the relevant expect birs (encoded)
    kXR_ExpNone   = 0x00,
    kXR_ExpBind   = 0x01,
-   kXR_ExpLogin  = 0x02,
-   kXR_ExpTPC    = 0x03
+   kXR_ExpGPF    = 0x02,
+   kXR_ExpLogin  = 0x03,
+   kXR_ExpTPC    = 0x04
 };
 
 };
