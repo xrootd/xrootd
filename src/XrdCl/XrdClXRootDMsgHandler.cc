@@ -1949,9 +1949,9 @@ namespace XrdCl
         UpdateTriedCGI(status.errNo);
         if( status.errNo == kXR_NotFound || status.errNo == kXR_Overloaded )
           SwitchOnRefreshFlag();
-        HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRetry ) );
         delete pResponse;
         pResponse = 0;
+        HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRetry ) );
         return;
       }
       else
