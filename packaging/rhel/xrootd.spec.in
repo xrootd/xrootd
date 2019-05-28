@@ -431,6 +431,7 @@ export CXXFLAGS='-fsanitize=address'
 mkdir build
 pushd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DFORCE_WERROR=TRUE \
 %if %{?_with_tests:1}%{!?_with_tests:0}
       -DENABLE_TESTS=TRUE \
 %else

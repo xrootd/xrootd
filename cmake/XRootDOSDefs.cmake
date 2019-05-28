@@ -28,7 +28,16 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -DOPENSSL_NO_FILENAMES" )
 #-------------------------------------------------------------------------------
 if( CMAKE_COMPILER_IS_GNUCXX )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra" )
+  #-----------------------------------------------------------------------------
+  # Set -Werror only for Debug (or undefined) build type or if we have been
+  # explicitly asked to do so
+  #-----------------------------------------------------------------------------
+  if( ( CMAKE_BUILD_TYPE STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL ""
+        OR FORCE_WERROR ) )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
+    message( "\n\t 111\n" )
+  endif()
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
   # gcc 4.1 is retarded
   execute_process( COMMAND ${CMAKE_C_COMPILER} -dumpversion
