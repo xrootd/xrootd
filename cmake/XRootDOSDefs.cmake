@@ -36,7 +36,6 @@ if( CMAKE_COMPILER_IS_GNUCXX )
   if( ( CMAKE_BUILD_TYPE STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL ""
         OR FORCE_WERROR ) )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
-    message( "\n\t 111\n" )
   endif()
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
   # gcc 4.1 is retarded
