@@ -88,7 +88,8 @@ int IOEntireFile::initCachedStat(const char* path)
    {
       XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
       XrdOucEnv myEnv;
-      if (infoFile->Open(path, O_RDONLY, 0600, myEnv) == XrdOssOK)
+      int       res_open;
+      if ((res_open = infoFile->Open(path, O_RDONLY, 0600, myEnv)) == XrdOssOK)
       {
          Info info(m_cache.GetTrace());
          if (info.Read(infoFile, path))
@@ -105,7 +106,7 @@ int IOEntireFile::initCachedStat(const char* path)
       }
       else
       {
-         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << strerror(errno));
+         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << strerror(-res_open));
       }
       infoFile->Close();
       delete infoFile;
@@ -154,15 +155,14 @@ XrdOucCacheIO *IOEntireFile::Detach()
 //______________________________________________________________________________
 int IOEntireFile::Read(char *buff, long long off, int size)
 {
-   TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size );
+   TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size);
 
    // protect from reads over the file size
    if (off >= FSize())
       return 0;
    if (off < 0)
    {
-      errno = EINVAL;
-      return -1;
+      return -EINVAL;
    }
    if (off + size > FSize())
       size = FSize() - off;
@@ -174,16 +174,18 @@ int IOEntireFile::Read(char *buff, long long off, int size)
    retval = m_file->Read(this, buff, off, size);
    if (retval >= 0)
    {
-      bytes_read += retval;
-      buff += retval;
-      size -= retval;
+      bytes_read  = retval;
+      size       -= retval;
 
+      // All errors like this should have been already captured by File::Read()
+      // and reflected in its retval.
       if (size > 0)
-         TRACEIO(Warning, "IOEntireFile::Read() bytes missed " <<  size );
+         TRACEIO(Warning, "IOEntireFile::Read() bytes missed " << size);
    }
    else
    {
-      TRACEIO(Warning, "IOEntireFile::Read() pass to origin bytes ret " << retval );
+      TRACEIO(Warning, "IOEntireFile::Read() pass to origin, File::Read() exit status=" << retval
+              << ", error=" << strerror(-retval));
    }
 
    return (retval < 0) ? retval : bytes_read;

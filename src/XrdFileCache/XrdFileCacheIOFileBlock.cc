@@ -155,7 +155,7 @@ int IOFileBlock::Fstat(struct stat &sbuff)
    // local stat is create in constructor. if file was on disk before
    // attach that the only way stat was not successful is becuse there
    // were info file read errors
-   if ( ! m_localStat) return -1;
+   if ( ! m_localStat) return -ENOENT;
 
    memcpy(&sbuff, m_localStat, sizeof(struct stat));
    return 0;
@@ -164,7 +164,7 @@ int IOFileBlock::Fstat(struct stat &sbuff)
 //______________________________________________________________________________
 long long IOFileBlock::FSize()
 {
-   if ( ! m_localStat) return -1;
+   if ( ! m_localStat) return -ENOENT;
 
    return m_localStat->st_size;
 }
@@ -274,8 +274,7 @@ int IOFileBlock::Read(char *buff, long long off, int size)
       return 0;
    if (off < 0)
    {
-      errno = EINVAL;
-      return -1;
+      return -EINVAL;
    }
    if (off + size > fileSize)
       size = fileSize - off;
@@ -325,7 +324,7 @@ int IOFileBlock::Read(char *buff, long long off, int size)
          else if (blockIdx == idx_last)
          {
             readBlockSize = (off0 + size) - blockIdx * m_blocksize;
-            TRACEIO(Dump, "Read partially till the end of the block %s");
+            TRACEIO(Dump, "Read partially till the end of the block");
          }
          else
          {
@@ -346,10 +345,10 @@ int IOFileBlock::Read(char *buff, long long off, int size)
          buff       += retvalBlock;
          off        += retvalBlock;
       }
-      else if (retvalBlock > 0)
+      else if (retvalBlock >= 0)
       {
          TRACEIO(Warning, "IOFileBlock::Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
-         return bytes_read + retvalBlock;
+         return -EIO;
       }
       else
       {

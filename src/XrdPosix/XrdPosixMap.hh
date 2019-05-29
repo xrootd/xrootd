@@ -44,7 +44,8 @@ static mode_t              Flags2Mode(dev_t *rdv, uint32_t flags);
 
 static XrdCl::Access::Mode Mode2Access(mode_t mode);
 
-static int                 Result(const XrdCl::XRootDStatus &Status);
+static int                 Result(const XrdCl::XRootDStatus &Status,
+                                  bool retneg1=false);
 
 static void                SetDebug(bool dbg) {Debug = dbg;}
 

@@ -85,30 +85,34 @@ public:
    ~Info();
 
    //---------------------------------------------------------------------
-   //! \brief Mark block as written to disk
-   //!
-   //! @param i block index
+   //! Mark block as written to disk
    //---------------------------------------------------------------------
    void SetBitWritten(int i);
 
    //---------------------------------------------------------------------
-   //! \brief Mark block as synced to disk
-   //!
-   //! @param i block index
+   //! Test if block at the given index is written to disk
+   //---------------------------------------------------------------------
+   bool TestBitWritten(int i) const;
+
+   //---------------------------------------------------------------------
+   //! Test if block at the given index has been prefetched
+   //---------------------------------------------------------------------
+   bool TestBitPrefetch(int i) const;
+
+   //---------------------------------------------------------------------
+   //! Mark block as obtained through prefetch
+   //---------------------------------------------------------------------
+   void SetBitPrefetch(int i);
+
+   //---------------------------------------------------------------------
+   //! Mark block as synced to disk
    //---------------------------------------------------------------------
    void SetBitSynced(int i);
 
    //---------------------------------------------------------------------
-   //! \brief Mark all blocks as synced to disk
+   //! Mark all blocks as synced to disk
    //---------------------------------------------------------------------
    void SetAllBitsSynced();
-
-   //---------------------------------------------------------------------
-   //! \brief Mark block as written from prefetchxs
-   //!
-   //! @param i block index
-   //---------------------------------------------------------------------
-   void SetBitPrefetch(int i);
 
    void SetBufferSize(long long);
    
@@ -202,16 +206,6 @@ public:
    long long GetBufferSize() const;
 
    //---------------------------------------------------------------------
-   //! Test if block at the given index is downloaded
-   //---------------------------------------------------------------------
-   bool TestBit(int i) const;
-
-   //---------------------------------------------------------------------
-   //! Test if block at the given index is prewritten
-   //---------------------------------------------------------------------
-   bool TestPrefetchBit(int i) const;
-
-   //---------------------------------------------------------------------
    //! Get complete status
    //---------------------------------------------------------------------
    bool IsComplete() const;
@@ -291,16 +285,36 @@ private:
 
 //------------------------------------------------------------------------------
 
-inline bool Info::TestBit(int i) const
+inline bool Info::TestBitWritten(int i) const
 {
    const int cn = i/8;
    assert(cn < GetSizeInBytes());
 
    const int off = i - cn*8;
-   return (m_buff_written[cn] & cfiBIT(off)) == cfiBIT(off);
+   return (m_buff_written[cn] & cfiBIT(off)) != 0;
 }
 
-inline bool Info::TestPrefetchBit(int i) const
+inline void Info::SetBitWritten(int i)
+{
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   m_buff_written[cn] |= cfiBIT(off);
+}
+
+inline void Info::SetBitPrefetch(int i)
+{
+   if (!m_buff_prefetch) return;
+      
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   m_buff_prefetch[cn] |= cfiBIT(off);
+}
+
+inline bool Info::TestBitPrefetch(int i) const
 {
    if (!m_buff_prefetch) return false;
 
@@ -308,14 +322,25 @@ inline bool Info::TestPrefetchBit(int i) const
    assert(cn < GetSizeInBytes());
 
    const int off = i - cn*8;
-   return (m_buff_prefetch[cn] & cfiBIT(off)) == cfiBIT(off);
+   return (m_buff_prefetch[cn] & cfiBIT(off)) != 0;
 }
+
+inline void Info::SetBitSynced(int i)
+{
+   const int cn = i/8;
+   assert(cn < GetSizeInBytes());
+
+   const int off = i - cn*8;
+   m_store.m_buff_synced[cn] |= cfiBIT(off);
+}
+
+//------------------------------------------------------------------------------
 
 inline int Info::GetNDownloadedBlocks() const
 {
    int cntd = 0;
    for (int i = 0; i < m_sizeInBits; ++i)
-      if (TestBit(i)) cntd++;
+      if (TestBitWritten(i)) cntd++;
 
    return cntd;
 }
@@ -328,7 +353,7 @@ inline long long Info::GetNDownloadedBytes() const
 inline int Info::GetLastDownloadedBlock() const
 {
    for (int i = m_sizeInBits - 1; i >= 0; --i)
-      if (TestBit(i)) return i;
+      if (TestBitWritten(i)) return i;
 
    return -1;
 }
@@ -370,7 +395,7 @@ inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
    // TODO rewrite to use full byte comparisons outside of edges ?
    // Also, it is always called with fisrtsdx = 0, lastIdx = m_sizeInBits.
    for (int i = firstIdx; i < lastIdx; ++i)
-      if (! TestBit(i)) return true;
+      if (! TestBitWritten(i)) return true;
 
    return false;
 }
@@ -378,35 +403,6 @@ inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
 inline void Info::UpdateDownloadCompleteStatus()
 {
    m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
-}
-
-inline void Info::SetBitSynced(int i)
-{
-   const int cn = i/8;
-   assert(cn < GetSizeInBytes());
-
-   const int off = i - cn*8;
-   m_store.m_buff_synced[cn] |= cfiBIT(off);
-}
-
-inline void Info::SetBitWritten(int i)
-{
-   const int cn = i/8;
-   assert(cn < GetSizeInBytes());
-
-   const int off = i - cn*8;
-   m_buff_written[cn] |= cfiBIT(off);
-}
-
-inline void Info::SetBitPrefetch(int i)
-{
-   if (!m_buff_prefetch) return;
-      
-   const int cn = i/8;
-   assert(cn < GetSizeInBytes());
-
-   const int off = i - cn*8;
-   m_buff_prefetch[cn] |= cfiBIT(off);
 }
 
 inline long long Info::GetBufferSize() const

@@ -160,7 +160,7 @@ bool Cache::Decide(XrdOucCacheIO* io)
 }
 
 Cache::Cache(XrdSysLogger *logger) :
-   XrdOucCache(),
+   XrdOucCache2(),
    m_log(logger, "XrdFileCache_"),
    m_trace(new XrdSysTrace("XrdFileCache", logger)),
    m_traceID("Manager"),
@@ -193,14 +193,13 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       }
       else
       {
-         // TODO if overloaded, redirect !!!
-
          IOEntireFile *ioef = new IOEntireFile(io, m_stats, *this);
 
          if ( ! ioef->HasFile())
          {
            delete ioef;
-           // TODO redirect instead !!!
+           // TODO - redirect instead. But this is kind of an awkward place for it.
+           // errno is set during IOEntireFile construction.
            TRACE(Error, tpfx << "Failed opening local file, falling back to remote access " << io->Path());
            return io;
          }
@@ -245,6 +244,8 @@ void Cache::AddWriteTask(Block* b, bool fromRead)
 
 void Cache::RemoveWriteQEntriesFor(File *iFile)
 {
+   std::list<Block*> removed_blocks;
+
    m_writeQ.condVar.Lock();
    std::list<Block*>::iterator i = m_writeQ.queue.begin();
    while (i != m_writeQ.queue.end())
@@ -253,7 +254,7 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
       {
          TRACE(Dump, "Cache::Remove entries for " <<  (void*)(*i) << " path " <<  iFile->lPath());
          std::list<Block*>::iterator j = i++;
-         iFile->BlockRemovedFromWriteQ(*j);
+         removed_blocks.push_back(*j);
          m_writeQ.queue.erase(j);
          --m_writeQ.size;
       }
@@ -263,6 +264,8 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
       }
    }
    m_writeQ.condVar.UnLock();
+
+   iFile->BlocksRemovedFromWriteQ(removed_blocks);
 }
 
 
@@ -331,19 +334,21 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
    // Called from virtual IO::Attach
    
    TRACE(Debug, "Cache::GetFile " << path << ", io " << io);
-   
+
+   ActiveMap_i it;
+
    {
       XrdSysCondVarHelper lock(&m_active_cond);
 
       while (true)
       {
-         ActiveMap_i it = m_active.find(path);
+         it = m_active.find(path);
 
          // File is not open or being opened. Mark it as being opened and
          // proceed to opening it outside of while loop.
          if (it == m_active.end())
          {
-            m_active[path] = 0;
+            it = m_active.insert(std::make_pair(path, (File*) 0)).first;
             break;
          }
 
@@ -366,24 +371,38 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
    {
       struct stat st;
       int res = io->Fstat(st);
-      if (res) {
+      if (res < 0) {
+         errno = res;
          TRACE(Error, "Cache::GetFile, could not get valid stat");
-         return 0;
+      } else if (res > 0) {
+         errno = ENOTSUP;
+         TRACE(Error, "Cache::GetFile, stat returned positive value, this should NOT happen here");
+      } else {
+         filesize = st.st_size;
       }
-
-      filesize = st.st_size;
    }
 
-   File *file = File::FileOpen(path, off, filesize);
+   File *file = 0;
 
-   if (file)
+   if (filesize > 0)
+   {
+      file = File::FileOpen(path, off, filesize);
+   }
+
    {
       XrdSysCondVarHelper lock(&m_active_cond);
 
-      inc_ref_cnt(file, false, true);
-      m_active[file->GetLocalPath()] = file;
+      if (file)
+      {
+         inc_ref_cnt(file, false, true);
+         it->second = file;
 
-      file->AddIO(io);
+         file->AddIO(io);
+      }
+      else
+      {
+         m_active.erase(it);
+      }
 
       m_active_cond.Broadcast();
    }
@@ -498,10 +517,33 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
    // Called from ReleaseFile() or DiskSync callback.
 
    int tlvl = high_debug ? TRACE_Debug : TRACE_Dump;
+   int cnt;
 
-   m_active_cond.Lock();
-   int cnt = f->get_ref_cnt();
-   m_active_cond.UnLock();
+   {
+     XrdSysCondVarHelper lock(&m_active_cond);
+
+     cnt = f->get_ref_cnt();
+
+     if (f->is_in_emergency_shutdown())
+     {
+        // In this case file has been already removed from m_active map and
+        // does not need to be synced.
+
+        if (cnt == 1)
+        {
+           TRACE_INT(tlvl, "Cache::dec_ref_cnt " << f->GetLocalPath() << " is in shutdown, ref_cnt = " << cnt
+                     << " -- deleting File object without further ado");
+           delete f;
+        }
+        else
+        {
+           TRACE_INT(tlvl, "Cache::dec_ref_cnt " << f->GetLocalPath() << " is in shutdown, ref_cnt = " << cnt
+                     << " -- waiting");
+        }
+
+        return;
+     }
+   }
 
    TRACE_INT(tlvl, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt at entry = " << cnt);
 
@@ -509,24 +551,28 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
    {
       if (f->FinalizeSyncBeforeExit())
       {
+         // Note, here we "reuse" the existing reference count for the
+         // final sync.
+
          TRACE(Debug, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", scheduling final sync");
          schedule_file_sync(f, true, true);
          return;
       }
    }
 
-   m_active_cond.Lock();
-   cnt = f->dec_ref_cnt();
-   TRACE_INT(tlvl, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt after sync_check and dec_ref_cnt = " << cnt);
-   if (cnt == 0)
    {
-      ActiveMap_i it = m_active.find(f->GetLocalPath());
-      m_active.erase(it);
-      delete f;
-   }
-   m_active_cond.UnLock();
-}
+     XrdSysCondVarHelper lock(&m_active_cond);
 
+     cnt = f->dec_ref_cnt();
+     TRACE_INT(tlvl, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt after sync_check and dec_ref_cnt = " << cnt);
+     if (cnt == 0)
+     {
+        ActiveMap_i it = m_active.find(f->GetLocalPath());
+        m_active.erase(it);
+        delete f;
+     }
+   }
+}
 
 bool Cache::IsFileActiveOrPurgeProtected(const std::string& path)
 {
@@ -646,7 +692,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen, LFP_Reason why)
 
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + ".cinfo";
+   std::string i_name = f_name + Info::m_infoExtension;
 
    if (why == ForPath)
    {
@@ -740,7 +786,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
 {
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + ".cinfo";
+   std::string i_name = f_name + Info::m_infoExtension;
 
    // Do not allow write access.
    if (oflags & (O_WRONLY | O_RDWR))
@@ -785,7 +831,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
 }
 
 //______________________________________________________________________________
-// virtual method of XrdOucCache2::Stat()
+// virtual method of XrdOucCache2.
 //!
 //! @return <0 - Stat failed, value is -errno.
 //!         =0 - Stat succeeded, sbuff holds stat information.
@@ -796,7 +842,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
 {
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + ".cinfo";
+   std::string i_name = f_name + Info::m_infoExtension;
 
    {
       XrdSysCondVarHelper lock(&m_active_cond);
@@ -831,4 +877,84 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
    }
 
    return 1;
+}
+
+//______________________________________________________________________________
+// virtual method of XrdOucCache.
+//!
+//! @return <0 - Stat failed, value is -errno.
+//!         =0 - Stat succeeded, sbuff holds stat information.
+//------------------------------------------------------------------------------
+
+int Cache::Unlink(const char *curl)
+{
+   XrdCl::URL url(curl);
+   std::string f_name = url.GetPath();
+
+   // printf("Cache::Unlink url=%s\n\t    fname=%s\n", curl, f_name.c_str());
+
+   return UnlinkCommon(f_name, false);
+}
+
+
+int Cache::UnlinkUnlessOpen(const std::string& f_name)
+{
+   return UnlinkCommon(f_name, true);
+}
+
+int Cache::UnlinkCommon(const std::string& f_name, bool fail_if_open)
+{
+   ActiveMap_i  it;
+   File        *file = 0;
+   {
+      XrdSysCondVarHelper lock(&m_active_cond);
+
+      it = m_active.find(f_name);
+
+      if (it != m_active.end())
+      {
+         if (fail_if_open)
+         {
+            TRACE(Info, "Cache::UnlinkCommon " << f_name << ", file currently open and force not requested - denying request");
+            return -EBUSY;
+         }
+
+         // Null File* in m_active map means an operation is ongoing, probably
+         // Attach() with possible File::Open(). Ask for retry.
+         if (it->second == 0)
+         {
+            TRACE(Info, "Cache::UnlinkCommon " << f_name << ", an operation on this file is ongoing - denying request");
+            return -EAGAIN;
+         }
+
+         file = it->second;
+         file->initiate_emergency_shutdown();
+         it->second = 0;
+      }
+      else
+      {
+         it = m_active.insert(std::make_pair(f_name, (File*) 0)).first;
+      }
+   }
+
+   if (file)
+   {
+      RemoveWriteQEntriesFor(file);
+   }
+
+   std::string i_name = f_name + Info::m_infoExtension;
+
+   // Unlink file & cinfo
+   int f_ret = m_output_fs->Unlink(f_name.c_str());
+   int i_ret = m_output_fs->Unlink(i_name.c_str());
+
+   TRACE(Debug, "Cache::UnlinkCommon " << f_name << ", f_ret=" << f_ret << ", i_ret=" << i_ret);
+
+   {
+      XrdSysCondVarHelper lock(&m_active_cond);
+
+      m_active.erase(it);
+   }
+
+   return std::min(f_ret, i_ret);
 }

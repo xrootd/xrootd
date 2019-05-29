@@ -387,6 +387,7 @@ int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 int XrdPosixXrootd::Fsync(int fildes)
 {
    XrdPosixFile *fp;
+   int rc;
 
 // Find the file object
 //
@@ -394,7 +395,7 @@ int XrdPosixXrootd::Fsync(int fildes)
 
 // Do the sync
 //
-   if (fp->XCio->Sync() < 0) return Fault(fp, errno);
+   if ((rc = fp->XCio->Sync()) < 0) return Fault(fp, -rc);
    fp->UnLock();
    return 0;
 }
@@ -421,6 +422,7 @@ void XrdPosixXrootd::Fsync(int fildes, XrdPosixCallBackIO *cbp)
 int XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
 {
    XrdPosixFile *fp;
+   int rc;
 
 // Find the file object
 //
@@ -428,7 +430,7 @@ int XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
 
 // Do the trunc
 //
-   if (fp->XCio->Trunc(offset) < 0) return Fault(fp, errno);
+   if ((rc = fp->XCio->Trunc(offset)) < 0) return Fault(fp, -rc);
    fp->UnLock();
    return 0;
 }
@@ -723,7 +725,7 @@ ssize_t XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset)
 //
    offs = static_cast<long long>(offset);
    bytes = fp->XCio->Read((char *)buf, offs, (int)iosz);
-   if (bytes < 0) return Fault(fp,errno);
+   if (bytes < 0) return Fault(fp,-bytes);
 
 // All went well
 //
@@ -788,7 +790,7 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 //
    offs = static_cast<long long>(offset);
    bytes = fp->XCio->Write((char *)buf, offs, (int)iosz);
-   if (bytes < 0) return Fault(fp, errno);
+   if (bytes < 0) return Fault(fp,-bytes);
 
 // All went well
 //
@@ -853,7 +855,7 @@ ssize_t XrdPosixXrootd::Read(int fildes, void *buf, size_t nbyte)
 // Issue the read
 //
    bytes = fp->XCio->Read((char *)buf,fp->Offset(),(int)iosz);
-   if (bytes < 0) return Fault(fp, errno);
+   if (bytes < 0) return Fault(fp,-bytes);
 
 // All went well
 //
@@ -900,7 +902,7 @@ ssize_t XrdPosixXrootd::VRead(int fildes, const XrdOucIOVec *readV, int n)
 
 // Issue the read
 //
-   if ((bytes = fp->XCio->ReadV(readV, n)) < 0) return Fault(fp, errno);
+   if ((bytes = fp->XCio->ReadV(readV, n)) < 0) return Fault(fp,-bytes);
 
 // Return bytes read
 //
@@ -1356,7 +1358,7 @@ ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
 // Issue the write
 //
    bytes = fp->XCio->Write((char *)buf,fp->Offset(),(int)iosz);
-   if (bytes < 0) return Fault(fp, errno);
+   if (bytes < 0) return Fault(fp,-bytes);
 
 // All went well
 //

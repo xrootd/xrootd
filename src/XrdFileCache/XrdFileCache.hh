@@ -71,7 +71,7 @@ struct Configuration
       m_wqueue_threads(4),
       m_prefetch_max_blocks(10),
       m_hdfsbsize(128*1024*1024),
-      m_flushCnt(100)
+      m_flushCnt(2000)
    {}
 
    bool are_file_usage_limits_set()    const { return m_fileUsageMax > 0; }
@@ -119,7 +119,7 @@ struct TmpConfiguration
 
    TmpConfiguration() :
       m_diskUsageLWM("0.90"), m_diskUsageHWM("0.95"),
-      m_flushRaw("100")
+      m_flushRaw("")
    {}
 };
 
@@ -160,8 +160,11 @@ public:
    // Virtual function of XrdOucCache2. Used for deferred open.
    virtual int  Prepare(const char *url, int oflags, mode_t mode);
 
-   // virtual function of XrdOucCache2::Stat()
+   // virtual function of XrdOucCache2.
    virtual int  Stat(const char *url, struct stat &sbuff);
+
+   // virtual function of XrdOucCache.
+   virtual int  Unlink(const char *url);
 
    //--------------------------------------------------------------------
    //! \brief Makes decision if the original XrdOucCacheIO should be cached.
@@ -206,6 +209,11 @@ public:
    //! Thread function running disk cache purge periodically.
    //---------------------------------------------------------------------
    void Purge();
+
+   //---------------------------------------------------------------------
+   //! Remove file from cache unless it is currently open.
+   //---------------------------------------------------------------------
+   int  UnlinkUnlessOpen(const std::string& f_name);
 
    //---------------------------------------------------------------------
    //! Add downloaded block in write queue.
@@ -258,6 +266,8 @@ private:
    bool xtrace(XrdOucStream &);
 
    bool cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name);
+
+   int  UnlinkCommon(const std::string& f_name, bool fail_if_open);
 
    static Cache        *m_factory;      //!< this object
    static XrdScheduler *schedP;

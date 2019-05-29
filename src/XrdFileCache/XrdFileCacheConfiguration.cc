@@ -277,11 +277,13 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       }
    }
    // sets flush frequency
+   if ( ! tmpc.m_flushRaw.empty())
    {
       if (::isalpha(*(tmpc.m_flushRaw.rbegin())))
       {
-         if (XrdOuca2x::a2sz(m_log, "Error getting number of blocks to flush",  tmpc.m_flushRaw.c_str(), &m_configuration.m_flushCnt,
-                             100 * m_configuration.m_bufferSize , 5000 * m_configuration.m_bufferSize))
+         if (XrdOuca2x::a2sz(m_log, "Error getting number of bytes written before flush",  tmpc.m_flushRaw.c_str(),
+                             &m_configuration.m_flushCnt,
+                             100 * m_configuration.m_bufferSize , 100000 * m_configuration.m_bufferSize))
          {
             return false;
          }
@@ -289,7 +291,11 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       }
       else
       {
-         m_configuration.m_flushCnt = ::atol(tmpc.m_flushRaw.c_str());
+         if (XrdOuca2x::a2ll(m_log, "Error getting number of blocks written before flush", tmpc.m_flushRaw.c_str(),
+                             &m_configuration.m_flushCnt, 100, 100000))
+         {
+            return false;
+         }
       }
    }
 
@@ -381,8 +387,8 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
 
       ConfWordGetter(XrdOucStream& c) : m_config(c), m_last_word((char*)1) {}
 
-      char* GetWord() { if (m_last_word != 0) m_last_word = m_config.GetWord(); return m_last_word; }
-      bool  HasLast() { return (m_last_word != 0); }
+      const char* GetWord() { if (HasLast()) m_last_word = m_config.GetWord(); return HasLast() ? m_last_word : ""; }
+      bool        HasLast() { return (m_last_word != 0); }
    };
 
    ConfWordGetter cwg(config);
@@ -409,7 +415,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       }
 
       const char *p = 0;
-      while ((p = cwg.GetWord()))
+      while ((p = cwg.GetWord()) && cwg.HasLast())
       {
          if (strcmp(p, "files") == 0)
          {

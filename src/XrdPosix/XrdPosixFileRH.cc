@@ -101,9 +101,9 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject    *response)
 {
 
-// Determine ending status.
+// Determine ending status. Note: error indicated as result set to -errno.
 //
-        if (!(status->IsOK())) result = -XrdPosixMap::Result(*status);
+        if (!(status->IsOK())) result = XrdPosixMap::Result(*status, false);
    else if (typeIO == nonIO) result = 0;
    else if (typeIO == isRead)
            {XrdCl::ChunkInfo *cInfo = 0;
@@ -119,7 +119,7 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
    delete status;
    delete response;
 
-// Now schedule this callback
+// Now schedule our XrdOucCacheIOCB callback
 //
    theFile->unRef();
    if (XrdPosixGlobals::schedP) XrdPosixGlobals::schedP->Schedule(this);
