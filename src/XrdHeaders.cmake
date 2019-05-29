@@ -131,6 +131,7 @@ set( XROOTD_PRIVATE_HEADERS
 
 if( NOT XRDCL_ONLY )
   set( XROOTD_PRIVATE_HEADERS
+    ${XROOTD_PRIVATE_HEADERS}
     XrdClient/XrdClientConn.hh
     XrdClient/XrdClientConnMgr.hh
     XrdClient/XrdClientDebug.hh
