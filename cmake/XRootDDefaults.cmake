@@ -18,4 +18,5 @@ option( ENABLE_XRDCL     "Enable XRootD client."                                
 option( ENABLE_TESTS     "Enable unit tests."                                             FALSE )
 option( ENABLE_HTTP      "Enable HTTP component."                                         TRUE )
 option( ENABLE_PYTHON    "Enable python bindings."                                        TRUE )
+option( XRDCL_ONLY       "Build only the client and necessary dependencies"               FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 2.4 )

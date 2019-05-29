@@ -13,95 +13,120 @@ set( XRD_APP_UTILS_VERSION   1.0.0 )
 set( XRD_APP_UTILS_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
-# xrdadler32
+# This part is NOT built for XrdCl only builds
 #-------------------------------------------------------------------------------
-add_executable(
-  xrdadler32
-  XrdApps/Xrdadler32.cc )
+if( NOT XRDCL_ONLY )
 
-target_link_libraries(
-  xrdadler32
-  XrdPosix
-  XrdUtils
-  pthread
-  ${ZLIB_LIBRARY} )
+  #-----------------------------------------------------------------------------
+  # xrdadler32
+  #-----------------------------------------------------------------------------
+  add_executable(
+    xrdadler32
+    XrdApps/Xrdadler32.cc )
 
-#-------------------------------------------------------------------------------
-# cconfig
-#-------------------------------------------------------------------------------
-add_executable(
-  cconfig
-  XrdApps/XrdAppsCconfig.cc )
+  target_link_libraries(
+    xrdadler32
+    XrdPosix
+    XrdUtils
+    pthread
+    ${ZLIB_LIBRARY} )
 
-target_link_libraries(
-  cconfig
-  XrdUtils )
+  #-----------------------------------------------------------------------------
+  # cconfig
+  #-----------------------------------------------------------------------------
+  add_executable(
+    cconfig
+    XrdApps/XrdAppsCconfig.cc )
 
-#-------------------------------------------------------------------------------
-# mpxstats
-#-------------------------------------------------------------------------------
-add_executable(
-  mpxstats
-  XrdApps/XrdMpxStats.cc )
+  target_link_libraries(
+    cconfig
+    XrdUtils )
 
-target_link_libraries(
-  mpxstats
-  XrdAppUtils
-  XrdUtils
-  ${EXTRA_LIBS}
-  pthread
-  ${SOCKET_LIBRARY} )
+  #-----------------------------------------------------------------------------
+  # mpxstats
+  #-----------------------------------------------------------------------------
+  add_executable(
+    mpxstats
+    XrdApps/XrdMpxStats.cc )
 
-#-------------------------------------------------------------------------------
-# wait41
-#-------------------------------------------------------------------------------
-add_executable(
-  wait41
-  XrdApps/XrdWait41.cc )
+  target_link_libraries(
+    mpxstats
+    XrdAppUtils
+    XrdUtils
+    ${EXTRA_LIBS}
+    pthread
+    ${SOCKET_LIBRARY} )
 
-target_link_libraries(
-  wait41
-  XrdUtils
-  pthread
-  ${EXTRA_LIBS} )
+  #-----------------------------------------------------------------------------
+  # wait41
+  #-----------------------------------------------------------------------------
+  add_executable(
+    wait41
+    XrdApps/XrdWait41.cc )
 
-#-------------------------------------------------------------------------------
-# xrdacctest
-#-------------------------------------------------------------------------------
-add_executable(
-  xrdacctest
-  XrdApps/XrdAccTest.cc )
+  target_link_libraries(
+    wait41
+    XrdUtils
+    pthread
+    ${EXTRA_LIBS} )
 
-target_link_libraries(
-  xrdacctest
-  XrdServer
-  XrdUtils )
+  #-----------------------------------------------------------------------------
+  # xrdacctest
+  #-----------------------------------------------------------------------------
+  add_executable(
+    xrdacctest
+    XrdApps/XrdAccTest.cc )
 
-#-------------------------------------------------------------------------------
-# xrdmapc
-#-------------------------------------------------------------------------------
-add_executable(
-  xrdmapc
-  XrdApps/XrdMapCluster.cc )
+  target_link_libraries(
+    xrdacctest
+    XrdServer
+    XrdUtils )
 
-target_link_libraries(
-  xrdmapc
-  XrdCl
-  XrdUtils )
+  #-------------------------------------------------------------------------------
+  # xrdmapc
+  #-------------------------------------------------------------------------------
+  add_executable(
+    xrdmapc
+    XrdApps/XrdMapCluster.cc )
 
-#-------------------------------------------------------------------------------
-# xrdqstats
-#-------------------------------------------------------------------------------
-add_executable(
-  xrdqstats
-  XrdApps/XrdQStats.cc )
+  target_link_libraries(
+    xrdmapc
+    XrdCl
+    XrdUtils )
 
-target_link_libraries(
-  xrdqstats
-  XrdCl
-  XrdAppUtils
-  XrdUtils
-  ${EXTRA_LIBS} )
+  #-------------------------------------------------------------------------------
+  # xrdqstats
+  #-------------------------------------------------------------------------------
+  add_executable(
+    xrdqstats
+    XrdApps/XrdQStats.cc )
+
+  target_link_libraries(
+    xrdqstats
+    XrdCl
+    XrdAppUtils
+    XrdUtils
+    ${EXTRA_LIBS} )
+
+  #-------------------------------------------------------------------------------
+  # xrdCp
+  #-------------------------------------------------------------------------------
+  add_executable(
+    xrdcp-old
+    XrdApps/XrdCpy.cc
+    XrdClient/XrdcpXtremeRead.cc         XrdClient/XrdcpXtremeRead.hh
+    XrdClient/XrdCpMthrQueue.cc          XrdClient/XrdCpMthrQueue.hh
+    XrdClient/XrdCpWorkLst.cc            XrdClient/XrdCpWorkLst.hh )
+
+  target_link_libraries(
+    xrdcp-old
+    XrdClient
+    XrdUtils
+    XrdAppUtils
+    ${CMAKE_DL_LIBS}
+    pthread
+    ${EXTRA_LIBS} )
+endif()
 
 #-------------------------------------------------------------------------------
 # AppUtils
@@ -124,25 +149,6 @@ set_target_properties(
   SOVERSION ${XRD_APP_UTILS_SOVERSION} )
 
 #-------------------------------------------------------------------------------
-# xrdCp
-#-------------------------------------------------------------------------------
-add_executable(
-  xrdcp-old
-  XrdApps/XrdCpy.cc
-  XrdClient/XrdcpXtremeRead.cc         XrdClient/XrdcpXtremeRead.hh
-  XrdClient/XrdCpMthrQueue.cc          XrdClient/XrdCpMthrQueue.hh
-  XrdClient/XrdCpWorkLst.cc            XrdClient/XrdCpWorkLst.hh )
-
-target_link_libraries(
-  xrdcp-old
-  XrdClient
-  XrdUtils
-  XrdAppUtils
-  ${CMAKE_DL_LIBS}
-  pthread
-  ${EXTRA_LIBS} )
-
-#-------------------------------------------------------------------------------
 # XrdClProxyPlugin library
 #-------------------------------------------------------------------------------
 add_library(
@@ -163,10 +169,16 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp-old XrdAppUtils xrdmapc
-          xrdacctest ${LIB_XRDCL_PROXY_PLUGIN}
+  TARGETS XrdAppUtils ${LIB_XRDCL_PROXY_PLUGIN}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
+
+if( NOT XRDCL_ONLY )
+  install(
+    TARGETS xrdacctest xrdadler32 xrdcp-old cconfig mpxstats wait41 xrdmapc
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
+endif()
 
 install(
   FILES

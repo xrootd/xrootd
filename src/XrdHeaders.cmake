@@ -13,26 +13,6 @@ set( XROOTD_PUBLIC_HEADERS
   Xrd/XrdLinkMatch.hh
   Xrd/XrdProtocol.hh
   Xrd/XrdScheduler.hh
-  XrdAcc/XrdAccAuthorize.hh
-  XrdAcc/XrdAccPrivs.hh
-  XrdCks/XrdCks.hh
-  XrdCks/XrdCksAssist.hh
-  XrdCks/XrdCksCalc.hh
-  XrdCks/XrdCksData.hh
-  XrdCks/XrdCksManager.hh
-  XrdClient/XrdClient.hh
-  XrdClient/XrdClientAbs.hh
-  XrdClient/XrdClientAbsMonIntf.hh
-  XrdClient/XrdClientAdmin.hh
-  XrdClient/XrdClientConst.hh
-  XrdClient/XrdClientEnv.hh
-  XrdClient/XrdClientUnsolMsg.hh
-  XrdClient/XrdClientUrlInfo.hh
-  XrdClient/XrdClientUrlSet.hh
-  XrdClient/XrdClientVector.hh
-  XrdCms/XrdCmsClient.hh
-  XrdCms/XrdCmsVnId.hh
-  XrdFileCache/XrdFileCacheDecision.hh
   XrdNet/XrdNet.hh
   XrdNet/XrdNetAddr.hh
   XrdNet/XrdNetAddrInfo.hh
@@ -42,10 +22,6 @@ set( XROOTD_PUBLIC_HEADERS
   XrdNet/XrdNetOpts.hh
   XrdNet/XrdNetSockAddr.hh
   XrdNet/XrdNetSocket.hh
-  XrdOfs/XrdOfsPrepare.hh
-  XrdOss/XrdOss.hh
-  XrdOss/XrdOssDefaultSS.hh
-  XrdOss/XrdOssStatInfo.hh
   XrdOuc/XrdOucBuffer.hh
   XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCache.hh
@@ -76,20 +52,8 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucEnum.hh
   XrdOuc/XrdOucCompiler.hh
-  XrdPosix/XrdPosix.hh
-  XrdPosix/XrdPosixCache.hh
-  XrdPosix/XrdPosixCallBack.hh
-  XrdPosix/XrdPosixExtern.hh
-  XrdPosix/XrdPosixOsDep.hh
-  XrdPosix/XrdPosixXrootd.hh
-  XrdPosix/XrdPosixXrootdPath.hh
   XrdSec/XrdSecEntity.hh
   XrdSec/XrdSecInterface.hh
-  XrdSfs/XrdSfsAio.hh
-  XrdSfs/XrdSfsDio.hh
-  XrdSfs/XrdSfsXio.hh
-  XrdSfs/XrdSfsFlags.hh
-  XrdSfs/XrdSfsInterface.hh
   XrdSys/XrdSysAtomics.hh
   XrdSys/XrdSysDNS.hh
   XrdSys/XrdSysError.hh
@@ -106,53 +70,100 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.hh
   XrdXml/XrdXmlReader.hh
-  XrdXrootd/XrdXrootdMonData.hh
-  XrdXrootd/XrdXrootdBridge.hh
-  XrdHttp/XrdHttpSecXtractor.hh
 )
+
+if( NOT XRDCL_ONLY )
+  set( XROOTD_PUBLIC_HEADERS
+    ${XROOTD_PUBLIC_HEADERS}
+    XrdAcc/XrdAccAuthorize.hh
+    XrdAcc/XrdAccPrivs.hh
+    XrdCks/XrdCks.hh
+    XrdCks/XrdCksAssist.hh
+    XrdCks/XrdCksCalc.hh
+    XrdCks/XrdCksData.hh
+    XrdCks/XrdCksManager.hh
+    XrdClient/XrdClient.hh
+    XrdClient/XrdClientAbs.hh
+    XrdClient/XrdClientAbsMonIntf.hh
+    XrdClient/XrdClientAdmin.hh
+    XrdClient/XrdClientConst.hh
+    XrdClient/XrdClientEnv.hh
+    XrdClient/XrdClientUnsolMsg.hh
+    XrdClient/XrdClientUrlInfo.hh
+    XrdClient/XrdClientUrlSet.hh
+    XrdClient/XrdClientVector.hh
+    XrdCms/XrdCmsClient.hh
+    XrdCms/XrdCmsVnId.hh
+    XrdFileCache/XrdFileCacheDecision.hh
+    XrdOfs/XrdOfsPrepare.hh
+    XrdOss/XrdOss.hh
+    XrdOss/XrdOssDefaultSS.hh
+    XrdOss/XrdOssStatInfo.hh
+    XrdPosix/XrdPosix.hh
+    XrdPosix/XrdPosixCache.hh
+    XrdPosix/XrdPosixCallBack.hh
+    XrdPosix/XrdPosixExtern.hh
+    XrdPosix/XrdPosixOsDep.hh
+    XrdPosix/XrdPosixXrootd.hh
+    XrdPosix/XrdPosixXrootdPath.hh
+    XrdSfs/XrdSfsAio.hh
+    XrdSfs/XrdSfsDio.hh
+    XrdSfs/XrdSfsXio.hh
+    XrdSfs/XrdSfsFlags.hh
+    XrdSfs/XrdSfsInterface.hh
+    XrdXrootd/XrdXrootdMonData.hh
+    XrdXrootd/XrdXrootdBridge.hh
+    XrdHttp/XrdHttpSecXtractor.hh
+  )
+endif()
 
 set( XROOTD_PRIVATE_HEADERS
   Xrd/XrdPoll.hh
-  XrdClient/XrdClientConn.hh
-  XrdClient/XrdClientConnMgr.hh
-  XrdClient/XrdClientDebug.hh
-  XrdClient/XrdClientInputBuffer.hh
-  XrdClient/XrdClientLogConnection.hh
-  XrdClient/XrdClientMessage.hh
-  XrdClient/XrdClientPhyConnection.hh
-  XrdClient/XrdClientReadCache.hh
-  XrdClient/XrdClientSock.hh
-  XrdHttp/XrdHttpExtHandler.hh
   XrdNet/XrdNetPeer.hh
   XrdNet/XrdNetBuffer.hh
   XrdNet/XrdNetIF.hh
-  XrdOfs/XrdOfs.hh
-  XrdOfs/XrdOfsEvr.hh
-  XrdOfs/XrdOfsHandle.hh
-  XrdOfs/XrdOfsTrace.hh
-  XrdOfs/XrdOfsTPCInfo.hh
   XrdSecsss/XrdSecsssID.hh
-  XrdSsi/XrdSsiAtomics.hh
-  XrdSsi/XrdSsiCluster.hh
-  XrdSsi/XrdSsiEntity.hh
-  XrdSsi/XrdSsiErrInfo.hh
-  XrdSsi/XrdSsiLogger.hh
-  XrdSsi/XrdSsiProvider.hh
-  XrdSsi/XrdSsiRequest.hh
-  XrdSsi/XrdSsiRespInfo.hh
-  XrdSsi/XrdSsiResponder.hh
-  XrdSsi/XrdSsiResource.hh
-  XrdSsi/XrdSsiService.hh
-  XrdSsi/XrdSsiStream.hh
   XrdSys/XrdSysPriv.hh
-
-  XrdOss/XrdOssApi.hh
-  XrdOss/XrdOssConfig.hh
-  XrdOss/XrdOssError.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
   XrdOuc/XrdOucN2NLoader.hh
 )
+
+if( NOT XRDCL_ONLY )
+  set( XROOTD_PRIVATE_HEADERS
+    XrdClient/XrdClientConn.hh
+    XrdClient/XrdClientConnMgr.hh
+    XrdClient/XrdClientDebug.hh
+    XrdClient/XrdClientInputBuffer.hh
+    XrdClient/XrdClientLogConnection.hh
+    XrdClient/XrdClientMessage.hh
+    XrdClient/XrdClientPhyConnection.hh
+    XrdClient/XrdClientReadCache.hh
+    XrdClient/XrdClientSock.hh
+    XrdHttp/XrdHttpExtHandler.hh
+    XrdOfs/XrdOfs.hh
+    XrdOfs/XrdOfsEvr.hh
+    XrdOfs/XrdOfsHandle.hh
+    XrdOfs/XrdOfsTrace.hh
+    XrdOfs/XrdOfsTPCInfo.hh
+    XrdSsi/XrdSsiAtomics.hh
+    XrdSsi/XrdSsiCluster.hh
+    XrdSsi/XrdSsiEntity.hh
+    XrdSsi/XrdSsiErrInfo.hh
+    XrdSsi/XrdSsiLogger.hh
+    XrdSsi/XrdSsiProvider.hh
+    XrdSsi/XrdSsiRequest.hh
+    XrdSsi/XrdSsiRespInfo.hh
+    XrdSsi/XrdSsiResponder.hh
+    XrdSsi/XrdSsiResource.hh
+    XrdSsi/XrdSsiService.hh
+    XrdSsi/XrdSsiStream.hh
+
+    XrdOss/XrdOssApi.hh
+    XrdOss/XrdOssConfig.hh
+    XrdOss/XrdOssError.hh
+)
+endif()
 
 install_headers(
   ${CMAKE_INSTALL_INCLUDEDIR}/xrootd

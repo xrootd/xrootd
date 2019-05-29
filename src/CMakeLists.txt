@@ -3,9 +3,11 @@
 # Include the subcomponents
 #-------------------------------------------------------------------------------
 include( XrdUtils )
+include( XrdApps )
 include( XrdCrypto )
-
 include( XrdSec )
+include( XrdXml )
+include( XrdHeaders )
 
 if( BUILD_CRYPTO )
   include( XrdSecgsi )
@@ -15,8 +17,6 @@ if( BUILD_KRB5 )
   include( XrdSeckrb5 )
 endif()
 
-include( XrdClient )
-
 if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
 endif()
@@ -25,32 +25,33 @@ if( XRDCLHTTP_SUBMODULE )
   add_subdirectory( XrdClHttp )
 endif()
 
-include( XrdServer )
-include( XrdDaemons )
-include( XrdFrm )
 
-include( XrdXml )
-include( XrdPosix )
-include( XrdFfs )
-include( XrdPlugins )
-include( XrdSsi )
-include( XrdApps )
-include( XrdCns )
-include( XrdHeaders )
+if( NOT XRDCL_ONLY )
+  include( XrdClient )
 
-include( XrdFileCache )
+  include( XrdServer )
+  include( XrdDaemons )
+  include( XrdFrm )
+  include( XrdPosix )
+  include( XrdFfs )
+  include( XrdPlugins )
+  include( XrdSsi )
+  include( XrdCns )
 
-if( BUILD_HTTP )
-  include( XrdHttp )
-  include( XrdTpc )
-endif()
+  include( XrdFileCache )
 
-if( BUILD_MACAROONS )
-  include( XrdMacaroons )
-endif()
+  if( BUILD_HTTP )
+    include( XrdHttp )
+    include( XrdTpc )
+  endif()
+
+  if( BUILD_MACAROONS )
+    include( XrdMacaroons )
+  endif()
 
 if( XRDCEPH_SUBMODULE )
   add_subdirectory( XrdCeph )
+endif()
 endif()
 
 #-------------------------------------------------------------------------------
