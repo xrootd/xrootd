@@ -49,7 +49,7 @@ using namespace XrdPosixGlobals;
 
 int XrdPosixCache::CachePath(const char *url, char *buff, int blen)
 {
-   return theCache->LocalFilePath(url, buff, blen, XrdOucCache2::ForInfo);
+   return theCache->LocalFilePath(url, buff, blen, XrdOucCache2::ForPath);
 }
 
 /******************************************************************************/
