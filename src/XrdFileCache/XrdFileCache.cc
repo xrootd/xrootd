@@ -756,7 +756,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen, LFP_Reason why)
 
          if (read_ok)
          {
-            if (is_complete || why == ForInfo)
+            if ((is_complete || why == ForInfo) && buff != 0)
             {
                int res2 = m_output_fs->Lfn2Pfn(f_name.c_str(), buff, blen);
                if (res2 < 0)
