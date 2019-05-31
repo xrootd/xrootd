@@ -171,23 +171,12 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    Config.Attach(fd);
 
-   // Obtain plugin configurator
+   // Obtain OFS configurator for OSS plugin.
    XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(config_filename,&Config,&m_log,
                                                 &XrdVERSIONINFOVAR(XrdOucGetCache2));
    if (! ofsCfg) return false;
 
    TmpConfiguration tmpc;
-
-   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))
-   {
-      ofsCfg->Plugin(m_output_fs);
-   }
-   else
-   {
-      TRACE(Error, "Cache::Config() Unable to create an OSS object");
-      m_output_fs = 0;
-      return false;
-   }
 
    // Adjust default parameters for client/serverless caching
    if (m_isClient)
@@ -231,6 +220,18 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    }
 
    Config.Close();
+
+   // Load OSS plugin.
+   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))
+   {
+      ofsCfg->Plugin(m_output_fs);
+   }
+   else
+   {
+      TRACE(Error, "Cache::Config() Unable to create an OSS object");
+      m_output_fs = 0;
+      return false;
+   }
 
    // sets default value for disk usage
    XrdOssVSInfo sP;
