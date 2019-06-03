@@ -179,9 +179,16 @@ bool File::ioActive(IO *io)
       if (mi != m_io_map.end())
       {
          TRACEF(Info, "ioActive for io " << io <<
-                ", active_prefetches " << mi->second.m_active_prefetches <<
-                ", allow_prefetching " << mi->second.m_allow_prefetching << 
-                "; (block_map.size() = " << m_block_map.size() << ").");
+                ", active_prefetches "       << mi->second.m_active_prefetches <<
+                ", allow_prefetching "       << mi->second.m_allow_prefetching <<
+                ", ioactive_false_reported " << mi->second.m_ioactive_false_reported <<
+                ", ios_in_detach"            << m_ios_in_detach <<
+                ", io_map.size() "           << m_io_map.size() <<
+                ", block_map.size() "        << m_block_map.size() << ".");
+
+         // It can happen that POSIX calls ioActive again after File already replied
+         // false for a given IO.
+         if (mi->second.m_ioactive_false_reported) return false;
 
          mi->second.m_allow_prefetching = false;
 
@@ -213,7 +220,10 @@ bool File::ioActive(IO *io)
          if (io_active_result == false)
          {
             ++m_ios_in_detach;
+            mi->second.m_ioactive_false_reported = true;
          }
+
+         TRACEF(Info, "ioActive for io " << io << " returning " << io_active_result << ".");
 
          return io_active_result;
       }
