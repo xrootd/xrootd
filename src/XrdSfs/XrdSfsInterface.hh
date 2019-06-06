@@ -31,12 +31,15 @@
 
 #include <string.h>      // For strlcpy()
 #include <errno.h>
+#include <cstdint>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdOuc/XrdOucSFVec.hh"
+
+#include "XrdSfs/XrdSfsGPFInfo.hh"
 
 /******************************************************************************/
 /*                            O p e n   M o d e s                             */
@@ -175,6 +178,51 @@ class  XrdOucEnv;
 class  XrdOucTList;
 class  XrdSecEntity;
 struct XrdSfsFACtl;
+
+/******************************************************************************/
+/*                 O b j e c t   W r a p p i n g   G u i d e                  */
+/******************************************************************************/
+
+/* The XrdSfsDirectory and XrdSfsFile objects can be wrapped. Wraping can be
+   used to add functionality. The process is common and pretty muche rote.
+   There is only one caveat: all wrappers must use the same XrdOucErrInfo
+   object. This is because the ErrInfo object contains client parameters that
+   are used to control how things are done to be backward compatible. Newer
+   client can then use more efficient internal processing. The SFS provides
+   two ways to make sure the same ErrInfo object is used by all objects in
+   the wrapped chain. Forward propagation (the one typically used) and
+   backward propagation (used in certain unusual cases). In forward mode,
+   the ErrInfo object of the last object in the chain is propagated to the
+   front of the chain. In backward mode the reverse happens. Let's assume
+   the following scenarion. Object-A wraps object-B (the object here can be
+   directory or file object). In forward mode weneed to create objects in
+   reverse order (bottom to top) which is typically what you would do anyway
+   as you need to capture the pinter to the object your wrapping. So, using
+   newFile() as an example where sfsP points to the Interface being wrapped:
+
+   XrdSfsFile *newFile(const char *user, int MonID)
+   {
+      XrdSfsFile *wrapped_file = sfsP->newFile(user, MonID);
+      if (!wrapped_file) return 0;
+      return new mySfsFile(wrapped_file,...);
+   }
+   class mySfsFile : public XrdSfsFile
+   {public:
+      mySfsFile(XrdSfsFile *wrapped_file,...) : XrdSfsFile(*wrapped_file)
+               {....}
+    ....
+   };
+
+   Notice we are allocating the wrapped file ahead of the wrapper so that
+   the wrapper can use the ErrInfo object of the wrapped file.
+
+   In backward mode we want to use the ErrInfo object of the front-most
+   wrapper for all wrappers after it. This mechanism is far more complicated
+   due to error handling requirements. However, it's useful when a wrapped
+   object is not necessarily instantiated to accomplish the needs of the
+   wrapper. An example of this is the newFile and newDir implementations for
+   XrdSsi where wrapped object creation is subject to the resource name.
+*/
 
 /******************************************************************************/
 /*                       X r d S f s D i r e c t o r y                        */
@@ -725,20 +773,16 @@ virtual XrdSfsDirectory *newDir(char *user=0, int MonID=0)  = 0;
 //!
 //! @param  eInfo  - Reference to the error object to be used by the new
 //!                  directory object. Note that an implementation is supplied
-//!                  for compatability purposes that results in the directory
-//!                  object to be larger than needed because it would also
-//!                  supply an errinfo object. You can override this method
-//!                  in order to return a much smaller object w/o errinfo.
+//!                  for compatability purposes but it returns a nil pointer
+//!                  which is considered to be a failure. You must supply an
+//!                  implementation for this to work correctly.
 //!
 //! @return pointer- Pointer to an XrdSfsDirectory object.
 //! @return nil    - Insufficient memory to allocate an object.
 //-----------------------------------------------------------------------------
 
 virtual XrdSfsDirectory *newDir(XrdOucErrInfo &eInfo)
-                               {XrdSfsDirectory *dP = newDir();
-                                if (dP) dP->error = eInfo;
-                                return dP;
-                               }
+                               {(void)eInfo; return 0;}
 
 //-----------------------------------------------------------------------------
 //! Obtain a new file object to be used for a future file requests.
@@ -759,20 +803,16 @@ virtual XrdSfsFile      *newFile(char *user=0, int MonID=0) = 0;
 //!
 //! @param  eInfo  - Reference to the error object to be used by the new file
 //!                  object. Note that an implementation is supplied for
-//!                  compatability purposes results in the new file object
-//!                  to be larger than needed because it would also supply
-//!                  an errinfo object. You can override this method in order
-//!                  to return a much smaller object by omitting the errinfo.
+//!                  compatibility purposes but it returns a nil pointer
+//!                  which is considered to be a failure. You must supply an
+//!                  implementation for this to work correctly.
 //!
 //! @return pointer- Pointer to an XrdSfsFile object.
 //! @return nil    - Insufficient memory to allocate an object.
 //-----------------------------------------------------------------------------
 
 virtual XrdSfsFile      *newFile(XrdOucErrInfo &eInfo)
-                                {XrdSfsFile *fP = newFile();
-                                 if (fP) fP->error = eInfo;
-                                 return fP;
-                                }
+                               {(void)eInfo; return 0;}
 
 //-----------------------------------------------------------------------------
 //! Obtain checksum information for a file.
@@ -876,6 +916,15 @@ virtual int            FAttr(      XrdSfsFACtl      *faReq,
                             }
 
 //-----------------------------------------------------------------------------
+//! Obtain file system feature set.
+//!
+//! @return The bit-wise featue set (i.e. this supported or configured).
+//!         See, include file XrdSfsFeatures.hh to actual values.
+//-----------------------------------------------------------------------------
+
+virtual uint64_t       Features() {return 0;}
+
+//-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 2)
 //!
 //! @param  cmd    - The operation to be performed:
@@ -936,6 +985,29 @@ virtual int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &eInfo,
                              const XrdSecEntity     *client = 0) = 0;
+
+//-----------------------------------------------------------------------------
+//! Copy a file from a remote location to the local file system.
+//!
+//! @param  fInfo  - getFile() parameters.
+//! @param  eInfo  - The object where call-time error info or results are to
+//!                  be returned. See return notes.
+//! @param  client - Client's identify (see common description). Note that
+//!                  client may become invalid after SFS_STARTED is returned.
+//!
+//! @return One of SFS_DATA, SFS_ERROR, SFS_OK, SFS_REDIRECT, or SFS_STARTED..
+//!         The fInfo object is deleted upon return unless SFS_STARTED is
+//!         returned. In this case, the fInfo object is deleted only when
+//!         fInfo.Completed() is called. The eInfo is deleted upon return.
+//-----------------------------------------------------------------------------
+
+virtual int            getFile(      XrdSfsGPFInfo  &fInfo,
+                                     XrdOucErrInfo  &eInfo,
+                               const XrdSecEntity   *client = 0)
+                            {(void)fInfo; (void)client;
+                             eInfo.setErrInfo(ENOTSUP, "Not supported.");
+                             return SFS_ERROR;
+                            }
 
 //-----------------------------------------------------------------------------
 //! Return statistical information.
@@ -1000,6 +1072,29 @@ virtual int            mkdir(const char              *path,
                                    XrdOucErrInfo     &eInfo,
                              const XrdSecEntity      *client = 0,
                              const char              *opaque = 0) = 0;
+
+//-----------------------------------------------------------------------------
+//! Copy a file to a remote location to the local file system.
+//!
+//! @param  fInfo  - putFile() parameters.
+//! @param  eInfo  - The object where call-time error info or results are to
+//!                  be returned. See return notes.
+//! @param  client - Client's identify (see common description). Note that
+//!                  client may become invalid after SFS_STARTED is returned.
+//!
+//! @return One of SFS_DATA, SFS_ERROR, SFS_OK, SFS_REDIRECT, or SFS_STARTED..
+//!         The fInfo object is deleted upon return unless SFS_STARTED is
+//!         returned. In this case, the fInfo object is deleted only when
+//!         fInfo.Completed() is called. The eInfo is deleted upon return.
+//-----------------------------------------------------------------------------
+
+virtual int            putFile(      XrdSfsGPFInfo  &fInfo,
+                                     XrdOucErrInfo  &eInfo,
+                               const XrdSecEntity   *client = 0)
+                            {(void)fInfo; (void)client;
+                             eInfo.setErrInfo(ENOTSUP, "Not supported.");
+                             return SFS_ERROR;
+                            }
 
 //-----------------------------------------------------------------------------
 //! Preapre a file for future processing.
