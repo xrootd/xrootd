@@ -2003,6 +2003,10 @@ int XrdFrmConfig::xspace(int isPrg, int isXA)
    if (!(val = cFile->GetWord()))
       {Say.Emsg("Config", "path to space not specified"); return 1;}
 
+// Ignore the space assignment version of the directive (new in 4.8).
+//
+   if (!strcmp(val, "assign") || !strcmp(val, "default")) return 0;
+
    k = strlen(val);
    if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
       {Say.Emsg("Config", "invalid space path - ", val); return 1;}
