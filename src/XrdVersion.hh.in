@@ -52,7 +52,7 @@
 // dylibs becomes part of he actual filename (MacOS format).
 //
 #ifndef XRDPLUGIN_SOVERSION
-#define XRDPLUGIN_SOVERSION "4"
+#define XRDPLUGIN_SOVERSION "5"
 #endif
 
 #define XrdDEFAULTPORT 1094;
