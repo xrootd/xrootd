@@ -29,13 +29,29 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdint>
 #include <sys/stat.h>
 #include <fcntl.h>
 
 //-----------------------------------------------------------------------------
-//! This include file defines certain falgs that can be used by various Sfs
-//! plug-ins to passthrough special attributes of regular files.
+//! This include file defines certain flags that can be used by various Sfs
+//! plug-ins to passthrough features and special attributes of regular files.
 //-----------------------------------------------------------------------------
+
+namespace SfsFeature
+{
+//! Feature: Authorization
+static const uint64_t hasAUTZ = 0x0000000000000001LL;
+
+//! Feature: CheckSum On Close
+static const uint64_t hasCSOC = 0x0000000000000002LL;
+
+//! Feature: Persist On Successful Close
+static const uint64_t hasPOSC = 0x0000000000000004LL;
+
+//! Feature: Prepare Handler Version 2 (different calling conventions)
+static const uint64_t hasPRP2 = 0x0000000000000008LL;
+}
 
 //-----------------------------------------------------------------------------
 //! The following flags define the mode bit that can be used to mark a file
@@ -63,4 +79,14 @@ static const dev_t XRDSFS_HASBKUP =
                    static_cast<dev_t>(0x40LL<<((sizeof(dev_t)*8)-8));
 static const dev_t XRDSFS_RDVMASK =
                    static_cast<dev_t>(~(0xffLL<<((sizeof(dev_t)*8)-8)));
+
+//------------------------------------------------------------------------------
+//! The following defines the feature set bits that use used by the SFS
+//! interface in response to a Features() call to indicate the various features
+//! the plug-in has implemented.
+//------------------------------------------------------------------------------
+
+namespace XrdSfs
+{
+}
 #endif
