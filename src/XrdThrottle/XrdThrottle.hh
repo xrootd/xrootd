@@ -94,7 +94,7 @@ public:
             XrdSfsXferSize     size);
 
 private:
-   File(const char *user, int monid, unique_sfs_ptr, XrdThrottleManager &throttle, XrdSysError &eroute);
+   File(const char *, unique_sfs_ptr, XrdThrottleManager &, XrdSysError &);
 
    virtual
    ~File();
