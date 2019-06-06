@@ -9,7 +9,7 @@ if( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
   endif()
 endif()
 
-define_default( PLUGIN_VERSION    4 )
+define_default( PLUGIN_VERSION    5 )
 option( ENABLE_FUSE      "Enable the fuse filesystem driver if possible."                 TRUE )
 option( ENABLE_CRYPTO    "Enable the OpenSSL cryprography support."                       TRUE )
 option( ENABLE_KRB5      "Enable the Kerberos 5 authentication if possible."              TRUE )
