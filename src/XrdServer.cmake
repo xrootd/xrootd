@@ -81,6 +81,7 @@ add_library(
                                XrdSfs/XrdSfsAio.hh
                                XrdSfs/XrdSfsFAttr.hh
                                XrdSfs/XrdSfsFlags.hh
+                               XrdSfs/XrdSfsGPFInfo.hh
                                XrdSfs/XrdSfsInterface.hh
 
   #-----------------------------------------------------------------------------
