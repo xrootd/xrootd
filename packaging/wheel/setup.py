@@ -39,7 +39,8 @@ class CustomInstall(install):
             prefix = sys.prefix
         command.append(prefix)
         command.append( self.config_vars['py_version_short'] )
-        subprocess.call(command)
+        rc = subprocess.call(command)
+        if rc: raise Exception( 'Install step failed!' )
 
 
 class CustomDist(sdist):
