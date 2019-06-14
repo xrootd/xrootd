@@ -67,7 +67,7 @@
 #define TRACELINK prot->Link
 
 
-static XrdOucString convert_digest_name(const std::string &rfc_name_multiple)
+static std::string convert_digest_name(const std::string &rfc_name_multiple)
 {
   std::stringstream rfc_name_multiple_ss;
   rfc_name_multiple_ss << rfc_name_multiple;
@@ -989,12 +989,13 @@ int XrdHttpReq::ProcessHTTPReq() {
         const char *opaque = strchr(resourceplusopaque.c_str(), '?');
         // Note that doChksum requires that the memory stays alive until the callback is invoked.
         m_resource_with_digest = resourceplusopaque;
+        m_selected_digest = convert_digest_name(m_req_digest);
         if (!opaque) {
           m_resource_with_digest += "?cks.type=";
-          m_resource_with_digest += convert_digest_name(m_req_digest);
+          m_resource_with_digest += m_selected_digest.c_str();
         } else {
           m_resource_with_digest += "&cks.type=";
-          m_resource_with_digest += convert_digest_name(m_req_digest);
+          m_resource_with_digest += m_selected_digest.c_str();
         }
         if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
@@ -1129,12 +1130,13 @@ int XrdHttpReq::ProcessHTTPReq() {
             bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
             // Note that doChksum requires that the memory stays alive until the callback is invoked.
             m_resource_with_digest = resourceplusopaque;
+            m_selected_digest = convert_digest_name(m_req_digest);
             if (has_opaque) {
               m_resource_with_digest += "&cks.type=";
-              m_resource_with_digest += convert_digest_name(m_req_digest);
+              m_resource_with_digest += m_selected_digest.c_str();
             } else {
               m_resource_with_digest += "?cks.type=";
-              m_resource_with_digest += convert_digest_name(m_req_digest);
+              m_resource_with_digest += m_selected_digest.c_str();
             }
             if (prot->doChksum(m_resource_with_digest) < 0) {
               prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
@@ -1718,7 +1720,8 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
     TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
     std::string response_name = convert_xrootd_to_rfc_name(reinterpret_cast<char *>(iovP[0].iov_base));
 
-    bool convert_to_base64 = needs_base64_padding(m_req_digest);
+    std::string rfc_algorithm_name = convert_xrootd_to_rfc_name(m_selected_digest);
+    bool convert_to_base64 = needs_base64_padding(rfc_algorithm_name);
     char *digest_value = reinterpret_cast<char *>(iovP[iovN-1].iov_base);
     if (convert_to_base64) {
       size_t digest_length = strlen(digest_value);
@@ -1736,7 +1739,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
     }
 
     digest_header = "Digest: ";
-    digest_header += m_req_digest;
+    digest_header += rfc_algorithm_name;
     digest_header += "=";
     digest_header += digest_value;
     if (convert_to_base64) {free(digest_value);}
@@ -2663,6 +2666,7 @@ void XrdHttpReq::reset() {
 
   // Reset the state of the request's digest request.
   m_req_digest.clear();
+  m_selected_digest.clear();
   m_resource_with_digest = "";
 
   headerok = false;

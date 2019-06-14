@@ -215,8 +215,12 @@ public:
   /// The destination field specified in the req
   std::string destination;
 
-  /// The requested digest type
+  /// The Want-Digest request header value (e.g., "MD5, ADLER32;q=0.8")
   std::string m_req_digest;
+
+  /// The xrootd name for the selected digest
+  std::string m_selected_digest;
+
   /// The checksum algorithm is specified as part of the opaque data in the URL.
   /// Hence, when a digest is generated to satisfy a request, we cache the tweaked
   /// URL in this data member.
