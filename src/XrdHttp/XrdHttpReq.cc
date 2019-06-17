@@ -67,6 +67,32 @@
 #define TRACELINK prot->Link
 
 
+static std::string convert_digest_rfc_name(const std::string &rfc_name_multiple)
+{
+  std::stringstream rfc_name_multiple_ss;
+  rfc_name_multiple_ss << rfc_name_multiple;
+  for (std::string rfc_name; std::getline(rfc_name_multiple_ss, rfc_name, ','); ) {
+    rfc_name.erase(rfc_name.find_last_not_of(" \n\r\t") + 1);
+    rfc_name.erase(0, rfc_name.find_first_not_of(" \n\r\t"));
+    rfc_name = rfc_name.substr(0, rfc_name.find(";"));
+    if (!strcasecmp(rfc_name.c_str(), "md5")) {
+      return "md5";
+    } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
+      return "adler32";
+    } else if (!strcasecmp(rfc_name.c_str(), "SHA")) {
+      return "SHA";
+    } else if (!strcasecmp(rfc_name.c_str(), "SHA-256")) {
+      return "SHA-256";
+    } else if (!strcasecmp(rfc_name.c_str(), "SHA-512")) {
+      return "SHA-512";
+    } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+      return "UNIXcksum";
+    }
+  }
+  return "unknown";
+}
+
+
 static XrdOucString convert_digest_name(const std::string &rfc_name_multiple)
 {
   std::stringstream rfc_name_multiple_ss;
@@ -1718,7 +1744,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
     TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
     std::string response_name = convert_xrootd_to_rfc_name(reinterpret_cast<char *>(iovP[0].iov_base));
 
-    bool convert_to_base64 = needs_base64_padding(m_req_digest);
+    bool convert_to_base64 = needs_base64_padding(convert_digest_rfc_name(m_req_digest));
     char *digest_value = reinterpret_cast<char *>(iovP[iovN-1].iov_base);
     if (convert_to_base64) {
       size_t digest_length = strlen(digest_value);
@@ -1736,7 +1762,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
     }
 
     digest_header = "Digest: ";
-    digest_header += m_req_digest;
+    digest_header += convert_digest_rfc_name(m_req_digest);
     digest_header += "=";
     digest_header += digest_value;
     if (convert_to_base64) {free(digest_value);}
