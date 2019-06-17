@@ -1078,7 +1078,7 @@ bool XrdOucStream::docontD(const char *path, XrdOucTList *tlP)
    if (myInfo->fcList->size() == 0)
       {delete myInfo->fcList;
        myInfo->fcList = 0;
-       return true;
+       return false;
       }
 
 // All done
