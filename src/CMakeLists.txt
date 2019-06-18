@@ -62,6 +62,7 @@ install(
   ${CMAKE_SOURCE_DIR}/utils/XrdCmsNotify.pm
   ${CMAKE_SOURCE_DIR}/utils/netchk
   ${CMAKE_SOURCE_DIR}/utils/XrdOlbMonPerf
+  ${CMAKE_SOURCE_DIR}/utils/cms_monPerf
   DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/utils
   PERMISSIONS
   OWNER_EXECUTE OWNER_WRITE OWNER_READ

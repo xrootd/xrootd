@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# http://xrootd.org/doc/dev410/cms_config.htm#_Toc8247264
+# The specified program must write 5 white-space separated numbers to standard out.
+# The last number must be terminated by a new-line character (“\n”).
+# Each number must be normalized to 100, with 0 indicating no load and 100 indicating saturation. The numbers are in the order:
+# 1.      system load
+# 2.      cpu utilization
+# 3.      memory utilization
+# 4.      paging load, and
+# 5.      network utilization.
+
+INTERVAL="${1:-1}" # take as parameter the interval between runs, default to 1; NB! the loop take more than a few seconds to run
+NCPU=$(awk '/processor/ {nr++} END{print nr}' /proc/cpuinfo)
+
+# return highest load (integer percentage) of either RX or TX
+IFACE_LOAD () {
+    local iface="${1}"
+    SPEED=$(< "${iface}"/speed)
+    [[ "$?" -ne 0 || ! "${SPEED}" -gt 0 ]] && return 1 # bail out if speed is not valid
+
+    RX1=$(< "${iface}"/statistics/rx_bytes)
+    TX1=$(< "${iface}"/statistics/tx_bytes)
+    sleep 1
+    RX2=$(< "${iface}"/statistics/rx_bytes)
+    TX2=$(< "${iface}"/statistics/tx_bytes)
+
+    awk -v rx1="${RX1}" -v rx2="${RX2}"  -v tx1="${TX1}" -v tx2="${TX2}" -v speed="${SPEED}" 'BEGIN {
+        speed_bytes = int(speed * 1000000/8);
+        rx_diff = rx2 - rx1;
+        tx_diff = tx2 - tx1;
+        rx_perc = rx_diff*100/speed_bytes;
+        tx_perc = tx_diff*100/speed_bytes;
+
+        max = rx_perc;
+        if ( tx_perc > rx_perc) max = tx_perc;
+        printf "%.0f",max;
+        }' # ' end of awk
+    } # end of function
+
+CPU_UTIL () {
+    # http://man7.org/linux/man-pages/man5/proc.5.html ; /proc/stat ; NB!! awk arrays start with 1
+    CPU_BEGIN=$(awk '/^cpu\s/ { printf "%d",$2 + $4 }' /proc/stat)
+    sleep 1
+    CPU_END=$(awk '/^cpu\s/ { printf "%d",$2 + $4 }' /proc/stat)
+    echo -ne $(( CPU_END - CPU_BEGIN))
+    }
+
+while(true); do # keep infinte loop
+    LOAD5=$(awk -v ncpu="${NCPU}" '{ LOAD_PERC = $2*100/ncpu; printf "%.0f",LOAD_PERC; }' /proc/loadavg) #'
+    [[ "${LOAD5}" -gt "100" ]] && LOAD5="100"
+
+    CPU=$(CPU_UTIL)
+    MEM=$(awk '/MemTotal/{ MEM_TOT=$(NF-1) } /MemAvailable/ { MEM_AVAIL=$(NF-1) } END{ MEM_PERC = (MEM_TOT - MEM_AVAIL)*100/MEM_TOT; printf "%.0f",MEM_PERC; }' /proc/meminfo) #'
+
+    # should be replaced by IOwait/NCPU ?
+    PGIO=0
+
+    NET_LOAD="0"
+    IFACE_DIR="/sys/class/net"
+    for iface in ${IFACE_DIR}/*; do
+        [[ $(readlink -f "${iface}") =~ virtual ]] && continue
+        OPERSTATE=$(< "${iface}"/operstate)
+        [[ "$OPERSTATE" != "up" ]] && continue
+        LOAD=$(IFACE_LOAD "${iface}" || continue) # if IFACE_LOAD returns with exit=1 lets bail out
+        [[ "${LOAD}" -gt "${NET_LOAD}" ]] && NET_LOAD="${LOAD}" # keep NET_LOAD as maximum of all interfaces
+    done
+
+    echo -ne "${LOAD5} ${CPU} ${MEM} ${PGIO} ${NET_LOAD}\n"
+    [[ "${INTERVAL}" -eq "0" ]] && break || sleep ${INTERVAL}
+done # end of while loop
+
