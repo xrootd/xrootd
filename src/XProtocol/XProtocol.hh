@@ -266,7 +266,9 @@ enum XPrepRequestOption {
    kXR_wmode  = 16,
    kXR_coloc  = 32,
    kXR_fresh  = 64,
-   kXR_usetcp =128
+   kXR_usetcp =128,
+
+   kXR_evict  =0x0001 // optionsX: file no longer useful
 };
 
 // Version used for kXR_decrypt and kXR_sigver and is set in
@@ -492,7 +494,8 @@ struct ClientPrepareRequest {
    kXR_char  options;
    kXR_char  prty;
    kXR_unt16 port;          // 2.9.9 or higher
-   kXR_char  reserved[12];
+   kXR_unt16 optionX;       // Extended options
+   kXR_char  reserved[10];
    kXR_int32 dlen;
 };
 struct ClientPutfileRequest {

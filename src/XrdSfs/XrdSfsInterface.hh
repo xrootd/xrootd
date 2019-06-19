@@ -145,6 +145,7 @@ enum XrdSfsFileExistence
 #define Prep_FRESH  128
 #define Prep_CANCEL 256
 #define Prep_QUERY  512
+#define Prep_EVICT 1024
 
 class XrdOucTList;
 

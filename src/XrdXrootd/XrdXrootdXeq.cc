@@ -1526,8 +1526,13 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
 
    int rc, pathnum = 0;
    char reqid[128], nidbuff[512], *path, *opaque, *prpid = 0;
+   unsigned short optX = ntohs(Request.prepare.optionX);
    char opts;
-   bool isCancel, isPrepare;
+   bool isCancel, isEvict, isPrepare;
+
+// Check if this is an evict request (similar to stage)
+//
+   isEvict = (optX & kXR_evict) != 0;
 
 // Establish what we are really doing here
 //
@@ -1539,7 +1544,7 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
           {opts = 0;
            isCancel = true;
           } else {
-           opts = Request.prepare.options;
+           opts = (isEvict ? 0 : Request.prepare.options);
            isCancel = false;
           }
       }
@@ -1593,7 +1598,7 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
           } else {
             reqid[0]='*'; reqid[1]='\0';
             fsprep.reqid = prpid = reqid;
-            fsprep.opts = 0;
+            fsprep.opts = (isEvict ? Prep_EVICT : 0);
           }
       }
 
@@ -1654,6 +1659,15 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
 //
    if (!pFirst)
       return Response.Send(kXR_ArgMissing, "No prepare paths specified");
+
+// Handle evict. We only support the evicts for alternate prepare handlers.
+//
+   if (isEvict)
+      {if (PrepareAlt
+       && (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED))))
+          return fsError(rc, XROOTD_MON_PREP, myError, path, 0);
+       return Response.Send();
+      }
 
 // Handle notification parameter. The notification depends on whether or not
 // we have a custom prepare handler.
