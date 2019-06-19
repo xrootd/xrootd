@@ -22,8 +22,8 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 
+#include "../XrdTls/XrdTlsSocket.hh"
 #include "XrdCl/XrdClStatus.hh"
-#include "XrdTls/XrdTlsConnection.hh"
 
 class XrdTlsContext;
 
@@ -77,7 +77,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The TSL I/O wrapper
       //------------------------------------------------------------------------
-      XrdTlsConnection io;
+      XrdTlsSocket io;
   };
 
   //----------------------------------------------------------------------------

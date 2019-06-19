@@ -33,13 +33,13 @@
 #include <fcntl.h>
 #include <time.h>
 
+#include "../XrdTls/XrdTlsSocket.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollInfo.hh"
 #include "Xrd/XrdProtocol.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
 
-#include "XrdTls/XrdTlsConnection.hh"
   
 /******************************************************************************/
 /*                      C l a s s   D e f i n i t i o n                       */
@@ -171,7 +171,7 @@ XrdProtocol   *ProtoAlt;             // -> Alternate/stacked protocol
 
 // TLS section
 //
-XrdTlsConnection    tlsIO;
+XrdTlsSocket    tlsIO;
 
 // Identification section
 //

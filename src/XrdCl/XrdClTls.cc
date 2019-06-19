@@ -22,8 +22,8 @@ namespace XrdCl
 {
 
   Tls::Tls( XrdTlsContext &ctx, int sfd ) 
-      : io( ctx, sfd, XrdTlsConnection::TLS_RNB_WNB,
-                      XrdTlsConnection::TLS_HS_NOBLK, true )
+      : io( ctx, sfd, XrdTlsSocket::TLS_RNB_WNB,
+                      XrdTlsSocket::TLS_HS_NOBLK, true )
   {
 
   }
