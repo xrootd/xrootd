@@ -1776,7 +1776,7 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
        {
         {"all",      kXR_tlsAny,   Req_TLSAll},
         {"data",     kXR_tlsData,  Req_TLSData},
-        {"gpfile",   kXR_tlsGPFile,Req_TLSGPFile},
+        {"gpfile",   kXR_tlsGPF,   Req_TLSGPFile},
         {"login",    kXR_tlsLogin, Req_TLSLogin},
         {"session",  kXR_tlsSess,  Req_TLSSess},
         {"tpc",      kXR_tlsTPC,   Req_TLSTPC}

@@ -17,16 +17,36 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
+#include <stdio.h>
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
+#include <sys/stat.h>
 
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
+/******************************************************************************/
+/*                    G l o b a l   D e f i n i t i o n s                     */
+/******************************************************************************/
+
+namespace
+{
+void ToStdErr(const char *tid, const char *msg, bool sslerr)
+{
+   std::cerr <<"TLS: " <<msg <<'\n' <<std::flush;
+}
+}
+
+namespace XrdTlsGlobal
+{
+XrdTlsContext::msgCB_t  msgCB = ToStdErr;
+};
+  
 /******************************************************************************/
 /*                 S S L   T h r e a d i n g   S u p p o r t                  */
 /******************************************************************************/
@@ -77,13 +97,16 @@ void sslTLS_lock(int mode, int n, const char *file, int line)
   
 namespace
 {
-int sslOpts = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-int sslMode = SSL_MODE_AUTO_RETRY | SSL_MODE_ENABLE_PARTIAL_WRITE;
+const char *sslCiphers = "ALL:!LOW:!EXP:!MD5:!MD2";
 
-XrdSysMutex ctxMutex;
-bool        initDone = false;
+XrdSysMutex            ctxMutex;
+bool                   initDone = false;
 
-void InitTLS()
+/******************************************************************************/
+/*                               I n i t T L S                                */
+/******************************************************************************/
+  
+void InitTLS() // This is strictly a one-time call!
 {
    XrdSysMutexHelper ctxHelper(ctxMutex);
 
@@ -116,36 +139,144 @@ void InitTLS()
 #endif
 }
 
-void eMsg(XrdSysError *eDest, const char *pfx, const char *eTxt)
+/******************************************************************************/
+/*                          G e t T l s M e t h o d                           */
+/******************************************************************************/
+
+const char *GetTlsMethod(const SSL_METHOD *&meth)
 {
-   if (eDest)
-      {if (pfx) eDest->Say(pfx, ": ", eTxt);
-          else  eDest->Say(eTxt);
-      } else {
-      if (pfx) std::cerr <<pfx <<": " <<eTxt <<'\n' <<std::flush;
-         else  std::cerr <<eTxt <<'\n' <<std::flush;
+#ifdef HAVE_TLS
+  meth = TLS_method();
+#else
+  meth = SSLv23_method();
+#endif
+  if (meth == 0) return "No negotiable TLS method available.";
+  return 0;
+}
+  
+/******************************************************************************/
+/*                              V e r P a t h s                               */
+/******************************************************************************/
+
+bool VerPaths(const char *cert, const char *pkey,
+              const char *cadr, const char *cafl, std::string &eMsg)
+{
+   static const mode_t cert_mode = S_IRUSR | S_IWUSR | S_IRWXG | S_IROTH;
+   static const mode_t pkey_mode = S_IRUSR | S_IWUSR;
+   static const mode_t cadr_mode = S_IRWXU | S_IRGRP | S_IXGRP
+                                           | S_IROTH | S_IXOTH;
+   static const mode_t cafl_mode = S_IRUSR | S_IWUSR | S_IRWXG | S_IROTH;
+   const char *emsg;
+
+// If the ca cert directory is present make sure it's a directory and
+// only the ower can write to that directory (anyone can read from it).
+//
+   if (cadr && (emsg = XrdOucUtils::ValPath(cadr, cadr_mode, true)))
+      {eMsg  = "Unable to use CA cert directory ";
+       eMsg += cadr; eMsg += "; "; eMsg += emsg;
+       return false;
       }
+
+// If a ca cert file is present make sure it's a file and only the owner can
+// write it (anyone can read it).
+//
+   if (cafl && (emsg = XrdOucUtils::ValPath(cafl, cafl_mode, false)))
+      {eMsg  = "Unable to use CA cert file ";
+       eMsg += cafl; eMsg += "; "; eMsg += emsg;
+       return false;
+      }
+
+// If a private key is present than make sure it's a file and only the
+// owner has access to it.
+//
+   if (pkey && (emsg = XrdOucUtils::ValPath(pkey, pkey_mode, false)))
+      {eMsg  = "Unable to use key file ";
+       eMsg += pkey; eMsg += "; "; eMsg += emsg;
+       return false;
+      }
+
+// If a cert file is present then make sure it's a file. If a keyfile is
+// present then anyone can read it but only the owner can write it.
+// Otherwise, only the owner can gave access to it (it contains the key).
+//
+   if (cert)
+      {mode_t cmode = (pkey ? cert_mode : pkey_mode);
+       if ((emsg = XrdOucUtils::ValPath(cert, cmode, false)))
+          {if (pkey) eMsg = "Unable to use cert file ";
+              else   eMsg = "Unable to use cert+key file ";
+           eMsg += cert; eMsg += "; "; eMsg += emsg;
+           return false;
+          }
+      }
+
+// All tests succeeded.
+//
+   return true;
+}
+
+/******************************************************************************/
+/*                                 V e r C B                                  */
+/******************************************************************************/
+
+extern "C"
+{
+int VerCB(int aOK, X509_STORE_CTX *x509P)
+{
+   if (!aOK)
+      {X509 *cert = X509_STORE_CTX_get_current_cert(x509P);
+       int depth  = X509_STORE_CTX_get_error_depth(x509P);
+       int err    = X509_STORE_CTX_get_error(x509P);
+       char name[512], info[1024];
+
+       X509_NAME_oneline(X509_get_subject_name(cert), name, sizeof(name));
+       snprintf(info,sizeof(info),"Cert verification failed for DN=%s",name);
+       XrdTlsGlobal::msgCB("Cert", info, false);
+
+       X509_NAME_oneline(X509_get_issuer_name(cert), name, sizeof(name));
+       snprintf(info,sizeof(info),"Failing cert issuer=%s", name);
+       XrdTlsGlobal::msgCB("Cert", info, false);
+
+       snprintf(info, sizeof(info), "Error %d at depth %d [%s]", err, depth,
+                                    X509_verify_cert_error_string(err));
+       XrdTlsGlobal::msgCB("Cert", info, false);
+      }
+
+   return aOK;
 }
 }
   
+} // Anonymous namespace end
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdTlsContext::XrdTlsContext(const char *cert, const char *key, XrdTlsContext::Protocol prot)
+XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
+                             const char *caDir, const char *caFile, int opts)
 {
+   class ctx_helper
+        {public:
+
+         void Keep() {ctxLoc = 0;}
+
+              ctx_helper(SSL_CTX **ctxP) : ctxLoc(ctxP) {}
+             ~ctx_helper() {if (ctxLoc && *ctxLoc)
+                               {SSL_CTX_free(*ctxLoc); *ctxLoc = 0;}
+                           }
+         private:
+         SSL_CTX **ctxLoc;
+        } ctx_tracker(&ctx);
+
+   static const int sslOpts = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
+                            | SSL_OP_NO_COMPRESSION;
+   static const int sslMode = SSL_MODE_AUTO_RETRY;
+
+   std::string eText;
+   const char *emsg;
 
 // Assume we will fail
 //
    ctx   = 0;
-   eText = 0;
-
-// Disallow use if this object unless SSL provides thread-safety!
-//
-#ifndef OPENSSL_THREADS
-   eText = "Installed OpenSSL lacks the required thread support!";
-   return;
-#endif
 
 // Verify that initialzation has occurred. This is not heavy weight as
 // there will usually be no more than two instances of this object.
@@ -153,22 +284,62 @@ XrdTlsContext::XrdTlsContext(const char *cert, const char *key, XrdTlsContext::P
    AtomicBeg(ctxMutex);
    bool done = AtomicGet(initDone);
    AtomicEnd(ctxMutex);
-   if (!done) InitTLS();
+   if (!done && (emsg = Init()))
+      {XrdTlsGlobal::msgCB("TLS_Context", emsg, false);
+       return;
+      }
 
-// Create the SSL server context. By default we just talk TLS but the
-// caller may enable the less secure SSL protocol (e.g. https).
+// If no CA cert information is specified and this is not a server context,
+// then get the paths from the environment. They must exist as we need to
+// verify peer certs in order to verify target host names client-side.
 //
-   if (prot == doSSL) ctx = SSL_CTX_new(SSLv23_method());
-      else            ctx = SSL_CTX_new( TLSv1_method());
+   if (!caDir && !caFile && !(opts & servr))
+      {caDir  = getenv("X509_CERT_DIR");
+       caFile = getenv("X509_CERT_FILE");
+       if (!caDir && !caFile)
+          {XrdTlsGlobal::msgCB("Tls_Context", "Unable to determine the "
+                         "location of trusted CA certificates to verify "
+                         "peer identify; this is required!", false);
+           return;
+          }
+      }
+
+// Before we try to use any specified files, make sure they exist, are of
+// the right type and do not have excessive access privileges.
+//
+   if (!VerPaths(cert, key, caDir, caFile, eText))
+      {XrdTlsGlobal::msgCB("TLS_Context", eText.c_str(), false);
+       return;
+      }
+
+// Copy parameters to out parm structure.
+//
+   if (cert)   Parm.cert   = cert;
+   if (key)    Parm.pkey   = key;
+   if (caDir)  Parm.cadir  = caDir;
+   if (caFile) Parm.cafile = caFile;
+   Parm.opts   = opts;
+
+// Get the correct method to use for TLS and check if successful create a
+// server context that uses the method.
+//
+   const SSL_METHOD *meth;
+   emsg = GetTlsMethod(meth);
+   if (emsg)
+      {XrdTlsGlobal::msgCB("TLS_Context", emsg, false);
+       return;
+      }
+
+   ctx = SSL_CTX_new(meth);
 
 // Make sure we have a context here
 //
    if (ctx == 0)
-      {eText = "Unable to create TLS context; initialization failed.";
+      {FlushErrors("Unable to allocate TLS context!");
        return;
       }
 
-// Recommended to avoid SSLv2 & SSLv3
+// Always prohibit SSLv2 & SSLv3 as these are not secure.
 //
    SSL_CTX_set_options(ctx, sslOpts);
 
@@ -176,9 +347,37 @@ XrdTlsContext::XrdTlsContext(const char *cert, const char *key, XrdTlsContext::P
 //
    SSL_CTX_set_mode(ctx, sslMode);
 
-// If there is no cert then assume this is a genric context for a client
+// Establish the CA cert locations, if specified. Then set the verification
+// depth and turn on peer cert validation. For now, we don't set a callback.
+// In the future we may to grab debugging information.
 //
-   if (cert == 0) return;
+   if (caDir || caFile)
+     {if (!SSL_CTX_load_verify_locations(ctx, caFile, caDir))
+         {FlushErrors("Unable to set the CA cert file or directory.");
+          return;
+         }
+      int vDepth = (opts & vdept) >> vdepS;
+      SSL_CTX_set_verify_depth(ctx, (vDepth ? vDepth : 9));
+
+      bool LogVF = (opts & logVF) != 0;
+      SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+     } else {
+      SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+     }
+
+// Set cipher list
+//
+   if (!SSL_CTX_set_cipher_list(ctx, sslCiphers))
+      {FlushErrors("Unable to set SSL cipher list.");
+       return;
+      }
+
+// If there is no cert then assume this is a generic context for a client
+//
+   if (cert == 0)
+      {ctx_tracker.Keep();
+       return;
+      }
 
 // We have a cert. If the key is missing then we assume the key is in the
 // cert file (ssl will complain if it isn't).
@@ -188,26 +387,27 @@ XrdTlsContext::XrdTlsContext(const char *cert, const char *key, XrdTlsContext::P
 // Load certificate
 //
    if (SSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM) != 1)
-      {eText = "Unable to create TLS context; certificate error.";
-       SSL_CTX_free(ctx); ctx = 0;
+      {FlushErrors("Unable to create TLS context; certificate error.");
        return;
       }
 
 // Load the private key
 //
    if (SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM) != 1 )
-      {eText = "Unable to create TLS context; private key error.";
-       SSL_CTX_free(ctx); ctx = 0;
+      {FlushErrors("Unable to create TLS context; private key error.");
        return;
       }
 
 // Make sure the key and certificate file match.
 //
    if (SSL_CTX_check_private_key(ctx) != 1 )
-      {eText = "Unable to create TLS context; cert-key mismatch.";
-       SSL_CTX_free(ctx); ctx = 0;
+      {FlushErrors("Unable to create TLS context; cert-key mismatch.");
        return;
       }
+
+// All went well, so keep the context.
+//
+   ctx_tracker.Keep();
 }
   
 /******************************************************************************/
@@ -217,36 +417,35 @@ XrdTlsContext::XrdTlsContext(const char *cert, const char *key, XrdTlsContext::P
 XrdTlsContext::~XrdTlsContext() {if (ctx) SSL_CTX_free(ctx);}
 
 /******************************************************************************/
-/*                               G e t E r r s                                */
+/* Private:                  F l u s h E r r o r s                            */
 /******************************************************************************/
 
-std::string XrdTlsContext::GetErrs(const char *pfx)
+void XrdTlsContext::FlushErrors(const char *msg, const char *tid)
 {
-  std::string eBlob, ePfx;
+  char emsg[2040];
   unsigned long eCode;
 
-  if (pfx) ePfx = std::string(pfx) + ": ";
+// Setup the trace ID
+//
+   if (!tid) tid = "TLS_Context";
 
-  if (eText)
-     {eBlob = ePfx + eText + '\n';
-      eText = 0;
-     }
+// Print passed in error, if any
+//
+  if (msg) XrdTlsGlobal::msgCB(tid, msg, false);
 
-  if (!(eCode = ERR_get_error()))
-     eBlob += ePfx + "No OpenSSL complaints found.\n";
-     else {eBlob += "OpenSSL complaints...\n";
-           do {eBlob += ePfx + ERR_reason_error_string(eCode) + '\n';
-              } while((eCode = ERR_get_error()));
-          }
-
-  return eBlob;
+// Flush all openssl errors
+//
+  while((eCode = ERR_get_error()))
+       {ERR_error_string_n(eCode, emsg, sizeof(emsg));
+        XrdTlsGlobal::msgCB(tid, emsg, true);
+       }
 }
 
 /******************************************************************************/
-/*                               I n i t S S L                                */
+/*                                  I n i t                                   */
 /******************************************************************************/
   
-const char *XrdTlsContext::InitSSL()
+const char *XrdTlsContext::Init()
 {
 
 // Disallow use if this object unless SSL provides thread-safety!
@@ -260,20 +459,22 @@ const char *XrdTlsContext::InitSSL()
    InitTLS();
    return 0;
 }
-  
+
 /******************************************************************************/
-/*                             P r i n t E r r s                              */
+/*                              S e t M s g C B                               */
 /******************************************************************************/
-  
-void XrdTlsContext::PrintErrs(const char *pfx, XrdSysError *eDest)
+
+void XrdTlsContext::SetMsgCB(XrdTlsContext::msgCB_t cbP)
 {
-  unsigned long eCode;
-
-  if (eText) {eMsg(eDest, pfx, eText); eText = 0;}
-
-  if (!(eCode = ERR_get_error())) eMsg(eDest,pfx,"No OpenSSL complaints found.");
-     else {eMsg(eDest, pfx, "OpenSSL complaints...");
-           do {eMsg(eDest, pfx,  ERR_reason_error_string(eCode));
-              } while((eCode = ERR_get_error()));
-          }
+   XrdTlsGlobal::msgCB = (cbP ? cbP : ToStdErr);
 }
+
+/******************************************************************************/
+/*                            x 5 0 9 V e r i f y                             */
+/******************************************************************************/
+  
+bool XrdTlsContext::x509Verify()
+{
+   return Parm.cadir.empty() != 0 || Parm.cafile.empty() != 0;
+}
+

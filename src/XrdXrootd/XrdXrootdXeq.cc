@@ -1790,8 +1790,10 @@ int XrdXrootdProtocol::do_Protocol()
 // have no choice but to terminate the connection.
 //
    if (rc == 0 && wantTLS)
-      {if (!Link->setTLS(true))
-          {eDest.Emsg("Xeq", "Unable to enable TLS for", Link->ID);
+      {if (Link->setTLS(true))
+          {eDest.Emsg("Xeq",Link->ID,"connection upgraded to",Link->verTLS());
+          } else {
+           eDest.Emsg("Xeq", "Unable to enable TLS for", Link->ID);
            rc = -1;
           }
       }
@@ -3626,7 +3628,7 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
   
 bool XrdXrootdProtocol::logLogin(bool xauth)
 {
-   const char *uName, *ipName, *tMsg;
+   const char *uName, *ipName, *tMsg, *zMsg = "";
    char lBuff[512];
 
 // Determine ip type
@@ -3642,15 +3644,14 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 
 // Check if TLS was or will be used
 //
-   if (Link->hasTLS()) tMsg = "tls ";
-      else if (doTLS & Req_TLSSess) tMsg = "[tls] ";
-              else tMsg = "";
+   tMsg = Link->verTLS();
+   if (*tMsg) zMsg = " ";
 
 // Format the line
 //
-   sprintf(lBuff, "%s %s %s%slogin%s",
+   sprintf(lBuff, "%s %s %s%s%slogin%s",
                   (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"), ipName,
-                  (Status   & XRD_ADMINUSER   ? "admin " : ""), tMsg,
+                  (Status   & XRD_ADMINUSER   ? "admin " : ""), tMsg, zMsg,
                   (xauth                      ? " as"    : ""));
 
 // Document the login

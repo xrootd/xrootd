@@ -97,7 +97,7 @@
 #define kXR_gotoTLS   0x40000000
 #define kXR_tlsAny    0x1f000000
 #define kXR_tlsData   0x01000000
-#define kXR_tlsGPFile 0x02000000
+#define kXR_tlsGPF    0x02000000
 #define kXR_tlsLogin  0x04000000
 #define kXR_tlsSess   0x08000000
 #define kXR_tlsTPC    0x10000000

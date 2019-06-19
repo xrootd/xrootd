@@ -116,6 +116,10 @@ extern int ka_Icnt;
 namespace
 {
 XrdOucEnv  theEnv;
+bool       SSLmsgs = false;
+
+void TlsError(const char *tid, const char *msg, bool sslmsg)
+             {if (!sslmsg || SSLmsgs) XrdGlobal::Log.Emsg("TLS", tid, msg);}
 };
   
 /******************************************************************************/
@@ -182,6 +186,8 @@ XrdConfig::XrdConfig()
    HomePath = 0;
    tlsCert  = 0;
    tlsKey   = 0;
+   caDir    = 0;
+   caFile   = 0;
    AdminMode= 0700;
    HomeMode = 0700;
    Police   = 0;
@@ -193,11 +199,11 @@ XrdConfig::XrdConfig()
    repInt     = 600;
    repOpts    = 0;
    ppNet      = 0;
-   tlsHSTO    =10;
+   tlsOpts    = 0x0000000a | XrdTlsContext::servr;
+   tlsNoVer   = false;
    NetTCPlep  = -1;
    NetADM     = 0;
    coreV      = 1;
-   tlsSSL     = false;
    memset(NetTCP, 0, sizeof(NetTCP));
 
    Firstcp = Lastcp = 0;
@@ -650,6 +656,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("sitename",      xsit);
    TS_Xeq("timeout",       xtmo);
    TS_Xeq("tls",           xtls);
+   TS_Xeq("tlsca",         xtlsca);
    }
 
    // No match found, complain.
@@ -1131,19 +1138,29 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 bool XrdConfig::SetupTLS()
 {
-   XrdTlsContext::Protocol prot = (tlsSSL ? XrdTlsContext::doSSL
-                                          : XrdTlsContext::doTLS);
+
+// Check if we should issue a verification error
+//
+   if (!caDir && !caFile && !tlsNoVer)
+      {Log.Say("Config failure: the tlsca directive was not specified!");
+       return false;
+      }
+
+// Set the message callback before doing anything else
+//
+   XrdTlsContext::SetMsgCB(TlsError);
+
+// Set debug option if need be.
+//
+   if (TRACING((TRACE_DEBUG|TRACE_TLS))) tlsOpts |= XrdTlsContext::debug;
 
 // Create a context
 //
-   static XrdTlsContext xrdTLS(tlsCert, tlsKey, prot);
+   static XrdTlsContext xrdTLS(tlsCert, tlsKey, caDir, caFile, tlsOpts);
 
 // Check if all went well
 //
-   if (xrdTLS.Context() == 0)
-      {xrdTLS.PrintErrs("Config failure", &Log);
-       return false;
-      }
+   if (xrdTLS.Context() == 0) return false;
 
 // Set address of out TLS object in the global area
 //
@@ -1898,7 +1915,6 @@ int XrdConfig::xsit(XrdSysError *eDest, XrdOucStream &Config)
              <cpath>  is the the certificate file to be used.
              <kpath>  is the the private key file to be used.
              <opts>   options:
-                      [no]ssl allow ssl protocols (default: nossl)
                       hsto <sec> handshake timeout interval (default 10).
 
    Output: 0 upon success or 1 upon failure.
@@ -1907,15 +1923,18 @@ int XrdConfig::xsit(XrdSysError *eDest, XrdOucStream &Config)
 int XrdConfig::xtls(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
+    int num;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "tls cert path not specified"); return 1;}
 
+    if (*val != '/')
+       {eDest->Emsg("Config", "tls cert path not absolute"); return 1;}
+
     if (tlsCert) free(tlsCert);
     tlsCert = strdup(val);
     if (tlsKey)  free(tlsKey);
-    tlsKey  = tlsCert;
-    tlsSSL  = false;
+    tlsKey  = 0;
 
     if (!(val = Config.GetWord())) return 0;
 
@@ -1924,20 +1943,100 @@ int XrdConfig::xtls(XrdSysError *eDest, XrdOucStream &Config)
         if (!(val = Config.GetWord())) return 0;
        }
 
-do {     if (!strcmp(val,   "ssl")) tlsSSL = true;
-    else if (!strcmp(val, "nossl")) tlsSSL = false;
+do {     if (!strcmp(val,   "dump")) SSLmsgs = true;
+    else if (!strcmp(val, "nodump")) SSLmsgs = false;
     else if (!strcmp(val, "hsto" ))
             {if (!(val = Config.GetWord()))
                 {eDest->Emsg("Config", "tls hsto value not specified");
                  return 1;
                 }
-             if (XrdOuca2x::a2tm(*eDest,"tls hsto",val,&tlsHSTO,1))
+             if (XrdOuca2x::a2tm(*eDest,"tls hsto",val,&num,1,255))
                 return 1;
+             tlsOpts &= ~XrdTlsContext::hsto;
+             tlsOpts |= (XrdTlsContext::hsto & num);
             }
     else {eDest->Emsg("Config", "invalid tls option -",val); return 1;}
    } while ((val = Config.GetWord()));
 
     return 0;
+}
+  
+/******************************************************************************/
+/*                                x t l s c a                                 */
+/******************************************************************************/
+
+/* Function: xtlsca
+
+   Purpose:  To parse directive: tlsca noverify | <parms> [<opts>]
+
+             parms: {certdir | certfile} <path>
+
+             opts:  [log {all | failure | none}] [verdepth <n>]
+
+             noverify client's cert need not be verified.
+             <path>   is the the certificate path or file to be used.
+                      Both a file and a directory path can be specified.
+             <n>      the maximum certificate depth to be check.
+             log      logs verification attempts. The default is 'none' (i.e.
+                      no logging). The 'all' option logs all verifications.
+                      The 'failure' option logs only verification failures.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
+{
+   char *val, **cadest, kword[16];
+   int  vd;
+   bool isdir;
+
+   if (!(val = Config.GetWord()))
+      {eDest->Emsg("Config", "tlsca parameter not specified"); return 1;}
+
+   if (!strcmp(val, "noverify"))
+      {tlsNoVer = true;
+       if (caDir)  {free(caDir);  caDir  = 0;}
+       if (caFile) {free(caFile); caFile = 0;}
+       return 0;
+      }
+
+   do {if (strlen(val) >= (int)sizeof(kword))
+          {eDest->Emsg("Config", "Invalid tlsca parameter -", val);
+           return 1;
+          }
+       strcpy(kword, val);
+       if (!(val = Config.GetWord()))
+          {eDest->Emsg("Config", "tlsca parameter value not specified");
+           return 1;
+          }
+            if ((isdir = !strcmp(kword, "certdir"))
+            ||  !strcmp(kword, "certfile"))
+               {if (*val != '/')
+                   {eDest->Emsg("Config","tlsca",kword,"path is not absolute.");
+                    return 1;
+                   }
+                cadest = (isdir ? &caDir : &caFile);
+               if (*cadest) free(*cadest);
+               *cadest = strdup(val);
+              }
+       else if (!strcmp(kword, "log"))
+               {     if (!strcmp(val, "off"))
+                        tlsOpts &= ~XrdTlsContext::logVF;
+                else if (!strcmp(val, "failure"))
+                        tlsOpts |=  XrdTlsContext::logVF;
+                else {eDest->Emsg("Config","Invalid tlsca log argument -",val);
+                      return 1;
+                     }
+               }
+       else if (!strcmp(kword, "verdepth"))
+               {if (XrdOuca2x::a2i(*eDest,"tlsca verdepth",val,&vd,1,255))
+                   return 1;
+                tlsOpts &= ~XrdTlsContext::vdept;
+                tlsOpts |= ~XrdTlsContext::vdept & (vd << XrdTlsContext::vdepS);
+               }
+       } while((val = Config.GetWord()));
+
+   return 0;
 }
   
 /******************************************************************************/
@@ -2040,7 +2139,8 @@ int XrdConfig::xtrace(XrdSysError *eDest, XrdOucStream &Config)
         {"net",      TRACE_NET},
         {"poll",     TRACE_POLL},
         {"protocol", TRACE_PROT},
-        {"sched",    TRACE_SCHED}
+        {"sched",    TRACE_SCHED},
+        {"tls",      TRACE_TLS}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 

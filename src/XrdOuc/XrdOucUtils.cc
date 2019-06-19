@@ -957,6 +957,39 @@ int XrdOucUtils::UserName(uid_t uID, char *uName, int uNsz)
 }
 
 /******************************************************************************/
+/*                               V a l P a t h                                */
+/******************************************************************************/
+
+const char *XrdOucUtils::ValPath(const char *path, mode_t allow, bool isdir)
+{
+   static const mode_t mMask = S_IRWXU | S_IRWXG | S_IRWXO;
+   struct stat buf;
+
+// Check if this really exists
+//
+   if (stat(path, &buf))
+      {if (errno == ENOENT) return "does not exist.";
+       return strerror(errno);
+      }
+
+// Verify that this is the correct type of file
+//
+   if (isdir)
+      {if (!S_ISDIR(buf.st_mode)) return "is not a directory.";
+      } else {
+       if (!S_ISREG(buf.st_mode)) return "is not a file.";
+      }
+
+// Verify that the does not have excessive privileges
+//
+   if ((buf.st_mode & mMask) & ~allow) return "has excessive access rights.";
+
+// All went well
+//
+   return 0;
+}
+  
+/******************************************************************************/
 /*                               P i d F i l e                                */
 /******************************************************************************/
   

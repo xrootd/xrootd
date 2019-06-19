@@ -1636,7 +1636,7 @@ extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
 
 int XrdHttpProtocol::InitSecurity() {
   
-  static const char *eText = XrdTlsContext::InitSSL();
+  static const char *eText = XrdTlsContext::Init();
 
   if (eText)
      {cerr << "XrdHttp: " <<eText << endl;

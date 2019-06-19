@@ -524,11 +524,23 @@ inline bool     hasBridge() const {return isBridged;}
 //-----------------------------------------------------------------------------
 //! Determine if this link is using TLS.
 //!
+//! @param  vprot   if not nil, the TLS protocol version number if returned.
+//!                 If the link is not using TLS the version is a null string.
+//!
 //! @return true    this link is  using TLS.
 //! @return false   this link not using TLS.
 //-----------------------------------------------------------------------------
 
 inline bool     hasTLS() const {return isTLS;}
+
+//-----------------------------------------------------------------------------
+//! Return TLS protocol version being used.
+//!
+//! @return The TLS protocol version number. If the link is not using TLS,
+//!         a null string is returned;
+//-----------------------------------------------------------------------------
+
+const char     *verTLS();
 
 //-----------------------------------------------------------------------------
 //! Constructor
