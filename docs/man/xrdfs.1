@@ -182,7 +182,7 @@ Remove a directory.
 Truncate a file.
 
 .RE
-\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-p priority]\fR \fI[-a requestid]\fR \fIfilenames\fR
+\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-e]\fR \fI[-p priority]\fR \fI[-a requestid]\fR \fIfilenames\fR
 .RS 3
 Prepare one or more files for access.
 .br
@@ -197,6 +197,8 @@ Prepare one or more files for access.
 \fI-p\fR priority of the request, 0 (lowest) - 3 (highest)
 .br
 \fI-a\fR abort the request
+.br
+\fI-e\fR evict the file from disk cache
 
 .RE
 \fBcat\fR \fI[-o localfile]\fR \fIfile\fR

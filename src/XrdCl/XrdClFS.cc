@@ -1165,6 +1165,8 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
       flags |= PrepareFlags::Stage;
     else if( args[i] == "-w" )
       flags |= PrepareFlags::WriteMode;
+    else if( args[i] == "-e" )
+      flags |= PrepareFlags::Evict;
     else if( args[i] == "-a" )
     {
       flags |= PrepareFlags::Cancel;
@@ -1648,14 +1650,15 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );
 
-  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] [-a requestid] filenames\n"   );
+  printf( "   prepare [-c] [-f] [-s] [-w] [-e] [-p priority] [-a requestid] filenames\n"   );
   printf( "     Prepare one or more files for access.\n"                    );
   printf( "     -c co-locate staged files if possible\n"                    );
   printf( "     -f refresh file access time even if the location is known\n" );
   printf( "     -s stage the files to disk if they are not online\n"        );
   printf( "     -w the files will be accessed for modification\n"           );
   printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n"     );
-  printf( "     -a abort stage request\n\n"                                 );
+  printf( "     -a abort stage request\n"                                   );
+  printf( "     -e evict the file from disk cache\n\n"                      );
 
   printf( "   cat [-o local file] file\n"                                   );
   printf( "     Print contents of a file to stdout.\n"                      );
