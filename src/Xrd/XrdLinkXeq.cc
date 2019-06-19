@@ -770,8 +770,8 @@ XrdProtocol *XrdLinkXeq::setProtocol(XrdProtocol *pp, bool push)
 bool XrdLinkXeq::setTLS(bool enable)
 { //???
 // static const XrdTlsConnection::RW_Mode rwMode=XrdTlsConnection::TLS_RNB_WBL;
-   static const XrdTlsConnection::RW_Mode rwMode=XrdTlsConnection::TLS_RBL_WBL;
-   static const XrdTlsConnection::HS_Mode hsMode=XrdTlsConnection::TLS_HS_BLOCK;
+   static const XrdTlsSocket::RW_Mode rwMode=XrdTlsSocket::TLS_RBL_WBL;
+   static const XrdTlsSocket::HS_Mode hsMode=XrdTlsSocket::TLS_HS_BLOCK;
    const char *eNote;
    int rc;
 

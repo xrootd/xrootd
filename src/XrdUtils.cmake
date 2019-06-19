@@ -60,7 +60,7 @@ add_library(
   #-----------------------------------------------------------------------------
   # XrdTls
   #-----------------------------------------------------------------------------
-  XrdTls/XrdTlsConnection.cc    XrdTls/XrdTlsConnection.hh
+  XrdTls/XrdTlsSocket.cc        XrdTls/XrdTlsSocket.hh
   XrdTls/XrdTlsContext.cc       XrdTls/XrdTlsContext.hh
 
   #-----------------------------------------------------------------------------
