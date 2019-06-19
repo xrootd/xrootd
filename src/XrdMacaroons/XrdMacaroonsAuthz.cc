@@ -112,7 +112,8 @@ Authz::Authz(XrdSysLogger *log, char const *config, XrdAccAuthorize *chain)
     m_authz_behavior(static_cast<int>(Handler::AuthzBehavior::PASSTHROUGH))
 {
     Handler::AuthzBehavior behavior(Handler::AuthzBehavior::PASSTHROUGH);
-    if (!Handler::Config(config, nullptr, &m_log, m_location, m_secret, m_max_duration, behavior))
+    XrdOucEnv env;
+    if (!Handler::Config(config, &env, &m_log, m_location, m_secret, m_max_duration, behavior))
     {
         throw std::runtime_error("Macaroon authorization config failed.");
     }
