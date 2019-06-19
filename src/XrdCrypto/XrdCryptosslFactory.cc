@@ -67,7 +67,7 @@ XrdCryptosslFactory::XrdCryptosslFactory() :
 
    // Init SSL ...
    //
-   static const char *eText = XrdTlsContext::InitSSL();
+   static const char *eText = XrdTlsContext::Init();
 
    // Make sure all went well (we need to possibly abort here)
    //

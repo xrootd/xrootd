@@ -125,6 +125,8 @@ int           TLS_Send(const struct iovec *iov, int iocnt, int bytes);
 
 int           TLS_Send(const sfVec *sfP, int sfN);
 
+const char   *verTLS();
+
               XrdLinkXeq();
              ~XrdLinkXeq() {}  // Is never deleted!
 

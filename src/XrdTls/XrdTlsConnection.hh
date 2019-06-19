@@ -70,18 +70,18 @@ enum HS_Mode
 
 //------------------------------------------------------------------------
 //! Constructor - reserves space for a TLS I/O wrapper. Use the Init()
-//! method to fully initialize this object. If an errror occurs, you should
-//! print all associated errors by calling ctx.GetErrs() or ctx.PrintErrs().
+//! method to fully initialize this object.
 //------------------------------------------------------------------------
 
-  XrdTlsConnection() : tlsctx(0), ssl(0), sFD(-1), hsDone(false),
-                       cAttr(0), hsMode(0) {}
+  XrdTlsConnection() : tlsctx(0), ssl(0), traceID(0), sFD(-1),
+                       hsWait(15), hsDone(false), fatal(false),
+                       cOpts(0), cAttr(0), hsMode(0) {}
 
 //------------------------------------------------------------------------
 //! Destructor
 //------------------------------------------------------------------------
 
-  ~XrdTlsConnection() { if (ssl) Shutdown(true); }
+  ~XrdTlsConnection() { if (ssl) Shutdown(sdForce); }
 
 //------------------------------------------------------------------------
 //! Accept an incoming TLS connection
@@ -108,32 +108,20 @@ enum HS_Mode
   XrdTlsContext *Context() {return tlsctx;}
 
 //------------------------------------------------------------------------
-//! Convert rror code to explanatory text.
+//! Convert SSL error code to a reason string.
 //!
-//! @param  errc     The error code returned by this object.
+//! @param  sslerr - The error number (i.e. output of SSL_get_error()).
 //!
-//! @return A string containg the error text.
+//! @return A string describing the error.
 //------------------------------------------------------------------------
 
-  std::string Err2Text(int errc);
+  std::string Err2Text(int sslerr);
 
-//------------------------------------------------------------------------
-//! Retrieve all errors encountered so far.
-//!
-//! @param  pfx      The message prefix to be used (i.e. pfx: msg).
-//!
-//! @return A string containing newline separated messages.
-//------------------------------------------------------------------------
-
-  std::string GetErrs(const char *pfx=0);
 
 //------------------------------------------------------------------------
 //! Initialize this object to handle the specified TLS I/O mode for the
-//! given file descriptor. To maintain sanity, an error occurs if the
-//! this object is already associated with a connection (use Disconnect()
-//! before calling Init() just to keep yourself honest). Should an error
-//! occur, you should print all associated errors via ctx.GetErrs() or
-//! ctx.PrintErrs(). Errors are thread-specific.
+//! given file descriptor. Should an error occur, messages are automatically
+//! routed to the context message callback before returning.
 //!
 //! @param  ctx      - the context for the connection. Be aware that a
 //!                    context can be associated wity multiple connections.
@@ -144,6 +132,8 @@ enum HS_Mode
 //!                    read/write calls should be handled.
 //! @param  isClient - When true  initialize for client use.
 //!                    Otherwise, initialize for server use.
+//! @param  tid      - Trace identifier to appear in messages. The value must
+//!                    have the same lifetime as this object.
 //!
 //! @return =0       - object has been initialized.
 //! @return !0       - an error occurred, the return value is a pointer to a
@@ -151,12 +141,21 @@ enum HS_Mode
 //!                    as would be thrown by the parameterized constructor.
 //------------------------------------------------------------------------
 
-  const char *Init( XrdTlsContext &ctx, int sfd, RW_Mode rwm,
-                                                 HS_Mode hsm, bool isClient );
+  const char *Init( XrdTlsContext &ctx, int sfd, RW_Mode rwm, HS_Mode hsm,
+                    bool isClient, const char *tid=0 );
 
 //------------------------------------------------------------------------
-//! Peek at the TLS connection data
-//! (If necessary, will establish a TLS/SSL session.)
+//! Peek at the TLS connection data. If necessary, a handshake will be done.
+//!
+//! @param  buffer     - Pointer to buffer to hold the data.
+//! @param  size       - The size of the buffer in bytes.
+//! @param  bytesPeek  - Number of bytes placed in the buffer, if successful.
+//!
+//! @return SSL_ERROR_NONE    Operation was successful.
+//!         SSL_WANT_READ     Non blocking socket would read  block.
+//!         SSL_WANT_WRITE    Non blocking socket would write block.
+//!         SSL_ERROR_SYSCALL A syscall error occurred, errno has code.
+//!         SSL_ERROR_xxx     Other SSL related error occurred.
 //------------------------------------------------------------------------
 
   int Peek( char *buffer, size_t size, int &bytesPeek );
@@ -176,18 +175,17 @@ enum HS_Mode
   int Pending(bool any=true);
 
 //------------------------------------------------------------------------
-//! Print all errors encountered so far.
+//! Read from the TLS connection. If necessary, a handshake will be done.
+//
+//! @param  buffer     - Pointer to buffer to hold the data.
+//! @param  size       - The size of the buffer in bytes.
+//! @param  bytesRead  - Number of bytes placed in the buffer, if successful.
 //!
-//! @param  pfx      The message prefix to be used (i.e. pfx: msg).
-//! @param  eDest    Message routing object. If nil, messages are routed
-//!                  to standard error.
-//------------------------------------------------------------------------
-
-  void PrintErrs(const char *pfx="TlsCon", XrdSysError *eDest=0);
-
-//------------------------------------------------------------------------
-//! Read from the TLS connection
-//! (If necessary, will establish a TLS/SSL session.)
+//! @return SSL_ERROR_NONE    Operation was successful.
+//!         SSL_WANT_READ     Non blocking socket would read  block.
+//!         SSL_WANT_WRITE    Non blocking socket would write block.
+//!         SSL_ERROR_SYSCALL A syscall error occurred, errno has code.
+//!         SSL_ERROR_xxx     Other SSL related error occurred.
 //------------------------------------------------------------------------
 
   int Read( char *buffer, size_t size, int &bytesRead );
@@ -195,18 +193,31 @@ enum HS_Mode
 //------------------------------------------------------------------------
 //! Tear down a TLS connection
 //!
-//! @param  force when true, the connection will not wait for a proper
-//!               shutdown (i.e. termination handshake).
+//! @param  One of the following enums:
+//!         sdForce - Forced shutdown (violates TLS standard).
+//!         sdImmed - Immediate shutdown (don't wait for ack); the default.
+//!         sdWait  - Wait for peer acknowledgement (may be slow).
 //------------------------------------------------------------------------
 
-  void Shutdown(bool force=false);
+  enum SDType {sdForce = 1, sdImmed = 2, sdWait = 3};
+
+  void Shutdown(SDType=sdImmed);
 
 //------------------------------------------------------------------------
-//! Write to the TLS connection
-//! (If necessary, will establish a TLS/SSL session.)
+//! Write to the TLS connection. If necessary, a handshake will be done.
+//!
+//! @param  buffer     - Pointer to buffer holding the data.
+//! @param  size       - The size of the data to write.
+//! @param  bytesOut   - Number of bytes actually written, if successful.
+//!
+//! @return SSL_ERROR_NONE    Operation was successful.
+//!         SSL_WANT_READ     Non blocking socket would read  block.
+//!         SSL_WANT_WRITE    Non blocking socket would write block.
+//!         SSL_ERROR_SYSCALL A syscall error occurred, errno has code.
+//!         SSL_ERROR_xxx     Other SSL related error occurred.
 //------------------------------------------------------------------------
 
-  int Write( const char *buffer, size_t size, int &bytesWritten );
+  int Write( const char *buffer, size_t size, int &bytesOut );
 
 //------------------------------------------------------------------------
 //! @return  :  true if the TLS/SSL session is not established yet,
@@ -217,6 +228,12 @@ enum HS_Mode
   {
     return !hsDone;
   }
+
+//------------------------------------------------------------------------
+//! @return The TLS version number being used.
+//------------------------------------------------------------------------
+
+  const char *Version();
 
 //------------------------------------------------------------------------
 //! Conversion to native OpenSSL connection object
@@ -231,38 +248,31 @@ enum HS_Mode
 
 private:
 
+int  Diagnose(int sslrc);
+void FlushErrors(const char *what=0, int sslerr=0);
 bool Wait4OK(bool wantRead);
 
-//------------------------------------------------------------------------
-//! The TLS/SSL object.
-//------------------------------------------------------------------------
+XrdTlsContext   *tlsctx;    //!< Associated context object
+SSL             *ssl;       //!< Associated SSL     object
+const char      *traceID;   //!< Trace identifier
+int              sFD;       //!< Associated file descriptor (never closed)
+int              hsWait;    //!< Maximum amount of time to wait for handshake
+bool             hsDone;    //!< True if the handshake has completed
+bool             fatal;     //!< True if fatal error prevents shutdown call
 
-  XrdTlsContext *tlsctx;
-  SSL           *ssl;
+char             cOpts;     //!< Connection options
+static const int xVerify = 0x01;   //!< Peer cetrificate is to be verified
+static const int Debug   = 0x02;   //!< Debugging is on
 
-//------------------------------------------------------------------------
-//! The socket file descriptor
-//------------------------------------------------------------------------
+char             cAttr;     //!< Connection attributes
+static const int isServer  = 0x01;
+static const int rBlocking = 0x02;
+static const int wBlocking = 0x04;
 
-  int   sFD;
-
-//------------------------------------------------------------------------
-//! True if TSL/SSL handshake has been done, flase otherwise.
-//------------------------------------------------------------------------
-
-  bool  hsDone;
-
-// Additional attributes
-//
-  char cAttr;
-  static const int isServer  = 0x01;
-  static const int rBlocking = 0x02;
-  static const int wBlocking = 0x04;
-
-  char hsMode;
-  static const int noBlock = 0;
-  static const int rwBlock = 'a';
-  static const int xyBlock = 'x';
+char             hsMode;    //!< Handshake handling
+static const int noBlock = 0;
+static const int rwBlock = 'a';
+static const int xyBlock = 'x';
 };
 
-#endif // __XRD_CL_TLS_HH__
+#endif // __XRD_TLS_IO_HH__

@@ -100,6 +100,9 @@ static int   UidName(uid_t uID, char *uName, int uNsz, time_t keepT=0);
 
 static int   UserName(uid_t uID, char *uName, int uNsz);
 
+static
+const char  *ValPath(const char *path, mode_t allow, bool isdir);
+
 static bool PidFile(XrdSysError &eDest, const char *path);
 
        XrdOucUtils() {}

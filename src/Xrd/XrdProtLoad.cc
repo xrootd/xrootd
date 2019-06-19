@@ -170,11 +170,15 @@ int XrdProtLoad::Process(XrdLink *lp)
 // Try to find a protocol match for this connection
 //
    while(*pVec != -2)
-        {if (*pVec == -1) {if (!(lp->setTLS(true))) break;}
-            else {i = *pVec;
-                  if ((pp = Protocol[i]->Match(lp))) break;
-                     else if (lp->isFlawed()) return -1;
-                 }
+        {if (*pVec == -1)
+            {if (!(lp->setTLS(true)))
+                {lp->setEtext("TLS negotiation failed.");
+                 return -1;
+                }
+            } else {i = *pVec;
+                    if ((pp = Protocol[i]->Match(lp))) break;
+                       else if (lp->isFlawed()) return -1;
+                   }
          pVec++;
         }
 

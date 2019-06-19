@@ -24,8 +24,6 @@
 /******************************************************************************/
 /*                         X r d T l s C o n t e x t                          */
 /******************************************************************************/
-  
-class XrdSysError;
 
 class XrdTlsContext
 {
@@ -34,63 +32,113 @@ public:
 //------------------------------------------------------------------------
 //! Obtain SSL context attached to this object
 //!
-//! @return Pointer to the SSL context to be used by a server.
+//! @return Pointer to the SSL context. Nil indicates failure.
 //------------------------------------------------------------------------
 
        SSL_CTX *Context() {return ctx;}
 
 //------------------------------------------------------------------------
-//! Retrieve all errors encountered so far.
+//! Get parameters used to create the context.
 //!
-//! @param  pfx      The message prefix to be used (i.e. pfx: msg).
-//!
-//! @return A string containing newline separated messages.
+//! @return Pointer to a structure contaning initialization parameters.
 //------------------------------------------------------------------------
 
-std::string     GetErrs(const char *pfx=0);
+struct CTX_Params
+      {std::string cert;   //!< -> certificate path.
+       std::string pkey;   //!> -> private key path.
+       std::string cadir;  //!> -> ca cert directory.
+       std::string cafile; //!> -> ca cert file.
+       int         opts;   //!> Options as passed to the constructor.
+       int         rsvd;
+
+       CTX_Params() : opts(0), rsvd(0) {}
+      ~CTX_Params() {}
+      };
+
+const
+CTX_Params     *GetParams() {return &Parm;}
 
 //------------------------------------------------------------------------
-//! Simply initialize the SSL library.
+//! Simply initialize the TLS library.
 //!
 //! @return =0       Library initialized.
 //!         !0       Library not initialized, return string indicates why.
+//!
+//! @note Init() is implicitly called by the contructor. Use this method
+//!              to use the TLS libraries without instantiating a context.
 //------------------------------------------------------------------------
 static
-const char     *InitSSL();
+const char     *Init();
 
 //------------------------------------------------------------------------
-//! Print all errors encountered so far.
+//! Set the message callback.
 //!
-//! @param  pfx      The message prefix to be used (i.e. pfx: msg).
-//! @param  eDest    Message routing object. If nil, messages are routed
-//!                  to standard error.
+//! @param cbP       Pointer to the message callback function. If nil, messages
+//!                  are sent to stderr. This is a global setting.
+//!
+//! @note            You should establish a callback once before construction.
 //------------------------------------------------------------------------
 
-       void     PrintErrs(const char *pfx="Tls", XrdSysError *eDest=0);
+typedef void (*msgCB_t)(const char *tid, const char *msg, bool sslmsg);
+
+static void     SetMsgCB(msgCB_t cbP);
+
+//------------------------------------------------------------------------
+//! Check if certificates are being verified.
+//!
+//! @return True if certificates are being verified, false otherwise.
+//------------------------------------------------------------------------
+
+       bool     x509Verify();
 
 //------------------------------------------------------------------------
 //! Constructor. Note that you should use Context() to determine if
 //!              construction was successful. A nil return indicates failure.
 //!
 //! @param  cert     Pointer to the certificate file to be used. If nil,
-//!                  a generic client oriented context is created.
+//!                  a generic context is created for client use.
 //! @param  key      Pointer to the private key flle to be used. It must
 //!                  correspond to the certificate file. If nil, it is
 //!                  assumed that the key is contained in the cert file.
-//! @param  prot     The protocols that the context should support. Choose
-//!                  one of the enums defined below. Note that doSSL includes
-//!                  TLS but deprecates SSL protocols mainly for https support.
-//!                  When prot is doNONE then only the SSL library is
-//!                  initialized but otherwise, no context is established.
+//! @param  cadir    path to the directory containing the CA certificates.
+//! @param  cafile   path to the file containing the CA certificates.
+//! @param  vdepth   The maximum depth of the certificate chain that must
+//!                  validated.
+//! @param  opts     Processing options (or'd bitwise):
+//!                  debug   - produce the maximum amount of messages.
+//!                  hsto    - the handshake timeout value in seconds.
+//!                  logVF   - Turn on verification failure logging.
+//!                  servr   - This is a server-side context and x509 peer
+//!                            certificate validation may be turned off.
+//!                  vdept   - The maximum depth of the certificate chain that
+//!                            must be validated.
+//!
+//! @note   a) If neither cadir nor cafile is specified, certificate validation
+//!            is *not* performed if and only if the servr option is specified.
+//!            Otherwise, the cadir value is obtained from the X509_CERT_DIR
+//!            envar and the cafile value is obtained from the X509_CERT_File
+//!            envar. If both are nil, context creation fails.
+//!         b) You should immediately call Context() after instantiating this
+//!            object. A return value of zero means that construction failed.
+//!         c) Failure messages are routed to the message callback function
+//!            during construction.
 //------------------------------------------------------------------------
 
-       enum Protocol {doNONE = 0, doSSL, doTLS};
+static const int hsto  = 0x000000ff; //!< Mask to isolate the hsto value
+static const int vdept = 0x0000ff00; //!< Mask to isolate the actual value
+static const int vdepS = 8;          //!< Bits to shift vdept value
+static const int logVF = 0x40000000; //!< Enable verification failure logging
+static const int debug = 0x20000000; //!< Output full ssl messages for debuging
+static const int servr = 0x10000000; //!< Phis is a server-side context
 
-       XrdTlsContext(const char *cert=0, const char *key=0, Protocol prot=doTLS);
+       XrdTlsContext(const char *cert=0,  const char *key=0,
+                     const char *cadir=0, const char *cafile=0,
+                     int opts=0);
 
 //------------------------------------------------------------------------
 //! Destructor
 //------------------------------------------------------------------------
+
       ~XrdTlsContext();
 
 //------------------------------------------------------------------------
@@ -110,8 +158,9 @@ operator SSL_CTX*() {return ctx;}
       XrdTlsContext& operator=(       XrdTlsContext &&ctx ) = delete;
 
 private:
+   void           FlushErrors(const char *msg=0, const char *tid=0);
 
-   SSL_CTX    *ctx;
-   const char *eText;
+   SSL_CTX       *ctx;
+   CTX_Params     Parm;
 };
 #endif // __XRD_TLSCONTEXT_HH__

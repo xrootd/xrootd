@@ -171,7 +171,7 @@ int XrdLinkXeq::Close(bool defer)
 
 // Cleanup TLS if it is active
 //
-   if (isTLS) tlsIO.Shutdown(!defer);
+   if (isTLS) tlsIO.Shutdown();
 
 // If a defer close is requested, we can close the descriptor but we must
 // keep the slot number to prevent a new client getting the same fd number.
@@ -768,37 +768,49 @@ XrdProtocol *XrdLinkXeq::setProtocol(XrdProtocol *pp, bool push)
 /******************************************************************************/
 
 bool XrdLinkXeq::setTLS(bool enable)
-{
-   static const XrdTlsConnection::RW_Mode rwMode=XrdTlsConnection::TLS_RNB_WBL;
+{ //???
+// static const XrdTlsConnection::RW_Mode rwMode=XrdTlsConnection::TLS_RNB_WBL;
+   static const XrdTlsConnection::RW_Mode rwMode=XrdTlsConnection::TLS_RBL_WBL;
    static const XrdTlsConnection::HS_Mode hsMode=XrdTlsConnection::TLS_HS_BLOCK;
    const char *eNote;
+   int rc;
 
 // If we are already in a compatible mode, we are done
 //
    if (isTLS == enable) return true;
 
-// Either enable TLS or shut it down.
+// If this is a shutdown, then do it now.
 //
-   if (enable) eNote = tlsIO.Init(*tlsCtx, FD, rwMode, hsMode, false);
-      else {tlsIO.Shutdown();
-            eNote = 0;
-           }
+   if (!enable)
+      {tlsIO.Shutdown();
+       isTLS = enable;
+       Addr.SetTLS(enable);
+       return true;
+      }
+// We want to initialize TLS, do so now.
+//
+   eNote = tlsIO.Init(*tlsCtx, FD, rwMode, hsMode, false);
 
 // Check for errors
 //
    if (eNote)
       {char buff[1024];
-       snprintf(buff, sizeof(buff), "Unable to %s tls for %s;",
-                 (enable ? "enable" : "disable"), ID);
+       snprintf(buff, sizeof(buff), "Unable to enable tls for %s;", ID);
        Log.Emsg("LinkXeq", buff, eNote);
        return false;
       }
 
-// All set. Record our TLS state.
+// Now we need to accept this TLS connection
 //
-   isTLS = enable;
-   Addr.SetTLS(enable);
-   return true;
+   rc = tlsIO.Accept();
+
+// Diagnose return state
+//
+   if (rc == 0)
+      {isTLS = enable;
+       Addr.SetTLS(enable);
+      }
+   return rc == 0;
 }
 
 /******************************************************************************/
@@ -1197,4 +1209,13 @@ bool XrdLinkXeq::TLS_Write(const char *Buff, int Blen)
 // All done
 //
    return true;
+}
+
+/******************************************************************************/
+/*                                v e r T L S                                 */
+/******************************************************************************/
+  
+const char *XrdLinkXeq::verTLS()
+{
+   return tlsIO.Version();
 }
