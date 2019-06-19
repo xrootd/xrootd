@@ -172,15 +172,19 @@ namespace XrdCl
   {
     enum Flags
     {
-      None        = 0,            //!< no flags
-      Colocate    = kXR_coloc,    //!< co-locate staged files, if possible
-      Fresh       = kXR_fresh,    //!< refresh file access time even if
-                                  //!< the location is known
-      Stage       = kXR_stage,    //!< stage the file to disk if it is not
-                                  //!< online
-      WriteMode   = kXR_wmode,    //!< the file will be accessed for
-                                  //!< modification
-      Cancel      = kXR_cancel
+      None        = 0,              //!< no flags
+      Colocate    = kXR_coloc,      //!< co-locate staged files, if possible
+      Fresh       = kXR_fresh,      //!< refresh file access time even if
+                                    //!< the location is known
+      Stage       = kXR_stage,      //!< stage the file to disk if it is not
+                                    //!< online
+      WriteMode   = kXR_wmode,      //!< the file will be accessed for
+                                    //!< modification
+      Cancel      = kXR_cancel,     //!< cancel staging request
+      Evict       = kXR_evict << 8  //!< evict the file from disk cache
+                                    //!< we have to shift kXR_evict as its value
+                                    //!< is the same as cancel's because this
+                                    //!< flag goes to options extension
     };
   };
   XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )

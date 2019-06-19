@@ -266,9 +266,9 @@ enum XPrepRequestOption {
    kXR_wmode  = 16,
    kXR_coloc  = 32,
    kXR_fresh  = 64,
-   kXR_usetcp =128,
+   kXR_usetcp = 128,
 
-   kXR_evict  =0x0001 // optionsX: file no longer useful
+   kXR_evict  = 0x0001 // optionsX: file no longer useful
 };
 
 // Version used for kXR_decrypt and kXR_sigver and is set in

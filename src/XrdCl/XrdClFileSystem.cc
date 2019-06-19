@@ -1729,7 +1729,8 @@ namespace XrdCl
     MessageUtils::CreateRequest( msg, req, list.length() );
 
     req->requestid  = kXR_prepare;
-    req->options    = flags;
+    req->options    = 0xff & flags;
+    req->optionX    = 0xffff & ( flags >> 8 );
     req->prty       = priority;
     req->dlen       = list.length();
 

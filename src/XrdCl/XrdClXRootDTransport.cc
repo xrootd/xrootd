@@ -897,6 +897,18 @@ namespace XrdCl
           wrtList[i].wlen   = htonl( wrtList[i].wlen );
           wrtList[i].offset = htonll( wrtList[i].offset );
         }
+
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_prepare
+      //------------------------------------------------------------------------
+      case kXR_prepare:
+      {
+        req->prepare.optionX = htons( req->prepare.optionX );
+        req->prepare.port    = htons( req->prepare.port );
+        break;
       }
     };
 
