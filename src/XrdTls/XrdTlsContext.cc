@@ -19,6 +19,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <openssl/ssl.h>
+#include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
@@ -29,6 +30,17 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdTls/XrdTlsContext.hh"
+
+/******************************************************************************/
+/*                      X r d T l s C o n t e x t I m p l                     */
+/******************************************************************************/
+struct XrdTlsContextImpl
+{
+    XrdTlsContextImpl() : ctx( 0 ) { }
+
+    SSL_CTX                      *ctx;
+    XrdTlsContext::CTX_Params     Parm;
+};
 
 /******************************************************************************/
 /*                    G l o b a l   D e f i n i t i o n s                     */
@@ -265,7 +277,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                            }
          private:
          SSL_CTX **ctxLoc;
-        } ctx_tracker(&ctx);
+        } ctx_tracker(&pImpl->ctx);
 
    static const int sslOpts = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
                             | SSL_OP_NO_COMPRESSION;
@@ -276,7 +288,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Assume we will fail
 //
-   ctx   = 0;
+   pImpl->ctx   = 0;
 
 // Verify that initialzation has occurred. This is not heavy weight as
 // there will usually be no more than two instances of this object.
@@ -314,11 +326,11 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Copy parameters to out parm structure.
 //
-   if (cert)   Parm.cert   = cert;
-   if (key)    Parm.pkey   = key;
-   if (caDir)  Parm.cadir  = caDir;
-   if (caFile) Parm.cafile = caFile;
-   Parm.opts   = opts;
+   if (cert)   pImpl->Parm.cert   = cert;
+   if (key)    pImpl->Parm.pkey   = key;
+   if (caDir)  pImpl->Parm.cadir  = caDir;
+   if (caFile) pImpl->Parm.cafile = caFile;
+   pImpl->Parm.opts   = opts;
 
 // Get the correct method to use for TLS and check if successful create a
 // server context that uses the method.
@@ -330,44 +342,44 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
        return;
       }
 
-   ctx = SSL_CTX_new(meth);
+   pImpl->ctx = SSL_CTX_new(meth);
 
 // Make sure we have a context here
 //
-   if (ctx == 0)
+   if (pImpl->ctx == 0)
       {FlushErrors("Unable to allocate TLS context!");
        return;
       }
 
 // Always prohibit SSLv2 & SSLv3 as these are not secure.
 //
-   SSL_CTX_set_options(ctx, sslOpts);
+   SSL_CTX_set_options(pImpl->ctx, sslOpts);
 
 // Handle session re-negotiation automatically
 //
-   SSL_CTX_set_mode(ctx, sslMode);
+   SSL_CTX_set_mode(pImpl->ctx, sslMode);
 
 // Establish the CA cert locations, if specified. Then set the verification
 // depth and turn on peer cert validation. For now, we don't set a callback.
 // In the future we may to grab debugging information.
 //
    if (caDir || caFile)
-     {if (!SSL_CTX_load_verify_locations(ctx, caFile, caDir))
+     {if (!SSL_CTX_load_verify_locations(pImpl->ctx, caFile, caDir))
          {FlushErrors("Unable to set the CA cert file or directory.");
           return;
          }
       int vDepth = (opts & vdept) >> vdepS;
-      SSL_CTX_set_verify_depth(ctx, (vDepth ? vDepth : 9));
+      SSL_CTX_set_verify_depth(pImpl->ctx, (vDepth ? vDepth : 9));
 
       bool LogVF = (opts & logVF) != 0;
-      SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+      SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
      } else {
-      SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+      SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_NONE, 0);
      }
 
 // Set cipher list
 //
-   if (!SSL_CTX_set_cipher_list(ctx, sslCiphers))
+   if (!SSL_CTX_set_cipher_list(pImpl->ctx, sslCiphers))
       {FlushErrors("Unable to set SSL cipher list.");
        return;
       }
@@ -386,21 +398,21 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Load certificate
 //
-   if (SSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM) != 1)
+   if (SSL_CTX_use_certificate_file(pImpl->ctx, cert, SSL_FILETYPE_PEM) != 1)
       {FlushErrors("Unable to create TLS context; certificate error.");
        return;
       }
 
 // Load the private key
 //
-   if (SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM) != 1 )
+   if (SSL_CTX_use_PrivateKey_file(pImpl->ctx, key, SSL_FILETYPE_PEM) != 1 )
       {FlushErrors("Unable to create TLS context; private key error.");
        return;
       }
 
 // Make sure the key and certificate file match.
 //
-   if (SSL_CTX_check_private_key(ctx) != 1 )
+   if (SSL_CTX_check_private_key(pImpl->ctx) != 1 )
       {FlushErrors("Unable to create TLS context; cert-key mismatch.");
        return;
       }
@@ -414,7 +426,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
 
-XrdTlsContext::~XrdTlsContext() {if (ctx) SSL_CTX_free(ctx);}
+XrdTlsContext::~XrdTlsContext() {if (pImpl->ctx) SSL_CTX_free(pImpl->ctx);}
 
 /******************************************************************************/
 /* Private:                  F l u s h E r r o r s                            */
@@ -439,6 +451,24 @@ void XrdTlsContext::FlushErrors(const char *msg, const char *tid)
        {ERR_error_string_n(eCode, emsg, sizeof(emsg));
         XrdTlsGlobal::msgCB(tid, emsg, true);
        }
+}
+
+/******************************************************************************/
+/*                            C o n t e x t                                   */
+/******************************************************************************/
+
+SSL_CTX *XrdTlsContext::Context()
+{
+  return pImpl->ctx;
+}
+
+/******************************************************************************/
+/*                          G e t P a r a m s                                 */
+/******************************************************************************/
+
+const XrdTlsContext::CTX_Params *XrdTlsContext::GetParams()
+{
+  return &pImpl->Parm;
 }
 
 /******************************************************************************/
@@ -475,6 +505,6 @@ void XrdTlsContext::SetMsgCB(XrdTlsContext::msgCB_t cbP)
   
 bool XrdTlsContext::x509Verify()
 {
-   return Parm.cadir.empty() != 0 || Parm.cafile.empty() != 0;
+   return pImpl->Parm.cadir.empty() != 0 || pImpl->Parm.cafile.empty() != 0;
 }
 

@@ -18,9 +18,17 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <openssl/ssl.h>
 #include <string>
+#include <memory>
   
+//----------------------------------------------------------------------------
+// Forward declarations
+//----------------------------------------------------------------------------
+struct XrdTlsContextImpl;
+struct XrdTlsSocket;
+struct SSLC_CTX;
+
+
 /******************************************************************************/
 /*                         X r d T l s C o n t e x t                          */
 /******************************************************************************/
@@ -35,7 +43,7 @@ public:
 //! @return Pointer to the SSL context. Nil indicates failure.
 //------------------------------------------------------------------------
 
-       SSL_CTX *Context() {return ctx;}
+SSL_CTX *Context();
 
 //------------------------------------------------------------------------
 //! Get parameters used to create the context.
@@ -56,7 +64,7 @@ struct CTX_Params
       };
 
 const
-CTX_Params     *GetParams() {return &Parm;}
+CTX_Params     *GetParams();
 
 //------------------------------------------------------------------------
 //! Simply initialize the TLS library.
@@ -142,12 +150,6 @@ static const int servr = 0x10000000; //!< Phis is a server-side context
       ~XrdTlsContext();
 
 //------------------------------------------------------------------------
-//! Conversion to SSL_CTX
-//------------------------------------------------------------------------
-
-operator SSL_CTX*() {return ctx;}
-
-//------------------------------------------------------------------------
 //! Disallow any copies of this object
 //------------------------------------------------------------------------
 
@@ -160,7 +162,6 @@ operator SSL_CTX*() {return ctx;}
 private:
    void           FlushErrors(const char *msg=0, const char *tid=0);
 
-   SSL_CTX       *ctx;
-   CTX_Params     Parm;
+   std::unique_ptr<XrdTlsContextImpl>  pImpl;
 };
 #endif // __XRD_TLSCONTEXT_HH__

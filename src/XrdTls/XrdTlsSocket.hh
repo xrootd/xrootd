@@ -1,5 +1,5 @@
-#ifndef __XRD_TLS_IO_HH__
-#define __XRD_TLS_IO_HH__
+#ifndef __XRD_TLS_SOCKET_HH__
+#define __XRD_TLS_SOCKET_HH__
 //------------------------------------------------------------------------------
 // Copyright (c) 2011-2018 by European Organization for Nuclear Research (CERN)
 // Author: Michal Simon <simonm@cern.ch>
