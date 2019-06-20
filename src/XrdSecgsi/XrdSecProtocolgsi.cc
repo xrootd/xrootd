@@ -1479,7 +1479,6 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    // Parse input buffer
    if (ParseClientInput(bpar, &bmai, Emsg) == -1) {
       DEBUG(Emsg<<" CF: "<<sessionCF);
-      std::cerr <<"secgsi: " <<Emsg <<'\n' <<std::flush;
       return ErrC(ei,bpar,bmai,0,kGSErrParseBuffer,Emsg.c_str(),stepstr);
    }
    // Dump, if requested
