@@ -24,15 +24,17 @@
 
 #include <openssl/ssl.h>
 
+//----------------------------------------------------------------------------
+// Forward declarations
+//----------------------------------------------------------------------------
+
 class XrdSysError;
 class XrdTlsContext;
+struct XrdTlsSocketImpl;
 
 //----------------------------------------------------------------------------
 //! Socket wrapper for TLS I/O
 //----------------------------------------------------------------------------
-
-struct XrdTlsSocketImpl;
-//struct SSL;
 
 class XrdTlsSocket
 {
@@ -235,14 +237,6 @@ enum HS_Mode
 //------------------------------------------------------------------------
 
   const char *Version();
-
-//------------------------------------------------------------------------
-//! Conversion to native OpenSSL connection object
-//!
-//! @return : SSL connection object
-//------------------------------------------------------------------------
-
-  operator SSL*();
 
 private:
 
