@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Add xrd.network dyndns option for dynamic DNS handling.
+  * **[Server]** Properly handle dynamic DNS environments.
   * **[Server]** Add evict option to the prepare request.
   * **[POSIX]** Add methods to the cache mngt objecT to get status of a cached file.
   * **[Server]** Allow better handling for proxy caching clusters.
