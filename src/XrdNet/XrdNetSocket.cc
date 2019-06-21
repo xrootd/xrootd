@@ -30,6 +30,7 @@
 
 #ifndef WIN32
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -239,9 +240,9 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
    if ((eText = SockInfo.Set(inpath,(port < 0 ? XrdNetAddr::PortInSpec:port))))
       {ErrCode = EHOSTUNREACH;
        if (eroute)
-          {char buff[256];
-           snprintf(buff, sizeof(buff), "'; %s", eText);
-           eroute->Emsg("Open", "Unable to create socket for '", epath, buff);
+          {char buff[512];
+           snprintf(buff,sizeof(buff),"'%s'; %c%s",epath,tolower(*eText),eText+1);
+           eroute->Emsg("Open", "Unable to create socket for", buff);
           }
        return -1;
       }

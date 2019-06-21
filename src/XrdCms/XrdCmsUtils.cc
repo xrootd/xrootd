@@ -138,7 +138,13 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 // Check if this is a multi request
 //
    if (!(plus = index(hSpec, '+')) || *(plus+1) != 0) plus = 0;
-      else {*plus = 0; maxIP = 8;}
+      else {*plus = 0; maxIP = 8;
+            if (XrdNetAddr::DynDNS())
+               {eDest->Emsg("Config", "Hostname globbing is not supported "
+                                      "via dynamic DNS!");
+                return false;
+               }
+           }
 
 // Check if the port was specified
 //
@@ -152,13 +158,22 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
           }
       }
 
-// Obtain the list
+// Obtain the list. We can't fully resolve this now if we are using a dynamic
+// DNS so that part will have to wait.
 //
-   if (!(newMans = XrdNetUtils::Hosts(hSpec, nPort, maxIP, sPort, &eText)))
-      {char buff[1024];
-       snprintf(buff, sizeof(buff), "; %s", eText);
-       eDest->Emsg("Config", "Unable to add host", hSpec, buff);
-       return false;
+   if (XrdNetAddr::DynDNS())
+      {if (sPort)
+          {XrdNetAddr myAddr(0);
+           if (!strcmp(myAddr.Name("???"), hSpec)) *sPort = nPort;
+          }
+       newMans = new XrdOucTList(hSpec, nPort);
+      } else {
+       if (!(newMans = XrdNetUtils::Hosts(hSpec, nPort, maxIP, sPort, &eText)))
+          {char buff[1024];
+           snprintf(buff,sizeof(buff),"'%s'; %c%s",hSpec,tolower(*eText),eText+1);
+           eDest->Emsg("Config", "Unable to add host", buff);
+           return false;
+          }
       }
 
 // If there is no pointer to a list, then the caller merely wanted sPort

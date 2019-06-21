@@ -277,6 +277,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    EPNAME("Pander");
 
    CmsLoginData Data, loginData;
+   time_t ddmsg = time(0);
    unsigned int Mode, Role = 0;
    int myShare = Config.P_gshr << CmsLoginData::kYR_shift;
    int myTimeZ = Config.TimeZone<< CmsLoginData::kYR_shifttz;
@@ -348,7 +349,12 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        DEBUG("trying to connect to lvl " <<Lvl <<' ' <<manp <<':' <<xport);
 
        if (!(Link = Config.NetTCP->Connect(manp, xport, Netopts)))
-          {if (tries--) Netopts = XRDNET_NOEMSG;
+          {if (!Netopts && XrdNetAddr::DynDNS() && (time(0) - ddmsg) >= 90)
+              {Say.Emsg("Pander", "Is hostname", manp, "spelled correctly "
+                                  "or just not running?");
+               ddmsg = time(0);
+              }
+           if (tries--) Netopts = XRDNET_NOEMSG;
               else {tries = 6; Netopts = 0;}
            if ((Lvl = Manager->myMans->Next(xport,manbuff,manblen)))
                    {XrdSysTimer::Snooze(3); manp = manbuff;}
