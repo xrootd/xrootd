@@ -1252,7 +1252,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
    Purpose:  To parse directive: network [wan] [[no]keepalive] [buffsz <blen>]
                                          [kaparms parms] [cache <ct>] [[no]dnr]
                                          [routes <rtype> [use <ifn1>,<ifn2>]]
-                                         [[no]rpipa]
+                                         [[no]rpipa] [[no]dyndns]
 
              <rtype>: split | common | local
 
@@ -1264,6 +1264,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
              [no]dnr   do [not] perform a reverse DNS lookup if not needed.
              routes    specifies the network configuration (see reference)
              [no]rpipa do [not] resolve private IP addresses.
+             [no]dyndns This network does [not] use a dynamic DNS.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1272,7 +1273,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1, V_assumev4;
-    int  v_rpip = -1;
+    int  v_rpip = -1, V_dyndns = -1;
     long long llp;
     struct netopts {const char *opname; int hasarg; int opval;
                            int *oploc;  const char *etxt;}
@@ -1286,6 +1287,8 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         {"cache",      2, 0, &V_ct,     "cache time"},
         {"dnr",        0, 0, &V_nodnr,  "option"},
         {"nodnr",      0, 1, &V_nodnr,  "option"},
+        {"dyndns",     0, 1, &V_dyndns, "option"},
+        {"nodyndns",   0, 0, &V_dyndns, "option"},
         {"routes",     3, 1, 0,         "routes"},
         {"rpipa",      0, 1, &v_rpip,   "rpipa"},
         {"norpipa",    0, 0, &v_rpip,   "norpipa"},
@@ -1360,6 +1363,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         }
 
      if (V_ct >= 0) XrdNetAddr::SetCache(V_ct);
+     if (V_dyndns >= 0) XrdNetAddr::SetDynDNS(V_dyndns != 0);
      if (v_rpip >= 0) XrdInet::netIF.SetRPIPA(v_rpip != 0);
      if (V_assumev4 >= 0) XrdInet::SetAssumeV4(true);
      return 0;

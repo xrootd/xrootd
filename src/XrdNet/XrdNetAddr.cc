@@ -85,6 +85,7 @@ struct addrinfo   *XrdNetAddr::huntHintsUDP = XrdNetAddr::Hints(2, SOCK_DGRAM);
 // The following must be initialzed after all of the hint structures!
 //
 bool               XrdNetAddr::useIPV4      = OnlyIPV4();
+bool               XrdNetAddr::dynDNS       = false;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -267,6 +268,8 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
             n = getaddrinfo(iP, 0, hostHints, &rP);
             if (n || !rP)
                {if (rP) freeaddrinfo(rP);
+                if (n == EAI_NONAME && dynDNS)
+                   return "Dynamic name or service not yet registered";
                 return (n ? gai_strerror(n) : "host not found");
                }
             memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
@@ -476,6 +479,12 @@ void XrdNetAddr::SetCache(int keeptime)
    theCache.SetKT(keeptime);
    dnsCache = (keeptime > 0 ? &theCache : 0);
 }
+
+/******************************************************************************/
+/*                             S e t D y n D N S                              */
+/******************************************************************************/
+  
+void XrdNetAddr::SetDynDNS(bool onoff) {dynDNS = onoff;}
 
 /******************************************************************************/
 /*                               S e t I P V 4                                */

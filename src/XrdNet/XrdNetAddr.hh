@@ -43,6 +43,15 @@ class XrdNetAddr : public XrdNetAddrInfo
 public:
 
 //------------------------------------------------------------------------------
+//! Determine if dynamic DNS has been set.
+//!
+//! @return True     Dynamic DNS has     been set.
+//!         False    Dynamic DNS has not been set.
+//------------------------------------------------------------------------------
+
+static bool DynDNS() {return dynDNS;}
+
+//------------------------------------------------------------------------------
 //! Determine if IPV4 mode has been set.
 //!
 //! @return True     IPV4 mode has     been set.
@@ -175,6 +184,15 @@ const char *Set(struct addrinfo *rP, int port, bool mapit=false);
 static void SetCache(int keeptime);
 
 //------------------------------------------------------------------------------
+//! Indicate whether or not dynamic DNS is being used. This method should only
+//! be called during initialization time. The default is fixed DNS.
+//!
+//! @param  onoff True if dynamic DNS is being used, false otherwise.
+//------------------------------------------------------------------------------
+
+static void SetDynDNS(bool onoff);
+
+//------------------------------------------------------------------------------
 //! Force this object to work in IPV4 mode only. This method permanently sets
 //! IPV4 mode which cannot be undone without a restart. It is meant to bypass
 //! broken IPV6 stacks on those unfortunate hosts that have one. It should be
@@ -243,5 +261,6 @@ static struct addrinfo    *hostHints;
 static struct addrinfo    *huntHintsTCP;
 static struct addrinfo    *huntHintsUDP;
 static bool                useIPV4;
+static bool                dynDNS;
 };
 #endif
