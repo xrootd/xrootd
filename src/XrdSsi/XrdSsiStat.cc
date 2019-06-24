@@ -144,3 +144,4 @@ XrdOssStatInfo2_t XrdOssStatInfoInit2(XrdOss        *native_oss,
 /******************************************************************************/
 
 XrdVERSIONINFO(XrdOssStatInfoInit,XrdSsiStat);
+XrdVERSIONINFO(XrdOssStatInfoInit2,XrdSsiStat2);
