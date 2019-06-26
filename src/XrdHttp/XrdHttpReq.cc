@@ -1754,7 +1754,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
         free(digest_binary_value);
         return -1;
       }
-      char *digest_base64_value = (char *)malloc(digest_length);
+      char *digest_base64_value = (char *)malloc(digest_length + 1);
       // Binary length is precisely half the size of the hex-encoded digest_value; hence, divide length by 2.
       Tobase64(digest_binary_value, digest_length/2, digest_base64_value);
       free(digest_binary_value);
