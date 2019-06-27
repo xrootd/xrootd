@@ -88,7 +88,7 @@ XrdVERSIONINFOREF(XrdOfs);
   
 XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
                                XrdSysError *errP, XrdVersionInfo *verP)
-                 : autPI(0), cksPI(0), cmsPI(0), ossPI(0), urVer(verP),
+                 : autPI(0), cksPI(0), cmsPI(0), prpPI(0), ossPI(0), urVer(verP),
                    Config(cfgP),  Eroute(errP), CksConfig(0), ConfigFN(cfn),
                    CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(false),
                    prpAuth(true), Loaded(false), LoadOK(false), cksLcl(false)
