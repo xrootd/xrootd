@@ -1399,6 +1399,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         {"routes",     3, 1, 0,         "routes"},
         {"rpipa",      0, 1, &v_rpip,   "rpipa"},
         {"norpipa",    0, 0, &v_rpip,   "norpipa"},
+        {"wan",        0, 1, &V_iswan,  "option"},
         {"tls",        0, 1, &V_istls,  "option"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
