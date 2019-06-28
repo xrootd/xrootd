@@ -46,6 +46,11 @@ namespace XrdCl
     FromString( url );
   }
 
+  URL::URL( const char *url ) : pPort( 1094 )
+  {
+    FromString( url );
+  }
+
   //----------------------------------------------------------------------------
   // Parse URL - it is rather trivial and horribly slow but probably there
   // is not need to have anything more fancy
