@@ -116,10 +116,6 @@ void Print::printFile(const std::string& path)
    int idx = 1;
    for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
    {
-      printf("access %lu: ", (unsigned long)startIdx++);
-      char as[500];
-      strftime(as, 500, "%c", localtime(&(it->AttachTime)));
-
       const int MM = 128;
       char s[MM];
 
