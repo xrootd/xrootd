@@ -62,7 +62,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Stream( const URL *url, uint16_t streamNum );
+      Stream( const URL *url );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -156,14 +156,6 @@ namespace XrdCl
       const URL *GetURL() const
       {
         return pUrl;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get the stream number
-      //------------------------------------------------------------------------
-      uint16_t GetStreamNumber() const
-      {
-        return pStreamNum;
       }
 
       //------------------------------------------------------------------------
@@ -336,7 +328,6 @@ namespace XrdCl
       // Data members
       //------------------------------------------------------------------------
       const URL                     *pUrl;
-      uint16_t                       pStreamNum;
       std::string                    pStreamName;
       TransportHandler              *pTransport;
       Poller                        *pPoller;

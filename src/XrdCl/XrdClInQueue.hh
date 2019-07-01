@@ -76,7 +76,6 @@ namespace XrdCl
       //! Report an event to the handlers
       //------------------------------------------------------------------------
       void ReportStreamEvent( IncomingMsgHandler::StreamEvent event,
-                              uint16_t                        streamNum,
                               Status                          status );
 
       //------------------------------------------------------------------------

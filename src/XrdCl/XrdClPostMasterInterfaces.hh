@@ -170,15 +170,13 @@ namespace XrdCl
       //! Handle an event other that a message arrival
       //!
       //! @param event     type of the event
-      //! @param streamNum stream concerned
       //! @param status    status info
       //! @return          Action::RemoveHandler or 0
       //------------------------------------------------------------------------
       virtual uint8_t OnStreamEvent( StreamEvent event,
-                                     uint16_t    streamNum,
                                      Status      status )
       {
-        (void)event; (void)streamNum; (void)status;
+        (void)event; (void)status;
         return 0;
       };
   };
@@ -204,11 +202,10 @@ namespace XrdCl
       //! dependent adjustments)
       //!
       //! @param msg       message concerned
-      //! @param streamNum number of the stream the message will go through
       //------------------------------------------------------------------------
-      virtual void OnReadyToSend( Message *msg, uint16_t streamNum )
+      virtual void OnReadyToSend( Message *msg )
       {
-        (void)msg; (void)streamNum;
+        (void)msg;
       };
 
       //------------------------------------------------------------------------
@@ -261,8 +258,7 @@ namespace XrdCl
       //!         false if it should be removed from further consideration
       //------------------------------------------------------------------------
       virtual bool OnChannelEvent( ChannelEvent event,
-                                   Status       status,
-                                   uint16_t     stream ) = 0;
+                                   Status       status ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -274,15 +270,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    HandShakeData( const URL *addr, uint16_t stream, uint16_t subStream ):
-      step(0), out(0), in(0), url(addr), streamId(stream),
-      subStreamId( subStream ), startTime( time(0) ), serverAddr(0)
+    HandShakeData( const URL *addr, uint16_t subStream ):
+      step(0), out(0), in(0), url(addr), subStreamId( subStream ),
+      startTime( time(0) ), serverAddr(0)
     {}
     uint16_t     step;           //!< Handshake step
     Message     *out;            //!< Message to be sent out
     Message     *in;             //!< Message that has been received
     const URL   *url;            //!< Destination URL
-    uint16_t     streamId;       //!< Stream number
     uint16_t     subStreamId;    //!< Sub-stream id
     time_t       startTime;      //!< Timestamp of when the handshake started
     const
@@ -413,7 +408,6 @@ namespace XrdCl
       //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
       virtual bool IsStreamTTLElapsed( time_t     inactiveTime,
-                                       uint16_t   streamId,
                                        AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
@@ -421,7 +415,6 @@ namespace XrdCl
       //! went undetected by the TCP stack
       //------------------------------------------------------------------------
       virtual Status IsStreamBroken( time_t     inactiveTime,
-                                     uint16_t   streamId,
                                      AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
@@ -443,14 +436,8 @@ namespace XrdCl
       //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
       virtual PathID MultiplexSubStream( Message   *msg,
-                                         uint16_t   streamId,
                                          AnyObject &channelData,
                                          PathID    *hint = 0 ) = 0;
-
-      //------------------------------------------------------------------------
-      //! Return a number of streams that should be created
-      //------------------------------------------------------------------------
-      virtual uint16_t StreamNumber( AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! Return a number of substreams per stream that should be created
@@ -461,7 +448,6 @@ namespace XrdCl
       //! The stream has been disconnected, do the cleanups
       //------------------------------------------------------------------------
       virtual void Disconnect( AnyObject &channelData,
-                               uint16_t   streamId,
                                uint16_t   subStreamId ) = 0;
 
       //------------------------------------------------------------------------
@@ -475,7 +461,6 @@ namespace XrdCl
       //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
       virtual uint32_t MessageReceived( Message   *msg,
-                                        uint16_t   streamId,
                                         uint16_t   subStream,
                                         AnyObject &channelData ) = 0;
 
@@ -483,7 +468,6 @@ namespace XrdCl
       //! Notify the transport about a message having been sent
       //------------------------------------------------------------------------
       virtual void MessageSent( Message   *msg,
-                                uint16_t   streamId,
                                 uint16_t   subStream,
                                 uint32_t   bytesSent,
                                 AnyObject &channelData ) = 0;

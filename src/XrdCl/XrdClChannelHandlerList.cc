@@ -52,14 +52,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void ChannelHandlerList::ReportEvent(
                         ChannelEventHandler::ChannelEvent event,
-                        Status                            status,
-                        uint16_t                          stream )
+                        Status                            status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     std::list<ChannelEventHandler*>::iterator it;
     for( it = pHandlers.begin(); it != pHandlers.end(); )
     {
-      bool st = (*it)->OnChannelEvent( event, status, stream );
+      bool st = (*it)->OnChannelEvent( event, status );
       if( !st )
         it = pHandlers.erase( it );
       else

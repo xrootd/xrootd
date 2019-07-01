@@ -246,28 +246,23 @@ namespace XrdCl
     env->GetInt( "TimeoutResolution", timeoutResolution );
 
     pTransport->InitializeChannel( pChannelData );
-    uint16_t numStreams = transport->StreamNumber( pChannelData );
-    log->Debug( PostMasterMsg, "Creating new channel to: %s %d stream(s)",
-                                url.GetHostId().c_str(), numStreams );
+    log->Debug( PostMasterMsg, "Creating new channel to: %s",
+                                url.GetHostId().c_str() );
 
     pUrl.SetParams( url.GetParams() );
     pUrl.SetProtocol( url.GetProtocol() );
 
     //--------------------------------------------------------------------------
-    // Create the streams
+    // Create the stream
     //--------------------------------------------------------------------------
-    pStreams.resize( numStreams );
-    for( uint16_t i = 0; i < numStreams; ++i )
-    {
-      pStreams[i] = new Stream( &pUrl, i );
-      pStreams[i]->SetTransport( transport );
-      pStreams[i]->SetPoller( poller );
-      pStreams[i]->SetIncomingQueue( &pIncoming );
-      pStreams[i]->SetTaskManager( taskManager );
-      pStreams[i]->SetJobManager( jobManager );
-      pStreams[i]->SetChannelData( &pChannelData );
-      pStreams[i]->Initialize();
-    }
+      pStream = new Stream( &pUrl );
+      pStream->SetTransport( transport );
+      pStream->SetPoller( poller );
+      pStream->SetIncomingQueue( &pIncoming );
+      pStream->SetTaskManager( taskManager );
+      pStream->SetJobManager( jobManager );
+      pStream->SetChannelData( &pChannelData );
+      pStream->Initialize();
 
     //--------------------------------------------------------------------------
     // Register the task generating timeout events
@@ -283,8 +278,7 @@ namespace XrdCl
   {
     pTickGenerator->Invalidate();
     pTaskManager->UnregisterTask( pTickGenerator );
-    for( uint32_t i = 0; i < pStreams.size(); ++i )
-      delete pStreams[i];
+    delete pStream;
     pTransport->FinalizeChannel( pChannelData );
   }
 
@@ -310,8 +304,7 @@ namespace XrdCl
                         time_t                expires )
 
   {
-    PathID path = pTransport->Multiplex( msg, pChannelData );
-    return pStreams[path.up]->Send( msg, handler, stateful, expires );
+    return pStream->Send( msg, handler, stateful, expires );
   }
 
   //----------------------------------------------------------------------------
@@ -346,9 +339,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Channel::Tick( time_t now )
   {
-    std::vector<Stream *>::iterator it;
-    for( it = pStreams.begin(); it != pStreams.end(); ++it )
-      (*it)->Tick( now );
+    pStream->Tick( now );
   }
 
   //----------------------------------------------------------------------------
@@ -359,8 +350,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Disconnect and recreate the streams
     //--------------------------------------------------------------------------
-    for( uint32_t i = 0; i < pStreams.size(); ++i )
-      pStreams[i]->ForceError( Status( stError, errOperationInterrupted ) );
+    pStream->ForceError( Status( stError, errOperationInterrupted ) );
 
     return Status();
   }
@@ -394,9 +384,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Channel::RegisterEventHandler( ChannelEventHandler *handler )
   {
-    std::vector<Stream *>::iterator it;
-    for( it = pStreams.begin(); it != pStreams.end(); ++it )
-      (*it)->RegisterEventHandler( handler );
+    pStream->RegisterEventHandler( handler );
   }
 
   //------------------------------------------------------------------------
@@ -404,8 +392,6 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void Channel::RemoveEventHandler( ChannelEventHandler *handler )
   {
-    std::vector<Stream *>::iterator it;
-    for( it = pStreams.begin(); it != pStreams.end(); ++it )
-      (*it)->RemoveEventHandler( handler );
+    pStream->RemoveEventHandler( handler );
   }
 }

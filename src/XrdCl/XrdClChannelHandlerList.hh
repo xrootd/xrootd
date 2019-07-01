@@ -47,8 +47,7 @@ namespace XrdCl
       //! Report an event to the channel event handlers
       //------------------------------------------------------------------------
       void ReportEvent( ChannelEventHandler::ChannelEvent event,
-                        Status                            status,
-                        uint16_t                          stream );
+                        Status                            status );
 
     private:
       std::list<ChannelEventHandler*> pHandlers;

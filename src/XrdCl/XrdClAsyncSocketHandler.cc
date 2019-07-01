@@ -191,7 +191,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Debug( AsyncSockMsg, "[%s] Closing the socket", pStreamName.c_str() );
 
-    pTransport->Disconnect( *pChannelData, pStream->GetStreamNumber(),
+    pTransport->Disconnect( *pChannelData,
                             pSubStreamNum );
 
     pPoller->RemoveSocket( pSocket );
@@ -212,7 +212,6 @@ namespace XrdCl
     pStream    = stream;
     std::ostringstream o;
     o << pStream->GetURL()->GetHostId();
-    o << " #" << pStream->GetStreamNumber();
     o << "." << pSubStreamNum;
     pStreamName = o.str();
   }
@@ -319,7 +318,6 @@ namespace XrdCl
     // Initialize the handshake
     //--------------------------------------------------------------------------
     pHandShakeData = new HandShakeData( pStream->GetURL(),
-                                        pStream->GetStreamNumber(),
                                         pSubStreamNum );
     pHandShakeData->serverAddr = &pSocket->GetServerAddress();
     pHandShakeData->clientName = pSocket->GetSockName();

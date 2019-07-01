@@ -177,7 +177,7 @@ namespace XrdCl
       Poller                *pPoller;
       TransportHandler      *pTransport;
       TaskManager           *pTaskManager;
-      std::vector<Stream *>  pStreams;
+      Stream                *pStream;
       XrdSysMutex            pMutex;
       AnyObject              pChannelData;
       InQueue                pIncoming;

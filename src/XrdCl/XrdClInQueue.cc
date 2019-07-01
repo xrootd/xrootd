@@ -189,14 +189,13 @@ namespace XrdCl
   // Report an event to the handlers
   //----------------------------------------------------------------------------
   void InQueue::ReportStreamEvent( IncomingMsgHandler::StreamEvent event,
-				   uint16_t                        streamNum,
 				   Status                          status )
   {
     uint8_t action = 0;
     XrdSysMutexHelper scopedLock( pMutex );
     for( HandlerMap::iterator it = pHandlers.begin(); it != pHandlers.end(); )
     {
-      action = it->second.first->OnStreamEvent( event, streamNum, status );
+      action = it->second.first->OnStreamEvent( event, status );
 
       if( action & IncomingMsgHandler::RemoveHandler )
       {
@@ -223,7 +222,7 @@ namespace XrdCl
     {
       if( it->second.second <= now )
       {
-        uint8_t act = it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
+        it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout,
                                          Status( stError, errOperationExpired ) );
         auto next = it; ++next;
         if( act & IncomingMsgHandler::RemoveHandler )

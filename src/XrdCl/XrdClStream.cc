@@ -108,9 +108,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  Stream::Stream( const URL *url, uint16_t streamNum ):
+  Stream::Stream( const URL *url ):
     pUrl( url ),
-    pStreamNum( streamNum ),
     pTransport( 0 ),
     pPoller( 0 ),
     pTaskManager( 0 ),
@@ -131,7 +130,7 @@ namespace XrdCl
     pConnectionDone.tv_sec = 0;    pConnectionDone.tv_usec = 0;
 
     std::ostringstream o;
-    o << pUrl->GetHostId() << " #" << pStreamNum;
+    o << pUrl->GetHostId();
     pStreamName = o.str();
 
     pConnectionWindow  = Utils::GetIntParameter( *url, "ConnectionWindow",
@@ -298,8 +297,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Decide on the path to send the message
     //--------------------------------------------------------------------------
-    PathID path = pTransport->MultiplexSubStream( msg, pStreamNum,
-                                                  *pChannelData );
+    PathID path = pTransport->MultiplexSubStream( msg, *pChannelData );
     if( pSubStreams.size() <= path.up )
     {
       log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
@@ -318,7 +316,7 @@ namespace XrdCl
     Status st = EnableLink( path );
     if( st.IsOK() )
     {
-      pTransport->MultiplexSubStream( msg, pStreamNum, *pChannelData, &path );
+      pTransport->MultiplexSubStream( msg, *pChannelData, &path );
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
                                                 expires, stateful );
     }
@@ -370,8 +368,7 @@ namespace XrdCl
     pMutex.UnLock();
 
     q.Report( Status( stError, errOperationExpired ) );
-    if( pStreamNum == 0 )
-      pIncomingQueue->ReportTimeout( now );
+    pIncomingQueue->ReportTimeout( now );
   }
 }
 
@@ -440,8 +437,7 @@ namespace XrdCl
     msg->SetSessionId( pSessionId );
     pBytesReceived += bytesReceived;
 
-    uint32_t streamAction = pTransport->MessageReceived( msg, pStreamNum,
-                                                         subStream,
+    uint32_t streamAction = pTransport->MessageReceived( msg, subStream,
                                                          *pChannelData );
     if( streamAction & TransportHandler::DigestMsg )
       return;
@@ -525,7 +521,7 @@ namespace XrdCl
                                                           h.stateful );
     scopedLock.UnLock();
     if( h.handler )
-      h.handler->OnReadyToSend( h.msg, pStreamNum );
+      h.handler->OnReadyToSend( h.msg );
     return std::make_pair( h.msg, h.handler );
   }
 
@@ -549,7 +545,7 @@ namespace XrdCl
                               Message  *msg,
                               uint32_t  bytesSent )
   {
-    pTransport->MessageSent( msg, pStreamNum, subStream, bytesSent,
+    pTransport->MessageSent( msg, subStream, bytesSent,
                              *pChannelData );
     OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     pBytesSent += bytesSent;
@@ -843,10 +839,8 @@ namespace XrdCl
       scopedLock.UnLock();
 
       q.Report( status );
-      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken,
-                                         pStreamNum, status );
-      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status,
-                                      pStreamNum );
+      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken, status );
+      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
       return;
     }
   }
@@ -904,10 +898,8 @@ namespace XrdCl
 
       q.Report( status );
 
-      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken,
-                                         pStreamNum, status );
-      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status,
-                                      pStreamNum );
+      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken, status );
+      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
     }
   }
 
@@ -935,10 +927,8 @@ namespace XrdCl
 
     status.status = stFatal;
     q.Report( status );
-    pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::FatalError,
-                                       pStreamNum, status );
-    pChannelEvHandlers.ReportEvent( ChannelEventHandler::FatalError, status,
-                                    pStreamNum );
+    pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::FatalError, status );
+    pChannelEvHandlers.ReportEvent( ChannelEventHandler::FatalError, status );
 
   }
 
@@ -997,7 +987,6 @@ namespace XrdCl
     if( !outgoingMessages )
     {
       bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
-                                                        pStreamNum,
                                                         *pChannelData );
       if( disconnect )
       {
@@ -1020,7 +1009,6 @@ namespace XrdCl
     // Check if the stream is broken
     //--------------------------------------------------------------------------
     Status st = pTransport->IsStreamBroken( now-lastActivity,
-                                            pStreamNum,
                                             *pChannelData );
     if( !st.IsOK() )
     {
