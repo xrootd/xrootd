@@ -29,6 +29,7 @@
 
 #include <string>
 #include <map>
+#include <set>
 
 class XrdJob;
 class XrdOucIOVec;
@@ -191,10 +192,6 @@ public:
    //----------------------------------------------------------------------
    void Sync();
 
-   //----------------------------------------------------------------------
-   //! Reference to prefetch statistics.
-   //----------------------------------------------------------------------
-   Stats& GetStats() { return m_stats; }
 
    void ProcessBlockResponse(BlockResponseHandler* brh, int res);
    void WriteBlockToDisk(Block* b);
@@ -218,10 +215,9 @@ public:
    void StopPrefetchingOnIO(IO *io);
    void RemoveIO(IO *io);
 
-   //========================================================================
-   // The following methods are called under Cache's m_active lock
-   //========================================================================
+   Stats DeltaStatsFromLastCall();
 
+   // These three methods are called under Cache's m_active lock
    int get_ref_cnt() { return   m_ref_cnt; }
    int inc_ref_cnt() { return ++m_ref_cnt; }
    int dec_ref_cnt() { return --m_ref_cnt; }
@@ -249,11 +245,15 @@ private:
 
    struct IODetails
    {
+      time_t m_attach_time;
       int    m_active_prefetches;
       bool   m_allow_prefetching;
       bool   m_ioactive_false_reported;
 
-      IODetails() : m_active_prefetches(0), m_allow_prefetching(true), m_ioactive_false_reported(false) {}
+      IODetails(time_t at) :
+         m_attach_time(at),         m_active_prefetches(0),
+         m_allow_prefetching(true), m_ioactive_false_reported(false)
+      {}
    };
 
    typedef std::map<IO*, IODetails> IoMap_t;
@@ -277,12 +277,16 @@ private:
    typedef std::map<int, Block*> BlockMap_t;
    typedef BlockMap_t::iterator  BlockMap_i;
 
+   typedef std::set<Block*>      BlockSet_t;
+   typedef BlockSet_t::iterator  BlockSet_i;
+
 
    BlockMap_t m_block_map;
 
    XrdSysCondVar m_downloadCond;
 
-   Stats m_stats;                      //!< cache statistics, used in IO detach
+   Stats         m_stats;              //!< cache statistics for this instance
+   Stats         m_last_stats;         //!< copy of cache stats during last purge cycle, used for per directory stat reporting
 
    PrefetchState_e m_prefetchState;
 
@@ -293,6 +297,7 @@ private:
    bool  m_detachTimeIsLogged;
 
    static const char *m_traceID;
+
    bool overlap(int blk,               // block to query
                 long long blk_size,    //
                 long long req_off,     // offset of user request
@@ -325,7 +330,9 @@ private:
                            ReadVBlockListDisk& blks_on_disk);
    int  VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
                            std::vector<ReadVChunkListRAM>& blks_to_process,
-                           std::vector<ReadVChunkListRAM>& blks_rocessed);
+                           std::vector<ReadVChunkListRAM>& blks_processed,
+                           long long& bytes_hit,
+                           long long& bytes_missed);
 
    long long BufferSize();
 

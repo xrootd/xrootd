@@ -168,7 +168,8 @@ Cache::Cache(XrdSysLogger *logger) :
    m_RAMblocks_used(0),
    m_isClient(false),
    m_in_purge(false),
-   m_active_cond(0)
+   m_active_cond(0),
+   m_fs_state(0)
 {
    // Default log level is Warning.
    m_trace->What = 2;
@@ -561,16 +562,22 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
    }
 
    {
-     XrdSysCondVarHelper lock(&m_active_cond);
+      XrdSysCondVarHelper lock(&m_active_cond);
 
-     cnt = f->dec_ref_cnt();
-     TRACE_INT(tlvl, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt after sync_check and dec_ref_cnt = " << cnt);
-     if (cnt == 0)
-     {
-        ActiveMap_i it = m_active.find(f->GetLocalPath());
-        m_active.erase(it);
-        delete f;
-     }
+      cnt = f->dec_ref_cnt();
+      TRACE_INT(tlvl, "Cache::dec_ref_cnt " << f->GetLocalPath() << ", cnt after sync_check and dec_ref_cnt = " << cnt);
+      if (cnt == 0)
+      {
+         ActiveMap_i it = m_active.find(f->GetLocalPath());
+         m_active.erase(it);
+
+         if (m_configuration.are_dirstats_enabled())
+         {
+            m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
+         }
+
+         delete f;
+      }
    }
 }
 
@@ -786,7 +793,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
 {
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + Info::m_infoExtension;
+   std::string i_name = f_name + Info::s_infoExtension;
 
    // Do not allow write access.
    if (oflags & (O_WRONLY | O_RDWR))

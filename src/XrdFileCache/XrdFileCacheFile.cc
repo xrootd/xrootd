@@ -137,6 +137,21 @@ void File::initiate_emergency_shutdown()
 
 //------------------------------------------------------------------------------
 
+Stats File::DeltaStatsFromLastCall()
+{
+   // Not locked, only used from Cache / Purge thread.
+
+   Stats delta = m_last_stats;
+
+   m_last_stats = m_stats.Clone();
+
+   delta.DeltaToReference(m_last_stats);
+
+   return delta;
+}
+
+//------------------------------------------------------------------------------
+
 void File::BlockRemovedFromWriteQ(Block* b)
 {
    TRACEF(Dump, "File::BlockRemovedFromWriteQ() block = " << (void*) b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
@@ -273,13 +288,16 @@ void File::AddIO(IO *io)
 
    TRACEF(Debug, "File::AddIO() io = " << (void*)io);
 
+   time_t now = time(0);
+
    m_downloadCond.Lock();
 
    IoMap_i mi = m_io_map.find(io);
 
    if (mi == m_io_map.end())
    {
-      m_io_map.insert(std::make_pair(io, IODetails()));
+      m_io_map.insert(std::make_pair(io, IODetails(now)));
+      m_stats.IoAttach();
 
       if (m_prefetchState == kStopped)
       {
@@ -303,6 +321,8 @@ void File::RemoveIO(IO *io)
 
    TRACEF(Debug, "File::RemoveIO() io = " << (void*)io);
 
+   time_t now = time(0);
+
    m_downloadCond.Lock();
 
    IoMap_i mi = m_io_map.find(io);
@@ -314,6 +334,7 @@ void File::RemoveIO(IO *io)
          ++m_current_io;
       }
 
+      m_stats.IoDetach(now - mi->second.m_attach_time);
       m_io_map.erase(mi);
       --m_ios_in_detach;
 
@@ -381,7 +402,6 @@ bool File::Open()
       return false;
    }
 
-   // Create the info file.
    myEnv.Put("oss.asize", "64k"); // TODO: Calculate? Get it from configuration? Do not know length of access lists ...
    myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
    if ((res = myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
@@ -672,6 +692,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             inc_ref_count(b);
             blks_to_process.push_back(b);
             blks_to_request.push_back(b);
+            requested_blocks.insert(b);
          }
          // Nope ... read this directly without caching.
          else
@@ -711,7 +732,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       if (rc >= 0)
       {
          bytes_read += rc;
-         loc_stats.m_BytesDisk += rc;
+         loc_stats.m_BytesHit += rc;
       }
       else
       {
@@ -778,7 +799,12 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             TRACEF(Dump, "File::Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/BS << " size " << size_to_copy);
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
-            loc_stats.m_BytesRam += size_to_copy;
+
+            if (requested_blocks.find(*bi) == requested_blocks.end())
+               loc_stats.m_BytesHit    += size_to_copy;
+            else
+               loc_stats.m_BytesMissed += size_to_copy;
+
             if ((*bi)->m_prefetch)
                prefetchHitsRam++;
          }
@@ -815,7 +841,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       if (direct_handler->m_errno == 0)
       {
          bytes_read += direct_size;
-         loc_stats.m_BytesMissed += direct_size;
+         loc_stats.m_BytesBypassed += direct_size;
       }
       else
       {
@@ -854,7 +880,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
    }
 
-   m_stats.AddStats(loc_stats);
+   m_stats.AddReadStats(loc_stats);
 
    return error_cond ? error_cond : bytes_read;
 }
@@ -1133,6 +1159,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
       if ( ! m_in_shutdown)
       {
          inc_ref_count(b);
+         m_stats.AddBytesWritten(b->get_size());
          cache()->AddWriteTask(b, true);
       }
    }

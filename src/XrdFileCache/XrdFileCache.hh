@@ -19,6 +19,7 @@
 //----------------------------------------------------------------------------------
 #include <string>
 #include <list>
+#include <map>
 #include <set>
 
 #include "Xrd/XrdScheduler.hh"
@@ -27,6 +28,7 @@
 #include "XrdOuc/XrdOucCache2.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+
 #include "XrdFileCacheFile.hh"
 #include "XrdFileCacheDecision.hh"
 
@@ -34,17 +36,23 @@ class XrdOucStream;
 class XrdSysError;
 class XrdSysTrace;
 
-namespace XrdCl {
+namespace XrdCl
+{
 class Log;
 }
-namespace XrdFileCache {
+
+namespace XrdFileCache
+{
 class File;
 class IO;
+
+class DataFsState;
 }
 
 
 namespace XrdFileCache
 {
+
 //----------------------------------------------------------------------------
 //! Contains parameters configurable from the xrootd config file.
 //----------------------------------------------------------------------------
@@ -64,6 +72,10 @@ struct Configuration
       m_purgeInterval(300),
       m_purgeColdFilesAge(-1),
       m_purgeColdFilesPeriod(-1),
+      m_accHistorySize(20),
+      m_dirStatsMaxDepth(-1),
+      m_dirStatsStoreDepth(-1),
+      m_dirStats(false),
       m_bufferSize(1024*1024),
       m_RamAbsAvailable(0),
       m_NRamBuffers(-1),
@@ -79,6 +91,9 @@ struct Configuration
    bool is_purge_plugin_set_up()       const { return false; }
 
    void calculate_fractional_usages(long long du, long long fu, double &frac_du, double &frac_fu);
+
+   // This might become more complicated with per-dir purge policy
+   bool are_dirstats_enabled() const { return m_dirStats; }
 
    bool m_hdfsmode;                     //!< flag for enabling block-level operation
    bool m_allow_xrdpfc_command;         //!< flag for enabling access to /xrdpfc-command/ functionality.
@@ -96,6 +111,13 @@ struct Configuration
    int       m_purgeInterval;           //!< sleep interval between cache purges
    int       m_purgeColdFilesAge;       //!< purge files older than this age
    int       m_purgeColdFilesPeriod;    //!< peform cold file purge every this many purge cycles
+   int       m_accHistorySize;          //!< max number of entries in access history part of cinfo file
+
+   std::set<std::string> m_dirStatsDirs;     //!< directories for which stat reporting was requested
+   std::set<std::string> m_dirStatsDirGlobs; //!< directory globs for which stat reporting was requested
+   int       m_dirStatsMaxDepth;        //!< maximum depth for statistics write out
+   int       m_dirStatsStoreDepth;      //!< depth to which statistics should be collected
+   bool      m_dirStats;                //!< is directory access / usage statistics enabled
 
    long long m_bufferSize;              //!< prefetch buffer size, default 1MB
    long long m_RamAbsAvailable;         //!< available from configuration
@@ -107,6 +129,8 @@ struct Configuration
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
    long long m_flushCnt;                //!< nuber of unsynced blcoks on disk before flush is called
 };
+
+//------------------------------------------------------------------------------
 
 struct TmpConfiguration
 {
@@ -122,6 +146,132 @@ struct TmpConfiguration
       m_flushRaw("")
    {}
 };
+
+//==============================================================================
+
+struct SplitParser
+{
+   char       *str;
+   const char *delim;
+   char       *state;
+   bool        first;
+
+   SplitParser(const std::string &s, const char *d) :
+      str(strdup(s.c_str())), delim(d), state(0), first(true)
+   {}
+   ~SplitParser() { free(str); }
+
+   char* get_token()
+   {
+      if (first) { first = false; return strtok_r(str, delim, &state); }
+      else       { return strtok_r(0, delim, &state); }
+   }
+
+   char* get_reminder_with_delim()
+   {
+      if (first) { return str; }
+      else       { *(state - 1) = delim[0]; return state - 1; }
+   }
+
+   char *get_reminder()
+   {
+      return first ? str : state;
+   }
+
+   int fill_argv(std::vector<char*> &argv)
+   {
+      if (!first) return 0;
+      int dcnt = 0; { char *p = str; while (*p) { if (*(p++) == delim[0]) ++dcnt; } }
+      argv.reserve(dcnt + 1);
+      int argc = 0;
+      char *i = strtok_r(str, delim, &state);
+      while (i)
+      {
+         ++argc;
+         argv.push_back(i);
+         // printf("  arg %d : '%s'\n", argc, i);
+         i = strtok_r(0, delim, &state);
+      }
+      return argc;
+   }
+};
+
+struct PathTokenizer : private SplitParser
+{
+   std::vector<const char*>  m_dirs;
+   const char               *m_reminder;
+   int                       m_n_dirs;
+
+   PathTokenizer(const std::string &path, int max_depth, bool parse_as_lfn) :
+      SplitParser(path, "/"),
+      m_reminder (0)
+   {
+      // If parse_as_lfn is true store final token into reminder, regardless of maxdepth.
+      // This assumes the last token is a file name (and full path if lfn, including the file name).
+
+      m_dirs.reserve(max_depth);
+
+      char *t;
+      for (int i = 0; i < max_depth; ++i)
+      {
+         t = get_token();
+         if (t == 0) break;
+         m_dirs.emplace_back(t);
+      }
+      if (parse_as_lfn && (t == 0 || * get_reminder() == 0))
+      {
+         m_reminder = m_dirs.back();
+         m_dirs.pop_back();
+      }
+      else
+      {
+         m_reminder = get_reminder();
+      }
+      m_n_dirs = (int) m_dirs.size();
+   }
+
+   int get_n_dirs()
+   {
+      return m_n_dirs;
+   }
+
+   const char *get_dir(int pos)
+   {
+      if (pos >= m_n_dirs) return 0;
+      return m_dirs[pos];
+   }
+
+   std::string make_path()
+   {
+      std::string res;
+      for (std::vector<const char*>::iterator i = m_dirs.begin(); i != m_dirs.end(); ++i)
+      {
+         res += "/";
+         res += *i;
+      }
+      if (m_reminder != 0)
+      {
+         res += "/";
+         res += m_reminder;
+      }
+      return res;
+   }
+
+   void deboog()
+   {
+      printf("PathTokenizer::deboog size=%d\n", m_n_dirs);
+      for (int i = 0; i < m_n_dirs; ++i)
+      {
+         printf("   %2d: %s\n", i, m_dirs[i]);
+      }
+      printf("  rem: %s\n", m_reminder);
+   }
+};
+
+
+//==============================================================================
+// Cache
+//==============================================================================
 
 //----------------------------------------------------------------------------
 //! Attaches/creates and detaches/deletes cache-io objects for disk based cache.
@@ -276,7 +426,7 @@ private:
    XrdSysTrace      *m_trace;
    const char       *m_traceID;
 
-   XrdOucCacheStats  m_stats;           //!<
+   XrdOucCacheStats  m_ouc_stats;       //!<
    XrdOss           *m_output_fs;       //!< disk cache file system
 
    std::vector<XrdFileCache::Decision*> m_decisionpoints;       //!< decision plugins
@@ -305,14 +455,17 @@ private:
    WriteQ m_writeQ;
 
    // active map, purge delay set
-   typedef std::map<std::string, File*> ActiveMap_t;
-   typedef ActiveMap_t::iterator        ActiveMap_i;
-   typedef std::set<std::string>        FNameSet_t;
+   typedef std::map<std::string, File*>                     ActiveMap_t;
+   typedef ActiveMap_t::iterator                            ActiveMap_i;
+   typedef std::multimap<std::string, XrdFileCache::Stats>  StatsMMap_t;
+   typedef StatsMMap_t::iterator                            StatsMMap_i;
+   typedef std::set<std::string>                            FNameSet_t;
 
-   ActiveMap_t   m_active;
-   FNameSet_t    m_purge_delay_set;
-   bool          m_in_purge;
-   XrdSysCondVar m_active_cond;
+   ActiveMap_t      m_active;
+   StatsMMap_t      m_closed_files_stats;
+   FNameSet_t       m_purge_delay_set;
+   bool             m_in_purge;
+   XrdSysCondVar    m_active_cond;
 
    void inc_ref_cnt(File*, bool lock, bool high_debug);
    void dec_ref_cnt(File*, bool high_debug);
@@ -322,6 +475,11 @@ private:
    // prefetching
    typedef std::vector<File*>  PrefetchList;
    PrefetchList m_prefetchList;
+
+   // directory state for access / usage info and quotas
+   DataFsState *m_fs_state;
+
+   void copy_out_active_stats_and_update_data_fs_state();
 };
 
 }

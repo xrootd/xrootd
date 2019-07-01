@@ -1,5 +1,6 @@
 #include "XrdFileCache.hh"
 #include "XrdFileCacheTrace.hh"
+#include "XrdFileCacheInfo.hh"
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssCache.hh"
@@ -243,7 +244,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       }
       if (sP.Total < 10ll << 20)
       {
-         m_log.Emsg("Cache::ConfigParameters()", "available data space is less than 10 MB (can be due to a mistake in oss.localroot directive) for space ", m_configuration.m_data_space.c_str());
+         m_log.Emsg("Cache::ConfigParameters()", "available data space is less than 10 MB (can be due to a mistake in oss.localroot directive) for space ",
+                    m_configuration.m_data_space.c_str());
          return false;
       }
 
@@ -300,7 +302,6 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       }
    }
 
-   
    // get number of available RAM blocks after process configuration
    if (m_configuration.m_RamAbsAvailable == 0)
    {
@@ -318,9 +319,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    if (retval)
    {
-      int loff = 0;
-      char buff[2048];
-      float rg =  (m_configuration.m_RamAbsAvailable)/float(1024*1024*1024);
+      int  loff = 0;
+      char buff[8192];
+      float rg =  (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                       "       pfc.blocksize %lld\n"
                       "       pfc.prefetch %d\n"
@@ -330,7 +331,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       "       pfc.diskusage %lld %lld files %lld %lld %lld purgeinterval %d purgecoldfiles %d\n"
                       "       pfc.spaces %s %s\n"
                       "       pfc.trace %d\n"
-                      "       pfc.flush %lld",
+                      "       pfc.flush %lld\n"
+                      "       pfc.acchistorysize %d\n",
                       config_filename,
                       m_configuration.m_bufferSize,
                       m_configuration.m_prefetch_max_blocks,
@@ -343,27 +345,37 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       m_configuration.m_data_space.c_str(),
                       m_configuration.m_meta_space.c_str(),
                       m_trace->What,
-                      m_configuration.m_flushCnt);
+                      m_configuration.m_flushCnt,
+                      m_configuration.m_accHistorySize);
 
-
+      if (m_configuration.are_dirstats_enabled())
+      {
+         loff += snprintf(buff + loff, sizeof(buff) - loff,
+                          "       pfc.dirstats maxdepth %d ((internal: store_depth %d, size_of_dirlist %d, size_of_globlist %d))\n",
+                          m_configuration.m_dirStatsMaxDepth, m_configuration.m_dirStatsStoreDepth,
+                          (int) m_configuration.m_dirStatsDirs.size(), (int) m_configuration.m_dirStatsDirGlobs.size());
+         loff += snprintf(buff + loff, sizeof(buff) - loff, "           dirlist:\n");
+         for (std::set<std::string>::iterator i = m_configuration.m_dirStatsDirs.begin(); i != m_configuration.m_dirStatsDirs.end(); ++i)
+            loff += snprintf(buff + loff, sizeof(buff) - loff, "               %s\n", i->c_str());
+         loff += snprintf(buff + loff, sizeof(buff) - loff, "           globlist:\n");
+         for (std::set<std::string>::iterator i = m_configuration.m_dirStatsDirGlobs.begin(); i != m_configuration.m_dirStatsDirGlobs.end(); ++i)
+            loff += snprintf(buff + loff, sizeof(buff) - loff, "               %s/*\n", i->c_str());
+      }
 
       if (m_configuration.m_hdfsmode)
       {
-         char buff2[512];
-         snprintf(buff2, sizeof(buff2), "\tpfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
-         loff += snprintf(&buff[loff], strlen(buff2), "%s", buff2);
+         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.hdfsmode hdfsbsize %lld\n", m_configuration.m_hdfsbsize);
       }
 
-      char unameBuff[256];
       if (m_configuration.m_username.empty())
       {
+         char unameBuff[256];
          XrdOucUtils::UserName(getuid(), unameBuff, sizeof(unameBuff));
          m_configuration.m_username = unameBuff;
       }
       else
       {
-         snprintf(unameBuff, sizeof(unameBuff), "\tpfc.user %s \n", m_configuration.m_username.c_str());
-         loff += snprintf(buff + loff, sizeof(buff) - loff, "%s", unameBuff);
+         loff += snprintf(buff + loff, sizeof(buff) - loff, "       pfc.user %s\n", m_configuration.m_username.c_str());
       }
 
       m_log.Say(buff);
@@ -373,11 +385,13 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    if (ofsCfg) delete ofsCfg;
 
+   // Broadcast settings as needed:
+   Info::s_maxNumAccess = m_configuration.m_accHistorySize;
+
    return retval;
 }
 
-//______________________________________________________________________________
-
+//------------------------------------------------------------------------------
 
 bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfiguration &tmpc)
 {
@@ -441,7 +455,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          }
          else if (strcmp(p, "purgecoldfiles") == 0)
          {
-            if (XrdOuca2x::a2tm(m_log, "Error getting purgecoldfiles age ", cwg.GetWord(), &m_configuration.m_purgeColdFilesAge, 3600, 3600*24*360))
+            if (XrdOuca2x::a2tm(m_log, "Error getting purgecoldfiles age", cwg.GetWord(), &m_configuration.m_purgeColdFilesAge, 3600, 3600*24*360))
             {
                return false;
             }
@@ -456,11 +470,90 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          }
       }
    }
-   else if  ( part == "blocksize" )
+   else if ( part == "acchistorysize" )
+   {
+      if ( XrdOuca2x::a2i(m_log, "Error getting access-history-size", cwg.GetWord(), &m_configuration.m_accHistorySize, 20, 200))
+      {
+         return false;
+      }
+   }
+   else if ( part == "dirstats" )
+   {
+      m_configuration.m_dirStats = true;
+
+      const char *p = 0;
+      while ((p = cwg.GetWord()))
+      {
+         if (strcmp(p, "maxdepth") == 0)
+         {
+            if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(), &m_configuration.m_dirStatsMaxDepth, 0, 5))
+            {
+               return false;
+            }
+            m_configuration.m_dirStatsStoreDepth = std::max(m_configuration.m_dirStatsStoreDepth, m_configuration.m_dirStatsMaxDepth);
+         }
+         else if (strcmp(p, "dir") == 0)
+         {
+            p = cwg.GetWord();
+            if (p && p[0] == '/')
+            {
+               // XXX -- should we just store them as sets of PathTokenizer objects, not strings?
+
+               char d[1024]; d[0] = 0;
+               int  depth = 0;
+               {  // Compress multiple slashes and "measure" depth
+                  const char *pp = p;
+                  char *pd = d;
+                  *(pd++) = *(pp++);
+                  while (*pp != 0)
+                  {
+                     if (*(pd - 1) == '/')
+                     {
+                        if (*pp == '/')
+                        {
+                           ++pp; continue;
+                        }
+                        ++depth;
+                     }
+                     *(pd++) = *(pp++);
+                  }
+                  *(pd--) = 0;
+                  // remove trailing but but not leading /
+                  if (*pd == '/' && pd != d) *pd = 0;
+               }
+               int ld = strlen(d);
+               if (ld >= 2 && d[ld-1] == '*' && d[ld-2] == '/')
+               {
+                  d[ld-2] = 0;
+                  ld     -= 2;
+                  m_configuration.m_dirStatsDirGlobs.insert(d);
+                  printf("Glob %s -> %s -- depth = %d\n", p, d, depth);
+               }
+               else
+               {
+                  m_configuration.m_dirStatsDirs.insert(d);
+                  printf("Dir  %s -> %s -- depth = %d\n", p, d, depth);
+               }
+
+               m_configuration.m_dirStatsStoreDepth = std::max(m_configuration.m_dirStatsStoreDepth, depth);
+            }
+            else
+            {
+               m_log.Emsg("Config", "Error: dirstats dir parameter requires a directory argument starting with a '/'.");
+               return false;
+            }
+         }
+         else
+         {
+            m_log.Emsg("Config", "Error: dirstats stanza contains unknown directive", p);
+         }
+      }
+   }
+   else if ( part == "blocksize" )
    {
       long long minBSize =  4 * 1024;
       long long maxBSize = 16 * 1024 * 1024;
-      if (XrdOuca2x::a2sz(m_log, "get block size", cwg.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
+      if (XrdOuca2x::a2sz(m_log, "Error reading block-size", cwg.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
       {
          return false;
       }

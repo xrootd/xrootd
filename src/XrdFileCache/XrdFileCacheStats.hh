@@ -30,39 +30,103 @@ namespace XrdFileCache
 class Stats
 {
 public:
+   int       m_NumIos;          //!< number of IO objects attached during this access
+   int       m_Duration;        //!< total duration of all IOs attached
+   long long m_BytesHit;        //!< number of bytes served from disk
+   long long m_BytesMissed;     //!< number of bytes served from RAM
+   long long m_BytesBypassed;   //!< number of bytes served directly through XrdCl
+   long long m_BytesWritten;    //!< number of bytes written to disk
+
    //----------------------------------------------------------------------
-   //! Constructor.
+
+   Stats() :
+      m_NumIos  (0), m_Duration(0),
+      m_BytesHit(0), m_BytesMissed(0), m_BytesBypassed(0),
+      m_BytesWritten(0)
+   {}
+
+   Stats(const Stats& s) :
+      m_NumIos  (s.m_NumIos),   m_Duration(s.m_Duration),
+      m_BytesHit(s.m_BytesHit), m_BytesMissed(s.m_BytesMissed), m_BytesBypassed(s.m_BytesBypassed),
+      m_BytesWritten(s.m_BytesWritten)
+   {}
+
    //----------------------------------------------------------------------
-   Stats() {
-      m_BytesDisk = m_BytesRam = m_BytesMissed = 0;
+
+   void AddReadStats(const Stats &s)
+   {
+      XrdSysMutexHelper _lock(&m_Mutex);
+
+      m_BytesHit      += s.m_BytesHit;
+      m_BytesMissed   += s.m_BytesMissed;
+      m_BytesBypassed += s.m_BytesBypassed;
    }
 
-   long long m_BytesDisk;         //!< number of bytes served from disk cache
-   long long m_BytesRam;          //!< number of bytes served from RAM cache
-   long long m_BytesMissed;       //!< number of bytes served directly from XrdCl
-
-   inline void AddStats(Stats &Src)
+   void AddBytesWritten(long long bw)
    {
-      m_MutexXfc.Lock();
+      XrdSysMutexHelper _lock(&m_Mutex);
 
-      m_BytesDisk   += Src.m_BytesDisk;
-      m_BytesRam    += Src.m_BytesRam;
-      m_BytesMissed += Src.m_BytesMissed;
+      m_BytesWritten += bw;
+   }
 
-      m_MutexXfc.UnLock();
+   void IoAttach()
+   {
+      XrdSysMutexHelper _lock(&m_Mutex);
+
+      ++m_NumIos;
+   }
+
+   void IoDetach(int duration)
+   {
+      XrdSysMutexHelper _lock(&m_Mutex);
+
+      m_Duration += duration;
    }
 
    Stats Clone()
    {
-      Stats ret;
-      m_MutexXfc.Lock();
-      ret = *this;
-      m_MutexXfc.UnLock();
-      return ret;
+      XrdSysMutexHelper _lock(&m_Mutex);
+
+      return Stats(*this);
+   }
+
+   //----------------------------------------------------------------------
+
+   void DeltaToReference(const Stats& ref)
+   {
+      // Not locked, only used from Cache / Purge thread.
+      m_NumIos        = ref.m_NumIos        - m_NumIos;
+      m_Duration      = ref.m_Duration      - m_Duration;
+      m_BytesHit      = ref.m_BytesHit      - m_BytesHit;
+      m_BytesMissed   = ref.m_BytesMissed   - m_BytesMissed;
+      m_BytesBypassed = ref.m_BytesBypassed - m_BytesBypassed;
+      m_BytesWritten  = ref.m_BytesWritten  - m_BytesWritten;
+   }
+
+   void AddUp(const Stats& s)
+   {
+      // Not locked, only used from Cache / Purge thread.
+      m_NumIos        += s.m_NumIos;
+      m_Duration      += s.m_Duration;
+      m_BytesHit      += s.m_BytesHit;
+      m_BytesMissed   += s.m_BytesMissed;
+      m_BytesBypassed += s.m_BytesBypassed;
+      m_BytesWritten  += s.m_BytesWritten;
+   }
+
+   void Reset()
+   {
+      // Not locked, only used from Cache / Purge thread.
+      m_NumIos        = 0;
+      m_Duration      = 0;
+      m_BytesHit      = 0;
+      m_BytesMissed   = 0;
+      m_BytesBypassed = 0;
+      m_BytesWritten  = 0;
    }
 
 private:
-   XrdSysMutex m_MutexXfc;
+   XrdSysMutex m_Mutex;
 };
 }
 

@@ -49,46 +49,6 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 {
    static const char *top_epfx = "ExecuteCommandUrl ";
 
-   struct SplitParser
-   {
-      char       *str;
-      const char *delim;
-      char       *state;
-      bool        first;
-
-      SplitParser(const std::string &s, const char *d) :
-         str(strdup(s.c_str())), delim(d), state(0), first(true)
-      {}
-      ~SplitParser() { free(str); }
-
-      std::string get_token()
-      {
-         if (first) { first = false; return strtok_r(str, delim, &state); }
-         else       { return strtok_r(0, delim, &state); }
-      }
-      std::string get_reminder()
-      {
-         if (first) { return str; }
-         else       { *(state - 1) = delim[0]; return state - 1; }
-      }
-      int fill_argv(std::vector<char*> &argv)
-      {
-         if (!first) return 0;
-         int dcnt = 0; { char *p = str; while (*p) { if (*(p++) == delim[0]) ++dcnt; } }
-         argv.reserve(dcnt + 1);
-         int argc = 0;
-         char *i = strtok_r(str, delim, &state);
-         while (i)
-         {
-            ++argc;
-            argv.push_back(i);
-            // printf("  arg %d : '%s'\n", argc, i);
-            i = strtok_r(0, delim, &state);
-         }
-         return argc;
-      }
-   };
-
    SplitParser cp(command_url, "/");
 
    std::string token = cp.get_token();
@@ -202,8 +162,8 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          return;
       }
 
-      std::string file_path (cp.get_reminder());
-      std::string cinfo_path(file_path + Info::m_infoExtension);
+      std::string file_path (cp.get_reminder_with_delim());
+      std::string cinfo_path(file_path + Info::s_infoExtension);
 
       TRACE(Debug, err_prefix << "Command arguments parsed successfully. Proceeding to create file " << file_path);
 
