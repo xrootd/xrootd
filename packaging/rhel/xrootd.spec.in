@@ -756,12 +756,12 @@ fi
 %files libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.1*
-%{_libdir}/libXrdClProxyPlugin-4.so
-%{_libdir}/libXrdCks*-4.so
+%{_libdir}/libXrdClProxyPlugin-5.so
+%{_libdir}/libXrdCks*-5.so
 %{_libdir}/libXrdCrypto.so.1*
 %{_libdir}/libXrdCryptoLite.so.1*
-%{_libdir}/libXrdCryptossl-4.so
-%{_libdir}/libXrdSec*-4.so
+%{_libdir}/libXrdCryptossl-5.so
+%{_libdir}/libXrdSec*-5.so
 %{_libdir}/libXrdUtils.so.*
 %{_libdir}/libXrdXml.so.*
 
@@ -811,26 +811,26 @@ fi
 
 %files server-libs
 %defattr(-,root,root,-)
-%{_libdir}/libXrdBwm-4.so
-%{_libdir}/libXrdPss-4.so
-%{_libdir}/libXrdXrootd-4.so
-%{_libdir}/libXrdFileCache-4.so
-%{_libdir}/libXrdBlacklistDecision-4.so
-%{_libdir}/libXrdHttp-4.so
-%{_libdir}/libXrdHttpTPC-4.so
+%{_libdir}/libXrdBwm-5.so
+%{_libdir}/libXrdPss-5.so
+%{_libdir}/libXrdXrootd-5.so
+%{_libdir}/libXrdFileCache-5.so
+%{_libdir}/libXrdBlacklistDecision-5.so
+%{_libdir}/libXrdHttp-5.so
+%{_libdir}/libXrdHttpTPC-5.so
 %{_libdir}/libXrdHttpUtils.so.*
 %if %{have_macaroons}
-%{_libdir}/libXrdMacaroons-4.so
+%{_libdir}/libXrdMacaroons-5.so
 %endif
-%{_libdir}/libXrdN2No2p-4.so
-%{_libdir}/libXrdOssSIgpfsT-4.so
+%{_libdir}/libXrdN2No2p-5.so
+%{_libdir}/libXrdOssSIgpfsT-5.so
 %{_libdir}/libXrdServer.so.*
-%{_libdir}/libXrdSsi-4.so
+%{_libdir}/libXrdSsi-5.so
 %{_libdir}/libXrdSsiLib.so.*
-%{_libdir}/libXrdSsiLog-4.so
+%{_libdir}/libXrdSsiLog-5.so
 %{_libdir}/libXrdSsiShMap.so.*
-%{_libdir}/libXrdThrottle-4.so
-%{_libdir}/libXrdCmsRedirectLocal-4.so
+%{_libdir}/libXrdThrottle-5.so
+%{_libdir}/libXrdCmsRedirectLocal-5.so
 
 %files server-devel
 %defattr(-,root,root,-)
@@ -896,15 +896,15 @@ fi
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
 %files ceph
 %defattr(-,root,root,-)
-%{_libdir}/libXrdCeph-4.so
-%{_libdir}/libXrdCephXattr-4.so
+%{_libdir}/libXrdCeph-5.so
+%{_libdir}/libXrdCephXattr-5.so
 %{_libdir}/libXrdCephPosix.so*
 %endif
 
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
 %files -n xrdcl-http
 %defattr(-,root,root,-)
-%{_libdir}/libXrdClHttp-4.so
+%{_libdir}/libXrdClHttp-5.so
 %{_sysconfdir}/xrootd/client.plugins.d/xrdcl-http-plugin.conf
 %endif
 
