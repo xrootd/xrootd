@@ -376,7 +376,7 @@ bool File::Open()
    XrdOucEnv   myEnv;
    struct stat data_stat, info_stat;
 
-   std::string ifn = m_filename + Info::m_infoExtension;
+   std::string ifn = m_filename + Info::s_infoExtension;
 
    bool data_existed = (myOss.Stat(m_filename.c_str(), &data_stat) == XrdOssOK);
    bool info_existed = (myOss.Stat(ifn.c_str(),        &info_stat) == XrdOssOK);
@@ -639,6 +639,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
    const int idx_first = iUserOff / BS;
    const int idx_last  = (iUserOff + iUserSize - 1) / BS;
 
+   BlockSet_t  requested_blocks;
    BlockList_t blks_to_request, blks_to_process, blks_processed;
    IntList_t   blks_on_disk,    blks_direct;
 

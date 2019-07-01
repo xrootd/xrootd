@@ -702,7 +702,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + Info::m_infoExtension;
+   std::string i_name = f_name + Info::s_infoExtension;
 
    if (why == ForPath)
    {
@@ -863,7 +863,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
 {
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + Info::m_infoExtension;
+   std::string i_name = f_name + Info::s_infoExtension;
 
    {
       XrdSysCondVarHelper lock(&m_active_cond);
@@ -963,7 +963,7 @@ int Cache::UnlinkCommon(const std::string& f_name, bool fail_if_open)
       RemoveWriteQEntriesFor(file);
    }
 
-   std::string i_name = f_name + Info::m_infoExtension;
+   std::string i_name = f_name + Info::s_infoExtension;
 
    // Unlink file & cinfo
    int f_ret = m_output_fs->Unlink(f_name.c_str());

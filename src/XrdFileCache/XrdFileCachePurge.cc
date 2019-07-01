@@ -113,7 +113,7 @@ public:
       if (i != m_subdirs.end())  return & i->second;
 
       if (create_subdirs && m_depth < m_max_depth)  return create_child(dir);
-         
+
       return 0;
    }
 
@@ -526,7 +526,7 @@ void Cache::Purge()
    // { PathTokenizer p("/a/b/f.root", 2, true); p.deboog(); }
    // { PathTokenizer p("/a/f.root", 2, true); p.deboog(); }
    // { PathTokenizer p("/f.root", 2, true); p.deboog(); }
-   
+
    int  age_based_purge_countdown = 0; // enforce on first purge loop entry.
    bool is_first = true;
 
