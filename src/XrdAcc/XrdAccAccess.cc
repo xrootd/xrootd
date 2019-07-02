@@ -416,8 +416,8 @@ bool XrdAccAccess_ID::Applies(const XrdSecEntity *Entity)
 //
    gList = Entity->grps;
    while(true)
-        {if (!strncmp(grp, Entity->grps, glen))
-            {gEnd = Entity->grps + glen;
+        {if (!strncmp(grp, gList, glen))
+            {gEnd = gList + glen;
              if (*gEnd == ' ' || *gEnd == 0) return true;
             }
          if(!(gList = index(gList, ' '))) break;
