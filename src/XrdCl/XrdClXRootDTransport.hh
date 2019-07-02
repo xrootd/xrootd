@@ -349,8 +349,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static std::string FileHandleToStr( const unsigned char handle[4] );
 
-      XrdSecGetProt_t      pAuthHandler;
-
       friend struct PluginUnloadHandler;
       PluginUnloadHandler *pSecUnloadHandler;
   };

@@ -37,6 +37,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSec/XrdSecProtect.hh"
@@ -194,7 +195,6 @@ namespace XrdCl
   // Constructor
   //----------------------------------------------------------------------------
   XRootDTransport::XRootDTransport():
-    pAuthHandler(0),
     pSecUnloadHandler( new PluginUnloadHandler() )
   {
   }
@@ -2034,20 +2034,34 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
-    if( pAuthHandler )
-      return pAuthHandler;
-
+    // the static constructor is invoked only once and it is guaranteed that this
+    // is thread safe
     char errorBuff[1024];
+    static XrdSecGetProt_t authHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
 
-    pAuthHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
+    // use full memory barrier and get the authHandler (if it exists we are done)
+    XrdSecGetProt_t ret = AtomicGet( authHandler );
+    if( ret ) return ret;
 
-    if( !pAuthHandler )
+    // if we are here it means we failed to load the security library for the
+    // first time and we hope the environment changed
+
+    // obtain a lock
+    static XrdSysMutex mtx;
+    XrdSysMutexHelper lck( mtx );
+    // check if in the meanwhile some else didn't load the library
+    if( authHandler ) return authHandler;
+
+    // load the library
+    authHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
+    // if we failed report an error
+    if( !authHandler )
     {
       log->Error( XRootDTransportMsg,
                   "Unable to get the security framework: %s", errorBuff );
       return 0;
     }
-    return pAuthHandler;
+    return authHandler;
   }
 
   //----------------------------------------------------------------------------
