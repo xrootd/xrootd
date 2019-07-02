@@ -1699,7 +1699,7 @@ namespace XrdCl
     // Prepare
     //--------------------------------------------------------------------------
     Log               *log   = DefaultEnv::GetLog();
-    XRootDStreamInfo  &sInfo = info->stream[hsData->streamId];
+    XRootDStreamInfo  &sInfo = info->stream[hsData->subStreamId];
     XrdSecCredentials *credentials = 0;
     std::string        protocolName;
 
