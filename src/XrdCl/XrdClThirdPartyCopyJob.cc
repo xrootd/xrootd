@@ -341,6 +341,9 @@ namespace XrdCl
     XRootDStatus  st;
     URL           sourceURL = source;
 
+    // save the original opaque parameter list as specified by the user for later
+    std::string scgi = sourceURL.GetParamsAsString();
+
     URL::ParamsMap params = sourceURL.GetParams();
     params["tpc.stage"] = "placement";
     sourceURL.SetParams( params );
@@ -438,6 +441,14 @@ namespace XrdCl
     std::ostringstream o; o << sourceSize;
     params["oss.asize"] = o.str();
     params["tpc.stage"] = "copy";
+
+    // forward source cgi info to the destination in case we are going to do delegation
+    if( !scgi.empty() && delegate )
+    {
+      std::replace( scgi.begin(), scgi.end(), '&', '\t' );
+      params["tpc.scgi"] = scgi.substr( 1 ); // omit the leading '?'
+    }
+
     realTarget.SetParams( params );
 
     log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
