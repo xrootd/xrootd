@@ -899,7 +899,7 @@ void XrdHttpReq::parseResource(char *res) {
     buf = unquote(p + 1);
     opaque = new XrdOucEnv(buf);
     resourceplusopaque.append('?');
-    resourceplusopaque.append(buf);
+    resourceplusopaque.append(p + 1);
     free(buf);
   }
   
