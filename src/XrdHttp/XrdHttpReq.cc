@@ -271,21 +271,19 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcasecmp(key, "Transfer-Encoding") && strstr(val, "chunked")) {
       m_transfer_encoding_chunked = true;
     } else {
-      // Some headers need to be translated into "local" cgi info. In theory they should already be quoted
+      // Some headers need to be translated into "local" cgi info.
       std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
-      if (it != prot->hdr2cgimap.end()) {
+      if (it != prot->hdr2cgimap.end() && (opaque ? (0 == opaque->Get(it->second.c_str())) : true)) {
         std:: string s;
         s.assign(val, line+len-val);
         trim(s);
-        
+
         if (hdr2cgistr.length() > 0) {
           hdr2cgistr.append("&");
         }
         hdr2cgistr.append(it->second);
         hdr2cgistr.append("=");
         hdr2cgistr.append(s);
-        
-          
       }
     }
 
@@ -735,13 +733,23 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
   if (opaque)
     p = opaque->Env(l);
 
-  if ((l < 2) && !hash) return;
+  if (hdr2cgistr.empty() && (l < 2) && !hash) return;
 
   // this works in most cases, except if the url already contains the xrdhttp tokens
   s = s + "?";
+  if (!hdr2cgistr.empty()) {
+    char *s1 = quote(hdr2cgistr.c_str());
+    if (s1) {
+        s += s1;
+        free(s1);
+    }
+  }
   if (p && (l > 1)) {
     char *s1 = quote(p+1);
     if (s1) {
+      if (!hdr2cgistr.empty()) {
+        s = s + "&";
+      }
       s = s + s1;
       free(s1);
     }
@@ -951,7 +959,7 @@ int XrdHttpReq::ProcessHTTPReq() {
   kXR_int32 l;
 
   /// If we have to add extra header information, add it here.
-  if (!hdr2cgistr.empty()) {
+  if (!m_appended_hdr2cgistr && !hdr2cgistr.empty()) {
     const char *p = strchr(resourceplusopaque.c_str(), '?');
     if (p) {
       resourceplusopaque.append("&");
@@ -963,11 +971,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     resourceplusopaque.append(q);
     TRACEI(DEBUG, "Appended header fields to opaque info: '" << hdr2cgistr << "'");
     free(q);
-
-    // Once we've appended the authorization to the full resource+opaque string,
-    // reset the authz to empty: this way, any operation that triggers repeated ProcessHTTPReq
-    // calls won't also trigger multiple copies of the authz.
-    hdr2cgistr = "";
+    m_appended_hdr2cgistr = true;
     }
 
   // Verify if we have an external handler for this request
@@ -2717,6 +2721,7 @@ void XrdHttpReq::reset() {
   host = "";
   destination = "";
   hdr2cgistr = "";
+  m_appended_hdr2cgistr = false;
 
   iovP = 0;
   iovN = 0;
