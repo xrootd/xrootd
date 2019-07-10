@@ -7,6 +7,7 @@ include( XRootDCommon )
 set( LIB_XRD_BWM        XrdBwm-${PLUGIN_VERSION} )
 set( LIB_XRD_N2NO2P     XrdN2No2p-${PLUGIN_VERSION} )
 set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
+set( LIB_XRD_CMSREDIRL  XrdCmsRedirectLocal-${PLUGIN_VERSION} )
 set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
 set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
 set( LIB_XRD_THROTTLE   XrdThrottle-${PLUGIN_VERSION} )
@@ -148,8 +149,25 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# The XrdCmsRedirLocal module
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_CMSREDIRL}
+  MODULE
+  XrdCms/XrdCmsRedirLocal.cc XrdCms/XrdCmsRedirLocal.hh )
+
+target_link_libraries(
+  ${LIB_XRD_CMSREDIRL} )
+
+set_target_properties(
+  ${LIB_XRD_CMSREDIRL}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P}
+  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32} ${LIB_XRD_THROTTLE} ${LIB_XRD_N2NO2P} ${LIB_XRD_CMSREDIRL}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
