@@ -1087,8 +1087,8 @@ int XrdSecProtocolgsi::Encrypt(const char *inbuf,  // Data to be encrypted
    int liv = 0;
    char *iv = 0;
    if (useIV) {
-      iv = sessionKey->RefreshIV(liv);
-      sessionKey->SetIV(liv, iv);
+      iv = sessionKey->RefreshIV(liv); // no need to call sessionKeySetIV as
+                                       // RefreshIV will set the internal value
    }
 
    // Get output buffer
@@ -1099,7 +1099,8 @@ int XrdSecProtocolgsi::Encrypt(const char *inbuf,  // Data to be encrypted
    memcpy(buf, iv, liv);
 
    // Encrypt
-   int len = sessionKey->Encrypt(inbuf, inlen, buf + liv);
+   int len = sessionKey->Encrypt(inbuf, inlen, buf + liv) + liv; // the size of initialization vector which is being appended at
+                                                                 // the beginning of the output buffer has to be taken into account
    if (len <= 0) {
       SafeFree(buf);
       return -EINVAL;
