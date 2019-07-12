@@ -51,6 +51,10 @@
 #include <iomanip>
 #include <set>
 
+#if __cplusplus >= 201103L
+#include <atomic>
+#endif
+
 XrdVERSIONINFOREF( XrdCl );
 
 namespace XrdCl
@@ -2037,11 +2041,16 @@ namespace XrdCl
     // the static constructor is invoked only once and it is guaranteed that this
     // is thread safe
     char errorBuff[1024];
-    static XrdSecGetProt_t authHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
 
+#if __cplusplus >= 201103L
+    static std::atomic<XrdSecGetProt_t> authHandler( XrdSecLoadSecFactory( errorBuff, 1024 ) );
+    if( authHandler ) return authHandler;
+#else
+    static XrdSecGetProt_t authHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
     // use full memory barrier and get the authHandler (if it exists we are done)
     XrdSecGetProt_t ret = AtomicGet( authHandler );
     if( ret ) return ret;
+#endif
 
     // if we are here it means we failed to load the security library for the
     // first time and we hope the environment changed
