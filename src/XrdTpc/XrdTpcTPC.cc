@@ -457,6 +457,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     AtomicEnd(m_monid_mutex);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, file_monid));
     if (!fh.get()) {
+        curl_easy_cleanup(curl);
         char msg[] = "Failed to initialize internal transfer file handle";
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
@@ -467,8 +468,10 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     int open_results = OpenWaitStall(*fh, full_url, SFS_O_RDONLY, 0644,
                                      req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_results) {
+        curl_easy_cleanup(curl);
         return RedirectTransfer(redirect_resource, req, fh->error);
     } else if (SFS_OK != open_results) {
+        curl_easy_cleanup(curl);
         int code;
         char msg_generic[] = "Failed to open local resource";
         const char *msg = fh->error.getErrText(code);
@@ -506,6 +509,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     char *name = req.GetSecEntity().name;
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {
+            curl_easy_cleanup(curl);
             char msg[] = "Failed to initialize internal transfer file handle";
             return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
@@ -529,6 +533,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             } catch (...) { // Handled below
             }
             if (stream_req < 0 || stream_req > 100) {
+                curl_easy_cleanup(curl);
                 char msg[] = "Invalid request for number of streams";
                 m_log.Emsg("ProcessPullReq", msg);
                 return req.SendSimpleResp(500, NULL, NULL, msg, 0);
@@ -542,8 +547,10 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
                                     req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_result) {
+        curl_easy_cleanup(curl);
         return RedirectTransfer(redirect_resource, req, fh->error);
     } else if (SFS_OK != open_result) {
+        curl_easy_cleanup(curl);
         int code;
         char msg_generic[] = "Failed to open local resource";
         const char *msg = fh->error.getErrText(code);
