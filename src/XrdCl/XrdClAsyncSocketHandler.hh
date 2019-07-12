@@ -300,6 +300,7 @@ namespace XrdCl
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
       bool                           pHeaderDone;
+      // true means the handler owns the server response
       std::pair<IncomingMsgHandler*, bool> pIncHandler;
       bool                           pOutMsgDone;
       OutgoingMsgHandler            *pOutHandler;

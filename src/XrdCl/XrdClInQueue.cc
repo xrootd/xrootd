@@ -223,10 +223,11 @@ namespace XrdCl
     {
       if( it->second.second <= now )
       {
-        it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
+        uint8_t act = it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
                                          Status( stError, errOperationExpired ) );
         auto next = it; ++next;
-        pHandlers.erase( it );
+        if( act & IncomingMsgHandler::RemoveHandler )
+          pHandlers.erase( it );
         it = next;
       }
       else

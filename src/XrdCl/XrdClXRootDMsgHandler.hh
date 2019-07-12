@@ -162,6 +162,8 @@ namespace XrdCl
 
         pMsgInFly( false ),
 
+        pTimeoutFence( false ),
+
         pDirListStarted( false ),
         pDirListWithStat( false ),
 
@@ -386,6 +388,11 @@ namespace XrdCl
         pStateful = stateful;
       }
 
+      //------------------------------------------------------------------------
+      //! Take down the timeout fence after oksofar response has been handled
+      //------------------------------------------------------------------------
+      void TakeDownTimeoutFence();
+
     private:
       //------------------------------------------------------------------------
       //! Handle a kXR_read in raw mode
@@ -577,6 +584,13 @@ namespace XrdCl
       RedirectTraceBack               pRedirectTraceBack;
 
       bool                            pMsgInFly;
+
+      //------------------------------------------------------------------------
+      // true if MsgHandler is both in inQueue and installed in respective
+      // Stream (this could happen if server gave oksofar response), otherwise
+      // false
+      //------------------------------------------------------------------------
+      bool                            pTimeoutFence;
 
       //------------------------------------------------------------------------
       // if we are serving chunked data to the user's handler in case of
