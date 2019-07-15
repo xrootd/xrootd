@@ -900,7 +900,9 @@ int XrdXrootdProtocol::do_Login()
        sessID.Sid  = mySID;
        sendSID = 1;
        if (!clientPV)
-          {        if (i >= kXR_ver004) clientPV = (int)0x0310;
+          {
+                   if (i >= kXR_ver005) clientPV = (int)0x0400;
+              else if (i >= kXR_ver004) clientPV = (int)0x0310;
               else if (i == kXR_ver003) clientPV = (int)0x0300;
               else if (i == kXR_ver002) clientPV = (int)0x0290;
               else if (i == kXR_ver001) clientPV = (int)0x0200;

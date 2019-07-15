@@ -114,7 +114,7 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
     // get protocol version to do a native redirect in case of old protocol version
     int pversion = Resp.getUCap();
     pversion &= 0x0000ffff;
-    if (pversion < 784)
+    if (pversion < 0x00000400)
       return rcode;
 
     // only allow simple (but most prominent) operations to avoid complications
