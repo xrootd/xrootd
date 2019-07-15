@@ -81,14 +81,10 @@ class CustomInstall(install):
 
         command = ['./install.sh']
         if self.user:
-            username = getpass.getuser()
-            path = [path for path in sys.path if username in path and '.local' in path]
-            if not path: raise RuntimeError( 'No user specific directory in sys.path!' )
-            path = path[0][:path[0].index( '.local' ) + len( '.local' )]
-            prefix = path
+            useropt = '--user'
         else:
-            prefix = sys.prefix
-        command.append(prefix)
+            useropt = ''
+        command.append(useropt)
         command.append( py_version_short )
         rc = subprocess.call(command)
         if rc:
