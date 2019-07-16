@@ -264,7 +264,8 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 /******************************************************************************/
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
-                             const char *caDir, const char *caFile, int opts)
+                             const char *caDir, const char *caFile, int opts) :
+      pImpl( new XrdTlsContextImpl() )
 {
    class ctx_helper
         {public:
