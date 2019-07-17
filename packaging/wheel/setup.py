@@ -79,13 +79,16 @@ class CustomInstall(install):
           if not python_dev:  print('\t{} development package is missing!'.format(pyname) )
           raise Exception( 'Dependencies missing!' )
 
+        useropt = ''
         command = ['./install.sh']
         if self.user:
+            prefix = self.install_usersite + '/xrdcl'
             useropt = '--user'
         else:
-            useropt = ''
-        command.append(useropt)
+            prefix = sys.prefix
+        command.append(prefix)
         command.append( py_version_short )
+        command.append( useropt )
         rc = subprocess.call(command)
         if rc:
           raise Exception( 'Install step failed!' )
