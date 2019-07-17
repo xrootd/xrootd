@@ -145,7 +145,7 @@ namespace XrdCl
       //! @param timeout   timout value in seconds, -1 to wait indefinitely
       //! @param bytesRead the amount of data actually read
       //------------------------------------------------------------------------
-      Status ReadRaw( void *buffer, uint32_t size, int32_t timeout,
+      virtual Status ReadRaw( void *buffer, uint32_t size, int32_t timeout,
                       uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
@@ -156,7 +156,7 @@ namespace XrdCl
       //! @param timeout      timeout value in seconds, -1 to wait indefinitely
       //! @param bytesWritten the amount of data actually written
       //------------------------------------------------------------------------
-      Status WriteRaw( void *buffer, uint32_t size, int32_t timeout,
+      virtual Status WriteRaw( void *buffer, uint32_t size, int32_t timeout,
                        uint32_t &bytesWritten );
 
       //------------------------------------------------------------------------
@@ -166,7 +166,7 @@ namespace XrdCl
       //! @param size   : size of the data buffer
       //! @return       : the amount of data actually written
       //------------------------------------------------------------------------
-      ssize_t Send( void *buffer, uint32_t size );
+      virtual ssize_t Send( void *buffer, uint32_t size );
 
       //------------------------------------------------------------------------
       //! Wrapper around writev
@@ -175,7 +175,20 @@ namespace XrdCl
       //! @param iovcnt : number of buffers
       //! @return       : the amount of data actually written
       //------------------------------------------------------------------------
-      ssize_t WriteV( iovec *iov, int iovcnt );
+      virtual ssize_t WriteV( iovec *iov, int iovcnt );
+
+      //----------------------------------------------------------------------------
+      //! Read helper for raw socket
+      //!
+      //! @param buffer    : the sink for the data
+      //! @param size      : size of the sink
+      //! @param bytesRead : number of bytes actually written into the sink
+      //! @return          : success     : ( stOK )
+      //!                    EAGAIN      : ( stOK,    suRetry )
+      //!                    EWOULDBLOCK : ( stOK,    suRetry )
+      //!                    other error : ( stError, errSocketError )
+      //----------------------------------------------------------------------------
+      virtual Status Read( char *buffer, size_t size, int &bytesRead );
 
       //------------------------------------------------------------------------
       //! Get the file descriptor
@@ -256,20 +269,6 @@ namespace XrdCl
       int                  pProtocolFamily;
       AnyObject           *pChannelID;
   };
-
-  //----------------------------------------------------------------------------
-  //! Read helper for raw socket
-  //!
-  //! @param sfd       : the socket file descriptor
-  //! @param buffer    : the sink for the data
-  //! @param size      : size of the sink
-  //! @param bytesRead : number of bytes actually written into the sink
-  //! @return          : success     : ( stOK )
-  //!                    EAGAIN      : ( stOK,    suRetry )
-  //!                    EWOULDBLOCK : ( stOK,    suRetry )
-  //!                    other error : ( stError, errSocketError )
-  //----------------------------------------------------------------------------
-  Status ReadFrom( int sfd, char *buffer, size_t size, int &bytesRead );
 }
 
 #endif // __XRD_CL_SOCKET_HH__

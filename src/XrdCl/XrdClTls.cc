@@ -66,13 +66,4 @@ namespace XrdCl
         return Status( stError, errTlsError, error );
     }
   }
-
-  //----------------------------------------------------------------------------
-  // Read from TLS layer helper
-  //----------------------------------------------------------------------------
-  Status ReadFrom( Tls *tls, char *buffer, size_t size, int &bytesRead )
-  {
-    return tls->Read( buffer, size, bytesRead );
-  }
-
 }

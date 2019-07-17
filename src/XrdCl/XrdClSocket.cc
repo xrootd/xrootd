@@ -654,9 +654,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read helper from raw socket helper
   //----------------------------------------------------------------------------
-  Status ReadFrom( int sfd, char *buffer, size_t size, int &bytesRead )
+  Status Socket::Read( char *buffer, size_t size, int &bytesRead )
   {
-    int status = ::read( sfd, buffer, size );
+    int status = ::read( pSocket, buffer, size );
 
     // if the server shut down the socket declare a socket error (it
     // will trigger a re-connect)

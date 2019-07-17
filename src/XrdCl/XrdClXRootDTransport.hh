@@ -36,6 +36,7 @@ class XrdSecProtect;
 namespace XrdCl
 {
   class Tls;
+  class Socket;
   struct XRootDChannelInfo;
   struct PluginUnloadHandler;
 
@@ -77,7 +78,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetHeader( Message *message, int socket );
+      virtual Status GetHeader( Message *message, Socket *socket );
 
       //------------------------------------------------------------------------
       //! Read a message header from the TLS layer (non-blocking mode),
@@ -103,7 +104,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetBody( Message *message, int socket );
+      virtual Status GetBody( Message *message, Socket *socket );
 
       //------------------------------------------------------------------------
       //! Read the message body from the TLS layer (non-blocking mode),

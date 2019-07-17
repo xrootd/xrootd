@@ -42,6 +42,7 @@ namespace XrdCl
   class Message;
   class URL;
   class Tls;
+  class Socket;
 
   //----------------------------------------------------------------------------
   //! Message filter
@@ -140,7 +141,7 @@ namespace XrdCl
       //!                  stError on failure
       //------------------------------------------------------------------------
       virtual Status ReadMessageBody( Message  *msg,
-                                      int       socket,
+                                      Socket   *socket,
                                       uint32_t &bytesRead )
       {
         (void)msg; (void)socket; (void)bytesRead;
@@ -348,7 +349,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetHeader( Message *message, int socket ) = 0;
+      virtual Status GetHeader( Message *message, Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Read a message header from the TLS layer (non-blocking mode),
@@ -374,7 +375,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetBody( Message *message, int socket ) = 0;
+      virtual Status GetBody( Message *message, Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Read the message body from the TLS layer (non-blocking mode),

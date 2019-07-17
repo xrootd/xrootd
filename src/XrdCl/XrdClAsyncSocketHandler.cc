@@ -606,7 +606,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pHeaderDone )
     {
-      st = pTransport->GetHeader( pIncoming, pSocket->GetFD() );
+      st = pTransport->GetHeader( pIncoming, pSocket );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -636,7 +636,7 @@ namespace XrdCl
     if( pIncHandler.first )
     {
       uint32_t bytesRead = 0;
-      st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket->GetFD(),
+      st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket,
                                                bytesRead );
       if( !st.IsOK() )
       {
@@ -653,7 +653,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else
     {
-      st = pTransport->GetBody( pIncoming, pSocket->GetFD() );
+      st = pTransport->GetBody( pIncoming, pSocket );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -808,7 +808,7 @@ namespace XrdCl
     Log    *log = DefaultEnv::GetLog();
     if( !pHeaderDone )
     {
-      st = pTransport->GetHeader( toRead, pSocket->GetFD() );
+      st = pTransport->GetHeader( toRead, pSocket );
       if( st.IsOK() && st.code == suDone )
       {
         log->Dump( AsyncSockMsg,
@@ -820,7 +820,7 @@ namespace XrdCl
         return st;
     }
 
-    st = pTransport->GetBody( toRead, pSocket->GetFD() );
+    st = pTransport->GetBody( toRead, pSocket );
     if( st.IsOK() && st.code == suDone )
     {
       log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",

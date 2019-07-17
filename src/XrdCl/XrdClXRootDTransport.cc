@@ -42,6 +42,7 @@
 #include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSec/XrdSecProtect.hh"
 #include "XrdCl/XrdClTls.hh"
+#include "XrdCl/XrdClSocket.hh"
 #include "XrdVersion.hh"
 
 #include <arpa/inet.h>
@@ -285,7 +286,7 @@ namespace XrdCl
       while( leftToBeRead )
       {
         int bytesRead = 0;
-        Status status = ReadFrom( src, message->GetBufferAtCursor(), leftToBeRead, bytesRead );
+        Status status = src->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
 
         if( !status.IsOK() || status.code == suRetry )
           return status;
@@ -306,8 +307,8 @@ namespace XrdCl
   }
 
   template
-  Status XRootDTransport::GetHeaderImpl<int>( Message *message,
-                                              int      sfd );
+  Status XRootDTransport::GetHeaderImpl<Socket*>( Message *message,
+                                                  Socket  *sfd );
 
   template
   Status XRootDTransport::GetHeaderImpl<Tls*>( Message  *message,
@@ -316,7 +317,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read message header from socket
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetHeader( Message *message, int socket )
+  Status XRootDTransport::GetHeader( Message *message, Socket *socket )
   {
     return GetHeaderImpl( message, socket );
   }
@@ -348,8 +349,7 @@ namespace XrdCl
     while( leftToBeRead )
     {
       int bytesRead = 0;
-      Status status = ReadFrom( src, message->GetBufferAtCursor(),
-                                leftToBeRead, bytesRead);
+      Status status = src->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead);
 
       if( !status.IsOK() || status.code == suRetry )
         return status;
@@ -361,7 +361,7 @@ namespace XrdCl
   }
 
   template
-  Status XRootDTransport::GetBodyImpl<int>( Message *message, int sfd );
+  Status XRootDTransport::GetBodyImpl<Socket*>( Message *message, Socket *socket );
 
   template
   Status XRootDTransport::GetBodyImpl<Tls*>( Message  *message,
@@ -370,7 +370,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read message body from socket
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetBody( Message *message, int socket )
+  Status XRootDTransport::GetBody( Message *message, Socket *socket )
   {
     return GetBodyImpl( message, socket );
   }

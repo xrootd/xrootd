@@ -806,7 +806,7 @@ namespace XrdCl
   // Read message body directly from a socket
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::ReadMessageBody( Message  *msg,
-                                            int       socket,
+                                            Socket   *socket,
                                             uint32_t &bytesRead )
   {
     return ReadMessageBodyImpl( msg, socket, bytesRead );
@@ -842,9 +842,9 @@ namespace XrdCl
   }
 
   template
-  Status XRootDMsgHandler::ReadMessageBodyImpl<int>( Message  *msg,
-                                                     int       sfd,
-                                                     uint32_t &bytesRead );
+  Status XRootDMsgHandler::ReadMessageBodyImpl<Socket*>( Message  *msg,
+                                                         Socket   *socket,
+                                                         uint32_t &bytesRead );
   template
   Status XRootDMsgHandler::ReadMessageBodyImpl<Tls*>( Message  *msg,
                                                       Tls      *src,
@@ -899,9 +899,9 @@ namespace XrdCl
   }
 
   template
-  Status XRootDMsgHandler::ReadRawRead<int>( Message   *msg,
-                                             int        sfd,
-                                             uint32_t  &bytesRead );
+  Status XRootDMsgHandler::ReadRawRead<Socket*>( Message   *msg,
+                                                 Socket    *socket,
+                                                 uint32_t  &bytesRead );
   template
   Status XRootDMsgHandler::ReadRawRead<Tls*>( Message   *msg,
                                               Tls       *tls,
@@ -1104,9 +1104,9 @@ namespace XrdCl
   }
 
   template
-  Status XRootDMsgHandler::ReadRawReadV<int>( Message  *msg,
-                                              int       sfd,
-                                              uint32_t &bytesRead );
+  Status XRootDMsgHandler::ReadRawReadV<Socket*>( Message  *msg,
+                                                  Socket   *socket,
+                                                  uint32_t &bytesRead );
 
   template
   Status XRootDMsgHandler::ReadRawReadV<Tls*>( Message  *msg,
@@ -1142,9 +1142,9 @@ namespace XrdCl
   }
 
   template
-  Status XRootDMsgHandler::ReadRawOther<int>( Message  *msg,
-                                              int       sfd,
-                                              uint32_t &bytesRead );
+  Status XRootDMsgHandler::ReadRawOther<Socket*>( Message  *msg,
+                                                  Socket   *socket,
+                                                  uint32_t &bytesRead );
 
   template
   Status XRootDMsgHandler::ReadRawOther<Tls*>( Message  *msg,
@@ -1165,7 +1165,7 @@ namespace XrdCl
       uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
       int btsRead = 0;
 
-      Status status = ReadFrom( src, buffer, toBeRead, btsRead );
+      Status status = src->Read( buffer, toBeRead, btsRead );
 
       if( !status.IsOK() || status.code == suRetry )
         return status;
@@ -1178,7 +1178,7 @@ namespace XrdCl
   }
 
   template
-  Status XRootDMsgHandler::ReadAsync<int>( int sfd, uint32_t &bytesRead );
+  Status XRootDMsgHandler::ReadAsync<Socket*>( Socket *socket, uint32_t &bytesRead );
 
   template
   Status XRootDMsgHandler::ReadAsync<Tls*>( Tls      *tls,

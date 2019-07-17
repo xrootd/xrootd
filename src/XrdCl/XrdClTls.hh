@@ -22,7 +22,7 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 
-#include "../XrdTls/XrdTlsSocket.hh"
+#include "XrdTls/XrdTlsSocket.hh"
 #include "XrdCl/XrdClStatus.hh"
 
 class XrdTlsContext;
@@ -79,20 +79,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XrdTlsSocket io;
   };
-
-  //----------------------------------------------------------------------------
-  //! Read helper for TLS layer
-  //!
-  //! @param tls       : the TLS object
-  //! @param buffer    : the sink for the data
-  //! @param size      : size of the sink
-  //! @param bytesRead : number of bytes actually written into the sink
-  //! @return          : SSL_ERROR_NONE       : ( stOK )
-  //!                    SSL_ERROR_WANT_WRITE : ( stOK, suRetry )
-  //!                    SSL_ERROR_WANT_READ  : ( stOK, suRetry )
-  //!                    otherwise            : ( stError, errTlsError )
-  //----------------------------------------------------------------------------
-  Status ReadFrom( Tls *tls, char *buffer, size_t size, int &bytesRead );
 }
 
 #endif // __XRD_CL_TLS_HH__

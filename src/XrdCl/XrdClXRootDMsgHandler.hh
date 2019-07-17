@@ -51,6 +51,7 @@ namespace XrdCl
   class URL;
   class LocalFileHandler;
   class Tls;
+  class Socket;
 
   //----------------------------------------------------------------------------
   // Single entry in the redirect-trace-back
@@ -252,7 +253,7 @@ namespace XrdCl
       //!                  stError on failure
       //------------------------------------------------------------------------
       virtual Status ReadMessageBody( Message  *msg,
-                                      int       socket,
+                                      Socket   *socket,
                                       uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
