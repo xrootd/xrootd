@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Add support for multi-vo credentials.
 
 + **Major bug fixes**
 
