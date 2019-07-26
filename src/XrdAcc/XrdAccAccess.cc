@@ -36,6 +36,7 @@
 #include "XrdVersion.hh"
 
 #include "XrdAcc/XrdAccAccess.hh"
+#include "XrdAcc/XrdAccEntity.hh"
 #include "XrdAcc/XrdAccCapability.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
@@ -76,6 +77,10 @@ XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
 //
    if (XrdAccConfiguration.Configure(Eroute, cfn)) return (XrdAccAuthorize *)0;
 
+// Set error object pointer
+//
+   XrdAccEntity::setError(&Eroute);
+
 // All is well, return the actual pointer to the object
 //
    return (XrdAccAuthorize *)XrdAccConfiguration.Authorization;
@@ -101,36 +106,59 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
                                  const Access_Operation oper,
                                        XrdOucEnv       *Env)
 {
-   const char *xP;
-   char *gname, xBuff[64];
-   XrdAccGroupList *glp;
-   XrdAccPrivCaps caps;
+   XrdAccGroupList  *glp;
+   XrdAccPrivCaps    caps;
    XrdAccCapability *cp;
-   const int plen  = strlen(path);
-   const long phash = XrdOucHashVal2(path, plen);
-   const char *id   = (Entity->name ? (const char *)Entity->name : "*");
-   const char *host = 0;
-   int n, isuser = (*id && (*id != '*' || id[1]));
+   XrdAccEntity     *aeP;
+   XrdAccEntityInfo  eInfo;
+   int plen = strlen(path);
+   long phash = XrdOucHashVal2(path, plen);
+   bool isuser;
+
+// Obtain an authorization entity (it will be released upon return).
+//
+   XrdAccEntityInit accEntity(Entity, aeP);
+   if (!aeP) return Access(caps, Entity, path, oper);
+
+// Setup the id (we don't need a lock for that)
+//
+   if (Entity->name)
+      {eInfo.name = Entity->name;
+       isuser = (*eInfo.name != 0);
+      } else {
+       eInfo.name = "*";
+       isuser = false;
+      }
 
 // Get a shared context for these potentially long running routines
 //
    Access_Context.Lock(xs_Shared);
 
+// Setup the host entry in the eInfo structure (it may need to be resolved)
+//
+   eInfo.host = (hostRefX ? Resolve(Entity) : "?");
+
 // Run through the exclusive list first as only one rule will apply
 //
-   XrdAccAccess_ID *xlP = Atab.SXList;
-   while (xlP)
-         {if (xlP->Applies(Entity))
-             {xlP->caps->Privs(caps, path, plen, phash);
-              Access_Context.UnLock(xs_Shared);
-              return Access(caps, Entity, path, oper);
-             }
-          xlP = xlP->next;
-         }
+   if (Atab.SXList)
+      {int aSeq = 0;
+       while(aeP->Next(aSeq, eInfo))
+            {XrdAccAccess_ID *xlP = Atab.SXList;
+             while (xlP)
+                   {if (xlP->Applies(eInfo))
+                       {xlP->caps->Privs(caps, path, plen, phash);
+                        Access_Context.UnLock(xs_Shared);
+                        return Access(caps, Entity, path, oper);
+                       }
+                    xlP = xlP->next;
+                   }
+            }
+      }
 
 // Check if we really need to resolve the host name
 //
-   if (Atab.D_List || Atab.H_Hash || Atab.N_Hash) host = Resolve(Entity);
+//???   if (Atab.D_List || Atab.H_Hash || Atab.N_Hash) host = Resolve(Entity);
+   if (!hostRefX && hostRefY) eInfo.host = Resolve(Entity);
 
 // Establish default privileges
 //
@@ -138,79 +166,73 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 
 // Next add in the host domain privileges
 //
-   if (Atab.D_List && host && (cp = Atab.D_List->Find(host)))
+   if (Atab.D_List && (cp = Atab.D_List->Find(eInfo.host)))
       cp->Privs(caps, path, plen, phash);
 
 // Next add in the host-specific privileges
 //
-   if (Atab.H_Hash && host && (cp = Atab.H_Hash->Find(host)))
+   if (Atab.H_Hash && (cp = Atab.H_Hash->Find(eInfo.host)))
       cp->Privs(caps, path, plen, phash);
-
-// Check for user fungible privileges
-//
-   if (isuser && Atab.X_List) Atab.X_List->Privs(caps, path, plen, phash, id);
-
-// Add in specific user privileges
-//
-   if (isuser && Atab.U_Hash && (cp = Atab.U_Hash->Find(id)))
-      cp->Privs(caps, path, plen, phash);
-
-// Next add in the group privileges. The group list either comes from the
-// credentials, in which case we need not have a username, or from the
-// standard unix-username group mapping.
-//
-   if (Atab.G_Hash)
-      {if (Entity->grps)
-          {xP = Entity->grps;
-           while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
-                {if (n < (int)sizeof(xBuff) && (cp = Atab.G_Hash->Find(xBuff)))
-                    cp->Privs(caps, path, plen, phash);
-                }
-          } else if (isuser && (glp=XrdAccConfiguration.GroupMaster.Groups(id)))
-                    {while((gname = (char *)glp->Next()))
-                          if ((cp = Atab.G_Hash->Find((const char *)gname)))
-                             cp->Privs(caps, path, plen, phash);
-                     delete glp;
-                    }
-      }
 
 // Now add in the netgroup privileges
 //
-   if (Atab.N_Hash && id && host && 
-       (glp = XrdAccConfiguration.GroupMaster.NetGroups(id, host)))
-      {while((gname = (char *)glp->Next()))
+   if (Atab.N_Hash && *eInfo.host != '?' &&
+       (glp = XrdAccConfiguration.GroupMaster.NetGroups(eInfo.name,eInfo.host)))
+      {char *gname;
+       while((gname = (char *)glp->Next()))
             if ((cp = Atab.N_Hash->Find((const char *)gname)))
                cp->Privs(caps, path, plen, phash);
        delete glp;
       }
 
-// Next add in the org-specific privileges
+// Check for user fungible privileges
 //
-   if (Atab.O_Hash && Entity->vorg)
-      {xP = Entity->vorg;
-       while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
-            {if (n < (int)sizeof(xBuff) && (cp = Atab.O_Hash->Find(xBuff)))
+   if (isuser && Atab.X_List)
+      Atab.X_List->Privs(caps, path, plen, phash, eInfo.name);
+
+// Add in specific user privileges
+//
+   if (isuser && Atab.U_Hash && (cp = Atab.U_Hash->Find(eInfo.name)))
+      cp->Privs(caps, path, plen, phash);
+
+// The following privileges are based on multiple attributes. Orgs and roles
+// may be repeated but groups generally will not be.
+//
+   const char *vorgPrev = 0, *rolePrev = 0;
+   int aSeq = 0;
+
+   while(aeP->Next(aSeq, eInfo))
+        {
+         // Add in the group privileges.
+         //
+         if (Atab.G_Hash && eInfo.grup && (cp = Atab.G_Hash->Find(eInfo.grup)))
+            cp->Privs(caps, path, plen, phash);
+
+         // Add in the org-specific privileges
+         //
+         if (Atab.O_Hash && eInfo.vorg && eInfo.vorg != vorgPrev)
+            {vorgPrev = eInfo.vorg;
+             if ((cp = Atab.O_Hash->Find(eInfo.vorg)))
                 cp->Privs(caps, path, plen, phash);
             }
-      }
 
-// Next add in the role-specific privileges
-//
-   if (Atab.R_Hash && Entity->role)
-      {xP = Entity->role;
-       while((n = XrdOucUtils::Token(&xP, ' ', xBuff, sizeof(xBuff))))
-            {if (n < (int)sizeof(xBuff) && (cp = Atab.R_Hash->Find(xBuff)))
+         // Add in the role-specific privileges
+         //
+         if (Atab.R_Hash && eInfo.role && eInfo.role != rolePrev)
+            {rolePrev = eInfo.role;
+             if ((cp = Atab.R_Hash->Find(eInfo.role)))
                 cp->Privs(caps, path, plen, phash);
             }
-      }
 
-// Finally run through the inclusive list and apply arr relevant rules
-//
-   XrdAccAccess_ID *ylP = Atab.SYList;
-   while (ylP)
-         {if (ylP->Applies(Entity)) ylP->caps->Privs(caps, path, plen, phash);
-          ylP = ylP->next;
-         }
+         // Finally run through the inclusive list and apply all relevant rules
+         //
+         XrdAccAccess_ID *ylP = Atab.SYList;
+         while (ylP)
+               {if (ylP->Applies(eInfo))
+                   ylP->caps->Privs(caps, path, plen, phash);
+                ylP = ylP->next;
+               }
+        }
 
 // We are now done with looking at changeable data
 //
@@ -318,7 +340,28 @@ const char *XrdAccAccess::Resolve(const XrdSecEntity *Entity)
 
 void XrdAccAccess::SwapTabs(struct XrdAccAccess_Tables &newtab)
 {
-     struct XrdAccAccess_Tables oldtab;
+   struct XrdAccAccess_Tables oldtab;
+   bool hRefX = false, hRefY = false;
+
+// Determine if we need to resolve the host name early
+//
+   XrdAccAccess_ID *xlP = newtab.SXList;
+   while(xlP)
+        {if (xlP->host) {hRefX = true; break;}
+         xlP = xlP->next;
+        }
+
+// Determine if we need to resolve the hostname at all.
+//
+   if (!hRefX)
+      {if (Atab.D_List || Atab.H_Hash || Atab.N_Hash) hRefY = true;
+          else {XrdAccAccess_ID *ylP = newtab.SYList;
+                while (ylP)
+                      {if (ylP->host) {hRefY = true; break;}
+                       ylP = ylP->next;
+                      }
+               }
+      }
 
 // Get an exclusive context to change the table pointers
 //
@@ -340,6 +383,8 @@ void XrdAccAccess::SwapTabs(struct XrdAccAccess_Tables &newtab)
    XrdAccSWAP(Z_List);
    XrdAccSWAP(SXList);
    XrdAccSWAP(SYList);
+   hostRefX = hRefX;
+   hostRefY = hRefY;
 
 // When we set new access tables, we should purge the group cache
 //
@@ -381,50 +426,29 @@ int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
 /*              X r d A c c A c c e s s _ I D : : A p p l i e s               */
 /******************************************************************************/
   
-bool XrdAccAccess_ID::Applies(const XrdSecEntity *Entity)
+bool XrdAccAccess_ID::Applies(const XrdAccEntityInfo &Entity)
 {
-   const char *hName, *gList, *gEnd;
-   int eLen;
+   const char *hName;
 
 // Check single value items in the most probable use order
 //
-   if (org  && (!Entity->vorg || strcmp(org,  Entity->vorg))) return false;
-   if (role && (!Entity->role || strcmp(role, Entity->role))) return false;
-   if (user && (!Entity->name || strcmp(user, Entity->name))) return false;
+   if (org  && (!Entity.vorg || strcmp(org,  Entity.vorg))) return false;
+   if (role && (!Entity.role || strcmp(role, Entity.role))) return false;
+   if (grp  && (!Entity.grup || strcmp(grp,  Entity.grup))) return false;
+   if (user && (!Entity.name || strcmp(user, Entity.name))) return false;
 
-// The check is more complicated as the host field may be an address. We make
-// a quick test for IPv6 (as that's the future) and take the long road for ipV4.
+// The check is more complicated as the host field may be a domain.
 //
    if (host)
-      {hName = XrdAccAccess::Resolve(Entity);
-       if (*host == '.')
-          {eLen = strlen(hName);
+      {if (*host == '.')
+          {int eLen = strlen(Entity.host);
            if (eLen <= hlen) return false;
-           hName = hName + eLen - hlen;
+           hName = Entity.host + eLen - hlen;
           }
        if (strcmp(host, hName)) return false;
       }
 
-// Groups are most problematic as there may be many of them. So it's last.
+// All done, this rules applies!
 //
-   if (!grp) return true;
-   if (!Entity->grps) return false;
-   eLen = strlen(Entity->grps);
-   if (eLen < glen) return false;
-
-// Search through the group list
-//
-   gList = Entity->grps;
-   while(true)
-        {if (!strncmp(grp, gList, glen))
-            {gEnd = gList + glen;
-             if (*gEnd == ' ' || *gEnd == 0) return true;
-            }
-         if(!(gList = index(gList, ' '))) break;
-         do {gList++;} while(*gList == ' ');
-        }
-
-// This entry is not applicable
-//
-   return false;
+   return true;
 }

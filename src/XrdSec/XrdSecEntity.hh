@@ -61,7 +61,7 @@ public:
          char   *moninfo;                 // Additional information for monitoring 
          char   *creds;                   // Raw client credentials or certificate
          int     credslen;                // Length of the 'creds' field
-         int     rsvd;                    // Reserved field
+         int     ueid;                    // Unique xrootd entity identifier
 XrdNetAddrInfo  *addrInfo;                // Connection details from getProtocol
 const    char   *tident;                  // Trace identifier always preset
          void   *sessvar;                 // Plugin settable storage pointer
@@ -87,7 +87,7 @@ const    char   *tident;                  // Trace identifier always preset
 	  moninfo = 0;
 	  creds = 0;
 	  credslen = 0;
-	  rsvd = 0;
+	  ueid = 0;
 	  addrInfo = 0;
 	  tident = 0;
 	  sessvar = 0;
