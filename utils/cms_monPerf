@@ -83,9 +83,12 @@ while(true); do # keep infinte loop
     done
 
     CPU=$(< /dev/fd/${cpu_util})
+    eval "exec ${cpu_util}<&-"
+
     for NET_FD in ${LIST_OF_NET_FD}; do # select from all network interfaces the one with the biggest load
         THIS_NET_LOAD=$(< /dev/fd/${NET_FD})
         [[ "${THIS_NET_LOAD}" -gt "${NET_LOAD}" ]] && NET_LOAD=${THIS_NET_LOAD}
+        eval "exec ${NET_FD}<&-"
     done
 
     echo -ne "${LOAD5} ${CPU} ${MEM} ${PGIO} ${NET_LOAD}\n"
