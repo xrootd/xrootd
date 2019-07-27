@@ -13,4 +13,5 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Misc]** Allow client to indicate it supports local files.
 
