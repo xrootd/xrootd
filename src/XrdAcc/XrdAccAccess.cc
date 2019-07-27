@@ -428,7 +428,6 @@ int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
   
 bool XrdAccAccess_ID::Applies(const XrdAccEntityInfo &Entity)
 {
-   const char *hName;
 
 // Check single value items in the most probable use order
 //
@@ -440,11 +439,12 @@ bool XrdAccAccess_ID::Applies(const XrdAccEntityInfo &Entity)
 // The check is more complicated as the host field may be a domain.
 //
    if (host)
-      {if (*host == '.')
+      {const char *hName;
+       if (*host == '.')
           {int eLen = strlen(Entity.host);
            if (eLen <= hlen) return false;
            hName = Entity.host + eLen - hlen;
-          }
+          } else hName = Entity.host;
        if (strcmp(host, hName)) return false;
       }
 
