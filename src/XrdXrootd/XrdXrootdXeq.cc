@@ -920,6 +920,8 @@ int XrdXrootdProtocol::do_Login()
        if (CapVer & kXR_asyncap) clientPV |= XrdOucEI::uAsync;
        if (Request.login.ability & kXR_fullurl)
           clientPV |= XrdOucEI::uUrlOK;
+       if (Request.login.ability & kXR_lclfile)
+          clientPV |= XrdOucEI::uLclF;
        if (Request.login.ability & kXR_multipr)
           clientPV |= (XrdOucEI::uMProt | XrdOucEI::uUrlOK);
        if (Request.login.ability & kXR_readrdok)
