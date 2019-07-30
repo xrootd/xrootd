@@ -226,7 +226,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
       for (int i =0; i < 16; ++i)
       printf("%x", m_store.m_cksum[i] & 0xff);
     */
-   if (strncmp(m_store.m_cksum, &tmpCksum[0], 16))
+   if (memcmp(m_store.m_cksum, &tmpCksum[0], 16))
    {
       TRACE(Error, trace_pfx << " buffer cksum and saved cksum don't match \n");
       return false;

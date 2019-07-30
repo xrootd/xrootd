@@ -6,21 +6,12 @@ Prerelease Notes
 ================
 
 + **New Features**
-  * **[Server]** Add xrd.network dyndns option for dynamic DNS handling.
-  * **[Server]** Properly handle dynamic DNS environments.
-  * **[Server]** Add evict option to the prepare request.
-  * **[POSIX]** Add methods to the cache mngt objecT to get status of a cached file.
-  * **[Server]** Allow better handling for proxy caching clusters.
-  * **[Server]** Allow configurable posc sync level.
-  * **[Server]** Implement framework for a kXR_prepare plug-in.
+  **[Server]** Add support for multi-vo credentials.
 
 + **Major bug fixes**
 
 + **Minor bug fixes**
-  * **[Server]** Avoid SEGV when given an empty directory continuation.
-  * **[FRM]** Ignore the space assignment directive.
-  * **[Server]** Require localroot to exist and be a directory for default N2N.
-  * **[POSIX]** Correct pfn to lfn translation for the simple case.
 
 + **Miscellaneous**
+  **[Misc]** Allow client to indicate it supports local files.
 

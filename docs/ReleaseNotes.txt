@@ -6,6 +6,87 @@ Release Notes
 =============
 
 
+--------------
+Version 4.10.0
+--------------
+
++ **New Features**
+  * **[POSIX]** Add methods to the cache mngt objecT to get status of a
+                cached file.
+  * **[Server]** Add xrd.network dyndns option for dynamic DNS handling.
+  * **[Server]** Properly handle dynamic DNS environments.
+  * **[Server]** Add evict option to the prepare request.
+  * **[Server]** Allow better handling for proxy caching clusters.
+  * **[Server]** Allow configurable posc sync level.
+  * **[Server]** Implement framework for a kXR_prepare plug-in.
+  * **[XrdCl]** Implement streaming dirls, closes #225
+  * **[XrdCl]** Retry policy changes: see details in #950.
+  * **[XrdCl]** Add switch/flag to enforce zip archive listing.
+  * **[XrdCl]** Preserve tried/triedrc cgi info on redirect for kXR_locate
+                request, #closes #944
+  * **[XrdCl]** Implement prepare evict and expose in xrdfs.
+  * **[XrdCl]** Expose prepare abort and query prepare.
+  * **[XrdCl]** Add tpc.scgi if delegation is being used.
+  * **[Python]** Expose chunked dirlist API in Python.
+  * **[Python]** Support globbing.
+  * **[XrdClHttp]** Add XrdClHttp submodule.
+  * **[XCache]** Implement write-queue number of blocks / threads config
+                 options. (#963)
+  * **[CMake]** Add switch for XrdCl builds only.
+
++ **Major bug fixes**
+  * **[XrdCl]** Allow to cancel classical copy jobs.
+  * **[XrdCl]** Fix race condition in error recovery.
+  * **[XrdCl]** Prevent race condition between Request T/O and socket read.
+  * **[XCache]** Check for errors during XrdOssFile::FSync - do not write
+                 cinfo file if it fails.
+  * **[XCache]** Deny write access to a file in initial Prepare() call,
+                 fixes #663
+  * **[XCache]** Review and correct error handling in POSIX and XCache,
+                 implement XCache::Unlink()
+  * **[XrdTpc]** Always query dual stack for HTTP TPC.
+  * **[XrdTpc]** Do not include authz header in the filename.
+  * **[XrdTpc]** Add curl handle cleanup on redirections or errors.
+  * **[XrdHttp]** Include provided opaque information in the redirection.
+  * **[XrdHttp]** Fix digest names returned to clients.
+  * **[XrdHttp]** Fix opaque info handling on redirections.
+  * **[XrdMacaroon]** Fix macaroon authorization config.
+  * **[XrdSecgsi]** Make proxy cache path aware.
+  * **[XrdSecgsi]** XrdSecProtocolgsi::Encrypt - set IV correctly and report
+                    correct size.
+
++ **Minor bug fixes**
+  * **[XrdCl]** Use DirList with Locate and Merge flag in xrdcp
+  * **[XrdCl]** Index substreams with right index.
+  * **[XrdCl]** Make sure there is no race condition while loading sec
+                protocol.
+  * **[CMake]** Enable by default rpaths on MacOSX.
+  * **[Server]** Use correct directory path creation flag in kXR_open
+                 (compatible).
+  * **[Server]** Require localroot to exist and be a directory for default N2N.
+  * **[Server]** Avoid SEGV when given an empty directory continuation.
+  * **[SSI]** Close loophole between internal "provision" and Finished()
+              calls.
+  * **[POSIX]** Correct pfn to lfn translation for the simple case.
+  * **[FRM]** Ignore the space assignment directive.
+  * **[XCache]** Cache::LocalFilePath() only try to fill output pfn buffer if
+                 it is non-null.
+  * **[Python]** Make sure pip install fails if install script fails.
+  * **[Python]** Check dependencies on pip install, if some are missing list
+                 them and raise an exception.
+
++ **Miscellaneous**
+  * **[XrdCl]** Enhance redirect back-trace output.
+  * **[Python]** Respect pip python version when installing xrootd, fixes #955.
+  * **[Python]** Respect pip --user switch, fixes #952
+  * **[CMSD]** Allow redirect when limit exceeded in sched directive.
+  * **[Packaging]** Add support for Ubuntu disco.
+  * **[Packaging]** Discontinue support for Ubuntu artful.
+  * **[XrdCeph]** Replace XrdCeph source code with a submodule.
+  * **[XCache]** More reasonable defaults for pfc.writequeue parameters.
+  * **[CMake]** Declare CMake options, fixes #995
+  * **[CMake]** Set -Werror for debug and CI builds only.
+
 -------------
 Version 4.9.1
 -------------

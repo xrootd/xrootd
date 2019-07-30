@@ -257,6 +257,7 @@ bool File::FinalizeSyncBeforeExit()
        Stats loc_stats = m_stats.Clone();
        m_cfi.WriteIOStatDetach(loc_stats);
        m_detachTimeIsLogged = true;
+       m_in_sync            = true;
        TRACEF(Debug, "File::FinalizeSyncBeforeExit requesting sync to write detach stats");
        return true;
      }
@@ -960,6 +961,7 @@ void File::Sync()
    {
       TRACEF(Error, "File::Sync failed, unlinking local files and initiating shutdown of File object");
 
+      // Unlink will also call this->initiate_emergency_shutdown()
       Cache::GetInstance().Unlink(m_filename.c_str());
 
       XrdSysCondVarHelper _lck(&m_downloadCond);

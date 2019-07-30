@@ -152,6 +152,16 @@ struct tm *tmp;
     return buff;
 }
 
+int genUEID()
+{
+    static XrdSysMutex ueidMutex;
+    static int ueidVal = 1;
+    AtomicBeg(ueidMutex);
+    int n = AtomicInc(ueidVal);
+    AtomicEnd(ueidMutex);
+    return n;
+}
+
 // Startup time
 //          012345670123456
 //          yymmdd:hhmmss.t
@@ -212,6 +222,7 @@ int XrdXrootdProtocol::do_Auth()
 //
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
+       AuthProt->Entity.ueid = genUEID();
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
        if (DHS) Protect = DHS->New4Server(*AuthProt,clientPV&XrdOucEI::uVMask);
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
@@ -911,6 +922,8 @@ int XrdXrootdProtocol::do_Login()
        if (CapVer & kXR_asyncap) clientPV |= XrdOucEI::uAsync;
        if (Request.login.ability & kXR_fullurl)
           clientPV |= XrdOucEI::uUrlOK;
+       if (Request.login.ability & kXR_lclfile)
+          clientPV |= XrdOucEI::uLclF;
        if (Request.login.ability & kXR_multipr)
           clientPV |= (XrdOucEI::uMProt | XrdOucEI::uUrlOK);
        if (Request.login.ability & kXR_readrdok)
@@ -1020,7 +1033,10 @@ int XrdXrootdProtocol::do_Login()
 
 // Document this login
 //
-   if (!(Status & XRD_NEED_AUTH)) logLogin();
+   if (!(Status & XRD_NEED_AUTH))
+      {Client->ueid = genUEID();
+       logLogin();
+      }
    return rc;
 }
 

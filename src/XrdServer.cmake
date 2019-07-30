@@ -127,6 +127,7 @@ add_library(
   XrdAcc/XrdAccAuthFile.cc       XrdAcc/XrdAccAuthFile.hh
   XrdAcc/XrdAccCapability.cc     XrdAcc/XrdAccCapability.hh
   XrdAcc/XrdAccConfig.cc         XrdAcc/XrdAccConfig.hh
+  XrdAcc/XrdAccEntity.cc         XrdAcc/XrdAccEntity.hh
   XrdAcc/XrdAccGroups.cc         XrdAcc/XrdAccGroups.hh
                                  XrdAcc/XrdAccPrivs.hh
 

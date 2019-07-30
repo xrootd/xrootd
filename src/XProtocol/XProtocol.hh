@@ -169,7 +169,8 @@ enum XLoginAbility {
    kXR_readrdok=   4,
    kXR_hasipv64=   8,
    kXR_onlyprv4=  16,
-   kXR_onlyprv6=  32
+   kXR_onlyprv6=  32,
+   kXR_lclfile =  64
 };
 
 // this is a bitmask

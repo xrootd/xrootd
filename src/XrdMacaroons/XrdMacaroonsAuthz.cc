@@ -112,7 +112,8 @@ Authz::Authz(XrdSysLogger *log, char const *config, XrdAccAuthorize *chain)
     m_authz_behavior(static_cast<int>(Handler::AuthzBehavior::PASSTHROUGH))
 {
     Handler::AuthzBehavior behavior(Handler::AuthzBehavior::PASSTHROUGH);
-    if (!Handler::Config(config, nullptr, &m_log, m_location, m_secret, m_max_duration, behavior))
+    XrdOucEnv env;
+    if (!Handler::Config(config, &env, &m_log, m_location, m_secret, m_max_duration, behavior))
     {
         throw std::runtime_error("Macaroon authorization config failed.");
     }
@@ -195,7 +196,8 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     macaroon_location(macaroon, &macaroon_loc, &location_sz);
     if (strncmp(reinterpret_cast<const char *>(macaroon_loc), m_location.c_str(), location_sz))
     {
-        m_log.Emsg("Access", "Macaroon is for incorrect location", reinterpret_cast<const char *>(macaroon_loc));
+        std::string location_str(reinterpret_cast<const char *>(macaroon_loc), location_sz);
+        m_log.Emsg("Access", "Macaroon is for incorrect location", location_str.c_str());
         macaroon_verifier_destroy(verifier);
         macaroon_destroy(macaroon);
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;

@@ -24,6 +24,8 @@ cxxl[0]="${CMAKE_CXX_COMPILER}"
 cfg_vars["CXX"] = " ".join(cxxl)
 cfg_vars["PY_CXXFLAGS"] = "${CMAKE_CXX_FLAGS}"
 
+cfg_vars['LDSHARED'] = cfg_vars['LDSHARED'] + " -Wl,-rpath,${XRDCL_INSTALL}"
+
 sources = list()
 depends = list()
 

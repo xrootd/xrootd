@@ -159,7 +159,7 @@ int DoIt(int argpnt, int argc, char **argv, bool singleshot);
 
 const char *cfHost = "localhost", *cfProg = "xrootd";
 char *p2l(XrdAccPrivs priv, char *buff, int blen);
-char *argval[32], buff[255], c;
+char *argval[32], buff[255], tident[80], c;
 int DoIt(int argnum, int argc, char **argv, int singleshot);
 XrdOucStream Command;
 const int maxargs = sizeof(argval)/sizeof(argval[0]);
@@ -171,10 +171,12 @@ bool singleshot=false;
 //
   if (argc == 1) Usage(0);
   Entity.addrInfo = &netAddr;
+  sprintf(tident, "acctest.%d:0@localhost", getpid());
+  Entity.tident = tident;
 
 // Get all of the options.
 //
-   while ((c=getopt(argc,argv,"a:c:dg:h:o:r:u:s")) != (char)EOF)
+   while ((c=getopt(argc,argv,"a:c:de:g:h:o:r:u:s")) != (char)EOF)
      { switch(c)
        {
        case 'a': 
@@ -184,6 +186,7 @@ bool singleshot=false;
 		 }
                                              v2 = true;    break;
        case 'd':                                           break;
+       case 'e': Entity.ueid = atoi(optarg); v2 = true;    break;
        case 'g': SetID(Entity.grps, optarg); v2 = true;    break;
        case 'h': SetID(Entity.host, optarg); v2 = true;    break;
        case 'o': SetID(Entity.vorg, optarg); v2 = true;    break;
@@ -216,16 +219,37 @@ if (!(Authorize = XrdAccDefaultAuthorizeObject(&myLogger, ConfigFN, 0, myVer)))
 
 // Start accepting command from standard in until eof
 //
+   bool dequote;
    Command.Attach(0);
    cerr << "Enter arguments: ";
    while((lp = Command.GetLine()) && *lp)
-       while((argval[1] = Command.GetToken()))
-            {for (argnum=2;
-                  argnum < maxargs && (argval[argnum]=Command.GetToken());
-                  argnum++) {}
-             rc |= DoIt(1, argnum, argval, singleshot=0);
-             cerr << "Enter arguments: ";
-            }
+      {dequote = false;
+       char *xp = lp;
+       while(*xp)
+            {if (*xp == '\'')
+                {*xp++ = ' ';
+                 dequote = true;
+                 while(*xp)
+                      {if (*xp == ' ') *xp = '\t';
+                          else if (*xp == '\'') {*xp++ = ' '; break;}
+                       xp++;
+                      }
+                } else xp++;
+             }
+
+       for (argnum=1;
+            argnum < maxargs && (argval[argnum]=Command.GetToken());
+            argnum++) {}
+       if (dequote)
+          {for (int i = 1; i < argnum; i++)
+               {char *ap = argval[i];
+                while(*ap) {if (*ap == '\t') *ap = ' '; ap++;}
+               }
+          }
+       Entity.ueid++;
+       rc |= DoIt(1, argnum, argval, singleshot=0);
+       cerr << "Enter arguments: ";
+      }
 
 // All done
 //
@@ -260,6 +284,7 @@ XrdAccPrivs auth;
 			   Entity.prot[size] = '\0';
 			  }
                           v2 = true; break;
+                case 'e': Entity.ueid = atoi(opv); v2 = true; break;
                 case 'g': SetID(Entity.grps, opv); v2 = true; break;
                 case 'h': SetID(Entity.host, opv); v2 = true; break;
                 case 'o': SetID(Entity.vorg, opv); v2 = true; break;

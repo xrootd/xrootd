@@ -35,6 +35,7 @@
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClXRootDMsgHandler.hh"
 
 #include <sys/types.h>
 #include <algorithm>
@@ -479,9 +480,19 @@ namespace XrdCl
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
+
+      // if we are handling oksofar we have to take down the timeout fence
+      ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+      if( rsp->hdr.status == kXR_oksofar )
+      {
+        XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( mh.handler );
+        if( xrdHandler ) xrdHandler->TakeDownTimeoutFence();
+      }
+
       bool delit = ( mh.action & IncomingMsgHandler::Ignore );
       mh.Reset();
       if (delit) delete msg;
+
       return;
     }
 

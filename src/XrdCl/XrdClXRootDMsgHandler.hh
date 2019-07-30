@@ -40,6 +40,10 @@
 #include <list>
 #include <memory>
 
+#if __cplusplus >= 201103L
+#include <atomic>
+#endif
+
 namespace XrdCl
 {
   class PostMaster;
@@ -161,6 +165,8 @@ namespace XrdCl
         pAggregatedWaitTime( 0 ),
 
         pMsgInFly( false ),
+
+        pTimeoutFence( false ),
 
         pDirListStarted( false ),
         pDirListWithStat( false ),
@@ -386,6 +392,11 @@ namespace XrdCl
         pStateful = stateful;
       }
 
+      //------------------------------------------------------------------------
+      //! Take down the timeout fence after oksofar response has been handled
+      //------------------------------------------------------------------------
+      void TakeDownTimeoutFence();
+
     private:
       //------------------------------------------------------------------------
       //! Handle a kXR_read in raw mode
@@ -577,6 +588,17 @@ namespace XrdCl
       RedirectTraceBack               pRedirectTraceBack;
 
       bool                            pMsgInFly;
+
+      //------------------------------------------------------------------------
+      // true if MsgHandler is both in inQueue and installed in respective
+      // Stream (this could happen if server gave oksofar response), otherwise
+      // false
+      //------------------------------------------------------------------------
+#if __cplusplus >= 201103L
+      std::atomic<bool>               pTimeoutFence;
+#else
+      bool                            pTimeoutFence;
+#endif
 
       //------------------------------------------------------------------------
       // if we are serving chunked data to the user's handler in case of

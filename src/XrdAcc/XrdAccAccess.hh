@@ -42,6 +42,8 @@
 /*                     S e t T a b s   P a r a m e t e r                      */
 /******************************************************************************/
 
+struct XrdAccEntityInfo;
+
 struct XrdAccAccess_ID
        {char             *name;
         char             *grp;
@@ -55,7 +57,7 @@ struct XrdAccAccess_ID
         short             hlen;
         short             glen;
 
-        bool             Applies(const XrdSecEntity *Entity);
+        bool             Applies(const XrdAccEntityInfo &Entity);
 
         XrdAccAccess_ID *Export()
                          {XrdAccAccess_ID *xID;
@@ -161,6 +163,8 @@ XrdAccPrivs Access(      XrdAccPrivCaps  &caps,
                    const Access_Operation oper);
 
 struct XrdAccAccess_Tables Atab;
+bool   hostRefX; // True if we need to resolve hostname for exclusive rules
+bool   hostRefY; // True if we need to resolve hostname for any other rules
 
 XrdSysXSLock Access_Context;
 

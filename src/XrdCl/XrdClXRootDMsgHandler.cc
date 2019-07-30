@@ -40,6 +40,7 @@
 
 #include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
+#include "XrdSys/XrdSysAtomics.hh"
 #include <memory>
 #include <sstream>
 
@@ -265,6 +266,11 @@ namespace XrdCl
           {
             pReadRawStarted = false;
             pAsyncMsgSize   = dlen;
+#if __cplusplus >= 201103L
+            pTimeoutFence = true;
+#else
+            AtomicCAS( pTimeoutFence, pTimeoutFence, true );
+#endif
             return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
           }
           else
@@ -283,6 +289,11 @@ namespace XrdCl
           {
             pAsyncMsgSize      = dlen;
             pReadVRawMsgOffset = 0;
+#if __cplusplus >= 201103L
+            pTimeoutFence = true;
+#else
+            AtomicCAS( pTimeoutFence, pTimeoutFence, true );
+#endif
             return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
           }
           else
@@ -789,6 +800,15 @@ namespace XrdCl
     if( streamNum != 0 )
       return 0;
 
+    // if we are currently handling a oksofar response, we don't want to be
+    // interrupted in this case
+#if __cplusplus >= 201103L
+    if( pTimeoutFence )
+#else
+    if( AtomicGet( pTimeoutFence ) )
+#endif
+      return 0;
+
     HandleError( status, 0 );
     return RemoveHandler;
   }
@@ -1179,6 +1199,18 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Take down the timeout fence
+  //----------------------------------------------------------------------------
+  void XRootDMsgHandler::TakeDownTimeoutFence()
+  {
+#if __cplusplus >= 201103L
+    pTimeoutFence = false;
+#else
+    AtomicCAS( pTimeoutFence, pTimeoutFence, false );
+#endif
+  }
+
+  //----------------------------------------------------------------------------
   // Unpack the message and call the response handler
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::HandleResponse()
@@ -1256,6 +1288,11 @@ namespace XrdCl
       XrdSysCondVarHelper lck( pCV );
       delete pResponse;
       pResponse = 0;
+#if __cplusplus >= 201103L
+      pTimeoutFence = false;
+#else
+      AtomicCAS( pTimeoutFence, pTimeoutFence, false );
+#endif
       pCV.Broadcast();
     }
   }
