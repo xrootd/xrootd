@@ -187,8 +187,7 @@ enum XLoginVersion {
    kXR_ver001 = 1,  // Generally implemented 2005 protocol
    kXR_ver002 = 2,  // Same as 1 but adds asyncresp recognition
    kXR_ver003 = 3,  // The 2011-2012 rewritten client
-   kXR_ver004 = 4,  // The 2016 sign-capable   client
-   kXR_ver005 = 5   // The 2017 localredirect capable client
+   kXR_ver004 = 4   // The 2016 sign-capable   client
 };
 
 enum XStatRequestOption {

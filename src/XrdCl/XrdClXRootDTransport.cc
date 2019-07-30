@@ -1545,7 +1545,7 @@ namespace XrdCl
 
     loginReq->requestid = kXR_login;
     loginReq->pid       = ::getpid();
-    loginReq->capver[0] = kXR_asyncap | kXR_ver005;
+    loginReq->capver[0] = kXR_asyncap | kXR_ver004;
     loginReq->role[0]   = kXR_useruser;
     loginReq->dlen      = cgiLen;
     loginReq->ability   = kXR_fullurl | kXR_readrdok | kXR_lclfile;
