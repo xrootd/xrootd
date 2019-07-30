@@ -111,10 +111,16 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
     if (!EnvInfo->secEnv()->addrInfo->isPrivate())
       return rcode;
 
-    // get protocol version to do a native redirect in case of old protocol version
-    int pversion = Resp.getUCap();
-    pversion &= 0x0000ffff;
-    if (pversion < 784)
+    // get client url redirect capability
+    int urlRedirSupport = Resp.getUCap();
+    urlRedirSupport &= XrdOucEI::uUrlOK;
+    if (!urlRedirSupport)
+      return rcode;
+
+    // get client localredirect capability
+    int clientLRedirSupport = Resp.getUCap();
+    clientLRedirSupport &= XrdOucEI::uLclF;
+    if (!clientLRedirSupport)
       return rcode;
 
     // only allow simple (but most prominent) operations to avoid complications
