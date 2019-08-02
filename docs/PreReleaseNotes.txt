@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[xrdcp]** Add --notlsok and --tlsdata options.
+  * **[xrdcp]** Enable roots and xroots as TLS protocols.
   * **[Server]** Add xrd.network dyndns option for dynamic DNS handling.
   * **[Server]** Properly handle dynamic DNS environments.
   * **[Server]** Add evict option to the prepare request.
