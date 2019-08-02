@@ -51,10 +51,12 @@ const char *XrdCpFile::mPfx = 0;
 XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
 {
    static struct proto {const char *pHdr; int pHsz; PType pVal;}
-                 pTab[] = {{"xroot://", 8, isXroot},
-                           { "root://", 7, isXroot},
-                           { "http://", 7, isHttp},
-                           {"https://", 8, isHttps}
+                 pTab[] = {{"xroot://",  8, isXroot},
+                           {"xroots://", 9, isXroots},
+                           {"root://",   7, isXroot},
+                           {"roots://",  8, isXroots},
+                           {"http://",   7, isHttp},
+                           {"https://",  8, isHttps}
                           };
    static int pTnum = sizeof(pTab)/sizeof(struct proto);
    const char *Slash;
