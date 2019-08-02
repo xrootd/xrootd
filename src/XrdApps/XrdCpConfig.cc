@@ -105,6 +105,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "sources",     1, 0, XrdCpConfig::OpSources},
       {OPT_TYPE "streams",     1, 0, XrdCpConfig::OpStreams},
       {OPT_TYPE "tlsdata",     0, 0, XrdCpConfig::OpTlsData},
+      {OPT_TYPE "tlsmetalink", 0, 0, XrdCpConfig::OpTlsMLF},
       {OPT_TYPE "tpc",         1, 0, XrdCpConfig::OpTpc},
       {OPT_TYPE "verbose",     0, 0, XrdCpConfig::OpVerbose},
       {OPT_TYPE "version",     0, 0, XrdCpConfig::OpVersion},
@@ -270,6 +271,8 @@ do{while(optind < Argc && Legacy(optind)) {}
                            if (!a2i(optarg, &nStrm, 1, 15)) Usage(22);
                            break;
           case OpTlsData:  OpSpec |= DoTlsData;
+                           break;
+          case OpTlsMLF:   OpSpec |= DoTlsMLF;
                            break;
           case OpTpc:      OpSpec |= DoTpc;
                            if (!strcmp("delegate",  optarg))
@@ -889,17 +892,18 @@ void XrdCpConfig::Usage(int rc)
    "         [--force] [--help] [--infiles <fn>] [--license] [--nopbar]\n"
    "         [--notlsok] [--path] [--parallel <n>] [--posc] [--proxy <host>:<port>]\n"
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
-   "         [--streams <n>] [--tlsdata] [--tpc [delegate] {first|only}] [--verbose]\n"
-   "         [--version] [--xrate <rate>] [--zip <file>] [--allow-http]";
+   "         [--streams <n>] [--tlsdata] [--tlsmetalink]\n"
+   "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
+   "         [--xrate <rate>] [--zip <file>] [--allow-http]\n";
 
    static const char *Syntax2= "\n"
-   "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
+   "<src>:   [[x]root[s]://<host>[:<port>]/]<path> | -";
 
    static const char *Syntay2= "\n"
-   "<src>:   [[x]root://<host>[:<port>]/]<path>";
+   "<src>:   [[x]root[s]://<host>[:<port>]/]<path>";
 
    static const char *Syntax3= "\n"
-   "<dest>:  [[x]root://<host>[:<port>]/]<path> | -";
+   "<dest>:  [[x]root[s]://<host>[:<port>]/]<path> | -";
 
    static const char *Detail = "\n"
    "-C | --cksum <args> verifies the checksum at the destination as provided\n"
@@ -928,6 +932,7 @@ void XrdCpConfig::Usage(int rc)
    "-y | --sources <n>  uses up to the number of sources specified in parallel\n"
    "-S | --streams <n>  copies using the specified number of TCP connections\n"
    "-E | --tlsdata      entrcypt data as well for xroots protocol\n"
+   "     --tlsmetalink  convert [x]root to [x]roots protocol in metalinks\n"
    "-T | --tpc          uses third party copy mode between the src and dest.\n"
    "                    Both the src and dest must allow tpc mode. Argument\n"
    "                    'first' tries tpc and if it fails, does a normal copy;\n"

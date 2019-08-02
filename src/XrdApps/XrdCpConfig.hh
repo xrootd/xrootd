@@ -171,6 +171,9 @@ static const int    DoTlsData  =  0x0000000002000000LL; // -E | --tlsdata
 static const int    OpNoTlsOK  =  0x05;
 static const int    DoNoTlsOK  =  0x0000000004000000LL; //      --notlsok
 
+static const int    OpTlsMLF   =  0x06;
+static const int    DoTlsMLF   =  0x0000000008000000LL; //      --tlsmetalink
+
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
 // for the transfer operations to succeed.
