@@ -114,6 +114,7 @@ static void     SetMsgCB(msgCB_t cbP);
 //!                  validated.
 //! @param  opts     Processing options (or'd bitwise):
 //!                  debug   - produce the maximum amount of messages.
+//!                  dnsok   - trust DNS when verifying hostname.
 //!                  hsto    - the handshake timeout value in seconds.
 //!                  logVF   - Turn on verification failure logging.
 //!                  servr   - This is a server-side context and x509 peer
@@ -138,6 +139,7 @@ static const int vdepS = 8;          //!< Bits to shift vdept value
 static const int logVF = 0x40000000; //!< Enable verification failure logging
 static const int debug = 0x20000000; //!< Output full ssl messages for debuging
 static const int servr = 0x10000000; //!< Phis is a server-side context
+static const int dnsok = 0x08000000; //!< Trust DNS for host verification
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,

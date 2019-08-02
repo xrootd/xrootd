@@ -74,7 +74,7 @@ enum HS_Mode
 //------------------------------------------------------------------------
 
   XrdTlsSocket( XrdTlsContext &ctx, int sfd, RW_Mode rwm,
-                                                 HS_Mode hsm, bool isClient );
+                                             HS_Mode hsm, bool isClient );
 
 //------------------------------------------------------------------------
 //! Constructor - reserves space for a TLS I/O wrapper. Use the Init()
@@ -252,6 +252,7 @@ static const int xyBlock = 'x';
 
 static const int xVerify = 0x01;   //!< Peer cetrificate is to be verified
 static const int Debug   = 0x02;   //!< Debugging is on
+static const int DNSok   = 0x04;   //!< DNS can be used to verify peer.
 
 static const int isServer  = 0x01;
 static const int rBlocking = 0x02;

@@ -272,6 +272,7 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
    if (ctx.x509Verify()) pImpl->cOpts = xVerify;
       else pImpl->cOpts = 0;
    if (parms->opts & XrdTlsContext::debug) pImpl->cOpts |= Debug;
+   if (parms->opts & XrdTlsContext::dnsok) pImpl->cOpts |= DNSok;
    pImpl->traceID = tid;
 
 // Obtain the ssl object at this point.
