@@ -669,4 +669,49 @@ namespace XrdCl
     bytesRead = status;
     return Status();
   }
+
+  //------------------------------------------------------------------------
+  // Cork the underlying socket
+  //------------------------------------------------------------------------
+  Status Socket::Cork()
+  {
+    int state = 1;
+    int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
+    if( rc != 0 )
+      return Status( stFatal, errSocketOptError, errno );
+
+    pCorked = true;
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Uncork the underlying socket
+  //------------------------------------------------------------------------
+  Status Socket::Uncork()
+  {
+    int state = 0;
+    int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
+    if( rc != 0 )
+      return Status( stFatal, errSocketOptError, errno );
+
+    pCorked = false;
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Flash the underlying socket
+  //------------------------------------------------------------------------
+  Status Socket::Flash()
+  {
+    //----------------------------------------------------------------------
+    // Uncork the socket in order to flash the socket
+    //----------------------------------------------------------------------
+    Status st = Uncork();
+    if( !st.IsOK() ) return st;
+
+    //----------------------------------------------------------------------
+    // Once the data has been flashed we can cork the socket back
+    //----------------------------------------------------------------------
+    return Cork();
+  }
 }

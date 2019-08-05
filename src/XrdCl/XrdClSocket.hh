@@ -55,7 +55,8 @@ namespace XrdCl
       Socket( int socket = -1, SocketStatus status = Disconnected ):
         pSocket(socket), pStatus( status ), pServerAddr( 0 ),
         pProtocolFamily( AF_INET ),
-        pChannelID( 0 )
+        pChannelID( 0 ),
+        pCorked( false )
       {
       };
 
@@ -244,6 +245,24 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static Status ClassifyErrno( int error );
 
+      //------------------------------------------------------------------------
+      // Cork the underlying socket
+      //
+      // As there is no way to do vector writes with SSL/TLS we need to cork
+      // the socket and then flash it when appropriate
+      //------------------------------------------------------------------------
+      Status Cork();
+
+      //------------------------------------------------------------------------
+      // Uncork the underlying socket
+      //------------------------------------------------------------------------
+      Status Uncork();
+
+      //------------------------------------------------------------------------
+      // Flash the underlying socket
+      //------------------------------------------------------------------------
+      Status Flash();
+
     protected:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
@@ -268,6 +287,7 @@ namespace XrdCl
       mutable std::string  pName;
       int                  pProtocolFamily;
       AnyObject           *pChannelID;
+      bool                 pCorked;
   };
 }
 

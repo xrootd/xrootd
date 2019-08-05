@@ -109,24 +109,6 @@ namespace XrdCl
       Status ReadMessage( Message *&toRead );
 
       //------------------------------------------------------------------------
-      // Cork the underlying socket
-      //
-      // As there is no way to do vector writes with SSL/TLS we need to cork
-      // the socket and then flash it when appropriate
-      //------------------------------------------------------------------------
-      Status Cork();
-
-      //------------------------------------------------------------------------
-      // Uncork the underlying socket
-      //------------------------------------------------------------------------
-      Status Uncork();
-
-      //------------------------------------------------------------------------
-      // Flash the underlying socket
-      //------------------------------------------------------------------------
-      Status Flash();
-
-      //------------------------------------------------------------------------
       // Process the status of an operation that issues a TLS write
       //
       // - If the operation failed there is nothing to be done.

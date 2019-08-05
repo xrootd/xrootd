@@ -100,9 +100,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Make sure the socket is uncorked before we do the TLS/SSL hand shake
       //------------------------------------------------------------------------
-      Status st = Uncork();
+      Status st = pSocket->Uncork();
       if( !st.IsOK() )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( AsyncSockMsg, "[%s] Unable to uncork the socket: %s",
+                    pStreamName.c_str(), strerror( errno ) );
         pStream->OnConnectError( pSubStreamNum, st );
+      }
     }
   }
 
@@ -174,9 +179,12 @@ namespace XrdCl
     //----------------------------------------------------------------------------
     // Send everything with one TCP frame if possible
     //----------------------------------------------------------------------------
-    Status st = Flash();
+    Status st = pSocket->Flash();
     if( !st.IsOK() )
     {
+      Log *log = DefaultEnv::GetLog();
+      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
+                  pStreamName.c_str(), strerror( errno ) );
       OnFault( st );
       return;
     }
@@ -444,9 +452,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pHandShakeDone )
     {
-      Status st = Cork();
+      Status st = pSocket->Cork();
       if( !st.IsOK() )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( AsyncSockMsg, "[%s] Unable to cork the socket: %s",
+                    pStreamName.c_str(), strerror( errno ) );
         OnFault( st );
+      }
     }
   }
 
@@ -487,63 +500,6 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  // Cork the underlying socket
-  //------------------------------------------------------------------------
-  Status AsyncTlsSocketHandler::Cork()
-  {
-    int state = 1;
-    int rc = setsockopt( pSocket->GetFD(), IPPROTO_TCP, TCP_CORK,
-                     &state, sizeof( state ) );
-    if( rc != 0 )
-    {
-      Log *log = DefaultEnv::GetLog();
-      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
-                  pStreamName.c_str(), strerror( errno ) );
-      return Status( stFatal, errSocketOptError, errno );
-    }
-
-    pCorked = true;
-    return Status();
-  }
-
-  //------------------------------------------------------------------------
-  // Uncork the underlying socket
-  //------------------------------------------------------------------------
-  Status AsyncTlsSocketHandler::Uncork()
-  {
-    int state = 0;
-    int rc = setsockopt( pSocket->GetFD(), IPPROTO_TCP, TCP_CORK,
-                         &state, sizeof( state ) );
-    if( rc != 0 )
-    {
-      Log *log = DefaultEnv::GetLog();
-      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
-                  pStreamName.c_str(), strerror( errno ) );
-      return Status( stFatal, errSocketOptError, errno );
-    }
-
-    pCorked = false;
-    return Status();
-  }
-
-  //------------------------------------------------------------------------
-  // Flash the underlying socket
-  //------------------------------------------------------------------------
-  Status AsyncTlsSocketHandler::Flash()
-  {
-    //----------------------------------------------------------------------
-    // Uncork the socket in order to flash the socket
-    //----------------------------------------------------------------------
-    Status st = Uncork();
-    if( !st.IsOK() ) return st;
-
-    //----------------------------------------------------------------------
-    // Once the data has been flashed we can cork the socket back
-    //----------------------------------------------------------------------
-    return Cork();
-  }
-
-  //------------------------------------------------------------------------
   // Process the status of an operation that issues a TLS write
   //------------------------------------------------------------------------
   void AsyncTlsSocketHandler::OnTlsWrite( Status& status )
@@ -561,8 +517,14 @@ namespace XrdCl
       //--------------------------------------------------------------------
       if( pCorked )
       {
-        Status st = Uncork();
-        if( !st.IsOK() ) status = st;
+        Status st = pSocket->Uncork();
+        if( !st.IsOK() )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Error( AsyncSockMsg, "[%s] Unable to uncork the socket: %s",
+                      pStreamName.c_str(), strerror( errno ) );
+          status = st;
+        }
       }
 
       //--------------------------------------------------------------------
@@ -609,8 +571,14 @@ namespace XrdCl
       //--------------------------------------------------------------------
       if( pCorked )
       {
-        Status st = Uncork();
-        if( !st.IsOK() ) status = st;
+        Status st = pSocket->Uncork();
+        if( !st.IsOK() )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Error( AsyncSockMsg, "[%s] Unable to uncork the socket: %s",
+                      pStreamName.c_str(), strerror( errno ) );
+          status = st;
+        }
       }
 
       //--------------------------------------------------------------------
