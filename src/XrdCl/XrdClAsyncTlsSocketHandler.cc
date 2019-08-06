@@ -40,10 +40,8 @@ namespace XrdCl
                                                 uint16_t          subStreamNum ):
     AsyncSocketHandler( poller, transport, channelData, subStreamNum ),
     pTransport( transport ),
-    pCorked( false ),
     pWrtHdrDone( false ),
-    pTlsHSRevert( None ),
-    pWrtBody( 0 )
+    pTlsHSRevert( None )
   {
 
   }
@@ -152,28 +150,16 @@ namespace XrdCl
 
     if( pOutHandler->IsRaw() )
     {
-      if( !pWrtBody )
+      uint32_t bytesWritten = 0;
+      Status st = pOutHandler->WriteMessageBody( pSocket, bytesWritten ); // TODO this needs a TlsSocket !!!
+
+      if( !st.IsOK() )
       {
-        uint32_t  *asyncOffset = 0;
-        pWrtBody = pOutHandler->GetMessageBody( asyncOffset );
-        pCurrentChunk = pWrtBody->begin();
+        OnFault( st );
+        return;
       }
 
-      while( pCurrentChunk != pWrtBody->end() )
-      {
-        Status st = WriteCurrentChunk( *pCurrentChunk );
-        OnTlsWrite( st );
-
-        if( !st.IsOK() )
-        {
-          OnFault( st );
-          return;
-        }
-
-        if( st.code == suRetry ) return;
-
-        ++pCurrentChunk;
-      }
+      if( st.code == suRetry ) return;
     }
 
     //----------------------------------------------------------------------------
@@ -196,7 +182,6 @@ namespace XrdCl
 
     pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );
     pOutgoing = 0;
-    pWrtBody  = 0;
 
     //--------------------------------------------------------------------------
     // Disable the respective substream if empty
@@ -230,6 +215,15 @@ namespace XrdCl
 
     delete pHSOutgoing;
     pHSOutgoing = 0;
+
+    st = pSocket->Flash();
+    if( !st.IsOK() )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
+                  pStreamName.c_str(), strerror( st.errNo ) );
+      OnFaultWhileHandshaking( st );
+    }
 
     if( !( st = DisableUplink() ).IsOK() )
       OnFaultWhileHandshaking( st );
@@ -279,52 +273,6 @@ namespace XrdCl
     log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
                pStreamName.c_str(), toWrite->GetDescription().c_str(),
                toWrite, toWrite->GetSize() );
-    return Status();
-  }
-
-  //------------------------------------------------------------------------
-  // Write the current body chunk
-  //------------------------------------------------------------------------
-  Status AsyncTlsSocketHandler::WriteCurrentChunk( ChunkInfo &toWrite )
-  {
-    Log *log = DefaultEnv::GetLog();
-
-    //--------------------------------------------------------------------------
-    // Try to write down the current message
-    //--------------------------------------------------------------------------
-    uint32_t  leftToBeWritten = toWrite.length - toWrite.offset;
-
-    while( leftToBeWritten )
-    {
-      int bytesWritten = 0;
-      char *buffer = static_cast<char*>( toWrite.buffer ) + toWrite.length;
-      Status status = pTls->Write( buffer, leftToBeWritten, bytesWritten );
-
-      //------------------------------------------------------------------------
-      // Writing operation would block! So we are done for now, but we will
-      // return
-      //------------------------------------------------------------------------
-      if( status.IsOK() && status.code == suRetry )
-        return status;
-
-      if( !status.IsOK() )
-      {
-        //----------------------------------------------------------------------
-        // Actual tls error error!
-        //----------------------------------------------------------------------
-        toWrite.offset = 0;
-        return status;
-      }
-
-      toWrite.offset  += bytesWritten;
-      leftToBeWritten -= bytesWritten;
-    }
-
-    //--------------------------------------------------------------------------
-    // We have written the message body successfully
-    //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Wrote a chunk: %d bytes",
-               pStreamName.c_str(), toWrite.length );
     return Status();
   }
 
@@ -450,17 +398,17 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Once the handshake is done we can cork the socket
     //--------------------------------------------------------------------------
-    if( pHandShakeDone )
-    {
-      Status st = pSocket->Cork();
-      if( !st.IsOK() )
-      {
-        Log *log = DefaultEnv::GetLog();
-        log->Error( AsyncSockMsg, "[%s] Unable to cork the socket: %s",
-                    pStreamName.c_str(), strerror( errno ) );
-        OnFault( st );
-      }
-    }
+//    if( pHandShakeDone )
+//    {
+//      Status st = pSocket->Cork();
+//      if( !st.IsOK() )
+//      {
+//        Log *log = DefaultEnv::GetLog();
+//        log->Error( AsyncSockMsg, "[%s] Unable to cork the socket: %s",
+//                    pStreamName.c_str(), strerror( errno ) );
+//        OnFault( st );
+//      }
+//    }
   }
 
   //----------------------------------------------------------------------------
@@ -515,7 +463,7 @@ namespace XrdCl
       // Make sure the socket is uncorked before we do the TLS/SSL
       // hand shake
       //--------------------------------------------------------------------
-      if( pCorked )
+      if( pSocket->IsCorked() )
       {
         Status st = pSocket->Uncork();
         if( !st.IsOK() )
@@ -569,7 +517,7 @@ namespace XrdCl
       // Make sure the socket is uncorked before we do the TLS/SSL
       // hand shake
       //--------------------------------------------------------------------
-      if( pCorked )
+      if( pSocket->IsCorked() )
       {
         Status st = pSocket->Uncork();
         if( !st.IsOK() )

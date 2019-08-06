@@ -444,14 +444,6 @@ namespace XrdCl
 #endif
   }
 
-  //------------------------------------------------------------------------
-  // Wrapper around writev
-  //------------------------------------------------------------------------
-  ssize_t Socket::WriteV( iovec *iov, int iovcnt )
-  {
-    return ::writev( pSocket, iov, iovcnt );
-  }
-
   //----------------------------------------------------------------------------
   // Poll the descriptor
   //----------------------------------------------------------------------------
@@ -675,6 +667,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status Socket::Cork()
   {
+    if( pCorked ) return Status();
+
     int state = 1;
     int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
     if( rc != 0 )
@@ -689,6 +683,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status Socket::Uncork()
   {
+    if( !pCorked ) return Status();
+
     int state = 0;
     int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
     if( rc != 0 )

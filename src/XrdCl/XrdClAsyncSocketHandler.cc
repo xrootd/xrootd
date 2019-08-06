@@ -315,6 +315,16 @@ namespace XrdCl
     pSocket->SetStatus( Socket::Connected );
 
     //--------------------------------------------------------------------------
+    // Cork the socket
+    //--------------------------------------------------------------------------
+    st = pSocket->Cork();
+    if( !st.IsOK() )
+    {
+      pStream->OnConnectError( pSubStreamNum, st );
+      return;
+    }
+
+    //--------------------------------------------------------------------------
     // Initialize the handshake
     //--------------------------------------------------------------------------
     pHandShakeData = new HandShakeData( pStream->GetURL(),
@@ -385,6 +395,9 @@ namespace XrdCl
         OnFault( st );
         return;
       }
+
+      if( pSignature )
+        pOutMsgSize += pSignature->GetSize();
     }
 
     //--------------------------------------------------------------------------
@@ -433,14 +446,22 @@ namespace XrdCl
       return;
     }
 
-    if( st.code != suRetry )
+    if( st.code == suRetry ) return;
+
+    delete pHSOutgoing;
+    pHSOutgoing = 0;
+
+    st = pSocket->Flash();
+    if( !st.IsOK() )
     {
-      delete pHSOutgoing;
-      pHSOutgoing = 0;
-      if( !(st = DisableUplink()).IsOK() )
-        OnFaultWhileHandshaking( st );
-      return;
+      Log *log = DefaultEnv::GetLog();
+      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
+                  pStreamName.c_str(), strerror( st.errNo ) );
+      OnFaultWhileHandshaking( st );
     }
+
+    if( !(st = DisableUplink()).IsOK() )
+      OnFaultWhileHandshaking( st );
   }
 
   //----------------------------------------------------------------------------
@@ -482,100 +503,36 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Write the message and its signature
   //----------------------------------------------------------------------------
-  Status AsyncSocketHandler::WriteVMessage( Message   *toWrite,
-                                            Message   *&sign,
-                                            ChunkList *chunks,
-                                            uint32_t  *asyncOffset )
-  {
-    if( !sign && !chunks ) return WriteCurrentMessage( toWrite );
-
-    Log *log = DefaultEnv::GetLog();
-
-    const size_t iovcnt = 1 + ( sign ? 1 : 0 ) + ( chunks ? chunks->size() : 0 );
-    iovec iov[iovcnt];
-    uint32_t leftToBeWritten = 0;
-    size_t i = 0;
-
-    if( sign )
-    {
-      ToIov( *sign, iov[i] );
-      leftToBeWritten += iov[i].iov_len;
-      ++i;
-    }
-
-    ToIov( *toWrite, iov[i] );
-    leftToBeWritten += iov[i].iov_len;
-    ++i;
-
-    uint32_t rawSize = 0;
-    if( chunks )
-    {
-      rawSize = ToIov( chunks, asyncOffset, iov + i );
-      leftToBeWritten += rawSize;
-    }
-
-    while( leftToBeWritten )
-    {
-      int bytesWritten = pSocket->WriteV( iov, iovcnt );
-      if( bytesWritten <= 0 )
-      {
-        Status ret = Socket::ClassifyErrno( errno );
-        if( !ret.IsOK() )
-          toWrite->SetCursor( 0 );
-        return ret;
-      }
-
-      leftToBeWritten -= bytesWritten;
-      if( sign )
-        UpdateAfterWrite( *sign, iov[0], bytesWritten );
-
-      i = sign ? 1 : 0;
-      UpdateAfterWrite( *toWrite, iov[i], bytesWritten );
-
-      if( chunks && asyncOffset )
-        UpdateAfterWrite( chunks, asyncOffset, iov + i + 1, bytesWritten );
-    }
-
-    //--------------------------------------------------------------------------
-    // We have written the message successfully
-    //--------------------------------------------------------------------------
-    if( sign )
-      log->Dump( AsyncSockMsg, "[%s] WroteV a message signature : %s (0x%x), "
-                 "%d bytes",
-                 pStreamName.c_str(), sign->GetDescription().c_str(),
-                 sign, sign->GetSize() );
-
-    log->Dump( AsyncSockMsg, "[%s] WroteV a message: %s (0x%x), %d bytes",
-               pStreamName.c_str(), toWrite->GetDescription().c_str(),
-               toWrite, toWrite->GetSize() );
-
-    if( chunks )
-      log->Dump( AsyncSockMsg, "[%s] WroteV raw data:  %d bytes",
-                 pStreamName.c_str(), rawSize );
-
-    return Status();
-  }
-
   Status AsyncSocketHandler::WriteMessageAndRaw( Message *toWrite, Message *&sign )
   {
-    ChunkList *chunks = 0;
-    uint32_t  *asyncOffset = 0;
+    Status st;
+
+    if( sign )
+    {
+      st = WriteCurrentMessage( sign );
+      if( !st.IsOK() || st.code == suRetry )
+        return st;
+    }
+
+    st = WriteCurrentMessage( toWrite );
+    if( !st.IsOK() || st.code == suRetry )
+      return st;
 
     if( pOutHandler->IsRaw() )
     {
-      chunks = pOutHandler->GetMessageBody( asyncOffset );
-      Log    *log = DefaultEnv::GetLog();
-      log->Dump( AsyncSockMsg, "[%s] Will write the payload in one go with "
-                 "the header for message: %s (0x%x).", pStreamName.c_str(),
-                 pOutgoing->GetDescription().c_str(), pOutgoing );
+      uint32_t bytesWritten = 0;
+      st = pOutHandler->WriteMessageBody( pSocket, bytesWritten );
+      pOutMsgSize += bytesWritten;
+      if( !st.IsOK() || st.code == suRetry )
+        return st;
     }
 
-    Status st = WriteVMessage( toWrite, sign, chunks, asyncOffset );
-    if( st.IsOK() && st.code == suDone )
+    st = pSocket->Flash();
+    if( !st.IsOK() )
     {
-      if( asyncOffset )
-        pOutMsgSize += *asyncOffset;
-      pOutMsgDone  = true;
+      Log *log = DefaultEnv::GetLog();
+      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
+                  pStreamName.c_str(), strerror( st.errNo ) );
     }
 
     return st;

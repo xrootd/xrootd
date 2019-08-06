@@ -217,14 +217,20 @@ namespace XrdCl
       virtual bool IsRaw() const { return false; }
 
       //------------------------------------------------------------------------
-      //! Get message body - called if IsRaw returns true
+      //! Write message body directly to a socket - called if IsRaw returns
+      //! true - only socket related errors may be returned here
       //!
-      //! @param asyncOffset  :  the current async offset
-      //! @return             :  the list of chunks
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data needs to be written
+      //!                  stError on failure
       //------------------------------------------------------------------------
-      virtual ChunkList* GetMessageBody( uint32_t *&asyncOffset )
+      virtual Status WriteMessageBody( Socket   *socket,
+                                       uint32_t &bytesWritten )
       {
-        return 0;
+        (void)socket; (void)bytesWritten;
+        return Status();
       }
   };
 

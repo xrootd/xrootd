@@ -176,14 +176,6 @@ namespace XrdCl
       Status WriteCurrentMessage( Message *toWrite );
 
       //------------------------------------------------------------------------
-      // Write the message, its signature and its body
-      //------------------------------------------------------------------------
-      Status WriteVMessage( Message   *toWrite,
-                            Message   *&sign,
-                            ChunkList *chunks,
-                            uint32_t  *asyncOffset );
-
-      //------------------------------------------------------------------------
       // Got a read readiness event
       //------------------------------------------------------------------------
       virtual void OnRead();

@@ -169,15 +169,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual ssize_t Send( void *buffer, uint32_t size );
 
-      //------------------------------------------------------------------------
-      //! Wrapper around writev
-      //!
-      //! @param iov    : buffers to be written
-      //! @param iovcnt : number of buffers
-      //! @return       : the amount of data actually written
-      //------------------------------------------------------------------------
-      virtual ssize_t WriteV( iovec *iov, int iovcnt );
-
       //----------------------------------------------------------------------------
       //! Read helper for raw socket
       //!
@@ -262,6 +253,14 @@ namespace XrdCl
       // Flash the underlying socket
       //------------------------------------------------------------------------
       Status Flash();
+
+      //------------------------------------------------------------------------
+      // Check if the socket is corked
+      //------------------------------------------------------------------------
+      inline bool IsCorked() const
+      {
+        return pCorked;
+      }
 
     protected:
       //------------------------------------------------------------------------

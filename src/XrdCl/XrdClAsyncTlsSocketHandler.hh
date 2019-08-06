@@ -89,11 +89,6 @@ namespace XrdCl
       Status WriteCurrentMessage( Message *toWrite );
 
       //------------------------------------------------------------------------
-      // Write the current body chunk
-      //------------------------------------------------------------------------
-      Status WriteCurrentChunk( ChunkInfo &toWrite );
-
-      //------------------------------------------------------------------------
       // Got a read readiness event
       //------------------------------------------------------------------------
       void OnRead();
@@ -143,7 +138,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       TransportHandler              *pTransport;
       std::unique_ptr<Tls>           pTls;
-      bool                           pCorked;
       bool                           pWrtHdrDone;
       //------------------------------------------------------------------------
       // In case during TLS hand-shake WantRead has been returned on write or
@@ -154,8 +148,6 @@ namespace XrdCl
       // WriteOnRead : on read event the OnWrite routines should be called
       //------------------------------------------------------------------------
       TlsHSRevert                    pTlsHSRevert;
-      ChunkList::iterator            pCurrentChunk;
-      ChunkList                     *pWrtBody;
   };
 }
 

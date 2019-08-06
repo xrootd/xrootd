@@ -1237,15 +1237,46 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Write the message body
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::WriteMessageBody( int       socket,
-                                             uint32_t &bytesRead )
+  Status XRootDMsgHandler::WriteMessageBody( Socket   *socket,
+                                             uint32_t &bytesWritten )
   {
-    (void)socket;
-    (void)bytesRead;
-    //--------------------------------------------------------------------------
-    // We no longer support this type of body writing in XRootDMsgHandler
-    //--------------------------------------------------------------------------
-    return Status( stError, errNotSupported );
+    size_t size = pChunkList->size();
+    for( size_t i = pAsyncChunkIndex ; i < size; ++i )
+    {
+      char     *buffer          = (char*)(*pChunkList)[i].buffer;
+      uint32_t  size            = (*pChunkList)[i].length;
+      uint32_t  leftToBeWritten = size - pAsyncOffset;
+
+      while( leftToBeWritten )
+      {
+        int status = socket->Send( buffer + pAsyncOffset, leftToBeWritten );
+        if( status <= 0 )
+        {
+          //--------------------------------------------------------------------
+          // Writing operation would block! So we are done for now, but we will
+          // return here
+          //--------------------------------------------------------------------
+          if( errno == EAGAIN || errno == EWOULDBLOCK )
+            return Status( stOK, suRetry );
+
+          //--------------------------------------------------------------------
+          // Actual socket error error!
+          //--------------------------------------------------------------------
+          return Status( stError, errSocketError, errno );
+        }
+        pAsyncOffset    += status;
+        bytesWritten    += status;
+        leftToBeWritten -= status;
+      }
+      //------------------------------------------------------------------------
+      // Remember that we have moved to the next chunk, also clear the offset
+      // within the buffer as we are going to move to a new one
+      //------------------------------------------------------------------------
+      ++pAsyncChunkIndex;
+      pAsyncOffset = 0;
+    }
+
+    return Status();
   }
 
   //----------------------------------------------------------------------------
