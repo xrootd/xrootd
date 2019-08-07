@@ -135,7 +135,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, 
                                                     XrdSfsFileSystem *,
-                                                    char *, int,
+                                                    const char *, int,
                                                     const char *, XrdOucEnv *);
    extern XrdSfsFileSystem *XrdDigGetFS
                             (XrdSfsFileSystem *nativeFS,

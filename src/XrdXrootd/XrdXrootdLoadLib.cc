@@ -42,7 +42,7 @@
 
 XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
                                           XrdSfsFileSystem *prevFS,
-                                          char *fslib, int fsver,
+                                          const char *fslib, int fsver,
                                           const char *cfn, XrdOucEnv *envP)
 {
    static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
