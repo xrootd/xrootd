@@ -8,6 +8,13 @@
 #include "XrdOuc/XrdOucPinPath.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
+
+extern XrdSfsFileSystem * XrdXrootdloadFileSystem(XrdSysError *,
+                                                  XrdSfsFileSystem *,
+                                                  const char *, int,
+                                                   const char *, XrdOucEnv *);
+
+
 extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
                                                     XrdSysLogger     *lp,
                                                     const char       *configfn,
@@ -15,33 +22,6 @@ extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
 
 
 using namespace TPC;
-
-
-static XrdSfsFileSystem *load_sfs(void *handle, bool alt, XrdSysError &log, const std::string &libpath, const char *configfn, XrdOucEnv &myEnv, XrdSfsFileSystem *prior_sfs) {
-    XrdSfsFileSystem *sfs = NULL;
-    if (alt) {
-        XrdSfsFileSystem2_t ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *, XrdOucEnv *))
-                      (dlsym(handle, "XrdSfsGetFileSystem2"));
-        if (ep == NULL) {
-            log.Emsg("Config", "Failed to load XrdSfsGetFileSystem2 from library ", libpath.c_str(), dlerror());
-            return NULL;
-        }
-        sfs = ep(prior_sfs, log.logger(), configfn, &myEnv);
-    } else {
-        XrdSfsFileSystem_t ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *))
-                              (dlsym(handle, "XrdSfsGetFileSystem"));
-        if (ep == NULL) {
-            log.Emsg("Config", "Failed to load XrdSfsGetFileSystem from library ", libpath.c_str(), dlerror());
-            return NULL;
-        }
-        sfs = ep(prior_sfs, log.logger(), configfn);
-    }
-    if (!sfs) {
-        log.Emsg("Config", "Failed to initialize filesystem library for TPC handler from ", libpath.c_str());
-        return NULL;
-    }
-    return sfs;
-}
 
 
 bool TPCHandler::ConfigureFSLib(XrdOucStream &Config, std::string &path1, bool &path1_alt, std::string &path2, bool &path2_alt) {
@@ -102,7 +82,7 @@ bool TPCHandler::ConfigureFSLib(XrdOucStream &Config, std::string &path1, bool &
 
 bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
 {
-    XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), myEnv, "=====> ");
+         XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), myEnv, "=====> ");
 
     std::string authLib;
     std::string authLibParms;
@@ -155,41 +135,34 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     XrdSfsFileSystem *base_sfs = NULL;
     if (path1 == "default") {
         m_log.Emsg("Config", "Loading the default filesystem");
-        base_sfs = XrdSfsGetDefaultFileSystem(NULL, m_log.logger(), configfn, myEnv);
-        m_log.Emsg("Config", "Finished loading the default filesystem");
+        base_sfs = XrdSfsGetDefaultFileSystem(0, m_log.logger(), configfn, myEnv);
     } else {
-        char resolvePath[2048];
-        bool usedAltPath{true};
-        if (!XrdOucPinPath(path1.c_str(), usedAltPath, resolvePath, 2048)) {
-            m_log.Emsg("Config", "Failed to locate appropriately versioned base filesystem library for ", path1.c_str());
-            return false;
+        base_sfs = XrdXrootdloadFileSystem(&m_log, NULL, path1.c_str(), path1_alt ? 2 : 0,
+                                           configfn, myEnv);
+        if (base_sfs) {
+            base_sfs->EnvInfo(myEnv);
         }
-        m_handle_base = dlopen(resolvePath, RTLD_LOCAL|RTLD_NOW);
-        if (m_handle_base == NULL) {
-            m_log.Emsg("Config", "Failed to base plugin ", resolvePath, dlerror());
-            return false;
-        }
-        base_sfs = load_sfs(m_handle_base, path1_alt, m_log, path1, configfn, *myEnv, NULL);
     }
     if (!base_sfs) {
         m_log.Emsg("Config", "Failed to initialize filesystem library for TPC handler from ", path1.c_str());
         return false;
     }
+
     XrdSfsFileSystem *chained_sfs = NULL;
     if (!path2.empty()) {
-        char resolvePath[2048];
-        bool usedAltPath{true};
-        if (!XrdOucPinPath(path2.c_str(), usedAltPath, resolvePath, 2048)) {
-            m_log.Emsg("Config", "Failed to locate appropriately versioned chained filesystem library for ", path2.c_str());
+        m_log.Emsg("Loading wrapper filesystem library ", path2.c_str());
+        if (!(chained_sfs = XrdXrootdloadFileSystem(&m_log, base_sfs, path2.c_str(), path2_alt ? 2 : 0,
+                                                    configfn, myEnv)))
+        {
+            m_log.Emsg("Config", "Unable to load file system wrapper.");
             return false;
         }
-        m_handle_chained = dlopen(resolvePath, RTLD_LOCAL|RTLD_NOW);
-        if (m_handle_chained == NULL) {
-            m_log.Emsg("Config", "Failed to chained plugin ", resolvePath, dlerror());
-            return false;
+        else
+        {
+            chained_sfs->EnvInfo(myEnv);
         }
-        chained_sfs = load_sfs(m_handle_chained, path2_alt, m_log, path2, configfn, *myEnv, base_sfs);
     }
+
     m_sfs.reset(chained_sfs ? chained_sfs : base_sfs);
     m_log.Emsg("Config", "Successfully configured the filesystem object for TPC handler");
     return true;
