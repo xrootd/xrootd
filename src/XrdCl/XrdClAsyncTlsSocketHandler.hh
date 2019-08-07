@@ -54,61 +54,9 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
-      //! Flags to indicate what is the TLS hand-shake revert state
-      //!
-      //! - None        : there is no revert state
-      //! - ReadOnWrite : OnRead routines will be called on write event due to
-      //!                 TLS handshake
-      //! - WriteOnRead : OnWrite routines will be called on read event due to
-      //!                 TLS handshake
-      //------------------------------------------------------------------------
-      enum TlsHSRevert{ None, ReadOnWrite, WriteOnRead };
-
-      //------------------------------------------------------------------------
-      //! Handle a socket event
-      //------------------------------------------------------------------------
-      virtual void Event( uint8_t type, XrdCl::Socket *socket );
-
-      //------------------------------------------------------------------------
       // Connect returned
       //------------------------------------------------------------------------
       void OnConnectionReturn();
-
-      //------------------------------------------------------------------------
-      // Got a write readiness event
-      //------------------------------------------------------------------------
-      void OnWrite();
-
-      //------------------------------------------------------------------------
-      // Got a write readiness event while handshaking
-      //------------------------------------------------------------------------
-      void OnWriteWhileHandshaking();
-
-      //------------------------------------------------------------------------
-      // Write the current message
-      //------------------------------------------------------------------------
-      Status WriteCurrentMessage( Message *toWrite );
-
-      //------------------------------------------------------------------------
-      // Got a read readiness event
-      //------------------------------------------------------------------------
-      void OnRead();
-
-      //------------------------------------------------------------------------
-      // Got a read readiness event while handshaking
-      //------------------------------------------------------------------------
-      void OnReadWhileHandshaking();
-
-      //------------------------------------------------------------------------
-      // Read a message
-      //------------------------------------------------------------------------
-      Status ReadMessage( Message *&toRead );
-
-      //------------------------------------------------------------------------
-      // Data members
-      //------------------------------------------------------------------------
-      TransportHandler              *pTransport;
-      bool                           pWrtHdrDone;
   };
 }
 

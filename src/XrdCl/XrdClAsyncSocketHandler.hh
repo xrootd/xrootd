@@ -163,12 +163,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Got a write readiness event
       //------------------------------------------------------------------------
-      virtual void OnWrite();
+      void OnWrite();
 
       //------------------------------------------------------------------------
       // Got a write readiness event while handshaking
       //------------------------------------------------------------------------
-      virtual void OnWriteWhileHandshaking();
+      void OnWriteWhileHandshaking();
 
       //------------------------------------------------------------------------
       // Write the message and it's signature in one go with writev
@@ -183,12 +183,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Got a read readiness event
       //------------------------------------------------------------------------
-      virtual void OnRead();
+      void OnRead();
 
       //------------------------------------------------------------------------
       // Got a read readiness event while handshaking
       //------------------------------------------------------------------------
-      virtual void OnReadWhileHandshaking();
+      void OnReadWhileHandshaking();
 
       //------------------------------------------------------------------------
       // Handle the handshake message
