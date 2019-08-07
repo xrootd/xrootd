@@ -26,9 +26,12 @@
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdNet/XrdNetAddr.hh"
 
+
 namespace XrdCl
 {
   class AnyObject;
+  class Tls;
+  class AsyncSocketHandler;
 
   //----------------------------------------------------------------------------
   //! A network socket
@@ -56,17 +59,15 @@ namespace XrdCl
         pSocket(socket), pStatus( status ), pServerAddr( 0 ),
         pProtocolFamily( AF_INET ),
         pChannelID( 0 ),
-        pCorked( false )
+        pCorked( false ),
+        pTls( 0 )
       {
       };
 
       //------------------------------------------------------------------------
       //! Desctuctor
       //------------------------------------------------------------------------
-      virtual ~Socket()
-      {
-        Close();
-      };
+      ~Socket();
 
       //------------------------------------------------------------------------
       //! Initialize the socket
@@ -146,7 +147,7 @@ namespace XrdCl
       //! @param timeout   timout value in seconds, -1 to wait indefinitely
       //! @param bytesRead the amount of data actually read
       //------------------------------------------------------------------------
-      virtual Status ReadRaw( void *buffer, uint32_t size, int32_t timeout,
+      Status ReadRaw( void *buffer, uint32_t size, int32_t timeout,
                       uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
@@ -157,7 +158,7 @@ namespace XrdCl
       //! @param timeout      timeout value in seconds, -1 to wait indefinitely
       //! @param bytesWritten the amount of data actually written
       //------------------------------------------------------------------------
-      virtual Status WriteRaw( void *buffer, uint32_t size, int32_t timeout,
+      Status WriteRaw( void *buffer, uint32_t size, int32_t timeout,
                        uint32_t &bytesWritten );
 
       //------------------------------------------------------------------------
@@ -167,7 +168,7 @@ namespace XrdCl
       //! @param size   : size of the data buffer
       //! @return       : the amount of data actually written
       //------------------------------------------------------------------------
-      virtual ssize_t Send( void *buffer, uint32_t size );
+      Status Send( const char *buffer, size_t size, int &bytesWritten );
 
       //----------------------------------------------------------------------------
       //! Read helper for raw socket
@@ -180,7 +181,7 @@ namespace XrdCl
       //!                    EWOULDBLOCK : ( stOK,    suRetry )
       //!                    other error : ( stError, errSocketError )
       //----------------------------------------------------------------------------
-      virtual Status Read( char *buffer, size_t size, int &bytesRead );
+      Status Read( char *buffer, size_t size, int &bytesRead );
 
       //------------------------------------------------------------------------
       //! Get the file descriptor
@@ -262,6 +263,16 @@ namespace XrdCl
         return pCorked;
       }
 
+      //------------------------------------------------------------------------
+      // Do special event mapping if applicable
+      //------------------------------------------------------------------------
+      uint8_t MapEvent( uint8_t event );
+
+      //------------------------------------------------------------------------
+      // Enable encryption
+      //------------------------------------------------------------------------
+      Status EnableEncryption( AsyncSocketHandler *socketHandler );
+
     protected:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
@@ -287,6 +298,8 @@ namespace XrdCl
       int                  pProtocolFamily;
       AnyObject           *pChannelID;
       bool                 pCorked;
+
+      Tls                 *pTls;
   };
 }
 

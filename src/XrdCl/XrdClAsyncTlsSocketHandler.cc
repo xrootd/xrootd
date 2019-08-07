@@ -22,8 +22,7 @@
 #include "XrdCl/XrdClTls.hh"
 #include "XrdCl/XrdClStream.hh"
 #include "XrdCl/XrdClLog.hh"
-
-#include "XrdTls/XrdTlsContext.hh"
+#include "XrdCl/XrdClTlsSocket.hh"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -40,10 +39,8 @@ namespace XrdCl
                                                 uint16_t          subStreamNum ):
     AsyncSocketHandler( poller, transport, channelData, subStreamNum ),
     pTransport( transport ),
-    pWrtHdrDone( false ),
-    pTlsHSRevert( None )
+    pWrtHdrDone( false )
   {
-
   }
 
   //----------------------------------------------------------------------------
@@ -51,7 +48,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   AsyncTlsSocketHandler::~AsyncTlsSocketHandler()
   {
-
   }
 
   //----------------------------------------------------------------------------
@@ -59,21 +55,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncTlsSocketHandler::Event( uint8_t type, XrdCl::Socket *socket )
   {
-    if( pTlsHSRevert == ReadOnWrite )
-    {
-      //------------------------------------------------------------------------
-      // In this case we would like to call the OnRead routine on the Write event
-      //------------------------------------------------------------------------
-      if( type & ReadyToWrite ) type = ReadyToRead;
-    }
-    else if( pTlsHSRevert == WriteOnRead )
-    {
-      //------------------------------------------------------------------------
-      // In this case we would like to call the OnWrite routine on the Read event
-      //------------------------------------------------------------------------
-      if( type & ReadyToRead ) type = ReadyToWrite;
-    }
-
+    type = pSocket->MapEvent( type );
     AsyncSocketHandler::Event( type, socket );
   }
 
@@ -82,30 +64,15 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncTlsSocketHandler::OnConnectionReturn()
   {
-    static XrdTlsContext tlsContext; // Need only one thread-safe instance
-
     AsyncSocketHandler::OnConnectionReturn();
-
 
     if( pSocket->GetStatus() == Socket::Connected )
     {
       //------------------------------------------------------------------------
-      // Initialize the TLS layer
+      // Upgrade socket to TLS
       //------------------------------------------------------------------------
-      //try???? This should be under a try-catch! TODO
-      pTls.reset( new Tls( tlsContext, pSocket->GetFD() ) );
-
-      //------------------------------------------------------------------------
-      // Make sure the socket is uncorked before we do the TLS/SSL hand shake
-      //------------------------------------------------------------------------
-      Status st = pSocket->Uncork();
-      if( !st.IsOK() )
-      {
-        Log *log = DefaultEnv::GetLog();
-        log->Error( AsyncSockMsg, "[%s] Unable to uncork the socket: %s",
-                    pStreamName.c_str(), strerror( errno ) );
-        pStream->OnConnectError( pSubStreamNum, st );
-      }
+      // what to do with status ??? todo
+      pSocket->EnableEncryption( this );
     }
   }
 
@@ -135,8 +102,6 @@ namespace XrdCl
     if( !pWrtHdrDone )
     {
       Status st = WriteCurrentMessage( pOutgoing );
-      OnTlsWrite( st );
-
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -151,7 +116,7 @@ namespace XrdCl
     if( pOutHandler->IsRaw() )
     {
       uint32_t bytesWritten = 0;
-      Status st = pOutHandler->WriteMessageBody( pSocket, bytesWritten ); // TODO this needs a TlsSocket !!!
+      Status st = pOutHandler->WriteMessageBody( pSocket, bytesWritten );
 
       if( !st.IsOK() )
       {
@@ -203,8 +168,6 @@ namespace XrdCl
     }
 
     st = WriteCurrentMessage( pHSOutgoing );
-    OnTlsWrite( st );
-
     if( !st.IsOK() )
     {
       OnFaultWhileHandshaking( st );
@@ -245,7 +208,7 @@ namespace XrdCl
     while( leftToBeWritten )
     {
       int bytesWritten = 0;
-      Status status = pTls->Write( msg->GetBufferAtCursor(), leftToBeWritten, bytesWritten );
+      Status status = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten, bytesWritten );
 
       //------------------------------------------------------------------------
       // Writing operation would block! So we are done for now, but we will
@@ -301,9 +264,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pHeaderDone )
     {
-      st = pTransport->GetHeader( pIncoming, pTls.get() );
-      OnTlsRead( st );
-
+      st = pTransport->GetHeader( pIncoming, pSocket );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -332,9 +293,7 @@ namespace XrdCl
     if( pIncHandler.first )
     {
       uint32_t bytesRead = 0;
-      st = pIncHandler.first->ReadMessageBody( pIncoming, pTls.get(), bytesRead );
-      OnTlsRead( st );
-
+      st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket, bytesRead );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -349,9 +308,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else
     {
-      st = pTransport->GetBody( pIncoming, pTls.get() );
-      OnTlsRead( st );
-
+      st = pTransport->GetBody( pIncoming, pSocket );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -383,8 +340,6 @@ namespace XrdCl
     // reading has finished
     //--------------------------------------------------------------------------
     Status st = ReadMessage( pHSIncoming );
-    OnTlsRead( st );
-
     if( !st.IsOK() )
     {
       OnFaultWhileHandshaking( st );
@@ -394,21 +349,6 @@ namespace XrdCl
     if( st.code == suRetry ) return;
 
     AsyncSocketHandler::HandleHandShake();
-
-    //--------------------------------------------------------------------------
-    // Once the handshake is done we can cork the socket
-    //--------------------------------------------------------------------------
-//    if( pHandShakeDone )
-//    {
-//      Status st = pSocket->Cork();
-//      if( !st.IsOK() )
-//      {
-//        Log *log = DefaultEnv::GetLog();
-//        log->Error( AsyncSockMsg, "[%s] Unable to cork the socket: %s",
-//                    pStreamName.c_str(), strerror( errno ) );
-//        OnFault( st );
-//      }
-//    }
   }
 
   //----------------------------------------------------------------------------
@@ -426,7 +366,7 @@ namespace XrdCl
     Log    *log = DefaultEnv::GetLog();
     if( !pHeaderDone )
     {
-      st = pTransport->GetHeader( toRead, pTls.get() );
+      st = pTransport->GetHeader( toRead, pSocket );
       if( st.IsOK() && st.code == suDone )
       {
         log->Dump( AsyncSockMsg,
@@ -438,121 +378,13 @@ namespace XrdCl
         return st;
     }
 
-    st = pTransport->GetBody( toRead, pTls.get() );
+    st = pTransport->GetBody( toRead, pSocket );
     if( st.IsOK() && st.code == suDone )
     {
       log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
                  pStreamName.c_str(), toRead->GetSize() );
     }
     return st;
-  }
-
-  //------------------------------------------------------------------------
-  // Process the status of an operation that issues a TLS write
-  //------------------------------------------------------------------------
-  void AsyncTlsSocketHandler::OnTlsWrite( Status& status )
-  {
-    //----------------------------------------------------------------------
-    // There's nothing to be done if the write simply failed
-    //----------------------------------------------------------------------
-    if( !status.IsOK() ) return;
-
-    if( pTls->NeedHandShake() )
-    {
-      //--------------------------------------------------------------------
-      // Make sure the socket is uncorked before we do the TLS/SSL
-      // hand shake
-      //--------------------------------------------------------------------
-      if( pSocket->IsCorked() )
-      {
-        Status st = pSocket->Uncork();
-        if( !st.IsOK() )
-        {
-          Log *log = DefaultEnv::GetLog();
-          log->Error( AsyncSockMsg, "[%s] Unable to uncork the socket: %s",
-                      pStreamName.c_str(), strerror( errno ) );
-          status = st;
-        }
-      }
-
-      //--------------------------------------------------------------------
-      // Check if we need to switch on a revert state
-      //--------------------------------------------------------------------
-      if( status.IsOK() && status.code == suRetry && status.errNo == SSL_ERROR_WANT_READ )
-      {
-        pTlsHSRevert = WriteOnRead;
-        Status st = DisableUplink();
-        if( !st.IsOK() ) status = st;
-        //------------------------------------------------------------------
-        // Return early so the revert state wont get cleared
-        //------------------------------------------------------------------
-        return;
-      }
-    }
-
-    //----------------------------------------------------------------------
-    // If we got up until here we need to clear the revert state
-    //----------------------------------------------------------------------
-    if( pTlsHSRevert == WriteOnRead )
-    {
-      Status st = EnableUplink();
-      if( !st.IsOK() ) status = st;
-    }
-    pTlsHSRevert = None;
-  }
-
-  //------------------------------------------------------------------------
-  // Process the status of an operation that issues a TLS read
-  //------------------------------------------------------------------------
-  void AsyncTlsSocketHandler::OnTlsRead( Status& status )
-  {
-    //----------------------------------------------------------------------
-    // There's nothing to be done if the write simply failed
-    //----------------------------------------------------------------------
-    if( !status.IsOK() ) return;
-
-    if( pTls->NeedHandShake() )
-    {
-      //--------------------------------------------------------------------
-      // Make sure the socket is uncorked before we do the TLS/SSL
-      // hand shake
-      //--------------------------------------------------------------------
-      if( pSocket->IsCorked() )
-      {
-        Status st = pSocket->Uncork();
-        if( !st.IsOK() )
-        {
-          Log *log = DefaultEnv::GetLog();
-          log->Error( AsyncSockMsg, "[%s] Unable to uncork the socket: %s",
-                      pStreamName.c_str(), strerror( errno ) );
-          status = st;
-        }
-      }
-
-      //--------------------------------------------------------------------
-      // Check if we need to switch on a revert state
-      //--------------------------------------------------------------------
-      if( status.code == suRetry && status.errNo == SSL_ERROR_WANT_WRITE )
-      {
-        pTlsHSRevert = ReadOnWrite;
-        Status st = EnableUplink();
-        if( !st.IsOK() ) status = st;
-        //------------------------------------------------------------------
-        // Return early so the revert state wont get cleared
-        //------------------------------------------------------------------
-        return;
-      }
-    }
-
-    //----------------------------------------------------------------------
-    // If we got up until here we need to clear the revert state
-    //----------------------------------------------------------------------
-    if( pTlsHSRevert == ReadOnWrite )
-    {
-      Status st = DisableUplink();
-      if( !st.IsOK() ) status = st;
-    }
-    pTlsHSRevert = None;
   }
 }
 

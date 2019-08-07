@@ -50,7 +50,6 @@ namespace XrdCl
   class SIDManager;
   class URL;
   class LocalFileHandler;
-  class Tls;
   class Socket;
 
   //----------------------------------------------------------------------------
@@ -258,21 +257,6 @@ namespace XrdCl
                                       uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
-      //! Read message body directly from TLS layer - called if Examine returns
-      //! Raw flag - only TLS related errors may be returned here
-      //!
-      //! @param msg       the corresponding message header
-      //! @param socket    the socket to read from
-      //! @param bytesRead number of bytes read by the method
-      //! @return          stOK & suDone if the whole body has been processed
-      //!                  stOK & suRetry if more data is needed
-      //!                  stError on failure
-      //------------------------------------------------------------------------
-      virtual Status ReadMessageBody( Message   *msg,
-                                      Tls       *tls,
-                                      uint32_t  &bytesRead );
-
-      //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
       //!
       //! @param event     type of the event
@@ -405,43 +389,31 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
-      //! Read message body (implementation)
-      //------------------------------------------------------------------------
-      template<class SRC>
-      Status ReadMessageBodyImpl( Message  *msg,
-                                  SRC       src,
-                                  uint32_t &bytesRead );
-
-      //------------------------------------------------------------------------
       //! Handle a kXR_read in raw mode
       //------------------------------------------------------------------------
-      template<class SRC>
       Status ReadRawRead( Message  *msg,
-                          SRC       src,
+                          Socket   *socket,
                           uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Handle a kXR_readv in raw mode
       //------------------------------------------------------------------------
-      template<class SRC>
       Status ReadRawReadV( Message  *msg,
-                           SRC       src,
+                           Socket   *socket,
                            uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Handle anything other than kXR_read and kXR_readv in raw mode
       //------------------------------------------------------------------------
-      template<class SRC>
       Status ReadRawOther( Message  *msg,
-                           SRC       src,
+                           Socket   *socket,
                            uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
       //! and pAsyncOffset
       //------------------------------------------------------------------------
-      template<class SRC>
-      Status ReadAsync( SRC src, uint32_t &btesRead );
+      Status ReadAsync( Socket *socket, uint32_t &btesRead );
 
       //------------------------------------------------------------------------
       //! Recover error

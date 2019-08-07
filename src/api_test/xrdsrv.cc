@@ -15,9 +15,10 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdTls/XrdTlsContext.hh"
 
 /* Global SSL context */
-SSL_CTX *ctx;
+//SSL_CTX *ctx;
 
 void die(const char *msg) {
   perror(msg);
@@ -32,42 +33,44 @@ void handle_error(const char *file, int lineno, const char *msg) {
 
 #define int_error(msg) handle_error(__FILE__, __LINE__, msg)
 
-void ssl_init(const char * certfile, const char* keyfile)
-{
-  printf("initialising SSL\n");
-
-  /* SSL library initialisation */
-  SSL_library_init();
-  OpenSSL_add_all_algorithms();
-  SSL_load_error_strings();
-  ERR_load_BIO_strings();
-  ERR_load_crypto_strings();
-
-  /* create the SSL server context */
-  ctx = SSL_CTX_new(SSLv23_method());
-  if (!ctx)
-    die("SSL_CTX_new()");
-
-  /* Load certificate and private key files, and check consistency */
-  if (certfile && keyfile) {
-    if (SSL_CTX_use_certificate_file(ctx, certfile,  SSL_FILETYPE_PEM) != 1)
-      int_error("SSL_CTX_use_certificate_file failed");
-
-    if (SSL_CTX_use_PrivateKey_file(ctx, keyfile, SSL_FILETYPE_PEM) != 1)
-      int_error("SSL_CTX_use_PrivateKey_file failed");
-
-    /* Make sure the key and certificate file match. */
-    if (SSL_CTX_check_private_key(ctx) != 1)
-      int_error("SSL_CTX_check_private_key failed");
-    else
-      printf("certificate and private key loaded and verified\n");
-  }
-
-  /* Recommended to avoid SSLv2 & SSLv3 */
-  SSL_CTX_set_options(ctx, SSL_OP_ALL|SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3);
-
-  SSL_CTX_set_mode( ctx, SSL_MODE_AUTO_RETRY );
-}
+//void ssl_init(const char * certfile, const char* keyfile)
+//{
+//  printf("initialising SSL\n");
+//
+//  /* SSL library initialisation */
+//  SSL_library_init();
+//  OpenSSL_add_all_algorithms();
+//  SSL_load_error_strings();
+//  ERR_load_BIO_strings();
+//  ERR_load_crypto_strings();
+//
+//  /* create the SSL server context */
+//  ctx = SSL_CTX_new(SSLv23_method());
+//  if (!ctx)
+//    die("SSL_CTX_new()");
+//
+//  /* Load certificate and private key files, and check consistency */
+//  if (certfile && keyfile) {
+//    if (SSL_CTX_use_certificate_file(ctx, certfile,  SSL_FILETYPE_PEM) != 1)
+//      int_error("SSL_CTX_use_certificate_file failed");
+//
+//    if (SSL_CTX_use_PrivateKey_file(ctx, keyfile, SSL_FILETYPE_PEM) != 1)
+//      int_error("SSL_CTX_use_PrivateKey_file failed");
+//
+//    /* Make sure the key and certificate file match. */
+//    if (SSL_CTX_check_private_key(ctx) != 1)
+//      int_error("SSL_CTX_check_private_key failed");
+//    else
+//      printf("certificate and private key loaded and verified\n");
+//  }
+//
+//  /* Recommended to avoid SSLv2 & SSLv3 */
+//  SSL_CTX_set_options(ctx, SSL_OP_ALL|SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3|SSL_OP_NO_COMPRESSION);
+//
+//  SSL_CTX_set_mode( ctx, SSL_MODE_AUTO_RETRY );
+//
+//  SSL_CTX_set_cipher_list(ctx, "ALL:!LOW:!EXP:!MD5:!MD2");
+//}
 
 void DoInitHS( SSL *ssl )
 {
@@ -211,7 +214,9 @@ void HandleCloseReq( SSL *ssl, ClientRequestHdr *hdr )
 
 int main(int argc, char const *argv[])
 {
-    ssl_init("server.crt", "server.key"); // see README to create these files
+    XrdTlsContext tlsctx("server.crt", "server.key");
+
+//    ssl_init("server.crt", "server.key"); // see README to create these files
 
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
@@ -249,15 +254,18 @@ int main(int argc, char const *argv[])
         perror("listen");
         exit(EXIT_FAILURE);
     }
+    std::cout << "Waiting to accept new TCP connection!" << std::endl;
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
                        (socklen_t*)&addrlen))<0)
     {
         perror("accept");
         exit(EXIT_FAILURE);
     }
+    std::cout << "New TCP connection accepted!" << std::endl;
+
 
     BIO *sbio = BIO_new_socket( new_socket, BIO_NOCLOSE );
-    SSL *ssl = SSL_new( ctx );
+    SSL *ssl = SSL_new( tlsctx.Context() );
     SSL_set_accept_state( ssl );
     SSL_set_bio( ssl, sbio, sbio );
     int rc = SSL_accept( ssl );

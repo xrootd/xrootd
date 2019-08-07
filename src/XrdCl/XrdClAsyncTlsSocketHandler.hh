@@ -22,6 +22,7 @@
 
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClTlsSocket.hh"
 #include <memory>
 
 namespace XrdCl
@@ -104,50 +105,10 @@ namespace XrdCl
       Status ReadMessage( Message *&toRead );
 
       //------------------------------------------------------------------------
-      // Process the status of an operation that issues a TLS write
-      //
-      // - If the operation failed there is nothing to be done.
-      //
-      // - If the operation succeeded with suRetry it might be that TLS layer
-      //   asked to reissue the operation but on a read event (SSL_ERROR_WANT_READ)
-      //   due to hand-shake re-negotiations, in this case we need to set a
-      //   respective TLS revert state (pTlsHSRevert=WriteOnRead).
-      //
-      // - Otherwise we need to clear the revert state (pTlsHSRevert=None)
-      //
-      //------------------------------------------------------------------------
-      inline void OnTlsWrite( Status& st );
-
-      //------------------------------------------------------------------------
-      // Process the status of an operation that issues a TLS read
-      //
-      // - If the operation failed there is nothing to be done.
-      //
-      // - If the operation succeeded with suRetry it might be that TLS layer
-      //   asked to reissue the operation but on a write event (SSL_ERROR_WANT_WRITE)
-      //   due to hand-shake re-negotiations, in this case we need to set a
-      //   respective TLS revert state (pTlsHSRevert=ReadOnWrite).
-      //
-      // - Otherwise we need to clear the revert state (pTlsHSRevert=None)
-      //
-      //------------------------------------------------------------------------
-      inline void OnTlsRead( Status& st );
-
-      //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
       TransportHandler              *pTransport;
-      std::unique_ptr<Tls>           pTls;
       bool                           pWrtHdrDone;
-      //------------------------------------------------------------------------
-      // In case during TLS hand-shake WantRead has been returned on write or
-      // WantWrite has been returned on read we need to flip the following events.
-      //
-      // None        : all events should be processed normally
-      // ReadOnWrite : on write event the OnRead routines should be called
-      // WriteOnRead : on read event the OnWrite routines should be called
-      //------------------------------------------------------------------------
-      TlsHSRevert                    pTlsHSRevert;
   };
 }
 

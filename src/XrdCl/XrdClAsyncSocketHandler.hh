@@ -148,6 +148,11 @@ namespace XrdCl
         return pLastActivity;
       }
 
+      Status EnableEncryption()
+      {
+        return pSocket->EnableEncryption( this );
+      }
+
     protected:
 
       //------------------------------------------------------------------------

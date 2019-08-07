@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClOptimizers.hh"
+#include "XrdCl/XrdClTlsSocket.hh"
 #include <netinet/tcp.h>
 
 namespace XrdCl
@@ -221,6 +222,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::Event( uint8_t type, XrdCl::Socket */*socket*/ )
   {
+//    //--------------------------------------------------------------------------
+//    // First check if the socket itself wants to apply some mapping on the
+//    // event. E.g. in case of TLS socket it might want to map read events to
+//    // write events and vice-versa.
+//    //--------------------------------------------------------------------------
+    type = pSocket->MapEvent( type );
+
     //--------------------------------------------------------------------------
     // Read event
     //--------------------------------------------------------------------------
@@ -475,20 +483,23 @@ namespace XrdCl
     // Try to write down the current message
     //--------------------------------------------------------------------------
     Message  *msg             = toWrite;
-    uint32_t  leftToBeWritten = msg->GetSize()-msg->GetCursor();
+    size_t    leftToBeWritten = msg->GetSize()-msg->GetCursor();
 
     while( leftToBeWritten )
     {
-      int status = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten );
-      if( status <= 0 )
+      int bytesWritten = 0;
+      Status st = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten, bytesWritten );
+
+      if( !st.IsOK() )
       {
-        Status ret = Socket::ClassifyErrno( errno );
-        if( !ret.IsOK() )
-          toWrite->SetCursor( 0 );
-        return ret;
+        toWrite->SetCursor( 0 );
+        return st;
       }
-      msg->AdvanceCursor( status );
-      leftToBeWritten -= status;
+
+      if( st.code == suRetry ) return st;
+
+      msg->AdvanceCursor( bytesWritten );
+      leftToBeWritten -= bytesWritten;
     }
 
     //--------------------------------------------------------------------------

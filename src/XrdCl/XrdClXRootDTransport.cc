@@ -266,10 +266,9 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Read message header (implementation)
+  // Read message header from socket
   //----------------------------------------------------------------------------
-  template<typename SRC>
-  Status XRootDTransport::GetHeaderImpl( Message *message, SRC src )
+  Status XRootDTransport::GetHeader( Message *message, Socket *socket )
   {
     //--------------------------------------------------------------------------
     // A new message - allocate the space needed for the header
@@ -282,11 +281,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( message->GetCursor() < 8 )
     {
-      uint32_t leftToBeRead = 8-message->GetCursor();
+      size_t leftToBeRead = 8 - message->GetCursor();
       while( leftToBeRead )
       {
         int bytesRead = 0;
-        Status status = src->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
+        Status status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
 
         if( !status.IsOK() || status.code == suRetry )
           return status;
@@ -306,40 +305,15 @@ namespace XrdCl
     return Status( stError, errInternal );
   }
 
-  template
-  Status XRootDTransport::GetHeaderImpl<Socket*>( Message *message,
-                                                  Socket  *sfd );
-
-  template
-  Status XRootDTransport::GetHeaderImpl<Tls*>( Message  *message,
-                                               Tls      *tls );
-
   //----------------------------------------------------------------------------
-  // Read message header from socket
+  // Read message body from socket
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetHeader( Message *message, Socket *socket )
-  {
-    return GetHeaderImpl( message, socket );
-  }
-
-  //----------------------------------------------------------------------------
-  // Read message header from TLS layer
-  //----------------------------------------------------------------------------
-  Status XRootDTransport::GetHeader( Message *message, Tls *tls )
-  {
-    return GetHeaderImpl<Tls*>( message, tls );
-  }
-
-  //----------------------------------------------------------------------------
-  // Read message body (implementation)
-  //----------------------------------------------------------------------------
-  template<typename SRC>
-  Status XRootDTransport::GetBodyImpl( Message *message, SRC src )
+  Status XRootDTransport::GetBody( Message *message, Socket *socket )
   {
     //--------------------------------------------------------------------------
     // Retrieve the body
     //--------------------------------------------------------------------------
-    uint32_t leftToBeRead = 0;
+    size_t   leftToBeRead = 0;
     uint32_t bodySize = *(uint32_t*)(message->GetBuffer(4));
 
     if( message->GetCursor() == 8 )
@@ -349,7 +323,7 @@ namespace XrdCl
     while( leftToBeRead )
     {
       int bytesRead = 0;
-      Status status = src->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead);
+      Status status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
 
       if( !status.IsOK() || status.code == suRetry )
         return status;
@@ -358,29 +332,6 @@ namespace XrdCl
       message->AdvanceCursor( bytesRead );
     }
     return Status( stOK, suDone );
-  }
-
-  template
-  Status XRootDTransport::GetBodyImpl<Socket*>( Message *message, Socket *socket );
-
-  template
-  Status XRootDTransport::GetBodyImpl<Tls*>( Message  *message,
-                                             Tls      *tls );
-
-  //----------------------------------------------------------------------------
-  // Read message body from socket
-  //----------------------------------------------------------------------------
-  Status XRootDTransport::GetBody( Message *message, Socket *socket )
-  {
-    return GetBodyImpl( message, socket );
-  }
-
-  //----------------------------------------------------------------------------
-  // Read message body from TLS layer
-  //----------------------------------------------------------------------------
-  Status XRootDTransport::GetBody( Message *message, Tls *tls )
-  {
-    return GetBodyImpl( message, tls );
   }
 
   //----------------------------------------------------------------------------

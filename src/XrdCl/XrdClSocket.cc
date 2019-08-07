@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClTls.hh"
 
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -38,6 +39,16 @@
 
 namespace XrdCl
 {
+  //------------------------------------------------------------------------
+  // Desctuctor
+  //------------------------------------------------------------------------
+  Socket::~Socket()
+  {
+    if( pTls ) delete pTls;
+
+    Close();
+  };
+
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
@@ -432,16 +443,24 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Portable wrapper around SIGPIPE free send
   //----------------------------------------------------------------------------
-  ssize_t Socket::Send( void *buffer, uint32_t size )
+  Status Socket::Send( const char *buffer, size_t size, int &bytesWritten )
   {
+    if( pTls ) return pTls->Send( buffer, size, bytesWritten );
+
     //--------------------------------------------------------------------------
     // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux
     //--------------------------------------------------------------------------
 #ifdef __linux__
-    return ::send( pSocket, buffer, size, MSG_NOSIGNAL );
+    int status = ::send( pSocket, buffer, size, MSG_NOSIGNAL );
 #else
-    return ::write( pSocket, buffer, size );
+    int status = ::write( pSocket, buffer, size );
 #endif
+
+    if( status <= 0 )
+      return ClassifyErrno( errno );
+
+    bytesWritten = status;
+    return Status();
   }
 
   //----------------------------------------------------------------------------
@@ -648,6 +667,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Socket::Read( char *buffer, size_t size, int &bytesRead )
   {
+    if( pTls ) return pTls->Read( buffer, size, bytesRead );
+
     int status = ::read( pSocket, buffer, size );
 
     // if the server shut down the socket declare a socket error (it
@@ -656,7 +677,7 @@ namespace XrdCl
       return Status( stError, errSocketError, errno );
 
     if( status < 0 )
-      return Socket::ClassifyErrno( errno );
+      return ClassifyErrno( errno );
 
     bytesRead = status;
     return Status();
@@ -710,4 +731,35 @@ namespace XrdCl
     //----------------------------------------------------------------------
     return Cork();
   }
+
+  //------------------------------------------------------------------------
+  // Do special event mapping if applicable
+  //------------------------------------------------------------------------
+  uint8_t Socket::MapEvent( uint8_t event )
+  {
+    if( pTls ) return pTls->MapEvent( event );
+    return event;
+  }
+
+  //------------------------------------------------------------------------
+  // Enable encryption
+  //------------------------------------------------------------------------
+  Status Socket::EnableEncryption( AsyncSocketHandler *socketHandler )
+  {
+    if( pTls ) return Status();
+
+    try
+    {
+      pTls = new Tls( this, socketHandler );
+    }
+    catch( std::invalid_argument& ex )
+    {
+      Status( stError, errSocketError );
+    }
+
+    return Status();
+  }
+
 }
+
+

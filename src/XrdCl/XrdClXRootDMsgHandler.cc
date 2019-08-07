@@ -809,53 +809,22 @@ namespace XrdCl
                                             Socket   *socket,
                                             uint32_t &bytesRead )
   {
-    return ReadMessageBodyImpl( msg, socket, bytesRead );
+    ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
+    uint16_t reqId = ntohs( req->header.requestid );
+    if( reqId == kXR_read )
+      return ReadRawRead( msg, socket, bytesRead );
+
+    if( reqId == kXR_readv )
+      return ReadRawReadV( msg, socket, bytesRead );
+
+    return ReadRawOther( msg, socket, bytesRead );
   }
-
-  //----------------------------------------------------------------------------
-  // Read message body directly from TLS layer
-  //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadMessageBody( Message  *msg,
-                                            Tls      *tls,
-                                            uint32_t &bytesRead )
-  {
-    return ReadMessageBodyImpl( msg, tls, bytesRead );
-  }
-
-  //----------------------------------------------------------------------------
-  // Read message body (implementation)
-  //----------------------------------------------------------------------------
-  template<class SRC>
-  Status XRootDMsgHandler::ReadMessageBodyImpl( Message  *msg,
-                                                SRC       src,
-                                                uint32_t &bytesRead )
-  {
-      ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
-      uint16_t reqId = ntohs( req->header.requestid );
-      if( reqId == kXR_read )
-        return ReadRawRead( msg, src, bytesRead );
-
-      if( reqId == kXR_readv )
-        return ReadRawReadV( msg, src, bytesRead );
-
-      return ReadRawOther( msg, src, bytesRead );
-  }
-
-  template
-  Status XRootDMsgHandler::ReadMessageBodyImpl<Socket*>( Message  *msg,
-                                                         Socket   *socket,
-                                                         uint32_t &bytesRead );
-  template
-  Status XRootDMsgHandler::ReadMessageBodyImpl<Tls*>( Message  *msg,
-                                                      Tls      *src,
-                                                      uint32_t &bytesRead );
 
   //----------------------------------------------------------------------------
   // Handle a kXR_read in raw mode
   //----------------------------------------------------------------------------
-  template<class SRC>
   Status XRootDMsgHandler::ReadRawRead( Message  *msg,
-                                        SRC       src,
+                                        Socket   *socket,
                                         uint32_t &bytesRead )
   {
     Log *log = DefaultEnv::GetLog();
@@ -890,29 +859,19 @@ namespace XrdCl
     // instead of just quitting in order to keep the stream sane.
     //--------------------------------------------------------------------------
     if( pChunkStatus.front().sizeError )
-      return ReadRawOther( msg, src, bytesRead );
+      return ReadRawOther( msg, socket, bytesRead );
 
     //--------------------------------------------------------------------------
     // Read the data
     //--------------------------------------------------------------------------
-    return ReadAsync( src, bytesRead );
+    return ReadAsync( socket, bytesRead );
   }
-
-  template
-  Status XRootDMsgHandler::ReadRawRead<Socket*>( Message   *msg,
-                                                 Socket    *socket,
-                                                 uint32_t  &bytesRead );
-  template
-  Status XRootDMsgHandler::ReadRawRead<Tls*>( Message   *msg,
-                                              Tls       *tls,
-                                              uint32_t  &bytesRead );
 
   //----------------------------------------------------------------------------
   // Handle a kXR_readv in raw mode
   //----------------------------------------------------------------------------
-  template<class SRC>
   Status XRootDMsgHandler::ReadRawReadV( Message  *msg,
-                                         SRC       src,
+                                         Socket   *socket,
                                          uint32_t &bytesRead )
   {
     if( pReadVRawMsgOffset == pAsyncMsgSize )
@@ -925,7 +884,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pReadVRawMsgDiscard )
     {
-      Status st = ReadAsync( src, bytesRead );
+      Status st = ReadAsync( socket, bytesRead );
 
       if( st.IsOK() && st.code == suDone )
       {
@@ -986,7 +945,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Do the reading
       //------------------------------------------------------------------------
-      Status st = ReadAsync( src, bytesRead );
+      Status st = ReadAsync( socket, bytesRead );
 
       //------------------------------------------------------------------------
       // Finalize the header and set everything up for the actual buffer
@@ -1082,7 +1041,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Read the body
     //--------------------------------------------------------------------------
-    Status st = ReadAsync( src, bytesRead );
+    Status st = ReadAsync( socket, bytesRead );
 
     if( st.IsOK() && st.code == suDone )
     {
@@ -1103,22 +1062,11 @@ namespace XrdCl
     return st;
   }
 
-  template
-  Status XRootDMsgHandler::ReadRawReadV<Socket*>( Message  *msg,
-                                                  Socket   *socket,
-                                                  uint32_t &bytesRead );
-
-  template
-  Status XRootDMsgHandler::ReadRawReadV<Tls*>( Message  *msg,
-                                               Tls      *sfd,
-                                               uint32_t &bytesRead );
-
   //----------------------------------------------------------------------------
   // Handle anything other than kXR_read and kXR_readv in raw mode
   //----------------------------------------------------------------------------
-  template<class SRC>
   Status XRootDMsgHandler::ReadRawOther( Message  *msg,
-                                         SRC       src,
+                                         Socket   *socket,
                                          uint32_t &bytesRead )
   {
     if( !pOtherRawStarted )
@@ -1129,7 +1077,7 @@ namespace XrdCl
       pOtherRawStarted = true;
     }
 
-    Status st = ReadAsync( src, bytesRead );
+    Status st = ReadAsync( socket, bytesRead );
 
     if( st.IsOK() && st.code == suRetry )
       return st;
@@ -1141,22 +1089,11 @@ namespace XrdCl
     return st;
   }
 
-  template
-  Status XRootDMsgHandler::ReadRawOther<Socket*>( Message  *msg,
-                                                  Socket   *socket,
-                                                  uint32_t &bytesRead );
-
-  template
-  Status XRootDMsgHandler::ReadRawOther<Tls*>( Message  *msg,
-                                               Tls      *tls,
-                                               uint32_t &bytesRead );
-
   //--------------------------------------------------------------------------
   // Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
   // and pAsyncOffset
   //--------------------------------------------------------------------------
-  template<class SRC>
-  Status XRootDMsgHandler::ReadAsync( SRC src, uint32_t &bytesRead )
+  Status XRootDMsgHandler::ReadAsync( Socket *socket, uint32_t &bytesRead )
   {
     char *buffer = pAsyncReadBuffer;
     buffer += pAsyncOffset;
@@ -1165,7 +1102,7 @@ namespace XrdCl
       uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
       int btsRead = 0;
 
-      Status status = src->Read( buffer, toBeRead, btsRead );
+      Status status = socket->Read( buffer, toBeRead, btsRead );
 
       if( !status.IsOK() || status.code == suRetry )
         return status;
@@ -1176,13 +1113,6 @@ namespace XrdCl
     }
     return Status( stOK, suDone );
   }
-
-  template
-  Status XRootDMsgHandler::ReadAsync<Socket*>( Socket *socket, uint32_t &bytesRead );
-
-  template
-  Status XRootDMsgHandler::ReadAsync<Tls*>( Tls      *tls,
-                                            uint32_t &bytesRead );
 
   //----------------------------------------------------------------------------
   // We're here when we requested sending something over the wire
@@ -1245,28 +1175,16 @@ namespace XrdCl
     {
       char     *buffer          = (char*)(*pChunkList)[i].buffer;
       uint32_t  size            = (*pChunkList)[i].length;
-      uint32_t  leftToBeWritten = size - pAsyncOffset;
+      size_t    leftToBeWritten = size - pAsyncOffset;
 
       while( leftToBeWritten )
       {
-        int status = socket->Send( buffer + pAsyncOffset, leftToBeWritten );
-        if( status <= 0 )
-        {
-          //--------------------------------------------------------------------
-          // Writing operation would block! So we are done for now, but we will
-          // return here
-          //--------------------------------------------------------------------
-          if( errno == EAGAIN || errno == EWOULDBLOCK )
-            return Status( stOK, suRetry );
-
-          //--------------------------------------------------------------------
-          // Actual socket error error!
-          //--------------------------------------------------------------------
-          return Status( stError, errSocketError, errno );
-        }
-        pAsyncOffset    += status;
-        bytesWritten    += status;
-        leftToBeWritten -= status;
+        int bytesWritten = 0;
+        Status st = socket->Send( buffer + pAsyncOffset, leftToBeWritten, bytesWritten );
+        if( !st.IsOK() || st.code == suRetry ) return st;
+        pAsyncOffset    += bytesWritten;
+        bytesWritten    += bytesWritten;
+        leftToBeWritten -= bytesWritten;
       }
       //------------------------------------------------------------------------
       // Remember that we have moved to the next chunk, also clear the offset

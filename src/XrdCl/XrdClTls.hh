@@ -23,12 +23,14 @@
 #include <openssl/ssl.h>
 
 #include "XrdTls/XrdTlsSocket.hh"
-#include "XrdCl/XrdClStatus.hh"
 
-class XrdTlsContext;
+#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClAsyncSocketHandler.hh"
 
 namespace XrdCl
 {
+  class Socket;
+
   //----------------------------------------------------------------------------
   //! TLS layer for socket connection
   //----------------------------------------------------------------------------
@@ -39,12 +41,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor - creates async TLS layer for given socker file descriptor
       //------------------------------------------------------------------------
-      Tls( XrdTlsContext &ctx, int sfd );
+      Tls( Socket *socket, AsyncSocketHandler *socketHandler );
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      ~Tls();
+      ~Tls()
+      {
+      }
 
       //------------------------------------------------------------------------
       //! Read through the TLS layer from the socket
@@ -56,18 +60,29 @@ namespace XrdCl
       //! Write through the TLS layer to the socket
       //! If necessary, will establish a TLS/SSL session.
       //------------------------------------------------------------------------
-      Status Write( char *buffer, size_t size, int &bytesWritten );
+      Status Send( const char *buffer, size_t size, int &bytesWritten );
 
       //------------------------------------------------------------------------
-      //! @return  :  true if the TLS/SSL session is not established yet,
-      //!             false otherwise
+      //! Map:
+      //!     * in case the TLS layer requested reads on writes map
+      //!       ReadyToWrite to ReadyToRead
+      //!     * in case the TLS layer requested writes on reads map
+      //!       ReadyToRead to ReadyToWrite
       //------------------------------------------------------------------------
-      bool NeedHandShake()
-      {
-        return io.NeedHandShake();
-      }
+      uint8_t MapEvent( uint8_t event );
 
     private:
+
+      //------------------------------------------------------------------------
+      //! Flags to indicate what is the TLS hand-shake revert state
+      //!
+      //! - None        : there is no revert state
+      //! - ReadOnWrite : OnRead routines will be called on write event due to
+      //!                 TLS handshake
+      //! - WriteOnRead : OnWrite routines will be called on read event due to
+      //!                 TLS handshake
+      //------------------------------------------------------------------------
+      enum TlsHSRevert{ None, ReadOnWrite, WriteOnRead };
 
       //------------------------------------------------------------------------
       //! Translate OPEN SSL error code into XRootD Status
@@ -75,9 +90,29 @@ namespace XrdCl
       Status ToStatus( int rc );
 
       //------------------------------------------------------------------------
-      //! The TSL I/O wrapper
+      //! The underlying vanilla socket
       //------------------------------------------------------------------------
-      XrdTlsSocket io;
+      Socket                       *pSocket;
+
+      //------------------------------------------------------------------------
+      //! The TSL I/O wrapper over socket
+      //------------------------------------------------------------------------
+      std::unique_ptr<XrdTlsSocket> pTls;
+
+      //------------------------------------------------------------------------
+      // In case during TLS hand-shake WantRead has been returned on write or
+      // WantWrite has been returned on read we need to flip the following events.
+      //
+      // None        : all events should be processed normally
+      // ReadOnWrite : on write event the OnRead routines should be called
+      // WriteOnRead : on read event the OnWrite routines should be called
+      //------------------------------------------------------------------------
+      TlsHSRevert                   pTlsHSRevert;
+
+      //------------------------------------------------------------------------
+      //! Socket handler (for enabling/disabling write notification)
+      //------------------------------------------------------------------------
+      AsyncSocketHandler           *pSocketHandler;
   };
 }
 
