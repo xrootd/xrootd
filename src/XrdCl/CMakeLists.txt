@@ -64,7 +64,6 @@ add_library(
   XrdClClassicCopyJob.cc         XrdClClassicCopyJob.hh
   XrdClThirdPartyCopyJob.cc      XrdClThirdPartyCopyJob.hh
   XrdClAsyncSocketHandler.cc     XrdClAsyncSocketHandler.hh
-  XrdClAsyncTlsSocketHandler.cc  XrdClAsyncTlsSocketHandler.hh
   XrdClChannelHandlerList.cc     XrdClChannelHandlerList.hh
   XrdClForkHandler.cc            XrdClForkHandler.hh
   XrdClCheckSumManager.cc        XrdClCheckSumManager.hh

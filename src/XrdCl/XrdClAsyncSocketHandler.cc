@@ -55,7 +55,8 @@ namespace XrdCl
     pOutMsgDone( false ),
     pOutHandler( 0 ),
     pIncMsgSize( 0 ),
-    pOutMsgSize( 0 )
+    pOutMsgSize( 0 ),
+    encrypt( false )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -369,6 +370,19 @@ namespace XrdCl
       pStream->OnConnectError( pSubStreamNum,
                                Status( stFatal, errPollerError ) );
       return;
+    }
+
+    //--------------------------------------------------------------------------
+    // TODO this is temporary
+    //--------------------------------------------------------------------------
+    if( encrypt )
+    {
+      if( !pSocket->EnableEncryption( this ).IsOK() )
+      {
+        pStream->OnConnectError( pSubStreamNum,
+                                 Status( stFatal, errSocketError ) );
+        return;
+      }
     }
   }
 
