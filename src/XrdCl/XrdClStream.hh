@@ -312,16 +312,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Status RequestClose( Message  *resp );
 
-      //------------------------------------------------------------------------
-      //! @return : true if this stream is for roots/xroots protocol,
-      //!           false otherwise
-      //------------------------------------------------------------------------
-      bool IsSecure()
-      {
-        const std::string& protocol = pUrl->GetProtocol();
-        return ( protocol == "roots" || protocol == "xroots" );
-      }
-
       typedef std::vector<SubStreamData*> SubStreamList;
 
       //------------------------------------------------------------------------

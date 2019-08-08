@@ -738,6 +738,18 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     ++pHandShakeData->step;
 
+    if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
+    {
+      Status st = EnableEncryption();
+      if( !st.IsOK() )
+      {
+        OnFaultWhileHandshaking( st );
+        return;
+      }
+    }
+
+    // TODO query transport if should switch to encrypted
+
     //--------------------------------------------------------------------------
     // The transport handler gave us something to write
     //--------------------------------------------------------------------------
@@ -886,79 +898,6 @@ namespace XrdCl
     if( now > pConnectionStarted+pConnectionTimeout )
       OnFaultWhileHandshaking( Status( stError, errSocketTimeout ) );
   }
-
-  //------------------------------------------------------------------------
-  // Initialize the iovec with given message
-  //------------------------------------------------------------------------
-  void AsyncSocketHandler::ToIov( Message &msg, iovec &iov )
-  {
-    iov.iov_base = msg.GetBufferAtCursor();
-    iov.iov_len  = msg.GetSize() - msg.GetCursor();
-  }
-
-  //------------------------------------------------------------------------
-  // Update iovec after write
-  //------------------------------------------------------------------------
-  void AsyncSocketHandler::UpdateAfterWrite( Message  &msg,
-                                             iovec    &iov,
-                                             int      &bytesWritten )
-  {
-    size_t advance = ( bytesWritten < (int)iov.iov_len ) ? bytesWritten : iov.iov_len;
-    bytesWritten -= advance;
-    msg.AdvanceCursor( advance );
-    ToIov( msg, iov );
-  }
-
-  //------------------------------------------------------------------------
-  // Add chunks to the given iovec
-  //------------------------------------------------------------------------
-  uint32_t AsyncSocketHandler::ToIov( ChunkList       *chunks,
-                                      const uint32_t  *offset,
-                                      iovec           *iov )
-  {
-    if( !chunks || !offset ) return 0;
-
-    uint32_t off  = *offset;
-    uint32_t size = 0;
-
-    for( auto itr = chunks->begin(); itr != chunks->end(); ++itr )
-    {
-      auto &chunk = *itr;
-      if( off > chunk.length )
-      {
-        iov->iov_len = 0;
-        iov->iov_base = 0;
-        off -= chunk.length;
-      }
-      else if( off > 0 )
-      {
-        iov->iov_len  = chunk.length - off;
-        iov->iov_base = reinterpret_cast<char*>( chunk.buffer ) + off;
-        size += iov->iov_len;
-        off = 0;
-      }
-      else
-      {
-        iov->iov_len  = chunk.length;
-        iov->iov_base = chunk.buffer;
-        size += iov->iov_len;
-      }
-      ++iov;
-    }
-
-    return size;
-  }
-
-  void AsyncSocketHandler::UpdateAfterWrite( ChunkList  *chunks,
-                                             uint32_t   *offset,
-                                             iovec      *iov,
-                                             int        &bytesWritten )
-  {
-    *offset += bytesWritten;
-    bytesWritten = 0;
-    ToIov( chunks, offset, iov );
-  }
-
 
   void AsyncSocketHandler::RetryHSMsg( Message *msg )
   {

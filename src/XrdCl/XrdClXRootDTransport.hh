@@ -95,7 +95,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Initialize channel
       //------------------------------------------------------------------------
-      virtual void InitializeChannel( AnyObject &channelData );
+      virtual void InitializeChannel( AnyObject  &channelData,
+                                      bool        encrypted );
 
       //------------------------------------------------------------------------
       //! Finalize channel
@@ -230,6 +231,12 @@ namespace XrdCl
       //! Wait until the program can safely exit
       //------------------------------------------------------------------------
       virtual void WaitBeforeExit();
+
+      //------------------------------------------------------------------------
+      //! @return : true if encryption should be turned on, false otherwise
+      //------------------------------------------------------------------------
+      virtual bool UseEncryption( HandShakeData  *handShakeData,
+                                  AnyObject      &channelData );
 
     private:
 

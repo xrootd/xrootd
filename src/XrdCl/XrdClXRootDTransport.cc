@@ -43,6 +43,7 @@
 #include "XrdSec/XrdSecProtect.hh"
 #include "XrdCl/XrdClTls.hh"
 #include "XrdCl/XrdClSocket.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdVersion.hh"
 
 #include <arpa/inet.h>
@@ -204,6 +205,7 @@ namespace XrdCl
       protRespBody(0),
       protRespSize(0),
       strmSelector(0)
+      encrypted(false)
     {
       sidManager = new SIDManager();
       memset( sessionId, 0, 16 );
@@ -246,6 +248,7 @@ namespace XrdCl
     ServerResponseBody_Protocol *protRespBody;
     unsigned int                 protRespSize;
     StreamSelector              *strmSelector;
+    bool                         encrypted;
     XrdSysMutex                  mutex;
   };
 
@@ -337,7 +340,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Initialize channel
   //----------------------------------------------------------------------------
-  void XRootDTransport::InitializeChannel( AnyObject &channelData )
+  void XRootDTransport::InitializeChannel( AnyObject  &channelData,
+                                           bool        encrypted )
   {
     XRootDChannelInfo *info = new XRootDChannelInfo();
     XrdSysMutexHelper scopedLock( info->mutex );
@@ -349,6 +353,7 @@ namespace XrdCl
     if( streams < 1 ) streams = 1;
     info->stream.resize( streams );
     info->strmSelector = new StreamSelector( streams );
+    info->encrypted   = encrypted;
   }
 
   //----------------------------------------------------------------------------
@@ -1369,12 +1374,44 @@ namespace XrdCl
     pSecUnloadHandler->unloaded = true;
   }
 
+  //------------------------------------------------------------------------
+  // @return : true if encryption should be turned on, false otherwise
+  //------------------------------------------------------------------------
+  bool XRootDTransport::UseEncryption( HandShakeData  *handShakeData,
+                                       AnyObject      &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+
+    // Did the server instructed us to switch to TLS?
+    if( !( info->serverFlags & kXR_gotoTLS ) ) return false;
+
+    XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
+
+    //----------------------------------------------------------------------
+    // We are about to login and the server asked to start encrypting with
+    // before login
+    //----------------------------------------------------------------------
+    if( ( sInfo.status == XRootDStreamInfo::HandShakeReceived ) &&
+        ( info->serverFlags & kXR_tlsLogin ) )
+      return true;
+
+    //----------------------------------------------------------------------
+    // The hand-shake is done and the server requested to encrypt the session
+    //----------------------------------------------------------------------
+    if( (sInfo.status == XRootDStreamInfo::Connected ) &&
+        ( info->serverFlags & kXR_tlsSess ) )
+      return true;
+
+    return false;
+  }
+
   //----------------------------------------------------------------------------
   // Generate the message to be sent as an initial handshake
   // (handshake+kXR_protocol)
   //----------------------------------------------------------------------------
   Message *XRootDTransport::GenerateInitialHSProtocol( HandShakeData *hsData,
-                                                       XRootDChannelInfo * )
+                                                       XRootDChannelInfo *info )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( XRootDTransportMsg,
@@ -1393,7 +1430,11 @@ namespace XrdCl
 
     proto->requestid = htons(kXR_protocol);
     proto->clientpv  = htonl(kXR_PROTOCOLVERSION);
-    proto->flags     = ClientProtocolRequest::kXR_secreqs;
+    proto->flags     = ClientProtocolRequest::kXR_secreqs |
+                       ClientProtocolRequest::kXR_ableTLS;
+    if( info->encrypted ) proto->flags |= ClientProtocolRequest::kXR_wantTLS;
+    proto->expect = ClientProtocolRequest::kXR_ExpLogin; // we generate the initial HS + protocol
+                                                         // the next step is kXR_login
     return msg;
   }
 
@@ -1494,6 +1535,15 @@ namespace XrdCl
                 hsData->streamName.c_str(),
                 ServerFlagsToStr( info->serverFlags ).c_str(),
                 info->protocolVersion );
+
+    if( !( info->serverFlags & kXR_haveTLS ) && info->encrypted )
+    {
+      //------------------------------------------------------------------------
+      // User requested an encrypted connection but the server does not support
+      // encryption!
+      //------------------------------------------------------------------------
+      return Status( stError, errTlsError, errNotSupported );
+    }
         
     return Status( stOK, suContinue );
   }

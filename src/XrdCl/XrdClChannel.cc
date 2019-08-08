@@ -244,7 +244,7 @@ namespace XrdCl
     int  timeoutResolution = DefaultTimeoutResolution;
     env->GetInt( "TimeoutResolution", timeoutResolution );
 
-    pTransport->InitializeChannel( pChannelData );
+    pTransport->InitializeChannel( pChannelData, url.IsSecure() );
     log->Debug( PostMasterMsg, "Creating new channel to: %s",
                                 url.GetHostId().c_str() );
 

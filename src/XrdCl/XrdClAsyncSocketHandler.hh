@@ -227,31 +227,6 @@ namespace XrdCl
       void OnTimeoutWhileHandshaking();
 
       //------------------------------------------------------------------------
-      // Initialize the iovec with given message
-      //------------------------------------------------------------------------
-      inline void ToIov( Message &msg, iovec &iov );
-
-      //------------------------------------------------------------------------
-      // Update iovec after write
-      //------------------------------------------------------------------------
-      inline void UpdateAfterWrite( Message &msg, iovec &iov, int &bytesRead );
-
-      //------------------------------------------------------------------------
-      // Add chunks to the given iovec
-      //------------------------------------------------------------------------
-      inline uint32_t ToIov( ChunkList       *chunks,
-                             const uint32_t  *offset,
-                             iovec           *iov );
-
-      //------------------------------------------------------------------------
-      // Update raw data after write
-      //------------------------------------------------------------------------
-      inline void UpdateAfterWrite( ChunkList  *chunks,
-                                    uint32_t   *offset,
-                                    iovec      *iov,
-                                    int        &bytesWritten );
-
-      //------------------------------------------------------------------------
       // Retry hand shake message
       //------------------------------------------------------------------------
       void RetryHSMsg( Message *msg );
