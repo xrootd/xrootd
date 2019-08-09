@@ -736,19 +736,21 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We successfully proceeded to the next step
     //--------------------------------------------------------------------------
+
     ++pHandShakeData->step;
 
-    if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
-    {
-      Status st = EnableEncryption();
-      if( !st.IsOK() )
-      {
-        OnFaultWhileHandshaking( st );
-        return;
-      }
-    }
-
-    // TODO query transport if should switch to encrypted
+    //--------------------------------------------------------------------------
+    // If now is the time, enable encryption
+    //--------------------------------------------------------------------------
+// TODO
+//    if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
+//    {
+//      if( !pSocket->EnableEncryption( this ).IsOK() )
+//      {
+//        OnFaultWhileHandshaking( st );
+//        return;
+//      }
+//    }
 
     //--------------------------------------------------------------------------
     // The transport handler gave us something to write

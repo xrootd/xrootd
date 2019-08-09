@@ -1399,7 +1399,12 @@ namespace XrdCl
     //----------------------------------------------------------------------
     // The hand-shake is done and the server requested to encrypt the session
     //----------------------------------------------------------------------
-    if( (sInfo.status == XRootDStreamInfo::Connected ) &&
+    if( (sInfo.status == XRootDStreamInfo::Connected ||
+        //------------------------------------------------------------------
+        // we really need to turn on TLS before we sent kXR_endsess but this
+        // flag is set already when the request is generated but not sent yet
+        //------------------------------------------------------------------
+         sInfo.status == XRootDStreamInfo::EndSessionSent ) &&
         ( info->serverFlags & kXR_tlsSess ) )
       return true;
 
