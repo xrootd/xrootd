@@ -430,10 +430,12 @@ struct ClientChmodRequest {
 struct ClientCloseRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
-   kXR_char fhandle[4];
-   kXR_int64 fsize;
-   kXR_char reserved[4];
-   kXR_int32  dlen;
+   kXR_char  fhandle[4];
+   kXR_char  reserved[10];
+   kXR_unt16 flags;
+   kXR_int32 dlen;
+
+   static const int discard = 0x0001; // flags: Discard file
 };
 struct ClientDecryptRequest {
    kXR_char  streamid[2];

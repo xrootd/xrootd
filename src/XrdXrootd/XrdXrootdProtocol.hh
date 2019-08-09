@@ -122,8 +122,8 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 
-//            XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
-              XrdXrootdProtocol& operator =(const XrdXrootdProtocol &rhs);
+              XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
+//            XrdXrootdProtocol& operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
 

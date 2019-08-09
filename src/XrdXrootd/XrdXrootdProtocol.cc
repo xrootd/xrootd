@@ -224,35 +224,9 @@ int XrdgetProtocolPort(const char *pname, char *parms, XrdProtocol_Config *pi)
 
 XrdXrootdProtocol::XrdXrootdProtocol() 
                     : XrdProtocol("xrootd protocol handler"), ProtLink(this),
-                      Entity("")
+                      Entity(0,"xroot")
 {
    Reset();
-}
-
-/******************************************************************************/
-/*                   A s s i g n m e n t   O p e r a t o r                    */
-/******************************************************************************/
-
-XrdXrootdProtocol& XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
-{
-// Reset all common fields
-//
-   abort();
-   Reset();
-
-// Now copy the relevant fields only
-//
-   Link          = rhs.Link;
-   Link->setRef(1);      // Keep the link stable until we dereference it
-   Status        = rhs.Status;
-   myFile        = rhs.myFile;
-   myIOLen       = rhs.myIOLen;
-   myOffset      = rhs.myOffset;
-   Response      = rhs.Response;
-   memcpy((void *)&Request,(const void *)&rhs.Request, sizeof(Request));
-   Client        = rhs.Client;
-   AuthProt      = rhs.AuthProt;
-   return *this;
 }
 
 /******************************************************************************/
@@ -980,7 +954,7 @@ void XrdXrootdProtocol::Reset()
    sigNeed = sigHere = sigRead = false;
    sigWarn = true;
    rdType             = 0;
-   Entity.Reset();
+   Entity.Reset(0, "xroot");
    memset(Stream,  0, sizeof(Stream));
    PrepareCount       = 0;
 }

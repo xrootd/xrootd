@@ -16,8 +16,8 @@ set( LIB_XRD_SEC_UNIX   XrdSecunix-${PLUGIN_VERSION} )
 add_library(
   ${LIB_XRD_SEC}
   MODULE
+                                      XrdSec/XrdSecAttr.hh
   XrdSec/XrdSecClient.cc
-                                      XrdSec/XrdSecEntity.hh
                                       XrdSec/XrdSecInterface.hh
   XrdSec/XrdSecPManager.cc            XrdSec/XrdSecPManager.hh
   XrdSec/XrdSecProtocolhost.cc        XrdSec/XrdSecProtocolhost.hh
