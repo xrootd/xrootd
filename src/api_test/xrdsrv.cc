@@ -17,8 +17,92 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
-/* Global SSL context */
-//SSL_CTX *ctx;
+struct SocketIO
+{
+    SocketIO() : tlson( false ), socket( -1 ), ssl( 0 )
+    {
+    }
+
+    ~SocketIO()
+    {
+      if( ssl ) SSL_free( ssl );
+    }
+
+    void SetSocket( int socket )
+    {
+      this->socket = socket;
+    }
+
+    void TlsHandShake()
+    {
+      static XrdTlsContext tlsctx("server.crt", "server.key");
+
+      BIO *sbio = BIO_new_socket( socket, BIO_NOCLOSE );
+      ssl = SSL_new( tlsctx.Context() );
+      SSL_set_accept_state( ssl );
+      SSL_set_bio( ssl, sbio, sbio );
+      int rc = SSL_accept( ssl );
+      int code = SSL_get_error( ssl, rc );
+
+      if( code != SSL_ERROR_NONE )
+      {
+        char *str = ERR_error_string( code , 0 );
+        std::cerr << "SSL_accept failed : code : " << code << std::endl;
+        std::cerr << str << std::endl;
+        exit( -1 );
+      }
+
+      tlson = true;
+    }
+
+    int read( void *buffer, int size )
+    {
+      int ret = 0;
+
+      char *buff = static_cast<char*>( buffer );
+      while ( size != 0 )
+      {
+        int rc = 0;
+        if( tlson )
+          rc = SSL_read( ssl, buff, size );
+        else
+          rc = ::read( socket, buff, size );
+
+        if( rc <= 0 )
+          break;
+
+        ret  += rc;
+        buff += rc;
+        size -= rc;
+      }
+
+      return ret;
+    }
+
+    int write( const void *buffer, int size )
+    {
+      int rc = 0;
+      if( tlson )
+        rc = SSL_write( ssl, buffer, size );
+      else
+        rc = ::write( socket, buffer, size );
+
+      return rc;
+    }
+
+    void renegotiate()
+    {
+      if( tlson )
+        SSL_renegotiate( ssl );
+    }
+
+  private:
+
+    bool tlson;
+    int  socket;
+    SSL *ssl;
+
+} io;
 
 void die(const char *msg) {
   perror(msg);
@@ -33,82 +117,45 @@ void handle_error(const char *file, int lineno, const char *msg) {
 
 #define int_error(msg) handle_error(__FILE__, __LINE__, msg)
 
-//void ssl_init(const char * certfile, const char* keyfile)
-//{
-//  printf("initialising SSL\n");
-//
-//  /* SSL library initialisation */
-//  SSL_library_init();
-//  OpenSSL_add_all_algorithms();
-//  SSL_load_error_strings();
-//  ERR_load_BIO_strings();
-//  ERR_load_crypto_strings();
-//
-//  /* create the SSL server context */
-//  ctx = SSL_CTX_new(SSLv23_method());
-//  if (!ctx)
-//    die("SSL_CTX_new()");
-//
-//  /* Load certificate and private key files, and check consistency */
-//  if (certfile && keyfile) {
-//    if (SSL_CTX_use_certificate_file(ctx, certfile,  SSL_FILETYPE_PEM) != 1)
-//      int_error("SSL_CTX_use_certificate_file failed");
-//
-//    if (SSL_CTX_use_PrivateKey_file(ctx, keyfile, SSL_FILETYPE_PEM) != 1)
-//      int_error("SSL_CTX_use_PrivateKey_file failed");
-//
-//    /* Make sure the key and certificate file match. */
-//    if (SSL_CTX_check_private_key(ctx) != 1)
-//      int_error("SSL_CTX_check_private_key failed");
-//    else
-//      printf("certificate and private key loaded and verified\n");
-//  }
-//
-//  /* Recommended to avoid SSLv2 & SSLv3 */
-//  SSL_CTX_set_options(ctx, SSL_OP_ALL|SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3|SSL_OP_NO_COMPRESSION);
-//
-//  SSL_CTX_set_mode( ctx, SSL_MODE_AUTO_RETRY );
-//
-//  SSL_CTX_set_cipher_list(ctx, "ALL:!LOW:!EXP:!MD5:!MD2");
-//}
-
-void DoInitHS( SSL *ssl )
+void DoInitHS()
 {
   ServerResponseHeader respHdr;
   memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
   respHdr.status = kXR_ok;
   respHdr.dlen = htonl( 2 * sizeof( kXR_int32 ) );
-  SSL_write( ssl, &respHdr, sizeof(ServerResponseHeader) );
+  io.write( &respHdr, sizeof(ServerResponseHeader) );
 
   ServerInitHandShake  hs;
   memset( &hs, 0, sizeof( ServerInitHandShake ) );
   hs.protover = htonl( 0x310 );
-  SSL_write( ssl, &hs.protover, sizeof( kXR_int32 ) );
+  io.write( &hs.protover, sizeof( kXR_int32 ) );
   hs.msgval   = htonl( kXR_DataServer );
-  SSL_write( ssl, &hs.msgval, sizeof( kXR_int32 ) );
+  io.write( &hs.msgval, sizeof( kXR_int32 ) );
 }
 
-void HandleProtocolReq( SSL *ssl, ClientRequestHdr *hdr )
+void HandleProtocolReq( ClientRequestHdr *hdr )
 {
+  std::cout << __func__ << std::endl;
+
   ClientProtocolRequest *req = (ClientProtocolRequest*)hdr;
 
-  std::cout << "HandleProtocolReq" << std::endl;
-  std::cout << "Client protocol version : " << std::hex << ntohl(req->clientpv) << std::endl;
+  std::cout << "Client protocol version : " << std::hex << ntohl(req->clientpv) << std::dec << std::endl;
   std::cout << "Flags : " << (int)req->flags << std::endl;
+  std::cout << "Expect : " << (int)req->expect << std::endl;
 
   ServerResponseHeader respHdr;
   memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
   respHdr.status = kXR_ok;
   respHdr.dlen = htonl( sizeof( ServerResponseBody_Protocol ) );
-  SSL_write( ssl, &respHdr, sizeof(ServerResponseHeader) );
+  io.write( &respHdr, sizeof(ServerResponseHeader) );
 
   ServerResponseBody_Protocol body;
   body.pval  = htonl( 0x310 );
-  body.flags = htonl( kXR_DataServer );
-  SSL_write( ssl, &body, sizeof(ServerResponseBody_Protocol) );
+  body.flags = htonl( kXR_DataServer ) | htonl( kXR_haveTLS );
+  io.write( &body, sizeof(ServerResponseBody_Protocol) );
 }
 
-void HandleLoginReq( SSL *ssl, ClientRequestHdr *hdr )
+void HandleLoginReq( ClientRequestHdr *hdr )
 {
   ClientLoginRequest *req = (ClientLoginRequest*) hdr;
 
@@ -117,7 +164,7 @@ void HandleLoginReq( SSL *ssl, ClientRequestHdr *hdr )
 
   char *buffer = new char[hdr->dlen];
 //  ::read( sfd, buffer, hdr->dlen );
-  SSL_read( ssl, buffer, hdr->dlen );
+  io.read( buffer, hdr->dlen );
   std::cout << "Token : " << std::string( buffer, hdr->dlen ) << std::endl;
   delete[] buffer;
 
@@ -125,23 +172,23 @@ void HandleLoginReq( SSL *ssl, ClientRequestHdr *hdr )
   memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
   respHdr.status = kXR_ok;
   respHdr.dlen   = htonl( 16 );
-  SSL_write( ssl, &respHdr, sizeof( ServerResponseHeader ) );
+  io.write( &respHdr, sizeof( ServerResponseHeader ) );
 
   ServerResponseBody_Login body;
   memset( body.sessid, 0, 16 );
-  SSL_write( ssl, &body, 16 );
+  io.write( &body, 16 );
 }
 
-void HandleOpenReq( SSL *ssl, ClientRequestHdr *hdr )
+void HandleOpenReq( ClientRequestHdr *hdr )
 {
   ClientOpenRequest *req = (ClientOpenRequest*) hdr;
   std::cout << __func__ << std::endl;
-  std::cout << "Open mode : 0x" << std::hex << ntohs( req->mode ) << std::endl;
+  std::cout << "Open mode : 0x" << std::hex << ntohs( req->mode ) << std::dec << std::endl;
 
   static const std::string statstr = "ABCD 1024 0 0";
 
   char *buffer = new char[req->dlen];
-  SSL_read( ssl, buffer, req->dlen );
+  io.read( buffer, req->dlen );
   std::cout << "Path : " << std::string( buffer, req->dlen ) << std::endl;
   delete[] buffer;
 
@@ -151,21 +198,21 @@ void HandleOpenReq( SSL *ssl, ClientRequestHdr *hdr )
   respHdr.streamid[1] = req->streamid[1];
   respHdr.status = kXR_ok;
   respHdr.dlen   = htonl( 12 + statstr.size() );
-  SSL_write( ssl, &respHdr, sizeof( ServerResponseHeader ) );
+  io.write( &respHdr, sizeof( ServerResponseHeader ) );
 
   ServerResponseBody_Open body;
   memset( body.fhandle, 0, 4 );
   memset( body.cptype,  0, 4 );
   body.cpsize = 0;
-  SSL_write( ssl, &body, 12 );
+  io.write( &body, 12 );
 
-  SSL_write( ssl, statstr.c_str(), statstr.size() );
+  io.write( statstr.c_str(), statstr.size() );
 
   std::cout << "Renegotiating session ..." << std::endl;
-  SSL_renegotiate( ssl ); //< test session re-negotiation
+  io.renegotiate(); //< test session re-negotiation
 }
 
-void HandleReadReq( SSL *ssl, ClientRequestHdr *hdr )
+void HandleReadReq( ClientRequestHdr *hdr )
 {
   ClientReadRequest *req = (ClientReadRequest*) hdr;
   std::cout << __func__ << std::endl;
@@ -180,7 +227,7 @@ void HandleReadReq( SSL *ssl, ClientRequestHdr *hdr )
   {
     std::cout << "alen : " << req->dlen << std::endl;
     char *buffer = new char[req->dlen];
-    SSL_read( ssl, buffer, req->dlen );
+    io.read( buffer, req->dlen );
     delete[] buffer;
   }
 
@@ -192,12 +239,12 @@ void HandleReadReq( SSL *ssl, ClientRequestHdr *hdr )
   respHdr.streamid[1] = req->streamid[1];
   respHdr.status = kXR_ok;
   respHdr.dlen   = htonl( dlen );
-  SSL_write( ssl, &respHdr, sizeof( ServerResponseHeader ) );
+  io.write( &respHdr, sizeof( ServerResponseHeader ) );
 
-  SSL_write( ssl, readstr.c_str(), dlen );
+  io.write( readstr.c_str(), dlen );
 }
 
-void HandleCloseReq( SSL *ssl, ClientRequestHdr *hdr )
+void HandleCloseReq( ClientRequestHdr *hdr )
 {
   ClientReadRequest *req = (ClientReadRequest*) hdr;
   std::cout << __func__ << std::endl;
@@ -209,15 +256,11 @@ void HandleCloseReq( SSL *ssl, ClientRequestHdr *hdr )
   respHdr.streamid[1] = req->streamid[1];
   respHdr.status = kXR_ok;
   respHdr.dlen   = 0;
-  SSL_write( ssl, &respHdr, sizeof( ServerResponseHeader ) );
+  io.write( &respHdr, sizeof( ServerResponseHeader ) );
 }
 
 int main(int argc, char const *argv[])
 {
-    XrdTlsContext tlsctx("server.crt", "server.key");
-
-//    ssl_init("server.crt", "server.key"); // see README to create these files
-
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
     int opt = 1;
@@ -263,27 +306,16 @@ int main(int argc, char const *argv[])
     }
     std::cout << "New TCP connection accepted!" << std::endl;
 
-
-    BIO *sbio = BIO_new_socket( new_socket, BIO_NOCLOSE );
-    SSL *ssl = SSL_new( tlsctx.Context() );
-    SSL_set_accept_state( ssl );
-    SSL_set_bio( ssl, sbio, sbio );
-    int rc = SSL_accept( ssl );
-    int code = SSL_get_error( ssl, rc );
-
-    if( code != SSL_ERROR_NONE )
-    {
-      char *str = ERR_error_string( code , 0 );
-      std::cerr << "SSL_accept failed : code : " << code << std::endl;
-      std::cerr << str << std::endl;
-      return -1;
-    }
-
+    io.SetSocket( new_socket );
+    io.TlsHandShake();
     std::cout << "SSL hand shake done!" << std::endl;
 
 //    valread = ::read( new_socket, buffer, 20 );
-    valread = SSL_read( ssl, buffer, 20 );
+//    valread = SSL_read( ssl, buffer, 20 );
+    std::fill( buffer, buffer + 1024, 'A' );
+    valread = io.read( buffer, 20 );
     std::cout << "valread : " << valread << std::endl;
+    if( valread != 20 ) return -1;
     ClientInitHandShake   *init  = (ClientInitHandShake*)buffer;
     std::cout << "First : "  << ntohl( init->first )  << std::endl;
     std::cout << "Second : " << ntohl( init->second ) << std::endl;
@@ -291,7 +323,7 @@ int main(int argc, char const *argv[])
     std::cout << "Fourth : " << ntohl( init->fourth ) << std::endl;
     std::cout << "Fifth : "  << ntohl( init->fifth ) << std::endl;
 
-    DoInitHS( ssl );
+    DoInitHS();
 
     int count = 0;
     while( count < 5 )
@@ -301,7 +333,10 @@ int main(int argc, char const *argv[])
       std::cout << std::endl;
       std::cout << "Waiting for client ..." << std::endl;
 //      valread = ::read( new_socket , buffer, sizeof( ClientRequestHdr ) );
-      valread = SSL_read( ssl, buffer, sizeof( ClientRequestHdr ) );
+//      valread = SSL_read( ssl, buffer, sizeof( ClientRequestHdr ) );
+      std::cout << "reading : " << sizeof( ClientRequestHdr ) << " bytes." << std::endl;
+      valread = io.read( buffer, sizeof( ClientRequestHdr ) );
+      std::cout << "valread : " << valread << std::endl;
       if( valread < 0 )
       {
         return -1;
@@ -309,6 +344,7 @@ int main(int argc, char const *argv[])
       else if( valread < 8 )
       {
         std::cout << "Got bogus header!" << std::endl;
+        std::cout << std::string( buffer, valread ) << std::endl;
         return -1;
       }
 
@@ -320,6 +356,7 @@ int main(int argc, char const *argv[])
 //      std::cout << "requestid = " << hdr->requestid << std::endl;
 //      std::cout << "dlen = " << hdr->dlen << std::endl;
 
+      std::cout << "Got request: " << hdr->requestid << std::endl;
       switch( hdr->requestid )
       {
         case kXR_auth:
@@ -343,7 +380,7 @@ int main(int argc, char const *argv[])
         case kXR_close:
         {
           std::cout << "Got kXR_close!" << std::endl;
-          HandleCloseReq( ssl, hdr );
+          HandleCloseReq( hdr );
           break;
         }
 
@@ -362,14 +399,14 @@ int main(int argc, char const *argv[])
         case kXR_protocol:
         {
           std::cout << "Got kXR_protocol!" << std::endl;
-          HandleProtocolReq( ssl, hdr );
+          HandleProtocolReq( hdr );
           break;
         }
 
         case kXR_login:
         {
           std::cout << "Got kXR_login!" << std::endl;
-          HandleLoginReq( ssl, hdr );
+          HandleLoginReq( hdr );
           break;
         }
 
@@ -388,7 +425,7 @@ int main(int argc, char const *argv[])
         case kXR_open:
         {
           std::cout << "Got kXR_open!" << std::endl;
-          HandleOpenReq( ssl, hdr );
+          HandleOpenReq( hdr );
           break;
         }
 
@@ -407,7 +444,7 @@ int main(int argc, char const *argv[])
         case kXR_read:
         {
           std::cout << "Got kXR_read!" << std::endl;
-          HandleReadReq( ssl, hdr );
+          HandleReadReq( hdr );
           break;
         }
 
