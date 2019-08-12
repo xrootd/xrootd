@@ -55,8 +55,7 @@ namespace XrdCl
     pOutMsgDone( false ),
     pOutHandler( 0 ),
     pIncMsgSize( 0 ),
-    pOutMsgSize( 0 ),
-    encrypt( false )
+    pOutMsgSize( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -370,19 +369,6 @@ namespace XrdCl
       pStream->OnConnectError( pSubStreamNum,
                                Status( stFatal, errPollerError ) );
       return;
-    }
-
-    //--------------------------------------------------------------------------
-    // TODO this is temporary
-    //--------------------------------------------------------------------------
-    if( encrypt )
-    {
-      if( !pSocket->EnableEncryption( this ).IsOK() )
-      {
-        pStream->OnConnectError( pSubStreamNum,
-                                 Status( stFatal, errSocketError ) );
-        return;
-      }
     }
   }
 
@@ -742,15 +728,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // If now is the time, enable encryption
     //--------------------------------------------------------------------------
-// TODO
-//    if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
-//    {
-//      if( !pSocket->EnableEncryption( this ).IsOK() )
-//      {
-//        OnFaultWhileHandshaking( st );
-//        return;
-//      }
-//    }
+    if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
+    {
+      if( !pSocket->EnableEncryption( this ).IsOK() )
+      {
+        OnFaultWhileHandshaking( st );
+        return;
+      }
+    }
 
     //--------------------------------------------------------------------------
     // The transport handler gave us something to write

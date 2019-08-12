@@ -148,12 +148,6 @@ namespace XrdCl
         return pLastActivity;
       }
 
-      Status EnableEncryption()
-      {
-        encrypt = true;
-        return Status();
-      }
-
     protected:
 
       //------------------------------------------------------------------------
@@ -269,8 +263,6 @@ namespace XrdCl
       uint32_t                       pIncMsgSize;
       uint32_t                       pOutMsgSize;
       time_t                         pLastActivity;
-
-      bool                           encrypt;
   };
 }
 

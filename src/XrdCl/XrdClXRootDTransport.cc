@@ -1392,7 +1392,7 @@ namespace XrdCl
     // We are about to login and the server asked to start encrypting with
     // before login
     //----------------------------------------------------------------------
-    if( ( sInfo.status == XRootDStreamInfo::HandShakeReceived ) &&
+    if( ( sInfo.status == XRootDStreamInfo::LoginSent ) &&
         ( info->serverFlags & kXR_tlsLogin ) )
       return true;
 
@@ -1401,8 +1401,8 @@ namespace XrdCl
     //----------------------------------------------------------------------
     if( (sInfo.status == XRootDStreamInfo::Connected ||
         //------------------------------------------------------------------
-        // we really need to turn on TLS before we sent kXR_endsess but this
-        // flag is set already when the request is generated but not sent yet
+        // we really need to turn on TLS before we sent kXR_endsess and we
+        // are about to do so (1st enable encryption, then send kXR_endsess)
         //------------------------------------------------------------------
          sInfo.status == XRootDStreamInfo::EndSessionSent ) &&
         ( info->serverFlags & kXR_tlsSess ) )
@@ -1549,7 +1549,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       return Status( stError, errTlsError, errNotSupported );
     }
-        
     return Status( stOK, suContinue );
   }
 

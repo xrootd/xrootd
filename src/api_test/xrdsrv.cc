@@ -35,6 +35,7 @@ struct SocketIO
 
     void TlsHandShake()
     {
+      std::cout << std::endl << __func__ << std::endl << std::endl;;
       static XrdTlsContext tlsctx("server.crt", "server.key");
 
       BIO *sbio = BIO_new_socket( socket, BIO_NOCLOSE );
@@ -151,8 +152,9 @@ void HandleProtocolReq( ClientRequestHdr *hdr )
 
   ServerResponseBody_Protocol body;
   body.pval  = htonl( 0x310 );
-  body.flags = htonl( kXR_DataServer ) | htonl( kXR_haveTLS );
+  body.flags = htonl( kXR_DataServer ) | htonl( kXR_haveTLS ) | htonl( kXR_gotoTLS ) | htonl( kXR_tlsLogin ) | htonl( kXR_tlsData );
   io.write( &body, sizeof(ServerResponseBody_Protocol) );
+  io.TlsHandShake();
 }
 
 void HandleLoginReq( ClientRequestHdr *hdr )
@@ -307,7 +309,6 @@ int main(int argc, char const *argv[])
     std::cout << "New TCP connection accepted!" << std::endl;
 
     io.SetSocket( new_socket );
-    io.TlsHandShake();
     std::cout << "SSL hand shake done!" << std::endl;
 
 //    valread = ::read( new_socket, buffer, 20 );
