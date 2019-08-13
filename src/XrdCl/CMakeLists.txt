@@ -95,6 +95,7 @@ target_link_libraries(
   XrdXml
   XrdUtils
   pthread
+  uuid
   ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS})
 

@@ -42,6 +42,7 @@
 #include <sstream>
 #include <memory>
 #include <sys/time.h>
+#include <uuid/uuid.h>
 
 namespace
 {
@@ -460,6 +461,19 @@ namespace XrdCl
     }
 
     pFileUrl = new URL( url );
+
+    //--------------------------------------------------------------------------
+    // Add unique uuid to each open request so replays due to error/timeout
+    // recovery can be correctly handled.
+    //--------------------------------------------------------------------------
+    URL::ParamsMap cgi = pFileUrl->GetParams();
+    uuid_t uuid;
+    char requuid[37]= {0};
+    uuid_generate( uuid );
+    uuid_unparse( uuid, requuid );
+    cgi["xrdcl.requuid"] = requuid;
+    pFileUrl->SetParams( cgi );
+
     if( !pFileUrl->IsValid() )
     {
       log->Error( FileMsg, "[0x%x@%s] Trying to open invalid url: %s",
