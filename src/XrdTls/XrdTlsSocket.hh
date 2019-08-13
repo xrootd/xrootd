@@ -22,12 +22,11 @@
 #include <string>
 #include <memory>
 
-#include <openssl/ssl.h>
-
 //----------------------------------------------------------------------------
 // Forward declarations
 //----------------------------------------------------------------------------
 
+class XrdNetAddrInfo;
 class XrdSysError;
 class XrdTlsContext;
 struct XrdTlsSocketImpl;
@@ -99,11 +98,17 @@ enum HS_Mode
 //! Establish a TLS connection
 //!
 //! @param  thehost  - The expected hostname. If nil the peername is not
-//!                    verified.
+//!                    validated.
+//! @param  netInfo  - Pointer to the peer connection information if DNS
+//!                    may be used to validate the hostname, subject to
+//!                    the XrdTlsContext::dnsok option. If the pointer is
+//!                    nil, DNS will not be used to validate the hostname.
+//!         eText    - If not nil, receives the associated error message.
 //! @return 0 upon success or an SSL error code upon failure.
 //------------------------------------------------------------------------
 
-  int Connect(const char *thehost=0);
+  int Connect(const char *thehost=0, XrdNetAddrInfo *netInfo=0,
+              std::string *eMsg=0);
 
 //------------------------------------------------------------------------
 //! Obtain context associated with this connection.

@@ -458,7 +458,7 @@ void XrdTlsContext::FlushErrors(const char *msg, const char *tid)
 /*                            C o n t e x t                                   */
 /******************************************************************************/
 
-SSL_CTX *XrdTlsContext::Context()
+void    *XrdTlsContext::Context()
 {
   return pImpl->ctx;
 }

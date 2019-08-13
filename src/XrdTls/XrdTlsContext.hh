@@ -24,10 +24,9 @@
 //----------------------------------------------------------------------------
 // Forward declarations
 //----------------------------------------------------------------------------
+
 struct XrdTlsContextImpl;
 struct XrdTlsSocket;
-struct SSLC_CTX;
-
 
 /******************************************************************************/
 /*                         X r d T l s C o n t e x t                          */
@@ -43,7 +42,7 @@ public:
 //! @return Pointer to the SSL context. Nil indicates failure.
 //------------------------------------------------------------------------
 
-SSL_CTX *Context();
+void    *Context();
 
 //------------------------------------------------------------------------
 //! Get parameters used to create the context.

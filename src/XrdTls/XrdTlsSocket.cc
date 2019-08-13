@@ -16,8 +16,6 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "XrdTlsSocket.hh"
-
 #include <errno.h>
 #include <iostream>
 #include <poll.h>
@@ -30,6 +28,8 @@
 #include <sys/socket.h>
 
 #include "XrdTls/XrdTlsContext.hh"
+#include "XrdTls/XrdTlsSocket.hh"
+#include "XrdTls/XrdTlsNotary.hh"
 
 #include <stdexcept>
 
@@ -148,10 +148,12 @@ do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
 /*                               C o n n e c t                                */
 /******************************************************************************/
   
-int XrdTlsSocket::Connect(const char *thehost)
+int XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
+                          std::string *eMsg)
 {
 
-// Setup host verification of a host has been specified
+// Setup host verification of a host has been specified. This is a to-do
+// when we move to new bersions of SSL. For now, we use the notary object.
 //
 
 // Do the connect.
@@ -159,11 +161,17 @@ int XrdTlsSocket::Connect(const char *thehost)
    int rc = SSL_connect( pImpl->ssl );
    if (rc != 1) return Diagnose(rc);
 
-// Make sure cert verification went well
+// Validate the host name if so desired. Note that cert verification is
+// checked by the notary since only hostname validation requires it.
 
-   if (xVerify)
-      {rc = SSL_get_verify_result(pImpl->ssl);
-       if (rc != X509_V_OK) {FlushErrors("x509_Verify()"); return -1;}
+   if (thehost)
+      {const char *eTxt = XrdTlsNotary::Validate(pImpl->ssl, thehost,
+                                        (pImpl->cOpts & DNSok ? netInfo : 0));
+       if (eTxt && eMsg)
+          {*eMsg  = "Unable to validate "; *eMsg += thehost;
+           *eMsg += "; "; *eMsg += eTxt;
+           return SSL_ERROR_SSL;
+          }
       }
 
    return SSL_ERROR_NONE;
@@ -172,6 +180,7 @@ int XrdTlsSocket::Connect(const char *thehost)
 /******************************************************************************/
 /*                               C o n t e x t                                */
 /******************************************************************************/
+
 XrdTlsContext* XrdTlsSocket::Context()
 {
   return pImpl->tlsctx;
@@ -261,7 +270,7 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
 
 // Get the ssl object from the context, there better be one.
 //
-   SSL_CTX *ssl_ctx = ctx.Context();
+   SSL_CTX *ssl_ctx = static_cast<SSL_CTX *>(ctx.Context());
    if (ssl_ctx == 0) return "TLS I/O: context inialization failed.";
 
 // Initialze values from the context.

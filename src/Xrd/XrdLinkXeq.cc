@@ -27,6 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <openssl/ssl.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>

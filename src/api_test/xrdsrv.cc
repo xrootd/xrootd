@@ -39,7 +39,7 @@ struct SocketIO
       static XrdTlsContext tlsctx("server.crt", "server.key");
 
       BIO *sbio = BIO_new_socket( socket, BIO_NOCLOSE );
-      ssl = SSL_new( tlsctx.Context() );
+      ssl = SSL_new( static_cast<SSL_CTX*>(tlsctx.Context()) );
       SSL_set_accept_state( ssl );
       SSL_set_bio( ssl, sbio, sbio );
       int rc = SSL_accept( ssl );

@@ -36,6 +36,7 @@
 #include <cstring>
 #include <sys/uio.h>
 #include <netinet/tcp.h>
+#include <stdexcept>
 
 namespace XrdCl
 {
