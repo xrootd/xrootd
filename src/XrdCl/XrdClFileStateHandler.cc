@@ -1613,7 +1613,10 @@ namespace XrdCl
       if( IsReadOnly() && !pDoRecoverRead )
         return false;
 
-      if( !IsReadOnly() && !pDoRecoverWrite )
+      bool posc = pStatInfo ? pStatInfo->GetFlags() & StatInfo::POSCPending :
+                              false;
+
+      if( !IsReadOnly() && ( !pDoRecoverWrite || posc ) )
         return false;
 
       return true;
