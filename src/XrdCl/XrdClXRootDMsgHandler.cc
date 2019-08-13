@@ -1347,13 +1347,6 @@ namespace XrdCl
       return 0;
     }
 
-    //--------------------------------------------------------------------------
-    // We only handle the kXR_ok responses further down
-    //--------------------------------------------------------------------------
-    if( !( rsp->hdr.status == kXR_ok || ( pOksofarAsAnswer &&
-        rsp->hdr.status == kXR_oksofar ) ) )
-      return 0;
-
     Buffer    buff;
     uint32_t  length = 0;
     char     *buffer = 0;
