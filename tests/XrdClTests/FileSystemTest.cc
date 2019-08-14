@@ -527,6 +527,7 @@ void FileSystemTest::DirListTest()
   }
 
   delete list;
+  list = 0;
 
   //----------------------------------------------------------------------------
   // Now do a chunked query
@@ -544,8 +545,27 @@ void FileSystemTest::DirListTest()
     CPPUNIT_ASSERT_XRDST( fs1.DirList( lsPath, DirListFlags::Stat | DirListFlags::Chunked, &handler ) );
     handler.Wait();
   }
+  delete info;
+  info = 0;
 
   CPPUNIT_ASSERT( dirls1 == dirls2 );
+
+  //----------------------------------------------------------------------------
+  // Now list an empty directory
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( fs.MkDir( "/data/empty", MkDirFlags::None, Access::None ) );
+  CPPUNIT_ASSERT_XRDST( fs.DeepLocate( "/data/empty", OpenFlags::PrefName, info ) );
+  CPPUNIT_ASSERT( info->GetSize() );
+  FileSystem fs3( info->Begin()->GetAddress() );
+  CPPUNIT_ASSERT_XRDST( fs3.DirList( "/data/empty", DirListFlags::Stat, list ) );
+  CPPUNIT_ASSERT( list );
+  CPPUNIT_ASSERT( list->GetSize() == 0 );
+  CPPUNIT_ASSERT_XRDST( fs.RmDir( "/data/empty" ) );
+
+  delete list;
+  list = 0;
+  delete info;
+  info = 0;
 }
 
 
