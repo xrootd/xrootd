@@ -153,7 +153,7 @@ int XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
 {
 
 // Setup host verification of a host has been specified. This is a to-do
-// when we move to new bersions of SSL. For now, we use the notary object.
+// when we move to new versions of SSL. For now, we use the notary object.
 //
 
 // Do the connect.

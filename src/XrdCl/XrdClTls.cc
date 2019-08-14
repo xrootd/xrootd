@@ -22,6 +22,7 @@
 
 #include "XrdTls/XrdTlsContext.hh"
 
+#include <openssl/ssl.h>
 
 namespace XrdCl
 {
@@ -33,6 +34,16 @@ namespace XrdCl
     pTls.reset(
         new XrdTlsSocket( tlsContext, pSocket->GetFD(), XrdTlsSocket::TLS_RNB_WNB,
                           XrdTlsSocket::TLS_HS_NOBLK, true ) );
+  }
+
+  //------------------------------------------------------------------------
+  //! Establish a TLS/SSL session and perform host verification.
+  //------------------------------------------------------------------------
+  Status Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
+  {
+    int rc = pTls->Connect( thehost.c_str(), netInfo );
+    if( rc ) return Status( stError, errTlsError, rc );
+    return Status();
   }
 
   Status Tls::Read( char *buffer, size_t size, int &bytesRead )

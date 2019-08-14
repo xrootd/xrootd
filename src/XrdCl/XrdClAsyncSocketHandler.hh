@@ -25,6 +25,7 @@
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClURL.hh"
 
 namespace XrdCl
 {
@@ -66,7 +67,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      AsyncSocketHandler( Poller           *poller,
+      AsyncSocketHandler( const URL        &url,
+                          Poller           *poller,
                           TransportHandler *transport,
                           AnyObject        *channelData,
                           uint16_t          subStreamNum );
@@ -263,6 +265,7 @@ namespace XrdCl
       uint32_t                       pIncMsgSize;
       uint32_t                       pOutMsgSize;
       time_t                         pLastActivity;
+      URL                            pUrl;
   };
 }
 

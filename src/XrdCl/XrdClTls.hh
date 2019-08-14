@@ -48,6 +48,11 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Establish a TLS/SSL session and perform host verification.
+      //------------------------------------------------------------------------
+      Status Connect( const std::string &thehost, XrdNetAddrInfo *netInfo );
+
+      //------------------------------------------------------------------------
       //! Read through the TLS layer from the socket
       //! If necessary, will establish a TLS/SSL session.
       //------------------------------------------------------------------------

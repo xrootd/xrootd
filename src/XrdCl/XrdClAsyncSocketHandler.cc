@@ -31,7 +31,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  AsyncSocketHandler::AsyncSocketHandler( Poller           *poller,
+  AsyncSocketHandler::AsyncSocketHandler( const URL        &url,
+                                          Poller           *poller,
                                           TransportHandler *transport,
                                           AnyObject        *channelData,
                                           uint16_t          subStreamNum ):
@@ -54,7 +55,8 @@ namespace XrdCl
     pOutMsgDone( false ),
     pOutHandler( 0 ),
     pIncMsgSize( 0 ),
-    pOutMsgSize( 0 )
+    pOutMsgSize( 0 ),
+    pUrl( url )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -729,7 +731,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
     {
-      if( !pSocket->EnableEncryption( this ).IsOK() )
+      Status st;
+      if( !( st = pSocket->EnableEncryption( this, pUrl.GetHostName() ) ).IsOK() )
       {
         OnFaultWhileHandshaking( st );
         return;

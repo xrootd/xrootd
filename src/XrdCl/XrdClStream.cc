@@ -180,7 +180,7 @@ namespace XrdCl
     if( !pTransport || !pPoller || !pChannelData )
       return Status( stError, errUninitialized );
 
-    AsyncSocketHandler *s = new AsyncSocketHandler( pPoller, pTransport,
+    AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller, pTransport,
                                                     pChannelData, 0 );
     s->SetStream( this );
 
@@ -578,8 +578,8 @@ namespace XrdCl
       {
         for( uint16_t i = 1; i < numSub; ++i )
         {
-          AsyncSocketHandler *s = new AsyncSocketHandler( pPoller, pTransport,
-                                                          pChannelData, 0 );
+          AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller,
+                                                   pTransport, pChannelData, 0 );
           s->SetStream( this );
           pSubStreams.push_back( new SubStreamData() );
           pSubStreams[i]->socket = s;

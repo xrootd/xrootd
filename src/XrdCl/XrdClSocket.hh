@@ -270,8 +270,12 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       // Enable encryption
+      //
+      // @param socketHandler : the socket handler that is handling the socket
+      // @param the host      : host name for verification
       //------------------------------------------------------------------------
-      Status EnableEncryption( AsyncSocketHandler *socketHandler );
+      Status EnableEncryption( AsyncSocketHandler *socketHandler,
+                               const std::string  &thehost = std::string() );
 
     protected:
       //------------------------------------------------------------------------
