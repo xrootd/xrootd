@@ -19,9 +19,6 @@
 #ifndef __XRD_CL_TLS_HH__
 #define __XRD_CL_TLS_HH__
 
-#include <openssl/bio.h>
-#include <openssl/ssl.h>
-
 #include "XrdTls/XrdTlsSocket.hh"
 
 #include "XrdCl/XrdClStatus.hh"
