@@ -650,7 +650,8 @@ void FileTest::VirtualRedirectorTest()
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( f1.Open( mlUrl1, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f1.GetProperty( key, value ) );
-  CPPUNIT_ASSERT( value == fileUrl );
+  URL lastUrl( value );
+  CPPUNIT_ASSERT( lastUrl.GetLocation() == fileUrl );
   CPPUNIT_ASSERT_XRDST( f1.Close() );
 
   //----------------------------------------------------------------------------
@@ -659,7 +660,8 @@ void FileTest::VirtualRedirectorTest()
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( f2.Open( mlUrl2, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f2.GetProperty( key, value ) );
-  CPPUNIT_ASSERT( value == fileUrl );
+  URL lastUrl2( value );
+  CPPUNIT_ASSERT( lastUrl2.GetLocation() == fileUrl );
   CPPUNIT_ASSERT_XRDST( f2.Close() );
 
   //----------------------------------------------------------------------------
@@ -677,7 +679,8 @@ void FileTest::VirtualRedirectorTest()
 
   CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
-  CPPUNIT_ASSERT( value == replica1 );
+  URL lastUrl3( value );
+  CPPUNIT_ASSERT( lastUrl3.GetLocation() == replica1 );
   CPPUNIT_ASSERT_XRDST( f4.Close() );
   //----------------------------------------------------------------------------
   // Delete the replica that has been selected by the virtual redirector
@@ -689,7 +692,8 @@ void FileTest::VirtualRedirectorTest()
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( f4.Open( mlUrl4, OpenFlags::Read ) );
   CPPUNIT_ASSERT( f4.GetProperty( key, value ) );
-  CPPUNIT_ASSERT( value == replica2 );
+  URL lastUrl4( value );
+  CPPUNIT_ASSERT( lastUrl4.GetLocation() == replica2 );
   CPPUNIT_ASSERT_XRDST( f4.Close() );
   //----------------------------------------------------------------------------
   // Recreate the deleted file
