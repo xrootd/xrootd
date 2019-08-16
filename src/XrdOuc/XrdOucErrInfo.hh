@@ -66,6 +66,7 @@ static const int uIPv64 = 0x04000000;  //! ucap: Supports IPv6|IPv4 info and
                                        //!       uIPv4 says IPv4 is prefered
 static const int uPrip  = 0x02000000;  //! ucap: Client is on a private net
 static const int uLclF  = 0x01000000;  //! ucap: Client supports "file://"
+static const int u48pls = 0x00800000;  //! ucap: Undocumented removed in R5
 
 inline     void clear(const char *usr=0, int uc=0)
                      {code=0; ucap = uc; message[0]='\0';

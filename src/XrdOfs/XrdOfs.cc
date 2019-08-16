@@ -435,7 +435,6 @@ int XrdOfsFile::open(const char          *path,      // In
    EPNAME("open");
    static const int crMask = (SFS_O_CREAT  | SFS_O_TRUNC);
    static const int opMask = (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR);
-   static const int fRedir = (XrdOucEI::uUrlOK | XrdOucEI::uMProt);
 
    struct OpenHelper
          {const char   *Path;
@@ -637,7 +636,9 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    if (XrdOfsFS->OssIsProxy)
       {if (myTPC) open_flag |= O_NOFOLLOW;
-       if ((error.getUCap() & fRedir) == fRedir) open_flag |= O_DIRECT;
+       if (error.getUCap() & XrdOucEI::u48pls
+       || (error.getUCap() & XrdOucEI::uUrlOK &&
+           error.getUCap() & XrdOucEI::uLclF)) open_flag |= O_DIRECT;
       }
 
 // Open the file

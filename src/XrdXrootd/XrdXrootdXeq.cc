@@ -995,6 +995,7 @@ int XrdXrootdProtocol::do_Login()
 //
    if (Request.login.dlen > 8)
       {XrdOucEnv loginEnv(argp->buff+1, Request.login.dlen-1);
+       char *rnumb = loginEnv.Get("xrd.rn");
        char *cCode = loginEnv.Get("xrd.cc");
        char *tzVal = loginEnv.Get("xrd.tz");
        char *appXQ = loginEnv.Get("xrd.appname");
@@ -1012,6 +1013,13 @@ int XrdXrootdProtocol::do_Login()
                     (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
+          }
+       if (rnumb && isdigit(*rnumb))
+          {int majr, minr, pchr;
+           if (sscanf(rnumb, "%d.%d.%d", &majr, &minr, &pchr) == 3)
+              {if (majr > 4 || (majr == 4 && minr >= 8))
+                  clientPV |= XrdOucEI::u48pls;
+              } // Undocumented hack until R5 when client release exposed!!!
           }
       }
 
