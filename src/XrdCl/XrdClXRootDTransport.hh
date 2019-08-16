@@ -110,6 +110,13 @@ namespace XrdCl
                                 AnyObject     &channelData );
 
       //------------------------------------------------------------------------
+      // @return true if handshake has been done and stream is connected,
+      //         false otherwise
+      //------------------------------------------------------------------------
+      virtual bool HandShakeDone( HandShakeData *handShakeData,
+                                  AnyObject     &channelData );
+
+      //------------------------------------------------------------------------
       //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
       virtual bool IsStreamTTLElapsed( time_t     time,

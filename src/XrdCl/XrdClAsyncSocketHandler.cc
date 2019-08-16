@@ -56,7 +56,8 @@ namespace XrdCl
     pOutHandler( 0 ),
     pIncMsgSize( 0 ),
     pOutMsgSize( 0 ),
-    pUrl( url )
+    pUrl( url ),
+    pTlsHandShakeOngoing( false )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -236,7 +237,9 @@ namespace XrdCl
     if( type & ReadyToRead )
     {
       pLastActivity = time(0);
-      if( likely( pHandShakeDone ) )
+      if( unlikely( pTlsHandShakeOngoing ) )
+        OnTLSHandShake();
+      else if( likely( pHandShakeDone ) )
         OnRead();
       else
         OnReadWhileHandshaking();
@@ -261,6 +264,8 @@ namespace XrdCl
       pLastActivity = time(0);
       if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
         OnConnectionReturn();
+      else if( unlikely( pTlsHandShakeOngoing ) )
+        OnTLSHandShake();
       else if( likely( pHandShakeDone ) )
         OnWrite();
       else
@@ -721,28 +726,49 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // We successfully proceeded to the next step
-    //--------------------------------------------------------------------------
-
-    ++pHandShakeData->step;
-
-    //--------------------------------------------------------------------------
-    // If now is the time, enable encryption
+    // If now is the time enable encryption
     //--------------------------------------------------------------------------
     if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
     {
+      Status st = DoTlsHandShake();
+      if( !st.IsOK() || st.code == suRetry ) return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Now prepare the next step of the hand-shake procedure
+    //--------------------------------------------------------------------------
+    HandShakeNextStep( st.IsOK() && st.code == suDone );
+  }
+
+  //------------------------------------------------------------------------
+  // Prepare the next step of the hand-shake procedure
+  //------------------------------------------------------------------------
+  void AsyncSocketHandler::HandShakeNextStep( bool done )
+  {
+    //--------------------------------------------------------------------------
+    // We successfully proceeded to the next step
+    //--------------------------------------------------------------------------
+    ++pHandShakeData->step;
+
+    //--------------------------------------------------------------------------
+    // The hand shake process is done
+    //--------------------------------------------------------------------------
+    if( done )
+    {
+      delete pHandShakeData;
       Status st;
-      if( !( st = pSocket->EnableEncryption( this, pUrl.GetHostName() ) ).IsOK() )
+      if( !(st = EnableUplink()).IsOK() )
       {
         OnFaultWhileHandshaking( st );
         return;
       }
+      pHandShakeDone = true;
+      pStream->OnConnect( pSubStreamNum );
     }
-
     //--------------------------------------------------------------------------
     // The transport handler gave us something to write
     //--------------------------------------------------------------------------
-    if( pHandShakeData->out )
+    else if( pHandShakeData->out )
     {
       pHSOutgoing = pHandShakeData->out;
       pHandShakeData->out = 0;
@@ -752,27 +778,6 @@ namespace XrdCl
         OnFaultWhileHandshaking( st );
         return;
       }
-    }
-
-    //--------------------------------------------------------------------------
-    // The hand shake process is done
-    //--------------------------------------------------------------------------
-    if( st.IsOK() && st.code == suDone )
-    {
-      delete pHandShakeData;
-      if( !(st = EnableUplink()).IsOK() )
-      {
-        OnFaultWhileHandshaking( Status( stFatal, errPollerError ) );
-        return;
-      }
-      pHandShakeDone = true;
-      pStream->OnConnect( pSubStreamNum );
-    }
-
-    if( !st.IsOK() )
-    {
-      OnFaultWhileHandshaking( st );
-      return;
     }
   }
 
@@ -886,6 +891,40 @@ namespace XrdCl
     time_t now = time(0);
     if( now > pConnectionStarted+pConnectionTimeout )
       OnFaultWhileHandshaking( Status( stError, errSocketTimeout ) );
+  }
+
+  //------------------------------------------------------------------------
+  // Carry out the TLS hand-shake
+  //------------------------------------------------------------------------
+  Status AsyncSocketHandler::DoTlsHandShake()
+  {
+    Status st;
+    if( !( st = pSocket->TlsHandShake( this, pUrl.GetHostName() ) ).IsOK() )
+    {
+      OnFaultWhileHandshaking( st );
+      return st;
+    }
+
+    if( st.code == suRetry )
+    {
+      pTlsHandShakeOngoing = true;
+      return st;
+    }
+
+    pTlsHandShakeOngoing = false;
+    return st;
+  }
+
+  //------------------------------------------------------------------------
+  // Handle read/write event if we are in the middle of a TLS hand-shake
+  //------------------------------------------------------------------------
+  inline void AsyncSocketHandler::OnTLSHandShake()
+  {
+    Status st = DoTlsHandShake();
+    if( !st.IsOK() || st.code == suRetry ) return;
+
+    HandShakeNextStep( pTransport->HandShakeDone( pHandShakeData,
+                                                  *pChannelData ) );
   }
 
   void AsyncSocketHandler::RetryHSMsg( Message *msg )

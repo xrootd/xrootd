@@ -745,20 +745,17 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Enable encryption
   //------------------------------------------------------------------------
-  Status Socket::EnableEncryption( AsyncSocketHandler *socketHandler,
+  Status Socket::TlsHandShake( AsyncSocketHandler *socketHandler,
                                    const std::string  &thehost )
   {
-    if( pTls ) return Status();
-
     try
     {
-      pTls = new Tls( this, socketHandler );
-      Status st = pTls->Connect( thehost, &pServerAddr );
-      if( !st.IsOK() ) return st;
+      if( !pTls ) pTls = new Tls( this, socketHandler );
+      return pTls->Connect( thehost, &pServerAddr );
     }
     catch( std::invalid_argument& ex )
     {
-      Status( stError, errSocketError );
+      Status( stError, errTlsError );
     }
 
     return Status();

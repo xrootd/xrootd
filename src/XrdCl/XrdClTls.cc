@@ -41,8 +41,43 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
   {
-    int rc = pTls->Connect( thehost.c_str(), netInfo );
-    if( rc ) return Status( stError, errTlsError, rc );
+    int error = pTls->Connect( thehost.c_str(), netInfo );
+    Status status = ToStatus( error );
+
+    //--------------------------------------------------------------------------
+    // There's no follow up if the read simply failed
+    //--------------------------------------------------------------------------
+    if( !status.IsOK() ) return status;
+
+    if( pTls->NeedHandShake() )
+    {
+      //------------------------------------------------------------------------
+      // Make sure the socket is uncorked so the TLS hand-shake can go through
+      //------------------------------------------------------------------------
+      if( pSocket->IsCorked() )
+      {
+        Status st = pSocket->Uncork();
+        if( !st.IsOK() ) return st;
+      }
+
+      //----------------------------------------------------------------------
+      // Check if TLS hand-shake wants to write something
+      //----------------------------------------------------------------------
+      if( error == SSL_ERROR_WANT_WRITE )
+      {
+        Status st = pSocketHandler->EnableUplink();
+        if( !st.IsOK() ) status = st;
+      }
+      //----------------------------------------------------------------------
+      // Otherwise disable uplink
+      //----------------------------------------------------------------------
+      else if( error == SSL_ERROR_WANT_READ )
+      {
+        Status st = pSocketHandler->DisableUplink();
+        if( !st.IsOK() ) return st;
+      }
+    }
+
     return Status();
   }
 
@@ -59,8 +94,6 @@ namespace XrdCl
     // There's no follow up if the read simply failed
     //--------------------------------------------------------------------------
     if( !status.IsOK() ) return status;
-
-
 
     if( pTls->NeedHandShake() )
     {

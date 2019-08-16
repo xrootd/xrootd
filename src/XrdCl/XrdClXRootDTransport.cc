@@ -596,6 +596,19 @@ namespace XrdCl
     return Status();
   }
 
+  //------------------------------------------------------------------------
+  // @return true if handshake has been done and stream is connected,
+  //         false otherwise
+  //------------------------------------------------------------------------
+  bool XRootDTransport::HandShakeDone( HandShakeData *handShakeData,
+                                       AnyObject     &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
+    return ( sInfo.status == XRootDStreamInfo::Connected );
+  }
+
   //----------------------------------------------------------------------------
   // Check if the stream should be disconnected
   //----------------------------------------------------------------------------

@@ -193,6 +193,11 @@ namespace XrdCl
       void HandleHandShake();
 
       //------------------------------------------------------------------------
+      // Prepare the next step of the hand-shake procedure
+      //------------------------------------------------------------------------
+      void HandShakeNextStep( bool done );
+
+      //------------------------------------------------------------------------
       // Read a message
       //------------------------------------------------------------------------
       Status ReadMessage( Message *&toRead );
@@ -221,6 +226,26 @@ namespace XrdCl
       // Handle timeout event while handshaking
       //------------------------------------------------------------------------
       void OnTimeoutWhileHandshaking();
+
+      //------------------------------------------------------------------------
+      // Carry out the TLS hand-shake
+      //
+      // The TLS hand-shake is being initiated in HandleHandShake() by calling
+      // Socket::TlsHandShake(), however it returns suRetry the TLS hand-shake
+      // needs to be followed up by OnTlsHandShake().
+      //
+      // However, once the TLS connection has been established the server may
+      // decide to redo the TLS hand-shake at any time, this operation is handled
+      // under the hood by read and write requests and facilitated by
+      // Socket::MapEvent()
+      //------------------------------------------------------------------------
+      Status DoTlsHandShake();
+
+      //------------------------------------------------------------------------
+      // Handle read/write event if we are in the middle of a TLS hand-shake
+      //------------------------------------------------------------------------
+      // Handle read/write event if we are in the middle of a TLS hand-shake
+      void OnTLSHandShake();
 
       //------------------------------------------------------------------------
       // Retry hand shake message
@@ -266,6 +291,7 @@ namespace XrdCl
       uint32_t                       pOutMsgSize;
       time_t                         pLastActivity;
       URL                            pUrl;
+      bool                           pTlsHandShakeOngoing;
   };
 }
 
