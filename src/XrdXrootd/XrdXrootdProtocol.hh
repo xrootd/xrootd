@@ -339,6 +339,8 @@ XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdXrootdMonitor::User     Monitor;
 int                        clientPV;
+int                        clientRN;
+int                        reserved; // In R5 clientPV will include clientRN
 short                      rdType;
 char                       Status;
 unsigned char              CapVer;

@@ -862,6 +862,7 @@ void XrdXrootdProtocol::Reset()
    mySID              = 0;
    CapVer             = 0;
    clientPV           = 0;
+   clientRN           = 0;
    reTry              = 0;
    PathID             = 0;
    rvSeq              = 0;

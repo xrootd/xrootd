@@ -1009,7 +1009,8 @@ int XrdXrootdProtocol::do_Login()
           }
        if (Monitor.Ready() && (appXQ || aInfo))
           {char apBuff[1024];
-           snprintf(apBuff, sizeof(apBuff), "&x=%s&y=%s&I=%c",
+           snprintf(apBuff, sizeof(apBuff), "&R=%s&x=%s&y=%s&I=%c",
+                    (rnumb ? rnumb : ""),
                     (appXQ ? appXQ : ""), (aInfo ? aInfo : ""),
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
@@ -1017,9 +1018,10 @@ int XrdXrootdProtocol::do_Login()
        if (rnumb)
           {int majr, minr, pchr;
            if (sscanf(rnumb, "v%d.%d.%d", &majr, &minr, &pchr) == 3)
-              {if (majr > 4 || (majr == 4 && minr >= 8))
-                  clientPV |= XrdOucEI::u48pls;
-              } // Undocumented hack until R5 when client release exposed!!!
+              {clientRN = (majr<<16) | ((minr<<8) | pchr);
+               if (majr > 4 || (majr == 4 && minr >= 8))
+                  clientPV |= XrdOucEI::u48pls; //TODO: Temporary hack.
+              } else if (sscanf(rnumb, "v%d-%*x", &majr) == 1) clientRN = -1;
           }
       }
 
