@@ -840,10 +840,23 @@ namespace XrdCl
     channelData.Get( info );
     XrdSysMutexHelper scopedLock( info->mutex );
 
-    if( info->serverFlags & kXR_isServer )
-      return info->stream.size();
+    //--------------------------------------------------------------------------
+    // Number of streams requested by user
+    //--------------------------------------------------------------------------
+    uint16_t ret = ( info->serverFlags & kXR_isServer ) ? info->stream.size() : 1;
 
-    return 1;
+
+
+    if( (info->serverFlags & kXR_gotoTLS ) && !( info->serverFlags & kXR_tlsData ) )
+    {
+      //------------------------------------------------------------------------
+      // The server asked us to encrypt stream 0, but to send the data (read/write)
+      // using an plain TCP connection
+      //------------------------------------------------------------------------
+      if( ret == 1 ) ++ret;
+    }
+
+    return ret;
   }
 
   //----------------------------------------------------------------------------

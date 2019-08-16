@@ -579,7 +579,7 @@ namespace XrdCl
         for( uint16_t i = 1; i < numSub; ++i )
         {
           AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller,
-                                                   pTransport, pChannelData, 0 );
+                                                   pTransport, pChannelData, i );
           s->SetStream( this );
           pSubStreams.push_back( new SubStreamData() );
           pSubStreams[i]->socket = s;
