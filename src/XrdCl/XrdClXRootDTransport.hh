@@ -261,16 +261,11 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       // Generate the message to be sent as an initial handshake
-      //------------------------------------------------------------------------
-      Message *GenerateInitialHS( HandShakeData     *hsData,
-                                  XRootDChannelInfo *info );
-
-      //------------------------------------------------------------------------
-      // Generate the message to be sent as an initial handshake
       // (handshake + kXR_protocol)
       //------------------------------------------------------------------------
       Message *GenerateInitialHSProtocol( HandShakeData     *hsData,
-                                          XRootDChannelInfo *info );
+                                          XRootDChannelInfo *info,
+                                          kXR_char           expect );
 
       //------------------------------------------------------------------------
       // Process the server initial handshake response

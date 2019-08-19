@@ -1183,7 +1183,6 @@ namespace XrdCl
         Status st = socket->Send( buffer + pAsyncOffset, leftToBeWritten, bytesWritten );
         if( !st.IsOK() || st.code == suRetry ) return st;
         pAsyncOffset    += bytesWritten;
-        bytesWritten    += bytesWritten;
         leftToBeWritten -= bytesWritten;
       }
       //------------------------------------------------------------------------

@@ -406,7 +406,8 @@ namespace XrdCl
     if( sInfo.status == XRootDStreamInfo::Disconnected ||
         sInfo.status == XRootDStreamInfo::Broken )
     {
-      handShakeData->out = GenerateInitialHSProtocol( handShakeData, info );
+      handShakeData->out = GenerateInitialHSProtocol( handShakeData, info,
+                                           ClientProtocolRequest::kXR_ExpLogin );
       sInfo.status = XRootDStreamInfo::HandShakeSent;
       return Status( stOK, suContinue );
     }
@@ -556,7 +557,8 @@ namespace XrdCl
     if( sInfo.status == XRootDStreamInfo::Disconnected ||
         sInfo.status == XRootDStreamInfo::Broken )
     {
-      handShakeData->out = GenerateInitialHS( handShakeData, info );
+      handShakeData->out = GenerateInitialHSProtocol( handShakeData, info,
+                                            ClientProtocolRequest::kXR_ExpBind );
       sInfo.status = XRootDStreamInfo::HandShakeSent;
       return Status( stOK, suContinue );
     }
@@ -569,13 +571,29 @@ namespace XrdCl
     {
       Status st = ProcessServerHS( handShakeData, info );
       if( st.IsOK() )
-      {
-        sInfo.status = XRootDStreamInfo::BindSent;
-        handShakeData->out = GenerateBind( handShakeData, info );
-        return Status( stOK, suContinue );
-      }
-      sInfo.status = XRootDStreamInfo::Broken;
+        sInfo.status = XRootDStreamInfo::HandShakeReceived;
+      else
+        sInfo.status = XRootDStreamInfo::Broken;
       return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Second step bis - we got the response to the protocol request, we need
+    // to process it and send out a bind request
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::HandShakeReceived )
+    {
+      Status st = ProcessProtocolResp( handShakeData, info );
+
+      if( !st.IsOK() )
+      {
+        sInfo.status = XRootDStreamInfo::Broken;
+        return st;
+      }
+
+      handShakeData->out = GenerateBind( handShakeData, info );
+      sInfo.status = XRootDStreamInfo::BindSent;
+      return Status( stOK, suContinue );
     }
 
     //--------------------------------------------------------------------------
@@ -1441,8 +1459,9 @@ namespace XrdCl
   // Generate the message to be sent as an initial handshake
   // (handshake+kXR_protocol)
   //----------------------------------------------------------------------------
-  Message *XRootDTransport::GenerateInitialHSProtocol( HandShakeData *hsData,
-                                                       XRootDChannelInfo *info )
+  Message *XRootDTransport::GenerateInitialHSProtocol( HandShakeData     *hsData,
+                                                       XRootDChannelInfo *info,
+                                                       kXR_char           expect )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( XRootDTransportMsg,
@@ -1464,30 +1483,7 @@ namespace XrdCl
     proto->flags     = ClientProtocolRequest::kXR_secreqs |
                        ClientProtocolRequest::kXR_ableTLS;
     if( info->encrypted ) proto->flags |= ClientProtocolRequest::kXR_wantTLS;
-    proto->expect = ClientProtocolRequest::kXR_ExpLogin; // we generate the initial HS + protocol
-                                                         // the next step is kXR_login
-    return msg;
-  }
-
-  //----------------------------------------------------------------------------
-  // Generate the message to be sent as an initial handshake
-  //----------------------------------------------------------------------------
-  Message *XRootDTransport::GenerateInitialHS( HandShakeData *hsData,
-                                               XRootDChannelInfo * )
-  {
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( XRootDTransportMsg,
-                "[%s] Sending out the initial hand shake",
-                hsData->streamName.c_str() );
-
-    Message *msg = new Message();
-
-    msg->Allocate( 20 );
-    msg->Zero();
-
-    ClientInitHandShake *init  = (ClientInitHandShake *)msg->GetBuffer();
-    init->fourth = htonl(4);
-    init->fifth  = htonl(2012);
+    proto->expect = expect;
     return msg;
   }
 
