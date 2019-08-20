@@ -27,7 +27,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <openssl/ssl.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
@@ -774,7 +773,7 @@ bool XrdLinkXeq::setTLS(bool enable)
    static const XrdTlsSocket::RW_Mode rwMode=XrdTlsSocket::TLS_RBL_WBL;
    static const XrdTlsSocket::HS_Mode hsMode=XrdTlsSocket::TLS_HS_BLOCK;
    const char *eNote;
-   int rc;
+   XrdTls::RC rc;
 
 // If we are already in a compatible mode, we are done
 //
@@ -807,11 +806,16 @@ bool XrdLinkXeq::setTLS(bool enable)
 
 // Diagnose return state
 //
-   if (rc == 0)
+   if (rc == XrdTls::TLS_AOK)
       {isTLS = enable;
        Addr.SetTLS(enable);
+      } else {
+       char buff[1024];
+       std::string eTxt = XrdTls::RC2Text(rc);
+       snprintf(buff, sizeof(buff), "Unable to enable tls for %s;", ID);
+       Log.Emsg("LinkXeq", buff, eTxt.c_str());
       }
-   return rc == 0;
+   return rc == XrdTls::TLS_AOK;
 }
 
 /******************************************************************************/
@@ -954,9 +958,9 @@ void XrdLinkXeq::syncStats(int *ctime)
 /* Private:                    T L S _ E r r o r                              */
 /******************************************************************************/
 
-int XrdLinkXeq::TLS_Error(const char *act, int rc)
+int XrdLinkXeq::TLS_Error(const char *act, XrdTls::RC rc)
 {
-   std::string reason = tlsIO.Err2Text(rc);
+   std::string reason = XrdTls::RC2Text(rc);
    char msg[512];
 
    snprintf(msg, sizeof(msg), "Unable to %s %s;", act, ID);
@@ -971,7 +975,8 @@ int XrdLinkXeq::TLS_Error(const char *act, int rc)
 int XrdLinkXeq::TLS_Peek(char *Buff, int Blen, int timeout)
 {
    XrdSysMutexHelper theMutex;
-   int retc, rlen;
+   XrdTls::RC retc;
+   int rc, rlen;
 
 // Lock the read mutex if we need to, the helper will unlock it upon exit
 //
@@ -981,14 +986,14 @@ int XrdLinkXeq::TLS_Peek(char *Buff, int Blen, int timeout)
 //
    isIdle = 0;
    if (timeout)
-      {retc = Wait4Data(timeout);
-       if (retc < 1) return retc;
+      {rc = Wait4Data(timeout);
+       if (rc < 1) return rc;
       }
 
 // Do the peek and if sucessful, the number of bytes available.
 //
    retc = tlsIO.Peek(Buff, Blen, rlen);
-   if (retc == SSL_ERROR_NONE) return rlen;
+   if (retc == XrdTls::TLS_AOK) return rlen;
 
 // Dianose the TLS error and return failure
 //
@@ -1002,7 +1007,8 @@ int XrdLinkXeq::TLS_Peek(char *Buff, int Blen, int timeout)
 int XrdLinkXeq::TLS_Recv(char *Buff, int Blen)
 {
    XrdSysMutexHelper theMutex;
-   int retc, rlen;
+   XrdTls::RC retc;
+   int rlen;
 
 // Lock the read mutex if we need to, the helper will unlock it upon exit
 //
@@ -1013,7 +1019,7 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen)
 //
    isIdle = 0;
    retc = tlsIO.Read(Buff, Blen, rlen);
-   if (retc != SSL_ERROR_NONE) return TLS_Error("receive from", retc);
+   if (retc != XrdTls::TLS_AOK) return TLS_Error("receive from", retc);
    if (rlen > 0) AtomicAdd(BytesIn, rlen);
    return rlen;
 }
@@ -1023,7 +1029,8 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen)
 int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
 {
    XrdSysMutexHelper theMutex;
-   int retc, rlen, totlen = 0;
+   XrdTls::RC retc;
+   int pend, rlen, totlen = 0;
 
 // Lock the read mutex if we need to, the helper will unlock it upon exit
 //
@@ -1033,10 +1040,10 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
 //
    isIdle = 0;
    while(Blen > 0)
-        {retc = tlsIO.Pending(true);
-         if (!retc) retc = Wait4Data(timeout);
-         if (retc < 1)
-            {if (retc < 0) return -1;
+        {pend = tlsIO.Pending(true);
+         if (!pend) pend = Wait4Data(timeout);
+         if (pend < 1)
+            {if (pend < 0) return -1;
              tardyCnt++;
              if (totlen)
                 {if ((++stallCnt & 0xff) == 1) TRACEI(DEBUG,"read timed out");
@@ -1049,7 +1056,7 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
          // if we get a zero-length read after poll said it was OK.
          //
          retc = tlsIO.Read(Buff, Blen, rlen);
-         if (retc != SSL_ERROR_NONE)
+         if (retc != XrdTls::TLS_AOK)
             {AtomicAdd(BytesIn, totlen);
              return TLS_Error("receive from", retc);
             }
@@ -1091,7 +1098,8 @@ int XrdLinkXeq::TLS_Send(const char *Buff, int Blen)
 {
    XrdSysMutexHelper lck(wrMutex);
    ssize_t bytesleft = Blen;
-   int retc, byteswritten;
+   XrdTls::RC retc;
+   int byteswritten;
 
 // Prepare to send
 //
@@ -1106,7 +1114,7 @@ int XrdLinkXeq::TLS_Send(const char *Buff, int Blen)
 //
    while(bytesleft)
         {retc = tlsIO.Write(Buff, bytesleft, byteswritten);
-         if (retc != SSL_ERROR_NONE) return TLS_Error("send to", retc);
+         if (retc != XrdTls::TLS_AOK) return TLS_Error("send to", retc);
          bytesleft -= byteswritten; Buff += byteswritten;
         }
 
@@ -1120,7 +1128,8 @@ int XrdLinkXeq::TLS_Send(const char *Buff, int Blen)
 int XrdLinkXeq::TLS_Send(const struct iovec *iov, int iocnt, int bytes)
 {
    XrdSysMutexHelper lck(wrMutex);
-   int byteswritten, retc;
+   XrdTls::RC retc;
+   int byteswritten;
 
 // Get a lock and assume we will be successful (statistically we are). Note
 // that the calling interface gauranteed bytes are not zero.
@@ -1139,7 +1148,7 @@ int XrdLinkXeq::TLS_Send(const struct iovec *iov, int iocnt, int bytes)
         char *Buff = (char *)iov[i].iov_base;
         while(bytesleft)
              {retc = tlsIO.Write(Buff, bytesleft, byteswritten);
-              if (retc != SSL_ERROR_NONE) return TLS_Error("send to", retc);
+              if (retc != XrdTls::TLS_AOK) return TLS_Error("send to", retc);
               bytesleft -= byteswritten; Buff += byteswritten;
              }
        }
@@ -1194,13 +1203,14 @@ int XrdLinkXeq::TLS_Send(const sfVec *sfP, int sfN)
 
 bool XrdLinkXeq::TLS_Write(const char *Buff, int Blen)
 {
-   int retc, byteswritten;
+   XrdTls::RC retc;
+   int byteswritten;
 
 // Write the data out
 //
    while(Blen)
         {retc = tlsIO.Write(Buff, Blen, byteswritten);
-         if (retc != SSL_ERROR_NONE)
+         if (retc != XrdTls::TLS_AOK)
             {TLS_Error("send to", retc);
              return false;
             }

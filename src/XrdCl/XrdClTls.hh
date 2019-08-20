@@ -19,6 +19,8 @@
 #ifndef __XRD_CL_TLS_HH__
 #define __XRD_CL_TLS_HH__
 
+#include <memory>
+
 #include "XrdTls/XrdTlsSocket.hh"
 
 #include "XrdCl/XrdClStatus.hh"

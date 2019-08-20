@@ -16,47 +16,41 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <iostream>
 #include <stdio.h>
-#include <openssl/ssl.h>
-#include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 #include <sys/stat.h>
 
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+#include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
 /******************************************************************************/
-/*                      X r d T l s C o n t e x t I m p l                     */
+/*                               G l o b a l s                                */
 /******************************************************************************/
-struct XrdTlsContextImpl
-{
-    XrdTlsContextImpl() : ctx( 0 ) { }
-
-    SSL_CTX                      *ctx;
-    XrdTlsContext::CTX_Params     Parm;
-};
-
-/******************************************************************************/
-/*                    G l o b a l   D e f i n i t i o n s                     */
-/******************************************************************************/
-
-namespace
-{
-void ToStdErr(const char *tid, const char *msg, bool sslerr)
-{
-   std::cerr <<"TLS: " <<msg <<'\n' <<std::flush;
-}
-}
 
 namespace XrdTlsGlobal
 {
-XrdTlsContext::msgCB_t  msgCB = ToStdErr;
+extern XrdTls::msgCB_t msgCB;
+};
+  
+/******************************************************************************/
+/*                      X r d T l s C o n t e x t I m p l                     */
+/******************************************************************************/
+
+struct XrdTlsContextImpl
+{
+    XrdTlsContextImpl() : ctx( 0 ) { }
+   ~XrdTlsContextImpl() {if (ctx) SSL_CTX_free(ctx);}
+
+    SSL_CTX                      *ctx;
+    XrdTlsContext::CTX_Params     Parm;
 };
   
 /******************************************************************************/
@@ -348,7 +342,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Make sure we have a context here
 //
    if (pImpl->ctx == 0)
-      {FlushErrors("Unable to allocate TLS context!");
+      {XrdTls::Emsg("TLS_Context", "Unable to allocate TLS context!");
        return;
       }
 
@@ -366,7 +360,8 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (caDir || caFile)
      {if (!SSL_CTX_load_verify_locations(pImpl->ctx, caFile, caDir))
-         {FlushErrors("Unable to set the CA cert file or directory.");
+         {XrdTls::Emsg("TLS_Context",
+                       "Unable to set the CA cert file or directory.");
           return;
          }
       int vDepth = (opts & vdept) >> vdepS;
@@ -381,7 +376,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Set cipher list
 //
    if (!SSL_CTX_set_cipher_list(pImpl->ctx, sslCiphers))
-      {FlushErrors("Unable to set SSL cipher list.");
+      {XrdTls::Emsg("TLS_Context", "Unable to set SSL cipher list.");
        return;
       }
 
@@ -400,21 +395,24 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Load certificate
 //
    if (SSL_CTX_use_certificate_file(pImpl->ctx, cert, SSL_FILETYPE_PEM) != 1)
-      {FlushErrors("Unable to create TLS context; certificate error.");
+      {XrdTls::Emsg("LS_Context",
+                    "Unable to create TLS context; certificate error.");
        return;
       }
 
 // Load the private key
 //
    if (SSL_CTX_use_PrivateKey_file(pImpl->ctx, key, SSL_FILETYPE_PEM) != 1 )
-      {FlushErrors("Unable to create TLS context; private key error.");
+      {XrdTls::Emsg("TLS_Context",
+                    "Unable to create TLS context; private key error.");
        return;
       }
 
 // Make sure the key and certificate file match.
 //
    if (SSL_CTX_check_private_key(pImpl->ctx) != 1 )
-      {FlushErrors("Unable to create TLS context; cert-key mismatch.");
+      {XrdTls::Emsg("TLS_Context",
+                    "Unable to create TLS context; cert-key mismatch.");
        return;
       }
 
@@ -427,35 +425,10 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
 
-XrdTlsContext::~XrdTlsContext() {if (pImpl->ctx) SSL_CTX_free(pImpl->ctx);}
+XrdTlsContext::~XrdTlsContext() {if (pImpl) delete pImpl;}
 
 /******************************************************************************/
-/* Private:                  F l u s h E r r o r s                            */
-/******************************************************************************/
-
-void XrdTlsContext::FlushErrors(const char *msg, const char *tid)
-{
-  char emsg[2040];
-  unsigned long eCode;
-
-// Setup the trace ID
-//
-   if (!tid) tid = "TLS_Context";
-
-// Print passed in error, if any
-//
-  if (msg) XrdTlsGlobal::msgCB(tid, msg, false);
-
-// Flush all openssl errors
-//
-  while((eCode = ERR_get_error()))
-       {ERR_error_string_n(eCode, emsg, sizeof(emsg));
-        XrdTlsGlobal::msgCB(tid, emsg, true);
-       }
-}
-
-/******************************************************************************/
-/*                            C o n t e x t                                   */
+/*                               C o n t e x t                                */
 /******************************************************************************/
 
 void    *XrdTlsContext::Context()
@@ -464,7 +437,7 @@ void    *XrdTlsContext::Context()
 }
 
 /******************************************************************************/
-/*                          G e t P a r a m s                                 */
+/*                             G e t P a r a m s                              */
 /******************************************************************************/
 
 const XrdTlsContext::CTX_Params *XrdTlsContext::GetParams()
@@ -492,20 +465,11 @@ const char *XrdTlsContext::Init()
 }
 
 /******************************************************************************/
-/*                              S e t M s g C B                               */
-/******************************************************************************/
-
-void XrdTlsContext::SetMsgCB(XrdTlsContext::msgCB_t cbP)
-{
-   XrdTlsGlobal::msgCB = (cbP ? cbP : ToStdErr);
-}
-
-/******************************************************************************/
 /*                            x 5 0 9 V e r i f y                             */
 /******************************************************************************/
   
 bool XrdTlsContext::x509Verify()
 {
-   return pImpl->Parm.cadir.empty() != 0 || pImpl->Parm.cafile.empty() != 0;
+   return !(pImpl->Parm.cadir.empty()) || !(pImpl->Parm.cafile.empty());
 }
 

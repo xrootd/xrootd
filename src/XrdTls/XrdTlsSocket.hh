@@ -18,17 +18,17 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-
 #include <string>
-#include <memory>
+
+#include "XrdTls/XrdTls.hh"
 
 //----------------------------------------------------------------------------
 // Forward declarations
 //----------------------------------------------------------------------------
 
-class XrdNetAddrInfo;
-class XrdSysError;
-class XrdTlsContext;
+class  XrdNetAddrInfo;
+class  XrdSysError;
+class  XrdTlsContext;
 struct XrdTlsSocketImpl;
 
 //----------------------------------------------------------------------------
@@ -90,9 +90,11 @@ enum HS_Mode
 
 //------------------------------------------------------------------------
 //! Accept an incoming TLS connection
+//!
+//! @return The appropriate TLS return code.
 //------------------------------------------------------------------------
 
-  int Accept();
+  XrdTls::RC Accept();
 
 //------------------------------------------------------------------------
 //! Establish a TLS connection
@@ -104,11 +106,13 @@ enum HS_Mode
 //!                    the XrdTlsContext::dnsok option. If the pointer is
 //!                    nil, DNS will not be used to validate the hostname.
 //!         eText    - If not nil, receives the associated error message.
-//! @return 0 upon success or an SSL error code upon failure.
+//!
+//! @return TLS_AOK if the operation was successful; otherwise the appropraite
+//!                 return code indicating the problem.
 //------------------------------------------------------------------------
 
-  int Connect(const char *thehost=0, XrdNetAddrInfo *netInfo=0,
-              std::string *eMsg=0);
+  XrdTls::RC Connect(const char *thehost=0, XrdNetAddrInfo *netInfo=0,
+                     std::string *eMsg=0);
 
 //------------------------------------------------------------------------
 //! Obtain context associated with this connection.
@@ -117,17 +121,6 @@ enum HS_Mode
 //------------------------------------------------------------------------
 
   XrdTlsContext *Context();
-
-//------------------------------------------------------------------------
-//! Convert SSL error code to a reason string.
-//!
-//! @param  sslerr - The error number (i.e. output of SSL_get_error()).
-//!
-//! @return A string describing the error.
-//------------------------------------------------------------------------
-
-  std::string Err2Text(int sslerr);
-
 
 //------------------------------------------------------------------------
 //! Initialize this object to handle the specified TLS I/O mode for the
@@ -162,14 +155,11 @@ enum HS_Mode
 //! @param  size       - The size of the buffer in bytes.
 //! @param  bytesPeek  - Number of bytes placed in the buffer, if successful.
 //!
-//! @return SSL_ERROR_NONE    Operation was successful.
-//!         SSL_WANT_READ     Non blocking socket would read  block.
-//!         SSL_WANT_WRITE    Non blocking socket would write block.
-//!         SSL_ERROR_SYSCALL A syscall error occurred, errno has code.
-//!         SSL_ERROR_xxx     Other SSL related error occurred.
+//! @return TLS_AOK if the operation was successful; otherwise the appropraite
+//!                 return code indicating the problem.
 //------------------------------------------------------------------------
 
-  int Peek( char *buffer, size_t size, int &bytesPeek );
+  XrdTls::RC Peek( char *buffer, size_t size, int &bytesPeek );
 
 //------------------------------------------------------------------------
 //! Check if data is pending or readable.
@@ -192,14 +182,11 @@ enum HS_Mode
 //! @param  size       - The size of the buffer in bytes.
 //! @param  bytesRead  - Number of bytes placed in the buffer, if successful.
 //!
-//! @return SSL_ERROR_NONE    Operation was successful.
-//!         SSL_WANT_READ     Non blocking socket would read  block.
-//!         SSL_WANT_WRITE    Non blocking socket would write block.
-//!         SSL_ERROR_SYSCALL A syscall error occurred, errno has code.
-//!         SSL_ERROR_xxx     Other SSL related error occurred.
+//! @return TLS_AOK if the operation was successful; otherwise the appropraite
+//!                 return code indicating the problem.
 //------------------------------------------------------------------------
 
-  int Read( char *buffer, size_t size, int &bytesRead );
+  XrdTls::RC Read( char *buffer, size_t size, int &bytesRead );
 
 //------------------------------------------------------------------------
 //! Tear down a TLS connection
@@ -221,14 +208,11 @@ enum HS_Mode
 //! @param  size       - The size of the data to write.
 //! @param  bytesOut   - Number of bytes actually written, if successful.
 //!
-//! @return SSL_ERROR_NONE    Operation was successful.
-//!         SSL_WANT_READ     Non blocking socket would read  block.
-//!         SSL_WANT_WRITE    Non blocking socket would write block.
-//!         SSL_ERROR_SYSCALL A syscall error occurred, errno has code.
-//!         SSL_ERROR_xxx     Other SSL related error occurred.
+//! @return TLS_AOK if the operation was successful; otherwise the appropraite
+//!                 return code indicating the problem.
 //------------------------------------------------------------------------
 
-  int Write( const char *buffer, size_t size, int &bytesOut );
+  XrdTls::RC Write( const char *buffer, size_t size, int &bytesOut );
 
 //------------------------------------------------------------------------
 //! @return  :  true if the TLS/SSL session is not established yet,
@@ -245,11 +229,11 @@ enum HS_Mode
 
 private:
 
-int  Diagnose(int sslrc);
-void FlushErrors(const char *what=0, int sslerr=0);
+XrdTls::RC Diagnose(int sslrc);
+std::string Err2Text(int sslerr);
 bool Wait4OK(bool wantRead);
 
-std::unique_ptr<XrdTlsSocketImpl> pImpl;
+XrdTlsSocketImpl *pImpl;
 
 static const int noBlock = 0;
 static const int rwBlock = 'a';

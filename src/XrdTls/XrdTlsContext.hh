@@ -19,7 +19,6 @@
 //------------------------------------------------------------------------------
 
 #include <string>
-#include <memory>
   
 //----------------------------------------------------------------------------
 // Forward declarations
@@ -76,19 +75,6 @@ CTX_Params     *GetParams();
 //------------------------------------------------------------------------
 static
 const char     *Init();
-
-//------------------------------------------------------------------------
-//! Set the message callback.
-//!
-//! @param cbP       Pointer to the message callback function. If nil, messages
-//!                  are sent to stderr. This is a global setting.
-//!
-//! @note            You should establish a callback once before construction.
-//------------------------------------------------------------------------
-
-typedef void (*msgCB_t)(const char *tid, const char *msg, bool sslmsg);
-
-static void     SetMsgCB(msgCB_t cbP);
 
 //------------------------------------------------------------------------
 //! Check if certificates are being verified.
@@ -161,8 +147,6 @@ static const int dnsok = 0x08000000; //!< Trust DNS for host verification
       XrdTlsContext& operator=(       XrdTlsContext &&ctx ) = delete;
 
 private:
-   void           FlushErrors(const char *msg=0, const char *tid=0);
-
-   std::unique_ptr<XrdTlsContextImpl>  pImpl;
+   XrdTlsContextImpl *pImpl;
 };
 #endif // __XRD_TLSCONTEXT_HH__

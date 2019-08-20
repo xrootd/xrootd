@@ -22,8 +22,6 @@
 
 #include "XrdTls/XrdTlsContext.hh"
 
-#include <openssl/ssl.h>
-
 namespace XrdCl
 {
 
@@ -41,7 +39,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
   {
-    int error = pTls->Connect( thehost.c_str(), netInfo );
+    XrdTls::RC error = pTls->Connect( thehost.c_str(), netInfo );
     Status status = ToStatus( error );
 
     //--------------------------------------------------------------------------
@@ -63,7 +61,7 @@ namespace XrdCl
       //----------------------------------------------------------------------
       // Check if TLS hand-shake wants to write something
       //----------------------------------------------------------------------
-      if( error == SSL_ERROR_WANT_WRITE )
+      if( error == XrdTls::TLS_WantWrite )
       {
         Status st = pSocketHandler->EnableUplink();
         if( !st.IsOK() ) status = st;
@@ -71,7 +69,7 @@ namespace XrdCl
       //----------------------------------------------------------------------
       // Otherwise disable uplink
       //----------------------------------------------------------------------
-      else if( error == SSL_ERROR_WANT_READ )
+      else if( error == XrdTls::TLS_WantRead )
       {
         Status st = pSocketHandler->DisableUplink();
         if( !st.IsOK() ) return st;
@@ -84,10 +82,10 @@ namespace XrdCl
   Status Tls::Read( char *buffer, size_t size, int &bytesRead )
   {
     //--------------------------------------------------------------------------
-    // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
-    // have to explicitly call SSL_connect or SSL_do_handshake.
+    // If necessary, TLS_read() will negotiate a TLS/SSL session, so we don't
+    // have to explicitly call connect or do_handshake.
     //--------------------------------------------------------------------------
-    int error = pTls->Read( buffer, size, bytesRead );
+    XrdTls::RC error = pTls->Read( buffer, size, bytesRead );
     Status status = ToStatus( error );
 
     //--------------------------------------------------------------------------
@@ -109,7 +107,7 @@ namespace XrdCl
       //----------------------------------------------------------------------
       // Check if we need to switch on a revert state
       //----------------------------------------------------------------------
-      if( error == SSL_ERROR_WANT_WRITE )
+      if( error == XrdTls::TLS_WantWrite )
       {
         pTlsHSRevert = ReadOnWrite;
         Status st = pSocketHandler->EnableUplink();
@@ -137,10 +135,10 @@ namespace XrdCl
   Status Tls::Send( const char *buffer, size_t size, int &bytesWritten )
   {
     //--------------------------------------------------------------------------
-    // If necessary, SSL_write() will negotiate a TLS/SSL session, so we don't
-    // have to explicitly call SSL_connect or SSL_do_handshake.
+    // If necessary, TLS_write() will negotiate a TLS/SSL session, so we don't
+    // have to explicitly call connect or do_handshake.
     //--------------------------------------------------------------------------
-    int error = pTls->Write( buffer, size, bytesWritten );
+    XrdTls::RC error = pTls->Write( buffer, size, bytesWritten );
     Status status = ToStatus( error );
 
     //--------------------------------------------------------------------------
@@ -165,7 +163,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Check if we need to switch on a revert state
       //------------------------------------------------------------------------
-      if( error == SSL_ERROR_WANT_READ )
+      if( error == XrdTls::TLS_WantRead )
       {
         pTlsHSRevert = WriteOnRead;
         Status st = pSocketHandler->DisableUplink();
@@ -194,13 +192,13 @@ namespace XrdCl
   {
     switch( error )
     {
-      case SSL_ERROR_NONE: return Status();
+      case XrdTls::TLS_AOK: return Status();
 
-      case SSL_ERROR_WANT_WRITE:
-      case SSL_ERROR_WANT_READ: return Status( stOK, suRetry, error );
+      case XrdTls::TLS_WantWrite:
+      case XrdTls::TLS_WantRead:  return Status( stOK, suRetry, error );
 
-      case SSL_ERROR_ZERO_RETURN:
-      case SSL_ERROR_SYSCALL:
+      case XrdTls::TLS_SYS_Error: return Status( stError, errTlsError, errno );
+
       default:
         return Status( stError, errTlsError, error );
     }

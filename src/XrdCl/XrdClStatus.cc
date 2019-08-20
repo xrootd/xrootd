@@ -54,6 +54,7 @@ namespace
     { errStreamDisconnect,     "Stream disconnect"    },
     { errConnectionError,      "Connection error"     },
     { errInvalidSession,       "Invalid session"      },
+    { errTlsError,             "TLS error"            },
     { errInvalidMessage,       "Invalid message"      },
     { errNotFound,             "Resource not found"   },
     { errCheckSumError,        "CheckSum error"       },

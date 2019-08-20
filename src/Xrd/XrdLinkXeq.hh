@@ -33,13 +33,14 @@
 #include <fcntl.h>
 #include <time.h>
 
-#include "../XrdTls/XrdTlsSocket.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollInfo.hh"
 #include "Xrd/XrdProtocol.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
 
+#include "XrdTls/XrdTls.hh"
+#include "XrdTls/XrdTlsSocket.hh"
   
 /******************************************************************************/
 /*                      C l a s s   D e f i n i t i o n                       */
@@ -137,7 +138,7 @@ protected:
 void   Reset();
 int    sendData(const char *Buff, int Blen);
 int    SFError(int rc);
-int    TLS_Error(const char *act, int rc);
+int    TLS_Error(const char *act, XrdTls::RC rc);
 bool   TLS_Write(const char *Buff, int Blen);
 
 static const char   *TraceID;
@@ -171,7 +172,7 @@ XrdProtocol   *ProtoAlt;             // -> Alternate/stacked protocol
 
 // TLS section
 //
-XrdTlsSocket    tlsIO;
+XrdTlsSocket   tlsIO;
 
 // Identification section
 //

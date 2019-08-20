@@ -33,7 +33,6 @@
 
 #include <stdexcept>
 
-
 /******************************************************************************/
 /*                      X r d T l s S o c k e t I m p l                       */
 /******************************************************************************/
@@ -51,13 +50,34 @@ struct XrdTlsSocketImpl
     int              hsWait;    //!< Maximum amount of time to wait for handshake
     bool             hsDone;    //!< True if the handshake has completed
     bool             fatal;     //!< True if fatal error prevents shutdown call
-
     char             cOpts;     //!< Connection options
-
     char             cAttr;     //!< Connection attributes
-
     char             hsMode;    //!< Handshake handling
 };
+
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+  
+namespace
+{
+class undoImpl
+{
+public:
+
+   undoImpl(XrdTlsSocketImpl *pImpl) : theImpl(pImpl) {}
+  ~undoImpl() {if (theImpl && theImpl->ssl)
+                  {SSL_free( theImpl->ssl );
+                   theImpl->ssl = 0;
+                  }
+              }
+
+   void KeepImpl() {theImpl = 0;}
+
+private:
+XrdTlsSocketImpl *theImpl;
+};
+}
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -65,7 +85,7 @@ struct XrdTlsSocketImpl
 
 namespace XrdTlsGlobal
 {
-extern XrdTlsContext::msgCB_t msgCB;
+extern XrdTls::msgCB_t msgCB;
 }
 
 /******************************************************************************/
@@ -101,27 +121,38 @@ XrdTlsSocket::XrdTlsSocket( XrdTlsContext &ctx, int  sfd,
 XrdTlsSocket::~XrdTlsSocket()
 {
   if (pImpl->ssl) Shutdown(sdForce);
+  delete pImpl;
 }
 
 /******************************************************************************/
 /*                                A c c e p t                                 */
 /******************************************************************************/
   
-int XrdTlsSocket::Accept()
+XrdTls::RC XrdTlsSocket::Accept()
 {
    int rc, error;
+
+// Make sure there is a context here
+//
+   if (pImpl->ssl == 0) return XrdTls::TLS_CTX_Missing;
+   undoImpl ImplTracker(pImpl);
 
 // An accept may require several tries, so we do that here.
 //
 do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
       {if (pImpl->cOpts & xVerify)
-          {rc = SSL_get_verify_result(pImpl->ssl);
+          {X509 *theCert = SSL_get_peer_certificate(pImpl->ssl);
+           if (!theCert) return XrdTls::TLS_CRT_Missing;
+           X509_free(theCert);
+           rc = SSL_get_verify_result(pImpl->ssl);
            if (rc != X509_V_OK)
-              {FlushErrors("x509_Verify()"); return -1;} // ???
+              {XrdTls::Emsg(pImpl->traceID, "x509 cert verification failed");
+               return XrdTls::TLS_VER_Error;
+              }
           }
-       return SSL_ERROR_NONE;
+       ImplTracker.KeepImpl();
+       return XrdTls::TLS_AOK;
       }
-
 
    // Get the actual SSL error code.
    //
@@ -130,26 +161,26 @@ do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
    // Check why we did not succeed. We may be able to recover.
    //
    if (error != SSL_ERROR_WANT_READ && error != SSL_ERROR_WANT_WRITE)
-      {FlushErrors("SSL_accept()", error);
-       SSL_free( pImpl->ssl );
-       pImpl->ssl = 0;
+      {std::string eTxt("TLS Accept() failed; ");
+       eTxt += Err2Text(error);
+       XrdTls::Emsg(pImpl->traceID, eTxt.c_str());;
        errno = ECONNABORTED;
-       return SSL_ERROR_SYSCALL;
+       return XrdTls::TLS_SYS_Error;
       }
 
   } while(Wait4OK(error == SSL_ERROR_WANT_READ));
 
 // If we are here then we got a syscall error
 //
-   return SSL_ERROR_SYSCALL;
+   return XrdTls::TLS_SYS_Error;
 }
 
 /******************************************************************************/
 /*                               C o n n e c t                                */
 /******************************************************************************/
   
-int XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
-                          std::string *eMsg)
+XrdTls::RC XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
+                                 std::string *eMsg)
 {
 
 // Setup host verification of a host has been specified. This is a to-do
@@ -170,11 +201,11 @@ int XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
        if (eTxt && eMsg)
           {*eMsg  = "Unable to validate "; *eMsg += thehost;
            *eMsg += "; "; *eMsg += eTxt;
-           return SSL_ERROR_SSL;
+           return XrdTls::TLS_HNV_Error;
           }
       }
 
-   return SSL_ERROR_NONE;
+   return XrdTls::TLS_AOK;
 }
 
 /******************************************************************************/
@@ -190,7 +221,7 @@ XrdTlsContext* XrdTlsSocket::Context()
 /* Private:                     D i a g n o s e                               */
 /******************************************************************************/
   
-int XrdTlsSocket::Diagnose(int sslrc)
+XrdTls::RC XrdTlsSocket::Diagnose(int sslrc)
 {
 int eCode = SSL_get_error( pImpl->ssl, sslrc );
 
@@ -200,11 +231,11 @@ int eCode = SSL_get_error( pImpl->ssl, sslrc );
 
 // Return the errors
 //
-   return eCode;
+   return XrdTls::ssl2RC(eCode);
 }
   
 /******************************************************************************/
-/*                              E r r 2 T e x t                               */
+/* Private:                     E r r 2 T e x t                               */
 /******************************************************************************/
 
 std::string XrdTlsSocket::Err2Text(int sslerr)
@@ -227,31 +258,6 @@ std::string XrdTlsSocket::Err2Text(int sslerr)
       }
    return std::string(eP);
 }
-  
-/******************************************************************************/
-/*                           F l u s h E r r o r s                            */
-/******************************************************************************/
-  
-void XrdTlsSocket::FlushErrors(const char *what, int sslrc)
-{
-  unsigned long eCode;
-  char emsg[1024];
-
-// First print the specific error
-//
-   if (sslrc)
-      {std::string sslmsg = Err2Text(sslrc);
-       snprintf(emsg,sizeof(emsg),"%s failed; %s",what,sslmsg.c_str());
-       XrdTlsGlobal::msgCB(pImpl->traceID, emsg, false);
-      }
-
-// Now flush all the ssl errors
-//
-  while((eCode = ERR_get_error()))
-       {ERR_error_string_n(eCode, emsg, sizeof(emsg));
-        XrdTlsGlobal::msgCB(pImpl->traceID, emsg, true);
-       }
-}
 
 /******************************************************************************/
 /*                                  I n i t                                   */
@@ -264,9 +270,15 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
 {
    BIO *rbio, *wbio = 0;
 
-// Make sure this connection is not in use
+// Make sure this connection is not in use if this is a client. Servers are
+// allowed to throw away the previous setup as they reuse sockets.
 //
-   if ( pImpl->ssl ) return "TLS I/O: connection is still in use.";
+   if ( pImpl->ssl )
+      {if (isClient) return "TLS I/O: connection is still in use.";
+          else {SSL_free( pImpl->ssl );
+                pImpl->ssl = 0;
+               }
+      }
 
 // Get the ssl object from the context, there better be one.
 //
@@ -328,7 +340,8 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
           pImpl->cAttr |= (rBlocking | wBlocking);
           break;
 
-     default: return "TLS I/O: invalid TLS rw mode."; break;
+     default: 
+          return "TLS I/O: invalid TLS rw mode."; break;
    }
 
 // Set correct handshake mode
@@ -339,7 +352,8 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
      case TLS_HS_NOBLK: pImpl->hsMode = noBlock; break;
      case TLS_HS_XYBLK: pImpl->hsMode = xyBlock; break;
 
-     default: return "TLS I/O: invalid TLS hs mode."; break;
+     default:
+          return "TLS I/O: invalid TLS hs mode."; break;
     }
 
 // Finally attach the bios to the ssl object. When the ssl object is freed
@@ -371,9 +385,9 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
 /*                                  P e e k                                   */
 /******************************************************************************/
   
-  int XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
+XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
   {
-    int error;
+    XrdTls::RC error;
 
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
@@ -386,7 +400,7 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
     //
     if( rc > 0 )
       {bytesPeek = rc;
-       return SSL_ERROR_NONE;
+       return XrdTls::TLS_AOK;
       }
 
     // We have a potential error. Get the SSL error code and whether or
@@ -399,13 +413,13 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
     // complete. This is a tricky issue for non-blocking bio's as a read
     // may force us to wait until writes are possible. All of this is rare!
     //
-    if ((!pImpl->hsMode || pImpl->hsDone || (error != SSL_ERROR_WANT_READ &&
-                               error != SSL_ERROR_WANT_WRITE))
-    ||   (pImpl->hsMode == xyBlock && error == SSL_ERROR_WANT_READ)) return error;
+    if ((!pImpl->hsMode || pImpl->hsDone || (error != XrdTls::TLS_WantRead &&
+                               error != XrdTls::TLS_WantWrite))
+    ||   (pImpl->hsMode == xyBlock && error == XrdTls::TLS_WantRead)) return error;
 
-   } while(Wait4OK(error == SSL_ERROR_WANT_READ));
+   } while(Wait4OK(error == XrdTls::TLS_WantRead));
 
-    return SSL_ERROR_SYSCALL;
+    return XrdTls::TLS_SYS_Error;
   }
 
 /******************************************************************************/
@@ -426,9 +440,10 @@ int XrdTlsSocket::Pending(bool any)
 /*                                  R e a d                                   */
 /******************************************************************************/
   
-  int XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
+XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
   {
-    int error;
+    XrdTls::RC error;
+
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call SSL_connect or SSL_do_handshake.
@@ -440,26 +455,26 @@ int XrdTlsSocket::Pending(bool any)
     //
     if( rc > 0 )
       {bytesRead = rc;
-       return SSL_ERROR_NONE;
+       return XrdTls::TLS_AOK;
       }
 
     // We have a potential error. Get the SSL error code and whether or
     // not the handshake actually is finished (semi-accurate)
     //
+    error = Diagnose(SSL_get_error( pImpl->ssl, rc ));
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
-    error = Diagnose(rc);
 
     // The connection creator may wish that we wait for the handshake to
     // complete. This is a tricky issue for non-blocking bio's as a read
     // may force us to wait until writes are possible. All of this is rare!
     //
-    if ((!pImpl->hsMode || pImpl->hsDone || (error != SSL_ERROR_WANT_READ &&
-                               error != SSL_ERROR_WANT_WRITE))
-    ||   (pImpl->hsMode == xyBlock && error == SSL_ERROR_WANT_READ)) return error;
+    if ((!pImpl->hsMode || pImpl->hsDone || (error != XrdTls::TLS_WantRead &&
+                               error != XrdTls::TLS_WantWrite))
+    ||   (pImpl->hsMode == xyBlock && error == XrdTls::TLS_WantRead)) return error;
 
-   } while(Wait4OK(error == SSL_ERROR_WANT_READ));
+   } while(Wait4OK(error == XrdTls::TLS_WantRead));
 
-    return SSL_ERROR_SYSCALL;
+    return XrdTls::TLS_SYS_Error;
   }
 
 /******************************************************************************/
@@ -521,10 +536,10 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
 /*                                 W r i t e                                  */
 /******************************************************************************/
   
-  int XrdTlsSocket::Write( const char *buffer, size_t size,
-                               int &bytesWritten )
+XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
+                                int &bytesWritten )
   {
-    int error;
+    XrdTls::RC error;
 
     //------------------------------------------------------------------------
     // If necessary, SSL_write() will negotiate a TLS/SSL session, so we don't
@@ -537,31 +552,32 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
     //
     if( rc > 0 )
       {bytesWritten = rc;
-       return SSL_ERROR_NONE;
+       return XrdTls::TLS_AOK;
       }
 
     // We have a potential error. Get the SSL error code and whether or
     // not the handshake actually is finished (semi-accurate)
     //
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
-    error = SSL_get_error( pImpl->ssl, rc );
+    error = Diagnose(SSL_get_error( pImpl->ssl, rc ));
 
     // The connection creator may wish that we wait for the handshake to
     // complete. This is a tricky issue for non-blocking bio's as a write
     // may force us to wait until reads are possible. All of this is rare!
     //
-    if ((!pImpl->hsMode || pImpl->hsDone || (error != SSL_ERROR_WANT_READ &&
-                                             error != SSL_ERROR_WANT_WRITE))
-    ||   (pImpl->hsMode == xyBlock && error == SSL_ERROR_WANT_WRITE)) return error;
+    if ((!pImpl->hsMode || pImpl->hsDone || (error != XrdTls::TLS_WantRead &&
+                                             error != XrdTls::TLS_WantWrite))
+    ||   (pImpl->hsMode == xyBlock && error == XrdTls::TLS_WantWrite)) return error;
 
-   } while(Wait4OK(error == SSL_ERROR_WANT_READ));
+   } while(Wait4OK(error == XrdTls::TLS_WantRead));
 
-    return SSL_ERROR_SYSCALL;
+    return XrdTls::TLS_SYS_Error;
   }
 
 /******************************************************************************/
 /*                         N e e d H a n d S h a k e                          */
 /******************************************************************************/
+
   bool XrdTlsSocket::NeedHandShake()
   {
     return !pImpl->hsDone;

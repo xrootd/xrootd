@@ -60,6 +60,7 @@ add_library(
   #-----------------------------------------------------------------------------
   # XrdTls
   #-----------------------------------------------------------------------------
+  XrdTls/XrdTls.cc              XrdTls/XrdTls.hh
   XrdTls/XrdTlsContext.cc       XrdTls/XrdTlsContext.hh
   XrdTls/XrdTlsHostcheck.icc    XrdTls/XrdTlsHostcheck.hh
   XrdTls/XrdTlsNotary.cc        XrdTls/XrdTlsNotary.hh

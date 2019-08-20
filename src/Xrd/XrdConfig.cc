@@ -74,6 +74,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysUtils.hh"
 
+#include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
 #ifdef __linux__
@@ -1148,7 +1149,7 @@ bool XrdConfig::SetupTLS()
 
 // Set the message callback before doing anything else
 //
-   XrdTlsContext::SetMsgCB(TlsError);
+   XrdTls::SetMsgCB(TlsError);
 
 // Set debug option if need be.
 //
