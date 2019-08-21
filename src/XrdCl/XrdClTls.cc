@@ -129,6 +129,12 @@ namespace XrdCl
     }
     pTlsHSRevert = None;
 
+    //------------------------------------------------------------------------
+    // If we didn't manage to read any data wait for another read event
+    //------------------------------------------------------------------------
+    if( bytesRead == 0 )
+      return Status( stOK, suRetry );
+
     return status;
   }
 
@@ -184,6 +190,15 @@ namespace XrdCl
       if( !st.IsOK() ) status = st;
     }
     pTlsHSRevert = None;
+
+    //------------------------------------------------------------------------
+    // If we didn't manage to read any data wait for another write event
+    //
+    // Adding this by symmetry, never actually experienced this (for reads
+    // it has been experienced)
+    //------------------------------------------------------------------------
+    if( bytesWritten == 0 )
+      return Status( stOK, suRetry );
 
     return status;
   }

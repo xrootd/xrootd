@@ -467,6 +467,7 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
     // not the handshake actually is finished (semi-accurate)
     //
     error = Diagnose(SSL_get_error( pImpl->ssl, rc ));
+    if( error == XrdTls::RC::TLS_AOK ) bytesRead = 0;
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
 
     // The connection creator may wish that we wait for the handshake to
@@ -565,6 +566,7 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
     // not the handshake actually is finished (semi-accurate)
     //
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
+    if( error == XrdTls::RC::TLS_AOK ) bytesWritten = 0;
     error = Diagnose(SSL_get_error( pImpl->ssl, rc ));
 
     // The connection creator may wish that we wait for the handshake to
