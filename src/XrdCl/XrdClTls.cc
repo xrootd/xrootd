@@ -64,7 +64,7 @@ namespace XrdCl
       if( error == XrdTls::TLS_WantWrite )
       {
         Status st = pSocketHandler->EnableUplink();
-        if( !st.IsOK() ) status = st;
+        if( !st.IsOK() ) return st;
       }
       //----------------------------------------------------------------------
       // Otherwise disable uplink
@@ -76,7 +76,7 @@ namespace XrdCl
       }
     }
 
-    return Status();
+    return status;
   }
 
   Status Tls::Read( char *buffer, size_t size, int &bytesRead )
@@ -194,6 +194,7 @@ namespace XrdCl
     {
       case XrdTls::TLS_AOK: return Status();
 
+      case XrdTls::TLS_WantConnect:
       case XrdTls::TLS_WantWrite:
       case XrdTls::TLS_WantRead:  return Status( stOK, suRetry, error );
 

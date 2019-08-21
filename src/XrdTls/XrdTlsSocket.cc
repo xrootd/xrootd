@@ -192,6 +192,10 @@ XrdTls::RC XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
    int rc = SSL_connect( pImpl->ssl );
    if (rc != 1) return Diagnose(rc);
 
+//  Set the hsDone flag!
+//
+   pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
+
 // Validate the host name if so desired. Note that cert verification is
 // checked by the notary since only hostname validation requires it.
 
@@ -455,6 +459,7 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
     //
     if( rc > 0 )
       {bytesRead = rc;
+       if( !pImpl->hsDone ) pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
        return XrdTls::TLS_AOK;
       }
 
@@ -552,6 +557,7 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
     //
     if( rc > 0 )
       {bytesWritten = rc;
+       if( !pImpl->hsDone ) pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
        return XrdTls::TLS_AOK;
       }
 
