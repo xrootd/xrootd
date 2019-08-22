@@ -232,6 +232,11 @@ namespace XrdCl
                                    AnyObject &channelData );
 
       //------------------------------------------------------------------------
+      //! Get signature for given message
+      //------------------------------------------------------------------------
+      Status GetSignature( Message *toSign, Message *&sign, XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
       //! Classify errno while reading/writing
       //------------------------------------------------------------------------
       Status ClassifyErrno( int error );

@@ -1264,12 +1264,22 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status XRootDTransport::GetSignature( Message *toSign, Message *&sign, AnyObject &channelData )
   {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    return GetSignature( toSign, sign, info );
+  }
+
+  //------------------------------------------------------------------------
+  //! Get signature for given message
+  //------------------------------------------------------------------------
+  Status XRootDTransport::GetSignature( Message           *toSign,
+                                        Message           *&sign,
+                                        XRootDChannelInfo *info )
+  {
     XrdSysRWLockHelper scope( pSecUnloadHandler->lock );
     if( pSecUnloadHandler->unloaded ) return Status( stError, errInvalidOp );
 
     ClientRequest *thereq  = reinterpret_cast<ClientRequest*>( toSign->GetBuffer() );
-    XRootDChannelInfo *info = 0;
-    channelData.Get( info );
     if( !info ) return Status( stError, errInternal );
     if( info->protection )
     {
@@ -2095,6 +2105,21 @@ namespace XrdCl
                 " %s", hsData->streamName.c_str(), sessId.c_str() );
 
     MarshallRequest( msg );
+
+    Message *sign = 0;
+    GetSignature( msg, sign, info );
+    if( sign )
+    {
+      //------------------------------------------------------------------------
+      // Now place both the signature and the request in a single buffer
+      //------------------------------------------------------------------------
+      uint32_t size = sign->GetSize();
+      sign->ReAllocate( size + msg->GetSize() );
+      char* buffer = sign->GetBuffer( size );
+      memcpy( buffer, msg->GetBuffer(), msg->GetSize() );
+      msg->Grab( sign->GetBuffer(), sign->GetSize() );
+    }
+
     return msg;
   }
 
