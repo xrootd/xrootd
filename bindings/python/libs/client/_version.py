@@ -24,29 +24,4 @@
 
 from pyxrootd import client
 
-
-def EnvPutString( key, value ):
-     """Sets the given key in the xrootd client environment to 
-        the given value. Returns false if there is already a 
-        shell-imported setting for this key, true otherwise
-     """
-     return client.EnvPutString_cpp( key, value )
- 
-def EnvGetString( key ):
-     """Gets the given key from the xrootd client environment. 
-        If key does not exist in the environment returns None.
-     """
-     return client.EnvGetString_cpp( key )
- 
-def EnvPutInt( key, value ):
-     """Sets the given key in the xrootd client environment to 
-        the given value. Returns false if there is already a 
-        shell-imported setting for this key, true otherwise
-     """
-     return client.EnvPutInt_cpp( key, value )
- 
-def EnvGetInt( key ):
-     """Gets the given key from the xrootd client environment. 
-        If key does not exist in the environment returns None.
-     """
-     return client.EnvGetInt_cpp( key )
+__version__ = client.XrdVersion_cpp()

@@ -49,6 +49,7 @@ namespace PyXRootD
       { "EnvGetString_cpp",     EnvGetString_cpp,     METH_VARARGS, "Gets a string from XrdCl environment." },
       { "EnvPutInt_cpp",        EnvPutInt_cpp,        METH_VARARGS, "Puts an int into XrdCl environment." },
       { "EnvGetInt_cpp",        EnvGetInt_cpp,        METH_VARARGS, "Gets an int from XrdCl environment." },
+      { "XrdVersion_cpp",       XrdVersion_cpp,       METH_VARARGS, "Get the XRootD client version." },
       { NULL, NULL, 0, NULL }
     };
 
