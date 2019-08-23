@@ -28,6 +28,7 @@
 #include "PyXRootDCopyProcess.hh"
 #include "PyXRootDURL.hh"
 #include "PyXRootDFinalize.hh"
+#include "PyXRootDEnv.hh"
 
 namespace PyXRootD
 {
@@ -42,7 +43,12 @@ namespace PyXRootD
   static PyMethodDef module_methods[] =
     {
       // The finalization routine used in atexit handler.
-      { "__XrdCl_Stop_Threads", __XrdCl_Stop_Threads, METH_NOARGS, "Stop XrdCl threads." },
+      { "__XrdCl_Stop_Threads", __XrdCl_Stop_Threads, METH_NOARGS,  "Stop XrdCl threads." },
+      // Ths XRootD Env
+      { "EnvPutString_cpp",     EnvPutString_cpp,     METH_VARARGS, "Puts a string into XrdCl environment." },
+      { "EnvGetString_cpp",     EnvGetString_cpp,     METH_VARARGS, "Gets a string from XrdCl environment." },
+      { "EnvPutInt_cpp",        EnvPutInt_cpp,        METH_VARARGS, "Puts an int into XrdCl environment." },
+      { "EnvGetInt_cpp",        EnvGetInt_cpp,        METH_VARARGS, "Gets an int from XrdCl environment." },
       { NULL, NULL, 0, NULL }
     };
 
