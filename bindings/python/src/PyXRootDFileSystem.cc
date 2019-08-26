@@ -29,6 +29,7 @@
 #include "Utils.hh"
 
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 namespace PyXRootD
 {
@@ -695,5 +696,39 @@ namespace PyXRootD
 
     bool status = self->filesystem->SetProperty( name, value );
     return status ? Py_True : Py_False;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Do a remote cat
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::Cat( FileSystem *self,
+                             PyObject   *args,
+                             PyObject   *kwds )
+  {
+    static const char *kwlist[] = { "source" , NULL };
+    const  char       *source = 0;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s",
+         (char**) kwlist, &source ) ) Py_RETURN_NONE;
+
+    XrdCl::CopyProcess process;
+    XrdCl::PropertyList props, results;
+
+    props.Set( "source", source );
+    props.Set( "target", "stdio://-" );
+    props.Set( "dynamicSource", true );
+
+    PyObject *pystatus = 0;
+
+    XrdCl::XRootDStatus st = process.AddJob( props, &results );
+    if( !st.IsOK() )
+      return ConvertType<XrdCl::XRootDStatus>( &st );
+
+    st = process.Prepare();
+    if( !st.IsOK() )
+      return ConvertType<XrdCl::XRootDStatus>( &st );
+
+    st = process.Run( 0 );
+    return ConvertType<XrdCl::XRootDStatus>( &st );
   }
 }

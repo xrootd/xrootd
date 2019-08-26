@@ -364,3 +364,12 @@ class FileSystem(object):
     :type  name: string
     """
     return self.__fs.get_property(name)
+
+  def cat(self, path):
+    """Cat the remote file.
+
+    :param path: path to the remote file
+    :type  path: string
+    """
+    source = self.__fs.url.hostid + '/' + path
+    return self.__fs.cat(source)
