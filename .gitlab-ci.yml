@@ -387,8 +387,8 @@ weekly:cc7:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ rpm-build which git cppunit-devel python-srpm-macros
-    - xrootd_version=$(git tag | grep '^v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
-    - xrootd_version=${xrootd_version:1}
+    - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
+    - xrootd_version=${xrootd_version:11}
     - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
     - a=( ${xrootd_version//./ } )
     - ((a[2]++)) || true
