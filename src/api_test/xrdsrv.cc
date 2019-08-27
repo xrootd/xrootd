@@ -5,6 +5,10 @@
 #include <string>
 #include <unistd.h>
 
+#include <memory>
+#include <mutex>
+#include <sstream>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -16,6 +20,20 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdTls/XrdTlsContext.hh"
+
+
+struct StdIO
+{
+    void write( const std::string &str )
+    {
+      std::unique_lock<std::mutex> lck( mtx );
+      std::cout << str << std::endl;
+    }
+
+  private:
+
+    std::mutex mtx;
+} stdio;
 
 struct SocketIO
 {
@@ -35,13 +53,15 @@ struct SocketIO
 
     void TlsHandShake()
     {
-      std::cout << std::endl << __func__ << std::endl << std::endl;;
+      std::stringstream ss;
+      ss << std::endl << __func__ << std::endl << std::endl;
       static XrdTlsContext tlsctx("server.crt", "server.key");
 
       BIO *sbio = BIO_new_socket( socket, BIO_NOCLOSE );
       ssl = SSL_new( static_cast<SSL_CTX*>(tlsctx.Context()) );
       SSL_set_accept_state( ssl );
       SSL_set_bio( ssl, sbio, sbio );
+      ss << "SSL_accept is waiting." << std::endl;
       int rc = SSL_accept( ssl );
       int code = SSL_get_error( ssl, rc );
 
@@ -54,6 +74,9 @@ struct SocketIO
       }
 
       tlson = true;
+
+      ss << "SSL hand shake done!" << std::endl;
+      stdio.write( ss.str() );
     }
 
     int read( void *buffer, int size )
@@ -103,7 +126,7 @@ struct SocketIO
     int  socket;
     SSL *ssl;
 
-} io;
+} mainio, dataio;
 
 void die(const char *msg) {
   perror(msg);
@@ -118,7 +141,7 @@ void handle_error(const char *file, int lineno, const char *msg) {
 
 #define int_error(msg) handle_error(__FILE__, __LINE__, msg)
 
-void DoInitHS()
+void DoInitHS( SocketIO &io )
 {
   ServerResponseHeader respHdr;
   memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
@@ -134,15 +157,17 @@ void DoInitHS()
   io.write( &hs.msgval, sizeof( kXR_int32 ) );
 }
 
-void HandleProtocolReq( ClientRequestHdr *hdr )
+void HandleProtocolReq( SocketIO &io, ClientRequestHdr *hdr )
 {
-  std::cout << __func__ << std::endl;
+  std::stringstream ss;
+  ss << __func__ << std::endl;
 
   ClientProtocolRequest *req = (ClientProtocolRequest*)hdr;
 
-  std::cout << "Client protocol version : " << std::hex << ntohl(req->clientpv) << std::dec << std::endl;
-  std::cout << "Flags : " << (int)req->flags << std::endl;
-  std::cout << "Expect : " << (int)req->expect << std::endl;
+  ss << "Client protocol version : " << std::hex << ntohl(req->clientpv) << std::dec << std::endl;
+  ss << "Flags : " << (int)req->flags << std::endl;
+  ss << "Expect : " << (int)req->expect << std::endl;
+  stdio.write( ss.str() );
 
   ServerResponseHeader respHdr;
   memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
@@ -150,24 +175,33 @@ void HandleProtocolReq( ClientRequestHdr *hdr )
   respHdr.dlen = htonl( sizeof( ServerResponseBody_Protocol ) );
   io.write( &respHdr, sizeof(ServerResponseHeader) );
 
+  kXR_int32 flags = 0;
+  if( &io == &mainio )
+    flags = kXR_DataServer | kXR_haveTLS | kXR_gotoTLS | kXR_tlsLogin; // | kXR_tlsData;
+  else
+    flags = kXR_DataServer | kXR_haveTLS; // | kXR_gotoTLS | kXR_tlsLogin | kXR_tlsData;
+
   ServerResponseBody_Protocol body;
   body.pval  = htonl( 0x310 );
   body.flags = htonl( kXR_DataServer ) | htonl( kXR_haveTLS ) | htonl( kXR_gotoTLS ) | htonl( kXR_tlsLogin ) | htonl( kXR_tlsData );
   io.write( &body, sizeof(ServerResponseBody_Protocol) );
-  io.TlsHandShake();
+
+  if( flags & kXR_gotoTLS )
+    io.TlsHandShake();
 }
 
-void HandleLoginReq( ClientRequestHdr *hdr )
+void HandleLoginReq( SocketIO &io, ClientRequestHdr *hdr )
 {
   ClientLoginRequest *req = (ClientLoginRequest*) hdr;
 
-  std::cout << __func__ << std::endl;
-  std::cout << "Client PID : " << std::dec << ntohl( req->pid ) << std::endl;
+  std::stringstream ss;
+  ss << __func__ << std::endl;
+  ss << "Client PID : " << std::dec << ntohl( req->pid ) << std::endl;
 
   char *buffer = new char[hdr->dlen];
-//  ::read( sfd, buffer, hdr->dlen );
   io.read( buffer, hdr->dlen );
-  std::cout << "Token : " << std::string( buffer, hdr->dlen ) << std::endl;
+  ss << "Token : " << std::string( buffer, hdr->dlen ) << std::endl;
+  stdio.write( ss.str() );
   delete[] buffer;
 
   ServerResponseHeader respHdr;
@@ -181,17 +215,18 @@ void HandleLoginReq( ClientRequestHdr *hdr )
   io.write( &body, 16 );
 }
 
-void HandleOpenReq( ClientRequestHdr *hdr )
+void HandleOpenReq( SocketIO &io, ClientRequestHdr *hdr )
 {
   ClientOpenRequest *req = (ClientOpenRequest*) hdr;
-  std::cout << __func__ << std::endl;
-  std::cout << "Open mode : 0x" << std::hex << ntohs( req->mode ) << std::dec << std::endl;
+  std::stringstream ss;
+  ss << __func__ << std::endl;
+  ss << "Open mode : 0x" << std::hex << ntohs( req->mode ) << std::dec << std::endl;
 
   static const std::string statstr = "ABCD 1024 0 0";
 
   char *buffer = new char[req->dlen];
   io.read( buffer, req->dlen );
-  std::cout << "Path : " << std::string( buffer, req->dlen ) << std::endl;
+  ss << "Path : " << std::string( buffer, req->dlen ) << std::endl;
   delete[] buffer;
 
   ServerResponseHeader respHdr;
@@ -210,26 +245,33 @@ void HandleOpenReq( ClientRequestHdr *hdr )
 
   io.write( statstr.c_str(), statstr.size() );
 
-  std::cout << "Renegotiating session ..." << std::endl;
-  io.renegotiate(); //< test session re-negotiation
+  ss << "Renegotiating session ..." << std::endl;
+  stdio.write( ss.str() );
+  io.renegotiate(); //< test session re-negotiation !!!
 }
 
-void HandleReadReq( ClientRequestHdr *hdr )
+void HandleReadReq( SocketIO &io, ClientRequestHdr *hdr )
 {
   ClientReadRequest *req = (ClientReadRequest*) hdr;
-  std::cout << __func__ << std::endl;
+  std::stringstream ss;
+  ss << __func__ << " : " << ( &io == &dataio ? "data stream." : "control stream." ) << std::endl;
 
   req->rlen = ntohl( req->rlen );
   req->offset = ntohll( req->offset );
-  std::cout << std::dec << "Read " << req->rlen << " bytes at " << req->offset << " offset" << std::endl;
+  ss << std::dec << "Read " << req->rlen << " bytes at " << req->offset << " offset" << std::endl;
 
   static const std::string readstr = "ala ma kota, a ola ma psa, a ela ma rybke";
 
+  kXR_char pathid = 0;
   if( req->dlen )
   {
-    std::cout << "alen : " << req->dlen << std::endl;
+    ss << "alen : " << req->dlen << std::endl;
     char *buffer = new char[req->dlen];
     io.read( buffer, req->dlen );
+
+    read_args* rargs = (read_args*)buffer;
+    pathid = rargs->pathid;
+    ss << "Path ID : " << (int)rargs->pathid << std::endl;
     delete[] buffer;
   }
 
@@ -241,16 +283,29 @@ void HandleReadReq( ClientRequestHdr *hdr )
   respHdr.streamid[1] = req->streamid[1];
   respHdr.status = kXR_ok;
   respHdr.dlen   = htonl( dlen );
-  io.write( &respHdr, sizeof( ServerResponseHeader ) );
 
-  io.write( readstr.c_str(), dlen );
+  // pick up the I/O based on the pathid
+  if( !pathid )
+  {
+    mainio.write( &respHdr, sizeof( ServerResponseHeader ) );
+    mainio.write( readstr.c_str(), dlen );
+  }
+  else
+  {
+    ss << "Writing to data stream!" << std::endl;
+    dataio.write( &respHdr, sizeof( ServerResponseHeader ) );
+    dataio.write( readstr.c_str(), dlen );
+  }
+
+  stdio.write( ss.str() );
 }
 
-void HandleCloseReq( ClientRequestHdr *hdr )
+void HandleCloseReq( SocketIO &io, ClientRequestHdr *hdr )
 {
   ClientReadRequest *req = (ClientReadRequest*) hdr;
-  std::cout << __func__ << std::endl;
-
+  std::stringstream ss;
+  ss << __func__ << std::endl;
+  stdio.write( ss.str() );
 
   ServerResponseHeader respHdr;
   memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
@@ -261,13 +316,316 @@ void HandleCloseReq( ClientRequestHdr *hdr )
   io.write( &respHdr, sizeof( ServerResponseHeader ) );
 }
 
+void HandleBindReq( SocketIO &io, ClientRequestHdr *hdr )
+{
+  ClientBindRequest *req = (ClientBindRequest*) hdr;
+  std::stringstream ss;
+  ss << __func__ << std::endl;
+  stdio.write( ss.str() );
+
+  ServerResponseHeader respHdr;
+  memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
+  memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
+  respHdr.streamid[0] = req->streamid[0];
+  respHdr.streamid[1] = req->streamid[1];
+  respHdr.status = kXR_ok;
+  respHdr.dlen   = htonl( 1 );
+  io.write( &respHdr, sizeof( ServerResponseHeader ) );
+
+  ServerResponseBody_Bind body;
+  body.substreamid = 1;
+  io.write( &body, sizeof( ServerResponseBody_Bind ) );
+}
+
+
+int HandleRequest( SocketIO &io, int iterations )
+{
+  char buffer[1024] = {0};
+  std::fill( buffer, buffer + 1024, 'A' );
+  int valread = io.read( buffer, 20 );
+  std::stringstream ss;
+  ss << "valread : " << valread << std::endl;
+  if( valread != 20 ) return -1;
+  ClientInitHandShake   *init  = (ClientInitHandShake*)buffer;
+  ss << "First : "  << ntohl( init->first )  << std::endl;
+  ss << "Second : " << ntohl( init->second ) << std::endl;
+  ss << "Third : "  << ntohl( init->third )  << std::endl;
+  ss << "Fourth : " << ntohl( init->fourth ) << std::endl;
+  ss << "Fifth : "  << ntohl( init->fifth ) << std::endl;
+  stdio.write( ss.str() );
+
+  DoInitHS( io );
+
+  int count = 0;
+  while( count < iterations )
+  {
+    ++count;
+
+    std::stringstream ss;
+    ss << std::endl;
+    ss << "Step : " << count << std::endl;
+    ss << "Waiting for client ..." << std::endl;
+    ss << "reading : " << sizeof( ClientRequestHdr ) << " bytes." << std::endl;
+    valread = io.read( buffer, sizeof( ClientRequestHdr ) );
+    ss << "valread : " << valread << std::endl;
+    if( valread < 0 )
+    {
+      return -1;
+    }
+    else if( valread < 8 )
+    {
+      std::cout << "Got bogus header!" << std::endl;
+      std::cout << std::string( buffer, valread ) << std::endl;
+      return -1;
+    }
+
+    ClientRequestHdr *hdr = (ClientRequestHdr*)buffer;
+    hdr->dlen   = ntohl( hdr->dlen );
+    hdr->requestid = ntohs( hdr->requestid );
+
+    ss << "Got request: " << hdr->requestid << std::endl;
+    stdio.write( ss.str() );
+
+    switch( hdr->requestid )
+    {
+      case kXR_auth:
+      {
+        stdio.write( "Got kXR_auth!" );
+        break;
+      }
+
+      case kXR_query:
+      {
+        stdio.write( "Got kXR_query!" );
+        break;
+      }
+
+      case kXR_chmod:
+      {
+        stdio.write( "Got kXR_chmod!" );
+        break;
+      }
+
+      case kXR_close:
+      {
+        stdio.write( "Got kXR_close!" );
+        HandleCloseReq( io, hdr );
+        break;
+      }
+
+      case kXR_dirlist:
+      {
+        stdio.write(  "Got kXR_dirlist!" );
+        break;
+      }
+
+      case kXR_getfile:
+      {
+        stdio.write(  "Got kXR_getfile!" );
+        break;
+      }
+
+      case kXR_protocol:
+      {
+        stdio.write( "Got kXR_protocol!" );
+        HandleProtocolReq( io, hdr );
+        break;
+      }
+
+      case kXR_login:
+      {
+        stdio.write(  "Got kXR_login!" );
+        HandleLoginReq( io, hdr );
+        break;
+      }
+
+      case kXR_mkdir:
+      {
+        stdio.write( "Got kXR_mkdir!" );
+        break;
+      }
+
+      case kXR_mv:
+      {
+        stdio.write( "Got kXR_mv!" );
+        break;
+      }
+
+      case kXR_open:
+      {
+        stdio.write( "Got kXR_open!" );
+        HandleOpenReq( io, hdr );
+        break;
+      }
+
+      case kXR_ping:
+      {
+        stdio.write( "Got kXR_ping!" );
+        break;
+      }
+
+      case kXR_putfile:
+      {
+        stdio.write( "Got kXR_putfile!" );
+        break;
+      }
+
+      case kXR_read:
+      {
+        stdio.write( "Got kXR_read!" );
+        HandleReadReq( io, hdr );
+        break;
+      }
+
+      case kXR_rm:
+      {
+        stdio.write( "Got kXR_rm!" );
+        break;
+      }
+
+      case kXR_rmdir:
+      {
+        stdio.write( "Got kXR_rmdir!" );
+        break;
+      }
+
+      case kXR_sync:
+      {
+        stdio.write( "Got kXR_sync!" );
+        break;
+      }
+
+      case kXR_stat:
+      {
+        stdio.write(  "Got kXR_stat!" );
+        break;
+      }
+
+      case kXR_set:
+      {
+        stdio.write( "Got kXR_set!" );
+        break;
+      }
+
+      case kXR_write:
+      {
+        stdio.write( "Got kXR_write!" );
+        break;
+      }
+
+      case kXR_admin:
+      {
+        stdio.write( "Got kXR_admin!" );
+        break;
+      }
+
+      case kXR_prepare:
+      {
+        stdio.write( "Got kXR_prepare!" );
+        break;
+      }
+
+      case kXR_statx:
+      {
+        stdio.write( "Got kXR_statx!" );
+        break;
+      }
+
+      case kXR_endsess:
+      {
+        stdio.write( "Got kXR_endsess!" );
+        break;
+      }
+
+      case kXR_bind:
+      {
+        stdio.write( "Got kXR_bind!" );
+        HandleBindReq( io, hdr );
+        break;
+      }
+
+      case kXR_readv:
+      {
+        stdio.write( "Got kXR_readv!" );
+        break;
+      }
+
+      case kXR_verifyw:
+      {
+        stdio.write( "Got kXR_verifyw!" );
+        break;
+      }
+
+      case kXR_locate:
+      {
+        stdio.write( "Got kXR_locate!" );
+        break;
+      }
+
+      case kXR_truncate:
+      {
+        stdio.write( "Got kXR_truncate!" );
+        break;
+      }
+
+      case kXR_sigver:
+      {
+        stdio.write( "Got kXR_sigver!" );
+        break;
+      }
+
+      case kXR_decrypt:
+      {
+        stdio.write( "Got kXR_decrypt!" );
+        break;
+      }
+
+      case kXR_writev:
+      {
+        stdio.write( "Got kXR_writev!" );
+        break;
+      }
+    };
+
+  }
+
+  return 0;
+}
+
+
+void* control_stream( void *arg )
+{
+  std::stringstream ss;
+  ss << '\n' << __func__ << '\n';
+  stdio.write( ss.str() );
+
+  int socket = *(int*)arg;
+  mainio.SetSocket( socket );
+  int rc = HandleRequest( mainio, 6 );
+  return new int( rc );
+}
+
+void* data_stream( void *arg )
+{
+  std::stringstream ss;
+  ss << '\n' << __func__ << '\n';
+  stdio.write( ss.str() );
+
+  int socket = *(int*)arg;
+  dataio.SetSocket( socket );
+  int rc = HandleRequest( dataio, 2 );
+  return new int( rc );
+}
+
+
+// TODO we need control thread and data thread !!!
+
 int main(int argc, char const *argv[])
 {
-    int server_fd, new_socket, valread;
+    int server_fd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
-    char buffer[1024] = {0};
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
@@ -299,265 +657,38 @@ int main(int argc, char const *argv[])
         perror("listen");
         exit(EXIT_FAILURE);
     }
-    std::cout << "Waiting to accept new TCP connection!" << std::endl;
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-                       (socklen_t*)&addrlen))<0)
-    {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
-    std::cout << "New TCP connection accepted!" << std::endl;
 
-    io.SetSocket( new_socket );
-    std::cout << "SSL hand shake done!" << std::endl;
-
-//    valread = ::read( new_socket, buffer, 20 );
-//    valread = SSL_read( ssl, buffer, 20 );
-    std::fill( buffer, buffer + 1024, 'A' );
-    valread = io.read( buffer, 20 );
-    std::cout << "valread : " << valread << std::endl;
-    if( valread != 20 ) return -1;
-    ClientInitHandShake   *init  = (ClientInitHandShake*)buffer;
-    std::cout << "First : "  << ntohl( init->first )  << std::endl;
-    std::cout << "Second : " << ntohl( init->second ) << std::endl;
-    std::cout << "Third : "  << ntohl( init->third )  << std::endl;
-    std::cout << "Fourth : " << ntohl( init->fourth ) << std::endl;
-    std::cout << "Fifth : "  << ntohl( init->fifth ) << std::endl;
-
-    DoInitHS();
+    pthread_t threads[2];
 
     int count = 0;
-    while( count < 5 )
+    while( count < 2 )
     {
+      std::stringstream ss;
+      ss << "Waiting to accept new TCP connection!" << std::endl;
+      if ((new_socket = accept(server_fd, (struct sockaddr *)&address, // TODO
+                         (socklen_t*)&addrlen))<0)
+      {
+          perror("accept");
+          exit(EXIT_FAILURE);
+      }
+      ss << "New TCP connection accepted!" << std::endl;
+      stdio.write( ss.str() );
+
+      if( count == 0 )
+        pthread_create( &threads[count], 0, control_stream, &new_socket );
+      else
+        pthread_create( &threads[count], 0, data_stream,    &new_socket );
       ++count;
+    }
 
-      std::cout << std::endl;
-      std::cout << "Waiting for client ..." << std::endl;
-//      valread = ::read( new_socket , buffer, sizeof( ClientRequestHdr ) );
-//      valread = SSL_read( ssl, buffer, sizeof( ClientRequestHdr ) );
-      std::cout << "reading : " << sizeof( ClientRequestHdr ) << " bytes." << std::endl;
-      valread = io.read( buffer, sizeof( ClientRequestHdr ) );
-      std::cout << "valread : " << valread << std::endl;
-      if( valread < 0 )
-      {
-        return -1;
-      }
-      else if( valread < 8 )
-      {
-        std::cout << "Got bogus header!" << std::endl;
-        std::cout << std::string( buffer, valread ) << std::endl;
-        return -1;
-      }
-
-      ClientRequestHdr *hdr = (ClientRequestHdr*)buffer;
-      hdr->dlen   = ntohl( hdr->dlen );
-      hdr->requestid = ntohs( hdr->requestid );
-
-//      std::cout << "Read header : " << std::endl;
-//      std::cout << "requestid = " << hdr->requestid << std::endl;
-//      std::cout << "dlen = " << hdr->dlen << std::endl;
-
-      std::cout << "Got request: " << hdr->requestid << std::endl;
-      switch( hdr->requestid )
-      {
-        case kXR_auth:
-        {
-          std::cout << "Got kXR_auth!" << std::endl;
-          break;
-        }
-
-        case kXR_query:
-        {
-          std::cout << "Got kXR_query!" << std::endl;
-          break;
-        }
-
-        case kXR_chmod:
-        {
-          std::cout << "Got kXR_chmod!" << std::endl;
-          break;
-        }
-
-        case kXR_close:
-        {
-          std::cout << "Got kXR_close!" << std::endl;
-          HandleCloseReq( hdr );
-          break;
-        }
-
-        case kXR_dirlist:
-        {
-          std::cout << "Got kXR_dirlist!" << std::endl;
-          break;
-        }
-
-        case kXR_getfile:
-        {
-          std::cout << "Got kXR_getfile!" << std::endl;
-          break;
-        }
-
-        case kXR_protocol:
-        {
-          std::cout << "Got kXR_protocol!" << std::endl;
-          HandleProtocolReq( hdr );
-          break;
-        }
-
-        case kXR_login:
-        {
-          std::cout << "Got kXR_login!" << std::endl;
-          HandleLoginReq( hdr );
-          break;
-        }
-
-        case kXR_mkdir:
-        {
-          std::cout << "Got kXR_mkdir!" << std::endl;
-          break;
-        }
-
-        case kXR_mv:
-        {
-          std::cout << "Got kXR_mv!" << std::endl;
-          break;
-        }
-
-        case kXR_open:
-        {
-          std::cout << "Got kXR_open!" << std::endl;
-          HandleOpenReq( hdr );
-          break;
-        }
-
-        case kXR_ping:
-        {
-          std::cout << "Got kXR_ping!" << std::endl;
-          break;
-        }
-
-        case kXR_putfile:
-        {
-          std::cout << "Got kXR_putfile!" << std::endl;
-          break;
-        }
-
-        case kXR_read:
-        {
-          std::cout << "Got kXR_read!" << std::endl;
-          HandleReadReq( hdr );
-          break;
-        }
-
-        case kXR_rm:
-        {
-          std::cout << "Got kXR_rm!" << std::endl;
-          break;
-        }
-
-        case kXR_rmdir:
-        {
-          std::cout << "Got kXR_rmdir!" << std::endl;
-          break;
-        }
-
-        case kXR_sync:
-        {
-          std::cout << "Got kXR_sync!" << std::endl;
-          break;
-        }
-
-        case kXR_stat:
-        {
-          std::cout << "Got kXR_stat!" << std::endl;
-          break;
-        }
-
-        case kXR_set:
-        {
-          std::cout << "Got kXR_set!" << std::endl;
-          break;
-        }
-
-        case kXR_write:
-        {
-          std::cout << "Got kXR_write!" << std::endl;
-          break;
-        }
-
-        case kXR_admin:
-        {
-          std::cout << "Got kXR_admin!" << std::endl;
-          break;
-        }
-
-        case kXR_prepare:
-        {
-          std::cout << "Got kXR_prepare!" << std::endl;
-          break;
-        }
-
-        case kXR_statx:
-        {
-          std::cout << "Got kXR_statx!" << std::endl;
-          break;
-        }
-
-        case kXR_endsess:
-        {
-          std::cout << "Got kXR_endsess!" << std::endl;
-          break;
-        }
-
-        case kXR_bind:
-        {
-          std::cout << "Got kXR_bind!" << std::endl;
-          break;
-        }
-
-        case kXR_readv:
-        {
-          std::cout << "Got kXR_readv!" << std::endl;
-          break;
-        }
-
-        case kXR_verifyw:
-        {
-          std::cout << "Got kXR_verifyw!" << std::endl;
-          break;
-        }
-
-        case kXR_locate:
-        {
-          std::cout << "Got kXR_locate!" << std::endl;
-          break;
-        }
-
-        case kXR_truncate:
-        {
-          std::cout << "Got kXR_truncate!" << std::endl;
-          break;
-        }
-
-        case kXR_sigver:
-        {
-          std::cout << "Got kXR_sigver!" << std::endl;
-          break;
-        }
-
-        case kXR_decrypt:
-        {
-          std::cout << "Got kXR_decrypt!" << std::endl;
-          break;
-        }
-
-        case kXR_writev:
-        {
-          std::cout << "Got kXR_writev!" << std::endl;
-          break;
-        }
-      };
-
+    count = 0;
+    while( count < 2 )
+    {
+      void *ret = 0;
+      pthread_join( threads[count], &ret );
+      std::unique_ptr<int> rc( (int*)ret );
+      if( *rc ) return *rc;
+      ++count;
     }
 
     sleep( 2 );
