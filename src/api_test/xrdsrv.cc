@@ -175,18 +175,17 @@ void HandleProtocolReq( SocketIO &io, ClientRequestHdr *hdr )
   respHdr.dlen = htonl( sizeof( ServerResponseBody_Protocol ) );
   io.write( &respHdr, sizeof(ServerResponseHeader) );
 
-  kXR_int32 flags = 0;
-  if( &io == &mainio )
-    flags = kXR_DataServer | kXR_haveTLS | kXR_gotoTLS | kXR_tlsLogin; // | kXR_tlsData;
-  else
-    flags = kXR_DataServer | kXR_haveTLS; // | kXR_gotoTLS | kXR_tlsLogin | kXR_tlsData;
+  kXR_int32 flags = kXR_DataServer | kXR_haveTLS | kXR_gotoTLS | kXR_tlsLogin;// | kXR_tlsData;
+  std::cout << "Server flags = " << flags << std::endl;
 
   ServerResponseBody_Protocol body;
   body.pval  = htonl( 0x310 );
-  body.flags = htonl( kXR_DataServer ) | htonl( kXR_haveTLS ) | htonl( kXR_gotoTLS ) | htonl( kXR_tlsLogin ) | htonl( kXR_tlsData );
+  body.flags = htonl( flags );
   io.write( &body, sizeof(ServerResponseBody_Protocol) );
 
-  if( flags & kXR_gotoTLS )
+  if( &io == &mainio && ( flags & kXR_tlsLogin ) )
+    io.TlsHandShake();
+  else if( &io == &dataio && (flags & kXR_tlsData ) )
     io.TlsHandShake();
 }
 

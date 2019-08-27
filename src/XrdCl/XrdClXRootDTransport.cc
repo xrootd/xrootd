@@ -1433,11 +1433,19 @@ namespace XrdCl
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 
     //----------------------------------------------------------------------
-    // We are about to login and the server asked to start encrypting with
+    // We are about to login and the server asked to start encrypting
     // before login
     //----------------------------------------------------------------------
     if( ( sInfo.status == XRootDStreamInfo::LoginSent ) &&
         ( info->serverFlags & kXR_tlsLogin ) )
+      return true;
+
+    //----------------------------------------------------------------------
+    // We are about to bind a data stream and the server asked to start
+    // encrypting before bind
+    //----------------------------------------------------------------------
+    if( ( sInfo.status == XRootDStreamInfo::BindSent ) &&
+        ( info->serverFlags & kXR_tlsData ) )
       return true;
 
     //----------------------------------------------------------------------

@@ -6,8 +6,8 @@
 
 int main( int argc, char *argv[] )
 {
-  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-  env->PutInt( "SubStreamsPerChannel", 2 );
+//  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+//  env->PutInt( "SubStreamsPerChannel", 2 );
 
   XrdCl::File f;
 

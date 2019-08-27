@@ -28,6 +28,7 @@ target_link_libraries(
   xrdsrv
   XrdUtils
   ssl
-  crypto )
+  crypto
+  pthread )
   
 
