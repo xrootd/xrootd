@@ -366,7 +366,7 @@ namespace XrdCl
 
     FileSystem    sourceDSFS( server );
     Buffer        queryArg; queryArg.FromString( "tpc" );
-    Buffer       *queryResponse;
+    Buffer       *queryResponse = 0;
     XRootDStatus  st;
     st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse,
                            timeout );
@@ -374,6 +374,13 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "Cannot query source data server %s: %s",
                   server.c_str(), st.ToStr().c_str() );
+      st.status = stFatal;
+      return st;
+    }
+
+    if( !queryResponse )
+    {
+      log->Error( UtilityMsg, "Cannot query source data server: empty response." );
       st.status = stFatal;
       return st;
     }
@@ -403,7 +410,7 @@ namespace XrdCl
 
     FileSystem    sourceDSFS( server );
     Buffer        queryArg; queryArg.FromString( "tpc tpcdlg" );
-    Buffer       *queryResponse;
+    Buffer       *queryResponse = 0;
     XRootDStatus  st;
     st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse,
                            timeout );
@@ -415,13 +422,28 @@ namespace XrdCl
       return st;
     }
 
+    if( !queryResponse )
+    {
+      log->Error( UtilityMsg, "Cannot query source data server: empty response." );
+      st.status = stFatal;
+      return st;
+    }
+
     std::string answer = queryResponse->ToString();
     delete queryResponse;
+
+    if( answer.empty() )
+    {
+      log->Error( UtilityMsg, "Cannot query source data server: empty response." );
+      st.status = stFatal;
+      return st;
+    }
 
     std::vector<std::string> resp;
     Utils::splitString( resp, answer, "\n" );
 
-    if( !isdigit( resp[0][0]) || atoi( resp[0].c_str() ) == 0 )
+    if( resp.empty() || resp[0].empty() ||
+        !isdigit( resp[0][0]) || atoi( resp[0].c_str() ) == 0 )
     {
       log->Debug( UtilityMsg, "Third party copy not supported at: %s",
                   server.c_str() );
