@@ -51,6 +51,8 @@ public:
       m_BytesWritten(s.m_BytesWritten)
    {}
 
+   Stats& operator=(const Stats&) = default;
+
    //----------------------------------------------------------------------
 
    void AddReadStats(const Stats &s)
