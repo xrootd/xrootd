@@ -16,6 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
+#include <string.h>
 #include <errno.h>
 #include <iostream>
 #include <poll.h>
@@ -436,7 +437,7 @@ int XrdTlsSocket::Pending(bool any)
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
    return SSL_pending(pImpl->ssl) != 0;
 #else
-   return SSL_has_pending(ssl);
+   return SSL_has_pending(pImpl->ssl);
 #endif
 }
 
@@ -506,6 +507,7 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
                    break;
               case sdWait:  // Wait for client acknowledgement
                    sdMode = 0;
+                   break;
               default:      // Fast shutdown, don't wait for ack (compliant)
                    sdMode = SSL_RECEIVED_SHUTDOWN;
                    break;

@@ -31,6 +31,10 @@
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
+#if __cplusplus >= 201103L
+#include <atomic>
+#endif
+
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
@@ -106,7 +110,11 @@ namespace
 const char *sslCiphers = "ALL:!LOW:!EXP:!MD5:!MD2";
 
 XrdSysMutex            ctxMutex;
+#if __cplusplus >= 201103L
+std::atomic<bool>      initDone( false );
+#else
 bool                   initDone = false;
+#endif
 
 /******************************************************************************/
 /*                               I n i t T L S                                */
@@ -289,7 +297,11 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // there will usually be no more than two instances of this object.
 //
    AtomicBeg(ctxMutex);
+#if __cplusplus >= 201103L
+   bool done = initDone.load();
+#else
    bool done = AtomicGet(initDone);
+#endif
    AtomicEnd(ctxMutex);
    if (!done && (emsg = Init()))
       {XrdTlsGlobal::msgCB("TLS_Context", emsg, false);
