@@ -157,9 +157,6 @@ install(
     XrdClFileSystem.hh
     XrdClMessage.hh
     XrdClMonitor.hh
-    XrdClPostMaster.hh
-    XrdClPostMasterInterfaces.hh
-    XrdClTransportManager.hh
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
@@ -172,6 +169,9 @@ install(
   
 install(
   FILES
+    XrdClPostMaster.hh
+    XrdClPostMasterInterfaces.hh
+    XrdClTransportManager.hh
     XrdClOperations.hh
     XrdClOperationHandlers.hh
     XrdClArg.hh
