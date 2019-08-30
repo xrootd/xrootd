@@ -105,11 +105,17 @@ extern          XrdOucTrace       *XrdXrootdTrace;
 
 namespace XrdXrootdMonInfo
 {
+
+inline static int32_t  InitStartTime()
+{
+  return htonl( time( 0 ) );
+}
+
 XrdScheduler   *Sched     = 0;
 XrdSysError    *eDest     = 0;
 char           *monHost   = 0;
 long long       mySID     = 0;
-int32_t         startTime = htonl(time(0));
+int32_t         startTime = InitStartTime();
 int             seq       = 0;
 XrdSysMutex     seqMutex;
 }
