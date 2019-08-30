@@ -55,10 +55,6 @@ URL:       http://xrootd.org/
 # git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
 Source0:   xrootd.tar.gz
 
-%if %{?_with_compat:1}%{!?_with_compat:0}
-Source1:   xrootd-3.3.6.tar.gz
-%endif
-
 BuildRoot: %{_tmppath}/%{name}-root
 
 BuildRequires: cmake
@@ -382,39 +378,11 @@ Requires: %{name}-client = %{epoch}:%{version}-%{release}
 This package contains a set of CPPUnit tests for xrootd.
 %endif
 
-%if %{?_with_compat:1}%{!?_with_compat:0}
-#-------------------------------------------------------------------------------
-# client-compat
-#-------------------------------------------------------------------------------
-%package client-compat
-Summary:	XRootD 3 compatibility client libraries
-Group:		System Environment/Libraries
-
-%description client-compat
-This package contains compatibility libraries for xrootd 3 clients.
-
-#-------------------------------------------------------------------------------
-# server-compat
-#-------------------------------------------------------------------------------
-%package server-compat
-Summary:	XRootD 3 compatibility server binaries
-Group:		System Environment/Daemons
-Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description server-compat
-This package contains compatibility binaries for xrootd 3 servers.
-
-%endif
-
 #-------------------------------------------------------------------------------
 # Build instructions
 #-------------------------------------------------------------------------------
 %prep
 %setup -c -n xrootd
-
-%if %{?_with_compat:1}%{!?_with_compat:0}
-%setup -T -D -n %{name} -a 1
-%endif
 
 %build
 cd xrootd
@@ -454,16 +422,6 @@ popd
 
 doxygen Doxyfile
 
-%if %{?_with_compat:1}%{!?_with_compat:0}
-pushd ../xrootd-3.3.6
-mkdir build
-pushd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_PERL=FALSE ../
-make VERBOSE=1 %{?_smp_mflags}
-popd
-popd
-%endif
-
 %if %{?_with_python3:1}%{!?_with_python3:0}
 # build python3 bindings
 pushd build/bindings/python
@@ -476,30 +434,6 @@ popd
 #-------------------------------------------------------------------------------
 %install
 rm -rf $RPM_BUILD_ROOT
-
-#-------------------------------------------------------------------------------
-# Install 3.3.6 compat
-#-------------------------------------------------------------------------------
-%if %{?_with_compat:1}%{!?_with_compat:0}
-pushd xrootd-3.3.6/build
-make install DESTDIR=$RPM_BUILD_ROOT
-rm -rf $RPM_BUILD_ROOT%{_includedir}
-rm -rf $RPM_BUILD_ROOT%{_datadir}
-rm -f $RPM_BUILD_ROOT%{_bindir}/{cconfig,cns_ssi,frm_admin,frm_xfragent,mpxstats}
-rm -f $RPM_BUILD_ROOT%{_bindir}/{wait41,xprep,xrd,xrdadler32,XrdCnsd,xrdcopy}
-rm -f $RPM_BUILD_ROOT%{_bindir}/{xrdcp,xrdcp-old,xrdfs,xrdgsiproxy,xrdpwdadmin}
-rm -f $RPM_BUILD_ROOT%{_bindir}/{xrdqstats,xrdsssadmin,xrdstagetool,xrootdfs}
-rm -f $RPM_BUILD_ROOT%{_libdir}/libXrdAppUtils.so
-rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdClient.so,libXrdCl.so,libXrdCryptoLite.so}
-rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdCrypto.so,libXrdFfs.so,libXrdMain.so}
-rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdOfs.so,libXrdPosixPreload.so,libXrdPosix.so}
-rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdServer.so,libXrdUtils.so}
-
-for i in cmsd frm_purged frm_xfrd xrootd; do
-  mv $RPM_BUILD_ROOT%{_bindir}/$i $RPM_BUILD_ROOT%{_bindir}/${i}-3
-done
-popd
-%endif
 
 #-------------------------------------------------------------------------------
 # Install 4.x.y
@@ -926,49 +860,15 @@ fi
 %defattr(-,root,root)
 %{_datadir}/selinux/packages/%{name}/%{name}.pp
 
-%if %{?_with_compat:1}%{!?_with_compat:0}
-%files client-compat
-%defattr(-,root,root,-)
-%{_libdir}/libXrdAppUtils.so.0*
-%{_libdir}/libXrdCksCalczcrc32.so*
-%{_libdir}/libXrdClient.so.1*
-%{_libdir}/libXrdCl.so.1*
-%{_libdir}/libXrdCryptoLite.so.0*
-%{_libdir}/libXrdCrypto.so.0*
-%{_libdir}/libXrdCryptossl.so*
-%{_libdir}/libXrdFfs.so.1*
-%{_libdir}/libXrdPosixPreload.so.0*
-%{_libdir}/libXrdPosix.so.1*
-%{_libdir}/libXrdSecgsiAuthzVO.so*
-%{_libdir}/libXrdSecgsiGMAPDN.so*
-%{_libdir}/libXrdSecgsi.so*
-%{_libdir}/libXrdSeckrb5.so*
-%{_libdir}/libXrdSecpwd.so*
-%{_libdir}/libXrdSec.so*
-%{_libdir}/libXrdSecsss.so*
-%{_libdir}/libXrdSecunix.so*
-%{_libdir}/libXrdUtils.so.1*
-
-%files server-compat
-%defattr(-,root,root,-)
-%{_bindir}/cmsd-3
-%{_bindir}/frm_purged-3
-%{_bindir}/frm_xfrd-3
-%{_bindir}/xrootd-3
-%{_libdir}/libXrdBwm.so*
-%{_libdir}/libXrdMain.so.1*
-%{_libdir}/libXrdOfs.so.1*
-%{_libdir}/libXrdPss.so*
-%{_libdir}/libXrdServer.so.1*
-%{_libdir}/libXrdXrootd.so*
-%endif
-
 #-------------------------------------------------------------------------------
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
 * Mon Sep 02 2019 Michal Simon <michal.simon@cern.ch> - 4.10.1-1
 - Move xrdmapc to client package
+
+* Fri Aug 30 2019 Michal Simon <michal.simon@cern.ch> - 5.0.0
+- Remove XRootD 3.x.x compat package
 
 * Wed Apr 17 2019 Michal Simon <michal.simon@cern.ch> - 4.10.0-1
 - Create add xrdcl-http package
