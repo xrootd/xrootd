@@ -27,8 +27,6 @@ if( XRDCLHTTP_SUBMODULE )
 endif()
 
 if( NOT XRDCL_ONLY )
-  include( XrdClient )
-
   include( XrdServer )
   include( XrdDaemons )
   include( XrdFrm )
@@ -36,7 +34,7 @@ if( NOT XRDCL_ONLY )
   include( XrdFfs )
   include( XrdPlugins )
   include( XrdSsi )
-  include( XrdCns )
+#  include( XrdCns ) TODO: this is using the old client, needs refactoring or needs to be removed!
 
   include( XrdFileCache )
 

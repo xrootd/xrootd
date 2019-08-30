@@ -107,25 +107,6 @@ if( NOT XRDCL_ONLY )
     XrdAppUtils
     XrdUtils
     ${EXTRA_LIBS} )
-
-  #-------------------------------------------------------------------------------
-  # xrdCp
-  #-------------------------------------------------------------------------------
-  add_executable(
-    xrdcp-old
-    XrdApps/XrdCpy.cc
-    XrdClient/XrdcpXtremeRead.cc         XrdClient/XrdcpXtremeRead.hh
-    XrdClient/XrdCpMthrQueue.cc          XrdClient/XrdCpMthrQueue.hh
-    XrdClient/XrdCpWorkLst.cc            XrdClient/XrdCpWorkLst.hh )
-
-  target_link_libraries(
-    xrdcp-old
-    XrdClient
-    XrdUtils
-    XrdAppUtils
-    ${CMAKE_DL_LIBS}
-    pthread
-    ${EXTRA_LIBS} )
 endif()
 
 #-------------------------------------------------------------------------------
@@ -175,7 +156,7 @@ install(
 
 if( NOT XRDCL_ONLY )
   install(
-    TARGETS xrdacctest xrdadler32 xrdcp-old cconfig mpxstats wait41 xrdmapc
+    TARGETS xrdacctest xrdadler32 cconfig mpxstats wait41 xrdmapc
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 endif()

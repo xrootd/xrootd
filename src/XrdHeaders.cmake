@@ -86,16 +86,6 @@ if( NOT XRDCL_ONLY )
     XrdCks/XrdCksCalc.hh
     XrdCks/XrdCksData.hh
     XrdCks/XrdCksManager.hh
-    XrdClient/XrdClient.hh
-    XrdClient/XrdClientAbs.hh
-    XrdClient/XrdClientAbsMonIntf.hh
-    XrdClient/XrdClientAdmin.hh
-    XrdClient/XrdClientConst.hh
-    XrdClient/XrdClientEnv.hh
-    XrdClient/XrdClientUnsolMsg.hh
-    XrdClient/XrdClientUrlInfo.hh
-    XrdClient/XrdClientUrlSet.hh
-    XrdClient/XrdClientVector.hh
     XrdCms/XrdCmsClient.hh
     XrdCms/XrdCmsVnId.hh
     XrdFileCache/XrdFileCacheDecision.hh
@@ -136,15 +126,6 @@ set( XROOTD_PRIVATE_HEADERS
 if( NOT XRDCL_ONLY )
   set( XROOTD_PRIVATE_HEADERS
     ${XROOTD_PRIVATE_HEADERS}
-    XrdClient/XrdClientConn.hh
-    XrdClient/XrdClientConnMgr.hh
-    XrdClient/XrdClientDebug.hh
-    XrdClient/XrdClientInputBuffer.hh
-    XrdClient/XrdClientLogConnection.hh
-    XrdClient/XrdClientMessage.hh
-    XrdClient/XrdClientPhyConnection.hh
-    XrdClient/XrdClientReadCache.hh
-    XrdClient/XrdClientSock.hh
     XrdHttp/XrdHttpExtHandler.hh
     XrdOfs/XrdOfs.hh
     XrdOfs/XrdOfsEvr.hh

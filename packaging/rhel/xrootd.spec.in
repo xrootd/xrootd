@@ -722,7 +722,6 @@ fi
 %files client-libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdCl.so.2*
-%{_libdir}/libXrdClient.so.2*
 %{_libdir}/libXrdFfs.so.2*
 %{_libdir}/libXrdPosix.so.2*
 %{_libdir}/libXrdPosixPreload.so.1*
@@ -735,10 +734,8 @@ fi
 %defattr(-,root,root,-)
 %{_bindir}/xrdgsitest
 %{_includedir}/xrootd/XrdCl
-%{_includedir}/xrootd/XrdClient
 %{_includedir}/xrootd/XrdPosix
 %{_libdir}/libXrdCl.so
-%{_libdir}/libXrdClient.so
 %{_libdir}/libXrdFfs.so
 %{_libdir}/libXrdPosix.so
 %{_mandir}/man1/xrdgsitest.1*
