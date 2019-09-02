@@ -205,7 +205,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       timeval oStart, oEnd;
       XRootDStatus st;
-      if( checkSumMode == "end2end" || checkSumMode == "source" )
+      if( checkSumMode == "end2end" || checkSumMode == "source" ||
+          !checkSumPreset.empty() )
       {
         gettimeofday( &oStart, 0 );
         if( !checkSumPreset.empty() )
@@ -254,7 +255,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Compare and inform monitoring
       //------------------------------------------------------------------------
-      if( checkSumMode == "end2end" )
+      if( !sourceCheckSum.empty() && !targetCheckSum.empty() )
       {
         bool match = false;
         if( sourceCheckSum == targetCheckSum )
