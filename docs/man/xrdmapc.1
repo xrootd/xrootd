@@ -1,0 +1,54 @@
+.TH xrdmapc 1 "__VERSION__"
+.SH NAME
+xrdmapc - query XRootD redirector (status/subscribers/paths)
+.SH SYNOPSIS
+.nf
+
+\fBxrdmapc\fR [\fIoptions\fR] \fIhost:port\fR [\fIpath\fR]
+
+\fIoptions\fR: [\fB--help\fR] [\fB--list\fR \fIargs\fR] [\fB--quiet\fR] [\fB--verify\fR]  
+
+.fi
+.br
+.ad l
+.SH DESCRIPTION
+The \fBxrdmapc\fR utility queries the XRootD redirector (status/subscribers/paths). \fIpath\fR 
+when specified, uses <host>:<port> to determine the locations of path and does optional verification.
+
+.SH OPTIONS
+\fB-1\fR | \fB--list\fR [\fB\fR\fIall\fR|\fIm\fR|\fIs\fR]
+.RS 5
+'all' lists managers and servers (default), 'm' lists only managers and 's' lists only servers.
+
+.RE
+\fB-q\fR | \fB--quiet\fR
+.RS 5
+Does not print error messages to cerr; errors appear inline.
+
+.RE
+\fB-r\fR | \fB--refresh\fR
+.RS 5
+Does not use cached information but will refresh the cache.
+
+.RE
+\fB-v\fR | \fB--verify\fR
+.RS 5
+Verifies <path> existence status at each server.
+
+
+.SH NOTES
+Documentation for all components associated with \fBxrdcp\fR can be found at
+http://xrootd.org/docs.html
+
+.SH DIAGNOSTICS
+Errors yield an error message and a non-zero exit status.
+
+.SH LICENSE
+LGPL
+
+.SH SUPPORT LEVEL
+The \fBxrdcp\fR command is supported by the xrootd collaboration.
+Contact information can be found at:
+
+.ce
+http://xrootd.org/contact.html

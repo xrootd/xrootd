@@ -716,7 +716,6 @@ fi
 %{_bindir}/XrdCnsd
 %{_bindir}/xrdpwdadmin
 %{_bindir}/xrdsssadmin
-%{_bindir}/xrdmapc
 %{_bindir}/xrootd
 %{_bindir}/xrdpfc_print
 %{_bindir}/xrdacctest
@@ -861,6 +860,7 @@ fi
 %{_bindir}/xrdfs
 %{_bindir}/xrdgsiproxy
 %{_bindir}/xrdstagetool
+%{_bindir}/xrdmapc
 %{_mandir}/man1/xprep.1*
 %{_mandir}/man1/xrd.1*
 %{_mandir}/man1/xrdadler32.1*
@@ -870,6 +870,7 @@ fi
 %{_mandir}/man1/xrdfs.1*
 %{_mandir}/man1/xrdgsiproxy.1*
 %{_mandir}/man1/xrdstagetool.1*
+%{_mandir}/man1/xrdmapc.1*
 
 %files fuse
 %defattr(-,root,root,-)
@@ -964,6 +965,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Mon Sep 02 2019 Michal Simon <michal.simon@cern.ch> - 4.10.1-1
+- Move xrdmapc to client package
+
 * Wed Apr 17 2019 Michal Simon <michal.simon@cern.ch> - 4.10.0-1
 - Create add xrdcl-http package
 

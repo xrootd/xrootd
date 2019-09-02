@@ -200,7 +200,7 @@ install(
 
 install(
   CODE "
-    FOREACH(MANPAGE xrdfs.1 xrdcp.1)
+    FOREACH(MANPAGE xrdfs.1 xrdcp.1 xrdmapc.1)
       MESSAGE( \"-- Processing: \" \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1/\${MANPAGE} )
       EXECUTE_PROCESS(
         COMMAND cat \${MANPAGE}
