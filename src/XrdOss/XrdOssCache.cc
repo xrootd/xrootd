@@ -413,7 +413,7 @@ void XrdOssCache::Adjust(XrdOssCache_FS *fsp, off_t size)
 int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
 {
    EPNAME("Alloc");
-   static const mode_t theMode = S_IRWXU | S_IRWXG;
+   static const mode_t theMode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH;
    XrdSysMutexHelper myMutex(&Mutex);
    double diffree;
    XrdOssPath::fnInfo Info;
