@@ -458,8 +458,8 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else if  ( part == "blocksize" )
    {
-      long long minBSize =  4 * 1024;
-      long long maxBSize = 16 * 1024 * 1024;
+      long long minBSize =   4 * 1024;
+      long long maxBSize = 512 * 1024 * 1024;
       if (XrdOuca2x::a2sz(m_log, "get block size", cwg.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
       {
          return false;
