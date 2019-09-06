@@ -111,7 +111,7 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
                                const char *fsPath,
                                FSOpts      fsOpts)
 {
-   static const mode_t theMode = S_IRWXU | S_IRWXG;
+   static const mode_t theMode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH;
    STATFS_t fsbuff;
    struct stat sfbuff;
    XrdOssCache_FSData *fdp;
