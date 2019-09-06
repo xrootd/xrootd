@@ -9,6 +9,7 @@ Prerelease Notes
   **[Server]** Add support for multi-vo credentials.
 
 + **Major bug fixes**
+  **[Xcache]** Make sure direct cache access is actually accessible.
 
 + **Minor bug fixes**
 
