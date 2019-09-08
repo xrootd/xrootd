@@ -721,6 +721,7 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
       {if ((fd = XrdPosixXrootd::Open(pbuff,Oflag,Mode)) < 0) return -errno;
       } else {
        XrdPosixInfo Info;
+       Info.ffReady = XrdPssSys::dcaWorld;
        if (XrdPosixConfig::OpenFC(pbuff,Oflag,Mode,Info))
           {Env.Put("FileURL", Info.cacheURL);
            return -EDESTADDRREQ;

@@ -154,7 +154,7 @@ public:
    // Virtual function of XrdOucCache2. Used for redirection to a local
    // file on a distributed FS.
    virtual int LocalFilePath(const char *url, char *buff=0, int blen=0,
-                             LFP_Reason why=ForAccess);
+                             LFP_Reason why=ForAccess, bool forall=false);
 
    //---------------------------------------------------------------------
    // Virtual function of XrdOucCache2. Used for deferred open.

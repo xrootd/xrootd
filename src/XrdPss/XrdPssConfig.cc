@@ -108,6 +108,7 @@ bool         XrdPssSys::outProxy  = false;
 bool         XrdPssSys::pfxProxy  = false;
 bool         XrdPssSys::xLfn2Pfn  = false;
 bool         XrdPssSys::dcaCheck  = false;
+bool         XrdPssSys::dcaWorld  = false;
 
 namespace XrdProxy
 {
@@ -468,9 +469,11 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(Xopts[i].Key, val)) break;
 
 /* Function: xdca
 
-   Purpose:  To parse the directive: dca [recheck {<tm> | off}]
+   Purpose:  To parse the directive: dca [world] [recheck {<tm> | off}]
 
              <tm>      recheck for applicability every <tm> interval
+             world     When specified, files are made world deadable.
+                       Otherwise, they are only made group readable.
 
    Output: 0 upon success or 1 upon failure.
 */
@@ -484,28 +487,28 @@ int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
 //
    dcaCheck = true;
    dcaCTime = 0;
+   dcaWorld = false;
 
 // If no options then we are done
 //
-    if (!(val = Config.GetWord())) return 0;
+   while((val = Config.GetWord()))
+        {     if (!strcmp(val, "world")) dcaWorld = true;
+         else if (!strcmp(val, "recheck"))
+                 {if (!strcmp(val, "off")) dcaCTime = 0;
+                     else {if (!(val = Config.GetWord()))
+                              {errp->Emsg("Config",
+                                          "dca recheck value not specified");
+                               return 1;
+                              }
+                           if (XrdOuca2x::a2tm(*errp,"dca recheck",val,
+                                               &dcaCTime,10,maxsz)) return 1;
+                          }
+                 }
+         else {errp->Emsg("Config","invalid dca option -", val); return 1;}
+        }
 
-// Only one keyword we support
+// All done
 //
-   if (strcmp(val, "recheck"))
-       {errp->Emsg("Config","invalid dca option -", val); return 1;}
-
-//  Get the parameter
-//
-    if (!(val = Config.GetWord()))
-       {errp->Emsg("Config","dca recheck value not specified"); return 1;}
-
-// Check for "off"
-//
-   if (!strcmp(val, "off")) {dcaCTime = 0; return 0;}
-
-// Get the parameter
-//
-   if (XrdOuca2x::a2tm(*errp,"dca recheck",val,&dcaCTime,10,maxsz)) return 1;
    return 0;
 }
   

@@ -654,7 +654,8 @@ bool XrdPosixXrootd::OpenCache(XrdPosixFile &file,XrdPosixInfo &Info)
 //
    rc = XrdPosixGlobals::myCache2->LocalFilePath(file.Path(), Info.cachePath,
                                                  sizeof(Info.cachePath),
-                                                 XrdOucCache2::ForAccess);
+                                                 XrdOucCache2::ForAccess,
+                                                 Info.ffReady);
    if (rc == 0)
       {Info.ffReady  = true;
        DEBUG("File in cache url=" <<Info.cacheURL);

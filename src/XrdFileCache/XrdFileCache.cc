@@ -686,8 +686,10 @@ void Cache::Prefetch()
 //!
 //! @return >0     - Reserved for future use.
 
-int Cache::LocalFilePath(const char *curl, char *buff, int blen, LFP_Reason why)
+int Cache::LocalFilePath(const char *curl, char *buff, int blen,
+                         LFP_Reason why, bool forall)
 {
+   static const mode_t groupReadable = S_IRUSR | S_IWUSR | S_IRGRP;
    static const mode_t worldReadable = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
    if (buff && blen > 0) buff[0] = 0;
@@ -766,9 +768,14 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen, LFP_Reason why)
 
                // Normally, files are owned by us but when direct cache access
                // is wanted and possible, make sure the file is world readable.
-               if (why == ForAccess && !(sbuff.st_mode & S_IROTH)
-               && (m_output_fs->Chmod(f_name.c_str(),worldReadable) != XrdOssOK))
-                  is_complete = false;
+               if (why == ForAccess)
+                  {mode_t mode = (forall ? worldReadable : groupReadable);
+                   if (((sbuff.st_mode & worldReadable) != mode)
+                   &&  (m_output_fs->Chmod(f_name.c_str(),mode) != XrdOssOK))
+                      {is_complete = false;
+                       *buff = 0;
+                      }
+                  }
             }
 
             return is_complete ? 0 : -EREMOTE;

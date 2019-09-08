@@ -173,6 +173,7 @@ static bool         outProxy; // True means outgoing proxy
 static bool         pfxProxy; // True means outgoing proxy is prefixed
 static bool         xLfn2Pfn;
 static bool         dcaCheck;
+static bool         dcaWorld;
 
          XrdPssSys();
 virtual ~XrdPssSys() {}

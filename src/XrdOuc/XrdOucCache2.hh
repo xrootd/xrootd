@@ -270,6 +270,10 @@ void           EnvInfo(XrdOucEnv &theEnv) {(void)theEnv;}
 //!                  ForPath   - Only the path is wanted and no checks need
 //!                              be performed. The only possible errors are
 //!                              -EINVAL and -ENAMETOOLONG.
+//! @param  forall - When ForAccess is specified: when true makes the file
+//!                  world readable; otherwise, only group readable. The
+//!                  parameter is ignored unless "why" is ForAccess and a
+//!                  local file path is requested to be returned.
 //!
 //! @return 0      - the file is complete and the local path to the file is in
 //!                  the buffer, if it has been supllied.
@@ -294,7 +298,7 @@ enum LFP_Reason {ForAccess=0, ForInfo, ForPath};
 
 virtual
 int            LocalFilePath(const char *url, char *buff=0, int blen=0,
-                             LFP_Reason why=ForAccess)
+                             LFP_Reason why=ForAccess, bool forall=false)
                              {(void)url; (void)buff; (void)blen; (void)why;
                              if (buff && blen > 0) *buff = 0;
                               return -ENOTSUP;
