@@ -14,3 +14,4 @@ usr/lib/*/libXrdSsiLib.so.*
 usr/lib/*/libXrdSsiLog-4.so
 usr/lib/*/libXrdSsiShMap.so.*
 usr/lib/*/libXrdThrottle-4.so
+usr/lib/*/libXrdCmsRedirectLocal-4.so

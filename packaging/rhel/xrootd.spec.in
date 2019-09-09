@@ -829,6 +829,7 @@ fi
 %{_libdir}/libXrdSsiLog-4.so
 %{_libdir}/libXrdSsiShMap.so.*
 %{_libdir}/libXrdThrottle-4.so
+%{_libdir}/libXrdCmsRedirectLocal-4.so
 
 %files server-devel
 %defattr(-,root,root,-)
