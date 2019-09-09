@@ -68,8 +68,12 @@ endif()
 include( XRootDSummary )
 
 
-
-
+#-------------------------------------------------------------------------------
+# Install FindXRootD.cmake module
+#-------------------------------------------------------------------------------
+install(
+  FILES ${CMAKE_SOURCE_DIR}/cmake/FindXRootD.cmake
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/cmake )
 
 #-------------------------------------------------------------------------------
 # Configure an 'uninstall' target

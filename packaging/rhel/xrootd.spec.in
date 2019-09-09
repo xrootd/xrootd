@@ -731,7 +731,7 @@ fi
 %{_mandir}/man8/xrdsssadmin.8*
 %{_mandir}/man8/xrootd.8*
 %{_mandir}/man8/xrdpfc_print.8*
-%{_datadir}/xrootd
+%{_datadir}/xrootd/utils
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-clustered.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-standalone.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-filecache-clustered.cfg
@@ -783,6 +783,7 @@ fi
 %{_libdir}/libXrdUtils.so
 %{_libdir}/libXrdXml.so
 %{_includedir}/xrootd/XrdXml/XrdXmlReader.hh
+%{_datadir}/xrootd/cmake
 
 %files client-libs
 %defattr(-,root,root,-)
