@@ -159,7 +159,10 @@ int XrdCpFile::Resolve()
 
 // This should exist but it might not, the caller will determine what to do
 //
+   char *cgibeg = strchr( Path, '?' );
+   if( cgibeg ) *cgibeg = '\0';
    if (stat(Path, &Stat)) return errno;
+   if( cgibeg ) *cgibeg = '?';
 
 // Find out what this really is
 //
