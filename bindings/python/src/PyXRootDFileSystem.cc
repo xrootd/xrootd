@@ -718,8 +718,6 @@ namespace PyXRootD
     props.Set( "target", "stdio://-" );
     props.Set( "dynamicSource", true );
 
-    PyObject *pystatus = 0;
-
     XrdCl::XRootDStatus st = process.AddJob( props, &results );
     if( !st.IsOK() )
       return ConvertType<XrdCl::XRootDStatus>( &st );
