@@ -11,7 +11,7 @@ config()
         rm -rf ${BUILDDIR}
         mkdir ${BUILDDIR}
         cd ${BUILDDIR}
-        cmake ${PKGDIR} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${PREFIX} -DENABLE_PERL=FALSE
+        cmake ${PKGDIR} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${PREFIX} -DENABLE_PYTHON=FALSE
 }
 
 build()
