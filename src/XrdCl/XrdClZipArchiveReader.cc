@@ -29,8 +29,11 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
+
+#include "XrdCks/XrdCksData.hh"
 
 #include <string>
 #include <map>
@@ -118,7 +121,7 @@ struct CDFH
       pZipVersion        = *reinterpret_cast<const uint16_t*>( buffer + 4 );
       pMinZipVersion     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
       pCompressionMethod = *reinterpret_cast<const uint16_t*>( buffer + 10 );
-      pCrc32             = *reinterpret_cast<const uint32_t*>( buffer + 16 );
+      pZCRC32             = *reinterpret_cast<const uint32_t*>( buffer + 16 );
       pCompressedSize    = *reinterpret_cast<const uint32_t*>( buffer + 20 );
       pUncompressedSize  = *reinterpret_cast<const uint32_t*>( buffer + 24 );
       pDiskNb            = *reinterpret_cast<const uint16_t*>( buffer + 34 );
@@ -218,7 +221,7 @@ struct CDFH
     uint16_t    pZipVersion;
     uint16_t    pMinZipVersion;
     uint16_t    pCompressionMethod;
-    uint32_t    pCrc32;
+    uint32_t    pZCRC32;
     uint64_t    pCompressedSize;
     uint64_t    pUncompressedSize;
     uint32_t    pDiskNb;
@@ -266,6 +269,10 @@ class ZipArchiveReaderImpl
     XRootDStatus ReadCdfh( uint64_t bytesRead, ResponseHandler *userHandler );
 
     XRootDStatus Read( const std::string &filename, uint64_t relativeOffset, uint32_t size, void *buffer, ResponseHandler *userHandler, uint16_t timeout = 0 );
+
+    XRootDStatus ZCRC32( const std::string &filename, std::string &checksum );
+
+    XRootDStatus ZCRC32( std::string &checksum );
 
     XRootDStatus Read( uint64_t relativeOffset, uint32_t size, void *buffer, ResponseHandler *userHandler, uint16_t timeout = 0 )
     {
@@ -926,6 +933,30 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   return st;
 }
 
+XRootDStatus ZipArchiveReaderImpl::ZCRC32( const std::string &filename, std::string &checksum )
+{
+  if( !pArchive.IsOpen() ) return XRootDStatus( stError, errInvalidOp, errInvalidOp, "Archive not opened." );
+
+  std::map<std::string, size_t>::iterator cditr = pFileToCdfh.find( filename );
+  if( cditr == pFileToCdfh.end() ) return XRootDStatus( stError, errNotFound, errNotFound, "File not found." );
+  CDFH *cdfh = pCdRecords[cditr->second];
+  XrdCksData ckSum;
+  ckSum.Set( "zcrc32" );
+  ckSum.Set( reinterpret_cast<void*>( &cdfh->pZCRC32 ), sizeof( uint32_t ) );
+
+  char *cksBuffer = new char[265];
+  ckSum.Get( cksBuffer, 256 );
+  checksum  = "zcrc32:";
+  checksum += Utils::NormalizeChecksum( "zcrc32", cksBuffer );
+  delete [] cksBuffer;
+  return XRootDStatus();
+}
+
+XRootDStatus ZipArchiveReaderImpl::ZCRC32( std::string &checksum )
+{
+  return ZCRC32( pBoundFile, checksum );
+}
+
 DirectoryList* ZipArchiveReaderImpl::List()
 {
   std::string value;
@@ -978,6 +1009,16 @@ XRootDStatus ZipArchiveReader::GetSize( const std::string &filename, uint64_t &s
 bool ZipArchiveReader::IsOpen() const
 {
   return pImpl->IsOpen();
+}
+
+XRootDStatus ZipArchiveReader::ZCRC32( const std::string &filename, std::string &checksum )
+{
+  return pImpl->ZCRC32( filename, checksum );
+}
+
+XRootDStatus ZipArchiveReader::ZCRC32( std::string &checksum )
+{
+  return pImpl->ZCRC32( checksum );
 }
 
 } /* namespace XrdCl */

@@ -748,10 +748,15 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
-        // if it is a local file update the checksum
+        // The ZIP archive by default contains a ZCRC32 checksum
+        if( checkSumType == "zcrc32" )
+          return pZipArchive->ZCRC32( checkSum );
+
+        // if it is a local file we can calculate the checksum ourself
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
 
+        // if it is a remote file other types of checksum are not supported
         return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
       }
 
