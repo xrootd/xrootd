@@ -33,29 +33,24 @@
 
 #include "XrdSec/XrdSecAttr.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
   
-class XrdSecEntityAttrs
+class XrdSecEntityXtra
 {
 public:
+
+XrdSysMutex xMutex;
 
 std::vector<XrdSecAttr *> attrVec;
 
 std::map<std::string, std::string> attrMap;
 
-     XrdSecEntityAttrs() {}
-    ~XrdSecEntityAttrs() {}
-};
-
-class XrdSecEntityXtend
-{
-public:
-
-     XrdSecEntityXtend() {}
-    ~XrdSecEntityXtend() {}
+     XrdSecEntityXtra() {}
+    ~XrdSecEntityXtra() {}
 };
 
 /******************************************************************************/
@@ -64,20 +59,17 @@ public:
   
 bool XrdSecEntity::Add(XrdSecAttr &attr)
 {
-   XrdSysMutexHelper mHelp(eMutex);
+   XrdSysMutexHelper mHelp(entXtra->xMutex);
+   std::vector<XrdSecAttr*>::iterator it;
 
 // Check if this attribute already exists
 //
-   if (!entAttrs) entAttrs = new XrdSecEntityAttrs;
-      else {std::vector<XrdSecAttr*>::iterator it;
-            for (it  = entAttrs->attrVec.begin();
-                 it != entAttrs->attrVec.end(); it++)
-                {if ((*it)->Signature == attr.Signature) return false;}
-           }
+   for (it = entXtra->attrVec.begin(); it != entXtra->attrVec.end(); it++)
+       if ((*it)->Signature == attr.Signature) return false;
 
 // Add the attribute object to our list of objects
 //
-   entAttrs->attrVec.push_back(&attr);
+   entXtra->attrVec.push_back(&attr);
    return true;
 }
 
@@ -86,23 +78,22 @@ bool XrdSecEntity::Add(XrdSecAttr &attr)
 bool XrdSecEntity::Add(const std::string &key,
                        const std::string &val, bool replace)
 {
-   XrdSysMutexHelper mHelp(eMutex);
+   XrdSysMutexHelper mHelp(entXtra->xMutex);
    std::map<std::string, std::string>::iterator it;
    bool found = false;
 
 // Check if this attribute already exists
 //
-   if (!entAttrs) entAttrs = new XrdSecEntityAttrs;
-      else {it = entAttrs->attrMap.find(key);
-            if (it != entAttrs->attrMap.end())
-               {if (!replace) return false;
-                found = true;
-           }   }
+   it = entXtra->attrMap.find(key);
+   if (it != entXtra->attrMap.end())
+      {if (!replace) return false;
+       found = true;
+      }
 
 // Add or replace the value
 //
    if (found) it->second = val;
-      else entAttrs->attrMap.insert(std::make_pair(key, val));
+      else entXtra->attrMap.insert(std::make_pair(key, val));
    return true;
 }
 
@@ -112,16 +103,13 @@ bool XrdSecEntity::Add(const std::string &key,
 
 XrdSecAttr *XrdSecEntity::Get(const void *sigkey)
 {
-   XrdSysMutexHelper mHelp(eMutex);
+   XrdSysMutexHelper mHelp(entXtra->xMutex);
+   std::vector<XrdSecAttr*>::iterator it;
 
 // Return pointer to the attribute if it exists
 //
-   if (entAttrs)
-      {std::vector<XrdSecAttr*>::iterator it;
-       for (it  = entAttrs->attrVec.begin();
-            it != entAttrs->attrVec.end(); it++)
-           {if ((*it)->Signature == sigkey) return *it;}
-      }
+   for (it = entXtra->attrVec.begin(); it != entXtra->attrVec.end(); it++)
+       if ((*it)->Signature == sigkey) return *it;
 
 // Attribute not found
 //
@@ -132,17 +120,15 @@ XrdSecAttr *XrdSecEntity::Get(const void *sigkey)
 
 bool XrdSecEntity::Get(const std::string &key, std::string &val)
 {
-   XrdSysMutexHelper mHelp(eMutex);
+   XrdSysMutexHelper mHelp(entXtra->xMutex);
+   std::map<std::string, std::string>::iterator it;
 
 // Return pointer to the attribute if it exists
 //
-   if (entAttrs)
-      {std::map<std::string, std::string>::iterator it;
-       it = entAttrs->attrMap.find(key);
-       if (it != entAttrs->attrMap.end())
-          {val = it->second;
-           return true;
-          }
+   it = entXtra->attrMap.find(key);
+   if (it != entXtra->attrMap.end())
+      {val = it->second;
+       return true;
       }
 
 // The key does not exists
@@ -150,6 +136,32 @@ bool XrdSecEntity::Get(const std::string &key, std::string &val)
    return false;
 }
 
+/******************************************************************************/
+/*                                  L i s t                                   */
+/******************************************************************************/
+
+void XrdSecEntity::List(XrdSecEntityAttrCB &attrCB)
+{
+   XrdSysMutexHelper mHelp(entXtra->xMutex);
+   std::map<std::string, std::string>::iterator itM;
+   std::vector<const char *> attrDel;
+   std::vector<const char *>::iterator itV;
+   XrdSecEntityAttrCB::Action rc;
+
+   for (itM  = entXtra->attrMap.begin();
+        itM != entXtra->attrMap.end(); itM++)
+       {rc = attrCB.Attr(itM->first.c_str(), itM->second.c_str());
+        if (rc == XrdSecEntityAttrCB::Stop) break;
+           else if (rc == XrdSecEntityAttrCB::Delete)
+                   attrDel.push_back(itM->first.c_str());
+       }
+
+   if (rc != XrdSecEntityAttrCB::Stop) attrCB.Attr(0, 0);
+
+   for (itV  = attrDel.begin(); itV != attrDel.end(); itV++)
+       entXtra->attrMap.erase(std::string(*itV));
+}
+  
 /******************************************************************************/
 /*                                 R e s e t                                  */
 /******************************************************************************/
@@ -178,42 +190,33 @@ void XrdSecEntity::Reset(bool isnew,  const char *spV, const char *dpV)
    gid     = 0;
    memset(future, 0, sizeof(future));
 
-   if (isnew)
-      {entAttrs = 0;
-       entXtend = 0;
-      } else {
-       if (entAttrs) ResetAttrs();
-       entXtend = 0; // No extension for now.
-      }
+   if (isnew) entXtra = new XrdSecEntityXtra;
+      else ResetXtra();
 }
 
 /******************************************************************************/
-/*                            R e s e t A t t r s                             */
+/*                             R e s e t X t r a                              */
 /******************************************************************************/
   
-void XrdSecEntity::ResetAttrs(bool dodel)
+void XrdSecEntity::ResetXtra(bool dodel)
 {
-   XrdSysMutexHelper mHelp(eMutex);
-
-// If we have no attributes we are done
-//
-   if (!entAttrs) return;
+   XrdSysMutexHelper mHelp(entXtra->xMutex);
 
 // Cleanup the key-value map
 //
-   entAttrs->attrMap.clear();
+   entXtra->attrMap.clear();
 
 // Run through attribute objects, deleting each one
 //
    std::vector<XrdSecAttr*>::iterator it;
-   for (it = entAttrs->attrVec.begin(); it != entAttrs->attrVec.end(); it++)
+   for (it = entXtra->attrVec.begin(); it != entXtra->attrVec.end(); it++)
        {(*it)->Delete();}
 
 // Now clear the whole vector
 //
-   entAttrs->attrVec.clear();
+   entXtra->attrVec.clear();
 
 // Delete the extension if so wanted
 //
-   if (dodel) {delete entAttrs; entAttrs = 0;}
+   if (dodel) {delete entXtra; entXtra = 0;}
 }

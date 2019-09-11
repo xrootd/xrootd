@@ -44,14 +44,12 @@
 
 #include <string>
 
-#include "XrdSys/XrdSysPthread.hh"
-
 #define XrdSecPROTOIDSIZE 8
 
 class XrdNetAddrInfo;
 class XrdSecAttr;
-class XrdSecEntityAttrs;
-class XrdSecEntityXtend;
+class XrdSecEntityAttrCB;
+class XrdSecEntityXtra;
   
 /******************************************************************************/
 /*                          X r d S e c E n t i t y                           */
@@ -137,6 +135,14 @@ XrdSecAttr      *Get(const void *sigkey);
          bool    Get(const std::string &key, std::string &val);
 
 //------------------------------------------------------------------------------
+//! List key-value pairs via iterative callback on passed ovject.
+//!
+//! @param  attrCB  - Reference to the callback object to receive list entries.
+//------------------------------------------------------------------------------
+
+         void    List(XrdSecEntityAttrCB &attrCB);
+
+//------------------------------------------------------------------------------
 //! Reset object to it's pristine self.
 //!
 //! @param  isNew   - True when called the first time, false otherwise.
@@ -152,7 +158,7 @@ XrdSecAttr      *Get(const void *sigkey);
 //! @param  doDel   - When true, the attribute extension is deleted as well.
 //------------------------------------------------------------------------------
 
-         void    ResetAttrs(bool doDel=false);
+         void    ResetXtra(bool doDel=false);
 
 //------------------------------------------------------------------------------
 //! Constructor.
@@ -164,14 +170,54 @@ XrdSecAttr      *Get(const void *sigkey);
          XrdSecEntity(const char *spName=0, const char *dpName=0)
                      {Reset(true, dpName, spName);}
 
-        ~XrdSecEntity() {ResetAttrs(true);}
+        ~XrdSecEntity() {ResetXtra(true);}
 
 private:
-XrdSysMutex        eMutex;
-XrdSecEntityAttrs *entAttrs;
-XrdSecEntityXtend *entXtend;
+XrdSecEntityXtra *entXtra;
 };
 
 #define XrdSecClientName XrdSecEntity
 #define XrdSecServerName XrdSecEntity
+
+
+/******************************************************************************/
+/*                    X r d S e c E n t i t y A t t r C B                     */
+/******************************************************************************/
+
+// The XrdSecEntityAttrCB class defines the callback object passed to the
+// XrdSecEntity::List() method to iteratively obtain the key-value attribute
+// pairs associated with the entity. The XrdSecEntityAttrCB::Attr() method is
+// called for each key-value pair. The end of the list is indicated by calling
+// Attr() with nil key-value pointers. The Attr() method should not call
+// the XrdSecEntity::Add() or XrdSecEntity::Get() methods; otherwise, a
+// deadlock will occur.
+//
+class XrdSecEntityAttrCB
+{
+public:
+
+//------------------------------------------------------------------------------
+//! Acceppt a key-value attribute pair from the XrdSecEntity::List() method.
+//!
+//! @param  key   - The key, if nil this is the end of the list.
+//! @param  val   - The associated value, if nil this is the end of the list.
+//!
+//! @return One of the Action enum values. The return value is ignored when
+//!         the end of the list indicator is returned.
+//------------------------------------------------------------------------------
+
+enum     Action {Delete = -1, //!< Delete the key-value
+                 Stop   =  0, //!< Stop the iteration
+                 Next   =  1  //!< Proceed to the next key-value pair
+                };
+
+virtual  Action Attr(const char *key, const char *val) = 0;
+
+//------------------------------------------------------------------------------
+//! Constructor and Destructor.
+//------------------------------------------------------------------------------
+
+         XrdSecEntityAttrCB() {}
+virtual ~XrdSecEntityAttrCB() {}
+};
 #endif
