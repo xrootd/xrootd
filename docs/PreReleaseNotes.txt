@@ -12,6 +12,7 @@ Prerelease Notes
   **[Xcache]** Make sure direct cache access is actually accessible.
 
 + **Minor bug fixes**
+  **[TPC]** Make sure to include source CGI in a delegated transfer.
 
 + **Miscellaneous**
   **[Misc]** Allow client to indicate it supports local files.
