@@ -39,8 +39,108 @@
 #include <map>
 #include <memory>
 
+#include <zlib.h>
+
 namespace XrdCl
 {
+
+struct ZipCacheError
+{
+    ZipCacheError( const XRootDStatus &status ) : status( status )
+    {
+    }
+
+    XRootDStatus status;
+};
+
+class ZipCache
+{
+  public:
+
+    ZipCache() : totalRead( 0 )
+    {
+      strm.zalloc   = Z_NULL;
+      strm.zfree    = Z_NULL;
+      strm.opaque   = Z_NULL;
+      strm.avail_in = 0;
+      strm.next_in  = Z_NULL;
+
+      // make sure zlib doesn't look for gzip headers, in order to do so
+      // pass negative window bits !!!
+      int rc = inflateInit2( &strm, -MAX_WBITS );
+      XRootDStatus st = ToXRootDStatus( rc, "inflateInit2" );
+      if( !st.IsOK() ) throw ZipCacheError( st );
+    }
+
+    ~ZipCache()
+    {
+      inflateEnd( &strm );
+    }
+
+    void Set( Buffer &&in )
+    {
+      buffer = std::move( in );
+
+      // handle the leftovers from previous chunk
+      if( strm.avail_in )
+      {
+        uint32_t size = strm.avail_in + buffer.GetCursor();
+        Buffer tmp( size );
+        tmp.Append( (char*)strm.next_in, strm.avail_in );
+        tmp.Append( buffer.GetBuffer(), buffer.GetCursor() );
+        buffer = std::move( tmp );
+      }
+
+      strm.avail_in = buffer.GetCursor();
+      strm.next_in  = (Bytef*)buffer.GetBuffer();
+    }
+
+    XRootDStatus Read( uint32_t offset, Buffer &out, uint32_t &bytesRead )
+    {
+      // we don't support random access, only streaming!
+      if( offset != totalRead ) XRootDStatus( stError, errInternal );
+
+      uint32_t size  = out.GetSize() - out.GetCursor();
+      strm.avail_out = size;
+      strm.next_out  = (Bytef*)out.GetBufferAtCursor();
+
+      int rc = inflate( &strm, Z_SYNC_FLUSH );
+      XRootDStatus st = ToXRootDStatus( rc, "inflate" );
+      if( !st.IsOK() ) return st;
+
+      bytesRead = size - strm.avail_out;
+      totalRead += bytesRead;
+      out.AdvanceCursor( size - strm.avail_out );
+      if( strm.avail_out ) return XRootDStatus( stOK, suPartial );
+
+      return XRootDStatus();
+    }
+
+  private:
+
+    XRootDStatus ToXRootDStatus( int rc, const std::string &func )
+    {
+      std::string msg = "[zlib] " + func + " : ";
+
+      switch( rc )
+      {
+        case Z_STREAM_END    :
+        case Z_OK            : return XRootDStatus();
+        case Z_BUF_ERROR     : return XRootDStatus( stOK, suContinue );
+        case Z_MEM_ERROR     : return XRootDStatus( stError, errInternal,    Z_MEM_ERROR,     msg + "not enough memory." );
+        case Z_VERSION_ERROR : return XRootDStatus( stError, errInternal,    Z_VERSION_ERROR, msg + "version mismatch." );
+        case Z_STREAM_ERROR  : return XRootDStatus( stError, errInvalidArgs, Z_STREAM_ERROR,  msg + "invalid argument." );
+        case Z_NEED_DICT     : return XRootDStatus( stError, errDataError,   Z_NEED_DICT,     msg + "need dict.");
+        case Z_DATA_ERROR    : return XRootDStatus( stError, errDataError,   Z_DATA_ERROR,    msg + "corrupted data." );
+        default              : return XRootDStatus( stError, errUnknown );
+      }
+    }
+
+    Buffer    buffer;
+    uint64_t  totalRead;
+    z_stream  strm;
+};
+
 
 template<typename RESP>
 struct ZipHandlerException
@@ -300,7 +400,7 @@ class ZipArchiveReaderImpl
       std::map<std::string, size_t>::const_iterator it = pFileToCdfh.find( filename );
       if( it == pFileToCdfh.end() ) return XRootDStatus( stError, errNotFound );
       CDFH *cdfh = pCdRecords[it->second];
-      size = cdfh->pCompressionMethod ? cdfh->pCompressedSize : cdfh->pUncompressedSize;
+      size = cdfh->pCompressionMethod ? cdfh->pUncompressedSize : cdfh->pCompressedSize;
       return XRootDStatus();
     }
 
@@ -888,7 +988,18 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
 
   // check if the file is compressed, for now we only support uncompressed files!
   if( cdfh->pCompressionMethod != 0 )
-    return XRootDStatus( stError, errNotSupported, 0, "Decompression is not supported!" );
+  {
+    switch( cdfh->pCompressionMethod )
+    {
+      case Z_DEFLATED:
+      {
+        // TODO
+        break;
+      }
+
+      default: return XRootDStatus( stError, errNotSupported, 0, "Compression algorithm is not supported!" );
+    }
+  }
 
   // Now the problem is that at the beginning of our
   // file there is the Local-file-header, which size
