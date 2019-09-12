@@ -305,13 +305,9 @@ int XrdOfsTPCProg::Xeq()
        eVec[i++] = sprBuff;
       }
 
-// Determine if credentials are being passed, If so, we don't need any cgi but
-// we must set an envar to point to the file holding the credentials.
+// Determine if credentials are being passed, If so, pass where it is.
 //
-   if (cFile.Path)
-      {eVec[i++] = cFile.pEnv;
-       if (Quest) *Quest = 0;
-      }
+   if (cFile.Path) eVec[i++] = cFile.pEnv;
    eVec[i] = 0;
 
 // Start the job.

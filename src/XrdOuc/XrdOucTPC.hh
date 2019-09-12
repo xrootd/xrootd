@@ -50,6 +50,8 @@ static
 const char *cgiD2Src(const char *cKey, const char *cOrg,
                            char *Buff, int Blen);
 
+static int  copyCGI(const char *cgi, char *Buff, int Blen);
+
 static const char *tpcCks;
 static const char *tpcDlg;
 static const char *tpcDst;
@@ -57,6 +59,7 @@ static const char *tpcKey;
 static const char *tpcLfn;
 static const char *tpcOrg;
 static const char *tpcPsh;
+static const char *tpcSgi;
 static const char *tpcSpr;
 static const char *tpcSrc;
 static const char *tpcStr;

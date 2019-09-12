@@ -582,6 +582,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
    const char *tpcLfn = Args.Env->Get(XrdOucTPC::tpcLfn);
    const char *tpcSrc = Args.Env->Get(XrdOucTPC::tpcSrc);
    const char *tpcCks = Args.Env->Get(XrdOucTPC::tpcCks);
+   const char *tpcSgi = Args.Env->Get(XrdOucTPC::tpcSgi);
    const char *tpcStr = Args.Env->Get(XrdOucTPC::tpcStr);
    const char *tpcSpr = Args.Env->Get(XrdOucTPC::tpcSpr);
    const char *tpcTpr = Args.Env->Get(XrdOucTPC::tpcTpr);
@@ -635,20 +636,39 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 
 // Generate the origin id
 //
-   if (!genOrg(Args.Usr, Buff, sizeof(Buff))) return Death(Args, Buff, EINVAL);
+   if (!enVar && !genOrg(Args.Usr, Buff, sizeof(Buff)))
+      return Death(Args, Buff, EINVAL);
 
 // Construct the source url (it may be very big)
 //
    n = snprintf(myURL, myURLen, "xroot://%s/%s?", tpcSrc, tpcLfn);
-   if (n >= int(sizeof(myURL))) return Death(Args, "url too long", EINVAL);
+   char *cgiP = myURL+n;
+   int   cgiL = myURLen-n;
+   if (cgiL < 3) return Death(Args, "url too long", EINVAL);
 
 // Set lfn location in the URL but only if we need to do a rename
 //
    if (doRN) {lfnLoc[1] = strlen(tpcLfn); lfnLoc[0] = n - lfnLoc[1];}
       else    lfnLoc[1] = lfnLoc[0] = 0;
 
-   theCGI = XrdOucTPC::cgiD2Src(Args.Key, Buff, myURL+n, myURLen-n);
-   if (*theCGI == '!') return Death(Args, theCGI+1, EINVAL);
+// Copy user specified CGI into the source URL (omit tpc tokens)
+//
+   if (tpcSgi)
+      {if ((int)strlen(tpcSgi) >= cgiL)
+          return Death(Args, "url too long", EINVAL);
+       n = XrdOucTPC::copyCGI(tpcSgi, cgiP, cgiL);
+       cgiP += n;
+       cgiL -= n;
+      }
+
+// Insert tpc toksns unless this is a delegated tpc which needs no tokens
+//
+   if (!enVar)
+      {if (cgiL < 3) return Death(Args, "url too long", EINVAL);
+       *cgiP++ = '&'; cgiL--; *cgiP = 0;
+       theCGI = XrdOucTPC::cgiD2Src(Args.Key, Buff, cgiP, cgiL);
+       if (*theCGI == '!') return Death(Args, theCGI+1, EINVAL);
+      }
 
 // Create a pseudo tpc object that will contain the information we need to
 // actually peform this copy.

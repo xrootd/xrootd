@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
+//#include <iostream>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -46,6 +47,7 @@ const char *XrdOucTPC::tpcKey = "tpc.key";
 const char *XrdOucTPC::tpcLfn = "tpc.lfn";
 const char *XrdOucTPC::tpcOrg = "tpc.org";
 const char *XrdOucTPC::tpcPsh = "tpc.psh";
+const char *XrdOucTPC::tpcSgi = "tpc.scgi";
 const char *XrdOucTPC::tpcSrc = "tpc.src";
 const char *XrdOucTPC::tpcSpr = "tpc.spr";
 const char *XrdOucTPC::tpcStr = "tpc.str";
@@ -214,4 +216,51 @@ bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
    hAddr.Set(hName,0);
    if ((hName = hAddr.Name())) Info.hName = strdup(hName);
    return hName != 0;
+}
+
+/******************************************************************************/
+/*                               c o p y C G I                                */
+/******************************************************************************/
+  
+int XrdOucTPC::copyCGI(const char *cgi, char *Buff, int Blen)
+{
+   const char *bgi;
+   char *bP = Buff;
+   int xlen;
+   bool eqs;
+
+// Skip over initial ampersands
+//
+   while(*cgi == '&' && *cgi) cgi++;
+
+// Check if there is anything here
+//
+   if (!cgi || *cgi == 0) {*Buff = 0; return 0;}
+   Blen--;
+
+// Copy all keys except system oriented ones.
+//
+//std::cerr <<"TPC cgi IN: " <<cgi <<'\n' <<std::flush;
+do{bgi = cgi; eqs = false;
+   while(*cgi != '\t' && *cgi)
+        {if (*cgi == '=') eqs = true;
+         cgi++;
+        }
+   if (*bgi && eqs && strncmp(bgi, "tpc.", 4) && strncmp(bgi, "xrd.", 4)
+   &&  strncmp(bgi, "xrdcl.", 4))
+      {xlen = cgi - bgi;
+       if (bP != Buff && Blen > 0) {*bP++ = '&'; Blen--;}
+       if (xlen > Blen) xlen = Blen;
+       strncpy(bP, bgi, xlen);
+       bP   += xlen;
+       Blen -= xlen;
+      }
+   while(*cgi && *cgi == '\t') cgi++;
+  } while(*cgi && Blen > 2);
+
+// Compute length and return
+//
+   *bP = 0;
+// std::cerr <<"TPC cgi OT: " <<Buff <<" len=" <<(bP-Buff) <<'\n' <<std::flush;
+   return bP - Buff;
 }
