@@ -43,6 +43,7 @@
 //------------------------------------------------------------------------------
 
 #include <string>
+#include <vector>
 
 #define XrdSecPROTOIDSIZE 8
 
@@ -133,6 +134,14 @@ XrdSecAttr      *Get(const void *sigkey);
 //------------------------------------------------------------------------------
 
          bool    Get(const std::string &key, std::string &val);
+
+//------------------------------------------------------------------------------
+//! Get all the keys for associated attribytes.
+//!
+//! @return A vector containing all of the keys.
+//------------------------------------------------------------------------------
+
+std::vector<std::string> Keys();
 
 //------------------------------------------------------------------------------
 //! List key-value pairs via iterative callback on passed ovject.

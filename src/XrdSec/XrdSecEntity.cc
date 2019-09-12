@@ -137,6 +137,22 @@ bool XrdSecEntity::Get(const std::string &key, std::string &val)
 }
 
 /******************************************************************************/
+/*                                  K e y s                                   */
+/******************************************************************************/
+
+std::vector<std::string> XrdSecEntity::Keys()
+{
+   XrdSysMutexHelper mHelp(entXtra->xMutex);
+   std::map<std::string, std::string>::iterator itM;
+   std::vector<std::string> keyVec;
+
+   for (itM  = entXtra->attrMap.begin();
+        itM != entXtra->attrMap.end(); itM++) keyVec.push_back(itM->first);
+
+   return keyVec;
+}
+  
+/******************************************************************************/
 /*                                  L i s t                                   */
 /******************************************************************************/
 
