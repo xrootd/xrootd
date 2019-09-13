@@ -3247,7 +3247,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
            DEBUG("TrustDNS: checking if cert is for host " <<name);
            usedDNS = true;
            bool hostOK = ServerCertNameOK(hs->Chain->End()->Subject(),name,emsg)
-                      || (hasSAN && !hs->Chain->End()->MatchesSAN(name,hasSAN));
+                      || (hasSAN && hs->Chain->End()->MatchesSAN(name,hasSAN));
            if (!hostOK) return -1;
           }
       }
