@@ -57,7 +57,7 @@ class ZipCache
 {
   public:
 
-    ZipCache() : totalRead( 0 )
+    ZipCache() : rawOffset( 0 ), rawSize( 0 ), totalRead( 0 )
     {
       strm.zalloc   = Z_NULL;
       strm.zfree    = Z_NULL;
@@ -77,43 +77,51 @@ class ZipCache
       inflateEnd( &strm );
     }
 
-    void Set( Buffer &&in )
+    XRootDStatus Input( void *inbuff, size_t insize, uint64_t rawoff )
     {
-      buffer = std::move( in );
+      // we only support streaming for compressed files
+      if( rawoff != rawOffset + rawSize )
+        return XRootDStatus( stError, errInternal );
 
-      // handle the leftovers from previous chunk
-      if( strm.avail_in )
-      {
-        uint32_t size = strm.avail_in + buffer.GetCursor();
-        Buffer tmp( size );
-        tmp.Append( (char*)strm.next_in, strm.avail_in );
-        tmp.Append( buffer.GetBuffer(), buffer.GetCursor() );
-        buffer = std::move( tmp );
-      }
+      strm.avail_in = insize;
+      strm.next_in  = (Bytef*)inbuff;
+      rawOffset     = rawoff;
+      rawSize       = insize;
 
-      strm.avail_in = buffer.GetCursor();
-      strm.next_in  = (Bytef*)buffer.GetBuffer();
+      return XRootDStatus();
     }
 
-    XRootDStatus Read( uint32_t offset, Buffer &out, uint32_t &bytesRead )
+    XRootDStatus Output( void *outbuff, size_t outsize, uint64_t offset )
     {
-      // we don't support random access, only streaming!
-      if( offset != totalRead ) XRootDStatus( stError, errInternal );
+      // we only support streaming for compressed files
+      if( offset != totalRead )
+        return XRootDStatus( stError, errInternal );
 
-      uint32_t size  = out.GetSize() - out.GetCursor();
-      strm.avail_out = size;
-      strm.next_out  = (Bytef*)out.GetBufferAtCursor();
+      strm.avail_out = outsize;
+      strm.next_out  = (Bytef*)outbuff;
+
+      return XRootDStatus();
+    }
+
+    XRootDStatus Read( uint32_t &bytesRead )
+    {
+      // the available space in output buffer before inflating
+      uInt avail_before = strm.avail_out;
 
       int rc = inflate( &strm, Z_SYNC_FLUSH );
       XRootDStatus st = ToXRootDStatus( rc, "inflate" );
       if( !st.IsOK() ) return st;
 
-      bytesRead = size - strm.avail_out;
+      bytesRead = avail_before - strm.avail_out;
       totalRead += bytesRead;
-      out.AdvanceCursor( size - strm.avail_out );
       if( strm.avail_out ) return XRootDStatus( stOK, suPartial );
 
       return XRootDStatus();
+    }
+
+    uint64_t NextChunkOffset()
+    {
+      return rawOffset + rawSize;
     }
 
   private:
@@ -136,9 +144,10 @@ class ZipCache
       }
     }
 
-    Buffer    buffer;
-    uint64_t  totalRead;
-    z_stream  strm;
+    uint64_t  rawOffset; // offset of the raw data chunk in the compressed file (not archive)
+    uint32_t  rawSize;   // size of the raw data chunk
+    uint64_t  totalRead; // total number of bytes read so far
+    z_stream  strm;      // the zlib stream we will use for reading
 };
 
 
@@ -509,17 +518,18 @@ class ZipArchiveReaderImpl
       }
     }
 
-    File                          &pArchive;
-    uint64_t                       pArchiveSize;
-    std::unique_ptr<char[]>        pBuffer;
-    std::unique_ptr<EOCD>          pEocd;
-    std::unique_ptr<ZIP64_EOCD>    pZip64Eocd;
-    std::vector<CDFH*>             pCdRecords;
-    std::map<std::string, size_t>  pFileToCdfh;
-    mutable XrdSysMutex            pMutex;
-    size_t                         pRefCount;
-    bool                           pOpen;
-    std::string                    pBoundFile;
+    File                             &pArchive;
+    uint64_t                          pArchiveSize;
+    std::unique_ptr<char[]>           pBuffer;
+    std::unique_ptr<EOCD>             pEocd;
+    std::unique_ptr<ZIP64_EOCD>       pZip64Eocd;
+    std::vector<CDFH*>                pCdRecords;
+    std::map<std::string, size_t>     pFileToCdfh;
+    mutable XrdSysMutex               pMutex;
+    size_t                            pRefCount;
+    bool                              pOpen;
+    std::string                       pBoundFile;
+    std::map<std::string, ZipCache>   pCompressed;
 };
 
 
@@ -772,6 +782,69 @@ class ZipReadHandler : public ZipHandlerBase<ChunkInfo>
 };
 
 
+class ZipReadCompressedHandler : public ZipHandlerBase<ChunkInfo>
+{
+  public:
+
+    ZipReadCompressedHandler( ZipCache             &cache,
+                              uint64_t              relativeOffet,
+                              uint64_t              rawOffset,
+                              void                 *userBuffer,
+                              uint32_t              userSize,
+                              ZipArchiveReaderImpl *impl,
+                              ResponseHandler      *userHandler ) : ZipHandlerBase<ChunkInfo>( impl, userHandler ),
+                                                                    pCache( cache ),
+                                                                    pUserOffset( relativeOffet ),
+                                                                    pRawOffset( rawOffset ),
+                                                                    pUserBuffer( userBuffer ),
+                                                                    pUserSize( userSize )
+    {
+
+    }
+
+    virtual void HandleResponseImpl( XRootDStatus *status, ChunkInfo *response )
+    {
+      XRootDStatus st = pCache.Input( response->buffer, response->length, pRawOffset );
+      if( !st.IsOK() )
+      {
+        DeleteArgs( status, response );
+        if( pUserHandler ) pUserHandler->HandleResponse( new XRootDStatus( st ), 0 );
+        return;
+      }
+
+      // at this point we can be sure that all the needed data are in the cache
+      // (we requested as much data as the user asked for so in the worst case
+      // we have exactly as much data as the user needs, most likely we have
+      // more because the data are compressed)
+      uint32_t bytesRead = 0;
+      st = pCache.Read( bytesRead );
+      if( !st.IsOK() )
+      {
+        DeleteArgs( status, response );
+        if( pUserHandler ) pUserHandler->HandleResponse( new XRootDStatus( st ), 0 );
+        return;
+      }
+
+      // prepare the response for the end-user
+      response->buffer = pUserBuffer;
+      response->length = pUserSize;
+      response->offset = pUserOffset;
+
+      if( pUserHandler ) pUserHandler->HandleResponse( status, PkgResp( response ) );
+      else
+        DeleteArgs( status, response );
+    }
+
+  private:
+
+    ZipCache &pCache;
+    uint64_t  pUserOffset;
+    uint64_t  pRawOffset;
+    void     *pUserBuffer;
+    uint32_t  pUserSize;
+};
+
+
 ZipArchiveReader::ZipArchiveReader( File &archive ) : pImpl( new ZipArchiveReaderImpl( archive ) )
 {
 
@@ -987,19 +1060,8 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   CDFH *cdfh = pCdRecords[cditr->second];
 
   // check if the file is compressed, for now we only support uncompressed files!
-  if( cdfh->pCompressionMethod != 0 )
-  {
-    switch( cdfh->pCompressionMethod )
-    {
-      case Z_DEFLATED:
-      {
-        // TODO
-        break;
-      }
-
-      default: return XRootDStatus( stError, errNotSupported, 0, "Compression algorithm is not supported!" );
-    }
-  }
+  if( cdfh->pCompressionMethod != 0 && cdfh->pCompressionMethod != Z_DEFLATED )
+    return XRootDStatus( stError, errNotSupported, 0, "The compression algorithm is not supported!" );
 
   // Now the problem is that at the beginning of our
   // file there is the Local-file-header, which size
@@ -1010,10 +1072,68 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   // or the start of the Central-directory.
   uint64_t cdOffset = pZip64Eocd ? pZip64Eocd->pCdOffset : pEocd->pCdOffset;
   uint64_t nextRecordOffset = ( cditr->second + 1 < pCdRecords.size() ) ? pCdRecords[cditr->second + 1]->pOffset : cdOffset;
-  uint64_t fileSize = cdfh->pCompressionMethod ? cdfh->pCompressedSize : cdfh->pUncompressedSize;
-  uint64_t offset = nextRecordOffset - fileSize + relativeOffset;
-  uint64_t sizeTillEnd = fileSize - relativeOffset;
+  uint64_t filesize  = cdfh->pCompressedSize;
+  uint64_t fileoff  = nextRecordOffset - filesize;
+  uint64_t offset   = fileoff + relativeOffset;
+  uint64_t sizeTillEnd = cdfh->pUncompressedSize - relativeOffset;
   if( size > sizeTillEnd ) size = sizeTillEnd;
+
+  // if it is a compressed file use ZIP cache to read from the file
+  if( cdfh->pCompressionMethod == Z_DEFLATED )
+  {
+    // check if respective ZIP cache exists
+    bool recent = pCompressed.find( filename ) == pCompressed.end();
+    // if the entry does not exist, it will be created using
+    // default constructor
+    ZipCache &cache = pCompressed[filename];
+    // if we have the whole ZIP archive we can populate the cache
+    // straight away
+    if( recent && pBuffer)
+    {
+      XRootDStatus st = cache.Input( pBuffer.get() + offset, filesize - fileoff, relativeOffset );
+      if( !st.IsOK() ) return st;
+    }
+
+    XRootDStatus st = cache.Output( buffer, size, relativeOffset );
+
+    uint32_t bytesRead = 0;
+    st = cache.Read( bytesRead );
+
+    // propagate errors to the end-user
+    if( !st.IsOK() ) return st;
+
+    if( st.code == suPartial )
+    {
+      // the raw offset of the next chunk within the file
+      uint64_t rawOffset = cache.NextChunkOffset();
+      // if this is the first time we are setting an input chunk
+      // use the user-specified offset
+      if( !rawOffset )
+        rawOffset = relativeOffset;
+      // size of the next chunk of raw (compressed) data
+      uint32_t chunkSize = size;
+      // make sure we are not reading passed the end of the file
+      if( rawOffset + chunkSize > filesize )
+        chunkSize = filesize - rawOffset;
+      // allocate the buffer for the compressed data
+      pBuffer.reset( new char[chunkSize] );
+      ZipReadCompressedHandler *handler = new ZipReadCompressedHandler( cache, relativeOffset, rawOffset, buffer, size, this, userHandler );
+      st = pArchive.Read( fileoff + rawOffset, chunkSize, pBuffer.get(), handler, timeout );
+      if( !st.IsOK() ) delete handler;
+      return st;
+    }
+
+    if( userHandler )
+    {
+      XRootDStatus *st   = new XRootDStatus();
+      AnyObject    *resp = new AnyObject();
+      ChunkInfo    *info = new ChunkInfo( relativeOffset, size, buffer );
+      resp->Set( info );
+      userHandler->HandleResponse( st, resp );
+    }
+
+    return XRootDStatus();
+  }
 
   // check if we have the whole file in our local buffer
   if( pBuffer )
