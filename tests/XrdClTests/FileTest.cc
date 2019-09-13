@@ -205,7 +205,7 @@ void FileTest::ReadTest()
   CPPUNIT_ASSERT_XRDST( f.Close() );
 
   //----------------------------------------------------------------------------
-  // Read ZIP archive test
+  // Read ZIP archive test (uncompressed)
   //----------------------------------------------------------------------------
   std::string archiveUrl = address + "/" + dataPath + "/data.zip";
 

@@ -339,11 +339,13 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string targetURL    = manager2 + "/" + targetPath;
   std::string metalinkURL  = metamanager + "/" + dataPath + "/metalink/mlTpcTest.meta4";
   std::string zipURL       = metamanager + "/" + dataPath + "/data.zip";
+  std::string zipURL2      = metamanager + "/" + dataPath + "/large.zip";
   std::string fileInZip    = "paper.txt";
+  std::string fileInZip2   = "bible.txt";
   std::string xcpSourceURL = metamanager + "/" + dataPath + "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
   std::string localFile    = "/data/localfile.dat";
 
-  CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9;
+  CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9, process10;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -360,6 +362,22 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     CPPUNIT_ASSERT_XRDST( process6.AddJob( properties, &results ) );
     CPPUNIT_ASSERT_XRDST( process6.Prepare() );
     CPPUNIT_ASSERT_XRDST( process6.Run(0) );
+    CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+    properties.Clear();
+
+    //--------------------------------------------------------------------------
+    // Copy from a ZIP archive (compressed) and validate the zcrc32 checksum
+    //--------------------------------------------------------------------------
+    results.Clear();
+    properties.Set( "source",       zipURL2 );
+    properties.Set( "target",       targetURL );
+    properties.Set( "checkSumMode",   "end2end"     );
+    properties.Set( "checkSumType",   "zcrc32"      );
+    properties.Set( "zipArchive",   true      );
+    properties.Set( "zipSource",    fileInZip2 );
+    CPPUNIT_ASSERT_XRDST( process10.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process10.Prepare() );
+    CPPUNIT_ASSERT_XRDST( process10.Run(0) );
     CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
     properties.Clear();
   }
