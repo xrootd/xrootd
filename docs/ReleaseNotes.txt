@@ -7,6 +7,45 @@ Release Notes
 
 
 --------------
+Version 4.11.0
+--------------
+
++ **New Features**
+  **[Server]** Add support for multi-vo credentials.
+  **[Python]** Set rpath for bindings to correct xrdcl.
+  **[Python]** Expose XrdCl::Env in Python.
+  **[Python]** Add version attribute to xrootd module, closes #1027
+  **[Python]** Add cat API to FileSystem, closes #1047
+  **[XrdCl]** Add unique uuid to open message. closes #1037
+  **[XrdCl]** Support zcrc32 when extracting a file from ZIP archive.
+  **[XrdCl]** Support decompression (inflate) of files in ZIP archives.
+  **[XCache]** Allow up to 512 MB blocksize.
+  **[CMake]** Add Find XRootD CMake module.
+  **[XrdCms]** Add XrdCmsRedirLocal as ofs.cmslib plugin.
+
++ **Major bug fixes**
+  **[Xcache]** Make sure direct cache access is actually accessible.
+  **[Xcache]** Fix missing mode setting in the data space.
+  **[GSI]** Fix SAN check logic due to cut-paste error.
+  **[Python]** Correctly handle install --user.
+  **[XrdCl]** Fix dirlist response parsing, closes #1038
+  **[XrdCl]** Sign endsess if instructed to do so by server, fixes #1045
+  **[XrdCl]** Make TPC check bugus-response proof.
+  **[SSI]** Make sure the request sessN pointer is always valid.
+
++ **Minor bug fixes**
+  **[TPC]** Make sure to include source CGI in a delegated transfer.
+  **[XrdCl]** Respect target checksum vs preset source checksum.
+  **[XrdCl]** Stat local file without opaqueinfo.
+
++ **Miscellaneous**
+  **[Misc]** Allow client to indicate it supports local files.
+  **[UPS]** Disable python bindings.
+  **[XCache]** Mark File is in sync for the final sync.
+  **[Xcache]** Enhance security of the pss.dca directive.
+  **[RPM]** Move xrdmapc to client package.
+
+--------------
 Version 4.10.0
 --------------
 
