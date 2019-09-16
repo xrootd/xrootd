@@ -158,7 +158,9 @@ namespace PyXRootD
         Py_XDECREF( pyhostlist );
         Py_XDECREF( callbackResult );
         if( finalrsp )
+        {
           Py_XDECREF( this->callback );
+        }
 
         PyGILState_Release( state );
 
@@ -247,7 +249,9 @@ namespace PyXRootD
         Py_XDECREF( pyresponse );
         Py_XDECREF( callbackResult );
         if( finalrsp )
+        {
           Py_XDECREF( this->callback );
+        }
 
         PyGILState_Release( state );
 
