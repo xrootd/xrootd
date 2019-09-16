@@ -58,6 +58,7 @@ class CustomInstall(install):
         import pkgconfig
         zlib_dev    = pkgconfig.exists( 'zlib' )
         openssl_dev = pkgconfig.exists( 'openssl' )
+        uuid_dev    = pkgconfig.exists( 'uuid' )
         
         pyname = None
         if py_version_nodot[0] == '3':
@@ -67,16 +68,17 @@ class CustomInstall(install):
             python_dev = pkgconfig.exists( 'python' );
             pyname = 'python'
 
-        missing_dep = not ( cmake_bin and make_bin and comp_bin and zlib_dev and openssl_dev and python_dev )
+        missing_dep = not ( cmake_bin and make_bin and comp_bin and zlib_dev and openssl_dev and python_dev and uuid_dev )
 
         if missing_dep:
           print( 'Some dependencies are missing:')
-          if not cmake_bin: print('\tcmake is missing!')
-          if not make_bin:  print('\tmake is missing!')
-          if not comp_bin:  print('\tC++ compiler is missing (g++, c++, clang, etc.)!')
-          if not zlib_dev:  print('\tzlib development package is missing!')
+          if not cmake_bin:   print('\tcmake is missing!')
+          if not make_bin:    print('\tmake is missing!')
+          if not comp_bin:    print('\tC++ compiler is missing (g++, c++, clang, etc.)!')
+          if not zlib_dev:    print('\tzlib development package is missing!')
           if not openssl_dev: print('\topenssl development package is missing!')
           if not python_dev:  print('\t{} development package is missing!'.format(pyname) )
+          if not uuid_dev:    print('\tuuid development package is missing')
           raise Exception( 'Dependencies missing!' )
 
         useropt = ''
