@@ -487,6 +487,7 @@ void XrdSsiFileReq::Finalize()
                          mHelper.UnLock();
                          wt4fin.Wait();
                         }
+                         sessN   = "n/a";
                          return;
 
           // Request is bound so we can finish right off.
@@ -499,13 +500,15 @@ void XrdSsiFileReq::Finalize()
                          Stats.Bump(Stats.ReqFinished);
                          if (cancel) Stats.Bump(Stats.ReqCancels);
                          Finished(cancel); // This object may be deleted!
+                         sessN   = "n/a";
                          return;
                          break;
 
           // The following two cases may happen but it's safe to ignore them.
           //
           case isAbort:
-          case isDone:   return;
+          case isDone:   sessN = "bad";
+                         return;
                          break;
           default:       break;
          }
