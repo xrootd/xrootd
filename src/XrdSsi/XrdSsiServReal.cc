@@ -256,7 +256,6 @@ void XrdSsiServReal::Recycle(XrdSsiSessReal *sObj, bool reuse)
    actvSes--;
    DEBUG("Sess " <<sObj->GetSID() <<"# reuse=" <<reuse <<" free=" <<freeCnt
                 <<" active=" <<actvSes);
-   if (!reuse || freeCnt >= freeMax) {myMutex.UnLock(); delete sObj;}
 
    doDel = ((actvSes == 0 && doStop) || !reuse || freeCnt >= freeMax);
 
