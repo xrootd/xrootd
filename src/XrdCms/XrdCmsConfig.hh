@@ -142,8 +142,11 @@ XrdVersionInfo  *myVInfo; // xrootd version used in compilation
 XrdOucName2Name *xeq_N2N; // Server or Manager (non-null if library loaded)
 XrdOucName2Name *lcl_N2N; // Server Only
 
+char        *ConfigFN;
 char        *ossLib;      // -> oss library
 char        *ossParms;    // -> oss library parameters
+char        *prfLib;      // ->perf library
+char        *prfParms;    // ->perf library parameters
 char        *VNID_Lib;    // Server Only
 char        *VNID_Parms;  // Server Only
 char        *N2N_Lib;     // Server Only
@@ -225,8 +228,6 @@ int  xfxhld(XrdSysError *edest, XrdOucStream &CFile);
 int  xlclrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xmang(XrdSysError *edest, XrdOucStream &CFile);
 int  xnbsq(XrdSysError *edest, XrdOucStream &CFile);
-int  xnml(XrdSysError *edest, XrdOucStream &CFile);
-int  xolib(XrdSysError *edest, XrdOucStream &CFile);
 int  xperf(XrdSysError *edest, XrdOucStream &CFile);
 int  xpidf(XrdSysError *edest, XrdOucStream &CFile);
 int  xping(XrdSysError *edest, XrdOucStream &CFile);
@@ -250,7 +251,6 @@ XrdInet          *NetTCPr;     // Network for supervisors
 char             *AdminPath;
 int               AdminMode;
 char             *pidPath;
-char             *ConfigFN;
 char            **inArgv;
 int               inArgc;
 char             *SecLib;

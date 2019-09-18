@@ -36,6 +36,7 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -100,6 +101,21 @@ void XrdCmsUtils::Display(XrdSysError *eDest, const char *hSpec,
    delete [] nP;
 }
 
+/******************************************************************************/
+/*                           l o a d P e r f M o n                            */
+/******************************************************************************/
+
+XrdCmsPerfMon *XrdCmsUtils::loadPerfMon(XrdSysError    *eDest,
+                                        const char     *libPath,
+                                        XrdVersionInfo &urVer)
+{
+   XrdOucPinLoader perfLib(eDest, &urVer, "cms.perf", libPath);
+
+   XrdCmsPerfMon **perfMon = (XrdCmsPerfMon**)perfLib.Resolve("XrdCmsPerfMonitor");
+
+   return (perfMon ? *perfMon : 0);
+}
+  
 /******************************************************************************/
 /*                              P a r s e M a n                               */
 /******************************************************************************/

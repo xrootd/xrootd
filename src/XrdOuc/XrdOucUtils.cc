@@ -677,6 +677,39 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
 }
  
 /******************************************************************************/
+/*                              p a r s e L i b                               */
+/******************************************************************************/
+  
+bool XrdOucUtils::parseLib(XrdSysError &eDest, XrdOucStream &Config,
+                           const char *libName, char *&libPath, char **libParm)
+{
+    char *val, parms[2048];
+
+// Get the path
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {eDest.Emsg("Config", libName, "not specified"); return false;}
+
+// Record the path
+//
+   if (libPath) free(libPath);
+   libPath = strdup(val);
+
+// Handle optional parameter
+//
+   if (!libParm) return true;
+   if (*libParm) free(*libParm);
+   *libParm = 0;
+
+// Record any parms
+//
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {eDest.Emsg("Config", libName, "parameters too long"); return false;}
+   if (*parms) *libParm = strdup(parms);
+   return true;
+}
+
+/******************************************************************************/
 /*                             p a r s e H o m e                              */
 /******************************************************************************/
   

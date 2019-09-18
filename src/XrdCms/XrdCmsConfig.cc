@@ -183,6 +183,9 @@ private:
 /*                               d e f i n e s                                */
 /******************************************************************************/
 
+#define TS_Lib(x, y, z) if (!strcmp(x, var) \
+     && !XrdOucUtils::parseLib(*eDest, CFile, x, y, z)) return 1;
+
 #define TS_String(x,m) if (!strcmp(x,var)) {free(m); m = strdup(val); return 0;}
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, CFile);
@@ -507,10 +510,9 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
    TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
    TS_Xeq("manager",       xmang);   // Server,  non-dynamic
-   TS_Xeq("namelib",       xnml);    // Server,  non-dynamic
-   TS_Xeq("vnid",          xvnid);   // Server,  non-dynamic
+   TS_Lib("namelib", N2N_Lib, &N2N_Parms);
    TS_Xeq("nbsendq",       xnbsq);   // Any      non-dynamic
-   TS_Xeq("osslib",        xolib);   // Any,     non-dynamic
+   TS_Lib("osslib",  ossLib,  &ossParms);
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
    TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
@@ -521,6 +523,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
    TS_Xeq("subcluster",    xsubc);   // Manager, non-dynamic
    TS_Xeq("superport",     xsupp);   // Super,   non-dynamic
+   TS_Xeq("vnid",          xvnid);   // Server,  non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    TS_Xer("whitelist",     xblk,true);//Manager, non-dynamic
@@ -753,6 +756,8 @@ void XrdCmsConfig::ConfigDefaults(void)
    SecLib      = 0;
    ossLib      = 0;
    ossParms    = 0;
+   prfLib      = 0;
+   prfParms    = 0;
    ossFS       = 0;
    myVInfo     = &myVer;
    adsPort     = 0;
@@ -2095,76 +2100,6 @@ int XrdCmsConfig::xnbsq(XrdSysError *eDest, XrdOucStream &CFile)
         }
    return 0;
 }
-  
-/******************************************************************************/
-/*                                  x n m l                                   */
-/******************************************************************************/
-
-/* Function: xnml
-
-   Purpose:  To parse the directive: namelib <path> [<parms>]
-
-             <path>    the path of the filesystem library to be used.
-             <parms>   optional parms to be passed
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdCmsConfig::xnml(XrdSysError *eDest, XrdOucStream &CFile)
-{
-    char *val, parms[1024];
-
-// Get the path
-//
-   if (!(val = CFile.GetWord()) || !val[0])
-      {eDest->Emsg("Config", "namelib not specified"); return 1;}
-
-// Record the path
-//
-   if (N2N_Lib) free(N2N_Lib);
-   N2N_Lib = strdup(val);
-
-// Record any parms
-//
-   if (!CFile.GetRest(parms, sizeof(parms)))
-      {eDest->Emsg("Config", "namelib parameters too long"); return 1;}
-   if (N2N_Parms) free(N2N_Parms);
-   N2N_Parms = (*parms ? strdup(parms) : 0);
-   return 0;
-}
-  
-/******************************************************************************/
-/*                                 x o l i b                                  */
-/******************************************************************************/
-
-/* Function: xolib
-
-   Purpose:  To parse the directive: osslib <path>
-
-             <path>    the path of the filesystem library to be used.
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdCmsConfig::xolib(XrdSysError *eDest, XrdOucStream &CFile)
-{
-    char *val, parms[1024];
-
-// Get the path
-//
-   if (!(val = CFile.GetWord()) || !val[0])
-      {eDest->Emsg("Config", "osslib not specified"); return 1;}
-   if (ossLib) free(ossLib);
-   ossLib = strdup(val);
-
-// Record any parms
-//
-   if (!CFile.GetRest(parms, sizeof(parms)))
-      {eDest->Emsg("Config", "osslib parameters too long"); return 1;}
-   if (ossParms) free(ossParms);
-   ossParms = (*parms ? strdup(parms) : 0);
-   return 0;
-}
 
 /******************************************************************************/
 /*                                 x p e r f                                  */
@@ -2172,38 +2107,51 @@ int XrdCmsConfig::xolib(XrdSysError *eDest, XrdOucStream &CFile)
 
 /* Function: xperf
 
-   Purpose:  To parse the directive: perf [key <num>] [int <sec>] [pgm <pgm>]
+   Purpose:  To parse the directive: perf [xrootd] [int <sec>]
+                                          [lib <lib> [<parms>] | pgm <pgm>]
 
          int <time>    estimated time (seconds, M, H) between reports by <pgm>
-         key <num>     This is no longer documented but kept for compatability.
+         lib <lib>     the shared library holding the XrdCmsPerf object that
+                       reports perf values. It must be the last option.
          pgm <pgm>     program to start that will write perf values to standard
                        out. It must be the last option.
+         xrootd        This directive only applies to the cms xrootd plugin.
 
    Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure. Ignored by manager.
 */
 int XrdCmsConfig::xperf(XrdSysError *eDest, XrdOucStream &CFile)
-{   int   ival = 3*60;
-    char *pgm=0, *val, rest[2048];
+{   char *pgm=0, *val, rest[2048];
 
     if (!isServer) return CFile.noEcho();
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "perf options not specified"); return 1;}
 
+    if (!strcmp("xrootd", val)) return CFile.noEcho();
+    perfint = 3*60;
+
     do {     if (!strcmp("int", val))
                 {if (!(val = CFile.GetWord()))
                     {eDest->Emsg("Config", "perf int value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2tm(*eDest,"perf int",val,&ival,0)) return 1;
+                 if (XrdOuca2x::a2tm(*eDest,"perf int",val,&perfint,0)) return 1;
+                }
+        else if (!strcmp("lib",  val))
+                {if (perfpgm) {free(perfpgm); perfpgm = 0;}
+                 return (XrdOucUtils::parseLib(*eDest,CFile,"perf lib",
+                                      prfLib, &prfParms) ? 0 : 1);
+                 break;
                 }
         else if (!strcmp("pgm",  val))
                 {if (!CFile.GetRest(rest, sizeof(rest)))
-                    {eDest->Emsg("Config", "perf pgm parameters too long"); return 1;}
+                    {eDest->Emsg("Config", "perf pgm parameters too long");
+                     return 1;
+                    }
                  if (!*rest)
-                    {eDest->Emsg("Config", "perf prog value not specified");
+                    {eDest->Emsg("Config", "perf pgm value not specified");
                      return 1;
                     }
                  pgm = rest;
@@ -2215,16 +2163,16 @@ int XrdCmsConfig::xperf(XrdSysError *eDest, XrdOucStream &CFile)
 // Make sure that the perf program is here
 //
    if (perfpgm) {free(perfpgm); perfpgm = 0;}
+   if (prfLib)  {free(prfLib);  prfLib = 0;}
+   if (prfParms){free(prfParms);prfParms = 0;}
    if (pgm) {if (!isExec(eDest, "perf", pgm)) return 1;
                 else perfpgm = strdup(pgm);
             }
 
-// Set remaining values
+// All done.
 //
-    perfint = ival;
     return 0;
 }
-
   
 /******************************************************************************/
 /*                                 x p i d f                                  */
@@ -2885,23 +2833,14 @@ bool XrdCmsConfig::xschedy(char *val, XrdSysError *eDest, char *&host,
 
 int XrdCmsConfig::xsecl(XrdSysError *eDest, XrdOucStream &CFile)
 {
-    char *val;
 
 // If we are a server, ignore this option
 //
    if (!isManager) return CFile.noEcho();
 
-// Get path
+// Return parse result
 //
-   val = CFile.GetWord();
-   if (!val || !val[0])
-      {eDest->Emsg("Config", "seclib path not specified"); return 1;}
-
-// Assign new path
-//
-   if (SecLib) free(SecLib);
-   SecLib = strdup(val);
-   return 0;
+   return (XrdOucUtils::parseLib(*eDest,CFile,"seclib",SecLib,0) ? 0 : 1);
 }
   
 /******************************************************************************/

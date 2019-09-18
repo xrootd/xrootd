@@ -330,14 +330,28 @@ virtual int    Space(XrdOucErrInfo &Resp, const char *path,
                      XrdOucEnv  *Info=0) = 0;
 
 //------------------------------------------------------------------------------
+//! Report utilization of this server. This may be used in lieu of general
+//! performance metric reporting. For consistent results use only one method.
+//!
+//! @param  util  A value from 0 to 100 representing utilization. Values
+//!               greater than 100 are set to be 100.
+//! @param  alert When true the utilization is forcibly report to the
+//!               cluster managers. Otherwise, reporting is done only when
+//!               it will significantly change server selection.
+//------------------------------------------------------------------------------
+
+virtual void   Utilization(unsigned int util, bool alert=false)
+                          {(void)util; (void)alert;}
+
+//------------------------------------------------------------------------------
 //! Constructor
 //!
 //! @param  acting  The type of function this object is performing.
 //------------------------------------------------------------------------------
 
         enum   Persona {amLocal,  //!< Not affiliated with a cluster
-                        amRemote, //!< Am a manager an issue redirects
-                        amTarget  //!< Am a server  an field redirects
+                        amRemote, //!< Am a manager and issue redirects
+                        amTarget  //!< Am a server  and field redirects
                        };
 
                XrdCmsClient(Persona acting) : myPersona(acting) {}

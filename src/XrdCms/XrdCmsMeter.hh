@@ -30,17 +30,19 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdCms/XrdCmsPerfMon.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
-class XrdCmsMeter
+class XrdCmsMeter : public XrdCmsPerfMon
 {
 public:
 
-int   calcLoad(int pcpu, int pio, int pload, int pmem, int ppag);
+int   calcLoad(uint32_t pcpu, uint32_t pio, uint32_t pload,
+               uint32_t pmem, uint32_t ppag);
 
-int   calcLoad(int xload,int pdsk);
+int   calcLoad(int xload, uint32_t pdsk);
 
 int   FreeSpace(int &tutil);
 
@@ -49,6 +51,9 @@ void  Init();
 int   isOn() {return Running;}
 
 int   Monitor(char *pgm, int itv);
+int   Monitor(int itv);
+
+void  PutInfo(XrdCmsPerfMon::PerfInfo &perfInfo, bool alert=false);
 
 void  Record(int pcpu, int pnet, int pxeq,
              int pmem, int ppag, int pdsk);
@@ -60,6 +65,8 @@ void *Run();
 
 void *RunFS();
 
+void *RunPM();
+
 int   numFS() {return fs_nums;}
 
 unsigned int TotalSpace(unsigned int &minfree);
@@ -69,6 +76,8 @@ enum  vType {manFS = 1, peerFS = 2};
 void  setVirtual(vType vVal) {Virtual = vVal;}
 
 void  setVirtUpdt() {cfsMutex.Lock(); VirtUpdt = 1; cfsMutex.UnLock();}
+
+bool  Update(char *line, bool alert=false);
 
        XrdCmsMeter();
       ~XrdCmsMeter();
@@ -104,14 +113,17 @@ char          VirtUpdt; // Data changed for the virtul FS
 
 time_t        rep_tod;
 char         *monpgm;
+XrdCmsPerfMon *monPerf;
 int           monint;
 pthread_t     montid;
 
-unsigned int  xeq_load;
-unsigned int  cpu_load;
-unsigned int  mem_load;
-unsigned int  pag_load;
-unsigned int  net_load;
+uint32_t      xeq_load;
+uint32_t      cpu_load;
+uint32_t      mem_load;
+uint32_t      pag_load;
+uint32_t      net_load;
+int           myLoad;
+int           prevLoad;
 };
 
 namespace XrdCms

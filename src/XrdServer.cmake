@@ -141,18 +141,19 @@ add_library(
   # XrdCms - client for clustering
   #-----------------------------------------------------------------------------
   XrdCms/XrdCmsBlackList.cc       XrdCms/XrdCmsBlackList.hh
-  XrdCms/XrdCmsLogin.cc           XrdCms/XrdCmsLogin.hh
-  XrdCms/XrdCmsParser.cc          XrdCms/XrdCmsParser.hh
-  XrdCms/XrdCmsRRData.cc          XrdCms/XrdCmsRRData.hh
-  XrdCms/XrdCmsSecurity.cc        XrdCms/XrdCmsSecurity.hh
-  XrdCms/XrdCmsTalk.cc            XrdCms/XrdCmsTalk.hh
   XrdCms/XrdCmsClientConfig.cc    XrdCms/XrdCmsClientConfig.hh
   XrdCms/XrdCmsClientMan.cc       XrdCms/XrdCmsClientMan.hh
   XrdCms/XrdCmsClientMsg.cc       XrdCms/XrdCmsClientMsg.hh
-  XrdCms/XrdCmsFinder.cc          XrdCms/XrdCmsFinder.hh
   XrdCms/XrdCmsClient.cc          XrdCms/XrdCmsClient.hh
+  XrdCms/XrdCmsFinder.cc          XrdCms/XrdCmsFinder.hh
+  XrdCms/XrdCmsLogin.cc           XrdCms/XrdCmsLogin.hh
+  XrdCms/XrdCmsParser.cc          XrdCms/XrdCmsParser.hh
+                                  XrdCms/XrdCmsPerfMon.hh
   XrdCms/XrdCmsResp.cc            XrdCms/XrdCmsResp.hh
+  XrdCms/XrdCmsRRData.cc          XrdCms/XrdCmsRRData.hh
   XrdCms/XrdCmsRTable.cc          XrdCms/XrdCmsRTable.hh
+  XrdCms/XrdCmsSecurity.cc        XrdCms/XrdCmsSecurity.hh
+  XrdCms/XrdCmsTalk.cc            XrdCms/XrdCmsTalk.hh
                                   XrdCms/XrdCmsTypes.hh
   XrdCms/XrdCmsUtils.cc           XrdCms/XrdCmsUtils.hh
                                   XrdCms/XrdCmsVnId.hh

@@ -33,7 +33,6 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -45,8 +44,10 @@
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsTrace.hh"
+#include "XrdCms/XrdCmsUtils.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdCms;
  
@@ -60,15 +61,23 @@ using namespace XrdCms;
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
 
-void *XrdCmsMeterRun(void *carg)
+namespace
+{
+void *MeterRun(void *carg)
       {XrdCmsMeter *mp = (XrdCmsMeter *)carg;
        return mp->Run();
       }
 
-void *XrdCmsMeterRunFS(void *carg)
+void *MeterRunFS(void *carg)
       {XrdCmsMeter *mp = (XrdCmsMeter *)carg;
        return mp->RunFS();
       }
+
+void *MeterRunPM(void *carg)
+      {XrdCmsMeter *mp = (XrdCmsMeter *)carg;
+       return mp->RunPM();
+      }
+}
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -89,6 +98,7 @@ XrdCmsMeter::XrdCmsMeter() : myMeter(&Say)
     lastFree = 0;
     lastUtil = 0;
     monpgm   = 0;
+    monPerf  = 0;
     monint   = 0;
     montid   = 0;
     rep_tod  = time(0);
@@ -97,6 +107,8 @@ XrdCmsMeter::XrdCmsMeter() : myMeter(&Say)
     mem_load = 0;
     pag_load = 0;
     net_load = 0;
+    myLoad   = 0;
+    prevLoad = -1;
     Virtual  = 0;
     VirtUpdt = 1;
 }
@@ -115,8 +127,15 @@ XrdCmsMeter::~XrdCmsMeter()
 /*                              c a l c L o a d                               */
 /******************************************************************************/
 
-int XrdCmsMeter::calcLoad(int pcpu, int pio, int pload, int pmem, int ppag)
+int XrdCmsMeter::calcLoad(uint32_t pcpu, uint32_t pio, uint32_t pload,
+                          uint32_t pmem, uint32_t ppag)
 {
+   if (pcpu  > 100) pcpu  = 100;
+   if (pio   > 100) pio   = 100;
+   if (pload > 100) pload = 100;
+   if (pmem  > 100) pmem  = 100;
+   if (ppag  > 100) ppag  = 100;
+
    return   (Config.P_cpu  * pcpu /100)
           + (Config.P_io   * pio  /100)
           + (Config.P_load * pload/100)
@@ -126,8 +145,9 @@ int XrdCmsMeter::calcLoad(int pcpu, int pio, int pload, int pmem, int ppag)
 
 /******************************************************************************/
 
-int XrdCmsMeter::calcLoad(int nowload, int pdsk)
+int XrdCmsMeter::calcLoad(int nowload, uint32_t pdsk)
 {
+   if (pdsk > 100) pdsk = 100;
    return   (Config.P_dsk  * pdsk /100) + nowload;
 }
 
@@ -213,8 +233,8 @@ void  XrdCmsMeter::Init()
    calcSpace();
    if ((noSpace = (dsk_maxf < MinFree)) && !Config.asSolo())
       CmsState.Update(XrdCmsState::Space, 0);
-   if ((rc = XrdSysThread::Run(&monFStid, XrdCmsMeterRunFS, (void *)this, 0,
-      "FS meter"))) Say.Emsg("Meter", rc, "start filesystem meter.");
+   if ((rc = XrdSysThread::Run(&monFStid,MeterRunFS,(void *)this,0,"FS meter")))
+      Say.Emsg("Meter", rc, "start filesystem meter.");
 
 // Document what we have
 //
@@ -257,10 +277,71 @@ int XrdCmsMeter::Monitor(char *pgm, int itv)
 // Monitor() is a one-time call (otherwise unpredictable results may occur).
 //
    *mp = pp; monint = itv;
-   if ((rc = XrdSysThread::Run(&montid, XrdCmsMeterRun, (void *)this, 0,
-      "Perf meter"))) Say.Emsg("Meter", rc, "start performance meter.");
+   if ((rc = XrdSysThread::Run(&montid,MeterRun,(void *)this,0,"Perf meter")))
+      Say.Emsg("Meter", rc, "start performance meter.");
    Running = 1;
    return 0;
+}
+
+/******************************************************************************/
+  
+int XrdCmsMeter::Monitor(int itv)
+{
+   XrdCmsPerfMon *monPerf;
+   int rc;
+
+// Load the plugin
+//
+   monPerf = XrdCmsUtils::loadPerfMon(&Say, Config.prfLib, *Config.myVInfo);
+
+// Configure it if loaded.
+//
+   if (!monPerf || !monPerf->Configure(Config.ConfigFN, Config.prfParms,
+                                       *(Say.logger()), *this, 0, true))
+      {Say.Emsg("Meter", "Unable to configure performance monitor plugin.");
+       return -1;
+      }
+
+// Start the monitor thread for this plugin unless strictly async
+// reporting is wanted (i.e. the interval is zero).
+//
+   if (monint)
+      {if ((rc = XrdSysThread::Run(&montid,MeterRunPM,(void *)this,0,"Perf monitor")))
+          {Say.Emsg("Meter", rc, "start performance meter.");
+           return -1;
+          }
+      }
+
+   montid = 0;
+   Running = 1;
+   return 0;
+}
+
+/******************************************************************************/
+/*                               P u t I n f o                                */
+/******************************************************************************/
+  
+void XrdCmsMeter::PutInfo(XrdCmsPerfMon::PerfInfo &perfInfo, bool alert)
+{
+
+   repMutex.Lock();
+   cpu_load = (perfInfo.cpu_load <= 100 ? perfInfo.cpu_load : 100);
+   mem_load = (perfInfo.mem_load <= 100 ? perfInfo.mem_load : 100);
+   net_load = (perfInfo.net_load <= 100 ? perfInfo.net_load : 100);
+   pag_load = (perfInfo.pag_load <= 100 ? perfInfo.pag_load : 100);
+   xeq_load = (perfInfo.xeq_load <= 100 ? perfInfo.xeq_load : 100);
+
+   myLoad = calcLoad(cpu_load,net_load,xeq_load,mem_load,pag_load);
+
+   if (prevLoad >= 0)
+      {prevLoad = prevLoad - myLoad;
+       if (prevLoad < 0) prevLoad = -prevLoad;
+       if (prevLoad > Config.P_fuzz) alert = true;
+      }
+   prevLoad = myLoad;
+   repMutex.UnLock();
+
+   if (alert) XrdCmsNode::Report_Usage(0);
 }
 
 /******************************************************************************/
@@ -320,32 +401,17 @@ int XrdCmsMeter::Report(int &pcpu, int &pnet, int &pxeq,
   
 void *XrdCmsMeter::Run()
 {
-   const struct timespec rqtp = {30, 0};
-   int i, myLoad, prevLoad = -1;
+   static const int snoozeTime = 30;
    char *lp = 0;
 
 // Execute the program (keep restarting and keep reading the output)
 //
    while(1)
         {if (myMeter.Exec(monpgm) == 0)
-             while((lp = myMeter.GetLine()))
-                  {repMutex.Lock();
-                   i = sscanf(lp, "%d %d %d %d %d",
-                       &xeq_load, &cpu_load, &mem_load, &pag_load, &net_load);
-                   rep_tod = time(0);
-                   repMutex.UnLock();
-                   if (i != 5) break;
-                   myLoad = calcLoad(cpu_load,net_load,xeq_load,mem_load,pag_load);
-                   if (prevLoad >= 0)
-                      {prevLoad = prevLoad - myLoad;
-                       if (prevLoad < 0) prevLoad = -prevLoad;
-                       if (prevLoad > Config.P_fuzz) XrdCmsNode::Report_Usage(0);
-                      }
-                   prevLoad = myLoad;
-                  }
+             while((lp = myMeter.GetLine()) && Update(lp)) {}
          if (lp) Say.Emsg("Meter","Perf monitor returned invalid output:",lp);
             else Say.Emsg("Meter","Perf monitor died.");
-         nanosleep(&rqtp, 0);
+         XrdSysTimer::Snooze(snoozeTime);
          Say.Emsg("Meter", "Restarting monitor:", monpgm);
         }
    return (void *)0;
@@ -372,6 +438,25 @@ void *XrdCmsMeter::RunFS()
             }
             else if (noSpace && !nowlim) SpaceMsg(noNewSpace);
          nowlim = (nowlim ? nowlim-1 : mlim);
+        }
+   return (void *)0;
+}
+  
+/******************************************************************************/
+/*                                 R u n P M                                  */
+/******************************************************************************/
+  
+void *XrdCmsMeter::RunPM()
+{
+   XrdCmsPerfMon::PerfInfo perfInfo;
+
+// Keep asking the plugin for statistics.
+//
+   while(1)
+        {monPerf->GetInfo(perfInfo);
+         PutInfo(perfInfo);
+         perfInfo.Clear();
+         XrdSysTimer::Snooze(monint);
         }
    return (void *)0;
 }
@@ -408,6 +493,45 @@ unsigned int XrdCmsMeter::TotalSpace(unsigned int &minfree)
 // Return amount available
 //
    return static_cast<unsigned int>(fstotal);
+}
+  
+/******************************************************************************/
+/*                                U p d a t e                                 */
+/******************************************************************************/
+
+bool XrdCmsMeter::Update(char *line, bool alert)
+{
+   int n;
+
+// Parse the information
+//
+   repMutex.Lock();
+   n = sscanf(line, "%u %u %u %u %u",
+       &xeq_load, &cpu_load, &mem_load, &pag_load, &net_load);
+   rep_tod = time(0);
+
+// Make sure we have the correct number here
+//
+   if (n != 5)
+      {repMutex.UnLock();
+       return false;
+      }
+
+// Calculate load and check if there has been a significant change.
+//
+   myLoad = calcLoad(cpu_load,net_load,xeq_load,mem_load,pag_load);
+   if (prevLoad >= 0)
+      {prevLoad = prevLoad - myLoad;
+       if (prevLoad < 0) prevLoad = -prevLoad;
+       if (prevLoad > Config.P_fuzz) alert = true;
+      }
+   prevLoad = myLoad;
+   repMutex.UnLock();
+
+// Do an immediate performance update if needed
+//
+   if (alert) XrdCmsNode::Report_Usage(0);
+   return true;
 }
   
 /******************************************************************************/

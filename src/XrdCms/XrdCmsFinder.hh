@@ -31,6 +31,7 @@
 /******************************************************************************/
 
 #include "XrdCms/XrdCmsClient.hh"
+#include "XrdCms/XrdCmsPerfMon.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -118,7 +119,7 @@ unsigned char    savePath;
 class XrdOucStream;
 class XrdOucTList;
   
-class XrdCmsFinderTRG : public XrdCmsClient
+class XrdCmsFinderTRG : public XrdCmsClient, public XrdCmsPerfMon
 {
 public:
         void   Added(const char *path, int Pend=0);
@@ -133,6 +134,8 @@ public:
 
 XrdOucTList   *Managers() {return myManList;}
 
+        void   PutInfo(XrdCmsPerfMon::PerfInfo &perfInfo, bool alert=false);
+
         void   Removed(const char *path);
 
         void   Resume (int Perm=1);
@@ -144,10 +147,14 @@ XrdOucTList   *Managers() {return myManList;}
 
         int    RunAdmin(char *Path, const char *vnid);
 
+        void  *RunPM();
+
         int    Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *envP=0)
                     {return 0;}
 
         void  *Start();
+
+        void   Utilization(unsigned int util, bool alert=false);
 
 static  bool   VCheck(XrdVersionInfo &urVersion);
 
@@ -172,5 +179,7 @@ int            myPort;
 int            isRedir;
 int            isProxy;
 int            Active;
+XrdCmsPerfMon *perfMon;
+int            perfInt;
 };
 #endif

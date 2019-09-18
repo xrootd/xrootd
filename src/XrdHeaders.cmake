@@ -87,6 +87,7 @@ if( NOT XRDCL_ONLY )
     XrdCks/XrdCksData.hh
     XrdCks/XrdCksManager.hh
     XrdCms/XrdCmsClient.hh
+    XrdCms/XrdCmsPerfMon.hh
     XrdCms/XrdCmsVnId.hh
     XrdFileCache/XrdFileCacheDecision.hh
     XrdOfs/XrdOfsPrepare.hh

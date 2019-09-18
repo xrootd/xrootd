@@ -33,6 +33,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOuca2x.hh"
   
+class XrdCmsPerfMon;
 class XrdOucStream;
 class XrdSysError;
 
@@ -65,27 +66,38 @@ const char   *myName;
 
 XrdOucTList  *ManList;      // List of managers for remote redirection
 XrdOucTList  *PanList;      // List of managers for proxy  redirection
+XrdCmsPerfMon *perfMon;     // Performance monitor plugin
+int           perfInt;      // Performance poll interval
 unsigned char SMode;        // Manager selection mode
 unsigned char SModeP;       // Manager selection mode (proxy)
 
 enum {FailOver = 'f', RoundRob = 'r'};
 
-      XrdCmsClientConfig() : ConWait(10), RepWait(3),  RepWaitMS(3000),
+      XrdCmsClientConfig(XrdCmsPerfMon *cmsmon=0)
+                           : ConWait(10), RepWait(3),  RepWaitMS(3000),
                              RepDelay(5), RepNone(8),  PrepWait(33),
                              FwdWait(0),  haveMeta(0), CMSPath(0),
                              myHost(0),   myName(0),   myVNID(0),
                              cidTag(0),   ManList(0),  PanList(0),
+                             perfMon(0),  perfInt(3*60),
                              SMode(FailOver), SModeP(FailOver),
                              VNID_Lib(0),  VNID_Parms(0),
-                             isMeta(0), isMan(0) {}
+                             prfLib(0), prfParms(0), cmsMon(cmsmon),
+                             isMeta(false), isMan(false), isServer(false) {}
      ~XrdCmsClientConfig();
 
 private:
+
 char *VNID_Lib;
 char *VNID_Parms;
+char *prfLib;
+char *prfParms;
 
-int isMeta;   // We are  a meta manager
-int isMan;    // We are  a      manager
+XrdCmsPerfMon *cmsMon;
+
+bool isMeta;   // We are  a meta manager
+bool isMan;    // We are  a      manager
+bool isServer; // We are  a      server
 
 int ConfigProc(const char *cfn);
 bool ConfigSID(const char *cFile, XrdOucTList *tpl, char sfx);
@@ -94,6 +106,7 @@ int xapath(XrdOucStream &Config);
 int xcidt(XrdOucStream  &Config);
 int xconw(XrdOucStream  &Config);
 int xmang(XrdOucStream  &Config);
+int xperf(XrdOucStream  &Config);
 int xreqs(XrdOucStream  &Config);
 int xtrac(XrdOucStream  &Config);
 int xvnid(XrdOucStream  &Config);

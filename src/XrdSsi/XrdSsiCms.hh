@@ -68,6 +68,9 @@ const      *   Managers(int &mNum) {mNum = manNum; return manList;}
                      return 0;
                     }
 
+        void   Utilization(unsigned int util, bool alert=false)
+                    {if (theCms) return theCms->Utilization(util, alert);}
+
                XrdSsiCms() : theCms(0), manList(0), manNum(0) {}
 
                XrdSsiCms(XrdCmsClient *cmsP);

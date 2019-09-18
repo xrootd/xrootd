@@ -30,13 +30,29 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+class XrdCmsPerfMon;
 class XrdOucStream;
 class XrdOucTList;
 class XrdSysError;
 
+struct XrdVersionInfo;
+
 class XrdCmsUtils
 {
 public:
+
+//------------------------------------------------------------------------------
+//! Load the performance monitor plugin.
+//
+//! @param  eDest    Pointer to the error message object to route messages.
+//! @param  libPath  A pointer to the shared library path.
+//! @param  urVer    Reference to the caller's version number.
+//!
+//! @return Pointer to the performance monitor object or nil upon failure.
+//------------------------------------------------------------------------------
+static
+XrdCmsPerfMon *loadPerfMon(XrdSysError *eDest, const char *libPath,
+                           XrdVersionInfo &urVer);
 
 //------------------------------------------------------------------------------
 //! Obtain and merge a new manager list with an existing list.

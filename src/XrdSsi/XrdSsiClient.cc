@@ -64,6 +64,7 @@ namespace XrdSsi
 {
 extern XrdSysError          Log;
 extern XrdSysLogger        *Logger;
+extern XrdSsiScale          sidScale;
 extern XrdSysTrace          Trace;
 extern XrdSsiLogger::MCB_t *msgCB;
 extern XrdSsiLogger::MCB_t *msgCBCl;
@@ -265,8 +266,6 @@ void XrdSsiClientProvider::SetScheduler()
 
 void XrdSsiClientProvider::SetSpread(short ssz)
 {
-    extern XrdSsiScale sidScale;
-
     sidScale.setSpread(ssz);
 }
 

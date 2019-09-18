@@ -510,16 +510,17 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
 {
    EPNAME("do_Load")
-   int temp, pcpu, pnet, pxeq, pmem, ppag, pdsk;
+   uint32_t pcpu, pnet, pxeq, pmem, ppag, pdsk;
+   int temp;
 
 // Process: load <cpu> <io> <load> <mem> <pag> <util> <rsvd> <dskFree>
 //               0     1    2      3     4     5      6
-   pcpu = static_cast<int>(Arg.Opaque[CmsLoadRequest::cpuLoad]);
-   pnet = static_cast<int>(Arg.Opaque[CmsLoadRequest::netLoad]);
-   pxeq = static_cast<int>(Arg.Opaque[CmsLoadRequest::xeqLoad]);
-   pmem = static_cast<int>(Arg.Opaque[CmsLoadRequest::memLoad]);
-   ppag = static_cast<int>(Arg.Opaque[CmsLoadRequest::pagLoad]);
-   pdsk = static_cast<int>(Arg.Opaque[CmsLoadRequest::dskLoad]);
+   pcpu = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::cpuLoad]);
+   pnet = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::netLoad]);
+   pxeq = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::xeqLoad]);
+   pmem = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::memLoad]);
+   ppag = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::pagLoad]);
+   pdsk = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::dskLoad]);
 
 // Compute actual load value
 //
