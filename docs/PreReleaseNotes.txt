@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Add plug-in interface for performance reporting.
   * **[xrdcp]** Add --notlsok and --tlsdata options.
   * **[xrdcp]** Enable roots and xroots as TLS protocols.
   * **[xrdcp]** Add new --tlsmetalink option.
@@ -27,6 +28,7 @@ Prerelease Notes
   * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
 
 + **Major bug fixes**
+  * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
 
