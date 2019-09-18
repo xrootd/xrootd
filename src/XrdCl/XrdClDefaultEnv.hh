@@ -23,6 +23,7 @@
 #include "XrdCl/XrdClEnv.hh"
 
 class XrdOucPinLoader;
+struct EnvInitializer;
 
 namespace XrdCl
 {
@@ -43,7 +44,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class DefaultEnv: public Env
   {
-      friend struct EnvInitializer;
+      friend struct ::EnvInitializer;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -177,14 +178,14 @@ namespace XrdCl
       static PlugInManager     *sPlugInManager;
   };
 
-  static struct EnvInitializer
-  {
-      EnvInitializer();
-      ~EnvInitializer();
-      static int counter;
-  } initializer;
 }
 
+static struct EnvInitializer
+{
+    EnvInitializer();
+    ~EnvInitializer();
+    static int counter;
+} initializer;
 
 
 #endif // __XRD_CL_DEFAULT_ENV_HH__
