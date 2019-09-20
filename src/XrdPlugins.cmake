@@ -157,7 +157,9 @@ add_library(
   XrdCms/XrdCmsRedirLocal.cc XrdCms/XrdCmsRedirLocal.hh )
 
 target_link_libraries(
-  ${LIB_XRD_CMSREDIRL} )
+  ${LIB_XRD_CMSREDIRL}
+  XrdServer
+  XrdUtils )
 
 set_target_properties(
   ${LIB_XRD_CMSREDIRL}
