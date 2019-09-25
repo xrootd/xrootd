@@ -34,8 +34,9 @@
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClPostMaster.hh"
+
 #include <memory>
-#include <iostream>
 #include <queue>
 #include <algorithm>
 
@@ -481,6 +482,13 @@ namespace
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
 
+        if( !pUrl->IsLocalFile() )
+        {
+          std::string lastUrl;
+          pFile->GetProperty( "LastURL", lastUrl );
+          DefaultEnv::GetPostMaster()->WaitForDataStreams( lastUrl );
+        }
+
         return XRootDStatus();
       }
 
@@ -725,6 +733,13 @@ namespace
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
 
+        if( !pUrl->IsLocalFile() )
+        {
+          std::string lastUrl;
+          pFile->GetProperty( "LastURL", lastUrl );
+          DefaultEnv::GetPostMaster()->WaitForDataStreams( lastUrl );
+        }
+
         return XrdCl::XRootDStatus();
       }
 
@@ -816,6 +831,13 @@ namespace
 
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
+
+        if( !pUrl->IsLocalFile() )
+        {
+          std::string lastUrl;
+          pFile->GetProperty( "LastURL", lastUrl );
+          DefaultEnv::GetPostMaster()->WaitForDataStreams( lastUrl );
+        }
 
         return XRootDStatus();
       }
