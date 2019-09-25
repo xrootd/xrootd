@@ -131,6 +131,57 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  //! Selects less loaded stream for read operation over multiple streams
+  //----------------------------------------------------------------------------
+  struct StreamSelector
+  {
+      StreamSelector( uint16_t size )
+      {
+        //----------------------------------------------------------------------
+        // Subtract one because we shouldn't take into account the control
+        // stream.
+        //----------------------------------------------------------------------
+        strmqueues.resize( size - 1, 0 );
+      }
+
+      //------------------------------------------------------------------------
+      // @param connected : bitarray stating if given sub-stream is connected
+      //
+      // @return          : substream number
+      //------------------------------------------------------------------------
+      uint16_t Select( const std::vector<bool> &connected )
+      {
+        uint16_t ret = 0;
+        size_t   minval = strmqueues[0];
+
+        for( uint16_t i = 1; i < connected.size() && i < strmqueues.size(); ++i )
+        {
+          if( strmqueues[i] < minval )
+          {
+            ret = i;
+            minval = strmqueues[i];
+          }
+        }
+
+        ++strmqueues[ret];
+        return ret + 1;
+      }
+
+      //--------------------------------------------------------------------------
+      // Update queue for given substream
+      //--------------------------------------------------------------------------
+      void MsgReceived( uint16_t substrm )
+      {
+        if( substrm > 0 )
+        --strmqueues[substrm - 1];
+      }
+
+    private:
+
+      std::vector<size_t> strmqueues;
+  };
+
+  //----------------------------------------------------------------------------
   //! Information holder for xrootd channels
   //----------------------------------------------------------------------------
   struct XRootDChannelInfo
@@ -151,7 +202,8 @@ namespace XrdCl
       waitBarrier(0),
       protection(0),
       protRespBody(0),
-      protRespSize(0)
+      protRespSize(0),
+      strmSelector(0)
     {
       sidManager = new SIDManager();
       memset( sessionId, 0, 16 );
@@ -165,6 +217,7 @@ namespace XrdCl
     {
       delete    sidManager;
       delete [] authBuffer;
+      delete    strmSelector;
     }
 
     typedef std::vector<XRootDStreamInfo> StreamInfoVector;
@@ -192,6 +245,7 @@ namespace XrdCl
     XrdSecProtect               *protection;
     ServerResponseBody_Protocol *protRespBody;
     unsigned int                 protRespSize;
+    StreamSelector              *strmSelector;
     XrdSysMutex                  mutex;
   };
 
@@ -302,6 +356,7 @@ namespace XrdCl
     env->GetInt( "SubStreamsPerChannel", streams );
     if( streams < 1 ) streams = 1;
     info->stream.resize( streams );
+    info->strmSelector = new StreamSelector( streams );
   }
 
   //----------------------------------------------------------------------------
@@ -669,15 +724,22 @@ namespace XrdCl
     else
     {
       upStream = 0;
-      std::vector<uint16_t> connected;
+      std::vector<bool> connected;
+      connected.reserve( info->stream.size() - 1 );
+      size_t nbConnected = 0;
       for( size_t i = 1; i < info->stream.size(); ++i )
         if( info->stream[i].status == XRootDStreamInfo::Connected )
-          connected.push_back( i );
+        {
+          connected.push_back( true );
+          ++nbConnected;
+        }
+        else
+          connected.push_back( false );
 
-      if( connected.empty() )
+      if( nbConnected == 0 )
         downStream = 0;
       else
-        downStream = connected[random()%connected.size()];
+        downStream = info->strmSelector->Select( connected );
     }
 
     if( upStream >= info->stream.size() )
@@ -1138,6 +1200,11 @@ namespace XrdCl
     channelData.Get( info );
     XrdSysMutexHelper scopedLock( info->mutex );
     Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // Update the substream queues
+    //--------------------------------------------------------------------------
+    info->strmSelector->MsgReceived( subStream );
 
     //--------------------------------------------------------------------------
     // Check whether this message is a response to a request that has
