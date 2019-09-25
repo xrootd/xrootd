@@ -586,8 +586,8 @@ int main( int argc, char **argv )
   // Environment settings
   //----------------------------------------------------------------------------
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-  if( config.nStrm != 1 )
-    env->PutInt( "SubStreamsPerChannel", config.nStrm );
+  if( config.nStrm != 0 )
+    env->PutInt( "SubStreamsPerChannel", config.nStrm + 1 /*stands for the control stream*/ );
 
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
@@ -608,7 +608,7 @@ int main( int argc, char **argv )
   }
 
   log->Dump( AppMsg, "Chunk size: %d, parallel chunks %d, streams: %d",
-             chunkSize, parallelChunks, config.nStrm );
+             chunkSize, parallelChunks, config.nStrm + 1 );
 
   //----------------------------------------------------------------------------
   // Build the URLs

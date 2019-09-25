@@ -135,7 +135,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    OpSpec   = 0;
    Dlvl     = 0;
    nSrcs    = 1;
-   nStrm    = 1;
+   nStrm    = 0;
    Retry    =-1;
    Verbose  = 0;
    numFiles = 0;
