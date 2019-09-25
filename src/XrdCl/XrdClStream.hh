@@ -32,6 +32,7 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include <list>
 #include <vector>
+#include <set>
 
 namespace XrdCl
 {
@@ -256,6 +257,14 @@ namespace XrdCl
       std::pair<IncomingMsgHandler *, bool>
         InstallIncHandler( Message *msg, uint16_t stream );
 
+      //------------------------------------------------------------------------
+      //!
+      //------------------------------------------------------------------------
+      void WaitForDataStreams()
+      {
+        pDataStrmSem.Wait();
+      }
+
     private:
 
       //------------------------------------------------------------------------
@@ -350,6 +359,12 @@ namespace XrdCl
       timeval                        pConnectionDone;
       uint64_t                       pBytesSent;
       uint64_t                       pBytesReceived;
+
+      //------------------------------------------------------------------------
+      // Allow to wait for all streams connection-returned
+      //------------------------------------------------------------------------
+      std::set<uint16_t>             pDataConnReturned;
+      XrdSysSemaphore                pDataStrmSem;
   };
 }
 

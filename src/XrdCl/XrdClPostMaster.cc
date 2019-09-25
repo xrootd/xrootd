@@ -296,6 +296,16 @@ namespace XrdCl
     return Status();
   }
 
+  //------------------------------------------------------------------------
+  // Wait for data streams
+  //------------------------------------------------------------------------
+  void PostMaster::WaitForDataStreams( const URL &url )
+  {
+    Channel *channel = GetChannel( url );
+    if( !channel ) return;
+    channel->WaitForDataStreams();
+  }
+
   //----------------------------------------------------------------------------
   // Get the channel
   //----------------------------------------------------------------------------
