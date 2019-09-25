@@ -53,7 +53,7 @@ namespace XrdCl
   const int DefaultRunForkHandler          = 0;
   const int DefaultRedirectLimit           = 16;
   const int DefaultWorkerThreads           = 3;
-  const int DefaultCPChunkSize             = 16777216;
+  const int DefaultCPChunkSize             = 8388608;
   const int DefaultCPParallelChunks        = 4;
   const int DefaultDataServerTTL           = 300;
   const int DefaultLoadBalancerTTL         = 1200;

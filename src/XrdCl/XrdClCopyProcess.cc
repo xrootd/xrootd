@@ -202,8 +202,13 @@ namespace XrdCl
 
     if( !p.HasProperty( "parallelChunks" ) )
     {
+      int dataStreams = DefaultSubStreamsPerChannel;
+      env->GetInt( "SubStreamsPerChannel", dataStreams );
+      dataStreams -= 1; /*account for the control stream*/
       int val = DefaultCPParallelChunks;
       env->GetInt( "CPParallelChunks", val );
+      if( dataStreams > 0 )
+        val *= dataStreams;
       p.Set( "parallelChunks", val );
     }
 
