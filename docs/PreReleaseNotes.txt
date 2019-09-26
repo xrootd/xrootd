@@ -9,6 +9,7 @@ Prerelease Notes
   **[Server]** Add support for multi-vo credentials.
 
 + **Major bug fixes**
+  **[GSI]** Fix faulty SAN wildcard check and make message clearer.
   **[SSI]** Make sure the request sessN pointer is always valid.
   **[Xcache]** Make sure direct cache access is actually accessible.
   **[GSI]** Fix SAN check logic due to cut-paste error.
