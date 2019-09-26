@@ -284,7 +284,8 @@ bool XrdCryptoX509::MatchHostnames(const char * match_pattern, const char * host
     bool theydomatch = false;
 
     // Get first token of both strings
-    int mfrom = -1, hfrom = -1;
+//  int mfrom = -1, hfrom = -1;
+    int mfrom =  0, hfrom =  0;
     XrdOucString mfirst, hfirst;
     if (((mfrom = mpatt.tokenize(mfirst, mfrom, '.')) != -1) &&
         ((hfrom = hname.tokenize(hfirst, hfrom, '.')) != -1)) {
