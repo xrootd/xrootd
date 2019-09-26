@@ -124,8 +124,7 @@ namespace XrdCl
     pSessionId( 0 ),
     pQueueIncMsgJob(0),
     pBytesSent( 0 ),
-    pBytesReceived( 0 ),
-    pDataStrmSem( 0 )
+    pBytesReceived( 0 )
   {
     pConnectionStarted.tv_sec = 0; pConnectionStarted.tv_usec = 0;
     pConnectionDone.tv_sec = 0;    pConnectionDone.tv_usec = 0;
@@ -616,11 +615,6 @@ namespace XrdCl
           }
         }
       }
-      //------------------------------------------------------------------------
-      // If we use only single stream there's no need to wait for the data
-      // stream.
-      //------------------------------------------------------------------------
-      else pDataStrmSem.Post();
 
       //------------------------------------------------------------------------
       // Inform monitoring
@@ -646,13 +640,6 @@ namespace XrdCl
         mon->Event( Monitor::EvConnect, &i );
       }
     }
-
-    if( subStream > 0 )
-    {
-      pDataConnReturned.insert( subStream );
-      if( pDataConnReturned.size() == pSubStreams.size() - 1 )
-        pDataStrmSem.Post();
-    }
   }
 
   //----------------------------------------------------------------------------
@@ -671,10 +658,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( subStream > 0 )
     {
-      pDataConnReturned.insert( subStream );
-      if( pDataConnReturned.size() == pSubStreams.size() - 1 )
-        pDataStrmSem.Post();
-
       pSubStreams[subStream]->status = Socket::Disconnected;
       pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
       if( pSubStreams[0]->status == Socket::Connected )
@@ -752,12 +735,6 @@ namespace XrdCl
     // Else, we fail
     //--------------------------------------------------------------------------
     OnFatalError( subStream, status, scopedLock );
-
-    //--------------------------------------------------------------------------
-    // Since we failed to connect the control stream there's no need to wait
-    // for the data streams.
-    //--------------------------------------------------------------------------
-    pDataStrmSem.Post();
   }
 
   //----------------------------------------------------------------------------

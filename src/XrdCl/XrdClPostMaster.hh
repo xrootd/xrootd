@@ -203,11 +203,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Status ForceDisconnect( const URL &url );
 
-      //------------------------------------------------------------------------
-      //! Wait for data streams
-      //------------------------------------------------------------------------
-      void WaitForDataStreams( const URL &url );
-
     private:
       Channel *GetChannel( const URL &url );
 
