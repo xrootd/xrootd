@@ -35,6 +35,8 @@
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClZipArchiveReader.hh"
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClJobManager.hh"
+
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -608,13 +610,17 @@ namespace
       template<typename READER>
       void SetOnConnectHandler( READER *reader )
       {
-        struct callback_t // a lambda would be more elegant but we still have to support slc6
+        //----------------------------------------------------------------------------
+        // On-connect callback job, a lambda would be more elegant, but we still have
+        // to support SLC6
+        //----------------------------------------------------------------------------
+        struct OnConnJob : public XrdCl::Job
         {
-            callback_t( XRootDSource *self, READER *reader ) : self( self ), reader( reader )
+            OnConnJob( XRootDSource *self, READER *reader ) : self( self ), reader( reader )
             {
             }
 
-            void operator()()
+            void Run( void* )
             {
               std::unique_lock<std::mutex> lck( self->pMtx );
               // add new chunks to the queue
@@ -626,11 +632,10 @@ namespace
             XRootDSource *self;
             READER       *reader;
 
+        };
 
-        } onConnHandler( this, reader );
-
-        XrdCl::DefaultEnv::GetPostMaster()->SetOnConnectHandler( pDataServer,
-                                                   std::move( onConnHandler ) );
+        OnConnJob *callback = new OnConnJob( this, reader );
+        XrdCl::DefaultEnv::GetPostMaster()->SetOnConnectHandler( pDataServer, callback );
       }
 
       //------------------------------------------------------------------------

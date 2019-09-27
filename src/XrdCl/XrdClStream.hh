@@ -260,10 +260,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnConnectHandler( std::function<void(void)>  &&handler )
+      void SetOnConnectHandler( Job *onConnJob )
       {
         delete pOnConnJob;
-        pOnConnJob = new OnConnJob( std::move( handler ) );
+        pOnConnJob = onConnJob;
       }
 
     private:
@@ -361,37 +361,10 @@ namespace XrdCl
       uint64_t                       pBytesSent;
       uint64_t                       pBytesReceived;
 
-
-      //------------------------------------------------------------------------
-      // On-connect callback job
-      //------------------------------------------------------------------------
-      class OnConnJob : public Job
-      {
-        public:
-
-          //------------------------------------------------------------------------
-          //! Convert the functional object / lambda into a Job
-          //------------------------------------------------------------------------
-          OnConnJob( std::function<void(void)> &&func ) : func( std::move( func ) )
-          {
-          }
-
-          //------------------------------------------------------------------------
-          //! Run the callback
-          //------------------------------------------------------------------------
-          virtual void Run( void *arg )
-          {
-            if( func ) func();
-          }
-
-        private:
-          std::function<void(void)> func;
-      };
-
       //------------------------------------------------------------------------
       // Data stream on-connect handler
       //------------------------------------------------------------------------
-      OnConnJob                     *pOnConnJob;
+      Job                           *pOnConnJob;
   };
 }
 

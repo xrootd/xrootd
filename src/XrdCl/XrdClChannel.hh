@@ -40,6 +40,7 @@ namespace XrdCl
   class JobManager;
   class VirtualRedirector;
   class TickGeneratorTask;
+  class Job;
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
@@ -168,7 +169,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnConnectHandler( std::function<void(void)>  &&handler );
+      void SetOnConnectHandler( Job *onConnJob );
 
     private:
 

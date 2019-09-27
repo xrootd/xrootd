@@ -36,6 +36,7 @@ namespace XrdCl
   class TaskManager;
   class Channel;
   class JobManager;
+  class Job;
 
   //----------------------------------------------------------------------------
   //! A hub for dispatching and receiving messages
@@ -212,8 +213,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnConnectHandler( const URL                   &url,
-                                std::function<void(void)>  &&handler );
+      void SetOnConnectHandler( const URL &url,
+                                Job       *onConnJob );
 
     private:
       Channel *GetChannel( const URL &url );
