@@ -30,6 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <vector>
+
 #include "XrdCms/XrdCmsClient.hh"
 
 class  XrdAccAuthorize;
@@ -41,6 +43,7 @@ class  XrdOss;
 class  XrdOucEnv;
 class  XrdOucStream;
 class  XrdSysError;
+class  XrdSysXAttr;
 struct XrdVersionInfo;
 
 //-----------------------------------------------------------------------------
@@ -223,12 +226,17 @@ private:
        XrdOfsConfigPI(const char *cfn, XrdOucStream *cfgP, XrdSysError *errP,
                       XrdVersionInfo *verP=0);
 
+bool          AddLib(TheLib what);
+bool          AddLibAtr(XrdOucEnv *envP, XrdSysXAttr *&atrPI);
+bool          AddLibAut(XrdOucEnv *envP);
+bool          AddLibOss(XrdOucEnv *envP);
+bool          AddLibPrp(XrdOucEnv *envP, XrdOfs *ofsP);
 bool          ParseAtrLib();
 bool          ParseOssLib();
 bool          ParsePrpLib();
 bool          RepLib(TheLib what, const char *newLib, const char *newParms=0, bool parseParms=true);
-bool          SetupAttr(TheLib what);
-bool          SetupAuth();
+bool          SetupAttr(TheLib what, XrdOucEnv *envP);
+bool          SetupAuth(XrdOucEnv *envP);
 bool          SetupCms();
 bool          SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP);
 
@@ -253,9 +261,21 @@ struct xxxLP
                        if (parms) free(parms);
                        if (opts)  free(opts);
                       }
+              xxxLP& operator=(const xxxLP& rhs)
+                      {if (this != &rhs)
+                          {lib   = (rhs.lib   ? strdup(rhs.lib)   : 0);
+                           parms = (rhs.parms ? strdup(rhs.parms) : 0);
+                           opts  = (rhs.opts  ? strdup(rhs.opts)  : 0);
+                          }
+                       return *this;
+                      }
+              xxxLP(const xxxLP& rhs) {*this = rhs;}
+
       }       LP[maxXXXLib];
+std::vector<xxxLP> ALP[maxXXXLib];
 char         *CksAlg;
 int           CksRdsz;
+bool          pushOK[maxXXXLib];
 bool          defLib[maxXXXLib];
 bool          ossXAttr;
 bool          ossCksio;

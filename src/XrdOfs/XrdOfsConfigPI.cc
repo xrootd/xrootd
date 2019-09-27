@@ -107,6 +107,15 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
 //
    CksConfig = new XrdCksConfig(ConfigFN, Eroute, rc, *urVer);
    if (!rc) {delete CksConfig; CksConfig = 0;}
+
+// Set Pushable attributes
+//
+   pushOK[PIX(theAtrLib)] = true;
+   pushOK[PIX(theAutLib)] = true;
+   pushOK[PIX(theCksLib)] = false;
+   pushOK[PIX(theCmsLib)] = false;
+   pushOK[PIX(theOssLib)] = true;
+   pushOK[PIX(thePrpLib)] = true;
 }
 
 /******************************************************************************/
@@ -117,6 +126,130 @@ XrdOfsConfigPI::~XrdOfsConfigPI()
 {
    if (CksConfig) delete CksConfig;
    if (CksAlg)    free(CksAlg);
+}
+  
+/******************************************************************************/
+/* Private:                       A d d L i b                                 */
+/******************************************************************************/
+
+bool XrdOfsConfigPI::AddLib(XrdOfsConfigPI::TheLib what)
+{
+   struct xxxLP newALP;
+   char *val, *path;
+   char  parms[2048];
+   int  i, xLib = PIX(what);
+
+// Get the path
+//
+   if (!(val = Config->GetWord()) || !val[0])
+      {Eroute->Emsg("Config", drctv[PIX(what)],"not specified"); return false;}
+   path = strdup(val);
+
+// Get the parameters
+//
+   if (!Config->GetRest(parms, sizeof(parms)))
+      {Eroute->Emsg("Config", drctv[xLib], "parameters too long");
+       free(path);
+       return false;
+      }
+
+// Add this library
+//
+   i = ALP[xLib].size();
+   ALP[xLib].push_back(newALP);
+   ALP[xLib][i].lib   = path;
+   if (*parms) ALP[xLib][i].parms = strdup(parms);
+   return true;
+}
+  
+/******************************************************************************/
+/* Private:                    A d d L i b A t r                              */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::AddLibAtr(XrdOucEnv *envP, XrdSysXAttr *&atrPI)
+{
+   const char *epName = "XrdSysAddXAttrObject";
+   XrdSysAddXAttrObject_t ep;
+   int n = ALP[PIX(theAtrLib)].size();
+
+   for (int i = 0; i < n; i++)
+       {const char *path  = ALP[PIX(theAtrLib)][i].lib;
+        const char *parms = ALP[PIX(theAtrLib)][i].parms;
+        XrdOucPinLoader myLib(Eroute, urVer, "xattrlib", path);
+        ep = (XrdSysAddXAttrObject_t)(myLib.Resolve(epName));
+        if (!ep) return false;
+        atrPI = ep(Eroute, ConfigFN, parms, envP, atrPI);
+        if (!atrPI) return false;
+       }
+   return true;
+}
+
+/******************************************************************************/
+/* Private:                    A d d L i b A u t                              */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::AddLibAut(XrdOucEnv *envP)
+{
+   const char *epName = "XrdAccAuthorizeObjAdd";
+   int n = ALP[PIX(theAutLib)].size();
+
+   for (int i = 0; i < n; i++)
+       {const char *path  = ALP[PIX(theAutLib)][i].lib;
+        const char *parms = ALP[PIX(theAutLib)][i].parms;
+        XrdAccAuthorizeObjAdd_t addAut;
+        XrdOucPinLoader myLib(Eroute, urVer, "authlib", path);
+        addAut = (XrdAccAuthorizeObjAdd_t)myLib.Resolve(epName);
+        if (!addAut) return false;
+        autPI = addAut(Eroute->logger(), ConfigFN, parms, envP, autPI);
+        if (!autPI) return false;
+       }
+   return true;
+}
+  
+  
+/******************************************************************************/
+/* Private:                    A d d L i b O s s                              */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::AddLibOss(XrdOucEnv *envP)
+{
+   const char *epName = "XrdOssAddStorageSystem2";
+   int n = ALP[PIX(theOssLib)].size();
+
+   for (int i = 0; i < n; i++)
+       {const char *path  = ALP[PIX(theOssLib)][i].lib;
+        const char *parms = ALP[PIX(theOssLib)][i].parms;
+        XrdOssAddStorageSystem2_t addOss2;
+        XrdOucPinLoader myLib(Eroute, urVer, "osslib", path);
+
+        addOss2 = (XrdOssGetStorageSystem2_t)myLib.Resolve(epName);
+        if (!addOss2) return false;
+        ossPI = addOss2(ossPI, Eroute->logger(), ConfigFN, parms, envP);
+        if (!ossPI) return false;
+       }
+   return true;
+}
+
+/******************************************************************************/
+/* Private:                    A d d L i b P r p                              */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::AddLibPrp(XrdOucEnv *envP, XrdOfs *ofsP)
+{
+   const char *epName = "XrdOfsAddPrepare";
+   int n = ALP[PIX(thePrpLib)].size();
+
+   for (int i = 0; i < n; i++)
+       {const char *path  = ALP[PIX(thePrpLib)][i].lib;
+        const char *parms = ALP[PIX(thePrpLib)][i].parms;
+        XrdOfsAddPrepare_t addPrp;
+        XrdOucPinLoader myLib(Eroute, urVer, "preplib", path);
+        addPrp = (XrdOfsAddPrepare_t)myLib.Resolve(epName);
+        if (!addPrp) return false;
+        prpPI = addPrp(Eroute, ConfigFN, parms, ofsP, ossPI, envP, prpPI);
+        if (!prpPI) return false;
+       }
+   return true;
 }
   
 /******************************************************************************/
@@ -159,8 +292,9 @@ void   XrdOfsConfigPI::DefaultCS(const char *alg)
 void   XrdOfsConfigPI::Display()
 {
    xxxLP *lP;
-   char *oP, buff[2046];
-   int aI = PIX(theAtrLib), oI = PIX(theOssLib);
+   char *oP, buff[4096];
+   const char *theLib;
+   int n, aI = PIX(theAtrLib), oI = PIX(theOssLib);
 
 // Display what we have
 //
@@ -169,11 +303,20 @@ void   XrdOfsConfigPI::Display()
              if (i != aI)   lP = &LP[i];
         else if (ossXAttr) {lP = &LP[oI]; oP = 0;}
         else                lP = &LP[i];
-        if (lP->lib)
-           {snprintf(buff, sizeof(buff), "ofs.%s %s%s %s", drctv[i],
-                     (oP ? oP : ""), lP->lib, (lP->parms ? lP->parms : ""));
+        n = ALP[i].size();
+        if (n || lP->lib)
+           {theLib = (lP->lib ? lP->lib : "default");
+            snprintf(buff, sizeof(buff), "ofs.%s %s%s %s", drctv[i],
+                     (oP ? oP : ""), theLib,  (lP->parms ? lP->parms : ""));
             Eroute->Say("       ", buff);
+            for (int k = 0; k < n; k++)
+                {lP = &(ALP[i][k]);
+                 snprintf(buff, sizeof(buff), "ofs.%s ++ %s %s", drctv[i],
+                         lP->lib, (lP->parms ? lP->parms : ""));
+                 Eroute->Say("       ", buff);
+                }
            }
+
        }
 }
   
@@ -183,6 +326,7 @@ void   XrdOfsConfigPI::Display()
   
 bool XrdOfsConfigPI::Load(int loadLib, XrdOfs *ofsP, XrdOucEnv *envP)
 {
+   extern XrdSysXAttr *XrdSysXAttrActive;
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
                               const char   *, XrdOucEnv  *, XrdVersionInfo &);
    bool aOK;
@@ -202,21 +346,30 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOfs *ofsP, XrdOucEnv *envP)
           {free(LP[PIX(theOssLib)].lib);
            LP[PIX(theOssLib)].lib = strdup(ossLib);
           }
+       if (!AddLibOss(envP)) return false;
       }
 
 // Now setup the extended attribute plugin if so desired
 //
    if (DO_LOAD(theAtrLib))
-      {     if (ossXAttr && LP[PIX(theOssLib)].lib) aOK = SetupAttr(theOssLib);
-       else if             (LP[PIX(theAtrLib)].lib) aOK = SetupAttr(theAtrLib);
-       else aOK = true;
+      {     if (ossXAttr && LP[PIX(theOssLib)].lib)
+               aOK = SetupAttr(theOssLib, envP);
+       else if             (LP[PIX(theAtrLib)].lib)
+               aOK = SetupAttr(theAtrLib, envP);
+       else {XrdSysXAttr *theObj = XrdSysXAttrActive;
+             if (!AddLibAtr(envP, theObj)) aOK = false;
+                else {if (theObj != XrdSysXAttrActive)
+                          XrdSysFAttr::SetPlugin(theObj, true);
+                      aOK = true;
+                     }
+           }
        if (!aOK) return false;
       }
    XrdSysFAttr::Xat->SetMsgRoute(Eroute);
 
 // Setup authorization if we need to
 //
-   if (DO_LOAD(theAutLib) && !SetupAuth()) return false;
+   if (DO_LOAD(theAutLib) && !SetupAuth(envP)) return false;
 
 // Setup checksumming if we need to
 //
@@ -308,7 +461,16 @@ bool XrdOfsConfigPI::Parse(TheLib what)
    if (!(val = Config->GetWord()) || !val[0])
       {Eroute->Emsg("Config", drctv[PIX(what)],"not specified"); return false;}
 
-// Set the lib and parameterss
+// If this may be a pushable library, then see if the pushable tag is present
+//
+   if (!strcmp("++", val))
+      {if (pushOK[PIX(what)]) return AddLib(what);
+       Eroute->Emsg("Config", "'++' option not supported for",
+                              drctv[PIX(what)], "directive.");
+       return false;
+      }
+
+// Set the lib and parameters
 //
    return RepLib(what, val);
 }
@@ -319,7 +481,7 @@ bool XrdOfsConfigPI::Parse(TheLib what)
   
 /* Function: ParseAtrLib
 
-   Purpose:  To parse the directive: xattrlib {osslib | <path>} [<parms>]
+   Purpose:  To parse the directive: xattrlib {osslib | [++] <path>} [<parms>]
 
              <path>    the path of the xattr library to be used.
              <parms>   optional parms to be passed
@@ -336,6 +498,10 @@ bool XrdOfsConfigPI::ParseAtrLib()
    if (!(val = Config->GetWord()) || !val[0])
       {Eroute->Emsg("Config", "xattrlib not specified"); return false;}
 
+// Check for a push wrapper
+//
+   if (!strcmp("++", val)) return AddLib(theAtrLib);
+
 // Record the path and parms
 //
    ossXAttr = !strcmp("osslib", val);
@@ -348,7 +514,7 @@ bool XrdOfsConfigPI::ParseAtrLib()
   
 /* Function: ParseOssLib
 
-   Purpose:  To parse the directive: osslib [<opts>] <path> [<parms>]
+   Purpose:  To parse the directive: osslib [++ | <opts>] <path> [<parms>]
              <opts>: [+cksio] [+xattr] [<opts>]
 
              +cksio    use the oss plugin for checkum I/O.
@@ -364,20 +530,26 @@ bool XrdOfsConfigPI::ParseOssLib()
    char *val, oBuff[80];
    int   oI = PIX(theOssLib);
 
+// Check if we are pushing another library here
+//
+   if ((val = Config->GetWord()) && !strcmp("++",val)) return AddLib(theOssLib);
+
 // Reset to defaults
 //
     ossCksio = false;
+    ossXAttr = false;
     if (LP[oI].opts) {free(LP[oI].opts); LP[oI].opts = 0;}
     *oBuff = 0;
 
 // Get the path and parms, and process keywords
 //
-   while((val = Config->GetWord()))
+   while(val)
         {     if (!strcmp("+cksio",  val))
                  {if (!ossCksio) strcat(oBuff, "+cksio "); ossCksio = true;}
          else if (!strcmp("+xattr",  val))
                  {if (!ossXAttr) strcat(oBuff, "+xattr "); ossXAttr = true;}
          else break;
+         val = Config->GetWord();
         }
 
 // Check if we an osslib
@@ -412,6 +584,10 @@ bool XrdOfsConfigPI::ParsePrpLib()
    char *val, oBuff[80];
    int   oI = PIX(thePrpLib);
 
+// Check if we are pushing another library here
+//
+   if ((val = Config->GetWord()) && !strcmp("++",val)) return AddLib(thePrpLib);
+
 // Reset to defaults
 //
     prpAuth = true;
@@ -420,10 +596,11 @@ bool XrdOfsConfigPI::ParsePrpLib()
 
 // Get the path and parms, and process keywords
 //
-   while((val = Config->GetWord()))
+   while(val)
         {     if (!strcmp("+noauth",  val))
                  {if (prpAuth) strcat(oBuff, "+noauth "); prpAuth = false;}
          else break;
+         val = Config->GetWord();
         }
 
 // Check if we a library path
@@ -513,9 +690,9 @@ void   XrdOfsConfigPI::SetCksRdSz(int rdsz) {CksRdsz = rdsz;}
 /* Private:                    S e t u p A t t r                              */
 /******************************************************************************/
 
-bool XrdOfsConfigPI::SetupAttr(XrdOfsConfigPI::TheLib what)
+bool XrdOfsConfigPI::SetupAttr(XrdOfsConfigPI::TheLib what, XrdOucEnv *envP)
 {
-   XrdSysXAttr *(*ep)(XrdSysError *, const char *, const char *);
+   XrdSysGetXAttrObject_t ep;
    XrdSysXAttr *theObj;
    char *AtrLib   = LP[PIX(what)].lib;
    char *AtrParms = LP[PIX(what)].parms;
@@ -523,8 +700,7 @@ bool XrdOfsConfigPI::SetupAttr(XrdOfsConfigPI::TheLib what)
 // Create a plugin object
 //
   {XrdOucPinLoader myLib(Eroute, urVer, "xattrlib", AtrLib);
-   ep = (XrdSysXAttr *(*)(XrdSysError *, const char *, const char *))
-                         (myLib.Resolve("XrdSysGetXAttrObject"));
+   ep = (XrdSysGetXAttrObject_t)(myLib.Resolve("XrdSysGetXAttrObject"));
    if (!ep) return false;
    if (strcmp(AtrLib, myLib.Path()))
       {free(AtrLib); AtrLib = LP[PIX(what)].lib = strdup(myLib.Path());}
@@ -533,6 +709,10 @@ bool XrdOfsConfigPI::SetupAttr(XrdOfsConfigPI::TheLib what)
 // Get the Object now
 //
    if (!(theObj = ep(Eroute, ConfigFN, AtrParms))) return false;
+
+// Push any additional objects
+//
+   if (!AddLibAtr(envP, theObj)) return false;
 
 // Tell the interface to use this object instead of the default implementation
 //
@@ -544,26 +724,29 @@ bool XrdOfsConfigPI::SetupAttr(XrdOfsConfigPI::TheLib what)
 /* Private:                    S e t u p A u t h                              */
 /******************************************************************************/
 
-bool XrdOfsConfigPI::SetupAuth()
+bool XrdOfsConfigPI::SetupAuth(XrdOucEnv *envP)
 {
    extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject
                           (XrdSysLogger   *lp,    const char   *cfn,
                            const char     *parm,  XrdVersionInfo &vInfo);
 
-   XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
+   XrdAccAuthorizeObject_t ep;
    char *AuthLib   = LP[PIX(theAutLib)].lib;
    char *AuthParms = LP[PIX(theAutLib)].parms;
 
 // Authorization comes from the library or we use the default
 //
-   if (!AuthLib) return 0 != (autPI = XrdAccDefaultAuthorizeObject
-                             (Eroute->logger(), ConfigFN, AuthParms, *urVer));
+   if (!AuthLib)
+      {if (!(autPI = XrdAccDefaultAuthorizeObject
+                        (Eroute->logger(), ConfigFN, AuthParms, *urVer)))
+          return false;
+       return AddLibAut(envP);
+      }
 
 // Create a plugin object
 //
   {XrdOucPinLoader myLib(Eroute, urVer, "authlib", AuthLib);
-   ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
-                             (myLib.Resolve("XrdAccAuthorizeObject"));
+   ep = (XrdAccAuthorizeObject_t)(myLib.Resolve("XrdAccAuthorizeObject"));
    if (!ep) return false;
    if (strcmp(AuthLib, myLib.Path()))
       {free(AuthLib); AuthLib = LP[PIX(theAutLib)].lib = strdup(myLib.Path());}
@@ -571,7 +754,8 @@ bool XrdOfsConfigPI::SetupAuth()
 
 // Get the Object now
 //
-   return 0 != (autPI = ep(Eroute->logger(), ConfigFN, AuthParms));
+   if (!(autPI = ep(Eroute->logger(), ConfigFN, AuthParms))) return false;
+   return AddLibAut(envP);
 }
 
 /******************************************************************************/
@@ -621,7 +805,7 @@ bool XrdOfsConfigPI::SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP)
 
 // Get the Object now
 //
-   if (ep)
-      return 0 != (prpPI = ep(Eroute, ConfigFN, PrpParms, ofsP, ossPI, envP));
-   return true;
+   if (!(prpPI = ep(Eroute, ConfigFN, PrpParms, ofsP, ossPI, envP)))
+      return false;
+   return AddLibPrp(envP, ofsP);
 }

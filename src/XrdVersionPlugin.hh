@@ -87,6 +87,7 @@
 */
 #define XrdVERSIONPLUGINRULES \
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObject         )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObjAdd         )\
         XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdBwmPolicyObject            )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCksCalcInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCksInit                    )\
@@ -100,7 +101,11 @@
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdHttpGetSecXtractor         )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  8, XrdHttpGetExtHandler          )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSysLogPInit                )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsAddPrepare              )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsgetPrepare              )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOssGetStorageSystem        )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOssAddStorageSystem2       )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOssGetStorageSystem2       )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOssStatInfoInit            )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOssStatInfoInit2           )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOucGetCache                )\
@@ -127,6 +132,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSecProtocolunixObject      )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSfsGetFileSystem           )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSfsGetFileSystem2          )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSysAddXAttrObject          )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSysGetXAttrObject          )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdClGetMonitor               )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdClGetPlugIn                )\

@@ -56,9 +56,11 @@ static XrdSysXAttr *Xat;
 //!
 //! @param  xaP   -> To an instance of an XrdSysXAttr object that is to replace
 //!                  the builtin object that processes extended attributes;
+//! @param  push  True if this is a push request not a replace request. Push
+//!               requests keep the current attribute processor.
 //------------------------------------------------------------------------------
 
-static void  SetPlugin(XrdSysXAttr *xaP);
+static void  SetPlugin(XrdSysXAttr *xaP, bool push=false);
 
 //------------------------------------------------------------------------------
 //! Constructor & Destructor

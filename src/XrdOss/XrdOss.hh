@@ -272,6 +272,8 @@ typedef XrdOss *(*XrdOssGetStorageSystem2_t)(XrdOss       *native_oss,
                                              const char   *parms,
                                              XrdOucEnv    *envP);
 
+typedef XrdOssGetStorageSystem2_t XrdOssAddStorageSystem2_t;
+
 /*!
     extern "C" XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
                                               XrdSysLogger *Logger,
@@ -286,6 +288,17 @@ typedef XrdOss *(*XrdOssGetStorageSystem2_t)(XrdOss       *native_oss,
     environmental information is needed as initialization time.
 
     extern "C" XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
+                                               XrdSysLogger *Logger,
+                                               const char   *config_fn,
+                                               const char   *parms,
+                                               XrdOucEnv    *envP);
+
+    When pushing additional wrappers, the following entry point is called
+    for each library that is stacked. The parameter, curr_oss is the pointer
+    to the fully initialized oss plugin being wrapped. The function should
+    return a pointer to the wrapping plug-in or nil upon failure.
+
+    extern "C" XrdOss *XrdOssAddStorageSystem2(XrdOss       *curr_oss,
                                                XrdSysLogger *Logger,
                                                const char   *config_fn,
                                                const char   *parms,

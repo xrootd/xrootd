@@ -166,8 +166,8 @@ XrdSysFAttr::AList *XrdSysFAttr::getEnt(const char *Path,  int fd,
 /*                             S e t P l u g i n                              */
 /******************************************************************************/
   
-void XrdSysFAttr::SetPlugin(XrdSysXAttr *xaP)
+void XrdSysFAttr::SetPlugin(XrdSysXAttr *xaP, bool push)
 {
-   if (Xat && Xat != &dfltXAttr) delete Xat;
+   if (!push && Xat && Xat != &dfltXAttr) delete Xat;
    XrdSysXAttrActive = Xat = xaP;
 }

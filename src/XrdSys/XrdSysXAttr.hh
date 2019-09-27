@@ -36,6 +36,7 @@
 //! handling. The plugin is loaded via the ofs.xattrlib directive.
 //------------------------------------------------------------------------------
 
+class XrdOucEnv;
 class XrdSysError;
 
 class XrdSysXAttr
@@ -208,12 +209,46 @@ XrdSysError *Say;
 //! The object creation function must be declared as an extern "C" function
 //! in the plug-in shared library as follows:
 //------------------------------------------------------------------------------
+
+typedef XrdSysXAttr *(*XrdSysGetXAttrObject_t)(XrdSysError  *errP,
+                                               const char   *config_fn,
+                                               const char   *parms);
 /*!
-    extern "C" XrdSysXAttr *XrdSysGetXAttrObject(XrdSysError  *errP,
-                                                 const char   *config_fn,
-                                                 const char   *parms);
+extern "C" XrdSysXAttr *XrdSysGetXAttrObject(XrdSysError  *errP,
+                                             const char   *config_fn,
+                                             const char   *parms);
 */
 
+//------------------------------------------------------------------------------
+//! Add an instance of a configured XrdSysXAttr object, wrapping previous one.
+//!
+//! @param  errP       -> Error message object for error messages.
+//! @param  config_fn  -> The name of the config file.
+//! @param  parms      -> Any parameters specified on the ofs.xattrlib
+//!                       directive. If there are no parameters parms may be 0.
+//! @param  envP       -> To environmental information (may be nil).
+//! @param  attrP      -> the current attribue object that should be wraped by
+//!                       this object.
+//!
+//! @return Success:   -> an instance of the XrdSysXattr object to be used.
+//!         Failure:      Null pointer which causes initialization to fail.
+//!
+//! The object creation function must be declared as an extern "C" function
+//! in the plug-in shared library as follows:
+//------------------------------------------------------------------------------
+
+typedef XrdSysXAttr *(*XrdSysAddXAttrObject_t)(XrdSysError  *errP,
+                                               const char   *config_fn,
+                                               const char   *parms,
+                                               XrdOucEnv    *envP,
+                                               XrdSysXAttr  *attrP);
+/*!
+    extern "C" XrdSysXAttr *XrdSysAddXAttrObject(XrdSysError  *errP,
+                                                 const char   *config_fn,
+                                                 const char   *parms,
+                                                 XrdOucEnv    *envP,
+                                                 XrdSysXAttr  *attrP);
+*/
 //------------------------------------------------------------------------------
 //! Declare compilation version.
 //!

@@ -132,6 +132,7 @@ virtual     ~XrdOfsPrepare() {}
 //!                  be null or point to a null string if no parms exist.
 //! @param  theSfs-> Pointer to the XrdSfsFileSystem plugin.
 //! @param  theOSs-> Pointer to the OSS plugin.
+//! @param  envP  -> Pointer to environmental information (may be nil).
 //!
 //! @return Success: A pointer to an instance of the XrdOfsPrepare object.
 //!         Failure: A null pointer which causes initialization to fail.
@@ -159,6 +160,55 @@ typedef XrdOfsPrepare *(*XrdOfsgetPrepare_t)(XrdSysError *eDest,
 extern "C" XrdOfsPrepare_t *XrdOfsgetPrepare;
 */
 
+/******************************************************************************/
+/*                      X r d O f s A d d P r e p a r e                       */
+/******************************************************************************/
+  
+//------------------------------------------------------------------------------
+//! Obtain an instance of the XrdOfsPrepare wrapper object.
+//!
+//! This extern "C" function is called when a shared library plug-in containing
+//! implementation of this class is loaded. It must exist in the shared library
+//! and must be thread-safe.
+//!
+//! @param  eDest -> The error object that must be used to print any errors or
+//!                  other messages (see XrdSysError.hh).
+//! @param  confg -> Name of the configuration file that was used. This pointer
+//!                  may be null though that would be impossible.
+//! @param  parms -> Argument string specified on the namelib directive. It may
+//!                  be null or point to a null string if no parms exist.
+//! @param  theSfs-> Pointer to the XrdSfsFileSystem plugin.
+//! @param  theOSs-> Pointer to the OSS plugin.
+//! @param  envP  -> Pointer to environmental information (may be nil).
+//! @param  prepP -> Pointer to the existing XrdOfsPrepare object that should
+//!                  be wrapped by the returned object.
+//!
+//! @return Success: A pointer to an instance of the XrdOfsPrepare object.
+//!         Failure: A null pointer which causes initialization to fail.
+//------------------------------------------------------------------------------
+
+typedef XrdOfsPrepare *(*XrdOfsAddPrepare_t)(XrdSysError *eDest,
+                                             const char  *confg,
+                                             const char  *parms,
+                                             XrdSfsFileSystem
+                                                         *theSfs,
+                                             XrdOss      *theOss,
+                                             XrdOucEnv   *envP,
+                                          XrdOfsPrepare  *prepP
+                                            );
+
+#define XrdOfsAddPrepareArguments            XrdSysError *eDest,\
+                                             const char  *confg,\
+                                             const char  *parms,\
+                                             XrdSfsFileSystem\
+                                                         *theSfs,\
+                                             XrdOss      *theOss,\
+                                             XrdOucEnv   *envP,\
+                                          XrdOfsPrepare  *prepP
+/*
+extern "C" XrdOfsPrepare_t *XrdOfsAddPrepare;
+*/
+  
 //------------------------------------------------------------------------------
 //! Declare compilation version.
 //!
