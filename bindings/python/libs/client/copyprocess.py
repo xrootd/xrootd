@@ -83,8 +83,8 @@ class CopyProcess(object):
               checksumtype   = '',
               checksumpreset = '',
               dynamicsource  = False,
-              chunksize      = 4194304,
-              parallelchunks = 8,
+              chunksize      = 8388608,
+              parallelchunks = 4,
               inittimeout    = 600,
               tpctimeout     = 1800):
     """Add a job to the copy process.

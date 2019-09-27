@@ -34,8 +34,9 @@
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClPostMaster.hh"
 #include <memory>
-#include <iostream>
+#include <mutex>
 #include <queue>
 #include <algorithm>
 
@@ -436,9 +437,12 @@ namespace
         Source( ckSumType ),
         pUrl( url ), pFile( new XrdCl::File() ), pSize( -1 ),
         pCurrentOffset( 0 ), pChunkSize( chunkSize ),
-        pParallel( parallelChunks )
+        pParallel( parallelChunks ),
+        pNbConn( 0 )
       {
-
+        int val = XrdCl::DefaultSubStreamsPerChannel;
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "SubStreamsPerChannel", val );
+        pMaxNbConn = val - 1; // account for the control stream
       }
 
       //------------------------------------------------------------------------
@@ -480,6 +484,11 @@ namespace
 
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
+
+        if( !pUrl->IsLocalFile() )
+          pFile->GetProperty( "DataServer", pDataServer );
+
+//        SetOnConnectHandler( pFile );
 
         return XRootDStatus();
       }
@@ -555,6 +564,63 @@ namespace
     protected:
 
       //------------------------------------------------------------------------
+      // Fill the queue with in-the-fly read requests
+      //------------------------------------------------------------------------
+      template<typename READER>
+      inline void FillQueue( READER *reader )
+      {
+        //----------------------------------------------------------------------
+        // Get the number of connected streams
+        //----------------------------------------------------------------------
+        uint16_t parallel = pParallel;
+        if( pNbConn < pMaxNbConn )
+        {
+          pNbConn = XrdCl::DefaultEnv::GetPostMaster()->
+                                                 NbConnectedStrm( pDataServer );
+        }
+        if( pNbConn ) parallel *= pNbConn;
+
+        while( pChunks.size() < parallel && pCurrentOffset < pSize )
+        {
+          uint64_t chunkSize = pChunkSize;
+          if( pCurrentOffset + chunkSize > (uint64_t)pSize )
+            chunkSize = pSize - pCurrentOffset;
+
+          char *buffer = new char[chunkSize];
+          ChunkHandler *ch = new ChunkHandler;
+          ch->chunk.offset = pCurrentOffset;
+          ch->chunk.length = chunkSize;
+          ch->chunk.buffer = buffer;
+          ch->status = reader->Read( pCurrentOffset, chunkSize, buffer, ch );
+          pChunks.push( ch );
+          pCurrentOffset += chunkSize;
+          if( !ch->status.IsOK() )
+          {
+            ch->sem->Post();
+            break;
+          }
+        }
+      }
+
+      //------------------------------------------------------------------------
+      // Set the on-connect handler for data streams
+      //------------------------------------------------------------------------
+//      template<typename READER>
+//      void SetOnConnectHandler( READER *reader )
+//      {
+//        auto onConnHandler = [this, reader]()
+//          {
+//            std::unique_lock<std::mutex> lck( this->pMtx );
+//            // add new chunks to the queue
+//            if( pNbConn < pMaxNbConn )
+//              this->FillQueue( reader );
+//          };
+//
+//        XrdCl::DefaultEnv::GetPostMaster()->SetOnConnectHandler( pDataServer,
+//                                                   std::move( onConnHandler ) );
+//      }
+
+      //------------------------------------------------------------------------
       //! Get a data chunk from the source
       //!
       //! @param  reader  :  reader to read data from
@@ -575,29 +641,11 @@ namespace
         if( !reader->IsOpen() )
           return XRootDStatus( stError, errUninitialized );
 
-        //----------------------------------------------------------------------
+        //- ---------------------------------------------------------------------
         // Fill the queue
         //----------------------------------------------------------------------
-        while( pChunks.size() < pParallel && pCurrentOffset < pSize )
-        {
-          uint64_t chunkSize = pChunkSize;
-          if( pCurrentOffset + chunkSize > (uint64_t)pSize )
-            chunkSize = pSize - pCurrentOffset;
-
-          char *buffer = new char[chunkSize];
-          ChunkHandler *ch = new ChunkHandler;
-          ch->chunk.offset = pCurrentOffset;
-          ch->chunk.length = chunkSize;
-          ch->chunk.buffer = buffer;
-          ch->status = reader->Read( pCurrentOffset, chunkSize, buffer, ch );
-          pChunks.push( ch );
-          pCurrentOffset += chunkSize;
-          if( !ch->status.IsOK() )
-          {
-            ch->sem->Post();
-            break;
-          }
-        }
+        std::unique_lock<std::mutex> lck( pMtx );
+        FillQueue( reader );
 
         //----------------------------------------------------------------------
         // Pick up a chunk from the front and wait for status
@@ -607,6 +655,8 @@ namespace
 
         XRDCL_SMART_PTR_T<ChunkHandler> ch( pChunks.front() );
         pChunks.pop();
+        lck.unlock();
+
         ch->sem->Wait();
 
         if( !ch->status.IsOK() )
@@ -661,8 +711,12 @@ namespace
       int64_t                     pSize;
       int64_t                     pCurrentOffset;
       uint32_t                    pChunkSize;
-      uint8_t                     pParallel;
+      uint16_t                    pParallel;
       std::queue<ChunkHandler *>  pChunks;
+      std::string                 pDataServer;
+      std::mutex                  pMtx;
+      uint16_t                    pNbConn;
+      uint16_t                    pMaxNbConn;
   };
 
   //----------------------------------------------------------------------------
@@ -724,6 +778,8 @@ namespace
 
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
+
+//        SetOnConnectHandler( pFile );
 
         return XrdCl::XRootDStatus();
       }

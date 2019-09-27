@@ -190,6 +190,11 @@ namespace XrdCl
       static void LogErrorResponse( const Message &msg );
 
       //------------------------------------------------------------------------
+      //! Number of currently connected data streams
+      //------------------------------------------------------------------------
+      static uint16_t NbConnectedStrm( AnyObject &channelData );
+
+      //------------------------------------------------------------------------
       //! The stream has been disconnected, do the cleanups
       //------------------------------------------------------------------------
       virtual void Disconnect( AnyObject &channelData,

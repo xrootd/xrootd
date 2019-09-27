@@ -86,13 +86,9 @@ namespace PyXRootD
     env->GetInt( "CPChunkSize", val );
     uint32_t chunkSize = val;
 
-    int dataStreams = XrdCl::DefaultSubStreamsPerChannel;
-    env->GetInt( "SubStreamsPerChannel", dataStreams );
-    dataStreams -= 1; /*account for the control stream*/
     val = XrdCl::DefaultCPParallelChunks;
     env->GetInt( "CPParallelChunks", val );
     uint16_t parallelChunks = val;
-    if( dataStreams > 0 ) parallelChunks *= dataStreams;
 
     val = XrdCl::DefaultCPInitTimeout;
     env->GetInt( "CPInitTimeout", val );

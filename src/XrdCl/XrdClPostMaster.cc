@@ -296,6 +296,27 @@ namespace XrdCl
     return Status();
   }
 
+  //------------------------------------------------------------------------
+  // Get the number of connected data streams
+  //------------------------------------------------------------------------
+  uint16_t PostMaster::NbConnectedStrm( const URL &url )
+  {
+    Channel *channel = GetChannel( url );
+    if( !channel ) return 0;
+    return channel->NbConnectedStrm();
+  }
+
+  //------------------------------------------------------------------------
+  //! Set the on-connect handler for data streams
+  //------------------------------------------------------------------------
+  void PostMaster::SetOnConnectHandler( const URL                  &url,
+                                        std::function<void(void)> &&handler )
+  {
+    Channel *channel = GetChannel( url );
+    if( !channel ) return;
+    channel->SetOnConnectHandler( std::move( handler ) );
+  }
+
   //----------------------------------------------------------------------------
   // Get the channel
   //----------------------------------------------------------------------------

@@ -595,13 +595,8 @@ int main( int argc, char **argv )
   int blockSize = DefaultXCpBlockSize;
   env->GetInt( "XCpBlockSize", blockSize );
 
-  int dataStreams     = DefaultSubStreamsPerChannel;
-  env->GetInt( "SubStreamsPerChannel", dataStreams );
-  dataStreams -= 1; /*account for the control stream*/
   int parallelChunks = DefaultCPParallelChunks;
   env->GetInt( "CPParallelChunks", parallelChunks );
-  if( dataStreams > 0 )
-    parallelChunks *= dataStreams;
   if( parallelChunks < 1 ||
       parallelChunks > std::numeric_limits<uint8_t>::max() )
   {

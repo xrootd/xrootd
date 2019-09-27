@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <map>
 #include <vector>
+#include <functional>
 
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"
@@ -202,6 +203,17 @@ namespace XrdCl
       //! Shut down a channel
       //------------------------------------------------------------------------
       Status ForceDisconnect( const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Get the number of connected data streams
+      //------------------------------------------------------------------------
+      uint16_t NbConnectedStrm( const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Set the on-connect handler for data streams
+      //------------------------------------------------------------------------
+      void SetOnConnectHandler( const URL                   &url,
+                                std::function<void(void)>  &&handler );
 
     private:
       Channel *GetChannel( const URL &url );

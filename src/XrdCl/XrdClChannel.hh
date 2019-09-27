@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <vector>
 #include <ctime>
+#include <functional>
 
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"
@@ -158,6 +159,16 @@ namespace XrdCl
       //! Force disconnect of all streams
       //------------------------------------------------------------------------
       Status ForceDisconnect();
+
+      //------------------------------------------------------------------------
+      //! Get the number of connected data streams
+      //------------------------------------------------------------------------
+      uint16_t NbConnectedStrm();
+
+      //------------------------------------------------------------------------
+      //! Set the on-connect handler for data streams
+      //------------------------------------------------------------------------
+      void SetOnConnectHandler( std::function<void(void)>  &&handler );
 
     private:
 

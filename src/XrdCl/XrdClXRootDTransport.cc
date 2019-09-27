@@ -50,6 +50,7 @@
 #include <sstream>
 #include <iomanip>
 #include <set>
+#include <limits>
 
 #if __cplusplus >= 201103L
 #include <atomic>
@@ -151,11 +152,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       uint16_t Select( const std::vector<bool> &connected )
       {
-        uint16_t ret = 0;
-        size_t   minval = strmqueues[0];
+        uint16_t ret    = 0;
+        size_t   minval = std::numeric_limits<size_t>::max();
 
-        for( uint16_t i = 1; i < connected.size() && i < strmqueues.size(); ++i )
+        for( uint16_t i = 0; i < connected.size() && i < strmqueues.size(); ++i )
         {
+          if( !connected[i] ) continue;
+
           if( strmqueues[i] < minval )
           {
             ret = i;
@@ -1108,6 +1111,23 @@ namespace XrdCl
    delete [] errmsg;
   }
 
+  //------------------------------------------------------------------------
+  // Number of currently connected data streams
+  //------------------------------------------------------------------------
+  uint16_t XRootDTransport::NbConnectedStrm( AnyObject &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
+
+    uint16_t nbConnected = 0;
+    for( size_t i = 1; i < info->stream.size(); ++i )
+      if( info->stream[i].status == XRootDStreamInfo::Connected )
+        ++nbConnected;
+
+    return nbConnected;
+  }
+
   //----------------------------------------------------------------------------
   // The stream has been disconnected, do the cleanups
   //----------------------------------------------------------------------------
@@ -1580,7 +1600,6 @@ namespace XrdCl
     }
 
     info->stream[hsData->subStreamId].pathId = rsp->body.bind.substreamid;
-
     log->Debug( XRootDTransportMsg, "[%s] kXR_bind successful",
                 hsData->streamName.c_str() );
 

@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -361,6 +362,22 @@ namespace XrdCl
       pStreams[i]->ForceError( Status( stError, errOperationInterrupted ) );
 
     return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Get the number of connected data streams
+  //------------------------------------------------------------------------
+  uint16_t Channel::NbConnectedStrm()
+  {
+    return XRootDTransport::NbConnectedStrm( pChannelData );
+  }
+
+  //------------------------------------------------------------------------
+  //! Set the on-connect handler for data streams
+  //------------------------------------------------------------------------
+  void Channel::SetOnConnectHandler( std::function<void(void)>  &&handler )
+  {
+    pStreams[0]->SetOnConnectHandler( std::move( handler ) );
   }
 
   //----------------------------------------------------------------------------
