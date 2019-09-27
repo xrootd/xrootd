@@ -488,7 +488,7 @@ namespace
         if( !pUrl->IsLocalFile() )
           pFile->GetProperty( "DataServer", pDataServer );
 
-//        SetOnConnectHandler( pFile );
+        SetOnConnectHandler( pFile );
 
         return XRootDStatus();
       }
@@ -605,20 +605,33 @@ namespace
       //------------------------------------------------------------------------
       // Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-//      template<typename READER>
-//      void SetOnConnectHandler( READER *reader )
-//      {
-//        auto onConnHandler = [this, reader]()
-//          {
-//            std::unique_lock<std::mutex> lck( this->pMtx );
-//            // add new chunks to the queue
-//            if( pNbConn < pMaxNbConn )
-//              this->FillQueue( reader );
-//          };
-//
-//        XrdCl::DefaultEnv::GetPostMaster()->SetOnConnectHandler( pDataServer,
-//                                                   std::move( onConnHandler ) );
-//      }
+      template<typename READER>
+      void SetOnConnectHandler( READER *reader )
+      {
+        struct callback_t // a lambda would be more elegant but we still have to support slc6
+        {
+            callback_t( XRootDSource *self, READER *reader ) : self( self ), reader( reader )
+            {
+            }
+
+            void operator()()
+            {
+              std::unique_lock<std::mutex> lck( self->pMtx );
+              // add new chunks to the queue
+              if( self->pNbConn < self->pMaxNbConn )
+                self->FillQueue( reader );
+            }
+
+          private:
+            XRootDSource *self;
+            READER       *reader;
+
+
+        } onConnHandler( this, reader );
+
+        XrdCl::DefaultEnv::GetPostMaster()->SetOnConnectHandler( pDataServer,
+                                                   std::move( onConnHandler ) );
+      }
 
       //------------------------------------------------------------------------
       //! Get a data chunk from the source
@@ -779,7 +792,7 @@ namespace
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
 
-//        SetOnConnectHandler( pFile );
+        SetOnConnectHandler( pFile );
 
         return XrdCl::XRootDStatus();
       }
