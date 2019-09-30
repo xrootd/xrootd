@@ -77,7 +77,7 @@ namespace XrdCl
         log->Error( JobMgrMsg, "Unable to spawn a job worker thread: %s",
                     strerror( errno ) );
         if( i > 0 )
-          StopWorkers( i-1 );
+          StopWorkers( i );
         return false;
       }
     }
@@ -100,7 +100,7 @@ namespace XrdCl
       return false;
     }
 
-    StopWorkers( pWorkers.size()-1 );
+    StopWorkers( pWorkers.size() );
 
     pRunning = false;
     log->Debug( JobMgrMsg, "Job manager stopped" );
@@ -113,7 +113,7 @@ namespace XrdCl
   void JobManager::StopWorkers( uint32_t n )
   {
     Log *log = DefaultEnv::GetLog();
-    for( uint32_t i = 0; i <= n; ++i )
+    for( uint32_t i = 0; i < n; ++i )
     {
       void *threadRet;
       log->Dump( JobMgrMsg, "Stopping worker #%d...", i );
