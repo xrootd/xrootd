@@ -3,6 +3,8 @@
 #-------------------------------------------------------------------------------
 find_package( ZLIB REQUIRED)
 
+find_package( LibUuid REQUIRED )
+
 if( ENABLE_READLINE )
   find_package( Readline )
   if( READLINE_FOUND )
