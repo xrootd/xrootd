@@ -385,6 +385,7 @@ namespace XrdCl
     Utils::splitString( paramsVect, p, "&" );
     for( it = paramsVect.begin(); it != paramsVect.end(); ++it )
     {
+      if( it->empty() ) continue;
       size_t pos = it->find( "=" );
       if( pos == std::string::npos )
         pParams[*it] = "";
