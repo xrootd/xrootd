@@ -7,6 +7,13 @@ Release Notes
 
 
 --------------
+Version 4.10.1
+--------------
+
++ **Major bug fixes**
+* **[XrdCl]** Make TPC check bogus-response proof.
+
+--------------
 Version 4.10.0
 --------------
 
