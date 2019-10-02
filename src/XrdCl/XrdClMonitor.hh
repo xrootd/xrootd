@@ -112,24 +112,24 @@ namespace XrdCl
       struct CloseInfo
       {
         CloseInfo():
-          file(0), rBytes(0), vBytes(0), wBytes(0), vSegs(0), rCount(0),
+          file(0), rBytes(0), vrBytes(0), wBytes(0), vwBytes(0), vSegs(0), rCount(0),
           vCount(0), wCount(0), status(0)
         {
           oTOD.tv_sec = 0; oTOD.tv_usec = 0;
           cTOD.tv_sec = 0; cTOD.tv_usec = 0;
         }
-        const URL          *file;    //!< The file in question
-        timeval             oTOD;    //!< gettimeofday() when file was opened
-        timeval             cTOD;    //!< gettimeofday() when file was closed
-        uint64_t            rBytes;  //!< Total number of bytes read via read
-        uint64_t            vBytes;  //!< Total number of bytes read via readv
-        uint64_t            wBytes;  //!< Total number of bytes written
-//      uint64_t            vwBytes;  //!< Total number of bytes written vie writev
-        uint64_t            vSegs;   //!< Total count  of readv segments
-        uint32_t            rCount;  //!< Total count  of reads
-        uint32_t            vCount;  //!< Total count  of readv
-        uint32_t            wCount;  //!< Total count  of writes
-        const XRootDStatus *status;  //!< Close status
+        const URL          *file;     //!< The file in question
+        timeval             oTOD;     //!< gettimeofday() when file was opened
+        timeval             cTOD;     //!< gettimeofday() when file was closed
+        uint64_t            rBytes;   //!< Total number of bytes read via read
+        uint64_t            vrBytes;  //!< Total number of bytes read via readv
+        uint64_t            wBytes;   //!< Total number of bytes written
+        uint64_t            vwBytes;  //!< Total number of bytes written vie writev
+        uint64_t            vSegs;    //!< Total count  of readv segments
+        uint32_t            rCount;   //!< Total count  of reads
+        uint32_t            vCount;   //!< Total count  of readv
+        uint32_t            wCount;   //!< Total count  of writes
+        const XRootDStatus *status;   //!< Close status
       };
 
       //------------------------------------------------------------------------
@@ -143,9 +143,7 @@ namespace XrdCl
           ErrRead,      //!< Read
           ErrReadV,     //!< Readv
           ErrWrite,     //!< Write
-//        TODO
-//        ErrWriteV,    //!< WriteV (we can uncomment only when we do a major
-//                                   release as this is an ABI change)
+          ErrWriteV,    //!< WriteV
           ErrUnc        //!< Unclassified operation
         };
 

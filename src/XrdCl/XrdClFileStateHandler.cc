@@ -1453,12 +1453,10 @@ namespace XrdCl
       ClientRequest *req = (ClientRequest*)message->GetBuffer();
       switch( req->header.requestid )
       {
-        case kXR_read:   i.opCode = Monitor::ErrorInfo::ErrRead;  break;
-        case kXR_readv:  i.opCode = Monitor::ErrorInfo::ErrReadV; break;
-        case kXR_write:  i.opCode = Monitor::ErrorInfo::ErrWrite; break;
-        // TODO
-        // once we do major release we can replace this with 'ErrWriteV'
-        case kXR_writev: i.opCode = Monitor::ErrorInfo::ErrWrite; break;
+        case kXR_read:   i.opCode = Monitor::ErrorInfo::ErrRead;   break;
+        case kXR_readv:  i.opCode = Monitor::ErrorInfo::ErrReadV;  break;
+        case kXR_write:  i.opCode = Monitor::ErrorInfo::ErrWrite;  break;
+        case kXR_writev: i.opCode = Monitor::ErrorInfo::ErrWriteV; break;
         default: i.opCode = Monitor::ErrorInfo::ErrUnc;
       }
 
@@ -2069,14 +2067,15 @@ namespace XrdCl
       i.file = pFileUrl;
       i.oTOD = pOpenTime;
       gettimeofday( &i.cTOD, 0 );
-      i.rBytes = pRBytes;
-      i.vBytes = pVRBytes;
-      i.wBytes = pWBytes + pVWBytes; //TODO once we can break ABI compatibility
-      i.vSegs  = pVSegs;             // we will add a special field for WriteV
-      i.rCount = pRCount;
-      i.vCount = pVRCount;
-      i.wCount = pWCount;
-      i.status = status;
+      i.rBytes  = pRBytes;
+      i.vrBytes = pVRBytes;
+      i.wBytes  = pWBytes;
+      i.vwBytes = pVWBytes;
+      i.vSegs   = pVSegs;
+      i.rCount  = pRCount;
+      i.vCount  = pVRCount;
+      i.wCount  = pWCount;
+      i.status  = status;
       mon->Event( Monitor::EvClose, &i );
     }
   }

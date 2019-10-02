@@ -111,8 +111,8 @@ class MonitorTest: public XrdCl::Monitor
                       i->file->GetURL().c_str(), timeOpen.c_str(),
                       timeClosed.c_str(), i->status->ToStr().c_str() );
           log->Debug( 2, "Closed file %s, bytes: read: %ld, readv: %ld, write:"
-                      " %ld", i->file->GetURL().c_str(), i->rBytes, i->vBytes,
-                      i->wBytes );
+                      " %ld, writev: %ld", i->file->GetURL().c_str(), i->rBytes, i->vrBytes,
+                      i->wBytes, i->vwBytes );
           log->Debug( 2, "Closed file %s, count: read: %d, readv: %d/%d, "
                       "write: %d", i->file->GetURL().c_str(), i->rCount,
                       i->vCount, i->vSegs, i->wCount );
@@ -129,11 +129,12 @@ class MonitorTest: public XrdCl::Monitor
           std::string op;
           switch( i->opCode )
           {
-            case ErrorInfo::ErrOpen:  op = "Open"; break;
-            case ErrorInfo::ErrRead:  op = "Read"; break;
-            case ErrorInfo::ErrReadV: op = "ReadV"; break;
-            case ErrorInfo::ErrWrite: op = "Write"; break;
-            case ErrorInfo::ErrUnc:   op = "Unclassified"; break;
+            case ErrorInfo::ErrOpen:   op = "Open"; break;
+            case ErrorInfo::ErrRead:   op = "Read"; break;
+            case ErrorInfo::ErrReadV:  op = "ReadV"; break;
+            case ErrorInfo::ErrWrite:  op = "Write"; break;
+            case ErrorInfo::ErrWriteV: op = "WriteV"; break;
+            case ErrorInfo::ErrUnc:    op = "Unclassified"; break;
           };
           log->Debug( 2, "Operation on file %s encountered an error: %s "
                       "while %s", i->file->GetURL().c_str(),
