@@ -905,17 +905,36 @@ namespace XrdCl
       ResponseHandler *pUserHandler;
   };
 
+  //----------------------------------------------------------------------------
+  //! Implementation holding the data members
+  //----------------------------------------------------------------------------
+  struct FileSystemImpl
+  {
+    FileSystemImpl( const URL &url ) :
+      pLoadBalancerLookupDone( false ),
+      pFollowRedirects( true ),
+      pUrl( new URL( url.GetURL() ) )
+    {
+    }
+
+    ~FileSystemImpl()
+    {
+      delete pUrl;
+    }
+
+    XrdSysMutex       pMutex;
+    bool              pLoadBalancerLookupDone;
+    bool              pFollowRedirects;
+    URL              *pUrl;
+  };
 
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
   FileSystem::FileSystem( const URL &url, bool enablePlugIns ):
-    pLoadBalancerLookupDone( false ),
-    pFollowRedirects( true ),
+    pImpl( new FileSystemImpl( url ) ),
     pPlugIn(0)
   {
-    pUrl = new URL( url.GetURL() );
-
     //--------------------------------------------------------------------------
     // Check if we need to install a plug-in for this URL
     //--------------------------------------------------------------------------
@@ -950,8 +969,8 @@ namespace XrdCl
         DefaultEnv::GetForkHandler()->UnRegisterFileSystemObject( this );
     }
 
-    delete pUrl;
     delete pPlugIn;
+    delete pImpl;
   }
 
   //----------------------------------------------------------------------------
@@ -1171,7 +1190,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Rm( path, handler, timeout );
 
-    if( pUrl->IsLocalFile() )
+    if( pImpl->pUrl->IsLocalFile() )
       return LocalFS::Instance().Rm( path, handler, timeout );
 
     std::string fPath = FilterXrdClCgi( path );
@@ -1377,7 +1396,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Stat( path, handler, timeout );
 
-    if( pUrl->IsLocalFile() )
+    if( pImpl->pUrl->IsLocalFile() )
       return LocalFS::Instance().Stat( path, handler, timeout );
 
     std::string fPath = FilterXrdClCgi( path );
@@ -1508,7 +1527,7 @@ namespace XrdCl
     {
       // stat the file to check if it is a directory or a file
       // the ZIP handler will take care of the rest
-      ZipListHandler *zipHandler = new ZipListHandler( *pUrl, path, flags, handler, timeout );
+      ZipListHandler *zipHandler = new ZipListHandler( *pImpl->pUrl, path, flags, handler, timeout );
       XRootDStatus st = Stat( path, zipHandler, timeout );
       if( !st.IsOK() )
         delete zipHandler;
@@ -1526,7 +1545,7 @@ namespace XrdCl
       req->options[0] = kXR_dstat;
 
     if( flags & DirListFlags::Recursive )
-      handler = new RecursiveDirListHandler( *pUrl, url.GetPath(), flags, handler, timeout );
+      handler = new RecursiveDirListHandler( *pImpl->pUrl, url.GetPath(), flags, handler, timeout );
 
     if( flags & DirListFlags::Merge )
       handler = new MergeDirListHandler( flags & DirListFlags::Chunked, handler );
@@ -1913,8 +1932,8 @@ namespace XrdCl
 
     if( name == "FollowRedirects" )
     {
-      if( value == "true" ) pFollowRedirects = true;
-      else pFollowRedirects = false;
+      if( value == "true" ) pImpl->pFollowRedirects = true;
+      else pImpl->pFollowRedirects = false;
       return true;
     }
     return false;
@@ -1931,7 +1950,7 @@ namespace XrdCl
 
     if( name == "FollowRedirects" )
     {
-      if( pFollowRedirects ) value = "true";
+      if( pImpl->pFollowRedirects ) value = "true";
       else value = "false";
       return true;
     }
@@ -1944,17 +1963,17 @@ namespace XrdCl
   void FileSystem::AssignLoadBalancer( const URL &url )
   {
     Log *log = DefaultEnv::GetLog();
-    XrdSysMutexHelper scopedLock( pMutex );
+    XrdSysMutexHelper scopedLock( pImpl->pMutex );
 
-    if( pLoadBalancerLookupDone )
+    if( pImpl->pLoadBalancerLookupDone )
       return;
 
     log->Dump( FileSystemMsg, "[0x%x@%s] Assigning %s as load balancer", this,
-               pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
+               pImpl->pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
 
-    delete pUrl;
-    pUrl = new URL( url );
-    pLoadBalancerLookupDone = true;
+    delete pImpl->pUrl;
+    pImpl->pUrl = new URL( url );
+    pImpl->pLoadBalancerLookupDone = true;
   }
 
   //----------------------------------------------------------------------------
@@ -1965,17 +1984,17 @@ namespace XrdCl
                            MessageSendParams        &params )
   {
     Log *log = DefaultEnv::GetLog();
-    XrdSysMutexHelper scopedLock( pMutex );
+    XrdSysMutexHelper scopedLock( pImpl->pMutex );
 
     log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
-               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+               pImpl->pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
 
-    if( !pLoadBalancerLookupDone && pFollowRedirects )
+    if( !pImpl->pLoadBalancerLookupDone && pImpl->pFollowRedirects )
       handler = new AssignLBHandler( this, handler );
 
-    params.followRedirects = pFollowRedirects;
+    params.followRedirects = pImpl->pFollowRedirects;
 
-    return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
+    return MessageUtils::SendMessage( *pImpl->pUrl, msg, handler, params, 0 );
   }
 
   //------------------------------------------------------------------------
@@ -2007,5 +2026,21 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
 
     return Send( msg, handler, params );
+  }
+
+  //------------------------------------------------------------------------
+  // Lock the internal lock
+  //------------------------------------------------------------------------
+  void FileSystem::Lock()
+  {
+    pImpl->pMutex.Lock();
+  }
+
+  //------------------------------------------------------------------------
+  // Unlock the internal lock
+  //------------------------------------------------------------------------
+  void FileSystem::UnLock()
+  {
+    pImpl->pMutex.UnLock();
   }
 }

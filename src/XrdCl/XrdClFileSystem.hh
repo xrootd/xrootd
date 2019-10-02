@@ -190,6 +190,11 @@ namespace XrdCl
   XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )
 
   //----------------------------------------------------------------------------
+  //! Forward declaration of the implementation class holding the data members
+  //----------------------------------------------------------------------------
+  struct FileSystemImpl;
+
+  //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
   //----------------------------------------------------------------------------
   class FileSystem
@@ -859,18 +864,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Lock the internal lock
       //------------------------------------------------------------------------
-      void Lock()
-      {
-        pMutex.Lock();
-      }
+      void Lock();
 
       //------------------------------------------------------------------------
       // Unlock the internal lock
       //------------------------------------------------------------------------
-      void UnLock()
-      {
-        pMutex.UnLock();
-      }
+      void UnLock();
 
       //------------------------------------------------------------------------
       //! Generic implementation of xattr operation
@@ -889,11 +888,8 @@ namespace XrdCl
                                  ResponseHandler      *handler,
                                  uint16_t              timeout = 0 );
 
-      XrdSysMutex       pMutex;
-      bool              pLoadBalancerLookupDone;
-      bool              pFollowRedirects;
-      URL              *pUrl;
-      FileSystemPlugIn *pPlugIn;
+      FileSystemImpl   *pImpl;   //< pointer to implementation
+      FileSystemPlugIn *pPlugIn; //< file system plug-in
   };
 }
 
