@@ -121,12 +121,27 @@ namespace
 
 namespace XrdCl
 {
+  struct CopyProcessImpl
+  {
+    std::vector<PropertyList>   pJobProperties;
+    std::vector<PropertyList*>  pJobResults;
+    std::vector<CopyJob*>       pJobs;
+  };
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  CopyProcess::CopyProcess() : pImpl( new CopyProcessImpl() )
+  {
+  }
+
   //----------------------------------------------------------------------------
   // Destructor
   //----------------------------------------------------------------------------
   CopyProcess::~CopyProcess()
   {
     CleanUpJobs();
+    delete pImpl;
   }
 
   //----------------------------------------------------------------------------
@@ -143,17 +158,17 @@ namespace XrdCl
     if( properties.HasProperty( "jobType" ) &&
         properties.Get<std::string>( "jobType" ) == "configuration" )
     {
-      if( pJobProperties.size() > 0 &&
-          pJobProperties.rbegin()->HasProperty( "jobType" ) &&
-          pJobProperties.rbegin()->Get<std::string>( "jobType" ) == "configuration" )
+      if( pImpl->pJobProperties.size() > 0 &&
+          pImpl->pJobProperties.rbegin()->HasProperty( "jobType" ) &&
+          pImpl->pJobProperties.rbegin()->Get<std::string>( "jobType" ) == "configuration" )
       {
-        PropertyList &config = *pJobProperties.rbegin();
+        PropertyList &config = *pImpl->pJobProperties.rbegin();
         PropertyList::PropertyMap::const_iterator it;
         for( it = properties.begin(); it != properties.end(); ++it )
           config.Set( it->first, it->second );
       }
       else
-        pJobProperties.push_back( properties );
+        pImpl->pJobProperties.push_back( properties );
       return XRootDStatus();
     }
 
@@ -166,8 +181,8 @@ namespace XrdCl
     if( !properties.HasProperty( "target" ) )
       return XRootDStatus( stError, errInvalidArgs, 0, "target not specified" );
 
-    pJobProperties.push_back( properties );
-    PropertyList &p = pJobProperties.back();
+    pImpl->pJobProperties.push_back( properties );
+    PropertyList &p = pImpl->pJobProperties.back();
 
     const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", "zipArchive", "xcp", 0};
     for( int i = 0; bools[i]; ++i )
@@ -183,7 +198,7 @@ namespace XrdCl
     {
       if( !p.HasProperty( "checkSumType" ) )
       {
-        pJobProperties.pop_back();
+        pImpl->pJobProperties.pop_back();
         return XRootDStatus( stError, errInvalidArgs, 0,
                              "checkSumType not specified" );
       }
@@ -244,7 +259,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     Utils::LogPropertyList( log, UtilityMsg, "Adding job with properties: %s",
                             p );
-    pJobResults.push_back( results );
+    pImpl->pJobResults.push_back( results );
     return XRootDStatus();
   }
 
@@ -257,11 +272,11 @@ namespace XrdCl
     std::vector<PropertyList>::iterator it;
 
     log->Debug( UtilityMsg, "CopyProcess: %d jobs to prepare",
-                pJobProperties.size() );
+                pImpl->pJobProperties.size() );
 
     std::map<std::string, uint32_t> targetFlags;
     int i = 0;
-    for( it = pJobProperties.begin(); it != pJobProperties.end(); ++it, ++i )
+    for( it = pImpl->pJobProperties.begin(); it != pImpl->pJobProperties.end(); ++it, ++i )
     {
       PropertyList &props = *it;
 
@@ -269,7 +284,7 @@ namespace XrdCl
           props.Get<std::string>( "jobType" ) == "configuration" )
         continue;
 
-      PropertyList *res   = pJobResults[i];
+      PropertyList *res   = pImpl->pJobResults[i];
       std::string tmp;
 
       props.Get( "source", tmp );
@@ -376,7 +391,7 @@ namespace XrdCl
       else
         job = new ClassicCopyJob( i+1, &props, res );
 
-      pJobs.push_back( job );
+      pImpl->pJobs.push_back( job );
     }
     return XRootDStatus();
   }
@@ -390,11 +405,11 @@ namespace XrdCl
     // Get the configuration
     //--------------------------------------------------------------------------
     uint8_t parallelThreads = 1;
-    if( pJobProperties.size() > 0 &&
-        pJobProperties.rbegin()->HasProperty( "jobType" ) &&
-        pJobProperties.rbegin()->Get<std::string>( "jobType" ) == "configuration" )
+    if( pImpl->pJobProperties.size() > 0 &&
+        pImpl->pJobProperties.rbegin()->HasProperty( "jobType" ) &&
+        pImpl->pJobProperties.rbegin()->Get<std::string>( "jobType" ) == "configuration" )
     {
-      PropertyList &config = *pJobProperties.rbegin();
+      PropertyList &config = *pImpl->pJobProperties.rbegin();
       if( config.HasProperty( "parallel" ) )
         parallelThreads = (uint8_t)config.Get<int>( "parallel" );
     }
@@ -404,7 +419,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     std::vector<CopyJob *>::iterator it;
     uint16_t currentJob = 1;
-    uint16_t totalJobs  = pJobs.size();
+    uint16_t totalJobs  = pImpl->pJobs.size();
 
     //--------------------------------------------------------------------------
     // Single thread
@@ -413,7 +428,7 @@ namespace XrdCl
     {
       XRootDStatus err;
 
-      for( it = pJobs.begin(); it != pJobs.end(); ++it )
+      for( it = pImpl->pJobs.begin(); it != pImpl->pJobs.end(); ++it )
       {
         QueuedCopyJob j( *it, progress, currentJob, totalJobs );
         j.Run(0);
@@ -434,7 +449,7 @@ namespace XrdCl
     else
     {
       uint16_t workers = std::min( (uint16_t)parallelThreads,
-                                   (uint16_t)pJobs.size() );
+                                   (uint16_t)pImpl->pJobs.size() );
       JobManager jm( workers );
       jm.Initialize();
       if( !jm.Start() )
@@ -443,7 +458,7 @@ namespace XrdCl
 
       Semaphore *sem = new Semaphore(0);
       std::vector<QueuedCopyJob*> queued;
-      for( it = pJobs.begin(); it != pJobs.end(); ++it )
+      for( it = pImpl->pJobs.begin(); it != pImpl->pJobs.end(); ++it )
       {
         QueuedCopyJob *j = new QueuedCopyJob( *it, progress, currentJob,
                                               totalJobs, sem );
@@ -465,7 +480,7 @@ namespace XrdCl
       for( itQ = queued.begin(); itQ != queued.end(); ++itQ )
         delete *itQ;
 
-      for( it = pJobs.begin(); it != pJobs.end(); ++it )
+      for( it = pImpl->pJobs.begin(); it != pImpl->pJobs.end(); ++it )
       {
         XRootDStatus st = (*it)->GetResults()->Get<XRootDStatus>( "status" );
         if( !st.IsOK() ) return st;
@@ -477,7 +492,7 @@ namespace XrdCl
   void CopyProcess::CleanUpJobs()
   {
     std::vector<CopyJob*>::iterator itJ;
-    for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
+    for( itJ = pImpl->pJobs.begin(); itJ != pImpl->pJobs.end(); ++itJ )
     {
       CopyJob *job = *itJ;
       URL src = job->GetSource();
@@ -488,6 +503,6 @@ namespace XrdCl
       }
       delete job;
     }
-    pJobs.clear();
+    pImpl->pJobs.clear();
   }
 }

@@ -97,6 +97,11 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  // Forward declaration of implementation holding CopyProcess' data members
+  //----------------------------------------------------------------------------
+  struct CopyProcessImpl;
+
+  //----------------------------------------------------------------------------
   //! Copy the data from one point to another
   //----------------------------------------------------------------------------
   class CopyProcess
@@ -105,7 +110,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      CopyProcess() {}
+      CopyProcess();
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -174,9 +179,11 @@ namespace XrdCl
 
     private:
       void CleanUpJobs();
-      std::vector<PropertyList>   pJobProperties;
-      std::vector<PropertyList*>  pJobResults;
-      std::vector<CopyJob*>       pJobs;
+
+      //------------------------------------------------------------------------
+      //! Pointer to implementation
+      //------------------------------------------------------------------------
+      CopyProcessImpl *pImpl;
   };
 }
 
