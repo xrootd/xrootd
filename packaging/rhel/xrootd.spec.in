@@ -784,25 +784,17 @@ fi
 
 %files client
 %defattr(-,root,root,-)
-%{_bindir}/xprep
-%{_bindir}/xrd
 %{_bindir}/xrdadler32
 %{_bindir}/xrdcopy
 %{_bindir}/xrdcp
-%{_bindir}/xrdcp-old
 %{_bindir}/xrdfs
 %{_bindir}/xrdgsiproxy
-%{_bindir}/xrdstagetool
 %{_bindir}/xrdmapc
-%{_mandir}/man1/xprep.1*
-%{_mandir}/man1/xrd.1*
 %{_mandir}/man1/xrdadler32.1*
 %{_mandir}/man1/xrdcopy.1*
 %{_mandir}/man1/xrdcp.1*
-%{_mandir}/man1/xrdcp-old.1*
 %{_mandir}/man1/xrdfs.1*
 %{_mandir}/man1/xrdgsiproxy.1*
-%{_mandir}/man1/xrdstagetool.1*
 %{_mandir}/man1/xrdmapc.1*
 
 %files fuse

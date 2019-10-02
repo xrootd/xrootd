@@ -164,7 +164,6 @@ endif()
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdadler32.1
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp-old.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
