@@ -871,7 +871,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Constructor and destructor
       //------------------------------------------------------------------------
-      AssignLBHandler( FileSystem *fs, ResponseHandler *userHandler ):
+      AssignLBHandler( FileSystemImpl *fs, ResponseHandler *userHandler ):
         pFS(fs), pUserHandler(userHandler) {}
 
       virtual ~AssignLBHandler() {}
@@ -881,27 +881,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual void HandleResponseWithHosts( XRootDStatus *status,
                                             AnyObject    *response,
-                                            HostList     *hostList )
-      {
-        if( status->IsOK() )
-        {
-          HostList::reverse_iterator it;
-          for( it = hostList->rbegin(); it != hostList->rend(); ++it )
-            if( it->loadBalancer )
-            {
-              pFS->AssignLoadBalancer( it->url );
-              break;
-            }
-        }
-
-        bool finalrsp = !( status->IsOK() && status->code == suContinue );
-        pUserHandler->HandleResponseWithHosts( status, response, hostList );
-        if( finalrsp )
-          delete this;
-      }
+                                            HostList     *hostList );
 
     private:
-      FileSystem      *pFS;
+      FileSystemImpl  *pFS;
       ResponseHandler *pUserHandler;
   };
 
@@ -922,11 +905,76 @@ namespace XrdCl
       delete pUrl;
     }
 
+    //------------------------------------------------------------------------
+    // Send a message in a locked environment
+    //------------------------------------------------------------------------
+    Status Send( Message                 *msg,
+                 ResponseHandler         *handler,
+                 MessageSendParams       &params )
+    {
+      Log *log = DefaultEnv::GetLog();
+      XrdSysMutexHelper scopedLock( pMutex );
+
+      log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+                 pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
+      if( !pLoadBalancerLookupDone && pFollowRedirects )
+        handler = new AssignLBHandler( this, handler ); // TODO
+
+      params.followRedirects = pFollowRedirects;
+
+      return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
+    }
+
+
+    //----------------------------------------------------------------------------
+    // Assign a load balancer if it has not already been assigned
+    //----------------------------------------------------------------------------
+    void AssignLoadBalancer( const URL &url )
+    {
+      Log *log = DefaultEnv::GetLog();
+      XrdSysMutexHelper scopedLock( pMutex );
+
+      if( pLoadBalancerLookupDone )
+        return;
+
+      log->Dump( FileSystemMsg, "[0x%x@%s] Assigning %s as load balancer", this,
+                 pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
+
+      delete pUrl;
+      pUrl = new URL( url );
+      pLoadBalancerLookupDone = true;
+    }
+
     XrdSysMutex       pMutex;
     bool              pLoadBalancerLookupDone;
     bool              pFollowRedirects;
     URL              *pUrl;
   };
+
+  //------------------------------------------------------------------------
+  // Response callback
+  //------------------------------------------------------------------------
+  void AssignLBHandler::HandleResponseWithHosts( XRootDStatus *status,
+                                        AnyObject    *response,
+                                        HostList     *hostList )
+  {
+    if( status->IsOK() )
+    {
+      HostList::reverse_iterator it;
+      for( it = hostList->rbegin(); it != hostList->rend(); ++it )
+        if( it->loadBalancer )
+        {
+          pFS->AssignLoadBalancer( it->url );
+          break;
+        }
+    }
+
+    bool finalrsp = !( status->IsOK() && status->code == suContinue );
+    pUserHandler->HandleResponseWithHosts( status, response, hostList );
+    if( finalrsp )
+      delete this;
+  }
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -999,7 +1047,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1077,7 +1125,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1118,7 +1166,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1162,7 +1210,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1206,7 +1254,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1250,7 +1298,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1292,7 +1340,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1334,7 +1382,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1370,7 +1418,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1413,7 +1461,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1455,7 +1503,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1492,7 +1540,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1557,7 +1605,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1726,7 +1774,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1781,7 +1829,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //------------------------------------------------------------------------
@@ -1957,46 +2005,6 @@ namespace XrdCl
     return false;
   }
 
-  //----------------------------------------------------------------------------
-  // Assign a load balancer if it has not already been assigned
-  //----------------------------------------------------------------------------
-  void FileSystem::AssignLoadBalancer( const URL &url )
-  {
-    Log *log = DefaultEnv::GetLog();
-    XrdSysMutexHelper scopedLock( pImpl->pMutex );
-
-    if( pImpl->pLoadBalancerLookupDone )
-      return;
-
-    log->Dump( FileSystemMsg, "[0x%x@%s] Assigning %s as load balancer", this,
-               pImpl->pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
-
-    delete pImpl->pUrl;
-    pImpl->pUrl = new URL( url );
-    pImpl->pLoadBalancerLookupDone = true;
-  }
-
-  //----------------------------------------------------------------------------
-  // Send a message in a locked environment
-  //----------------------------------------------------------------------------
-  Status FileSystem::Send( Message                  *msg,
-                           ResponseHandler          *handler,
-                           MessageSendParams        &params )
-  {
-    Log *log = DefaultEnv::GetLog();
-    XrdSysMutexHelper scopedLock( pImpl->pMutex );
-
-    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
-               pImpl->pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
-
-    if( !pImpl->pLoadBalancerLookupDone && pImpl->pFollowRedirects )
-      handler = new AssignLBHandler( this, handler );
-
-    params.followRedirects = pImpl->pFollowRedirects;
-
-    return MessageUtils::SendMessage( *pImpl->pUrl, msg, handler, params, 0 );
-  }
-
   //------------------------------------------------------------------------
   // Generic implementation of xattr operation
   //------------------------------------------------------------------------
@@ -2025,7 +2033,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
 
-    return Send( msg, handler, params );
+    return pImpl->Send( msg, handler, params );
   }
 
   //------------------------------------------------------------------------

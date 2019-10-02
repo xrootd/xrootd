@@ -38,7 +38,6 @@
 namespace XrdCl
 {
   class PostMaster;
-  class Message;
   class FileSystemPlugIn;
   struct MessageSendParams;
 
@@ -848,18 +847,6 @@ namespace XrdCl
     private:
       FileSystem(const FileSystem &other);
       FileSystem &operator = (const FileSystem &other);
-
-      //------------------------------------------------------------------------
-      // Send a message in a locked environment
-      //------------------------------------------------------------------------
-      Status Send( Message                 *msg,
-                   ResponseHandler         *handler,
-                   MessageSendParams       &params );
-
-      //------------------------------------------------------------------------
-      // Assign a load balancer if it has not already been assigned
-      //------------------------------------------------------------------------
-      void AssignLoadBalancer( const URL &url );
 
       //------------------------------------------------------------------------
       // Lock the internal lock
