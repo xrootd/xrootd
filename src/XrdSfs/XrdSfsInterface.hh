@@ -39,7 +39,7 @@
 #include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdOuc/XrdOucSFVec.hh"
 
-#include "XrdSfs/XrdSfsGPFInfo.hh"
+#include "XrdSfs/XrdSfsGPFile.hh"
 
 /******************************************************************************/
 /*                            O p e n   M o d e s                             */
@@ -987,27 +987,31 @@ virtual int            fsctl(const int               cmd,
                              const XrdSecEntity     *client = 0) = 0;
 
 //-----------------------------------------------------------------------------
-//! Copy a file from a remote location to the local file system.
+//! Perform a third party file transfer or cancel one.
 //!
-//! @param  fInfo  - getFile() parameters.
-//! @param  eInfo  - The object where call-time error info or results are to
-//!                  be returned. See return notes.
-//! @param  client - Client's identify (see common description). Note that
-//!                  client may become invalid after SFS_STARTED is returned.
+//! @param  gpAct  - What to do as one of the enums listed below.
+//! @param  gpReq  - reference tothe object describing the request. This object
+//!                  is also used communicate the request status.
+//! @param  eInfo  - The object where error info or results are to be returned.
+//! @param  client - Client's identify (see common description).
 //!
-//! @return One of SFS_DATA, SFS_ERROR, SFS_OK, SFS_REDIRECT, or SFS_STARTED..
-//!         The fInfo object is deleted upon return unless SFS_STARTED is
-//!         returned. In this case, the fInfo object is deleted only when
-//!         fInfo.Completed() is called. The eInfo is deleted upon return.
+//! @return SFS_OK   Request accepted (same as SFS_STARTED). Otherwise, one of
+//!                  SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
 //-----------------------------------------------------------------------------
 
-virtual int            getFile(      XrdSfsGPFInfo  &fInfo,
-                                     XrdOucErrInfo  &eInfo,
-                               const XrdSecEntity   *client = 0)
-                            {(void)fInfo; (void)client;
-                             eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                             return SFS_ERROR;
-                            }
+enum gpfFunc {gpfCancel=0, //!< Cancel this request
+              gpfGet,      //!< Perform a file retrieval
+              gpfPut       //!< Perform a file push
+             };
+
+virtual int            gpFile(      gpfFunc          &gpAct,
+                                    XrdSfsGPFile     &gpReq,
+                                    XrdOucErrInfo    &eInfo,
+                              const XrdSecEntity     *client = 0)
+                             {(void)gpAct, (void)gpReq; (void)client;
+                              eInfo.setErrInfo(ENOTSUP, "Not supported.");
+                              return SFS_ERROR;
+                             }
 
 //-----------------------------------------------------------------------------
 //! Return statistical information.
@@ -1074,30 +1078,7 @@ virtual int            mkdir(const char              *path,
                              const char              *opaque = 0) = 0;
 
 //-----------------------------------------------------------------------------
-//! Copy a file to a remote location to the local file system.
-//!
-//! @param  fInfo  - putFile() parameters.
-//! @param  eInfo  - The object where call-time error info or results are to
-//!                  be returned. See return notes.
-//! @param  client - Client's identify (see common description). Note that
-//!                  client may become invalid after SFS_STARTED is returned.
-//!
-//! @return One of SFS_DATA, SFS_ERROR, SFS_OK, SFS_REDIRECT, or SFS_STARTED..
-//!         The fInfo object is deleted upon return unless SFS_STARTED is
-//!         returned. In this case, the fInfo object is deleted only when
-//!         fInfo.Completed() is called. The eInfo is deleted upon return.
-//-----------------------------------------------------------------------------
-
-virtual int            putFile(      XrdSfsGPFInfo  &fInfo,
-                                     XrdOucErrInfo  &eInfo,
-                               const XrdSecEntity   *client = 0)
-                            {(void)fInfo; (void)client;
-                             eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                             return SFS_ERROR;
-                            }
-
-//-----------------------------------------------------------------------------
-//! Preapre a file for future processing.
+//! Prepare a file for future processing.
 //!
 //! @param  pargs  - The preapre arguments.
 //! @param  eInfo  - The object where error info is to be returned.
