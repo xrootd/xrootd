@@ -234,5 +234,9 @@ void XrdSecEntity::ResetXtra(bool dodel)
 
 // Delete the extension if so wanted
 //
-   if (dodel) {delete entXtra; entXtra = 0;}
+   if (dodel)
+   {
+     mHelp.UnLock(); // we have to unlock the mutex bofere it's destroyed
+     delete entXtra; entXtra = 0;
+   }
 }
