@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Add getfile and putfile SFS interface.
   * **[Server]** Allow plugin stacking for most OFS plugins.
   * **[Server]** Add plug-in interface for performance reporting.
   * **[xrdcp]** Add --notlsok and --tlsdata options.
