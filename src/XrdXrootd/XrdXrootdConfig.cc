@@ -1788,8 +1788,7 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest.Emsg("config", "tls parameter not specified"); return 1;}
 
-         if (strcmp("tls", val)) forall = true;
-    if (strcmp("capable", val))
+    if (!strcmp("capable", val))
        {forall = false;
         if (!(val = Config.GetWord()))
            {eDest.Emsg("config", "tls requirement not specified"); return 1;}
