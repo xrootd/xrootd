@@ -801,7 +801,7 @@ bool XrdOfsConfigPI::SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP)
           {free(PrpLib);
            PrpLib = LP[PIX(thePrpLib)].lib = strdup(myLib.Path());
           }
-      }
+      } else return true;
 
 // Get the Object now
 //
