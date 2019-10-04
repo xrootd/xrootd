@@ -1424,14 +1424,14 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // @return : true if encryption should be turned on, false otherwise
   //------------------------------------------------------------------------
-  bool XRootDTransport::UseEncryption( HandShakeData  *handShakeData,
+  bool XRootDTransport::NeedEncryption( HandShakeData  *handShakeData,
                                        AnyObject      &channelData )
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
 
-    // Did the server instructed us to switch to TLS?
-    if( !( info->serverFlags & kXR_gotoTLS ) ) return false;
+    // Did the server instructed us to switch to TLS right away?
+    if( info->serverFlags & kXR_gotoTLS ) return true;
 
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 

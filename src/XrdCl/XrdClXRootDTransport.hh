@@ -242,7 +242,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! @return : true if encryption should be turned on, false otherwise
       //------------------------------------------------------------------------
-      virtual bool UseEncryption( HandShakeData  *handShakeData,
+      virtual bool NeedEncryption( HandShakeData  *handShakeData,
                                   AnyObject      &channelData );
 
     private:

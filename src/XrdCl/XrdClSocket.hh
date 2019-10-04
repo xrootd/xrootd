@@ -277,6 +277,15 @@ namespace XrdCl
       Status TlsHandShake( AsyncSocketHandler *socketHandler,
                                const std::string  &thehost = std::string() );
 
+      //------------------------------------------------------------------------
+      // @return : true if socket is using TLS layer for encryption,
+      //           false otherwise
+      //------------------------------------------------------------------------
+      inline bool IsEncrypted()
+      {
+        return bool( pTls );
+      }
+
     protected:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO

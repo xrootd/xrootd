@@ -728,7 +728,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // If now is the time enable encryption
     //--------------------------------------------------------------------------
-    if( pTransport->UseEncryption( pHandShakeData, *pChannelData ) )
+    if( !pSocket->IsEncrypted() &&
+         pTransport->NeedEncryption( pHandShakeData, *pChannelData ) )
     {
       Status st = DoTlsHandShake();
       if( !st.IsOK() || st.code == suRetry ) return;
