@@ -372,6 +372,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Set the redirect flag if we are a pure redirector
 //
+   int tlsFlags = myRole & kXR_tlsAny;
    myRole = kXR_isServer; myRolf = kXR_DataServer;
    if ((rdf = getenv("XRDREDIRECT"))
    && (!strcmp(rdf, "R") || !strcmp(rdf, "M")))
@@ -379,6 +380,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        myRole = kXR_isManager; myRolf = kXR_LBalServer;
        if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
       } 
+   myRole |= tlsFlags;
    if (getenv("XRDREDPROXY"))  myRole |=kXR_attrProxy;
 
 // Check if we are redirecting anything
