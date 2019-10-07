@@ -310,17 +310,22 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // If no CA cert information is specified and this is not a server context,
 // then get the paths from the environment. They must exist as we need to
-// verify peer certs in order to verify target host names client-side.
+// verify peer certs in order to verify target host names client-side. We
+// also use this setupt to see if we should use a specific cert and key.
 //
-   if (!caDir && !caFile && !(opts & servr))
-      {caDir  = getenv("X509_CERT_DIR");
-       caFile = getenv("X509_CERT_FILE");
-       if (!caDir && !caFile)
-          {XrdTlsGlobal::msgCB("Tls_Context", "Unable to determine the "
-                         "location of trusted CA certificates to verify "
-                         "peer identify; this is required!", false);
-           return;
+   if (!(opts & servr))
+      {if (!caDir && !caFile)
+          {caDir  = getenv("X509_CERT_DIR");
+           caFile = getenv("X509_CERT_FILE");
+           if (!caDir && !caFile)
+              {XrdTlsGlobal::msgCB("Tls_Context", "Unable to determine the "
+                             "location of trusted CA certificates to verify "
+                             "peer identify; this is required!", false);
+               return;
+              }
           }
+       if (!cert) cert = getenv("X509_USER_PROXY");
+       if (!key)  key  = getenv("X509_USER_KEY");
       }
 
 // Before we try to use any specified files, make sure they exist, are of

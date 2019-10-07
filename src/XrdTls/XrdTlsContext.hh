@@ -112,9 +112,13 @@ const char     *Init();
 //!            Otherwise, the cadir value is obtained from the X509_CERT_DIR
 //!            envar and the cafile value is obtained from the X509_CERT_File
 //!            envar. If both are nil, context creation fails.
-//!         b) You should immediately call Context() after instantiating this
+//!         b) Additionally for client-side contructions, if cert or key is
+//!            not specified the location come from X509_USER_PROXY and
+//!            X509_USER_KEY. These may be nil in which case a generic
+//!            context is created with a local key-pair and nor certificate.
+//!         c) You should immediately call Context() after instantiating this
 //!            object. A return value of zero means that construction failed.
-//!         c) Failure messages are routed to the message callback function
+//!         d) Failure messages are routed to the message callback function
 //!            during construction.
 //------------------------------------------------------------------------
 
