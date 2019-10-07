@@ -193,7 +193,7 @@ namespace PyXRootD
     }
 
     else {
-      uint32_t bytesRead;
+      uint32_t bytesRead = 0;
       async( status = self->file->Read( offset, size, buffer, bytesRead, timeout ) );
       pyresponse = PyBytes_FromStringAndSize( buffer, bytesRead );
       delete[] buffer;
@@ -363,7 +363,7 @@ namespace PyXRootD
     XrdCl::XRootDStatus status;
     XrdCl::Buffer      *buffer;
     XrdCl::Buffer      *temp;
-    uint32_t            bytesRead;
+    uint32_t            bytesRead = 0;
 
     temp = new XrdCl::Buffer( size );
     status = self->file->Read( offset, size, temp->GetBuffer(), bytesRead );
