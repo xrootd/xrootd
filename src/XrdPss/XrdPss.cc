@@ -644,7 +644,8 @@ int XrdPssDir::Close(long long *retsz)
 /*                                  o p e n                                   */
 /******************************************************************************/
 
-#define IS_FWDPATH(x) (!strncmp("/xroot:/",x,8) || !strncmp("/root:/",x,7))
+#define IS_FWDPATH(x) (!strncmp("/xroot:/", x,8) || !strncmp("/root:/", x,7)\
+                    || !strncmp("/xroots:/",x,9) || !strncmp("/roots:/",x,8))
 
 /*
   Function: Open the file `path' in the mode indicated by `Mode'.
