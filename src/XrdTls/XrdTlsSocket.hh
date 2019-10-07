@@ -146,7 +146,7 @@ enum HS_Mode
 //------------------------------------------------------------------------
 
   const char *Init( XrdTlsContext &ctx, int sfd, RW_Mode rwm, HS_Mode hsm,
-                    bool isClient, const char *tid=0 );
+                    bool isClient, const char *tid="?" );
 
 //------------------------------------------------------------------------
 //! Peek at the TLS connection data. If necessary, a handshake will be done.
