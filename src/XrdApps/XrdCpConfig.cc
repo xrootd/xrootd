@@ -862,6 +862,7 @@ void XrdCpConfig::ProcFile(const char *fname)
                 FMSG("Multiple sources disallowed with stdin.", 22);
             }
     else if (!((pFile->Protocol == XrdCpFile::isXroot) ||
+               (pFile->Protocol == XrdCpFile::isXroots) ||
                (Want(DoAllowHttp) && ((pFile->Protocol == XrdCpFile::isHttp) ||
                                       (pFile->Protocol == XrdCpFile::isHttps)))))
                {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
