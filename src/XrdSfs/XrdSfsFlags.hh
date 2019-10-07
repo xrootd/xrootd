@@ -38,7 +38,7 @@
 //! plug-ins to passthrough features and special attributes of regular files.
 //-----------------------------------------------------------------------------
 
-namespace SfsFeature
+namespace Sfs
 {
 //! Feature: Authorization
 static const uint64_t hasAUTZ = 0x0000000000000001LL;
@@ -79,14 +79,4 @@ static const dev_t XRDSFS_HASBKUP =
                    static_cast<dev_t>(0x40LL<<((sizeof(dev_t)*8)-8));
 static const dev_t XRDSFS_RDVMASK =
                    static_cast<dev_t>(~(0xffLL<<((sizeof(dev_t)*8)-8)));
-
-//------------------------------------------------------------------------------
-//! The following defines the feature set bits that use used by the SFS
-//! interface in response to a Features() call to indicate the various features
-//! the plug-in has implemented.
-//------------------------------------------------------------------------------
-
-namespace XrdSfs
-{
-}
 #endif
