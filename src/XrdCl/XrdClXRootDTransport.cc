@@ -1374,9 +1374,9 @@ namespace XrdCl
   }
 
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Get signature for given message
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   Status XRootDTransport::GetSignature( Message *toSign, Message *&sign, AnyObject &channelData )
   {
     XRootDChannelInfo *info = 0;
@@ -1414,18 +1414,18 @@ namespace XrdCl
     return Status();
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Wait before exit
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void XRootDTransport::WaitBeforeExit()
   {
     XrdSysRWLockHelper scope( pSecUnloadHandler->lock, false ); // obtain write lock
     pSecUnloadHandler->unloaded = true;
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // @return : true if encryption should be turned on, false otherwise
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool XRootDTransport::NeedEncryption( HandShakeData  *handShakeData,
                                        AnyObject      &channelData )
   {
@@ -1433,37 +1433,51 @@ namespace XrdCl
     channelData.Get( info );
 
     // Did the server instructed us to switch to TLS right away?
-    if( info->serverFlags & kXR_gotoTLS ) return true;
+    if( info->serverFlags & kXR_gotoTLS )
+      return true;
 
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 
-    //----------------------------------------------------------------------
-    // We are about to login and the server asked to start encrypting
-    // before login
-    //----------------------------------------------------------------------
-    if( ( sInfo.status == XRootDStreamInfo::LoginSent ) &&
-        ( info->serverFlags & kXR_tlsLogin ) )
-      return true;
+    //--------------------------------------------------------------------------
+    // The control stream (sub-stream 0)  might need to switch to TLS before
+    // login or after login
+    //--------------------------------------------------------------------------
+    if( handShakeData->subStreamId == 0 )
+    {
+      //------------------------------------------------------------------------
+      // We are about to login and the server asked to start encrypting
+      // before login
+      //------------------------------------------------------------------------
+      if( ( sInfo.status == XRootDStreamInfo::LoginSent ) &&
+          ( info->serverFlags & kXR_tlsLogin ) )
+        return true;
 
-    //----------------------------------------------------------------------
-    // We are about to bind a data stream and the server asked to start
-    // encrypting before bind
-    //----------------------------------------------------------------------
-    if( ( sInfo.status == XRootDStreamInfo::BindSent ) &&
-        ( info->serverFlags & kXR_tlsData ) )
-      return true;
-
-    //----------------------------------------------------------------------
-    // The hand-shake is done and the server requested to encrypt the session
-    //----------------------------------------------------------------------
-    if( (sInfo.status == XRootDStreamInfo::Connected ||
-        //------------------------------------------------------------------
-        // we really need to turn on TLS before we sent kXR_endsess and we
-        // are about to do so (1st enable encryption, then send kXR_endsess)
-        //------------------------------------------------------------------
-         sInfo.status == XRootDStreamInfo::EndSessionSent ) &&
-        ( info->serverFlags & kXR_tlsSess ) )
-      return true;
+      //--------------------------------------------------------------------
+      // The hand-shake is done and the server requested to encrypt the session
+      //--------------------------------------------------------------------
+      if( (sInfo.status == XRootDStreamInfo::Connected ||
+          //--------------------------------------------------------------------
+          // we really need to turn on TLS before we sent kXR_endsess and we
+          // are about to do so (1st enable encryption, then send kXR_endsess)
+          //--------------------------------------------------------------------
+           sInfo.status == XRootDStreamInfo::EndSessionSent ) &&
+          ( info->serverFlags & kXR_tlsSess ) )
+        return true;
+    }
+    //--------------------------------------------------------------------------
+    // A data stream (sub-stream > 0) if need be will be switched to TLS before
+    // bind.
+    //--------------------------------------------------------------------------
+    else
+    {
+      //------------------------------------------------------------------------
+      // We are about to bind a data stream and the server asked to start
+      // encrypting before bind
+      //------------------------------------------------------------------------
+      if( ( sInfo.status == XRootDStreamInfo::BindSent ) &&
+          ( info->serverFlags & kXR_tlsData ) )
+        return true;
+    }
 
     return false;
   }
