@@ -865,9 +865,11 @@ namespace XrdCl
 
 
 
-    if( ( ( info->serverFlags & kXR_gotoTLS )  ||
-          ( info->serverFlags & kXR_tlsLogin ) ||
-          ( info->serverFlags & kXR_tlsSess ) ) && !( info->serverFlags & kXR_tlsData ) )
+    if( ( ( info->serverFlags & kXR_gotoTLS )    ||
+          ( info->serverFlags & kXR_tlsLogin )   ||
+          ( info->serverFlags & kXR_tlsSess ) )  &&
+            !( info->serverFlags & kXR_tlsData ) &&
+            !info->encrypted )
     {
       //------------------------------------------------------------------------
       // The server asked us to encrypt stream 0, but to send the data (read/write)
