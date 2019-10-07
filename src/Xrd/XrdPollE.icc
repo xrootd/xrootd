@@ -195,6 +195,7 @@ void XrdPollE::remFD(XrdLink *lp, unsigned int events)
 {
    struct epoll_event myEvents = {0, {(void *)lp}};
    static const char *why;
+   static char buff[32];
 
 // It works out that ONESHOT mode or even CTL_MOD requests do not necessarily
 // prevent epoll_wait() from returning on an error event. So, we must manually
@@ -204,7 +205,8 @@ void XrdPollE::remFD(XrdLink *lp, unsigned int events)
    if (events & (EPOLLHUP | EPOLLRDHUP)) why = "Sever";
       else if (events & EPOLLERR) why = "Error";
               else why = "Disabled";
-   XrdLog->Emsg("Poll", why, "event occured for", lp->ID);
+   snprintf(buff, sizeof(buff), "%s (%x)", why, events);
+   XrdLog->Emsg("Poll", buff, "event occured for", lp->ID);
 
    if (epoll_ctl(PollDfd, EPOLL_CTL_DEL, lp->FDnum(), &myEvents))
       XrdLog->Emsg("Poll", errno, "exclude link", lp->ID);
