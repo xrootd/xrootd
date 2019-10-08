@@ -22,12 +22,29 @@
 
 #include "XrdTls/XrdTlsContext.hh"
 
+namespace
+{
+  static const char* GetCaDir()
+  {
+    const char *envval = getenv("X509_CERT_DIR");
+    static const std::string cadir = envval ? envval : "/etc/grid-security/certificates";;
+    return cadir.c_str();
+  }
+}
+
 namespace XrdCl
 {
-
+  //------------------------------------------------------------------------
+  // Constructor
+  //------------------------------------------------------------------------
   Tls::Tls( Socket *socket, AsyncSocketHandler *socketHandler ) : pSocket( socket ), pTlsHSRevert( None ), pSocketHandler( socketHandler )
   {
-    static XrdTlsContext tlsContext; // Need only one thread-safe instance
+    static XrdTlsContext tlsContext( 0, 0, GetCaDir(), 0, 0 );
+    //----------------------------------------------------------------------
+    // If the context is not valid throw an exception! We throw generic
+    // exception as this will be translated to TlsError anyway.
+    //----------------------------------------------------------------------
+    if( !tlsContext.Context() ) throw std::exception();
 
     pTls.reset(
         new XrdTlsSocket( tlsContext, pSocket->GetFD(), XrdTlsSocket::TLS_RNB_WNB,
@@ -35,7 +52,7 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  //! Establish a TLS/SSL session and perform host verification.
+  // Establish a TLS/SSL session and perform host verification.
   //------------------------------------------------------------------------
   Status Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
   {
