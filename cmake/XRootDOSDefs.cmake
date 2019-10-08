@@ -8,15 +8,10 @@ add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=6
 set( LIBRARY_PATH_PREFIX "lib" )
 
 #-------------------------------------------------------------------------------
-# Enable c++0x / c++11
-#-------------------------------------------------------------------------------
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x" )
-
-#-------------------------------------------------------------------------------
 # GCC
 #-------------------------------------------------------------------------------
 if( CMAKE_COMPILER_IS_GNUCXX )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
   # gcc 4.1 is retarded

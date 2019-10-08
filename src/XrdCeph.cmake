@@ -22,14 +22,6 @@ add_library(
 set_property(SOURCE XrdCeph/XrdCephPosix.cc
   PROPERTY COMPILE_FLAGS " -Wno-deprecated-declarations")
 
-# needed for librados when as C++11 is enabled
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-IF (COMPILER_SUPPORTS_CXX11)
-  set_property(SOURCE XrdCeph/XrdCephPosix.cc APPEND_STRING
-    PROPERTY COMPILE_FLAGS " -std=c++11")
-ENDIF()
-
 target_link_libraries(
   XrdCephPosix
   ${XROOTD_LIBRARIES}  
