@@ -19,7 +19,7 @@ release:cc7:ceph:
     - sudo -u stci -H cp RPMS/* $repo
     - sudo -u stci -H createrepo --update -q $repo
   tags:
-    - docker_node
+    - docker-cc7
   only:
     - tags
   except:
@@ -37,7 +37,7 @@ weekly:cc7:ceph:
     - yum-builddep --setopt=cern*.exclude=xrootd* --nogpgcheck -y *.src.rpm
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
   tags:
-    - docker_node
+    - docker-cc7
   only:
     - schedules
 
@@ -59,7 +59,7 @@ build:cc7:ceph:
     - sudo -u stci -H cp RPMS/* $path;
     - sudo -u stci -H createrepo --update -q $path;
   tags:
-    - docker_node
+    - docker-cc7
   only:
     - master
   except:
