@@ -755,7 +755,9 @@ namespace XrdCl
     }
     catch( std::exception& ex )
     {
-      return Status( stError, errTlsError );
+      // the exception has been thrown when we tried to create
+      // the TLS context
+      return Status( stFatal, errTlsError );
     }
 
     return Status();

@@ -19,15 +19,58 @@
 #include "XrdCl/XrdClTls.hh"
 #include "XrdCl/XrdClPoller.hh"
 #include "XrdCl/XrdClSocket.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClConstants.hh"
 
+#include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
 namespace
 {
+  //------------------------------------------------------------------------
+  // Helper class for setting the message callback for the TLS layer for
+  // logging purposes
+  //------------------------------------------------------------------------
+  struct SetTlsMsgCB
+  {
+    //----------------------------------------------------------------------
+    // The message callback
+    //----------------------------------------------------------------------
+    static void MsgCallBack(const char *tid, const char *msg, bool sslmsg)
+    {
+      XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+      if( sslmsg )
+        log->Debug( XrdCl::TlsMsg, "[%s] %s", tid, msg );
+      else
+        log->Error( XrdCl::TlsMsg, "[%s] %s", tid, msg );
+    }
+
+    inline static void Once()
+    {
+      static SetTlsMsgCB instance;
+    }
+
+    private:
+
+      //--------------------------------------------------------------------
+      // Constructor. Sets the callback, there should be only one static
+      // instance
+      //--------------------------------------------------------------------
+      inline SetTlsMsgCB()
+      {
+        XrdTls::SetMsgCB( MsgCallBack );
+      }
+  };
+
+  //------------------------------------------------------------------------
+  // Helper function for setting the CA directory in TLS context
+  //------------------------------------------------------------------------
   static const char* GetCaDir()
   {
-    const char *envval = getenv("X509_CERT_DIR");
-    static const std::string cadir = envval ? envval : "/etc/grid-security/certificates";;
+    static const char *envval = getenv("X509_CERT_DIR");
+    static const std::string cadir = envval ? envval :
+                                     "/etc/grid-security/certificates";
     return cadir.c_str();
   }
 }
@@ -39,6 +82,13 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Tls::Tls( Socket *socket, AsyncSocketHandler *socketHandler ) : pSocket( socket ), pTlsHSRevert( None ), pSocketHandler( socketHandler )
   {
+    //----------------------------------------------------------------------
+    // Set the message callback for TLS layer
+    //----------------------------------------------------------------------
+    SetTlsMsgCB::Once();
+    //----------------------------------------------------------------------
+    // we only need one instance of TLS
+    //----------------------------------------------------------------------
     static XrdTlsContext tlsContext( 0, 0, GetCaDir(), 0, 0 );
     //----------------------------------------------------------------------
     // If the context is not valid throw an exception! We throw generic
