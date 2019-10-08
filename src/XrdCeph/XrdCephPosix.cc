@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <memory>
 #include <radosstriper/libradosstriper.hpp>
 #include <map>
 #include <stdexcept>
