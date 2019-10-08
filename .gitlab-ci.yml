@@ -22,6 +22,7 @@ release:cc7:ceph:
     - docker-cc7
   only:
     - tags
+    - branches
   except:
     - schedules
     
