@@ -226,6 +226,7 @@ XrdXrootdProtocol::XrdXrootdProtocol()
                     : XrdProtocol("xrootd protocol handler"), ProtLink(this),
                       Entity(0,"xroot")
 {
+   AppName = 0;
    Reset();
 }
 
@@ -873,6 +874,10 @@ void XrdXrootdProtocol::Cleanup()
 // Handle writev appendage
 //
    if (wvInfo) {free(wvInfo); wvInfo = 0;}
+
+// Release aplication name
+//
+   if (AppName) {free(AppName); AppName = 0;}
 }
   
 /******************************************************************************/
@@ -957,4 +962,5 @@ void XrdXrootdProtocol::Reset()
    Entity.Reset(0, "xroot");
    memset(Stream,  0, sizeof(Stream));
    PrepareCount       = 0;
+   if (AppName) {free(AppName); AppName = 0;}
 }

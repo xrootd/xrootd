@@ -388,6 +388,7 @@ XrdSecEntity              *Client;
 XrdSecProtocol            *AuthProt;
 XrdSecEntity               Entity;
 XrdSecProtect             *Protect;
+char                      *AppName;
 
 ClientRequest              sigReq2Ver;   // Request to verify
 SecurityRequest            sigReq;       // Signature request

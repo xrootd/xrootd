@@ -1015,14 +1015,17 @@ int XrdXrootdProtocol::do_Login()
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
           }
-       if (rnumb)
-          {int majr, minr, pchr;
-           if (sscanf(rnumb, "v%d.%d.%d", &majr, &minr, &pchr) == 3)
-              {clientRN = (majr<<16) | ((minr<<8) | pchr);
-               if (majr > 4 || (majr == 4 && minr >= 8))
-                  clientPV |= XrdOucEI::u48pls; //TODO: Temporary hack.
-              } else if (sscanf(rnumb, "v%d-%*x", &majr) == 1) clientRN = -1;
-          }
+       // MT-REBASE - if to be removed, also knock out char *rnumb and its print-out
+       //             into abBuff
+       // if (rnumb)
+       //    {int majr, minr, pchr;
+       //     if (sscanf(rnumb, "v%d.%d.%d", &majr, &minr, &pchr) == 3)
+       //        {clientRN = (majr<<16) | ((minr<<8) | pchr);
+       //         if (majr > 4 || (majr == 4 && minr >= 8))
+       //            clientPV |= XrdOucEI::u48pls; //TODO: Temporary hack.
+       //        } else if (sscanf(rnumb, "v%d-%*x", &majr) == 1) clientRN = -1;
+       //    }
+       if (appXQ) AppName = strdup(appXQ);
       }
 
 // Allocate a monitoring object, if needed for this connection
@@ -3687,6 +3690,14 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
       {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
        return false;
       }
+
+// Record the appname in the final SecEntity object
+//
+   if (AppName) Client->Add("xrd.appname", (std::string)AppName, true);
+
+// Assign unique identifier to the final SecEntity object
+//
+   Client->entityID = mySID;
    return true;
 }
 

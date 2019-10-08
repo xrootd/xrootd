@@ -76,7 +76,7 @@ public:
          char   *moninfo;                 //!< Information for monitoring
          char   *creds;                   //!< Raw entity credentials or cert
          int     credslen;                //!< Length of the 'creds' data
-         int     rsvd;                    //!< Reserved field
+unsigned int     entityID;                //!< Unique ID of entity instance
 XrdNetAddrInfo  *addrInfo;                //!< Entity's connection details
 const    char   *tident;                  //!< Trace identifier always preset
          void   *sessvar;                 //!< Plugin settable storage pointer,
