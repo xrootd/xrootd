@@ -753,9 +753,9 @@ namespace XrdCl
       if( !pTls ) pTls = new Tls( this, socketHandler );
       return pTls->Connect( thehost, &pServerAddr );
     }
-    catch( std::invalid_argument& ex )
+    catch( std::exception& ex )
     {
-      Status( stError, errTlsError );
+      return Status( stError, errTlsError );
     }
 
     return Status();
