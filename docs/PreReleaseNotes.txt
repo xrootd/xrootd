@@ -36,4 +36,6 @@ Prerelease Notes
 
 + **Miscellaneous**
   * **[Server]** Improve SFS wrapping and add "how to" documentation.
+  * **[Server]** Add appname to SecEntity attribute set.
+  * **[Server]** Assign a unique ID to each SecEntity instance.
 
