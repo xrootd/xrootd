@@ -204,8 +204,12 @@ XrdTls::RC XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
       {const char *eTxt = XrdTlsNotary::Validate(pImpl->ssl, thehost,
                                         (pImpl->cOpts & DNSok ? netInfo : 0));
        if (eTxt && eMsg)
-          {*eMsg  = "Unable to validate "; *eMsg += thehost;
-           *eMsg += "; "; *eMsg += eTxt;
+          {
+           if (eMsg)
+              {
+               *eMsg  = "Unable to validate "; *eMsg += thehost;
+               *eMsg += "; "; *eMsg += eTxt;
+              }
            return XrdTls::TLS_HNV_Error;
           }
       }
