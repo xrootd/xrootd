@@ -738,7 +738,7 @@ virtual void           setXio(XrdSfsXio *xioP) { (void)xioP; }
 
                        XrdSfsFile(const char *user=0, int MonID=0)
                                  : error(*(new XrdOucErrInfo(user, MonID)))
-                                 {lclEI = &error;}
+                                 {lclEI = &error; pgwrEOF = 0;}
 
 //-----------------------------------------------------------------------------
 //! Constructor for plugins that wrap another SFS plugin. This constructor
@@ -749,7 +749,7 @@ virtual void           setXio(XrdSfsXio *xioP) { (void)xioP; }
 //-----------------------------------------------------------------------------
 
                        XrdSfsFile(XrdSfsFile &wrapF)
-                                 : error(wrapF.error), lclEI(0) {}
+                                 : error(wrapF.error), lclEI(0), pgwrEOF(0) {}
 
 //-----------------------------------------------------------------------------
 //! Constructor for base plugins that predefined an error object. This is a
@@ -759,7 +759,7 @@ virtual void           setXio(XrdSfsXio *xioP) { (void)xioP; }
 //-----------------------------------------------------------------------------
 
                        XrdSfsFile(XrdOucErrInfo &eInfo)
-                                 : error(eInfo), lclEI(0) {}
+                                 : error(eInfo), lclEI(0), pgwrEOF(0) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor
@@ -768,8 +768,8 @@ virtual void           setXio(XrdSfsXio *xioP) { (void)xioP; }
 virtual               ~XrdSfsFile() {if (lclEI) delete lclEI;}
 
 private:
-XrdOucErrInfo* lclEI;
-
+XrdOucErrInfo*   lclEI;
+XrdSfsFileOffset pgwrEOF;
 }; // class XrdSfsFile
 
 /******************************************************************************/

@@ -27,8 +27,18 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+
+/******************************************************************************/
+/*                        S t a t i c   S y m b o l s                         */
+/******************************************************************************/
+  
+namespace
+{
+static const XrdSfsFileOffset pgSize = XrdSfsPageSize;
+}
 
 /******************************************************************************/
 /*                                p g R e a d                                 */
@@ -39,10 +49,29 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
                                   XrdSfsXferSize     rdlen,
                                   uint32_t          *csvec,
                                   bool               verify)
-{(void)offset; (void)buffer; (void)rdlen;
- (void)csvec;  (void)verify;
- error.setErrInfo(ENOTSUP, "Not supported.");
- return SFS_ERROR;
+{
+   XrdSfsXferSize bytes;
+
+// Make sure the offset is on a 4K boundary and the size if a multiple of
+// 4k as well (we use simple and for this).
+//
+   if ((offset & ~pgSize) || (rdlen & ~XrdSfsPageSize))
+      {error.setErrInfo(EINVAL,"Offset or readlen not a multiple of pagesize.");
+       return SFS_ERROR;
+      }
+
+// Read the data into the buffer
+//
+   bytes = read(offset, buffer, rdlen);
+
+// Calculate checksums if so wanted
+//
+   if (bytes > 0 && csvec)
+      XrdOucCRC::Calc32C((void *)buffer, rdlen, csvec, XrdSfsPageSize);
+
+// All done
+//
+   return bytes;
 }
 
 /******************************************************************************/
@@ -66,10 +95,40 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
                                    XrdSfsXferSize     wrlen,
                                    uint32_t          *csvec,
                                    bool               verify)
-{(void)offset; (void)buffer; (void)wrlen;
- (void)csvec;  (void)verify;
- error.setErrInfo(ENOTSUP, "Not supported.");
- return SFS_ERROR;
+{
+// Make sure the offset is on a 4K boundary
+//
+   if (offset & ~pgSize)
+      {error.setErrInfo(EINVAL,"Offset or readlen not a multiple of pagesize.");
+       return SFS_ERROR;
+      }
+
+// If a virtual end of file marker is set, make sure we are not trying to
+// write past it.
+//
+   if (pgwrEOF && (offset+wrlen) > pgwrEOF)
+      {error.setErrInfo(ESPIPE,"Attempt to write past virtual EOF.");
+       return SFS_ERROR;
+      }
+
+// If this is a short write then establish the virtual eof
+//
+   if (wrlen & ~XrdSfsPageSize) pgwrEOF = (offset + wrlen) & ~pgSize;
+
+// If we have a checksum vector and verify is on, make sure the data
+// in the buffer corresponds to he checksums.
+//
+   if (csvec && verify)
+      {int pgErr;
+       if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,XrdSfsPageSize,pgErr))
+          {error.setErrInfo(EDOM,"Checksum error.");
+           return SFS_ERROR;
+          }
+      }
+
+// Now just return the result of a plain write
+//
+   return write(offset, buffer, wrlen);
 }
 
 /******************************************************************************/
