@@ -104,8 +104,9 @@ uses up to \fInum\fR sources to copy the file.
 .RE
 \fB-S\fR | \fB--streams\fR \fInum\fR
 .RS 5
-uses \fInum\fR additional parallel streams to do the transfer.
-The maximum value is 15. The default is 0 (i.e., use only the main stream).
+use \fInum\fR parallel data streams to do the transfer (the main stream is 
+in this case not used to carry out the transfer).
+The maximum value is 15. The default is 0 (i.e., use only the control stream).
 
 .RE
 \fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR
