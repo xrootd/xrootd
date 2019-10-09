@@ -92,6 +92,7 @@ virtual int     Close(long long *retsz=0);
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
 
 int     Fchmod(mode_t mode);
+void    Flush();
 int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);

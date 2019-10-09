@@ -1029,6 +1029,28 @@ int XrdOssFile::Fchmod(mode_t Mode)
 }
   
 /******************************************************************************/
+/*                                 F l u s h                                  */
+/******************************************************************************/
+
+/*
+  Function: Flush file pages from the filesyste cacheÂ.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+
+void XrdOssFile::Flush()
+{
+// This actually only works in Linux so we punt otherwise
+//
+#if defined(__linux__)
+   if (fd>= 0)
+      {fdatasync(fd);
+       posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+      }
+#endif
+}
+
+/******************************************************************************/
 /*                                 F s t a t                                  */
 /******************************************************************************/
 
