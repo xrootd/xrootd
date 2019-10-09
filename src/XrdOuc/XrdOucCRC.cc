@@ -176,3 +176,21 @@ unsigned int XrdOucCRC::CRC32(const unsigned char *p, int reclen)
 //
    return crc ^ CRC32_XOROT;
 }
+
+/******************************************************************************/
+/*                               C a l c 3 2 C                                */
+/******************************************************************************/
+  
+void XrdOucCRC::Calc32C(const void* data,  size_t count,
+                          uint32_t* csvec, size_t pgsz)
+{(void)data; (void)count; (void)csvec; (void)pgsz;}
+
+/******************************************************************************/
+/*                                V e r 3 2 C                                 */
+/******************************************************************************/
+  
+bool XrdOucCRC::Ver32C(const void* data,  size_t count,
+                         uint32_t* csvec, size_t pgsz, int &pgErr)
+{(void)data; (void)count; (void)csvec; (void)pgsz; (void)pgErr;
+ return true;
+}

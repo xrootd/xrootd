@@ -30,11 +30,20 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stddef.h>
+#include <stdint.h>
+
 class XrdOucCRC
 {
 public:
 
 static unsigned int CRC32(const unsigned char *rec, int reclen);
+
+static void Calc32C(const void* data,  size_t count,
+                      uint32_t* csvec, size_t pgsz);
+
+static bool Ver32C( const void* data,  size_t count,
+                      uint32_t* csvec, size_t pgsz, int &pgErr);
 
                     XrdOucCRC() {}
                    ~XrdOucCRC() {}
