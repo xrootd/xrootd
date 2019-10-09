@@ -343,7 +343,7 @@ namespace XrdCl
     URL           sourceURL = source;
 
     // save the original opaque parameter list as specified by the user for later
-    std::string scgi = sourceURL.GetParamsAsString();
+    const URL::ParamsMap &srcparams = sourceURL.GetParams();
 
     URL::ParamsMap params = sourceURL.GetParams();
     params["tpc.stage"] = "placement";
@@ -389,6 +389,18 @@ namespace XrdCl
 
       tpcLiteOnly = true;
     }
+
+    // get the opaque parameters as returned by the redirector
+    URL tpcSourceUrl = tpcSource;
+    URL::ParamsMap tpcsrcparams = tpcSourceUrl.GetParams();
+    // merge the original cgi with the one returned by the redirector,
+    // the original values take precedence
+    URL::ParamsMap::iterator itr = srcparams.begin();
+    for( ; itr != srcparams.end(); ++itr )
+      tpcsrcparams[itr->first] = itr->second;
+    tpcSourceUrl.SetParams( tpcsrcparams );
+    // save the merged opaque parameter list for later
+    std::string scgi = tpcSourceUrl.GetParamsAsString();
 
     if( !timeLeft().IsOK() )
     {
