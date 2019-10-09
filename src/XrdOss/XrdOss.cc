@@ -29,7 +29,17 @@
 /******************************************************************************/
 
 #include "XrdOss/XrdOss.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSfs/XrdSfsAio.hh"
+
+/******************************************************************************/
+/*                        S t a t i c   S y m b o l s                         */
+/******************************************************************************/
+  
+namespace
+{
+static const size_t pgSize = 4096;
+}
 
 /******************************************************************************/
 /*                          C l a s s   X r d O s s                           */
@@ -161,10 +171,26 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
                          size_t    rdlen,
                          uint32_t *csvec,
                          bool      verify)
-{(void)buffer; (void)offset; (void)rdlen;
- (void)csvec;  (void)verify;
+{
+   ssize_t bytes;
 
- return (ssize_t)-ENOTSUP;
+// Make sure the offset is on a 4K boundary and the size if a multiple of
+// 4k as well (we use simple and for this).
+//
+   if ((offset & ~pgSize) || (rdlen & ~pgSize)) return -EINVAL;
+
+// Read the data into the buffer
+//
+   bytes = Read(buffer, offset, rdlen);
+
+// Calculate checksums if so wanted
+//
+   if (bytes > 0 && csvec)
+      XrdOucCRC::Calc32C((void *)buffer, rdlen, csvec, pgSize);
+
+// All done
+//
+   return bytes;
 }
 
 /******************************************************************************/
@@ -188,10 +214,32 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
                           size_t    wrlen,
                           uint32_t *csvec,
                           bool      verify)
-{(void)buffer; (void)offset; (void)wrlen;
- (void)csvec;  (void)verify;
+{
+// Make sure the offset is on a 4K boundary
+//
+   if (offset & ~pgSize) return -EINVAL;
 
- return (ssize_t)-ENOTSUP;
+// If a virtual end of file marker is set, make sure we are not trying to
+// write past it.
+//
+   if (pgwEOF && (off_t)(offset+wrlen) > pgwEOF) return -ESPIPE;
+
+// If this is a short write then establish the virtual eof
+//
+   if (wrlen & ~pgSize) pgwEOF = (offset + wrlen) & ~pgSize;
+
+// If we have a checksum vector and verify is on, make sure the data
+// in the buffer corresponds to he checksums.
+//
+   if (csvec && verify)
+      {int pgErr;
+       if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,pgSize,pgErr))
+          return -EDOM;
+      }
+
+// Now just return the result of a plain write
+//
+   return Write(buffer, offset, wrlen);
 }
 
 /******************************************************************************/
