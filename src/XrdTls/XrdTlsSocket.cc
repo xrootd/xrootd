@@ -571,9 +571,9 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
     // We have a potential error. Get the SSL error code and whether or
     // not the handshake actually is finished (semi-accurate)
     //
-    pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
-    if( error == XrdTls::RC::TLS_AOK ) bytesWritten = 0;
     error = Diagnose(SSL_get_error( pImpl->ssl, rc ));
+    if( error == XrdTls::RC::TLS_AOK ) bytesWritten = 0;
+    pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
 
     // The connection creator may wish that we wait for the handshake to
     // complete. This is a tricky issue for non-blocking bio's as a write
