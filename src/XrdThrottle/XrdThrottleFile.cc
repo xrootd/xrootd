@@ -85,6 +85,50 @@ File::getMmap(void **Addr, off_t &Size)
    return SFS_ERROR;
 }
 
+XrdSfsXferSize
+File::pgRead(XrdSfsFileOffset   offset,
+             char              *buffer,
+             XrdSfsXferSize     rdlen,
+             uint32_t          *csvec,
+             bool               verify)
+{
+   DO_THROTTLE(rdlen)
+   return m_sfs->pgRead(offset, buffer, rdlen, csvec, verify);
+}
+
+XrdSfsXferSize
+File::pgRead(XrdSfsAio *aioparm, bool verify)
+{  // We disable all AIO-based reads.
+   aioparm->Result = this->pgRead((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
+                                            (char *)aioparm->sfsAio.aio_buf,
+                                    (XrdSfsXferSize)aioparm->sfsAio.aio_nbytes,
+                                                    aioparm->cksVec, verify);
+   aioparm->doneRead();
+   return SFS_OK;
+}
+
+XrdSfsXferSize
+File::pgWrite(XrdSfsFileOffset   offset,
+              char              *buffer,
+              XrdSfsXferSize     rdlen,
+              uint32_t          *csvec,
+              bool               verify)
+{
+   DO_THROTTLE(rdlen)
+   return m_sfs->pgWrite(offset, buffer, rdlen, csvec, verify);
+}
+
+XrdSfsXferSize
+File::pgWrite(XrdSfsAio *aioparm, bool verify)
+{  // We disable all AIO-based writes.
+   aioparm->Result = this->pgWrite((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
+                                             (char *)aioparm->sfsAio.aio_buf,
+                                     (XrdSfsXferSize)aioparm->sfsAio.aio_nbytes,
+                                                     aioparm->cksVec, verify);
+   aioparm->doneWrite();
+   return SFS_OK;
+}
+
 int
 File::read(XrdSfsFileOffset   fileOffset,
            XrdSfsXferSize     amount)

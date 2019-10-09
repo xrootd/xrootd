@@ -53,6 +53,26 @@ public:
    virtual int
    getMmap(void **Addr, off_t &Size);
 
+   virtual XrdSfsXferSize
+   pgRead(XrdSfsFileOffset   offset,
+          char              *buffer,
+          XrdSfsXferSize     rdlen,
+          uint32_t          *csvec,
+          bool               verify=true);
+
+   virtual XrdSfsXferSize
+   pgRead(XrdSfsAio *aioparm, bool verify=true);
+
+   virtual XrdSfsXferSize
+   pgWrite(XrdSfsFileOffset   offset,
+           char              *buffer,
+           XrdSfsXferSize     rdlen,
+           uint32_t          *csvec,
+           bool               verify=true);
+
+   virtual XrdSfsXferSize
+   pgWrite(XrdSfsAio *aioparm, bool verify=true);
+
    virtual int
    read(XrdSfsFileOffset   fileOffset,   // Preread only
         XrdSfsXferSize     amount);
@@ -136,6 +156,9 @@ public:
          const char             *opaque = 0);
 
    virtual void
+   Connect(const XrdSecEntity     *client = 0);
+
+   virtual void
    Disc(const XrdSecEntity   *client = 0);
 
    virtual void
@@ -149,6 +172,15 @@ public:
           const char                *opaque = 0);
 
    virtual int
+   FAttr(      XrdSfsFACtl      *faReq,
+               XrdOucErrInfo    &eInfo,
+         const XrdSecEntity     *client = 0);
+
+
+   virtual uint64_t
+   Features();
+
+   virtual int
    fsctl(const int               cmd,
          const char             *args,
                XrdOucErrInfo    &out_error,
@@ -159,6 +191,12 @@ public:
 
    virtual const char *
    getVersion();
+
+   virtual int
+   gpFile(      gpfFunc          &gpAct,
+                XrdSfsGPFile     &gpReq,
+                XrdOucErrInfo    &eInfo,
+          const XrdSecEntity     *client = 0);
 
    virtual int
    mkdir(const char             *dirName,

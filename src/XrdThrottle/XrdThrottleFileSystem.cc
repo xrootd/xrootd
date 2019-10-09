@@ -56,6 +56,12 @@ FileSystem::chmod(const char             *Name,
 }
 
 void
+FileSystem::Connect(const XrdSecEntity *client)
+{
+   m_sfs_ptr->Connect(client);
+}
+
+void
 FileSystem::Disc(const XrdSecEntity *client)
 {
    m_sfs_ptr->Disc(client);
@@ -78,6 +84,20 @@ FileSystem::exists(const char                *fileName,
 }
 
 int
+FileSystem::FAttr(      XrdSfsFACtl      *faReq,
+                        XrdOucErrInfo    &eInfo,
+                  const XrdSecEntity     *client)
+{
+   return m_sfs_ptr->FAttr(faReq, eInfo, client);
+}
+
+uint64_t
+FileSystem::Features()
+{
+   return m_sfs_ptr->Features();
+}
+
+int
 FileSystem::fsctl(const int               cmd,
                   const char             *args,
                         XrdOucErrInfo    &out_error,
@@ -97,6 +117,15 @@ const char *
 FileSystem::getVersion()
 {
    return XrdVERSION;
+}
+
+int
+FileSystem::gpFile(      gpfFunc          &gpAct,
+                         XrdSfsGPFile     &gpReq,
+                         XrdOucErrInfo    &eInfo,
+                   const XrdSecEntity     *client)
+{
+   return m_sfs_ptr->gpFile(gpAct, gpReq, eInfo, client);
 }
 
 int
