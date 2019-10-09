@@ -106,13 +106,20 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
   {
-    XrdTls::RC error = pTls->Connect( thehost.c_str(), netInfo );
+    std::string errmsg;
+    XrdTls::RC error = pTls->Connect( thehost.c_str(), netInfo, &errmsg );
     Status status = ToStatus( error );
 
     //--------------------------------------------------------------------------
     // There's no follow up if the read simply failed
     //--------------------------------------------------------------------------
-    if( !status.IsOK() ) return status;
+    if( !status.IsOK() )
+    {
+      XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+      log->Error( XrdCl::TlsMsg, "Failed to do TLS connect: %s", errmsg.c_str() );
+      return status;
+    }
+
 
     if( pTls->NeedHandShake() )
     {
@@ -280,7 +287,12 @@ namespace XrdCl
       case XrdTls::TLS_WantWrite:
       case XrdTls::TLS_WantRead:  return Status( stOK, suRetry, error );
 
+      case XrdTls::TLS_SSL_Error:
+      case XrdTls::TLS_UNK_Error:
       case XrdTls::TLS_SYS_Error: return Status( stError, errTlsError, errno );
+
+      case XrdTls::TLS_VER_Error:
+      case XrdTls::TLS_HNV_Error: return Status( stFatal, errTlsError, errno );
 
       default:
         return Status( stError, errTlsError, error );
