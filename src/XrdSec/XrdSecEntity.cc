@@ -162,7 +162,7 @@ void XrdSecEntity::List(XrdSecEntityAttrCB &attrCB)
    std::map<std::string, std::string>::iterator itM;
    std::vector<const char *> attrDel;
    std::vector<const char *>::iterator itV;
-   XrdSecEntityAttrCB::Action rc;
+   XrdSecEntityAttrCB::Action rc = XrdSecEntityAttrCB::Action::Stop;
 
    for (itM  = entXtra->attrMap.begin();
         itM != entXtra->attrMap.end(); itM++)
