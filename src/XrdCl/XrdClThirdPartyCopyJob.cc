@@ -395,7 +395,7 @@ namespace XrdCl
     URL::ParamsMap tpcsrcparams = tpcSourceUrl.GetParams();
     // merge the original cgi with the one returned by the redirector,
     // the original values take precedence
-    URL::ParamsMap::iterator itr = srcparams.begin();
+    URL::ParamsMap::const_iterator itr = srcparams.begin();
     for( ; itr != srcparams.end(); ++itr )
       tpcsrcparams[itr->first] = itr->second;
     tpcSourceUrl.SetParams( tpcsrcparams );
