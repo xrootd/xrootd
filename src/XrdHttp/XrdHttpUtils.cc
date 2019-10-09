@@ -375,6 +375,14 @@ char *quote(const char *str) {
         strcpy(r + j, "%2F");
         j += 3;
         break;
+      case '\n':
+        strcpy(r + j, "%0C");
+        j += 3;
+        break;
+      case '\r':
+        strcpy(r + j, "%0A");
+        j += 3;
+        break;
       default:
         r[j++] = c;
     }

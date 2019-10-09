@@ -690,8 +690,10 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   
   // Here we put back the opaque info, if any
   if (vardata) {
+    char *newvardata = quote(vardata);
     redirdest += "?&";
-    redirdest += vardata;
+    redirdest += newvardata;
+    free(newvardata);
   }
   
   // Shall we put also the opaque data of the request? Maybe not
