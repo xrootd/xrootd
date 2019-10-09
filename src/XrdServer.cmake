@@ -82,7 +82,7 @@ add_library(
                                XrdSfs/XrdSfsFAttr.hh
                                XrdSfs/XrdSfsFlags.hh
                                XrdSfs/XrdSfsGPFile.hh
-                               XrdSfs/XrdSfsInterface.hh
+  XrdSfs/XrdSfsInterface.cc    XrdSfs/XrdSfsInterface.hh
 
   #-----------------------------------------------------------------------------
   # XrdFrc - File Residency Manager client
@@ -100,6 +100,7 @@ add_library(
   #-----------------------------------------------------------------------------
   # XrdOss - Default storage system
   #-----------------------------------------------------------------------------
+  XrdOss/XrdOss.cc             XrdOss/XrdOss.hh
   XrdOss/XrdOssAio.cc
                                XrdOss/XrdOssTrace.hh
                                XrdOss/XrdOssError.hh
@@ -121,7 +122,6 @@ add_library(
   XrdOss/XrdOssStat.cc         XrdOss/XrdOssStatInfo.hh
                                XrdOss/XrdOssUnlink.cc
                                XrdOss/XrdOssError.hh
-                               XrdOss/XrdOss.hh
 
   #-----------------------------------------------------------------------------
   # XrdAcc - Authorization

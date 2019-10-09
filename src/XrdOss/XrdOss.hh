@@ -2,7 +2,7 @@
 #define _XRDOSS_H
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d O s s   &   X r d O s s D F                      */
+/*                             X r d O s s . h h                              */
 /*                                                                            */
 /* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -32,6 +32,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <stdint.h>
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -48,7 +49,7 @@ class XrdSfsAio;
 #endif
 
 /******************************************************************************/
-/*                              X r d O s s D F                               */
+/*                        C l a s s   X r d O s s D F                         */
 /******************************************************************************/
 
 //! This class defines the object that handles directory as well as file
@@ -61,79 +62,49 @@ class XrdOssDF
 public:
                 // Directory oriented methods
 virtual int     Opendir(const char *, XrdOucEnv &)           {return -ENOTDIR;}
-virtual int     Readdir(char *buff, int blen)                {(void)buff; (void)blen; return -ENOTDIR;}
-virtual int     StatRet(struct stat *buff)                   {(void)buff; return -ENOTSUP;}
+virtual int     Readdir(char *, int)                         {return -ENOTDIR;}
+virtual int     StatRet(struct stat *)                       {return -ENOTSUP;}
 
                 // File oriented methods
-virtual int     Fchmod(mode_t mode)                          {(void)mode; return -EISDIR;}
+virtual int     Fchmod(mode_t)                               {return -EISDIR;}
+virtual void    Flush()                                      {}
 virtual int     Fstat(struct stat *)                         {return -EISDIR;}
 virtual int     Fsync()                                      {return -EISDIR;}
-virtual int     Fsync(XrdSfsAio *aiop)                       {(void)aiop; return -EISDIR;}
+virtual int     Fsync(XrdSfsAio *)                           {return -EISDIR;}
 virtual int     Ftruncate(unsigned long long)                {return -EISDIR;}
 virtual int     getFD()                                      {return -1;}
-virtual off_t   getMmap(void **addr)                         {(void)addr; return 0;}
+virtual off_t   getMmap(void **)                             {return 0;}
 virtual int     isCompressed(char *cxidp=0)                  {(void)cxidp; return -EISDIR;}
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
+virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*, bool);
+virtual int     pgRead (XrdSfsAio*, bool);
+virtual ssize_t pgWrite(void*, off_t, size_t, uint32_t*, bool);
+virtual int     pgWrite(XrdSfsAio*, bool);
 virtual ssize_t Read(off_t, size_t)                          {return (ssize_t)-EISDIR;}
 virtual ssize_t Read(void *, off_t, size_t)                  {return (ssize_t)-EISDIR;}
 virtual int     Read(XrdSfsAio *aoip)                        {(void)aoip; return (ssize_t)-EISDIR;}
-virtual ssize_t ReadRaw(    void *, off_t, size_t)           {return (ssize_t)-EISDIR;}
+virtual ssize_t ReadRaw(void *, off_t, size_t)               {return (ssize_t)-EISDIR;}
+virtual ssize_t ReadV(XrdOucIOVec *readV, int n);
 virtual ssize_t Write(const void *, off_t, size_t)           {return (ssize_t)-EISDIR;}
 virtual int     Write(XrdSfsAio *aiop)                       {(void)aiop; return (ssize_t)-EISDIR;}
-
-// Implemented in the header, as many folks will be happy with the default.
-//
-virtual ssize_t ReadV(XrdOucIOVec *readV, int n)
-                     {ssize_t nbytes = 0, curCount = 0;
-                      for (int i=0; i<n; i++)
-                          {curCount = Read((void *)readV[i].data,
-                                            (off_t)readV[i].offset,
-                                           (size_t)readV[i].size);
-                           if (curCount != readV[i].size)
-                              {if (curCount < 0) return curCount;
-                               return -ESPIPE;
-                              }
-                           nbytes += curCount;
-                          }
-                      return nbytes;
-                     }
-
-// Implemented in the header, as many folks will be happy with the default.
-//
-virtual ssize_t WriteV(XrdOucIOVec *writeV, int n)
-                      {ssize_t nbytes = 0, curCount = 0;
-                       for (int i=0; i<n; i++)
-                           {curCount =Write((void *)writeV[i].data,
-                                             (off_t)writeV[i].offset,
-                                            (size_t)writeV[i].size);
-                            if (curCount != writeV[i].size)
-                               {if (curCount < 0) return curCount;
-                                return -ESPIPE;
-                               }
-                            nbytes += curCount;
-                           }
-                       return nbytes;
-                      }
+virtual ssize_t WriteV(XrdOucIOVec *writeV, int n);
 
                 // Methods common to both
 virtual int     Close(long long *retsz=0)=0;
 inline  int     Handle() {return fd;}
-virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0)
-{
-  (void)cmd; (void)alen; (void)args; (void)resp;
-  return -ENOTSUP;
-}
+virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 
-                XrdOssDF() {fd = -1;}
+                XrdOssDF() : pgwEOF(0), fd(-1) {}
 virtual        ~XrdOssDF() {}
 
 protected:
 
+off_t   pgwEOF;  // Highest short offset on pgWrite (0 means none yet)
 int     fd;      // The associated file descriptor.
 };
 
 /******************************************************************************/
-/*                                X r d O s s                                 */
+/*                        X r d O s s   O p t i o n s                         */
 /******************************************************************************/
 
 // Options that can be passed to Create()
@@ -145,6 +116,12 @@ int     fd;      // The associated file descriptor.
 #define XRDOSS_isMIG   0x20
 #define XRDOSS_setnoxa 0x40
 
+// Values returned by Features()
+//
+#define XRDOSS_HASPGRW 0x0000000000000001ULL
+#define XRDOSS_HASFSCS 0x0000000000000002ULL
+#define XRDOSS_HASPRXY 0x0000000000000004ULL
+
 // Options that can be passed to Stat()
 //
 #define XRDOSS_resonly 0x0001
@@ -155,6 +132,10 @@ int     fd;      // The associated file descriptor.
 //
 #define XRDOSS_FSCTLFA 0x0001
 
+/******************************************************************************/
+/*                    C l a s s   X r d O s s V S I n f o                     */
+/******************************************************************************/
+  
 // Class passed to StatVS()
 //
 class XrdOssVSInfo
@@ -174,55 +155,59 @@ int       Reserved;
          ~XrdOssVSInfo() {}
 };
   
+/******************************************************************************/
+/*                          C l a s s   X r d O s s                           */
+/******************************************************************************/
+  
 class XrdOss
 {
 public:
 virtual XrdOssDF *newDir(const char *tident)=0;
 virtual XrdOssDF *newFile(const char *tident)=0;
 
-virtual int     Chmod(const char *, mode_t mode, XrdOucEnv *eP=0)=0;
-virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, 
-                       int opts=0)=0;
-virtual int     Init(XrdSysLogger *, const char *)=0;
-virtual int     Mkdir(const char *, mode_t mode, int mkpath=0,
-                      XrdOucEnv *eP=0)=0;
-virtual int     Reloc(const char *, const char *, const char *, const char *x=0)
-                      {(void)x; return -ENOTSUP;}
-virtual int     Remdir(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
-virtual int     Rename(const char *, const char *,
-                       XrdOucEnv *eP1=0, XrdOucEnv *eP2=0)=0;
-virtual int     Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0)=0;
-virtual int     StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
-{ (void)path; (void)buff; (void)blen; (void)eP; return -ENOTSUP;}
-virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
-{ (void)env; (void)cgrp; (void)buff; (void)blen; return -ENOTSUP;}
-virtual int     StatPF(const char *, struct stat *)
-                      {return -ENOTSUP;}
-virtual int     StatXA(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
-{ (void)path; (void)buff; (void)blen; (void)eP; return -ENOTSUP;}
-virtual int     StatXP(const char *path, unsigned long long &attr,
-                       XrdOucEnv *eP=0)
-{ (void)path; (void)attr; (void)eP; return -ENOTSUP;}
-virtual int     Truncate(const char *, unsigned long long, XrdOucEnv *eP=0)=0;
-virtual int     Unlink(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
+virtual int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0)=0;
 
-virtual int     Stats(char *bp, int bl) { (void)bp; (void)bl; return 0;}
+virtual void      Connect(XrdOucEnv &);
 
-virtual int     StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0)
-{ (void)sP; (void)sname; (void)updt; return -ENOTSUP;}
+virtual int       Create(const char *, const char *, mode_t, XrdOucEnv &,
+                         int opts=0)=0;
 
-virtual int     Lfn2Pfn(const char *Path, char *buff, int blen)
-                       {if ((int)strlen(Path) >= blen) return -ENAMETOOLONG;
-                        strcpy(buff, Path); return 0;
-                       }
+virtual void      Disc(XrdOucEnv &);
+virtual void      EnvInfo(XrdOucEnv *);
+virtual uint64_t  Features();
+virtual int       FSctl(int, int, const char *, char **x=0);
+
+virtual int       Init(XrdSysLogger *, const char *)=0;
+virtual int       Mkdir(const char *, mode_t, int mkpath=0, XrdOucEnv *eP=0)=0;
+
+virtual int       Reloc(const char *, const char *, const char *, const char *x=0);
+
+virtual int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
+virtual int       Rename(const char *, const char *,
+                         XrdOucEnv *eP1=0, XrdOucEnv *eP2=0)=0;
+virtual int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *x=0)=0;
+
+virtual int       Stats(char *bp, int bl) { (void)bp; (void)bl; return 0;}
+
+                  // Specialized stat type function (none supported by default)
+virtual int       StatFS(const char *, char *, int &, XrdOucEnv *x=0);
+virtual int       StatLS(XrdOucEnv &, const char *, char *, int &);
+virtual int       StatPF(const char *, struct stat *);
+virtual int       StatVS(XrdOssVSInfo *, const char *x=0, int y=0);
+virtual int       StatXA(const char *, char *, int &, XrdOucEnv *x=0);
+virtual int       StatXP(const char *, unsigned long long &, XrdOucEnv *x=0);
+
+virtual int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0)=0;
+virtual int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
+
+                  // Default Name-to-Name Methods
+virtual int       Lfn2Pfn(const char *Path, char *buff, int blen)
+                         {if ((int)strlen(Path) >= blen) return -ENAMETOOLONG;
+                          strcpy(buff, Path); return 0;
+                         }
 virtual
-const char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
-{ (void)buff; (void)blen; rc = 0; return Path;}
-
-virtual int     FSctl(int cmd, int alen, const char *args, char **resp=0)
-{ (void)cmd; (void)alen; (void)args; (void)resp; return -ENOTSUP;}
-
-virtual void    EnvInfo(XrdOucEnv *envP) {(void)envP;}
+const char       *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
+                         { (void)buff; (void)blen; rc = 0; return Path;}
 
                 XrdOss() {}
 virtual        ~XrdOss() {}
@@ -281,7 +266,7 @@ typedef XrdOssGetStorageSystem2_t XrdOssAddStorageSystem2_t;
                                               const char   *parms);
 
     An alternate entry point may be defined in lieu of the previous entry point.
-    The plug-in loaer looks for this entry point first before reverting to the
+    The plug-in loader looks for this entry point first before reverting to the
     older version 1 entry point/ Version 2 differs in that an extra parameter,
     the environmental pointer, is passed. Note that this pointer is also
     supplied via the EnvInfo() method. This, many times, is not workable as

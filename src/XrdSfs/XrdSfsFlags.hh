@@ -51,6 +51,9 @@ static const uint64_t hasPOSC = 0x0000000000000004LL;
 
 //! Feature: Prepare Handler Version 2 (different calling conventions)
 static const uint64_t hasPRP2 = 0x0000000000000008LL;
+
+//! Feature: Proxy Server
+static const uint64_t hasPRXY = 0x0000000000000010LL;
 }
 
 //-----------------------------------------------------------------------------

@@ -58,7 +58,8 @@ class XrdSfsAio
 {
 public:
 
-struct aiocb sfsAio;
+struct aiocb  sfsAio;
+unsigned int *cksVec; // For pgRead and pgWrite
 
 ssize_t      Result; // If >= 0 valid result; else is -errno
 
@@ -85,7 +86,8 @@ virtual void Recycle() = 0;
 #endif
                          sfsAio.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
                          sfsAio.aio_reqprio = 0;
-                         TIdent = (char *)"";
+                         cksVec = 0;
+                         TIdent = "";
                         }
 virtual     ~XrdSfsAio() {}
 };

@@ -116,6 +116,10 @@
 #define SFS_LCLROOT(x) !strncmp(x, SFS_LCLPRFX, SFS_LCLPLEN-1) \
                        && (*(x+SFS_LCLPLEN-1) == '/' || *(x+SFS_LCLPLEN-1) == 0)
 
+// The native SFS page size
+//
+#define XrdSfsPageSize 4096
+
 /******************************************************************************/
 /*                 S t r u c t u r e s   &   T y p e d e f s                  */
 /******************************************************************************/
@@ -463,7 +467,18 @@ virtual int            fctl(const int               cmd,
 virtual const char    *FName() = 0;
 
 //-----------------------------------------------------------------------------
-//! Read page bytes into a buffer and return corresponding checksums.
+//! Get file's memory mapping if one exists (memory mapped files only).
+//!
+//! @param  addr   - Place where the starting memory address is returned.
+//! @param  size   - Place where the file's size is returned.
+//!
+//! @return SFS_OK when the file is memory mapped or any other code otherwise.
+//-----------------------------------------------------------------------------
+
+virtual int            getMmap(void **Addr, off_t &Size) = 0;
+
+//-----------------------------------------------------------------------------
+//! Read file pages into a buffer and return corresponding checksums.
 //!
 //! @param  offset  - The offset where the read is to start. It must be
 //!                   page aligned.
@@ -476,7 +491,6 @@ virtual const char    *FName() = 0;
 //! @param  verify  - When true, the checksum is verified for each page; an
 //!                   error is returned if any checksum is incorrect.
 //!
-//!
 //! @return >= 0      The number of bytes that placed in buffer.
 //! @return SFS_ERROR File could not be read, error holds the reason.
 //-----------------------------------------------------------------------------
@@ -485,15 +499,23 @@ virtual XrdSfsXferSize pgRead(XrdSfsFileOffset   offset,
                               char              *buffer,
                               XrdSfsXferSize     rdlen,
                               uint32_t          *csvec,
-                              bool               verify=true)
-                             {(void)offset; (void)buffer; (void)rdlen;
-                              (void)csvec;  (void)verify;
-                              error.setErrInfo(ENOTSUP, "Not supported.");
-                              return SFS_ERROR;
-                             }
+                              bool               verify=true);
 
 //-----------------------------------------------------------------------------
-//! Write page bytes into a file with corresponding checksums.
+//! Read file pages and checksums using asynchronous I/O.
+//!
+//! @param  aioparm - Pointer to async I/O object controlling the I/O.
+//! @param  verify  - When true, the checksum is verified for each page; an
+//!                   error is returned if any checksum is incorrect.
+//!
+//! @return SFS_OK    Request accepted and will be scheduled.
+//! @return SFS_ERROR File could not be read, error holds the reason.
+//-----------------------------------------------------------------------------
+
+virtual int            pgRead(XrdSfsAio *aioparm, bool verify=true);
+
+//-----------------------------------------------------------------------------
+//! Write file pages into a file with corresponding checksums.
 //!
 //! @param  offset  - The offset where the write is to start. It must be
 //!                   page aligned.
@@ -507,7 +529,6 @@ virtual XrdSfsXferSize pgRead(XrdSfsFileOffset   offset,
 //! @param  verify  - When true, the checksum in csvec is verified for each
 //!                   page; and error is returned if any checksum is incorrect.
 //!
-//!
 //! @return >= 0      The number of bytes written.
 //! @return SFS_ERROR File could not be read, error holds the reason.
 //-----------------------------------------------------------------------------
@@ -516,23 +537,20 @@ virtual XrdSfsXferSize pgWrite(XrdSfsFileOffset   offset,
                                char              *buffer,
                                XrdSfsXferSize     wrlen,
                                uint32_t          *csvec,
-                               bool               verify=true)
-                              {(void)offset; (void)buffer; (void)wrlen;
-                               (void)csvec;  (void)verify;
-                               error.setErrInfo(ENOTSUP, "Not supported.");
-                               return SFS_ERROR;
-                              }
+                               bool               verify=true);
 
 //-----------------------------------------------------------------------------
-//! Get file's memory mapping if one exists (memory mapped files only).
+//! Write file pages and checksums using asynchronous I/O.
 //!
-//! @param  addr   - Place where the starting memory address is returned.
-//! @param  size   - Place where the file's size is returned.
+//! @param  aioparm - Pointer to async I/O object controlling the I/O.
+//! @param  verify  - When true, the checksum in csvec is verified for each
+//!                   page; and error is returned if any checksum is incorrect.
 //!
-//! @return SFS_OK when the file is memory mapped or any other code otherwise.
+//! @return SFS_OK    Request accepted and will be scheduled.
+//! @return SFS_ERROR File could not be read, error holds the reason.
 //-----------------------------------------------------------------------------
 
-virtual int            getMmap(void **Addr, off_t &Size) = 0;
+virtual int            pgWrite(XrdSfsAio *aioparm, bool verify=true);
 
 //-----------------------------------------------------------------------------
 //! Preread file blocks into the file system cache.
@@ -563,7 +581,7 @@ virtual XrdSfsXferSize read(XrdSfsFileOffset   offset,
                             XrdSfsXferSize     size) = 0;
 
 //-----------------------------------------------------------------------------
-//! Read file bytes using asynchrnous I/O.
+//! Read file bytes using asynchronous I/O.
 //!
 //! @param  aioparm - Pointer to async I/O object controlling the I/O.
 //!
@@ -571,7 +589,7 @@ virtual XrdSfsXferSize read(XrdSfsFileOffset   offset,
 //! @return SFS_ERROR File could not be read, error holds the reason.
 //-----------------------------------------------------------------------------
 
-virtual XrdSfsXferSize read(XrdSfsAio *aioparm) = 0;
+virtual int            read(XrdSfsAio *aioparm) = 0;
 
 //-----------------------------------------------------------------------------
 //! Given an array of read requests (size rdvCnt), read them from the file
@@ -586,20 +604,7 @@ virtual XrdSfsXferSize read(XrdSfsAio *aioparm) = 0;
 //-----------------------------------------------------------------------------
 
 virtual XrdSfsXferSize readv(XrdOucIOVec      *readV,
-                             int               rdvCnt)
-                            {XrdSfsXferSize rdsz, totbytes = 0;
-                             for (int i = 0; i < rdvCnt; i++)
-                                 {rdsz = read(readV[i].offset,
-                                              readV[i].data, readV[i].size);
-                                  if (rdsz != readV[i].size)
-                                     {if (rdsz < 0) return rdsz;
-                                      error.setErrInfo(ESPIPE,"read past eof");
-                                      return SFS_ERROR;
-                                     }
-                                  totbytes += rdsz;
-                                 }
-                             return totbytes;
-                            }
+                             int               rdvCnt);
 
 //-----------------------------------------------------------------------------
 //! Send file bytes via a XrdSfsDio sendfile object to a client (optional).
@@ -637,7 +642,7 @@ virtual XrdSfsXferSize write(XrdSfsFileOffset  offset,
                              XrdSfsXferSize    size) = 0;
 
 //-----------------------------------------------------------------------------
-//! Write file bytes using asynchrnous I/O.
+//! Write file bytes using asynchronous I/O.
 //!
 //! @param  aioparm - Pointer to async I/O object controlling the I/O.
 //!
@@ -660,20 +665,7 @@ virtual int            write(XrdSfsAio *aioparm) = 0;
 //-----------------------------------------------------------------------------
 
 virtual XrdSfsXferSize writev(XrdOucIOVec      *writeV,
-                              int               wdvCnt)
-                             {XrdSfsXferSize wrsz, totbytes = 0;
-                              for (int i = 0; i < wdvCnt; i++)
-                                  {wrsz = write(writeV[i].offset,
-                                                writeV[i].data, writeV[i].size);
-                                   if (wrsz != writeV[i].size)
-                                      {if (wrsz < 0) return wrsz;
-                                      error.setErrInfo(ESPIPE,"write past eof");
-                                      return SFS_ERROR;
-                                     }
-                                  totbytes += wrsz;
-                                 }
-                             return totbytes;
-                            }
+                              int               wdvCnt);
 
 //-----------------------------------------------------------------------------
 //! Return state information on the file.
@@ -963,6 +955,30 @@ virtual void           EnvInfo(XrdOucEnv *envP)
 }
 
 //-----------------------------------------------------------------------------
+//! Return directory/file existence information (short stat).
+//!
+//! @param  path   - Pointer to the path of the file/directory in question.
+//! @param  eFlag  - Where the results are to be returned.
+//! @param  eInfo  - The object where error info is to be returned.
+//! @param  client - Client's identify (see common description).
+//! @param  opaque - Path's CGI information (see common description).
+//!
+//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
+//!         When SFS_OK is returned, eFlag must be properly set, as follows:
+//!         XrdSfsFileExistNo            - path does not exist
+//!         XrdSfsFileExistIsFile        - path refers to an  online file
+//!         XrdSfsFileExistIsDirectory   - path refers to an  online directory
+//!         XrdSfsFileExistIsOffline     - path refers to an offline file
+//!         XrdSfsFileExistIsOther       - path is neither a file nor directory
+//-----------------------------------------------------------------------------
+
+virtual int            exists(const char                *path,
+                                    XrdSfsFileExistence &eFlag,
+                                    XrdOucErrInfo       &eInfo,
+                              const XrdSecEntity        *client = 0,
+                              const char                *opaque = 0) = 0;
+
+//-----------------------------------------------------------------------------
 //! Perform a filesystem extended attribute function.
 //!
 //! @param  faReq  - pointer to the request object (see XrdSfsFAttr.hh). If the
@@ -1058,6 +1074,28 @@ virtual int            fsctl(const int               cmd,
                              const XrdSecEntity     *client = 0) = 0;
 
 //-----------------------------------------------------------------------------
+//! Return statistical information.
+//!
+//! @param  buff   - Pointer to the buffer where results are to be returned.
+//!                  Statistics should be in standard XML format. If buff is
+//!                  nil then only maximum size information is wanted.
+//! @param  blen   - The length available in buff.
+//!
+//! @return Number of bytes placed in buff. When buff is nil, the maximum
+//!         number of bytes that could have been placed in buff.
+//-----------------------------------------------------------------------------
+
+virtual int            getStats(char *buff, int blen) = 0;
+
+//-----------------------------------------------------------------------------
+//! Get version string.
+//!
+//! @return The version string. Normally this is the XrdVERSION value.
+//-----------------------------------------------------------------------------
+
+virtual const char    *getVersion() = 0;
+
+//-----------------------------------------------------------------------------
 //! Perform a third party file transfer or cancel one.
 //!
 //! @param  gpAct  - What to do as one of the enums listed below.
@@ -1083,52 +1121,6 @@ virtual int            gpFile(      gpfFunc          &gpAct,
                               eInfo.setErrInfo(ENOTSUP, "Not supported.");
                               return SFS_ERROR;
                              }
-
-//-----------------------------------------------------------------------------
-//! Return statistical information.
-//!
-//! @param  buff   - Pointer to the buffer where results are to be returned.
-//!                  Statistics should be in standard XML format. If buff is
-//!                  nil then only maximum size information is wanted.
-//! @param  blen   - The length available in buff.
-//!
-//! @return Number of bytes placed in buff. When buff is nil, the maximum
-//!         number of bytes that could have been placed in buff.
-//-----------------------------------------------------------------------------
-
-virtual int            getStats(char *buff, int blen) = 0;
-
-//-----------------------------------------------------------------------------
-//! Get version string.
-//!
-//! @return The version string. Normally this is the XrdVERSION value.
-//-----------------------------------------------------------------------------
-
-virtual const char    *getVersion() = 0;
-
-//-----------------------------------------------------------------------------
-//! Return directory/file existence information (short stat).
-//!
-//! @param  path   - Pointer to the path of the file/directory in question.
-//! @param  eFlag  - Where the results are to be returned.
-//! @param  eInfo  - The object where error info is to be returned.
-//! @param  client - Client's identify (see common description).
-//! @param  opaque - Path's CGI information (see common description).
-//!
-//! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
-//!         When SFS_OK is returned, eFlag must be properly set, as follows:
-//!         XrdSfsFileExistNo            - path does not exist
-//!         XrdSfsFileExistIsFile        - path refers to an  online file
-//!         XrdSfsFileExistIsDirectory   - path refers to an  online directory
-//!         XrdSfsFileExistIsOffline     - path refers to an offline file
-//!         XrdSfsFileExistIsOther       - path is neither a file nor directory
-//-----------------------------------------------------------------------------
-
-virtual int            exists(const char                *path,
-                                    XrdSfsFileExistence &eFlag,
-                                    XrdOucErrInfo       &eInfo,
-                              const XrdSecEntity        *client = 0,
-                              const char                *opaque = 0) = 0;
 
 //-----------------------------------------------------------------------------
 //! Create a directory.
