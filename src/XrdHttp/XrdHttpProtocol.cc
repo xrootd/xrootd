@@ -1657,12 +1657,11 @@ int XrdHttpProtocol::InitSecurity() {
 
 
   const SSL_METHOD *meth;
-  
-  
+
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
   meth = TLS_method();
-  eDest.Say(" Using TLS");
-#elif HAVE_TLS
+  eDest.Say(" Using TLS_method");
+#elif defined (HAVE_TLS)
   meth = TLS_method();
   eDest.Say(" Using TLS");
 #elif defined (HAVE_TLS12)
