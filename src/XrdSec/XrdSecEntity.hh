@@ -86,7 +86,10 @@ const    char   *tident;                  //!< Trace identifier always preset
          gid_t   gid;                     //!< Unix gid or 0 if none
          void   *future[3];               //!< Reserved for future expansion
 
-//------------------------------------------------------------------------------
+   // MT_MERGE -- added just to get it to compile
+   int ueid;
+
+   //------------------------------------------------------------------------------
 //! Add an attribute object to this entity.
 //!
 //! @param  attr    - Reference to the attribute object.
