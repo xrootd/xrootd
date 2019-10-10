@@ -67,7 +67,7 @@
 // "strings <objectfile> | grep '@V:'".
 //
 struct XrdVersionInfo {int vNum; const char vOpt; const char vPfx[3];\
-                                 const char vStr[40];};
+                                 const char vStr[64];};
 
 // Macro to define the suffix to use when generating the extern version symbol.
 // This is used by SysPlugin. We cannot use it here as cpp does not expand the
