@@ -222,7 +222,7 @@ namespace XrdCl
     {
       if( it->second.second <= now )
       {
-        it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout,
+        uint8_t act = it->second.first->OnStreamEvent( IncomingMsgHandler::Timeout,
                                          Status( stError, errOperationExpired ) );
         auto next = it; ++next;
         if( act & IncomingMsgHandler::RemoveHandler )

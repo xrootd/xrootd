@@ -204,7 +204,7 @@ namespace XrdCl
       protection(0),
       protRespBody(0),
       protRespSize(0),
-      strmSelector(0)
+      strmSelector(0),
       encrypted(false)
     {
       sidManager = new SIDManager();

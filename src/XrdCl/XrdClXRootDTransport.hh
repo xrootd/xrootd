@@ -234,6 +234,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual Status GetSignature( Message *toSign, Message *&sign,
                                    AnyObject &channelData );
+
+      //------------------------------------------------------------------------
+      //! Get signature for given message
+      //------------------------------------------------------------------------
+      virtual Status GetSignature( Message *toSign, Message *&sign,
+                                   XRootDChannelInfo *info );
+
       //------------------------------------------------------------------------
       //! Wait until the program can safely exit
       //------------------------------------------------------------------------

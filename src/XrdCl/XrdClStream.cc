@@ -34,6 +34,7 @@
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdClAsyncSocketHandler.hh"
 
 #include <sys/types.h>
