@@ -577,6 +577,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
         }
 
         delete f;
+     }
    }
 }
 
@@ -807,7 +808,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
 {
    XrdCl::URL url(curl);
    std::string f_name = url.GetPath();
-   std::string i_name = f_name + Info::m_infoExtension;
+   std::string i_name = f_name + Info::s_infoExtension;
 
    // Do not allow write access.
    if (oflags & (O_WRONLY | O_RDWR))

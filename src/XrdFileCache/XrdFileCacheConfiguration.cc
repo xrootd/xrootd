@@ -244,7 +244,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       }
       if (sP.Total < 10ll << 20)
       {
-         m_log.Emsg("Cache::ConfigParameters()", "available data space is less than 10 MB (can be due to a mistake in oss.localroot directive) for space ", m_configuration.m_d         return false;
+         m_log.Emsg("Cache::ConfigParameters()", "available data space is less than 10 MB (can be due to a mistake in oss.localroot directive) for space ",
+                    m_configuration.m_data_space.c_str());
+                    return false;
       }
 
       m_configuration.m_diskTotalSpace = sP.Total;
