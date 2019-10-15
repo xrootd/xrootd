@@ -198,7 +198,7 @@ void XrdSecEntity::Reset(bool isnew,  const char *spV, const char *dpV)
    moninfo = 0;
    creds = 0;
    credslen = 0;
-   entityID = 0;
+   ueid  = 0;
    addrInfo = 0;
    tident = 0;
    sessvar = 0;

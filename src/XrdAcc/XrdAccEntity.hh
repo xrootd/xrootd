@@ -98,10 +98,10 @@ struct EntityAttr
 
 std::vector<EntityAttr> attrVec;
 
-char *vorgInfo;
-char *roleInfo;
-char *grpsInfo;
-int   ueid;
+char          *vorgInfo;
+char          *roleInfo;
+char          *grpsInfo;
+unsigned int   ueid;
 };
   
 /******************************************************************************/

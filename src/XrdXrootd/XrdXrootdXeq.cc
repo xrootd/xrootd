@@ -205,7 +205,7 @@ int XrdXrootdProtocol::do_Auth()
 //
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
-       AuthProt->Entity.ueid = genUEID();
+       AuthProt->Entity.ueid = mySID;
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
        if (DHS) Protect = DHS->New4Server(*AuthProt,clientPV&XrdOucEI::uVMask);
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
@@ -3697,7 +3697,7 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 
 // Assign unique identifier to the final SecEntity object
 //
-   Client->entityID = mySID;
+   Client->ueid = mySID;
    return true;
 }
 

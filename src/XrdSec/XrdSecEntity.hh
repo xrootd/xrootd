@@ -76,7 +76,7 @@ public:
          char   *moninfo;                 //!< Information for monitoring
          char   *creds;                   //!< Raw entity credentials or cert
          int     credslen;                //!< Length of the 'creds' data
-unsigned int     entityID;                //!< Unique ID of entity instance
+unsigned int     ueid;                    //!< Unique ID of entity instance
 XrdNetAddrInfo  *addrInfo;                //!< Entity's connection details
 const    char   *tident;                  //!< Trace identifier always preset
          void   *sessvar;                 //!< Plugin settable storage pointer,
@@ -86,10 +86,7 @@ const    char   *tident;                  //!< Trace identifier always preset
          gid_t   gid;                     //!< Unix gid or 0 if none
          void   *future[3];               //!< Reserved for future expansion
 
-   // MT_MERGE -- added just to get it to compile
-   int ueid;
-
-   //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Add an attribute object to this entity.
 //!
 //! @param  attr    - Reference to the attribute object.
