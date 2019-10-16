@@ -333,25 +333,35 @@ namespace XrdCl
     // Check if we can open the source. Note in TPC-lite scenario it is optional
     // for this step to be successful.
     //--------------------------------------------------------------------------
-    File          sourceFile;
+    File           sourceFile;
+    XRootDStatus   st;
+    URL            sourceURL = source;
+    URL::ParamsMap params;
+
     // set WriteRecovery property
     std::string value;
     DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
     sourceFile.SetProperty( "ReadRecovery", value );
 
-    XRootDStatus  st;
-    URL           sourceURL = source;
-
     // save the original opaque parameter list as specified by the user for later
     const URL::ParamsMap &srcparams = sourceURL.GetParams();
 
-    URL::ParamsMap params = sourceURL.GetParams();
-    params["tpc.stage"] = "placement";
-    sourceURL.SetParams( params );
-    log->Debug( UtilityMsg, "Trying to open %s for reading",
-                sourceURL.GetURL().c_str() );
-    st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read, Access::None,
-                          timeLeft );
+    //--------------------------------------------------------------------------
+    // Do the facultative step at source only if the protocol is root/xroot,
+    // otherwise don't bother
+    //--------------------------------------------------------------------------
+    if( sourceURL.GetProtocol() == "root" || sourceURL.GetProtocol() == "xroot" )
+    {
+      params = sourceURL.GetParams();
+      params["tpc.stage"] = "placement";
+      sourceURL.SetParams( params );
+      log->Debug( UtilityMsg, "Trying to open %s for reading",
+                  sourceURL.GetURL().c_str() );
+      st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read, Access::None,
+                            timeLeft );
+    }
+    else
+      st = XRootDStatus( stError, errNotSupported );
 
     if( st.IsOK() )
     {
@@ -387,6 +397,7 @@ namespace XrdCl
         return st;
       }
 
+      tpcSource   = sourceURL;
       tpcLiteOnly = true;
     }
 
