@@ -135,15 +135,18 @@ struct tm *tmp;
     return buff;
 }
 
-int genUEID()
-{
-    static XrdSysMutex ueidMutex;
-    static int ueidVal = 1;
-    AtomicBeg(ueidMutex);
-    int n = AtomicInc(ueidVal);
-    AtomicEnd(ueidMutex);
-    return n;
-}
+// comment out genUEID as it is not used
+//
+
+//int genUEID()
+//{
+//    static XrdSysMutex ueidMutex;
+//    static int ueidVal = 1;
+//    AtomicBeg(ueidMutex);
+//    int n = AtomicInc(ueidVal);
+//    AtomicEnd(ueidMutex);
+//    return n;
+//}
 
 // Startup time
 //          012345670123456

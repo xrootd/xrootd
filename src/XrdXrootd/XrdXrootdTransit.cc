@@ -258,7 +258,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    Response.Set(linkP);
    Response.Set(this);
    strcpy(Entity.prot, "host");
-   strncpy(Entity.pros, protP, sizeof(Entity.pros));
+   strlcpy(Entity.pros, protP, sizeof(Entity.pros));
    Entity.host = (char *)linkP->Host();
 
 // Develop a trace identifier
