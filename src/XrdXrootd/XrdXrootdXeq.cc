@@ -1015,16 +1015,13 @@ int XrdXrootdProtocol::do_Login()
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6'));
            Entity.moninfo = strdup(apBuff);
           }
-       // MT-REBASE - if to be removed, also knock out char *rnumb and its print-out
-       //             into abBuff
-       // if (rnumb)
-       //    {int majr, minr, pchr;
-       //     if (sscanf(rnumb, "v%d.%d.%d", &majr, &minr, &pchr) == 3)
-       //        {clientRN = (majr<<16) | ((minr<<8) | pchr);
-       //         if (majr > 4 || (majr == 4 && minr >= 8))
-       //            clientPV |= XrdOucEI::u48pls; //TODO: Temporary hack.
-       //        } else if (sscanf(rnumb, "v%d-%*x", &majr) == 1) clientRN = -1;
-       //    }
+
+       if (rnumb)
+          {int majr, minr, pchr;
+           if (sscanf(rnumb, "v%d.%d.%d", &majr, &minr, &pchr) == 3)
+              clientRN = (majr<<16) | ((minr<<8) | pchr);
+              else if (sscanf(rnumb, "v%d-%*x", &majr) == 1) clientRN = -1;
+          }
        if (appXQ) AppName = strdup(appXQ);
       }
 
@@ -3698,6 +3695,7 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 // Assign unique identifier to the final SecEntity object
 //
    Client->ueid = mySID;
+   strcpy(Client->pros, "xroot");
    return true;
 }
 

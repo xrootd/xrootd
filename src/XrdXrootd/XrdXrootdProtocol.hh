@@ -375,9 +375,9 @@ XrdLink                   *Link;
 XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdXrootdMonitor::User     Monitor;
-int                        clientPV;
-int                        clientRN;
-int                        reserved; // In R5 clientPV will include clientRN
+int                        clientPV; // Protocol version + capabilities
+int                        clientRN; // Release as maj.min.patch (1 byte each).
+int                        reserved;
 short                      rdType;
 char                       Status;
 unsigned char              CapVer;

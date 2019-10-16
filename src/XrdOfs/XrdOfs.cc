@@ -651,9 +651,8 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    if (XrdOfsFS->OssIsProxy)
       {if (myTPC) open_flag |= O_NOFOLLOW;
-       if (error.getUCap() & XrdOucEI::u48pls
-       || (error.getUCap() & XrdOucEI::uUrlOK &&
-           error.getUCap() & XrdOucEI::uLclF)) open_flag |= O_DIRECT;
+       if (error.getUCap() & XrdOucEI::uUrlOK &&
+           error.getUCap() & XrdOucEI::uLclF) open_flag |= O_DIRECT;
       }
 
 // Open the file
