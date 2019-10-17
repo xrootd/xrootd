@@ -47,6 +47,8 @@
 
 #include "XrdNet/XrdNetUtils.hh"
 
+#include "XrdSfs/XrdSfsFlags.hh"
+
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
@@ -276,10 +278,12 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                {prepAuth = ofsConfig->PrepAuth();
                 if (EnvInfo) EnvInfo->Put("XRD_PrepHandler", "1");
                    else XrdOucEnv::Export("XRD_PrepHandler", "1");
+                myFeatures |= XrdSfs::hasPRP2;
                }
             if (Options & Authorize)
                {ofsConfig->Plugin(Authorization);
                 XrdOfsTPC::Init(Authorization);
+                myFeatures |= XrdSfs::hasAUTZ;
                }
            }
 
@@ -332,11 +336,17 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
    if (getenv("XRDXROOTD_PROXY"))
       {OssIsProxy = 1;
        CksPfn = false;
+       myFeatures |= XrdSfs::hasPRXY;
       }
 
 // Setup statistical monitoring
 //
    OfsStats.setRole(myRole);
+
+// Indicate any other features we may have. Not ethat we use the default
+// implementation of pgRead and pgWrite which means we support it.
+//
+   myFeatures |= XrdSfs::hasPGWR;
 
 // Display final configuration
 //
@@ -530,6 +540,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 
 // All done
 //
+   if (!NoGo) myFeatures |= XrdSfs::hasPOSC;
    return NoGo;
 }
 

@@ -147,6 +147,7 @@ XrdOfs::XrdOfs()
    myRole        = strdup("server");
    OssIsProxy    = 0;
    ossRW         =' ';
+   myFeatures    = 0;
 
 // Obtain port number we will be using. Note that the constructor must occur
 // after the port number is known (i.e., this cannot be a global static).

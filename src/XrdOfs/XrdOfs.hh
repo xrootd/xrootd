@@ -252,6 +252,8 @@ public:
                                    XrdOucErrInfo    &eInfo,
                              const XrdSecEntity     *client = 0);
 
+        uint64_t       Features() {return myFeatures;}
+
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
@@ -427,7 +429,7 @@ bool              prepAuth;       // Prepare requires authorization
 char              OssIsProxy;     // !0 if we detect the oss plugin is a proxy
 char              myRType[4];     // Role type for consistency with the cms
 
-XrdVersionInfo   *myVersion;      // Version number compiled against
+uint64_t          myFeatures;     // Features we support
 
 int               usxMaxNsz;      // Maximum length of attribute name
 int               usxMaxVsz;      // Maximum length of attribute value

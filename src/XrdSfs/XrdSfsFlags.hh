@@ -38,22 +38,22 @@
 //! plug-ins to passthrough features and special attributes of regular files.
 //-----------------------------------------------------------------------------
 
-namespace Sfs
+namespace XrdSfs
 {
 //! Feature: Authorization
 static const uint64_t hasAUTZ = 0x0000000000000001LL;
 
-//! Feature: CheckSum On Close
-static const uint64_t hasCSOC = 0x0000000000000002LL;
-
 //! Feature: Persist On Successful Close
-static const uint64_t hasPOSC = 0x0000000000000004LL;
+static const uint64_t hasPOSC = 0x0000000000000002LL;
 
 //! Feature: Prepare Handler Version 2 (different calling conventions)
-static const uint64_t hasPRP2 = 0x0000000000000008LL;
+static const uint64_t hasPRP2 = 0x0000000000000004LL;
 
 //! Feature: Proxy Server
-static const uint64_t hasPRXY = 0x0000000000000010LL;
+static const uint64_t hasPRXY = 0x0000000000000008LL;
+
+//! Feature: pgRead & pgWrite
+static const uint64_t hasPGWR = 0x0000000000000010LL;
 }
 
 //-----------------------------------------------------------------------------
