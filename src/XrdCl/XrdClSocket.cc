@@ -689,13 +689,14 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status Socket::Cork()
   {
+#if defined(TCP_CORK) // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
     if( pCorked ) return Status();
 
     int state = 1;
     int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
     if( rc != 0 )
       return Status( stFatal, errSocketOptError, errno );
-
+#endif
     pCorked = true;
     return Status();
   }
@@ -705,13 +706,14 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status Socket::Uncork()
   {
+#if defined(TCP_CORK) // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
     if( !pCorked ) return Status();
 
     int state = 0;
     int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
     if( rc != 0 )
       return Status( stFatal, errSocketOptError, errno );
-
+#endif
     pCorked = false;
     return Status();
   }

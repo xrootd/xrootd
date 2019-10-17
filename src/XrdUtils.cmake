@@ -218,6 +218,7 @@ target_link_libraries(
   pthread
   ${CMAKE_DL_LIBS}
   ssl
+  crypto
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )

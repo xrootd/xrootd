@@ -69,7 +69,12 @@ namespace XrdCl
   const int DefaultMetalinkProcessing      = 1;
   const int DefaultLocalMetalinkFile       = 0;
   const int DefaultXCpBlockSize            = 134217728; // DefaultCPChunkSize * DefaultCPParallelChunks * 2
+#ifdef __APPLE__
+  // we don't have corking on osx so we cannot turn of nagle
+  const int DefaultNoDelay                 = 0;
+#else
   const int DefaultNoDelay                 = 1;
+#endif
   const int DefaultAioSignal               = 0;
   const int DefaultPreferIPv4              = 0;
   const int DefaultMaxMetalinkWait         = 60;

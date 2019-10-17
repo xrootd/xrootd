@@ -42,6 +42,8 @@
 //!       use addrInfo->Name(), this is required for any hostname comparisons.
 //------------------------------------------------------------------------------
 
+#include <sys/types.h>
+
 #include <string>
 #include <vector>
 
