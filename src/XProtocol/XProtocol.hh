@@ -90,10 +90,9 @@
 #define kXR_attrSuper 0x00000400
 
 #define kXR_anongpf   0x00800000
-#define kXR_supgetf   0x00400000
-#define kXR_supputf   0x00200000
-#define kXR_suppgwr   0x00100000
-#define kXR_supcsoc   0x00080000
+#define kXR_supckp    0x00400000
+#define kXR_supgpf    0x00200000
+#define kXR_suppgrw   0x00100000
 
 #define kXR_haveTLS   0x80000000
 #define kXR_gotoTLS   0x40000000
