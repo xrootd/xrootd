@@ -38,4 +38,5 @@ Prerelease Notes
   * **[Server]** Improve SFS wrapping and add "how to" documentation.
   * **[Server]** Add appname to SecEntity attribute set.
   * **[Server]** Assign a unique ID to each SecEntity instance.
+  * **[Server]** Make cksio the default for the ofs.osslib directive.
 

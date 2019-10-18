@@ -90,7 +90,7 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
                                XrdSysError *errP, XrdVersionInfo *verP)
                  : autPI(0), cksPI(0), cmsPI(0), prpPI(0), ossPI(0), urVer(verP),
                    Config(cfgP),  Eroute(errP), CksConfig(0), ConfigFN(cfn),
-                   CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(false),
+                   CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(true),
                    prpAuth(true), Loaded(false), LoadOK(false), cksLcl(false)
 {
    int rc;
@@ -483,6 +483,8 @@ bool XrdOfsConfigPI::Parse(TheLib what)
 
    Purpose:  To parse the directive: xattrlib {osslib | [++] <path>} [<parms>]
 
+             ++        stack this plugin.
+             osslib    The plugin resides in the osslib plugin.
              <path>    the path of the xattr library to be used.
              <parms>   optional parms to be passed
 
@@ -517,7 +519,11 @@ bool XrdOfsConfigPI::ParseAtrLib()
    Purpose:  To parse the directive: osslib [++ | <opts>] <path> [<parms>]
              <opts>: [+cksio] [+xattr] [<opts>]
 
-             +cksio    use the oss plugin for checkum I/O.
+             +cksio    use the oss plugin for checkum I/O. This is now the
+                       default and is kept (not documented) for backward
+                       compatability.
+             +mmapio   use memory mapping i/o (previously the default). This
+                       is also not documented but here just in case.
              +xattr    the library contains the xattr plugin.
              <path>    the path of the oss library to be used.
              <parms>   optional parms to be passed
@@ -536,7 +542,7 @@ bool XrdOfsConfigPI::ParseOssLib()
 
 // Reset to defaults
 //
-    ossCksio = false;
+    ossCksio = true;
     ossXAttr = false;
     if (LP[oI].opts) {free(LP[oI].opts); LP[oI].opts = 0;}
     *oBuff = 0;
@@ -545,9 +551,11 @@ bool XrdOfsConfigPI::ParseOssLib()
 //
    while(val)
         {     if (!strcmp("+cksio",  val))
-                 {if (!ossCksio) strcat(oBuff, "+cksio "); ossCksio = true;}
+                 {if (!ossCksio) strcat(oBuff, "+cksio  "); ossCksio = true;}
+              if (!strcmp("+mmapio", val))
+                 {if ( ossCksio) strcat(oBuff, "+mmapio "); ossCksio = false;}
          else if (!strcmp("+xattr",  val))
-                 {if (!ossXAttr) strcat(oBuff, "+xattr "); ossXAttr = true;}
+                 {if (!ossXAttr) strcat(oBuff, "+xattr ");  ossXAttr = true;}
          else break;
          val = Config->GetWord();
         }
@@ -569,9 +577,10 @@ bool XrdOfsConfigPI::ParseOssLib()
   
 /* Function: ParsePrpLib
 
-   Purpose:  To parse the directive: preplib [<opts>] <path> [<parms>]
+   Purpose:  To parse the directive: preplib [++ | [<opts>]} <path> [<parms>]
              <opts>: [+noauth]
 
+             ++        Stack this plugin.
              +noauth   do not apply authorization to path list.
              <path>    the path of the prepare library to be used.
              <parms>   optional parms to be passed
