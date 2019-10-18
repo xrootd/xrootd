@@ -87,9 +87,8 @@ virtual void         Delete() {delete this;}
 //! Modify the above to your particuar needs but gaurd the call!
 //!
 //! @param  newreq  A reference to a pointer where the new request, if needed,
-//!                 will be placed. The new request will consist of a either a
-//!                 kXR_sigver or kXR_decrypt request followed by hash if the
-//!                 request is kXR_sigver. The request buffer must be freed
+//!                 will be placed. The new request will consist of a kXR_sigver
+//!                 request followed by hash. The request buffer must be freed
 //!                 using free() when it is no longer needed.
 //! @param  thereq  Reference to the client request header/body that needs to
 //!                 be secured. The request must be in network byte order.
@@ -110,10 +109,9 @@ virtual int          Secure(SecurityRequest *&newreq,
 //------------------------------------------------------------------------------
 //! Verify that a request was properly secured.
 //!
-//! @param  secreq  A reference to the security request (kxr_sigver or
-//!                 kXR_decrypt) followed by whatever data was sent (normally
-//!                 an encrypted verification hash for kXR_sigver). All but
-//!                 the request code must be in network byte order.
+//! @param  secreq  A reference to the kXR_sigver request followed by whatever
+//!                 data was sent (normally an encrypted verification hash).
+//!                 All but the request code must be in network byte order.
 //! @param  thereq  Reference to the client request header/body that needs to
 //!                 be verified. The request must be in network byte order.
 //! @aparam thedata The request data whose length resides in theReq.dlen.

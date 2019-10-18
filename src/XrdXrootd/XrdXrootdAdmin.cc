@@ -383,7 +383,7 @@ int XrdXrootdAdmin::do_Lsd()
          if ((xp = lp->getProtocol())
          &&  (pp = dynamic_cast<XrdXrootdProtocol *>(xp)))
             {cver = int(pp->CapVer);
-             ctyp = (pp->Status & XRD_ADMINUSER ? 'a' : 'u');
+             ctyp = 'u';
              conn = static_cast<long long>(lp->timeCon());
              mm = monit;
              if (pp->Monitor.Files()) *mm++ = 'f';

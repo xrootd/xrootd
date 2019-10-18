@@ -101,14 +101,13 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
 
 const char *reqNames[kXR_REQFENCE-kXR_auth] =
              {"auth",        "query",       "chmod",       "close",
-              "dirlist",     "getfile",     "protocol",    "login",
+              "dirlist",     "gpfile",      "protocol",    "login",
               "mkdir",       "mv",          "open",        "ping",
-              "putfile",     "read",        "rm",          "rmdir",
+              "chkpoint",    "read",        "rm",          "rmdir",
               "sync",        "stat",        "set",         "write",
-              "admin",       "prepare",     "statx",       "endsess",
-              "bind",        "readv",       "verifyw",     "locate",
-              "truncate",    "sigver",      "decrypt",     "writev",
-              "fattr"
+              "fattr",       "prepare",     "statx",       "endsess",
+              "bind",        "readv",       "pgwrite",     "locate",
+              "truncate",    "sigver",      "pgread",      "writev"
              };
 
 // Following value is used to determine if the error or request code is

@@ -490,8 +490,7 @@ int XrdXrootdProtocol::Process2()
 //
    switch(Request.header.requestid)
          {case kXR_open:      return do_Open();
-          case kXR_getfile:   return do_Getfile();
-          case kXR_putfile:   return do_Putfile();
+          case kXR_gpfile:    return do_gpFile();
           default:            break;
          }
 
@@ -502,9 +501,7 @@ int XrdXrootdProtocol::Process2()
 // Now process whatever we have
 //
    switch(Request.header.requestid)
-         {case kXR_admin:     if (Status & XRD_ADMINUSER) return do_Admin();
-                                 else break;
-          case kXR_chmod:     return do_Chmod();
+         {case kXR_chmod:     return do_Chmod();
           case kXR_dirlist:   return do_Dirlist();
           case kXR_fattr:     return do_FAttr();
           case kXR_locate:    return do_Locate();

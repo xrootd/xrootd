@@ -122,19 +122,19 @@ enum XReqErrorType {
 //______________________________________________
 // 
 enum XRequestTypes {
-   kXR_auth    =  3000,
+   kXR_auth    =   3000,
    kXR_query,   // 3001
    kXR_chmod,   // 3002
    kXR_close,   // 3003
    kXR_dirlist, // 3004
-   kXR_getfile, // 3005
+   kXR_gpfile,  // 3005 was kXR_getfile
    kXR_protocol,// 3006
    kXR_login,   // 3007
    kXR_mkdir,   // 3008
    kXR_mv,      // 3009
    kXR_open,    // 3010
    kXR_ping,    // 3011
-   kXR_putfile, // 3012
+   kXR_chkpoint,// 3012 was kXR_putfile
    kXR_read,    // 3013
    kXR_rm,      // 3014
    kXR_rmdir,   // 3015
@@ -142,19 +142,18 @@ enum XRequestTypes {
    kXR_stat,    // 3017
    kXR_set,     // 3018
    kXR_write,   // 3019
-   kXR_admin,   // 3020
+   kXR_fattr,   // 3020 was kXR_admin
    kXR_prepare, // 3021
    kXR_statx,   // 3022
    kXR_endsess, // 3023
    kXR_bind,    // 3024
    kXR_readv,   // 3025
-   kXR_verifyw, // 3026
+   kXR_pgwrite, // 3026 was kXR_verifyw
    kXR_locate,  // 3027
    kXR_truncate,// 3028
    kXR_sigver,  // 3029
-   kXR_decrypt, // 3030
+   kXR_pgread,  // 3030 was kXR_decrypt
    kXR_writev,  // 3031
-   kXR_fattr,   // 3032
    kXR_REQFENCE // Always last valid request code +1
 };
 
@@ -202,7 +201,8 @@ enum XLoginVersion {
    kXR_ver001 = 1,  // Generally implemented 2005 protocol
    kXR_ver002 = 2,  // Same as 1 but adds asyncresp recognition
    kXR_ver003 = 3,  // The 2011-2012 rewritten client
-   kXR_ver004 = 4   // The 2016 sign-capable   client
+   kXR_ver004 = 4,  // The 2016 sign-capable   client
+   kXR_ver005 = 5   // The 2019 TLS-capable    client
 };
 
 enum XStatRequestOption {
@@ -265,11 +265,6 @@ enum XVerifyType {
    kXR_crc32  = 1
 };
 
-enum XLogonType {
-   kXR_useruser  = 0,
-   kXR_useradmin = 1
-};
-
 enum XPrepRequestOption {
    kXR_cancel = 1,
    kXR_notify = 2,
@@ -283,14 +278,13 @@ enum XPrepRequestOption {
    kXR_evict  = 0x0001 // optionsX: file no longer useful
 };
 
-// Version used for kXR_decrypt and kXR_sigver and is set in
-// Set in SigverRequest::version, DecryptRequest::version and
+// Version used for kXR_sigver and is set in SigverRequest::version,
 // ServerResponseReqs_Protocol::secver
 #define kXR_secver_0  0
 
-// Flags for kXR_decrypt and kXR_sigver
+// Flags for kXR_sigver
 enum XSecFlags {
-   kXR_nodata   = 1  // Request payload was not hashed or encrypted
+   kXR_nodata   = 1  // Request payload was not hashed
 };
 
 // Cryptography used for kXR_sigver SigverRequest::crypto
@@ -347,7 +341,8 @@ enum XActionCode {
    kXR_asyncav,   // 5005
    kXR_asynunav,  // 5006
    kXR_asyncgo,   // 5007
-   kXR_asynresp   // 5008
+   kXR_asynresp,  // 5008
+   kXR_asyninfo   // 5009
 };
 
 //_______________________________________________
@@ -523,7 +518,7 @@ struct ClientLoginRequest {
    kXR_char reserved;
    kXR_char ability;       // See XLoginAbility enum flags
    kXR_char capver[1];     // See XLoginCapVer  enum flags
-   kXR_char role[1];
+   kXR_char reserved2;
    kXR_int32  dlen;
 };
 struct ClientMkdirRequest {

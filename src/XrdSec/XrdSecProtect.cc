@@ -106,25 +106,25 @@ namespace
 
 XrdSecVec secTable(0,
 //             Compatible      Standard        Intense         Pedantic
-kXR_admin,     kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
 kXR_auth,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
 kXR_bind,      kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
 kXR_chmod,     kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_chkpoint,  kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded,
 kXR_close,     kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
-kXR_decrypt,   kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
 kXR_dirlist,   kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
 kXR_endsess,   kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
 kXR_fattr,     kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded,
-kXR_getfile,   kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_gpfile,    kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded,
 kXR_locate,    kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
 kXR_login,     kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
 kXR_mkdir,     kXR_signIgnore, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded,
 kXR_mv,        kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
 kXR_open,      kXR_signLikely, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
+kXR_pgread,    kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
+kXR_pgwrite,   kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
 kXR_ping,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
 kXR_prepare,   kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
 kXR_protocol,  kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, 
-kXR_putfile,   kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
 kXR_query,     kXR_signIgnore, kXR_signIgnore, kXR_signLikely, kXR_signNeeded,
 kXR_read,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
 kXR_readv,     kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
@@ -136,7 +136,6 @@ kXR_stat,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
 kXR_statx,     kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
 kXR_sync,      kXR_signIgnore, kXR_signIgnore, kXR_signIgnore, kXR_signNeeded,
 kXR_truncate,  kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, kXR_signNeeded, 
-kXR_verifyw,   kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
 kXR_write,     kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
 0);
 }
@@ -260,7 +259,7 @@ int XrdSecProtect::Secure(SecurityRequest *&newreq,
       {kXR_unt16 reqid = htons(thereq.header.requestid);
        paysize = ntohl(thereq.header.dlen);
        if (!payload) payload = ((char *)&thereq) + sizeof(ClientRequest);
-       if (reqid == kXR_write || reqid == kXR_verifyw) n = (secVerData ? 3 : 2);
+       if (reqid == kXR_write || reqid == kXR_pgwrite) n = (secVerData ? 3 : 2);
           else n = 3;
       }   else n = 2;
 

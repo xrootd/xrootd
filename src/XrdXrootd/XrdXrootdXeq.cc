@@ -155,15 +155,6 @@ static const char *startUP = getTime();
 }
  
 /******************************************************************************/
-/*                              d o _ A d m i n                               */
-/******************************************************************************/
-  
-int XrdXrootdProtocol::do_Admin()
-{
-   return Response.Send(kXR_Unsupported, "admin request is not supported");
-}
-  
-/******************************************************************************/
 /*                               d o _ A u t h                                */
 /******************************************************************************/
   
@@ -784,23 +775,24 @@ int XrdXrootdProtocol::do_Endsess()
 /******************************************************************************/
 
 /******************************************************************************/
-/*                            d o   G e t f i l e                             */
+/*                             d o _ g p F i l e                              */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_Getfile()
+int XrdXrootdProtocol::do_gpFile()
 {
 // int gopts, buffsz;
 
-// Keep Statistics
+// Keep Statistics (TO DO: differentiate get vs put)
 //
    SI->Bump(SI->getfCnt);
+// SI->Bump(SI->putfCnt);
 
-// Check if getfiles need to occur on a TLS connection
+// Check if gpfile need to occur on a TLS connection
 //
-   if ((doTLS & Req_TLSTPC) && !Link->hasTLS() && !Link->hasBridge())
-      return Response.Send(kXR_TLSRequired, "getfile requires TLS");
+   if ((doTLS & Req_TLSGPFile) && !Link->hasTLS() && !Link->hasBridge())
+      return Response.Send(kXR_TLSRequired, "gpfile requires TLS");
 
-   return Response.Send(kXR_Unsupported, "getfile request is not supported");
+   return Response.Send(kXR_Unsupported, "gpfile request is not supported");
 }
 
 /******************************************************************************/
@@ -953,11 +945,6 @@ int XrdXrootdProtocol::do_Login()
 //
    if (addrP->isPrivate()) {clientPV |= XrdOucEI::uPrip; rdType = 1;}
       else rdType = 0;
-
-// Check if this is an admin login
-//
-   if (*(Request.login.role) & (kXR_char)kXR_useradmin)
-      Status = XRD_ADMINUSER;
 
 // Get the security token for this link. We will either get a token, a null
 // string indicating host-only authentication, or a null indicating no
@@ -1824,26 +1811,6 @@ int XrdXrootdProtocol::do_Protocol()
           }
       }
    return rc;
-}
-
-/******************************************************************************/
-/*                            d o _ P u t f i l e                             */
-/******************************************************************************/
-  
-int XrdXrootdProtocol::do_Putfile()
-{
-// int popts, buffsz;
-
-// Keep Statistics
-//
-   SI->Bump(SI->putfCnt);
-
-// Check if putfiles need to occur on a TLS connection
-//
-   if ((doTLS & Req_TLSTPC) && !Link->hasTLS() && !Link->hasBridge())
-      return Response.Send(kXR_TLSRequired, "putfile requires TLS");
-
-   return Response.Send(kXR_Unsupported, "putfile request is not supported");
 }
 
 /******************************************************************************/
@@ -3675,9 +3642,9 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 
 // Format the line
 //
-   sprintf(lBuff, "%s %s %s%s%slogin%s",
+   sprintf(lBuff, "%s %s %s%slogin%s",
                   (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"), ipName,
-                  (Status   & XRD_ADMINUSER   ? "admin " : ""), tMsg, zMsg,
+                  tMsg, zMsg,
                   (xauth                      ? " as"    : ""));
 
 // Document the login

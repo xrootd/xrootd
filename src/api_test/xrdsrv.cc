@@ -418,9 +418,9 @@ int HandleRequest( SocketIO &io, int iterations )
         break;
       }
 
-      case kXR_getfile:
+      case kXR_gpfile:
       {
-        stdio.write(  "Got kXR_getfile!" );
+        stdio.write(  "Got kXR_gpfile!" );
         break;
       }
 
@@ -463,9 +463,9 @@ int HandleRequest( SocketIO &io, int iterations )
         break;
       }
 
-      case kXR_putfile:
+      case kXR_chkpoint:
       {
-        stdio.write( "Got kXR_putfile!" );
+        stdio.write( "Got kXR_chkpoint!" );
         break;
       }
 
@@ -512,9 +512,9 @@ int HandleRequest( SocketIO &io, int iterations )
         break;
       }
 
-      case kXR_admin:
+      case kXR_fattr:
       {
-        stdio.write( "Got kXR_admin!" );
+        stdio.write( "Got kXR_fattr!" );
         break;
       }
 
@@ -549,9 +549,9 @@ int HandleRequest( SocketIO &io, int iterations )
         break;
       }
 
-      case kXR_verifyw:
+      case kXR_pgwrite:
       {
-        stdio.write( "Got kXR_verifyw!" );
+        stdio.write( "Got kXR_pgwrite!" );
         break;
       }
 
@@ -573,9 +573,9 @@ int HandleRequest( SocketIO &io, int iterations )
         break;
       }
 
-      case kXR_decrypt:
+      case kXR_pgread:
       {
-        stdio.write( "Got kXR_decrypt!" );
+        stdio.write( "Got kXR_pgread!" );
         break;
       }
 

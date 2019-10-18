@@ -53,7 +53,6 @@
 
 #define XRD_LOGGEDIN       1
 #define XRD_NEED_AUTH      2
-#define XRD_ADMINUSER      4
 #define XRD_BOUNDPATH      8
 
 #ifndef __GNUC__
@@ -135,7 +134,6 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
               RD_stat,      RD_trunc,   RD_ovld,
               RD_open1,     RD_open2,   RD_open3,   RD_open4,  RD_Num};
 
-       int   do_Admin();
        int   do_Auth();
        int   do_Bind();
        int   do_Chmod();
@@ -146,7 +144,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, char *opaque);
        int   do_Endsess();
        int   do_FAttr();
-       int   do_Getfile();
+       int   do_gpFile();
        int   do_Login();
        int   do_Locate();
        int   do_Mkdir();
@@ -157,7 +155,6 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Ping();
        int   do_Prepare(bool isQuery=false);
        int   do_Protocol();
-       int   do_Putfile();
        int   do_Qconf();
        int   do_Qfh();
        int   do_Qopaque(short);
