@@ -886,6 +886,13 @@ struct ServerResponseBody_Attn {
    char parms[4096]; // Should be sufficient for every use
 };
 
+struct ServerResponseBody_Attn_asyninfo {
+   kXR_int32 actnum;
+   kXR_char  streamid[2];
+   kXR_unt16 reqcode;
+   char data[4092];
+};
+
 struct ServerResponseBody_Attn_asyncrd {
    kXR_int32 actnum;
    kXR_int32 port;
