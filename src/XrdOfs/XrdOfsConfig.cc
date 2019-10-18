@@ -343,11 +343,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    OfsStats.setRole(myRole);
 
-// Indicate any other features we may have. Not ethat we use the default
-// implementation of pgRead and pgWrite which means we support it.
-//
-   myFeatures |= XrdSfs::hasPGWR;
-
 // Display final configuration
 //
    if (!NoGo) Config_Display(Eroute);
