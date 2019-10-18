@@ -297,11 +297,7 @@ virtual const char *FName() = 0;
 //!         SFS_ERROR should be returned with error.code set to ENOTSUP.
 //-----------------------------------------------------------------------------
 
-virtual int         autoStat(struct stat *buf)
-                            {(void)buf;
-                             error.setErrInfo(ENOTSUP, "Not supported.");
-                             return SFS_ERROR;
-                            }
+virtual int         autoStat(struct stat *buf);
 
 //-----------------------------------------------------------------------------
 //! Constructor (user and MonID are the ones passed to newDir()!). This
@@ -404,6 +400,23 @@ virtual int            open(const char                *fileName,
                             const char                *opaque = 0) = 0;
 
 //-----------------------------------------------------------------------------
+//! Create, delete, query, or rollback a file checkpoint.
+//!
+//! @param  act   - The operation to be performed (see cpAct enum below).
+//! @param  range - Portions of the file to be checkpointed.
+//! @param  n     - Number of elements in range.
+//!
+//! @return One of SFS_OK or SFS_ERROR.
+//-----------------------------------------------------------------------------
+
+enum cpAct {cpCreate=0,   //!< Create a checkpoint, one must not be active.
+            cpDelete,     //!< Delete an existing checkpoint
+            cpRestore     //!< Restore an active checkpoint and delete it.
+           };
+
+virtual int            checkpoint(cpAct act, struct iov *range=0, int n=0);
+
+//-----------------------------------------------------------------------------
 //! Close the file.
 //!
 //! @return One of SFS_OK or SFS_ERROR.
@@ -452,11 +465,7 @@ virtual int            fctl(const int               cmd,
 virtual int            fctl(const int               cmd,
                                   int               alen,
                                   const char       *args,
-                            const XrdSecEntity     *client = 0)
-{
-  (void)cmd; (void)alen; (void)args; (void)client;
-  return SFS_OK;
-}
+                            const XrdSecEntity     *client = 0);
 
 //-----------------------------------------------------------------------------
 //! Get the file path.
@@ -620,11 +629,7 @@ virtual XrdSfsXferSize readv(XrdOucIOVec      *readV,
 
 virtual int            SendData(XrdSfsDio         *sfDio,
                                 XrdSfsFileOffset   offset,
-                                XrdSfsXferSize     size)
-{
-  (void)sfDio; (void)offset; (void)size;
-  return SFS_OK;
-}
+                                XrdSfsXferSize     size);
 
 //-----------------------------------------------------------------------------
 //! Write file bytes from a buffer.
@@ -833,8 +838,7 @@ virtual XrdSfsDirectory *newDir(char *user=0, int MonID=0)  = 0;
 //! @return nil    - Insufficient memory to allocate an object.
 //-----------------------------------------------------------------------------
 
-virtual XrdSfsDirectory *newDir(XrdOucErrInfo &eInfo)
-                               {(void)eInfo; return 0;}
+virtual XrdSfsDirectory *newDir(XrdOucErrInfo &eInfo) {(void)eInfo; return 0;}
 
 //-----------------------------------------------------------------------------
 //! Obtain a new file object to be used for a future file requests.
@@ -863,8 +867,7 @@ virtual XrdSfsFile      *newFile(char *user=0, int MonID=0) = 0;
 //! @return nil    - Insufficient memory to allocate an object.
 //-----------------------------------------------------------------------------
 
-virtual XrdSfsFile      *newFile(XrdOucErrInfo &eInfo)
-                               {(void)eInfo; return 0;}
+virtual XrdSfsFile      *newFile(XrdOucErrInfo &eInfo) {(void)eInfo; return 0;}
 
 //-----------------------------------------------------------------------------
 //! Obtain checksum information for a file.
@@ -894,13 +897,7 @@ virtual int            chksum(      csFunc            Func,
                               const char             *path,
                                     XrdOucErrInfo    &eInfo,
                               const XrdSecEntity     *client = 0,
-                              const char             *opaque = 0)
-{
-  (void)Func; (void)csName; (void)path; (void)eInfo; (void)client;
-  (void)opaque;
-  eInfo.setErrInfo(ENOTSUP, "Not supported.");
-  return SFS_ERROR;
-}
+                              const char             *opaque = 0);
 
 //-----------------------------------------------------------------------------
 //! Change file mode settings.
@@ -937,10 +934,7 @@ virtual void           Connect(const XrdSecEntity     *client = 0)
 //! @param  client - Client's identify (see common description).
 //-----------------------------------------------------------------------------
 
-virtual void           Disc(const XrdSecEntity     *client = 0)
-{
-  (void)client;
-}
+virtual void           Disc(const XrdSecEntity *client = 0) {(void)client;}
 
 //-----------------------------------------------------------------------------
 //! Notify filesystem about implmentation dependent environment. This method
@@ -949,10 +943,7 @@ virtual void           Disc(const XrdSecEntity     *client = 0)
 //! @param  envP   - Pointer to environmental information.
 //-----------------------------------------------------------------------------
 
-virtual void           EnvInfo(XrdOucEnv *envP)
-{
-  (void)envP;
-}
+virtual void           EnvInfo(XrdOucEnv *envP) {(void)envP;}
 
 //-----------------------------------------------------------------------------
 //! Return directory/file existence information (short stat).
@@ -996,11 +987,7 @@ virtual int            exists(const char                *path,
 
 virtual int            FAttr(      XrdSfsFACtl      *faReq,
                                    XrdOucErrInfo    &eInfo,
-                             const XrdSecEntity     *client = 0)
-                            {(void)faReq; (void)client;
-                             eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                             return SFS_ERROR;
-                            }
+                             const XrdSecEntity     *client = 0);
 
 //-----------------------------------------------------------------------------
 //! Obtain file system feature set.
@@ -1009,7 +996,7 @@ virtual int            FAttr(      XrdSfsFACtl      *faReq,
 //!         See include file XrdSfsFlags.hh for actual bit values.
 //-----------------------------------------------------------------------------
 
-virtual uint64_t       Features() {return 0;}
+virtual uint64_t       Features();
 
 //-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 2)
@@ -1032,11 +1019,7 @@ virtual uint64_t       Features() {return 0;}
 virtual int            FSctl(const int               cmd,
                                    XrdSfsFSctl      &args,
                                    XrdOucErrInfo    &eInfo,
-                             const XrdSecEntity     *client = 0)
-{
-  (void)cmd; (void)args; (void)eInfo; (void)client;
-  return SFS_OK;
-}
+                             const XrdSecEntity     *client = 0);
 
 //-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 1)
@@ -1116,11 +1099,7 @@ enum gpfFunc {gpfCancel=0, //!< Cancel this request
 virtual int            gpFile(      gpfFunc          &gpAct,
                                     XrdSfsGPFile     &gpReq,
                                     XrdOucErrInfo    &eInfo,
-                              const XrdSecEntity     *client = 0)
-                             {(void)gpAct, (void)gpReq; (void)client;
-                              eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                              return SFS_ERROR;
-                             }
+                              const XrdSecEntity     *client = 0);
 
 //-----------------------------------------------------------------------------
 //! Create a directory.

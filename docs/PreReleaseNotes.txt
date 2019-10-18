@@ -39,4 +39,4 @@ Prerelease Notes
   * **[Server]** Add appname to SecEntity attribute set.
   * **[Server]** Assign a unique ID to each SecEntity instance.
   * **[Server]** Make cksio the default for the ofs.osslib directive.
-
+  * **[Server]** Add checkpoint() method to XrdSfsFile.

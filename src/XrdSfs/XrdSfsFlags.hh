@@ -51,9 +51,6 @@ static const uint64_t hasPRP2 = 0x0000000000000004LL;
 
 //! Feature: Proxy Server
 static const uint64_t hasPRXY = 0x0000000000000008LL;
-
-//! Feature: pgRead & pgWrite
-static const uint64_t hasPGWR = 0x0000000000000010LL;
 }
 
 //-----------------------------------------------------------------------------

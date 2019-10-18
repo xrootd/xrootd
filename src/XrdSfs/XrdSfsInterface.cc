@@ -41,6 +41,56 @@ static const XrdSfsFileOffset pgSize = XrdSfsPageSize;
 }
 
 /******************************************************************************/
+/*       X r d S f s D i r e c t o r y   M e t h o d   D e f a u l t s        */
+/******************************************************************************/
+/******************************************************************************/
+/*                              a u t o s t a t                               */
+/******************************************************************************/
+
+int XrdSfsDirectory::autoStat(struct stat *buf)
+{
+   (void)buf;
+   error.setErrInfo(ENOTSUP, "Not supported.");
+   return SFS_ERROR;
+}
+  
+/******************************************************************************/
+/*            X r d S f s F i l e   M e t h o d   D e f a u l t s             */
+/******************************************************************************/
+/******************************************************************************/
+/*                            c h e c k p o i n t                             */
+/******************************************************************************/
+  
+int XrdSfsFile::checkpoint(cpAct act, struct iov *range, int n)
+{
+// Provide reasonable answers
+//
+   switch(act)
+         {case cpCreate:  error.setErrInfo(EDQUOT,"Checkpoint quota exceeded.");
+                          break;
+          case cpDelete:
+          case cpRestore: error.setErrInfo(ENOENT,"Checkpoint does not exist.");
+                          break;
+          default:        error.setErrInfo(EINVAL,"Invalid checkpoint request.");
+                          break;
+         }
+   return SFS_ERROR;
+}
+
+/******************************************************************************/
+/*                                  f c t l                                   */
+/******************************************************************************/
+  
+int XrdSfsFile::fctl(const int           cmd,
+                           int           alen,
+                     const char         *args,
+                     const XrdSecEntity *client)
+{
+  (void)cmd; (void)alen; (void)args; (void)client;
+  return SFS_OK;
+}
+
+/******************************************************************************/
 /*                                p g R e a d                                 */
 /******************************************************************************/
   
@@ -166,6 +216,18 @@ XrdSfsXferSize XrdSfsFile::readv(XrdOucIOVec      *readV,
 }
 
 /******************************************************************************/
+/*                              S e n d D a t a                               */
+/******************************************************************************/
+  
+int XrdSfsFile::SendData(XrdSfsDio         *sfDio,
+                         XrdSfsFileOffset   offset,
+                         XrdSfsXferSize     size)
+{
+   (void)sfDio; (void)offset; (void)size;
+   return SFS_OK;
+}
+
+/******************************************************************************/
 /*                                w r i t e v                                 */
 /******************************************************************************/
   
@@ -185,4 +247,74 @@ XrdSfsXferSize XrdSfsFile::writev(XrdOucIOVec      *writeV,
         totbytes += wrsz;
        }
    return totbytes;
+}
+
+/******************************************************************************/
+/*      X r d S f s F i l e S y s t e m   M e t h o d   D e f a u l t s       */
+/******************************************************************************/
+/******************************************************************************/
+/*                                c h k s u m                                 */
+/******************************************************************************/
+  
+int XrdSfsFileSystem::chksum(      csFunc            Func,
+                             const char             *csName,
+                             const char             *path,
+                                   XrdOucErrInfo    &eInfo,
+                             const XrdSecEntity     *client,
+                             const char             *opaque)
+{
+  (void)Func; (void)csName; (void)path; (void)eInfo; (void)client;
+  (void)opaque;
+
+  eInfo.setErrInfo(ENOTSUP, "Not supported.");
+  return SFS_ERROR;
+}
+  
+/******************************************************************************/
+/*                                 F A t t r                                  */
+/******************************************************************************/
+  
+int XrdSfsFileSystem::FAttr(      XrdSfsFACtl      *faReq,
+                                  XrdOucErrInfo    &eInfo,
+                            const XrdSecEntity     *client)
+{
+   (void)faReq; (void)client;
+
+   eInfo.setErrInfo(ENOTSUP, "Not supported.");
+   return SFS_ERROR;
+}
+
+/******************************************************************************/
+/*                              F e a t u r e s                               */
+/******************************************************************************/
+
+uint64_t XrdSfsFileSystem::Features() {return 0;}
+  
+/******************************************************************************/
+/*                                 F S c t l                                  */
+/******************************************************************************/
+  
+int XrdSfsFileSystem::FSctl(const int               cmd,
+                                  XrdSfsFSctl      &args,
+                                  XrdOucErrInfo    &eInfo,
+                            const XrdSecEntity     *client)
+{
+  (void)cmd; (void)args; (void)eInfo; (void)client;
+
+  return SFS_OK;
+}
+
+/******************************************************************************/
+/*                                g p F i l e                                 */
+/******************************************************************************/
+  
+int XrdSfsFileSystem::gpFile(      gpfFunc          &gpAct,
+                                   XrdSfsGPFile     &gpReq,
+                                   XrdOucErrInfo    &eInfo,
+                             const XrdSecEntity     *client)
+{
+   (void)gpAct, (void)gpReq; (void)client;
+
+   eInfo.setErrInfo(ENOTSUP, "Not supported.");
+   return SFS_ERROR;
 }
