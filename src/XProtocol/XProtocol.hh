@@ -333,14 +333,14 @@ enum XResponseType {
 //_______________________________________________
 
 enum XActionCode {
-   kXR_asyncab =     5000,
-   kXR_asyncdi,   // 5001
+   kXR_asyncab =     5000, // No longer supported
+   kXR_asyncdi,   // 5001     No longer supported
    kXR_asyncms,   // 5002
-   kXR_asyncrd,   // 5003
-   kXR_asyncwt,   // 5004
-   kXR_asyncav,   // 5005
-   kXR_asynunav,  // 5006
-   kXR_asyncgo,   // 5007
+   kXR_asyncrd,   // 5003     No longer supported
+   kXR_asyncwt,   // 5004     No longer supported
+   kXR_asyncav,   // 5005     No longer supported
+   kXR_asynunav,  // 5006     No longer supported
+   kXR_asyncgo,   // 5007     No longer supported
    kXR_asynresp,  // 5008
    kXR_asyninfo   // 5009
 };
@@ -893,7 +893,7 @@ struct ServerResponseBody_Attn_asyninfo {
    char data[4092];
 };
 
-struct ServerResponseBody_Attn_asyncrd {
+struct ServerResponseBody_Attn_asyncrd { // No longer supported
    kXR_int32 actnum;
    kXR_int32 port;
    char host[4092];
@@ -906,12 +906,12 @@ struct ServerResponseBody_Attn_asynresp {
    char respdata[4096];
 };
 
-struct ServerResponseBody_Attn_asyncwt {
+struct ServerResponseBody_Attn_asyncwt { // No longer supported
    kXR_int32 actnum;
    kXR_int32 wsec;
 };
 
-struct ServerResponseBody_Attn_asyncdi {
+struct ServerResponseBody_Attn_asyncdi { // No longer supported
    kXR_int32 actnum;
    kXR_int32 wsec;
    kXR_int32 msec;

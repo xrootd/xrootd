@@ -166,29 +166,6 @@ void *XrdXrootdAdmin::Start(XrdNetSocket *AdminSock)
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
-/*                              d o _ A b o r t                               */
-/******************************************************************************/
-
-int XrdXrootdAdmin::do_Abort()
-{
-   char *msg;
-   int   mlen, rc;
-
-// Handle: abort <target> [msg]
-//
-   if ((rc = getTarget("abort", &msg))) return 0;
-
-// Get optional message
-//
-   msg = getMsg(msg, mlen);
-
-// Send off the unsolicited response
-//
-   if (msg) return sendResp("abort", kXR_asyncab, msg, mlen);
-      else  return sendResp("abort", kXR_asyncab);
-}
-
-/******************************************************************************/
 /*                                 d o _ C j                                  */
 /******************************************************************************/
   
@@ -241,50 +218,6 @@ int XrdXrootdAdmin::do_Cj()
 //
    i = sprintf(buff, fmt2, rc);
    return Stream.Put(buff, i);
-}
- 
-/******************************************************************************/
-/*                               d o _ C o n t                                */
-/******************************************************************************/
-
-int XrdXrootdAdmin::do_Cont()
-{
-   int rc;
-
-// Handle: cont <target>
-//
-   if ((rc = getTarget("cont"))) return 0;
-
-// Send off the unsolicited response
-//
-   return sendResp("cont", kXR_asyncgo);
-}
-  
-/******************************************************************************/
-/*                               d o _ D i s c                                */
-/******************************************************************************/
-
-int XrdXrootdAdmin::do_Disc()
-{
-   kXR_int32 msg[2];
-   char *tp;
-   int rc;
-
-// Handle: disc <target> <wsec> <msec>
-//
-   if ((rc = getTarget("disc"))) return 0;
-
-// Make sure times are specified
-//
-   if (!(tp = Stream.GetToken()) || !(msg[0] = strtol(tp, 0, 10)))
-      return sendErr(8, "disc", " reconnect interval missing or invalid.");
-   if (!(tp = Stream.GetToken()) || !(msg[1] = strtol(tp, 0, 10)))
-      return sendErr(8, "disc", "reconnect timeout missing or invalid.");
-
-// Send off the unsolicited response
-//
-   msg[0] = htonl(msg[0]); msg[1] = htonl(msg[1]);
-   return sendResp("disc", kXR_asyncdi, (const char *)msg, sizeof(msg));
 }
   
 /******************************************************************************/
@@ -516,76 +449,6 @@ int XrdXrootdAdmin::do_Msg()
    if (msg) return sendResp("msg", kXR_asyncms, msg, mlen);
       else  return sendResp("msg", kXR_asyncms);
 }
- 
-/******************************************************************************/
-/*                              d o _ P a u s e                               */
-/******************************************************************************/
-
-int XrdXrootdAdmin::do_Pause()
-{
-   kXR_int32 msg;
-   char *tp;
-   int rc;
-
-// Handle: pause <target> <wsec>
-//
-   if ((rc = getTarget("pause"))) return 0;
-
-// Make sure time is specified
-//
-   if (!(tp = Stream.GetToken()) || !(msg = strtol(tp, 0, 10)))
-      return sendErr(8, "pause", "time missing or invalid.");
-
-// Send off the unsolicited response
-//
-   msg = htonl(msg);
-   return sendResp("pause", kXR_asyncwt, (const char *)&msg, sizeof(msg));
-}
-
-/******************************************************************************/
-/*                                d o _ R e d                                 */
-/******************************************************************************/
-  
-int XrdXrootdAdmin::do_Red()
-{
-   struct msg {kXR_int32 port; char buff[8192];} myMsg;
-   int rc, hlen, tlen, bsz;
-   char *tp, *pn, *qq;
-
-// Handle: redirect <target> <host>:<port>[?token]
-//
-   if ((rc = getTarget("redirect", 0))) return 0;
-
-// Get the redirect target
-//
-   if (!(tp = Stream.GetToken()) || *tp == ':')
-      return sendErr(8, "redirect", "destination host not specified.");
-
-// Get the port number
-//
-   if (!(pn = index(tp, ':')) || !(myMsg.port = strtol(pn+1, &qq, 10)))
-      return sendErr(8, "redirect", "port missing or invalid.");
-   myMsg.port = htonl(myMsg.port);
-
-// Copy out host
-//
-   *pn = '\0';
-   hlen = strlcpy(myMsg.buff,tp,sizeof(myMsg.buff));
-   if (static_cast<size_t>(hlen) >= sizeof(myMsg.buff))
-      return sendErr(8, "redirect", "destination host too long.");
-
-// Copy out the token
-//
-   if (qq && *qq == '?')
-      {bsz = sizeof(myMsg.buff) - hlen;
-       if ((tlen = strlcpy(myMsg.buff+hlen,qq,bsz)) >= bsz)
-          return sendErr(8, "redirect", "token too long.");
-      } else tlen = 0;
-
-// Send off the unsolicited response
-//
-   return sendResp("redirect", kXR_asyncrd, (const char *)&myMsg, hlen+tlen+4);
-}
 
 /******************************************************************************/
 /*                                g e t M s g                                 */
@@ -751,16 +614,11 @@ void XrdXrootdAdmin::Xeq()
         {TRACE(DEBUG, "received admin request: '" <<request <<"'");
          if ((rc = getreqID())) continue;
          if ((tp = Stream.GetToken()))
-            {     if (!strcmp("abort",    tp)) rc = do_Abort();
-             else if (!strcmp("cj",       tp)) rc = do_Cj();
-             else if (!strcmp("cont",     tp)) rc = do_Cont();
-             else if (!strcmp("disc",     tp)) rc = do_Disc();
+            {     if (!strcmp("cj",       tp)) rc = do_Cj();
              else if (!strcmp("lsc",      tp)) rc = do_Lsc();
              else if (!strcmp("lsd",      tp)) rc = do_Lsd();
              else if (!strcmp("lsj",      tp)) rc = do_Lsj();
              else if (!strcmp("msg",      tp)) rc = do_Msg();
-             else if (!strcmp("pause",    tp)) rc = do_Pause();
-             else if (!strcmp("redirect", tp)) rc = do_Red();
              else {eDest->Emsg(epname, "invalid admin request,", tp);
                    rc = sendErr(4, tp, "is an invalid request.");
                   }
