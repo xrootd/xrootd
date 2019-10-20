@@ -28,6 +28,7 @@
 /******************************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -42,6 +43,25 @@
 namespace
 {
 static const char *StrictName[] = XrdVERSIONPLUGINSTRICT;
+}
+
+/******************************************************************************/
+/*                            h a s V e r s i o n                             */
+/******************************************************************************/
+
+int XrdOucVerName::hasVersion(const char *piPath)
+{
+   const char *Dash;
+
+// We check for an embeded version number. This is usually used to issue a
+// warning that including a specific version disables automatic versioning.
+//
+   if ((Dash = rindex(piPath, '-')))
+      {char *endP;
+       int vn = strtol(Dash+1, &endP, 10);
+       if (vn && !strcmp(endP, ".so")) return vn;
+      }
+   return 0;
 }
 
 /******************************************************************************/

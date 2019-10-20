@@ -160,6 +160,16 @@ void XrdOucPinLoader::Init(const char *drctv, const char *plib)
    dName  = drctv;
    global = false;
 
+// Check if the path has a version in it. This is generally a no-no.
+//
+   if (XrdOucVerName::hasVersion(plib))
+      {tryLib = theLib = strdup(plib);
+       altLib = 0;
+       hasVN = true;
+       return;
+      }
+   hasVN = false;
+
 // Perform versioning
 //
    if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, noFallBack,
@@ -189,6 +199,16 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
        return 0;
       }
 
+// Check if we should issue a warning about the plugin being pinned to a
+// specific version. Some people mistakenly do this.
+//
+   if (hasVN)
+      {hasVN = false;
+       if (eDest) Inform(dName, " plugin ", theLib,
+                         " specifies a version (i.e. '-n.so'); ",
+                         "automatic version selection disabled!");
+      }
+
 // Handle optional resolution
 //
    if (*symP == '?' || *symP == '!')
@@ -216,7 +236,8 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
    delete piP; piP = 0;
    if (!altLib) return 0;
    tryLib = altLib;
-   if (eDest) eDest->Say("Config ", "Falling back to using ", altLib);
+   if (eDest && isOptional < 2)
+      eDest->Say("Config ", "Falling back to using ", altLib);
    if (eDest) piP = new XrdSysPlugin(eDest,        altLib, dName, viP, mcnt);
       else    piP = new XrdSysPlugin(errBP, errBL, altLib, dName, viP, mcnt);
    if ((symAddr = piP->getPlugin(symP, isOptional, global))) return symAddr;

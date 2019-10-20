@@ -40,6 +40,17 @@ class XrdOucVerName
 public:
 
 //-----------------------------------------------------------------------------
+//! Test if plugin path contains a version number.
+//!
+//! @param  piPath  Pointer to the original path to the plug-in.
+//!
+//! @return >0 the version number if path contains a version.
+//! @return =0 the path does not contain a version number.
+//-----------------------------------------------------------------------------
+
+static int hasVersion(const char *piPath);
+
+//-----------------------------------------------------------------------------
 //! Version a plug-in library path.
 //!
 //! @param  piVers  Pointer to the version string to be used.

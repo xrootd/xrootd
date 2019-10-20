@@ -185,5 +185,6 @@ char           *errBP;
 int             errBL;
 bool            global;
 bool            frBuff;
+bool            hasVN;
 };
 #endif
