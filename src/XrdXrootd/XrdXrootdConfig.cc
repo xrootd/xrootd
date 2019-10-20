@@ -30,11 +30,13 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <string>
 #include <string.h>
 #include <stdio.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <vector>
 
 #ifdef __solaris__
 #include <sys/isa_defs.h>
@@ -115,6 +117,30 @@ extern          XrdOucTrace       *XrdXrootdTrace;
 
                 int                XrdXrootdPort;
 
+extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *,
+                                                 XrdSfsFileSystem *,
+                                                 const char *,
+                                                 const char *, XrdOucEnv *);
+extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem
+                         (XrdSfsFileSystem *nativeFS,
+                          XrdSysLogger     *Logger,
+                          const char       *configFn,
+                          XrdOucEnv        *EnvInfo);
+
+/******************************************************************************/
+/*                         L o c a l   S t a t i c s                          */
+/******************************************************************************/
+
+namespace
+{
+char                    *digParm  = 0;
+char                    *FSLib[2] = {0,0};
+std::vector<std::string> FSLPath;
+char                    *gpfLib  = 0;// Normally zero for default
+char                    *gpfParm = 0;
+char                    *SecLib;
+}
+  
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
@@ -128,16 +154,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
   Output:   0 upon success or !0 otherwise.
 */
-   extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem
-                            (XrdSfsFileSystem *nativeFS,
-                             XrdSysLogger     *Logger,
-                             const char       *configFn,
-                             XrdOucEnv        *EnvInfo);
 
-   extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, 
-                                                    XrdSfsFileSystem *,
-                                                    char *, int,
-                                                    const char *, XrdOucEnv *);
    extern XrdSfsFileSystem *XrdDigGetFS
                             (XrdSfsFileSystem *nativeFS,
                              XrdSysLogger     *Logger,
@@ -283,34 +300,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    ConfigGStream(myEnv);
 
-// Get the filesystem to be used
+// Get the filesystem to be used and its features
 //
-   if (FSLib[0])
-      {TRACE(DEBUG, "Loading base filesystem library " <<FSLib[0]);
-       osFS = XrdXrootdloadFileSystem(&eDest, 0, FSLib[0], FSLvn[0],
-                                      pi->ConfigFN, &myEnv);
-      } else {
-       osFS = XrdSfsGetDefaultFileSystem(0,eDest.logger(),pi->ConfigFN,&myEnv);
-      }
-   if (!osFS)
-      {eDest.Emsg("Config", "Unable to load file system.");
-       return 0;
-      } else {
-       SI->setFS(osFS);
-       if (FSLib[0]) osFS->EnvInfo(&myEnv);
-      }
-
-// Check if we have a wrapper library
-//
-   if (FSLib[1])
-      {TRACE(DEBUG, "Loading wrapper filesystem library " <<FSLib[1]);
-       osFS = XrdXrootdloadFileSystem(&eDest, osFS, FSLib[1], FSLvn[1],
-                                      pi->ConfigFN, &myEnv);
-       if (!osFS)
-          {eDest.Emsg("Config", "Unable to load file system wrapper.");
-           return 0;
-          } else osFS->EnvInfo(&myEnv);
-      }
+   if (!ConfigFS(myEnv, pi->ConfigFN)) return 0;
+   fsFeatures = osFS->Features();
 
 // Check if the file system includes a custom prepare handler as this will
 // affect how we handle prepare requests.
@@ -572,6 +565,71 @@ void XrdXrootdProtocol::PidFile()
     if (xop) eDest.Emsg("Config", errno, xop, pidFN);
 }
 
+/******************************************************************************/
+/*                              C o n f i g F S                               */
+/******************************************************************************/
+
+bool XrdXrootdProtocol::ConfigFS(XrdOucEnv &xEnv, const char *cfn)
+{
+   const char *fsLoc;
+   int n;
+
+// Get the filesystem to be used
+//
+   if (FSLib[0])
+      {TRACE(DEBUG, "Loading base filesystem library " <<FSLib[0]);
+       osFS = XrdXrootdloadFileSystem(&eDest, 0, FSLib[0], cfn, &xEnv);
+       fsLoc = FSLib[0];
+      } else {
+       osFS = XrdSfsGetDefaultFileSystem(0, eDest.logger(), cfn, &xEnv);
+       fsLoc = "default";
+      }
+
+// Make sure we have loaded something
+//
+   if (!osFS)
+      {eDest.Emsg("Config", "Unable to load base file system using", fsLoc);
+       return false;
+      }
+   if (FSLib[0]) osFS->EnvInfo(&xEnv);
+
+// If there is an old style wrapper, load it now.
+//
+   if (FSLib[1] && !ConfigFS(FSLib[1], xEnv, cfn)) return false;
+
+// Run through any other pushdowns
+//
+   if ((n = FSLPath.size()))
+      for (int i = 0; i < n; i++)
+          {if (!ConfigFS(FSLPath[i].c_str(), xEnv, cfn)) return false;}
+
+// Inform the statistics object which filesystem to use
+//
+   SI->setFS(osFS);
+
+// All done here
+//
+   return true;
+}
+
+/******************************************************************************/
+
+bool XrdXrootdProtocol::ConfigFS(const char *path, XrdOucEnv &xEnv,
+                                 const char *cfn)
+{
+
+// Try to load this wrapper library
+//
+   TRACE(DEBUG, "Loading wrapper filesystem library " <<path);
+   osFS = XrdXrootdloadFileSystem(&eDest, osFS, path, cfn, &xEnv);
+   if (!osFS)
+      {eDest.Emsg("Config", "Unable to load file system wrapper from", path);
+       return false;
+      }
+   osFS->EnvInfo(&xEnv);
+   return true;
+}
+  
 /******************************************************************************/
 /*                         C o n f i g G S t r e a m                          */
 /******************************************************************************/
@@ -984,9 +1042,11 @@ int XrdXrootdProtocol::xexpdo(char *path, int popt)
 
    Purpose:  To parse the directive: fslib [throttle | [-2] <fspath2>]
                                            {default  | [-2] <fspath1>}
+                                          | ++ <fspath2>
 
              -2        Uses version2 of the plugin initializer.
                        This is ignored now because it's always done.
+             ++        Pushes a wrapper onto the library stack.
              throttle  load libXrdThrottle.so as the head interface.
              <fspath2> load the named library as the head interface.
              default   load libXrdOfs.so ro libXrdPss.so as the tail
@@ -1000,16 +1060,25 @@ int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 {
     char *val;
 
-// Clear storage pointers
-//
-   if (FSLib[0]) {free(FSLib[0]); FSLib[0] = 0;}
-   if (FSLib[1]) {free(FSLib[1]); FSLib[1] = 0;}
-   FSLvn[0] = FSLvn[1] = 0;
-
 // Get the path
 //
    if (!(val = Config.GetWord()))
       {eDest.Emsg("Config", "fslib not specified"); return 1;}
+
+// First check for a psuhdown
+//
+   if (!strcmp("++", val))
+      {if (!(val = Config.GetWord()))
+          {eDest.Emsg("Config", "fslib wrapper not specified"); return 1;}
+       if (strcmp("throttle", val))  FSLPath.push_back((std::string)val);
+          else FSLPath.push_back("libXrdThrottle.so");
+       return 0;
+      }
+
+// Clear storage pointers
+//
+   if (FSLib[0]) {free(FSLib[0]); FSLib[0] = 0;}
+   if (FSLib[1]) {free(FSLib[1]); FSLib[1] = 0;}
 
 // Check if this is "thottle"
 //
@@ -1031,7 +1100,6 @@ int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 //
    if (!(val = Config.GetWord()))
       {FSLib[0] = FSLib[1]; FSLib[1] = 0;
-       FSLvn[0] = FSLvn[1]; FSLvn[1] = 0;
        return 0;
       }
 
@@ -1045,13 +1113,11 @@ int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 int XrdXrootdProtocol::xfsL(XrdOucStream &Config, char *val, int lix)
 {
     char *Slash;
-    int lvn = 0;
 
 // Check if this is a version token
 //
    if (!strcmp(val, "-2"))
-      {lvn = 2;
-       if (!(val = Config.GetWord()))
+      {if (!(val = Config.GetWord()))
           {eDest.Emsg("Config", "fslib not specified"); return 1;}
       }
 
@@ -1067,7 +1133,7 @@ int XrdXrootdProtocol::xfsL(XrdOucStream &Config, char *val, int lix)
       else Slash++;
    if (!strcmp(Slash, "libXrdOfs.so"))
       eDest.Say("Config warning: 'fslib libXrdOfs.so' is actually built-in.");
-      else {FSLib[lix] = strdup(val); FSLvn[lix] = lvn;}
+      else FSLib[lix] = strdup(val);
    return 0;
 }
 

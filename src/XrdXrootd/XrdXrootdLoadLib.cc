@@ -42,7 +42,7 @@
 
 XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
                                           XrdSfsFileSystem *prevFS,
-                                          char *fslib, int fsver,
+                                          const char *fslib,
                                           const char *cfn, XrdOucEnv *envP)
 {
    static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
@@ -50,33 +50,24 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
    XrdSfsFileSystem_t  ep;
    XrdSfsFileSystem2_t ep2;
    XrdSfsFileSystem *FS = 0;
-   const char *epname = "XrdSfsGetFileSystem";
-   char  epbuff[64];
 
 // Record the library path in the environment
 //
    if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
 
-// If a different version is to used for initialization, generate the name
+// Get the file system object creator and the object (we preferntially try
+// to find the version 2 of the plugin).
 //
-   if (fsver)
-      {sprintf(epbuff, "XrdSfsGetFileSystem%d", fsver); // Always fits
-       epname = epbuff;
-      }
-
-// Get the file system object creator and the object
-//
-   if (fsver)
-      {if ((ep2 = (XrdSfsFileSystem2_t)ofsLib.Resolve(epname)))
-          FS = (*ep2)(prevFS, eDest->logger(), cfn, envP);
+   if ((ep2 = (XrdSfsFileSystem2_t)ofsLib.Resolve("?XrdSfsGetFileSystem2")))
+      {   FS = (*ep2)(prevFS, eDest->logger(), cfn, envP);
       } else {
-       if ((ep  = (XrdSfsFileSystem_t )ofsLib.Resolve(epname)))
+       if ((ep = (XrdSfsFileSystem_t )ofsLib.Resolve("XrdSfsGetFileSystem")))
           FS = (*ep) (prevFS, eDest->logger(), cfn);
       }
 
 // Issue message if we could not load it
 //
-   if (!FS) eDest->Emsg("Config","Unable to create file system object via",fslib);
+   if (!FS) eDest->Emsg("Config", "Unable to load file system via", fslib);
 
 // All done
 //

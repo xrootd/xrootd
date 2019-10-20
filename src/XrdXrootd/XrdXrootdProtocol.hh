@@ -204,6 +204,8 @@ static void  PidFile();
 static int   rpCheck(char *fn, char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
+static bool  ConfigFS(XrdOucEnv &xEnv, const char *cfn);
+static bool  ConfigFS(const char *path, XrdOucEnv &xEnv, const char *cfn);
 static void  ConfigGStream(XrdOucEnv &myEnv);
 static int   Squash(char *);
        int   StatGen(struct stat &buf, char *xxBuff, int xxLen, bool xa=false);
@@ -285,13 +287,6 @@ static int                 readWait;
 static int                 Port;
 static int                 Window;
 static int                 tlsPort;
-static char               *SecLib;
-static char               *FSLib[2];
-static int                 FSLvn[2];
-static char               *digLib;    // Normally zero for now
-static char               *digParm;
-static char               *gpfLib;    // Normally zero for default
-static char               *gpfParm;
 static char               *Notify;
 static const char         *myCName;
 static int                 myCNlen;
@@ -302,6 +297,7 @@ static XrdXrootdJob       *JobCKS;
 static char               *JobCKT;
 static XrdOucTList        *JobCKTLST;
 static XrdOucReqID        *PrepID;
+static uint64_t            fsFeatures;
 
 // Static redirection
 //
