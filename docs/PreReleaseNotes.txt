@@ -36,6 +36,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * **[Server]** Provide interface for checksum handler to report progress.
   * **[Server]** Improve SFS wrapping and add "how to" documentation.
   * **[Server]** Add appname to SecEntity attribute set.
   * **[Server]** Assign a unique ID to each SecEntity instance.
