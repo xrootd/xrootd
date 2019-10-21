@@ -45,6 +45,35 @@ class XrdSysPlugin;
     native implementation, XrdCks, and replace only selected methods.
 */
   
+/******************************************************************************/
+/*                             X r d C k s P C B                              */
+/******************************************************************************/
+/*! The XrdCksPCB object defines a callabck hat allows he caller to monitor the
+    progress of a checksum calculation (calc or verify).
+*/
+
+class XrdCksPCB
+{
+public:
+
+//------------------------------------------------------------------------------
+//! Report checksum progress.
+//! @param  fsize     The file size in bytes.
+//! @param  csbytes   Bytes checksummed so far.
+//------------------------------------------------------------------------------
+
+virtual void Info(long long fsize, long long csbytes);
+
+long long rsvd;
+
+             XrdCksPCB() : rsvd(0) {}
+virtual     ~XrdCksPCB() {}
+};
+  
+/******************************************************************************/
+/*                                X r d C k s                                 */
+/******************************************************************************/
+  
 class XrdCks
 {
 public:
@@ -58,12 +87,18 @@ public:
 //!                   For output, the checksum value is returned upon success.
 //! @param  doSet     When true, the new value must replace any existing value
 //!                   in the Pfn's extended file attributes.
+//! @param  pcbP      In the second form, the pointer to the callback object.
+//!                   A nil pointer does not invoke any callback.
 //!
 //! @return Success:  zero with Cks structure holding the checksum value.
 //!         Failure: -errno (see significant error numbers below).
 //------------------------------------------------------------------------------
 virtual
 int        Calc( const char *Pfn, XrdCksData &Cks, int doSet=1) = 0;
+
+virtual
+int        Calc( const char *Pfn, XrdCksData &Cks, XrdCksPCB *pcbP, int doSet=1)
+               {(void)pcbP; return Calc(Pfn, Cks, doSet);}
 
 //------------------------------------------------------------------------------
 //! Delete the checksum from the Pfn's xattrs.
@@ -198,6 +233,8 @@ int        Set(  const char *Pfn, XrdCksData &Cks, int myTime=0) = 0;
 //!
 //! @param  Pfn      The physical name of the file to be verified.
 //! @param  Cks      Specifies the checksum name and value.
+//! @param  pcbP      In the second form, the pointer to the callback object.
+//!                   A nil pointer does not invoke any callback.
 //!
 //! @return Success: True
 //!         Failure: False (the checksums do not match) or -errno indicating
@@ -206,6 +243,10 @@ int        Set(  const char *Pfn, XrdCksData &Cks, int myTime=0) = 0;
 //------------------------------------------------------------------------------
 virtual
 int        Ver(  const char *Pfn, XrdCksData &Cks) = 0;
+
+virtual
+int        Ver(  const char *Pfn, XrdCksData &Cks, XrdCksPCB *pcbP)
+              {(void)pcbP; return Ver(Pfn, Cks);}
 
 //------------------------------------------------------------------------------
 //! Constructor
