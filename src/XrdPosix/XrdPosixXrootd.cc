@@ -50,14 +50,12 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-#include "XrdOuc/XrdOucCache2.hh"
-#include "XrdOuc/XrdOucCacheDram.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPsx.hh"
 
 #include "XrdPosix/XrdPosixAdmin.hh"
-#include "XrdPosix/XrdPosixCacheBC.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixDir.hh"
@@ -81,9 +79,7 @@ class XrdSysError;
 namespace XrdPosixGlobals
 {
 XrdScheduler    *schedP    = 0;
-XrdOucCache2    *theCache  = 0;
-XrdOucCache     *myCache   = 0;
-XrdOucCache2    *myCache2  = 0;
+XrdOucCache     *theCache  = 0;
 XrdOucName2Name *theN2N    = 0;
 XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 XrdSysLogger    *theLogger = 0;
@@ -265,16 +261,21 @@ int XrdPosixXrootd::Close(int fildes)
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
       {errno = EBADF; return -1;}
 
-// Close the file if there is no active I/O (possible caching). Delete the
-// object if the close was successful (it might not be).
+// Detach the file from a possible cache. We need to up the reference count
+// to synchrnoize with any possible callback as we may need to place this
+// object in he delayed destroy queue if it is stil being used. Note that
+// the caller will get a zero return code should we delay the close.
 //
-   if (!(fP->XCio->ioActive()) && !fP->Refs())
+   fP->Ref();
+   if (fP->XCio->Detach((XrdOucCacheIOCD&)*fP) && fP->Refs() < 2)
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
           else if (DEBUGON)
                   {std::string eTxt = Status.ToString();
                    DEBUG(eTxt <<" closing " <<fP->Origin());
                   }
-      } else ret = true;
+      } else {
+       ret = true;
+      }
 
 // If we still have a handle then we need to do a delayed delete on this
 // object because either the close failed or there is still active I/O
@@ -593,14 +594,14 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // If we have a cache, then issue a prepare as the cache may want to defer the
 // open request ans we have a lot more work to do.
 //
-   if (XrdPosixGlobals::myCache2)
+   if (XrdPosixGlobals::theCache)
       {int rc;
        if (infoP && isRO && OpenCache(*fp, *infoP))
           {delete fp;
            errno = 0;
            return -3;
           }
-       rc = XrdPosixGlobals::myCache2->Prepare(fp->Path(), oflags, mode);
+       rc = XrdPosixGlobals::theCache->Prepare(fp->Path(), oflags, mode);
        if (rc > 0) return OpenDefer(fp, cbP, XOflags, XOmode, oflags&isStream);
        if (rc < 0) {delete fp; errno = -rc; return -1;}
       }
@@ -652,10 +653,9 @@ bool XrdPosixXrootd::OpenCache(XrdPosixFile &file,XrdPosixInfo &Info)
 
 // Check if the full file is in the cache
 //
-   rc = XrdPosixGlobals::myCache2->LocalFilePath(file.Path(), Info.cachePath,
-                                                 sizeof(Info.cachePath),
-                                                 XrdOucCache2::ForAccess,
-                                                 Info.ffReady);
+   rc = XrdPosixGlobals::theCache->LocalFilePath(file.Path(), Info.cachePath,
+                                                 (int)sizeof(Info.cachePath),
+                                                 XrdOucCache::ForAccess);
    if (rc == 0)
       {Info.ffReady  = true;
        DEBUG("File in cache url=" <<Info.cacheURL);
@@ -1139,10 +1139,10 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Check if we can get the stat informatation from the cache
 //
-  if (XrdPosixGlobals::myCache2)
+  if (XrdPosixGlobals::theCache)
      {LfnPath statX("stat", path, false);
       if (!statX.path) return -1;
-      int rc = XrdPosixGlobals::myCache2->Stat(statX.path, *buf);
+      int rc = XrdPosixGlobals::theCache->Stat(statX.path, *buf);
       if (!rc) return 0;
       if (rc < 0) {errno = -rc; return -1;}
      }

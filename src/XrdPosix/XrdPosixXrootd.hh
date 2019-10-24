@@ -49,12 +49,6 @@
 
 struct XrdOucIOVec;
 
-class XrdScheduler;
-class XrdOucCache;
-class XrdOucCache2;
-class XrdOucEnv;
-class XrdOucName2Name;
-class XrdSysLogger;
 class XrdPosixCallBack;
 class XrdPosixCallBackIO;
 class XrdPosixFile;

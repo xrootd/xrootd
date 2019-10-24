@@ -53,7 +53,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucCache2.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
@@ -61,7 +61,6 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdOuc/XrdOucCache2.hh"
 
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
@@ -217,14 +216,14 @@ int XrdPssSys::Configure(const char *cfn)
 //
    if (psxConfig->xLfn2Pfn) xLfn2Pfn = (theN2N = psxConfig->theN2N) != 0;
 
-// If we have a version 2 cache then save it and check if we need to tell
+// If we have a cache then save it and check if we need to tell
 // xrootd we allow a redirect on a read (this is complicated).
-//
-   if (psxConfig->theCache2 && dcaCTime)
-      {char buff[32];
-       sprintf(buff, "%d", dcaCTime);
-       XrdOucEnv::Export("XRDXROOTD_CACHERDRDR", buff);
-      }
+// ??? Why are we doing this
+// if (psxConfig->theCache2 && dcaCTime)
+//    {char buff[32];
+//     sprintf(buff, "%d", dcaCTime);
+//     XrdOucEnv::Export("XRDXROOTD_CACHERDRDR", buff);
+//    }
 
 // All done with the configurator
 //

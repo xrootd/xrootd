@@ -37,7 +37,7 @@
 #include <fcntl.h>
 
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucCache2.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
@@ -171,30 +171,13 @@ bool XrdOucPsx::ClientConfig(const char *pfx, bool hush)
 bool XrdOucPsx::ConfigCache(XrdSysError &eDest)
 {
    XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath);
-   const char *cName;
-   bool isCache2;
 
-// First find out if this is a cache2 or old cache library
+// Get the cache Object now
 //
-   if (myLib.Resolve("?XrdOucGetCache2") == 0)
-      {cName = "XrdOucGetCache";  isCache2 = false;
-      } else {
-       cName = "XrdOucGetCache2"; isCache2 = true;
-      } 
-
-// Get the Object now
-//
-   if (isCache2)
-     {XrdOucCache2_t ep = (XrdOucCache2_t)myLib.Resolve(cName);
-      if (!ep) return false;
-      theCache2 = (XrdOucCache2*)ep(eDest.logger(), configFN, cParm, theEnv);
-      return theCache2 != 0;
-     } else {
-      XrdOucCache_t ep = (XrdOucCache_t)myLib.Resolve(cName);
-      if (!ep) return false;
-      theCache = (XrdOucCache*)ep(eDest.logger(), configFN, cParm, theEnv);
-      return theCache != 0;
-     }
+   XrdOucCache_t ep = (XrdOucCache_t)myLib.Resolve("XrdOucGetCache");
+   if (!ep) return false;
+   theCache = (XrdOucCache*)ep(eDest.logger(), configFN, cParm, theEnv);
+   return theCache != 0;
 }
   
 /******************************************************************************/
@@ -247,7 +230,7 @@ bool XrdOucPsx::ConfigSetup(XrdSysError &eDest, bool hush)
            eDest.logger()->Capture(&tFifo);
           }
       } else {
-       if (mPath && theCache2 && !LoadCCM(eDest))
+       if (mPath && theCache && !LoadCCM(eDest))
           {aOK = false;
            if (hush)
               {eDest.logger()->Capture(0);

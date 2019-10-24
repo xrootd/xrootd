@@ -36,7 +36,7 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-IOFileBlock::IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &statsGlobal, Cache & cache) :
+IOFileBlock::IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &statsGlobal, Cache & cache) :
   IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_infoFile(0)
 {
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
@@ -54,9 +54,9 @@ IOFileBlock::~IOFileBlock()
 }
 
 //______________________________________________________________________________
-XrdOucCacheIO* IOFileBlock::Detach()
+bool IOFileBlock::Detach(XrdOucCacheIOCD &iocdP)
 {
-   // Called from XrdPosixFile destructor
+   // Called from XrdPosixFile destructor ???? Not really tue
 
    TRACEIO(Info, "Detach IOFileBlock");
 
@@ -72,9 +72,9 @@ XrdOucCacheIO* IOFileBlock::Detach()
         }
      }
    }
-   XrdOucCacheIO *io = GetInput();
    delete this;
-   return io;
+//???? This needs to be coordinated with old ioActive() and return false if active
+   return true;
 }
 
 

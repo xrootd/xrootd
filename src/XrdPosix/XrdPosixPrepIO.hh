@@ -33,13 +33,13 @@
 #include "Xrd/XrdJob.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 
-class XrdPosixPrepIO : public XrdOucCacheIO2
+class XrdOucCacheIOCD;
+
+class XrdPosixPrepIO : public XrdOucCacheIO
 {
 public:
 
-XrdOucCacheIO *Base()   {return this;} // Already defined
-
-XrdOucCacheIO *Detach() {return this;} // Already defined
+bool        Detach(XrdOucCacheIOCD &cdP) {(void)cdP; return true;}
 
 void        Disable();
 

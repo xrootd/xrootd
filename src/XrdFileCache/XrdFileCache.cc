@@ -67,12 +67,16 @@ void *PrefetchThread(void* ptr)
 
 extern "C"
 {
-XrdOucCache2 *XrdOucGetCache2(XrdSysLogger *logger,
-                              const char   *config_filename,
-                              const char   *parameters)
+XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
+                            const char   *config_filename,
+                            const char   *parameters,
+                            XrdOucEnv    *envP)
 {
    XrdSysError err(logger, "");
    err.Say("++++++ Proxy file cache initialization started.");
+
+   if (envP)
+      XrdFileCache::Cache::schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
 
    Cache &factory = Cache::CreateInstance(logger);
 
@@ -160,7 +164,7 @@ bool Cache::Decide(XrdOucCacheIO* io)
 }
 
 Cache::Cache(XrdSysLogger *logger) :
-   XrdOucCache2(),
+   XrdOucCache(),
    m_log(logger, "XrdFileCache_"),
    m_trace(new XrdSysTrace("XrdFileCache", logger)),
    m_traceID("Manager"),
@@ -178,7 +182,7 @@ Cache::Cache(XrdSysLogger *logger) :
 }
 
 
-XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
+XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 {
    const char* tpfx = "Cache::Attach() ";
 
@@ -218,13 +222,6 @@ XrdOucCacheIO2 *Cache::Attach(XrdOucCacheIO2 *io, int Options)
       TRACE(Info, tpfx << "decision decline " << io->Path());
    }
    return io;
-}
-
-
-int Cache::isAttached()
-{
-   // virutal function of XrdOucCache, don't see it used in pfc or posix layer
-   return true;
 }
 
 
@@ -675,7 +672,7 @@ void Cache::Prefetch()
 
 
 //==============================================================================
-//=== Virtuals from XrdOucCache2
+//=== Virtuals from XrdOucCache
 //==============================================================================
 
 //------------------------------------------------------------------------------
@@ -801,7 +798,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 //! @return <0 Error has occurred, return value is -errno; fail open request.
 //!         =0 Continue with open() request.
 //!         >0 Defer open but treat the file as actually being open. Use the
-//!            XrdOucCacheIO2::Open() method to open the file at a later time.
+//!            XrdOucCacheIO::Open() method to open the file at a later time.
 //------------------------------------------------------------------------------
 
 int Cache::Prepare(const char *curl, int oflags, mode_t mode)
@@ -853,7 +850,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
 }
 
 //______________________________________________________________________________
-// virtual method of XrdOucCache2.
+// virtual method of XrdOucCache.
 //!
 //! @return <0 - Stat failed, value is -errno.
 //!         =0 - Stat succeeded, sbuff holds stat information.

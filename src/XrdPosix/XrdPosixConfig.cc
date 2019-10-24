@@ -34,14 +34,12 @@
 
 #include "XrdCl/XrdClDefaultEnv.hh"
 
-#include "XrdOuc/XrdOucCache2.hh"
-#include "XrdOuc/XrdOucCacheDram.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPsx.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
 #include "XrdPosix/XrdPosixCache.hh"
-#include "XrdPosix/XrdPosixCacheBC.hh"
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixInfo.hh"
@@ -50,6 +48,8 @@
 #include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
+
+#include "XrdRmc/XrdRmc.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTrace.hh"
@@ -61,9 +61,7 @@
 namespace XrdPosixGlobals
 {
 extern XrdScheduler              *schedP;
-extern XrdOucCache2              *theCache;
-extern XrdOucCache               *myCache;
-extern XrdOucCache2              *myCache2;
+extern XrdOucCache               *theCache;
 extern XrdOucName2Name           *theN2N;
 extern XrdCl::DirListFlags::Flags dlFlag;
 extern XrdSysLogger              *theLogger;
@@ -86,8 +84,8 @@ void XrdPosixConfig::EnvInfo(XrdOucEnv &theEnv)
    XrdPosixGlobals::schedP = (XrdScheduler *)theEnv.GetPtr("XrdScheduler*");
 
 // If we have a new-style cache, propogate the environment to it
-//
-   if (XrdPosixGlobals::myCache2) XrdPosixGlobals::myCache2->EnvInfo(theEnv);
+//??? Get rid of EnvInfo
+// if (XrdPosixGlobals::myCache2) XrdPosixGlobals::myCache2->EnvInfo(theEnv);
 }
 
 /******************************************************************************/
@@ -141,11 +139,10 @@ bool XrdPosixConfig::initCCM(XrdOucPsx &parms)
 
 void XrdPosixConfig::initEnv(char *eData)
 {
-   static XrdOucCacheDram dramCache;
+   static XrdRmc dramCache;
+   XrdRmc::Parms myParms;
    XrdOucEnv theEnv(eData);
-   XrdOucCache::Parms myParms;
    XrdOucCacheIO::aprParms apParms;
-   XrdOucCache *v1Cache;
    long long Val;
    char * tP;
 
@@ -174,7 +171,7 @@ void XrdPosixConfig::initEnv(char *eData)
 // Get Mode
 //
    if ((tP = theEnv.Get("mode")))
-      {if (*tP == 's') myParms.Options |= XrdOucCache::isServer;
+      {if (*tP == 's') myParms.Options |= XrdRmc::isServer;
           else if (*tP != 'c') DMSG("initEnv","'XRDPOSIX_CACHE=mode=" <<tP
                                     <<"' is invalid.");
       }
@@ -182,7 +179,7 @@ void XrdPosixConfig::initEnv(char *eData)
 // Get the structured file option
 //
    if ((tP = theEnv.Get("optsf")) && *tP && *tP != '0')
-      {     if (*tP == '1') myParms.Options |= XrdOucCache::isStructured;
+      {     if (*tP == '1') myParms.Options |= XrdRmc::isStructured;
        else if (*tP == '.') {XrdPosixFile::sfSFX = strdup(tP);
                              XrdPosixFile::sfSLN = strlen(tP);
                             }
@@ -193,22 +190,17 @@ void XrdPosixConfig::initEnv(char *eData)
 // Get final options, any non-zero value will do here
 //
    if ((tP = theEnv.Get("optlg")) && *tP && *tP != '0')
-      myParms.Options |= XrdOucCache::logStats;
+      myParms.Options |= XrdRmc::logStats;
    if ((tP = theEnv.Get("optpr")) && *tP && *tP != '0')
-      myParms.Options |= XrdOucCache::canPreRead;
+      myParms.Options |= XrdRmc::canPreRead;
 // if ((tP = theEnv.Get("optwr")) && *tP && *tP != '0') isRW = 1;
-
-// Use the default cache if one was not provided
-//
-   if (!XrdPosixGlobals::myCache) XrdPosixGlobals::myCache = &dramCache;
 
 // Now allocate a cache. Indicate that we already serialize the I/O to avoid
 // additional but unnecessary locking.
 //
-   myParms.Options |= XrdOucCache::Serialized;
-   if (!(v1Cache = XrdPosixGlobals::myCache->Create(myParms, &apParms)))
+   myParms.Options |= XrdRmc::Serialized;
+   if (!(XrdPosixGlobals::theCache = dramCache.Create(myParms, &apParms)))
       {DMSG("initEnv", strerror(errno) <<" creating cache.");}
-      else XrdPosixGlobals::theCache = new XrdPosixCacheBC(v1Cache);
 }
 
 /******************************************************************************/
@@ -316,18 +308,13 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
        XrdPosixGlobals::ddInterval = (parms.cioWait  < 10 ? 10 : parms.cioWait);
       }
 
-// Handle the caching options
+// Handle the caching options (library or builin memory).
+// TODO: Make the memory cache a library plugin as well.
 //
-        if (parms.theCache2)
-           {XrdPosixGlobals::myCache2 = parms.theCache2;
-            XrdPosixGlobals::theCache = parms.theCache2;
+        if (parms.theCache)
+           {XrdPosixGlobals::theCache = parms.theCache;
             if (parms.initCCM) return initCCM(parms);
             return true;
-           }
-   else if (parms.theCache)
-           {char ebuf[] = {0};
-            XrdPosixGlobals::myCache  = parms.theCache;
-            initEnv(ebuf);
            }
    else if (parms.mCache && *parms.mCache) initEnv(parms.mCache);
 

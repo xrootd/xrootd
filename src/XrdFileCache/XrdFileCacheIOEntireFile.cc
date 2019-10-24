@@ -32,7 +32,7 @@
 using namespace XrdFileCache;
 
 //______________________________________________________________________________
-IOEntireFile::IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache & cache) :
+IOEntireFile::IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache & cache) :
    IO(io, stats, cache),
    m_file(0),
    m_localStat(0)
@@ -135,7 +135,7 @@ bool IOEntireFile::ioActive()
 }
 
 //______________________________________________________________________________
-XrdOucCacheIO *IOEntireFile::Detach()
+bool IOEntireFile::Detach(XrdOucCacheIOCD &iocdP)
 {
    // Called from XrdPosixFile destructor.
 
@@ -147,9 +147,9 @@ XrdOucCacheIO *IOEntireFile::Detach()
       m_file->RequestSyncOfDetachStats();
       Cache::GetInstance().ReleaseFile(m_file, this);
    }
-   XrdOucCacheIO *io = GetInput();
    delete this;
-   return io;
+//???? This needs to be coordinated ith old ioActive() and return false if active
+   return true;
 }
 
 //______________________________________________________________________________

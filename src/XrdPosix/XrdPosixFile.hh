@@ -42,7 +42,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-#include "XrdOuc/XrdOucCache2.hh"
+#include "XrdOuc/XrdOucCache.hh"
 
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixObject.hh"
@@ -55,12 +55,13 @@ class XrdPosixCallBack;
 class XrdPosixPrepIO;
 
 class XrdPosixFile : public XrdPosixObject, 
-                     public XrdOucCacheIO2,
+                     public XrdOucCacheIO,
+                     public XrdOucCacheIOCD,
                      public XrdCl::ResponseHandler
 {
 public:
 
-XrdOucCacheIO2 *XCio;
+XrdOucCacheIO  *XCio;
 XrdPosixPrepIO *PrepIO;
 XrdCl::File     clFile;
 
@@ -82,6 +83,10 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        bool          Close(XrdCl::XRootDStatus &Status);
 
+       bool          Detach(XrdOucCacheIOCD &cdP) {(void)cdP; return true;}
+
+       void          DetachDone() {unRef();}
+
        bool          Finalize(XrdCl::XRootDStatus *Status);
 
        long long     FSize() {AtomicBeg(updMutex);
@@ -96,8 +101,6 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        void          HandleResponse(XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject    *response);
-
-       void          isOpen();
 
        void          updLock()   {updMutex.Lock();}
 

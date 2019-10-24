@@ -36,7 +36,6 @@
 
 #include "XrdOuc/XrdOucCacheCM.hh"
   
-class XrdOucCacheIF;
 class XrdOucEnv;
 class XrdOucName2Name;
 class XrdSysError;
@@ -78,8 +77,7 @@ char                *configFN;    // -> Pointer to the config file name
 XrdSysLogger        *theLogger;
 XrdOucEnv           *theEnv;
 XrdOucName2Name     *theN2N;      // -> File mapper object
-XrdOucCache         *theCache;    // -> V1 cache
-XrdOucCache2        *theCache2;   // -> V2 cache
+XrdOucCache         *theCache;    // -> Cache object
 XrdOucCacheCMInit_t  initCCM;     // -> Cache context manager initializer
 char                *mCache;      // -> memory cache parameters
 XrdOucTList         *setFirst;
@@ -97,7 +95,7 @@ bool                 xNameLib;
           XrdOucPsx(XrdVersionInfo *vInfo, const char *cfn,
                     XrdSysLogger *lp=0,    XrdOucEnv  *vp=0)
                    : configFN(strdup(cfn)), theLogger(lp), theEnv(vp),
-                     theN2N(0), theCache(0), theCache2(0), initCCM(0),
+                     theN2N(0), theCache(0), initCCM(0),
                      mCache(0), setFirst(0), setLast(0), maxRHCB(0),
                      traceLvl(0), debugLvl(0), cioWait(0), cioTries(0),
                      useV4(false), xLfn2Pfn(false), xPfn2Lfn(false),

@@ -75,12 +75,6 @@ add_library(
   XrdOuc/XrdOucBackTrace.cc     XrdOuc/XrdOucBackTrace.hh
   XrdOuc/XrdOucBuffer.cc        XrdOuc/XrdOucBuffer.hh
                                 XrdOuc/XrdOucCache.hh
-                                XrdOuc/XrdOucCache2.hh
-  XrdOuc/XrdOucCacheData.cc     XrdOuc/XrdOucCacheData.hh
-  XrdOuc/XrdOucCacheDram.cc     XrdOuc/XrdOucCacheDram.hh
-                                XrdOuc/XrdOucCacheCM.hh
-  XrdOuc/XrdOucCacheReal.cc     XrdOuc/XrdOucCacheReal.hh
-                                XrdOuc/XrdOucCacheSlot.hh
                                 XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.cc      XrdOuc/XrdOucCallBack.hh
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh
@@ -202,6 +196,14 @@ add_library(
                                    XrdCks/XrdCksData.hh
                                    XrdCks/XrdCks.hh
                                    XrdCks/XrdCksXAttr.hh
+
+  #-----------------------------------------------------------------------------
+  # XrdRmc
+  #-----------------------------------------------------------------------------
+  XrdRmc/XrdRmc.cc                 XrdRmc/XrdRmc.hh
+  XrdRmc/XrdRmcData.cc             XrdRmc/XrdRmcData.hh
+  XrdRmc/XrdRmcReal.cc             XrdRmc/XrdRmcReal.hh
+                                   XrdRmc/XrdRmcSlot.hh
 
   #-----------------------------------------------------------------------------
   # XrdSec

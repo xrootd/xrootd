@@ -18,7 +18,7 @@
 
 using namespace XrdFileCache;
 
-XrdVERSIONINFO(XrdOucGetCache2, XrdFileCache);
+XrdVERSIONINFO(XrdOucGetCache, XrdFileCache);
 
 bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name)
 {
@@ -174,7 +174,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    // Obtain OFS configurator for OSS plugin.
    XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(config_filename,&Config,&m_log,
-                                                &XrdVERSIONINFOVAR(XrdOucGetCache2));
+                                                &XrdVERSIONINFOVAR(XrdOucGetCache));
    if (! ofsCfg) return false;
 
    TmpConfiguration tmpc;
@@ -649,14 +649,4 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
 
    return true;
-}
-
-//______________________________________________________________________________
-
-
-void Cache::EnvInfo(XrdOucEnv &theEnv)
-{
-// Extract out the pointer to the scheduler
-//
-   schedP = (XrdScheduler *) theEnv.GetPtr("XrdScheduler*");
 }

@@ -1263,22 +1263,11 @@ virtual               ~XrdSfsFileSystem() {}
     @param  Logger   - The message logging object to be used for messages.
     @param  configFN - pointer to the path of the configuration file. If nil
                        there is no configuration file.
+    @param  envP     - Pointer to the environment containing implementation
+                       specific information.
 
     @return Pointer to the file system object to be used or nil if an error
             occurred.
-
-    extern "C"
-         {XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *nativeFS,
-                                                XrdSysLogger     *Logger,
-                                                const char       *configFn);
-         }
-
-    An alternate entry point may be defined in lieu of the previous entry point.
-    This normally identified by a version option in the configuration file (e.g.
-    xrootd.fslib -2 <path>). It differs in that an extra parameter is passed:
-
-    @param  envP     - Pointer to the environment containing implementation
-                       specific information.
 
     extern "C"
          {XrdSfsFileSystem *XrdSfsGetFileSystem2(XrdSfsFileSystem *nativeFS,
@@ -1288,17 +1277,27 @@ virtual               ~XrdSfsFileSystem() {}
          }
 */
 
-typedef XrdSfsFileSystem *(*XrdSfsFileSystem_t) (XrdSfsFileSystem *nativeFS,
-                                                 XrdSysLogger     *Logger,
-                                                 const char       *configFn);
-
 typedef XrdSfsFileSystem *(*XrdSfsFileSystem2_t)(XrdSfsFileSystem *nativeFS,
                                                  XrdSysLogger     *Logger,
                                                  const char       *configFn,
                                                  XrdOucEnv        *envP);
 
 //-----------------------------------------------------------------------------
-  
+/*! The old-style entry-point is still supported as a fallback. Should the
+    version '2' entry point is not found, the system attempts to use the
+    version '1' entry point.
+
+    extern "C"
+         {XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *nativeFS,
+                                                XrdSysLogger     *Logger,
+                                                const char       *configFn);
+         }
+*/
+
+typedef XrdSfsFileSystem *(*XrdSfsFileSystem_t) (XrdSfsFileSystem *nativeFS,
+                                                 XrdSysLogger     *Logger,
+                                                 const char       *configFn);
+
 //------------------------------------------------------------------------------
 /*! Specify the compilation version.
 

@@ -54,7 +54,7 @@
 
 namespace XrdPosixGlobals
 {
-extern XrdOucCache2    *theCache;
+extern XrdOucCache     *theCache;
 extern XrdOucName2Name *theN2N;
 extern XrdSysError     *eDest;
 extern int              ddInterval;
@@ -90,7 +90,7 @@ int            XrdPosixFile::ddNum    =  0;
 
 XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
                            int Opts)
-             : XCio((XrdOucCacheIO2 *)this), PrepIO(0),
+             : XCio((XrdOucCacheIO *)this), PrepIO(0),
                mySize(0), myMtime(0), myInode(0), myMode(0),
                theCB(cbP), fLoc(0), cOpt(0),
                isStream(Opts & isStrm ? 1 : 0)
@@ -123,8 +123,8 @@ XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
 XrdPosixFile::~XrdPosixFile()
 {
 // Detach the cache if it is attached
-//
-   if (XCio != this) XCio->Detach();
+//??? We need to figure this out, shouldn't need to do this
+// if (XCio != this) XCio->Detach();
 
 // Close the remote connection
 //
@@ -148,17 +148,19 @@ XrdPosixFile::~XrdPosixFile()
 void* XrdPosixFile::DelayedDestroy(void* vpf)
 {
 // Static function.
-// Called within a dedicated thread if XrdOucCacheIO is io-active or the
-// file cannot be closed in a clean fashion for some reason.
+// Called within a dedicated thread if there is a reference outstanding to the
+// file or the file cannot be closed in a clean fashion for some reason.
 //
    EPNAME("DDestroy");
 
+   XrdSysError *Say = XrdPosixGlobals::eDest;
    XrdCl::XRootDStatus Status;
    std::string statusMsg;
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
-   int ddCount;
-   bool ioActive, doWait = false;
+   char buff[256];
+   int ddCount, refNum;
+   bool doWait = false;
 
 // Wait for active I/O to complete
 //
@@ -185,30 +187,32 @@ do{if (doWait)
 // Try to delete all the files on the list. If we exceeded the try limit,
 // remove the file from the list and let it sit forever.
 //
+   int nowLost = XrdPosixGlobals::ddNumLost;
    while((fCurr = fNext))
         {fNext = fCurr->nextFile;
-         if (!((ioActive = fCurr->XCio->ioActive())) && !fCurr->Refs())
-            {if (fCurr->Close(Status)) {delete fCurr; ddCount--; continue;}
+         if (!(refNum = fCurr->Refs()))
+            {if (fCurr->Close(Status) || !fCurr->clFile.IsOpen())
+                {delete fCurr; ddCount--; continue;}
                 else {statusMsg = Status.ToString();
                       eTxt = statusMsg.c_str();
                      }
-            } else    eTxt = (ioActive ? "active I/O" : "callback");
+            } else eTxt = 0;
 
          if (fCurr->numTries > XrdPosixGlobals::ddMaxTries)
             {XrdPosixGlobals::ddNumLost++; ddCount--;
-             if (XrdPosixGlobals::eDest)
-                {char buff[256];
-                 snprintf(buff, sizeof(buff), "(%d) %s",
-                                XrdPosixGlobals:: ddNumLost, eTxt);
-                 XrdPosixGlobals::eDest->Emsg("DDestroy",
-                                         "timeout closing", fCurr->Origin());
+             if (!eTxt)
+                {snprintf(buff, sizeof(buff), "in use %d", refNum);
+                 eTxt = buff;
+                }
+             if (Say)
+                {snprintf(buff, sizeof(buff), "%s timeout closing", eTxt);
+                 Say->Emsg("DDestroy", buff, fCurr->Origin());
                 } else {
                  DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
                         <<' ' <<XrdPosixGlobals::ddNumLost <<" objects lost");
                 }
              fCurr->nextFile = ddLost;
              ddLost = fCurr;
-             fCurr->Close(Status);
             } else {
              fCurr->numTries++;
              doWait = true;
@@ -218,7 +222,14 @@ do{if (doWait)
              ddMutex.UnLock();
             }
         }
-        DEBUG("DLY destory end; "<<ddCount<<" objects deferred.");
+        if (Say && XrdPosixGlobals::ddNumLost - nowLost >= 3)
+           {snprintf(buff, sizeof(buff), "%d objects deferred and %d lost.",
+                                         ddCount, XrdPosixGlobals::ddNumLost);
+            Say->Emsg("DDestroy", buff);
+           } else {
+            DEBUG("DLY destory end; "<<ddCount<<" objects deferred and "
+                             <<XrdPosixGlobals::ddNumLost <<" lost.");
+           }
    } while(true);
 
    return 0;
@@ -242,8 +253,8 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
       else {doPost   = true;
             ddPosted = true;
            }
-   ddMutex.UnLock();
    fp->numTries = 0;
+   ddMutex.UnLock();
 
    DEBUG("DLY destory "<<(doPost ? "post " : "has ")<<ddCount
                        <<" objects; added "<<fp->Origin());
@@ -279,7 +290,7 @@ bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 
 bool XrdPosixFile::Finalize(XrdCl::XRootDStatus *Status)
 {
-   XrdOucCacheIO2 *ioP;
+   XrdOucCacheIO *ioP;
 
 // Indicate that we are at the start of the file
 //
@@ -288,8 +299,8 @@ bool XrdPosixFile::Finalize(XrdCl::XRootDStatus *Status)
 // Complete initialization. If the stat() fails, the caller will unwind the
 // whole open process (ick). In the process get correct I/O vector.
 
-        if (!Status)       ioP = (XrdOucCacheIO2 *)PrepIO;
-   else if (Stat(*Status)) ioP = (XrdOucCacheIO2 *)this;
+        if (!Status)       ioP = (XrdOucCacheIO *)PrepIO;
+   else if (Stat(*Status)) ioP = (XrdOucCacheIO *)this;
    else return false;
 
 // Setup the cache if it is to be used
@@ -364,7 +375,7 @@ const char *XrdPosixFile::Location()
 
 // If the file is not open, then we have no location
 //
-   if (!clFile.IsOpen()) return 0;
+   if (!clFile.IsOpen()) return "";
 
 // If we have no location info, get it
 //

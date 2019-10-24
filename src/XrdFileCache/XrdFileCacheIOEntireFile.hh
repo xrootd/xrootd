@@ -43,7 +43,7 @@ public:
    //------------------------------------------------------------------------
    //! Constructor
    //------------------------------------------------------------------------
-   IOEntireFile(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
+   IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
 
    //------------------------------------------------------------------------
    //! Destructor
@@ -64,7 +64,7 @@ public:
    //!
    //! @return number of bytes read
    //---------------------------------------------------------------------
-   using XrdOucCacheIO2::Read;
+   using XrdOucCacheIO::Read;
 
    virtual int Read(char *Buffer, long long Offset, int Length);
 
@@ -76,7 +76,7 @@ public:
    //!
    //! @return total bytes read
    //---------------------------------------------------------------------
-   using XrdOucCacheIO2::ReadV;
+   using XrdOucCacheIO::ReadV;
 
    virtual int ReadV(const XrdOucIOVec *readV, int n);
 
@@ -85,7 +85,7 @@ public:
    //!
    //! @return original source \ref XrdPosixFile
    //---------------------------------------------------------------------
-   virtual XrdOucCacheIO* Detach();
+   virtual bool Detach(XrdOucCacheIOCD &iocdP);
 
    //! \brief Virtual method of XrdOucCacheIO.
    //! Called to check if destruction needs to be done in a separate task.

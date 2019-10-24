@@ -176,7 +176,9 @@
          "libXrdCryptossl.so",       \
          "libXrdFileCache.so",       \
          "libXrdHttp.so",            \
+         "libXrdHttpTPC.so",         \
          "libXrdOssSIgpfsT.so",      \
+         "libXrdN2No2p.so",          \
          "libXrdPss.so",             \
          "libXrdSec.so",             \
          "libXrdSecgsi.so",          \
@@ -186,6 +188,9 @@
          "libXrdSecpwd.so",          \
          "libXrdSecsss.so",          \
          "libXrdSecunix.so",         \
+         "libXrdSsi.so",             \
+         "libXrdSsLog.so",           \
+         "libXrdThrottle.so",        \
          "libXrdXrootd.so",          \
          0}
 #endif

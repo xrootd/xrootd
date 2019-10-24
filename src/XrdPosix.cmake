@@ -17,7 +17,6 @@ add_library(
   SHARED
   XrdPosix/XrdPosixAdmin.cc        XrdPosix/XrdPosixAdmin.hh
   XrdPosix/XrdPosixCache.cc        XrdPosix/XrdPosixCache.hh
-                                   XrdPosix/XrdPosixCacheBC.hh
   XrdPosix/XrdPosixCallBack.cc     XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixConfig.cc       XrdPosix/XrdPosixConfig.hh
   XrdPosix/XrdPosixDir.cc          XrdPosix/XrdPosixDir.hh

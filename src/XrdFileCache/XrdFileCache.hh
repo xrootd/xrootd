@@ -25,7 +25,7 @@
 #include "Xrd/XrdScheduler.hh"
 #include "XrdVersion.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucCache2.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
@@ -276,7 +276,7 @@ struct PathTokenizer : private SplitParser
 //----------------------------------------------------------------------------
 //! Attaches/creates and detaches/deletes cache-io objects for disk based cache.
 //----------------------------------------------------------------------------
-class Cache : public XrdOucCache2
+class Cache : public XrdOucCache
 {
 public:
    //---------------------------------------------------------------------
@@ -287,30 +287,21 @@ public:
    //---------------------------------------------------------------------
    //! Obtain a new IO object that fronts existing XrdOucCacheIO.
    //---------------------------------------------------------------------
-   using XrdOucCache2::Attach;
+   using XrdOucCache::Attach;
 
-   virtual XrdOucCacheIO2 *Attach(XrdOucCacheIO2 *, int Options = 0);
-
-   //---------------------------------------------------------------------
-   //! Number of cache-io objects atteched through this cache.
-   //---------------------------------------------------------------------
-   virtual int isAttached();
+   virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options = 0);
 
    //---------------------------------------------------------------------
-   // Virtual function of XrdOucCache2. Used to pass environmental info.
-   virtual void EnvInfo(XrdOucEnv &theEnv);
-
-   //---------------------------------------------------------------------
-   // Virtual function of XrdOucCache2. Used for redirection to a local
+   // Virtual function of XrdOucCache. Used for redirection to a local
    // file on a distributed FS.
    virtual int LocalFilePath(const char *url, char *buff=0, int blen=0,
                              LFP_Reason why=ForAccess, bool forall=false);
 
    //---------------------------------------------------------------------
-   // Virtual function of XrdOucCache2. Used for deferred open.
+   // Virtual function of XrdOucCache. Used for deferred open.
    virtual int  Prepare(const char *url, int oflags, mode_t mode);
 
-   // virtual function of XrdOucCache2.
+   // virtual function of XrdOucCache.
    virtual int  Stat(const char *url, struct stat &sbuff);
 
    // virtual function of XrdOucCache.
@@ -409,6 +400,8 @@ public:
 
    void ExecuteCommandUrl(const std::string& command_url);
 
+   static XrdScheduler *schedP;
+
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
    bool ConfigXeq(char *, XrdOucStream &);
@@ -420,7 +413,6 @@ private:
    int  UnlinkCommon(const std::string& f_name, bool fail_if_open);
 
    static Cache        *m_factory;      //!< this object
-   static XrdScheduler *schedP;
 
    XrdSysError       m_log;             //!< XrdFileCache namespace logger
    XrdSysTrace      *m_trace;

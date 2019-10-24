@@ -20,7 +20,7 @@
 #include <map>
 #include <string>
 
-#include "XrdOuc/XrdOucCache2.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdFileCacheIO.hh"
@@ -41,7 +41,7 @@ public:
    //------------------------------------------------------------------------
    //! Constructor.
    //------------------------------------------------------------------------
-   IOFileBlock(XrdOucCacheIO2 *io, XrdOucCacheStats &stats, Cache &cache);
+   IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
 
    //------------------------------------------------------------------------
    //! Destructor.
@@ -53,12 +53,12 @@ public:
    //!
    //! @return original source \ref XrdPosixFile
    //---------------------------------------------------------------------
-   virtual XrdOucCacheIO *Detach();
+   virtual bool Detach(XrdOucCacheIOCD &iocdP);
 
    //---------------------------------------------------------------------
    //! Pass Read request to the corresponding File object.
    //---------------------------------------------------------------------
-   using XrdOucCacheIO2::Read;
+   using XrdOucCacheIO::Read;
 
    virtual int Read(char *Buffer, long long Offset, int Length);
 
