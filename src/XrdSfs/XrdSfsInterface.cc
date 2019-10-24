@@ -29,6 +29,7 @@
 
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSfs/XrdSfsAio.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 /******************************************************************************/
@@ -253,6 +254,16 @@ XrdSfsXferSize XrdSfsFile::writev(XrdOucIOVec      *writeV,
 /*      X r d S f s F i l e S y s t e m   M e t h o d   D e f a u l t s       */
 /******************************************************************************/
 /******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
+  
+XrdSfsFileSystem::XrdSfsFileSystem()
+{
+   FeatureSet = XrdSfs::hasPGRW;
+   if (getChkPSize() > 0) FeatureSet |= XrdSfs::hasCHKP;
+}
+  
+/******************************************************************************/
 /*                                c h k s u m                                 */
 /******************************************************************************/
   
@@ -283,12 +294,6 @@ int XrdSfsFileSystem::FAttr(      XrdSfsFACtl      *faReq,
    eInfo.setErrInfo(ENOTSUP, "Not supported.");
    return SFS_ERROR;
 }
-
-/******************************************************************************/
-/*                              F e a t u r e s                               */
-/******************************************************************************/
-
-uint64_t XrdSfsFileSystem::Features() {return 0;}
   
 /******************************************************************************/
 /*                                 F S c t l                                  */

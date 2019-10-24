@@ -996,7 +996,7 @@ virtual int            FAttr(      XrdSfsFACtl      *faReq,
 //!         See include file XrdSfsFlags.hh for actual bit values.
 //-----------------------------------------------------------------------------
 
-virtual uint64_t       Features();
+        uint64_t       Features() {return FeatureSet;}
 
 //-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 2)
@@ -1055,6 +1055,14 @@ virtual int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &eInfo,
                              const XrdSecEntity     *client = 0) = 0;
+
+//-----------------------------------------------------------------------------
+//! Return maximum checkpoint size.
+//!
+//! @return Maximum size of a checkpoint.
+//-----------------------------------------------------------------------------
+
+virtual int            getChkPSize() {return 0;}
 
 //-----------------------------------------------------------------------------
 //! Return statistical information.
@@ -1246,8 +1254,12 @@ virtual int            truncate(const char             *path,
 //! Constructor and Destructor
 //-----------------------------------------------------------------------------
 
-                       XrdSfsFileSystem() {}
+                       XrdSfsFileSystem();
 virtual               ~XrdSfsFileSystem() {}
+
+protected:
+
+uint64_t               FeatureSet; //!< Adjust features at initialization
 };
 
 /******************************************************************************/

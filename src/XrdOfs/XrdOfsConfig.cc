@@ -271,19 +271,18 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    if (!ofsConfig->Load(piOpts, this, EnvInfo)) NoGo = 1;
       else {ofsConfig->Plugin(XrdOfsOss);
+            ossFeatures = XrdOfsOss->Features();
             ofsConfig->Plugin(Cks);
             CksPfn = !ofsConfig->OssCks();
             CksRdr = !ofsConfig->LclCks();
             if (ofsConfig->Plugin(prepHandler))
                {prepAuth = ofsConfig->PrepAuth();
-                if (EnvInfo) EnvInfo->Put("XRD_PrepHandler", "1");
-                   else XrdOucEnv::Export("XRD_PrepHandler", "1");
-                myFeatures |= XrdSfs::hasPRP2;
+                FeatureSet |= XrdSfs::hasPRP2;
                }
             if (Options & Authorize)
                {ofsConfig->Plugin(Authorization);
                 XrdOfsTPC::Init(Authorization);
-                myFeatures |= XrdSfs::hasAUTZ;
+                FeatureSet |= XrdSfs::hasAUTZ;
                }
            }
 
@@ -336,7 +335,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
    if (getenv("XRDXROOTD_PROXY"))
       {OssIsProxy = 1;
        CksPfn = false;
-       myFeatures |= XrdSfs::hasPRXY;
+       FeatureSet |= XrdSfs::hasPRXY;
       }
 
 // Setup statistical monitoring
@@ -535,7 +534,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 
 // All done
 //
-   if (!NoGo) myFeatures |= XrdSfs::hasPOSC;
+   if (!NoGo) FeatureSet |= XrdSfs::hasPOSC;
    return NoGo;
 }
 

@@ -48,6 +48,7 @@
 
 #include "XProtocol/XProtocol.hh"
 
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -308,7 +309,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Check if the file system includes a custom prepare handler as this will
 // affect how we handle prepare requests.
 //
-   if (myEnv.Get("XRD_PrepHandler")) PrepareAlt = true;
+   if (fsFeatures & XrdSfs::hasPRP2 || myEnv.Get("XRD_PrepHandler"))
+      PrepareAlt = true;
 
 // Check if the diglib should be loaded. We only support the builtin one. In
 // the future we will have to change this code to be like the above.
@@ -470,6 +472,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                                      "not a forwarding proxy.");
           }
       }
+
+// Add any additional features
+//
+   if (fsFeatures & XrdSfs::hasPOSC) myRole |= kXR_supposc;
+   if (fsFeatures & XrdSfs::hasPGRW) myRole |= kXR_suppgrw;
+   if (fsFeatures & XrdSfs::hasGPF)  myRole |= kXR_supgpf;
+   if (fsFeatures & XrdSfs::hasGPFA && myRole & kXR_supgpf)
+      myRole |= kXR_anongpf;
 
 // Finally note whether or not we have TLS enabled
 //
