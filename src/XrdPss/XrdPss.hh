@@ -130,6 +130,7 @@ int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 void      EnvInfo(XrdOucEnv *envP);
+uint64_t  Features() {return myFeatures;}
 int       Init(XrdSysLogger *, const char *);
 int       Lfn2Pfn(const char *Path, char *buff, int blen);
 const
@@ -184,6 +185,7 @@ char              *LocalRoot;// -> pss Local n2n root, if any
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
 XrdVersionInfo    *myVersion;// -> Compilation version
+uint64_t          myFeatures;// Our feature set
 
 int    Configure(const char *);
 int    ConfigProc(const char *ConfigFN);
