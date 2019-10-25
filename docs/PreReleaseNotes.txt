@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[All]** Implement new thread-safe strerror() replacement.
   * **[Server]** Allow xrootd.fslib plugin to be generally stacked.
   * **[Server]** Add getfile and putfile SFS interface.
   * **[Server]** Allow plugin stacking for most OFS plugins.
@@ -36,6 +37,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * **[All]** Use thread-safe strerror() replacement, part 1.
   * **[Server]** Provide interface for checksum handler to report progress.
   * **[Server]** Improve SFS wrapping and add "how to" documentation.
   * **[Server]** Add appname to SecEntity attribute set.
