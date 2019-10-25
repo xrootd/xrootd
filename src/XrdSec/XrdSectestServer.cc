@@ -30,7 +30,6 @@
 
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
@@ -38,6 +37,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -93,7 +93,7 @@ void getargs(int argc, char **argv);
 int  unhex(uchar *ibuff, uchar *obuff, int blen);
 int  cvtx(uchar idig, uchar *odig);
 void getline(uchar *buff, int blen);
-char *Ereason( );
+const char *Ereason( );
 int emsg(int rc,char *msg);
 void help(int rc);
 void xerr(int x);
@@ -296,8 +296,8 @@ void getline(uchar *buff, int blen) {
   return;
   }
 
-char *Ereason( ) {
-  return strerror(errno);
+const char *Ereason( ) {
+  return XrdSysE2T(errno);
   }
 
 /*xerr: print message on standard error using the errbuff as source of message.

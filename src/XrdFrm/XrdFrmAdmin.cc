@@ -28,7 +28,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <string.h>
@@ -52,6 +51,7 @@
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdFrc;
@@ -823,9 +823,7 @@ void XrdFrmAdmin::Emsg(int ec, const char *tx2, const char *tx3,
    char buff[128];
 
    if (!ec) Say.Say(tx2, tx3, tx4, tx5);
-      else {strcpy(buff+2, strerror(ec));
-            if (strncmp(buff+2, "Unknown", 7)) buff[2] = tolower(buff[2]);
-               else sprintf(buff+2, "error %d", ec);
+      else {strcpy(buff+2, XrdSysE2T(ec));
             buff[0] = ';'; buff[1] = ' ';
             Say.Say("frm_admin: Unable to ", tx2, tx3, tx4, tx5, buff);
            }

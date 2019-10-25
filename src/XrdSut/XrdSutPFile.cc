@@ -33,13 +33,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <time.h>
 
 #include "XrdSut/XrdSutAux.hh"
 #include "XrdSut/XrdSutPFEntry.hh"
 #include "XrdSut/XrdSutPFile.hh"
 #include "XrdSut/XrdSutTrace.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 //_________________________________________________________________
 XrdSutPFEntInd::XrdSutPFEntInd(const char *n, kXR_int32 no,
@@ -2213,7 +2213,7 @@ kXR_int32 XrdSutPFile::Err(kXR_int32 code, const char *loc,
    fError = code;
 
    // Build string following the error code
-   char *errbuf = strerror(errno);
+   const char *errbuf = XrdSysE2T(errno);
    switch (code) {
       case kPFErrBadInputs:
          snprintf(buf,XrdSutMAXBUF,

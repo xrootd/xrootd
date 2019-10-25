@@ -95,19 +95,19 @@ std::string &Get() const {return errText;}
 //! Set new error information. There are two obvious variations.
 //!
 //! @param  eMsg  pointer to a string describing the error. If nil, the eNum
-//!               is taken as errno and strerror(eNum) is used.
+//!               is taken as errno and converted to corresponding description.
 //! @param  eNum  the error number associated with the error.
 //! @param  eArg  the error argument, if any (see XrdSsiService::Provision()).
 //-----------------------------------------------------------------------------
 
        void  Set(const char *eMsg=0, int eNum=0, int eArg=0)
-                {errText = (eMsg && *eMsg ? eMsg : strerror(eNum));
+                {errText = (eMsg && *eMsg ? eMsg : Errno2Text(eNum));
                  errNum  = eNum;
                  errArg  = eArg;
                 }
 
        void  Set(const std::string &eMsg, int eNum=0, int eArg=0)
-                {errText = (eMsg.empty() ? strerror(eNum) : eMsg);
+                {errText = (eMsg.empty() ? Errno2Text(eNum) : eMsg);
                  errNum  = eNum;
                  errArg  = eArg;
                 }
@@ -137,6 +137,7 @@ XrdSsiErrInfo &operator=(XrdSsiErrInfo const &rhs)
      ~XrdSsiErrInfo() {}
 
 private:
+const char* Errno2Text(int ecode);
 
 std::string errText;
 int         errNum;

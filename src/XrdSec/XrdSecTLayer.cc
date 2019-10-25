@@ -31,7 +31,6 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -39,6 +38,7 @@
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecTLayer.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
@@ -324,7 +324,7 @@ void XrdSecTLayer::secError(const char *Msg, int rc, int iserrno)
 {
    char buff[32];
    const char *tlist[] = {"XrdSecProtocol", Hdr.protName, ": ", Msg, "; ", 
-                          (iserrno ? strerror(rc) : secErrno(rc,buff))
+                          (iserrno ? XrdSysE2T(rc) : secErrno(rc,buff))
                          };
    int i, n = sizeof(tlist)/sizeof(const char *);
 

@@ -41,7 +41,6 @@
   
 #include <ctype.h>
 #include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -54,6 +53,7 @@
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 //
    for (i = 1; i < argc; i++)
        {if (stat(argv[i], &Stat))
-           {eText = strerror(errno);
+           {eText = XrdSysE2T(errno);
             cerr <<"wait41: " <<eText <<" processing " <<argv[i] <<endl;
             continue;
            }
@@ -184,7 +184,7 @@ XrdOucTList *XrdW41Dirs::Expand(const char *Path, XrdOucTList *ptl)
     DIR *DFD;
 
     if (!(DFD = opendir(Path)))
-       {eText = strerror(errno);
+       {eText = XrdSysE2T(errno);
         cerr <<"wait41: " <<eText <<" opening directory" <<Path <<endl;
         return ptl;
        }
@@ -197,7 +197,7 @@ XrdOucTList *XrdW41Dirs::Expand(const char *Path, XrdOucTList *ptl)
          {if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) continue;
           strcpy(sfxDir, dp->d_name);
           if (stat(buff, &Stat))
-             {eText = strerror(errno);
+             {eText = XrdSysE2T(errno);
               cerr <<"wait41: " <<eText <<" processing " <<buff <<endl;
               continue;
              }
@@ -206,7 +206,7 @@ XrdOucTList *XrdW41Dirs::Expand(const char *Path, XrdOucTList *ptl)
          }
 
     if (errno)
-       {eText = strerror(errno);
+       {eText = XrdSysE2T(errno);
         cerr <<"wait41: " <<eText <<" reading directory" <<Path <<endl;
        }
 
@@ -240,7 +240,7 @@ void XrdW41Gate::Serialize(XrdOucTList *gfP, int Wait)
 //
    if (rc != -1) rc = 0;
       else {rc = errno;
-            cerr <<"Serialize: " <<strerror(rc) <<" locking FD " <<gfP->text <<endl;
+            cerr <<"Serialize: " <<XrdSysE2T(rc) <<" locking FD " <<gfP->text <<endl;
            }
 
 // Reflect what happened here
@@ -273,12 +273,12 @@ int XrdW41Gate::Wait41(XrdOucTList *gfP)
              gateMutex.UnLock();
             }
               if ((gfP->val = open(gfP->text, O_CREAT|O_RDWR, AMode)) < 0)
-                 {eTxt = strerror(errno);
+                 {eTxt = XrdSysE2T(errno);
                   cerr <<"Wait41: " <<eTxt <<" opening " <<gfP->text <<endl;
                  }
          else if ((rc = XrdSysThread::Run(&tid, GateWait, (void *)gfP,
                                       XRDSYSTHREAD_BIND, "Gate Wait")))
-                 {eTxt = strerror(errno);
+                 {eTxt = XrdSysE2T(errno);
                   cerr <<"Wait41: " <<eTxt <<" creating gate thread for "
                                     <<gfP->text <<endl;
                   close(gfP->val);

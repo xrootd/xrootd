@@ -36,6 +36,7 @@
 #include <sys/epoll.h>
 
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #ifndef Atomic
 #define Atomic(x) x
 #endif
@@ -217,7 +218,7 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
        if (numpolled == 0) CbkTMO();
        else if (numpolled <  0)
                {int rc = errno;
-                cerr <<"EPoll: " <<strerror(rc) <<" polling for events" <<endl;
+                cerr <<"EPoll: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
                 abort();
                }
        else for (int i = 0; i < numpolled; i++)

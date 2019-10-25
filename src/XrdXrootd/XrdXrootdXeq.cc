@@ -28,7 +28,6 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -44,6 +43,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecProtector.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
@@ -755,7 +755,7 @@ int XrdXrootdProtocol::do_Endsess()
 // Trace this request
 //
    TRACEP(LOGIN, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
-          <<" rc=" <<rc <<" (" <<strerror(rc < 0 ? -rc : EAGAIN) <<")");
+          <<" rc=" <<rc <<" (" <<XrdSysE2T(rc < 0 ? -rc : EAGAIN) <<")");
 
 // Return result. We only return obvious problems (exclude ESRCH and EPIPE).
 //

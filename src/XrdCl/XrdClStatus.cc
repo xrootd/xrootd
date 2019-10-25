@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClStatus.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XProtocol/XProtocol.hh"
 #include <cstring>
 
@@ -125,9 +126,9 @@ namespace XrdCl
     if( errNo >= kXR_ArgInvalid ) // kXR_ArgInvalid is the first (lowest) xrootd error code
       // it is used in an inconsistent way sometimes it is
       // xrootd error code and sometimes it is a plain errno
-      o << ": " << strerror( XProtocol::toErrno( errNo ) );
+      o << ": " << XrdSysE2T( XProtocol::toErrno( errNo ) );
     else if ( errNo )
-      o << ": " << strerror( errNo );
+      o << ": " << XrdSysE2T( errNo );
 
     return o.str();
   }

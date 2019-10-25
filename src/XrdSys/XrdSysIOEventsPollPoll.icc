@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <signal.h>
   
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -200,7 +201,7 @@ void XrdSys::IOEvents::PollPoll::Begin(XrdSysSemaphore *syncsem,
             if (numpolled == 0) CbkTMO();
        else if (numpolled <  0)
                {int rc = errno;
-                cerr <<"EPoll: " <<strerror(rc) <<" polling for events" <<endl;
+                cerr <<"EPoll: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
                 abort();
                }
        else{if (pollTab[0].revents) numpolled--;

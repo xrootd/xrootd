@@ -32,6 +32,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 #include <cstdlib>
 #include <cstdio>
@@ -1475,7 +1476,7 @@ XRootDStatus DoTail( FileSystem                      *fs,
     if( ret == -1 )
     {
       log->Error( AppMsg, "Unable to write to stdout: %s",
-                  strerror(errno) );
+                  XrdSysE2T(errno) );
       delete [] buffer;
       return st;
     }

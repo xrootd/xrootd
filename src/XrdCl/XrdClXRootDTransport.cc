@@ -41,6 +41,7 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSec/XrdSecProtect.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdCl/XrdClTls.hh"
 #include "XrdCl/XrdClSocket.hh"
 #include "XProtocol/XProtocol.hh"
@@ -1967,7 +1968,7 @@ namespace XrdCl
           {
             log->Debug( XRootDTransportMsg,
                         "[%s] Failed to load XrdSecProtect: %s",
-                        hsData->streamName.c_str(), strerror( -rc ) );
+                        hsData->streamName.c_str(), XrdSysE2T( -rc ) );
             CleanUpAuthentication( info );
 
             return Status( stError, errAuthFailed, -rc );

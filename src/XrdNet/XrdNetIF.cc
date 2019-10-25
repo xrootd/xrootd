@@ -29,7 +29,6 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -43,6 +42,7 @@
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 
 #include <iostream>
@@ -428,7 +428,7 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
    int             n = 0;
 
    if (getifaddrs(&ifBase) < 0)
-      {if (eText) *eText = strerror(errno);
+      {if (eText) *eText = XrdSysE2T(errno);
        if (ifList) *ifList = 0;
        if (eDest) eDest->Emsg("GetIF", errno, "get interface addresses.");
        return 0;

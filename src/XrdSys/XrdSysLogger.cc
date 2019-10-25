@@ -27,7 +27,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -47,6 +46,7 @@
 
 #include "XrdOuc/XrdOucTList.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysLogging.hh"
@@ -255,7 +255,7 @@ int XrdSysLogger::Bind(const char *path, int lfh)
       else if (eInt < 0 && !XrdSysUtils::SigBlock(-eInt))
               {rc = errno;
                BLAB("Unable to block logfile signal " <<-eInt <<"; "
-                    <<strerror(rc));
+                    <<XrdSysE2T(rc));
                eInt = 0;
                return -rc;
               }
@@ -488,7 +488,7 @@ int XrdSysLogger::FifoMake()
        else rc = 0;
        if (rc)
           {if (unlink(buff))
-              {BLAB("Unable to remove " <<buff <<"; " <<strerror(errno));
+              {BLAB("Unable to remove " <<buff <<"; " <<XrdSysE2T(errno));
                return rc;
               } else {
                BLAB(buff <<" has been removed");
@@ -498,7 +498,7 @@ int XrdSysLogger::FifoMake()
        } else {
        rc = errno;
        if (rc != ENOENT)
-          {BLAB("Unable to stat " <<buff <<"; " <<strerror(rc));
+          {BLAB("Unable to stat " <<buff <<"; " <<XrdSysE2T(rc));
            return rc;
           }
        }
@@ -508,7 +508,7 @@ int XrdSysLogger::FifoMake()
    if (rc == ENOENT)
       {if (mkfifo(buff, S_IRUSR|S_IWUSR))
           {rc = errno;
-           BLAB("Unable to create logfile fifo " <<buff <<"; " <<strerror(rc));
+           BLAB("Unable to create logfile fifo " <<buff <<"; " <<XrdSysE2T(rc));
            return rc;
           }
       }
@@ -532,7 +532,7 @@ int XrdSysLogger::HandleLogRotateLock( bool dorotate )
   int rc = unlink( lckPath.c_str() );
   if( rc && errno != ENOENT )
   {
-    BLAB( "The logfile lock (" << lckPath.c_str() << ") exists and cannot be removed: " << strerror( errno ) );
+    BLAB( "The logfile lock (" << lckPath.c_str() << ") exists and cannot be removed: " << XrdSysE2T( errno ) );
     return EEXIST;
   }
 
@@ -541,7 +541,7 @@ int XrdSysLogger::HandleLogRotateLock( bool dorotate )
     rc = open( lckPath.c_str(), O_CREAT, 0644 );
     if( rc < 0 )
     {
-      BLAB( "Failed to create the logfile lock (" << lckPath.c_str() << "): " << strerror( errno ) );
+      BLAB( "Failed to create the logfile lock (" << lckPath.c_str() << "): " << XrdSysE2T( errno ) );
       return errno;
     }
     close( rc );
@@ -576,7 +576,7 @@ void XrdSysLogger::FifoWait()
 //
    if ((pipeFD = XrdSysFD_Open(fifoFN, O_RDONLY)) < 0)
       {rc = errno;
-       BLAB("Unable to open logfile fifo " <<fifoFN <<"; " <<strerror(rc));
+       BLAB("Unable to open logfile fifo " <<fifoFN <<"; " <<XrdSysE2T(rc));
        eInt = 0;
        free(fifoFN); fifoFN = 0;
        return;
@@ -730,7 +730,7 @@ void XrdSysLogger::Trim()
 //
    if (!(DFD = opendir(logDir)))
       {int msz = snprintf(eBuff, 2048, "Error %d (%s) opening log directory %s\n",
-                                errno, strerror(errno), logDir);
+                                errno, XrdSysE2T(errno), logDir);
        putEmsg(eBuff, msz);
        return;
       }
@@ -759,7 +759,7 @@ void XrdSysLogger::Trim()
    rc = errno; closedir(DFD);
    if (rc)
       {int msz = snprintf(eBuff, 2048, "Error %d (%s) reading log directory %s\n",
-                                rc, strerror(rc), logDir);
+                                rc, XrdSysE2T(rc), logDir);
        putEmsg(eBuff, msz);
        return;
       }
@@ -786,7 +786,7 @@ void XrdSysLogger::Trim()
         {strcpy(logSfx, logNow->fn);
          if (unlink(logDir))
             rc = snprintf(eBuff, 2048, "Error %d (%s) removing log file %s\n",
-                                errno, strerror(errno), logDir);
+                                errno, XrdSysE2T(errno), logDir);
             else rc = snprintf(eBuff, 2048, "Removed log file %s\n", logDir);
          putEmsg(eBuff, rc);
          logNow = logNow->next;
@@ -818,7 +818,7 @@ void XrdSysLogger::zHandler()
        if ((sigemptyset(&sigset) == -1)
        ||  (sigaddset(&sigset,signo) == -1))
           {rc = errno;
-           BLAB("Unable to use logfile signal " <<signo <<"; " <<strerror(rc));
+           BLAB("Unable to use logfile signal " <<signo <<"; " <<XrdSysE2T(rc));
            eInt = 0;
           }
       }
@@ -831,7 +831,7 @@ void XrdSysLogger::zHandler()
          else if ((sigwait(&sigset, &signo) == -1))
                  {rc = errno;
                   BLAB("Unable to wait on logfile signal " <<signo
-                       <<"; " <<strerror(rc));
+                       <<"; " <<XrdSysE2T(rc));
                   eInt = 0;
                   continue;
                  }
@@ -852,7 +852,7 @@ void XrdSysLogger::zHandler()
                                    "Midnight Ringer Task"))
                 {char eBuff[256];
                  rc = sprintf(eBuff, "Error %d (%s) running ringer task.\n",
-                                     errno, strerror(errno));
+                                     errno, XrdSysE2T(errno));
                  putEmsg(eBuff, rc);
                 }
             }

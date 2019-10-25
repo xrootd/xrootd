@@ -42,6 +42,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysHeaders.hh"
   
 /******************************************************************************/
@@ -403,7 +404,7 @@ int XrdSecsssKT::eMsg(const char *epname, int rc,
    if (txt2)  cerr <<txt2;
    if (txt3)  cerr <<txt3;
    if (txt4)  cerr <<txt4;
-  {if (rc>0) {cerr <<"; " <<strerror(rc);}}
+  {if (rc>0) {cerr <<"; " <<XrdSysE2T(rc);}}
               cerr <<endl;
 
    return (rc ? (rc < 0 ? rc : -rc) : -1);

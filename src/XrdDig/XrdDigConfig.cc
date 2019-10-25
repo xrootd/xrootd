@@ -30,7 +30,6 @@
   
 #include <ctype.h>
 #include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -47,6 +46,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
@@ -325,9 +325,9 @@ const char *XrdDigConfig::AddPath(XrdDigConfig::pType sType, const char *src,
 // Make sure the source path is absolute and is readable and is of proper type
 //
    if (*src != '/' || *(src+1) == 0)   return "not absolute path";
-   if ((fd = open(src, O_RDONLY)) < 0) return strerror(errno);
+   if ((fd = open(src, O_RDONLY)) < 0) return XrdSysE2T(errno);
    rc = (fstat(fd, &Stat) ? errno : 0); close(fd);
-   if (rc) return strerror(rc);
+   if (rc) return XrdSysE2T(rc);
    switch(sType)
          {case isFile: if (!S_ISREG(Stat.st_mode)) return "not a file";
                        break;
@@ -359,7 +359,7 @@ const char *XrdDigConfig::AddPath(XrdDigConfig::pType sType, const char *src,
 
 // Create the link and return
 //
-   if ((rc = XrdOucUtils::ReLink(pBuff, src))) return strerror(rc);
+   if ((rc = XrdOucUtils::ReLink(pBuff, src))) return XrdSysE2T(rc);
    return 0;
 }
 

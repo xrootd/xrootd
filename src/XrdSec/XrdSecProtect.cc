@@ -27,7 +27,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <stdarg.h>
@@ -49,6 +48,7 @@
 #include "XrdSec/XrdSecProtect.hh"
 #include "XrdSec/XrdSecProtector.hh"
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
@@ -417,7 +417,7 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
 //
    if (edOK)
       {rc = authProt->Decrypt((const char *)inHash, dlen, &myReq.bP);
-       if (rc < 0) return strerror(-rc);
+       if (rc < 0) return XrdSysE2T(-rc);
        if (myReq.bP->size != (int)sizeof(secHash))
           return "Invalid signature hash length";
        inHash = (unsigned char *)myReq.bP->buffer;

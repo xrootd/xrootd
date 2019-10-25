@@ -27,7 +27,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -43,6 +42,7 @@
 #include <iostream>
 
 #include "XrdSsi/XrdSsiShMam.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 using namespace std;
 
@@ -196,7 +196,7 @@ inline bool ShMam_Flush(void *memP, int sOpt)
 {
    if (msync((void *)((uintptr_t)memP & PageMask), PageSize, sOpt))
       return true;
-   cerr <<"ShMam: msync() failed; " <<strerror(errno) <<endl;
+   cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
    return false;
 }
 */
@@ -206,7 +206,7 @@ inline bool ShMam_Flush(void *memP, int mLen, int sOpt)
    uintptr_t memE = ((uintptr_t)memP) + mLen;
    int rc;
    if ((rc = msync((void *)memB, memE-memB, sOpt)))
-      cerr <<"ShMam: msync() failed; " <<strerror(errno) <<endl;
+      cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
    return rc == 0;
 }
 */
@@ -769,7 +769,7 @@ bool XrdSsiShMam::ExportIt(bool fLocked)
               noGo = true;
           } else noGo = true;
        if (noGo) cerr <<"SsiShMam: Unable to update version for " <<shmPath
-                      <<"; " <<strerror(errno) <<endl;
+                      <<"; " <<XrdSysE2T(errno) <<endl;
        close(oldFD);
       }
 
@@ -839,7 +839,7 @@ bool XrdSsiShMam::Flush()
 //
    if (rc)
       {rc = errno;
-       cerr <<"ShMam: msync() failed; " <<strerror(errno) <<endl;
+       cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
        errno = rc; rc = -1;
       }
 

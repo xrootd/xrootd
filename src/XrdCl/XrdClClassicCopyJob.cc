@@ -36,6 +36,7 @@
 #include "XrdCl/XrdClZipArchiveReader.hh"
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClJobManager.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 #include <memory>
 #include <mutex>
@@ -374,7 +375,7 @@ namespace
           if( bRead == -1 )
           {
             log->Debug( UtilityMsg, "Unable to read from stdin: %s",
-                        strerror( errno ) );
+                        XrdSysE2T( errno ) );
             delete [] buffer;
             return XRootDStatus( stError, errOSError, errno );
           }
@@ -1198,7 +1199,7 @@ namespace
           if( wr == -1 )
           {
             log->Debug( UtilityMsg, "Unable to write to stdout: %s",
-                        strerror( errno ) );
+                        XrdSysE2T( errno ) );
             delete [] (char*)ci.buffer; ci.buffer = 0;
             return XRootDStatus( stError, errOSError, errno );
           }

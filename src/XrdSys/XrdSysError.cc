@@ -30,7 +30,6 @@
 #include <ctype.h>
 #ifndef WIN32
 #include <unistd.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -45,6 +44,7 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -76,15 +76,15 @@ int XrdSysError::baseFD() {return Logger->originalFD();}
 /*                               e c 2 t e x t                                */
 /******************************************************************************/
 
-char *XrdSysError::ec2text(int ecode)
+const char *XrdSysError::ec2text(int ecode)
 {
     int xcode;
-    char *etxt = 0;
+    const char *etxt = 0;
     XrdSysError_Table *etp = etab;
 
     xcode = (ecode < 0 ? -ecode : ecode);
     while((etp != 0) && !(etxt = etp->Lookup(xcode))) etp = etp->next;
-    if (!etxt) etxt = strerror(xcode);
+    if (!etxt) etxt = XrdSysE2T(xcode);
     return etxt;
 }
   
@@ -97,16 +97,7 @@ int XrdSysError::Emsg(const char *esfx, int ecode, const char *txt1,
 {
     struct iovec iov[16];
     int iovpnt = 0;
-    char ebuff[32], etbuff[80], *etxt = 0;
-
-    if (!(etxt = ec2text(ecode)))
-       {snprintf(ebuff, sizeof(ebuff), "reason unknown (%d)", ecode); 
-        etxt = ebuff;
-       } else if (isupper(static_cast<int>(*etxt)))
-                 {strlcpy(etbuff, etxt, sizeof(etbuff));
-                  *etbuff = static_cast<char>(tolower(static_cast<int>(*etxt)));
-                  etxt = etbuff;
-                 }
+    const char *etxt = ec2text(ecode);
 
                          Set_IOV_Item(0,0);                          //  0
     if (epfx && epfxlen) Set_IOV_Item(epfx, epfxlen);                //  1

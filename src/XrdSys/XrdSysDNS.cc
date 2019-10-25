@@ -29,7 +29,6 @@
 /******************************************************************************/
   
 #include <ctype.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #ifndef WIN32
@@ -43,6 +42,7 @@
 #endif
 
 #include "XrdSys/XrdSysDNS.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -54,7 +54,7 @@
 int XrdSysDNS::getHostAddr(const  char     *InetName,
                            struct sockaddr  InetAddr[],
                                   int       maxipa,
-                                  char    **errtxt)
+                           const  char    **errtxt)
 {
 #ifdef HAVE_NAMEINFO
    struct addrinfo   *rp, *np, *pnp=0;
@@ -158,7 +158,7 @@ int XrdSysDNS::getHostAddr(const  char     *InetName,
   
 int XrdSysDNS::getAddrName(const char *InetName,
                            int maxipa, char **Addr, char **Name,
-                           char    **errtxt)
+                           const char **errtxt)
 {
 
 // Host or address and output arrays must be defined
@@ -221,7 +221,7 @@ char *XrdSysDNS::getHostID(struct sockaddr &InetAddr)
 /*               g e t H o s t N a m e   ( V a r i a n t   1 )                */
 /******************************************************************************/
 
-char *XrdSysDNS::getHostName(const char *InetName, char **errtxt)
+char *XrdSysDNS::getHostName(const char *InetName, const char **errtxt)
 {
    char myname[256];
    const char *hp;
@@ -247,7 +247,7 @@ char *XrdSysDNS::getHostName(const char *InetName, char **errtxt)
 /*               g e t H o s t N a m e   ( V a r i a n t   2 )                */
 /******************************************************************************/
 
-char *XrdSysDNS::getHostName(struct sockaddr &InetAddr, char **errtxt)
+char *XrdSysDNS::getHostName(struct sockaddr &InetAddr, const char **errtxt)
 {
      char *result;
      if (getHostName(InetAddr, &result, 1, errtxt)) return result;
@@ -268,7 +268,7 @@ char *XrdSysDNS::getHostName(struct sockaddr &InetAddr, char **errtxt)
 int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
                                   char     *InetName[],
                                   int       maxipn,
-                                  char    **errtxt)
+                           const  char    **errtxt)
 {
    char mybuff[256];
    int i, rc;
@@ -397,7 +397,7 @@ int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
   
 int XrdSysDNS::getPort(const char  *servname,
                        const char  *servtype,
-                             char **errtxt)
+                       const char **errtxt)
 {
    int rc;
 
@@ -438,7 +438,7 @@ int XrdSysDNS::getPort(const char  *servname,
  
 /******************************************************************************/
 
-int XrdSysDNS::getPort(int fd, char **errtxt)
+int XrdSysDNS::getPort(int fd, const char **errtxt)
 {
    struct sockaddr InetAddr;
    struct sockaddr_in *ip = (struct sockaddr_in *)&InetAddr;
@@ -498,7 +498,7 @@ int XrdSysDNS::getProtoID(const char *pname)
   
 int XrdSysDNS::Host2Dest(const char      *hostname,
                          struct sockaddr &DestAddr,
-                         char           **errtxt)
+                         const char     **errtxt)
 { char *cp, hbuff[256];
   int port, i;
   struct sockaddr_in InetAddr;
@@ -693,7 +693,7 @@ int XrdSysDNS::isMatch(const char *HostName, char *HostPat)
 /*                              P e e r n a m e                               */
 /******************************************************************************/
   
-char *XrdSysDNS::Peername(int snum, struct sockaddr *sap, char **errtxt)
+char *XrdSysDNS::Peername(int snum, struct sockaddr *sap, const char **errtxt)
 {
    struct sockaddr addr;
    SOCKLEN_t addrlen = sizeof(addr);
@@ -746,9 +746,9 @@ char *XrdSysDNS::LowCase(char *str)
 /*                                 s e t E T                                  */
 /******************************************************************************/
   
-int XrdSysDNS::setET(char **errtxt, int rc)
+int XrdSysDNS::setET(const char **errtxt, int rc)
 {
-    if (rc) *errtxt = strerror(rc);
+    if (rc) *errtxt = XrdSysE2T(rc);
        else *errtxt = (char *)"unexpected error";
     return 0;
 }
@@ -757,7 +757,7 @@ int XrdSysDNS::setET(char **errtxt, int rc)
 /*                               s e t E T n i                                */
 /******************************************************************************/
   
-int XrdSysDNS::setETni(char **errtxt, int rc)
+int XrdSysDNS::setETni(const char **errtxt, int rc)
 {
 #ifndef HAVE_NAMEINFO
     return setET(errtxt, rc);

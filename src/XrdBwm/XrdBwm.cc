@@ -964,13 +964,13 @@ int XrdBwm::Emsg(const char    *pfx,    // Message prefix value
                  const char    *op,     // Operation being performed
                  const char    *target) // The target (e.g., fname)
 {
-   char *etext, buffer[MAXPATHLEN+80], unkbuff[64];
+   const char *etext;
+   char buffer[MAXPATHLEN+80];
 
 // Get the reason for the error
 //
    if (ecode < 0) ecode = -ecode;
-   if (!(etext = BwmEroute.ec2text(ecode))) 
-      {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
+   etext = BwmEroute.ec2text(ecode);
 
 // Format the error message
 //

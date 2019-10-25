@@ -30,7 +30,6 @@
   
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +43,7 @@
 
 #include "XrdOuc/XrdOucStream.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
@@ -365,7 +365,7 @@ bool XrdDigAuth::SetupAuth(bool isRefresh)
 //
    if ( (authFD = open(authFN, O_RDONLY, 0)) < 0)
       {NoGo = errno != ENOENT;
-       eDest->Say("Config ",strerror(errno)," opening dig auth file ", authFN);
+       eDest->Say("Config ",XrdSysE2T(errno)," opening dig auth file ",authFN);
        return SetupAuth(isRefresh, !NoGo);
       }
    aFile.Attach(authFD, 4096);
@@ -373,7 +373,7 @@ bool XrdDigAuth::SetupAuth(bool isRefresh)
 // Get the time the file was ctreated
 //
    if (fstat(authFD, &Stat))
-      {eDest->Say("Config ",strerror(errno)," stating dig auth file ", authFN);
+      {eDest->Say("Config ",XrdSysE2T(errno)," stating dig auth file ",authFN);
        close(authFD);
        return SetupAuth(isRefresh, false);
       }
@@ -389,7 +389,7 @@ bool XrdDigAuth::SetupAuth(bool isRefresh)
 // Now check if any errors occured during file i/o
 //
    if ((retc = aFile.LastError()))
-      {eDest->Say("Config ",strerror(-retc)," reading config file ", authFN);
+      {eDest->Say("Config ",XrdSysE2T(-retc)," reading config file ",authFN);
        NoGo = true;
       }
    aFile.Close();

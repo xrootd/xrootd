@@ -36,6 +36,8 @@
 #include <sys/stat.h>
 #include <port.h>
 
+@include "XrdSys/XrdSysE2T.hh"
+
 using namespace std;
   
 /******************************************************************************/
@@ -197,7 +199,7 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
             if (rc)
                {if (errno == ETIME || !errno) CbkTMO();
                    else {int rc = errno;
-                         cerr <<"PollP: " <<strerror(rc) <<" polling for events" <<endl;
+                         cerr <<"PollP: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
                          abort();
                         }
                }

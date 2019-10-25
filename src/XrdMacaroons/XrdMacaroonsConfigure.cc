@@ -5,6 +5,7 @@
 #include <openssl/evp.h>
 
 #include <XrdOuc/XrdOucStream.hh>
+#include <XrdSys/XrdSysE2T.hh>
 
 #include "XrdMacaroonsHandler.hh"
 
@@ -158,7 +159,7 @@ bool Handler::xmaxduration(XrdOucStream &config_obj, XrdSysError *log, ssize_t &
   }
   if (errno != 0)
   {
-    log->Emsg("Config", "Failure when parsing macaroons.maxduration as an integer", strerror(errno));
+    log->Emsg("Config", errno, "parse macaroons.maxduration as an integer.");
   }
   max_duration = max_duration_parsed;
 
@@ -190,8 +191,7 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   FILE *fp = fopen(val, "rb");
 
   if (fp == NULL) {
-    log->Emsg("Config", "Cannot open shared secret key file '", val, "'");
-    log->Emsg("Config", "Cannot open shared secret key file. err: ", strerror(errno));
+    log->Emsg("Config", errno, "open shared secret key file", val);
     return false;
   }
 
@@ -234,13 +234,13 @@ bool Handler::xsecretkey(XrdOucStream &config_obj, XrdSysError *log, std::string
   if (inlen < 0) {
     BIO_free_all(b64);
     BIO_free_all(bio_out);
-    log->Emsg("Config", "Failure when reading secret key", strerror(errno));
+    log->Emsg("Config", errno, "read secret key.");
     return false;
   }
   if (!BIO_flush(bio_out)) {
     BIO_free_all(b64);
     BIO_free_all(bio_out);
-    log->Emsg("Config", "Failure when flushing secret key", strerror(errno));
+    log->Emsg("Config", errno, "flush secret key.");
     return false;
   }
 

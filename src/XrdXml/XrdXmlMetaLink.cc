@@ -28,12 +28,12 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
 
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdXml/XrdXmlMetaLink.hh"
@@ -139,7 +139,7 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
    if (!(reader = XrdXmlReader::GetReader(fname, encType)))
       {eCode =  errno;
        snprintf(eText, sizeof(eText), "%s trying to read %s",
-               (errno ? strerror(errno) : "Unknow error"), fname);
+               (errno ? XrdSysE2T(errno) : "Unknow error"), fname);
        return 0;
       }
 
@@ -557,7 +557,7 @@ bool XrdXmlMetaLink::PutFile(const char *buff, int blen)
 // We failed
 //
    eCode = errno;
-   snprintf(eText, sizeof(eText), "%s %s %s", strerror(eCode), what, tmpFn);
+   snprintf(eText, sizeof(eText), "%s %s %s", XrdSysE2T(eCode), what, tmpFn);
    unlink(tmpFn);
    return false;
 }

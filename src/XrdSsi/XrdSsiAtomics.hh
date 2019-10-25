@@ -101,7 +101,6 @@
 #endif
 
 /******************************************************************************/
-/*                                                                            */
 /*                           X r d S s i M u t e x                            */
 /******************************************************************************/
 
@@ -129,7 +128,7 @@ enum MutexType {Simple = 0, Recursive = 1};
                                 rc = pthread_mutex_init(&cs, &attr);
                                }
                            }
-                   if (rc) throw strerror(rc);
+                   if (rc) throw Errno2Text(rc);
                   }
 
       ~XrdSsiMutex() {pthread_mutex_destroy(&cs);}
@@ -137,6 +136,9 @@ enum MutexType {Simple = 0, Recursive = 1};
 protected:
 
 pthread_mutex_t cs;
+
+private:
+const char* Errno2Text(int ecode);
 };
   
 /******************************************************************************/

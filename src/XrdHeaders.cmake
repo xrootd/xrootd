@@ -54,7 +54,6 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSec/XrdSecEntity.hh
   XrdSec/XrdSecInterface.hh
   XrdSys/XrdSysAtomics.hh
-  XrdSys/XrdSysDNS.hh
   XrdSys/XrdSysError.hh
   XrdSys/XrdSysFD.hh
   XrdSys/XrdSysHeaders.hh

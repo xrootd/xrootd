@@ -27,7 +27,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -60,6 +59,7 @@
 #include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
@@ -459,7 +459,7 @@ int XrdSsiFileSess::open(const char         *path,      // In
                return eNum;
                break;
           default:
-               if (!eText || !(*eText)) eText = strerror(eNum);
+               if (!eText || !(*eText)) eText = XrdSysE2T(eNum);
                DEBUG(path <<" err " <<eNum <<' ' <<eText);
                eInfo->setErrInfo(eNum, eText);
                Stats.Bump(Stats.ReqPrepErrs);

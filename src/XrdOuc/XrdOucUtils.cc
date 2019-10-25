@@ -29,7 +29,6 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <grp.h>
 #include <stdio.h>
 
@@ -45,11 +44,12 @@
 #include <map>
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucStream.hh"
   
 /******************************************************************************/
 /*                         L o c a l   M e t h o d s                          */
@@ -118,21 +118,20 @@ bool XrdOucUtils::endsWith(const char *text, const char *ending, int endlen)
 /*                                 e T e x t                                  */
 /******************************************************************************/
   
-// eText() returns the text associated with the error, making the first
-// character in the text lower case. The text buffer pointer is returned.
+// eText() returns the text associated with the error.
+// The text buffer pointer is returned.
 
-char *XrdOucUtils::eText(int rc, char *eBuff, int eBlen, int AsIs)
+char *XrdOucUtils::eText(int rc, char *eBuff, int eBlen)
 {
    const char *etP;
 
 // Get error text
 //
-   if (!(etP = strerror(rc)) || !(*etP)) etP = "reason unknown";
+   etP = XrdSysE2T(rc);
 
 // Copy the text and lower case the first letter
 //
    strlcpy(eBuff, etP, eBlen);
-   if (!AsIs) *eBuff = tolower(*eBuff);
 
 // All done
 //
@@ -1002,7 +1001,7 @@ const char *XrdOucUtils::ValPath(const char *path, mode_t allow, bool isdir)
 //
    if (stat(path, &buf))
       {if (errno == ENOENT) return "does not exist.";
-       return strerror(errno);
+       return XrdSysE2T(errno);
       }
 
 // Verify that this is the correct type of file

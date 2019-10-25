@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClOptimizers.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysIOEvents.hh"
 
 namespace
@@ -142,7 +143,7 @@ namespace XrdCl
       if( !poller )
       {
         log->Error( PollerMsg, "Unable to create the internal poller object: ",
-                               "%s (%s)", strerror( errno ), errMsg );
+                               "%s (%s)", XrdSysE2T( errno ), errMsg );
         return false;
       }
       pPollerPool.push_back( poller );
@@ -170,7 +171,7 @@ namespace XrdCl
         if( !status )
         {
           log->Error( PollerMsg, "Unable to enable read notifications ",
-                      "while re-starting %s (%s)", strerror( errno ), errMsg );
+                      "while re-starting %s (%s)", XrdSysE2T( errno ), errMsg );
 
           return false;
         }
@@ -183,7 +184,7 @@ namespace XrdCl
         if( !status )
         {
           log->Error( PollerMsg, "Unable to enable write notifications ",
-                      "while re-starting %s (%s)", strerror( errno ), errMsg );
+                      "while re-starting %s (%s)", XrdSysE2T( errno ), errMsg );
 
           return false;
         }

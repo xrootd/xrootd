@@ -299,7 +299,7 @@ static bool Parse(const char *hSpec, const char **hName, const char **hNend,
 //!         Failure: 0 is returned and if eText is not null, the error message.
 //------------------------------------------------------------------------------
 
-static int  Port(int fd, char **eText=0);
+static int  Port(int fd, const char **eText=0);
 
 //------------------------------------------------------------------------------
 //! Obtain the protocol identifier.
@@ -353,7 +353,7 @@ static int  SetAuto(AddrOpts aOpts=allIPMap);
            ~XrdNetUtils() {}
 private:
 
-static int setET(char **errtxt, int rc);
+static int setET(const char **errtxt, int rc);
 static int autoFamily;
 static int autoHints;
 };

@@ -28,7 +28,6 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,6 +59,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -85,7 +85,7 @@
 
 // The following is used by child processes prior to exec() to avoid deadlocks
 //
-#define Erx(p, a, b) cerr <<#p <<": " <<strerror(a) <<' ' <<b <<endl;
+#define Erx(p, a, b) cerr <<#p <<": " <<XrdSysE2T(a) <<' ' <<b <<endl;
 
 // The following mutex is used to allow only one fork at a time so that
 // we do not leak file descriptors. It is a short-lived lock.

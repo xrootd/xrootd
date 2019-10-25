@@ -28,7 +28,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -43,6 +42,7 @@
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksManager.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -369,7 +369,7 @@ do{while(optind < Argc && Legacy(optind)) {}
            | (dstFile->Protocol == XrdCpFile::isStdIO);
      if (isLcl && (rc = dstFile->Resolve()))
         {if (rc != ENOENT || (Argc - optind - 1) > 1 || OpSpec & DoRecurse)
-            FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
+            FMSG(XrdSysE2T(rc) <<" processing " <<dstFile->Path, 2);
         }
 
 // Now pick up all the source files from the command line
@@ -383,7 +383,7 @@ do{while(optind < Argc && Legacy(optind)) {}
       {XrdOucStream inList(Log);
        char *fname;
        int inFD = open(inFile, O_RDONLY);
-       if (inFD < 0) FMSG(strerror(errno) <<" opening infiles " <<inFile, 2);
+       if (inFD < 0) FMSG(XrdSysE2T(errno) <<" opening infiles " <<inFile, 2);
        inList.Attach(inFD);
        while((fname = inList.GetLine())) if (*fname) ProcFile(fname);
       }
@@ -426,7 +426,7 @@ do{while(optind < Argc && Legacy(optind)) {}
                       if (Verbose) EMSG("Indexing files in " <<Path);
                       numFiles--;
                       if ((rc = pFile->Extend(&pLast, numFiles, totBytes)))
-                         FMSG(strerror(rc) <<" indexing " <<Path, 2);
+                         FMSG(XrdSysE2T(rc) <<" indexing " <<Path, 2);
                       if (pFile->Next)
                          {pLast->Next = pPrev->Next;
                           pPrev->Next = pFile->Next;
@@ -846,7 +846,7 @@ void XrdCpConfig::ProcFile(const char *fname)
 // For local files, make sure it exists and get its size
 //
    if (pFile->Protocol == XrdCpFile::isFile && (rc = pFile->Resolve()))
-      FMSG(strerror(rc) <<" processing " <<pFile->Path, 2);
+      FMSG(XrdSysE2T(rc) <<" processing " <<pFile->Path, 2);
 
 // Process file based on type (local or remote)
 //

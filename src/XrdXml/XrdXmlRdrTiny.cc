@@ -28,7 +28,6 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -36,6 +35,7 @@
 #include <sys/stat.h>
 #include <iostream>
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdXml/tinyxml.h"
 #include "XrdXml/XrdXmlRdrTiny.hh"
 
@@ -98,7 +98,7 @@ XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc) : re
 //
    if (stat(fname, &Stat))
       {eCode = errno;
-       snprintf(eText,sizeof(eText),"%s opening %s", strerror(errno), fname);
+       snprintf(eText,sizeof(eText),"%s opening %s", XrdSysE2T(errno), fname);
        aOK = false;
        return;
       }
@@ -113,7 +113,7 @@ XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc) : re
        aOK = true;
       } else {
        if (!(etext = reader->ErrorDesc()) || *etext)
-          {if ((eCode = errno)) etext = strerror(errno);
+          {if ((eCode = errno)) etext = XrdSysE2T(errno);
               else etext =  "Unknown error";
           }
        snprintf(eText,sizeof(eText),"%s opening %s", etext, fname);

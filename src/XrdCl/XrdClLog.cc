@@ -26,7 +26,8 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <ctime>
-#include <XrdOuc/XrdOucTokenizer.hh>
+#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdCl/XrdClOptimizers.hh"
 #include "XrdCl/XrdClLog.hh"
 
@@ -40,7 +41,7 @@ namespace XrdCl
     int fd = open( filename.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR );
     if( fd < 0 )
     {
-      std::cerr << "Unable to open " << filename << " " << strerror( errno );
+      std::cerr << "Unable to open " << filename << " " << XrdSysE2T( errno );
       std::cerr << std::endl;
       return false;
     }
@@ -73,7 +74,7 @@ namespace XrdCl
     int ret = write( pFileDes, message.c_str(), message.length() );
     if( ret < 0 )
     {
-      std::cerr << "Unable to write to the log file: " << strerror( errno );
+      std::cerr << "Unable to write to the log file: " << XrdSysE2T( errno );
       std::cerr << std::endl;
       return;
     }

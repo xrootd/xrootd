@@ -30,6 +30,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucGMap.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 
@@ -2038,8 +2039,7 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
   if (val[0] == '/') {
     struct stat st;
     if ( stat(val, &st) ) {
-      eDest.Emsg("Config", "Cannot stat shared secret key file '", val, "'");
-      eDest.Emsg("Config", "Cannot stat shared secret key file. err: ", strerror(errno));
+      eDest.Emsg("Config", errno, "stat shared secret key file", val);
       return 1;
     }
 
@@ -2051,8 +2051,7 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
     FILE *fp = fopen(val,"r");
 
     if( fp == NULL ) {
-      eDest.Emsg("Config", "Cannot open shared secret key file '", val, "'");
-      eDest.Emsg("Config", "Cannot open shared secret key file. err: ", strerror(errno));
+      eDest.Emsg("Config", errno, "open shared secret key file", val);
       return 1;
     }
 
@@ -2309,8 +2308,7 @@ int XrdHttpProtocol::xstaticpreload(XrdOucStream & Config) {
   // Try to load the file into memory
   int fp = open(val, O_RDONLY);
   if( fp < 0 ) {
-    eDest.Emsg("Config", "Cannot open preloadstatic filename '", val, "'");
-    eDest.Emsg("Config", "Cannot open preloadstatic filename. err: ", strerror(errno));
+    eDest.Emsg("Config", errno, "open preloadstatic filename", val);
     return 1;
   }
 
@@ -2321,8 +2319,7 @@ int XrdHttpProtocol::xstaticpreload(XrdOucStream & Config) {
   close(fp);
 
   if (nfo->len <= 0) {
-      eDest.Emsg("Config", "Cannot read from preloadstatic filename '", val, "'");
-      eDest.Emsg("Config", "Cannot read from preloadstatic filename. err: ", strerror(errno));
+      eDest.Emsg("Config", errno, "read from preloadstatic filename", val);
       return 1;
   }
 

@@ -28,7 +28,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
 #include <iostream>
 #include <stdio.h>
 
@@ -51,6 +50,7 @@
 
 #include "XrdRmc/XrdRmc.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
@@ -200,7 +200,7 @@ void XrdPosixConfig::initEnv(char *eData)
 //
    myParms.Options |= XrdRmc::Serialized;
    if (!(XrdPosixGlobals::theCache = dramCache.Create(myParms, &apParms)))
-      {DMSG("initEnv", strerror(errno) <<" creating cache.");}
+      {DMSG("initEnv", XrdSysE2T(errno) <<" creating cache.");}
 }
 
 /******************************************************************************/

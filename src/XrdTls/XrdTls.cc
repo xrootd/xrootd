@@ -28,11 +28,11 @@
 /******************************************************************************/
 
 #include <string.h>
-#include <errno.h>
 #include <iostream>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdTls/XrdTls.hh"
 
 /******************************************************************************/
@@ -129,7 +129,7 @@ std::string XrdTls::RC2Text(XrdTls::RC rc, bool dbg)
           case TLS_SYS_Error:
                ec = errno;
                if (!ec) ec = EPIPE;
-               snprintf(eBuff, sizeof(eBuff), "%s", strerror(ec));
+               snprintf(eBuff, sizeof(eBuff), "%s", XrdSysE2T(ec));
                *eBuff = tolower(*eBuff);
                eP = eBuff;
                break;

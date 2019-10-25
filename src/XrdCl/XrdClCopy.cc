@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDlgEnv.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <stdio.h>
@@ -628,7 +629,7 @@ int main( int argc, char **argv )
       char *cwd = getcwd( buf, FILENAME_MAX );
       if( !cwd )
       {
-        XRootDStatus st( stError, XProtocol::mapError( errno ), errno, strerror( errno ) );
+        XRootDStatus st( stError, XProtocol::mapError( errno ), errno, XrdSysE2T( errno ) );
         std::cerr <<  st.GetErrorMessage() << std::endl;
         return st.GetShellCode();
       }
@@ -732,7 +733,7 @@ int main( int argc, char **argv )
         char *cwd = getcwd( buf, FILENAME_MAX );
         if( !cwd )
         {
-          XRootDStatus st( stError, XProtocol::mapError( errno ), errno, strerror( errno ) );
+          XRootDStatus st( stError, XProtocol::mapError( errno ), errno, XrdSysE2T( errno ) );
           std::cerr <<  st.GetErrorMessage() << std::endl;
           return st.GetShellCode();
         }

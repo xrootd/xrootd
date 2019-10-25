@@ -30,7 +30,6 @@
 
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -46,6 +45,7 @@
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSecsss/XrdSecProtocolsss.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -234,7 +234,7 @@ int XrdSecProtocolsss::eMsg(const char *epname, int rc,
 {
               cerr <<"Secsss (" << epname <<"): ";
               cerr <<txt1;
-   if (rc>0)  cerr <<"; " <<strerror(rc);
+   if (rc>0)  cerr <<"; " <<XrdSysE2T(rc);
    if (txt2)  cerr <<txt2;
    if (txt3)  cerr <<txt3;
    if (txt4) {cerr <<txt4;}
@@ -455,7 +455,7 @@ XrdCryptoLite *XrdSecProtocolsss::Load_Crypto(XrdOucErrInfo *erp,
 // Return load result
 //
    if ((cP = XrdCryptoLite::Create(rc, eN, CryptoTab[i].cType))) return cP;
-   sprintf(buff,"Secsss: %s cryptography load failed; %s",eN,strerror(rc));
+   sprintf(buff,"Secsss: %s cryptography load failed; %s",eN,XrdSysE2T(rc));
    Fatal(erp, "Load_Crypto", EINVAL, buff);
    return (XrdCryptoLite *)0;
 }
@@ -488,7 +488,7 @@ XrdCryptoLite *XrdSecProtocolsss::Load_Crypto(XrdOucErrInfo *erp,
 // Return load result
 //
    if ((cP = XrdCryptoLite::Create(rc, CryptoTab[i].cName, eT))) return cP;
-   sprintf(buff,"Secsss: 0x%hhx cryptography load failed; %s",eT,strerror(rc));
+   sprintf(buff,"Secsss: 0x%hhx cryptography load failed; %s",eT,XrdSysE2T(rc));
    Fatal(erp, "Load_Crypto", EINVAL, buff);
    return (XrdCryptoLite *)0;
 }

@@ -28,6 +28,7 @@
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdCks/XrdCksCalccrc32.hh"
 #include "XrdCks/XrdCksCalcadler32.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdVersion.hh"
 
 #include <sys/types.h>
@@ -122,7 +123,7 @@ namespace XrdCl
     if( fd == -1 )
     {
       log->Error( UtilityMsg, "Unable to open %s: %s", filePath.c_str(),
-                  strerror( errno ) );
+                  XrdSysE2T( errno ) );
       return false;
     }
 
@@ -138,7 +139,7 @@ namespace XrdCl
       if( bytesRead == -1 )
       {
         log->Error( UtilityMsg, "Unable read from %s: %s", filePath.c_str(),
-                    strerror( errno ) );
+                    XrdSysE2T( errno ) );
         close( fd );
         delete [] buffer;
         return false;

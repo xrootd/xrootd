@@ -29,7 +29,6 @@
 /******************************************************************************/
   
 #include <ctype.h>
-#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -39,6 +38,7 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetCache.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 /******************************************************************************/
 /*                 P l a t f o r m   D e p e n d e n c i e s                  */
@@ -419,7 +419,7 @@ const char *XrdNetAddr::Set(int sockFD, bool peer)
       else   rc = getsockname(sockFD, &IP.Addr, &addrSize);
    if (rc < 0)
       {addrSize = 0;
-       return strerror(errno);
+       return XrdSysE2T(errno);
       }
 
 // Set the correct address size

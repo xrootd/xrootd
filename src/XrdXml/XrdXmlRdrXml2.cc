@@ -28,13 +28,13 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
 
 #include <libxml/xmlreader.h>
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdXml/XrdXmlRdrXml2.hh"
 
 /******************************************************************************/
@@ -115,7 +115,7 @@ XrdXmlRdrXml2::XrdXmlRdrXml2(bool &aOK, const char *fname, const char *enc)
    if (!(reader = xmlNewTextReaderFilename(fname)))
       {if ((eCode = errno)) 
 	  {size_t size = sizeof(eText) - 1;
-           strncpy(eText, strerror(errno), size);
+           strncpy(eText, XrdSysE2T(errno), size);
 	   eText[size] = '\0';
 	  }
           else strcpy(eText, "Unknown error opening input file");

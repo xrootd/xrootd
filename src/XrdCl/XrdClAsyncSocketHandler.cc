@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClOptimizers.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include <netinet/tcp.h>
 
 namespace XrdCl
@@ -309,7 +310,7 @@ namespace XrdCl
     {
       log->Error( AsyncSockMsg, "[%s] Unable to get the status of the "
                   "connect operation: %s", pStreamName.c_str(),
-                  strerror( errno ) );
+                  XrdSysE2T( errno ) );
       pStream->OnConnectError( pSubStreamNum,
                                Status( stFatal, errSocketOptError, errno ) );
       return;
@@ -321,7 +322,7 @@ namespace XrdCl
     if( errorCode )
     {
       log->Error( AsyncSockMsg, "[%s] Unable to connect: %s",
-                  pStreamName.c_str(), strerror( errorCode ) );
+                  pStreamName.c_str(), XrdSysE2T( errorCode ) );
       pStream->OnConnectError( pSubStreamNum,
                                Status( stError, errConnectionError ) );
       return;
@@ -470,7 +471,7 @@ namespace XrdCl
     {
       Log *log = DefaultEnv::GetLog();
       log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
-                  pStreamName.c_str(), strerror( st.errNo ) );
+                  pStreamName.c_str(), XrdSysE2T( st.errNo ) );
       OnFaultWhileHandshaking( st );
     }
 
@@ -549,7 +550,7 @@ namespace XrdCl
     {
       Log *log = DefaultEnv::GetLog();
       log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
-                  pStreamName.c_str(), strerror( st.errNo ) );
+                  pStreamName.c_str(), XrdSysE2T( st.errNo ) );
     }
 
     return st;

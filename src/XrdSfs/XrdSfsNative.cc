@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <memory.h>
 #include <string.h>
@@ -40,6 +39,7 @@
 #include <sys/stat.h>
 
 #include "XrdVersion.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -1025,13 +1025,13 @@ int XrdSfsNative::Emsg(const char    *pfx,    // Message prefix value
                        const char    *op,     // Operation being performed
                        const char    *target) // The target (e.g., fname)
 {
-    char *etext, buffer[MAXPATHLEN+80], unkbuff[64];
+    const char *etext;
+    char buffer[MAXPATHLEN+80];
 
 // Get the reason for the error
 //
    if (ecode < 0) ecode = -ecode;
-   if (!(etext = strerror(ecode)))
-      {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
+   etext = XrdSysE2T(ecode);
 
 // Format the error message
 //

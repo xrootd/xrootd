@@ -38,6 +38,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSsi/XrdSsiLogger.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysLogPI.hh"
 #include "XrdSys/XrdSysPlugin.hh"
  
@@ -76,7 +77,7 @@ void ConfigLog(const char *cFN)
 // Try to open the configuration file.
 //
    if ((cfgFD = open(cFN, O_RDONLY, 0)) < 0)
-      {cerr <<"Config " <<strerror(errno) <<" opening " <<cFN <<endl;
+      {cerr <<"Config " <<XrdSysE2T(errno) <<" opening " <<cFN <<endl;
        return;
       }
    cStrm.Attach(cfgFD);
@@ -97,7 +98,7 @@ void ConfigLog(const char *cFN)
 // Now check if any errors occured during file i/o
 //
    if ((retc = cStrm.LastError()))
-      {cerr <<"Config " <<strerror(-retc) <<" reading " <<cFN <<endl;
+      {cerr <<"Config " <<XrdSysE2T(-retc) <<" reading " <<cFN <<endl;
        NoGo = 1;
       }
    cStrm.Close();

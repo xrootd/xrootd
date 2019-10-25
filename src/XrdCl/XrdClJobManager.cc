@@ -20,6 +20,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 //------------------------------------------------------------------------------
 // The thread
@@ -75,7 +76,7 @@ namespace XrdCl
       if( ret != 0 )
       {
         log->Error( JobMgrMsg, "Unable to spawn a job worker thread: %s",
-                    strerror( errno ) );
+                    XrdSysE2T( errno ) );
         if( i > 0 )
           StopWorkers( i );
         return false;
@@ -120,14 +121,14 @@ namespace XrdCl
       if( pthread_cancel( pWorkers[i] ) != 0 )
       {
         log->Error( TaskMgrMsg, "Unable to cancel worker #%d: %s", i,
-                    strerror( errno ) );
+                    XrdSysE2T( errno ) );
         abort();
       }
       
       if( pthread_join( pWorkers[i], (void**)&threadRet ) != 0 )
       {
         log->Error( TaskMgrMsg, "Unable to join worker #%d: %s", i,
-                    strerror( errno ) );
+                    XrdSysE2T( errno ) );
         abort();
       }
 

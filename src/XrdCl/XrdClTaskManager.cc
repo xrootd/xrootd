@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 #include <iostream>
@@ -77,7 +78,7 @@ namespace XrdCl
     if( ret != 0 )
     {
       log->Error( TaskMgrMsg, "Unable to spawn the task runner thread: %s",
-                  strerror( errno ) );
+                  XrdSysE2T( errno ) );
       return false;
     }
     pRunning = true;
@@ -102,7 +103,7 @@ namespace XrdCl
     if( ::pthread_cancel( pRunnerThread ) != 0 )
     {
       log->Error( TaskMgrMsg, "Unable to cancel the task runner thread: %s",
-                  strerror( errno ) );
+                  XrdSysE2T( errno ) );
       return false;
     }
 
@@ -111,7 +112,7 @@ namespace XrdCl
     if( ret != 0 )
     {
       log->Error( TaskMgrMsg, "Failed to join the task runner thread: %s",
-                  strerror( errno ) );
+                  XrdSysE2T( errno ) );
       return false;
     }
 

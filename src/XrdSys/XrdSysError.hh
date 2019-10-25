@@ -112,7 +112,7 @@ int baseFD();
 // ec2text tyranslates an error code to the correspodning error text or returns
 // null if matching text cannot be found.
 //
-static char *ec2text(int ecode);
+static const char *ec2text(int ecode);
 
 // Emsg() produces a message of various forms. The message is written to the 
 // constructor specified file descriptor. See variations below.

@@ -65,13 +65,13 @@ public:
 //
 static int getHostAddr(const  char     *InetName,
                        struct sockaddr &InetAddr,
-                              char    **errtxt=0)
+                       const  char    **errtxt=0)
                       {return getHostAddr(InetName, &InetAddr, 1, errtxt);}
 
 static int getHostAddr(const  char     *InetName,
                        struct sockaddr  InetAddr[],
                               int       maxipa=1,
-                              char    **errtxt=0);
+                       const  char    **errtxt=0);
 
 // getHostID()   returns the ASCII string corresponding to the IP address
 //               InetAddr. If a translation is successful, the address
@@ -97,7 +97,7 @@ static int getAddrName(const  char     *InetName,
                               int       maxipa,
                               char    **haddr,
                               char    **hname,
-                              char    **errtxt=0);
+                       const  char    **errtxt=0);
 
 // getHostName() returns the fully qualified name of a host. If no partial
 //               host name is specified (or specifiied as 0), the fully
@@ -108,7 +108,7 @@ static int getAddrName(const  char     *InetName,
 //               text is placed in errtxt if an address is supplied.
 //
 static char *getHostName(const char *InetName=0,
-                               char **errtxt=0);
+                         const char **errtxt=0);
 
 // getHostName() returns the primary name of the host associated with the IP
 //               address InetAddr. If a translation is successful, the address
@@ -119,7 +119,7 @@ static char *getHostName(const char *InetName=0,
 //               address is supplied.
 //
 static char *getHostName(struct sockaddr &InetAddr,
-                                char    **errtxt=0);
+                         const  char    **errtxt=0);
 
 // getHostName() returns the names of the host associated with the IP address
 //               InetAddr. The first name is the primary name of the host.
@@ -135,7 +135,7 @@ static char *getHostName(struct sockaddr &InetAddr,
 static int getHostName(struct sockaddr &InetAddr, 
                               char     *InetName[],
                               int       maxipn,
-                              char    **errtxt=0);
+                       const  char    **errtxt=0);
 
 // getPort()  returns the port number of the service corresponding to the
 //            supplied name and service type (i.e., "tcp" or "udp"). If the port
@@ -144,13 +144,13 @@ static int getHostName(struct sockaddr &InetAddr,
 //
 static int getPort(const char  *servname,
                    const char  *servtype,
-                         char **errtxt=0);
+                   const char **errtxt=0);
 
 // getPort() variant returns the port number associated with the specified
 //           file descriptor. If an error occurs, a negative errno is returned,
 //           and errtxt is set if supplied.
 //
-static int getPort(int fd, char **errtxt=0);
+static int getPort(int fd, const char **errtxt=0);
 
 // getProtoID() returns the protocol number associated with the protocol name
 //              passed as a parameter. No failures can occur since TCP is
@@ -165,7 +165,7 @@ static int getProtoID(const char *pname);
 //
 static int Host2Dest(const char      *InetName,
                      struct sockaddr &DestAddr,
-                           char     **errtxt=0);
+                     const char     **errtxt=0);
 
 // Host2IP() converts a host name passed in InetName to an IPV4 address,
 //           returned in ipaddr (unless it is zero, in which only a conversion
@@ -226,7 +226,7 @@ static int isMatch(const char *HostNme, char *HostPat);
 //
 static char *Peername(       int       snum,
                       struct sockaddr *sap=0,
-                             char    **errtxt=0);
+                      const  char    **errtxt=0);
 
 // setPort() sets the port number InetAddr. If anyaddr is true,, InetAddr is
 //           initialized to the network defined "any" IP address.
@@ -239,7 +239,7 @@ static void setPort(struct sockaddr &InetAddr, int port, int anyaddr=0);
 private:
  
 static char *LowCase(char *str);
-static int   setET(char **errtxt, int rc);
-static int   setETni(char **errtxt, int rc);
+static int   setET(const char **errtxt, int rc);
+static int   setETni(const char **errtxt, int rc);
 };
 #endif

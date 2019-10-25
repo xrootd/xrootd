@@ -28,7 +28,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <time.h>
@@ -66,6 +65,7 @@
 
 #include "XrdNet/XrdNetUtils.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdCms;
@@ -1893,7 +1893,7 @@ const char *XrdCmsNode::fsFail(const char *Who,  const char *What,
       else {struct {const char *Ident;} Arg = {Who};
             DEBUGR("rc=" <<rc <<' ' <<What <<' ' <<Path);
            }
-   return rc ? strerror(rc) : 0;
+   return rc ? XrdSysE2T(rc) : 0;
 }
 
 /******************************************************************************/

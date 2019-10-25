@@ -22,12 +22,12 @@ add_library(
   XrdSsiLib
   SHARED
 XrdSsi/XrdSsiAlert.cc                  XrdSsi/XrdSsiAlert.hh
-                                       XrdSsi/XrdSsiAtomics.hh
+XrdSsi/XrdSsiAtomics.cc                XrdSsi/XrdSsiAtomics.hh
                                        XrdSsi/XrdSsiBVec.hh
 XrdSsi/XrdSsiClient.cc
                                        XrdSsi/XrdSsiCluster.hh
 XrdSsi/XrdSsiCms.cc                    XrdSsi/XrdSsiCms.hh
-                                       XrdSsi/XrdSsiErrInfo.hh
+XrdSsi/XrdSsiErrInfo.cc                XrdSsi/XrdSsiErrInfo.hh
 XrdSsi/XrdSsiEvent.cc                  XrdSsi/XrdSsiEvent.hh
 XrdSsi/XrdSsiFileResource.cc           XrdSsi/XrdSsiFileResource.hh
 XrdSsi/XrdSsiLogger.cc                 XrdSsi/XrdSsiLogger.hh
@@ -74,6 +74,7 @@ XrdSsi/XrdSsiShMat.cc                  XrdSsi/XrdSsiShMat.hh)
 
 target_link_libraries(
   XrdSsiShMap
+  XrdUtils
   ${ZLIB_LIBRARY}
   pthread )
 

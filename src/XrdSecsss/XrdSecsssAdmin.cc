@@ -32,7 +32,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <time.h>
 #include <sys/param.h>
@@ -40,6 +39,7 @@
 #include <sys/stat.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -298,7 +298,7 @@ int  XrdSecsssAdmin_addKey(XrdsecsssAdmin_Opts &Opt)
 // Now rewrite the file
 //
    if ((retc = Opt.kTab->Rewrite(Opt.Keep, numKeys, numTot, numExp)))
-      {eMsg("Unable to add key to '" <<Opt.KeyFile <<"'; " <<strerror(retc));
+      {eMsg("Unable to add key to '" <<Opt.KeyFile <<"'; " <<XrdSysE2T(retc));
        retc = 8;
       } else {
        eMsg(numKeys <<(numKeys == 1 ? " key":" keys") <<" out of "
@@ -356,7 +356,7 @@ int  XrdSecsssAdmin_delKey(XrdsecsssAdmin_Opts &Opt)
 // Now rewrite the file
 //
    if ((retc = Opt.kTab->Rewrite(Opt.Keep, numKeys, numTot, numExp)))
-      {eMsg("Unable to del key from '" <<Opt.KeyFile <<"'; " <<strerror(retc));
+      {eMsg("Unable to del key from '" <<Opt.KeyFile <<"'; " <<XrdSysE2T(retc));
        retc = 8;
       } else {
        eMsg(numKeys <<(numKeys == 1 ? " key":" keys") <<" out of "
@@ -404,7 +404,7 @@ int  XrdSecsssAdmin_insKey(XrdsecsssAdmin_Opts &Opt)
 //
    Opt.kTab->setPath(Opt.KeyFile);
    if ((retc = Opt.kTab->Rewrite(Opt.Keep, numKeys, numTot, numExp)))
-      {eMsg("Unable to install keytab '" <<Opt.KeyFile <<"'; " <<strerror(retc));
+      {eMsg("Unable to install keytab '" <<Opt.KeyFile <<"'; " <<XrdSysE2T(retc));
        retc = 8;
       } else {
        eMsg(numKeys <<(numKeys == 1 ? " key":" keys") <<" out of "

@@ -29,7 +29,6 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <string.h>
@@ -43,6 +42,7 @@
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #ifndef HAVE_PROTOR
 #include "XrdSys/XrdSysPthread.hh"
@@ -516,7 +516,7 @@ bool XrdNetUtils::Parse(const char *hSpec,
 /*                                  P o r t                                   */
 /******************************************************************************/
 
-int XrdNetUtils::Port(int fd, char **eText)
+int XrdNetUtils::Port(int fd, const char **eText)
 {
    XrdNetSockAddr Inet;
    SOCKLEN_t slen = (socklen_t)sizeof(Inet);
@@ -646,9 +646,9 @@ int XrdNetUtils::SetAuto(XrdNetUtils::AddrOpts aOpts)
 /* Private:                        s e t E T                                  */
 /******************************************************************************/
   
-int XrdNetUtils::setET(char **errtxt, int rc)
+int XrdNetUtils::setET(const char **errtxt, int rc)
 {
-    if (rc) *errtxt = strerror(rc);
-       else *errtxt = (char *)"unexpected error";
+    if (rc) *errtxt = XrdSysE2T(rc);
+       else *errtxt = "unexpected error";
     return 0;
 }

@@ -40,6 +40,7 @@
 #include "XrdOuc/XrdOucNList.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -133,7 +134,7 @@ int main(int argc, char *argv[])
 // Open the config file
 //
    if ( (cfgFD = open(Cfn, O_RDONLY, 0)) < 0)
-      {Say.Say(Pgm, strerror(errno), " opening config file ", Cfn);
+      {Say.Say(Pgm, XrdSysE2T(errno), " opening config file ", Cfn);
        exit(4);
       }
 
@@ -168,7 +169,7 @@ int main(int argc, char *argv[])
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config->LastError()))
-      {Say.Say(Pgm, strerror(retc), " reading config file ", Cfn); retc = 8;}
+      {Say.Say(Pgm, XrdSysE2T(retc), " reading config file ", Cfn); retc = 8;}
    Config->Close();
 
 // Should never get here

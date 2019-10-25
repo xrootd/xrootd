@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XProtocol/XProtocol.hh"
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysXAttr.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 
@@ -137,7 +138,7 @@ namespace
           newact.sa_flags = SA_SIGINFO;
           int rc = sigaction( SIGUSR1, &newact, &oldact );
           if( rc < 0 )
-            throw std::runtime_error( strerror( errno ) );
+            throw std::runtime_error( XrdSysE2T( errno ) );
         }
       };
 
@@ -152,10 +153,10 @@ namespace
         if( rc < 0 )
         {
           Log *log = DefaultEnv::GetLog();
-          log->Error( FileMsg, GetErrMsg( me->opcode ), strerror( errno ) );
+          log->Error( FileMsg, GetErrMsg( me->opcode ), XrdSysE2T( errno ) );
           XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                   XProtocol::mapError( errno ),
-                                                  strerror( errno ) );
+                                                  XrdSysE2T( errno ) );
           QueueTask( error, 0, me->hosts, me->handler );
         }
         else
@@ -274,10 +275,10 @@ namespace XrdCl
     if( close( fd ) == -1 )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "Close: file fd: %i %s", fd, strerror( errno ) );
+      log->Error( FileMsg, "Close: file fd: %i %s", fd, XrdSysE2T( errno ) );
       XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                               XProtocol::mapError( errno ),
-                                              strerror( errno ) );
+                                              XrdSysE2T( errno ) );
       return QueueTask( error, 0, handler );
     }
 
@@ -295,10 +296,10 @@ namespace XrdCl
     struct stat ssp;
     if( fstat( fd, &ssp ) == -1 )
     {
-      log->Error( FileMsg, "Stat: failed fd: %i %s", fd, strerror( errno ) );
+      log->Error( FileMsg, "Stat: failed fd: %i %s", fd, XrdSysE2T( errno ) );
       XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                               XProtocol::mapError( errno ),
-                                              strerror( errno ) );
+                                              XrdSysE2T( errno ) );
       return QueueTask( error, 0, handler );
     }
     std::ostringstream data;
@@ -331,10 +332,10 @@ namespace XrdCl
     int read = 0;
     if( ( read = pread( fd, buffer, size, offset ) ) == -1 )
     {
-      log->Error( FileMsg, "Read: failed %s", strerror( errno ) );
+      log->Error( FileMsg, "Read: failed %s", XrdSysE2T( errno ) );
       XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                               XProtocol::mapError( errno ),
-                                              strerror( errno ) );
+                                              XrdSysE2T( errno ) );
       return QueueTask( error, 0, handler );
     }
     ChunkInfo *chunk = new ChunkInfo( offset, read, buffer );
@@ -350,9 +351,9 @@ namespace XrdCl
     if( rc < 0 )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "Read: failed %s", strerror( errno ) );
+      log->Error( FileMsg, "Read: failed %s", XrdSysE2T( errno ) );
       return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
-                           strerror( errno ) );
+                           XrdSysE2T( errno ) );
     }
 
     return XRootDStatus();
@@ -374,10 +375,10 @@ namespace XrdCl
       if( ret < 0 )
       {
         Log *log = DefaultEnv::GetLog();
-        log->Error( FileMsg, "Write: failed %s", strerror( errno ) );
+        log->Error( FileMsg, "Write: failed %s", XrdSysE2T( errno ) );
         XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                 XProtocol::mapError( errno ),
-                                                strerror( errno ) );
+                                                XrdSysE2T( errno ) );
         return QueueTask( error, 0, handler );
       }
       offset += ret;
@@ -394,9 +395,9 @@ namespace XrdCl
     if( rc < 0 )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "Write: failed %s", strerror( errno ) );
+      log->Error( FileMsg, "Write: failed %s", XrdSysE2T( errno ) );
       return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
-                           strerror( errno ) );
+                           XrdSysE2T( errno ) );
     }
 
     return XRootDStatus();
@@ -413,10 +414,10 @@ namespace XrdCl
     if( fsync( fd ) )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "Sync: failed %s", strerror( errno ) );
+      log->Error( FileMsg, "Sync: failed %s", XrdSysE2T( errno ) );
       XRootDStatus *error = new XRootDStatus( stError, errOSError,
                                               XProtocol::mapError( errno ),
-                                              strerror( errno ) );
+                                              XrdSysE2T( errno ) );
       return QueueTask( error, 0, handler );
     }
 #else
@@ -426,9 +427,9 @@ namespace XrdCl
     if( rc < 0 )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "Sync: failed %s", strerror( errno ) );
+      log->Error( FileMsg, "Sync: failed %s", XrdSysE2T( errno ) );
       return XRootDStatus( stError, errOSError, XProtocol::mapError( rc ),
-                           strerror( errno ) );
+                           XrdSysE2T( errno ) );
     }
 #endif
     return XRootDStatus();
@@ -444,10 +445,10 @@ namespace XrdCl
     {
       Log *log = DefaultEnv::GetLog();
       log->Error( FileMsg, "Truncate: failed, file descriptor: %i, %s", fd,
-                  strerror( errno ) );
+                  XrdSysE2T( errno ) );
       XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                               XProtocol::mapError( errno ),
-                                              strerror( errno ) );
+                                              XrdSysE2T( errno ) );
       return QueueTask( error, 0, handler );
     }
 
@@ -475,10 +476,10 @@ namespace XrdCl
       {
         Log *log = DefaultEnv::GetLog();
         log->Error( FileMsg, "VectorRead: failed, file descriptor: %i, %s",
-                    fd, strerror( errno ) );
+                    fd, XrdSysE2T( errno ) );
         XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                 XProtocol::mapError( errno ),
-                                                strerror( errno ) );
+                                                XrdSysE2T( errno ) );
         return QueueTask( error, 0, handler );
       }
       totalSize += bytesRead;
@@ -509,10 +510,10 @@ namespace XrdCl
       {
         Log *log = DefaultEnv::GetLog();
         log->Error( FileMsg, "VectorWrite: failed, file descriptor: %i, %s",
-                    fd, strerror( errno ) );
+                    fd, XrdSysE2T( errno ) );
         XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                 XProtocol::mapError( errno ),
-                                                strerror( errno ) );
+                                                XrdSysE2T( errno ) );
         return QueueTask( error, 0, handler );
       }
     }
@@ -552,10 +553,10 @@ namespace XrdCl
       if( ret < 0 )
       {
         Log *log = DefaultEnv::GetLog();
-        log->Error( FileMsg, "WriteV: failed %s", strerror( errno ) );
+        log->Error( FileMsg, "WriteV: failed %s", XrdSysE2T( errno ) );
         XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                 XProtocol::mapError( errno ),
-                                                strerror( errno ) );
+                                                XrdSysE2T( errno ) );
         return QueueTask( error, 0, handler );
       }
 
@@ -784,7 +785,7 @@ namespace XrdCl
       if( errno != ENOENT )
         return XRootDStatus( stError, errErrorResponse,
                              XProtocol::mapError( errno ),
-                             strerror( errno ) );
+                             XrdSysE2T( errno ) );
       pos = path.rfind( '/', pos - 1 );
     }
 
@@ -797,7 +798,7 @@ namespace XrdCl
         if( errno != EEXIST )
           return XRootDStatus( stError, errErrorResponse,
                                XProtocol::mapError( errno ),
-                               strerror( errno ) );
+                               XrdSysE2T( errno ) );
       }
       pos = path.find( '/', pos + 1 );
     }
@@ -842,7 +843,7 @@ namespace XrdCl
       if( !st.IsOK() )
       {
         log->Error( FileMsg, "Open MkdirPath failed %s: %s", path.c_str(),
-                    strerror( st.errNo ) );
+                    XrdSysE2T( st.errNo ) );
         return st;
       }
 
@@ -856,11 +857,11 @@ namespace XrdCl
     if( fd == -1 )
     {
       log->Error( FileMsg, "Open: open failed: %s: %s", path.c_str(),
-                  strerror( errno ) );
+                  XrdSysE2T( errno ) );
 
       return XRootDStatus( stError, errErrorResponse,
                            XProtocol::mapError( errno ),
-                           strerror( errno ) );
+                           XrdSysE2T( errno ) );
     }
     //---------------------------------------------------------------------
     // Stat File and cache statInfo in openInfo
@@ -871,7 +872,7 @@ namespace XrdCl
       log->Error( FileMsg, "Open: stat failed." );
       return XRootDStatus( stError, errErrorResponse,
                            XProtocol::mapError( errno ),
-                           strerror( errno ) );
+                           XrdSysE2T( errno ) );
     }
 
     std::ostringstream data;

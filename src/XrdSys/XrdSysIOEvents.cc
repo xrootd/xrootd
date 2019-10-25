@@ -28,10 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
   
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysIOEvents.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -858,7 +858,7 @@ int XrdSys::IOEvents::Poller::GetRequest()
    do {rlen = read(reqFD, pipeBuff, pipeBlen);} 
       while(rlen < 0 && errno == EINTR);
    if (rlen <= 0)
-      {cerr <<"Poll: " <<strerror(errno) <<" reading from request pipe" <<endl;
+      {cerr <<"Poll: " <<XrdSysE2T(errno) <<" reading from request pipe" <<endl;
        return 0;
       }
 

@@ -52,12 +52,12 @@ extern  XrdOucTrace  *XrdXrootdTrace;
 
 int XrdXrootdProtocol::aio_Error(const char *op, int ecode)
 {
-   char *etext, buffer[MAXPATHLEN+80], unkbuff[64];
+   const char *etext;
+   char buffer[MAXPATHLEN+80];
 
 // Get the reason for the error
 //
-   if (!(etext = eDest.ec2text(ecode)))
-      {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
+   etext = eDest.ec2text(ecode);
 
 // Format the error message
 //

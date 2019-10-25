@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdTls/XrdTlsSocket.hh"
 #include "XrdTls/XrdTlsNotary.hh"
@@ -254,7 +255,7 @@ std::string XrdTlsSocket::Err2Text(int sslerr)
    if (sslerr == SSL_ERROR_SYSCALL)
       {int rc = errno;
        if (!rc) rc = EPIPE;
-       snprintf(eBuff, sizeof(eBuff), "%s", strerror(rc));
+       snprintf(eBuff, sizeof(eBuff), "%s", XrdSysE2T(rc));
        *eBuff = tolower(*eBuff);
        eP = eBuff;
       } else {

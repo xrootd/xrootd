@@ -36,6 +36,7 @@
 #include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdCl/XrdClLocalFileTask.hh"
 #include "XrdCl/XrdClZipListHandler.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <sys/stat.h>
@@ -62,10 +63,10 @@ namespace
         struct stat ssp;
         if( stat( path.c_str(), &ssp ) == -1 )
         {
-          log->Error( FileMsg, "Stat: failed: %s", strerror( errno ) );
+          log->Error( FileMsg, "Stat: failed: %s", XrdSysE2T( errno ) );
           XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                   XProtocol::mapError( errno ),
-                                                  strerror( errno ) );
+                                                  XrdSysE2T( errno ) );
           return QueueTask( error, 0, handler );
         }
 
@@ -100,10 +101,10 @@ namespace
         Log *log = DefaultEnv::GetLog();
         if( unlink( path.c_str() ) )
         {
-          log->Error( FileMsg, "Rm: failed: %s", strerror( errno ) );
+          log->Error( FileMsg, "Rm: failed: %s", XrdSysE2T( errno ) );
           XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
                                                   XProtocol::mapError( errno ),
-                                                  strerror( errno ) );
+                                                  XrdSysE2T( errno ) );
           return QueueTask( error, 0, handler );
         }
 
