@@ -65,6 +65,7 @@ set_target_properties(
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
+if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
 # xrdgsiproxy
 #-------------------------------------------------------------------------------
@@ -90,6 +91,7 @@ target_link_libraries(
   XrdCrypto
   XrdUtils
   ${OPENSSL_CRYPTO_LIBRARY} )
+endif()
 
 #-------------------------------------------------------------------------------
 # Install
@@ -99,6 +101,12 @@ install(
   ${LIB_XRD_SEC_GSI}
   ${LIB_XRD_SEC_GSI_AUTHZVO}
   ${LIB_XRD_SEC_GSI_GMAPDN}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+if( NOT XRDCL_LIB_ONLY )
+install(
+  TARGETS
   xrdgsiproxy
   xrdgsitest
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -109,3 +117,6 @@ install(
   ${PROJECT_SOURCE_DIR}/docs/man/xrdgsiproxy.1
   ${PROJECT_SOURCE_DIR}/docs/man/xrdgsitest.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
+
+endif()
+

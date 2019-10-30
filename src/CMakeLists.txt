@@ -2,6 +2,10 @@
 #-------------------------------------------------------------------------------
 # Include the subcomponents
 #-------------------------------------------------------------------------------
+if( XRDCL_LIB_ONLY )
+  set ( XRDCL_ONLY TRUE )
+endif()
+
 include( XrdUtils )
 include( XrdApps )
 include( XrdCrypto )
@@ -57,6 +61,7 @@ endif()
 #-------------------------------------------------------------------------------
 # Install the utility scripts
 #-------------------------------------------------------------------------------
+if( NOT XRDCL_ONLY )
 install(
   FILES
   ${CMAKE_SOURCE_DIR}/utils/XrdCmsNotify.pm
@@ -68,7 +73,9 @@ install(
   OWNER_EXECUTE OWNER_WRITE OWNER_READ
   GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ )
+endif()
 
+if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
 # Install xrootd-config
 #-------------------------------------------------------------------------------
@@ -102,3 +109,4 @@ install(
         COMMAND mv -f \${MANPAGE}.new \${MANPAGE} )
     ENDFOREACH()"
 )
+endif()

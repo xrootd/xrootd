@@ -111,6 +111,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # xrdfs
 #-------------------------------------------------------------------------------
+if( NOT XRDCL_LIB_ONLY )
 add_executable(
   xrdfs
   XrdClFS.cc
@@ -122,10 +123,12 @@ target_link_libraries(
   XrdCl
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
+endif()
 
 #-------------------------------------------------------------------------------
 # xrdcopy
 #-------------------------------------------------------------------------------
+if( NOT XRDCL_LIB_ONLY )
 add_executable(
   xrdcp
   XrdClCopy.cc )
@@ -134,14 +137,22 @@ target_link_libraries(
   xrdcp
   XrdCl
   XrdAppUtils )
+endif()
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCl xrdfs xrdcp
+  TARGETS XrdCl
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+if( NOT XRDCL_LIB_ONLY )
+install(
+  TARGETS xrdfs xrdcp
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+endif()
 
 install(
   FILES
@@ -174,11 +185,12 @@ install(
     XrdClOperationHandlers.hh
     XrdClArg.hh
     XrdClFwd.hh
-	XrdClParallelOperation.hh
-	XrdClFileOperations.hh
-	XrdClFileSystemOperations.hh
+    XrdClParallelOperation.hh
+    XrdClFileOperations.hh
+    XrdClFileSystemOperations.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
+if( NOT XRDCL_LIB_ONLY )
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
@@ -213,3 +225,5 @@ install(
         WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )
     ENDFOREACH()"
 )
+
+endif()
