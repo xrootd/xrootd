@@ -96,7 +96,7 @@ const char *XrdSysE2T(int errcode)
 // registered and if not, register it.
 //
    e2sMutex.Lock();
-   std::string eTxt(e2sMap[errcode]);
+   std::string &eTxt = e2sMap[errcode];
    if (!eTxt.size())
       {snprintf(eBuff, sizeof(eBuff), "unknown error %d", errcode);
        eTxt = std::string(eBuff);
