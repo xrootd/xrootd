@@ -122,6 +122,7 @@ target_link_libraries(
   xrdfs
   pthread
   XrdCl
+  XrdUtils
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
 
