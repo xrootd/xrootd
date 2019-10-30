@@ -158,7 +158,7 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
    std::string statusMsg;
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
-   char buff[256];
+   char buff[512], buff2[256];
    int ddCount, refNum;
    bool doWait = false;
 
@@ -201,8 +201,8 @@ do{if (doWait)
          if (fCurr->numTries > XrdPosixGlobals::ddMaxTries)
             {XrdPosixGlobals::ddNumLost++; ddCount--;
              if (!eTxt)
-                {snprintf(buff, sizeof(buff), "in use %d", refNum);
-                 eTxt = buff;
+                {snprintf(buff2, sizeof(buff2), "in use %d", refNum);
+                 eTxt = buff2;
                 }
              if (Say)
                 {snprintf(buff, sizeof(buff), "%s timeout closing", eTxt);
