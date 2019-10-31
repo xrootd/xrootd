@@ -113,9 +113,6 @@ static const int    OpLicense  =  'H';        // -H | --license
 static const int    OpNoPbar   =  'N';
 static const int    DoNoPbar   =  0x00000100; // -N | --nopbar | -np {legacy}
 
-static const int    OpPath     =  'p';
-static const int    DoPath     =  0x00800000; // -p | --path
-
 static const int    OpPosc     =  'P';
 static const int    DoPosc     =  0x00000200; // -P | --posc
 
@@ -164,6 +161,9 @@ static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
 
 static const int    OpZip      =  'z';
 static const int    DoZip      =  0x01000000;//       --zip
+
+static const int    OpPath     =  'p';
+static const int    DoPath     =  0x0000000010000000LL; // -p | --path
 
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
