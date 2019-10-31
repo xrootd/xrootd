@@ -113,9 +113,6 @@ static const int    OpLicense  =  'H';                  // -H | --license
 static const int    OpNoPbar   =  'N';        // -N | --nopbar | -np {legacy}
 static const int    DoNoPbar   =  0x0000000000000100LL;
 
-static const int    OpPath     =  'p';
-static const int    DoPath     =  0x0000000000800000LL; // -p | --path
-
 static const int    OpPosc     =  'P';
 static const int    DoPosc     =  0x0000000000000200LL; // -P | --posc
 
@@ -173,6 +170,9 @@ static const int    DoNoTlsOK  =  0x0000000004000000LL; //      --notlsok
 
 static const int    OpTlsMLF   =  0x06;
 static const int    DoTlsMLF   =  0x0000000008000000LL; //      --tlsmetalink
+
+static const int    OpPath     =  'p';
+static const int    DoPath     =  0x0000000010000000LL; // -p | --path
 
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
