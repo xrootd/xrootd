@@ -170,7 +170,7 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
                          off_t     offset,
                          size_t    rdlen,
                          uint32_t *csvec,
-                         bool      verify)
+                         uint64_t  opts)
 {
    ssize_t bytes;
 
@@ -195,12 +195,12 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 
 /******************************************************************************/
   
-int XrdOssDF::pgRead(XrdSfsAio *aioparm, bool verify)
+int XrdOssDF::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgRead((void *)aioparm->sfsAio.aio_buf,
                                   (off_t) aioparm->sfsAio.aio_offset,
                                   (size_t)aioparm->sfsAio.aio_nbytes,
-                                  aioparm->cksVec, verify);
+                                  aioparm->cksVec, opts);
    aioparm->doneRead();
    return 0;
 }
@@ -213,7 +213,7 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
                           off_t     offset,
                           size_t    wrlen,
                           uint32_t *csvec,
-                          bool      verify)
+                          uint64_t  opts)
 {
 // Make sure the offset is on a 4K boundary
 //
@@ -231,7 +231,7 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 // If we have a checksum vector and verify is on, make sure the data
 // in the buffer corresponds to he checksums.
 //
-   if (csvec && verify)
+   if (csvec && !(opts & noVerify))
       {int pgErr;
        if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,pgSize,pgErr))
           return -EDOM;
@@ -244,12 +244,12 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 
 /******************************************************************************/
   
-int XrdOssDF::pgWrite(XrdSfsAio *aioparm, bool verify)
+int XrdOssDF::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgWrite((void *)aioparm->sfsAio.aio_buf,
                                    (off_t) aioparm->sfsAio.aio_offset,
                                    (size_t)aioparm->sfsAio.aio_nbytes,
-                                   aioparm->cksVec, verify);
+                                   aioparm->cksVec, opts);
    aioparm->doneWrite();
    return 0;
 }
