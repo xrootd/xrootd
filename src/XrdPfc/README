@@ -2,7 +2,7 @@
 
 INTRODUCTION
 
-The XrdFileCache library is a proxy server plugin used for caching of data
+The XrdPfc library is a proxy server plugin used for caching of data
 into local files. Two modes of operation are supported.
 
 The first mode simply prefetches complete files and stores them on local
@@ -134,13 +134,13 @@ pfc.trace <none|error|warning|info|debug|dump> default level is warning, xrootd 
 Examples 
 
 a) Enable proxy file prefetching:
-pps.cachelib libXrdFileCache.so
+pps.cachelib libXrdPfc.so
 pfc.localroot  /data/xrd-file-cache
 pfc.ram 5g
 
 
 b) enable file block mode, with block size 64 MB:
-pss.cachelib libXrdFileCache.so
+pss.cachelib libXrdPfc.so
 pfc.hdfsmode hdfsbsize 64m
 
 

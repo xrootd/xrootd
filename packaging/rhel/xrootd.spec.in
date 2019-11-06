@@ -741,7 +741,7 @@ fi
 %{_libdir}/libXrdBwm-5.so
 %{_libdir}/libXrdPss-5.so
 %{_libdir}/libXrdXrootd-5.so
-%{_libdir}/libXrdFileCache-5.so
+%{_libdir}/libXrdPfc-5.so
 %{_libdir}/libXrdBlacklistDecision-5.so
 %{_libdir}/libXrdHttp-5.so
 %{_libdir}/libXrdHttpTPC-5.so
@@ -763,7 +763,7 @@ fi
 %defattr(-,root,root,-)
 %{_includedir}/xrootd/XrdAcc
 %{_includedir}/xrootd/XrdCms
-%{_includedir}/xrootd/XrdFileCache
+%{_includedir}/xrootd/XrdPfc
 %{_includedir}/xrootd/XrdOss
 %{_includedir}/xrootd/XrdOfs
 %{_includedir}/xrootd/XrdSfs

@@ -1,7 +1,7 @@
-#include "XrdFileCacheIO.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcIO.hh"
+#include "XrdPfcTrace.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 IO::IO(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache) :
    m_statsGlobal(stats), m_cache(cache), m_traceID("IO"), m_io(io)

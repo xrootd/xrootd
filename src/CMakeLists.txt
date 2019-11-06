@@ -36,7 +36,7 @@ if( NOT XRDCL_ONLY )
   include( XrdSsi )
 #  include( XrdCns ) TODO: this is using the old client, needs refactoring or needs to be removed!
 
-  include( XrdFileCache )
+  include( XrdPfc )
 
   if( BUILD_HTTP )
     include( XrdHttp )

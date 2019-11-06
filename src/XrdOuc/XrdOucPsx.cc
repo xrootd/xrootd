@@ -530,7 +530,7 @@ bool XrdOucPsx::ParseCLib(XrdSysError *Eroute, XrdOucStream &Config)
 // Save the path
 //
    if (cPath) free(cPath);
-   cPath = (strcmp(val,"default") ? strdup(val) : strdup("libXrdFileCache.so"));
+   cPath = (strcmp(val,"default") ? strdup(val) : strdup("libXrdPfc.so"));
 
 // Get the parameters
 //

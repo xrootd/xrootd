@@ -1,3 +1,5 @@
+#ifndef __XRDFILECACHE_PRINT_HH__
+#define __XRDFILECACHE_PRINT_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel
@@ -21,7 +23,7 @@
 class XrdOss;
 class XrdOssDF;
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 class Print {
 public:
@@ -52,3 +54,5 @@ private:
    void printDir(XrdOssDF* iOssDF, const std::string& path);
 };
 }
+
+#endif

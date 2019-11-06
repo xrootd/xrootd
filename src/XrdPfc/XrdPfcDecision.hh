@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_DECISION_HH__
-#define __XRDFILECACHE_DECISION_HH__
+#ifndef __XRDPFC_DECISION_HH__
+#define __XRDPFC_DECISION_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
@@ -25,7 +25,7 @@
 
 class XrdSysError;
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 //----------------------------------------------------------------------------
 //! Base class for selecting which files should be cached.

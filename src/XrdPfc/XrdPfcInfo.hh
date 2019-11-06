@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_INFO_HH__
-#define __XRDFILECACHE_INFO_HH__
+#ifndef __XRDPFC_INFO_HH__
+#define __XRDPFC_INFO_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz  Tadel, Brian Bockelman
@@ -37,7 +37,7 @@ namespace XrdCl
 class Log;
 }
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 class Stats;
 

@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_IO_ENTIRE_FILE_HH__
-#define __XRDFILECACHE_IO_ENTIRE_FILE_HH__
+#ifndef __XRDPFC_IO_ENTIRE_FILE_HH__
+#define __XRDPFC_IO_ENTIRE_FILE_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
@@ -21,17 +21,17 @@
 #include <string>
 
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdFileCacheIO.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheStats.hh"
-#include "XrdFileCacheFile.hh"
+#include "XrdPfcIO.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcFile.hh"
 
 class XrdSysError;
 class XrdOssDF;
 class XfcStats;
 class XrdOucIOVec;
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 //----------------------------------------------------------------------------
 //! \brief Downloads original file into a single file on local disk.

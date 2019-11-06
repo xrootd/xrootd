@@ -1,6 +1,6 @@
-#include "XrdFileCache.hh"
-#include "XrdFileCacheTrace.hh"
-#include "XrdFileCacheInfo.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcTrace.hh"
+#include "XrdPfcInfo.hh"
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssCache.hh"
@@ -16,9 +16,9 @@
 
 #include <fcntl.h>
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
-XrdVERSIONINFO(XrdOucGetCache, XrdFileCache);
+XrdVERSIONINFO(XrdOucGetCache, XrdPfc);
 
 bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name)
 {
@@ -92,7 +92,7 @@ bool Cache::xdlib(XrdOucStream &Config)
                                                 libp.c_str());
 
    Decision *(*ep)(XrdSysError&);
-   ep = (Decision *(*)(XrdSysError&))myLib->Resolve("XrdFileCacheGetDecision");
+   ep = (Decision *(*)(XrdSysError&))myLib->Resolve("XrdPfcGetDecision");
    if (! ep) {myLib->Unload(true); return false; }
 
    Decision * d = ep(m_log);

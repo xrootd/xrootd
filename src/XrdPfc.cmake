@@ -3,7 +3,7 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Modules
 #-------------------------------------------------------------------------------
-set( LIB_XRD_FILECACHE  XrdFileCache-${PLUGIN_VERSION} )
+set( LIB_XRD_FILECACHE  XrdPfc-${PLUGIN_VERSION} )
 set( LIB_XRD_BLACKLIST  XrdBlacklistDecision-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
@@ -11,23 +11,23 @@ set( LIB_XRD_BLACKLIST  XrdBlacklistDecision-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
-# The XrdFileCache library
+# The XrdPfc library
 #-------------------------------------------------------------------------------
 add_library(
   ${LIB_XRD_FILECACHE}
   MODULE
-  XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
-  XrdFileCache/XrdFileCacheConfiguration.cc
-  XrdFileCache/XrdFileCachePurge.cc
-  XrdFileCache/XrdFileCacheCommand.cc
-  XrdFileCache/XrdFileCacheFile.cc          XrdFileCache/XrdFileCacheFile.hh
-  XrdFileCache/XrdFileCacheVRead.cc
-  XrdFileCache/XrdFileCacheStats.hh
-  XrdFileCache/XrdFileCacheInfo.cc          XrdFileCache/XrdFileCacheInfo.hh
-  XrdFileCache/XrdFileCacheIO.cc            XrdFileCache/XrdFileCacheIO.hh
-  XrdFileCache/XrdFileCacheIOEntireFile.cc  XrdFileCache/XrdFileCacheIOEntireFile.hh
-  XrdFileCache/XrdFileCacheIOFileBlock.cc   XrdFileCache/XrdFileCacheIOFileBlock.hh
-  XrdFileCache/XrdFileCacheDecision.hh)
+  XrdPfc/XrdPfc.cc              XrdPfc/XrdPfc.hh
+  XrdPfc/XrdPfcConfiguration.cc
+  XrdPfc/XrdPfcPurge.cc
+  XrdPfc/XrdPfcCommand.cc
+  XrdPfc/XrdPfcFile.cc          XrdPfc/XrdPfcFile.hh
+  XrdPfc/XrdPfcVRead.cc
+  XrdPfc/XrdPfcStats.hh
+  XrdPfc/XrdPfcInfo.cc          XrdPfc/XrdPfcInfo.hh
+  XrdPfc/XrdPfcIO.cc            XrdPfc/XrdPfcIO.hh
+  XrdPfc/XrdPfcIOEntireFile.cc  XrdPfc/XrdPfcIOEntireFile.hh
+  XrdPfc/XrdPfcIOFileBlock.cc   XrdPfc/XrdPfcIOFileBlock.hh
+  XrdPfc/XrdPfcDecision.hh)
 
 target_link_libraries(
   ${LIB_XRD_FILECACHE}
@@ -49,7 +49,7 @@ set_target_properties(
 add_library(
   ${LIB_XRD_BLACKLIST}
   MODULE
-  XrdFileCache/XrdFileCacheBlacklistDecision.cc) 
+  XrdPfc/XrdPfcBlacklistDecision.cc) 
 
 target_link_libraries(
   ${LIB_XRD_BLACKLIST}
@@ -67,8 +67,8 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 add_executable(
   xrdpfc_print
-  XrdFileCache/XrdFileCachePrint.hh  XrdFileCache/XrdFileCachePrint.cc
-  XrdFileCache/XrdFileCacheInfo.hh   XrdFileCache/XrdFileCacheInfo.cc)
+  XrdPfc/XrdPfcPrint.hh  XrdPfc/XrdPfcPrint.cc
+  XrdPfc/XrdPfcInfo.hh   XrdPfc/XrdPfcInfo.cc)
 
 target_link_libraries(
   xrdpfc_print

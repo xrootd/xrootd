@@ -30,13 +30,13 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
-#include "XrdFileCache.hh"
-#include "XrdFileCacheTrace.hh"
-#include "XrdFileCacheInfo.hh"
-#include "XrdFileCacheIOEntireFile.hh"
-#include "XrdFileCacheIOFileBlock.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcTrace.hh"
+#include "XrdPfcInfo.hh"
+#include "XrdPfcIOEntireFile.hh"
+#include "XrdPfcIOFileBlock.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 Cache * Cache::m_factory = NULL;
 
@@ -76,7 +76,7 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
    err.Say("++++++ Proxy file cache initialization started.");
 
    if (envP)
-      XrdFileCache::Cache::schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
+      XrdPfc::Cache::schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
 
    Cache &factory = Cache::CreateInstance(logger);
 
@@ -90,17 +90,17 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
    for (int wti = 0; wti < factory.RefConfiguration().m_wqueue_threads; ++wti)
    {
       pthread_t tid1;
-      XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdFileCache WriteTasks ");
+      XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdPfc WriteTasks ");
    }
 
    if (factory.RefConfiguration().m_prefetch_max_blocks > 0)
    {
       pthread_t tid2;
-      XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdFileCache Prefetch ");
+      XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdPfc Prefetch ");
    }
 
    pthread_t tid;
-   XrdSysThread::Run(&tid, PurgeThread, NULL, 0, "XrdFileCache Purge");
+   XrdSysThread::Run(&tid, PurgeThread, NULL, 0, "XrdPfc Purge");
 
    return &factory;
 }
@@ -151,7 +151,7 @@ bool Cache::Decide(XrdOucCacheIO* io)
       std::vector<Decision*>::const_iterator it;
       for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
       {
-         XrdFileCache::Decision *d = *it;
+         XrdPfc::Decision *d = *it;
          if (! d) continue;
          if (! d->Decide(filename, *m_output_fs))
          {
@@ -165,8 +165,8 @@ bool Cache::Decide(XrdOucCacheIO* io)
 
 Cache::Cache(XrdSysLogger *logger) :
    XrdOucCache(),
-   m_log(logger, "XrdFileCache_"),
-   m_trace(new XrdSysTrace("XrdFileCache", logger)),
+   m_log(logger, "XrdPfc_"),
+   m_trace(new XrdSysTrace("XrdPfc", logger)),
    m_traceID("Manager"),
    m_prefetch_condVar(0),
    m_RAMblocks_used(0),

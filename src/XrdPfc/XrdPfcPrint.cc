@@ -19,17 +19,17 @@
 #include <iostream>
 #include <fcntl.h>
 #include <vector>
-#include "XrdFileCachePrint.hh"
+#include "XrdPfcPrint.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucArgs.hh"
 #include "XrdSys/XrdSysTrace.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdFileCacheInfo.hh"
+#include "XrdPfcInfo.hh"
 #include "XrdOss/XrdOss.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 Print::Print(XrdOss* oss, bool v, const char* path) : m_oss(oss), m_verbose(v), m_ossUser("nobody")
 {
@@ -264,13 +264,13 @@ int main(int argc, char *argv[])
                std::string tmp = Config.GetWord();
                tmp += &path[6];
                // printf("Absolute path %s \n", tmp.c_str());
-               XrdFileCache::Print p(oss, verbose, tmp.c_str());
+               XrdPfc::Print p(oss, verbose, tmp.c_str());
             }
          }
       }
       else
       {
-         XrdFileCache::Print p(oss, verbose, path);
+         XrdPfc::Print p(oss, verbose, path);
       }
    }
 

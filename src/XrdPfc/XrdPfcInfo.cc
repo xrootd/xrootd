@@ -29,10 +29,10 @@
 #include "XrdSys/XrdSysTrace.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdFileCacheInfo.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheStats.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcInfo.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcTrace.hh"
 
 namespace
 {
@@ -95,7 +95,7 @@ struct FpHelper
 };
 }
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 const char*  Info::m_traceID        = "CInfo";
 const char*  Info::s_infoExtension  = ".cinfo";

@@ -1,5 +1,5 @@
-#ifndef _XRDFILECACHE_TRACE_H
-#define _XRDFILECACHE_TRACE_H
+#ifndef _XRDPFC_TRACE_H
+#define _XRDPFC_TRACE_H
 
 // Trace flags
 //

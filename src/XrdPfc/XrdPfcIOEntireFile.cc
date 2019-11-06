@@ -23,13 +23,13 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdFileCacheIOEntireFile.hh"
-#include "XrdFileCacheStats.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcIOEntireFile.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcTrace.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 //______________________________________________________________________________
 IOEntireFile::IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache & cache) :

@@ -17,9 +17,9 @@
 //----------------------------------------------------------------------------------
 
 
-#include "XrdFileCacheFile.hh"
-#include "XrdFileCacheIO.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcFile.hh"
+#include "XrdPfcIO.hh"
+#include "XrdPfcTrace.hh"
 #include <stdio.h>
 #include <sstream>
 #include <fcntl.h>
@@ -32,10 +32,10 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdFileCache.hh"
+#include "XrdPfc.hh"
 
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 namespace
 {

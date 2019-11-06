@@ -23,17 +23,17 @@
 #include <assert.h>
 #include <fcntl.h>
 
-#include "XrdFileCacheIOFileBlock.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheStats.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcIOFileBlock.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcTrace.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 //______________________________________________________________________________
 IOFileBlock::IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &statsGlobal, Cache & cache) :
@@ -143,7 +143,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    ss << &offExt[0];
    fname = ss.str();
 
-   TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
+   TRACEIO(Debug, "FileBlock::FileBlock(), create XrdPfcFile ");
 
    File* file = Cache::GetInstance().GetFile(fname, this, off, blocksize);
    return file;

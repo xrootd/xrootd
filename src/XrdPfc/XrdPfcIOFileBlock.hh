@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_IO_FILE_BLOCK_HH__
-#define __XRDFILECACHE_IO_FILE_BLOCK_HH__
+#ifndef __XRDPFC_IO_FILE_BLOCK_HH__
+#define __XRDPFC_IO_FILE_BLOCK_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
@@ -23,12 +23,12 @@
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdFileCacheIO.hh"
+#include "XrdPfcIO.hh"
 
 class XrdSysError;
 class XrdOssDF;
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 //----------------------------------------------------------------------------
 //! \brief Downloads original file into multiple files, chunked into

@@ -5,6 +5,8 @@ XRootD
 Release Notes
 =============
 
++ **Miscellaneous**
+  **[XCache]** Switch from usage of XrdFileCache prefix to XrdPfc.
 
 --------------
 Version 4.11.0
