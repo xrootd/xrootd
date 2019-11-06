@@ -419,7 +419,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
          {
             bytes_read = bi->block->m_errno;
             TRACEF(Error, "File::VReadProcessBlocks() io " << io << ", block "<< bi->block <<
-                   " finished with error " << -bytes_read << " " << strerror(-bytes_read));
+                   " finished with error " << -bytes_read << " " << XrdSysE2T(-bytes_read));
             break;
          }
 

@@ -818,7 +818,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             {
                error_cond = (*bi)->m_errno;
                TRACEF(Error, "File::Read() io " << io << ", block "<< (*bi)->m_offset/BS <<
-                      " finished with error " << -error_cond << " " << strerror(-error_cond));
+                      " finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
             }
          }
          ++bi;
@@ -852,7 +852,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          if ( ! error_cond)
          {
             error_cond = direct_handler->m_errno;
-            TRACEF(Error, "File::Read(), direct read finished with error " << -error_cond << " " << strerror(-error_cond));
+            TRACEF(Error, "File::Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
          }
       }
 

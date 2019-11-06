@@ -28,12 +28,13 @@
 
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTrace.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 #ifndef XRD_TRACE
 #define XRD_TRACE GetTrace()->
 #endif
 
-#define ERRNO_AND_ERRSTR(err_code) ", err_code=" << err_code << ", err_str=" << strerror(err_code)
+#define ERRNO_AND_ERRSTR(err_code) ", err_code=" << err_code << ", err_str=" << XrdSysE2T(err_code)
 
 #define TRACE(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \

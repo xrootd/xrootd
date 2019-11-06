@@ -56,7 +56,7 @@ IOFileBlock::~IOFileBlock()
 //______________________________________________________________________________
 bool IOFileBlock::Detach(XrdOucCacheIOCD &iocdP)
 {
-   // Called from XrdPosixFile destructor ???? Not really tue
+   // Called from XrdPosixFile when local connection is closed.
 
    TRACEIO(Info, "Detach IOFileBlock");
 

@@ -106,7 +106,7 @@ int IOEntireFile::initCachedStat(const char* path)
       }
       else
       {
-         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << strerror(-res_open));
+         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << XrdSysE2T(-res_open));
       }
       infoFile->Close();
       delete infoFile;
@@ -137,7 +137,7 @@ bool IOEntireFile::ioActive()
 //______________________________________________________________________________
 bool IOEntireFile::Detach(XrdOucCacheIOCD &iocdP)
 {
-   // Called from XrdPosixFile destructor.
+   // Called from XrdPosixFile when local connection is closed.
 
    TRACE(Info, "IOEntireFile::Detach() " << this);
 
@@ -185,7 +185,7 @@ int IOEntireFile::Read(char *buff, long long off, int size)
    else
    {
       TRACEIO(Warning, "IOEntireFile::Read() pass to origin, File::Read() exit status=" << retval
-              << ", error=" << strerror(-retval));
+              << ", error=" << XrdSysE2T(-retval));
    }
 
    return (retval < 0) ? retval : bytes_read;

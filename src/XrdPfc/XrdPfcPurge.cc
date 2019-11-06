@@ -439,7 +439,7 @@ public:
                }
                else
                {
-                  TRACE(Warning, "FillFileMapRecurse() can't open or read " << new_path << ", err " << strerror(errno)
+                  TRACE(Warning, "FillFileMapRecurse() can't open or read " << new_path << ", err " << XrdSysE2T(errno)
                         << "; purging.");
                   oss->Unlink(new_path.c_str());
                   new_path = new_path.substr(0, new_path.size() - InfoExtLen);
