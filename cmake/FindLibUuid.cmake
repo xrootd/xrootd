@@ -1,25 +1,56 @@
-# This code sets the following variables:
-# 
-#  LIBUUID_FOUND               True if libuuid got found
-#  LIBUUID_INCLUDE_DIRS        Location of libuuid headers
-#  LIBUUID_LIBRARIES           List of libraries to use libuuid 
+#.rst:
+# Finduuid
+# -----------
+#
+# Find libuuid, DCE compatible Universally Unique Identifier library.
+#
+# Result Variables
+# ^^^^^^^^^^^^^^^^
+#
+# This module will set the following variables in your project:
+#
+# ``UUID_FOUND``
+#   True if libuuid has been found.
+# ``UUID_INCLUDE_DIRS``
+#   Where to find uuid/uuid.h.
+# ``UUID_LIBRARIES``
+#   The libraries to link against to use libuuid.
+#
+# Obsolete variables
+# ^^^^^^^^^^^^^^^^^^
+#
+# The following variables may also be set, for backwards compatibility:
+#
+# ``UUID_LIBRARY``
+#   where to find the libuuid library (same as UUID_LIBRARIES).
+# ``UUID_INCLUDE_DIR``
+#   where to find the uuid/uuid.h header (same as UUID_INCLUDE_DIRS).
 
-FIND_PATH(LIBUUID_INCLUDE_DIRS uuid/uuid.h)
-FIND_LIBRARY(LIBUUID_LIBRARIES uuid)
+include(CheckCXXSymbolExists)
+include(CheckLibraryExists)
+include(FindPackageHandleStandardArgs)
 
-IF (LIBUUID_LIBRARIES AND LIBUUID_INCLUDE_DIRS)       
-	SET(LIBUUID_FOUND 1)
-	IF (NOT LibUuid_FIND_QUIETLY)
-		MESSAGE(STATUS "Found libuuid: ${LIBUUID_LIBRARIES}")
-	ENDIF ( NOT LibUuid_FIND_QUIETLY )
-ELSE (LIBUUID_LIBRARIES AND LIBUUID_INCLUDE_DIRS)     
-	IF (LibUuid_FIND_REQUIRED)
-		MESSAGE(SEND_ERROR "Could NOT find libuuid")
-	ELSE (LibUuid_FIND_REQUIRED)
-		IF (NOT LIBUUID_FIND_QUIETLY)
-			MESSAGE(STATUS "Could NOT find libuuid")     
-		ENDIF (NOT LIBUUID_FIND_QUIETLY)
-	ENDIF (LibUuid_FIND_REQUIRED)
-ENDIF (LIBUUID_LIBRARIES AND LIBUUID_INCLUDE_DIRS)
+if(NOT UUID_INCLUDE_DIR)
+  find_path(UUID_INCLUDE_DIR uuid/uuid.h)
+endif()
 
-MARK_AS_ADVANCED(LIBUUID_LIBRARIES LIBUUID_INCLUDE_DIRS)
+if(EXISTS UUID_INCLUDE_DIR)
+  set(UUID_INCLUDE_DIRS ${UUID_INCLUDE_DIR})
+  set(CMAKE_REQUIRED_INCLUDES ${UUID_INCLUDE_DIRS})
+  check_cxx_symbol_exists("uuid_generate_random" "uuid/uuid.h" _uuid_header_only)
+endif()
+
+if(NOT _uuid_header_only AND NOT UUID_LIBRARY)
+  check_library_exists("uuid" "uuid_generate_random" "" _have_libuuid)
+  if(_have_libuuid)
+    set(UUID_LIBRARY "uuid")
+    set(UUID_LIBRARIES ${UUID_LIBRARY})
+  endif()
+endif()
+
+unset(CMAKE_REQUIRED_INCLUDES)
+unset(_uuid_header_only)
+unset(_have_libuuid)
+
+find_package_handle_standard_args(uuid DEFAULT_MSG UUID_INCLUDE_DIR)
+mark_as_advanced(UUID_INCLUDE_DIR UUID_LIBRARY)
