@@ -75,8 +75,11 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
    XrdSysError err(logger, "");
    err.Say("++++++ Proxy file cache initialization started.");
 
-   if (envP)
-      XrdPfc::Cache::schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
+   if (!envP
+   ||  !(XrdPfc::Cache::schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*")))
+      {XrdPfc::Cache::schedP = new XrdScheduler;
+       XrdPfc::Cache::schedP->Start();
+      }
 
    Cache &factory = Cache::CreateInstance(logger);
 
