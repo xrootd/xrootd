@@ -4,10 +4,15 @@
 using namespace XrdPfc;
 
 IO::IO(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache) :
-   m_statsGlobal(stats), m_cache(cache), m_traceID("IO"), m_io(io)
+   m_statsGlobal     (stats),
+   m_cache           (cache),
+   m_traceID         ("IO"),
+   m_io              (io)
 {
    m_path = m_io->Path();
 }
+
+//==============================================================================
 
 void IO::Update(XrdOucCacheIO &iocp)
 {
@@ -29,3 +34,52 @@ XrdOucCacheIO* IO::GetInput()
    return m_io;
 }
 
+//==============================================================================
+
+bool IO::Detach(XrdOucCacheIOCD &iocdP)
+{
+   // Called from XrdPosixFile when local connection is closed.
+
+   if ( ! ioActive())
+   {
+      DetachFinalize();
+
+      return true;
+   }
+   else
+   {
+      class FutureDetach : public XrdJob
+      {
+         IO              *f_io;
+         XrdOucCacheIOCD *f_detach_cb;
+
+      public:
+         FutureDetach(IO *io, XrdOucCacheIOCD *cb) :
+            f_io        (io),
+            f_detach_cb (cb)
+         {}
+
+         void DoIt()
+         {
+            if (f_io->ioActive())
+            {
+               // Reschedule 60 sec in the future.
+               Cache::schedP->Schedule(this, time(0) + 60);
+            }
+            else
+            {
+               f_io->DetachFinalize();
+               f_detach_cb->DetachDone();
+
+               delete this;
+            }
+         }
+      };
+
+      FutureDetach *fud = new FutureDetach(this, &iocdP);
+
+      Cache::schedP->Schedule(fud, time(0) + 60);
+
+      return false;
+   }
+}

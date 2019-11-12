@@ -40,14 +40,8 @@ namespace XrdPfc
 class IOEntireFile : public IO
 {
 public:
-   //------------------------------------------------------------------------
-   //! Constructor
-   //------------------------------------------------------------------------
    IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
 
-   //------------------------------------------------------------------------
-   //! Destructor
-   //------------------------------------------------------------------------
    ~IOEntireFile();
 
    //------------------------------------------------------------------------
@@ -80,23 +74,19 @@ public:
 
    virtual int ReadV(const XrdOucIOVec *readV, int n);
 
-   //---------------------------------------------------------------------
-   //! Detach itself from Cache. Note: this will delete the object.
-   //!
-   //! @return original source \ref XrdPosixFile
-   //---------------------------------------------------------------------
-   virtual bool Detach(XrdOucCacheIOCD &iocdP);
-
-   //! \brief Virtual method of XrdOucCacheIO.
+   //! \brief Abstract virtual method of XrdPfcIO
    //! Called to check if destruction needs to be done in a separate task.
-   virtual bool ioActive();
+   bool ioActive() /* override */;
+
+   //! \brief Abstract virtual method of XrdPfcIO
+   //! Called to destruct the IO object after it is no longer used.
+   void DetachFinalize() /* override */;
    
    virtual int  Fstat(struct stat &sbuff);
 
    virtual long long FSize();
 
 private:
-   XrdSysMutex  m_mutex;
    File        *m_file;
    struct stat *m_localStat;
    int initCachedStat(const char* path);

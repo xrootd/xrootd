@@ -38,6 +38,13 @@ public:
 
    virtual void Update(XrdOucCacheIO &iocp);
 
+   // Detach is virtual from XrdOucCacheIO, here it is split
+   // into abstract ioActive() and DetachFinalize().
+   bool Detach(XrdOucCacheIOCD &iocdP) /* final */;
+
+   virtual bool ioActive()       = 0;
+   virtual void DetachFinalize() = 0;
+
    XrdSysTrace* GetTrace() { return m_cache.GetTrace(); }
 
    XrdOucCacheIO* GetInput();

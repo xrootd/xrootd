@@ -250,7 +250,12 @@ private:
       bool   m_allow_prefetching;
       bool   m_ioactive_false_reported;
 
-      IODetails(time_t at) : m_attach_time(at), m_active_prefetches(0), m_allow_prefetching(true) {}
+      IODetails(time_t at) :
+         m_attach_time             (at),
+         m_active_prefetches       (0),
+         m_allow_prefetching       (true),
+         m_ioactive_false_reported (false)
+      {}
    };
 
    typedef std::map<IO*, IODetails> IoMap_t;

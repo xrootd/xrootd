@@ -53,12 +53,39 @@ IOFileBlock::~IOFileBlock()
    TRACEIO(Debug, "deleting IOFileBlock");
 }
 
+// Check if m_mutex is needed at all, it is only used in ioActive and DetachFinalize
+// and in Read for block selection -- see if Prefetch Read requires mutex
+// to be held.
+// I think I need it in ioActive and Read.
+
 //______________________________________________________________________________
-bool IOFileBlock::Detach(XrdOucCacheIOCD &iocdP)
+bool IOFileBlock::ioActive()
 {
    // Called from XrdPosixFile when local connection is closed.
 
-   TRACEIO(Info, "Detach IOFileBlock");
+   bool active = false;
+   {
+      XrdSysMutexHelper lock(&m_mutex);
+
+      for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+      {
+         // Need to initiate stop on all File / block objects.
+         if (it->second && it->second->ioActive(this))
+         {
+            active = true;
+         }
+      }
+   }
+
+   return active;
+}
+
+//______________________________________________________________________________
+void IOFileBlock::DetachFinalize()
+{
+   // Effectively a destructor.
+
+   TRACEIO(Info, "IOFileBlock::DetachFinalize() " << this);
 
    CloseInfoFile();
    {
@@ -72,11 +99,9 @@ bool IOFileBlock::Detach(XrdOucCacheIOCD &iocdP)
         }
      }
    }
-   delete this;
-//???? This needs to be coordinated with old ioActive() and return false if active
-   return true;
-}
 
+   delete this;
+}
 
 //______________________________________________________________________________
 void IOFileBlock::CloseInfoFile()
@@ -242,25 +267,6 @@ int IOFileBlock::initLocalStat()
    }
 
    return res;
-}
-
-//______________________________________________________________________________
-bool IOFileBlock::ioActive()
-{
-   XrdSysMutexHelper lock(&m_mutex);
-
-   bool active = false;
-
-   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-   {
-      // Need to initiate stop on all File / block objects.
-      if (it->second && it->second->ioActive(this))
-      {
-         active = true;
-      }
-   }
-
-   return active;
 }
 
 //______________________________________________________________________________

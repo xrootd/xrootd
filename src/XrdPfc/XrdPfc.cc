@@ -75,11 +75,12 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
    XrdSysError err(logger, "");
    err.Say("++++++ Proxy file cache initialization started.");
 
-   if (!envP
-   ||  !(XrdPfc::Cache::schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*")))
-      {XrdPfc::Cache::schedP = new XrdScheduler;
-       XrdPfc::Cache::schedP->Start();
-      }
+   if ( ! envP ||
+        ! (XrdPfc::Cache::schedP = (XrdScheduler*) envP->GetPtr("XrdScheduler*")))
+   {
+      XrdPfc::Cache::schedP = new XrdScheduler;
+      XrdPfc::Cache::schedP->Start();
+   }
 
    Cache &factory = Cache::CreateInstance(logger);
 
@@ -184,7 +185,6 @@ Cache::Cache(XrdSysLogger *logger) :
    m_prefetch_enabled = (m_configuration.m_prefetch_max_blocks > 0);
 }
 
-
 XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 {
    const char* tpfx = "Cache::Attach() ";
@@ -227,7 +227,6 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
    return io;
 }
 
-
 void Cache::AddWriteTask(Block* b, bool fromRead)
 {
    TRACE(Dump, "Cache::AddWriteTask() bOff=%ld " <<  b->m_offset);
@@ -241,7 +240,6 @@ void Cache::AddWriteTask(Block* b, bool fromRead)
    m_writeQ.condVar.Signal();
    m_writeQ.condVar.UnLock();
 }
-
 
 void Cache::RemoveWriteQEntriesFor(File *iFile)
 {
@@ -268,7 +266,6 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
 
    iFile->BlocksRemovedFromWriteQ(removed_blocks);
 }
-
 
 void Cache::ProcessWriteTasks()
 {
@@ -310,7 +307,6 @@ void Cache::ProcessWriteTasks()
    }
 }
 
-
 bool Cache::RequestRAMBlock()
 {
    XrdSysMutexHelper lock(&m_RAMblock_mutex);
@@ -322,13 +318,11 @@ bool Cache::RequestRAMBlock()
    return false;
 }
 
-
 void Cache::RAMBlockReleased()
 {
    XrdSysMutexHelper lock(&m_RAMblock_mutex);
    m_RAMblocks_used--;
 }
-
 
 File* Cache::GetFile(const std::string& path, IO* io, long long off, long long filesize)
 {
@@ -411,10 +405,9 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
    return file;
 }
 
-
 void Cache::ReleaseFile(File* f, IO* io)
 {
-   // Called from virtual IO::Detach
+   // Called from virtual IO::DetachFinalize.
    
    TRACE(Debug, "Cache::ReleaseFile " << f->GetLocalPath() << ", io " << io);
    
@@ -470,34 +463,23 @@ public:
    }
 };
 
-
-void *callDoIt(void *pp)
-{
-     XrdJob *jP = (XrdJob *)pp;
-     jP->DoIt();
-     return (void *)0;
 }
 
-}
-
+//==============================================================================
 
 void Cache::schedule_file_sync(File* f, bool ref_cnt_already_set, bool high_debug)
 {
    DiskSyncer* ds = new DiskSyncer(f, high_debug);
-   if ( ! ref_cnt_already_set) inc_ref_cnt(f, true, high_debug);
-   if (m_isClient) ds->DoIt();
-      else if (schedP) schedP->Schedule(ds);
-              else {pthread_t tid;
-                    XrdSysThread::Run(&tid, callDoIt, ds, 0, "DiskSyncer");
-                   }
-}
 
+   if ( ! ref_cnt_already_set) inc_ref_cnt(f, true, high_debug);
+
+   schedP->Schedule(ds);
+}
 
 void Cache::FileSyncDone(File* f, bool high_debug)
 {
    dec_ref_cnt(f, high_debug);
 }
-
 
 void Cache::inc_ref_cnt(File* f, bool lock, bool high_debug)
 {
@@ -511,7 +493,6 @@ void Cache::inc_ref_cnt(File* f, bool lock, bool high_debug)
 
    TRACE_INT(tlvl, "Cache::inc_ref_cnt " << f->GetLocalPath() << ", cnt at exit = " << rc);
 }
-
 
 void Cache::dec_ref_cnt(File* f, bool high_debug)
 {
@@ -823,12 +804,8 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
       // Schedule a job to process command request.
       {
          CommandExecutor *ce = new CommandExecutor(f_name, "CommandExecutor");
-         if (schedP) {
-            schedP->Schedule(ce);
-         } else {
-            pthread_t tid;
-            XrdSysThread::Run(&tid, callDoIt, ce, 0, "CommandExecutor");
-         }
+
+         schedP->Schedule(ce);
       }
 
       return -EAGAIN;

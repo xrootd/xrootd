@@ -38,22 +38,17 @@ namespace XrdPfc
 class IOFileBlock : public IO
 {
 public:
-   //------------------------------------------------------------------------
-   //! Constructor.
-   //------------------------------------------------------------------------
    IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
 
-   //------------------------------------------------------------------------
-   //! Destructor.
-   //------------------------------------------------------------------------
    ~IOFileBlock();
 
-   //---------------------------------------------------------------------
-   //! Detach from Cache. Note: this will delete the object.
-   //!
-   //! @return original source \ref XrdPosixFile
-   //---------------------------------------------------------------------
-   virtual bool Detach(XrdOucCacheIOCD &iocdP);
+   //! \brief Abstract virtual method of XrdPfcIO
+   //! Called to check if destruction needs to be done in a separate task.
+   bool ioActive() /* override */;
+
+   //! \brief Abstract virtual method of XrdPfcIO
+   //! Called to destruct the IO object after it is no longer used.
+   void DetachFinalize() /* override */;
 
    //---------------------------------------------------------------------
    //! Pass Read request to the corresponding File object.
@@ -61,10 +56,6 @@ public:
    using XrdOucCacheIO::Read;
 
    virtual int Read(char *Buffer, long long Offset, int Length);
-
-   //! \brief Virtual method of XrdOucCacheIO.
-   //! Called to check if destruction needs to be done in a separate task.
-   virtual bool ioActive();
    
    virtual int  Fstat(struct stat &sbuff);
 

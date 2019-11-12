@@ -447,11 +447,11 @@ private:
    WriteQ m_writeQ;
 
    // active map, purge delay set
-   typedef std::map<std::string, File*>                     ActiveMap_t;
-   typedef ActiveMap_t::iterator                            ActiveMap_i;
+   typedef std::map<std::string, File*>               ActiveMap_t;
+   typedef ActiveMap_t::iterator                      ActiveMap_i;
    typedef std::multimap<std::string, XrdPfc::Stats>  StatsMMap_t;
-   typedef StatsMMap_t::iterator                            StatsMMap_i;
-   typedef std::set<std::string>                            FNameSet_t;
+   typedef StatsMMap_t::iterator                      StatsMMap_i;
+   typedef std::set<std::string>                      FNameSet_t;
 
    ActiveMap_t      m_active;
    StatsMMap_t      m_closed_files_stats;

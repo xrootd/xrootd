@@ -129,27 +129,20 @@ int IOEntireFile::initCachedStat(const char* path)
 //______________________________________________________________________________
 bool IOEntireFile::ioActive()
 {
-   XrdSysMutexHelper lock(&m_mutex);
-
    return m_file->ioActive(this);
 }
 
 //______________________________________________________________________________
-bool IOEntireFile::Detach(XrdOucCacheIOCD &iocdP)
+void IOEntireFile::DetachFinalize()
 {
-   // Called from XrdPosixFile when local connection is closed.
+   // Effectively a destructor.
 
-   TRACE(Info, "IOEntireFile::Detach() " << this);
+   TRACE(Info, "IOEntireFile::DetachFinalize() " << this);
 
-   {
-      XrdSysMutexHelper lock(&m_mutex);
+   m_file->RequestSyncOfDetachStats();
+   Cache::GetInstance().ReleaseFile(m_file, this);
 
-      m_file->RequestSyncOfDetachStats();
-      Cache::GetInstance().ReleaseFile(m_file, this);
-   }
    delete this;
-//???? This needs to be coordinated ith old ioActive() and return false if active
-   return true;
 }
 
 //______________________________________________________________________________
