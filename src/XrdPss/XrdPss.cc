@@ -109,7 +109,7 @@ using namespace XrdProxy;
 /*                XrdOssGetSS (a.k.a. XrdOssGetStorageSystem)                 */
 /******************************************************************************/
 
-XrdVERSIONINFO(XrdOssGetStorageSystem,XrdPss);
+XrdVERSIONINFO(XrdOssGetStorageSystem2,XrdPss);
   
 // This function is called by the OFS layer to retrieve the Storage System
 // object. We return our proxy storage system object if configuration succeeded.
@@ -138,9 +138,8 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
 /******************************************************************************/
   
 XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
-                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem)),
+                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
                          myFeatures(XRDOSS_HASPRXY)
-
                          {}
 
 /******************************************************************************/
