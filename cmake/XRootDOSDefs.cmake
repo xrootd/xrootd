@@ -66,6 +66,12 @@ if( CMAKE_COMPILER_IS_GNUCXX )
       set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=address-of-packed-member" )
   endif()
   
+  # we need at least gcc 4.6 in order to support crc32c as the compiler needs
+  # to support constexpr
+  if( GCC_VERSION VERSION_GREATER 4.6 OR GCC_VERSION VERSION_EQUAL 4.6 )
+      set( BUILD_CRC32C 1 )
+  endif()
+
 endif()
 
 #-------------------------------------------------------------------------------
