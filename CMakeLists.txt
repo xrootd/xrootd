@@ -59,6 +59,7 @@ endmacro()
 #-------------------------------------------------------------------------------
 add_subdirectory( src )
 add_subdirectory( bindings )
+add_subdirectory( external )
 
 if( BUILD_TESTS )
   ENABLE_TESTING()
