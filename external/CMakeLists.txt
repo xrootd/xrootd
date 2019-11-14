@@ -17,7 +17,7 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
 endif()
 
 if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/crc32c/CMakeLists.txt")
-    message(FATAL_ERROR "The crc32c submodules was not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
+    message(FATAL_ERROR "The crc32c submodules was not downloaded! CRC32_SUBMODULE was turned off or failed. Please update submodules and try again.")
 else()
     set(CRC32C_BUILD_TESTS OFF CACHE BOOL "Disable CRC32C tests.")
     set(CRC32C_BUILD_BENCHMARKS OFF CACHE BOOL "Disable CRC32C benchmarks.")

@@ -243,8 +243,10 @@ fi
 # Make sure submodules are in place
 #-------------------------------------------------------------------------------
 git submodule init
-git submodule update --recursive
-git submodule foreach git pull origin master
+git submodule update -- external/crc32c
+git submodule update -- src/XrdClHttp
+git submodule update -- src/XrdCeph
+#git submodule foreach git pull origin master
 
 #-------------------------------------------------------------------------------
 # Add XrdClHttp sub-module to our tarball
@@ -291,6 +293,27 @@ fi
 tar --concatenate --file $RPMSOURCES/xrootd.tar $RPMSOURCES/xrootd-ceph.tar
 if test $? -ne 0; then
   echo "[!] Unable to add xrootd-ceph to xrootd tarball" 1>&2
+  exit 6
+fi
+
+cd - > /dev/null
+
+#-------------------------------------------------------------------------------
+# Add external/crc32c sub-module to our tarball
+#-------------------------------------------------------------------------------
+cd external/crc32c
+
+TAG=1.1.0
+
+git archive --prefix=xrootd/external/crc32c/ --format=tar $TAG > $RPMSOURCES/xrootd-crc32c.tar
+if test $? -ne 0; then
+  echo "[!] Unable to create the xrootd-crc32c source tarball" 1>&2
+  exit 6
+fi
+
+tar --concatenate --file $RPMSOURCES/xrootd.tar $RPMSOURCES/xrootd-crc32c.tar
+if test $? -ne 0; then
+  echo "[!] Unable to add xrootd-crc32c to xrootd tarball" 1>&2
   exit 6
 fi
 
