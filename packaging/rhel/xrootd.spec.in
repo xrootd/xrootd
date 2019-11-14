@@ -32,6 +32,17 @@
     %define _with_ceph 1
 %endif
 
+%if %{?rhel:1}%{!?rhel:0}
+    %if %{rhel} > 7
+        %define use_cmake3 0
+    %else
+        %define use_cmake3 1
+    %endif
+%else
+    %define use_cmake3 0
+%endif
+
+
 # Remove default rpm python bytecompiling scripts
 %global __os_install_post \
     %(echo '%{__os_install_post}' | \
@@ -57,7 +68,11 @@ Source0:   xrootd.tar.gz
 
 BuildRoot: %{_tmppath}/%{name}-root
 
+%if %{use_cmake3}
+BuildRequires: cmake3
+%else
 BuildRequires: cmake
+%endif
 BuildRequires: krb5-devel
 BuildRequires: readline-devel
 BuildRequires: fuse-devel
@@ -398,7 +413,13 @@ export CXXFLAGS='-fsanitize=address'
 
 mkdir build
 pushd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+
+%if %{use_cmake3}
+cmake3 \
+%else
+cmake  \
+%endif
+      -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DFORCE_WERROR=TRUE \
 %if %{?_with_tests:1}%{!?_with_tests:0}
       -DENABLE_TESTS=TRUE \

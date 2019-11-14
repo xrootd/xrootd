@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 # Project description
 #-------------------------------------------------------------------------------
-cmake_minimum_required( VERSION 2.6 )
+cmake_minimum_required( VERSION 3.0 )
 
 IF(CMAKE_VERSION VERSION_GREATER "2.8.12")
    CMAKE_POLICY(SET CMP0022 OLD)
