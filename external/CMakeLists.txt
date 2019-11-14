@@ -25,6 +25,7 @@ if( BUILD_CRC32C )
       set(CRC32C_BUILD_BENCHMARKS OFF CACHE BOOL "Disable CRC32C benchmarks.")
       set(CRC32C_USE_GLOG OFF CACHE BOOL "Disable CRC32C glog.")
       set(CRC32C_INSTALL OFF CACHE BOOL "Do NOT install crc32c targets and headers.")
+      add_compile_definitions( HAVE_CRC32C )
       add_subdirectory(crc32c)
   endif()
 
