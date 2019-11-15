@@ -669,14 +669,12 @@ void FileSystemTest::XAttrTest()
   for( auto &a : attributes )
     attrs.push_back( std::make_tuple( a.first, a.second ) );
 
-  std::vector<XAttrStatus> *result1 = 0;
+  std::vector<XAttrStatus> result1;
   CPPUNIT_ASSERT_XRDST( fs.SetXAttr( remoteFile, attrs, result1 ) );
 
-  for( auto &xst : *result1 )
+  for( auto &xst : result1 )
     CPPUNIT_ASSERT_XRDST( xst.status );
-
-  delete result1;
-  result1 = 0;
+  result1.clear();
 
   //----------------------------------------------------------------------------
   // Test GetXAttr
@@ -685,26 +683,24 @@ void FileSystemTest::XAttrTest()
   for( auto &a : attributes )
     names.push_back( a.first );
 
-  std::vector<XAttr> *result2 = 0;
+  std::vector<XAttr> result2;
   CPPUNIT_ASSERT_XRDST( fs.GetXAttr( remoteFile, names, result2 ) );
 
-  for( auto &xa : *result2 )
+  for( auto &xa : result2 )
   {
     CPPUNIT_ASSERT_XRDST( xa.status );
     auto match = attributes.find( xa.name );
     CPPUNIT_ASSERT( match != attributes.end() );
     CPPUNIT_ASSERT( match->second == xa.value );
   }
-
-  delete result2;
-  result2 = 0;
+  result2.clear();
 
   //----------------------------------------------------------------------------
   // Test ListXAttr
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( fs.ListXAttr( remoteFile, result2 ) );
 
-  for( auto &xa : *result2 )
+  for( auto &xa : result2 )
   {
     CPPUNIT_ASSERT_XRDST( xa.status );
     auto match = attributes.find( xa.name );
@@ -712,19 +708,17 @@ void FileSystemTest::XAttrTest()
     CPPUNIT_ASSERT( match->second == xa.value );
   }
 
-  delete result2;
-  result2 = 0;
+  result2.clear();
 
   //----------------------------------------------------------------------------
   // Test DelXAttr
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( fs.DelXAttr( remoteFile, names, result1 ) );
 
-  for( auto &xst : *result1 )
+  for( auto &xst : result1 )
     CPPUNIT_ASSERT_XRDST( xst.status );
 
-  delete result1;
-  result1 = 0;
+  result1.clear();
 }
 
 //------------------------------------------------------------------------------

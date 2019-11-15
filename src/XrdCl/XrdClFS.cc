@@ -1600,10 +1600,9 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
       std::vector<xattr_t> attrs;
       attrs.push_back( std::make_tuple( key, value ) );
 
-      std::vector<XAttrStatus> *result = 0;
+      std::vector<XAttrStatus> result;
       XRootDStatus status = fs->SetXAttr( path, attrs, result );
-      XAttrStatus xst = result->front();
-      delete result;
+      XAttrStatus xst = result.front();
 
       if( !xst.status.IsOK() )
         status = xst.status;
@@ -1627,10 +1626,9 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
       std::vector<std::string> attrs;
       attrs.push_back( key );
 
-      std::vector<XAttr> *result = 0;
+      std::vector<XAttr> result;
       XRootDStatus status = fs->GetXAttr( path, attrs, result );
-      XAttr xattr = result->front();
-      delete result;
+      XAttr xattr = result.front();
 
       if( !xattr.status.IsOK() )
         status = xattr.status;
@@ -1660,10 +1658,9 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
       std::vector<std::string> attrs;
       attrs.push_back( key );
 
-      std::vector<XAttrStatus> *result = 0;
+      std::vector<XAttrStatus> result ;
       XRootDStatus status = fs->DelXAttr( path, attrs, result );
-      XAttrStatus xst = result->front();
-      delete result;
+      XAttrStatus xst = result.front();
 
       if( !xst.status.IsOK() )
         status = xst.status;
@@ -1683,7 +1680,7 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
         return XRootDStatus( stError, errInvalidArgs );
       }
 
-      std::vector<XAttr> *result = 0;
+      std::vector<XAttr> result;
       XRootDStatus status = fs->ListXAttr( path, result );
 
       if( !status.IsOK() )
@@ -1692,10 +1689,9 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
       else
       {
         std::cout << "# file: " << path << '\n';
-        auto itr = result->begin();
-        for( ; itr != result->end(); ++itr )
+        auto itr = result.begin();
+        for( ; itr != result.end(); ++itr )
           std::cout << itr->name << "=\"" << itr->value << "\"\n";
-        delete result;
       }
 
       return status;
