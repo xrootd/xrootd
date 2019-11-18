@@ -1745,7 +1745,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Copy extended attributes
     //--------------------------------------------------------------------------
-    if( HasXAttr( GetSource() ) && HasXAttr( GetTarget() ) )
+    Env *env = DefaultEnv::GetEnv();
+    int preserveXAttr = DefaultPreserveXAttrs;
+    env->GetInt( "PreserveXAttrs", preserveXAttr );
+    if( preserveXAttr && HasXAttr( GetSource() ) && HasXAttr( GetTarget() ) )
     {
       std::vector<xattr_t> xattrs;
       st = src->GetXAttr( xattrs );
