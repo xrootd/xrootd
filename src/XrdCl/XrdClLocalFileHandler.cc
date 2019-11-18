@@ -705,7 +705,7 @@ namespace XrdCl
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
 
-    static const std::string prefix = "U.";
+//    static const std::string prefix = "U.";
     std::vector<XAttr> response;
 
     XrdSysXAttr::AList *alist = 0;
@@ -724,7 +724,7 @@ namespace XrdCl
       int vlen = ptr->Vlen;
       ptr = ptr->Next;
 
-      if( name.find( prefix ) != 0 ) continue;
+//      if( name.find( prefix ) != 0 ) continue;
 
       std::unique_ptr<char[]> buffer( new char[vlen] );
       int ret = xattr->Get( name.c_str(),
@@ -734,7 +734,7 @@ namespace XrdCl
                                      std::string();
       XRootDStatus status = ret >= 0 ? XRootDStatus() :
                                        XRootDStatus( stError, XProtocol::mapError( -ret ) );
-      response.push_back( XAttr( name.substr( prefix.size() ), value, status ) );
+      response.push_back( XAttr( name/*.substr( prefix.size() )*/, value, status ) );
     }
     xattr->Free( alist );
 
