@@ -224,7 +224,6 @@ namespace
   inline bool HasXAttr( const XrdCl::URL &url )
   {
     if( url.IsLocalFile() ) return true;
-    static const int XATTR_VER = 0x00000400;
     XrdCl::AnyObject  qryResult;
     XrdCl::XRootDStatus st = XrdCl::DefaultEnv::GetPostMaster()->
         QueryTransport( url, XrdCl::XRootDQuery::ProtocolVersion, qryResult );
@@ -232,7 +231,7 @@ namespace
     {
       int *protver = 0;
       qryResult.Get( protver );
-      return ( *protver == XATTR_VER );
+      return ( *protver == kXR_PROTXATTVERSION );
     }
     return false;
   }
