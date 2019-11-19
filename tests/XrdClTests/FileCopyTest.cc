@@ -35,6 +35,7 @@
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksData.hh"
 
+#include <attr/xattr.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -479,8 +480,14 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Clear();
 
   //----------------------------------------------------------------------------
-  // Copy from local fs
+  // Copy from local fs with extended attributes
   //----------------------------------------------------------------------------
+
+  // enable xattr preservation
+  DefaultEnv::GetEnv()->PutInt( "PreserveXAttrs", 1 );
+  int rc = setxattr( localFile.c_str(), "foo", "bar", 3, 0 );
+  CPPUNIT_ASSERT( rc == 0 );
+
   results.Clear();
   properties.Set( "source", "file://localhost" + localFile );
   properties.Set( "target", targetURL );
@@ -490,6 +497,14 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process9.Prepare() );
   CPPUNIT_ASSERT_XRDST( process9.Run(0) );
   properties.Clear();
+
+  // now test if the xattrs were preserved
+  std::vector<XAttr> xattrs;
+  CPPUNIT_ASSERT_XRDST( fs.ListXAttr( targetPath, xattrs ) );
+  CPPUNIT_ASSERT( xattrs.size() == 1 );
+  XAttr &xattr = xattrs.front();
+  CPPUNIT_ASSERT_XRDST( xattr.status );
+  CPPUNIT_ASSERT( xattr.name == "foo" && xattr.value == "bar" );
 
   //----------------------------------------------------------------------------
   // Cleanup

@@ -100,6 +100,7 @@ BuildRequires: selinux-policy-devel
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
+BuildRequires: libattr-devel
 %endif
 
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
