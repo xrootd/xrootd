@@ -33,7 +33,8 @@ add_library(
 target_link_libraries(
   ${LIB_XRD_PSS}
   XrdPosix
-  XrdUtils )
+  XrdUtils
+  XrdServer )
 
 set_target_properties(
   ${LIB_XRD_PSS}
