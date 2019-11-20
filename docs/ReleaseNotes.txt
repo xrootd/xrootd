@@ -7,6 +7,193 @@ Release Notes
 
 
 --------------
+Version 5.0.0
+--------------
+
++ **New Features**
+  * **[gsi]** Allow keywords for options that accept numeric values.
+  * **[gsi]** Add -authzcall option to better control authz usage.
+  * **[XrdSec]** Add support for x509 capabilities.
+  * **[PSS]** Allow http and https for forwarding proxies.
+  * **[Voms]** Allow Voms plugin to work for gsi and https.
+  * **[SSS]** Allow sss authentication protocol to clone credentials.
+  * **[Auth]** Allow authentication protocols to require TLS.
+  * **[Apps]** Add xrdpinls to list plugin version requirements.
+  * **[All]** Add hardware assisted CRC32C checksum based on Mark Adler's code.
+  * **[All]** Implement new thread-safe strerror() replacement.
+  * **[Server]** Provide option to reduce performance impact of usage tracking.
+  * **[Server]** Define method to get partition information; mostly for Xcache.
+  * **[Server]** Allow display of SecEntity for https and xroot.
+  * **[Server]** Add xrootd.tlsreuse directive for session cache control.
+  * **[Server]** Add command line options -a and -A for adminpath default.
+  * **[Server]** Add command line options -w and -W for homepath setting.
+  * **[Server]** Implement kXR_pgread and kXR_status.
+  * **[Server]** Allow XrdNetAddr to track socket dialect.
+  * **[Server]** Add ofs.ctllib directive for FSctl plugin.
+  * **[Server]** Provide a way to see the actual server config when running.
+  * **[Server]i** Provide fallback when an IPv6 address is missing a ptr record.
+  * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
+  * **[Server]** Allow xrootd.fslib plugin to be generally stacked.
+  * **[Server]** Implement a stackable post authentication plug-in (sec.entitylib).
+  * **[Server]** Add getfile and putfile SFS interface.
+  * **[Server]** Allow plugin stacking for most OFS plugins.
+  * **[Server]** Add plug-in interface for performance reporting.
+  * **[Server]** Add xrd.network dyndns option for dynamic DNS handling.
+  * **[Server]** Properly handle dynamic DNS environments.
+  * **[Server]** Add evict option to the prepare request.
+  * **[Server]** Allow better handling for proxy caching clusters.
+  * **[Server]** Allow configurable posc sync level.
+  * **[Server]** Implement framework for a kXR_prepare plug-in.
+  * **[Server]** Add Features(), getFile(), and putFile() methods to SFS.
+  * **[Server]** Implement simple g-stream monitoring for medium level repotring.
+  * **[Server]** Trivialize OFS plugin wrapping (breaks ABI).
+  * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
+  * **[Server]** Allow redirector to handle kXR_dirlist location resolution.
+  * **[Server]** Implement tcpmonlib directive for TCP socket monitring.
+  * **[XrdCl]** Introduce recovery mechanism for declarative operations.
+  * **[XrdCl]** Introduce policies for parallel operations (all, any, some, at least).
+  * **[XrdCl]** xrdcp: add --notlsok and --tlsnodata options.
+  * **[XrdCl]** xrdcp: enable roots and xroots as TLS protocols.
+  * **[XrdCl]** xrdcp: add new --tlsmetalink option.
+  * **[XrdCl]** xrdcp: add an option (--xattr) to preserve extended attributes.
+  * **[XrdCl]** xrdcp: allow roots/xroots protocol.
+  * **[XrdCl]** xrdfs: expose extended stat information (if available) in stat and ls -l.
+  * **[XrdCl]** Add support for extended attributes.
+  * **[XrdCl]** Log properly TLS events.
+  * **[XrdCl]** Monitor writev requests.
+  * **[XrdCl]** Make sure there is at least one data stream if server requests the
+                client to encrypt only control and send data unencrypted.
+  * **[XrdCl]** Implement TLS encryption (roots/xroots). Use async TLS, handle want
+                read/write in an event-loop.
+  * **[XrdCl]** Ensure only one instance of DefaultEnv exists
+  * **[XrdCl]** Allow server to request encryption.
+  * **[XrdCl]** Make Socket class upgradeable to TLS.
+  * **[XrdCl]** Add support for local file rm.
+  * **[XrdCl]** Fail all handlers in pipeline on failure.
+  * **[XrdCl]** Implement extended attribute (xattr) support.
+  * **[XrdCl]** Add global on connect callback API.
+  * **[XrdCl]** Introduce PgRead/PgWrite interface.
+  * **[XrdCl]** Add envar (XRD_TLSFALLBACK) that makes the client fallback to root if
+                the server does not support roots.
+  * **[XrdCl]** Take into account connection specific CGI when selecting channel.
+  * **[XrdCl]** Set kXR_ExpTPC if connection is being established in context of TPC.
+  * **[POSIX]** Add methods to the cache mngt objecT to get status of a cached file.
+  * **[POSIX]** Add N2N pfn2lfn option -cachesrc to pass data source to the N2N.
+  * **[TLS]** Add peer certificate verification.
+  * **[TLS]** Make sure log notes the connection type.
+  * **[TLS]** Add hostname validation.
+  * **[TLS]** Use recommended ciphers add xrd.tlsciphers directive to override.
+  * **[TLS]** Implement crl/ca automatic refresh.
+  * **[TLS]** Add additional options for session caching.
+  * **[TLS]** Add tracing capability to the TLS stack.
+  * **[SSI]** Export request scaling interface.
+  * **[SSI]** Add generic Control() method for future use.
+  * **[SSI]** Simplify GetResponseData() to return void not enum (breaks ABI).
+  * **[SSI]** Add generalized option setting method, SetConfig().
+  * **[Proxy]** Report features.
+  * **[Proxy]** Allow proxy to forward xroots and roots protocols.
+  * **[XCache]** Optionally supply source and CGI to N2N cache plugin.
+  * **[XCache]** Provide monitoring summary statistics.
+  * **[XCache]** If needed, delay IO destruction internally in Detach. XrdScheduler
+                 is now always available.
+  * **[XCache]** Provide confh backward compatibility for "pss.cachelib" directive.
+  * **[XCache]** Simplify summary statics gathering.
+  * **[XCache]** Autoconfig oss and cmsd using pfcache export attribute.
+  * **[Python]** Add xattr API.
+  * **[CMSD]** Add space trace option for tracing space utilization changes.
+  * **[FRM]** Allow frm_xfrd to split in/out copy allocation.
+
++ **Major bug fixes**
+  * **[VOMS]** Do not touch the Entity.name field; especially converting spaces.
+  * **[Server]** Add missing initializer to avoid TPC SEGV on busy systems.
+  * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
+  * **[SSI]** Fix double delete due to extraneous code addition.
+  * **[XrdCl]** Use diffrent bit for mkpath and tpc delegation.
+  * **[XrdCl]** tpc: don't open non-root/xroot source.
+  * **[XrdCl]** Adjust # of strm queues when server requests additional data.
+  * **[PFC]** Make sure scheduler pointer is always valid.
+  * **[Proxy]** Remove offending CGI elements before passing URL.
+  * **[XrdHttp]** Fix MKCOL response when we have an EEXIST.
+
++ **Minor bug fixes**
+  * **[Acc]** Process compound capability rules as documented.
+  * **[gsi]** Fail server initialization when gsi did not initialize. Fixes #1042
+  * **[Proxy]** Properly handle non-xroot URLs.
+  * **[Proxy]** Correct version information.
+  * **[cmsd]** Make sure to return correct error when creation conflict occurs.
+  * **[Server]** Handle iovec's longer than IOV_MAX.
+  * **[Server]** Correct action determination for debug message to avoid strife.
+  * **[Server]** Use correct mechanism to determine DNS registration.
+  * **[Server]** Make space usage maintenance fully thread safe.
+  * **[Server]** Avoid duplicate usage update under certain conditions.
+  * **[XrdCl]i** xrdcp: don't create unwanted dir if --recursive switch was used.
+
++ **Miscellaneous**
+  * **[Acc]** Dynamically attach a sliced SecEntity as one of its object attributes.
+  * **[Utils]** Don't hide true error when loading a plugin w/o an alternate.
+  * **[gsi]** Make -trustdns default false (i.e. do not use DNS).
+  * **[gsi]** Remove built-in VOMS extractor and FunLite example.
+  * **[gsi]**  Make -vomsat default "ignore".
+  * **[Server]** Implement exchange buffering for increased performance.
+  * **[Server]** Remove Solaris polldev support (reverts to using pollpoll).
+  * **[Server]** Turn off forwarding if authorization has not been enabled.
+  * **[Server]** Rationalize how pidfiles are created.
+  * **[Server]** Make sure loginid corresponds to the POSIX.1-2008 standard.
+  * **[Server]** Honor authentication protocol TLS requirements.
+  * **[Server]** Turn off IP address caching when dynamic DNS is enabled.
+  * **[Server]** Log unusual stat() errors affecting file availability.
+  * **[Server]** Manage reference counters in a more timely fashion.
+  * **[Server]** Fallback using known DNS name when reverse translation fails.
+  * **[Server]** Provide interface for checksum handler to report progress.
+  * **[Server]** Improve SFS wrapping and add "how to" documentation.
+  * **[Server]** Add appname to SecEntity attribute set.
+  * **[Server]** Assign a unique ID to each SecEntity instance.
+  * **[Server]** Make cksio the default for the ofs.osslib directive.
+  * **[Server]** Add checkpoint() method to XrdSfsFile.
+  * **[Server]** Add kXR_ItExists error for EEXIST errno don't use kXR_BadRequest.
+  * **[Server]** Remap kXR_BadRequest to EBADRQC.
+  * **[Server]** Change uses of ENOSYS to ENOTSUP for consistent meaning.
+  * **[Server]** Make all error code mappings consistent.
+  * **[Server]** Deprecate use of '-2' option in oss.statlib.
+  * **[Server]** Distinguish between authentication and authorization failures.
+  * **[Server]** Allow TLS session reuse for xroots protocol.
+  * **[SSS]** Update sss protocol for new SecEntity object.
+  * **[SSI]** Avoid SIGABRT when init fails. Fixes 751
+  * **[SSI]** Use exchange buffering to avoid using memcpy for improved peformance.
+  * **[XCache]** Provide config backward compatibility for "pss.cachelib" directive.
+  * **[XCache]** Switch from usage of XrdFileCache prefix to XrdPfc.
+  * **[XCache]** Cleanup statistics object and add additional fields.
+  * **[Proxy]** Refactor proxy server caching implementation.
+  * **[All]** Use thread-safe strerror() replacement, part 1.
+  * **[CMake]** Move to CMake 3.
+  * **[Protocol]** Remove unused kXR_attn subcodes.
+  * **[Protocol]** Define the asyninfo response structure.
+  * **[Protocol]** Add TLS-specific bits for anonymous get/putfile.
+  * **[XrdCl]** When selecting channel take into account protocol (root vs roots).
+  * **[XrdCl]** Use XRootDStatus instead of Status for internal workflows.
+  * **[XrdCl]** Make sure TLS err msg are propagated to the end user.
+  * **[XrdCl]** Log socket upgrade to TLS at Info level.
+  * **[XrdCl]** Filter out xrdcl.* parameters from tpc.scgi.
+  * **[XrdCl]** Widely apply PIMPL idiom.
+  * **[XrdCl]** Review public headers.
+  * **[XrdCl]** Simplify Channel abstraction.
+  * **[XrdCl]** Remove OpenFlags::Append.
+  * **[XrdCl]** Clear SSL error queue after every authentication routine.
+  * **[XrdCl]** Preserve xrdcl.* cgi elements on redirect as they are important for
+                the internal workflow.
+  * **[RPM]** Remove xrdstagetool, xrd, xrdcp-old and xprep.
+  * **[RPM]** Don't build/install cns.
+  * **[RPM]** Remove old XRootD client.
+  * **[RPM]** Remove XRootD 3.x.x compat package.
+  * **[RPM]** Add symlink libXrdFileCache.so -> libXrdPfc.so.
+  * **[XrdMacaroon]* When possible, use the built-in chaining featured in Xrootd 5.
+  * **[XrdTpc]** Have HTTP-TPC reuse the SFS from the environment.
+  * **[TPC]** Honor client's source protocol specification server-side.
+  * **[Plugins]** Make sure underlying msgs get passed along. Fixes #1015
+  * **[XrdHttp]** Use the framework to handle OpenSSL contexts.
+  * **[TLS]** Always configure with session cache disabled.
+
+--------------
 Version 4.12.3
 --------------
 
