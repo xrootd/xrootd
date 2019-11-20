@@ -21,11 +21,20 @@ if( BUILD_CRC32C )
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/crc32c/CMakeLists.txt")
       message(FATAL_ERROR "The crc32c submodules was not downloaded! CRC32_SUBMODULE was turned off or failed. Please update submodules and try again.")
   else()
+      ###########################################################
+      # Configure CRC32C build
+      ###########################################################
       set(CRC32C_BUILD_TESTS OFF CACHE BOOL "Disable CRC32C tests.")
       set(CRC32C_BUILD_BENCHMARKS OFF CACHE BOOL "Disable CRC32C benchmarks.")
       set(CRC32C_USE_GLOG OFF CACHE BOOL "Disable CRC32C glog.")
       set(CRC32C_INSTALL OFF CACHE BOOL "Do NOT install crc32c targets and headers.")
-      add_definitions( -DHAVE_CRC32C )
+      ###########################################################
+      # Set up utility variables for convenience
+      ###########################################################
+      set( HAVE_CRC32C         TRUE                                             PARENT_SCOPE )
+      set( CRC32C_INCLUDE_DIR  "${PROJECT_SOURCE_DIR}/external/crc32c/include/" PARENT_SCOPE )
+      set( CRC32C_LIBRARY_DIR  "${PROJECT_BINARY_DIR}external/crc32c/"          PARENT_SCOPE )
+      set( CRC32C_STATIC_LIB   "crc32c"                                         PARENT_SCOPE )
       add_subdirectory(crc32c)
   endif()
 
