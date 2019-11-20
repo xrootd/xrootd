@@ -174,6 +174,9 @@ static const int    DoTlsMLF   =  0x0000000008000000LL; //      --tlsmetalink
 static const int    OpPath     =  'p';
 static const int    DoPath     =  0x0000000010000000LL; // -p | --path
 
+static const int    OpXAttr    =  0x07;
+static const int    DoXAttr    =  0x0000000020000000LL; // --xattr
+
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
 // for the transfer operations to succeed.

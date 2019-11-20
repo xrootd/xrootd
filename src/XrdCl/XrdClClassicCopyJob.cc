@@ -1636,7 +1636,7 @@ namespace XrdCl
     uint16_t    parallelChunks;
     uint32_t    chunkSize;
     uint64_t    blockSize;
-    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp;
+    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr;
     int32_t     nbXcpSources;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
@@ -1652,6 +1652,7 @@ namespace XrdCl
     pProperties->Get( "zipArchive",      zip );
     pProperties->Get( "xcp",             xcp );
     pProperties->Get( "xcpBlockSize",    blockSize );
+    pProperties->Get( "preserveXAttr",   preserveXAttr );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
@@ -1744,9 +1745,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Copy extended attributes
     //--------------------------------------------------------------------------
-    Env *env = DefaultEnv::GetEnv();
-    int preserveXAttr = DefaultPreserveXAttrs;
-    env->GetInt( "PreserveXAttrs", preserveXAttr );
     if( preserveXAttr && HasXAttr( GetSource() ) && HasXAttr( GetTarget() ) )
     {
       std::vector<xattr_t> xattrs;

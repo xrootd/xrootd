@@ -490,12 +490,13 @@ int main( int argc, char **argv )
   if( config.Want(XrdCpConfig::DoNoPbar) )
     progress.PrintProgressBar( false );
 
-  bool         posc      = false;
-  bool         force     = false;
-  bool         coerce    = false;
-  bool         makedir   = false;
-  bool         dynSrc    = false;
-  bool         delegate  = false;
+  bool         posc          = false;
+  bool         force         = false;
+  bool         coerce        = false;
+  bool         makedir       = false;
+  bool         dynSrc        = false;
+  bool         delegate      = false;
+  bool         preserveXAttr = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -515,9 +516,10 @@ int main( int argc, char **argv )
   else
     DlgEnv::Instance().Disable();
 
-  if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
-  if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
-  if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
+  if( config.Want( XrdCpConfig::DoRecurse ) )  makedir       = true;
+  if( config.Want( XrdCpConfig::DoPath    ) )  makedir       = true;
+  if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc        = true;
+  if( config.Want( XrdCpConfig::DoXAttr ) )    preserveXAttr = true;
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -606,6 +608,13 @@ int main( int argc, char **argv )
     std::cerr << " chunks in parallel. You asked for " << parallelChunks;
     std::cerr << "." << std::endl;
     return 50; // generic error
+  }
+
+  if( !preserveXAttr )
+  {
+    int val = DefaultPreserveXAttrs;
+    env->GetInt( "PreserveXAttrs", val );
+    if( val ) preserveXAttr = true;
   }
 
   log->Dump( AppMsg, "Chunk size: %d, parallel chunks %d, streams: %d",
@@ -787,6 +796,7 @@ int main( int argc, char **argv )
     properties.Set( "xcpBlockSize",   blockSize      );
     properties.Set( "delegate",       delegate       );
     properties.Set( "targetIsDir",    targetIsDir    );
+    properties.Set( "preserveXAttr",  preserveXAttr  );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );

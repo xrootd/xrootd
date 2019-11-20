@@ -80,7 +80,7 @@ namespace XrdCl
   const int DefaultMaxMetalinkWait         = 60;
   const int DefaultPreserveLocateTried     = 1;
   const int DefaultNotAuthorizedRetryLimit = 3;
-  const int DefaultPreserveXAttrs          = 1;
+  const int DefaultPreserveXAttrs          = 0;
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";
