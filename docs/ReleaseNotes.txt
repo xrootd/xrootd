@@ -5,8 +5,89 @@ XRootD
 Release Notes
 =============
 
+
+--------------
+Version 5.0.0
+--------------
+
++ **New Features**
+  * **[All]** Implement new thread-safe strerror() replacement.
+  * **[Server]** Allow xrootd.fslib plugin to be generally stacked.
+  * **[Server]** Add getfile and putfile SFS interface.
+  * **[Server]** Allow plugin stacking for most OFS plugins.
+  * **[Server]** Add plug-in interface for performance reporting.
+  * **[Server]** Add xrd.network dyndns option for dynamic DNS handling.
+  * **[Server]** Properly handle dynamic DNS environments.
+  * **[Server]** Add evict option to the prepare request.
+  * **[Server]** Allow better handling for proxy caching clusters.
+  * **[Server]** Allow configurable posc sync level.
+  * **[Server]** Implement framework for a kXR_prepare plug-in.
+  * **[Server]** Add Features(), getFile(), and putFile() methods to SFS.
+  * **[Server]** Implement simple g-stream monitoring for medium level repotring.
+  * **[Server]** Trivialize OFS plugin wrapping (breaks ABI).
+  * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
+  * **[xrdcp]** Add --notlsok and --tlsdata options.
+  * **[xrdcp]** Enable roots and xroots as TLS protocols.
+  * **[xrdcp]** Add new --tlsmetalink option.
+  * **[xrdcp]** Add an option (--xattr) to preserve extended attributes.
+  * **[xrdcp]** Allow roots/xroots protocol.
+  * **[XrdCl]** Add support for extended attributes.
+  * **[XrdCl]** Log properly TLS events.
+  * **[XrdCl]** Monitor writev requests.
+  * **[XrdCl]** Make sure there is at least one data stream if server requests the
+                client to encrypt only control and send data unencrypted.
+  * **[XrdCl]** Implement TLS encryption (roots/xroots). Use async TLS, handle want
+                read/write in an event-loop.
+  * **[XrdCl]** Ensure only one instance of DefaultEnv exists
+  * **[XrdCl]** Allow server to request encryption.
+  * **[XrdCl]** Make Socket class upgradeable to TLS.
+  * **[XrdCl]** Add support for local file rm.
+  * **[XrdCl]** Fail all handlers in pipeline on failure.
+  * **[XrdCl]** Implement extended attribute (xattr) support.
+  * **[POSIX]** Add methods to the cache mngt objecT to get status of a cached file.
+  * **[TLS]** Add peer certificate verification.
+  * **[TLS]** Make sure log notes the connection type.
+  * **[TLS]** Add hostname validation.
+  * **[SSI]** Export request scaling interface.
+  * **[SSI]** Add generic Control() method for future use.
+  * **[SSI]** Simplify GetResponseData() to return void not enum (breaks ABI).
+  * **[Proxy]** Report features.
+  * **[Proxy]** Allow proxy to forward xroots and roots protocols.
+  * **[Utils]** Add methods for CRC32C computation and verification.
+  * **[XCache]** If needed, delay IO destruction internally in Detach. XrdScheduler 
+                 is now always available.
+
++ **Major bug fixes**
+  * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
+  * **[SSI]** Fix double delete due to extraneous code addition.
+  * **[XrdCl]** Use diffrent bit for mkpath and tpc delegation.
+  * **[XrdCl]** tpc: don't open non-root/xroot source.
+  * **[PFC]** Make sure scheduler pointer is always valid.
+
++ **Minor bug fixes**
+  * **[Proxy]** Correct version information.
+
 + **Miscellaneous**
-  **[XCache]** Switch from usage of XrdFileCache prefix to XrdPfc.
+  * **[All]** Use thread-safe strerror() replacement, part 1.
+  * **[Server]** Provide interface for checksum handler to report progress.
+  * **[Server]** Improve SFS wrapping and add "how to" documentation.
+  * **[Server]** Add appname to SecEntity attribute set.
+  * **[Server]** Assign a unique ID to each SecEntity instance.
+  * **[Server]** Make cksio the default for the ofs.osslib directive.
+  * **[Server]** Add checkpoint() method to XrdSfsFile.
+  * **[XCache]** Switch from usage of XrdFileCache prefix to XrdPfc.
+  * **[External]** Add CRC32C submodule.
+  * **[CMake]** Move to CMake 3.
+  * **[Proxy]** Refactor proxy server caching implementation.
+  * **[Protocol]** Remove unused kXR_attn subcodes.
+  * **[Protocol]** Define the asyninfo response structure.
+  * **[XrdCl]** Widely apply PIMPL idiom.
+  * **[XrdCl]** Review public headers.
+  * **[XrdCl]** Simplify Channel abstraction.
+  * **[RPM]** Remove xrdstagetool, xrd, xrdcp-old and xprep.
+  * **[RPM]** Don't build/install cns.
+  * **[RPM]** Remove old XRootD client.
+  * **[RPM]** Remove XRootD 3.x.x compat package.
 
 --------------
 Version 4.11.0
