@@ -83,9 +83,9 @@ void Print::printFile(const std::string& path)
 
    printf("version %d, created %s\n",  cfi.GetVersion(), creationBuff);
 
-   printf("file_size %lld kB, buffer_size %lld kB, n_blocks %d, n_downloaded %d, state %scomplete\n",
+   printf("file_size %lld kB, buffer_size %lld kB, n_blocks %d, n_downloaded %d, state %scomplete [%.3f%%]\n",
           cfi.GetFileSize() >> 10, cfi.GetBufferSize() >> 10, cfi.GetSizeInBits(), cntd,
-          (cfi.GetSizeInBits() < cntd) ? "in" : "");
+          (cntd < cfi.GetSizeInBits()) ? "in" : "", 100.0 * cntd / cfi.GetSizeInBits());
 
    if (m_verbose)
    {
@@ -111,7 +111,7 @@ void Print::printFile(const std::string& path)
    printf("Access records (N_acc_total=%llu):\n"
           "%-6s %-13s  %-13s  %-12s %-5s %-5s %12s %12s %12s\n",
           (unsigned long long) store.m_accessCnt,
-          "Record", "Attach", "Detach", "Duration", "N_acc", "N_mrg", "B_hit[kB]", "B_miss[kB]", "B_bypass[kB]");
+          "Record", "Attach", "Detach", "Duration", "N_ios", "N_mrg", "B_hit[kB]", "B_miss[kB]", "B_bypass[kB]");
 
    int idx = 1;
    for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)

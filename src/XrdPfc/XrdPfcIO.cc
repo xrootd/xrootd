@@ -52,19 +52,22 @@ bool IO::Detach(XrdOucCacheIOCD &iocdP)
       {
          IO              *f_io;
          XrdOucCacheIOCD *f_detach_cb;
+         time_t           f_wait_time;
 
       public:
-         FutureDetach(IO *io, XrdOucCacheIOCD *cb) :
+         FutureDetach(IO *io, XrdOucCacheIOCD *cb, time_t wt) :
             f_io        (io),
-            f_detach_cb (cb)
+            f_detach_cb (cb),
+            f_wait_time (wt)
          {}
 
          void DoIt()
          {
             if (f_io->ioActive())
             {
-               // Reschedule 60 sec in the future.
-               Cache::schedP->Schedule(this, time(0) + 60);
+               // Reschedule up to 120 sec in the future.
+               f_wait_time = std::min(2 * f_wait_time, (time_t) 120);
+               Schedule();
             }
             else
             {
@@ -74,11 +77,14 @@ bool IO::Detach(XrdOucCacheIOCD &iocdP)
                delete this;
             }
          }
+
+         void Schedule()
+         {
+            Cache::schedP->Schedule(this, time(0) + f_wait_time);
+         }
       };
 
-      FutureDetach *fud = new FutureDetach(this, &iocdP);
-
-      Cache::schedP->Schedule(fud, time(0) + 60);
+      (new FutureDetach(this, &iocdP, 30))->Schedule();
 
       return false;
    }
