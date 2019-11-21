@@ -38,6 +38,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  * **[Xcache]** Provide config backward compatibility for "pss.cachelib" directive.
   * **[All]** Use thread-safe strerror() replacement, part 1.
   * **[Server]** Provide interface for checksum handler to report progress.
   * **[Server]** Improve SFS wrapping and add "how to" documentation.
