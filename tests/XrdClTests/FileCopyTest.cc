@@ -35,7 +35,6 @@
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksData.hh"
 
-#include <attr/xattr.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -483,16 +482,22 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // Copy from local fs with extended attributes
   //----------------------------------------------------------------------------
 
-  // enable xattr preservation
-  DefaultEnv::GetEnv()->PutInt( "PreserveXAttrs", 1 );
-  int rc = setxattr( localFile.c_str(), "foo", "bar", 3, 0 );
-  CPPUNIT_ASSERT( rc == 0 );
+  // set extended attributes in the local source file
+  File lf;
+  CPPUNIT_ASSERT_XRDST( lf.Open( "file://localhost" + localFile, OpenFlags::Write ) );
+  std::vector<xattr_t> attrs; attrs.push_back( xattr_t( "foo", "bar" ) );
+  std::vector<XAttrStatus> result;
+  CPPUNIT_ASSERT_XRDST( lf.SetXAttr( attrs, result ) );
+  CPPUNIT_ASSERT( result.size() == 1 );
+  CPPUNIT_ASSERT_XRDST( result.front().status );
+  CPPUNIT_ASSERT_XRDST( lf.Close() );
 
   results.Clear();
   properties.Set( "source", "file://localhost" + localFile );
   properties.Set( "target", targetURL );
   properties.Set( "checkSumMode", "end2end" );
   properties.Set( "checkSumType", "zcrc32"  );
+  properties.Set( "preserveXAttr", true );
   CPPUNIT_ASSERT_XRDST( process9.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process9.Prepare() );
   CPPUNIT_ASSERT_XRDST( process9.Run(0) );
