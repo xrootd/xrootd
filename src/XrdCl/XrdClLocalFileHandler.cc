@@ -607,20 +607,18 @@ namespace XrdCl
                                            uint16_t                    timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
-
-    static const std::string prefix = "U.";
     std::vector<XAttrStatus> response;
 
     auto itr = attrs.begin();
     for( ; itr != attrs.end(); ++itr )
     {
-      std::string name  = prefix + std::get<xattr_name>( *itr );
+      std::string name  = std::get<xattr_name>( *itr );
       std::string value = std::get<xattr_value>( *itr );
       int err = xattr->Set( name.c_str(), value.c_str(), value.size(), 0, fd );
       XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( -errno ) ) :
                                   XRootDStatus();
 
-      response.push_back( XAttrStatus( name.substr( prefix.size() ), status ) );
+      response.push_back( XAttrStatus( name, status ) );
     }
 
     AnyObject *resp = new AnyObject();
@@ -637,14 +635,12 @@ namespace XrdCl
                                            uint16_t                        timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
-
-    static const std::string prefix = "U.";
     std::vector<XAttr> response;
 
     auto itr = attrs.begin();
     for( ; itr != attrs.end(); ++itr )
     {
-      std::string name  = prefix + *itr;
+      std::string name  = *itr;
       std::unique_ptr<char[]> buffer;
 
       int size = xattr->Get( name.c_str(), 0, 0, 0, fd );
@@ -676,14 +672,12 @@ namespace XrdCl
                                            uint16_t                        timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
-
-    static const std::string prefix = "U.";
     std::vector<XAttrStatus> response;
 
     auto itr = attrs.begin();
     for( ; itr != attrs.end(); ++itr )
     {
-      std::string name = prefix + *itr;
+      std::string name = *itr;
       int err = xattr->Del( name.c_str(), 0, fd );
       XRootDStatus status = err ? XRootDStatus( stError, XProtocol::mapError( -errno ) ) :
                                   XRootDStatus();
@@ -704,8 +698,6 @@ namespace XrdCl
                                             uint16_t          timeout )
   {
     XrdSysXAttr *xattr = XrdSysFAttr::Xat;
-
-//    static const std::string prefix = "U.";
     std::vector<XAttr> response;
 
     XrdSysXAttr::AList *alist = 0;
@@ -724,8 +716,6 @@ namespace XrdCl
       int vlen = ptr->Vlen;
       ptr = ptr->Next;
 
-//      if( name.find( prefix ) != 0 ) continue;
-
       std::unique_ptr<char[]> buffer( new char[vlen] );
       int ret = xattr->Get( name.c_str(),
                             buffer.get(), vlen, 0, fd );
@@ -734,7 +724,7 @@ namespace XrdCl
                                      std::string();
       XRootDStatus status = ret >= 0 ? XRootDStatus() :
                                        XRootDStatus( stError, XProtocol::mapError( -ret ) );
-      response.push_back( XAttr( name/*.substr( prefix.size() )*/, value, status ) );
+      response.push_back( XAttr( name, value, status ) );
     }
     xattr->Free( alist );
 
