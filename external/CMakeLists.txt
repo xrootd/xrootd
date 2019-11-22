@@ -1,6 +1,6 @@
 find_package(Git QUIET)
 
-if( BUILD_CRC32C )
+if( ENABLE_CRC32C )
 
   if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
       ###########################################################

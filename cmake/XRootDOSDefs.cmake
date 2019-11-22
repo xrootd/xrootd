@@ -68,8 +68,9 @@ if( CMAKE_COMPILER_IS_GNUCXX )
   
   # we need at least gcc 4.6 in order to support crc32c as the compiler needs
   # to support constexpr
-  if( GCC_VERSION VERSION_GREATER 4.6 OR GCC_VERSION VERSION_EQUAL 4.6 )
-      set( BUILD_CRC32C 1 )
+  if( GCC_VERSION VERSION_LESS 4.6 )
+      set( ENABLE_CRC32C FALSE CACHE BOOL "Disable CRC32C submodule." )
+      message( WARNING "Disabling CRC32C submodule, insufficient GCC version!" )
   endif()
 
 endif()
