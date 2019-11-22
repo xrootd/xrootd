@@ -35,6 +35,11 @@ if( BUILD_CRC32C )
       set( CRC32C_INCLUDE_DIR  "${PROJECT_SOURCE_DIR}/external/crc32c/include/" PARENT_SCOPE )
       set( CRC32C_LIBRARY_DIR  "${PROJECT_BINARY_DIR}external/crc32c/"          PARENT_SCOPE )
       set( CRC32C_STATIC_LIB   "crc32c"                                         PARENT_SCOPE )
+      ###########################################################
+      # Make the crc32c library reallocable so it can be used when
+      # making a shared object
+      ###########################################################
+      set( CMAKE_POSITION_INDEPENDENT_CODE ON )
       add_subdirectory(crc32c)
   endif()
 
