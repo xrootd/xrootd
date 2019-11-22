@@ -13,13 +13,13 @@ if( BUILD_CRC32C )
                           WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                           RESULT_VARIABLE CRC32C_SUBMOD_RESULT)
           if(NOT CRC32C_SUBMOD_RESULT EQUAL "0")
-              message(FATAL_ERROR "crc32c submodule update failed with ${CRC32C_SUBMOD_RESULT}, please checkout the submodules")
+              message("External: crc32c submodule update failed with ${CRC32C_SUBMOD_RESULT}, please checkout the submodules")
           endif()
       endif()
   endif()
 
   if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/crc32c/CMakeLists.txt")
-      message(FATAL_ERROR "The crc32c submodules was not downloaded! CRC32_SUBMODULE was turned off or failed. Please update submodules and try again.")
+      message("External: The crc32c submodules was not downloaded! CRC32_SUBMODULE was turned off or failed. Please update submodules and try again.")
   else()
       ###########################################################
       # Configure CRC32C build
