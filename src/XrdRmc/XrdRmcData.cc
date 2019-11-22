@@ -123,7 +123,7 @@ bool XrdRmcData::Detach(XrdOucCacheIOCD &iocd)
 // Check if we should delete ourselves and if so add our stats to the cache
 //
    if (delOK)
-      {Cache->Stats.Add(Statistics);
+      {Cache->Statistics.Add(Statistics);
        if (Cache->Lgs)
           {char sBuff[4096];
            snprintf(sBuff, sizeof(sBuff),

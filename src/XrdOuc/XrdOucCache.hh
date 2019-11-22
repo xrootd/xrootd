@@ -318,13 +318,6 @@ virtual void Write(XrdOucCacheIOCB &iocb, char *buff, long long offs, int wlen)
                   {iocb.Done(Write(buff, offs, wlen));}
 
 //------------------------------------------------------------------------------
-// Statistics about individual file usage reside here. There is also an overall
-// summary CacheStats object in the cache object itself.
-//------------------------------------------------------------------------------
-
-XrdOucCacheStats Statistics;
-
-//------------------------------------------------------------------------------
 //! Construct and Destructor
 //------------------------------------------------------------------------------
 
@@ -529,7 +522,7 @@ virtual int    Xeq(XeqCmd cmd, char *arg, int arglen)
 //! associated cacheIO objects are deleted and their statistics are added.
 //------------------------------------------------------------------------------
 
-XrdOucCacheStats Stats;
+XrdOucCacheStats Statistics;
 
 //------------------------------------------------------------------------------
 //! Constructor & Destructor

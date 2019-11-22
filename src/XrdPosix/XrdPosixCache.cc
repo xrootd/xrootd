@@ -94,7 +94,7 @@ int XrdPosixCache::Stat(const char *path, struct stat &sbuff)
 /******************************************************************************/
 
 void XrdPosixCache::Statistics(XrdOucCacheStats &Stats)
-                        {return theCache->Stats.Get(Stats);}
+                        {return theCache->Statistics.Get(Stats);}
 
 /******************************************************************************/
 /*                              T r u n c a t e                               */
