@@ -169,9 +169,10 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 // If we have a checksum vector and verify is on, make sure the data
 // in the buffer corresponds to he checksums.
 //
-   if (csvec && !(opts & noVerify))
-      {int pgErr;
-       if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,XrdSfsPageSize,pgErr))
+   if (csvec && (opts & Verify))
+      {uint32_t valcs;
+       if (XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs,
+                             XrdSfsPageSize) >= 0)
           {error.setErrInfo(EDOM,"Checksum error.");
            return SFS_ERROR;
           }

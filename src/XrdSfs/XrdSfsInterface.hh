@@ -491,7 +491,7 @@ virtual int            getMmap(void **Addr, off_t &Size) = 0;
 //-----------------------------------------------------------------------------
 
 static const uint64_t
-noVerify     = 0x8000000000000000ULL; //!< all: Don't verify checksums
+Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.

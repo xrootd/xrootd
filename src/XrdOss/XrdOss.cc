@@ -231,9 +231,9 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 // If we have a checksum vector and verify is on, make sure the data
 // in the buffer corresponds to he checksums.
 //
-   if (csvec && !(opts & noVerify))
-      {int pgErr;
-       if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,pgSize,pgErr))
+   if (csvec && (opts & Verify))
+      {uint32_t valcs;
+       if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,valcs,pgSize))
           return -EDOM;
       }
 

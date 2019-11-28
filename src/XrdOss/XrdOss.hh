@@ -100,7 +100,7 @@ virtual        ~XrdOssDF() {}
 // pgRead and pgWrite options as noted.
 //
 static const uint64_t
-noVerify     = 0x8000000000000000ULL; //!< all: Don't verify checksums
+Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 
 protected:
 

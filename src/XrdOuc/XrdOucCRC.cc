@@ -46,6 +46,12 @@
 */
 #include "XrdOucCRC.hh"
 
+#ifdef HAVE_CRC32C
+#include "crc32c/crc32c.h"
+#else
+#include "XrdOuc/XrdOucCRC32C.hh"
+#endif
+
 /*****************************************************************/
 /*                                                               */
 /* CRC LOOKUP TABLE                                              */
@@ -162,7 +168,7 @@ unsigned int XrdOucCRC::crctable[256] =
      Use unsigned int instead of long to insure 32 bit values.
      Make this a C++ class.
 */
-unsigned int XrdOucCRC::CRC32(const unsigned char *p, int reclen)
+uint32_t XrdOucCRC::CRC32(const unsigned char *p, int reclen)
 {
    const unsigned int CRC32_XINIT = 0xffffffff;
    const unsigned int CRC32_XOROT = 0xffffffff;
@@ -178,19 +184,156 @@ unsigned int XrdOucCRC::CRC32(const unsigned char *p, int reclen)
 }
 
 /******************************************************************************/
-/*                               C a l c 3 2 C                                */
+/*                                C R C 3 2 C                                 */
+/******************************************************************************/
+  
+uint32_t XrdOucCRC::Calc32C(const void* data, size_t count, uint32_t prevcs)
+{
+
+// Return the checksum
+//
+   return crc32c(prevcs, data, count);
+}
+
 /******************************************************************************/
   
 void XrdOucCRC::Calc32C(const void* data,  size_t count,
-                          uint32_t* csvec, size_t pgsz)
-{(void)data; (void)count; (void)csvec; (void)pgsz;}
+                          uint32_t* csval, size_t pgsz)
+{
+   int i, numpages = count/pgsz;
+   const uint8_t* dataP = (const uint8_t*)data;
+
+// Calculate the CRC32C for each page
+//
+   for (i = 0; i < numpages; i++)
+       {csval[i] = crc32c(0, dataP, pgsz);
+        count -= pgsz;
+        dataP += pgsz;
+       }
+
+// if there is anything left, calculate that as well
+//
+   if (count > 0) csval[i] = crc32c(0, dataP, count);
+}
 
 /******************************************************************************/
 /*                                V e r 3 2 C                                 */
 /******************************************************************************/
   
-bool XrdOucCRC::Ver32C(const void* data,  size_t count,
-                         uint32_t* csvec, size_t pgsz, int &pgErr)
-{(void)data; (void)count; (void)csvec; (void)pgsz; (void)pgErr;
- return true;
+bool XrdOucCRC::Ver32C(const void*    data,  size_t    count,
+                       const uint32_t csval, uint32_t* valcs)
+{
+   uint32_t actualCS;
+
+// Verify the checksum
+//
+   actualCS = crc32c(0, data, count);
+   if (valcs) *valcs = actualCS;
+   return csval == actualCS;
+}
+
+/******************************************************************************/
+
+int  XrdOucCRC::Ver32C(const void*     data,  size_t    count,
+                       const uint32_t* csval, uint32_t& valcs, size_t pgsz)
+{
+   int i, numpages = count/pgsz;
+   const uint8_t* dataP = (const uint8_t*)data;
+   uint32_t actualCS;
+
+// Calculate the CRC32C for each page and make sure it is the same.
+//
+   for (i = 0; i < numpages; i++)
+       {
+        actualCS = crc32c(0, dataP, pgsz);
+        if (csval[i] != actualCS)
+           {valcs = actualCS;
+            return i;
+           }
+        count -= pgsz;
+        dataP += pgsz;
+       }
+
+// if there is anything left, verify that as well
+//
+   if (count > 0)
+      {
+       actualCS = crc32c(0, dataP, count);
+       if (csval[i] != actualCS)
+          {valcs = actualCS;
+           return i;
+          }
+      }
+
+// Everything matched.
+//
+   return -1;
+}
+
+/******************************************************************************/
+
+bool XrdOucCRC::Ver32C(const void*     data,  size_t count,
+                       const uint32_t* csval, bool*  valok, size_t pgsz)
+{
+   int i, numpages = count/pgsz;
+   const uint8_t* dataP = (const uint8_t*)data;
+   uint32_t actualCS;
+   bool retval = true;
+
+// Calculate the CRC32C for each page and make sure it is the same.
+//
+   for (i = 0; i < numpages; i++)
+       {
+        actualCS = crc32c(0, dataP, pgsz);
+        if (csval[i] == actualCS) valok[i] = true;
+           else valok[i] = retval = false;
+        count -= pgsz;
+        dataP += pgsz;
+       }
+
+// if there is anything left, verify that as well
+//
+   if (count > 0)
+      {
+       actualCS = crc32c(0, dataP, count);
+       if (csval[i] == actualCS) valok[i] = true;
+           else valok[i] = retval = false;
+      }
+
+// All done.
+//
+   return retval;
+}
+
+/******************************************************************************/
+
+bool XrdOucCRC::Ver32C(const void*     data,  size_t    count,
+                       const uint32_t* csval, uint32_t* valcs,
+                             size_t    pgsz)
+{
+   int i, numpages = count/pgsz;
+   const uint8_t* dataP = (const uint8_t*)data;
+   bool retval = true;
+
+// Calculate the CRC32C for each page and make sure it is the same.
+//
+   for (i = 0; i < numpages; i++)
+       {
+        valcs[i] = crc32c(0, dataP, pgsz);
+        if (csval[i] != valcs[i]) retval = false;
+        count -= pgsz;
+        dataP += pgsz;
+       }
+
+// if there is anything left, verify that as well
+//
+   if (count > 0)
+      {
+       valcs[i] = crc32c(0, dataP, count);
+       if (csval[i] != valcs[i]) retval = false;
+      }
+
+// All done.
+//
+   return retval;
 }
