@@ -130,12 +130,12 @@ bool XrdRmcData::Detach(XrdOucCacheIOCD &iocd)
                           "Cache: Stats: %lld Read; %lld Get; %lld Pass; "
                           "%lld Write; %lld Put; %lld Hits; %lld Miss; "
                           "%lld pead; %lld HitsPR; %lld MissPR; Path %s\n",
-                          Statistics.BytesRead, Statistics.BytesGet,
-                          Statistics.BytesPass, Statistics.BytesWrite,
-                          Statistics.BytesPut,
-                          Statistics.Hits,      Statistics.Miss,
-                          Statistics.BytesPead,
-                          Statistics.HitsPR,    Statistics.MissPR,
+                          Statistics.X.BytesRead, Statistics.X.BytesGet,
+                          Statistics.X.BytesPass, Statistics.X.BytesWrite,
+                          Statistics.X.BytesPut,
+                          Statistics.X.Hits,      Statistics.X.Miss,
+                          Statistics.X.BytesPead,
+                          Statistics.X.HitsPR,    Statistics.X.MissPR,
                           ioObj->Path());
            cerr <<sBuff;
           }
@@ -192,8 +192,8 @@ do{if ((oVal = prOpt[prNext]))
                            <<' ' <<prPages <<" pgs " <<bPead <<endl;
        if (bPead)
           {Statistics.Lock();
-           Statistics.BytesPead += bPead;
-           Statistics.MissPR    += prPages;
+           Statistics.X.BytesPead += bPead;
+           Statistics.X.MissPR    += prPages;
            Statistics.UnLock();
           }
        DMutex.Lock();
@@ -298,11 +298,12 @@ void XrdRmcData::QueuePR(long long segBeg, int rLen, int prHow, int isAuto)
 
 // At this point check if we need to recalculate stats
 //
-   if (prAuto && prCalc && Statistics.BytesPead > prCalc)
+   if (prAuto && prCalc && Statistics.X.BytesPead > prCalc)
       {int crPerf;
        Statistics.Lock();
-       prCalc = Statistics.BytesPead + Apr.prRecalc;
-       crPerf = (Statistics.MissPR?(Statistics.HitsPR*100)/Statistics.MissPR:0);
+       prCalc = Statistics.X.BytesPead + Apr.prRecalc;
+       crPerf = (Statistics.X.MissPR?
+                    (Statistics.X.HitsPR*100)/Statistics.X.MissPR : 0);
        Statistics.UnLock();
        if (Debug) cerr <<"PrD: perf " <<crPerf <<"% " <<ioObj->Path() <<endl;
        if (prPerf >= 0)
@@ -389,10 +390,10 @@ int XrdRmcData::Read(char *Buff, long long Offs, int rLen)
    while((cBuff = Cache->Get(ioObj, segNum, rGot, noIO)))
         {if (rGot <= segOff + rAmt) rAmt = (rGot <= segOff ? 0 : rGot-segOff);
          if (rAmt) {memcpy(Dest, cBuff+segOff, rAmt);
-                    Dest += rAmt; Offs += rAmt; Now.BytesGet += rGot;
+                    Dest += rAmt; Offs += rAmt; Now.X.BytesGet += rGot;
                    }
-         if (noIO) {Now.Hits++; if (noIO < 0) Now.HitsPR++;}
-            else   {Now.Miss++; Now.BytesRead  += rAmt;}
+         if (noIO) {Now.X.Hits++; if (noIO < 0) Now.X.HitsPR++;}
+            else   {Now.X.Miss++; Now.X.BytesRead  += rAmt;}
          if (!(Cache->Ref(cBuff, (isFIS ? rAmt : 0)))) {doPR = 0; break;}
          segNum++; segOff = 0;
          if ((rLeft -= rAmt) <= 0) break;
@@ -414,7 +415,7 @@ int XrdRmcData::Read(char *Buff, long long Offs, int rLen)
 // then the cache returned the error in the amount present variable.
 //
    if (Debug > 1) cerr <<"Rdr: ret " <<(cBuff ? Dest-Buff : rGot) <<" hits "
-                       <<Now.Hits <<" pr " <<Now.HitsPR <<endl;
+                       <<Now.X.Hits <<" pr " <<Now.X.HitsPR <<endl;
    return (cBuff ? Dest-Buff : rGot);
 }
 
@@ -440,7 +441,7 @@ int XrdRmcData::Read(XrdOucCacheStats &Now,
 //
    if (!isRW && !prOK)
       {if ((rIO = ioObj->Read(Dest, Offs, rLen)) > 0)
-          Statistics.Add(Statistics.BytesPass, rLen);
+          Statistics.Add(Statistics.X.BytesPass, rLen);
        return rIO;
       } else if (prOK) QueuePR(Offs >> SegShft, rLen, prSKIP);
 
@@ -450,13 +451,14 @@ int XrdRmcData::Read(XrdOucCacheStats &Now,
 do{if ((cBuff = Cache->Get(0, segNum, rGot, noIO)))
       {if (rPend)
           {if ((rIO = ioObj->Read(Dest, Offs, rPend)) < 0) return rIO;
-           Now.BytesPass += rIO; Dest += rIO; Offs += rIO; rPend = 0;
+           Now.X.BytesPass += rIO; Dest += rIO; Offs += rIO; rPend = 0;
           }
        if (rGot <= segOff + rAmt) rAmt = (rGot <= segOff ? 0 : rGot-segOff);
        if (rAmt) {memcpy(Dest, cBuff+segOff, rAmt);
-                  Dest += rAmt; Offs += rAmt; Now.Hits++; Now.BytesGet += rAmt;
+                  Dest += rAmt; Offs += rAmt; Now.X.Hits++;
+                  Now.X.BytesGet += rAmt;
                  }
-       if (noIO < 0) Now.HitsPR++;
+       if (noIO < 0) Now.X.HitsPR++;
        if (!(Cache->Ref(cBuff, (isFIS ? rAmt : 0)))) break;
       } else rPend += rAmt;
 
@@ -469,13 +471,13 @@ do{if ((cBuff = Cache->Get(0, segNum, rGot, noIO)))
 //
    if (rPend)
       {if ((rIO = ioObj->Read(Dest, Offs, rPend)) < 0) return rIO;
-       Now.BytesPass += rIO; Dest += rIO;
+       Now.X.BytesPass += rIO; Dest += rIO;
       }
 
 // Update stats and return read length
 //
-   if (Debug > 1) cerr <<"Rdr: ret " <<(Dest-Buff) <<" hits " <<Now.Hits
-                       <<" pr " <<Now.HitsPR <<endl;
+   if (Debug > 1) cerr <<"Rdr: ret " <<(Dest-Buff) <<" hits " <<Now.X.Hits
+                       <<" pr " <<Now.X.HitsPR <<endl;
    Statistics.Add(Now);
    return Dest-Buff;
 }
@@ -551,7 +553,7 @@ int XrdRmcData::Write(char *Buff, long long Offs, int wLen)
 //
    if ((wAmt = ioObj->Write(Buff, Offs, wLen)) != wLen)
       return (wAmt < 0 ? wAmt : -EIO);
-   Now.BytesWrite = wLen;
+   Now.X.BytesWrite = wLen;
 
 // Get the segment pointer, offset and the initial write amount
 //
@@ -562,10 +564,10 @@ int XrdRmcData::Write(char *Buff, long long Offs, int wLen)
 
 // Now update any pages that are actually in the cache
 //
-do{if (!(cBuff = Cache->Get(0, segNum, rGot, noIO))) Now.Miss++;
+do{if (!(cBuff = Cache->Get(0, segNum, rGot, noIO))) Now.X.Miss++;
       else {memcpy(cBuff+segOff, Src, wAmt);
-            Now.BytesPut += wAmt; Now.Hits++;
-            if (noIO < 0) Now.HitsPR++;
+            Now.X.BytesPut += wAmt; Now.X.Hits++;
+            if (noIO < 0) Now.X.HitsPR++;
             Cache->Upd(cBuff, wAmt, segOff);
            }
    Src += wAmt;

@@ -30,6 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdint.h>
+#include <string.h>
+
 #include "XrdSys/XrdSysPthread.hh"
 
 /* The XrdOucCacheStats object holds statistics on cache usage. It is available
@@ -39,68 +42,97 @@
 class XrdOucCacheStats
 {
 public:
-long long    BytesPead;  // Bytes read via preread (not included in BytesRead)
-long long    BytesRead;  // Bytes read into the cache excluding prereads.
-long long    BytesGet;   // Bytes delivered from the cache (disk or memory)
-long long    BytesPass;  // Bytes read but not cached (bypass from origin)
-long long    BytesSaved; // Bytes written from the memory cache to disk
-long long    BytesPurge; // Bytes purged  from the disk   cache
 
-long long    BytesWrite; // Bytes written from the cache to origin
-long long    BytesPut;   // Bytes updated in the cache due to writes
+struct CacheStats
+{
+// General read/write information
+//
+long long  BytesPead;   // Bytes read via preread (not included in BytesRead)
+long long  BytesRead;   // Total number of bytes read into the cache
+long long  BytesGet;    // Number of bytes delivered from the cache
+long long  BytesPass;   // Number of bytes read but not cached
+long long  BytesWrite;  // Total number of bytes written from the cache
+long long  BytesPut;    // Number of bytes updated in the cache
+long long  BytesSaved;  // Number of bytes written from memory to disk
+long long  BytesPurged; // Number of bytes purged from the cache
+long long  Hits;        // Number of times wanted data was in the cache
+long long  Miss;        // Number of times wanted data was *not* in the cache
+long long  Pass;        // Number of times wanted data was read but not cached
+long long  HitsPR;      // Number of pages of   wanted data was just preread
+long long  MissPR;      // Number of pages of unwanted data was just preread
+ 
+// Local file information
+//
+long long  FilesOpened; // Number of cache files opened
+long long  FilesClosed; // Number of cache files closed
+long long  FilesCreated;// Number of cache files created
+long long  FilesPurged; // Number of cache files purged (i.e. deleted)
+long long  FilesInCache;// Number of      files currently in the cache
+long long  FilesAreFull;// Number of full files currently in the cache
+ 
+// Permanent storage information (all state information)
+//
+long long  DiskSize;    // Size of disk cache in bytes
+long long  DiskUsed;    // Size of disk cache in use (bytes)
+long long  DiskMin;     // Minimum bytes that were in use
+long long  DiskMax;     // Maximum bytes that were in use
+ 
+// Memory information (all state information)
+//
+long long  MemSize;     // Maximum bytes that can be in memory
+long long  MemUsed;     // Actual bytes that are allocated in memory
+long long  MemWriteQ;   // Actual bytes that are in write queue
+ 
+// Remote file information (supplied by the POSIX layer)
+//
+long long  RemoteOpens; // Number of remote files opened
+long long  RemoteClosed;// Number of remote files closed
+long long  OpenDefers;  // Number of opens that were deferred
+long long  DeferOpens;  // Number of deferes that were actually opened
+}         X;           // This must be a POD type
 
-long long    Hits;       // Number of times wanted data was in the cache
-long long    Miss;       // Number of times wanted data was *not* in the cache
-long long    HitsPR;     // Number of pages wanted data was just preread
-long long    MissPR;     // Number of pages wanted data was just    read
-
-long long    DiskSize;   // Maximum bytes that can be on disk (usually set once)
-long long    DiskUsed;   // Actual  bytes that are    on disk
-long long    MemoSize;   // Maximum bytes that can be in memory
-long long    MemoUsed;   // Actual  bytes that are    in memory
-
-inline void Get(XrdOucCacheStats &Dst)
+inline void Get(XrdOucCacheStats &D)
                {sMutex.Lock();
-                Dst.BytesPead   = BytesPead;  Dst.BytesRead   = BytesRead;
-                Dst.BytesGet    = BytesGet;   Dst.BytesPass   = BytesPass;
-                Dst.BytesSaved  = BytesSaved; Dst.BytesPurge  = BytesPurge;
-/* R/W Cache */ Dst.BytesWrite  = BytesWrite; Dst.BytesPut    = BytesPut;
-                Dst.Hits        = Hits;       Dst.Miss        = Miss;
-                Dst.HitsPR      = HitsPR;     Dst.MissPR      = MissPR;
-                Dst.DiskSize    = DiskSize;   Dst.DiskUsed    = DiskUsed;
-                Dst.MemoSize    = MemoSize;   Dst.MemoUsed    = MemoUsed;
+                memcpy(&D.X, &X, sizeof(CacheStats));
                 sMutex.UnLock();
                }
 
-inline void Add(XrdOucCacheStats &Src)
+inline void Add(XrdOucCacheStats &S)
                {sMutex.Lock();
-                BytesPead  += Src.BytesPead;  BytesRead  += Src.BytesRead;
-                BytesGet   += Src.BytesGet;   BytesPass  += Src.BytesPass;
-                BytesSaved += Src.BytesSaved; BytesPurge += Src.BytesPurge;
-/* R/W Cache */ BytesWrite += Src.BytesWrite; BytesPut   += Src.BytesPut;
-                Hits       += Src.Hits;       Miss       += Src.Miss;
-                HitsPR     += Src.HitsPR;     MissPR     += Src.MissPR;
-                DiskSize    = Src.DiskSize;   DiskUsed    = Src.DiskUsed;
-                MemoSize    = Src.MemoSize;   MemoUsed    = Src.MemoUsed;
+                X.BytesPead   += S.X.BytesPead;   X.BytesRead  += S.X.BytesRead;
+                X.BytesGet    += S.X.BytesGet;    X.BytesPass  += S.X.BytesPass;
+                X.BytesSaved  += S.X.BytesSaved;  X.BytesPurged+= S.X.BytesPurged;
+/* R/W Cache */ X.BytesWrite  += S.X.BytesWrite;  X.BytesPut   += S.X.BytesPut;
+                X.Hits        += S.X.Hits;        X.Miss       += S.X.Miss;
+                X.Pass        += S.X.Pass;
+                X.HitsPR      += S.X.HitsPR;      X.MissPR     += S.X.MissPR;
                 sMutex.UnLock();
                }
 
-inline void  Add(long long &Dest, int &Val)
+inline void Set(XrdOucCacheStats &S)
+               {sMutex.Lock();
+                X.FilesOpened  = S.X.FilesOpened; X.FilesClosed = S.X.FilesClosed;
+                X.FilesCreated = S.X.FilesCreated;X.FilesPurged = S.X.FilesPurged;
+                X.FilesInCache = S.X.FilesInCache;X.FilesAreFull= S.X.FilesAreFull;
+
+                X.DiskSize     = S.X.DiskSize;    X.DiskUsed    = S.X.DiskUsed;
+                X.DiskMin      = S.X.DiskMin;     X.DiskMax     = S.X.DiskMax;
+
+                X.MemSize      = S.X.MemSize;     X.MemUsed     = S.X.MemUsed;
+                X.MemWriteQ    = S.X.MemWriteQ;
+                sMutex.UnLock();
+               }
+
+inline void  Add(long long &Dest, long long Val)
                 {sMutex.Lock(); Dest += Val; sMutex.UnLock();}
 
-inline void  Set(long long &Dest, int &Val)
+inline void  Set(long long &Dest, long long Val)
                 {sMutex.Lock(); Dest  = Val; sMutex.UnLock();}
 
 inline void  Lock()   {sMutex.Lock();}
 inline void  UnLock() {sMutex.UnLock();}
 
-             XrdOucCacheStats() : BytesPead(0), BytesRead(0),  BytesGet(0),
-                                  BytesPass(0), BytesSaved(0), BytesPurge(0),
-                                  BytesWrite(0),BytesPut(0),
-                                  Hits(0),      Miss(0),
-                                  HitsPR(0),    MissPR(0),
-                                  DiskSize(0),  DiskUsed(0),
-                                  MemoSize(0),  MemoUsed(0) {}
+             XrdOucCacheStats() {memset(&X, 0, sizeof(CacheStats));}
             ~XrdOucCacheStats() {}
 private:
 XrdSysMutex sMutex;
