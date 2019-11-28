@@ -100,7 +100,7 @@ target_link_libraries(
   z
   ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS}
-  ssl)
+  ${OPENSSL_LIBRARIES})
 
 set_target_properties(
   XrdCl
