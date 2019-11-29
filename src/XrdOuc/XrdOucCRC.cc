@@ -44,13 +44,9 @@
    Status:
       Public Domain
 */
-#include "XrdOucCRC.hh"
 
-#ifdef HAVE_CRC32C
-#include "crc32c/crc32c.h"
-#else
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucCRC32C.hh"
-#endif
 
 /*****************************************************************/
 /*                                                               */
