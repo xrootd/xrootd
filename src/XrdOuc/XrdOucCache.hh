@@ -536,10 +536,11 @@ const char CacheType[8];
 //! @param ctype   - A 1-to-7 character cache type identifier.
 //------------------------------------------------------------------------------
 
-               XrdOucCache(const char *ctype)
-                          : CacheType({'\0', '2', '3', '4', '5', '6', '7', '8'})
+               XrdOucCache(const char *ctype) : CacheType{}
+//                        : CacheType({'\0','\0','\0','\0','\0','\0','\0','\0'})
                           {strncpy(const_cast<char *>(CacheType), ctype,
                                    sizeof(CacheType));
+                           const_cast<char *>(CacheType)[sizeof(CacheType)-1]=0;
                           }
 
 //------------------------------------------------------------------------------
