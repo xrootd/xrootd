@@ -26,6 +26,7 @@ add_library(
   XrdPosix/XrdPosixObject.cc       XrdPosix/XrdPosixObject.hh
                                    XrdPosix/XrdPosixObjGuard.hh
   XrdPosix/XrdPosixPrepIO.cc       XrdPosix/XrdPosixPrepIO.hh
+                                   XrdPosix/XrdPosixStats.hh
                                    XrdPosix/XrdPosixTrace.hh
   XrdPosix/XrdPosixXrootd.cc       XrdPosix/XrdPosixXrootd.hh
   XrdPosix/XrdPosixXrootdPath.cc   XrdPosix/XrdPosixXrootdPath.hh

@@ -28,8 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <algorithm>
 #include <iostream>
 #include <stdio.h>
+#include <string>
 
 #include "XrdCl/XrdClDefaultEnv.hh"
 
@@ -44,6 +46,7 @@
 #include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixStats.hh"
 #include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
@@ -63,12 +66,13 @@ namespace XrdPosixGlobals
 extern XrdScheduler              *schedP;
 extern XrdOucCache               *theCache;
 extern XrdOucName2Name           *theN2N;
-extern XrdCl::DirListFlags::Flags dlFlag;
 extern XrdSysLogger              *theLogger;
 extern XrdSysError               *eDest;
+extern XrdPosixStats              Stats;
 extern XrdSysTrace                Trace;
 extern int                        ddInterval;
 extern int                        ddMaxTries;
+extern XrdCl::DirListFlags::Flags dlFlag;
 extern bool                       oidsOK;
 };
   
@@ -386,4 +390,91 @@ void XrdPosixConfig::SetIPV4(bool usev4)
 void XrdPosixConfig::setOids(bool isok)
 {
     XrdPosixGlobals::oidsOK = isok;
+}
+
+/******************************************************************************/
+/*                            S t a t s C a c h e                             */
+/******************************************************************************/
+  
+int XrdPosixConfig::Stats(const char *theID, char *buff, int blen)
+{
+   static const char stats1[] = "<stats id=\"%s\">"
+          "<open>%lld<errs>%lld</errs></open>"
+          "<close>%lld<errs>%lld</errs></close>"
+          "</stats>";
+
+   static const char stats2[] = "<stats id=\"cache\" type=\"%s\">"
+          "<prerd><in>%lld</in><hits>%lld</hits><miss>%lld</miss></prerd>"
+          "<rd><in>%lld</in><out>%lld</out>"
+              "<hits>%lld></hits><miss>%lld</miss>"
+          "</rd>"
+          "<pass>%lld<cnt>%lld</cnt></pass>"
+          "<wr><out>%lld</out><updt>%lld</updt></wr>"
+          "<saved>%lld</saved><purge>%lld</purge>"
+          "<files><opened>%lld</opened><closed>%lld</closed><new>%lld</new>"
+                  "<del>%lld</del><now>%lld</now><full>%lld</full>"
+          "</files>"
+          "<store><size>%lld</size><used>%lld</used>"
+                  "<min>%lld</min><max>%lld</max>"
+          "</store>"
+          "<mem><size>%lld</size><used>%lld</used><wq>%lld</wq></mem>"
+          "<opcl><odefer>%lld</odefer><defero>%lld</defero>"
+                "<cdefer>%lld</cdefer><clost>%lld</clost>"
+          "</opcl>"
+          "</stats>";
+
+// If the caller want the maximum length, then provide it.
+//
+   if (!blen)
+      {size_t n;
+       int len1, digitsLL = strlen("9223372036854775807");
+       std::string fmt = stats1;
+       n = std::count(fmt.begin(), fmt.end(), '%');
+       len1 = fmt.size() + (digitsLL*n) - (n*3) + strlen(theID);
+       if (!XrdPosixGlobals::theCache) return len1;
+       fmt = stats2;
+       n = std::count(fmt.begin(), fmt.end(), '%');
+       return len1 + fmt.size() + (digitsLL*n) - (n*3) + 8;
+      }
+
+// Get the standard statistics
+//
+   XrdPosixStats Y;
+   XrdPosixGlobals::Stats.Get(Y);
+
+// Format the line
+//
+   int k = snprintf(buff, blen, stats1, theID,
+                    Y.X.Opens, Y.X.OpenErrs, Y.X.Closes, Y.X.CloseErrs);
+
+// If there is no cache then there nothing to return
+//
+   if (!XrdPosixGlobals::theCache) return k;
+   buff += k; blen -= k;
+
+// Get the statistics
+//
+   XrdOucCacheStats Z;
+   XrdPosixGlobals::theCache->Statistics.Get(Z);
+
+// Format the statisics into the supplied buffer
+//
+   int n = snprintf(buff, blen, stats2, XrdPosixGlobals::theCache->CacheType,
+                    Z.X.BytesPead,   Z.X.HitsPR,       Z.X.MissPR,
+                    Z.X.BytesRead,   Z.X.BytesGet,     Z.X.Hits, Z.X.Miss,
+                    Z.X.BytesPass,   Z.X.Pass,
+                    Z.X.BytesWrite,  Z.X.BytesPut,
+                    Z.X.BytesSaved,  Z.X.BytesPurged,
+                    Z.X.FilesOpened, Z.X.FilesClosed,  Z.X.FilesCreated,
+                    Z.X.FilesPurged, Z.X.FilesInCache, Z.X.FilesAreFull,
+                    Z.X.DiskSize,    Z.X.DiskUsed,
+                    Z.X.DiskMin,     Z.X.DiskMax,
+                    Z.X.MemSize,     Z.X.MemUsed,      Z.X.MemWriteQ,
+                    Z.X.OpenDefers,  Z.X.DeferOpens,
+                    Z.X.ClosDefers,  Z.X.ClosedLost
+                   );
+
+// Return the right value
+//
+   return (n < blen ? n+k : 0);
 }

@@ -525,10 +525,27 @@ virtual int    Xeq(XeqCmd cmd, char *arg, int arglen)
 XrdOucCacheStats Statistics;
 
 //------------------------------------------------------------------------------
-//! Constructor & Destructor
+//! A 1-to-7 character cache type identifier (usually pfc or rmc).
 //------------------------------------------------------------------------------
 
-               XrdOucCache() {}
+const char CacheType[8];
+
+//------------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param ctype   - A 1-to-7 character cache type identifier.
+//------------------------------------------------------------------------------
+
+               XrdOucCache(const char *ctype)
+                          : CacheType({'\0', '2', '3', '4', '5', '6', '7', '8'})
+                          {strncpy(const_cast<char *>(CacheType), ctype,
+                                   sizeof(CacheType));
+                          }
+
+//------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+
 virtual       ~XrdOucCache() {}
 };
 

@@ -168,7 +168,7 @@ bool Cache::Decide(XrdOucCacheIO* io)
 }
 
 Cache::Cache(XrdSysLogger *logger) :
-   XrdOucCache(),
+   XrdOucCache("pfc"),
    m_log(logger, "XrdPfc_"),
    m_trace(new XrdSysTrace("XrdPfc", logger)),
    m_traceID("Manager"),

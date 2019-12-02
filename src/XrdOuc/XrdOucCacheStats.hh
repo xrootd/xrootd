@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 /* The XrdOucCacheStats object holds statistics on cache usage. It is available
@@ -83,13 +84,13 @@ long long  MemSize;     // Maximum bytes that can be in memory
 long long  MemUsed;     // Actual bytes that are allocated in memory
 long long  MemWriteQ;   // Actual bytes that are in write queue
  
-// Remote file information (supplied by the POSIX layer)
+// File information (supplied by the POSIX layer)
 //
-long long  RemoteOpens; // Number of remote files opened
-long long  RemoteClosed;// Number of remote files closed
-long long  OpenDefers;  // Number of opens that were deferred
-long long  DeferOpens;  // Number of deferes that were actually opened
-}         X;           // This must be a POD type
+long long  OpenDefers;  // Number of opens  that were deferred
+long long  DeferOpens;  // Number of defers that were actually opened
+long long  ClosDefers;  // Number of closes that were deferred
+long long  ClosedLost;  // Number of closed file objects that were lost
+}          X;           // This must be a POD type
 
 inline void Get(XrdOucCacheStats &D)
                {sMutex.Lock();
@@ -125,6 +126,9 @@ inline void Set(XrdOucCacheStats &S)
 
 inline void  Add(long long &Dest, long long Val)
                 {sMutex.Lock(); Dest += Val; sMutex.UnLock();}
+
+inline void  Count(long long &Dest)
+                  {AtomicBeg(sMutex); AtomicInc(Dest); AtomicEnd(sMutex);}
 
 inline void  Set(long long &Dest, long long Val)
                 {sMutex.Lock(); Dest  = Val; sMutex.UnLock();}

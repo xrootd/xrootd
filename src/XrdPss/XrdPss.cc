@@ -440,6 +440,24 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 }
 
 /******************************************************************************/
+/*                                 S t a t s                                  */
+/******************************************************************************/
+  
+/* Function: Return statistics.
+
+  Input:    buff        - Pointer to buffer for statistics data.
+            blen        - The length of the buffer.
+
+  Output:   When blen is not zero, null terminated statistics are placed
+            in buff and the length is returned. When blen is zero, the
+            maximum length needed is returned.
+*/
+int XrdPssSys::Stats(char *bp, int bl)
+{
+   return XrdPosixConfig::Stats("pss", bp, bl);
+}
+
+/******************************************************************************/
 /*                              T r u n c a t e                               */
 /******************************************************************************/
 /*

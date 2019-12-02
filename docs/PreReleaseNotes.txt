@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Xcache]** Provide monitoring summary statistics.
   * **[All]** Add hardware assisted CRC32C checksum based on Mark Adler's code.
   * **[All]** Implement new thread-safe strerror() replacement.
   * **[Server]** Allow xrootd.fslib plugin to be generally stacked.
