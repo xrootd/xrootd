@@ -438,7 +438,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     log->Debug( UtilityMsg, "Generating the destination TPC URL" );
 
-    tpcKey  = GenerateKey();
+    if( delegate )
+      tpcKey = "delegate";
+    else
+      tpcKey  = GenerateKey();
+
     char        *cgiBuff = new char[2048];
     const char  *cgiP    = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
                                                 tpcSource.GetHostId().c_str(),
