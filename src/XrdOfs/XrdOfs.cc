@@ -132,7 +132,7 @@ XrdOss *XrdOfsOss;
 /*                    X r d O f s   C o n s t r u c t o r                     */
 /******************************************************************************/
 
-XrdOfs::XrdOfs()
+XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
 {
    const char *bp;
 
@@ -177,11 +177,6 @@ XrdOfs::XrdOfs()
 //
    prepHandler = 0;
    prepAuth = true;
-
-// Set TPC redirect targets
-//
-   tpcRdrHost= 0;
-   tpcRdrPort= 0;
 
 // Eextended attribute limits
 //
@@ -526,9 +521,12 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Check if we will be redirecting the tpc request
 //
-   if (tpcKey && isRW && XrdOfsFS->tpcRdrHost)
-      {error.setErrInfo(XrdOfsFS->tpcRdrPort, XrdOfsFS->tpcRdrHost);
-       return SFS_REDIRECT;
+   if (tpcKey && isRW)
+      {int k = (strcmp(tpcKey, "delegate") ? 1 : 0);
+       if (XrdOfsFS->tpcRdrHost[k])
+          {error.setErrInfo(XrdOfsFS->tpcRdrPort[k], XrdOfsFS->tpcRdrHost[k]);
+           return SFS_REDIRECT;
+          }
       }
 
 // If we have a finder object, use it to direct the client. The final

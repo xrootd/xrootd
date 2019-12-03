@@ -1345,7 +1345,9 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                                          [fcreds  [?]<auth> =<evar>]
                                          [fcpath <path>] [oids]
 
-                                     tpc redirect <host>:<port> [<cgi>]
+                                     tpc redirect [xdlg] <host>:<port> [<cgi>]
+
+             xdlg:  delegated | undelegated
 
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
 
@@ -1554,11 +1556,22 @@ int XrdOfs::xtpcr(XrdOucStream &Config, XrdSysError &Eroute)
    char hname[256];
    const char *cgi, *cgisep, *hBeg, *hEnd, *pBeg, *pEnd, *eText;
    char *val;
-   int  n, port;
+   int  n, port, dlgI;
+
+// Get the next token
+//
+   if (!(val = Config.GetWord()))
+      {Eroute.Emsg("Config", "tpc redirect host not specified"); return 1;}
+
+// See if this is for delegated or undelegated (all is the default)
+//
+   if (!strcmp(val, "delegated")) dlgI = 0;
+      else if (!strcmp(val, "undelegated")) dlgI = 1;
+           else dlgI = -1;
 
 // Get host and port
 //
-   if (!(val = Config.GetWord()))
+   if (dlgI >= 0 && !(val = Config.GetWord()))
       {Eroute.Emsg("Config", "tpc redirect host not specified"); return 1;}
 
 // Parse this as it may be complicated.
@@ -1604,16 +1617,19 @@ int XrdOfs::xtpcr(XrdOucStream &Config, XrdSysError &Eroute)
 // Check if there is cgi that must be included
 //
    if (!(cgi = Config.GetWord())) cgisep =  cgi = (char *)"";
-      else cgisep = (*cgi != '&' ? "?&" : "?");
+      else cgisep = (*cgi != '?' ? "?" : "");
 
 // Copy out the hostname to be used
 //
-   if (tpcRdrHost) {free(tpcRdrHost); tpcRdrHost = 0;}
+   int k = (dlgI < 0 ? 0 : dlgI);
+do{if (tpcRdrHost[k]) {free(tpcRdrHost[k]); tpcRdrHost[k] = 0;}
 
    n = strlen(hname) + strlen(cgisep) + strlen(cgi) + 1;
-   tpcRdrHost = (char *)malloc(n);
-   snprintf(tpcRdrHost, n, "%s%s%s", hname, cgisep, cgi);
-   tpcRdrPort = port;
+   tpcRdrHost[k] = (char *)malloc(n);
+   snprintf(tpcRdrHost[k], n, "%s%s%s", hname, cgisep, cgi);
+   tpcRdrPort[k] = port;
+   k++;
+  } while(dlgI < 0 && k < 2);
 
 // All done
 //
