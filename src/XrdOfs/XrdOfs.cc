@@ -522,7 +522,8 @@ int XrdOfsFile::open(const char          *path,      // In
 // Check if we will be redirecting the tpc request
 //
    if (tpcKey && isRW)
-      {int k = (strcmp(tpcKey, "delegate") ? 1 : 0);
+      {const char *scgi = Open_Env.Get(XrdOucTPC::tpcSgi);
+       int k = ((strcmp(tpcKey, "delegate") || scgi) ? 1 : 0);
        if (XrdOfsFS->tpcRdrHost[k])
           {error.setErrInfo(XrdOfsFS->tpcRdrPort[k], XrdOfsFS->tpcRdrHost[k]);
            return SFS_REDIRECT;
