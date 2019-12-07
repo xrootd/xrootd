@@ -235,7 +235,7 @@ bool XrdNetAddrInfo::isRegistered()
 // Simply see if we can resolve this name
 //
    if (!(hName = Name())) return false;
-   return isalpha(*hName);
+   return isHostName(hName);
 }
   
 /******************************************************************************/
