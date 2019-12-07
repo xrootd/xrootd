@@ -39,6 +39,7 @@ Prerelease Notes
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
   * **[Xcache]** Provide config backward compatibility for "pss.cachelib" directive.
