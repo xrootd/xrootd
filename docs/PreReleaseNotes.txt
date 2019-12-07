@@ -11,6 +11,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
 
