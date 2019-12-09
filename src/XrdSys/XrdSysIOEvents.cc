@@ -1018,7 +1018,9 @@ void XrdSys::IOEvents::Poller::Stop()
 
 // First we must stop the poller thread in an orderly fashion.
 //
+   adMutex.UnLock();
    SendCmd(cmdbuff);
+   adMutex.Lock();
 
 // Close the pipe communication mechanism
 //
