@@ -742,6 +742,8 @@ fi
 %{_libdir}/libXrdFfs.so.2*
 %{_libdir}/libXrdPosix.so.2*
 %{_libdir}/libXrdPosixPreload.so.1*
+%{_libdir}/libXrdSsiLib.so.*
+%{_libdir}/libXrdSsiShMap.so.*
 %{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
 %config(noreplace) %{_sysconfdir}/xrootd/client.conf
 # This lib may be used for LD_PRELOAD so the .so link needs to be included
@@ -774,9 +776,7 @@ fi
 %{_libdir}/libXrdOssSIgpfsT-5.so
 %{_libdir}/libXrdServer.so.*
 %{_libdir}/libXrdSsi-5.so
-%{_libdir}/libXrdSsiLib.so.*
 %{_libdir}/libXrdSsiLog-5.so
-%{_libdir}/libXrdSsiShMap.so.*
 %{_libdir}/libXrdThrottle-5.so
 %{_libdir}/libXrdCmsRedirectLocal-5.so
 

@@ -51,7 +51,6 @@ XrdSsi/XrdSsiUtils.cc                  XrdSsi/XrdSsiUtils.hh)
 target_link_libraries(
   XrdSsiLib
   XrdCl
-  XrdServer
   XrdUtils
   pthread )
 
