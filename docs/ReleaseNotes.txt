@@ -6,6 +6,28 @@ Release Notes
 =============
 
 
+Prerelease Notes
+--------------
+Version 4.11.1
+--------------
+
++ **Major bug fixes**
+  * **[XrdSys]** Avoid deadlock on poller stop, fixes #1095 
+  * **[XrdCl]** Recreate env r/w lock after forking.
+  * **[XrdCl]** Use diffrent bit for mkpath and tpc delegation.
+
++ **Minor bug fixes**
+  * **[Server]** Use correct mechanism to determine DNS registration.
+  * **[XrdCl]** Reflect server added cgi in tpc.scgi.
+  * **[XrdCl]** tpc: don't open non-root/xroot source.
+  * **[XrdCl]** Set the tpckey to 'delegate' if delegating.
+  * **[CMake]** Link to ${UUID_LIBRARIES} instead of uuid.
+
++ **Miscellaneous**
+  * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
+  * **[TPC]** Assume delegation if the tpc.scgi token is present.
+  * **[RPM]** drop default 'all.export /tmp' in standalone cfg
+
 --------------
 Version 4.11.0
 --------------
