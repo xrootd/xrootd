@@ -27,6 +27,7 @@ Version 4.11.1
   * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
   * **[TPC]** Assume delegation if the tpc.scgi token is present.
   * **[RPM]** drop default 'all.export /tmp' in standalone cfg
+  * **[RPM]** Package SsiLib and SsiShMap with client.
 
 --------------
 Version 4.11.0
