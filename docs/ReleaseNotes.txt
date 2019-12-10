@@ -22,6 +22,7 @@ Version 4.11.1
   * **[XrdCl]** tpc: don't open non-root/xroot source.
   * **[XrdCl]** Set the tpckey to 'delegate' if delegating.
   * **[CMake]** Link to ${UUID_LIBRARIES} instead of uuid.
+  * **[Python]** Change pkg name to xrootd. 
 
 + **Miscellaneous**
   * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
