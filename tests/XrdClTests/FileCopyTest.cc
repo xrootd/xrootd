@@ -451,7 +451,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "initTimeout", 10 );
   CPPUNIT_ASSERT_XRDST( process3.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process3.Prepare() );
-  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Run(&progress), errOperationExpired );
+  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Run(0), errOperationExpired );
 
   //----------------------------------------------------------------------------
   // Copy to a non-existent target
