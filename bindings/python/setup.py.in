@@ -60,7 +60,7 @@ print('XRootD src include dir:', xrdsrcincdir)
 print('XRootD bin include dir:', xrdbinincdir)
 print('Version:               ', version)
 
-setup( name             = 'pyxrootd',
+setup( name             = 'xrootd',
        version          = version,
        author           = 'XRootD Developers',
        author_email     = 'xrootd-dev@slac.stanford.edu',
