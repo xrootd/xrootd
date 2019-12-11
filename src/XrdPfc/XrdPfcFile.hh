@@ -60,32 +60,31 @@ class File;
 class Block
 {
 public:
-   std::vector<char>   m_buff;
-   long long           m_offset;
    File               *m_file;
    IO                 *m_io;            // IO that handled current request, used for == / != comparisons only
 
+   char               *m_buff;
+   long long           m_offset;
+   int                 m_size;
    int                 m_refcnt;
    int                 m_errno;         // stores negative errno
    bool                m_downloaded;
    bool                m_prefetch;
 
-   Block(File *f, IO *io, long long off, int size, bool m_prefetch) :
-      m_offset(off), m_file(f), m_io(io), m_refcnt(0),
-      m_errno(0), m_downloaded(false), m_prefetch(m_prefetch)
-   {
-      m_buff.resize(size);
-   }
+   Block(File *f, IO *io, char *buf, long long off, int size, bool m_prefetch) :
+      m_file(f), m_io(io), m_buff(buf), m_offset(off), m_size(size),
+      m_refcnt(0), m_errno(0), m_downloaded(false), m_prefetch(m_prefetch)
+   {}
 
-   char*     get_buff(long long pos = 0) { return &m_buff[pos];        }
-   int       get_size()                  { return (int) m_buff.size(); }
-   long long get_offset()                { return m_offset;            }
+   char*     get_buff()   { return m_buff;   }
+   int       get_size()   { return m_size;   }
+   long long get_offset() { return m_offset; }
 
    IO*  get_io() const { return m_io; }
 
-   bool is_finished() { return m_downloaded || m_errno != 0; }
-   bool is_ok()       { return m_downloaded; }
-   bool is_failed()   { return m_errno != 0; }
+   bool is_finished()  { return m_downloaded || m_errno != 0; }
+   bool is_ok()        { return m_downloaded; }
+   bool is_failed()    { return m_errno != 0; }
 
    void set_downloaded()    { m_downloaded = true; }
    void set_error(int err)  { m_errno      = err;  }
@@ -208,7 +207,7 @@ public:
    XrdSysError* GetLog();
    XrdSysTrace* GetTrace();
 
-   long long GetFileSize() { return m_fileSize; }
+   long long GetFileSize() { return m_file_size; }
 
    void AddIO(IO *io);
    int  GetPrefetchCountOnIO(IO *io);
@@ -216,6 +215,12 @@ public:
    void RemoveIO(IO *io);
 
    Stats DeltaStatsFromLastCall();
+
+   const Info::AStat* GetLastAccessStats()   const { return m_cfi.GetLastAccessStats(); }
+   size_t             GetAccessCnt()         const { return m_cfi.GetAccessCnt(); }
+   int                GetBlockSize()         const { return m_cfi.GetBufferSize(); }
+   int                GetNBlocks()           const { return m_cfi.GetSizeInBits(); }
+   int                GetNDownloadedBlocks() const { return m_cfi.GetNDownloadedBlocks(); }
 
    // These three methods are called under Cache's m_active lock
    int get_ref_cnt() { return   m_ref_cnt; }
@@ -233,13 +238,13 @@ private:
    bool           m_is_open;            //!< open state (presumably not needed anymore)
    bool           m_in_shutdown;        //!< file is in emergency shutdown due to irrecoverable error or unlink request
 
-   XrdOssDF      *m_output;             //!< file handle for data file on disk
-   XrdOssDF      *m_infoFile;           //!< file handle for data-info file on disk
+   XrdOssDF      *m_data_file;             //!< file handle for data file on disk
+   XrdOssDF      *m_info_file;           //!< file handle for data-info file on disk
    Info           m_cfi;                //!< download status of file blocks and access statistics
 
    std::string    m_filename;           //!< filename of data file on disk
    long long      m_offset;             //!< offset of cached file for block-based / hdfs operation
-   long long      m_fileSize;           //!< size of cached disk file for block-based operation
+   long long      m_file_size;           //!< size of cached disk file for block-based operation
 
    // IO objects attached to this file.
 
@@ -285,18 +290,18 @@ private:
 
    BlockMap_t m_block_map;
 
-   XrdSysCondVar m_downloadCond;
+   XrdSysCondVar m_state_cond;
 
    Stats         m_stats;              //!< cache statistics for this instance
    Stats         m_last_stats;         //!< copy of cache stats during last purge cycle, used for per directory stat reporting
 
-   PrefetchState_e m_prefetchState;
+   PrefetchState_e m_prefetch_state;
 
-   int   m_prefetchReadCnt;
-   int   m_prefetchHitCnt;
-   float m_prefetchScore;              // cached
+   int   m_prefetch_read_cnt;
+   int   m_prefetch_hit_cnt;
+   float m_prefetch_score;              // cached
    
-   bool  m_detachTimeIsLogged;
+   bool  m_detach_time_logged;
 
    static const char *m_traceID;
 

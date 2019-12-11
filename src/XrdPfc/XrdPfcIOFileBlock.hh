@@ -67,7 +67,7 @@ private:
    XrdSysMutex                m_mutex;           //!< map mutex
    struct stat               *m_localStat;
    Info                       m_info;
-   XrdOssDF*                  m_infoFile;
+   XrdOssDF*                  m_info_file;
 
    void  GetBlockSizeFromPath();
    int   initLocalStat();

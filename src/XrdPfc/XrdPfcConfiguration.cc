@@ -227,19 +227,19 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    // Load OSS plugin.
    if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))
    {
-      ofsCfg->Plugin(m_output_fs);
+      ofsCfg->Plugin(m_oss);
    }
    else
    {
       TRACE(Error, "Cache::Config() Unable to create an OSS object");
-      m_output_fs = 0;
+      m_oss = 0;
       return false;
    }
 
    // sets default value for disk usage
    XrdOssVSInfo sP;
    {
-      if (m_output_fs->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
+      if (m_oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
          m_log.Emsg("Cache::ConfigParameters()", "error obtaining stat info for data space ", m_configuration.m_data_space.c_str());
          return false;
@@ -312,7 +312,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       snprintf(buff, sizeof(buff), "RAM usage pfc.ram is not specified. Default value %s is used.", m_isClient ? "256m" : "1g");
       m_log.Say("Config info: ", buff);
    }
-   m_configuration.m_NRamBuffers = static_cast<int>(m_configuration.m_RamAbsAvailable / m_configuration.m_bufferSize);
+   // Setup number of standard-size blocks not released back to the system to 5% of total RAM.
+   m_configuration.m_RamKeepStdBlocks = (m_configuration.m_RamAbsAvailable / m_configuration.m_bufferSize + 1) * 5 / 100;
    
 
    // Set tracing to debug if this is set in environment
@@ -383,12 +384,17 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       m_log.Say(buff);
    }
 
-   m_log.Say("------ File Caching Proxy interface initialization ", retval ? "completed" : "failed");
+   // Derived settings
+   m_prefetch_enabled   = m_configuration.m_prefetch_max_blocks > 0;
+   Info::s_maxNumAccess = m_configuration.m_accHistorySize;
+
+   m_gstream = (XrdXrootdGStream*) m_env->GetPtr("pfc.gStream*");
+
+   m_log.Say("Config Proxy File Cache g-stream has", m_gstream ? "" : " NOT", " been configured via xrootd.monitor directive");
+
+   m_log.Say("------ Proxy File Cache configuration parsing ", retval ? "completed" : "failed");
 
    if (ofsCfg) delete ofsCfg;
-
-   // Broadcast settings as needed:
-   Info::s_maxNumAccess = m_configuration.m_accHistorySize;
 
    return retval;
 }

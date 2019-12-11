@@ -54,44 +54,44 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_ref_cnt(0),
    m_is_open(false),
    m_in_shutdown(false),
-   m_output(0),
-   m_infoFile(0),
+   m_data_file(0),
+   m_info_file(0),
    m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
    m_filename(path),
    m_offset(iOffset),
-   m_fileSize(iFileSize),
+   m_file_size(iFileSize),
    m_current_io(m_io_map.end()),
    m_ios_in_detach(0),
    m_non_flushed_cnt(0),
    m_in_sync(false),
-   m_downloadCond(0),
-   m_prefetchState(kOff),
-   m_prefetchReadCnt(0),
-   m_prefetchHitCnt(0),
-   m_prefetchScore(1),
-   m_detachTimeIsLogged(false)
+   m_state_cond(0),
+   m_prefetch_state(kOff),
+   m_prefetch_read_cnt(0),
+   m_prefetch_hit_cnt(0),
+   m_prefetch_score(1),
+   m_detach_time_logged(false)
 {
 }
 
 File::~File()
 {
-   if (m_infoFile)
+   if (m_info_file)
    {
       TRACEF(Debug, "File::~File() close info ");
-      m_infoFile->Close();
-      delete m_infoFile;
-      m_infoFile = NULL;
+      m_info_file->Close();
+      delete m_info_file;
+      m_info_file = NULL;
    }
 
-   if (m_output)
+   if (m_data_file)
    {
       TRACEF(Debug, "File::~File() close output  ");
-      m_output->Close();
-      delete m_output;
-      m_output = NULL;
+      m_data_file->Close();
+      delete m_data_file;
+      m_data_file = NULL;
    }
 
-   TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetchScore);
+   TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetch_score);
 }
 
 //------------------------------------------------------------------------------
@@ -123,13 +123,13 @@ void File::initiate_emergency_shutdown()
    // it happens.
 
    {
-      XrdSysCondVarHelper _lck(m_downloadCond);
+      XrdSysCondVarHelper _lck(m_state_cond);
 
       m_in_shutdown = true;
 
-      if (m_prefetchState != kStopped && m_prefetchState != kComplete)
+      if (m_prefetch_state != kStopped && m_prefetch_state != kComplete)
       {
-         m_prefetchState = kStopped;
+         m_prefetch_state = kStopped;
          cache()->DeRegisterPrefetchFile(this);
       }
    }
@@ -157,7 +157,7 @@ void File::BlockRemovedFromWriteQ(Block* b)
 {
    TRACEF(Dump, "File::BlockRemovedFromWriteQ() block = " << (void*) b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
 
-   XrdSysCondVarHelper _lck(m_downloadCond);
+   XrdSysCondVarHelper _lck(m_state_cond);
    dec_ref_count(b);
 }
 
@@ -165,7 +165,7 @@ void File::BlocksRemovedFromWriteQ(std::list<Block*>& blocks)
 {
    TRACEF(Dump, "File::BlocksRemovedFromWriteQ() n_blocks = " << blocks.size());
 
-   XrdSysCondVarHelper _lck(m_downloadCond);
+   XrdSysCondVarHelper _lck(m_state_cond);
 
    for (std::list<Block*>::iterator i = blocks.begin(); i != blocks.end(); ++i)
    {
@@ -182,7 +182,7 @@ bool File::ioActive(IO *io)
    TRACEF(Debug, "File::ioActive start for io " << io);
 
    {
-      XrdSysCondVarHelper _lck(m_downloadCond);
+      XrdSysCondVarHelper _lck(m_state_cond);
 
       if ( ! m_is_open)
       {
@@ -203,15 +203,14 @@ bool File::ioActive(IO *io)
                 "\tio_map.size() "           << m_io_map.size() <<
                 ", block_map.size() "        << m_block_map.size() << ", file");
 
-         // XXXX
-         // Intermediate check for 4.11 - 5.0 transition.
-         // Can be removed for 5.1, including the IODetals::m_ioactive_false_reported.
+         // XXX Intermediate check for 4.11 - 5.0 transition.
+         // Can be removed for 5.1, including member IODetals::m_ioactive_false_reported.
          assert( ! mi->second.m_ioactive_false_reported && "ioActive already returned false");
 
          mi->second.m_allow_prefetching = false;
 
          // Check if any IO is still available for prfetching. If not, stop it.
-         if (m_prefetchState == kOn || m_prefetchState == kHold)
+         if (m_prefetch_state == kOn || m_prefetch_state == kHold)
          {
             if ( ! select_current_io_or_disable_prefetching(false) )
             {
@@ -255,8 +254,8 @@ bool File::ioActive(IO *io)
 
 void File::RequestSyncOfDetachStats()
 {
-   XrdSysCondVarHelper _lck(m_downloadCond);
-   m_detachTimeIsLogged = false;
+   XrdSysCondVarHelper _lck(m_state_cond);
+   m_detach_time_logged = false;
 }
 
 bool File::FinalizeSyncBeforeExit()
@@ -264,14 +263,14 @@ bool File::FinalizeSyncBeforeExit()
    // Returns true if sync is required.
    // This method is called after corresponding IO is detached from PosixCache.
 
-   XrdSysCondVarHelper _lck(m_downloadCond);
+   XrdSysCondVarHelper _lck(m_state_cond);
    if (m_is_open && ! m_in_shutdown)
    {
-     if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detachTimeIsLogged)
+     if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detach_time_logged)
      {
        Stats loc_stats = m_stats.Clone();
        m_cfi.WriteIOStatDetach(loc_stats);
-       m_detachTimeIsLogged = true;
+       m_detach_time_logged = true;
        m_in_sync            = true;
        TRACEF(Debug, "File::FinalizeSyncBeforeExit requesting sync to write detach stats");
        return true;
@@ -291,7 +290,7 @@ void File::AddIO(IO *io)
 
    time_t now = time(0);
 
-   m_downloadCond.Lock();
+   m_state_cond.Lock();
 
    IoMap_i mi = m_io_map.find(io);
 
@@ -300,9 +299,9 @@ void File::AddIO(IO *io)
       m_io_map.insert(std::make_pair(io, IODetails(now)));
       m_stats.IoAttach();
 
-      if (m_prefetchState == kStopped)
+      if (m_prefetch_state == kStopped)
       {
-         m_prefetchState = kOn;
+         m_prefetch_state = kOn;
          cache()->RegisterPrefetchFile(this);
       }
    }
@@ -311,7 +310,7 @@ void File::AddIO(IO *io)
       TRACEF(Error, "File::AddIO() io = " << (void*)io << " already registered.");
    }
 
-   m_downloadCond.UnLock();
+   m_state_cond.UnLock();
 }
 
 //------------------------------------------------------------------------------
@@ -324,7 +323,7 @@ void File::RemoveIO(IO *io)
 
    time_t now = time(0);
 
-   m_downloadCond.Lock();
+   m_state_cond.Lock();
 
    IoMap_i mi = m_io_map.find(io);
 
@@ -339,10 +338,10 @@ void File::RemoveIO(IO *io)
       m_io_map.erase(mi);
       --m_ios_in_detach;
 
-      if (m_io_map.empty() && m_prefetchState != kStopped && m_prefetchState != kComplete)
+      if (m_io_map.empty() && m_prefetch_state != kStopped && m_prefetch_state != kComplete)
       {
          TRACEF(Error, "File::RemoveIO() io = " << (void*)io << " Prefetching is not stopped/complete -- it should be by now.");
-         m_prefetchState = kStopped;
+         m_prefetch_state = kStopped;
          cache()->DeRegisterPrefetchFile(this);
       }
    }
@@ -351,7 +350,7 @@ void File::RemoveIO(IO *io)
       TRACEF(Error, "File::RemoveIO() io = " << (void*)io << " is NOT registered.");
    }
 
-   m_downloadCond.UnLock();
+   m_state_cond.UnLock();
 }
 
 //------------------------------------------------------------------------------
@@ -381,7 +380,7 @@ bool File::Open()
    bool info_existed = (myOss.Stat(ifn.c_str(),        &info_stat) == XrdOssOK);
 
    // Create the data file itself.
-   char size_str[32]; sprintf(size_str, "%lld", m_fileSize);
+   char size_str[32]; sprintf(size_str, "%lld", m_file_size);
    myEnv.Put("oss.asize",  size_str);
    myEnv.Put("oss.cgroup", conf.m_data_space.c_str());
 
@@ -394,12 +393,12 @@ bool File::Open()
       return false;
    }
 
-   m_output = myOss.newFile(myUser);
-   if ((res = m_output->Open(m_filename.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
+   m_data_file = myOss.newFile(myUser);
+   if ((res = m_data_file->Open(m_filename.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
    {
       TRACEF(Error, "File::Open() Open failed " << ERRNO_AND_ERRSTR(-res));
       errno = -res;
-      delete m_output; m_output = 0;
+      delete m_data_file; m_data_file = 0;
       return false;
    }
 
@@ -409,23 +408,23 @@ bool File::Open()
    {
       TRACE(Error, "File::Open() Create failed for info file " << ifn << ERRNO_AND_ERRSTR(-res));
       errno = -res;
-      m_output->Close(); delete m_output; m_output = 0;
+      m_data_file->Close(); delete m_data_file; m_data_file = 0;
       return false;
    }
 
-   m_infoFile = myOss.newFile(myUser);
-   if ((res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
+   m_info_file = myOss.newFile(myUser);
+   if ((res = m_info_file->Open(ifn.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
    {
       TRACEF(Error, "File::Open() Open failed for info file " << ifn  << ERRNO_AND_ERRSTR(-res));
       errno = -res;
-      delete m_infoFile; m_infoFile = 0;
-      m_output->Close(); delete m_output;   m_output   = 0;
+      delete m_info_file; m_info_file = 0;
+      m_data_file->Close(); delete m_data_file;   m_data_file   = 0;
       return false;
    }
 
    bool initialize_info_file = true;
 
-   if (info_existed && m_cfi.Read(m_infoFile, ifn))
+   if (info_existed && m_cfi.Read(m_info_file, ifn))
    {
       TRACEF(Debug, "Open - reading existing info file. (data_existed=" << data_existed  <<
              ", data_size_stat=" << (data_existed ? data_stat.st_size : -1ll) <<
@@ -445,18 +444,18 @@ bool File::Open()
    if (initialize_info_file)
    {
       m_cfi.SetBufferSize(conf.m_bufferSize);
-      m_cfi.SetFileSize(m_fileSize);
-      m_cfi.Write(m_infoFile);
-      m_infoFile->Fsync();
-      int ss = (m_fileSize - 1)/m_cfi.GetBufferSize() + 1;
-      TRACEF(Debug, "Creating new file info, data size = " <<  m_fileSize << " num blocks = "  << ss);
+      m_cfi.SetFileSize(m_file_size);
+      m_cfi.Write(m_info_file);
+      m_info_file->Fsync();
+      int ss = (m_file_size - 1)/m_cfi.GetBufferSize() + 1;
+      TRACEF(Debug, "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << ss);
    }
 
    m_cfi.WriteIOStatAttach();
-   m_downloadCond.Lock();
+   m_state_cond.Lock();
    m_is_open = true;
-   m_prefetchState = (m_cfi.IsComplete()) ? kComplete : kStopped; // Will engage in AddIO().
-   m_downloadCond.UnLock();
+   m_prefetch_state = (m_cfi.IsComplete()) ? kComplete : kStopped; // Will engage in AddIO().
+   m_state_cond.UnLock();
 
    return true;
 }
@@ -511,23 +510,31 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
    const int last_block = m_cfi.GetSizeInBits() - 1;
 
    long long off     = i * BS;
-   long long this_bs = (i == last_block) ? m_fileSize - off : BS;
+   long long this_bs = (i == last_block) ? m_file_size - off : BS;
 
-   // 1. Should blocks be reused to avoid recreation? There is block pool in Xrd
-   // 2, Memalign to page size
-   Block *b = new (std::nothrow) Block(this, io, off, this_bs, prefetch);
+   Block *b   = 0;
+   char  *buf = cache()->RequestRAM(this_bs);
 
-   if (b)
+   if (buf)
    {
-      m_block_map[i] = b;
+      b = new (std::nothrow) Block(this, io, buf, off, this_bs, prefetch);
 
-      // Actual Read request is issued in ProcessBlockRequests().
-      TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << " address " << (void*) b);
-
-      if (m_prefetchState == kOn && (int) m_block_map.size() >= Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+      if (b)
       {
-         m_prefetchState = kHold;
-         cache()->DeRegisterPrefetchFile(this);
+         m_block_map[i] = b;
+
+         // Actual Read request is issued in ProcessBlockRequests().
+         TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << " address " << (void*) b);
+
+         if (m_prefetch_state == kOn && (int) m_block_map.size() >= Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+         {
+            m_prefetch_state = kHold;
+            cache()->DeRegisterPrefetchFile(this);
+         }
+      }
+      else
+      {
+         TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << ", allocation failed.");
       }
    }
 
@@ -604,7 +611,7 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
-      long long rs = m_output->Read(req_buf + off, *ii * BS + blk_off -m_offset, size);
+      long long rs = m_data_file->Read(req_buf + off, *ii * BS + blk_off -m_offset, size);
       TRACEF(Dump, "File::ReadBlocksFromDisk block idx = " <<  *ii << " size= " << size);
 
       if (rs < 0)
@@ -651,17 +658,17 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
    //     assess if passing the req to client is actually better.
    // unlock
 
-   m_downloadCond.Lock();
+   m_state_cond.Lock();
 
    if ( ! m_is_open)
    {
-      m_downloadCond.UnLock();
+      m_state_cond.UnLock();
       TRACEF(Error, "File::Read file is not open");
       return io->GetInput()->Read(iUserBuff, iUserOff, iUserSize);
    }
    if (m_in_shutdown)
    {
-      m_downloadCond.UnLock();
+      m_state_cond.UnLock();
       return -ENOENT;
    }
 
@@ -687,8 +694,8 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       else
       {
          // Is there room for one more RAM Block?
-         Block *b;
-         if (cache()->RequestRAMBlock() && (b = PrepareBlockRequest(block_idx, io, false)) != 0)
+         Block *b = PrepareBlockRequest(block_idx, io, false);
+         if (b)
          {
             TRACEF(Dump, "File::Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
             inc_ref_count(b);
@@ -705,7 +712,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       }
    }
 
-   m_downloadCond.UnLock();
+   m_state_cond.UnLock();
 
    ProcessBlockRequests(blks_to_request, false);
 
@@ -750,7 +757,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       BlockList_t finished;
       BlockList_t to_reissue;
       {
-         XrdSysCondVarHelper _lck(m_downloadCond);
+         XrdSysCondVarHelper _lck(m_state_cond);
 
          BlockList_i bi = blks_to_process.begin();
          while (bi != blks_to_process.end())
@@ -779,7 +786,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
          if (finished.empty() && to_reissue.empty())
          {
-            m_downloadCond.Wait();
+            m_state_cond.Wait();
             continue;
          }
       }
@@ -861,7 +868,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
    // Last, stamp and release blocks, release file.
    {
-      XrdSysCondVarHelper _lck(m_downloadCond);
+      XrdSysCondVarHelper _lck(m_state_cond);
 
       // blks_to_process can be non-empty, if we're exiting with an error.
       std::copy(blks_to_process.begin(), blks_to_process.end(), std::back_inserter(blks_processed));
@@ -873,13 +880,13 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       }
 
       // update prefetch score
-      m_prefetchHitCnt += prefetchHitsRam;
+      m_prefetch_hit_cnt += prefetchHitsRam;
       for (IntList_i d = blks_on_disk.begin(); d !=  blks_on_disk.end(); ++d)
       {
          if (m_cfi.TestBitPrefetch(offsetIdx(*d)))
-            m_prefetchHitCnt++;
+            m_prefetch_hit_cnt++;
       }
-      m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
+      m_prefetch_score = float(m_prefetch_hit_cnt)/m_prefetch_read_cnt;
    }
 
    m_stats.AddReadStats(loc_stats);
@@ -893,10 +900,10 @@ void File::WriteBlockToDisk(Block* b)
 {
    // write block buffer into disk file
    long long   offset = b->m_offset - m_offset;
-   long long   size   = (offset + m_cfi.GetBufferSize()) > m_fileSize ? (m_fileSize - offset) : m_cfi.GetBufferSize();
+   long long   size   = (offset + m_cfi.GetBufferSize()) > m_file_size ? (m_file_size - offset) : m_cfi.GetBufferSize();
    const char *buff   = &b->m_buff[0];
 
-   ssize_t retval = m_output->Write(buff, offset, size);
+   ssize_t retval = m_data_file->Write(buff, offset, size);
 
    if (retval < size)
    {
@@ -909,7 +916,7 @@ void File::WriteBlockToDisk(Block* b)
          TRACEF(Error, "File::WriteToDisk() incomplete block write ret=" << retval << " (should be " << size << ")");
       }
 
-      XrdSysCondVarHelper _lck(m_downloadCond);
+      XrdSysCondVarHelper _lck(m_state_cond);
 
       dec_ref_count(b);
 
@@ -923,7 +930,7 @@ void File::WriteBlockToDisk(Block* b)
 
    bool schedule_sync = false;
    {
-      XrdSysCondVarHelper _lck(m_downloadCond);
+      XrdSysCondVarHelper _lck(m_state_cond);
 
       m_cfi.SetBitWritten(blk_idx);
 
@@ -964,14 +971,14 @@ void File::Sync()
 {
    TRACEF(Dump, "File::Sync()");
 
-   int ret     = m_output->Fsync();
+   int ret     = m_data_file->Fsync();
    bool errorp = false;
    if (ret == XrdOssOK)
    {
       Stats loc_stats = m_stats.Clone();
       m_cfi.WriteIOStat(loc_stats);
-      m_cfi.Write(m_infoFile);
-      int cret = m_infoFile->Fsync();
+      m_cfi.Write(m_info_file);
+      int cret = m_info_file->Fsync();
       if (cret != XrdOssOK)
       {
          TRACEF(Error, "File::Sync cinfo file sync error " << cret);
@@ -991,7 +998,7 @@ void File::Sync()
       // Unlink will also call this->initiate_emergency_shutdown()
       Cache::GetInstance().Unlink(m_filename.c_str());
 
-      XrdSysCondVarHelper _lck(&m_downloadCond);
+      XrdSysCondVarHelper _lck(&m_state_cond);
 
       m_writes_during_sync.clear();
       m_in_sync = false;
@@ -1001,7 +1008,7 @@ void File::Sync()
 
    int written_while_in_sync;
    {
-      XrdSysCondVarHelper _lck(&m_downloadCond);
+      XrdSysCondVarHelper _lck(&m_state_cond);
       for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
       {
          m_cfi.SetBitSynced(*i);
@@ -1051,13 +1058,13 @@ void File::free_block(Block* b)
    }
    else
    {
+      cache()->ReleaseRAM(b->m_buff, b->m_size);
       delete b;
-      cache()->RAMBlockReleased();
    }
 
-   if (m_prefetchState == kHold && (int) m_block_map.size() < Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
+   if (m_prefetch_state == kHold && (int) m_block_map.size() < Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
    {
-      m_prefetchState = kOn;
+      m_prefetch_state = kOn;
       cache()->RegisterPrefetchFile(this);
    }
 }
@@ -1101,7 +1108,7 @@ bool File::select_current_io_or_disable_prefetching(bool skip_current)
    if ( ! io_ok)
    {
       m_current_io    = m_io_map.end();
-      m_prefetchState = kStopped;
+      m_prefetch_state = kStopped;
       cache()->DeRegisterPrefetchFile(this);
    }
 
@@ -1112,7 +1119,7 @@ bool File::select_current_io_or_disable_prefetching(bool skip_current)
 
 void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 {
-   XrdSysCondVarHelper _lck(m_downloadCond);
+   XrdSysCondVarHelper _lck(m_state_cond);
 
    Block *b = brh->m_block;
 
@@ -1133,7 +1140,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
             mi->second.m_allow_prefetching = false;
 
             // Check if any IO is still available for prfetching. If not, stop it.
-            if (m_prefetchState == kOn || m_prefetchState == kHold)
+            if (m_prefetch_state == kOn || m_prefetch_state == kHold)
             {
                if ( ! select_current_io_or_disable_prefetching(false) )
                {
@@ -1173,7 +1180,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
       b->set_error(res);
    }
 
-   m_downloadCond.Broadcast();
+   m_state_cond.Broadcast();
 }
 
 long long File::BufferSize()
@@ -1208,9 +1215,9 @@ void File::Prefetch()
 
    TRACEF(Dump, "File::Prefetch enter to check download status");
    {
-      XrdSysCondVarHelper _lck(m_downloadCond);
+      XrdSysCondVarHelper _lck(m_state_cond);
 
-      if (m_prefetchState != kOn)
+      if (m_prefetch_state != kOn)
       {
          return;
       }
@@ -1231,11 +1238,20 @@ void File::Prefetch()
             BlockMap_i bi = m_block_map.find(f_act);
             if (bi == m_block_map.end())
             {
-               TRACEF(Dump, "File::Prefetch take block " << f_act);
-               cache()->RequestRAMBlock();
-               blks.push_back( PrepareBlockRequest(f_act, m_current_io->first, true) );
-               m_prefetchReadCnt++;
-               m_prefetchScore = float(m_prefetchHitCnt)/m_prefetchReadCnt;
+               Block *b = PrepareBlockRequest(f_act, m_current_io->first, true);
+               if (b)
+               {
+                  TRACEF(Dump, "File::Prefetch take block " << f_act);
+                  blks.push_back(b);
+                  // Note: block ref_cnt not increased, it will be when placed into write queue.
+                  m_prefetch_read_cnt++;
+                  m_prefetch_score = float(m_prefetch_hit_cnt)/m_prefetch_read_cnt;
+               }
+               else
+               {
+                  // This shouldn't happen as prefetching stops when RAM is 70% full.
+                  TRACEF(Warning, "File::Prefetch allocation failed for block " << f_act);
+               }
                break;
             }
          }
@@ -1244,7 +1260,7 @@ void File::Prefetch()
       if (blks.empty())
       {
          TRACEF(Debug, "File::Prefetch file is complete, stopping prefetch.");
-         m_prefetchState = kComplete;
+         m_prefetch_state = kComplete;
          cache()->DeRegisterPrefetchFile(this);
       }
       else
@@ -1264,7 +1280,7 @@ void File::Prefetch()
 
 float File::GetPrefetchScore() const
 {
-   return m_prefetchScore;
+   return m_prefetch_score;
 }
 
 XrdSysError* File::GetLog()

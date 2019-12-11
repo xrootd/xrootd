@@ -23,12 +23,17 @@
 
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysTimer.hh"
-#include "XrdOss/XrdOss.hh"
+
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysTrace.hh"
+
+#include "XrdXrootd/XrdXrootdGStream.hh"
+
+#include "XrdOss/XrdOss.hh"
 
 #include "XrdPfc.hh"
 #include "XrdPfcTrace.hh"
@@ -38,29 +43,33 @@
 
 using namespace XrdPfc;
 
-Cache * Cache::m_factory = NULL;
+Cache * Cache::m_instance = 0;
 
-XrdScheduler *Cache::schedP = NULL;
+XrdScheduler *Cache::schedP = 0;
 
 
-void *PurgeThread(void* cache_void)
+void *ResourceMonitorHeartBeatThread(void*)
+{
+   Cache::GetInstance().ResourceMonitorHeartBeat();
+   return 0;
+}
+
+void *PurgeThread(void*)
 {
    Cache::GetInstance().Purge();
-   return NULL;
+   return 0;
 }
 
-void *ProcessWriteTaskThread(void* c)
+void *ProcessWriteTaskThread(void*)
 {
-   Cache *cache = static_cast<Cache*>(c);
-   cache->ProcessWriteTasks();
-   return NULL;
+   Cache::GetInstance().ProcessWriteTasks();
+   return 0;
 }
 
-void *PrefetchThread(void* ptr)
+void *PrefetchThread(void*)
 {
-   Cache* cache = static_cast<Cache*>(ptr);
-   cache->Prefetch();
-   return NULL;
+   Cache::GetInstance().Prefetch();
+   return 0;
 }
 
 //==============================================================================
@@ -70,43 +79,46 @@ extern "C"
 XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
                             const char   *config_filename,
                             const char   *parameters,
-                            XrdOucEnv    *envP)
+                            XrdOucEnv    *env)
 {
    XrdSysError err(logger, "");
    err.Say("++++++ Proxy file cache initialization started.");
 
-   if ( ! envP ||
-        ! (XrdPfc::Cache::schedP = (XrdScheduler*) envP->GetPtr("XrdScheduler*")))
+   if ( ! env ||
+        ! (XrdPfc::Cache::schedP = (XrdScheduler*) env->GetPtr("XrdScheduler*")))
    {
       XrdPfc::Cache::schedP = new XrdScheduler;
       XrdPfc::Cache::schedP->Start();
    }
 
-   Cache &factory = Cache::CreateInstance(logger);
+   Cache &instance = Cache::CreateInstance(logger, env);
 
-   if (! factory.Config(config_filename, parameters))
+   if (! instance.Config(config_filename, parameters))
    {
       err.Say("Config Proxy file cache initialization failed.");
-      return NULL;
+      return 0;
    }
    err.Say("------ Proxy file cache initialization completed.");
 
-   for (int wti = 0; wti < factory.RefConfiguration().m_wqueue_threads; ++wti)
    {
-      pthread_t tid1;
-      XrdSysThread::Run(&tid1, ProcessWriteTaskThread, (void*)(&factory), 0, "XrdPfc WriteTasks ");
+      pthread_t tid;
+
+      for (int wti = 0; wti < instance.RefConfiguration().m_wqueue_threads; ++wti)
+      {
+         XrdSysThread::Run(&tid, ProcessWriteTaskThread, 0, 0, "XrdPfc WriteTasks ");
+      }
+
+      if (instance.RefConfiguration().m_prefetch_max_blocks > 0)
+      {
+         XrdSysThread::Run(&tid, PrefetchThread, 0, 0, "XrdPfc Prefetch ");
+      }
+
+      XrdSysThread::Run(&tid, ResourceMonitorHeartBeatThread, 0, 0, "XrdPfc ResourceMonitorHeartBeat");
+
+      XrdSysThread::Run(&tid, PurgeThread, 0, 0, "XrdPfc Purge");
    }
 
-   if (factory.RefConfiguration().m_prefetch_max_blocks > 0)
-   {
-      pthread_t tid2;
-      XrdSysThread::Run(&tid2, PrefetchThread, (void*)(&factory), 0, "XrdPfc Prefetch ");
-   }
-
-   pthread_t tid;
-   XrdSysThread::Run(&tid, PurgeThread, NULL, 0, "XrdPfc Purge");
-
-   return &factory;
+   return &instance;
 }
 }
 
@@ -133,17 +145,17 @@ void Configuration::calculate_fractional_usages(long long  du,      long long  f
 
 //==============================================================================
 
-Cache &Cache::CreateInstance(XrdSysLogger *logger)
+Cache &Cache::CreateInstance(XrdSysLogger *logger, XrdOucEnv *env)
 {
-   assert (m_factory == NULL);
-   m_factory = new Cache(logger);
-   return *m_factory;
+   assert (m_instance == 0);
+   m_instance = new Cache(logger, env);
+   return *m_instance;
 }
 
 Cache &Cache::GetInstance()
 {
-   assert (m_factory != NULL);
-   return *m_factory;
+   assert (m_instance != 0);
+   return *m_instance;
 }
 
 bool Cache::Decide(XrdOucCacheIO* io)
@@ -157,7 +169,7 @@ bool Cache::Decide(XrdOucCacheIO* io)
       {
          XrdPfc::Decision *d = *it;
          if (! d) continue;
-         if (! d->Decide(filename, *m_output_fs))
+         if (! d->Decide(filename, *m_oss))
          {
             return false;
          }
@@ -167,22 +179,29 @@ bool Cache::Decide(XrdOucCacheIO* io)
    return true;
 }
 
-Cache::Cache(XrdSysLogger *logger) :
+Cache::Cache(XrdSysLogger *logger, XrdOucEnv *env) :
    XrdOucCache("pfc"),
+   m_env(env),
    m_log(logger, "XrdPfc_"),
    m_trace(new XrdSysTrace("XrdPfc", logger)),
    m_traceID("Manager"),
+   m_oss(0),
+   m_gstream(0),
    m_prefetch_condVar(0),
-   m_RAMblocks_used(0),
+   m_prefetch_enabled(false),
+   m_RAM_used(0),
+   m_RAM_write_queue(0),
    m_isClient(false),
    m_in_purge(false),
    m_active_cond(0),
-   m_fs_state(0)
+   m_stats_n_purge_cond(0),
+   m_fs_state(0),
+   m_last_scan_duration(0),
+   m_last_purge_duration(0),
+   m_spt_state(SPTS_Idle)
 {
    // Default log level is Warning.
    m_trace->What = 2;
-
-   m_prefetch_enabled = (m_configuration.m_prefetch_max_blocks > 0);
 }
 
 XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
@@ -231,6 +250,11 @@ void Cache::AddWriteTask(Block* b, bool fromRead)
 {
    TRACE(Dump, "Cache::AddWriteTask() bOff=%ld " <<  b->m_offset);
 
+   {
+      XrdSysMutexHelper lock(&m_RAM_mutex);
+      m_RAM_write_queue += b->get_size();
+   }
+
    m_writeQ.condVar.Lock();
    if (fromRead)
       m_writeQ.queue.push_back(b);
@@ -241,19 +265,21 @@ void Cache::AddWriteTask(Block* b, bool fromRead)
    m_writeQ.condVar.UnLock();
 }
 
-void Cache::RemoveWriteQEntriesFor(File *iFile)
+void Cache::RemoveWriteQEntriesFor(File *file)
 {
    std::list<Block*> removed_blocks;
+   long long         sum_size = 0;
 
    m_writeQ.condVar.Lock();
    std::list<Block*>::iterator i = m_writeQ.queue.begin();
    while (i != m_writeQ.queue.end())
    {
-      if ((*i)->m_file == iFile)
+      if ((*i)->m_file == file)
       {
-         TRACE(Dump, "Cache::Remove entries for " <<  (void*)(*i) << " path " <<  iFile->lPath());
+         TRACE(Dump, "Cache::Remove entries for " <<  (void*)(*i) << " path " <<  file->lPath());
          std::list<Block*>::iterator j = i++;
          removed_blocks.push_back(*j);
+         sum_size += (*j)->get_size();
          m_writeQ.queue.erase(j);
          --m_writeQ.size;
       }
@@ -264,7 +290,12 @@ void Cache::RemoveWriteQEntriesFor(File *iFile)
    }
    m_writeQ.condVar.UnLock();
 
-   iFile->BlocksRemovedFromWriteQ(removed_blocks);
+   {
+      XrdSysMutexHelper lock(&m_RAM_mutex);
+      m_RAM_write_queue -= sum_size;
+   }
+
+   file->BlocksRemovedFromWriteQ(removed_blocks);
 }
 
 void Cache::ProcessWriteTasks()
@@ -282,13 +313,15 @@ void Cache::ProcessWriteTasks()
       // MT -- optimize to pop several blocks if they are available (or swap the list).
       // This makes sense especially for smallish block sizes.
 
-      int n_pushed = std::min(m_writeQ.size, m_configuration.m_wqueue_blocks);
+      int       n_pushed = std::min(m_writeQ.size, m_configuration.m_wqueue_blocks);
+      long long sum_size = 0;
 
       for (int bi = 0; bi < n_pushed; ++bi)
       {
          Block* block = m_writeQ.queue.front();
          m_writeQ.queue.pop_front();
          m_writeQ.writes_between_purges += block->get_size();
+         sum_size += block->get_size();
 
          blks_to_write[bi] = block;
 
@@ -297,6 +330,11 @@ void Cache::ProcessWriteTasks()
       m_writeQ.size -= n_pushed;
 
       m_writeQ.condVar.UnLock();
+
+      {
+         XrdSysMutexHelper lock(&m_RAM_mutex);
+         m_RAM_write_queue -= sum_size;
+      }
 
       for (int bi = 0; bi < n_pushed; ++bi)
       {
@@ -307,21 +345,59 @@ void Cache::ProcessWriteTasks()
    }
 }
 
-bool Cache::RequestRAMBlock()
+//==============================================================================
+
+char* Cache::RequestRAM(long long size)
 {
-   XrdSysMutexHelper lock(&m_RAMblock_mutex);
-   if ( m_RAMblocks_used < Cache::GetInstance().RefConfiguration().m_NRamBuffers )
+   static const size_t s_block_align = sysconf(_SC_PAGESIZE);
+
+   bool  std_size = (size == m_configuration.m_bufferSize);
+
+   m_RAM_mutex.Lock();
+
+   long long total = m_RAM_used + size;
+
+   if (total <= m_configuration.m_RamAbsAvailable)
    {
-      m_RAMblocks_used++;
-      return true;
+      m_RAM_used = total;
+      if (std_size && m_RAM_std_size > 0)
+      {
+         char *buf = m_RAM_std_blocks.back();
+         m_RAM_std_blocks.pop_back();
+         --m_RAM_std_size;
+
+         m_RAM_mutex.UnLock();
+
+         return buf;
+      }
+      else
+      {
+         m_RAM_mutex.UnLock();
+         char *buf = 0;
+         posix_memalign((void**) &buf, s_block_align, (size_t) size);
+         return buf;
+      }
    }
-   return false;
+   m_RAM_mutex.UnLock();
+   return 0;
 }
 
-void Cache::RAMBlockReleased()
+void Cache::ReleaseRAM(char* buf, long long size)
 {
-   XrdSysMutexHelper lock(&m_RAMblock_mutex);
-   m_RAMblocks_used--;
+   bool std_size = (size == m_configuration.m_bufferSize);
+   {
+      XrdSysMutexHelper lock(&m_RAM_mutex);
+
+      m_RAM_used -= size;
+
+      if (std_size && m_RAM_std_size < m_configuration.m_RamKeepStdBlocks)
+      {
+         m_RAM_std_blocks.push_back(buf);
+         ++m_RAM_std_size;
+         return;
+      }
+   }
+   free(buf);
 }
 
 File* Cache::GetFile(const std::string& path, IO* io, long long off, long long filesize)
@@ -557,6 +633,31 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
            m_closed_files_stats.insert(std::make_pair(f->GetLocalPath(), f->DeltaStatsFromLastCall()));
         }
 
+        if (m_gstream)
+        {
+           const Info::AStat *as = f->GetLastAccessStats();
+
+           char buf[4096];
+           int  len = snprintf(buf, 4096, "{\"event\":\"file_close\","
+                               "\"lfn\":\"%s\",\"size\":%lld,\"blk_size\":%d,\"n_blks\":%d,\"n_blks_done\":%d,"
+                               "\"access_cnt\":%lu,\"attach_t\":%lld,\"detach_t\":%lld,"
+                               "\"b_hit\":%lld,\"b_miss\":%lld,\"b_bypass\":%lld}",
+                               f->GetLocalPath().c_str(), f->GetFileSize(), f->GetBlockSize(),
+                               f->GetNBlocks(), f->GetNDownloadedBlocks(),
+                               f->GetAccessCnt(), (long long) as->AttachTime, (long long) as->DetachTime,
+                               as->BytesHit, as->BytesMissed, as->BytesBypassed
+           );
+           bool suc = false;
+           if (len < 4096)
+           {
+              suc = m_gstream->Insert(buf, len + 1);
+           }
+           if ( ! suc)
+           {
+              TRACE(Error, "Failed g-stream insertion of file_close record.");
+           }
+        }
+
         delete f;
      }
    }
@@ -634,13 +735,13 @@ File* Cache::GetNextFileToPrefetch()
 
 void Cache::Prefetch()
 {
-   const int limitRAM = int( Cache::GetInstance().RefConfiguration().m_NRamBuffers * 0.7 );
+   const long long limit_RAM = m_configuration.m_RamAbsAvailable * 7 / 10;
 
    while (true)
    {
-      m_RAMblock_mutex.Lock();
-      bool doPrefetch = (m_RAMblocks_used < limitRAM);
-      m_RAMblock_mutex.UnLock();
+      m_RAM_mutex.Lock();
+      bool doPrefetch = (m_RAM_used < limit_RAM);
+      m_RAM_mutex.UnLock();
 
       if (doPrefetch)
       {
@@ -688,7 +789,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 
    if (why == ForPath)
    {
-     return m_output_fs->Lfn2Pfn(f_name.c_str(), buff, blen);
+     return m_oss->Lfn2Pfn(f_name.c_str(), buff, blen);
    }
 
    {
@@ -697,8 +798,8 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
    }
 
    struct stat sbuff, sbuff2;
-   if (m_output_fs->Stat(f_name.c_str(), &sbuff)  == XrdOssOK &&
-       m_output_fs->Stat(i_name.c_str(), &sbuff2) == XrdOssOK)
+   if (m_oss->Stat(f_name.c_str(), &sbuff)  == XrdOssOK &&
+       m_oss->Stat(i_name.c_str(), &sbuff2) == XrdOssOK)
    {
       if ( S_ISDIR(sbuff.st_mode))
       {
@@ -721,7 +822,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 
          if (is_active) m_active_cond.UnLock();
 
-         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str());
+         XrdOssDF* infoFile = m_oss->newFile(m_configuration.m_username.c_str());
          XrdOucEnv myEnv;
          int res = infoFile->Open(i_name.c_str(), O_RDWR, 0600, myEnv);
          if (res >= 0)
@@ -750,7 +851,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
          {
             if ((is_complete || why == ForInfo) && buff != 0)
             {
-               int res2 = m_output_fs->Lfn2Pfn(f_name.c_str(), buff, blen);
+               int res2 = m_oss->Lfn2Pfn(f_name.c_str(), buff, blen);
                if (res2 < 0)
                   return res2;
 
@@ -759,7 +860,7 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
                if (why == ForAccess)
                   {mode_t mode = (forall ? worldReadable : groupReadable);
                    if (((sbuff.st_mode & worldReadable) != mode)
-                   &&  (m_output_fs->Chmod(f_name.c_str(),mode) != XrdOssOK))
+                   &&  (m_oss->Chmod(f_name.c_str(),mode) != XrdOssOK))
                       {is_complete = false;
                        *buff = 0;
                       }
@@ -817,7 +918,7 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    }
 
    struct stat sbuff;
-   int res = m_output_fs->Stat(i_name.c_str(), &sbuff);
+   int res = m_oss->Stat(i_name.c_str(), &sbuff);
    if (res == 0)
    {
       TRACE(Dump, "Cache::Prepare defer open " << f_name);
@@ -848,7 +949,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
       m_purge_delay_set.insert(f_name);
    }
 
-   if (m_output_fs->Stat(f_name.c_str(), &sbuff) == XrdOssOK)
+   if (m_oss->Stat(f_name.c_str(), &sbuff) == XrdOssOK)
    {
       if (S_ISDIR(sbuff.st_mode))
       {
@@ -857,7 +958,7 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
       else
       {
          bool success = false;
-         XrdOssDF* infoFile = m_output_fs->newFile(m_configuration.m_username.c_str());
+         XrdOssDF* infoFile = m_oss->newFile(m_configuration.m_username.c_str());
          XrdOucEnv myEnv;
          int res = infoFile->Open(i_name.c_str(), O_RDONLY, 0600, myEnv);
          if (res >= 0)
@@ -944,8 +1045,8 @@ int Cache::UnlinkCommon(const std::string& f_name, bool fail_if_open)
    std::string i_name = f_name + Info::s_infoExtension;
 
    // Unlink file & cinfo
-   int f_ret = m_output_fs->Unlink(f_name.c_str());
-   int i_ret = m_output_fs->Unlink(i_name.c_str());
+   int f_ret = m_oss->Unlink(f_name.c_str());
+   int i_ret = m_oss->Unlink(i_name.c_str());
 
    TRACE(Debug, "Cache::UnlinkCommon " << f_name << ", f_ret=" << f_ret << ", i_ret=" << i_ret);
 
