@@ -152,7 +152,10 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
 {
    EPNAME("Exists");
    static struct dMoP dirMiss = {0}, dirPres = {1};
+   static int badDStat = 0;
+   static int badFStat = 0;
    struct stat buf;
+   int eCnt, fRC, dRC;
    int Opts = (UpAT ? XRDOSS_resonly|XRDOSS_updtatm : XRDOSS_resonly);
 
 // If directory checking is enabled, find where the directory component ends 
@@ -165,7 +168,7 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
 
 // Issue stat() via oss plugin. If it succeeds, return result.
 //
-   if (!Config.ossFS->Stat(Path, &buf, Opts))
+   if (!(fRC = Config.ossFS->Stat(Path, &buf, Opts)))
       {if ((buf.st_mode & S_IFMT) == S_IFREG)
           return (buf.st_mode & XRDSFS_POSCPEND ? CmsHaveRequest::Pending
                                                 : CmsHaveRequest::Online);
@@ -186,13 +189,32 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
       {struct dMoP *xVal = &dirMiss;
        int xLife = dmLife;
        Path[fnPos] = '\0';
-       if (!Config.ossFS->Stat(Path, &buf, XRDOSS_resonly))
+       if (!(dRC = Config.ossFS->Stat(Path, &buf, XRDOSS_resonly)))
           {xLife = dpLife; xVal = &dirPres;}
-       fsMutex.Lock();
-       fsDirMP.Rep(Path, xVal, xLife, Hash_keepdata);
-       fsMutex.UnLock();
-       DEBUG("add " <<xLife <<(xVal->Present ? " okdir " : " nodir ") <<Path);
-       Path[fnPos] = '/';
+       if (dRC && dRC != -ENOENT)
+          {fsMutex.Lock(); eCnt = badDStat++; fsMutex.UnLock();
+           if (!(eCnt & 0xff))
+              {char buff[80];
+               snprintf(buff, sizeof(buff), "to stat dir (events=%d)", eCnt+1);
+               Say.Emsg("Exists", dRC, buff, Path);
+               Path[fnPos] = '/';
+              }
+          } else {
+           fsMutex.Lock();
+           fsDirMP.Rep(Path, xVal, xLife, Hash_keepdata);
+           fsMutex.UnLock();
+           DEBUG("add " <<xLife <<(xVal->Present ? " okdir ":" nodir ") <<Path);
+           Path[fnPos] = '/';
+          }
+      } else {
+       if (fRC && fRC != -ENOENT)
+          {fsMutex.Lock(); eCnt = badFStat++; fsMutex.UnLock();
+           if (!(eCnt & 0xff))
+              {char buff[80];
+               snprintf(buff, sizeof(buff), "to stat file (events=%d)", eCnt+1);
+               Say.Emsg("Exists", fRC, buff, Path);
+              }
+          }
       }
    return -1;
 }
