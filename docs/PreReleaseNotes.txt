@@ -42,6 +42,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Log unusual stat() errors affecting file availability.
   * **[Server]** Manage reference counters in a more timely fashion.
   * **[Server]** Fallback using known DNS name when reverse translation fails.
   * **[Xcache]** Provide config backward compatibility for "pss.cachelib" directive.
