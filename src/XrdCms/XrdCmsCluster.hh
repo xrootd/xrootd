@@ -180,7 +180,7 @@ void            Remove(const char *reason, XrdCmsNode *theNode, int immed=0);
 
 // Called to reset the node reference counts for nodes matching smask
 //
-void            ResetRef(SMask_t smask);
+void            ResetRef(SMask_t smask, bool isLocked=false);
 
 // Called to select the best possible node to serve a file (two forms)
 //
@@ -240,7 +240,7 @@ XrdSysMutex   STMutex;          // Protects all node information  variables
 XrdCmsNode   *NodeTab[STMax];   // Current  set of nodes
 
 int           STHi;             // NodeTab high watermark
-int           doReset;          // Must send reset event to Managers[resetMask]
+int           Reserved;
 long long     SelWcnt;          // Curr  number of r/w selections (successful)
 long long     SelWtot;          // Total number of r/w selections (successful)
 long long     SelRcnt;          // Curr  number of r/o selections (successful)
@@ -257,7 +257,6 @@ int           AltMent;
 
 // The foloowing three variables are protected by the STMutex
 //
-SMask_t       resetMask;        // Nodes to receive a reset event
 SMask_t       peerHost;         // Nodes that are acting as peers
 SMask_t       peerMask;         // Always ~peerHost
 };
