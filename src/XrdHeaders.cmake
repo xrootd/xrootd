@@ -103,6 +103,7 @@ if( NOT XRDCL_ONLY )
     XrdSfs/XrdSfsDio.hh
     XrdSfs/XrdSfsXio.hh
     XrdSfs/XrdSfsFlags.hh
+    XrdSfs/XrdSfsGPFile.hh
     XrdSfs/XrdSfsInterface.hh
     XrdXrootd/XrdXrootdMonData.hh
     XrdXrootd/XrdXrootdBridge.hh
