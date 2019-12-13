@@ -1583,17 +1583,28 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
        Sel.Resp.DLen = nP->netIF.GetName(Sel.Resp.Data, Sel.Resp.Port, nType);
        if (!Sel.Resp.DLen) {nP->UnLock(); return Unreachable(Sel, false);}
        Sel.Resp.DLen++; Sel.smask = nP->NodeMask;
-       if (isalt || (Sel.Opts & XrdCmsSelect::Create) || Sel.iovN)
-          {if (isalt || (Sel.Opts & XrdCmsSelect::Create))
-              {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
-               if (Sel.Opts & XrdCmsSelect::noBind) act = " handling ";
-                  else Cache.AddFile(Sel, nP->NodeMask);
-              }
-           if (Sel.iovN && Sel.iovP) 
-              {nP->Send(Sel.iovP, Sel.iovN); act = " staging ";}
-              else if (!act)                 act = " assigned ";
-          } else                             act = " serving ";
+
+       // If a message is to be sent to the selected server, send it.
+       //
+       if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
+
+       // Do special post proccessing when any of:
+       // a) isalt true: Secondary selection occured
+       // b) Create set: File creation will occur
+       //
+       if (isalt || (Sel.Opts & XrdCmsSelect::Create))
+          {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
+           if (Sel.Opts & XrdCmsSelect::noBind) act = " handling ";
+              else Cache.AddFile(Sel, nP->NodeMask);
+          }
+
+       // Determine what we are actually doing here
+       //
        nP->UnLock();
+       if (!act)
+          {if (isalt) act = (Sel.iovN ? " staging " : " assigned ");
+              else    act = " serving ";
+          }
        TRACE(Stage, Sel.Resp.Data <<act <<Sel.Path.Val);
        return 0;
       }
