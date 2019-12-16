@@ -180,7 +180,7 @@ install(
 	XrdClParallelOperation.hh
 	XrdClFileOperations.hh
 	XrdClFileSystemOperations.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private )
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
 install(
   FILES
