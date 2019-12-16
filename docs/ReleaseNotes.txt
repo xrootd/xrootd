@@ -21,6 +21,7 @@ Version 4.11.1
   * **[XrdCl]** Reflect server added cgi in tpc.scgi.
   * **[XrdCl]** tpc: don't open non-root/xroot source.
   * **[XrdCl]** Set the tpckey to 'delegate' if delegating.
+  * **[XrdCl]** Install priv headers in correct dir.
   * **[CMake]** Link to ${UUID_LIBRARIES} instead of uuid.
   * **[Python]** Change pkg name to xrootd. 
 
