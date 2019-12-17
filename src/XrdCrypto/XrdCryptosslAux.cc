@@ -404,7 +404,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
    // it should contain blocks on information in PEM form
    FILE *fcer = fopen(fname, "r");
    if (!fcer) {
-      DEBUG("unable to open file (errno: "<<errno<<")");
+      DEBUG("unable to open file '"<<fname <<"' (errno: "<<errno<<")");
       return nci;
    }
 
