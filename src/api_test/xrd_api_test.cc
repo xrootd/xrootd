@@ -21,12 +21,12 @@ void showTime()
   std::cout << " " << std::ctime(&showtime) << " ";
 }
 
+//python bindings
 int main()
 {
   std::cout << "API TEST at";
   showTime();
-  std::cout << std::string(__user__);
-  newLine();
+  std::cout << std::string(__user__) << "\n;"
 }
 
 /* 
