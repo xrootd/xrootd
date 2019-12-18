@@ -2,8 +2,34 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
-#include <iostream>
+#define __user__ "RPOENARU"
 
+#include <iostream>
+#include <chrono>
+#include <string>
+#include <ctime>
+
+void newLine()
+{
+  std::cout << "\n";
+}
+
+void showTime()
+{
+  auto now = std::chrono::system_clock::now();
+  std::time_t showtime = std::chrono::system_clock::to_time_t(now);
+  std::cout << " " << std::ctime(&showtime) << " ";
+}
+
+int main()
+{
+  std::cout << "API TEST at";
+  showTime();
+  std::cout << std::string(__user__);
+  newLine();
+}
+
+/* 
 int main( int argc, char *argv[] )
 {
 //  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
@@ -68,3 +94,4 @@ int main( int argc, char *argv[] )
 
   return 0;
 }
+ */
