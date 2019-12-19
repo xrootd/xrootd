@@ -9,6 +9,9 @@ Prerelease Notes
   * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
 
 + **Major bug fixes**
+  * **[Proxy]** Remove offending CGI elements before passing URL.
+  * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
+  * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
   * **[Server]** Use correct mechanism to determine DNS registration.
