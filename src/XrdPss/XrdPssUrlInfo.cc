@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <iostream>
+//#include <iostream>
 #include <string.h>
 
 #include "XrdOuc/XrdOucEnv.hh"
@@ -147,10 +147,10 @@ void XrdPssUrlInfo::Setup(XrdOucEnv *envP, const char *xtra,
           {CgiUsr = envP->Env(CgiUsz);
            if (!CgiUsz) CgiUsr = "";
               else {CgiBuff = (char *)malloc(CgiUsz+8);
-  std::cerr <<"PSS cgi IN: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
+//std::cerr <<"PSS cgi IN: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
                     CgiUsz = copyCGI(CgiUsr, CgiBuff, CgiUsz+8);
                     CgiUsr = CgiBuff;
-  std::cerr <<"PSS cgi OT: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
+//std::cerr <<"PSS cgi OT: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
                    }
           }
            const XrdSecEntity *secP = envP->secEnv();
