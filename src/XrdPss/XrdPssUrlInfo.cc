@@ -28,12 +28,68 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <iostream>
 #include <string.h>
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucSid.hh"
+#include "XrdOuc/XrdOucTPC.hh"
 #include "XrdPss/XrdPssUrlInfo.hh"
 #include "XrdSec/XrdSecEntity.hh"
+
+/******************************************************************************/
+/*                               c o p y C G I                                */
+/******************************************************************************/
+namespace
+{
+int copyCGI(const char *cgi, char *Buff, int Blen)
+{
+   int n;
+
+// Skip over initial ampersands
+//
+   while(*cgi == '&' && *cgi) cgi++;
+
+// Check if there is anything here
+//
+   if (!cgi || *cgi == 0) {*Buff = 0; return 0;}
+
+// Copy out all variables omitting the ones that cause trouble
+//
+   char *bP = Buff;
+   const char *beg = cgi;
+   do {if (!strncmp(cgi, "xrd.", 4) || !strncmp(cgi, "xrdcl.", 6))
+          {int n = cgi - beg - 1;
+           if (n > 0)
+              {if (n >= Blen) {*bP = 0; return bP - Buff;}
+               strncpy(bP, beg, n);
+               bP += n; Blen -= n; *bP = 0;
+              }
+           if ((beg = index(cgi, '&')))
+              {cgi = beg+1;
+               if (bP == Buff) beg++;
+              }
+          } else {
+            if ((cgi = index(cgi, '&'))) cgi++;
+          }
+      } while(beg && cgi);
+
+// See if we have the end to copy
+//
+   if (beg)
+      {n = strlen(beg);
+       if (n < Blen)
+          {strncpy(bP, beg, n);
+           bP += n;
+          }
+      }
+
+// Return length make sure buffer ends with a null
+//
+   *bP = 0;
+   return bP - Buff;
+}
+}
 
 /******************************************************************************/
 /*                                E x t e n d                                 */
@@ -90,7 +146,12 @@ void XrdPssUrlInfo::Setup(XrdOucEnv *envP, const char *xtra,
       {if (addusrcgi)
           {CgiUsr = envP->Env(CgiUsz);
            if (!CgiUsz) CgiUsr = "";
-              else while(*CgiUsr == '&') {CgiUsr++; CgiUsz--;}
+              else {CgiBuff = (char *)malloc(CgiUsz+8);
+  std::cerr <<"PSS cgi IN: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
+                    CgiUsz = copyCGI(CgiUsr, CgiBuff, CgiUsz+8);
+                    CgiUsr = CgiBuff;
+  std::cerr <<"PSS cgi OT: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
+                   }
           }
            const XrdSecEntity *secP = envP->secEnv();
            if (secP) tident = secP->tident;
