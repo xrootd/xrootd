@@ -35,6 +35,7 @@ Prerelease Notes
   * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
 
 + **Major bug fixes**
+  * **[Proxy]** Remove offending CGI elements before passing URL.
   * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
   * **[SSI]** Fix double delete due to extraneous code addition.
 
