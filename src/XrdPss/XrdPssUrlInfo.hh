@@ -69,16 +69,19 @@ const char *Tident() {return tident;}
 
       XrdPssUrlInfo(const char *tid, const char *path, const char *xtra="",
                     bool addusrcgi=true, bool addident=true)
-               : tident(tid), Path(path), CgiUsr(""), CgiUsz(0),
+               : tident(tid), Path(path), CgiBuff(0), CgiUsr(""), CgiUsz(0),
                  CgiSsz(0), sidP(0) {Setup(0,    xtra, addusrcgi, addident);}
 
-     ~XrdPssUrlInfo() {if (*theID == 'p' && sidP) sidP->Release(&idVal);}
+     ~XrdPssUrlInfo() {if (*theID == 'p' && sidP) sidP->Release(&idVal);
+                       if (CgiBuff) free(CgiBuff);
+                      }
 
 private:
 void  Setup(XrdOucEnv *envP, const char *xtra, bool addusrcgi, bool addident);
 
 const char       *tident;
 const char       *Path;
+      char       *CgiBuff;
 const char       *CgiUsr;
       int         CgiUsz;
       int         CgiSsz;
