@@ -64,7 +64,7 @@ const char *Tident() {return tident;}
 
       XrdPssUrlInfo(XrdOucEnv *envP, const char *path, const char *xtra="",
                     bool addusrcgi=true, bool addident=true)
-               : tident("unk.0:0@host"), Path(path), CgiUsr(""), CgiUsz(0),
+               : tident("unk.0:0@host"), Path(path), CgiBuff(0), CgiUsr(""), CgiUsz(0),
                  CgiSsz(0), sidP(0) {Setup(envP, xtra, addusrcgi, addident);}
 
       XrdPssUrlInfo(const char *tid, const char *path, const char *xtra="",
