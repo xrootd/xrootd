@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]i** Provide fallback when an IPv6 address is missing a ptr record.
   * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
   * **[Xcache]** Provide monitoring summary statistics.
   * **[All]** Add hardware assisted CRC32C checksum based on Mark Adler's code.
