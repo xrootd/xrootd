@@ -91,6 +91,8 @@ int           Recv(char *buff, int blen, int timeout);
 
 int           RecvAll(char *buff, int blen, int timeout=-1);
 
+bool          Register(const char *hName);
+
 int           Send(const char *buff, int blen);
 int           Send(const struct iovec *iov, int iocnt, int bytes=0);
 

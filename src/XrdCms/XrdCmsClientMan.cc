@@ -323,7 +323,8 @@ int XrdCmsClientMan::Hookup()
    EPNAME("Hookup");
    CmsLoginData Data;
    XrdLink *lp;
-   char buff[256];
+   char buff[256], hnBuff[264];
+   kXR_char *envData = 0;
    int rc, oldWait, tries = 12, opts = 0;
 
 // Turn off our debugging and version flags
@@ -331,6 +332,14 @@ int XrdCmsClientMan::Hookup()
    manMutex.Lock();
    doDebug    &= ~manMask;
    manMutex.UnLock();
+
+// Report our hostname (there are better ways of doing this)
+//
+   const char *hn = getenv("XRDHOST");
+   if (hn)
+      {snprintf(hnBuff, sizeof(hnBuff), "myHN=%s", hn);
+       envData = (kXR_char *)hnBuff;
+      }
 
 // Keep trying to connect to the manager. Note that we bind the link to this
 // thread to make sure we get notified should another thread close the socket.
@@ -343,6 +352,7 @@ int XrdCmsClientMan::Hookup()
             }
 //     lp->Bind(XrdSysThread::ID());
        memset(&Data, 0, sizeof(Data));
+       Data.envCGI = envData;
        Data.Mode = CmsLoginData::kYR_director;
        Data.HoldTime = static_cast<int>(getpid());
        if (!(rc = XrdCmsLogin::Login(lp, Data))) break;

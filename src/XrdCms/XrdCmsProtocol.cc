@@ -365,6 +365,23 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
           }
        Netopts = 0; tries = waits = 6;
 
+       // Verify that this node has the real DNS name if it's IPv6
+       //
+       if (!(Link->AddrInfo()->isRegistered())
+       &&    Link->AddrInfo()->isIPType(XrdNetAddrInfo::IPv6))
+          {char *oldName = strdup(Link->Host());
+           Say.Emsg("Protocol", oldName, "is missing an IPv6 ptr record; "
+                               "attempting local registration as", manp);
+           if (!(Link->Register(manp)))
+              {Say.Emsg("Protocol", oldName,
+                        "registration failed; address mismatch.");
+              } else {
+               Say.Emsg("Protocol", oldName,
+                        "is now locally registered as", manp);
+              }
+           free(oldName);
+          }
+
        // Obtain a new node object for this connection
        //
        if (!(myNode = Manager->Add(Link, Lvl+1, terminate)))
@@ -557,7 +574,30 @@ int XrdCmsProtocol::Stats(char *buff, int blen, int do_sync)
 /******************************************************************************/
 /*                                 A d m i t                                  */
 /******************************************************************************/
-  
+
+namespace
+{
+char *getAltName(char *sid, char *buff, int blen)
+{
+   char *atsign, *spacec, *retval = 0;
+   int  n;
+   if (sid)
+   if ((atsign = index(sid, '@')))
+      {atsign++;
+       if ((spacec = index(atsign, ' ')))
+          {*spacec = 0;
+           n = strlen(atsign);
+           if (n > 3 && n < blen)
+              {strcpy(buff, atsign);
+               retval = buff;
+              }
+           *spacec = ' ';
+          }
+      }
+   return retval;
+}
+}
+
 XrdCmsRouting *XrdCmsProtocol::Admit()
 {
    EPNAME("Admit");
@@ -589,6 +629,41 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 // Do the login and get the data
 //
    if (!Source.Admit(Link, Data, Config.mySID, envP)) return 0;
+
+// Construct environment for incomming node
+//
+   XrdOucEnv cgiEnv((const char *)Data.envCGI);
+
+// We have this problem hat many times the IPv6 address is missing the ptr
+// record in DNS. If this node is IPv6 unregistered and the incomming node
+// supplied it's host name then we can attempt to register it locally.
+//
+   if (!(Link->AddrInfo()->isRegistered())
+   &&    Link->AddrInfo()->isIPType(XrdNetAddrInfo::IPv6))
+      {const char *altName = cgiEnv.Get("myHN");
+       const char *altType = "stated mapping";
+       char hBF[256], *oldName = strdup(Link->Host());
+       if (!altName) {altName = getAltName((char *)Data.SID, hBF, sizeof(hBF));
+                      altType = "inferred mapping";
+                     }
+       Say.Emsg("Protocol", "DNS lookup for", oldName, "failed; "
+                            "IPv6 ptr record missing!");
+       if (!altName)
+          {Say.Emsg("Protocol", oldName, "did not supply a fallback "
+                                         "mapping; using IPv6 address.");
+          } else {
+           char buff[512];
+           snprintf(buff, sizeof(buff), "%s -> %s", oldName, altName);
+           Say.Emsg("Protocol", "Attempting to use", altType, buff);
+           if (!(Link->Register(altName)))
+              {Say.Emsg("Protocol", buff, altType,"failed; address mismatch.");
+              } else {
+               Say.Emsg("Protocol", oldName,
+                        "is now locally registered as", altName);
+              }
+          }
+       free(oldName);
+      }
 
 // Handle Redirectors here (minimal stuff to do)
 //
@@ -736,7 +811,6 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Document the login
 //
-   XrdOucEnv cgiEnv((const char *)Data.envCGI);
    const char *sname = cgiEnv.Get("site");
    const char *lfmt  = (myNode->isMan > 1 ? "Standby%s%s" : "Primary%s%s");
    snprintf(envBuff,sizeof(envBuff),lfmt,(sname ? " ":""),(sname ? sname : ""));
