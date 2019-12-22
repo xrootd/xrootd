@@ -1488,9 +1488,14 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
          if (V_keep >= 0) Net_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
          Net_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0);
         }
-
+  // Turn off name chaing if not specified and dynamic dns was specified
+  //
+     if (V_dyndns >= 0)
+        {if (V_dyndns && V_ct < 0) V_ct = 0;
+         XrdNetAddr::SetDynDNS(V_dyndns != 0);
+        }
      if (V_ct >= 0) XrdNetAddr::SetCache(V_ct);
-     if (V_dyndns >= 0) XrdNetAddr::SetDynDNS(V_dyndns != 0);
+
      if (v_rpip >= 0) XrdInet::netIF.SetRPIPA(v_rpip != 0);
      if (V_assumev4 >= 0) XrdInet::SetAssumeV4(true);
      return 0;
