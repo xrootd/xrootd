@@ -40,6 +40,7 @@
 
 struct StreamInfo;
 class XrdOucEnv;
+class XrdOucString;
 class XrdOucTList;
 
 class XrdOucStream
@@ -206,8 +207,31 @@ void         Tabs(int x=1) {notabs = !x;}
 int          Wait4Data(int msMax=-1);
 
 /******************************************************************************/
+
+// The following methods are norally used only during initial configuration
+// to capture the actual configuration being used by each component.
+
+// Capture a message (typically informational before the start of file
+// processing); which is added as a comment. Pass a vector of string whose
+// last element is 0.
+//
+static void   Capture(const char** cVec=0, bool linefeed=true);
+
+// Set the capture string object. A value of nil turns off capturing. The
+// current capture string pointer is returned.
+//
+static
+XrdOucString *Capture(XrdOucString *cfObj);
+
+// Return the current capture string object.
+//
+static
+XrdOucString *Capture();
+
+/******************************************************************************/
   
 private:
+        void  add2CFG(const char *data, bool isCMT=false);
         char *add2llB(char *tok, int reset=0);
         bool  docont();
         bool  docont( const char *path, XrdOucTList *tlP);
@@ -252,5 +276,7 @@ static const int llBsz   = 1024;
         char  sawif;
         char  skpel;
         char  llBok;
+static
+XrdOucString *theCFG;
 };
 #endif

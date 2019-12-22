@@ -275,6 +275,8 @@ int XrdAccConfig::ConfigFile(XrdSysError &Eroute, const char *ConfigFN) {
 // Now start reading records until eof.
 //
    ConfigDefaults(); Config.Attach(cfgFD); Config.Tabs(0);
+   Config.Capture((const char*[]){"*** acc plugin config:",0});
+
    while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, "acc.", 2))
             {recs++;

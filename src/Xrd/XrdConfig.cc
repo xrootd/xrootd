@@ -67,6 +67,7 @@
 #include "XrdOuc/XrdOucLogging.hh"
 #include "XrdOuc/XrdOucSiteName.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysFD.hh"
@@ -90,6 +91,7 @@
 
 namespace XrdGlobal
 {
+       XrdOucString      totalCF;
 extern XrdSysLogger      Logger;
 extern XrdSysError       Log;
 extern XrdOucTrace       XrdTrace;
@@ -232,6 +234,7 @@ XrdConfig::XrdConfig()
    ProtInfo.argv     = 0;
    ProtInfo.tlsPort  = 0;
    ProtInfo.tlsCtx   = 0;
+   ProtInfo.totalCF  = &totalCF;
 
    XrdNetAddr::SetCache(3*60*60); // Cache address resolutions for 3 hours
 }
@@ -875,10 +878,18 @@ void XrdConfig::Manifest(const char *pidfn)
 //
    if (write(envFD, envBuff, envLen) < 0)
       Log.Emsg("Config", errno, "write to envfile", manBuff);
-
-// All done
-//
    close(envFD);
+
+// Cleanup the config capture string
+//
+   XrdOucStream::Capture((XrdOucString *)0);
+   if (totalCF.length())
+      {char *temp = (char *)malloc(totalCF.length()+1);
+       strcpy(temp, totalCF.c_str());
+       totalCF.resize();
+       totalCF = temp;
+       free(temp);
+      }
 }
 
 /******************************************************************************/
@@ -908,6 +919,14 @@ void XrdConfig::setCFG()
 // Export result
 //
    XrdOucEnv::Export("XRDCONFIGFN", cfnP);
+
+// Setup capturing for the XrdOucStream that will be used by all others to
+// process config files.
+//
+   XrdOucStream::Capture(&totalCF);
+   totalCF.resize(1024*1024);
+   XrdOucStream::Capture((const char*[]){"*** ",myProg, " config from '",
+                                         cfnP, "':", 0});
 }
 
 /******************************************************************************/

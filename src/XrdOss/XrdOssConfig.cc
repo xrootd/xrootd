@@ -553,6 +553,7 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
        return 1;
       }
    Config.Attach(cfgFD);
+   Config.Capture((const char*[]){"*** oss plugin config:",0});
 
 // Now start reading records until eof.
 //

@@ -39,6 +39,7 @@
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -1829,6 +1830,11 @@ int XrdXrootdProtocol::do_Qconf()
    if (!qcargs.GetLine() || !(val = qcargs.GetToken()))
       return Response.Send(kXR_ArgMissing, "query config argument not specified.");
 
+// The first item can be xrootd or cmsd to display the config file
+//
+   if (!strcmp(val, "cmsd") || !strcmp(val, "xrootd"))
+      return do_QconfCX(qcargs, val);
+
 // Trace this query variable
 //
    do {TRACEP(DEBUG, "query config " <<val);
@@ -1948,6 +1954,34 @@ int XrdXrootdProtocol::do_Qconf()
    return Response.Send(buff, sizeof(buff) - bleft);
 }
   
+/******************************************************************************/
+/*                            d o _ Q c o n f C X                             */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_QconfCX(XrdOucTokenizer &qcargs, char *val)
+{
+  extern XrdOucString *XrdXrootdCF;
+  bool isCMSD = (*val == 'c');
+
+// Make sure there is nothing else following the token
+//
+   if ((val = qcargs.GetToken()))
+      return Response.Send(kXR_ArgInvalid, "too many query config arguments.");
+
+// If this is a cms just return a null for now
+//
+   if (isCMSD) return Response.Send((void *)"\n", 2);
+
+// Display the xrootd configuration
+//
+   if (XrdXrootdCF)
+      return Response.Send((void *)XrdXrootdCF->c_str(), XrdXrootdCF->length());
+
+// Respond with a null
+//
+   return Response.Send((void *)"\n", 2);
+}
+
 /******************************************************************************/
 /*                                d o _ Q f h                                 */
 /******************************************************************************/

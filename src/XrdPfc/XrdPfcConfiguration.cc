@@ -171,6 +171,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    }
 
    Config.Attach(fd);
+   Config.Capture((const char*[]){"*** pfc plugin config:",0});
 
    // Obtain OFS configurator for OSS plugin.
    XrdOfsConfigPI *ofsCfg = XrdOfsConfigPI::New(config_filename,&Config,&m_log,

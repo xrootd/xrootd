@@ -184,6 +184,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
               return Eroute.Emsg("Config", errno, "open config file",
                                  ConfigFN);
            Config.Attach(cfgFD);
+           Config.Capture((const char*[]){"*** ofs plugin config:",0});
 
            // Now start reading records until eof.
            //

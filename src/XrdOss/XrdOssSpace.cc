@@ -45,6 +45,8 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class XrdOucString;
+
 /******************************************************************************/
 /*                   G l o b a l s   a n d   S t a t i c s                    */
 /******************************************************************************/
@@ -325,6 +327,7 @@ int XrdOssSpace::Quotas()
 //
    OssEroute.Emsg("Quotas", "Processing quota file", qFname);
    Config.Attach(qFD);
+   XrdOucString *capstr = Config.Capture((XrdOucString *)0);
 
 // Now start reading records until eof.
 //
@@ -350,6 +353,7 @@ int XrdOssSpace::Quotas()
                                      "cache group not found; quota ignored");
         }
     close(qFD);
+    Config.Capture(capstr);
     return (NoGo ? 0 : 1);
 }
 

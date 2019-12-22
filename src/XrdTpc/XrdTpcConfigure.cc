@@ -112,6 +112,7 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
         return false;
     }
     Config.Attach(cfgFD);
+    Config.Capture((const char*[]){"*** http tpc plugin config:",0});
     const char *val;
     std::string path2, path1 = "default";
     bool path1_alt = false, path2_alt = false;

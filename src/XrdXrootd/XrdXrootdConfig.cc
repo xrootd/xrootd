@@ -56,6 +56,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -109,7 +110,9 @@ Where:
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
+
+                XrdOucString      *XrdXrootdCF;
+
 extern          XrdOucTrace       *XrdXrootdTrace;
 
                 XrdXrootdPrepare  *XrdXrootdPrepQ;
@@ -163,7 +166,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                              const char       *theParms);
    extern int optind, opterr;
 
-   XrdOucEnv myEnv;
+   XrdOucEnv xrootdEnv;
    XrdXrootdXPath *xp;
    char *adminp, *rdf, *bP, *tmp, c, buff[1024];
    int i, n, deper = 0;
@@ -182,6 +185,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    Window       = pi->WSize;
    tlsPort      = pi->tlsPort;
    tlsCtx       = pi->tlsCtx;
+   XrdXrootdCF  = pi->totalCF;
 
 // Record globally accessible values
 //
@@ -274,7 +278,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialize the security system if this is wanted
 //
-   if (!ConfigSecurity(myEnv, pi->ConfigFN)) return 0;
+   if (!ConfigSecurity(xrootdEnv, pi->ConfigFN)) return 0;
 
 // Set up the network for self-identification and display it
 //
@@ -283,13 +287,13 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Establish our specific environment that will be passed along
 //
-   myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
-   myEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
-   myEnv.PutPtr("XrdScheduler*", Sched);
+   xrootdEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
+   xrootdEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
+   xrootdEnv.PutPtr("XrdScheduler*", Sched);
 
 // Copy over the xrd environment which contains plugin argv's
 //
-   if (pi->theEnv) myEnv.PutPtr("xrdEnv*", pi->theEnv);
+   if (pi->theEnv) xrootdEnv.PutPtr("xrdEnv*", pi->theEnv);
 
 // Initialize monitoring (it won't do anything if it wasn't enabled)
 //
@@ -299,17 +303,17 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Config g-stream objects, as needed. This needs to be done before we
 // load any plugins but after we initialize monitoring.
 //
-   ConfigGStream(myEnv);
+   ConfigGStream(xrootdEnv);
 
 // Get the filesystem to be used and its features
 //
-   if (!ConfigFS(myEnv, pi->ConfigFN)) return 0;
+   if (!ConfigFS(xrootdEnv, pi->ConfigFN)) return 0;
    fsFeatures = osFS->Features();
 
 // Check if the file system includes a custom prepare handler as this will
 // affect how we handle prepare requests.
 //
-   if (fsFeatures & XrdSfs::hasPRP2 || myEnv.Get("XRD_PrepHandler"))
+   if (fsFeatures & XrdSfs::hasPRP2 || xrootdEnv.Get("XRD_PrepHandler"))
       PrepareAlt = true;
 
 // Check if the diglib should be loaded. We only support the builtin one. In
@@ -510,6 +514,10 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
        return eDest.Emsg("Config", errno, "open config file", ConfigFN);
    Config.Attach(cfgFD);
 
+   // Indicate what we are about to do in the capture stream
+   //
+   Config.Capture((const char*[]){"*** xroot protocol config:",0});
+
    // Process items
    //
    while((var = Config.GetMyFirstWord()))
@@ -542,6 +550,9 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              if (GoNo) {Config.Echo(); NoGo = 1;}
             }
         }
+
+// Add our config to our environment and return
+//
    return NoGo;
 }
 

@@ -56,6 +56,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -87,10 +88,16 @@
 //
 #define Erx(p, a, b) cerr <<#p <<": " <<XrdSysE2T(a) <<' ' <<b <<endl;
 
+/******************************************************************************/
+/*              S t a t i c   M e m b e r s   &   O b j e c t s               */
+/******************************************************************************/
+  
 // The following mutex is used to allow only one fork at a time so that
 // we do not leak file descriptors. It is a short-lived lock.
 //
 namespace {XrdSysMutex forkMutex;}
+
+XrdOucString *XrdOucStream::theCFG = 0;
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -104,7 +111,8 @@ struct StreamInfo
        std::set<std::string> *fcList;
        std::set<std::string>::iterator itFC;
 
-       StreamInfo() : myHost(0), myName(0), myExec(0), fcList(0) {}
+       StreamInfo() : myHost(0), myName(0), myExec(0),
+                      fcList(0) {}
       ~StreamInfo() {if (fcList) delete fcList;}
       };
 
@@ -279,6 +287,39 @@ int XrdOucStream::Attach(int FileDescriptor, int bsz)
 }
   
 /******************************************************************************/
+/*                               C a p t u r e                                */
+/******************************************************************************/
+
+void XrdOucStream::Capture(const char **cVec, bool linefeed)
+{
+// Make sure we can handle this
+//
+   if (theCFG && cVec && cVec[0])
+      {if (linefeed) theCFG->append("\n# ");
+          else theCFG->append("# ");
+       int i = 0;
+       while(cVec[i]) theCFG->append(cVec[i++]);
+       theCFG->append('\n');
+      }
+}
+
+/******************************************************************************/
+
+XrdOucString *XrdOucStream::Capture(XrdOucString *newCFG)
+{
+   XrdOucString *oldCFG = theCFG;
+   theCFG = newCFG;
+   return oldCFG;
+}
+
+/******************************************************************************/
+
+XrdOucString *XrdOucStream::Capture()
+{
+   return theCFG;
+}
+
+/******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
 
@@ -306,8 +347,11 @@ void XrdOucStream::Close(int hold)
 
     // Check if we should echo the last line
     //
-    if (llBuff && Verbose && Eroute)
-       {if (*llBuff && llBok > 1) Eroute->Say(llPrefix, llBuff);
+    if (llBuff)
+       {if (Verbose && *llBuff && llBok > 1)
+           {if (Eroute) Eroute->Say(llPrefix, llBuff);
+            if (theCFG) add2CFG(llBuff);
+           }
         llBok = 0;
        }
 
@@ -349,20 +393,13 @@ int XrdOucStream::Drain()
 /*                                  E c h o                                   */
 /******************************************************************************/
   
-bool XrdOucStream::Echo(int ec, const char *t1, const char *t2, const char *t3)
-{
-   if (Eroute)
-      {if (t1) Eroute->Emsg("Stream", t1, t2, t3);
-       if (llBok > 1 && Verbose && llBuff) Eroute->Say(llPrefix,llBuff);
-      }
-   ecode = ec;
-   llBok = 0;
-   return false;
-}
 
 void XrdOucStream::Echo()
 {
-   if (llBok > 1 && Verbose && llBuff && Eroute) Eroute->Say(llPrefix,llBuff);
+   if (llBok > 1 && Verbose && llBuff)
+      {if (Eroute) Eroute->Say(llPrefix,llBuff);
+       if (theCFG) add2CFG(llBuff);
+      }
    llBok = 0;
 }
 
@@ -906,6 +943,17 @@ int XrdOucStream::Wait4Data(int msMax)
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
+/*                               a d d 2 C F G                                */
+/******************************************************************************/
+
+void XrdOucStream::add2CFG(const char *data, bool isCMT)
+{
+   if (isCMT) theCFG->append("# ");
+   theCFG->append(data);
+   theCFG->append('\n');
+}
+  
+/******************************************************************************/
 /*                               a d d 2 l l B                                */
 /******************************************************************************/
 
@@ -938,6 +986,21 @@ char *XrdOucStream::add2llB(char *tok, int reset)
           {strcpy(llBcur, tok); llBcur += tlen; llBleft -= tlen;}
       }
    return tok;
+}
+  
+/******************************************************************************/
+/*                                  E c h o                                   */
+/******************************************************************************/
+  
+bool XrdOucStream::Echo(int ec, const char *t1, const char *t2, const char *t3)
+{
+   if (Eroute)
+      {if (t1) Eroute->Emsg("Stream", t1, t2, t3);
+       if (llBok > 1 && Verbose && llBuff) Eroute->Say(llPrefix,llBuff);
+      }
+   ecode = ec;
+   llBok = 0;
+   return false;
 }
 
 /******************************************************************************/

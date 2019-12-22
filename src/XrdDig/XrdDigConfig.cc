@@ -402,6 +402,7 @@ bool XrdDigConfig::ConfigProc(const char *ConfigFN)
        return 1;
       }
    cFile.Attach(cfgFD);
+   cFile.Capture((const char*[]){"*** digfs plugin config:",0});
 
 // Now start reading records until eof.
 //

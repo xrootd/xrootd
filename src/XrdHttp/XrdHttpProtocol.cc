@@ -1060,6 +1060,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
     return eDest.Emsg("Config", errno, "open config file", ConfigFN);
   Config.Attach(cfgFD);
+  Config.Capture((const char*[]){"*** http protocol config:",0});
 
   // Process items
   //
