@@ -21,19 +21,54 @@ void showTime()
   std::cout << " " << std::ctime(&showtime) << " ";
 }
 
+void fileReader()
+{
+  XrdCl::File file;
+  std::cout << "Starting file opening..."
+            << "\n";
+  std::string fileURL = "root://localhost//tmp/myfile.txt";
+  std::cout << "Do open ... " << std::endl;
+  XrdCl::XRootDStatus st = file.Open(fileURL, XrdCl::OpenFlags::Update);
+  if (!st.IsOK())
+  {
+    std::cout << "Open failed" << std::endl;
+    std::cout << st.ToString() << std::endl;
+    return;
+  }
+  std::cout << "Open done!" << std::endl;
+}
+
+void fileReaderPointer(XrdCl::File &file)
+{
+  std::string fileURL = "root://localhost//tmp/myfile.txt";
+  std::cout << "Do open ... " << std::endl;
+  XrdCl::XRootDStatus st = file.Open(fileURL, XrdCl::OpenFlags::Update);
+  if (!st.IsOK())
+  {
+    std::cout << "Open failed" << std::endl;
+    std::cout << st.ToString() << std::endl;
+    return;
+  }
+  std::cout << "Open done!" << std::endl;
+}
+
 //python bindings
 int main()
 {
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt("SubStreamsPerChannel", 2);
   std::cout << "API TEST at";
   showTime();
-  std::cout << std::string(__user__) << "\n;"
+  std::cout << std::string(__user__) << "\n";
+  XrdCl::File fileP;
+  // fileReader();
+  //passing by reference avoids SEGMENTATION FAULT
+  fileReaderPointer(fileP);
 }
 
 /* 
 int main( int argc, char *argv[] )
 {
-//  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-//  env->PutInt( "SubStreamsPerChannel", 2 );
 
   XrdCl::File f;
 
