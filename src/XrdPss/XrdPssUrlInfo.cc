@@ -77,7 +77,7 @@ int copyCGI(const char *cgi, char *Buff, int Blen)
 // See if we have the end to copy
 //
    if (beg)
-      {n = strlen(beg);
+      {n = strlen(beg) + 1;
        if (n < Blen)
           {strncpy(bP, beg, n);
            bP += n;
