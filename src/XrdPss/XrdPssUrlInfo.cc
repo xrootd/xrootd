@@ -79,7 +79,7 @@ int copyCGI(const char *cgi, char *Buff, int Blen)
    if (beg)
       {n = strlen(beg) + 1;
        if (n < Blen)
-          {strncpy(bP, beg, n);
+          {strncpy(bP, beg, Blen);
            bP += n;
           }
       }
