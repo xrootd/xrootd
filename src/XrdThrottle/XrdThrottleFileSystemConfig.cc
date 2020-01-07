@@ -132,7 +132,8 @@ FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs)
       return 1;
    }
    Config.Attach(cfgFD);
-   Config.Capture((const char*[]){"*** throttle (ofs) plugin config:",0});
+   static const char *cvec[] = { "*** throttle (ofs) plugin config:", 0 };
+   Config.Capture(cvec);
 
    std::string fslib = OFS_NAME;
 

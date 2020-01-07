@@ -237,7 +237,8 @@ int XrdCmsClientConfig::ConfigProc(const char *ConfigFN)
        return 1;
       }
    Config.Attach(cfgFD);
-   Config.Capture((const char*[]){"*** cms plugin config:",0});
+   static const char *cvec[] = { "*** cms plugin config:", 0 };
+   Config.Capture(cvec);
 
 // Now start reading records until eof.
 //

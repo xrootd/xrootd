@@ -972,7 +972,8 @@ int XrdFrmConfig::ConfigProc()
        return 1;
       }
    cfgFile.Attach(cfgFD); cFile = &cfgFile;
-   cfgFile.Capture((const char*[]){"*** frm server config:",0});
+   static const char *cvec[] = { "*** frm server config:", 0 };
+   cfgFile.Capture(cvec);
 
 // Now start reading records until eof.
 //

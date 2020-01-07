@@ -48,7 +48,8 @@ bool Handler::Config(const char *config, XrdOucEnv *env, XrdSysError *log,
     return log->Emsg("Config", errno, "open config file", config);
   }
   config_obj.Attach(cfg_fd);
-  config_obj.Capture((const char*[]){"*** macaroons plugin config:",0});
+  static const char *cvec[] = { "*** macaroons plugin config:", 0 };
+  config_obj.Capture(cvec);
 
   // Set default mask for logging.
   log->setMsgMask(LogMask::Error | LogMask::Warning);

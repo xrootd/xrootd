@@ -516,7 +516,8 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
 
    // Indicate what we are about to do in the capture stream
    //
-   Config.Capture((const char*[]){"*** xroot protocol config:",0});
+   static const char *cvec[] = { "*** xroot protocol config:", 0 };
+   Config.Capture(cvec);
 
    // Process items
    //

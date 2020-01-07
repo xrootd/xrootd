@@ -106,7 +106,8 @@ int XrdBwm::Configure(XrdSysError &Eroute) {
               return Eroute.Emsg("Config", errno, "open config file",
                                  ConfigFN);
            Config.Attach(cfgFD);
-           Config.Capture((const char*[]){"*** bwm ofs plugin config:",0});
+           static const char *cvec[] = { "*** bwm ofs plugin config:", 0 };
+           Config.Capture(cvec);
 
            // Now start reading records until eof.
            //

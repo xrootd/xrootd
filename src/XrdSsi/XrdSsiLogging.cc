@@ -81,7 +81,8 @@ void ConfigLog(const char *cFN)
        return;
       }
    cStrm.Attach(cfgFD);
-   cStrm.Capture((const char*[]){"*** ssi logging plugin config:",0});
+   static const char *cvec[] = { "*** ssi logging plugin config:", 0 };
+   cStrm.Capture(cvec);
 
 // Now start reading records until eof.
 //
