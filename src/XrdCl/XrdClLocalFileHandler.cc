@@ -416,6 +416,7 @@ namespace XrdCl
                                               strerror( errno ) );
       return QueueTask( error, 0, handler );
     }
+    return QueueTask( new XRootDStatus(), 0, handler );
 #else
     AioCtx *ctx = new AioCtx( pHostList, handler );
     ctx->SetFsync( fd );
