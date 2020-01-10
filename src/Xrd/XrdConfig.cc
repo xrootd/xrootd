@@ -925,7 +925,7 @@ void XrdConfig::setCFG()
 //
    XrdOucStream::Capture(&totalCF);
    totalCF.resize(1024*1024);
-   static const char *cvec[] = { "*** ", myProg, " config from '", cfnP, "':", 0 };
+   const char *cvec[] = { "*** ", myProg, " config from '", cfnP, "':", 0 };
    XrdOucStream::Capture(cvec);
 }
 
