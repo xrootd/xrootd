@@ -35,7 +35,8 @@
  * 
  */
 
-
+#include "XProtocol/XPtypes.hh"
+#include "XrdSec/XrdSecEntity.hh"
 
 #ifndef XRDHTTPUTILS_HH
 #define	XRDHTTPUTILS_HH
