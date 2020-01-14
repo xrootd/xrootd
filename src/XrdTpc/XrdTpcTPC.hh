@@ -6,6 +6,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdHttp/XrdHttpExtHandler.hh"
+#include "XrdHttp/XrdHttpUtils.hh"
 
 class XrdOucErrInfo;
 class XrdOucStream;
