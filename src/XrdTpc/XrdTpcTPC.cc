@@ -39,12 +39,16 @@ XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
 // header (which will later be used for XrdSecEntity).  The latter copy is only done if
 // the Authorization header is not already present.
 static std::string prepareURL(XrdHttpExtReq &req) {
-  std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-query");
+  std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-fullresource");
   if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
 
   auto has_authz_header = req.headers.find("Authorization") != req.headers.end();
 
-  std::istringstream requestStream(iter->second);
+  const char *query_start = strchr(iter->second.c_str(), '?');
+  if (!query_start) {query_start = "";}
+  else {query_start++;}
+
+  std::istringstream requestStream(query_start);
   std::string token;
   std::stringstream result;
   bool found_first_header = false;
@@ -184,7 +188,9 @@ std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
         ss << "authz=" << quoted_url;
         free(quoted_url);
         authz = ss.str();
+        return authz;
     }
+
     return authz;
 }
 

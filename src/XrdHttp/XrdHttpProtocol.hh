@@ -166,6 +166,7 @@ private:
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
   static int xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
+  static int xproxymacaroon(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
   static int xsslcadir(XrdOucStream &Config);
   static int xsslcipherfilter(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
@@ -317,6 +318,10 @@ protected:
   //
   // Processing configuration values
   //
+
+  /// XrdMacaroonAuthz handler (type-erased) for signing
+  /// tokens.
+  static void *m_macaroon_authz;
 
   /// Timeout for reading the handshake
   static int hailWait;

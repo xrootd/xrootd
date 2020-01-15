@@ -43,6 +43,11 @@
 #include "XrdHttpSecXtractor.hh"
 #include "XrdHttpExtHandler.hh"
 
+// Includes only needed for macaroon signing.
+#include "XrdMacaroons/XrdMacaroonsAuthz.hh"
+#include "XrdOuc/XrdOucPinPath.hh"
+#include <dlfcn.h>
+
 #include "XrdTls/XrdTlsContext.hh"
 
 #include <openssl/err.h>
@@ -61,6 +66,14 @@
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
+
+// Trick to access compiled version and directly call for the default object
+// is taken from xrootd-scitokens.
+static XrdVERSIONINFODEF(compiledVerAcc, XrdAccTest, XrdVNUMBER, XrdVERSION);
+extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
+                                                     const char     *cfn,
+                                                     const char     *parm,
+                                                     XrdVersionInfo &myVer);
 
 // It seems that eos needs this to be present
 const char *XrdHttpSecEntityTident = "http";
@@ -112,6 +125,8 @@ XrdSysError XrdHttpProtocol::eDest = 0; // Error message handler
 XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 int XrdHttpProtocol::m_bio_type = 0; // BIO type identifier for our custom BIO.
 BIO_METHOD *XrdHttpProtocol::m_bio_method = NULL; // BIO method constructor.
+
+void *XrdHttpProtocol::m_macaroon_authz = NULL;
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -1082,6 +1097,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("desthttps", xdesthttps);
       else if TS_Xeq("secxtractor", xsecxtractor);
       else if TS_Xeq3("exthandler", xexthandler);
+      else if TS_Xeq3("proxymacaroons", xproxymacaroon);
       else if TS_Xeq("selfhttps2http", xselfhttps2http);
       else if TS_Xeq("embeddedstatic", xembeddedstatic);
       else if TS_Xeq("listingredir", xlistredir);
@@ -2412,10 +2428,123 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
 
 
 
+/******************************************************************************/
+/*                            x p r o x y m a c a r o o n                     */
+/******************************************************************************/
 
+/* Function: xproxymacaroon
+ *
+ *   Purpose:  To parse the directive: proxymacaroon {true|false}
+ *
+ *   Set to `true` to have the HTTP plugin to sign a macaroon internally
+ *   for each request; useful when an internal filesystem (such as XrdPss)
+ *   does not have the ability to forward an XrdSecEntity but might understand
+ *   macaroons.
+ *
+ *  Output: 0 upon success or !0 upon failure.
+ */
 
+int XrdHttpProtocol::xproxymacaroon(XrdOucStream & Config, const char *ConfigFN,
+                                 XrdOucEnv *myEnv)
+{
+  char *val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "http.proxymacaroon must be set to true or false.");
+    return 1;
+  }
 
+  if (!strcasecmp(val, "false")) {
+    return 0;
+  } else if (strcasecmp(val, "true")) {
+    eDest.Emsg("Config", "http.proxymacaroon must be set to true or false; invalid value:", val);
+    return 1;
+  }
 
+  XrdOucStream config_obj(&eDest, getenv("XRDINSTANCE"), myEnv, "=====> ");
+
+  // Open and attach the config file
+  //
+  int cfg_fd;
+  if ((cfg_fd = open(ConfigFN, O_RDONLY, 0)) < 0) {
+    return eDest.Emsg("Config", errno, "open config file", ConfigFN);
+  }
+  config_obj.Attach(cfg_fd);
+  static const char *cvec[] = { "*** HTTP request handler config:", 0 };
+  config_obj.Capture(cvec);
+
+  XrdAccAuthorize *chain_authz = NULL;
+
+  // Process items
+  //
+  char *var;
+  while ((var = config_obj.GetMyFirstWord())) {
+    if (strcmp("ofs.authlib", var)) {continue;}
+
+    if (!config_obj.GetWord()) {
+      eDest.Emsg("Config", "Invalid ofs.authlib line found.");
+      break;
+    }
+
+    char parms[2048]; parms[0] = '\0';
+    if (!config_obj.GetRest(parms, sizeof(parms))) {
+      eDest.Emsg("Config", "Failed to get remaining parameters");
+    }
+
+    if (parms[0]) {
+        XrdOucString parms_str(parms);
+        XrdOucString chained_lib;
+        int from = parms_str.tokenize(chained_lib, 0, ' ');
+        const char *chained_parms = NULL;
+        eDest.Emsg("Config", "Will chain library", chained_lib.c_str());
+        if (from > 0)
+        {
+            parms_str.erasefromstart(from);
+            if (parms_str.length())
+            {
+                eDest.Emsg("Config", "Will chain parameters", parms_str.c_str());
+                chained_parms = parms_str.c_str();
+            }
+        }
+        char resolvePath[2048];
+        bool usedAltPath{true};
+        if (!XrdOucPinPath(chained_lib.c_str(), usedAltPath, resolvePath, 2048)) {
+            eDest.Emsg("Config", "Failed to locate appropriately versioned chained auth library:", parms);
+            return 1;
+        }
+        void *handle_base = dlopen(resolvePath, RTLD_LOCAL|RTLD_NOW);
+        if (handle_base == NULL) {
+            eDest.Emsg("Config", "Failed to base plugin ", resolvePath, dlerror());
+            return 1;
+        }
+
+        XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
+        ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
+             (dlsym(handle_base, "XrdAccAuthorizeObject"));
+        if (!ep)
+        {
+            eDest.Emsg("Config", "Unable to chain second authlib after macaroons", parms);
+            return 1;
+        }
+        chain_authz = (*ep)(eDest.logger(), ConfigFN, chained_parms);
+    }
+    break;
+  }
+  if (!chain_authz) {
+    chain_authz = XrdAccDefaultAuthorizeObject(eDest.logger(), ConfigFN, "", compiledVerAcc);
+  }
+
+  try
+  {
+    m_macaroon_authz = new Macaroons::Authz(eDest.logger(), ConfigFN, chain_authz);
+    return 0;
+  }
+  catch (std::runtime_error &e)
+  {
+    eDest.Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
+    m_macaroon_authz = NULL;
+  }
+  return 1;
+}
 
 
 /******************************************************************************/

@@ -4,6 +4,7 @@
 
 #include <time.h>
 
+#include "uuid.h"
 #include "macaroons.h"
 
 #include "XrdOuc/XrdOucEnv.hh"
@@ -55,6 +56,50 @@ private:
     time_t m_now;
 };
 
+// Given a list of privileges, generate a list of
+// corresponding allowed activities.
+static std::string GenerateActivities(XrdAccPrivs privs)
+{
+    std::stringstream result;
+    bool has_activities = false;
+    if ((privs & XrdAccPriv_Chmod) && (privs & XrdAccPriv_Chown)) {
+        result << "UPDATE_METADATA";
+        has_activities = true;
+    }
+    if ((privs & XrdAccPriv_Insert) && (privs & XrdAccPriv_Lock) && (privs & XrdAccPriv_Mkdir) &&
+        (privs & XrdAccPriv_Rename) && (privs & XrdAccPriv_Update))
+    {
+        if (has_activities) result << ",";
+        result << "MANAGE";
+        has_activities = true;
+    }
+    if (privs & XrdAccPriv_Create) {
+        if (has_activities) result << ",";
+        result << "UPLOAD";
+        has_activities = true;
+    }
+    if (privs & XrdAccPriv_Delete) {
+        if (has_activities) result << ",";
+        result << "DELETE";
+        has_activities = true;
+    }
+    if (privs & XrdAccPriv_Read) {
+        if (has_activities) result << ",";
+        result << "DOWNLOAD";
+        has_activities = true;
+    }
+    if (privs & XrdAccPriv_Readdir) {
+        if (has_activities) result << ",";
+        result << "LIST";
+        has_activities = true;
+    }
+    if (privs & XrdAccPriv_Lookup) {
+        if (has_activities) result << ",";
+        result << "READ_METADATA";
+        has_activities = true;
+    }
+    return "activity:" + result.str();
+}
 
 static XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
 {
@@ -104,6 +149,36 @@ static XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
 
 }
 
+std::string
+Authz::GenerateID(const std::string &resource,
+                    const XrdSecEntity &entity,
+                    const std::string &activities,
+                    const std::string &before)
+{
+    uuid_t uu;
+    uuid_generate_random(uu);
+    char uuid_buf[37];
+    uuid_unparse(uu, uuid_buf);
+    std::string result(uuid_buf);
+
+    std::stringstream ss;
+    ss << "ID=" << result << ", ";
+    ss << "resource=" << resource << ", ";
+    if (entity.prot[0] != '\0') {ss << "protocol=" << entity.prot << ", ";}
+    if (entity.name) {ss << "name=" << entity.name << ", ";}
+    if (entity.host) {ss << "host=" << entity.host << ", ";}
+    if (entity.vorg) {ss << "vorg=" << entity.vorg << ", ";}
+    if (entity.role) {ss << "role=" << entity.role << ", ";}
+    if (entity.grps) {ss << "groups=" << entity.grps << ", ";}
+    if (entity.endorsements) {ss << "endorsements=" << entity.endorsements << ", ";}
+    if (activities.size()) {ss << "base_activities=" << activities << ", ";}
+
+    ss << "expires=" << before;
+
+    m_log.Emsg("MacaroonGen", ss.str().c_str());
+    return result;
+}
+
 
 Authz::Authz(XrdSysLogger *log, char const *config, XrdAccAuthorize *chain)
     : m_max_duration(86400),
@@ -136,6 +211,107 @@ Authz::OnMissing(const XrdSecEntity *Entity, const char *path,
     // Code should be unreachable.
     return XrdAccPriv_None;
 }
+
+bool Authz::Sign(const XrdSecEntity *Entity, const char *path,
+          XrdOucEnv *env, std::string &result)
+{
+    XrdAccPrivs privs = Access(Entity, path, AOP_Any, env);
+    if (privs == XrdAccPriv_None) {return false;}
+
+    auto activities = GenerateActivities(privs);
+
+    time_t now;
+    time(&now);
+    now += 60;
+
+    char utc_time_buf[21];
+    if (!strftime(utc_time_buf, 21, "%FT%TZ", gmtime(&now)))
+    {
+        return false;
+    }
+    std::string utc_time_str(utc_time_buf);
+    std::stringstream ss;
+    ss << "before:" << utc_time_str;
+    std::string utc_time_caveat = ss.str();
+
+
+    std::string macaroon_id = GenerateID(path, *Entity, activities, utc_time_str);
+    enum macaroon_returncode mac_err;
+
+    struct macaroon *mac = macaroon_create(reinterpret_cast<const unsigned char*>(m_location.c_str()),
+                                           m_location.size(),
+                                           reinterpret_cast<const unsigned char*>(m_secret.c_str()),
+                                           m_secret.size(),
+                                           reinterpret_cast<const unsigned char*>(macaroon_id.c_str()),
+                                           macaroon_id.size(), &mac_err);
+    if (!mac) {
+        return false;
+    }
+
+    // Embed the SecEntity name, if present.
+    struct macaroon *mac_with_name;
+    const char * sec_name = Entity->name;
+    if (sec_name) {
+        std::stringstream name_caveat_ss;
+        name_caveat_ss << "name:" << sec_name;
+        std::string name_caveat = name_caveat_ss.str();
+        mac_with_name = macaroon_add_first_party_caveat(mac,
+                                                        reinterpret_cast<const unsigned char*>(name_caveat.c_str()),
+                                                        name_caveat.size(),
+                                                        &mac_err);
+        macaroon_destroy(mac);
+    } else {
+        mac_with_name = mac;
+    }
+    if (!mac_with_name)
+    {
+        return false;
+    }
+
+    struct macaroon *mac_with_activities = macaroon_add_first_party_caveat(mac_with_name,
+                                             reinterpret_cast<const unsigned char*>(activities.c_str()),
+                                             activities.size(),
+                                             &mac_err);
+    macaroon_destroy(mac_with_name);
+    if (!mac_with_activities)
+    {
+        return false;
+    }
+
+    std::string path_caveat = "path:";
+    path_caveat += path;
+    struct macaroon *mac_with_path = macaroon_add_first_party_caveat(mac_with_activities,
+                                                 reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
+                                                 path_caveat.size(),
+                                                 &mac_err);
+    macaroon_destroy(mac_with_activities);
+    if (!mac_with_path) {
+        return false;
+    }
+
+    struct macaroon *mac_with_date = macaroon_add_first_party_caveat(mac_with_path,
+                                        reinterpret_cast<const unsigned char*>(utc_time_caveat.c_str()),
+                                        utc_time_caveat.size(),
+                                        &mac_err);
+    macaroon_destroy(mac_with_path);
+    if (!mac_with_date) {
+        return false;
+    }
+
+    size_t size_hint = macaroon_serialize_size_hint(mac_with_date);
+
+    std::vector<char> macaroon_resp; macaroon_resp.reserve(size_hint);
+    if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
+    {
+        return false;
+    }
+    macaroon_destroy(mac_with_date);
+
+    result = &macaroon_resp[0];
+
+    return true;
+}
+
 
 XrdAccPrivs
 Authz::Access(const XrdSecEntity *Entity, const char *path,

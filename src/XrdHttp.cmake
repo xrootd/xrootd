@@ -17,12 +17,18 @@ if( BUILD_HTTP )
   # The XrdHttp library
   #-----------------------------------------------------------------------------
   include_directories( ${OPENSSL_INCLUDE_DIR} )
-  
+
+if( BUILD_MACAROONS )
+  set( MACAROON_FILES XrdMacaroons/XrdMacaroonsAuthz.cc XrdMacaroons/XrdMacaroonsAuthz.hh
+    XrdMacaroons/XrdMacaroonsConfigure.cc )
+endif()
+
   # Note this is marked as a shared library as XrdHttp plugins are expected to
   # link against this for the XrdHttpExt class implementations.
   add_library(
     ${LIB_XRD_HTTP_UTILS}
     SHARED
+    ${MACAROON_FILES}
     XrdHttp/XrdHttpProtocol.cc    XrdHttp/XrdHttpProtocol.hh
     XrdHttp/XrdHttpReq.cc         XrdHttp/XrdHttpReq.hh
                                   XrdHttp/XrdHttpSecXtractor.hh
@@ -36,12 +42,18 @@ if( BUILD_HTTP )
     MODULE
     XrdHttp/XrdHttpModule.cc )
 
+if( BUILD_MACAROONS )
+  include_directories(${MACAROONS_INCLUDES} ${UUID_INCLUDE_DIRS})
+endif()
+
   target_link_libraries(
     ${LIB_XRD_HTTP_UTILS}
     XrdServer
     XrdUtils
     ${CMAKE_DL_LIBS}
     pthread
+    ${MACAROONS_LIB}
+    ${UUID_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY} )
 

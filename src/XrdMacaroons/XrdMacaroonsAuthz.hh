@@ -20,6 +20,11 @@ public:
                                const Access_Operation  oper,
                                      XrdOucEnv        *env);
 
+    bool Sign(const XrdSecEntity *Entity,
+              const char         *path,
+                    XrdOucEnv    *env,
+                    std::string  &result);
+
     virtual int Audit(const int accok, const XrdSecEntity *Entity,
                       const char *path, const Access_Operation oper,
                       XrdOucEnv *Env)
@@ -38,6 +43,12 @@ private:
                           const char             *path,
                           const Access_Operation  oper,
                                 XrdOucEnv        *env);
+
+    std::string
+    GenerateID(const std::string &resource,
+                      const XrdSecEntity &entity,
+                      const std::string &activities,
+                      const std::string &before);
 
     ssize_t m_max_duration;
     XrdAccAuthorize *m_chain;

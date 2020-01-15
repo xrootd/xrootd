@@ -66,6 +66,8 @@
 // This is to fix the trace macros
 #define TRACELINK prot->Link
 
+// Required for Macaroon-based proxying
+#include "XrdMacaroons/XrdMacaroonsAuthz.hh"
 
 static std::string convert_digest_rfc_name(const std::string &rfc_name_multiple)
 {
@@ -284,6 +286,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
         hdr2cgistr.append(it->second);
         hdr2cgistr.append("=");
         hdr2cgistr.append(s);
+        if (it->second == "authz") {
+          m_authz_header = true;
+        }
       }
     }
 
@@ -975,6 +980,18 @@ int XrdHttpReq::ProcessHTTPReq() {
     free(q);
     m_appended_hdr2cgistr = true;
     }
+
+  if (!m_authz_header && prot->m_macaroon_authz && (!opaque || !opaque->Get("authz"))) {
+      auto authz = static_cast<Macaroons::Authz*>(prot->m_macaroon_authz);
+      std::string result;
+      if (authz->Sign(&(prot->SecEntity), resource.c_str(), opaque, result))
+      {
+        const char *p = strchr(resourceplusopaque.c_str(), '?');
+        resourceplusopaque.append(p ? "&" : "?");
+        resourceplusopaque.append("authz=Bearer%20");
+        resourceplusopaque.append(result.c_str());
+      }
+  }
 
   // Verify if we have an external handler for this request
   if (reqstate == 0) {
@@ -2724,6 +2741,7 @@ void XrdHttpReq::reset() {
   destination = "";
   hdr2cgistr = "";
   m_appended_hdr2cgistr = false;
+  m_authz_header = false;
 
   iovP = 0;
   iovN = 0;
