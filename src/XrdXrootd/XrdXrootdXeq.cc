@@ -1933,7 +1933,7 @@ int XrdXrootdProtocol::do_Qconf()
             if (!nidval || !(*nidval)) nidval = "vnid";
             n = snprintf(bp, bleft, "%s\n", nidval);
            }
-   else if (!strcmp("xattr", val))
+   else if (!strcmp("fattr", val))
            {n = snprintf(bp, bleft, "%s\n", usxParms);
             bp += n; bleft -= n;
            }
