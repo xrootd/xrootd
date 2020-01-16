@@ -322,7 +322,7 @@ namespace XrdCl
     // get the redirect location
     std::string replica;
     if( !GetReplica( msg, replica ).IsOK() )
-      return GetErrorMsg( msg, "No more replicas to try.", kXR_NotFound );
+      return GetErrorMsg( msg, "Metalink: no more replicas to try.", kXR_noReplicas );
     Message *resp = new Message( sizeof(ServerResponse) );
     ServerResponse* response =
         reinterpret_cast<ServerResponse*>( resp->GetBuffer() );

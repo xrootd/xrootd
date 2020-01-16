@@ -1313,11 +1313,10 @@ namespace XrdCl
       if( pStatus.code == errErrorResponse )
       {
         st->errNo = rsp->body.error.errnum;
-        char *errmsg = new char[rsp->hdr.dlen-3];
-        errmsg[rsp->hdr.dlen-4] = 0;
-        memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+        std::string errmsg( rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+        if( st->errNo == kXR_noReplicas )
+          errmsg += " Last seen error: " + pLastError.ToString();
         st->SetErrorMessage( errmsg );
-        delete [] errmsg;
       }
       else if( pStatus.code == errRedirect )
         st->SetErrorMessage( pRedirectUrl );
@@ -1957,7 +1956,10 @@ namespace XrdCl
     if( status.IsOK() )
       return;
 
-    pLastError = status;
+    bool noreplicas = ( status.code == errErrorResponse &&
+                        status.errNo == kXR_noReplicas );
+
+    if( !noreplicas ) pLastError = status;
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( XRootDMsg, "[%s] Handling error while processing %s: %s.",

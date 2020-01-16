@@ -326,32 +326,37 @@ enum XActionCode {
 //_______________________________________________
 //
 enum XErrorCode {
-   kXR_ArgInvalid = 3000,
-   kXR_ArgMissing,
-   kXR_ArgTooLong,
-   kXR_FileLocked,
-   kXR_FileNotOpen,
-   kXR_FSError,
-   kXR_InvalidRequest,
-   kXR_IOError,
-   kXR_NoMemory,
-   kXR_NoSpace,
-   kXR_NotAuthorized,
-   kXR_NotFound,
-   kXR_ServerError,
-   kXR_Unsupported,
-   kXR_noserver,
-   kXR_NotFile,
-   kXR_isDirectory,
-   kXR_Cancelled,
-   kXR_ChkLenErr,
-   kXR_ChkSumErr,
-   kXR_inProgress,
-   kXR_overQuota,
-   kXR_SigVerErr,
-   kXR_DecryptErr,
-   kXR_Overloaded,
-   kXR_ERRFENCE,    // Always last valid errcode + 1
+   kXR_ArgInvalid =        3000,
+   kXR_ArgMissing,      // 3001
+   kXR_ArgTooLong,      // 3002
+   kXR_FileLocked,      // 3003
+   kXR_FileNotOpen,     // 3004
+   kXR_FSError,         // 3005
+   kXR_InvalidRequest,  // 3006
+   kXR_IOError,         // 3007
+   kXR_NoMemory,        // 3008
+   kXR_NoSpace,         // 3009
+   kXR_NotAuthorized,   // 3010
+   kXR_NotFound,        // 3011
+   kXR_ServerError,     // 3012
+   kXR_Unsupported,     // 3013
+   kXR_noserver,        // 3014
+   kXR_NotFile,         // 3015
+   kXR_isDirectory,     // 3016
+   kXR_Cancelled,       // 3017
+   kXR_ChkLenErr,       // 3018
+   kXR_ChkSumErr,       // 3019
+   kXR_inProgress,      // 3020
+   kXR_overQuota,       // 3021
+   kXR_SigVerErr,       // 3022
+   kXR_DecryptErr,      // 3023
+   kXR_Overloaded,      // 3024
+   kXR_fsReadOnly,      // 3025
+   kXR_BadPayload,      // 3026
+   kXR_AttrNotFound,    // 3027
+   kXR_TLSRequired,     // 3028
+   kXR_noReplicas,      // 3029
+   kXR_ERRFENCE,        // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
 
@@ -894,6 +899,10 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 #endif
 #endif
   
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+
 class XProtocol
 {
 public:
@@ -903,27 +912,32 @@ public:
 static int mapError(int rc)
       {if (rc < 0) rc = -rc;
        switch(rc)
-          {case ENOENT:       return kXR_NotFound;
-           case EPERM:        return kXR_NotAuthorized;
-           case EACCES:       return kXR_NotAuthorized;
-           case EIO:          return kXR_IOError;
-           case ENOMEM:       return kXR_NoMemory;
-           case ENOBUFS:      return kXR_NoMemory;
-           case ENOSPC:       return kXR_NoSpace;
-           case ENAMETOOLONG: return kXR_ArgTooLong;
-           case ENETUNREACH:  return kXR_noserver;
-           case ENOTBLK:      return kXR_NotFile;
-           case EISDIR:       return kXR_isDirectory;
-           case EEXIST:       return kXR_InvalidRequest;
-           case ETXTBSY:      return kXR_inProgress;
-           case ENODEV:       return kXR_FSError;
-           case EFAULT:       return kXR_ServerError;
-           case EDOM:         return kXR_ChkSumErr;
-           case EDQUOT:       return kXR_overQuota;
-           case EILSEQ:       return kXR_SigVerErr;
-           case ERANGE:       return kXR_DecryptErr;
-           case EUSERS:       return kXR_Overloaded;
-           default:           return kXR_FSError;
+          {case ENOENT:        return kXR_NotFound;
+           case EINVAL:        return kXR_ArgInvalid;
+           case EPERM:         return kXR_NotAuthorized;
+           case EACCES:        return kXR_NotAuthorized;
+           case EIO:           return kXR_IOError;
+           case ENOMEM:        return kXR_NoMemory;
+           case ENOBUFS:       return kXR_NoMemory;
+           case ENOSPC:        return kXR_NoSpace;
+           case ENAMETOOLONG:  return kXR_ArgTooLong;
+           case ENETUNREACH:   return kXR_noserver;
+           case ENOTBLK:       return kXR_NotFile;
+           case EISDIR:        return kXR_isDirectory;
+           case EEXIST:        return kXR_InvalidRequest;
+           case ETXTBSY:       return kXR_inProgress;
+           case ENODEV:        return kXR_FSError;
+           case EFAULT:        return kXR_ServerError;
+           case EDOM:          return kXR_ChkSumErr;
+           case EDQUOT:        return kXR_overQuota;
+           case EILSEQ:        return kXR_SigVerErr;
+           case ERANGE:        return kXR_DecryptErr;
+           case EUSERS:        return kXR_Overloaded;
+           case EROFS:         return kXR_fsReadOnly;
+           case ENOATTR:       return kXR_AttrNotFound;
+           case EPROTOTYPE:    return kXR_TLSRequired;
+           case EADDRNOTAVAIL: return kXR_noReplicas;
+           default:            return kXR_FSError;
           }
       }
 
@@ -955,6 +969,11 @@ static int toErrno( int xerr )
         case kXR_SigVerErr:     return EILSEQ;
         case kXR_DecryptErr:    return ERANGE;
         case kXR_Overloaded:    return EUSERS;
+        case kXR_fsReadOnly:    return EROFS;
+        case kXR_BadPayload:    return EINVAL;
+        case kXR_AttrNotFound:  return ENOATTR;
+        case kXR_TLSRequired:   return EPROTOTYPE;
+        case kXR_noReplicas:    return EADDRNOTAVAIL;
         default:                return ENOMSG;
        }
 }
