@@ -35,7 +35,7 @@ stages:
 
 build:centos8:
   stage: build:rpm
-  imgae: centos:8
+  image: centos:8
   script:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
