@@ -33,6 +33,35 @@ stages:
   tags:
     - docker_node
 
+build:centos8:
+  stage: build:rpm
+  imgae: centos:8
+  script:
+    - dnf install -y epel-release
+    - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
+    - dnf config-manager --set-enabled PowerTools
+    - cd packaging
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1"
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir centos-8
+    - cp packaging/*.src.rpm centos-8
+    - cp packaging/RPMS/*    centos-8
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - centos-8/
+  tags:
+    - docker_node
+  only:
+    - master
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules
+
 build:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
