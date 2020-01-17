@@ -412,6 +412,40 @@ publish:pypi:
   allow_failure: true
 
 
+weekly:centos8:
+  stage: build:rpm
+  image: centos:8
+  script:
+    - dnf install -y epel-release
+    - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git python-macros
+    - dnf config-manager --set-enabled PowerTools
+    - dnf install -y cppunit-devel
+    - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
+    - xrootd_version=${xrootd_version:11}
+    - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
+    - a=( ${xrootd_version//./ } )
+    - ((a[2]++)) || true
+    - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
+    - cd packaging/
+    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1" --define "_with_xrdclhttp 1"
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - cd ..
+    - mkdir epel-8/
+    - cp packaging/*.src.rpm epel-8
+    - cp packaging/RPMS/* epel-8
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - epel-8/
+  tags:
+    - docker_node
+  only:
+    - schedules
+  except:
+    - tags
+
 weekly:cc7:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -568,7 +602,7 @@ publish:rhel:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cc-7 slc-6 fc-rawhide fc-30 fc-29 fc-28; do 
+    - "for platform in centos-8 cc-7 slc-6 fc-rawhide fc-30 fc-29 fc-28; do 
          repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
          path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
@@ -662,7 +696,7 @@ publish:weekly:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in epel-7 epel-6; do 
+    - "for platform in epel-8 epel-7 epel-6; do 
          path=$prefix/experimental/$platform/x86_64/;
          sudo -u stci -H mkdir -p $path;
          sudo -u stci -H cp $platform/* $path;
