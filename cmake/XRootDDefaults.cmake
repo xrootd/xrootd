@@ -19,5 +19,4 @@ option( ENABLE_TESTS     "Enable unit tests."                                   
 option( ENABLE_HTTP      "Enable HTTP component."                                         TRUE )
 option( ENABLE_PYTHON    "Enable python bindings."                                        TRUE )
 option( XRDCL_ONLY       "Build only the client and necessary dependencies"               FALSE )
-option( ENABLE_CRC32C    "Build crc32c submodule"                                         TRUE )
 define_default( XRD_PYTHON_REQ_VERSION 2.4 )
