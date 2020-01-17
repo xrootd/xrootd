@@ -25,6 +25,16 @@
     %define _with_ceph 1
 %endif
 
+%if %{?rhel:1}%{!?rhel:0}
+    %if %{rhel} > 7
+        %define use_cmake3 0
+    %else
+        %define use_cmake3 1
+    %endif
+%else
+    %define use_cmake3 0
+%endif
+
 #-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
@@ -44,7 +54,11 @@ Source0:   xrootd-ceph.tar.gz
 
 BuildRoot: %{_tmppath}/%{name}-root
 
+%if %{use_cmake3}
+BuildRequires: cmake3
+%else
 BuildRequires: cmake
+%endif
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
