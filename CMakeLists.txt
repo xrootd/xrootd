@@ -49,11 +49,6 @@ endmacro()
 #-------------------------------------------------------------------------------
 # Build in subdirectories
 #-------------------------------------------------------------------------------
-add_subdirectory( external )
-if( HAVE_CRC32C )
-  add_definitions( -DHAVE_CRC32C )
-endif()
-
 add_subdirectory( src )
 add_subdirectory( bindings )
 
