@@ -87,6 +87,7 @@ set_target_properties(
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
+if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
 # xrdpwdadmin
 #-------------------------------------------------------------------------------
@@ -98,6 +99,7 @@ target_link_libraries(
   xrdpwdadmin
   XrdCrypto
   XrdUtils )
+endif()
 
 #-------------------------------------------------------------------------------
 # The XrdSecsss module
@@ -119,6 +121,7 @@ set_target_properties(
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
+if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
 # xrdsssadmin
 #-------------------------------------------------------------------------------
@@ -129,6 +132,7 @@ add_executable(
 target_link_libraries(
   xrdsssadmin
   XrdUtils )
+endif()
 
 #-------------------------------------------------------------------------------
 # The XrdSecunix module
@@ -154,6 +158,12 @@ set_target_properties(
 install(
   TARGETS
   ${LIB_XRD_SEC} ${LIB_XRD_SEC_PWD} ${LIB_XRD_SEC_SSS} ${LIB_XRD_SEC_UNIX} ${LIB_XRD_SEC_PROT}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+if( NOT XRDCL_LIB_ONLY )
+install(
+  TARGETS
   xrdsssadmin xrdpwdadmin
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
@@ -163,3 +173,4 @@ install(
   ${PROJECT_SOURCE_DIR}/docs/man/xrdsssadmin.8
   ${PROJECT_SOURCE_DIR}/docs/man/xrdpwdadmin.8
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
+endif()
