@@ -188,9 +188,9 @@ install(
     XrdClOperationHandlers.hh
     XrdClArg.hh
     XrdClFwd.hh
-	  XrdClParallelOperation.hh
-	  XrdClFileOperations.hh
-	  XrdClFileSystemOperations.hh
+    XrdClParallelOperation.hh
+    XrdClFileOperations.hh
+    XrdClFileSystemOperations.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
 if( NOT XRDCL_LIB_ONLY )
