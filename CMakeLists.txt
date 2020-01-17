@@ -1,13 +1,7 @@
 #-------------------------------------------------------------------------------
 # Project description
 #-------------------------------------------------------------------------------
-cmake_minimum_required( VERSION 2.6 )
-
-if( NOT XRDCEPH_SUBMODULE )
-  IF(CMAKE_VERSION VERSION_GREATER "2.8.12")
-     CMAKE_POLICY(SET CMP0022 OLD)
-  ENDIF()
-endif()
+cmake_minimum_required( VERSION 3.1 )
 
 project( xrootd-ceph )
 
