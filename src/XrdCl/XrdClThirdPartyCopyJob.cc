@@ -438,10 +438,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     log->Debug( UtilityMsg, "Generating the destination TPC URL" );
 
-    if( delegate )
-      tpcKey = "delegate";
-    else
-      tpcKey  = GenerateKey();
+    tpcKey  = GenerateKey();
 
     char        *cgiBuff = new char[2048];
     const char  *cgiP    = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
@@ -450,7 +447,8 @@ namespace XrdCl
                                                 0, cgiBuff, 2048, nbStrm,
                                                 GetSource().GetHostId().c_str(),
                                                 GetSource().GetProtocol().c_str(),
-                                                GetTarget().GetProtocol().c_str() );
+                                                GetTarget().GetProtocol().c_str(),
+                                                delegate );
 
     if( *cgiP == '!' )
     {

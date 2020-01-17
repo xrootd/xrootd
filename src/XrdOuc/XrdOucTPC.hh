@@ -40,7 +40,7 @@ static
 const char *cgiC2Dst(const char *cKey, const char *xSrc, const char *xLfn,
                      const char *xCks,       char *Buff, int Blen, int strms=0,
                      const char *iHst=0, const char *sprt=0, const char *tprt=0,
-                     bool push=false);
+                     bool dlgon=false, bool push=false);
 
 static
 const char *cgiC2Src(const char *cKey, const char *xDst, int xTTL,
@@ -65,6 +65,7 @@ static const char *tpcSrc;
 static const char *tpcStr;
 static const char *tpcTpr;
 static const char *tpcTtl;
+static const char *tpcDlgOn;
 
             XrdOucTPC() {}
            ~XrdOucTPC() {}

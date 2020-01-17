@@ -53,6 +53,7 @@ const char *XrdOucTPC::tpcSpr = "tpc.spr";
 const char *XrdOucTPC::tpcStr = "tpc.str";
 const char *XrdOucTPC::tpcTpr = "tpc.tpr";
 const char *XrdOucTPC::tpcTtl = "tpc.ttl";
+const char *XrdOucTPC::tpcDlgOn = "tpc.dlgon";
 
 /******************************************************************************/
 /*                              c g i C 2 D s t                               */
@@ -63,6 +64,7 @@ const char *XrdOucTPC::cgiC2Dst(const char *cKey, const char *xSrc,
                                       char *Buff, int Blen, int strms,
                                 const char *iHst,
                                 const char *sprt, const char *tprt,
+                                      bool dlgon,
                                       bool  push)
 {
    tpcInfo Info;
@@ -113,6 +115,12 @@ const char *XrdOucTPC::cgiC2Dst(const char *cKey, const char *xSrc,
    if (push)
       {bP += n; Blen -= n;
        if (Blen > 1) n = snprintf(bP, Blen, "&%s=1", tpcPsh);
+      }
+
+   // tpc.dlgon
+      {bP += n; Blen -= n;
+       const char* cgistr = dlgon ? "&%s=1" : "&%s=0";
+       if (Blen > 1) n = snprintf(bP, Blen, cgistr, tpcDlgOn);
       }
 
 
