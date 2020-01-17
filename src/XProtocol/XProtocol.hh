@@ -68,9 +68,10 @@
 // upper limit (i.e. n.9.9 + 1 -> n+1.0.0). The kXR_PROTSIGNVERSION defines the
 // protocol version where request signing became available.
 //
-#define kXR_PROTOCOLVERSION  0x00000400
+#define kXR_PROTOCOLVERSION  0x00000500
+#define kXR_PROTXATTVERSION  0x00000500
 #define kXR_PROTSIGNVERSION  0x00000310
-#define kXR_PROTOCOLVSTRING "4.0.0"
+#define kXR_PROTOCOLVSTRING "5.0.0"
 
 #include "XProtocol/XPtypes.hh"
 
@@ -379,6 +380,7 @@ enum XErrorCode {
    kXR_BadPayload,      // 3026
    kXR_AttrNotFound,    // 3027
    kXR_TLSRequired,     // 3028
+   kXR_noReplicas,      // 3029
    kXR_ERRFENCE,        // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -1004,31 +1006,32 @@ public:
 static int mapError(int rc)
       {if (rc < 0) rc = -rc;
        switch(rc)
-          {case ENOENT:       return kXR_NotFound;
-           case EINVAL:       return kXR_ArgInvalid;
-           case EPERM:        return kXR_NotAuthorized;
-           case EACCES:       return kXR_NotAuthorized;
-           case EIO:          return kXR_IOError;
-           case ENOMEM:       return kXR_NoMemory;
-           case ENOBUFS:      return kXR_NoMemory;
-           case ENOSPC:       return kXR_NoSpace;
-           case ENAMETOOLONG: return kXR_ArgTooLong;
-           case ENETUNREACH:  return kXR_noserver;
-           case ENOTBLK:      return kXR_NotFile;
-           case EISDIR:       return kXR_isDirectory;
-           case EEXIST:       return kXR_InvalidRequest;
-           case ETXTBSY:      return kXR_inProgress;
-           case ENODEV:       return kXR_FSError;
-           case EFAULT:       return kXR_ServerError;
-           case EDOM:         return kXR_ChkSumErr;
-           case EDQUOT:       return kXR_overQuota;
-           case EILSEQ:       return kXR_SigVerErr;
-           case ERANGE:       return kXR_DecryptErr;
-           case EUSERS:       return kXR_Overloaded;
-           case EROFS:        return kXR_fsReadOnly;
-           case ENOATTR:      return kXR_AttrNotFound;
-           case EPROTOTYPE:   return kXR_TLSRequired;
-           default:           return kXR_FSError;
+          {case ENOENT:        return kXR_NotFound;
+           case EINVAL:        return kXR_ArgInvalid;
+           case EPERM:         return kXR_NotAuthorized;
+           case EACCES:        return kXR_NotAuthorized;
+           case EIO:           return kXR_IOError;
+           case ENOMEM:        return kXR_NoMemory;
+           case ENOBUFS:       return kXR_NoMemory;
+           case ENOSPC:        return kXR_NoSpace;
+           case ENAMETOOLONG:  return kXR_ArgTooLong;
+           case ENETUNREACH:   return kXR_noserver;
+           case ENOTBLK:       return kXR_NotFile;
+           case EISDIR:        return kXR_isDirectory;
+           case EEXIST:        return kXR_InvalidRequest;
+           case ETXTBSY:       return kXR_inProgress;
+           case ENODEV:        return kXR_FSError;
+           case EFAULT:        return kXR_ServerError;
+           case EDOM:          return kXR_ChkSumErr;
+           case EDQUOT:        return kXR_overQuota;
+           case EILSEQ:        return kXR_SigVerErr;
+           case ERANGE:        return kXR_DecryptErr;
+           case EUSERS:        return kXR_Overloaded;
+           case EROFS:         return kXR_fsReadOnly;
+           case ENOATTR:       return kXR_AttrNotFound;
+           case EPROTOTYPE:    return kXR_TLSRequired;
+           case EADDRNOTAVAIL: return kXR_noReplicas;
+           default:            return kXR_FSError;
           }
       }
 
@@ -1064,6 +1067,7 @@ static int toErrno( int xerr )
         case kXR_BadPayload:    return EINVAL;
         case kXR_AttrNotFound:  return ENOATTR;
         case kXR_TLSRequired:   return EPROTOTYPE;
+        case kXR_noReplicas:    return EADDRNOTAVAIL;
         default:                return ENOMSG;
        }
 }

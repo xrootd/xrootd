@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_STATS_HH__
-#define __XRDFILECACHE_STATS_HH__
+#ifndef __XRDPFC_STATS_HH__
+#define __XRDPFC_STATS_HH__
 
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
@@ -22,7 +22,7 @@
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 //----------------------------------------------------------------------------
 //! Statistics of disk cache utilisation.

@@ -76,10 +76,10 @@ virtual int     getFD()                                      {return -1;}
 virtual off_t   getMmap(void **)                             {return 0;}
 virtual int     isCompressed(char *cxidp=0)                  {(void)cxidp; return -EISDIR;}
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
-virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*, bool);
-virtual int     pgRead (XrdSfsAio*, bool);
-virtual ssize_t pgWrite(void*, off_t, size_t, uint32_t*, bool);
-virtual int     pgWrite(XrdSfsAio*, bool);
+virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*, uint64_t);
+virtual int     pgRead (XrdSfsAio*, uint64_t);
+virtual ssize_t pgWrite(void*, off_t, size_t, uint32_t*, uint64_t);
+virtual int     pgWrite(XrdSfsAio*, uint64_t);
 virtual ssize_t Read(off_t, size_t)                          {return (ssize_t)-EISDIR;}
 virtual ssize_t Read(void *, off_t, size_t)                  {return (ssize_t)-EISDIR;}
 virtual int     Read(XrdSfsAio *aoip)                        {(void)aoip; return (ssize_t)-EISDIR;}
@@ -96,6 +96,11 @@ virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 
                 XrdOssDF() : pgwEOF(0), fd(-1) {}
 virtual        ~XrdOssDF() {}
+
+// pgRead and pgWrite options as noted.
+//
+static const uint64_t
+Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 
 protected:
 

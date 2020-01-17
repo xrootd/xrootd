@@ -99,7 +99,7 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
                                   char              *buffer,
                                   XrdSfsXferSize     rdlen,
                                   uint32_t          *csvec,
-                                  bool               verify)
+                                  uint64_t           opts)
 {
    XrdSfsXferSize bytes;
 
@@ -127,12 +127,12 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
 
 /******************************************************************************/
   
-XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsAio *aioparm, bool verify)
+XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgRead((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
                                             (char *)aioparm->sfsAio.aio_buf,
                                     (XrdSfsXferSize)aioparm->sfsAio.aio_nbytes,
-                                                    aioparm->cksVec, verify);
+                                                    aioparm->cksVec, opts);
    aioparm->doneRead();
    return SFS_OK;
 }
@@ -145,7 +145,7 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
                                    char              *buffer,
                                    XrdSfsXferSize     wrlen,
                                    uint32_t          *csvec,
-                                   bool               verify)
+                                   uint64_t           opts)
 {
 // Make sure the offset is on a 4K boundary
 //
@@ -169,9 +169,10 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 // If we have a checksum vector and verify is on, make sure the data
 // in the buffer corresponds to he checksums.
 //
-   if (csvec && verify)
-      {int pgErr;
-       if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,XrdSfsPageSize,pgErr))
+   if (csvec && (opts & Verify))
+      {uint32_t valcs;
+       if (XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs,
+                             XrdSfsPageSize) >= 0)
           {error.setErrInfo(EDOM,"Checksum error.");
            return SFS_ERROR;
           }
@@ -184,12 +185,12 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 
 /******************************************************************************/
   
-XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsAio *aioparm, bool verify)
+XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 {
    aioparm->Result = this->pgWrite((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
                                              (char *)aioparm->sfsAio.aio_buf,
                                      (XrdSfsXferSize)aioparm->sfsAio.aio_nbytes,
-                                                     aioparm->cksVec, verify);
+                                                     aioparm->cksVec, opts);
    aioparm->doneWrite();
    return SFS_OK;
 }

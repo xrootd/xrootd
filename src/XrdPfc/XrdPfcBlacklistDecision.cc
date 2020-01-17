@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-#include "XrdFileCacheDecision.hh"
+#include "XrdPfcDecision.hh"
 #include "XrdSys/XrdSysError.hh"
 
 #include <vector>
@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <fnmatch.h>
 
-class BlacklistDecision : public XrdFileCache::Decision
+class BlacklistDecision : public XrdPfc::Decision
 {
 //----------------------------------------------------------------------------
 //! A decision library that allows all files to be cached except for a blacklist
@@ -93,13 +93,13 @@ XrdSysError &m_log;
 };
 
 /******************************************************************************/
-/*                          XrdFileCacheGetDecision                           */
+/*                          XrdPfcGetDecision                           */
 /******************************************************************************/
 
 // Return a decision object to use.
 extern "C"
 {
-XrdFileCache::Decision *XrdFileCacheGetDecision(XrdSysError &err)
+XrdPfc::Decision *XrdPfcGetDecision(XrdSysError &err)
 {
    return new BlacklistDecision(err);
 }

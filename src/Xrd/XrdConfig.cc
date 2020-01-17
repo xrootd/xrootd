@@ -67,6 +67,7 @@
 #include "XrdOuc/XrdOucLogging.hh"
 #include "XrdOuc/XrdOucSiteName.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysFD.hh"
@@ -90,6 +91,7 @@
 
 namespace XrdGlobal
 {
+       XrdOucString      totalCF;
 extern XrdSysLogger      Logger;
 extern XrdSysError       Log;
 extern XrdOucTrace       XrdTrace;
@@ -232,6 +234,7 @@ XrdConfig::XrdConfig()
    ProtInfo.argv     = 0;
    ProtInfo.tlsPort  = 0;
    ProtInfo.tlsCtx   = 0;
+   ProtInfo.totalCF  = &totalCF;
 
    XrdNetAddr::SetCache(3*60*60); // Cache address resolutions for 3 hours
 }
@@ -875,10 +878,18 @@ void XrdConfig::Manifest(const char *pidfn)
 //
    if (write(envFD, envBuff, envLen) < 0)
       Log.Emsg("Config", errno, "write to envfile", manBuff);
-
-// All done
-//
    close(envFD);
+
+// Cleanup the config capture string
+//
+   XrdOucStream::Capture((XrdOucString *)0);
+   if (totalCF.length())
+      {char *temp = (char *)malloc(totalCF.length()+1);
+       strcpy(temp, totalCF.c_str());
+       totalCF.resize();
+       totalCF = temp;
+       free(temp);
+      }
 }
 
 /******************************************************************************/
@@ -908,6 +919,14 @@ void XrdConfig::setCFG()
 // Export result
 //
    XrdOucEnv::Export("XRDCONFIGFN", cfnP);
+
+// Setup capturing for the XrdOucStream that will be used by all others to
+// process config files.
+//
+   XrdOucStream::Capture(&totalCF);
+   totalCF.resize(1024*1024);
+   const char *cvec[] = { "*** ", myProg, " config from '", cfnP, "':", 0 };
+   XrdOucStream::Capture(cvec);
 }
 
 /******************************************************************************/
@@ -1469,9 +1488,14 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
          if (V_keep >= 0) Net_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
          Net_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0);
         }
-
+  // Turn off name chaing if not specified and dynamic dns was specified
+  //
+     if (V_dyndns >= 0)
+        {if (V_dyndns && V_ct < 0) V_ct = 0;
+         XrdNetAddr::SetDynDNS(V_dyndns != 0);
+        }
      if (V_ct >= 0) XrdNetAddr::SetCache(V_ct);
-     if (V_dyndns >= 0) XrdNetAddr::SetDynDNS(V_dyndns != 0);
+
      if (v_rpip >= 0) XrdInet::netIF.SetRPIPA(v_rpip != 0);
      if (V_assumev4 >= 0) XrdInet::SetAssumeV4(true);
      return 0;

@@ -266,7 +266,7 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, const char *hName, bool wantV6)
 
 #define RLOSLOT(xdst) xdst = (ifData *)(ifBuff+((char *)xdst-buff))
 
-bool XrdNetIF::GenIF(XrdNetAddrInfo **src, int srcnum)
+bool XrdNetIF::GenIF(XrdNetAddrInfo **src, int srcnum, const char *xName)
 {
    ifAddrs ifTab;
    const char *hName;
@@ -323,7 +323,9 @@ for (i = 0; i < srcnum; i++)
    if (!rPIPA && isPrivate)
       {ADDSLOT(ifName[ifT], ifTab.hAddr, ifTab.hALen);
       } else {
-       if ((hName = src[i]->Name()) && src[i]->isRegistered())
+       hName = src[i]->Name();
+       if (!hName || !(src[i]->isRegistered())) hName = xName;
+       if (hName)
           {ADDSLOT(ifName[ifT], hName, strlen(hName));
            ifxDNS[ifT] = true;
           } else  ifName[ifT]  = ifDest[ifT];
@@ -688,7 +690,7 @@ char *XrdNetIF::SetDomain()
 /******************************************************************************/
   
 bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, int port,
-                     netType nettype)
+                     netType nettype, const char *xName)
 {
    XrdNetAddrInfo *netIF[4] = {0,0,0,0}; //pub 0:v4, prv 1:v4 pub 2:v6 prv 3:v6
    XrdNetAddr      netAdr[4];
@@ -710,13 +712,14 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, int port,
       {XrdNetAddrInfo *ifVec[8];
        XrdNetAddr *iP;
        const char *hName = src->Name();
+       if (!(src->isRegistered()) && xName) hName = xName;
        ifCnt = 0;
        if (!hName
        ||  XrdNetUtils::GetAddrs(hName,&iP,ifCnt,XrdNetUtils::allIPv64,ifPort)
        || !ifCnt) return SetIF64(GenIF(&src, 1));
        if (ifCnt > 8) ifCnt = 8;
        for (i = 0; i < ifCnt; i++) ifVec[i] = &iP[i];
-       bool aOK = GenIF(ifVec, ifCnt);
+       bool aOK = GenIF(ifVec, ifCnt, hName);
        delete [] iP;
        return SetIF64(aOK);
       }

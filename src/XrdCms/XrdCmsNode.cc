@@ -561,9 +561,9 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
           else nRefs = sRefs = 0;
        snprintf(buff, sizeof(buff)-1,
                "load=%d; cpu=%d net=%d inq=%d mem=%d pag=%d dsk=%d utl=%d "
-               "shr=[%d %lld %lld]",
+               "shr=[%d %lld %lld] ref=[%d %d]",
                myLoad, pcpu, pnet, pxeq, pmem, ppag, Arg.dskFree, pdsk,
-               myShr, nRefs, sRefs);
+               myShr, nRefs, sRefs, RefTotR+RefR, RefTotW+RefW);
        Say.Emsg("Node", Name(), buff);
        logload = Config.LogPerf;
       } else logload--;

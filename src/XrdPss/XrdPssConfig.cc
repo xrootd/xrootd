@@ -308,6 +308,8 @@ int XrdPssSys::ConfigProc(const char *Cfn)
        return 1;
       }
    Config.Attach(cfgFD);
+   static const char *cvec[] = { "*** pss (oss) plugin config:", 0 };
+   Config.Capture(cvec);
 
 // Now start reading records until eof.
 //

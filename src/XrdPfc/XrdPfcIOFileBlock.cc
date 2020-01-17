@@ -23,17 +23,17 @@
 #include <assert.h>
 #include <fcntl.h>
 
-#include "XrdFileCacheIOFileBlock.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheStats.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcIOFileBlock.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcTrace.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 //______________________________________________________________________________
 IOFileBlock::IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &statsGlobal, Cache & cache) :
@@ -53,12 +53,39 @@ IOFileBlock::~IOFileBlock()
    TRACEIO(Debug, "deleting IOFileBlock");
 }
 
-//______________________________________________________________________________
-bool IOFileBlock::Detach(XrdOucCacheIOCD &iocdP)
-{
-   // Called from XrdPosixFile destructor ???? Not really tue
+// Check if m_mutex is needed at all, it is only used in ioActive and DetachFinalize
+// and in Read for block selection -- see if Prefetch Read requires mutex
+// to be held.
+// I think I need it in ioActive and Read.
 
-   TRACEIO(Info, "Detach IOFileBlock");
+//______________________________________________________________________________
+bool IOFileBlock::ioActive()
+{
+   // Called from XrdPosixFile when local connection is closed.
+
+   bool active = false;
+   {
+      XrdSysMutexHelper lock(&m_mutex);
+
+      for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+      {
+         // Need to initiate stop on all File / block objects.
+         if (it->second && it->second->ioActive(this))
+         {
+            active = true;
+         }
+      }
+   }
+
+   return active;
+}
+
+//______________________________________________________________________________
+void IOFileBlock::DetachFinalize()
+{
+   // Effectively a destructor.
+
+   TRACEIO(Info, "IOFileBlock::DetachFinalize() " << this);
 
    CloseInfoFile();
    {
@@ -72,11 +99,9 @@ bool IOFileBlock::Detach(XrdOucCacheIOCD &iocdP)
         }
      }
    }
-   delete this;
-//???? This needs to be coordinated with old ioActive() and return false if active
-   return true;
-}
 
+   delete this;
+}
 
 //______________________________________________________________________________
 void IOFileBlock::CloseInfoFile()
@@ -143,7 +168,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    ss << &offExt[0];
    fname = ss.str();
 
-   TRACEIO(Debug, "FileBlock::FileBlock(), create XrdFileCacheFile ");
+   TRACEIO(Debug, "FileBlock::FileBlock(), create XrdPfcFile ");
 
    File* file = Cache::GetInstance().GetFile(fname, this, off, blocksize);
    return file;
@@ -242,25 +267,6 @@ int IOFileBlock::initLocalStat()
    }
 
    return res;
-}
-
-//______________________________________________________________________________
-bool IOFileBlock::ioActive()
-{
-   XrdSysMutexHelper lock(&m_mutex);
-
-   bool active = false;
-
-   for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
-   {
-      // Need to initiate stop on all File / block objects.
-      if (it->second && it->second->ioActive(this))
-      {
-         active = true;
-      }
-   }
-
-   return active;
 }
 
 //______________________________________________________________________________

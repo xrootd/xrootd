@@ -57,7 +57,8 @@ void *XrdRmcRealPRXeq(void *parg)
   
 XrdRmcReal::XrdRmcReal(int &rc, XrdRmc::Parms &ParmV,
                        XrdOucCacheIO::aprParms *aprP)
-                : Slots(0), Slash(0), Base((char *)MAP_FAILED), Dbg(0), Lgs(0),
+                : XrdOucCache("rmc"),
+                  Slots(0), Slash(0), Base((char *)MAP_FAILED), Dbg(0), Lgs(0),
                   AZero(0), Attached(0), prFirst(0), prLast(0),
                   prReady(0), prStop(0), prNum(0)
 {

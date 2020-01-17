@@ -1,11 +1,7 @@
 #-------------------------------------------------------------------------------
 # Project description
 #-------------------------------------------------------------------------------
-cmake_minimum_required( VERSION 2.6 )
-
-IF(CMAKE_VERSION VERSION_GREATER "2.8.12")
-   CMAKE_POLICY(SET CMP0022 OLD)
-ENDIF()
+cmake_minimum_required( VERSION 3.1 )
 
 project( XRootD )
 
@@ -15,10 +11,6 @@ set( CMAKE_MODULE_PATH
 
 if(NOT (CMAKE_VERSION VERSION_LESS "3.1"))
   cmake_policy(SET CMP0054 OLD)
-endif()
-
-if(CMAKE_VERSION VERSION_LESS "3.0")
-  SET(CMAKE_DL_LIBS "-ldl")
 endif()
 
 include( XRootDUtils )

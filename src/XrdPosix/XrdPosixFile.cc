@@ -42,6 +42,7 @@
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixStats.hh"
 #include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 
@@ -57,9 +58,9 @@ namespace XrdPosixGlobals
 extern XrdOucCache     *theCache;
 extern XrdOucName2Name *theN2N;
 extern XrdSysError     *eDest;
+extern XrdPosixStats    Stats;
 extern int              ddInterval;
 extern int              ddMaxTries;
-       int              ddNumLost = 0;
 };
 
 namespace
@@ -122,13 +123,14 @@ XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
   
 XrdPosixFile::~XrdPosixFile()
 {
-// Detach the cache if it is attached
-//??? We need to figure this out, shouldn't need to do this
-// if (XCio != this) XCio->Detach();
-
 // Close the remote connection
 //
-   if (clFile.IsOpen()) {XrdCl::XRootDStatus status = clFile.Close();};
+   if (clFile.IsOpen())
+      {XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.Closes);
+       XrdCl::XRootDStatus status = clFile.Close();
+       if (!status.IsOK())
+          XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.CloseErrs);
+      }
 
 // Get rid of defered open object
 //
@@ -159,6 +161,7 @@ void* XrdPosixFile::DelayedDestroy(void* vpf)
    const char *eTxt;
    XrdPosixFile *fCurr, *fNext;
    char buff[512], buff2[256];
+   static int ddNumLost = 0;
    int ddCount, refNum;
    bool doWait = false;
 
@@ -181,13 +184,12 @@ do{if (doWait)
 
 // Do some debugging
 //
-   DEBUG("DLY destory of "<<ddCount<<" objects; "<<XrdPosixGlobals::ddNumLost
-         <<" already lost.");
+   DEBUG("DLY destory of "<<ddCount<<" objects; "<<ddNumLost <<" already lost.");
 
 // Try to delete all the files on the list. If we exceeded the try limit,
 // remove the file from the list and let it sit forever.
 //
-   int nowLost = XrdPosixGlobals::ddNumLost;
+   int nowLost = ddNumLost;
    while((fCurr = fNext))
         {fNext = fCurr->nextFile;
          if (!(refNum = fCurr->Refs()))
@@ -199,7 +201,7 @@ do{if (doWait)
             } else eTxt = 0;
 
          if (fCurr->numTries > XrdPosixGlobals::ddMaxTries)
-            {XrdPosixGlobals::ddNumLost++; ddCount--;
+            {ddNumLost++; ddCount--;
              if (!eTxt)
                 {snprintf(buff2, sizeof(buff2), "in use %d", refNum);
                  eTxt = buff2;
@@ -209,7 +211,7 @@ do{if (doWait)
                  Say->Emsg("DDestroy", buff, fCurr->Origin());
                 } else {
                  DMSG("DDestroy", eTxt <<" timeout closing " <<fCurr->Origin()
-                        <<' ' <<XrdPosixGlobals::ddNumLost <<" objects lost");
+                        <<' ' <<ddNumLost <<" objects lost");
                 }
              fCurr->nextFile = ddLost;
              ddLost = fCurr;
@@ -222,14 +224,17 @@ do{if (doWait)
              ddMutex.UnLock();
             }
         }
-        if (Say && XrdPosixGlobals::ddNumLost - nowLost >= 3)
+        if (Say && ddNumLost - nowLost >= 3)
            {snprintf(buff, sizeof(buff), "%d objects deferred and %d lost.",
-                                         ddCount, XrdPosixGlobals::ddNumLost);
+                                         ddCount,  ddNumLost);
             Say->Emsg("DDestroy", buff);
            } else {
             DEBUG("DLY destory end; "<<ddCount<<" objects deferred and "
-                             <<XrdPosixGlobals::ddNumLost <<" lost.");
+                             <<ddNumLost <<" lost.");
            }
+        if (XrdPosixGlobals::theCache && ddNumLost != nowLost)
+           XrdPosixGlobals::theCache->Statistics.Set(
+          (XrdPosixGlobals::theCache->Statistics.X.ClosedLost), ddNumLost);
    } while(true);
 
    return 0;
@@ -242,6 +247,12 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
    EPNAME("DDestroyFP");
    int  ddCount;
    bool doPost;
+
+// Count number of times this has happened (we should have a cache)
+//
+   if (XrdPosixGlobals::theCache)
+       XrdPosixGlobals::theCache->Statistics.Count(
+         (XrdPosixGlobals::theCache->Statistics.X.ClosDefers));
 
 // Place this file on the delayed delete list
 //
@@ -278,8 +289,11 @@ bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 // from the file table at this point and should be unlocked.
 //
    if (clFile.IsOpen())
-      {Status = clFile.Close();
-       return Status.IsOK();
+      {XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.Closes);
+       Status = clFile.Close();
+       if (Status.IsOK()) return true;
+       XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.CloseErrs);
+       return false;
       }
    return true;
 }
@@ -306,7 +320,11 @@ bool XrdPosixFile::Finalize(XrdCl::XRootDStatus *Status)
 // Setup the cache if it is to be used
 //
    if (XrdPosixGlobals::theCache)
-      XCio = XrdPosixGlobals::theCache->Attach(ioP, cOpt);
+      {XCio = XrdPosixGlobals::theCache->Attach(ioP, cOpt);
+       if (ioP == (XrdOucCacheIO *)PrepIO)
+       XrdPosixGlobals::theCache->Statistics.Add(
+         (XrdPosixGlobals::theCache->Statistics.X.OpenDefers), 1LL);
+      }
 
    return true;
 }

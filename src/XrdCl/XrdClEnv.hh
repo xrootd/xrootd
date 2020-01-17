@@ -114,7 +114,16 @@ namespace XrdCl
         pLock.ReInitialize();
       }
 
+      //------------------------------------------------------------------------
+      // Re-create the lock in the same memory
+      //------------------------------------------------------------------------
+      void RecreateLock()
+      {
+        new( &pLock )XrdSysRWLock();
+      }
+
     private:
+
       std::string GetEnv( const std::string &key );
       typedef std::map<std::string, std::pair<std::string, bool> > StringMap;
       typedef std::map<std::string, std::pair<int, bool> >         IntMap;

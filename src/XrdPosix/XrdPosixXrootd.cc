@@ -64,6 +64,7 @@
 #include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
+#include "XrdPosix/XrdPosixStats.hh"
 #include "XrdPosix/XrdPosixTrace.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
@@ -81,13 +82,14 @@ namespace XrdPosixGlobals
 XrdScheduler    *schedP    = 0;
 XrdOucCache     *theCache  = 0;
 XrdOucName2Name *theN2N    = 0;
-XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 XrdSysLogger    *theLogger = 0;
 XrdSysError     *eDest     = 0;
+XrdPosixStats    Stats;
 XrdSysTrace      Trace("Posix", 0,
                       (getenv("XRDPOSIX_DEBUG") ? TRACE_Debug : 0));
 int              ddInterval= 30;
 int              ddMaxTries= 180/30;
+XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 bool             oidsOK    = false;
 };
 
@@ -608,6 +610,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 
 // Open the file (sync or async)
 //
+   XrdPosixGlobals::Stats.Count((XrdPosixGlobals::Stats.X.Opens));
    if (!cbP) Status = fp->clFile.Open((std::string)path, XOflags, XOmode);
       else   Status = fp->clFile.Open((std::string)path, XOflags, XOmode,
                                       (XrdCl::ResponseHandler *)fp);
@@ -615,7 +618,8 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 // If we failed, return the reason
 //
    if (!Status.IsOK())
-      {XrdPosixMap::Result(Status);
+      {XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.OpenErrs);
+       XrdPosixMap::Result(Status);
        int rc = errno;
        if (DEBUGON && rc != ENOENT && rc != ELOOP)
           {std::string eTxt = Status.ToString();

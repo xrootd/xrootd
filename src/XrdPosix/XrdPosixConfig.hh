@@ -55,6 +55,8 @@ static void    SetEnv(const char *kword, int kval);
 
 static void    setOids(bool isok);
 
+static int     Stats(const char *theID, char *buff, int blen);
+
                XrdPosixConfig() {}
               ~XrdPosixConfig() {}
 

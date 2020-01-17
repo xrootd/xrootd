@@ -95,7 +95,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCmsgetVnId                 )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCmsPerfMonitor             )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCryptosslFactoryObject     )\
-        XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdFileCacheGetDecision       )\
+        XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdPfcGetDecision       )\
         XrdVERSIONPLUGIN_Rule(DoNotChk,  5,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdgetProtocolPort            )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdHttpGetSecXtractor         )\
@@ -174,7 +174,7 @@
         {"libXrdBwm.so",             \
          "libXrdCksCalczcrc32.so",   \
          "libXrdCryptossl.so",       \
-         "libXrdFileCache.so",       \
+         "libXrdPfc.so",       \
          "libXrdHttp.so",            \
          "libXrdHttpTPC.so",         \
          "libXrdOssSIgpfsT.so",      \

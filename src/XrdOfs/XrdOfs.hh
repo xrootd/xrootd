@@ -345,8 +345,8 @@ int   myPort;                // Port number being used
 
 // TPC related things
 //
-char             *tpcRdrHost;     // TPC redirect target or null if none
-int               tpcRdrPort;     // TPC redirect target port number
+char             *tpcRdrHost[2];  // TPC redirect target or null if none
+int               tpcRdrPort[2];  // TPC redirect target port number
 
 // Networking
 //

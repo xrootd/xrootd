@@ -1,6 +1,6 @@
 usr/include/xrootd/XrdAcc
 usr/include/xrootd/XrdCms
-usr/include/xrootd/XrdFileCache
+usr/include/xrootd/XrdPfc
 usr/include/xrootd/XrdOss
 usr/include/xrootd/XrdSfs
 usr/include/xrootd/XrdXrootd

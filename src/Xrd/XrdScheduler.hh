@@ -85,6 +85,8 @@ int        num_Limited; // Number of times max was reached
               XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
                            int minw=8, int maxw=8192, int maxi=780);
 
+              XrdScheduler(int minw=3, int maxw=128,  int maxi=12);
+
              ~XrdScheduler();
 
 private:
@@ -115,6 +117,7 @@ XrdSchedulerPID       *firstPID;
 XrdSysMutex            ReaperMutex;
 
 void hireWorker(int dotrace=1);
+void Init(int minw, int maxw, int maxi);
 void Monitor();
 void traceExit(pid_t pid, int status);
 static const char *TraceID;

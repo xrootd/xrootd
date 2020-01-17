@@ -808,7 +808,8 @@ int XrdOucString::replace(const char *s1, const char *s2, int from, int to)
                memcpy(pc-l2,s2,l2);
             nc--;
             atn = at;
-            at = rfind(s1,at-l1);
+            if( at - l1 < 0 ) at = -1;
+            else at = rfind(s1,at-l1);
          }
          dl = nr*dd;
       }

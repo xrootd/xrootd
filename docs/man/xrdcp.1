@@ -14,7 +14,7 @@ xrdcp - copy files
 [\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR] [\fB--verbose\fR]
 [\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 [\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR] [\fB--path\fR]
-[\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR]
+[\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR] [\fB--xattr\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -171,6 +171,11 @@ number of copy jobs to be run simultaneously
 \fB--allow-http\fR
 .RS 5
 allow HTTP as source or destination protocol. Requires the XrdClHttp client plugin
+
+.RE
+\fB--xattr\fR
+.RS 5
+preserve extended attributes
 
 .SH LEGACY OPTIONS
 Legacy options are provided for backward compatability. These are now
@@ -510,6 +515,12 @@ XRD_PRESERVELOCATETRIED
 .RS 5
 If set to 1 XRootD client will preserve tired/triedrc cgi opaque info for kXR_locate request accross redirects/retries,
 if set to 0 XRootD client will treat kXR_locate as any other passive request.
+.RE
+
+XRD_PRESERVEXATTRS
+.RS 5
+If set to 1 (default) xrdcp will preverve file extended attribues,
+if set to 0 file extended attributes wont be preserved.
 .RE
 
 .SH RETURN CODES

@@ -58,6 +58,9 @@ File::close()
    return m_sfs->close();
 }
 
+int File::checkpoint(cpAct act, struct iov *range, int n)
+{  return m_sfs->checkpoint(act, range, n);}
+
 int
 File::fctl(const int               cmd,
            const char             *args,
@@ -90,19 +93,19 @@ File::pgRead(XrdSfsFileOffset   offset,
              char              *buffer,
              XrdSfsXferSize     rdlen,
              uint32_t          *csvec,
-             bool               verify)
+             uint64_t           opts)
 {
    DO_THROTTLE(rdlen)
-   return m_sfs->pgRead(offset, buffer, rdlen, csvec, verify);
+   return m_sfs->pgRead(offset, buffer, rdlen, csvec, opts);
 }
 
 XrdSfsXferSize
-File::pgRead(XrdSfsAio *aioparm, bool verify)
+File::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 {  // We disable all AIO-based reads.
    aioparm->Result = this->pgRead((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
                                             (char *)aioparm->sfsAio.aio_buf,
                                     (XrdSfsXferSize)aioparm->sfsAio.aio_nbytes,
-                                                    aioparm->cksVec, verify);
+                                                    aioparm->cksVec, opts);
    aioparm->doneRead();
    return SFS_OK;
 }
@@ -112,19 +115,19 @@ File::pgWrite(XrdSfsFileOffset   offset,
               char              *buffer,
               XrdSfsXferSize     rdlen,
               uint32_t          *csvec,
-              bool               verify)
+              uint64_t           opts)
 {
    DO_THROTTLE(rdlen)
-   return m_sfs->pgWrite(offset, buffer, rdlen, csvec, verify);
+   return m_sfs->pgWrite(offset, buffer, rdlen, csvec, opts);
 }
 
 XrdSfsXferSize
-File::pgWrite(XrdSfsAio *aioparm, bool verify)
+File::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
 {  // We disable all AIO-based writes.
    aioparm->Result = this->pgWrite((XrdSfsFileOffset)aioparm->sfsAio.aio_offset,
                                              (char *)aioparm->sfsAio.aio_buf,
                                      (XrdSfsXferSize)aioparm->sfsAio.aio_nbytes,
-                                                     aioparm->cksVec, verify);
+                                                     aioparm->cksVec, opts);
    aioparm->doneWrite();
    return SFS_OK;
 }

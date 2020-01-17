@@ -1869,15 +1869,20 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::SetXAttr( const std::string           &path,
                                      const std::vector<xattr_t>  &attrs,
-                                     std::vector<XAttrStatus>   *&result,
+                                     std::vector<XAttrStatus>    &result,
                                      uint16_t                     timeout )
   {
     SyncResponseHandler handler;
-    Status st = SetXAttr( path, attrs, &handler, timeout );
+    XRootDStatus st = SetXAttr( path, attrs, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
-    return MessageUtils::WaitForResponse( &handler, result );
+    std::vector<XAttrStatus> *resp = 0;
+    st = MessageUtils::WaitForResponse( &handler, resp );
+    if( resp ) result.swap( *resp );
+    delete resp;
+
+    return st;
   }
 
   //------------------------------------------------------------------------
@@ -1899,15 +1904,20 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::GetXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
-                                     std::vector<XAttr>             *&result,
+                                     std::vector<XAttr>              &result,
                                      uint16_t                         timeout )
   {
     SyncResponseHandler handler;
-    Status st = GetXAttr( path, attrs, &handler, timeout );
+    XRootDStatus st = GetXAttr( path, attrs, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
-    return MessageUtils::WaitForResponse( &handler, result );
+    std::vector<XAttr> *resp = 0;
+    st = MessageUtils::WaitForResponse( &handler, resp );
+    if( resp ) result.swap( *resp );
+    delete resp;
+
+    return st;
   }
 
   //------------------------------------------------------------------------
@@ -1929,15 +1939,20 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::DelXAttr( const std::string               &path,
                                      const std::vector<std::string>  &attrs,
-                                     std::vector<XAttrStatus>       *&result,
+                                     std::vector<XAttrStatus>        &result,
                                      uint16_t                         timeout )
   {
     SyncResponseHandler handler;
-    Status st = DelXAttr( path, attrs, &handler, timeout );
+    XRootDStatus st = DelXAttr( path, attrs, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
-    return MessageUtils::WaitForResponse( &handler, result );
+    std::vector<XAttrStatus> *resp = 0;
+    st = MessageUtils::WaitForResponse( &handler, resp );
+    if( resp ) result.swap( *resp );
+    delete resp;
+
+    return st;
   }
 
   //------------------------------------------------------------------------
@@ -1959,15 +1974,20 @@ namespace XrdCl
   // List extended attributes - sync
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::ListXAttr( const std::string    &path,
-                                      std::vector<XAttr>  *&result,
+                                      std::vector<XAttr>   &result,
                                       uint16_t              timeout )
   {
     SyncResponseHandler handler;
-    Status st = ListXAttr( path, &handler, timeout );
+    XRootDStatus st = ListXAttr( path, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
-    return MessageUtils::WaitForResponse( &handler, result );
+    std::vector<XAttr> *resp = 0;
+    st = MessageUtils::WaitForResponse( &handler, resp );
+    if( resp ) result.swap( *resp );
+    delete resp;
+
+    return st;
   }
 
   //----------------------------------------------------------------------------

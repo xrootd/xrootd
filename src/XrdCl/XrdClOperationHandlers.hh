@@ -50,7 +50,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
-        // status is always OK for bulk response
+        // status maybe error for old servers not supporting xattrs
+        if( !status->IsOK() )
+        {
+          handler->HandleResponse( status, nullptr );
+          return;
+        }
 
         std::vector<XAttrStatus> *bulk = nullptr;
         response->Get( bulk );

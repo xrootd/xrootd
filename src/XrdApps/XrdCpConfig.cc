@@ -113,6 +113,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "parallel",    1, 0, XrdCpConfig::OpParallel},
       {OPT_TYPE "zip",         1, 0, XrdCpConfig::OpZip},
       {OPT_TYPE "allow-http",  0, 0, XrdCpConfig::OpAllowHttp},
+      {OPT_TYPE "xattr",       0, 0, XrdCpConfig::OpXAttr},
       {0,                      0, 0, 0}
      };
 
@@ -303,6 +304,8 @@ do{while(optind < Argc && Legacy(optind)) {}
                            break;
           case OpAllowHttp: OpSpec |= DoAllowHttp;
                             break;
+          case OpXAttr :   OpSpec |= DoXAttr;
+                           break;
           case ':':        UMSG("'" <<OpName() <<"' argument missing.");
                            break;
           case '?':        if (!Legacy(optind-1))
@@ -895,7 +898,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
    "         [--streams <n>] [--tlsdata] [--tlsmetalink]\n"
    "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
-   "         [--xrate <rate>] [--zip <file>] [--allow-http]\n";
+   "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root[s]://<host>[:<port>]/]<path> | -";
@@ -946,6 +949,7 @@ void XrdCpConfig::Usage(int rc)
    "-z | --zip <file>   treat the source as a ZIP archive containing given file\n"
    "-A | --allow-http   allow HTTP as source or destination protocol. Requires\n"
    "                    the XrdClHttp client plugin\n"
+   "     --xattr        preserve extended attributes\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

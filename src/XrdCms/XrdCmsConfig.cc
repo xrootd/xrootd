@@ -369,6 +369,11 @@ int XrdCmsConfig::Configure2()
    char *p, buff[512];
    std::string envData;
 
+// Add our host name to the env
+//
+   envData += "myHN=";
+   envData += myName;
+
 // Print herald
 //
    sprintf(buff, " phase 2 %s initialization started.", myRole);
@@ -414,7 +419,7 @@ int XrdCmsConfig::Configure2()
           else {if (QTRACE(Debug))
                    Say.Say("Config ", "Global System Identification: ", mySID);
                 if (Config.mySite)
-                   {envData += "site=";
+                   {envData += "&site=";
                     envData += mySite;
                    }
                }

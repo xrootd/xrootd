@@ -90,6 +90,10 @@ XrdSysXSLock *myLock;
 XrdSysXS_Type myUsage;
 };
 
+// Statics per connection
+//
+XrdOucCacheStats Statistics;
+
 // The following supports MRSW serialization
 //
 XrdSysXSLock     rwLock;

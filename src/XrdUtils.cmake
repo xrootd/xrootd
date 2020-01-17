@@ -78,6 +78,7 @@ add_library(
                                 XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.cc      XrdOuc/XrdOucCallBack.hh
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh
+  XrdOuc/XrdOucCRC32C.cc        XrdOuc/XrdOucCRC32C.hh
   XrdOuc/XrdOucEnv.cc           XrdOuc/XrdOucEnv.hh
                                 XrdOuc/XrdOucHash.hh
                                 XrdOuc/XrdOucHash.icc
@@ -176,7 +177,7 @@ add_library(
                                 Xrd/XrdPollInfo.hh
                                 Xrd/XrdPollPoll.hh
                                 Xrd/XrdPollPoll.icc
-  Xrd/XrdProtocol.cc            Xrd/XrdProtocol.hh
+                                Xrd/XrdProtocol.hh
   Xrd/XrdScheduler.cc           Xrd/XrdScheduler.hh
   Xrd/XrdSendQ.cc               Xrd/XrdSendQ.hh
                                 Xrd/XrdTrace.hh
@@ -219,8 +220,7 @@ target_link_libraries(
   XrdUtils
   pthread
   ${CMAKE_DL_LIBS}
-  ssl
-  crypto
+  ${OPENSSL_LIBRARIES}
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )

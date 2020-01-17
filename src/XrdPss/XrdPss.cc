@@ -109,7 +109,7 @@ using namespace XrdProxy;
 /*                XrdOssGetSS (a.k.a. XrdOssGetStorageSystem)                 */
 /******************************************************************************/
 
-XrdVERSIONINFO(XrdOssGetStorageSystem,XrdPss);
+XrdVERSIONINFO(XrdOssGetStorageSystem2,XrdPss);
   
 // This function is called by the OFS layer to retrieve the Storage System
 // object. We return our proxy storage system object if configuration succeeded.
@@ -138,9 +138,8 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
 /******************************************************************************/
   
 XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
-                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem)),
+                         myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
                          myFeatures(XRDOSS_HASPRXY)
-
                          {}
 
 /******************************************************************************/
@@ -438,6 +437,24 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 // Return proxied stat
 //
    return (XrdPosixXrootd::Stat(pbuff, buff) ? -errno : XrdOssOK);
+}
+
+/******************************************************************************/
+/*                                 S t a t s                                  */
+/******************************************************************************/
+  
+/* Function: Return statistics.
+
+  Input:    buff        - Pointer to buffer for statistics data.
+            blen        - The length of the buffer.
+
+  Output:   When blen is not zero, null terminated statistics are placed
+            in buff and the length is returned. When blen is zero, the
+            maximum length needed is returned.
+*/
+int XrdPssSys::Stats(char *bp, int bl)
+{
+   return XrdPosixConfig::Stats("pss", bp, bl);
 }
 
 /******************************************************************************/

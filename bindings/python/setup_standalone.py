@@ -42,7 +42,7 @@ print('XRootD library dir: ', xrdlibdir)
 print('XRootD include dir: ', xrdincdir)
 print('Version:            ', version)
 
-setup( name             = 'pyxrootd',
+setup( name             = 'xrootd',
        version          = version,
        author           = 'XRootD Developers',
        author_email     = 'xrootd-dev@slac.stanford.edu',

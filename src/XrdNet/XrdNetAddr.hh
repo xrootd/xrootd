@@ -73,6 +73,19 @@ static bool IPV4Set() {return useIPV4;}
 int         Port(int pNum=-1);
 
 //------------------------------------------------------------------------------
+//! Register a host name with this IP address. This is not MT-safe!
+//!
+//! @param  hName    -> to a true host name which should be fully qualified.
+//!                     One of the IP addresses registered to this name must
+//!                     match the IP address associated with this object.
+//!
+//! @return True:    Specified name is now associated with this address.
+//!         False:   Nothing changed, registration could not be verified.
+//------------------------------------------------------------------------------
+
+bool        Register(const char *hName);
+
+//------------------------------------------------------------------------------
 //! Set the IP address and possibly the port number.
 //!
 //! @param  hSpec    0 -> address is set to in6addr_any for binding via bind()

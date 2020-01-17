@@ -1,17 +1,17 @@
-#include "XrdFileCacheFile.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcFile.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcTrace.hh"
 
-#include "XrdFileCacheInfo.hh"
-#include "XrdFileCacheStats.hh"
-#include "XrdFileCacheIO.hh"
+#include "XrdPfcInfo.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcIO.hh"
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 // A list of IOVec chuncks that match a given block index.
 // arr vector holds chunk readv indicies.
@@ -35,7 +35,7 @@ struct ReadVChunkListRAM
 // RAM
 struct ReadVBlockListRAM
 {
-   std::vector<XrdFileCache::ReadVChunkListRAM> bv;
+   std::vector<XrdPfc::ReadVChunkListRAM> bv;
 
    bool AddEntry(Block* block, int chunkIdx, bool ireq)
    {
@@ -68,13 +68,13 @@ struct ReadVBlockListDisk
             return;
          }
       }
-      bv.push_back(XrdFileCache::ReadVChunkListDisk(blockIdx));
+      bv.push_back(XrdPfc::ReadVChunkListDisk(blockIdx));
       bv.back().arr.push_back(chunkIdx);
    }
 };
 }
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 //------------------------------------------------------------------------------
 
@@ -419,7 +419,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
          {
             bytes_read = bi->block->m_errno;
             TRACEF(Error, "File::VReadProcessBlocks() io " << io << ", block "<< bi->block <<
-                   " finished with error " << -bytes_read << " " << strerror(-bytes_read));
+                   " finished with error " << -bytes_read << " " << XrdSysE2T(-bytes_read));
             break;
          }
 

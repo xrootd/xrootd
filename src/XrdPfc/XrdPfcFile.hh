@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_FILE_HH__
-#define __XRDFILECACHE_FILE_HH__
+#ifndef __XRDPFC_FILE_HH__
+#define __XRDPFC_FILE_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel
@@ -24,8 +24,8 @@
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
-#include "XrdFileCacheInfo.hh"
-#include "XrdFileCacheStats.hh"
+#include "XrdPfcInfo.hh"
+#include "XrdPfcStats.hh"
 
 #include <string>
 #include <map>
@@ -39,7 +39,7 @@ namespace XrdCl
 class Log;
 }
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 class BlockResponseHandler;
 class DirectResponseHandler;
@@ -52,7 +52,7 @@ struct ReadVChunkListDisk;
 }
 
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 
 class File;
@@ -250,7 +250,12 @@ private:
       bool   m_allow_prefetching;
       bool   m_ioactive_false_reported;
 
-      IODetails(time_t at) : m_attach_time(at), m_active_prefetches(0), m_allow_prefetching(true) {}
+      IODetails(time_t at) :
+         m_attach_time             (at),
+         m_active_prefetches       (0),
+         m_allow_prefetching       (true),
+         m_ioactive_false_reported (false)
+      {}
    };
 
    typedef std::map<IO*, IODetails> IoMap_t;

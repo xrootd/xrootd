@@ -87,7 +87,7 @@ if( NOT XRDCL_ONLY )
     XrdCms/XrdCmsClient.hh
     XrdCms/XrdCmsPerfMon.hh
     XrdCms/XrdCmsVnId.hh
-    XrdFileCache/XrdFileCacheDecision.hh
+    XrdPfc/XrdPfcDecision.hh
     XrdOfs/XrdOfsPrepare.hh
     XrdOss/XrdOss.hh
     XrdOss/XrdOssDefaultSS.hh
@@ -103,6 +103,7 @@ if( NOT XRDCL_ONLY )
     XrdSfs/XrdSfsDio.hh
     XrdSfs/XrdSfsXio.hh
     XrdSfs/XrdSfsFlags.hh
+    XrdSfs/XrdSfsGPFile.hh
     XrdSfs/XrdSfsInterface.hh
     XrdXrootd/XrdXrootdMonData.hh
     XrdXrootd/XrdXrootdBridge.hh

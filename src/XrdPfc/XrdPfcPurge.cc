@@ -1,5 +1,5 @@
-#include "XrdFileCache.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcTrace.hh"
 
 #include <fcntl.h>
 #include <sys/time.h>
@@ -7,9 +7,9 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysTrace.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 
 XrdSysTrace* GetTrace()
@@ -371,7 +371,7 @@ public:
    {
       static const char* m_traceID = "Purge";
 
-      const char   *InfoExt    = XrdFileCache::Info::s_infoExtension;
+      const char   *InfoExt    = XrdPfc::Info::s_infoExtension;
       const size_t  InfoExtLen = strlen(InfoExt);
 
       Cache        &cache = Cache::GetInstance();
@@ -439,7 +439,7 @@ public:
                }
                else
                {
-                  TRACE(Warning, "FillFileMapRecurse() can't open or read " << new_path << ", err " << strerror(errno)
+                  TRACE(Warning, "FillFileMapRecurse() can't open or read " << new_path << ", err " << XrdSysE2T(errno)
                         << "; purging.");
                   oss->Unlink(new_path.c_str());
                   new_path = new_path.substr(0, new_path.size() - InfoExtLen);
@@ -463,7 +463,7 @@ public:
 
 };
 
-} // end XrdFileCache namespace
+} // end XrdPfc namespace
 
 
 //==============================================================================
@@ -715,7 +715,7 @@ void Cache::Purge()
             }
 
             std::string infoPath = it->second.path;
-            std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdFileCache::Info::s_infoExtension));
+            std::string dataPath = infoPath.substr(0, infoPath.size() - strlen(XrdPfc::Info::s_infoExtension));
 
             if (IsFileActiveOrPurgeProtected(dataPath))
             {

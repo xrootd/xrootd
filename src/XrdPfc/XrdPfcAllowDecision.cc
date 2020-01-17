@@ -16,11 +16,11 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-#include "XrdFileCacheDecision.hh"
+#include "XrdPfcDecision.hh"
 #include "XrdSys/XrdSysError.hh"
 
 
-class AllowDecision : public XrdFileCache::Decision
+class AllowDecision : public XrdPfc::Decision
 {
 //----------------------------------------------------------------------------
 //! The simplest example of plugin - always allow the file to be prefetched.
@@ -32,13 +32,13 @@ virtual bool Decide(std::string &, XrdOss &) const {return true; }
 };
 
 /******************************************************************************/
-/*                          XrdFileCacheGetDecision                           */
+/*                          XrdPfcGetDecision                           */
 /******************************************************************************/
 
 // Return a decision object to use.
 extern "C"
 {
-XrdFileCache::Decision *XrdFileCacheGetDecision(XrdSysError &)
+XrdPfc::Decision *XrdPfcGetDecision(XrdSysError &)
 {
    return new AllowDecision();
 }

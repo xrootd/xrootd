@@ -338,6 +338,8 @@ static void Routing(netType nettype);
 //!                  >0 -> Use the number passed.
 //! @param  nettype  Determines how undefined interfaces are resolved. See
 //!                  the netType definition.
+//! @param  xName    the known registered host name should ip address
+//!                  translation fail.
 //!
 //! @return Success: True.
 //!         Failure: False and if eText is supplied, the error message,
@@ -345,7 +347,7 @@ static void Routing(netType nettype);
 //------------------------------------------------------------------------------
 
        bool SetIF(XrdNetAddrInfo *src, const char *ifList, int port=0,
-                  netType nettype=netDefault);
+                  netType nettype=netDefault, const char *xName=0);
 
 //------------------------------------------------------------------------------
 //! Set the public and private network interface names.
@@ -399,7 +401,7 @@ struct ifAddrs
 
 bool  GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src);
 bool  GenAddrs(ifAddrs &ifTab, const char *hName, bool wantV6);
-bool  GenIF(XrdNetAddrInfo **src, int srcnum);
+bool  GenIF(XrdNetAddrInfo **src, int srcnum, const char *xName=0);
 static
 bool  IsOkName(const char *ifn, short &ifIdx);
 static

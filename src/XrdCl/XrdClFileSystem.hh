@@ -734,7 +734,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus SetXAttr( const std::string           &path,
                              const std::vector<xattr_t>  &attrs,
-                             std::vector<XAttrStatus>   *&result,
+                             std::vector<XAttrStatus>    &result,
                              uint16_t                     timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -766,7 +766,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus GetXAttr( const std::string               &path,
                              const std::vector<std::string>  &attrs,
-                             std::vector<XAttr>             *&result,
+                             std::vector<XAttr>              &result,
                              uint16_t                         timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -798,7 +798,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus DelXAttr( const std::string               &path,
                              const std::vector<std::string>  &attrs,
-                             std::vector<XAttrStatus>       *&result,
+                             std::vector<XAttrStatus>        &result,
                              uint16_t                         timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -826,7 +826,7 @@ namespace XrdCl
       //! @return        : status of the operation
       //------------------------------------------------------------------------
       XRootDStatus ListXAttr( const std::string    &path,
-                              std::vector<XAttr>  *&result,
+                              std::vector<XAttr>   &result,
                               uint16_t              timeout = 0 );
 
       //------------------------------------------------------------------------

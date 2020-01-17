@@ -437,11 +437,11 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   // Abort the copy after 100MB
   //----------------------------------------------------------------------------
-  CancelProgressHandler progress;
-  CPPUNIT_ASSERT_XRDST( process2.AddJob( properties, &results ) );
-  CPPUNIT_ASSERT_XRDST( process2.Prepare() );
-  CPPUNIT_ASSERT_XRDST_NOTOK( process2.Run(&progress), errErrorResponse );
-  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+//  CancelProgressHandler progress;
+//  CPPUNIT_ASSERT_XRDST( process2.AddJob( properties, &results ) );
+//  CPPUNIT_ASSERT_XRDST( process2.Prepare() );
+//  CPPUNIT_ASSERT_XRDST_NOTOK( process2.Run(&progress), errErrorResponse );
+//  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
 
   //----------------------------------------------------------------------------
   // Copy from a non-existent source
@@ -451,7 +451,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "initTimeout", 10 );
   CPPUNIT_ASSERT_XRDST( process3.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process3.Prepare() );
-  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Run(&progress), errOperationExpired );
+  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Run(0), errOperationExpired );
 
   //----------------------------------------------------------------------------
   // Copy to a non-existent target
@@ -479,17 +479,37 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Clear();
 
   //----------------------------------------------------------------------------
-  // Copy from local fs
+  // Copy from local fs with extended attributes
   //----------------------------------------------------------------------------
+
+  // set extended attributes in the local source file
+  File lf;
+  CPPUNIT_ASSERT_XRDST( lf.Open( "file://localhost" + localFile, OpenFlags::Write ) );
+  std::vector<xattr_t> attrs; attrs.push_back( xattr_t( "foo", "bar" ) );
+  std::vector<XAttrStatus> result;
+  CPPUNIT_ASSERT_XRDST( lf.SetXAttr( attrs, result ) );
+  CPPUNIT_ASSERT( result.size() == 1 );
+  CPPUNIT_ASSERT_XRDST( result.front().status );
+  CPPUNIT_ASSERT_XRDST( lf.Close() );
+
   results.Clear();
   properties.Set( "source", "file://localhost" + localFile );
   properties.Set( "target", targetURL );
   properties.Set( "checkSumMode", "end2end" );
   properties.Set( "checkSumType", "zcrc32"  );
+  properties.Set( "preserveXAttr", true );
   CPPUNIT_ASSERT_XRDST( process9.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process9.Prepare() );
   CPPUNIT_ASSERT_XRDST( process9.Run(0) );
   properties.Clear();
+
+  // now test if the xattrs were preserved
+  std::vector<XAttr> xattrs;
+  CPPUNIT_ASSERT_XRDST( fs.ListXAttr( targetPath, xattrs ) );
+  CPPUNIT_ASSERT( xattrs.size() == 1 );
+  XAttr &xattr = xattrs.front();
+  CPPUNIT_ASSERT_XRDST( xattr.status );
+  CPPUNIT_ASSERT( xattr.name == "foo" && xattr.value == "bar" );
 
   //----------------------------------------------------------------------------
   // Cleanup

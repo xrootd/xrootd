@@ -41,6 +41,9 @@ public:
    virtual int
    close();
 
+   virtual int
+   checkpoint(cpAct act, struct iov *range=0, int n=0);
+
    using XrdSfsFile::fctl;
    virtual int
    fctl(const int               cmd,
@@ -58,20 +61,20 @@ public:
           char              *buffer,
           XrdSfsXferSize     rdlen,
           uint32_t          *csvec,
-          bool               verify=true);
+          uint64_t           opts=0);
 
    virtual XrdSfsXferSize
-   pgRead(XrdSfsAio *aioparm, bool verify=true);
+   pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
 
    virtual XrdSfsXferSize
    pgWrite(XrdSfsFileOffset   offset,
            char              *buffer,
            XrdSfsXferSize     rdlen,
            uint32_t          *csvec,
-           bool               verify=true);
+           uint64_t           opts=0);
 
    virtual XrdSfsXferSize
-   pgWrite(XrdSfsAio *aioparm, bool verify=true);
+   pgWrite(XrdSfsAio *aioparm, uint64_t opts=0);
 
    virtual int
    read(XrdSfsFileOffset   fileOffset,   // Preread only
@@ -185,6 +188,9 @@ public:
          const char             *args,
                XrdOucErrInfo    &out_error,
          const XrdSecEntity     *client);
+
+   virtual int
+   getChkPSize();
 
    virtual int
    getStats(char *buff, int blen);

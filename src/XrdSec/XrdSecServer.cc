@@ -502,6 +502,8 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 // Now start reading records until eof.
 //
    Config.Attach(cfgFD); Config.Tabs(0);
+   static const char *cvec[] = { "*** sec plugin config:", 0 };
+   Config.Capture(cvec);
    while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, "sec.", 4))
             {recs++;

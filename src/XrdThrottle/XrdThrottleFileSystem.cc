@@ -107,6 +107,12 @@ FileSystem::fsctl(const int               cmd,
 }
 
 int
+FileSystem::getChkPSize()
+{
+   return m_sfs_ptr->getChkPSize();
+}
+
+int
 FileSystem::getStats(char *buff,
                      int   blen)
 {

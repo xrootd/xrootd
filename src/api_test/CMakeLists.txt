@@ -29,8 +29,7 @@ add_executable(
 target_link_libraries(
   xrdsrv
   XrdUtils
-  ssl
-  crypto
+  ${OPENSSL_LIBRARIES}
   pthread )
   
 endif()

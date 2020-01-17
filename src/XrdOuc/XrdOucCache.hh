@@ -318,13 +318,6 @@ virtual void Write(XrdOucCacheIOCB &iocb, char *buff, long long offs, int wlen)
                   {iocb.Done(Write(buff, offs, wlen));}
 
 //------------------------------------------------------------------------------
-// Statistics about individual file usage reside here. There is also an overall
-// summary CacheStats object in the cache object itself.
-//------------------------------------------------------------------------------
-
-XrdOucCacheStats Statistics;
-
-//------------------------------------------------------------------------------
 //! Construct and Destructor
 //------------------------------------------------------------------------------
 
@@ -529,13 +522,31 @@ virtual int    Xeq(XeqCmd cmd, char *arg, int arglen)
 //! associated cacheIO objects are deleted and their statistics are added.
 //------------------------------------------------------------------------------
 
-XrdOucCacheStats Stats;
+XrdOucCacheStats Statistics;
 
 //------------------------------------------------------------------------------
-//! Constructor & Destructor
+//! A 1-to-7 character cache type identifier (usually pfc or rmc).
 //------------------------------------------------------------------------------
 
-               XrdOucCache() {}
+const char CacheType[8];
+
+//------------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param ctype   - A 1-to-7 character cache type identifier.
+//------------------------------------------------------------------------------
+
+               XrdOucCache(const char *ctype) : CacheType{}
+//                        : CacheType({'\0','\0','\0','\0','\0','\0','\0','\0'})
+                          {strncpy(const_cast<char *>(CacheType), ctype,
+                                   sizeof(CacheType));
+                           const_cast<char *>(CacheType)[sizeof(CacheType)-1]=0;
+                          }
+
+//------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+
 virtual       ~XrdOucCache() {}
 };
 

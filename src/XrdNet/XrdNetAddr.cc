@@ -165,6 +165,42 @@ int XrdNetAddr::Port(int pNum)
 }
   
 /******************************************************************************/
+/*                              R e g i s t e r                               */
+/******************************************************************************/
+  
+bool XrdNetAddr::Register(const char *hName)
+{
+   XrdNetAddr *aListVec = 0;
+   int i, aListNum;
+
+// Step one is to make sure the incomming name is not an address
+//
+   if (!isHostName(hName)) return false;
+
+// The next step is to get all of the IP addresses registered for this name
+//
+   if (XrdNetUtils::GetAddrs(hName, &aListVec, aListNum,
+                      XrdNetUtils::allIPMap, XrdNetUtils::NoPortRaw))
+      return false;
+
+// In order to use the given name, one of the IP addresses in the list must
+// match our address. This is about as secure we can get.
+//
+   for (i = 0; i < aListNum; i++) {if (Same(&aListVec[i])) break;}
+   delete [] aListVec;
+
+// If we didn't find a match, report it
+//
+   if (i >= aListNum) return false;
+
+// Replace current hostname with the wanted one
+//
+   if (hostName) free(hostName);
+   hostName = strdup(hName);
+   return true;
+}
+
+/******************************************************************************/
 /*                                   S e t                                    */
 /******************************************************************************/
   

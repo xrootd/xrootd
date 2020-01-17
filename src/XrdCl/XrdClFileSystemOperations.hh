@@ -380,12 +380,12 @@ namespace XrdCl
       }
   };
 
-  TruncateFsImpl<false> Truncate( FileSystem *fs, Arg<std::string> path, Arg<uint64_t> size )
+  inline TruncateFsImpl<false> Truncate( FileSystem *fs, Arg<std::string> path, Arg<uint64_t> size )
   {
     return TruncateFsImpl<false>( fs, std::move( path ), std::move( size ) );
   }
 
-  TruncateFsImpl<false> Truncate( FileSystem &fs, Arg<std::string> path, Arg<uint64_t> size )
+  inline TruncateFsImpl<false> Truncate( FileSystem &fs, Arg<std::string> path, Arg<uint64_t> size )
   {
     return TruncateFsImpl<false>( fs, std::move( path ), std::move( size ) );
   }
@@ -706,12 +706,12 @@ namespace XrdCl
       }
   };
 
-  StatFsImpl<false> Stat( FileSystem *fs, Arg<std::string> path )
+  inline StatFsImpl<false> Stat( FileSystem *fs, Arg<std::string> path )
   {
     return StatFsImpl<false>( fs, std::move( path ) );
   }
 
-  StatFsImpl<false> Stat( FileSystem &fs, Arg<std::string> path )
+  inline StatFsImpl<false> Stat( FileSystem &fs, Arg<std::string> path )
   {
     return StatFsImpl<false>( fs, std::move( path ) );
   }

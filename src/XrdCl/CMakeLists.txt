@@ -96,11 +96,11 @@ target_link_libraries(
   XrdXml
   XrdUtils
   pthread
-  uuid
+  ${UUID_LIBRARY}
   z
   ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS}
-  ssl)
+  ${OPENSSL_LIBRARIES})
 
 set_target_properties(
   XrdCl
@@ -188,10 +188,10 @@ install(
     XrdClOperationHandlers.hh
     XrdClArg.hh
     XrdClFwd.hh
-    XrdClParallelOperation.hh
-    XrdClFileOperations.hh
-    XrdClFileSystemOperations.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private )
+	  XrdClParallelOperation.hh
+	  XrdClFileOperations.hh
+	  XrdClFileSystemOperations.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
 if( NOT XRDCL_LIB_ONLY )
 install(

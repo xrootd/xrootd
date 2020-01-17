@@ -487,6 +487,13 @@ virtual const char    *FName() = 0;
 virtual int            getMmap(void **Addr, off_t &Size) = 0;
 
 //-----------------------------------------------------------------------------
+//! Options for pgRead() and pgWrite() as noted below.
+//-----------------------------------------------------------------------------
+
+static const uint64_t
+Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
+
+//-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.
 //!
 //! @param  offset  - The offset where the read is to start. It must be
@@ -495,10 +502,9 @@ virtual int            getMmap(void **Addr, off_t &Size) = 0;
 //! @param  rdlen   - The number of bytes to read. The amount must be an
 //!                   integral number of XrdSfsPageSize bytes.
 //! @param  csvec   - A vector of [rdlen/XrdSfsPageSize] entries which will be
-//!                   filled with the corresponding CRC32 checksum for each
+//!                   filled with the corresponding CRC32C checksum for each
 //!                   page. A nil pointer does not return the checksums.
-//! @param  verify  - When true, the checksum is verified for each page; an
-//!                   error is returned if any checksum is incorrect.
+//! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes that placed in buffer.
 //! @return SFS_ERROR File could not be read, error holds the reason.
@@ -508,20 +514,19 @@ virtual XrdSfsXferSize pgRead(XrdSfsFileOffset   offset,
                               char              *buffer,
                               XrdSfsXferSize     rdlen,
                               uint32_t          *csvec,
-                              bool               verify=true);
+                              uint64_t           opts=0);
 
 //-----------------------------------------------------------------------------
 //! Read file pages and checksums using asynchronous I/O.
 //!
 //! @param  aioparm - Pointer to async I/O object controlling the I/O.
-//! @param  verify  - When true, the checksum is verified for each page; an
-//!                   error is returned if any checksum is incorrect.
+//! @param  opts    - Processing options (see above).
 //!
 //! @return SFS_OK    Request accepted and will be scheduled.
 //! @return SFS_ERROR File could not be read, error holds the reason.
 //-----------------------------------------------------------------------------
 
-virtual int            pgRead(XrdSfsAio *aioparm, bool verify=true);
+virtual int            pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
 
 //-----------------------------------------------------------------------------
 //! Write file pages into a file with corresponding checksums.
@@ -535,8 +540,7 @@ virtual int            pgRead(XrdSfsAio *aioparm, bool verify=true);
 //! @param  csvec   - A vector of [CEILING(wrlen/XrdSfsPageSize)] entries which
 //!                   contain the corresponding CRC32 checksum for each page.
 //!                   A nil pointer causes the checksums to be computed.
-//! @param  verify  - When true, the checksum in csvec is verified for each
-//!                   page; and error is returned if any checksum is incorrect.
+//! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes written.
 //! @return SFS_ERROR File could not be read, error holds the reason.
@@ -546,20 +550,19 @@ virtual XrdSfsXferSize pgWrite(XrdSfsFileOffset   offset,
                                char              *buffer,
                                XrdSfsXferSize     wrlen,
                                uint32_t          *csvec,
-                               bool               verify=true);
+                               uint64_t           opts=0);
 
 //-----------------------------------------------------------------------------
 //! Write file pages and checksums using asynchronous I/O.
 //!
 //! @param  aioparm - Pointer to async I/O object controlling the I/O.
-//! @param  verify  - When true, the checksum in csvec is verified for each
-//!                   page; and error is returned if any checksum is incorrect.
+//! @param  opts    - Processing options (see above).
 //!
 //! @return SFS_OK    Request accepted and will be scheduled.
 //! @return SFS_ERROR File could not be read, error holds the reason.
 //-----------------------------------------------------------------------------
 
-virtual int            pgWrite(XrdSfsAio *aioparm, bool verify=true);
+virtual int            pgWrite(XrdSfsAio *aioparm, uint64_t opts=0);
 
 //-----------------------------------------------------------------------------
 //! Preread file blocks into the file system cache.

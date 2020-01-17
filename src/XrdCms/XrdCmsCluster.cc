@@ -118,8 +118,6 @@ XrdCmsCluster::XrdCmsCluster()
      SelRcnt = 0;
      SelRtot = 0;
      SelTcnt = 0;
-     doReset = 0;
-     resetMask = 0;
      peerHost  = 0;
      peerMask  = ~peerHost;
 }
@@ -703,8 +701,7 @@ void *XrdCmsCluster::MonPerf()
   
 void *XrdCmsCluster::MonRefs()
 {
-   XrdCmsNode *nP;
-   int  i, snooze_interval = 10*60, loopmax, loopcnt = 0;
+   int  snooze_interval = 10*60, loopmax, loopcnt = 0;
    int resetW, resetR, resetWR;
 
 // Compute snooze interval
@@ -724,21 +721,12 @@ void *XrdCmsCluster::MonRefs()
        resetW  = (SelWcnt >= Config.RefTurn);
        resetR  = (SelRcnt >= Config.RefTurn);
        resetWR = (loopmax && loopcnt >= loopmax && (resetW || resetR));
-       if (doReset || resetWR)
-           {for (i = 0; i <= STHi; i++)
-                if ((nP = NodeTab[i])
-                &&  (resetWR || (doReset && nP->isNode(resetMask))) )
-                    {if (resetW || doReset) nP->RefW=0;
-                     if (resetR || doReset) nP->RefR=0;
-                     nP->Shrem = nP->Share;
-                    }
-            if (resetWR)
-               {if (resetW) {SelWtot += SelWcnt; SelWcnt = 0;}
-                if (resetR) {SelRtot += SelRcnt; SelRcnt = 0;}
-                loopcnt = 0;
-               }
-            if (doReset) {doReset = 0; resetMask = 0;}
-           }
+       if (resetWR)
+          {ResetRef((SMask_t)0, true);
+           if (resetW) {SelWtot += SelWcnt; SelWcnt = 0;}
+           if (resetR) {SelRtot += SelRcnt; SelRcnt = 0;}
+           loopcnt = 0;
+          }
        STMutex.UnLock();
       } while(1);
    return (void *)0;
@@ -896,21 +884,28 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 /*                              R e s e t R e f                               */
 /******************************************************************************/
   
-void XrdCmsCluster::ResetRef(SMask_t smask)
+void XrdCmsCluster::ResetRef(SMask_t nMask, bool isLocked)
 {
+   XrdCmsNode *nP;
+   bool doAll (nMask == 0);
 
-// Obtain a lock on the table
+// Obtain a lock on the table if not already locked
 //
-   STMutex.Lock();
+   if (!isLocked) STMutex.Lock();
 
-// Inform the reset thread that we need a reset
+// Reset reference counts as needed
 //
-   doReset = 1;
-   resetMask |= smask;
+   for (int i = 0; i <= STHi; i++)
+       {if ((nP = NodeTab[i]) && (doAll || nP->isNode(nMask)))
+           {nP->RefW  = 0;
+            nP->RefR  = 0;
+            nP->Shrem = nP->Share;
+           }
+       }
 
 // Unlock table and exit
 //
-   STMutex.UnLock();
+   if (!isLocked) STMutex.UnLock();
 }
 
 /******************************************************************************/
@@ -1588,17 +1583,28 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
        Sel.Resp.DLen = nP->netIF.GetName(Sel.Resp.Data, Sel.Resp.Port, nType);
        if (!Sel.Resp.DLen) {nP->UnLock(); return Unreachable(Sel, false);}
        Sel.Resp.DLen++; Sel.smask = nP->NodeMask;
-       if (isalt || (Sel.Opts & XrdCmsSelect::Create) || Sel.iovN)
-          {if (isalt || (Sel.Opts & XrdCmsSelect::Create))
-              {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
-               if (Sel.Opts & XrdCmsSelect::noBind) act = " handling ";
-                  else Cache.AddFile(Sel, nP->NodeMask);
-              }
-           if (Sel.iovN && Sel.iovP) 
-              {nP->Send(Sel.iovP, Sel.iovN); act = " staging ";}
-              else if (!act)                 act = " assigned ";
-          } else                             act = " serving ";
+
+       // If a message is to be sent to the selected server, send it.
+       //
+       if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
+
+       // Do special post proccessing when any of:
+       // a) isalt true: Secondary selection occured
+       // b) Create set: File creation will occur
+       //
+       if (isalt || (Sel.Opts & XrdCmsSelect::Create))
+          {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
+           if (Sel.Opts & XrdCmsSelect::noBind) act = " handling ";
+              else Cache.AddFile(Sel, nP->NodeMask);
+          }
+
+       // Determine what we are actually doing here
+       //
        nP->UnLock();
+       if (!act)
+          {if (isalt) act = (Sel.iovN ? " staging " : " assigned ");
+              else    act = " serving ";
+          }
        TRACE(Stage, Sel.Resp.Data <<act <<Sel.Path.Val);
        return 0;
       }

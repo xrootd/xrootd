@@ -277,6 +277,8 @@ int XrdFrcProxy::Init2(const char *ConfigFN)
        return 1;
       }
    cfgFile.Attach(cfgFD);
+   static const char *cvec[] = { "*** frm client plugin config:", 0 };
+   cfgFile.Capture(cvec);
 
 // Now start reading records until eof looking for our directive
 //

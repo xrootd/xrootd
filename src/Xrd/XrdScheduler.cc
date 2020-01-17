@@ -42,6 +42,7 @@
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 
 #define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
@@ -97,29 +98,18 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
               : XrdJob("underused thread monitor"),
                 WorkAvail(0, "sched work")
 {
-    struct rlimit rlim;
 
-    XrdLog      =  eP;
-    XrdTrace    =  tP;
-    min_Workers =  minw;
-    max_Workers =  maxw;
-    max_Workidl =  maxi;
-    num_Workers =  0;
-    num_JobsinQ =  0;
-    stk_Workers =  maxw - (maxw/4*3);
-    idl_Workers =  0;
-    num_Jobs    =  0;
-    max_QLength =  0;
-    num_TCreate =  0;
-    num_TDestroy=  0;
-    num_Layoffs =  0;
-    num_Limited =  0;
-    firstPID    =  0;
-    WorkFirst = WorkLast = TimerQueue = 0;
+// Perform common initialization
+//
+   XrdLog      =  eP;
+   XrdTrace    =  tP;
+   Init(minw, maxw, maxi);
 
 // Make sure we are using the maximum number of threads allowed (Linux only)
 //
 #if defined(__linux__) && defined(RLIMIT_NPROC)
+
+   struct rlimit rlim;
 
 // First determine the absolute maximum we can have
 //
@@ -162,6 +152,41 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 
 }
  
+/******************************************************************************/
+
+// This constructor creates a self contained scheduler.
+//
+XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
+              : XrdJob("underused thread monitor"),
+                WorkAvail(0, "sched work")
+{
+   XrdSysLogger *Logger;
+   int eFD;
+
+// Get a file descriptor mirroring standard error
+//
+#if defined(__linux__) && defined(O_CLOEXEC)
+   eFD = fcntl(STDERR_FILENO, F_DUPFD_CLOEXEC, 0);
+#else
+   eFD = dup(STDERR_FILENO);
+   fcntl(eFD, F_SETFD, FD_CLOEXEC);
+#endif
+
+// Now we need to get a logger object. We make this a real dumb one.
+//
+   Logger = new XrdSysLogger(eFD, 0);
+   XrdLog = new XrdSysError(Logger);
+
+// Now get a trace object
+//
+   XrdTrace = new XrdOucTrace(XrdLog);
+   if (getenv("XRDDEBUG") != 0) XrdTrace->What = TRACE_SCHED;
+
+// Set remaining values. We do no use maximum possible threads here.
+//
+   Init(minw, maxw, maxi);
+}
+
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
@@ -648,6 +673,29 @@ void XrdScheduler::hireWorker(int dotrace)
       } else if (dotrace) TRACE(SCHED, "Now have " <<num_Workers <<" workers" );
 }
  
+/******************************************************************************/
+/*                                  I n i t                                   */
+/******************************************************************************/
+
+void XrdScheduler::Init(int minw, int maxw, int maxi)
+{
+   min_Workers =  minw;
+   max_Workers =  maxw;
+   max_Workidl =  maxi;
+   num_Workers =  0;
+   num_JobsinQ =  0;
+   stk_Workers =  maxw - (maxw/4*3);
+   idl_Workers =  0;
+   num_Jobs    =  0;
+   max_QLength =  0;
+   num_TCreate =  0;
+   num_TDestroy=  0;
+   num_Layoffs =  0;
+   num_Limited =  0;
+   firstPID    =  0;
+   WorkFirst = WorkLast = TimerQueue = 0;
+}
+
 /******************************************************************************/
 /*                             t r a c e E x i t                              */
 /******************************************************************************/

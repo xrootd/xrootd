@@ -72,7 +72,6 @@ extern "C"
     env->GetInt( "RunForkHandler", runForkHandler );
     if( runForkHandler )
       forkHandler->Prepare();
-    env->WriteLock();
   }
 
   //----------------------------------------------------------------------------
@@ -84,7 +83,6 @@ extern "C"
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
     ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
-    env->UnLock();
 
     pid_t pid = getpid();
     log->Debug( UtilityMsg, "In the parent fork handler for process %d", pid );
@@ -111,7 +109,7 @@ extern "C"
     Log         *log         = DefaultEnv::GetLog();
     Env         *env         = DefaultEnv::GetEnv();
     ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
-    env->ReInitializeLock();
+    env->RecreateLock();
 
     pid_t pid = getpid();
     log->Debug( UtilityMsg, "In the child fork handler for process %d", pid );
@@ -294,8 +292,8 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "MaxMetalinkWait",         DefaultMaxMetalinkWait         );
     REGISTER_VAR_INT( varsInt, "PreserveLocateTried",     DefaultPreserveLocateTried     );
     REGISTER_VAR_INT( varsInt, "NotAuthorizedRetryLimit", DefaultNotAuthorizedRetryLimit );
+    REGISTER_VAR_INT( varsInt, "PreserveXAttrs",          DefaultPreserveXAttrs          );
 
-    REGISTER_VAR_STR( varsStr, "PollerPreference",        DefaultPollerPreference        );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",           DefaultClientMonitor           );
     REGISTER_VAR_STR( varsStr, "ClientMonitorParam",      DefaultClientMonitorParam      );
     REGISTER_VAR_STR( varsStr, "NetworkStack",            DefaultNetworkStack            );

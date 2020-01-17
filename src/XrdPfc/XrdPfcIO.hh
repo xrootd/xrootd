@@ -1,14 +1,14 @@
-#ifndef __XRDFILECACHE_CACHE_IO_HH__
-#define __XRDFILECACHE_CACHE_IO_HH__
+#ifndef __XRDPFC_CACHE_IO_HH__
+#define __XRDPFC_CACHE_IO_HH__
 
 class XrdSysTrace;
 
-#include "XrdFileCache.hh"
+#include "XrdPfc.hh"
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 //----------------------------------------------------------------------------
 //! Base cache-io class that implements XrdOucCacheIO abstract methods.
@@ -37,6 +37,13 @@ public:
    virtual int Write(char *Buffer, long long Offset, int Length) { return -ENOTSUP; }
 
    virtual void Update(XrdOucCacheIO &iocp);
+
+   // Detach is virtual from XrdOucCacheIO, here it is split
+   // into abstract ioActive() and DetachFinalize().
+   bool Detach(XrdOucCacheIOCD &iocdP) /* final */;
+
+   virtual bool ioActive()       = 0;
+   virtual void DetachFinalize() = 0;
 
    XrdSysTrace* GetTrace() { return m_cache.GetTrace(); }
 

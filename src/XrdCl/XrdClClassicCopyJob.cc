@@ -36,6 +36,7 @@
 #include "XrdCl/XrdClZipArchiveReader.hh"
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <memory>
@@ -167,6 +168,74 @@ namespace
       XrdCksCalc  *pCksCalcObj;
   };
 
+  inline XrdCl::XRootDStatus Translate( std::vector<XrdCl::XAttr>   &in,
+                                           std::vector<XrdCl::xattr_t> &out )
+  {
+    std::vector<XrdCl::xattr_t> ret;
+    ret.reserve( in.size() );
+    std::vector<XrdCl::XAttr>::iterator itr = in.begin();
+    for( ; itr != in.end() ; ++itr )
+    {
+      if( !itr->status.IsOK() ) return itr->status;
+      XrdCl::xattr_t xa( itr->name, itr->value );
+      ret.push_back( std::move( xa ) );
+    }
+    out.swap( ret );
+    return XrdCl::XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Helper function for retrieving extended-attributes
+  //----------------------------------------------------------------------------
+  inline XrdCl::XRootDStatus GetXAttr( XrdCl::File                  &file,
+                                       std::vector<XrdCl::xattr_t>  &xattrs )
+  {
+    std::vector<XrdCl::XAttr> rsp;
+    XrdCl::XRootDStatus st = file.ListXAttr( rsp );
+    if( !st.IsOK() ) return st;
+    return Translate( rsp, xattrs );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Helper function for retrieving extended-attributes
+  //----------------------------------------------------------------------------
+  inline XrdCl::XRootDStatus GetXAttr( const std::string            &url,
+                                       std::vector<XrdCl::xattr_t>  &xattrs )
+  {
+    XrdCl::URL u( url );
+    XrdCl::FileSystem fs( u );
+    std::vector<XrdCl::XAttr> rsp;
+    XrdCl::XRootDStatus st = fs.ListXAttr( u.GetPath(), rsp );
+    if( !st.IsOK() ) return st;
+    return Translate( rsp, xattrs );
+  }
+
+  inline XrdCl::XRootDStatus SetXAttr( XrdCl::File                       &file,
+                                const std::vector<XrdCl::xattr_t> &xattrs )
+  {
+    std::vector<XrdCl::XAttrStatus> rsp;
+    file.SetXAttr( xattrs, rsp );
+    std::vector<XrdCl::XAttrStatus>::iterator itr = rsp.begin();
+    for( ; itr != rsp.end() ; ++itr )
+      if( !itr->status.IsOK() ) return itr->status;
+    return XrdCl::XRootDStatus();
+  }
+
+  inline bool HasXAttr( const XrdCl::URL &url )
+  {
+    if( url.IsLocalFile() ) return true;
+    XrdCl::AnyObject  qryResult;
+    XrdCl::XRootDStatus st = XrdCl::DefaultEnv::GetPostMaster()->
+        QueryTransport( url, XrdCl::XRootDQuery::ProtocolVersion, qryResult );
+    if( st.IsOK() )
+    {
+      int *protver = 0;
+      qryResult.Get( protver );
+      return ( *protver == kXR_PROTXATTVERSION );
+    }
+    return false;
+  }
+
   //----------------------------------------------------------------------------
   //! Abstract chunk source
   //----------------------------------------------------------------------------
@@ -212,6 +281,11 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs ) = 0;
 
     protected:
 
@@ -271,6 +345,11 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Set extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus SetXAttr( const std::vector<XrdCl::xattr_t> &xattrs ) = 0;
 
       //------------------------------------------------------------------------
       //! Set POSC
@@ -416,6 +495,14 @@ namespace
         return XRootDStatus( stError, errCheckSumError );
       }
 
+      //------------------------------------------------------------------------
+      //! Get extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs )
+      {
+        return XrdCl::XRootDStatus();
+      }
+
     private:
       StdInSource(const StdInSource &other);
       StdInSource &operator = (const StdInSource &other);
@@ -515,6 +602,14 @@ namespace
       virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
       {
         return GetChunkImpl( pFile, ci );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs )
+      {
+        return ::GetXAttr( *pFile, xattrs );
       }
 
       //------------------------------------------------------------------------
@@ -835,6 +930,14 @@ namespace
         return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
       }
 
+      //------------------------------------------------------------------------
+      //! Get extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::XAttr> &xattrs )
+      {
+        return XrdCl::XRootDStatus();
+      }
+
     private:
 
       XRootDSourceZip(const XRootDSource &other);
@@ -990,6 +1093,14 @@ namespace
                                                 XrdCl::URL( lastUrl ).GetPath() );
       }
 
+      //------------------------------------------------------------------------
+      //! Get extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs )
+      {
+        return ::GetXAttr( *pFile, xattrs );
+      }
+
     private:
       XRootDSourceDynamic(const XRootDSourceDynamic &other);
       XRootDSourceDynamic &operator = (const XRootDSourceDynamic &other);
@@ -1121,6 +1232,21 @@ namespace
         return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNoMoreReplicas );
       }
 
+      //------------------------------------------------------------------------
+      //! Get extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs )
+      {
+        XrdCl::XRootDStatus st;
+        std::vector<std::string>::iterator itr = pReplicas.begin();
+        for( ; itr < pReplicas.end() ; ++itr )
+        {
+          st = ::GetXAttr( *itr, xattrs );
+          if( st.IsOK() ) return st;
+        }
+        return st;
+      }
+
     private:
 
 
@@ -1232,6 +1358,14 @@ namespace
         if( pCkSumHelper )
           return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
         return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
+      }
+
+      //------------------------------------------------------------------------
+      //! Set extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus SetXAttr( const std::vector<XrdCl::xattr_t> &xattrs )
+      {
+        return XrdCl::XRootDStatus();
       }
 
     private:
@@ -1431,6 +1565,14 @@ namespace
                                                 dataServer, pUrl->GetPath() );
       }
 
+      //------------------------------------------------------------------------
+      //! Set extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus SetXAttr( const std::vector<XrdCl::xattr_t> &xattrs )
+      {
+        return ::SetXAttr( *pFile, xattrs );
+      }
+
     private:
       XRootDDestination(const XRootDDestination &other);
       XRootDDestination &operator = (const XRootDDestination &other);
@@ -1494,7 +1636,7 @@ namespace XrdCl
     uint16_t    parallelChunks;
     uint32_t    chunkSize;
     uint64_t    blockSize;
-    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp;
+    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr;
     int32_t     nbXcpSources;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
@@ -1510,12 +1652,13 @@ namespace XrdCl
     pProperties->Get( "zipArchive",      zip );
     pProperties->Get( "xcp",             xcp );
     pProperties->Get( "xcpBlockSize",    blockSize );
+    pProperties->Get( "preserveXAttr",   preserveXAttr );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
 
     if( xcp )
-      pProperties->Get( "nbXcpSources",     nbXcpSources );
+      pProperties->Get( "nbXcpSources",  nbXcpSources );
 
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
@@ -1598,6 +1741,18 @@ namespace XrdCl
     st = dest->Flush();
     if( !st.IsOK() )
       return st;
+
+    //--------------------------------------------------------------------------
+    // Copy extended attributes
+    //--------------------------------------------------------------------------
+    if( preserveXAttr && HasXAttr( GetSource() ) && HasXAttr( GetTarget() ) )
+    {
+      std::vector<xattr_t> xattrs;
+      st = src->GetXAttr( xattrs );
+      if( !st.IsOK() ) return st;
+      st = dest->SetXAttr( xattrs );
+      if( !st.IsOK() ) return st;
+    }
 
     //--------------------------------------------------------------------------
     // The size of the source is known and not enough data has been transfered

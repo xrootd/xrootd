@@ -17,9 +17,9 @@
 //----------------------------------------------------------------------------------
 
 
-#include "XrdFileCacheFile.hh"
-#include "XrdFileCacheIO.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcFile.hh"
+#include "XrdPfcIO.hh"
+#include "XrdPfcTrace.hh"
 #include <stdio.h>
 #include <sstream>
 #include <fcntl.h>
@@ -32,10 +32,10 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdFileCache.hh"
+#include "XrdPfc.hh"
 
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 namespace
 {
@@ -177,7 +177,7 @@ void File::BlocksRemovedFromWriteQ(std::list<Block*>& blocks)
 
 bool File::ioActive(IO *io)
 {
-   // Retruns true if delay is needed
+   // Returns true if delay is needed.
 
    TRACEF(Debug, "File::ioActive start for io " << io);
 
@@ -203,9 +203,10 @@ bool File::ioActive(IO *io)
                 "\tio_map.size() "           << m_io_map.size() <<
                 ", block_map.size() "        << m_block_map.size() << ", file");
 
-         // It can happen that POSIX calls ioActive again after File already replied
-         // false for a given IO.
-         if (mi->second.m_ioactive_false_reported) return false;
+         // XXXX
+         // Intermediate check for 4.11 - 5.0 transition.
+         // Can be removed for 5.1, including the IODetals::m_ioactive_false_reported.
+         assert( ! mi->second.m_ioactive_false_reported && "ioActive already returned false");
 
          mi->second.m_allow_prefetching = false;
 
@@ -220,8 +221,6 @@ bool File::ioActive(IO *io)
 
          // On last IO, consider write queue blocks. Note, this also contains
          // blocks being prefetched.
-         // For multiple IOs the ioActive queries can occur in order before
-         // any of them are actually removed / detached.
 
          bool io_active_result;
 
@@ -234,7 +233,7 @@ bool File::ioActive(IO *io)
             io_active_result = mi->second.m_active_prefetches > 0;
          }
 
-         if (io_active_result == false)
+         if ( ! io_active_result)
          {
             ++m_ios_in_detach;
             mi->second.m_ioactive_false_reported = true;
@@ -818,7 +817,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             {
                error_cond = (*bi)->m_errno;
                TRACEF(Error, "File::Read() io " << io << ", block "<< (*bi)->m_offset/BS <<
-                      " finished with error " << -error_cond << " " << strerror(-error_cond));
+                      " finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
             }
          }
          ++bi;
@@ -852,7 +851,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          if ( ! error_cond)
          {
             error_cond = direct_handler->m_errno;
-            TRACEF(Error, "File::Read(), direct read finished with error " << -error_cond << " " << strerror(-error_cond));
+            TRACEF(Error, "File::Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
          }
       }
 

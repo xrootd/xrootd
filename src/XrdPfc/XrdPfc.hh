@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_CACHE_HH__
-#define __XRDFILECACHE_CACHE_HH__
+#ifndef __XRDPFC_CACHE_HH__
+#define __XRDPFC_CACHE_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
@@ -29,8 +29,8 @@
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
-#include "XrdFileCacheFile.hh"
-#include "XrdFileCacheDecision.hh"
+#include "XrdPfcFile.hh"
+#include "XrdPfcDecision.hh"
 
 class XrdOucStream;
 class XrdSysError;
@@ -41,7 +41,7 @@ namespace XrdCl
 class Log;
 }
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 class File;
 class IO;
@@ -50,7 +50,7 @@ class DataFsState;
 }
 
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 
 //----------------------------------------------------------------------------
@@ -317,7 +317,7 @@ public:
    bool Decide(XrdOucCacheIO*);
 
    //------------------------------------------------------------------------
-   //! Reference XrdFileCache configuration
+   //! Reference XrdPfc configuration
    //------------------------------------------------------------------------
    const Configuration& RefConfiguration() const { return m_configuration; }
 
@@ -414,14 +414,14 @@ private:
 
    static Cache        *m_factory;      //!< this object
 
-   XrdSysError       m_log;             //!< XrdFileCache namespace logger
+   XrdSysError       m_log;             //!< XrdPfc namespace logger
    XrdSysTrace      *m_trace;
    const char       *m_traceID;
 
    XrdOucCacheStats  m_ouc_stats;       //!<
    XrdOss           *m_output_fs;       //!< disk cache file system
 
-   std::vector<XrdFileCache::Decision*> m_decisionpoints;       //!< decision plugins
+   std::vector<XrdPfc::Decision*> m_decisionpoints;       //!< decision plugins
 
    std::map<std::string, long long> m_filesInQueue;
 
@@ -447,11 +447,11 @@ private:
    WriteQ m_writeQ;
 
    // active map, purge delay set
-   typedef std::map<std::string, File*>                     ActiveMap_t;
-   typedef ActiveMap_t::iterator                            ActiveMap_i;
-   typedef std::multimap<std::string, XrdFileCache::Stats>  StatsMMap_t;
-   typedef StatsMMap_t::iterator                            StatsMMap_i;
-   typedef std::set<std::string>                            FNameSet_t;
+   typedef std::map<std::string, File*>               ActiveMap_t;
+   typedef ActiveMap_t::iterator                      ActiveMap_i;
+   typedef std::multimap<std::string, XrdPfc::Stats>  StatsMMap_t;
+   typedef StatsMMap_t::iterator                      StatsMMap_i;
+   typedef std::set<std::string>                      FNameSet_t;
 
    ActiveMap_t      m_active;
    StatsMMap_t      m_closed_files_stats;

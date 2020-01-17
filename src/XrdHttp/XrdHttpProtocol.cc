@@ -678,7 +678,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
     while ((rc = BuffgetLine(tmpline)) > 0) {
       TRACE(DEBUG, " rc:" << rc << " got hdr line: " << tmpline);
 
-      if ((rc == 2) && (tmpline[rc - 1] == '\n')) {
+      if ((rc == 2) && (tmpline.length() > 1) && (tmpline[rc - 1] == '\n')) {
         CurrentReq.headerok = true;
         TRACE(DEBUG, " rc:" << rc << " detected header end.");
         break;
@@ -1060,6 +1060,8 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
     return eDest.Emsg("Config", errno, "open config file", ConfigFN);
   Config.Attach(cfgFD);
+  static const char *cvec[] = { "*** http protocol config:", 0 };
+  Config.Capture(cvec);
 
   // Process items
   //

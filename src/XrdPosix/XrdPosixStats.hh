@@ -1,8 +1,11 @@
+#ifndef __XRDPOSIXSTATS_HH__
+#define __XRDPOSIXSTATS_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d P r o t o c o l . c c                         */
+/*                      X r d P o s i x S t a t s . h h                       */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2019 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -27,45 +30,44 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 
-#include "XrdNet/XrdNetSockAddr.hh"
-#include "Xrd/XrdProtocol.hh"
-  
-/******************************************************************************/
-/*   X r d P r o t o c o l _ C o n f i g   C o p y   C o n s t r u c t o r    */
-/******************************************************************************/
-  
-XrdProtocol_Config::XrdProtocol_Config(XrdProtocol_Config &rhs)
+#include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysPthread.hh"
+
+class XrdPosixStats
 {
-eDest     = rhs.eDest;
-NetTCP    = rhs.NetTCP;
-BPool     = rhs.BPool;
-Sched     = rhs.Sched;
-Stats     = rhs.Stats;
-theEnv    = rhs.theEnv;
-Trace     = rhs.Trace;
+public:
 
-ConfigFN  = rhs.ConfigFN ? strdup(rhs.ConfigFN) : 0;
-Format    = rhs.Format;
-Port      = rhs.Port;
-WSize     = rhs.WSize;
-AdmPath   = rhs.AdmPath  ? strdup(rhs.AdmPath)  : 0;
-AdmMode   = rhs.AdmMode;
-myInst    = rhs.myInst   ? strdup(rhs.myInst)   : 0;
-myName    = rhs.myName   ? strdup(rhs.myName)   : 0;
-         if (!rhs.urAddr) urAddr = 0;
-            else {urAddr = (XrdNetSockAddr *)malloc(sizeof(XrdNetSockAddr));
-                  memcpy((void *)urAddr, rhs.urAddr, sizeof(XrdNetSockAddr));
-                 }
-ConnMax   = rhs.ConnMax;
-readWait  = rhs.readWait;
-idleWait  = rhs.idleWait;
-hailWait  = rhs.hailWait;
-argc      = rhs.argc;
-argv      = rhs.argv;
-DebugON   = rhs.DebugON;
-myProg    = rhs.myProg;
-}
+struct PosixStats
+{
+long long Opens;
+long long OpenErrs;
+long long Closes;
+long long CloseErrs;
+}         X;
+
+inline void Get(XrdPosixStats &D)
+               {sMutex.Lock();
+                memcpy(&D.X, &X, sizeof(PosixStats));
+                sMutex.UnLock();
+               }
+
+inline void  Add(long long &Dest, long long Val)
+                {sMutex.Lock(); Dest += Val; sMutex.UnLock();}
+
+inline void  Count(long long &Dest)
+                  {AtomicBeg(sMutex); AtomicInc(Dest); AtomicEnd(sMutex);}
+
+inline void  Set(long long &Dest, long long Val)
+                {sMutex.Lock(); Dest  = Val; sMutex.UnLock();}
+
+inline void  Lock()   {sMutex.Lock();}
+inline void  UnLock() {sMutex.UnLock();}
+
+             XrdPosixStats() {memset(&X, 0, sizeof(PosixStats));}
+            ~XrdPosixStats() {}
+private:
+XrdSysMutex sMutex;
+};
+#endif

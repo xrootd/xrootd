@@ -16,9 +16,9 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-#include "XrdFileCacheInfo.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcInfo.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcTrace.hh"
 
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOss/XrdOss.hh"
@@ -36,7 +36,7 @@
 #include <vector>
 #include <sys/time.h>
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 //______________________________________________________________________________
 

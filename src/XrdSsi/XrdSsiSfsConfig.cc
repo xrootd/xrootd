@@ -188,6 +188,8 @@ bool XrdSsiSfsConfig::Configure(const char *cFN)
        return false;
       }
    cStrm.Attach(cfgFD);
+   static const char *cvec[] = { "*** ssi (sfs) plugin config:", 0 };
+   cStrm.Capture(cvec);
 
 // Now start reading records until eof.
 //

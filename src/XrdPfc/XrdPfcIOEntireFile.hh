@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_IO_FILE_BLOCK_HH__
-#define __XRDFILECACHE_IO_FILE_BLOCK_HH__
+#ifndef __XRDPFC_IO_ENTIRE_FILE_HH__
+#define __XRDPFC_IO_ENTIRE_FILE_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
@@ -17,72 +17,81 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-#include <map>
+
 #include <string>
 
-#include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
-#include "XrdFileCacheIO.hh"
+#include "XrdPfcIO.hh"
+#include "XrdPfc.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcFile.hh"
 
 class XrdSysError;
 class XrdOssDF;
+class XfcStats;
+class XrdOucIOVec;
 
-namespace XrdFileCache
+namespace XrdPfc
 {
 //----------------------------------------------------------------------------
-//! \brief Downloads original file into multiple files, chunked into
-//! blocks. Only blocks that are asked for are downloaded.
+//! \brief Downloads original file into a single file on local disk.
 //! Handles read requests as they come along.
 //----------------------------------------------------------------------------
-class IOFileBlock : public IO
+class IOEntireFile : public IO
 {
 public:
-   //------------------------------------------------------------------------
-   //! Constructor.
-   //------------------------------------------------------------------------
-   IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
+   IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
+
+   ~IOEntireFile();
 
    //------------------------------------------------------------------------
-   //! Destructor.
+   //! Check if File was opened successfully.
    //------------------------------------------------------------------------
-   ~IOFileBlock();
-
-   //---------------------------------------------------------------------
-   //! Detach from Cache. Note: this will delete the object.
-   //!
-   //! @return original source \ref XrdPosixFile
-   //---------------------------------------------------------------------
-   virtual bool Detach(XrdOucCacheIOCD &iocdP);
+   bool HasFile() const { return m_file != 0; }
 
    //---------------------------------------------------------------------
    //! Pass Read request to the corresponding File object.
+   //!
+   //! @param Buffer
+   //! @param Offset
+   //! @param Length
+   //!
+   //! @return number of bytes read
    //---------------------------------------------------------------------
    using XrdOucCacheIO::Read;
 
    virtual int Read(char *Buffer, long long Offset, int Length);
 
-   //! \brief Virtual method of XrdOucCacheIO.
+   //---------------------------------------------------------------------
+   //! Pass ReadV request to the corresponding File object.
+   //!
+   //! @param readV
+   //! @param n number of XrdOucIOVecs
+   //!
+   //! @return total bytes read
+   //---------------------------------------------------------------------
+   using XrdOucCacheIO::ReadV;
+
+   virtual int ReadV(const XrdOucIOVec *readV, int n);
+
+   //! \brief Abstract virtual method of XrdPfcIO
    //! Called to check if destruction needs to be done in a separate task.
-   virtual bool ioActive();
+   bool ioActive() /* override */;
+
+   //! \brief Abstract virtual method of XrdPfcIO
+   //! Called to destruct the IO object after it is no longer used.
+   void DetachFinalize() /* override */;
    
    virtual int  Fstat(struct stat &sbuff);
 
    virtual long long FSize();
 
 private:
-   long long                  m_blocksize;       //!< size of file-block
-   std::map<int, File*>       m_blocks;          //!< map of created blocks
-   XrdSysMutex                m_mutex;           //!< map mutex
-   struct stat               *m_localStat;
-   Info                       m_info;
-   XrdOssDF*                  m_infoFile;
-
-   void  GetBlockSizeFromPath();
-   int   initLocalStat();
-   File* newBlockFile(long long off, int blocksize);
-   void  CloseInfoFile();
+   File        *m_file;
+   struct stat *m_localStat;
+   int initCachedStat(const char* path);
 };
-}
 
+}
 #endif
+

@@ -530,7 +530,13 @@ bool XrdOucPsx::ParseCLib(XrdSysError *Eroute, XrdOucStream &Config)
 // Save the path
 //
    if (cPath) free(cPath);
-   cPath = (strcmp(val,"default") ? strdup(val) : strdup("libXrdFileCache.so"));
+   if (!strcmp(val,"libXrdFileCache.so") || !strcmp(val,"libXrdFileCache-4.so"))
+      {Eroute->Say("Config warning: 'libXrdFileCache' has been replaced by "
+            "'libXrdPfc'; for future compatability specify 'default' instead!");
+       cPath = strdup("libXrdPfc.so");
+      } else {
+       cPath = (strcmp(val,"default") ? strdup(val) : strdup("libXrdPfc.so"));
+      }
 
 // Get the parameters
 //

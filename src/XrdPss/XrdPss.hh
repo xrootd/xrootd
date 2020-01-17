@@ -140,6 +140,7 @@ int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0);
 int       Rename(const char *, const char *,
                  XrdOucEnv *eP1=0, XrdOucEnv *eP2=0);
 int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0);
+int       Stats(char *bp, int bl);
 int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0);
 int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0);
 

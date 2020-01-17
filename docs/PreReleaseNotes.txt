@@ -6,6 +6,11 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Provide a way to see the actual server config when running.
+  * **[Server]i** Provide fallback when an IPv6 address is missing a ptr record.
+  * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
+  * **[Xcache]** Provide monitoring summary statistics.
+  * **[All]** Add hardware assisted CRC32C checksum based on Mark Adler's code.
   * **[All]** Implement new thread-safe strerror() replacement.
   * **[Server]** Allow xrootd.fslib plugin to be generally stacked.
   * **[Server]** Add getfile and putfile SFS interface.
@@ -32,11 +37,20 @@ Prerelease Notes
   * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
 
 + **Major bug fixes**
+  * **[Proxy]** Remove offending CGI elements before passing URL.
+  * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[Server]** Correct action determination for debug message to avoid strife.
+  * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Turn off IP address caching when dynamic DNS is enabled.
+  * **[Server]** Log unusual stat() errors affecting file availability.
+  * **[Server]** Manage reference counters in a more timely fashion.
+  * **[Server]** Fallback using known DNS name when reverse translation fails.
+  * **[Xcache]** Provide config backward compatibility for "pss.cachelib" directive.
   * **[All]** Use thread-safe strerror() replacement, part 1.
   * **[Server]** Provide interface for checksum handler to report progress.
   * **[Server]** Improve SFS wrapping and add "how to" documentation.

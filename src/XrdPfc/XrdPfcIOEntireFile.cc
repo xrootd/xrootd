@@ -23,13 +23,13 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdFileCacheIOEntireFile.hh"
-#include "XrdFileCacheStats.hh"
-#include "XrdFileCacheTrace.hh"
+#include "XrdPfcIOEntireFile.hh"
+#include "XrdPfcStats.hh"
+#include "XrdPfcTrace.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 
-using namespace XrdFileCache;
+using namespace XrdPfc;
 
 //______________________________________________________________________________
 IOEntireFile::IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache & cache) :
@@ -106,7 +106,7 @@ int IOEntireFile::initCachedStat(const char* path)
       }
       else
       {
-         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << strerror(-res_open));
+         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << XrdSysE2T(-res_open));
       }
       infoFile->Close();
       delete infoFile;
@@ -129,27 +129,20 @@ int IOEntireFile::initCachedStat(const char* path)
 //______________________________________________________________________________
 bool IOEntireFile::ioActive()
 {
-   XrdSysMutexHelper lock(&m_mutex);
-
    return m_file->ioActive(this);
 }
 
 //______________________________________________________________________________
-bool IOEntireFile::Detach(XrdOucCacheIOCD &iocdP)
+void IOEntireFile::DetachFinalize()
 {
-   // Called from XrdPosixFile destructor.
+   // Effectively a destructor.
 
-   TRACE(Info, "IOEntireFile::Detach() " << this);
+   TRACE(Info, "IOEntireFile::DetachFinalize() " << this);
 
-   {
-      XrdSysMutexHelper lock(&m_mutex);
+   m_file->RequestSyncOfDetachStats();
+   Cache::GetInstance().ReleaseFile(m_file, this);
 
-      m_file->RequestSyncOfDetachStats();
-      Cache::GetInstance().ReleaseFile(m_file, this);
-   }
    delete this;
-//???? This needs to be coordinated ith old ioActive() and return false if active
-   return true;
 }
 
 //______________________________________________________________________________
@@ -185,7 +178,7 @@ int IOEntireFile::Read(char *buff, long long off, int size)
    else
    {
       TRACEIO(Warning, "IOEntireFile::Read() pass to origin, File::Read() exit status=" << retval
-              << ", error=" << strerror(-retval));
+              << ", error=" << XrdSysE2T(-retval));
    }
 
    return (retval < 0) ? retval : bytes_read;

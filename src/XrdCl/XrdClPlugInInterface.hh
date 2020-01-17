@@ -135,6 +135,31 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! @see XrdCl::File::VectorWrite
+      //------------------------------------------------------------------------
+      virtual XRootDStatus VectorWrite( const ChunkList &chunks,
+                                        ResponseHandler *handler,
+                                        uint16_t         timeout = 0 )
+      {
+        (void)chunks; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::File::WriteV
+      //------------------------------------------------------------------------
+      virtual XRootDStatus WriteV( uint64_t            offset,
+                                   const struct iovec *iov,
+                                   int                 iovcnt,
+                                   ResponseHandler    *handler,
+                                   uint16_t            timeout = 0 )
+      {
+        (void)offset; (void)iov; (void)iovcnt; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
       //! @see XrdCl::File::Fcntl
       //------------------------------------------------------------------------
       virtual XRootDStatus Fcntl( const Buffer    &arg,
@@ -202,6 +227,18 @@ namespace XrdCl
                                    OpenFlags::Flags   flags,
                                    ResponseHandler   *handler,
                                    uint16_t           timeout )
+      {
+        (void)path; (void)flags; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::DeepLocate
+      //------------------------------------------------------------------------
+      virtual XRootDStatus DeepLocate( const std::string &path,
+                                       OpenFlags::Flags   flags,
+                                       ResponseHandler   *handler,
+                                       uint16_t           timeout )
       {
         (void)path; (void)flags; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
@@ -366,6 +403,53 @@ namespace XrdCl
       {
         (void)fileList; (void)flags; (void)priority; (void)handler;
         (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::SetXAttr
+      //------------------------------------------------------------------------
+      virtual XRootDStatus SetXAttr( const std::string           &path,
+                                     const std::vector<xattr_t>  &attrs,
+                                     ResponseHandler             *handler,
+                                     uint16_t                     timeout )
+      {
+        (void)path; (void)attrs; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::GetXAttr
+      //------------------------------------------------------------------------
+      virtual XRootDStatus GetXAttr( const std::string               &path,
+                                     const std::vector<std::string>  &attrs,
+                                     ResponseHandler                 *handler,
+                                     uint16_t                         timeout )
+      {
+        (void)path; (void)attrs; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::DelXAttr
+      //------------------------------------------------------------------------
+      virtual XRootDStatus DelXAttr( const std::string               &path,
+                                     const std::vector<std::string>  &attrs,
+                                     ResponseHandler                 *handler,
+                                     uint16_t                         timeout )
+      {
+        (void)path; (void)attrs; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::ListXAttr
+      //------------------------------------------------------------------------
+      virtual XRootDStatus ListXAttr( const std::string         &path,
+                                      ResponseHandler           *handler,
+                                      uint16_t                   timeout )
+      {
+        (void)path; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
 

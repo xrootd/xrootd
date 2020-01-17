@@ -156,6 +156,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Prepare(bool isQuery=false);
        int   do_Protocol();
        int   do_Qconf();
+       int   do_QconfCX(XrdOucTokenizer &qcargs, char *val);
        int   do_Qfh();
        int   do_Qopaque(short);
        int   do_Qspace();
