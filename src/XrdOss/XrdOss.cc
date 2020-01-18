@@ -169,7 +169,7 @@ int XrdOssDF::Fctl(int cmd, int alen, const char *args, char **resp)
 ssize_t XrdOssDF::pgRead(void     *buffer,
                          off_t     offset,
                          size_t    rdlen,
-                         uint32_t *csvec,
+                         uint32_t *&csvec,
                          uint64_t  opts)
 {
    ssize_t bytes;
@@ -185,7 +185,7 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0 && csvec)
+   if (bytes > 0)
       XrdOucCRC::Calc32C((void *)buffer, rdlen, csvec, pgSize);
 
 // All done
@@ -200,7 +200,7 @@ int XrdOssDF::pgRead(XrdSfsAio *aioparm, uint64_t opts)
    aioparm->Result = this->pgRead((void *)aioparm->sfsAio.aio_buf,
                                   (off_t) aioparm->sfsAio.aio_offset,
                                   (size_t)aioparm->sfsAio.aio_nbytes,
-                                  aioparm->cksVec, opts);
+                                          aioparm->cksVec, opts);
    aioparm->doneRead();
    return 0;
 }
@@ -233,7 +233,7 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 //
    if (csvec && (opts & Verify))
       {uint32_t valcs;
-       if (!XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,valcs,pgSize))
+       if (!XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs, pgSize))
           return -EDOM;
       }
 
@@ -249,7 +249,7 @@ int XrdOssDF::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
    aioparm->Result = this->pgWrite((void *)aioparm->sfsAio.aio_buf,
                                    (off_t) aioparm->sfsAio.aio_offset,
                                    (size_t)aioparm->sfsAio.aio_nbytes,
-                                   aioparm->cksVec, opts);
+                                           aioparm->cksVec, opts);
    aioparm->doneWrite();
    return 0;
 }

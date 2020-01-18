@@ -98,7 +98,7 @@ int XrdSfsFile::fctl(const int           cmd,
 XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
                                   char              *buffer,
                                   XrdSfsXferSize     rdlen,
-                                  uint32_t          *csvec,
+                                  uint32_t         *&csvec,
                                   uint64_t           opts)
 {
    XrdSfsXferSize bytes;
@@ -117,7 +117,7 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0 && csvec)
+   if (bytes > 0)
       XrdOucCRC::Calc32C((void *)buffer, rdlen, csvec, XrdSfsPageSize);
 
 // All done
@@ -144,7 +144,7 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
                                    char              *buffer,
                                    XrdSfsXferSize     wrlen,
-                                   uint32_t          *csvec,
+                                   uint32_t         *&csvec,
                                    uint64_t           opts)
 {
 // Make sure the offset is on a 4K boundary
@@ -169,7 +169,7 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 // If we have a checksum vector and verify is on, make sure the data
 // in the buffer corresponds to he checksums.
 //
-   if (csvec && (opts & Verify))
+   if (opts & Verify)
       {uint32_t valcs;
        if (XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs,
                              XrdSfsPageSize) >= 0)

@@ -74,7 +74,7 @@ add_library(
   XrdOuc/XrdOucArgs.cc          XrdOuc/XrdOucArgs.hh
   XrdOuc/XrdOucBackTrace.cc     XrdOuc/XrdOucBackTrace.hh
   XrdOuc/XrdOucBuffer.cc        XrdOuc/XrdOucBuffer.hh
-                                XrdOuc/XrdOucCache.hh
+  XrdOuc/XrdOucCache.cc         XrdOuc/XrdOucCache.hh
                                 XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.cc      XrdOuc/XrdOucCallBack.hh
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh

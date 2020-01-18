@@ -162,6 +162,104 @@ const char  *Location() {return "";}
 virtual
 const char  *Path() = 0;
 
+//-----------------------------------------------------------------------------
+//! Read file pages into a buffer and return corresponding checksums.
+//!
+//! @param  buff  pointer to buffer where the bytes are to be placed.
+//! @param  offs  The offset where the read is to start. It must be
+//!               page aligned.
+//! @param  rdlen The number of bytes to read. The amount must be an
+//!               integral number of XrdSfsPageSize bytes.
+//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries which will be
+//!               filled with the corresponding CRC32C checksum for each page.
+//! @param  opts  Processing options.
+//!
+//! @return >= 0      The number of bytes placed in buffer.
+//! @return -errno    File could not be read, return value is the reason.
+//-----------------------------------------------------------------------------
+
+virtual int  pgRead(char      *buff,
+                    long long  offs,
+                    int        rdlen,
+                    uint32_t *&csvec,
+                    uint64_t   opts=0);
+
+//-----------------------------------------------------------------------------
+//! Read file pages and checksums using asynchronous I/O (default sync).
+//!
+//! @param  iocb  reference to the callback object that receives the result. All
+//!               results are returned via this object's Done() method. If the
+//!               caller holds any locks they must be recursive locks as the
+//!               callback may occur on the calling thread.
+//! @param  buff  pointer to buffer where the bytes are to be placed.
+//! @param  offs  The offset where the read is to start. It must be
+//!               page aligned.
+//! @param  rdlen The number of bytes to read. The amount must be an
+//!               integral number of XrdSfsPageSize bytes.
+//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries which will be
+//!               filled with the corresponding CRC32C checksum for each page.
+//! @param  opts  Processing options.
+//-----------------------------------------------------------------------------
+
+virtual void pgRead(XrdOucCacheIOCB &iocb,
+                    char            *buff,
+                    long long        offs,
+                    int              rdlen,
+                    uint32_t       *&csvec,
+                    uint64_t         opts=0)
+                   {iocb.Done(pgRead(buff, offs, rdlen, csvec, opts));}
+
+//-----------------------------------------------------------------------------
+//! Write file pages from a buffer and corresponding verified checksums.
+//!
+//! @param  buff  pointer to buffer holding the bytes to be written.
+//! @param  offs  The offset where the write is to start. It must be
+//!               page aligned.
+//! @param  wrlen The number of bytes to write. The amount must be an
+//!               integral number of XrdSfsPageSize bytes except for the
+//!               page of the file. A short write prohibits writing past
+//!               offs+wrlen (i.e. it establishes an end of file).
+//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries that hold the
+//!               corresponding verified CRC32C checksum for each page.
+//! @param  opts  Processing options.
+//!
+//! @return >= 0      The number of bytes written.
+//! @return -errno    File could not be written, returned value is the reason.
+//-----------------------------------------------------------------------------
+
+virtual int  pgWrite(char      *buff,
+                     long long  offs,
+                     int        rdlen,
+                     uint32_t *&csvec,
+                     uint64_t   opts=0);
+
+//-----------------------------------------------------------------------------
+//! Write file pages and checksums using asynchronous I/O (default sync).
+//!
+//! @param  iocb  reference to the callback object that receives the result. All
+//!               results are returned via this object's Done() method. If the
+//!               caller holds any locks they must be recursive locks as the
+//!               callback may occur on the calling thread.
+//! @param  buff  pointer to buffer holding the bytes to be written.
+//! @param  offs  The offset where the write is to start. It must be
+//!               page aligned.
+//! @param  wrlen The number of bytes to write. The amount must be an
+//!               integral number of XrdSfsPageSize bytes except for the
+//!               page of the file. A short write prohibits writing past
+//!               offs+wrlen (i.e. it establishes an end of file).
+//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries that holds the
+//!               corresponding verified CRC32C checksum for each page.
+//! @param  opts  Processing options.
+//-----------------------------------------------------------------------------
+
+virtual void pgWrite(XrdOucCacheIOCB &iocb,
+                     char            *buff,
+                     long long        offs,
+                     int              wrlen,
+                     uint32_t       *&csvec,
+                     uint64_t         opts=0)
+                    {iocb.Done(pgWrite(buff, offs, wrlen, csvec, opts));}
+
 //------------------------------------------------------------------------------
 //! Perform an asynchronous preread (may be ignored).
 //!
@@ -198,12 +296,8 @@ struct aprParms
 virtual void Preread(aprParms &Parms) { (void)Parms; }
 
 //------------------------------------------------------------------------------
-//! Perform an asynchronous read (defaults to synchronous).
+//! Perform an synchronous read.
 //!
-//! @param  iocb  reference to the callback object that receives the result. All
-//!               results are returned via this object's Done() method. If the
-//!               caller holds any locks they must be recursive locks as the
-//!               callback may occur on the calling thread.
 //! @param  buff  pointer to the buffer to receive the results. The buffer must
 //!               remain valid until the callback is invoked.
 //! @param  offs  the offset into the file.
@@ -215,8 +309,33 @@ virtual void Preread(aprParms &Parms) { (void)Parms; }
 
 virtual int  Read (char *buff, long long offs, int rlen) = 0;
 
+//------------------------------------------------------------------------------
+//! Perform an asynchronous read (defaults to synchronous).
+//!
+//! @param  iocb  reference to the callback object that receives the result. All
+//!               results are returned via this object's Done() method. If the
+//!               caller holds any locks they must be recursive locks as the
+//!               callback may occur on the calling thread.
+//! @param  buff  pointer to the buffer to receive the results. The buffer must
+//!               remain valid until the callback is invoked.
+//! @param  offs  the offset into the file.
+//! @param  rlen  the number of bytes to read.
+//------------------------------------------------------------------------------
+
 virtual void Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen)
                   {iocb.Done(Read(buff, offs, rlen));}
+
+//------------------------------------------------------------------------------
+//! Perform an synchronous vector read.
+//!
+//! @param  readV pointer to a vector of read requests.
+//! @param  rnum  the number of elements in the vector.
+//!
+//! @return       < 0 - ReadV failed, value is -errno.
+//!               >=0 - ReadV succeeded, value is number of bytes read.
+//------------------------------------------------------------------------------
+
+virtual int  ReadV(const XrdOucIOVec *readV, int rnum);
 
 //------------------------------------------------------------------------------
 //! Perform an asynchronous vector read (defaults to synchronous).
@@ -227,26 +346,19 @@ virtual void Read (XrdOucCacheIOCB &iocb, char *buff, long long offs, int rlen)
 //!               callback may occur on the calling thread.
 //! @param  readV pointer to a vector of read requests.
 //! @param  rnum  the number of elements in the vector.
-//!
-//! @return       < 0 - ReadV failed, value is -errno.
-//!               >=0 - ReadV succeeded, value is number of bytes read.
 //------------------------------------------------------------------------------
-
-virtual int  ReadV(const XrdOucIOVec *readV, int rnum)
-                  {int nbytes = 0, curCount = 0;
-                   for (int i = 0; i < rnum; i++)
-                       {curCount = Read(readV[i].data,
-                                        readV[i].offset,
-                                        readV[i].size);
-                        if (curCount != readV[i].size)
-                           return (curCount < 0 ? curCount : -ESPIPE);
-                        nbytes += curCount;
-                       }
-                   return nbytes;
-                  }
 
 virtual void ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int rnum)
                   {iocb.Done(ReadV(readV, rnum));}
+
+//------------------------------------------------------------------------------
+//! Perform an synchronous sync() operation.
+//!
+//! @return       <0 - Sync failed, value is -errno.
+//!               =0 - Sync succeeded.
+//------------------------------------------------------------------------------
+
+virtual int  Sync() = 0;
 
 //------------------------------------------------------------------------------
 //! Perform an asynchronous sync() operation (defaults to synchronous).
@@ -255,14 +367,20 @@ virtual void ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int rnum)
 //!               results are returned via this object's Done() method. If the
 //!               caller holds any locks they must be recursive locks as the
 //!               callback may occur on the calling thread.
-//!
-//! @return       <0 - Sync failed, value is -errno.
-//!               =0 - Sync succeeded.
 //------------------------------------------------------------------------------
 
-virtual int  Sync() = 0;
-
 virtual void Sync(XrdOucCacheIOCB &iocb) {iocb.Done(Sync());}
+
+//------------------------------------------------------------------------------
+//! Perform an synchronous trunc() operation.
+//!
+//! @param  offs  the size the file is have.
+//!
+//! @return       <0 - Trunc failed, value is -errno.
+//!               =0 - Trunc succeeded.
+//------------------------------------------------------------------------------
+
+virtual int  Trunc(long long offs) = 0;
 
 //------------------------------------------------------------------------------
 //! Perform an asynchronous trunc() operation (defaults to synchronous).
@@ -276,8 +394,6 @@ virtual void Sync(XrdOucCacheIOCB &iocb) {iocb.Done(Sync());}
 //! @return       <0 - Trunc failed, value is -errno.
 //!               =0 - Trunc succeeded.
 //------------------------------------------------------------------------------
-
-virtual int  Trunc(long long offs) = 0;
 
 virtual void Trunc(XrdOucCacheIOCB &iocb, long long offs)
                   {iocb.Done(Trunc(offs));}
@@ -297,12 +413,8 @@ virtual void Trunc(XrdOucCacheIOCB &iocb, long long offs)
 virtual void Update(XrdOucCacheIO &iocp) {}
 
 //------------------------------------------------------------------------------
-//! Perform an asynchronous write (defaults to synchronous).
+//! Perform an synchronous write.
 //!
-//! @param  iocb  reference to the callback object that receives the result. All
-//!               results are returned via this object's Done() method. If the
-//!               caller holds any locks they must be recursive locks as the
-//!               callback may occur on the calling thread.
 //! @param  buff  pointer to the buffer holding the contents. The buffer must
 //!               remain valid until the callback is invoked.
 //! @param  offs  the offset into the file.
@@ -314,8 +426,47 @@ virtual void Update(XrdOucCacheIO &iocp) {}
 
 virtual int  Write(char *buff, long long offs, int wlen) = 0;
 
+//------------------------------------------------------------------------------
+//! Perform an asynchronous write (defaults to synchronous).
+//!
+//! @param  iocb  reference to the callback object that receives the result. All
+//!               results are returned via this object's Done() method. If the
+//!               caller holds any locks they must be recursive locks as the
+//!               callback may occur on the calling thread.
+//! @param  buff  pointer to the buffer holding the contents. The buffer must
+//!               remain valid until the callback is invoked.
+//! @param  offs  the offset into the file.
+//! @param  wlen  the number of bytes to write
+//------------------------------------------------------------------------------
+
 virtual void Write(XrdOucCacheIOCB &iocb, char *buff, long long offs, int wlen)
                   {iocb.Done(Write(buff, offs, wlen));}
+
+//------------------------------------------------------------------------------
+//! Perform an synchronous vector write.
+//!
+//! @param  writV pointer to a vector of write requests.
+//! @param  wnum  the number of elements in the vector.
+//!
+//! @return       < 0 - WriteV failed, value is -errno.
+//!               >=0 - WriteV succeeded, value is number of bytes written.
+//------------------------------------------------------------------------------
+
+virtual int  WriteV(const XrdOucIOVec *writV, int wnum);
+
+//------------------------------------------------------------------------------
+//! Perform an asynchronous vector write (defaults to synchronous).
+//!
+//! @param  iocb  reference to the callback object that receives the result. All
+//!               results are returned via this object's Done() method. If the
+//!               caller holds any locks they must be recursive locks as the
+//!               callback may occur on the calling thread.
+//! @param  writV pointer to a vector of read requests.
+//! @param  wnum  the number of elements in the vector.
+//------------------------------------------------------------------------------
+
+virtual void WriteV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *writV, int wnum)
+                  {iocb.Done(WriteV(writV, wnum));}
 
 //------------------------------------------------------------------------------
 //! Construct and Destructor

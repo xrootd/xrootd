@@ -76,7 +76,7 @@ virtual int     getFD()                                      {return -1;}
 virtual off_t   getMmap(void **)                             {return 0;}
 virtual int     isCompressed(char *cxidp=0)                  {(void)cxidp; return -EISDIR;}
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
-virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*, uint64_t);
+virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*&, uint64_t);
 virtual int     pgRead (XrdSfsAio*, uint64_t);
 virtual ssize_t pgWrite(void*, off_t, size_t, uint32_t*, uint64_t);
 virtual int     pgWrite(XrdSfsAio*, uint64_t);
@@ -100,7 +100,9 @@ virtual        ~XrdOssDF() {}
 // pgRead and pgWrite options as noted.
 //
 static const uint64_t
-Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
+Verify       = 0x8000000000000000ULL; //!< all: Verify    checksums
+static const uint64_t
+doCalc       = 0x4000000000000000ULL; //!< pgw: Calculate checksums
 
 protected:
 

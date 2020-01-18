@@ -501,9 +501,8 @@ Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 //! @param  buffer  - pointer to buffer where the bytes are to be placed.
 //! @param  rdlen   - The number of bytes to read. The amount must be an
 //!                   integral number of XrdSfsPageSize bytes.
-//! @param  csvec   - A vector of [rdlen/XrdSfsPageSize] entries which will be
-//!                   filled with the corresponding CRC32C checksum for each
-//!                   page. A nil pointer does not return the checksums.
+//! @param  csvec   - A vector of [rdlen/XrdSfsPageSize] entries to be filled
+//!                   with the corresponding CRC32C checksum for each page.
 //! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes that placed in buffer.
@@ -513,7 +512,7 @@ Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 virtual XrdSfsXferSize pgRead(XrdSfsFileOffset   offset,
                               char              *buffer,
                               XrdSfsXferSize     rdlen,
-                              uint32_t          *csvec,
+                              uint32_t         *&csvec,
                               uint64_t           opts=0);
 
 //-----------------------------------------------------------------------------
@@ -539,7 +538,6 @@ virtual int            pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
 //!                   be the last write to the file at or above the offset.
 //! @param  csvec   - A vector of [CEILING(wrlen/XrdSfsPageSize)] entries which
 //!                   contain the corresponding CRC32 checksum for each page.
-//!                   A nil pointer causes the checksums to be computed.
 //! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes written.
@@ -549,7 +547,7 @@ virtual int            pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
 virtual XrdSfsXferSize pgWrite(XrdSfsFileOffset   offset,
                                char              *buffer,
                                XrdSfsXferSize     wrlen,
-                               uint32_t          *csvec,
+                               uint32_t         *&csvec,
                                uint64_t           opts=0);
 
 //-----------------------------------------------------------------------------
