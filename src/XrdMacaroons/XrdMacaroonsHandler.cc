@@ -4,7 +4,7 @@
 #include <string>
 #include <iostream>
 
-#include "uuid.h"
+#include <uuid/uuid.h>
 #include "json.h"
 #include "macaroons.h"
 
