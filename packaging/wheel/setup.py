@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 from setuptools.command.install import install
 from setuptools.command.sdist import sdist
-from distutils.command.bdist import bdist
+from wheel.bdist_wheel import bdist_wheel
 
 import subprocess
 import sys
@@ -29,6 +29,7 @@ def binary_exists(name):
     """Check whether `name` is on PATH."""
     from distutils.spawn import find_executable
     return find_executable(name) is not None
+
 
 # def python_dependency_name( py_version_short, py_version_nodot ):
 #     """ find the name of python dependency """
@@ -108,10 +109,10 @@ class CustomDist(sdist):
         sdist.run(self)
 
 
-class CustomWheelGen(bdist):
+class CustomWheelGen(bdist_wheel):
     # Do not generate wheel
     def run(self):
-        return
+        pass
 
 
 version = get_version()
