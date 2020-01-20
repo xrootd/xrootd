@@ -30,6 +30,27 @@ def binary_exists(name):
     from distutils.spawn import find_executable
     return find_executable(name) is not None
 
+def check_cmake3(path):
+    from distutils.spawn import find_executable
+    args = (path, "--version")
+    popen = subprocess.Popen(args, stdout=subprocess.PIPE)
+    popen.wait()
+    output = popen.stdout.read()
+    prefix_len = len( "cmake version " )
+    version = output[prefix_len:].split( '.' )
+    return int( version[0] ) >= 3
+
+def cmake_exists():
+    """Check whether CMAKE is on PATH."""
+    from distutils.spawn import find_executable
+    path = find_executable('cmake')
+    if path is not None:
+        if check_cmake3(path): return True, path
+    path = find_executable('cmake3')
+    return path is not None, path 
+
+
+
 # def python_dependency_name( py_version_short, py_version_nodot ):
 #     """ find the name of python dependency """
 #     from distutils.spawn import find_executable
@@ -51,7 +72,7 @@ class CustomInstall(install):
         py_version_short = self.config_vars['py_version_short']
         py_version_nodot = self.config_vars['py_version_nodot']
 
-        cmake_bin   = binary_exists( 'cmake' )
+        cmake_bin, cmake_path = cmake_exists()
         make_bin    = binary_exists( 'make' )
         comp_bin    = binary_exists( 'c++' ) or binary_exists( 'g++' ) or binary_exists( 'clang' )
 
@@ -72,7 +93,7 @@ class CustomInstall(install):
 
         if missing_dep:
           print( 'Some dependencies are missing:')
-          if not cmake_bin:   print('\tcmake is missing!')
+          if not cmake_bin:   print('\tcmake (version 3) is missing!')
           if not make_bin:    print('\tmake is missing!')
           if not comp_bin:    print('\tC++ compiler is missing (g++, c++, clang, etc.)!')
           if not zlib_dev:    print('\tzlib development package is missing!')
@@ -91,6 +112,7 @@ class CustomInstall(install):
         command.append(prefix)
         command.append( py_version_short )
         command.append( useropt )
+        command.append( cmake_path )
         rc = subprocess.call(command)
         if rc:
           raise Exception( 'Install step failed!' )
@@ -131,8 +153,8 @@ setup(
     long_description = "XRootD with Python bindings",
     setup_requires   = setup_requires,
     cmdclass         = {
-        'install': CustomInstall,
-        'sdist': CustomDist,
+        'install':     CustomInstall,
+        'sdist':       CustomDist,
         'bdist_wheel': CustomWheelGen
     }
 )

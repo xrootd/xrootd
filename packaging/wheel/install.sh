@@ -12,7 +12,8 @@ cd xrootdbuild
 #    (for the python bindings we don't want to install the binaries)
 CMAKE_ARGS="-DXRDCL_LIB_ONLY=TRUE  -DENABLE_PYTHON=TRUE -DCMAKE_INSTALL_PREFIX=$1 -DXRD_PYTHON_REQ_VERSION=$2 -DCMAKE_INSTALL_BINDIR=$startdir/xrootdbuild/bin"
 
-cmake .. $CMAKE_ARGS
+cmake_path=$4
+$cmake_path .. $CMAKE_ARGS
 
 res=$?
 if [ "$res" -ne "0" ]; then
