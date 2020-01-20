@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 from setuptools.command.install import install
 from setuptools.command.sdist import sdist
-from distutils.command.bdist import bdist
+from wheel.bdist_wheel import bdist_wheel
 
 import subprocess
 import sys
@@ -35,7 +35,7 @@ def check_cmake3(path):
     args = (path, "--version")
     popen = subprocess.Popen(args, stdout=subprocess.PIPE)
     popen.wait()
-    output = popen.stdout.read()
+    output = popen.stdout.read().decode("utf-8") 
     prefix_len = len( "cmake version " )
     version = output[prefix_len:].split( '.' )
     return int( version[0] ) >= 3
@@ -130,10 +130,10 @@ class CustomDist(sdist):
         sdist.run(self)
 
 
-class CustomWheelGen(bdist):
+class CustomWheelGen(bdist_wheel):
     # Do not generate wheel
     def run(self):
-        return
+        pass
 
 
 version = get_version()
