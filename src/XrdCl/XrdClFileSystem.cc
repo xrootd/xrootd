@@ -890,6 +890,32 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  //! Wrapper class used to assign last URL
+  //----------------------------------------------------------------------------
+  class AssignLastURLHandler: public ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Constructor and destructor
+      //------------------------------------------------------------------------
+      AssignLastURLHandler( FileSystemImpl *fs, ResponseHandler *userHandler ):
+        pFS(fs), pUserHandler(userHandler) {}
+
+      virtual ~AssignLastURLHandler() {}
+
+      //------------------------------------------------------------------------
+      // Response callback
+      //------------------------------------------------------------------------
+      virtual void HandleResponseWithHosts( XRootDStatus *status,
+                                            AnyObject    *response,
+                                            HostList     *hostList );
+
+    private:
+      FileSystemImpl  *pFS;
+      ResponseHandler *pUserHandler;
+  };
+
+  //----------------------------------------------------------------------------
   //! Implementation holding the data members
   //----------------------------------------------------------------------------
   struct FileSystemImpl
@@ -919,6 +945,8 @@ namespace XrdCl
       log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
                  pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
 
+      handler = new AssignLastURLHandler( this, handler );
+
       if( !pLoadBalancerLookupDone && pFollowRedirects )
         handler = new AssignLBHandler( this, handler ); // TODO
 
@@ -926,7 +954,6 @@ namespace XrdCl
 
       return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
     }
-
 
     //----------------------------------------------------------------------------
     // Assign a load balancer if it has not already been assigned
@@ -947,18 +974,33 @@ namespace XrdCl
       pLoadBalancerLookupDone = true;
     }
 
-    XrdSysMutex       pMutex;
-    bool              pLoadBalancerLookupDone;
-    bool              pFollowRedirects;
-    URL              *pUrl;
+    //----------------------------------------------------------------------------
+    // Assign last URL
+    //----------------------------------------------------------------------------
+    void AssignLastURL( const URL &url )
+    {
+      Log *log = DefaultEnv::GetLog();
+      XrdSysMutexHelper scopedLock( pMutex );
+
+      log->Dump( FileSystemMsg, "[0x%x@%s] Assigning %s as last URL", this,
+                 pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
+
+      pLastUrl.reset( new URL( url ) );
+    }
+
+    XrdSysMutex           pMutex;
+    bool                  pLoadBalancerLookupDone;
+    bool                  pFollowRedirects;
+    URL                  *pUrl;
+    std::unique_ptr<URL>  pLastUrl;
   };
 
   //------------------------------------------------------------------------
   // Response callback
   //------------------------------------------------------------------------
   void AssignLBHandler::HandleResponseWithHosts( XRootDStatus *status,
-                                        AnyObject    *response,
-                                        HostList     *hostList )
+                                                 AnyObject    *response,
+                                                 HostList     *hostList )
   {
     if( status->IsOK() )
     {
@@ -970,6 +1012,22 @@ namespace XrdCl
           break;
         }
     }
+
+    bool finalrsp = !( status->IsOK() && status->code == suContinue );
+    pUserHandler->HandleResponseWithHosts( status, response, hostList );
+    if( finalrsp )
+      delete this;
+  }
+
+  //------------------------------------------------------------------------
+  // Response callback
+  //------------------------------------------------------------------------
+  void AssignLastURLHandler::HandleResponseWithHosts( XRootDStatus *status,
+                                               AnyObject    *response,
+                                               HostList     *hostList )
+  {
+    if( status->IsOK() && hostList )
+      pFS->AssignLastURL( hostList->front().url );
 
     bool finalrsp = !( status->IsOK() && status->code == suContinue );
     pUserHandler->HandleResponseWithHosts( status, response, hostList );
@@ -2023,6 +2081,16 @@ namespace XrdCl
       else value = "false";
       return true;
     }
+    else if( name == "LastURL" )
+    {
+      if( pImpl->pLastUrl )
+      {
+        value = pImpl->pLastUrl->GetURL();
+        return true;
+      }
+      else return false;
+    }
+
     return false;
   }
 
