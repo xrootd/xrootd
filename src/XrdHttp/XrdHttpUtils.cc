@@ -380,7 +380,7 @@ char *quote(const char *str) {
         j += 3;
         break;
       case '\r':
-        strcpy(r + j, "%0C");
+        strcpy(r + j, "%0D");
         j += 3;
         break;
       default:
