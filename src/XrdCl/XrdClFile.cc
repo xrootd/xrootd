@@ -250,6 +250,29 @@ namespace XrdCl
     return status;
   }
 
+  //------------------------------------------------------------------------
+  // Write a data chunk from a pipe at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::Write( uint64_t         offset,
+                            uint32_t         size,
+                            DataPipe        &pipe,
+                            ResponseHandler *handler,
+                            uint16_t         timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented);
+  }
+
+  //------------------------------------------------------------------------
+  // Write a data chunk from a pipe at a given offset - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::Write( uint64_t    offset,
+                            uint32_t    size,
+                            DataPipe   &pipe,
+                            uint16_t    timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented );
+  }
+
   //----------------------------------------------------------------------------
   // Commit all pending disk writes - async
   //----------------------------------------------------------------------------

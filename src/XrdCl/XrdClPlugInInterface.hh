@@ -30,6 +30,8 @@
 
 namespace XrdCl
 {
+  class DataPipe;
+
   //----------------------------------------------------------------------------
   //! An interface for file plug-ins
   //----------------------------------------------------------------------------
@@ -98,6 +100,19 @@ namespace XrdCl
                                   uint16_t         timeout )
       {
         (void)offset; (void)size; (void)buffer; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::File::Write
+      //------------------------------------------------------------------------
+      virtual XRootDStatus Write( uint64_t         offset,
+                                  uint32_t         size,
+                                  DataPipe        &pipe,
+                                  ResponseHandler *handler,
+                                  uint16_t         timeout = 0 )
+      {
+        (void)offset; (void)size; (void)pipe; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
 

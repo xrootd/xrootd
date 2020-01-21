@@ -37,6 +37,7 @@ namespace XrdCl
 {
   class FileStateHandler;
   class FilePlugIn;
+  class DataPipe;
 
   //----------------------------------------------------------------------------
   //! A file
@@ -229,6 +230,47 @@ namespace XrdCl
       XRootDStatus Write( uint64_t    offset,
                           uint32_t    size,
                           const void *buffer,
+                          uint16_t    timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write a data chunk from a pipe at a given offset - async
+      //! The call interprets and returns the server response, which may be
+      //! either a success or a failure, it does not contain the number
+      //! of bytes that were actually written.
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    number of bytes to be written
+      //! @param buffer  a pointer to the buffer holding the data to be written
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Write( uint64_t         offset,
+                          uint32_t         size,
+                          DataPipe        &pipe,
+                          ResponseHandler *handler,
+                          uint16_t         timeout = 0 )
+                          XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write a data chunk from a pipe at a given offset - sync
+      //! The call interprets and returns the server response, which may be
+      //! either a success or a failure, it does not contain the number
+      //! of bytes that were actually written.
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    number of bytes to be written
+      //! @param buffer  a pointer to the buffer holding the data to be
+      //!                written
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Write( uint64_t    offset,
+                          uint32_t    size,
+                          DataPipe   &pipe,
                           uint16_t    timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
 
