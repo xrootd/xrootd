@@ -212,6 +212,13 @@ IF( XRootD_FIND_REQUIRED_SSI AND NOT XROOTD_SSI_FOUND )
 ENDIF()
 
 ################################################################################
+# Utility variables for plug-in development
+################################################################################
+IF( XROOTD_FOUND )
+  SET( XROOTD_PLUGIN_VERSION, @PLUGIN_VERSION@ )
+ENDIF()
+
+################################################################################
 # Set up the XRootD find module
 ################################################################################
 

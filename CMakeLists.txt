@@ -63,8 +63,11 @@ include( XRootDSummary )
 #-------------------------------------------------------------------------------
 # Install FindXRootD.cmake module
 #-------------------------------------------------------------------------------
+
+configure_file( "cmake/FindXRootD.cmake.in" "cmake/FindXRootD.cmake" @ONLY )
+
 install(
-  FILES ${CMAKE_SOURCE_DIR}/cmake/FindXRootD.cmake
+  FILES ${CMAKE_BINARY_DIR}/cmake/FindXRootD.cmake
   DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/cmake )
 
 #-------------------------------------------------------------------------------
