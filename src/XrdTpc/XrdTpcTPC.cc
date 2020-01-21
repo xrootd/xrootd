@@ -68,47 +68,6 @@ static std::string prepareURL(XrdHttpExtReq &req) {
 }
 
 
-static char *quote(const char *str) {
-  int l = strlen(str);
-  char *r = (char *) malloc(l*3 + 1);
-  r[0] = '\0';
-  int i, j = 0;
-
-  for (i = 0; i < l; i++) {
-    char c = str[i];
-
-    switch (c) {
-      case ' ':
-        strcpy(r + j, "%20");
-        j += 3;
-        break;
-      case '[':
-        strcpy(r + j, "%5B");
-        j += 3;
-        break;
-      case ']':
-        strcpy(r + j, "%5D");
-        j += 3;
-        break;
-      case ':':
-        strcpy(r + j, "%3A");
-        j += 3;
-        break;
-      case '/':
-        strcpy(r + j, "%2F");
-        j += 3;
-        break;
-      default:
-        r[j++] = c;
-    }
-  }
-
-  r[j] = '\0';
-
-  return r;
-}
-
-
 bool TPCHandler::MatchesPath(const char *verb, const char *path) {
     return !strcmp(verb, "COPY") || !strcmp(verb, "OPTIONS");
 }
