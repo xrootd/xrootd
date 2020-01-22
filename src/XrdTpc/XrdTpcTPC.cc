@@ -190,13 +190,29 @@ std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
 
 int TPCHandler::RedirectTransfer(const std::string &redirect_resource, XrdHttpExtReq &req, XrdOucErrInfo &error) {
     int port;
-    const char *host = error.getErrText(port);
-    if ((host == NULL) || (*host == '\0') || (port == 0)) {
+    const char *ptr = error.getErrText(port);
+    if ((ptr == NULL) || (*ptr == '\0') || (port == 0)) {
         char msg[] = "Internal error: redirect without hostname";
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
+
+    // Construct redirection URL taking into consideration any opaque info
+    std::string rdr_info = ptr;
+    std::string host, opaque;
+    size_t pos = rdr_info.find('?');
+    host = rdr_info.substr(0, pos);
+
+    if (pos != std::string::npos) {
+      opaque = rdr_info.substr(pos + 1);
+    }
+
     std::stringstream ss;
     ss << "Location: http" << (m_desthttps ? "s" : "") << "://" << host << ":" << port << "/" << redirect_resource;
+
+    if (!opaque.empty()) {
+      ss << "?" << opaque;
+    }
+
     return req.SendSimpleResp(307, NULL, const_cast<char *>(ss.str().c_str()), NULL, 0);
 }
 
