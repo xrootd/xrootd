@@ -572,7 +572,6 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 /* Function: xorig
 
    Purpose:  Parse: origin {= [<dest>] | <dest>}
-   Purpose:  Parse: origin [<prot>] {= [<dest>] | <dest>}
 
                                                                                  d
    where:    <dest> <host>[+][:<port>|<port>] or a URL of the form
