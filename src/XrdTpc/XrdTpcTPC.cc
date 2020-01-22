@@ -167,8 +167,20 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
     while (1) {
         int orig_ucap = fh.error.getUCap();
         fh.error.setUCap(orig_ucap | XrdOucEI::uIPv64);
-        open_result = fh.open(resource.c_str(), mode, openMode, &sec,
-                              authz.empty() ? NULL: authz.c_str());
+        std::string opaque;
+        size_t pos = resource.find('?');
+        // Extract the path and opaque info from the resource
+        std::string path = resource.substr(0, pos);
+
+        if (pos != std::string::npos) {
+          opaque = resource.substr(pos + 1);
+        }
+
+        // Append the authz information
+        opaque += (opaque.empty() ? "" : "&");
+        opaque += authz;
+        open_result = fh.open(path.c_str(), mode, openMode, &sec, opaque.c_str());
+
         if ((open_result == SFS_STALL) || (open_result == SFS_STARTED)) {
             int secs_to_stall = fh.error.getErrInfo();
             if (open_result == SFS_STARTED) {secs_to_stall = secs_to_stall/2 + 5;}
