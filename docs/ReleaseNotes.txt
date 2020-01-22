@@ -5,8 +5,32 @@ XRootD
 Release Notes
 =============
 
+--------------
+Version 4.11.2
+--------------
 
-Prerelease Notes
++ **Major bug fixes**
+  * **[Proxy]** Remove offending CGI elements before passing URL.
+  * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
+  * **[SSI]** Fix double delete due to extraneous code addition.
+  * **[XrdOuc]** Prevent seqv in XrdOucString::replace(). 
+  * **[XrdHttp]** Fix escape code for \r.
+  * **[XrdHttp]** Fix: the url quoting function was swapping the quoting of 
+                  CR and LF.
+  * **[XrdHttp]** Prevent the logic that looks for the /n from getting confused 
+                  by lines containing zeroes.
+
++ **Minor bug fixes**
+  * **[Python]** Use right bdist_wheel.
+  * **[XrdCl]** Report last error if metalink runs out of replicas, fixes #1071
+
++ **Miscellaneous**
+  * **[CMake]** Add XROOTD_PLUGIN_VERSION to FindXRootD.cmake.
+  * **[XrdCl]** TPC: use separate cgi element (tpc.dlgon) to mark user intension
+                to delegate.
+  * **[Server]** Use new tpc.dlgon CGI token to drive tpc redirection.
+  * **[CMake]** Add option to build only client libraries.
+
 --------------
 Version 4.11.1
 --------------
