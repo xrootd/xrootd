@@ -466,7 +466,7 @@ weekly:centos8:
     - cd ..
     - mkdir epel-8/
     - echo $CI_PROJECT_DIR
-    - mkdir $CI_PROJECT_DIR/epel-8
+    - mkdir -p $CI_PROJECT_DIR/epel-8
     - cp packaging/*.src.rpm epel-8
     - cp packaging/RPMS/* epel-8
     - cp epel-8/* $CI_PROJECT_DIR/epel-8
