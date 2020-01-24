@@ -149,13 +149,29 @@ std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
 
 int TPCHandler::RedirectTransfer(const std::string &redirect_resource, XrdHttpExtReq &req, XrdOucErrInfo &error) {
     int port;
-    const char *host = error.getErrText(port);
-    if ((host == NULL) || (*host == '\0') || (port == 0)) {
+    const char *ptr = error.getErrText(port);
+    if ((ptr == NULL) || (*ptr == '\0') || (port == 0)) {
         char msg[] = "Internal error: redirect without hostname";
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     }
+
+    // Construct redirection URL taking into consideration any opaque info
+    std::string rdr_info = ptr;
+    std::string host, opaque;
+    size_t pos = rdr_info.find('?');
+    host = rdr_info.substr(0, pos);
+
+    if (pos != std::string::npos) {
+      opaque = rdr_info.substr(pos + 1);
+    }
+
     std::stringstream ss;
     ss << "Location: http" << (m_desthttps ? "s" : "") << "://" << host << ":" << port << "/" << redirect_resource;
+
+    if (!opaque.empty()) {
+      ss << "?" << opaque;
+    }
+
     return req.SendSimpleResp(307, NULL, const_cast<char *>(ss.str().c_str()), NULL, 0);
 }
 
@@ -167,8 +183,20 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
     while (1) {
         int orig_ucap = fh.error.getUCap();
         fh.error.setUCap(orig_ucap | XrdOucEI::uIPv64);
-        open_result = fh.open(resource.c_str(), mode, openMode, &sec,
-                              authz.empty() ? NULL: authz.c_str());
+        std::string opaque;
+        size_t pos = resource.find('?');
+        // Extract the path and opaque info from the resource
+        std::string path = resource.substr(0, pos);
+
+        if (pos != std::string::npos) {
+          opaque = resource.substr(pos + 1);
+        }
+
+        // Append the authz information
+        opaque += (opaque.empty() ? "" : "&");
+        opaque += authz;
+        open_result = fh.open(path.c_str(), mode, openMode, &sec, opaque.c_str());
+
         if ((open_result == SFS_STALL) || (open_result == SFS_STARTED)) {
             int secs_to_stall = fh.error.getErrInfo();
             if (open_result == SFS_STARTED) {secs_to_stall = secs_to_stall/2 + 5;}
