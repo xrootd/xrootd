@@ -465,11 +465,8 @@ weekly:centos8:
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_tests 1" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir epel-8/
-    - echo $CI_PROJECT_DIR
-    - mkdir -p $CI_PROJECT_DIR/epel-8
     - cp packaging/*.src.rpm epel-8
     - cp packaging/RPMS/* epel-8
-    - cp epel-8/* $CI_PROJECT_DIR/epel-8
   artifacts:
     expire_in: 1 day
     paths:
