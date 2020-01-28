@@ -370,7 +370,22 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   // installed. If we have no sec extractor then do nothing, just plain https
   // will work.
   if (secxtractor) {
+    // We assume that if the sysadmin has assigned a gridmap file then he
+    // is interested in the mapped name, not the original one that would be
+    // overwritten inside the plugin
+    char *savestr = 0;
+    if (servGMap && SecEntity.name)
+      savestr = strdup(SecEntity.name);
+      
     int r = secxtractor->GetSecData(lp, SecEntity, ssl);
+    
+    if (servGMap && savestr) {
+      if (SecEntity.name)
+        free(SecEntity.name);
+      SecEntity.name = savestr;
+    }
+      
+      
     if (r)
       TRACEI(ALL, " Certificate data extraction failed: " << SecEntity.moninfo << " Failed. err: " << r);
     return r;
