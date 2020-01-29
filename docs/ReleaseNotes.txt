@@ -17,8 +17,12 @@ Version 4.11.2
   * **[XrdHttp]** Fix escape code for \r.
   * **[XrdHttp]** Fix: the url quoting function was swapping the quoting of 
                   CR and LF.
+  * **[XrdHttp]** Fix the "100 Continue" response.
   * **[XrdHttp]** Prevent the logic that looks for the /n from getting confused 
                   by lines containing zeroes.
+  * **[XrdTpc]** Properly forward existing opaque info to the OFS layer.
+  * **[XrdTpc]** Properly format redirection URL when OFS layer returns also opaque 
+                 information.
 
 + **Minor bug fixes**
   * **[Python]** Use right bdist_wheel.
@@ -30,6 +34,9 @@ Version 4.11.2
                 to delegate.
   * **[Server]** Use new tpc.dlgon CGI token to drive tpc redirection.
   * **[CMake]** Add option to build only client libraries.
+  * **[XrdHttp]** If a gridmap file has been configured, XrdHttp now prefers the 
+                  already mapped username to the non-mapped one that's coming from
+                  a security extractor plugin.
 
 --------------
 Version 4.11.1
