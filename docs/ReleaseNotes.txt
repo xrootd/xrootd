@@ -23,6 +23,7 @@ Version 4.11.2
   * **[XrdTpc]** Properly forward existing opaque info to the OFS layer.
   * **[XrdTpc]** Properly format redirection URL when OFS layer returns also opaque 
                  information.
+  * **[SSI]** Avoid SIGABRT when init fails. Fixes 751
 
 + **Minor bug fixes**
   * **[Python]** Use right bdist_wheel.

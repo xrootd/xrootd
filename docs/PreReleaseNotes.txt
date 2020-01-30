@@ -12,4 +12,3 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
-
