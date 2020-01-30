@@ -81,17 +81,11 @@
 /*                V e r s i o n   I d e n t i f i c a t i o n                 */
 /******************************************************************************/
   
-XrdVERSIONINFO(XrdSfsGetFileSystem,ssi);
+XrdVERSIONINFO(XrdSfsGetFileSystem2,ssi);
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
-
-namespace
-{
-XrdSsiSfsConfig *Config;
-
-};
 
 namespace XrdSsi
 {
@@ -128,16 +122,16 @@ int               XrdSsiSfs::freeMax = 256;
   
 extern "C"
 {
-XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *nativeFS,
-                                      XrdSysLogger     *logger,
-                                      const char       *configFn)
+XrdSfsFileSystem *XrdSfsGetFileSystem2(XrdSfsFileSystem *nativeFS,
+                                       XrdSysLogger     *logger,
+                                       const char       *configFn,
+                                       XrdOucEnv        *envP)
 {
    static XrdSsiSfs       mySfs;
    static XrdSsiSfsConfig myConfig;
 
 // Set pointer to the config and file system
 //
-   Config = &myConfig;
    theFS  = nativeFS;
    Stats.setFS(nativeFS);
 
@@ -150,7 +144,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *nativeFS,
 
 // Initialize the subsystems
 //
-   if (!myConfig.Configure(configFn)) return 0;
+   if (!myConfig.Configure(configFn, envP)) return 0;
 
 // All done, we can return the callout vector to these routines.
 //
@@ -223,17 +217,6 @@ int XrdSsiSfs::Emsg(const char    *pfx,    // Message prefix value
     einfo.setErrInfo(ecode, buffer);
     return SFS_ERROR;
 }
-  
-/******************************************************************************/
-/*                               E n v I n f o                                */
-/******************************************************************************/
-  
-void XrdSsiSfs::EnvInfo(XrdOucEnv *envP)
-{
-    if (!envP) Log.Emsg("EnvInfo", "No environmental information passed!");
-    if (!envP || !Config->Configure(envP)) abort();
-}
-
 
 /******************************************************************************/
 /*                                e x i s t s                                 */

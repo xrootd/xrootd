@@ -70,8 +70,6 @@ public:
                              const XrdSecEntity     *client,
                              const char             *opaque = 0);
 
-        void           EnvInfo(XrdOucEnv *envP);
-
         int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &eInfo,

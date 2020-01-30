@@ -49,7 +49,7 @@ int              myPort;
 bool             isServer;
 bool             isCms;
 
-bool             Configure(const char *cFN);
+bool             Configure(const char *cFN, XrdOucEnv *envP);
 
 bool             Configure(XrdOucEnv *envP);
 

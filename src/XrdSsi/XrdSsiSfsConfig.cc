@@ -157,7 +157,7 @@ XrdSsiSfsConfig::~XrdSsiSfsConfig()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
 
-bool XrdSsiSfsConfig::Configure(const char *cFN)
+bool XrdSsiSfsConfig::Configure(const char *cFN, XrdOucEnv *envP)
 {
    char *var;
    const char *tmp;
@@ -167,7 +167,7 @@ bool XrdSsiSfsConfig::Configure(const char *cFN)
 
 // Print warm-up message
 //
-   Log.Say("++++++ ssi phase 1 initialization started.");
+   Log.Say("++++++ ssi initialization started.");
 
 // Preset all variables with common defaults
 //
@@ -219,10 +219,14 @@ bool XrdSsiSfsConfig::Configure(const char *cFN)
    fsChk = FSPath.NotEmpty();
    if (isServer && !theFS) fsChk = false;
 
+// Perform historical phase 2 initialization
+//
+  if (!NoGo) NoGo = !Configure(envP);
+
 // All done
 //
    tmp = (NoGo ? " failed." : " completed.");
-   Log.Say("------ ssi phase 1 initialization", tmp);
+   Log.Say("------ ssi initialization", tmp);
    return !NoGo;
 }
   
@@ -233,12 +237,7 @@ bool XrdSsiSfsConfig::Configure(XrdOucEnv *envP)
    static char theSSI[] = {'s', 's', 'i', 0};
    static char **myArgv = 0, *dfltArgv[] = {0, 0};
    XrdOucEnv    *xrdEnvP;
-   const char *tmp;
    int myArgc = 0, NoGo;
-
-// Print warm-up message
-//
-   Log.Say("++++++ ssi phase 2 initialization started.");
 
 // Now find the scheduler
 //
@@ -280,8 +279,6 @@ bool XrdSsiSfsConfig::Configure(XrdOucEnv *envP)
 
 // All done
 //
-   tmp = (NoGo ? " failed." : " completed.");
-   Log.Say("------ ssi phase 2 initialization", tmp);
    return !NoGo;
 }
 
