@@ -130,8 +130,7 @@ XrdOssStatInfo2_t XrdOssStatInfoInit2(XrdOss        *native_oss,
 
 // Process the configuration file so that we get the service provider object
 //
-   if (!Config.Configure(config_fn) || !Config.Configure(envP))
-      return 0;
+   if (!Config.Configure(config_fn, envP)) return 0;
 
 // Return the stat function
 //
