@@ -131,7 +131,7 @@ namespace XrdCl
           inline ResponseHandler* Create( std::function<void( XRootDStatus&,
               StatInfo& )> func )
           {
-            return new ExOpenFuncWrapper( this->file, func );
+            return make_finalized( new ExOpenFuncWrapper( this->file, func ) );
           }
 
           //--------------------------------------------------------------------

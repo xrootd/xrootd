@@ -407,10 +407,10 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus WriteV( uint64_t            offset,
-                                const struct iovec *iov,
-                                int                 iovcnt,
-                                ResponseHandler    *handler,
-                                uint16_t            timeout = 0 );
+                           const struct iovec *iov,
+                           int                 iovcnt,
+                           ResponseHandler    *handler,
+                           uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Write scattered buffers in one operation - sync
@@ -424,9 +424,9 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus WriteV( uint64_t            offset,
-                                const struct iovec *iov,
-                                int                 iovcnt,
-                                uint16_t            timeout = 0 );
+                           const struct iovec *iov,
+                           int                 iovcnt,
+                           uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Performs a custom operation on an open file, server implementation
