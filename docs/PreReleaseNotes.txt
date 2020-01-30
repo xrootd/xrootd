@@ -46,6 +46,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[SSI]** Avoid SIGABRT when init fails. Fixes 751
   * **[Server]** Turn off IP address caching when dynamic DNS is enabled.
   * **[Server]** Log unusual stat() errors affecting file availability.
   * **[Server]** Manage reference counters in a more timely fashion.
