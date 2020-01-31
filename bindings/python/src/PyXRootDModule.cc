@@ -29,6 +29,7 @@
 #include "PyXRootDURL.hh"
 #include "PyXRootDFinalize.hh"
 #include "PyXRootDEnv.hh"
+#include "PyXrootDInfo.hh"
 
 namespace PyXRootD
 {
@@ -44,6 +45,8 @@ namespace PyXRootD
     {
       // The finalization routine used in atexit handler.
       { "__XrdCl_Stop_Threads", __XrdCl_Stop_Threads, METH_NOARGS,  "Stop XrdCl threads." },
+      { "anotherFunctionTest",(PyCFunction) anotherFunctionTest, METH_NOARGS,  "Stop XrdCl threads." },
+      { "tryOpenFile",(PyCFunction) tryOpenFile, METH_NOARGS,  "try to open a file." },
       // Ths XRootD Env
       { "EnvPutString_cpp",     EnvPutString_cpp,     METH_VARARGS, "Puts a string into XrdCl environment." },
       { "EnvGetString_cpp",     EnvGetString_cpp,     METH_VARARGS, "Gets a string from XrdCl environment." },
@@ -124,6 +127,16 @@ namespace PyXRootD
 #endif
     }
     Py_INCREF( &CopyProcessType );
+    
+    InfoType.tp_new = PyType_GenericNew;
+    if ( PyType_Ready( &InfoType ) < 0 ) {
+#ifdef IS_PY3K
+      return NULL;
+#else
+      return;
+#endif
+    }
+    Py_INCREF( &InfoType );
 
 #ifdef IS_PY3K
     ClientModule = PyModule_Create(&moduledef);
@@ -143,6 +156,7 @@ namespace PyXRootD
     PyModule_AddObject( ClientModule, "File", (PyObject *) &FileType );
     PyModule_AddObject( ClientModule, "URL", (PyObject *) &URLType );
     PyModule_AddObject( ClientModule, "CopyProcess", (PyObject *) &CopyProcessType );
+    PyModule_AddObject( ClientModule, "InfoProcess", (PyObject *) &InfoType );
 
 #ifdef IS_PY3K
     return ClientModule;

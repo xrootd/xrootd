@@ -1,7 +1,7 @@
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Copyright (c) 2012-2014 by European Organization for Nuclear Research (CERN)
 # Author: Michal Simon <michal.simon@cern.ch>
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # This file is part of the XRootD software suite.
 #
 # XRootD is free software: you can redistribute it and/or modify
@@ -20,16 +20,23 @@
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
-import atexit
+# import atexit
 from pyxrootd import client
 
-@atexit.register
+# @atexit.register
+
+
 def finalize():
-     """Python atexit handler, will stop all XRootD client threads
-        (XrdCl JobManager, TaskManager and Poller) in order to ensure 
-        no Python APIs are called after the Python Interpreter gets
-        finalized.
-     """
-     client.__XrdCl_Stop_Threads()
+    """Python atexit handler, will stop all XRootD client threads
+       (XrdCl JobManager, TaskManager and Poller) in order to ensure 
+       no Python APIs are called after the Python Interpreter gets
+       finalized.
+    """
+    print(client.anotherFunctionTest())
+
+
+finalize()
+
+# finalize()
