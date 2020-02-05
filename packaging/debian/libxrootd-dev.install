@@ -13,3 +13,4 @@ usr/lib/*/libXrdCrypto.so
 usr/lib/*/libXrdCryptoLite.so
 usr/lib/*/libXrdUtils.so
 usr/lib/*/libXrdXml.so
+usr/share/xrootd/cmake/FindXRootD.cmake
