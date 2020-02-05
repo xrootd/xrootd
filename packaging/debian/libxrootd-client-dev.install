@@ -1,0 +1,7 @@
+usr/bin/xrdgsitest
+usr/lib/*/libXrdCl.so
+usr/lib/*/libXrdFfs.so
+usr/lib/*/libXrdPosix.so
+usr/share/man/man1/xrdgsitest.1*
+usr/include/xrootd/XrdCl
+usr/include/xrootd/XrdPosix

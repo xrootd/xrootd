@@ -1,0 +1,13 @@
+usr/lib/*/libXrdBwm-5.so
+usr/lib/*/libXrdPss-5.so
+usr/lib/*/libXrdXrootd-5.so
+usr/lib/*/libXrdPfc-5.so
+usr/lib/*/libXrdBlacklistDecision-5.so
+usr/lib/*/libXrdHttp-5.so
+usr/lib/*/libXrdHttpTPC-5.so
+usr/lib/*/libXrdN2No2p-5.so
+usr/lib/*/libXrdOssSIgpfsT-5.so
+usr/lib/*/libXrdSsi-5.so
+usr/lib/*/libXrdSsiLog-5.so
+usr/lib/*/libXrdThrottle-5.so
+usr/lib/*/libXrdCmsRedirectLocal-5.so
