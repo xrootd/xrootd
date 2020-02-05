@@ -1,0 +1,9 @@
+usr/include/xrootd/XrdAcc
+usr/include/xrootd/XrdCms
+usr/include/xrootd/XrdPfc
+usr/include/xrootd/XrdOss
+usr/include/xrootd/XrdSfs
+usr/include/xrootd/XrdXrootd
+usr/include/xrootd/XrdHttp
+usr/lib/*/libXrdServer.so
+usr/lib/*/libXrdHttpUtils.so
