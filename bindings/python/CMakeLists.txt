@@ -8,6 +8,7 @@ set(XRD_BININCDIR  "${CMAKE_BINARY_DIR}/src")
 set(XRDCL_LIBDIR   "${CMAKE_BINARY_DIR}/src/XrdCl")
 set(XRD_LIBDIR     "${CMAKE_BINARY_DIR}/src")
 set(XRDCL_INSTALL  "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+set(PYTHON_LAYOUT  "unix" CACHE STRING "Python installation layout (deb or unix)")
 
 if( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
   if( CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.7 )
@@ -27,5 +28,5 @@ add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
 install(
   CODE
   "EXECUTE_PROCESS(
-    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} --record PYTHON_INSTALLED)")
+    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} --install-layout ${PYTHON_LAYOUT} --record PYTHON_INSTALLED)")
 
