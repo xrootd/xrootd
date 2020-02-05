@@ -1084,6 +1084,10 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 //
    selR.needNet = XrdNetIF::Mask(nType);
 
+// Initialize
+//
+   selR.needSpace = 0;
+
 // Packed selection can never occur in this code path so we turn it off
 //
    selR.selPack = false;
