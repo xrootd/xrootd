@@ -74,10 +74,9 @@ bool State::InstallHandlers(CURL *curl) {
     // Older versions have poor transfer performance, corrected in curl commit cacdc27f.
     curl_version_info_data *curl_ver = curl_version_info(CURLVERSION_NOW);
     if (curl_ver->age > 0 && curl_ver->version_num >= 0x072600) {
-        // Require a minimum speed from the transfer: must move at least 1MB every 2 minutes
-        // (roughly 8KB/s).
+        // Require a minimum speed from the transfer: 2 minute average must at least 10KB/s
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 2*60);
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1024*1024);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 10*1024);
     }
     return true;
 }
