@@ -1,4 +1,5 @@
 build/
+tarball/
 *.o
 *.lo
 .libs
