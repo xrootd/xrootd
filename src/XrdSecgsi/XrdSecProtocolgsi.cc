@@ -3254,7 +3254,13 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
 
    // If we used the DNS then we must prohibit proxy delegation of any kind
    //
-   if (usedDNS)
+   // In the case of delegation, give client a chance to use XrdSecGSISRVNAMES
+   // to limit where it is being redirected to. If the new destination does not 
+   // match XrdSecGSISRVNAMES, refuse to delegate.
+   //
+   if (usedDNS || 
+       (SrvAllowedNames.length() > 0 && 
+        !ServerCertNameOK(hs->Chain->End()->Subject(), NULL, emsg)))
       {if (hs->Options & (kOptsFwdPxy | kOptsSigReq))
           {hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
            std::cerr <<"secgsi: proxy delegation forbidden when trusting DNS "
