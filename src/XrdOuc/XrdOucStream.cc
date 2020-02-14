@@ -982,7 +982,7 @@ char *XrdOucStream::add2llB(char *tok, int reset)
 //
    if (tok)
       {tlen = strlen(tok);
-       if (tlen < llBsz)
+       if (tlen < llBleft)
           {strcpy(llBcur, tok); llBcur += tlen; llBleft -= tlen;}
       }
    return tok;
