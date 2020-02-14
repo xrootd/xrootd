@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * **[Server]** Avoid SEGV when skipping over large if/else/fi blocks.
 
 + **Minor bug fixes**
 
