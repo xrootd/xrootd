@@ -102,6 +102,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  5,  8, XrdHttpGetExtHandler          )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSysLogPInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsAddPrepare              )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsFSctl                   )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsgetPrepare              )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOssGetStorageSystem        )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOssAddStorageSystem2       )\
