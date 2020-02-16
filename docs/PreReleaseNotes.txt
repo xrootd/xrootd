@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Add ofs.ctllib directive for FSctl plugin.
   * **[Server]** Provide a way to see the actual server config when running.
   * **[Server]i** Provide fallback when an IPv6 address is missing a ptr record.
   * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
