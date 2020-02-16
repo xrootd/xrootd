@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Apps]** Add xrdpinls to list plugin version requirements.
   * **[Server]** Add ofs.ctllib directive for FSctl plugin.
   * **[Server]** Provide a way to see the actual server config when running.
   * **[Server]i** Provide fallback when an IPv6 address is missing a ptr record.
