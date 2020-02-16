@@ -807,6 +807,7 @@ fi
 %{_bindir}/xrdfs
 %{_bindir}/xrdgsiproxy
 %{_bindir}/xrdmapc
+%{_bindir}/xrdpinls
 %{_mandir}/man1/xrdadler32.1*
 %{_mandir}/man1/xrdcopy.1*
 %{_mandir}/man1/xrdcp.1*

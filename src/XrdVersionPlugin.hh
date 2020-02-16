@@ -98,8 +98,8 @@
         XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdPfcGetDecision       )\
         XrdVERSIONPLUGIN_Rule(DoNotChk,  5,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdgetProtocolPort            )\
-        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdHttpGetSecXtractor         )\
-        XrdVERSIONPLUGIN_Rule(Required,  5,  8, XrdHttpGetExtHandler          )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdHttpGetSecXtractor         )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  8, XrdHttpGetExtHandler          )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSysLogPInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsAddPrepare              )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsFSctl                   )\
@@ -194,4 +194,50 @@
          "libXrdThrottle.so",        \
          "libXrdXrootd.so",          \
          0}
+
+// The XrdVersionMapD2P maps a directive to the associated plugin creator.
+// When two or more such creators exist, the newest one should be used.
+//
+   struct XrdVersionMapD2P
+         {const char *dName;    //!< -> plugin directive name
+          const char *pName;    //!< -> plugin object creator function name
+         };
+
+#define XrdVERSIONPLUGIN_Mapd(drctv, piSymbol)\
+           {#drctv, #piSymbol},
+
+#define XrdVERSIONPLUGINMAPD2P\
+        XrdVERSIONPLUGIN_Mapd(ofs.authlib,      XrdAccAuthorizeObject         )\
+        XrdVERSIONPLUGIN_Mapd(bwm.policy,       XrdBwmPolicyObject            )\
+        XrdVERSIONPLUGIN_Mapd(ofs.ckslib,       XrdCksInit                    )\
+        XrdVERSIONPLUGIN_Mapd(ofs.cmslib,       XrdCmsGetClient               )\
+        XrdVERSIONPLUGIN_Mapd(cms.vnid,         XrdCmsgetVnId                 )\
+        XrdVERSIONPLUGIN_Mapd(cms.perf,         XrdCmsPerfMonitor             )\
+        XrdVERSIONPLUGIN_Mapd(pfc.decisionlib,  XrdPfcGetDecision       )\
+        XrdVERSIONPLUGIN_Mapd(xrd.protocol,     XrdgetProtocol                )\
+        XrdVERSIONPLUGIN_Mapd(http.secxtractor, XrdHttpGetSecXtractor         )\
+        XrdVERSIONPLUGIN_Mapd(http.exthandler,  XrdHttpGetExtHandler          )\
+        XrdVERSIONPLUGIN_Mapd(@logging,         XrdSysLogPInit                )\
+        XrdVERSIONPLUGIN_Mapd(ofs.ctllib,       XrdOfsFSctl                   )\
+        XrdVERSIONPLUGIN_Mapd(ofs.preplib,      XrdOfsgetPrepare              )\
+        XrdVERSIONPLUGIN_Mapd(ofs.osslib,       XrdOssGetStorageSystem2       )\
+        XrdVERSIONPLUGIN_Mapd(oss.statlib,      XrdOssStatInfoInit2           )\
+        XrdVERSIONPLUGIN_Mapd(pss.cachelib,     XrdOucGetCache2               )\
+        XrdVERSIONPLUGIN_Mapd(pss.ccmlib,       XrdOucCacheCMInit             )\
+        XrdVERSIONPLUGIN_Mapd(oss.namelib,      XrdOucgetName2Name            )\
+        XrdVERSIONPLUGIN_Mapd(sec.protocol,     XrdSecGetProtocol             )\
+        XrdVERSIONPLUGIN_Mapd(xrootd.seclib,    XrdSecgetService              )\
+        XrdVERSIONPLUGIN_Mapd(gsi-authzfun,     XrdSecgsiAuthzFun             )\
+        XrdVERSIONPLUGIN_Mapd(gsi-gmapfun,      XrdSecgsiGMAPFun              )\
+        XrdVERSIONPLUGIN_Mapd(gsi-vomsfun,      XrdSecgsiVOMSFun              )\
+        XrdVERSIONPLUGIN_Mapd(sec.protocol-gsi, XrdSecProtocolgsiObject       )\
+        XrdVERSIONPLUGIN_Mapd(sec.protocol-krb5,XrdSecProtocolkrb5Object      )\
+        XrdVERSIONPLUGIN_Mapd(sec.protocol-pwd, XrdSecProtocolpwdObject       )\
+        XrdVERSIONPLUGIN_Mapd(sec.protocol-sss, XrdSecProtocolsssObject       )\
+        XrdVERSIONPLUGIN_Mapd(sec.protocol-unix,XrdSecProtocolunixObject      )\
+        XrdVERSIONPLUGIN_Mapd(xrootd.fslib,     XrdSfsGetFileSystem2          )\
+        XrdVERSIONPLUGIN_Mapd(ofs.xattrlib,     XrdSysGetXAttrObject          )\
+        XrdVERSIONPLUGIN_Mapd(xrdcl.monitor,    XrdClGetMonitor               )\
+        XrdVERSIONPLUGIN_Mapd(xrdcl.plugin,     XrdClGetPlugIn                )\
+                             { 0, 0}
 #endif
