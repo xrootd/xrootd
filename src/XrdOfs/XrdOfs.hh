@@ -203,6 +203,7 @@ class XrdAccAuthorize;
 class XrdCks;
 class XrdCmsClient;
 class XrdOfsConfigPI;
+class XrdOfsFSctl_PI;
 class XrdOfsPoscq;
 class XrdSfsFACtl;
   
@@ -252,10 +253,15 @@ public:
                                    XrdOucErrInfo    &eInfo,
                              const XrdSecEntity     *client = 0);
 
+        int            FSctl(const int               cmd,
+                                   XrdSfsFSctl      &args,
+                                   XrdOucErrInfo    &eInfo,
+                             const XrdSecEntity     *client = 0);
+
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecEntity     *client);
+                             const XrdSecEntity     *client = 0);
 
         int            getStats(char *buff, int blen);
 
@@ -405,6 +411,7 @@ const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
 private:
   
 char             *myRole;
+XrdOfsFSctl_PI   *FSctl_PI;       //    ->FSctl plugin
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier

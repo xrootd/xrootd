@@ -88,6 +88,7 @@ if( NOT XRDCL_ONLY )
     XrdCms/XrdCmsPerfMon.hh
     XrdCms/XrdCmsVnId.hh
     XrdPfc/XrdPfcDecision.hh
+    XrdOfs/XrdOfsFSctl_PI.hh
     XrdOfs/XrdOfsPrepare.hh
     XrdOss/XrdOss.hh
     XrdOss/XrdOssDefaultSS.hh

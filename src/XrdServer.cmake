@@ -65,6 +65,7 @@ add_library(
   XrdOfs/XrdOfsEvs.cc           XrdOfs/XrdOfsEvs.hh
   XrdOfs/XrdOfsFAttr.cc
   XrdOfs/XrdOfsFSctl.cc
+                                XrdOfs/XrdOfsFSctl_PI.hh
   XrdOfs/XrdOfsHandle.cc        XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsPoscq.cc         XrdOfs/XrdOfsPoscq.hh
   XrdOfs/XrdOfsStats.cc         XrdOfs/XrdOfsStats.hh

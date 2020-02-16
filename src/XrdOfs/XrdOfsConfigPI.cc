@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d O f s C o n f i g P I . h h                      */
+/*                     X r d O f s C o n f i g P I . c c                      */
 /*                                                                            */
 /* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -46,6 +46,7 @@
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
+#include "XrdOfs/XrdOfsFSctl_PI.hh"
 #include "XrdOfs/XrdOfsPrepare.hh"
 
 #include "XrdOss/XrdOss.hh"
@@ -67,7 +68,7 @@
 namespace
 {
 const char *drctv[] = {"xattrlib", "authlib", "ckslib", "cmslib",
-                         "osslib", "preplib"};
+                         "ctllib", "osslib", "preplib"};
 
 const char *nullParms = 0;
 }
@@ -86,9 +87,11 @@ XrdVERSIONINFOREF(XrdOfs);
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
-                               XrdSysError *errP, XrdVersionInfo *verP)
-                 : autPI(0), cksPI(0), cmsPI(0), prpPI(0), ossPI(0), urVer(verP),
+XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream     *cfgP,
+                               XrdSysError *errP, XrdSfsFileSystem *sfsP,
+                               XrdVersionInfo *verP)
+                 : autPI(0), cksPI(0), cmsPI(0), ctlPI(0), prpPI(0), ossPI(0),
+                   sfsPI(sfsP), urVer(verP),
                    Config(cfgP),  Eroute(errP), CksConfig(0), ConfigFN(cfn),
                    CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(true),
                    prpAuth(true), Loaded(false), LoadOK(false), cksLcl(false)
@@ -114,6 +117,7 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream   *cfgP,
    pushOK[PIX(theAutLib)] = true;
    pushOK[PIX(theCksLib)] = false;
    pushOK[PIX(theCmsLib)] = false;
+   pushOK[PIX(theCtlLib)] = true;
    pushOK[PIX(theOssLib)] = true;
    pushOK[PIX(thePrpLib)] = true;
 }
@@ -206,6 +210,31 @@ bool   XrdOfsConfigPI::AddLibAut(XrdOucEnv *envP)
    return true;
 }
   
+
+/******************************************************************************/
+/* Private:                    A d d L i b C t l                              */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::AddLibCtl(XrdOucEnv *envP)
+{
+   const char *objName = "XrdOfsFSctl";
+   XrdOfsFSctl_PI *ctlObj;
+   int n = ALP[PIX(theCtlLib)].size();
+
+   for (int i = 0; i < n; i++)
+       {const char *path  = ALP[PIX(theCtlLib)][i].lib;
+        const char *parms = ALP[PIX(theCtlLib)][i].parms;
+        XrdOucPinLoader myLib(Eroute, urVer, "ctllib", path);
+        ctlObj = (XrdOfsFSctl_PI *)myLib.Resolve(objName);
+        if (!ctlObj) return false;
+        ctlObj->eDest = Eroute;
+        ctlObj->prvPI = ctlPI;
+        ctlPI = ctlObj;
+        ctlLP theCTL = {ctlObj, parms};
+        ctlVec.push_back(theCTL);
+       }
+   return true;
+}
   
 /******************************************************************************/
 /* Private:                    A d d L i b O s s                              */
@@ -234,7 +263,7 @@ bool   XrdOfsConfigPI::AddLibOss(XrdOucEnv *envP)
 /* Private:                    A d d L i b P r p                              */
 /******************************************************************************/
 
-bool   XrdOfsConfigPI::AddLibPrp(XrdOucEnv *envP, XrdOfs *ofsP)
+bool   XrdOfsConfigPI::AddLibPrp(XrdOucEnv *envP)
 {
    const char *epName = "XrdOfsAddPrepare";
    int n = ALP[PIX(thePrpLib)].size();
@@ -246,7 +275,7 @@ bool   XrdOfsConfigPI::AddLibPrp(XrdOucEnv *envP, XrdOfs *ofsP)
         XrdOucPinLoader myLib(Eroute, urVer, "preplib", path);
         addPrp = (XrdOfsAddPrepare_t)myLib.Resolve(epName);
         if (!addPrp) return false;
-        prpPI = addPrp(Eroute, ConfigFN, parms, ofsP, ossPI, envP, prpPI);
+        prpPI = addPrp(Eroute, ConfigFN, parms, sfsPI, ossPI, envP, prpPI);
         if (!prpPI) return false;
        }
    return true;
@@ -259,6 +288,32 @@ bool   XrdOfsConfigPI::AddLibPrp(XrdOucEnv *envP, XrdOfs *ofsP)
 bool   XrdOfsConfigPI::Configure(XrdCmsClient *cmscP, XrdOucEnv *envP)
 {
    return 0 != cmscP->Configure(ConfigFN, LP[PIX(theCmsLib)].parms, envP);
+}
+  
+/******************************************************************************/
+/*                             C o n f i g C t l                              */
+/******************************************************************************/
+
+bool   XrdOfsConfigPI::ConfigCtl(XrdCmsClient *cmsP, XrdOucEnv *envP)
+{
+   struct XrdOfsFSctl_PI::Plugins thePI = {autPI, cmsP, ossPI, sfsPI};
+
+// If there is no fsctl plugin, we are done.
+//
+   if (!ctlPI) return true;
+
+// Initialize all of the plugin in FIFO order.
+//
+   if (!ctlPI->Configure(ConfigFN, LP[PIX(theCtlLib)].parms, envP, thePI))
+      return false;
+
+   int n = ctlVec.size();
+
+   for (int i = 0; i < n; i++)
+       {if (!ctlVec[i].ctlPI->Configure(ConfigFN,ctlVec[i].parms,envP,thePI))
+           return false;
+       }
+   return true;
 }
   
 /******************************************************************************/
@@ -324,7 +379,7 @@ void   XrdOfsConfigPI::Display()
 /*                                  L o a d                                   */
 /******************************************************************************/
   
-bool XrdOfsConfigPI::Load(int loadLib, XrdOfs *ofsP, XrdOucEnv *envP)
+bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
 {
    extern XrdSysXAttr *XrdSysXAttrActive;
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
@@ -387,9 +442,13 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOfs *ofsP, XrdOucEnv *envP)
 //
    if (DO_LOAD(theCmsLib) && !SetupCms()) return false;
 
+// Setup the fsctl plugin if need be
+//
+   if (DO_LOAD(theCtlLib) && !SetupCtl(envP)) return false;
+
 // Setup the prepare plugin if need be
 //
-   if (DO_LOAD(thePrpLib) && !SetupPrp(ofsP, envP)) return false;
+   if (DO_LOAD(thePrpLib) && !SetupPrp(envP)) return false;
 
 // All done
 //
@@ -402,7 +461,8 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOfs *ofsP, XrdOucEnv *envP)
 /******************************************************************************/
   
 XrdOfsConfigPI *XrdOfsConfigPI::New(const char  *cfn,  XrdOucStream   *cfgP,
-                                    XrdSysError *errP, XrdVersionInfo *verP)
+                                    XrdSysError *errP, XrdVersionInfo *verP,
+                                    XrdSfsFileSystem *sfsP)
 {
 // Handle caller's version if so indicated
 //
@@ -411,7 +471,7 @@ XrdOfsConfigPI *XrdOfsConfigPI::New(const char  *cfn,  XrdOucStream   *cfgP,
 
 // Return an actual instance
 //
-   return new XrdOfsConfigPI(cfn, cfgP, errP, verP);
+   return new XrdOfsConfigPI(cfn, cfgP, errP, sfsP, verP);
 }
 
 /******************************************************************************/
@@ -446,6 +506,8 @@ bool XrdOfsConfigPI::Parse(TheLib what)
                           return false;
                           break;
           case theCmsLib: break;
+                          break;
+          case theCtlLib: break;
                           break;
           case theOssLib: return ParseOssLib();
                           break;
@@ -636,6 +698,9 @@ bool   XrdOfsConfigPI::Plugin(XrdCks          *&piP)
 bool   XrdOfsConfigPI::Plugin(XrdCmsClient_t   &piP)
 {      return (piP = cmsPI) != 0;}
 
+bool   XrdOfsConfigPI::Plugin(XrdOfsFSctl_PI  *&piP)
+{      return (piP = ctlPI) != 0;}
+
 bool   XrdOfsConfigPI::Plugin(XrdOfsPrepare   *&piP)
 {      return (piP = prpPI) != 0;}
 
@@ -791,10 +856,39 @@ bool XrdOfsConfigPI::SetupCms()
 }
 
 /******************************************************************************/
+/*                              S e t u p C t l                               */
+/******************************************************************************/
+  
+bool XrdOfsConfigPI::SetupCtl(XrdOucEnv *envP)
+{
+   XrdOfsFSctl_PI *obj = 0;
+   char *CtlLib   = LP[PIX(theCtlLib)].lib;
+
+// Load the plugin if we have to
+//
+   if (LP[PIX(theCtlLib)].lib)
+      {XrdOucPinLoader myLib(Eroute, urVer, "ctllib", CtlLib);
+       obj = (XrdOfsFSctl_PI *)(myLib.Resolve("XrdOfsFSctl"));
+       if (!obj) return false;
+       if (strcmp(CtlLib, myLib.Path()))
+          {free(CtlLib);
+           CtlLib = LP[PIX(theCtlLib)].lib = strdup(myLib.Path());
+          }
+      } else return true;
+
+// Record the object (it will be Ãfully initialized later_
+//
+   obj->eDest = Eroute;
+   obj->prvPI = 0;
+   ctlPI = obj;
+   return AddLibCtl(envP);
+}
+
+/******************************************************************************/
 /*                              S e t u p P r p                               */
 /******************************************************************************/
   
-bool XrdOfsConfigPI::SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP)
+bool XrdOfsConfigPI::SetupPrp(XrdOucEnv *envP)
 {
    XrdOfsgetPrepare_t ep = 0;
    char *PrpLib   = LP[PIX(thePrpLib)].lib;
@@ -814,7 +908,7 @@ bool XrdOfsConfigPI::SetupPrp(XrdOfs *ofsP, XrdOucEnv *envP)
 
 // Get the Object now
 //
-   if (!(prpPI = ep(Eroute, ConfigFN, PrpParms, ofsP, ossPI, envP)))
+   if (!(prpPI = ep(Eroute, ConfigFN, PrpParms, sfsPI, ossPI, envP)))
       return false;
-   return AddLibPrp(envP, ofsP);
+   return AddLibPrp(envP);
 }

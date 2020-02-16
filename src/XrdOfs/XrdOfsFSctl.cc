@@ -40,6 +40,7 @@
 #include "XrdNet/XrdNetIF.hh"
 
 #include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsFSctl_PI.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 
@@ -254,4 +255,22 @@ int XrdOfs::fsctl(const int               cmd,
 // Operation is not supported
 //
    return XrdOfsFS->Emsg(epname, einfo, ENOTSUP, "fsctl", args);
+}
+ 
+/******************************************************************************/
+/*                     F S c t l   ( V e r s i o n   2 )                      */
+/******************************************************************************/
+  
+int XrdOfs::FSctl(const int            cmd,
+                  XrdSfsFSctl          &args,
+                  XrdOucErrInfo        &eInfo,
+                  const XrdSecEntity  *client)
+{
+// If we have a plugin to handle this, use it.
+//
+   if (FSctl_PI) return FSctl_PI->FSctl(cmd, args, eInfo, client);
+
+// Operation is not supported
+//
+   return XrdOfsFS->Emsg("FSctl", eInfo, ENOTSUP, "FSctl", "");
 }

@@ -171,7 +171,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Allocate a our plugin configurator
 //
-   ofsConfig = XrdOfsConfigPI::New(ConfigFN, &Config, &Eroute);
+   ofsConfig = XrdOfsConfigPI::New(ConfigFN, &Config, &Eroute, 0, this);
 
 // If there is no config file, return with the defaults sets.
 //
@@ -271,7 +271,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Now load all of the required plugins
 //
-   if (!ofsConfig->Load(piOpts, this, EnvInfo)) NoGo = 1;
+   if (!ofsConfig->Load(piOpts, EnvInfo)) NoGo = 1;
       else {ofsConfig->Plugin(XrdOfsOss);
             ossFeatures = XrdOfsOss->Features();
             ofsConfig->Plugin(Cks);
@@ -300,6 +300,14 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           {Eroute.Emsg("Config", "Unable to create cluster management client.");
            NoGo = 1;
           }
+      }
+
+// Initialize the FSctl plugin if we have one. Note that we needed to defer
+// until now because we needed to configure the cms plugin first (see above).
+//
+   if (ofsConfig->Plugin(FSctl_PI) && !ofsConfig->ConfigCtl(Finder, EnvInfo))
+      {Eroute.Emsg("Config", "Unable to configure FSctl plugin.");
+       NoGo = 1;
       }
 
 // Initialize th Evr object if we are an actual server
@@ -720,6 +728,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_XPI("ckslib",        theCksLib);
     TS_Xeq("cksrdsz",       xcrds);
     TS_XPI("cmslib",        theCmsLib);
+    TS_XPI("ctllib",        theCtlLib);
     TS_Xeq("forward",       xforward);
     TS_Xeq("maxdelay",      xmaxd);
     TS_Xeq("notify",        xnot);

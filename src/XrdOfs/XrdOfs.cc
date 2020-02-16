@@ -139,6 +139,7 @@ XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
 // Establish defaults
 //
    ofsConfig     = 0;
+   FSctl_PI      = 0;
    Authorization = 0;
    Finder        = 0;
    Balancer      = 0;
