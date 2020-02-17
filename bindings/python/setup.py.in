@@ -4,6 +4,7 @@ from distutils.core import setup, Extension
 from distutils import sysconfig
 from os import getenv, walk, path
 import subprocess
+import sysconfig
 
 # Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
 cfg_vars = sysconfig.get_config_vars()
@@ -24,7 +25,11 @@ cxxl[0]="${CMAKE_CXX_COMPILER}"
 cfg_vars["CXX"] = " ".join(cxxl)
 cfg_vars["PY_CXXFLAGS"] = "${CMAKE_CXX_FLAGS}"
 
-cfg_vars['LDSHARED'] = cfg_vars['LDSHARED'] + " -Wl,-rpath,${XRDCL_INSTALL}"
+# Make the RPATH relative to the python module
+
+clientPkgDir = path.join(sysconfig.get_paths()['platlib'], 'pyxrootd')
+rpath = path.join('$ORIGIN', path.relpath('${XRDCL_INSTALL}', clientPkgDir))
+cfg_vars['LDSHARED'] = cfg_vars['LDSHARED'] + " -Wl,-rpath," + rpath
 
 sources = list()
 depends = list()
