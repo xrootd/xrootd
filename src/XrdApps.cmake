@@ -163,7 +163,7 @@ install(
 
 if( NOT XRDCL_ONLY )
   install(
-    TARGETS xrdacctest xrdadler32 cconfig mpxstats wait41 xrdmapc
+    TARGETS xrdacctest xrdadler32 cconfig mpxstats wait41 xrdmapc xrdpinls
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 endif()
