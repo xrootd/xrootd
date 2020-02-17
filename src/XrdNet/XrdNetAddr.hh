@@ -197,6 +197,14 @@ const char *Set(struct addrinfo *rP, int port, bool mapit=false);
 static void SetCache(int keeptime);
 
 //------------------------------------------------------------------------------
+//! Set the dialect being spoken on this network link.
+//!
+//! @param dP Pointer to the dialect name. It must be permanently stable.
+//------------------------------------------------------------------------------
+
+       void SetDialect(const char *dP) {protName = dP;}
+
+//------------------------------------------------------------------------------
 //! Indicate whether or not dynamic DNS is being used. This method should only
 //! be called during initialization time. The default is fixed DNS.
 //!

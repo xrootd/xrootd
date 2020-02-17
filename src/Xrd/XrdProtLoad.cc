@@ -123,7 +123,7 @@ int XrdProtLoad::Load(const char *lname, const char *pname,
              return 0;
             }
 
-// Add protocol to our table of protocols
+// Add protocol to our table of protocols.
 //
    ProtName[ProtoCnt] = strdup(pname);
    ProtPort[ProtoCnt] = port;
@@ -189,6 +189,7 @@ int XrdProtLoad::Process(XrdLink *lp)
 // Now attach the new protocol object to the link
 //
    lp->setProtocol(pp);
+   lp->setProtName(ProtName[i]);
 
 // Trace this load if so wanted
 //

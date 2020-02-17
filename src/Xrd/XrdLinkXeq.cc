@@ -781,6 +781,20 @@ XrdProtocol *XrdLinkXeq::setProtocol(XrdProtocol *pp, bool push)
    opMutex.UnLock();
    return op;
 }
+
+/******************************************************************************/
+/*                           s e t P r o t N a m e                            */
+/******************************************************************************/
+  
+void XrdLinkXeq::setProtName(const char *name)
+{
+
+// Set the protocol name.
+//
+   opMutex.Lock();
+   Addr.SetDialect(name);
+   opMutex.UnLock();
+}
  
 /******************************************************************************/
 /*                                s e t T L S                                 */

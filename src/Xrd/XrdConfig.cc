@@ -271,25 +271,27 @@ int XrdConfig::Configure(int argc, char **argv)
    int   myArgc = 1, urArgc = argc, i;
    bool noV6, ipV4 = false, ipV6 = false;
 
-// Obtain the protocol name we will be using
+// Obtain the program name we will be using
 //
     retc = strlen(argv[0]);
     while(retc--) if (argv[0][retc] == '/') break;
-    myProg = dfltProt = &argv[0][retc+1];
+    myProg = &argv[0][retc+1];
 
 // Setup the initial required protocol. The program name matches the protocol
 // name but may be arbitrarily suffixed. We need to ignore this suffix. So we
 // look for it here and it it exists we duplicate argv[0] (yes, loosing some
 // bytes - sorry valgrind) without the suffix.
 //
-  {char *p = dfltProt;
+  {char *p = dfltProt = strdup(myProg);
    while(*p && (*p == '.' || *p == '-')) p++;
    if (*p)
-      {char *dot = index(p, '.'), *dash = index(p, '-'), sepc;
+      {char *dot = index(p, '.'), *dash = index(p, '-');
        if (dot  && (dot < dash || !dash)) p = dot;
           else if (dash) p = dash;
                   else   p = 0;
-       if (p) {sepc = *p; *p = '\0'; dfltProt = strdup(dfltProt); *p = sepc;}
+       if (p) *p = '\0';
+            if (!strcmp("xrootd", dfltProt)) dfltProt[5] = 0;
+       else if (!strcmp("cmsd",   dfltProt)) dfltProt[3] = 0;
       }
   }
    myArgv[0] = argv[0];

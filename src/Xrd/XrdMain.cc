@@ -147,6 +147,7 @@ void *mainAdmin(void *parg)
 //
    while(1) if ((newlink = NetADM->Accept()))
                {newlink->setProtocol((XrdProtocol *)&ProtAdmin);
+                newlink->setProtName("xrdadmin");
                 Parms->Config.ProtInfo.Sched->Schedule((XrdJob *)newlink);
                }
    return (void *)0;

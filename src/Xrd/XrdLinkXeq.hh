@@ -106,6 +106,8 @@ bool          setNB();
 
 XrdProtocol  *setProtocol(XrdProtocol *pp, bool push);
 
+void          setProtName(const char *name);
+
 bool          setTLS(bool enable);
 
        void   Shutdown(bool getLock);

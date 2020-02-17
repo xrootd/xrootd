@@ -404,6 +404,18 @@ XrdProtocol *XrdLink::setProtocol(XrdProtocol *pp, bool runit, bool push)
    if (runit) DoIt();
    return op;
 }
+
+/******************************************************************************/
+/*                           s e t P r o t N a m e                            */
+/******************************************************************************/
+  
+void XrdLink::setProtName(const char *name)
+{
+
+// Ask the mplementation to set the name.
+//
+   linkXQ.setProtName(name);
+}
   
 /******************************************************************************/
 /*                                s e t R e f                                 */

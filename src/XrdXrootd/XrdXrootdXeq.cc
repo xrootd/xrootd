@@ -1805,7 +1805,8 @@ int XrdXrootdProtocol::do_Protocol()
 //
    if (rc == 0 && wantTLS)
       {if (Link->setTLS(true))
-          {eDest.Emsg("Xeq",Link->ID,"connection upgraded to",Link->verTLS());
+          {Link->setProtName("xroots");
+           eDest.Emsg("Xeq",Link->ID,"connection upgraded to",Link->verTLS());
           } else {
            eDest.Emsg("Xeq", "Unable to enable TLS for", Link->ID);
            rc = -1;
@@ -3687,9 +3688,11 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 
 // Enable TLS if we need to (note sess setting is off is login setting is on)
 //
-   if ((doTLS & Req_TLSSess) && !Link->setTLS(true))
-      {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
-       return false;
+   if (doTLS & Req_TLSSess)
+      {if (Link->setTLS(true)) Link->setProtName("xroots");
+          else {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
+                return false;
+               }
       }
 
 // Record the appname in the final SecEntity object
@@ -3699,7 +3702,6 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 // Assign unique identifier to the final SecEntity object
 //
    Client->ueid = mySID;
-   strcpy(Client->pros, "xroot");
    return true;
 }
 

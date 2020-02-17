@@ -438,6 +438,15 @@ bool            setNB();
 XrdProtocol    *setProtocol(XrdProtocol *pp, bool runit=false, bool push=false);
 
 //-----------------------------------------------------------------------------
+//! Set the link's protocol name.
+//!
+//! @param  name   name of he protocol being used. The storage must be
+//!                valid for the duration of the program.
+//-----------------------------------------------------------------------------
+
+void            setProtName(const char *name);
+
+//-----------------------------------------------------------------------------
 //! Set the link's parallel usage count.
 //!
 //! @param  cnt    should be 1 to increased the count and -1 to decrease it.

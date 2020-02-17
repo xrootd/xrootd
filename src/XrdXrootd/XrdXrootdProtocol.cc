@@ -218,7 +218,7 @@ int XrdgetProtocolPort(const char *pname, char *parms, XrdProtocol_Config *pi)
 
 XrdXrootdProtocol::XrdXrootdProtocol() 
                     : XrdProtocol("xrootd protocol handler"), ProtLink(this),
-                      Entity(0,"xroot")
+                      Entity(0)
 {
    AppName = 0;
    Reset();
@@ -950,7 +950,7 @@ void XrdXrootdProtocol::Reset()
    sigNeed = sigHere = sigRead = false;
    sigWarn = true;
    rdType             = 0;
-   Entity.Reset(0, "xroot");
+   Entity.Reset(0);
    memset(Stream,  0, sizeof(Stream));
    PrepareCount       = 0;
    if (AppName) {free(AppName); AppName = 0;}

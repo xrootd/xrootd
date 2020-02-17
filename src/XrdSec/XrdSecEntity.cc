@@ -182,10 +182,8 @@ void XrdSecEntity::List(XrdSecEntityAttrCB &attrCB)
 /*                                 R e s e t                                  */
 /******************************************************************************/
   
-void XrdSecEntity::Reset(bool isnew,  const char *spV, const char *dpV)
+void XrdSecEntity::Reset(bool isnew, const char *spV)
 {
-   memset( pros, 0, sizeof(pros) );
-   if (dpV) strncpy(pros, dpV, sizeof(prot)-1);
    memset( prot, 0, sizeof(prot) );
    if (spV) strncpy(prot, spV, sizeof(prot)-1);
 

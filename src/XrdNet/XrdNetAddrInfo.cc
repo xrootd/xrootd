@@ -244,7 +244,7 @@ bool XrdNetAddrInfo::isRegistered()
   
 bool XrdNetAddrInfo::isUsingTLS()
 {
-   return (addrLoc.Flags & LocInfo::isTLS) != 0;
+   return (protFlgs & isTLS) != 0;
 }
   
 /******************************************************************************/

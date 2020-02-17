@@ -67,7 +67,6 @@ class XrdSecEntityXtra;
 class XrdSecEntity
 {
 public:
-         char    pros[XrdSecPROTOIDSIZE]; //!< Server   protocol used (e.g. http)
          char    prot[XrdSecPROTOIDSIZE]; //!< Security protocol used (e.g. krb5)
          char   *name;                    //!< Entity's name
          char   *host;                    //!< Entity's host name dnr dependent
@@ -156,12 +155,10 @@ std::vector<std::string> Keys();
 //------------------------------------------------------------------------------
 //! Reset object to it's pristine self.
 //!
-//! @param  isNew   - True when called the first time, false otherwise.
 //! @param  spV     - The name of the security protocol.
-//! @param  dpV     - The name of the data     protocol.
 //------------------------------------------------------------------------------
 
-         void    Reset(bool isnew=false, const char *spV=0, const char *dpV=0);
+         void    Reset(const char *spV=0) {Reset(false, spV);}
 
 //------------------------------------------------------------------------------
 //! Reset object attributes.
@@ -178,12 +175,12 @@ std::vector<std::string> Keys();
 //! @param  dpName  - The name of the data     protocol.
 //------------------------------------------------------------------------------
 
-         XrdSecEntity(const char *spName=0, const char *dpName=0)
-                     {Reset(true, dpName, spName);}
+         XrdSecEntity(const char *spName=0) {Reset(true, spName);}
 
         ~XrdSecEntity() {ResetXtra(true);}
 
 private:
+void              Reset(bool isnew, const char *spV);
 XrdSecEntityXtra *entXtra;
 };
 

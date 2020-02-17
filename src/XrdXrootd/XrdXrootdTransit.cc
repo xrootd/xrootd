@@ -258,7 +258,6 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    Response.Set(linkP);
    Response.Set(this);
    strcpy(Entity.prot, "host");
-   strlcpy(Entity.pros, protP, sizeof(Entity.pros));
    Entity.host = (char *)linkP->Host();
 
 // Develop a trace identifier
@@ -306,6 +305,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 // Substitute our protocol for the existing one
 //
    realProt = linkP->setProtocol(this);
+   linkP->setProtName(protP);
    linkP->armBridge();
 
 // Document this login
