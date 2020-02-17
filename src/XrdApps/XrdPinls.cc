@@ -66,7 +66,7 @@ struct cmp_str
   
 void Display(const char *drctv, XrdVersionPlugin *vP)
 {
-   const char *vType;
+   const char *vType = "Unknown";
    char buff[80];
 
 // First determine what kind of rule this is
