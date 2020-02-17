@@ -1,13 +1,13 @@
 from __future__ import print_function
 
 from distutils.core import setup, Extension
-from distutils import sysconfig
+from distutils import sysconfig as distsyscfg
 from os import getenv, walk, path
 import subprocess
 import sysconfig
 
 # Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
-cfg_vars = sysconfig.get_config_vars()
+cfg_vars = distsyscfg.get_config_vars()
 opt = cfg_vars["OPT"]
 cfg_vars["OPT"] = " ".join( flag for flag in opt.split() if flag not in ['-Wstrict-prototypes' ${CLANG_PROHIBITED} ] ) + " --std=c++0x"
 
