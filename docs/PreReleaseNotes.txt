@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Allow XrdNetAddr to track socket dialect.
   * **[Apps]** Add xrdpinls to list plugin version requirements.
   * **[Server]** Add ofs.ctllib directive for FSctl plugin.
   * **[Server]** Provide a way to see the actual server config when running.
