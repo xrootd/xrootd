@@ -1,0 +1,14 @@
+usr/bin/xrdadler32
+usr/bin/xrdcopy
+usr/bin/xrdcp
+usr/bin/xrdfs
+usr/bin/xrdgsiproxy
+usr/bin/xrdmapc
+usr/share/man/man1/xrdadler32.1*
+usr/share/man/man1/xrdcopy.1*
+usr/share/man/man1/xrdcp.1*
+usr/share/man/man1/xrdfs.1*
+usr/share/man/man1/xrdgsiproxy.1*
+usr/share/man/man1/xrdmapc.1*
+etc/xrootd/client.plugins.d/client-plugin.conf.example
+etc/xrootd/client.conf

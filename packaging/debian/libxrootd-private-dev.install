@@ -1,0 +1,4 @@
+usr/include/xrootd/private
+usr/include/xrootd/XrdOfs/XrdOfsPrepare.hh
+usr/lib/*/libXrdSsiLib.so
+usr/lib/*/libXrdSsiShMap.so
