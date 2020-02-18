@@ -1723,7 +1723,7 @@ int XrdHttpProtocol::InitSecurity() {
   }
 
   // Use default cipherlist filter if none is provided
-  if (!sslcipherfilter) sslcipherfilter = (char *) "ALL:!LOW:!EXP:!MD5:!MD2";
+  if (!sslcipherfilter) sslcipherfilter = (char *) "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
   /* Apply the cipherlist filtering. */
   if (!SSL_CTX_set_cipher_list(sslctx, sslcipherfilter)) {
     TRACE(EMSG, " Error setting the cipherlist filter.");
