@@ -8,7 +8,6 @@ set(XRD_BININCDIR  "${CMAKE_BINARY_DIR}/src")
 set(XRDCL_LIBDIR   "${CMAKE_BINARY_DIR}/src/XrdCl")
 set(XRD_LIBDIR     "${CMAKE_BINARY_DIR}/src")
 set(XRDCL_INSTALL  "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-set(PYTHON_LAYOUT  "unix" CACHE STRING "Python installation layout (deb or unix)")
 
 if( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
   if( CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.7 )
@@ -25,8 +24,19 @@ add_custom_command(OUTPUT ${OUTPUT}
 
 add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
 
+# Get the distribution name on Debian families
+execute_process( COMMAND grep -i ^NAME=\" /etc/os-release
+                 OUTPUT_VARIABLE DEB_DISTRO )
+STRING(REGEX REPLACE "^NAME=\"" "" DEB_DISTRO ${DEB_DISTRO})
+STRING(REGEX REPLACE "\".*"     "" DEB_DISTRO ${DEB_DISTRO})
+
+if( DEB_DISTRO STREQUAL "Debian" OR DEB_DISTRO STREQUAL "Ubuntu" )
+  set(PYTHON_LAYOUT  "unix" CACHE STRING "Python installation layout (deb or unix)")
+  set(DEB_INSTALL_ARGS "--install-layout ${PYTHON_LAYOUT}")
+endif()
+
 install(
   CODE
   "EXECUTE_PROCESS(
-    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} --install-layout ${PYTHON_LAYOUT} --record PYTHON_INSTALLED)")
+    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} --record PYTHON_INSTALLED) ${DEB_INSTALL_ARGS}")
 
