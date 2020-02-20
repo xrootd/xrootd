@@ -20,4 +20,5 @@ option( ENABLE_HTTP      "Enable HTTP component."                               
 option( ENABLE_PYTHON    "Enable python bindings."                                        TRUE )
 option( XRDCL_ONLY       "Build only the client and necessary dependencies"               FALSE )
 option( XRDCL_LIB_ONLY   "Build only the client libraries and necessary dependencies"     FALSE )
+option( PYPI_BUILD       "The project is being built for PyPI release"                    FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 2.4 )
