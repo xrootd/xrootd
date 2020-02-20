@@ -139,6 +139,13 @@ namespace
       uint16_t timeLeft;
   };
 
+  static XrdCl::XRootDStatus& UpdateErrMsg( XrdCl::XRootDStatus &status, const std::string &str )
+  {
+    std::string msg = status.GetErrorMessage();
+    msg += " (" + str + ")";
+    status.SetErrorMessage( msg );
+    return status;
+  }
 }
 
 namespace XrdCl
@@ -224,12 +231,12 @@ namespace XrdCl
             sourceCheckSum = vrCheckSum;
           else
             st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
-                                         tpcSource.GetHostId(),
-                                         tpcSource.GetPath() );
+                                           tpcSource.GetHostId(),
+                                           tpcSource.GetPath() );
         }
         gettimeofday( &oEnd, 0 );
         if( !st.IsOK() )
-          return st;
+          return UpdateErrMsg( st, "source" );
 
         pResults->Set( "sourceCheckSum", sourceCheckSum );
       }
@@ -248,7 +255,7 @@ namespace XrdCl
 
         gettimeofday( &tEnd, 0 );
         if( !st.IsOK() )
-          return st;
+          return UpdateErrMsg( st, "destination" );
         pResults->Set( "targetCheckSum", targetCheckSum );
       }
 
@@ -505,7 +512,7 @@ namespace XrdCl
           st.GetErrorMessage().find( "tpc not supported" ) != std::string::npos )
         return XRootDStatus( stError, errNotSupported, 0, // the open failed due to lack of TPC support on the server side
                              "Destination does not support third-party-copy." );
-      return st;
+      return UpdateErrMsg( st, "destination" );
     }
 
     std::string lastUrl; dstFile.GetProperty( "LastURL", lastUrl );
@@ -624,7 +631,7 @@ namespace XrdCl
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
       XRootDStatus status = dstFile.Close( closeTimeout );
-      return st;
+      return UpdateErrMsg( st, "destination" );
     }
 
     //--------------------------------------------------------------------------
@@ -650,7 +657,7 @@ namespace XrdCl
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   tpcSource.GetURL().c_str(), st.ToStr().c_str() );
       XRootDStatus status = dstFile.Close( closeTimeout );
-      return st;
+      return UpdateErrMsg( st, "source" );
     }
 
     //--------------------------------------------------------------------------
@@ -670,7 +677,7 @@ namespace XrdCl
                   st.ToStr().c_str() );
       XRootDStatus statusS = sourceFile.Close( closeTimeout );
       XRootDStatus statusT = dstFile.Close( closeTimeout );
-      return st;
+      return UpdateErrMsg( st, "destination" );
     }
 
     //--------------------------------------------------------------------------
@@ -740,7 +747,7 @@ namespace XrdCl
                   "close of %s: %s", GetSource().GetURL().c_str(),
                   GetTarget().GetURL().c_str(),
                   (statusS.IsOK() ? "destination" : "source"), st.ToStr().c_str() );
-      return st;
+      return UpdateErrMsg( st, statusS.IsOK() ? "source" : "destination" );
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
@@ -769,7 +776,7 @@ namespace XrdCl
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
       XRootDStatus status = dstFile.Close( closeTimeout );
-      return st;
+      return UpdateErrMsg( st, "destination" );
     }
 
     //--------------------------------------------------------------------------
@@ -788,7 +795,7 @@ namespace XrdCl
       log->Error( UtilityMsg, "Unable start the copy: %s",
                   st.ToStr().c_str() );
       XRootDStatus statusT = dstFile.Close( closeTimeout );
-      return st;
+      return UpdateErrMsg( st, "destination" );
     }
 
     //--------------------------------------------------------------------------
@@ -855,7 +862,7 @@ namespace XrdCl
                   "close of %s: %s", GetSource().GetURL().c_str(),
                   GetTarget().GetURL().c_str(),
                   "destination", st.ToStr().c_str() );
-      return st;
+      return UpdateErrMsg( st, "destination" );
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
