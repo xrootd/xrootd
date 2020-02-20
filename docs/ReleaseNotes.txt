@@ -5,8 +5,64 @@ XRootD
 Release Notes
 =============
 
+
+--------------
+Version 4.11.2
+--------------
+
++ **Major bug fixes**
+  * **[Proxy]** Remove offending CGI elements before passing URL.
+  * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
+  * **[SSI]** Fix double delete due to extraneous code addition.
+  * **[XrdOuc]** Prevent seqv in XrdOucString::replace(). 
+  * **[XrdHttp]** Fix escape code for \r.
+  * **[XrdHttp]** Fix: the url quoting function was swapping the quoting of 
+                  CR and LF.
+  * **[XrdHttp]** Fix the "100 Continue" response.
+  * **[XrdHttp]** Prevent the logic that looks for the /n from getting confused 
+                  by lines containing zeroes.
+  * **[XrdTpc]** Properly forward existing opaque info to the OFS layer.
+  * **[XrdTpc]** Properly format redirection URL when OFS layer returns also opaque 
+                 information.
+  * **[SSI]** Avoid SIGABRT when init fails. Fixes 751
+
++ **Minor bug fixes**
+  * **[Python]** Use right bdist_wheel.
+  * **[XrdCl]** Report last error if metalink runs out of replicas, fixes #1071
+
 + **Miscellaneous**
-  **[XCache]** Switch from usage of XrdFileCache prefix to XrdPfc.
+  * **[CMake]** Add XROOTD_PLUGIN_VERSION to FindXRootD.cmake.
+  * **[XrdCl]** TPC: use separate cgi element (tpc.dlgon) to mark user intension
+                to delegate.
+  * **[Server]** Use new tpc.dlgon CGI token to drive tpc redirection.
+  * **[CMake]** Add option to build only client libraries.
+  * **[XrdHttp]** If a gridmap file has been configured, XrdHttp now prefers the 
+                  already mapped username to the non-mapped one that's coming from
+                  a security extractor plugin.
+
+--------------
+Version 4.11.1
+--------------
+
++ **Major bug fixes**
+  * **[XrdSys]** Avoid deadlock on poller stop, fixes #1095 
+  * **[XrdCl]** Recreate env r/w lock after forking.
+  * **[XrdCl]** Use diffrent bit for mkpath and tpc delegation.
+
++ **Minor bug fixes**
+  * **[Server]** Use correct mechanism to determine DNS registration.
+  * **[XrdCl]** Reflect server added cgi in tpc.scgi.
+  * **[XrdCl]** tpc: don't open non-root/xroot source.
+  * **[XrdCl]** Set the tpckey to 'delegate' if delegating.
+  * **[XrdCl]** Install priv headers in correct dir.
+  * **[CMake]** Link to ${UUID_LIBRARIES} instead of uuid.
+  * **[Python]** Change pkg name to xrootd. 
+
++ **Miscellaneous**
+  * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
+  * **[TPC]** Assume delegation if the tpc.scgi token is present.
+  * **[RPM]** drop default 'all.export /tmp' in standalone cfg
+  * **[RPM]** Package SsiLib and SsiShMap with client.
 
 --------------
 Version 4.11.0
