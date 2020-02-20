@@ -1462,6 +1462,14 @@ namespace
       uint8_t                     pParallel;
       std::queue<ChunkHandler *>  pChunks;
   };
+
+  static XrdCl::XRootDStatus& UpdateErrMsg( XrdCl::XRootDStatus &status, const std::string &str )
+  {
+    std::string msg = status.GetErrorMessage();
+    msg += " (" + str + ")";
+    status.SetErrorMessage( msg );
+    return status;
+  }
 }
 
 namespace XrdCl
@@ -1535,7 +1543,7 @@ namespace XrdCl
     }
 
     XRootDStatus st = src->Initialize();
-    if( !st.IsOK() ) return st;
+    if( !st.IsOK() ) return UpdateErrMsg( st, "source" );
     uint64_t size = src->GetSize() >= 0 ? src->GetSize() : 0;
 
     XRDCL_SMART_PTR_T<Destination> dest;
@@ -1564,7 +1572,7 @@ namespace XrdCl
     dest->SetCoerce( coerce );
     dest->SetMakeDir( makeDir );
     st = dest->Initialize();
-    if( !st.IsOK() ) return st;
+    if( !st.IsOK() ) return UpdateErrMsg( st, "destination" );
 
     //--------------------------------------------------------------------------
     // Copy the chunks
@@ -1575,15 +1583,14 @@ namespace XrdCl
     {
       st = src->GetChunk( chunkInfo );
       if( !st.IsOK() )
-        return st;
+        return UpdateErrMsg( st, "source" );
 
       if( st.IsOK() && st.code == suDone )
         break;
 
       st = dest->PutChunk( chunkInfo );
-
       if( !st.IsOK() )
-        return st;
+        return UpdateErrMsg( st, "destination" );
 
       processed += chunkInfo.length;
       if( progress )
@@ -1596,7 +1603,7 @@ namespace XrdCl
 
     st = dest->Flush();
     if( !st.IsOK() )
-      return st;
+      return UpdateErrMsg( st, "destination" );
 
     //--------------------------------------------------------------------------
     // The size of the source is known and not enough data has been transfered
@@ -1615,7 +1622,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     st = dest->Finalize();
     if( !st.IsOK() )
-      return st;
+      return UpdateErrMsg( st, "destination" );
 
     //--------------------------------------------------------------------------
     // Verify the checksums if needed
@@ -1650,7 +1657,7 @@ namespace XrdCl
         gettimeofday( &oEnd, 0 );
 
         if( !st.IsOK() )
-          return st;
+          return UpdateErrMsg( st, "source" );
 
         pResults->Set( "sourceCheckSum", sourceCheckSum );
       }
@@ -1665,7 +1672,7 @@ namespace XrdCl
         gettimeofday( &tStart, 0 );
         st = dest->GetCheckSum( targetCheckSum, checkSumType );
         if( !st.IsOK() )
-          return st;
+          return UpdateErrMsg( st, "destination" );
         gettimeofday( &tEnd, 0 );
         pResults->Set( "targetCheckSum", targetCheckSum );
       }
