@@ -33,8 +33,8 @@ add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
 # Get the distribution name on Debian families
 execute_process( COMMAND grep -i ^NAME=\" /etc/os-release
                  OUTPUT_VARIABLE DEB_DISTRO )
-STRING(REGEX REPLACE "^NAME=\"" "" DEB_DISTRO ${DEB_DISTRO})
-STRING(REGEX REPLACE "\".*"     "" DEB_DISTRO ${DEB_DISTRO})
+STRING(REGEX REPLACE "^NAME=\"" "" DEB_DISTRO "${DEB_DISTRO}")
+STRING(REGEX REPLACE "\".*"     "" DEB_DISTRO "${DEB_DISTRO}")
 
 if( DEB_DISTRO STREQUAL "Debian" OR DEB_DISTRO STREQUAL "Ubuntu" )
   set(PYTHON_LAYOUT  "unix" CACHE STRING "Python installation layout (deb or unix)")
