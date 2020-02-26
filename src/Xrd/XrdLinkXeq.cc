@@ -258,9 +258,49 @@ int XrdLinkXeq::Close(bool defer)
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.
 //
-   if (fd >= 2) {if (KeepFD) rc = 0;
-                    else rc = (close(fd) < 0 ? errno : 0);
-                }
+   if (fd >= 2) {
+      if (KeepFD) {rc = 0;}
+      else {
+
+         // Get the remotely connected address
+         char addr_str[512];
+         int addr_rc = Addr.Format(addr_str, 512);
+         if (addr_rc < 1) {
+            Log.Emsg("Error from addr Format", std::to_string(addr_rc).c_str());
+         }
+
+         // Get the TCP socket information, if available (getsockopt can fail)
+         tcp_info tcp_info;
+         char statistics[1024];
+         socklen_t tcp_info_length = sizeof(tcp_info);
+         int sockopt_rc = getsockopt( fd, SOL_TCP, TCP_INFO, (void *)&tcp_info, &tcp_info_length );
+         if ( sockopt_rc  == 0 ) {
+            int sprintf_rc = sprintf(statistics,
+               "connect=%s bytes_in=%llu bytes_out=%llu rtt=%u rttvar=%u unacked=%u sacked=%u "
+               "lost=%u retrans=%u reordering=%u",
+               addr_str,
+               LinkBytesIn,
+               LinkBytesOut,
+               tcp_info.tcpi_rtt,
+               tcp_info.tcpi_rttvar,
+               tcp_info.tcpi_unacked,
+               tcp_info.tcpi_sacked,
+               tcp_info.tcpi_lost,
+               tcp_info.tcpi_retrans,
+               tcp_info.tcpi_reordering
+            );
+            if (sprintf_rc < 1) {
+               Log.Emsg("Failure from sprintf", std::to_string(sprintf_rc).c_str());
+            } else {
+               Log.Emsg("Socket stats", statistics);
+            }
+         } else {
+            Log.Emsg("getsockopt error", std::to_string(sockopt_rc).c_str());
+         }
+
+         rc = (close(fd) < 0 ? errno : 0);
+      }
+   }
    if (rc) Log.Emsg("Link", rc, "close", ID);
    return rc;
 }
