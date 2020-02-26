@@ -739,6 +739,7 @@ publish:weekly:
   dependencies:
     - weekly:cc7
     - weekly:slc6
+    - weekly:centos8
   only:
     - schedules
   except:
