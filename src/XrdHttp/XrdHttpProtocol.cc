@@ -290,11 +290,55 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   ERR_print_errors(sslbio_err);
 
   if (peer_cert) {
-
+    char bufname[256];
+    
     // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
     if (SecEntity.moninfo) free(SecEntity.moninfo);
-    SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
-    TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
+    
+    // The original DN is not so univoque. In the case of a proxy this can be either
+    // the issuer name or the subject name
+    // Here we try to use the one that is known to the user mapping
+    
+    
+    
+    if (servGMap) {
+      int mape;
+      
+      SecEntity.moninfo = X509_NAME_oneline(X509_get_issuer_name(peer_cert), NULL, 0);
+      TRACEI(DEBUG, " Issuer name is : '" << SecEntity.moninfo << "'");
+      
+      mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
+      if ( !mape && SecEntity.moninfo[0] ) {
+        TRACEI(DEBUG, " Mapping name: '" << SecEntity.moninfo << "' --> " << bufname);
+        if (SecEntity.name) free(SecEntity.name);
+        SecEntity.name = strdup(bufname);
+      }
+      else {
+        TRACEI(ALL, " Mapping name: '" << SecEntity.moninfo << "' Failed. err: " << mape);
+        
+        // Mapping the issuer name failed, let's try with the subject name
+        if (SecEntity.moninfo) free(SecEntity.moninfo);
+        SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
+        TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
+        
+        mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
+        if ( !mape ) {
+          TRACEI(DEBUG, " Mapping name: " << SecEntity.moninfo << " --> " << bufname);
+          if (SecEntity.name) free(SecEntity.name);
+          SecEntity.name = strdup(bufname);
+        }
+        else {
+          TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
+        }
+      }
+      
+    }
+    else {
+      
+      SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
+      TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
+    }
+    
     
     // Here we have the user DN, and try to extract an useful user name from it
     if (SecEntity.name) free(SecEntity.name);
@@ -302,45 +346,35 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     // To set the name we pick the first CN of the certificate subject
     // and hope that it makes some sense, it usually does
     char *lnpos = strstr(SecEntity.moninfo, "/CN=");
-    char bufname[256], bufname2[9];
+    char bufname2[9];
         
     if (lnpos) {
       lnpos += 4;
       char *lnpos2 = index(lnpos, '/');
       if (lnpos2) {
-        int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
-        strncpy(bufname, lnpos, l);
-        bufname[l] = '\0';
+        int l = ( lnpos2-lnpos < (int)sizeof(SecEntity.moninfo) ? lnpos2-lnpos : (int)sizeof(SecEntity.moninfo)-1 );
+        strncpy(SecEntity.moninfo, lnpos, l);
+        SecEntity.moninfo[l] = '\0';
         
         // Here we have the string in the buffer. Take the last 8 non-space characters
         size_t j = 8;
         strcpy(bufname2, "unknown-\0"); // note it's 9 chars
-        for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
-          if (isalnum(bufname[i])) {
+        for (int i = (int)strlen(SecEntity.moninfo)-1; i >= 0; i--) {
+          if (isalnum(SecEntity.moninfo[i])) {
             j--;
-            bufname2[j] = bufname[i];
+            bufname2[j] = SecEntity.moninfo[i];
             if (j == 0) break;
           }
           
         }
         
-        SecEntity.name = strdup(bufname);
+        SecEntity.name = strdup(SecEntity.moninfo);
         TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
         lp->setID(bufname2+j, 0);
       }
     }
     
-    if (servGMap) {
-      int e = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
-      if ( !e ) {
-        TRACEI(DEBUG, " Mapping Username: " << SecEntity.moninfo << " --> " << bufname);
-        if (SecEntity.name) free(SecEntity.name);
-        SecEntity.name = strdup(bufname);
-      }
-      else {
-        TRACEI(ALL, " Mapping Username: " << SecEntity.moninfo << " Failed. err: " << e);
-      }
-    }
+
     
     // If we could not find anything good, take the last 8 non-space characters of the main subject
     if (!SecEntity.name) {
