@@ -900,6 +900,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status AsyncSocketHandler::DoTlsHandShake()
   {
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( AsyncSockMsg, "[%s] TLS hand-shake exchange.", pStreamName.c_str() );
+
     Status st;
     if( !( st = pSocket->TlsHandShake( this, pUrl.GetHostName() ) ).IsOK() )
     {
@@ -914,6 +917,8 @@ namespace XrdCl
     }
 
     pTlsHandShakeOngoing = false;
+    log->Debug( AsyncSockMsg, "[%s] TLS hand-shake done.", pStreamName.c_str() );
+
     return st;
   }
 
