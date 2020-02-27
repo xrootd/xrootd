@@ -728,7 +728,6 @@ publish:weekly:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - echo $CI_PROJECT_DIR
     - "for platform in epel-8 epel-7 epel-6; do 
          path=$prefix/experimental/$platform/x86_64/;
          sudo -u stci -H mkdir -p $path;
@@ -750,12 +749,16 @@ publish:koji:centos8:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y sssd-client
-    - yum install -y koji
-    - mkdir ~/.koji
-    - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
-    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - koji build xrootd8 centos-7-x86_64/SRPMS/*.src.rpm
+    - "if [[ $CI_COMMIT_TAG != *rc* ]] ;
+       then
+           yum install --nogpg -y sssd-client
+           yum install -y koji
+           mkdir ~/.koji
+           echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
+           kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
+           koji build xrootd8 centos-8-x86_64/SRPMS/*.src.rpm
+       fi
+      "
   tags:
     - docker_node
   dependencies:
@@ -769,12 +772,16 @@ publish:koji:cc7:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y sssd-client
-    - yum install -y koji
-    - mkdir ~/.koji
-    - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
-    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - koji build xrootd7 cc-7-x86_64/SRPMS/*.src.rpm
+    - "if [[ $CI_COMMIT_TAG != *rc* ]] ;
+       then
+           yum install --nogpg -y sssd-client
+           yum install -y koji
+           mkdir ~/.koji
+           echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
+           kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
+           koji build xrootd7 cc-7-x86_64/SRPMS/*.src.rpm
+       fi
+      "
   tags:
     - docker_node
   dependencies:
@@ -788,12 +795,16 @@ publish:koji:slc6:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y sssd-client
-    - yum install -y koji
-    - mkdir ~/.koji
-    - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
-    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - koji build xrootd6 slc-6-x86_64/SRPMS/*.src.rpm
+    - "if [[ $CI_COMMIT_TAG != *rc* ]] ;
+       then
+           yum install --nogpg -y sssd-client
+           yum install -y koji
+           mkdir ~/.koji
+           echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
+           kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
+           koji build xrootd6 slc-6-x86_64/SRPMS/*.src.rpm
+       fi
+      "
   tags:
     - docker_node
   dependencies:
