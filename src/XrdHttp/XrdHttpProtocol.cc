@@ -352,27 +352,28 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     char *lnpos = strstr(SecEntity.moninfo, "/CN=");
     char bufname2[9];
         
+    
     if (lnpos) {
       lnpos += 4;
       char *lnpos2 = index(lnpos, '/');
       if (lnpos2) {
-        int l = ( lnpos2-lnpos < (int)sizeof(SecEntity.moninfo) ? lnpos2-lnpos : (int)sizeof(SecEntity.moninfo)-1 );
-        strncpy(SecEntity.moninfo, lnpos, l);
-        SecEntity.moninfo[l] = '\0';
+        int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
+        strncpy(bufname, lnpos, l);
+        bufname[l] = '\0';
         
         // Here we have the string in the buffer. Take the last 8 non-space characters
         size_t j = 8;
         strcpy(bufname2, "unknown-\0"); // note it's 9 chars
-        for (int i = (int)strlen(SecEntity.moninfo)-1; i >= 0; i--) {
-          if (isalnum(SecEntity.moninfo[i])) {
+        for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
+          if (isalnum(bufname[i])) {
             j--;
-            bufname2[j] = SecEntity.moninfo[i];
+            bufname2[j] = bufname[i];
             if (j == 0) break;
           }
           
         }
         
-        SecEntity.name = strdup(SecEntity.moninfo);
+        SecEntity.name = strdup(bufname);
         TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
         lp->setID(bufname2+j, 0);
       }
