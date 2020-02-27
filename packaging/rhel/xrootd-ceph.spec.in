@@ -73,6 +73,9 @@ BuildRequires: clang
 
 BuildRequires: xrootd-server-devel%{?_isa} = %{epoch}:%{version}-%{release}
 BuildRequires: xrootd-private-devel%{?_isa} = %{epoch}:%{version}-%{release}
+BuildRequires: xrootd-libs%{?_isa} = %{epoch}:%{version}-%{release}
+BuildRequires: xrootd-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
+BuildRequires: xrootd-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description
 The xrootd-ceph is an OSS layer plug-in for the XRootD server for interfacing
