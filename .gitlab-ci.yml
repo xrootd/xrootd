@@ -6,13 +6,14 @@ release:cc7:ceph:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y cmake3 make gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
+    - git checkout tags/${CI_COMMIT_TAG}
     - cd packaging/
-    - ./makesrpm.sh
+    - ./makesrpm.sh --define "dist .el7"
     - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-nautilus/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
     - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.org/binaries/testing/slc/7/$basearch http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=1\nenabled=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\n' >> /etc/yum.repos.d/xrootd-testing.repo
     - echo -e '[xrootd-stable]\nname=XRootD Stable repository\nbaseurl=http://xrootd.org/binaries/stable/slc/7/$basearch http://xrootd.cern.ch/sw/repos/stable/slc/7/$basearch\ngpgcheck=1\nenabled=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\n' >> /etc/yum.repos.d/xrootd-stable.repo
     - yum-builddep --setopt=cern*.exclude=xrootd* --nogpgcheck -y *.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el7" *.src.rpm
     - repo=/eos/project/s/storage-ci/www/xrootd/ceph-release/cc-7/x86_64/
     - sudo -u stci -H mkdir -p $repo
     - sudo -u stci -H cp *.src.rpm $repo
