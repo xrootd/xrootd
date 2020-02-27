@@ -1575,6 +1575,15 @@ namespace XrdCl
       return Status( stFatal, errHandShakeFailed );
     }
 
+    if( rsp->body.protocol.pval < kXR_PROTTLSVERSION && info->encrypted )
+    {
+      //------------------------------------------------------------------------
+      // User requested an encrypted connection but the server is to old to
+      // support it!
+      //------------------------------------------------------------------------
+      return Status( stFatal, errTlsError, ENOSYS );
+    }
+
     if( rsp->body.protocol.pval >= 0x297 )
       info->serverFlags = rsp->body.protocol.flags;
 
@@ -1599,8 +1608,9 @@ namespace XrdCl
       // User requested an encrypted connection but the server does not support
       // encryption!
       //------------------------------------------------------------------------
-      return Status( stError, errTlsError, errNotSupported );
+      return Status( stFatal, errTlsError, ECONNREFUSED );
     }
+
     return Status( stOK, suContinue );
   }
 
