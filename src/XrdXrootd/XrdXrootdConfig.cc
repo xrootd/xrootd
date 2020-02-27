@@ -584,7 +584,7 @@ int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
 /* Function: xasync
 
    Purpose:  To parse directive: async [limit <aiopl>] [maxsegs <msegs>]
-                                       [maxtot <mtot>] [segsize <segsz>]
+                                       [maxtot <mtot>] [segsize <segsize>]
                                        [minsize <iosz>] [maxstalls <cnt>]
                                        [force] [syncw] [off] [nosf]
 
