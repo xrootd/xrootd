@@ -57,7 +57,7 @@ namespace PyXRootD
       static PyObject* IsOpen( File *self, PyObject *args, PyObject *kwds );
       static PyObject* GetProperty( File *self, PyObject *args, PyObject *kwds );
       static PyObject* SetProperty( File *self, PyObject *args, PyObject *kwds );
-
+      static PyObject* SetXAttr( File *self, PyObject *args, PyObject *kwds );
     public:
       PyObject_HEAD
       XrdCl::File                *file;
@@ -187,6 +187,8 @@ namespace PyXRootD
        (PyCFunction) PyXRootD::File::GetProperty,         METH_VARARGS | METH_KEYWORDS, NULL },
     { "set_property",
        (PyCFunction) PyXRootD::File::SetProperty,         METH_VARARGS | METH_KEYWORDS, NULL },
+    { "set_xattr",
+       (PyCFunction) PyXRootD::File::SetXAttr,            METH_VARARGS | METH_KEYWORDS, NULL },
     {"__enter__",
        (PyCFunction) File_enter,                          METH_NOARGS,   NULL},
     {"__exit__",

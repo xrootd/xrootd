@@ -391,6 +391,28 @@ namespace PyXRootD
       }
   };
 
+  template<> struct PyDict<std::vector<XrdCl::XAttrStatus>>
+  {
+      static PyObject* Convert( std::vector<XrdCl::XAttrStatus> *resp )
+      {
+        PyObject *pylist = NULL;
+
+        if( resp )
+        {
+          pylist = PyList_New( resp->size() );
+          for( size_t i = 0; i < resp->size(); ++i )
+          {
+            XrdCl::XAttrStatus &xst = (*resp)[i];
+            PyObject *pystatus = ConvertType( &xst.status );
+            PyList_SetItem( pylist, i, Py_BuildValue( "(sO)", xst.name.c_str(), pystatus ) );
+            Py_DECREF( pystatus );
+          }
+        }
+
+        return pylist;
+      }
+  };
+
 }
 
 #endif /* CONVERSIONS_HH_ */

@@ -291,3 +291,19 @@ class File(object):
     :type  name: string
     """
     return self.__file.get_property(name)
+
+  def set_xattr(self, attrs, timeout=0, callback=None):
+    """Set extended file attributes.
+
+    :param attrs: extended attributes to be set on the file
+    :type  attrs: list of tuples of name/value pairs
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                  object and :mod:`list of touples (name, XRootD.client.responses.XRootDStatus)` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, VectorReadInfo)
+      return XRootDStatus(self.__file.set_xattr(attrs, timeout, callback))
+
+    status, response = self.__file.set_xattr(attrs, timeout)
+    return XRootDStatus(status), response
+
