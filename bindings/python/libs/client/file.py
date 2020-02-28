@@ -308,7 +308,7 @@ class File(object):
     return XRootDStatus(status), response
 
   def get_xattr(self, attrs, timeout=0, callback=None):
-    """Set extended file attributes.
+    """Get extended file attributes.
 
     :param attrs: list of extended attribute names to be retrived
     :type  attrs: list of strings
@@ -323,7 +323,7 @@ class File(object):
     return XRootDStatus(status), response
 
   def del_xattr(self, attrs, timeout=0, callback=None):
-    """Set extended file attributes.
+    """Delete extended file attributes.
 
     :param attrs: list of extended attribute names to be deleted
     :type  attrs: list of strings
@@ -335,5 +335,18 @@ class File(object):
       return XRootDStatus(self.__file.del_xattr(attrs, timeout, callback))
 
     status, response = self.__file.del_xattr(attrs, timeout)
+    return XRootDStatus(status), response
+
+  def list_xattr(self, timeout=0, callback=None):
+    """List all extended file attributes.
+
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                  object and :mod:`list of touples (string, string, XRootD.client.responses.XRootDStatus)` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, list)
+      return XRootDStatus(self.__file.list_xattr(timeout, callback))
+
+    status, response = self.__file.list_xattr(timeout)
     return XRootDStatus(status), response
 

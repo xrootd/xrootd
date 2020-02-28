@@ -950,4 +950,43 @@ namespace PyXRootD
     Py_XDECREF( pyresponse );
     return o;
   }
+
+  //----------------------------------------------------------------------------
+  //! List Extended File Attributes
+  //----------------------------------------------------------------------------
+  PyObject* File::ListXAttr( File *self, PyObject *args, PyObject *kwds )
+  {
+    static const char  *kwlist[] = { "attrs", "timeout", "callback", NULL };
+
+    uint16_t     timeout  = 0;
+
+    PyObject    *callback   = NULL, *pystatus = NULL;
+    PyObject    *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:set_xattr",
+         (char**) kwlist, &timeout, &callback ) ) return NULL;
+
+    if ( callback && callback != Py_None ) {
+      XrdCl::ResponseHandler *handler = GetHandler<std::vector<XrdCl::XAttr>>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->ListXAttr( handler, timeout ) );
+    }
+
+    else {
+      std::vector<XrdCl::XAttr>  result;
+      async( status = self->file->ListXAttr( result, timeout ) );
+      pyresponse = ConvertType( &result );
+    }
+
+    pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *o = ( callback && callback != Py_None ) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
+    Py_DECREF( pystatus );
+    Py_XDECREF( pyresponse );
+    return o;
+  }
 }

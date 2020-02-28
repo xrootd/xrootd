@@ -60,6 +60,7 @@ namespace PyXRootD
       static PyObject* SetXAttr( File *self, PyObject *args, PyObject *kwds );
       static PyObject* GetXAttr( File *self, PyObject *args, PyObject *kwds );
       static PyObject* DelXAttr( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* ListXAttr( File *self, PyObject *args, PyObject *kwds );
     public:
       PyObject_HEAD
       XrdCl::File                *file;
@@ -195,6 +196,8 @@ namespace PyXRootD
        (PyCFunction) PyXRootD::File::GetXAttr,            METH_VARARGS | METH_KEYWORDS, NULL },
     { "del_xattr",
        (PyCFunction) PyXRootD::File::DelXAttr,            METH_VARARGS | METH_KEYWORDS, NULL },
+    { "list_xattr",
+       (PyCFunction) PyXRootD::File::ListXAttr,           METH_VARARGS | METH_KEYWORDS, NULL },
     {"__enter__",
        (PyCFunction) File_enter,                          METH_NOARGS,   NULL},
     {"__exit__",
