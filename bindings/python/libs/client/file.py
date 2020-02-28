@@ -301,9 +301,24 @@ class File(object):
                   object and :mod:`list of touples (name, XRootD.client.responses.XRootDStatus)` object
     """
     if callback:
-      callback = CallbackWrapper(callback, VectorReadInfo)
+      callback = CallbackWrapper(callback, list)
       return XRootDStatus(self.__file.set_xattr(attrs, timeout, callback))
 
     status, response = self.__file.set_xattr(attrs, timeout)
+    return XRootDStatus(status), response
+
+  def get_xattr(self, attrs, timeout=0, callback=None):
+    """Set extended file attributes.
+
+    :param attrs: list of extended attribute names to be retrived
+    :type  attrs: list of strings
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                  object and :mod:`list of touples (name, value, XRootD.client.responses.XRootDStatus)` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, list)
+      return XRootDStatus(self.__file.get_xattr(attrs, timeout, callback))
+
+    status, response = self.__file.get_xattr(attrs, timeout)
     return XRootDStatus(status), response
 
