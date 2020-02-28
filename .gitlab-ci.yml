@@ -756,7 +756,7 @@ publish:koji:centos8:
            mkdir ~/.koji
            echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
            kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-           koji build xrootd8 centos-8-x86_64/SRPMS/*.src.rpm
+           koji build eos8 centos-8-x86_64/SRPMS/*.src.rpm
        fi
       "
   tags:
@@ -767,6 +767,7 @@ publish:koji:centos8:
     - web
   except:
     - branches
+  when: manual
 
 publish:koji:cc7:
   stage: publish
@@ -779,7 +780,7 @@ publish:koji:cc7:
            mkdir ~/.koji
            echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
            kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-           koji build xrootd7 cc-7-x86_64/SRPMS/*.src.rpm
+           koji build eos7 cc-7-x86_64/SRPMS/*.src.rpm
        fi
       "
   tags:
@@ -790,6 +791,7 @@ publish:koji:cc7:
     - web
   except:
     - branches
+  when: manual
 
 publish:koji:slc6:
   stage: publish
@@ -802,7 +804,7 @@ publish:koji:slc6:
            mkdir ~/.koji
            echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
            kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-           koji build xrootd6 slc-6-x86_64/SRPMS/*.src.rpm
+           koji build eos6 slc-6-x86_64/SRPMS/*.src.rpm
        fi
       "
   tags:
