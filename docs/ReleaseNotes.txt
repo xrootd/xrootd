@@ -6,6 +6,27 @@ Release Notes
 =============
 
 --------------
+Version 4.11.3
+--------------
+
++ **Major bug fixes**
+  * **[Server]** Avoid SEGV when skipping over large if/else/fi blocks.
+  * **[XrdHttp]** Fix curl speed limit to be really around 10KB/s.
+
++ **Minor bug fixes**
+  * **[XrdHttp]** Change the default ssl cipher.
+  * **[XrdCl]** When xrdcp reports an error refine the message so it is 
+                clear whether the erros comes from the source or destination.
+  * **[XrdXrootdConfig]** Fixed wrong segsz parameter.
+
++ **Miscellaneous**
+  * **[XrdSecgsi]** In the case of delegation, give client a chance to 
+                    use XrdSecGSISRVNAMES to limit where it is being 
+                    redirected to.
+  * **[Python]** Make rpath relative to the module.
+  * **[Debian]** Proper Debian pkg naming.
+
+--------------
 Version 4.11.2
 --------------
 
