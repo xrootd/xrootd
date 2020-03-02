@@ -2,31 +2,39 @@
 # Helper macros
 #-------------------------------------------------------------------------------
 %if %{?rhel:1}%{!?rhel:0}
+    # starting with rhel 7 we have systemd and macaroons,
+    # also glibc semaphores are fixed
     %if %{rhel} >= 7
         %define use_systemd 1
         %define have_macaroons 1
+		%define use_libc_semaphore 1
     %else
         %define use_systemd 0
         %define have_macaroons 0
+ 		%define use_libc_semaphore 0
     %endif
 %else
+    # do we have macaroons ?
     %if %{?fedora}%{!?fedora:0} >= 28
         %define have_macaroons 1
     %else
         %define have_macaroons 0
     %endif
+    # do we have systemd ?
     %if %{?fedora}%{!?fedora:0} >= 19
         %define use_systemd 1
     %else
         %define use_systemd 0
     %endif
+	# can we use glibc semaphores ?
+	%if %{?fedora}%{!?fedora:0} >= 22
+	    %define use_libc_semaphore 1
+	%else
+	    %define use_libc_semaphore 0
+	%endif
 %endif
 
-%if %{?fedora}%{!?fedora:0} >= 22
-    %define use_libc_semaphore 1
-%else
-    %define use_libc_semaphore 0
-%endif
+
 
 %if %{?_with_ceph11:1}%{!?_with_ceph11:0}
     %define _with_ceph 1
