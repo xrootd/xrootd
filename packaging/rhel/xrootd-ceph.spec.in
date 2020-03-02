@@ -77,21 +77,11 @@ BuildRequires: xrootd-libs%{?_isa} = %{epoch}:%{version}-%{release}
 BuildRequires: xrootd-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
 BuildRequires: xrootd-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
+Requires: xrootd-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
 %description
 The xrootd-ceph is an OSS layer plug-in for the XRootD server for interfacing
 with the Ceph storage platform.
-
-#-------------------------------------------------------------------------------
-# tests
-#-------------------------------------------------------------------------------
-%if %{?_with_tests:1}%{!?_with_tests:0}
-%package tests
-Summary: CPPUnit tests
-Group:   Development/Tools
-Requires: %{name}-client = %{epoch}:%{version}-%{release}
-%description tests
-This package contains a set of CPPUnit tests for xrootd.
-%endif
 
 #-------------------------------------------------------------------------------
 # Build instructions
@@ -166,5 +156,7 @@ rm -rf $RPM_BUILD_ROOT
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Mon Mar 02 2020 Michal Simon <michal.simon@cern.ch>
+- fixed RPM dependencies
 * Thu Mar 08 2018 Michal Simon <michal.simon@cern.ch>
 - initial release
