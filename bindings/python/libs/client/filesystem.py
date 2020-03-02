@@ -389,3 +389,20 @@ class FileSystem(object):
 
     status, response = self.__fs.set_xattr(path, attrs, timeout)
     return XRootDStatus(status), response
+
+  def get_xattr(self, path, attrs, timeout=0, callback=None):
+    """Get extended file attributes.
+    :param path:  path to the file
+    :type  path:  string
+    :param attrs: extended attributes to be set on the file
+    :type  attrs: list of tuples of name/value pairs
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                  object and :mod:`list of touples (name, value, XRootD.client.responses.XRootDStatus)` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, list)
+      return XRootDStatus(self.__fs.get_xattr(path, attrs, timeout, callback))
+
+    status, response = self.__fs.get_xattr(path, attrs, timeout)
+    return XRootDStatus(status), response
+

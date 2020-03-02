@@ -956,7 +956,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ListXAttr( File *self, PyObject *args, PyObject *kwds )
   {
-    static const char  *kwlist[] = { "attrs", "timeout", "callback", NULL };
+    static const char  *kwlist[] = { "timeout", "callback", NULL };
 
     uint16_t     timeout  = 0;
 
