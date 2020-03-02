@@ -857,7 +857,7 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Get Extended File Attributes
+  //! Delete Extended File Attributes
   //----------------------------------------------------------------------------
   PyObject* FileSystem::DelXAttr( FileSystem *self, PyObject *args, PyObject *kwds )
   {
@@ -901,6 +901,42 @@ namespace PyXRootD
     else {
       std::vector<XrdCl::XAttrStatus>  result;
       async( status = self->filesystem->DelXAttr( path, attrs, result, timeout ) );
+      pyresponse = ConvertType( &result );
+    }
+
+    pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *o = ( callback && callback != Py_None ) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
+    Py_DECREF( pystatus );
+    Py_XDECREF( pyresponse );
+    return o;
+  }
+
+  //----------------------------------------------------------------------------
+  //! List Extended File Attributes
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::ListXAttr( FileSystem *self, PyObject *args, PyObject *kwds )
+  {
+    static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
+
+    char *path = 0;
+    uint16_t     timeout  = 0;
+    PyObject    *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:set_xattr",
+         (char**) kwlist, &path, &timeout, &callback ) ) return NULL;
+
+    if ( callback && callback != Py_None ) {
+      XrdCl::ResponseHandler *handler = GetHandler<std::vector<XrdCl::XAttr>>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->filesystem->ListXAttr( path, handler, timeout ) );
+    }
+
+    else {
+      std::vector<XrdCl::XAttr>  result;
+      async( status = self->filesystem->ListXAttr( path, result, timeout ) );
       pyresponse = ConvertType( &result );
     }
 

@@ -421,3 +421,19 @@ class FileSystem(object):
 
     status, response = self.__fs.del_xattr(path, attrs, timeout)
     return XRootDStatus(status), response
+
+  def list_xattr(self, path, timeout=0, callback=None):
+    """Delete extended file attributes.
+    :param path:  path to the file
+    :type  path:  string
+    :param attrs: extended attributes to be set on the file
+    :type  attrs: list of tuples of name/value pairs
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                  object and :mod:`list of touples (name, value, XRootD.client.responses.XRootDStatus)` object
+    """
+    if callback:
+      callback = CallbackWrapper(callback, list)
+      return XRootDStatus(self.__fs.list_xattr(path, timeout, callback))
+
+    status, response = self.__fs.list_xattr(path, timeout)
+    return XRootDStatus(status), response
