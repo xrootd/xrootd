@@ -313,8 +313,10 @@ namespace XrdCl
                 "is possible", source.GetURL().c_str(),
                 target.GetURL().c_str() );
 
-    if( target.GetProtocol() != "root" &&
-        target.GetProtocol() != "xroot" )
+    if( target.GetProtocol() != "root"  &&
+        target.GetProtocol() != "xroot" &&
+        target.GetProtocol() != "roots" &&
+        target.GetProtocol() != "xroots" )
       return XRootDStatus( stError, errNotSupported, 0, "Third-party-copy "
                            "is only supported for root/xroot protocol." );
 
