@@ -729,4 +729,73 @@ namespace PyXRootD
     st = process.Run( 0 );
     return ConvertType<XrdCl::XRootDStatus>( &st );
   }
+
+  //----------------------------------------------------------------------------
+  //! Set Extended File Attributes
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::SetXAttr( FileSystem *self, PyObject *args, PyObject *kwds )
+  {
+    static const char  *kwlist[] = { "path", "attrs", "timeout", "callback", NULL };
+
+    char *path = 0;
+    std::vector<XrdCl::xattr_t>  attrs;
+    uint16_t     timeout  = 0;
+    PyObject    *callback = NULL, *pystatus    = NULL;
+    PyObject    *pyattrs  = NULL,  *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sO|HO:set_xattr",
+         (char**) kwlist, &path, &pyattrs, &timeout, &callback ) ) return NULL;
+
+    // it should be a list
+    if( !PyList_Check( pyattrs ) )
+      return NULL;
+
+    // now parse the input
+    Py_ssize_t size = PyList_Size( pyattrs );
+    attrs.reserve( size );
+    for( ssize_t i = 0; i < size; ++i )
+    {
+      // get the item at respective index
+      PyObject *item = PyList_GetItem( pyattrs, i );
+      // make sure the item is a tuple
+      if( !item || !PyTuple_Check( item ) )
+        return NULL;
+      // make sure the tuple size equals to 2
+      if( PyTuple_Size( item ) != 2 )
+        return NULL;
+      // extract the attribute name from the tuple
+      PyObject *py_name = PyTuple_GetItem( item, 0 );
+      if( !PyString_Check( py_name ) )
+        return NULL;
+      std::string name = PyString_AsString( py_name );
+      // extract the attribute value from the tuple
+      PyObject *py_value = PyTuple_GetItem( item, 1 );
+      if( !PyString_Check( py_value ) )
+        return NULL;
+      std::string value = PyString_AsString( py_value );
+      // update the C++ list of xattrs
+      attrs.push_back( XrdCl::xattr_t( name, value ) );
+    }
+
+    if ( callback && callback != Py_None ) {
+      XrdCl::ResponseHandler *handler = GetHandler<std::vector<XrdCl::XAttrStatus>>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->filesystem->SetXAttr( path, attrs, handler, timeout ) );
+    }
+
+    else {
+      std::vector<XrdCl::XAttrStatus>  result;
+      async( status = self->filesystem->SetXAttr( path, attrs, result, timeout ) );
+      pyresponse = ConvertType( &result );
+    }
+
+    pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *o = ( callback && callback != Py_None ) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
+    Py_DECREF( pystatus );
+    Py_XDECREF( pyresponse );
+    return o;
+  }
 }
