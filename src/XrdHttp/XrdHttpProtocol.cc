@@ -343,43 +343,43 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
       TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
     }
     
-    
-    // Here we have the user DN, and try to extract an useful user name from it
-    if (SecEntity.name) free(SecEntity.name);
-    SecEntity.name = 0;
-    // To set the name we pick the first CN of the certificate subject
-    // and hope that it makes some sense, it usually does
-    char *lnpos = strstr(SecEntity.moninfo, "/CN=");
-    char bufname2[9];
-        
-    
-    if (lnpos) {
-      lnpos += 4;
-      char *lnpos2 = index(lnpos, '/');
-      if (lnpos2) {
-        int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
-        strncpy(bufname, lnpos, l);
-        bufname[l] = '\0';
-        
-        // Here we have the string in the buffer. Take the last 8 non-space characters
-        size_t j = 8;
-        strcpy(bufname2, "unknown-\0"); // note it's 9 chars
-        for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
-          if (isalnum(bufname[i])) {
-            j--;
-            bufname2[j] = bufname[i];
-            if (j == 0) break;
+    if (!SecEntity.name) {
+      // Here we have the user DN, and try to extract an useful user name from it
+      if (SecEntity.name) free(SecEntity.name);
+      SecEntity.name = 0;
+      // To set the name we pick the first CN of the certificate subject
+      // and hope that it makes some sense, it usually does
+      char *lnpos = strstr(SecEntity.moninfo, "/CN=");
+      char bufname2[9];
+      
+      
+      if (lnpos) {
+        lnpos += 4;
+        char *lnpos2 = index(lnpos, '/');
+        if (lnpos2) {
+          int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
+          strncpy(bufname, lnpos, l);
+          bufname[l] = '\0';
+          
+          // Here we have the string in the buffer. Take the last 8 non-space characters
+          size_t j = 8;
+          strcpy(bufname2, "unknown-\0"); // note it's 9 chars
+          for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
+            if (isalnum(bufname[i])) {
+              j--;
+              bufname2[j] = bufname[i];
+              if (j == 0) break;
+            }
+            
           }
           
+          SecEntity.name = strdup(bufname);
+          TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
+          lp->setID(bufname2+j, 0);
         }
-        
-        SecEntity.name = strdup(bufname);
-        TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
-        lp->setID(bufname2+j, 0);
       }
     }
     
-
     
     // If we could not find anything good, take the last 8 non-space characters of the main subject
     if (!SecEntity.name) {
