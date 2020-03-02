@@ -25,6 +25,7 @@ Version 4.11.3
                     redirected to.
   * **[Python]** Make rpath relative to the module.
   * **[Debian]** Proper Debian pkg naming.
+  * **[XrdCl]** Use glibc semaphores for rhel>=7.
 
 --------------
 Version 4.11.2
