@@ -188,9 +188,6 @@ development.
 Summary:	Libraries used by xrootd clients
 Group:		System Environment/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-%if %{use_libc_semaphore}
-Requires:       glibc >= 2.21
-%endif
 
 %description client-libs
 This package contains libraries used by xrootd clients.
