@@ -1,5 +1,5 @@
-usr/lib/*/libXrdClProxyPlugin-5.so
-usr/lib/*/libXrdCks*-5.so
-usr/lib/*/libXrdCryptossl-5.so
-usr/lib/*/libXrdSec*-5.so
+usr/lib/*/libXrdClProxyPlugin-4.so
+usr/lib/*/libXrdCks*-4.so
+usr/lib/*/libXrdCryptossl-4.so
+usr/lib/*/libXrdSec*-4.so
 usr/lib/*/libXrdPosixPreload.so*
