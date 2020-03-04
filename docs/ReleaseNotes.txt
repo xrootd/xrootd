@@ -12,6 +12,8 @@ Version 4.11.3
 + **Major bug fixes**
   * **[Server]** Avoid SEGV when skipping over large if/else/fi blocks.
   * **[XrdHttp]** Fix curl speed limit to be really around 10KB/s.
+  * **[xrootdfs]** Make sure xrootdfs_create() checks return code of 
+                   xrootdfs_do_create().
 
 + **Minor bug fixes**
   * **[XrdHttp]** Change the default ssl cipher.
