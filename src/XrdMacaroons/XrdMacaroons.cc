@@ -1,4 +1,3 @@
-
 #include <stdexcept>
 #include <dlfcn.h>
 
@@ -9,6 +8,7 @@
 #include "XrdOuc/XrdOucPinPath.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdVersion.hh"
@@ -24,6 +24,80 @@ extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
                                                      const char     *parm,
                                                      XrdVersionInfo &myVer);
 
+//------------------------------------------------------------------------------
+//! Handle chained authorization plugins specified directly as a parameter in
+//! the parms variable or in the key=value format such as "chain_authz=lib.so"
+//!
+//! @param err error object user ofr logging
+//! @param config path to configuration file
+//! @param parms string representing the configuration options given to the
+//!        libXrdMacaroons library
+//!
+//! @return authorization plugin object to be chained
+//------------------------------------------------------------------------------
+XrdAccAuthorize* HandleChainedAuthz(XrdSysError* err, const char* config,
+                                    const char* parms)
+{
+  if (!parms) {
+    return NULL;
+  }
+
+  XrdOucString sparms = parms;
+  XrdOucString token = "chain_authz=";
+
+  if (sparms.beginswith(token.c_str())) {
+    sparms.erase(0, token.length());
+  }
+
+  err->Log(Macaroons::LogMask::Info, __FUNCTION__,
+           "Try to chain authz:", sparms.c_str());
+
+  // Trim whitespaces
+  while (sparms.length() && (sparms[0] == ' ')) {
+    sparms.erase(0, 1);
+  }
+
+  if (sparms.length() == 0) {
+    err->Log(Macaroons::LogMask::Error, __FUNCTION__,
+             "No authz lib specified in the chain option");
+    return NULL;
+  }
+
+  int pos = sparms.find(' ');
+  const char* new_parms = ((pos == STR_NPOS) ||
+                           (pos == sparms.length() -1)) ? NULL : &sparms[pos + 1];
+  XrdOucString lib_name(sparms, 0, pos);
+  char resolve_path[2048];
+  bool no_alt_path = false;
+
+  if (!XrdOucPinPath(lib_name.c_str(), no_alt_path, resolve_path,
+                     sizeof(resolve_path))) {
+    err->Log(Macaroons::LogMask::Error, __FUNCTION__,
+             "Failed to locate library path for", lib_name.c_str());
+    return NULL;
+  }
+
+  // Try to load the XrdAccAuthorizeObject provided by the given library
+  XrdAccAuthorize *(*authz_ep)(XrdSysLogger*, const char*, const char*);
+  XrdSysPlugin authz_plugin(err, resolve_path, "authz", &compiledVer, 1);
+  void* authz_addr = authz_plugin.getPlugin("XrdAccAuthorizeObject", 0, 0);
+  authz_plugin.Persist();
+  authz_ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*,
+                                    const char*))(authz_addr);
+  XrdAccAuthorize* authz_obj = NULL;
+
+  if (authz_ep && (authz_obj = authz_ep(err->logger(), config, new_parms))) {
+    err->Log(Macaroons::LogMask::Info, __FUNCTION__,
+             "Successfully chained authz plugin from", resolve_path);
+    err->Log(Macaroons::LogMask::Info, __FUNCTION__, "Chained authz plugin "
+             "with params \"", (new_parms ? new_parms : ""), "\"");
+    return authz_obj;
+  } else {
+    err->Log(Macaroons::LogMask::Error, __FUNCTION__,
+             "Failed loading authz plugin from", resolve_path);
+    return NULL;
+  }
+}
 
 extern "C" {
 
@@ -31,84 +105,63 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
                                        const char   *config,
                                        const char   *parms)
 {
-    XrdAccAuthorize *chain_authz;
+    static XrdAccAuthorize* sMacaroonsAuthz = NULL;
+    XrdOucString version = XrdVERSION;
+    XrdSysError err(log, "authz_macaroons_");
+    err.Say("++++++ XrdMacaroons(authz) plugin ", version.c_str());
+
+    if (sMacaroonsAuthz) {
+      err.Say("------ XrdMacaroons(authz) plugin already loaded and available");
+      return sMacaroonsAuthz;
+    }
+
+    XrdAccAuthorize *chain_authz = NULL;
 
     if (parms && parms[0]) {
-        XrdOucString parms_str(parms);
-        XrdOucString chained_lib;
-        XrdSysError *err = new XrdSysError(log, "authlib");
-        int from = parms_str.tokenize(chained_lib, 0, ' ');
-        const char *chained_parms = NULL;
-        err->Emsg("Config", "Will chain library", chained_lib.c_str());
-        if (from > 0)
-        {
-            parms_str.erasefromstart(from);
-            if (parms_str.length())
-            {
-                err->Emsg("Config", "Will chain parameters", parms_str.c_str());
-                chained_parms = parms_str.c_str();
-            }
-        }
-        char resolvePath[2048];
-        bool usedAltPath{true};
-        if (!XrdOucPinPath(chained_lib.c_str(), usedAltPath, resolvePath, 2048)) {
-            err->Emsg("Config", "Failed to locate appropriately versioned chained auth library:", parms);
-            delete err;
-            return NULL;
-        }
-        void *handle_base = dlopen(resolvePath, RTLD_LOCAL|RTLD_NOW);
-        if (handle_base == NULL) {
-            err->Emsg("Config", "Failed to base plugin ", resolvePath, dlerror());
-            delete err;
-            return NULL;
-        }
+      chain_authz = HandleChainedAuthz(&err, config, parms);
+    } else {
+      chain_authz = XrdAccDefaultAuthorizeObject(log, config, parms, compiledVer);
+    }
 
-        XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
-        ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
-             (dlsym(handle_base, "XrdAccAuthorizeObject"));
-        if (!ep)
-        {
-            err->Emsg("Config", "Unable to chain second authlib after macaroons", parms);
-            delete err;
-            return NULL;
-        }
-        chain_authz = (*ep)(log, config, chained_parms);
+    try {
+      sMacaroonsAuthz = (XrdAccAuthorize*)new Macaroons::Authz(log, config, chain_authz);
+      err.Say("------ XrdMacaroons(authz) initialization successful");
+    } catch (const std::runtime_error &e) {
+      err.Say("------ XrdMacaroons(authz) initialization failed!");
     }
-    else
-    {
-        chain_authz = XrdAccDefaultAuthorizeObject(log, config, parms, compiledVer);
-    }
-    try
-    {
-        return new Macaroons::Authz(log, config, chain_authz);
-    }
-    catch (std::runtime_error &e)
-    {
-        XrdSysError err(log, "macaroons");
-        err.Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
-        return NULL;
-    }
+
+    return sMacaroonsAuthz;
 }
 
 
-XrdHttpExtHandler *XrdHttpGetExtHandler(
-    XrdSysError *log, const char * config,
-    const char * parms, XrdOucEnv *env)
+XrdHttpExtHandler*
+XrdHttpGetExtHandler(XrdSysError *eDest, const char * config,
+                     const char * parms, XrdOucEnv *env)
 {
-    XrdAccAuthorize *def_authz = XrdAccDefaultAuthorizeObject(log->logger(),
-        config, parms, compiledVer);
+  XrdOucString version = XrdVERSION;
+  eDest->Say("++++++ XrdMacaroons(http) plugin ", version.c_str());
 
-    log->Emsg("Initialize", "Creating new Macaroon handler object");
-    try
-    {
-        return new Macaroons::Handler(log, config, env, def_authz);
-    }
-    catch (std::runtime_error &e)
-    {
-        log->Emsg("Config", "Generation of Macaroon handler failed", e.what());
-        return NULL;
-    }
+  XrdAccAuthorize *authz = NULL;
+
+  if (parms) {
+    authz = HandleChainedAuthz(eDest, config, parms);
+  }
+
+  // Fall back to default authz if nothing else specified
+  if (!authz)  {
+    authz = XrdAccDefaultAuthorizeObject(eDest->logger(),
+                                         config, parms, compiledVer);
+  }
+
+  try {
+    XrdHttpExtHandler* obj = (XrdHttpExtHandler*)
+      new Macaroons::Handler(eDest, config, env, authz);
+    eDest->Say("------ XrdMacaroons(http) intialization successful");
+    return obj;
+  } catch (const std::runtime_error &e)  {
+    eDest->Say("------ XrdMacaroons(http) initialization failed!");
+    return NULL;
+  }
 }
-
 
 }
