@@ -91,7 +91,7 @@ namespace XrdCl
                                  //!< that not all locations are necessarily
                                  //!< returned. If the file does not exist a
                                  //!< wait is still imposed.
-      Append   = kXR_open_apnd,  //!< Open only for appending
+//      Append   = kXR_open_apnd,  //!< Open only for appending
       Read     = kXR_open_read,  //!< Open only for reading
       Update   = kXR_open_updt,  //!< Open for reading and writing
       Write    = kXR_open_wrto,  //!< Open only for writing
