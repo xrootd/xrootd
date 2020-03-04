@@ -416,6 +416,7 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
         res = XrdFfsPosix_open(rootpath, O_CREAT | O_EXCL | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
 */
     res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, false, &fd);
+    if (res < 0) return res;
     XrdFfsPosix_close(fd);
     if (xrootdfs.cns != NULL)
     {
@@ -440,6 +441,7 @@ static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info 
     if (!S_ISREG(mode))
         return -EPERM;
     res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
+    if (res < 0) return res;
     fi->fh = fd;
     XrdFfsWcache_create(fd);    // Unlike mknod and like open, prepare wcache.
     if (xrootdfs.cns != NULL)
