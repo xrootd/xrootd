@@ -1418,11 +1418,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !status->IsOK() && status->code == errRedirect && pFollowRedirects )
     {
-      static const std::string root = "root", xroot = "xroot", file = "file";
+      static const std::string root  = "root",  xroot  = "xroot", file = "file",
+                               roots = "roots", xroots = "xroots";
       std::string msg = status->GetErrorMessage();
-      if( !msg.compare( 0, root.size(), root ) ||
-          !msg.compare( 0, xroot.size(), xroot ) ||
-          !msg.compare( 0, file.size(), file ) )
+      if( !msg.compare( 0, root.size(),   root )  ||
+          !msg.compare( 0, xroot.size(),  xroot ) ||
+          !msg.compare( 0, file.size(),   file )  ||
+          !msg.compare( 0, roots.size(),  roots ) ||
+          !msg.compare( 0, xroots.size(), xroots ) )
       {
         OnStateRedirection( msg, message, userHandler, sendParams );
         return;

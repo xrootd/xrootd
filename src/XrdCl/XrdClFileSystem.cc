@@ -1725,7 +1725,10 @@ namespace XrdCl
 
       for( uint32_t i = 0; i < locations->GetSize(); ++i )
       {
-        fs = new FileSystem( locations->At(i).GetAddress() );
+        URL locationURL( locations->At(i).GetAddress() );
+        // make sure the original protocol is preserved (root vs roots)
+        locationURL.SetProtocol( pImpl->pUrl->GetProtocol() );
+        fs = new FileSystem( locationURL );
         st = fs->DirList( path, flags, currentResp, timeout );
         if( !st.IsOK() )
         {

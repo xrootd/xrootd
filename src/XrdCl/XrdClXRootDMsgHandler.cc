@@ -625,7 +625,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Check if we need to return the URL as a response
         //----------------------------------------------------------------------
-        if( newUrl.GetProtocol() != "root" && newUrl.GetProtocol() != "xroot" &&
+        if( newUrl.GetProtocol() != "root"  && newUrl.GetProtocol() != "xroot"  &&
+            newUrl.GetProtocol() != "roots" && newUrl.GetProtocol() != "xroots" &&
             !newUrl.IsLocalFile() )
           pRedirectAsAnswer = true;
 
@@ -648,6 +649,11 @@ namespace XrdCl
           HandleResponse();
           return;
         }
+
+        //----------------------------------------------------------------------
+        // Make sure we don't change the protocol by accident (root vs roots)
+        //----------------------------------------------------------------------
+        newUrl.SetProtocol( pUrl.GetProtocol() );
 
         //----------------------------------------------------------------------
         // Send the request to the new location
@@ -2220,7 +2226,7 @@ namespace XrdCl
     // Set up a redirect entry
     //--------------------------------------------------------------------------
     if( pRdirEntry ) pRedirectTraceBack.push_back( std::move( pRdirEntry ) );
-    pRdirEntry.reset( new RedirectEntry( pUrl.GetHostId(), url.GetHostId(), entryType ) );
+    pRdirEntry.reset( new RedirectEntry( pUrl.GetLocation(), url.GetLocation(), entryType ) );
 
     if( pUrl.GetLocation() != url.GetLocation() )
     {
