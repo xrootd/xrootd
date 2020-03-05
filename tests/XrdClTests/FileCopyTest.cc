@@ -180,7 +180,7 @@ void FileCopyTest::UploadTestFunc()
   int fd = -1;
   CPPUNIT_ASSERT_ERRNO( (fd=open( localFile.c_str(), O_RDONLY )) > 0 )
   CPPUNIT_ASSERT_XRDST( f.Open( fileUrl,
-                                OpenFlags::Delete|OpenFlags::Append ) );
+                                OpenFlags::Delete|OpenFlags::Update ) );
 
   //----------------------------------------------------------------------------
   // Read the data
