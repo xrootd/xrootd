@@ -316,32 +316,53 @@ XRootDStatus DoLS( FileSystem                      *fs,
       }
       else
       {
-        if( info->TestFlags( StatInfo::IsDir ) )
-          std::cout << "d";
+        if( info->ExtendedFormat() )
+        {
+          if( info->TestFlags( StatInfo::IsDir ) )
+            std::cout << "d";
+          else
+            std::cout << "-";
+          std::cout << info->GetModeAsOctString();
+
+          std::cout << " " << info->GetOwner();
+          std::cout << " " << info->GetGroup();
+
+          uint64_t size = info->GetSize();
+          int width = nbDigits( size ) + 2;
+          if( width < 12 ) width = 12;
+
+          std::cout << std::setw( width ) << info->GetSize();
+          std::cout << " " << info->GetModTimeAsString() << " ";
+        }
         else
-          std::cout << "-";
+        {
+          if( info->TestFlags( StatInfo::IsDir ) )
+            std::cout << "d";
+          else
+            std::cout << "-";
 
-        if( info->TestFlags( StatInfo::IsReadable ) )
-          std::cout << "r";
-        else
-          std::cout << "-";
+          if( info->TestFlags( StatInfo::IsReadable ) )
+            std::cout << "r";
+          else
+            std::cout << "-";
 
-        if( info->TestFlags( StatInfo::IsWritable ) )
-          std::cout << "w";
-        else
-          std::cout << "-";
+          if( info->TestFlags( StatInfo::IsWritable ) )
+            std::cout << "w";
+          else
+            std::cout << "-";
 
-        if( info->TestFlags( StatInfo::XBitSet ) )
-          std::cout << "x";
-        else
-          std::cout << "-";
+          if( info->TestFlags( StatInfo::XBitSet ) )
+            std::cout << "x";
+          else
+            std::cout << "-";
 
-        std::cout << " " << info->GetModTimeAsString();
+          std::cout << " " << info->GetModTimeAsString();
 
-        uint64_t size = info->GetSize();
-        int width = nbDigits( size ) + 2;
-        if( width < 12 ) width = 12;
-        std::cout << std::setw( width ) << info->GetSize() << " ";
+          uint64_t size = info->GetSize();
+          int width = nbDigits( size ) + 2;
+          if( width < 12 ) width = 12;
+          std::cout << std::setw( width ) << info->GetSize() << " ";
+        }
       }
     }
     if( showUrls )
@@ -926,11 +947,27 @@ XRootDStatus DoStat( FileSystem                      *fs,
   if( !flags.empty() )
     flags.erase( flags.length()-1, 1 );
 
-  std::cout << "Path:   " << fullPath << std::endl;
-  std::cout << "Id:     " << info->GetId() << std::endl;
-  std::cout << "Size:   " << info->GetSize() << std::endl;
-  std::cout << "MTime:  " << info->GetModTimeAsString() << std::endl;
+  std::cout <<   "Path:   " << fullPath << std::endl;
+  std::cout <<   "Id:     " << info->GetId() << std::endl;
+  std::cout <<   "Size:   " << info->GetSize() << std::endl;
+  std::cout <<   "MTime:  " << info->GetModTimeAsString() << std::endl;
+  // if extended stat information is available we can print also
+  // change time and access time
+  if( info->ExtendedFormat() )
+  {
+    std::cout << "CTime:  " << info->GetChangeTimeAsString() << std::endl;
+    std::cout << "ATime:  " << info->GetAccessTimeAsString() << std::endl;
+  }
   std::cout << "Flags:  " << info->GetFlags() << " (" << flags << ")";
+
+  // check if extended stat information is available
+  if( info->ExtendedFormat() )
+  {
+    std::cout << "\nMode:   " << info->GetModeAsString() << std::endl;
+    std::cout << "Owner:  " << info->GetOwner() << std::endl;
+    std::cout << "Group:  " << info->GetOwner();
+  }
+
   std::cout << std::endl;
   if( query.length() != 0 )
   {

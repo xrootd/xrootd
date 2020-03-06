@@ -493,6 +493,11 @@ namespace XrdCl
       const std::string& GetModeAsString() const;
 
       //------------------------------------------------------------------------
+      //! Get mode
+      //------------------------------------------------------------------------
+      const std::string GetModeAsOctString() const;
+
+      //------------------------------------------------------------------------
       //! Get owner
       //------------------------------------------------------------------------
       const std::string& GetOwner() const;
@@ -521,6 +526,22 @@ namespace XrdCl
         tm *t = gmtime( &modTime );
         strftime( ts, 255, "%F %T", t );
         return ts;
+      }
+
+      static inline void OctToString( uint8_t oct, std::string &str )
+      {
+        static const uint8_t r_mask = 0x4;
+        static const uint8_t w_mask = 0x2;
+        static const uint8_t x_mask = 0x1;
+
+        if( r_mask & oct ) str.push_back( 'r' );
+        else str.push_back( '-' );
+
+        if( w_mask & oct ) str.push_back( 'w' );
+        else str.push_back( '-' );
+
+        if( x_mask & oct ) str.push_back( 'x' );
+        else str.push_back( '-' );
       }
 
       std::unique_ptr<StatInfoImpl> pImpl;

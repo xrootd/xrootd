@@ -181,7 +181,10 @@ namespace XrdCl
             return false;
           }
 
+          // we are expecting at least 4 characters, e.g.: 0644
+          if( chunks[6].size() < 4 ) return false;
           pMode  = chunks[6];
+
           pOwner = chunks[7];
           pGroup = chunks[8];
 
@@ -338,6 +341,29 @@ namespace XrdCl
   const std::string& StatInfo::GetModeAsString() const
   {
     return pImpl->pMode;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get mode
+  //------------------------------------------------------------------------
+  const std::string StatInfo::GetModeAsOctString() const
+  {
+    std::string ret;
+    ret.reserve( 9 );
+
+    // we care about 3 last digits
+    size_t size = pImpl->pMode.size();
+
+    uint8_t oct = pImpl->pMode[size - 3] - '0';
+    OctToString( oct, ret );
+
+    oct = pImpl->pMode[size - 2] - '0';
+    OctToString( oct, ret );
+
+    oct = pImpl->pMode[size - 1] - '0';
+    OctToString( oct, ret );
+
+    return std::move( ret );
   }
 
   //------------------------------------------------------------------------
