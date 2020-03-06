@@ -151,7 +151,7 @@ void DoInitHS( SocketIO &io )
 
   ServerInitHandShake  hs;
   memset( &hs, 0, sizeof( ServerInitHandShake ) );
-  hs.protover = htonl( 0x310 );
+  hs.protover = htonl( 0x500 );
   io.write( &hs.protover, sizeof( kXR_int32 ) );
   hs.msgval   = htonl( kXR_DataServer );
   io.write( &hs.msgval, sizeof( kXR_int32 ) );
@@ -179,7 +179,7 @@ void HandleProtocolReq( SocketIO &io, ClientRequestHdr *hdr )
   std::cout << "Server flags = " << flags << std::endl;
 
   ServerResponseBody_Protocol body;
-  body.pval  = htonl( 0x310 );
+  body.pval  = htonl( 0x500 );
   body.flags = htonl( flags );
   io.write( &body, sizeof(ServerResponseBody_Protocol) );
 
