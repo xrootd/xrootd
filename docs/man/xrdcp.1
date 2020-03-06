@@ -523,6 +523,12 @@ If set to 1 (default) xrdcp will preverve file extended attribues,
 if set to 0 file extended attributes wont be preserved.
 .RE
 
+XRD_TLSFALLBACK
+.RS 5
+If set to 1 and the server is to old to support TLS encryption, xrdcp will fallback to unencrypted transmission although roots/xroots protocol was used.
+By default set to 0.
+.RE
+
 .SH RETURN CODES
 .RE
 \fB50\fR  : generic error (e.g. config, internal, data, OS, command line option)
