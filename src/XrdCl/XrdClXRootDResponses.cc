@@ -104,65 +104,264 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // StatInfo implementation
+  //----------------------------------------------------------------------------
+  struct StatInfoImpl
+  {
+      StatInfoImpl() : pSize( 0 ), pFlags( 0 ), pModifyTime( 0 ),
+                       pChangeTime( 0 ), pAccessTime( 0 ), pExtended( false )
+      {
+
+      }
+
+      StatInfoImpl( const StatInfoImpl & pimpl ) : pId( pimpl.pId ),
+                                                   pSize( pimpl.pSize ),
+                                                   pFlags( pimpl.pFlags ),
+                                                   pModifyTime( pimpl.pModifyTime ),
+                                                   pChangeTime( pimpl.pChangeTime ),
+                                                   pAccessTime( pimpl.pAccessTime ),
+                                                   pMode( pimpl.pMode ),
+                                                   pOwner( pimpl.pOwner ),
+                                                   pGroup( pimpl.pGroup ),
+                                                   pExtended( pimpl.pExtended )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      // Parse the stat info returned by the server
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const char *data )
+      {
+        if( !data || strlen( data ) == 0 )
+          return false;
+
+        std::vector<std::string> chunks;
+        Utils::splitString( chunks, data, " " );
+
+        if( chunks.size() < 4 )
+          return false;
+
+        pId = chunks[0];
+
+        char *result;
+        pSize = ::strtoll( chunks[1].c_str(), &result, 0 );
+        if( *result != 0 )
+        {
+          pSize = 0;
+          return false;
+        }
+
+        pFlags = ::strtol( chunks[2].c_str(), &result, 0 );
+        if( *result != 0 )
+        {
+          pFlags = 0;
+          return false;
+        }
+
+        pModifyTime = ::strtoll( chunks[3].c_str(), &result, 0 );
+        if( *result != 0 )
+        {
+          pModifyTime = 0;
+          return false;
+        }
+
+        if( chunks.size() == 9 )
+        {
+          pChangeTime = ::strtoll( chunks[4].c_str(), &result, 0 );
+          if( *result != 0 )
+          {
+            pChangeTime = 0;
+            return false;
+          }
+
+          pAccessTime = ::strtoll( chunks[5].c_str(), &result, 0 );
+          if( *result != 0 )
+          {
+            pAccessTime = 0;
+            return false;
+          }
+
+          pMode  = chunks[6];
+          pOwner = chunks[7];
+          pGroup = chunks[8];
+
+          pExtended = true;
+        }
+
+        return true;
+      }
+
+      std::string pId;
+      uint64_t    pSize;
+      uint32_t    pFlags;
+      uint64_t    pModifyTime;
+      uint64_t    pChangeTime;
+      uint64_t    pAccessTime;
+      std::string pMode;
+      std::string pOwner;
+      std::string pGroup;
+
+      bool        pExtended;
+  };
+
+  //----------------------------------------------------------------------------
   // StatInfo constructor
   //----------------------------------------------------------------------------
-  StatInfo::StatInfo():
-    pSize( 0 ),
-    pFlags( 0 ),
-    pModTime( 0 )
+  StatInfo::StatInfo() : pImpl( new StatInfoImpl() )
   {
   }
 
   //------------------------------------------------------------------------
-  //! Constructor
+  // Constructor
   //------------------------------------------------------------------------
   StatInfo::StatInfo( const std::string &id, uint64_t size, uint32_t flags,
-                      uint64_t modTime) :
-                          pId( id ), pSize( size ), pFlags( flags ),
-                          pModTime( modTime )
-  {
+                      uint64_t modTime ) : pImpl( new StatInfoImpl() )
 
+  {
+    pImpl->pId         = id;
+    pImpl->pSize       = size;
+    pImpl->pFlags      = flags;
+    pImpl->pModifyTime = modTime;
   }
+
+  //------------------------------------------------------------------------
+  // Copy constructor
+  //------------------------------------------------------------------------
+  StatInfo::StatInfo( const StatInfo &info ) : pImpl( new StatInfoImpl( *info.pImpl) )
+  {
+  }
+
+  //------------------------------------------------------------------------
+  // Destructor (it can be only defined after StatInfoImpl is defined!!!)
+  //------------------------------------------------------------------------
+  StatInfo::~StatInfo() = default;
 
   //----------------------------------------------------------------------------
   // Parse the stat info returned by the server
   //----------------------------------------------------------------------------
   bool StatInfo::ParseServerResponse( const char *data )
   {
-    if( !data || strlen( data ) == 0 )
-      return false;
+    return pImpl->ParseServerResponse( data );
+  }
 
-    std::vector<std::string> chunks;
-    Utils::splitString( chunks, data, " " );
+  //------------------------------------------------------------------------
+  //! Get id
+  //------------------------------------------------------------------------
+  const std::string& StatInfo::GetId() const
+  {
+    return pImpl->pId;
+  }
 
-    if( chunks.size() < 4 )
-      return false;
+  //------------------------------------------------------------------------
+  //! Get size (in bytes)
+  //------------------------------------------------------------------------
+  uint64_t StatInfo::GetSize() const
+  {
+    return pImpl->pSize;
+  }
 
-    pId = chunks[0];
+  //------------------------------------------------------------------------
+  //! Get flags
+  //------------------------------------------------------------------------
+  uint32_t StatInfo::GetFlags() const
+  {
+    return pImpl->pFlags;
+  }
 
-    char *result;
-    pSize = ::strtoll( chunks[1].c_str(), &result, 0 );
-    if( *result != 0 )
-    {
-      pSize = 0;
-      return false;
-    }
+  //------------------------------------------------------------------------
+  //! Set flags
+  //------------------------------------------------------------------------
+  void StatInfo::SetFlags( uint32_t flags )
+  {
+    pImpl->pFlags = flags;
+  }
 
-    pFlags = ::strtol( chunks[2].c_str(), &result, 0 );
-    if( *result != 0 )
-    {
-      pFlags = 0;
-      return false;
-    }
+  //------------------------------------------------------------------------
+  //! Test flags
+  //------------------------------------------------------------------------
+  bool StatInfo::TestFlags( uint32_t flags ) const
+  {
+    return pImpl->pFlags & flags;
+  }
 
-    pModTime = ::strtoll( chunks[3].c_str(), &result, 0 );
-    if( *result != 0 )
-    {
-      pModTime = 0;
-      return false;
-    }
+  //------------------------------------------------------------------------
+  //! Get modification time (in seconds since epoch)
+  //------------------------------------------------------------------------
+  uint64_t StatInfo::GetModTime() const
+  {
+    return pImpl->pModifyTime;
+  }
 
-    return true;
+  //------------------------------------------------------------------------
+  //! Get modification time
+  //------------------------------------------------------------------------
+  std::string StatInfo::GetModTimeAsString() const
+  {
+    return TimeToString( pImpl->pModifyTime );
+  }
+
+  //------------------------------------------------------------------------
+  //! Get change time (in seconds since epoch)
+  //------------------------------------------------------------------------
+  uint64_t StatInfo::GetChangeTime() const
+  {
+    return pImpl->pChangeTime;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get change time
+  //------------------------------------------------------------------------
+  std::string StatInfo::GetChangeTimeAsString() const
+  {
+    return TimeToString( pImpl->pChangeTime );
+  }
+
+  //------------------------------------------------------------------------
+  //! Get change time (in seconds since epoch)
+  //------------------------------------------------------------------------
+  uint64_t StatInfo::GetAccessTime() const
+  {
+    return pImpl->pAccessTime;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get change time
+  //------------------------------------------------------------------------
+  std::string StatInfo::GetAccessTimeAsString() const
+  {
+    return TimeToString( pImpl->pAccessTime );
+  }
+
+  //------------------------------------------------------------------------
+  //! Get mode
+  //------------------------------------------------------------------------
+  const std::string& StatInfo::GetModeAsString() const
+  {
+    return pImpl->pMode;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get owner
+  //------------------------------------------------------------------------
+  const std::string& StatInfo::GetOwner() const
+  {
+    return pImpl->pOwner;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get group
+  //------------------------------------------------------------------------
+  const std::string& StatInfo::GetGroup() const
+  {
+    return pImpl->pGroup;
+  }
+
+  //------------------------------------------------------------------------
+  //! Parse server response and fill up the object
+  //------------------------------------------------------------------------
+  bool StatInfo::ExtendedFormat() const
+  {
+    return pImpl->pExtended;
   }
 
   //----------------------------------------------------------------------------

@@ -1205,10 +1205,9 @@ DirectoryList* ZipArchiveReaderImpl::List()
   for( ; itr != pCdRecords.end() ; ++itr )
   {
     CDFH *cdfh = *itr;
-    StatInfo *entry_info = new StatInfo( info->GetId(),
-                                         cdfh->pCdfhSize,
-                                         info->GetFlags() & ( ~StatInfo::IsWritable ), // make sure it is not listed as writable
-                                         info->GetModTime() );
+    StatInfo *entry_info = new StatInfo( *info );
+    uint32_t flags = entry_info->GetFlags();
+    entry_info->SetFlags( flags & ( ~StatInfo::IsWritable ) ); // make sure it is not listed as writable
     DirectoryList::ListEntry *entry =
         new DirectoryList::ListEntry( url.GetHostId(), cdfh->pFilename, entry_info );
     list->Add( entry );
