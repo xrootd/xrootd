@@ -1776,6 +1776,12 @@ int XrdHttpProtocol::InitSecurity() {
     exit(1);
   }
 
+#if SSL_CTRL_SET_ECDH_AUTO
+    // Enable elliptic-curve support
+    // not needed in OpenSSL 1.1.0+
+    SSL_CTX_set_ecdh_auto(sslctx, 1);
+#endif
+
   //SSL_CTX_set_purpose(sslctx, X509_PURPOSE_ANY);
   SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
 
