@@ -2,6 +2,8 @@
 include( XRootDCommon )
 include_directories( ${CPPUNIT_INCLUDE_DIRS} ../common)
 
+add_subdirectory( tls )
+
 set( LIB_XRD_CL_TEST_MONITOR XrdClTestMonitor-${PLUGIN_VERSION} )
 
 

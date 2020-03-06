@@ -9,11 +9,11 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x" )
 if( NOT XRDCL_ONLY )
 
 add_executable(
-  xrd_api_test
-  xrd_api_test.cc )
+  xrdcl-tls
+  xrdcl-tls.cc )
   
 target_link_libraries(
-  xrd_api_test
+  xrdcl-tls
   XrdCl
   XrdPosix
   XrdXml
@@ -23,11 +23,11 @@ target_link_libraries(
   
   
 add_executable(
-  xrdsrv
-  xrdsrv.cc )
+  xrdsrv-tls
+  xrdsrv-tls.cc )
   
 target_link_libraries(
-  xrdsrv
+  xrdsrv-tls
   XrdUtils
   ${OPENSSL_LIBRARIES}
   pthread )
