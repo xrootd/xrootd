@@ -592,6 +592,9 @@ int main( int argc, char **argv )
   if( config.nStrm != 0 )
     env->PutInt( "SubStreamsPerChannel", config.nStrm + 1 /*stands for the control stream*/ );
 
+  if( config.Want( XrdCpConfig::DoNoTlsOK ) )
+    env->PutInt( "NoTlsOK", 1 );
+
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
 

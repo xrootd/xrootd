@@ -1587,8 +1587,8 @@ namespace XrdCl
     }
 
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
-    int tlsFallback = DefaultTlsFallback;
-    env->GetInt( "TlsFallback", tlsFallback );
+    int notlsok = DefaultNoTlsOK;
+    env->GetInt( "NoTlsOK", notlsok );
 
     if( rsp->body.protocol.pval < kXR_PROTTLSVERSION && info->encrypted )
     {
@@ -1596,12 +1596,16 @@ namespace XrdCl
       // User requested an encrypted connection but the server is to old to
       // support it!
       //------------------------------------------------------------------------
-      if( !tlsFallback ) return Status( stFatal, errTlsError, ENOSYS );
+      if( !notlsok ) return Status( stFatal, errTlsError, ENOSYS );
 
       //------------------------------------------------------------------------
       // We are falling back to unencrypted data transmission, as configured
-      // in XRD_TLSFALLBACK environment variable
+      // in XRD_NOTLSOK environment variable
       //------------------------------------------------------------------------
+      log->Debug( XRootDTransportMsg,
+                  "[%s] Falling back to unencrypted transmission, server does "
+                  "not support TLS encryption.",
+                  hsData->streamName.c_str() );
       info->encrypted = false;
     }
 
