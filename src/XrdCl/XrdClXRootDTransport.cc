@@ -145,6 +145,14 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // @param size : number of streams
+      //------------------------------------------------------------------------
+      void AdjustQueues( uint16_t size )
+      {
+         strmqueues.resize( size - 1, 0);
+      }
+
+      //------------------------------------------------------------------------
       // @param connected : bitarray stating if given sub-stream is connected
       //
       // @return          : substream number
@@ -880,7 +888,10 @@ namespace XrdCl
     }
 
     if( ret > info->stream.size() )
+    {
       info->stream.resize( ret );
+      info->strmSelector->AdjustQueues( ret );
+    }
 
     return ret;
   }
