@@ -658,7 +658,8 @@ int main( int argc, char **argv )
   bool targetIsDir = false;
   if( config.dstFile->Protocol == XrdCpFile::isDir )
     targetIsDir = true;
-  else if( config.dstFile->Protocol == XrdCpFile::isXroot )
+  else if( config.dstFile->Protocol == XrdCpFile::isXroot ||
+           config.dstFile->Protocol == XrdCpFile::isXroots )
   {
     URL target( dest );
     FileSystem fs( target );
