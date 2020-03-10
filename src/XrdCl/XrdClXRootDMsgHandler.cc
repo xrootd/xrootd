@@ -653,7 +653,9 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Make sure we don't change the protocol by accident (root vs roots)
         //----------------------------------------------------------------------
-        newUrl.SetProtocol( pUrl.GetProtocol() );
+        if( ( pUrl.GetProtocol() == "roots" || pUrl.GetProtocol() == "xroots" ) &&
+            ( newUrl.GetProtocol() == "root" || newUrl.GetProtocol() == "xroot" ) )
+          newUrl.SetProtocol( "roots" );
 
         //----------------------------------------------------------------------
         // Send the request to the new location
