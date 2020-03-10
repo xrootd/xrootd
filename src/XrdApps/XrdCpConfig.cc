@@ -898,8 +898,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
    "         [--streams <n>] [--tlsnodata] [--tlsmetalink]\n"
    "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
-   "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n"
-   "         [--notlsok] [--tlsnodata] [--tlsmetalink]\n";
+   "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root[s]://<host>[:<port>]/]<path> | -";
@@ -926,7 +925,8 @@ void XrdCpConfig::Usage(int rc)
    "-H | --license      prints license terms and conditions\n"
    "-I | --infiles      specifies the file that contains a list of input files\n"
    "-N | --nopbar       does not print the progress bar\n"
-   "     --notlsok      allow fallback to xroot protocol if xroots specified\n"
+   "     --notlsok      if server is too old to support TLS encryption fallback\n" 
+   "                    to unencrypted communication\n"
    "-p | --path         automatically create remote destination path\n"
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
@@ -936,7 +936,8 @@ void XrdCpConfig::Usage(int rc)
    "-s | --silent       produces no output other than error messages\n"
    "-y | --sources <n>  uses up to the number of sources specified in parallel\n"
    "-S | --streams <n>  copies using the specified number of TCP connections\n"
-   "-E | --tlsnodata    entrcypt data as well for xroots protocol\n"
+   "-E | --tlsnodata    in case of [x]roots protocol, encrypt only the control\n" 
+   "                    stream and leave the data streams unencrypted\n"
    "     --tlsmetalink  convert [x]root to [x]roots protocol in metalinks\n"
    "-T | --tpc          uses third party copy mode between the src and dest.\n"
    "                    Both the src and dest must allow tpc mode. Argument\n"
@@ -951,11 +952,6 @@ void XrdCpConfig::Usage(int rc)
    "-A | --allow-http   allow HTTP as source or destination protocol. Requires\n"
    "                    the XrdClHttp client plugin\n"
    "     --xattr        preserve extended attributes\n"
-   "     --notlsok      if server is too old to support TLS encryption fallback\n" 
-   "                    to unencrypted communication\n"
-   "     --tlsnodata    encrypt only the control stream and leave the data streams\n"
-   "                    unencrypted\n"
-   "     --tlsmetalink  treat all URLs in metalink as roots/xroots\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

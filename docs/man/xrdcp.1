@@ -186,7 +186,7 @@ If server is too old to support TLS encryption fallback to unencrypted communica
 .RE
 \fB--tlsnodata\fR
 .RS 5
-Encrypt only the control stream and leave the data streams unencrypted.
+In case of roots/xroots protocol, encrypt only the control stream and leave the data streams unencrypted.
 
 .RE
 \fB--tlsmetalink
@@ -547,7 +547,7 @@ By default set to 0.
 
 XRD_TLSNODATA
 .RS 5
-If set to 1 only the control stream will be encrypted, data streams will be left unencrypted.
+If set to 1, in case of roots/xroots protocol only the control stream will be encrypted, data streams will be left unencrypted.
 By default set to 0.
 .RE
 

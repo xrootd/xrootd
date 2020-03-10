@@ -872,17 +872,20 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     uint16_t ret = ( info->serverFlags & kXR_isServer ) ? info->stream.size() : 1;
 
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    int nodata = DefaultTlsNoData;
+    env->GetInt( "TlsNoData", nodata );
 
-
-    if( ( ( info->serverFlags & kXR_gotoTLS )    ||
-          ( info->serverFlags & kXR_tlsLogin )   ||
-          ( info->serverFlags & kXR_tlsSess ) )  &&
-            !( info->serverFlags & kXR_tlsData ) &&
-            !info->encrypted )
+    if( ( info->encrypted && nodata )              ||
+        ( ( ( info->serverFlags & kXR_gotoTLS )    ||
+            ( info->serverFlags & kXR_tlsLogin )   ||
+            ( info->serverFlags & kXR_tlsSess ) )  &&
+          !( info->serverFlags & kXR_tlsData )     &&
+          !info->encrypted ) )
     {
       //------------------------------------------------------------------------
-      // The server asked us to encrypt stream 0, but to send the data (read/write)
-      // using an plain TCP connection
+      // The server or user asked us to encrypt stream 0, but to send the data
+      // (read/write) using an plain TCP connection
       //------------------------------------------------------------------------
       if( ret == 1 ) ++ret;
     }
@@ -1523,7 +1526,17 @@ namespace XrdCl
     proto->clientpv  = htonl(kXR_PROTOCOLVERSION);
     proto->flags     = ClientProtocolRequest::kXR_secreqs |
                        ClientProtocolRequest::kXR_ableTLS;
-    if( info->encrypted ) proto->flags |= ClientProtocolRequest::kXR_wantTLS;
+
+    bool nodata = false;
+    if( expect & ClientProtocolRequest::kXR_ExpBind )
+    {
+      XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+      int value = DefaultTlsNoData;
+      env->GetInt( "TlsNoData", value );
+      nodata = bool( value );
+    }
+
+    if( info->encrypted && !nodata ) proto->flags |= ClientProtocolRequest::kXR_wantTLS;
     proto->expect = expect;
     return msg;
   }

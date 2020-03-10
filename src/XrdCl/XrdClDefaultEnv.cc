@@ -294,6 +294,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "NotAuthorizedRetryLimit", DefaultNotAuthorizedRetryLimit );
     REGISTER_VAR_INT( varsInt, "PreserveXAttrs",          DefaultPreserveXAttrs          );
     REGISTER_VAR_INT( varsInt, "NoTlsOK",                 DefaultNoTlsOK                 );
+    REGISTER_VAR_INT( varsInt, "TlsNoData",               DefaultTlsNoData               );
 
     REGISTER_VAR_STR( varsStr, "ClientMonitor",           DefaultClientMonitor           );
     REGISTER_VAR_STR( varsStr, "ClientMonitorParam",      DefaultClientMonitorParam      );

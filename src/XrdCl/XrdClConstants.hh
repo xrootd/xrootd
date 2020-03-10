@@ -82,6 +82,7 @@ namespace XrdCl
   const int DefaultNotAuthorizedRetryLimit = 3;
   const int DefaultPreserveXAttrs          = 0;
   const int DefaultNoTlsOK                 = 0;
+  const int DefaultTlsNoData               = 0;
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";

@@ -595,6 +595,9 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoNoTlsOK ) )
     env->PutInt( "NoTlsOK", 1 );
 
+  if( config.Want( XrdCpConfig::DoTlsNoData ) )
+    env->PutInt( "TlsNoData", 1 );
+
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
 
