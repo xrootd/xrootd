@@ -1602,7 +1602,7 @@ namespace XrdCl
       // We are falling back to unencrypted data transmission, as configured
       // in XRD_NOTLSOK environment variable
       //------------------------------------------------------------------------
-      log->Debug( XRootDTransportMsg,
+      log->Info( XRootDTransportMsg,
                   "[%s] Falling back to unencrypted transmission, server does "
                   "not support TLS encryption.",
                   hsData->streamName.c_str() );

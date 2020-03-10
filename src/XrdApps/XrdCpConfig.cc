@@ -104,7 +104,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "silent",      0, 0, XrdCpConfig::OpSilent},
       {OPT_TYPE "sources",     1, 0, XrdCpConfig::OpSources},
       {OPT_TYPE "streams",     1, 0, XrdCpConfig::OpStreams},
-      {OPT_TYPE "tlsdata",     0, 0, XrdCpConfig::OpTlsData},
+      {OPT_TYPE "tlsnodata",   0, 0, XrdCpConfig::OpTlsNoData},
       {OPT_TYPE "tlsmetalink", 0, 0, XrdCpConfig::OpTlsMLF},
       {OPT_TYPE "tpc",         1, 0, XrdCpConfig::OpTpc},
       {OPT_TYPE "verbose",     0, 0, XrdCpConfig::OpVerbose},
@@ -220,99 +220,99 @@ void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
 do{while(optind < Argc && Legacy(optind)) {}
    if ((opC = getopt_long(Argc, Argv, opLetters, opVec, &i)) != (char)-1)
       switch(opC)
-         {case OpCksum:    defCks(optarg);
-                           break;
-          case OpCoerce:   OpSpec |= DoCoerce;
-                           break;
-          case OpDebug:    OpSpec |= DoDebug;
-                           if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
-                           break;
-          case OpDynaSrc:  OpSpec |= DoDynaSrc;
-                           break;
-          case OpForce:    OpSpec |= DoForce;
-                           break;
-          case OpZip:      OpSpec |= DoZip;
-                           if (zipFile) free(zipFile);
-                           zipFile = strdup(optarg);
-                           break;
-          case OpHelp:     Usage(0);
-                           break;
-          case OpIfile:    if (inFile) free(inFile);
-                           inFile = strdup(optarg);
-                           OpSpec |= DoIfile;
-                           break;
-          case OpLicense:  License();
-                           break;
-          case OpNoPbar:   OpSpec |= DoNoPbar;
-                           break;
-          case OpNoTlsOK:  OpSpec |= DoNoTlsOK;
-                           break;
-          case OpPath:     OpSpec |= DoPath;
-                           break;
-          case OpPosc:     OpSpec |= DoPosc;
-                           break;
-          case OpProxy:    OpSpec |= DoProxy;
-                           defPxy(optarg);
-                           break;
-          case OpRecurse:  OpSpec |= DoRecurse;
-                           break;
-          case OpRecursv:  OpSpec |= DoRecurse;
-                           break;
-          case OpRetry:    OpSpec |= DoRetry;
-                           if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
-                           break;
-          case OpServer:   OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
-                           break;
-          case OpSilent:   OpSpec |= DoSilent|DoNoPbar;
-                           break;
-          case OpSources:  OpSpec |= DoSources;
-                           if (!a2i(optarg, &nSrcs, 1, 32)) Usage(22);
-                           break;
-          case OpStreams:  OpSpec |= DoStreams;
-                           if (!a2i(optarg, &nStrm, 1, 15)) Usage(22);
-                           break;
-          case OpTlsData:  OpSpec |= DoTlsData;
-                           break;
-          case OpTlsMLF:   OpSpec |= DoTlsMLF;
-                           break;
-          case OpTpc:      OpSpec |= DoTpc;
-                           if (!strcmp("delegate",  optarg))
-                              {OpSpec|= DoTpcDlgt;
-                               if (optind >= Argc)
-                                  {UMSG("Missing tpc qualifier after "
-                                        "'delegate'");
-                                  }
-                               optarg = Argv[optind++];
-                              }
-                           if (!strcmp("only",  optarg)) OpSpec|= DoTpcOnly;
-                              else if (strcmp("first", optarg))
-                                      {optind--;
-                                       UMSG("Invalid option, '" <<OpName()
-                                            <<' ' <<optarg <<"' ");
-                                      }
-                           break;
-          case OpVerbose:  OpSpec |= DoVerbose;
-                           Verbose = 1;
-                           break;
-          case OpVersion:  cerr <<XrdVERSION <<endl; exit(0);
-                           break;
-          case OpXrate:    OpSpec |= DoXrate;
-                           if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
-                           break;
-          case OpParallel: OpSpec |= DoParallel;
-                           if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
-                           break;
+         {case OpCksum:     defCks(optarg);
+                            break;
+          case OpCoerce:    OpSpec |= DoCoerce;
+                            break;
+          case OpDebug:     OpSpec |= DoDebug;
+                            if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
+                            break;
+          case OpDynaSrc:   OpSpec |= DoDynaSrc;
+                            break;
+          case OpForce:     OpSpec |= DoForce;
+                            break;
+          case OpZip:       OpSpec |= DoZip;
+                            if (zipFile) free(zipFile);
+                            zipFile = strdup(optarg);
+                            break;
+          case OpHelp:      Usage(0);
+                            break;
+          case OpIfile:     if (inFile) free(inFile);
+                            inFile = strdup(optarg);
+                            OpSpec |= DoIfile;
+                            break;
+          case OpLicense:   License();
+                            break;
+          case OpNoPbar:    OpSpec |= DoNoPbar;
+                            break;
+          case OpNoTlsOK:   OpSpec |= DoNoTlsOK;
+                            break;
+          case OpPath:      OpSpec |= DoPath;
+                            break;
+          case OpPosc:      OpSpec |= DoPosc;
+                            break;
+          case OpProxy:     OpSpec |= DoProxy;
+                            defPxy(optarg);
+                            break;
+          case OpRecurse:   OpSpec |= DoRecurse;
+                            break;
+          case OpRecursv:   OpSpec |= DoRecurse;
+                            break;
+          case OpRetry:     OpSpec |= DoRetry;
+                            if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
+                            break;
+          case OpServer:    OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
+                            break;
+          case OpSilent:    OpSpec |= DoSilent|DoNoPbar;
+                            break;
+          case OpSources:   OpSpec |= DoSources;
+                            if (!a2i(optarg, &nSrcs, 1, 32)) Usage(22);
+                            break;
+          case OpStreams:   OpSpec |= DoStreams;
+                            if (!a2i(optarg, &nStrm, 1, 15)) Usage(22);
+                            break;
+          case OpTlsNoData: OpSpec |= DoTlsNoData;
+                            break;
+          case OpTlsMLF:    OpSpec |= DoTlsMLF;
+                            break;
+          case OpTpc:       OpSpec |= DoTpc;
+                            if (!strcmp("delegate",  optarg))
+                               {OpSpec|= DoTpcDlgt;
+                                if (optind >= Argc)
+                                   {UMSG("Missing tpc qualifier after "
+                                         "'delegate'");
+                                   }
+                                optarg = Argv[optind++];
+                               }
+                            if (!strcmp("only",  optarg)) OpSpec|= DoTpcOnly;
+                               else if (strcmp("first", optarg))
+                                       {optind--;
+                                        UMSG("Invalid option, '" <<OpName()
+                                             <<' ' <<optarg <<"' ");
+                                       }
+                            break;
+          case OpVerbose:   OpSpec |= DoVerbose;
+                            Verbose = 1;
+                            break;
+          case OpVersion:   cerr <<XrdVERSION <<endl; exit(0);
+                            break;
+          case OpXrate:     OpSpec |= DoXrate;
+                            if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
+                            break;
+          case OpParallel:  OpSpec |= DoParallel;
+                            if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
+                            break;
           case OpAllowHttp: OpSpec |= DoAllowHttp;
                             break;
-          case OpXAttr :   OpSpec |= DoXAttr;
-                           break;
-          case ':':        UMSG("'" <<OpName() <<"' argument missing.");
-                           break;
-          case '?':        if (!Legacy(optind-1))
-                              UMSG("Invalid option, '" <<OpName() <<"'.");
-                           break;
-          default:         UMSG("Internal error processing '" <<OpName() <<"'.");
-                           break;
+          case OpXAttr :    OpSpec |= DoXAttr;
+                            break;
+          case ':':         UMSG("'" <<OpName() <<"' argument missing.");
+                            break;
+          case '?':         if (!Legacy(optind-1))
+                               UMSG("Invalid option, '" <<OpName() <<"'.");
+                            break;
+          default:          UMSG("Internal error processing '" <<OpName() <<"'.");
+                            break;
          }
   } while(opC != (char)-1 && optind < Argc);
 
@@ -896,7 +896,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--force] [--help] [--infiles <fn>] [--license] [--nopbar]\n"
    "         [--notlsok] [--path] [--parallel <n>] [--posc] [--proxy <host>:<port>]\n"
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
-   "         [--streams <n>] [--tlsdata] [--tlsmetalink]\n"
+   "         [--streams <n>] [--tlsnodata] [--tlsmetalink]\n"
    "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
    "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n";
 
@@ -935,7 +935,7 @@ void XrdCpConfig::Usage(int rc)
    "-s | --silent       produces no output other than error messages\n"
    "-y | --sources <n>  uses up to the number of sources specified in parallel\n"
    "-S | --streams <n>  copies using the specified number of TCP connections\n"
-   "-E | --tlsdata      entrcypt data as well for xroots protocol\n"
+   "-E | --tlsnodata    entrcypt data as well for xroots protocol\n"
    "     --tlsmetalink  convert [x]root to [x]roots protocol in metalinks\n"
    "-T | --tpc          uses third party copy mode between the src and dest.\n"
    "                    Both the src and dest must allow tpc mode. Argument\n"
