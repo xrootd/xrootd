@@ -898,7 +898,8 @@ void XrdCpConfig::Usage(int rc)
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
    "         [--streams <n>] [--tlsnodata] [--tlsmetalink]\n"
    "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
-   "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n";
+   "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n"
+   "         [--notlsok] [--tlsnodata] [--tlsmetalink]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root[s]://<host>[:<port>]/]<path> | -";
@@ -950,6 +951,11 @@ void XrdCpConfig::Usage(int rc)
    "-A | --allow-http   allow HTTP as source or destination protocol. Requires\n"
    "                    the XrdClHttp client plugin\n"
    "     --xattr        preserve extended attributes\n"
+   "     --notlsok      if server is too old to support TLS encryption fallback\n" 
+   "                    to unencrypted communication\n"
+   "     --tlsnodata    encrypt only the control stream and leave the data streams\n"
+   "                    unencrypted\n"
+   "     --tlsmetalink  treat all URLs in metalink as roots/xroots\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 
