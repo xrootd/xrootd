@@ -1768,7 +1768,13 @@ int XrdHttpProtocol::InitSecurity() {
   }
 
   // Use default cipherlist filter if none is provided
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+  // For OpenSSL v1.0.2+ (EL7+), use recommended cipher list from Mozilla
+  // https://ssl-config.mozilla.org/#config=intermediate&openssl=1.0.2k&guideline=5.4
   if (!sslcipherfilter) sslcipherfilter = (char *) "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
+#else
+  if (!sslcipherfilter) sslcipherfilter = (char *) "ALL:!LOW:!EXP:!MD5:!MD2";
+#endif
   /* Apply the cipherlist filtering. */
   if (!SSL_CTX_set_cipher_list(sslctx, sslcipherfilter)) {
     TRACE(EMSG, " Error setting the cipherlist filter.");
