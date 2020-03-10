@@ -598,6 +598,9 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoTlsNoData ) )
     env->PutInt( "TlsNoData", 1 );
 
+  if( config.Want( XrdCpConfig::DoTlsMLF ) )
+    env->PutInt( "TlsMetalink", 1 );
+
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
 

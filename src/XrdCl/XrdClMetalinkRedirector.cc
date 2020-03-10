@@ -440,7 +440,14 @@ namespace XrdCl
     if( itr == pReplicas.end() )
       return XRootDStatus( stError, errNotFound );
 
-    replica = *itr;
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    int tlsmtl = DefaultTlsMetalink;
+    env->GetInt( "TlsMetalink", tlsmtl );
+    URL url( *itr );
+    if( tlsmtl && ( url.GetProtocol() == "root" || url.GetProtocol() == "xroot" ) )
+      url.SetProtocol( "roots" );
+    replica = url.GetURL();
+
     return XRootDStatus();
   }
 
