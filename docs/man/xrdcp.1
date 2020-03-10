@@ -15,6 +15,7 @@ xrdcp - copy files
 [\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 [\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR] [\fB--path\fR]
 [\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR] [\fB--xattr\fR]
+[\fB--notlsok\fR] [\fB--tlsnodata\fR] [\fB--tlsmetalink\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -176,6 +177,21 @@ allow HTTP as source or destination protocol. Requires the XrdClHttp client plug
 \fB--xattr\fR
 .RS 5
 preserve extended attributes
+
+.RE
+\fB--notlsok\fR
+.RS 5
+If server is too old to support TLS encryption fallback to unencrypted communication.
+
+.RE
+\fB--tlsnodata\fR
+.RS 5
+Encrypt only the control stream and leave the data streams unencrypted.
+
+.RE
+\fB--tlsmetalink
+.RS 5
+Treat all URLs in metalink as roots/xroots.
 
 .SH LEGACY OPTIONS
 Legacy options are provided for backward compatability. These are now
@@ -526,6 +542,18 @@ if set to 0 file extended attributes wont be preserved.
 XRD_NOTLSOK
 .RS 5
 If set to 1 and the server is to old to support TLS encryption, xrdcp will fallback to unencrypted transmission although roots/xroots protocol was used.
+By default set to 0.
+.RE
+
+XRD_TLSNODATA
+.RS 5
+If set to 1 only the control stream will be encrypted, data streams will be left unencrypted.
+By default set to 0.
+.RE
+
+XRD_TLSMETALINK
+.RS 5
+If set to 1 all URLs in metalink will be treated as roots/xroots.
 By default set to 0.
 .RE
 
