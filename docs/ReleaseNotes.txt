@@ -14,9 +14,11 @@ Version 4.11.3
   * **[XrdHttp]** Fix curl speed limit to be really around 10KB/s.
   * **[xrootdfs]** Make sure xrootdfs_create() checks return code of 
                    xrootdfs_do_create().
+  * **[XrdHttp]** Change the default ssl cipher.
+  * **[XrdHttp]** Enable elliptic-curve support for OpenSSL 1.0.2+.
+  * **[XrdHttp]** Use Mozilla cipher list only with OpenSSL 1.0.2+.
 
 + **Minor bug fixes**
-  * **[XrdHttp]** Change the default ssl cipher.
   * **[XrdCl]** When xrdcp reports an error refine the message so it is 
                 clear whether the erros comes from the source or destination.
   * **[XrdXrootdConfig]** Fixed wrong segsz parameter.
@@ -25,6 +27,8 @@ Version 4.11.3
                   mapping, e.g. eos)
   * **[XrdHttp]** Fix the logic for determining SecEntity.name.
   * **[XrdHttp]** Don't overwrite SecEntity.name after the gridmap phase.
+  * **[xrootdfs]** Make sure xrootdfs_create() does check the return code of 
+                   xrootdfs_do_create().
 
 + **Miscellaneous**
   * **[XrdSecgsi]** In the case of delegation, give client a chance to 
