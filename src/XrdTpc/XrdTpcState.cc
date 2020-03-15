@@ -176,13 +176,22 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
     if (obj->GetStatusCode() < 0) {
         return 0;
      }  // malformed request - got body before headers.
-    if (obj->GetStatusCode() >= 400) {return 0;}  // Status indicates failure.
+    if (obj->GetStatusCode() >= 400) {
+        obj->m_error_buf += std::string(static_cast<char*>(buffer),
+                                        std::min(static_cast<size_t>(1024), size*nitems));
+        // Record error messages until we hit a KB; at that point, fail out.
+        if (obj->m_error_buf.size() >= 1024)
+            return 0;
+        else
+            return size*nitems;
+    }  // Status indicates failure.
     return obj->Write(static_cast<char*>(buffer), size*nitems);
 }
 
 int State::Write(char *buffer, size_t size) {
     int retval = m_stream->Write(m_start_offset + m_offset, buffer, size);
     if (retval == SFS_ERROR) {
+        m_error_buf = m_stream->GetErrorMessage();
         return -1;
     }
     m_offset += retval;

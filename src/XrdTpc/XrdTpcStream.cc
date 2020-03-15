@@ -60,6 +60,12 @@ Stream::Write(off_t offset, const char *buf, size_t size)
         buffer_accepted = true;
         if (retval != SFS_ERROR) {
             m_offset += retval;
+        } else {
+            std::stringstream ss;
+            const char *msg = m_fh->error.getErrText();
+            if (!msg || (*msg == '\0')) {msg = "(no error message provided)";}
+            ss << m_fh->error.getErrText() << " (code=" << m_fh->error.getErrInfo() << ")";
+            m_error_buf = ss.str();
         }
         // If there are no in-use buffers, then we don't need to
         // do any accounting.
