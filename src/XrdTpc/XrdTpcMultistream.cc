@@ -208,23 +208,17 @@ private:
 
 
 int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
-                                       const char *log_prefix, size_t streams,
-                                       std::vector<State*> handles)
+    size_t streams, std::vector<State*> handles, TPCLogRecord &rec)
 {
     int result;
     bool success;
     CURL *curl = state.GetHandle();
-    if ((result = DetermineXferSize(curl, req, state, success)) || !success) {
+    if ((result = DetermineXferSize(curl, req, state, success, rec)) || !success) {
         return result;
     }
     off_t content_size = state.GetContentLength();
     off_t current_offset = 0;
 
-    {
-        std::stringstream ss;
-        ss << "Successfully determined remote size for pull request: " << content_size;
-        m_log.Emsg("ProcessPullReq", ss.str().c_str());
-    }
     state.ResetAfterRequest();    
 
     size_t concurrency = streams * m_pipelining_multiplier;
@@ -248,7 +242,12 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     // Start response to client prior to the first call to curl_multi_perform
     int retval = req.StartChunkedResp(201, "Created", "Content-Type: text/plain");
     if (retval) {
+        logTransferEvent(LogMask::Error, rec, "RESPONSE_FAIL",
+            "Failed to send the initial response to the TPC client");
         return retval;
+    } else {
+        logTransferEvent(LogMask::Debug, rec, "RESPONSE_START",
+            "Initial transfer response sent to the TPC client");
     }
 
     // Start assigning transfers
@@ -264,7 +263,9 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
-            if (SendPerfMarker(req, current_offset)) {
+            if (SendPerfMarker(req, rec, current_offset)) {
+                logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
+                    "Failed to send a perf marker to the TPC client");
                 return -1;
             }
             last_marker = now;
@@ -295,7 +296,8 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             }
         } while (msg);
         if (res != static_cast<CURLcode>(-1) && res != CURLE_OK) {
-            m_log.Emsg(log_prefix, "Breaking loop due to failed curl transfer.");
+            logTransferEvent(LogMask::Debug, rec, "MULTISTREAM_CURL_FAILURE",
+                "Breaking loop due to failed curl transfer");
             break;
         }
 
@@ -309,10 +311,12 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                     std::stringstream ss;
                     ss << "No handles are able to run.  Streams=" << streams << ", concurrency="
                        << concurrency;
-                    m_log.Emsg(log_prefix, ss.str().c_str());
+                    
+                    logTransferEvent(LogMask::Debug, rec, "MULTISTREAM_IDLE", ss.str());
                 }
             } else if (running_handles == 0) {
-                m_log.Emsg(log_prefix, "Unable to start new transfers; breaking loop.");
+                logTransferEvent(LogMask::Debug, rec, "MULTISTREAM_IDLE",
+                    "Unable to start new transfers; breaking loop.");
                 break;
             }
         }
@@ -330,7 +334,6 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
                                     &fd_count);
 #endif
         if (mres != CURLM_OK) {
-            m_log.Emsg(log_prefix, "Breaking transfer due to failed curl multi wait.");
             break;
         }
     } while (running_handles);
@@ -339,6 +342,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         std::stringstream ss;
         ss << "Internal libcurl multi-handle error: "
            << curl_multi_strerror(mres);
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR", ss.str());
         throw std::runtime_error(ss.str());
     }
 
@@ -356,43 +360,58 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     } while (msg);
 
     if (res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR",
+            "Internal state error in libcurl");
         throw std::runtime_error("Internal state error in libcurl");
     }
 
+    rec.bytes_transferred = state.BytesTransferred();
+    rec.tpc_status = state.GetStatusCode();
+
     // Generate the final response back to the client.
     std::stringstream ss;
-    if (res != CURLE_OK) {
-        m_log.Emsg(log_prefix, "request failed when processing", curl_easy_strerror(res));
+    success = false;
+    if (state.GetStatusCode() >= 400) {
+        ss << "failure: Remote side failed with status code " << state.GetStatusCode();
+        rec.status = state.GetStatusCode();
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
+    } else if (res != CURLE_OK) {
+        std::stringstream ss2;
+        ss2 << "Request failed when processing: " << curl_easy_strerror(res);
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
         ss << "failure: " << curl_easy_strerror(res);
     } else if (current_offset != content_size) {
         ss << "failure: Internal logic error led to early abort; current offset is " <<
               current_offset << " while full size is " << content_size;
-        m_log.Emsg(log_prefix, ss.str().c_str());
-    } else if (state.GetStatusCode() >= 400) {
-        ss << "failure: Remote side failed with status code " << state.GetStatusCode();
-        m_log.Emsg(log_prefix, "Remote server failed request", ss.str().c_str());
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
     } else {
         if (!handles[0]->Finalize()) {
             ss << "failure: Failed to finalize and close file handle.";
-            m_log.Emsg(log_prefix, "Failed to finalize file handle");
+            logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR",
+                "Failed to finalize and close file handle");
         } else {
             ss << "success: Created";
+            success = true;
         }
     }
 
     if ((retval = req.ChunkResp(ss.str().c_str(), 0))) {
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_ERROR",
+            "Failed to send last update to remote client");
         return retval;
+    } else if (success) {
+        logTransferEvent(LogMask::Info, rec, "TRANSFER_SUCCESS");
     }
     return req.ChunkResp(NULL, 0);
 }
 
 
 int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
-                                   const char *log_prefix, size_t streams)
+    size_t streams, TPCLogRecord &rec)
 {
     std::vector<State*> handles;
     try {
-        int retval = RunCurlWithStreamsImpl(req, state, log_prefix, streams, handles);
+        int retval = RunCurlWithStreamsImpl(req, state, streams, handles, rec);
         for (std::vector<State*>::iterator state_iter = handles.begin();
              state_iter != handles.end();
              state_iter++) {
@@ -406,8 +425,9 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
             delete *state_iter;
         }
 
-        m_log.Emsg(log_prefix, e.what());
-        return req.SendSimpleResp(500, NULL, NULL, e.what(), 0);
+        rec.status = 500;
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR", e.what());
+        return req.SendSimpleResp(rec.status, NULL, NULL, e.what(), 0);
     } catch (std::runtime_error &e) {
         for (std::vector<State*>::iterator state_iter = handles.begin();
              state_iter != handles.end();
@@ -415,7 +435,7 @@ int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
             delete *state_iter;
         }
 
-        m_log.Emsg(log_prefix, e.what());
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR", e.what());
         std::stringstream ss;
         ss << "failure: " << e.what();
         int retval;
