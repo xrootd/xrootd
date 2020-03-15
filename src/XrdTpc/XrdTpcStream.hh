@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 #include <cstring>
 
@@ -54,6 +55,8 @@ public:
     //
     // Returns true on success; false otherwise.
     bool Finalize();
+
+    std::string GetErrorMessage() const {return m_error_buf;}
 
 private:
 
@@ -141,5 +144,6 @@ private:
     off_t m_offset;
     std::vector<Entry*> m_buffers;
     XrdSysError &m_log;
+    std::string m_error_buf;
 };
 }

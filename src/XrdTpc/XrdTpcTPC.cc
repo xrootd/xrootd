@@ -382,12 +382,17 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
 
     // Generate the final response back to the client.
     std::stringstream ss;
-    if (res != CURLE_OK) {
+    if (state.GetStatusCode() >= 400) {
+        std::string err = state.GetErrorMessage();
+        ss << "failure: Remote side failed with status code " << state.GetStatusCode();
+        if (!err.empty()) {
+            std::replace(err.begin(), err.end(), '\n', ' ');
+            ss << "; error message: \"" << err << "\"";
+        }
+        m_log.Emsg(log_prefix, "Remote server failed request", ss.str().c_str());
+    } else if (res != CURLE_OK) {
         m_log.Emsg(log_prefix, "Remote server failed request", curl_easy_strerror(res));
         ss << "failure: " << curl_easy_strerror(res);
-    } else if (state.GetStatusCode() >= 400) {
-        ss << "failure: Remote side failed with status code " << state.GetStatusCode();
-        m_log.Emsg(log_prefix, "Remote server failed request", ss.str().c_str());
     } else {
         ss << "success: Created";
     }
