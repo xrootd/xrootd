@@ -42,6 +42,10 @@ private:
     int DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                           bool &success);
 
+    // Send a 'performance marker' back to the TPC client, informing it of our
+    // progress.  The TPC client will use this information to determine whether
+    // the transfer is making sufficient progress and/or other monitoring info
+    // (such as whether the transfer is happening over IPv4, IPv6, or both).
     int SendPerfMarker(XrdHttpExtReq &req, TPC::State &state);
     int SendPerfMarker(XrdHttpExtReq &req, std::vector<State*> &state,
         off_t bytes_transferred);
