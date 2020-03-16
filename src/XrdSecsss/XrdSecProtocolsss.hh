@@ -39,6 +39,8 @@
 
 class XrdOucErrInfo;
 
+struct XrdSecsssEnt;
+
 class XrdSecProtocolsss : public XrdSecProtocol
 {
 public:
@@ -69,11 +71,10 @@ static  char *Load_Client(XrdOucErrInfo *erp, const char *Parms);
 
 static  char *Load_Server(XrdOucErrInfo *erp, const char *Parms);
 
-static  void  setOpts(int opts) {options = opts;}
-
         XrdSecProtocolsss(const char *hname, XrdNetAddrInfo &endPoint)
                          : XrdSecProtocol("sss"),
-                           keyTab(0), Crypto(0), idBuff(0), Sequence(0)
+                           keyTab(0), Crypto(0), idBuff(0), dataOpts(0),
+                           Sequence(0), v2EndPnt(false)
                          {urName = strdup(hname); setIP(endPoint);}
 
 struct Crypto {const char *cName; char cType;};
@@ -82,12 +83,16 @@ private:
        ~XrdSecProtocolsss() {} // Delete() does it all
 
 int                Decode(XrdOucErrInfo *error, XrdSecsssKT::ktEnt &decKey,
-                          char *iBuff, XrdSecsssRR_Data *rrData, int iSize);
+                          char *iBuff, XrdSecsssRR_DataHdr *rrDHdr, int iSize);
 XrdSecCredentials *Encode(XrdOucErrInfo *error, XrdSecsssKT::ktEnt &encKey,
-                          XrdSecsssRR_Hdr *rrHdr, XrdSecsssRR_Data *rrData,
+                          XrdSecsssRR_Hdr *rrHdr, XrdSecsssRR_DataHdr *rrDHdr,
                           int dLen);
-int            getCred(XrdOucErrInfo *, XrdSecsssRR_Data &);
-int            getCred(XrdOucErrInfo *, XrdSecsssRR_Data &, XrdSecParameters *);
+
+int            getCred(XrdOucErrInfo *, XrdSecsssRR_DataHdr *&,
+                       const char    *, const char *);
+int            getCred(XrdOucErrInfo *, XrdSecsssRR_DataHdr *&,
+                       const char    *, const char *, XrdSecParameters *);
+
 char          *getLID(char *buff, int blen);
 static
 XrdCryptoLite *Load_Crypto(XrdOucErrInfo *erp, const char *eN);
@@ -100,15 +105,14 @@ void           setIP(XrdNetAddrInfo &endPoint);
 static struct Crypto  CryptoTab[];
 
 static const char    *myName;
-static int            myNLen;
        char          *urName;
        char           urIP[48];  // New format
        char           urIQ[48];  // Old format
-static int            options;
-static int            isMutual;
 static int            deltaTime;
-static int            ktFixed;
-       XrdNetAddrInfo epAddr;
+static bool           isMutual;
+static bool           isMapped;
+static bool           ktFixed;
+       XrdNetAddrInfo *epAddr;
 
 static XrdSecsssKT   *ktObject;  // Both:   Default Key Table object
        XrdSecsssKT   *keyTab;    // Both:   Active  Key Table
@@ -117,9 +121,12 @@ static XrdCryptoLite *CryptObj;  // Both:   Default Cryptogrophy object
        XrdCryptoLite *Crypto;    // Both:   Active  Cryptogrophy object
 
 static XrdSecsssID   *idMap;     // Client: Registry
+static char          *aProts;    // Server: Allowable cloned auth protocols
        char          *idBuff;    // Server: Underlying buffer for XrdSecEntity
-static char          *staticID;  // Client: Static identity
-static int            staticIDsz;// Client: Static identity length
-       int            Sequence;  // Client: Check for sequencing
+static XrdSecsssEnt  *staticID;  // Client: Static identity
+       int            dataOpts;  // Client: idMap Find() options
+       char           Sequence;  // Client: Check for sequencing
+       bool           v2EndPnt;  // Server: Client is version 2
+                                 // Client: Server is version 2
 };
 #endif

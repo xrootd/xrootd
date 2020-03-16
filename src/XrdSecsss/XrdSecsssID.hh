@@ -4,7 +4,7 @@
 /*                                                                            */
 /*                        X r d S e c s s s I D . h h                         */
 /*                                                                            */
-/* (c) 2008 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2020 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -33,9 +33,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "XrdOuc/XrdOucHash.hh"
 #include "XrdSec/XrdSecEntity.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 // The XrdSecsssID class allows you to establish a registery to map loginid's
 // to arbitrary entities. By default, the sss security protocol uses the
@@ -49,68 +47,107 @@
 // the Register() method. You must create one, and only one, such instance
 // prior to making any contact with a sss security enabled server.
 
-// In order to include XrdSecsssID methods, you should either link with
-// libXrdSecsss.so (preferable) or include XrdSecsssID.o and link with
-// libXrdOuc.a and libXrdSys.a.
+// In order to use XrdSecsssID methods, you should link with libXrdUtils.so
+
+class  XrdSecsssEnt;
 
 class XrdSecsssID
 {
 public:
+friend class XrdSecProtocolsss;
 
-// Register() creates a mapping from a loginid to an entity description. Only
-//            name, vo, role, group, and endorements pointers in XrdSecEntity
-//            are supported. To de-register a loginid, make the Ident arg zero.
-//            To replace an existing entry, specify 1 for doReplace argument.
-//            TRUE is returned if successful; FALSE otherwise (including the
-//            case where idDynamic was not specified in the constructor or
-//            doReplace is zero and the loginid has already been registered).
-//
-int      Register(const char *loginid, XrdSecEntity *Ident, int doReplace=0);
+//-----------------------------------------------------------------------------
+//! Create a single instance of this class. Once created it cannot be deleted.
+//!
+//! @param  aType  - The type of authentication to perform (see authType enum).
+//! @param  Ident  - Pointer to the default entity to use. If nil, a generic
+//!                  entity is created based on the process uid and gid.
+//! @param  isOK   - if not nil sets the variable to true if successful and
+//!                  false, otherwise. Strongly recommended it be supplied.
+//!
+//! @note Mutual authnetication requires that the server send an encrypted
+//!       message proving that it holds the key before an identity is sent.
+//!       For idDynamic this is the default and the message must be the
+//!       login which must correspond to the key used to register the entity.
+//!       This works well when keys are no more than 8 characters and consist
+//!       only of letters and digits. The idMapped types provide greater
+//!       freedom by using whatever userid was specified on the URL performing
+//!       the login as the lookup key (i.e. the returned loginid is not used).
+//-----------------------------------------------------------------------------
 
-// Find() is an internal look-up method that returns the identification
-//        string in the provided buffer corresponding to the loginid.
-//        If loginid is registered and the data will fit into the buffer the
-//        length moved into the buffer is returned. Otherwise, the default ID
-//        is moved into the buffer and the length copied is returned. If that
-//        is not possible, 0 is returned.
-//
-int      Find(const char *loginid, char *Buff, int Blen);
+enum authType
+         {idDynamic = 0, //!< Mutual: Map loginid to registered identity
+                         //!<         Ident is default; if 0 nobody/nogroup
+          idMapped  = 3, //!< 1Sided: Map loginid to registered identity
+                         //!<         Ident is default; if 0 nobody/nogroup
+          idMappedM = 4, //!< Mutual: Map loginid to registered identity
+                         //!<         Ident is default; if 0 process uid/gid
+          idStatic  = 1, //!< 1Sided: fixed identity sent to the server
+                         //!<         Ident as specified; if 0 process uid/gid
+                         //!<         Default if XrdSecsssID not instantiated!
+          idStaticM = 2  //!< Mutual: fixed identity sent to the server
+                         //!<         Ident as specified; if 0 process uid/gid
+         };
 
-// A single instance of this class may be instantiated. The first parameter
-// indicates how authentication is to be handled. The second parameter provides
-// either a fixed or default authenticated identity under control of the aType
-// parameter, as follows:
-//
-enum authType {idDynamic = 0, // Mutual: Map loginid to registered identity
-                              //         Ident is default; if 0 nobody/nogroup
-               idStatic  = 1, // 1Sided: fixed identity sent to the server
-                              //         Ident as specified; if 0 process uid/gid
-                              //         Default if XrdSecsssID not instantiated!
-               idStaticM = 2  // Mutual: fixed identity sent to the server
-                              //         Ident as specified; if 0 process uid/gid
-              };
+         XrdSecsssID(authType aType=idStatic, XrdSecEntity *Ident=0,
+                     bool *isOK=0);
 
-// getObj() returns the address of a previous created instance of this object or
-//          zero if no instance exists. It also returns authType and default ID
-//          to be used regardless of the return value.
-//
-static
-XrdSecsssID *getObj(authType &aType, char **dID, int &dIDsz);
+//-----------------------------------------------------------------------------
+//! Create or delete a mapping from a loginid to an entity description.
+//!
+//! @param  lgnid  - Pointer to the login ID.
+//! @param  Ident  - Pointer to the entity object to be registstered. If the
+//!                  pointer is NIL, then the mapping is deleted.
+//! @param  doRep  - When true, any existing mapping is replaced.
+//! @param  defer  - When true, the entity object is recorded but serialization
+//!                  is defered until the object is needed. The entity object
+//!                  must remain valid until the mapping is deleted. The entity
+//!                  may not be modified during this period.
+//!
+//! @return true   - Mapping registered.
+//! @return false  - Mapping not registered because this object was not created
+//!                  as idDynamic or the mapping exists and doRep is false.
+//-----------------------------------------------------------------------------
 
-       XrdSecsssID(authType aType=idStatic, XrdSecEntity *Ident=0);
-
-      ~XrdSecsssID() {if (defaultID) free(defaultID);}
+bool     Register(const char *lgnid, XrdSecEntity *Ident,
+                  bool doReplace=false, bool defer=false);
 
 private:
 
-struct sssID {int iLen; char iData[1];}; // Sized appropriately
-static sssID *genID(int Secure);
-static sssID *genID(XrdSecEntity *eP);
+        ~XrdSecsssID();
 
-static XrdSysMutex InitMutex;
-       sssID      *defaultID;
-XrdSysMutex        myMutex;
-XrdOucHash<sssID>  Registry;
+//-----------------------------------------------------------------------------
+//! Find and return a id mapping.
+//!
+//! @param  lid    - Pointer to the login ID to search for.
+//! @param  dP     - Reference to a pointer where the serialized ID is returned.
+//!                  The caller is responsible for freeing the storage.
+//! @param  myIP   - Pointer to IP address of client.
+//! @param  opts   - Options to pass to the XrdSecsssEnt data extractor.
+//!                  See XrdSecsssEnt::rr_Data for details.
+//!
+//! @return The length of the structure pointed to by dP; zero if not found.
+//-----------------------------------------------------------------------------
+
+int      Find(const char *lid, char *&dP, const char *myIP, int dataOpts=0);
+
+//-----------------------------------------------------------------------------
+//! Get initial parameters for sss ID mapping.
+//!
+//! @param  atype  - The authentication type used by this object.
+//! @param  idP    - Reference to a pointer where the default ID is returned.
+//!
+//! @return A pointer to this object if it was instantiated, otherwise nil.
+//-----------------------------------------------------------------------------
+static
+XrdSecsssID  *getObj(authType &aType, XrdSecsssEnt *&idP);
+
+static
+XrdSecsssEnt *genID(bool Secure);
+
+XrdSecsssEnt      *defaultID;
 authType           myAuth;
+short              credLen;
+bool               isStatic;
 };
 #endif

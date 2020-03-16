@@ -341,6 +341,40 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
 }
 
 /******************************************************************************/
+/*                                g e t G I D                                 */
+/******************************************************************************/
+  
+bool XrdOucUtils::getGID(const char *gName, gid_t &gID)
+{
+   struct group Grp, *result;
+   char buff[65536];
+
+   getgrnam_r(gName, &Grp, buff, sizeof(buff), &result);
+   if (!result) return false;
+
+   gID = Grp.gr_gid;
+   return true;
+}
+
+/******************************************************************************/
+/*                                g e t U I D                                 */
+/******************************************************************************/
+  
+bool XrdOucUtils::getUID(const char *uName, uid_t &uID, gid_t *gID)
+{
+   struct passwd pwd, *result;
+   char buff[16384];
+
+   getpwnam_r(uName, &pwd, buff, sizeof(buff), &result);
+   if (!result) return false;
+
+   uID = pwd.pw_uid;
+   if (gID) *gID = pwd.pw_gid;
+
+   return true;
+}
+  
+/******************************************************************************/
 /*                               G i d N a m e                                */
 /******************************************************************************/
   

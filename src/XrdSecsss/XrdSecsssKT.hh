@@ -63,6 +63,7 @@ struct ktData
         char      Grup[GrupSZ];// Grp names are null terminated
        }          Data;
 
+static const int allUSR = 1;
 static const int anyUSR = 2;
 static const int anyGRP = 4;
 static const int usrGRP = 8;
@@ -95,7 +96,7 @@ char  *genFN();
 static
 void   genKey(char *Buff, int blen);
 
-int    getKey(ktEnt &ktEql);
+int    getKey(ktEnt &ktEql, bool andKeyID=false);
 
 ktEnt *keyList() {return ktList;}
 

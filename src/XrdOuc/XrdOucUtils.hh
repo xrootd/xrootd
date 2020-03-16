@@ -56,6 +56,10 @@ static char *genPath(const char *path, const char *inst, const char *psfx=0);
 
 static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);
 
+static bool  getGID(const char *gName, gid_t &gID);
+
+static bool  getUID(const char *uName, uid_t &uID, gid_t *gID=0);
+
 static int   GidName(gid_t gID, char *gName, int gNsz, time_t keepT=0);
 
 static int   GroupName(gid_t gID, char *gName, int gNsz);

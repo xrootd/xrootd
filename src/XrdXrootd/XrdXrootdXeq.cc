@@ -192,7 +192,7 @@ int XrdXrootdProtocol::do_Auth()
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
           }
-       AuthProt->Entity.tident = Link->ID;
+       AuthProt->Entity.tident = AuthProt->Entity.pident = Link->ID;
        numReads++;
       }
 
@@ -978,7 +978,7 @@ int XrdXrootdProtocol::do_Login()
 // already supplied the protocol name and the host name. We supply the tident
 // and the connection details in addrInfo.
 //
-   Entity.tident = Link->ID;
+   Entity.tident = Entity.pident = Link->ID;
    Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
 

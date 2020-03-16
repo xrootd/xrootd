@@ -80,6 +80,7 @@ public:
 unsigned int     ueid;                    //!< Unique ID of entity instance
 XrdNetAddrInfo  *addrInfo;                //!< Entity's connection details
 const    char   *tident;                  //!< Trace identifier always preset
+const    char   *pident;                  //!< Trace identifier (originator)
          void   *sessvar;                 //!< Plugin settable storage pointer,
                                           //!< now deprecated. Use settable
                                           //!< attribute objects instead.
@@ -172,7 +173,6 @@ std::vector<std::string> Keys();
 //! Constructor.
 //!
 //! @param  spName  - The name of the security protocol.
-//! @param  dpName  - The name of the data     protocol.
 //------------------------------------------------------------------------------
 
          XrdSecEntity(const char *spName=0) {Reset(true, spName);}

@@ -199,6 +199,7 @@ void XrdSecEntity::Reset(bool isnew, const char *spV)
    ueid  = 0;
    addrInfo = 0;
    tident = 0;
+   pident = 0;
    sessvar = 0;
    uid     = 0;
    gid     = 0;
