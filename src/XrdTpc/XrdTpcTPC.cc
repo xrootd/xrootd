@@ -264,6 +264,8 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPC::State &state) {
     ss << "Stripe Index: 0" << crlf;
     ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
     ss << "Total Stripe Count: 1" << crlf;
+    // Include the TCP connection associated with this transfer; used by
+    // the TPC client for monitoring purposes.
     std::string desc = state.GetConnectionDescription();
     if (!desc.empty())
         ss << "RemoteConnections: " << desc << crlf;
@@ -275,6 +277,18 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPC::State &state) {
 int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vector<State*> &state,
     off_t bytes_transferred)
 {
+    // The 'performance marker' format is largely derived from how GridFTP works
+    // (e.g., the concept of `Stripe` is not quite so relevant here).  See:
+    //    https://twiki.cern.ch/twiki/bin/view/LCG/HttpTpcTechnical
+    // Example marker:
+    //    Perf Marker\n
+    //    Timestamp: 1537788010\n
+    //    Stripe Index: 0\n
+    //    Stripe Bytes Transferred: 238745\n
+    //    Total Stripe Count: 1\n
+    //    RemoteConnections: tcp:129.93.3.4:1234,tcp:[2600:900:6:1301:268a:7ff:fef6:a590]:2345\n
+    //    End\n
+    //
     std::stringstream ss;
     const std::string crlf = "\n";
     ss << "Perf Marker" << crlf;
@@ -282,6 +296,8 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vecto
     ss << "Stripe Index: 0" << crlf;
     ss << "Stripe Bytes Transferred: " << bytes_transferred << crlf;
     ss << "Total Stripe Count: 1" << crlf;
+    // Build a list of TCP connections associated with this transfer; used by
+    // the TPC client for monitoring purposes.
     bool first = true;
     std::stringstream ss2;
     for (std::vector<State*>::const_iterator iter = state.begin();
