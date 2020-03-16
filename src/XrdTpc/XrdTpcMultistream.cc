@@ -263,7 +263,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
-            if (SendPerfMarker(req, rec, current_offset)) {
+            if (SendPerfMarker(req, rec, handles, current_offset)) {
                 logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
                     "Failed to send a perf marker to the TPC client");
                 return -1;

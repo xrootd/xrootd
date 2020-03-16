@@ -93,6 +93,12 @@ public:
     // not all buffers have been reordered by the underlying stream.
     bool Finalize();
 
+    // Retrieve the description of the remote connection; is of the form:
+    //   tcp:129.93.3.4:1234
+    //   tcp:[2600:900:6:1301:268a:7ff:fef6:a590]:2345
+    // This is meant to facilitate the monitoring via the performance markers.
+    std::string GetConnectionDescription();
+
 private:
     bool InstallHandlers(CURL *curl);
 
