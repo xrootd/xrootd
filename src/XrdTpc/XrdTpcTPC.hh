@@ -42,7 +42,9 @@ private:
     int DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                           bool &success);
 
-    int SendPerfMarker(XrdHttpExtReq &req, off_t bytes_transferred);
+    int SendPerfMarker(XrdHttpExtReq &req, TPC::State &state);
+    int SendPerfMarker(XrdHttpExtReq &req, std::vector<State*> &state,
+        off_t bytes_transferred);
 
     // Perform the libcurl transfer, periodically sending back chunked updates.
     int RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, TPC::State &state,

@@ -238,7 +238,25 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     return 0;
 }
 
-int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, off_t bytes_transferred) {
+int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPC::State &state) {
+    std::stringstream ss;
+    const std::string crlf = "\n";
+    ss << "Perf Marker" << crlf;
+    ss << "Timestamp: " << time(NULL) << crlf;
+    ss << "Stripe Index: 0" << crlf;
+    ss << "Stripe Bytes Transferred: " << state.BytesTransferred() << crlf;
+    ss << "Total Stripe Count: 1" << crlf;
+    std::string desc = state.GetConnectionDescription();
+    if (!desc.empty())
+        ss << "RemoteConnections: " << desc << crlf;
+    ss << "End" << crlf;
+
+    return req.ChunkResp(ss.str().c_str(), 0);
+}
+
+int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, std::vector<State*> &state,
+    off_t bytes_transferred)
+{
     std::stringstream ss;
     const std::string crlf = "\n";
     ss << "Perf Marker" << crlf;
@@ -246,6 +264,19 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, off_t bytes_transferred) {
     ss << "Stripe Index: 0" << crlf;
     ss << "Stripe Bytes Transferred: " << bytes_transferred << crlf;
     ss << "Total Stripe Count: 1" << crlf;
+    bool first = true;
+    std::stringstream ss2;
+    for (std::vector<State*>::const_iterator iter = state.begin();
+        iter != state.end(); iter++)
+    {
+        std::string desc = (*iter)->GetConnectionDescription();
+        if (!desc.empty()) {
+            ss2 << (first ? "" : ",") << desc;
+            first = false;
+        }
+    }
+    if (!first)
+        ss << "RemoteConnections: " << ss2.str() << crlf;
     ss << "End" << crlf;
 
     return req.ChunkResp(ss.str().c_str(), 0);
@@ -291,7 +322,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
-            if (SendPerfMarker(req, state.BytesTransferred())) {
+            if (SendPerfMarker(req, state)) {
                 curl_multi_remove_handle(multi_handle, curl);
                 curl_easy_cleanup(curl);
                 curl_multi_cleanup(multi_handle);
