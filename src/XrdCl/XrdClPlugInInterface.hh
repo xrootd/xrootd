@@ -31,7 +31,6 @@
 
 namespace XrdCl
 {
-  class DataPipe;
 
   //----------------------------------------------------------------------------
   //! An interface for file plug-ins
@@ -144,15 +143,16 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! @see XrdCl::File::Write
+      //! @see XrdCl::File::PgWrite
       //------------------------------------------------------------------------
-      virtual XRootDStatus Write( uint64_t         offset,
-                                  uint32_t         size,
-                                  DataPipe        &pipe,
-                                  ResponseHandler *handler,
-                                  uint16_t         timeout = 0 )
+      virtual XRootDStatus PgWrite( uint64_t               offset,
+                                    uint32_t               nbpgs,
+                                    const void            *buffer,
+                                    std::vector<uint32_t> &chsums,
+                                    ResponseHandler       *handler,
+                                    uint16_t               timeout )
       {
-        (void)offset; (void)size; (void)pipe; (void)handler; (void)timeout;
+        (void)offset; (void)nbpgs; (void)buffer; (void)chsums, (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
 

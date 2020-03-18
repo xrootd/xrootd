@@ -218,7 +218,7 @@ namespace XrdCl
       //! @param size      number of bytes to be read
       //! @param buffer    a pointer to a buffer big enough to hold the data
       //! @param bytesRead number of bytes actually read
-      //! @param chsums    checksum for each read page
+      //! @param chsums    crc32c checksum for each read 4KB page
       //! @param timeout   timeout value, if 0 the environment default will be
       //!                  used
       //! @return          status of the operation
@@ -271,6 +271,44 @@ namespace XrdCl
                           const void *buffer,
                           uint16_t    timeout = 0 )
                           XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write number of pages at a given offset - async
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param nbpgs   number of 4KB pages to be written
+      //! @param buffer  a pointer to a buffer big enough to hold the data
+      //! @param chsums  the crc32c checksums for each 4KB page
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PgWrite( uint64_t               offset,
+                            uint32_t               nbpgs,
+                            const void            *buffer,
+                            std::vector<uint32_t> &chsums,
+                            ResponseHandler       *handler,
+                            uint16_t               timeout = 0 )
+                            XRD_WARN_UNUSED_RESULT;
+
+      //------------------------------------------------------------------------
+      //! Write number of pages at a given offset - sync
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param nbpgs   number of 4KB pages to be written
+      //! @param buffer  a pointer to a buffer big enough to hold the data
+      //! @param chsums  the crc32c checksums for each 4KB page
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PgWrite( uint64_t               offset,
+                            uint32_t               nbpgs,
+                            const void            *buffer,
+                            std::vector<uint32_t> &chsums,
+                            uint16_t               timeout = 0 )
+                            XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
       //! Commit all pending disk writes - async
