@@ -564,10 +564,7 @@ virtual const char     *getParms(int &size, XrdNetAddrInfo *endPoint=0) = 0;
 //! @param  cred     The initial credentials supplied by the client, the pointer
 //!                  may be null if the client did not supply credentials.
 //! @param  einfo    The structure to record any error messages. These are
-//!                  normally sent to the client. If einfo is a null pointer,
-//!                  the messages should be sent to standard error via an
-//!                  XrdSysError object using the supplied XrdSysLogger when the
-//!                  the plugin was initialized.
+//!                  normally sent to the client.
 //!
 //! @return Success: Address of protocol object to be used for authentication.
 //!                  If cred was null, a host protocol object shouldpo be
@@ -579,7 +576,24 @@ virtual const char     *getParms(int &size, XrdNetAddrInfo *endPoint=0) = 0;
 virtual XrdSecProtocol *getProtocol(const char              *host,    // In
                                           XrdNetAddrInfo    &endPoint,// In
                                     const XrdSecCredentials *cred,    // In
-                                          XrdOucErrInfo     *einfo)=0;// Out
+                                          XrdOucErrInfo     &einfo)=0;// Out
+
+//------------------------------------------------------------------------------
+//! Post process a fully authenticated XrdSecEntity object.
+//!
+//! @param  entity   The fully authenticated entity object.
+//! @param  einfo    The structure to record any error messages. These are
+//!                  normally sent to the client. If einfo is a null pointer,
+//!                  the messages should be sent to standard error via an
+//!                  XrdSysError object using the supplied XrdSysLogger when the
+//!                  the plugin was initialized.
+//! @return Success: True should be returned.
+//!         Failure: False should be returned and the einfo object should hold
+//!                  the reason. In this case the authentication fails.
+//------------------------------------------------------------------------------
+
+virtual bool            PostProcess(XrdSecEntity  &entity,
+                                    XrdOucErrInfo &einfo) {return true;}
 
 //------------------------------------------------------------------------------
 //! Constructor

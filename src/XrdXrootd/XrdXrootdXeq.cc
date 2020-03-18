@@ -187,7 +187,7 @@ int XrdXrootdProtocol::do_Auth()
        size_t size = sizeof(Request.auth.credtype);
        strncpy(Entity.prot, (const char *)Request.auth.credtype, size);
        if (!(AuthProt = CIA->getProtocol(Link->Host(), *(Link->AddrInfo()),
-                                         &cred, &eMsg)))
+                                         &cred, eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
@@ -198,7 +198,8 @@ int XrdXrootdProtocol::do_Auth()
 
 // Now try to authenticate the client using the current protocol
 //
-   if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
+   if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg))
+   &&  CIA->PostProcess(AuthProt->Entity, eMsg))
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        AuthProt->Entity.ueid = mySID;
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");

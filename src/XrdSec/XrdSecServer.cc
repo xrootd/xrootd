@@ -45,8 +45,10 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucPinKing.hh"
 #include "XrdNet/XrdNetAddr.hh"
 
+#include "XrdSec/XrdSecEntityPin.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecProtector.hh"
 #include "XrdSec/XrdSecServer.hh"
@@ -60,8 +62,29 @@ namespace
 {
 XrdSecProtectParms lclParms;
 XrdSecProtectParms rmtParms;
+
+XrdVERSIONINFODEF(myVer, XrdSec, XrdVNUMBER, XrdVERSION);
 }
 
+/******************************************************************************/
+/*                         X r d S e c P i n I n f o                          */
+/******************************************************************************/
+
+class XrdSecPinInfo
+{
+public:
+
+XrdOucPinKing<XrdSecEntityPin> KingPin;
+
+      XrdSecPinInfo(const char *drctv, const char *cfn, XrdSysError &errR)
+                   : KingPin(drctv, theEnv, errR, &myVer)
+                   {theEnv.Put("configFN", cfn);}
+
+     ~XrdSecPinInfo() {}
+
+XrdOucEnv theEnv;
+};
+  
 /******************************************************************************/
 /*                        X r d S e c P r o t B i n d                         */
 /******************************************************************************/
@@ -251,19 +274,25 @@ int XrdSecProtParm::Insert(char oct)
 /******************************************************************************/
 /*                          X r d S e c S e r v e r                           */
 /******************************************************************************/
+
 XrdSecPManager XrdSecServer::PManager;
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
+
 XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(lp, "sec_")
 {
 
 // Set default values
 //
    PManager.setErrP(&eDest);
+   configFN    = "";
    bpFirst     = 0;
    bpLast      = 0;
    bpDefault   = 0;
+   pinInfo     = 0;
+   pidList     = 0;
    STBlen      = 4096;
    STBuff      = (char *)malloc(STBlen);
   *STBuff      = '\0';
@@ -273,8 +302,8 @@ XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(lp, "sec_")
       {SecTrace->What = TRACE_ALL;
        PManager.setDebug(1);
       }
-   Enforce     = 0;
-   implauth    = 0;
+   Enforce     = false;
+   implauth    = false;
 }
   
 /******************************************************************************/
@@ -323,7 +352,7 @@ const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *endPoint)
 XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
                                           XrdNetAddrInfo          &endPoint,
                                           const XrdSecCredentials *cred,
-                                          XrdOucErrInfo           *einfo)
+                                          XrdOucErrInfo           &einfo)
 {
    XrdSecProtBind *bp;
    XrdSecPMask_t pnum;
@@ -335,8 +364,7 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
 //
    if (!cred) {myCreds.buffer=(char *)"host"; myCreds.size = 4; cred=&myCreds;}
       else if (cred->size < 1 || !(cred->buffer))
-              {einfo->setErrInfo(EACCES,
-                         (char *)"No authentication credentials supplied.");
+              {einfo.setErrInfo(EACCES,"No authentication credentials supplied.");
                return 0;
               }
 
@@ -351,13 +379,13 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
                msgv[1] = " not allowed to authenticate using ";
                msgv[2] = cred->buffer;
                msgv[3] = " protocol.";
-               einfo->setErrInfo(EACCES, msgv, 4);
+               einfo.setErrInfo(EACCES, msgv, 4);
                return 0;
               }
           }
           else {msgv[0] = cred->buffer;
                 msgv[1] = " security protocol is not supported.";
-                einfo->setErrInfo(EPROTONOSUPPORT, msgv, 2);
+                einfo.setErrInfo(EPROTONOSUPPORT, msgv, 2);
                 return 0;
                }
       }
@@ -365,7 +393,18 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
 // If we passed the protocol binding check, try to get an instance of the
 // protocol the host is using
 //
-   return PManager.Get(host, endPoint, cred->buffer, einfo);
+   return PManager.Get(host, endPoint, cred->buffer, &einfo);
+}
+  
+/******************************************************************************/
+/*                           P o s t P r o c e s s                            */
+/******************************************************************************/
+  
+bool XrdSecServer::PostProcess(XrdSecEntity &entity, XrdOucErrInfo &einfo)
+{
+// Return correct result
+//
+   return (secEntityPin ? secEntityPin->Process(entity, einfo) : true);
 }
 
 /******************************************************************************/
@@ -413,6 +452,19 @@ int XrdSecServer::Configure(const char *cfn)
 // Perform initialization
 //
    NoGo = ConfigFile(cfn);
+
+// Load the entity post processing plugin if we have one
+//
+   if (pinInfo && !NoGo)
+      {XrdSecEntityPin *secPin = pinInfo->KingPin.Load("SecEntityPin");
+       delete pinInfo;
+       secEntityPin = secPin;
+       if (!secPin) return 1;
+      }
+
+// Export the list of security protocols that are available
+//
+   if (pidList) XrdOucEnv::Export("XRDSECPROTOCOLS", pidList);
 
 // Almost done
 //
@@ -491,6 +543,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
      {eDest.Emsg("Config", "Authentication configuration file not specified.");
       return 1;
      }
+   configFN = ConfigFN;
 
 // Try to open the configuration file.
 //
@@ -550,6 +603,7 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute
 
     // Fan out based on the variable
     //
+    TS_Xeq("entitylib",     xenlib);
     TS_Xeq("level",         xlevel);
     TS_Xeq("protbind",      xpbind);
     TS_Xeq("protocol",      xprot);
@@ -561,6 +615,67 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute
     Eroute.Say("Config warning: ignoring unknown directive '",var,"'.");
     Config.Echo();
     return 0;
+}
+  
+/******************************************************************************/
+/*                                x e n l i b                                 */
+/******************************************************************************/
+
+/* Function: xenlib
+
+   Purpose:  To parse the directive: entitylib [++] <path> [<parms>]
+
+             <path>  absolute path to the entity plugin.
+             <parms> optional parameters passed to the plugin.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdSecServer::xenlib(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   std::string path;
+   char *val, parms[2048];
+   bool push = false;
+
+// Get the path or the push token
+//
+   if ((val = Config.GetWord()))
+      {if (!strcmp(val, "++"))
+          {push = true;
+           val =  Config.GetWord();
+          }
+      }
+
+// Make sure a path was specified
+//
+   if (!val || !*val)
+      {Eroute.Emsg("Config", "entitylib not specified"); return 1;}
+
+// Make sure the path is absolute
+//
+   if (*val != '/')
+      {Eroute.Emsg("Config", "entitylib path is not absolute"); return 1;}
+
+// Sequester the path as we will get additional tokens
+//
+   path = val;
+
+// Record any parms
+//
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "entitylib parameters too long"); return 1;}
+
+// Check if we have a plugin info object (we will need one for this)
+//
+   if (!pinInfo) pinInfo = new XrdSecPinInfo("sec.entitylib",configFN,Eroute);
+
+// Add the plugin
+//
+   pinInfo->KingPin.Add(path.c_str(), (*parms ? parms : 0), push);
+
+// All done
+//
+   return 0;
 }
   
 /******************************************************************************/
@@ -701,7 +816,7 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
 //
    while((val = Config.GetWord()))
         {if (!strcmp(val, "none")) {noprot = 1; break;}
-              if (!strcmp(val, "only")) {only = 1; Enforce = 1;}
+              if (!strcmp(val, "only")) {only = 1; Enforce = true;}
          else if (!strcmp(val, "host")) {phost = 1; anyprot = 1;}
          else if (!PManager.Find(val))
                  {Eroute.Emsg("Config","protbind", val,
@@ -810,7 +925,20 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
    if (PManager.Find(val))
       {Eroute.Say("Config warning: protocol ",val," previously defined.");
        strcpy(pid, val);
-       return add2token(Eroute, pid, &STBuff, STBlen, mymask);}
+       return add2token(Eroute, pid, &STBuff, STBlen, mymask);
+      }
+
+// Add this protocol to the list of protocols that have been defined
+//
+   char pName[XrdSecPROTOIDSIZE+2];
+   *pName = ':';
+   strcpy(pName+1, pid);
+   if (!pidList) pidList = strdup(pName);
+      else {std::string pids = pidList;
+            pids.append(pName);
+            free(pidList);
+            pidList = strdup(pids.c_str());
+           }
 
 // The builtin host protocol does not accept any parameters. Additionally, the
 // host protocol negates any other protocols we may have in the default set.
@@ -820,7 +948,7 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
           {Eroute.Emsg("Config", "Builtin host protocol does not accept parms.");
            return 1;
           }
-       implauth = 1;
+       implauth = true;
        return 0;
       }
 
@@ -1023,7 +1151,7 @@ int XrdSecServer::ProtBind_Complete(XrdSysError &Eroute)
    if (!bpDefault)
       {if (!*SToken) {Eroute.Say("Config warning: No protocols defined; "
                                   "only host authentication available.");
-                      implauth = 1;
+                      implauth = true;
                      }
           else if (implauth)
                   {Eroute.Say("Config warning: enabled builtin host "
