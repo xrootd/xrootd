@@ -218,6 +218,49 @@ namespace XrdCl
     return status;
   }
 
+  //------------------------------------------------------------------------
+  //! Read number of pages at a given offset - async
+  //!
+  //! @param offset  offset from the beginning of the file
+  //! @param nbpgs   number of 4KB pages to be read
+  //! @param buffer  a pointer to a buffer big enough to hold the data
+  //! @param handler handler to be notified when the response arrives,
+  //!                the response parameter will hold a PgReadInfo object if
+  //!                the procedure was successful
+  //! @param timeout timeout value, if 0 the environment default will be
+  //!                used
+  //! @return        status of the operation
+  //------------------------------------------------------------------------
+  XRootDStatus File::PgRead( uint64_t         offset,
+                             uint32_t         nbpgs,
+                             void            *buffer,
+                             ResponseHandler *handler,
+                             uint16_t         timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented );
+  }
+
+  //------------------------------------------------------------------------
+  //! Read a data chunk at a given offset - sync
+  //!
+  //! @param offset    offset from the beginning of the file
+  //! @param size      number of bytes to be read
+  //! @param buffer    a pointer to a buffer big enough to hold the data
+  //! @param bytesRead number of bytes actually read
+  //! @param timeout   timeout value, if 0 the environment default will be
+  //!                  used
+  //! @return          status of the operation
+  //------------------------------------------------------------------------
+  XRootDStatus File::PgRead( uint64_t               offset,
+                             uint32_t               nbpgs,
+                             void                  *buffer,
+                             uint32_t              &bytesRead,
+                             std::vector<uint32_t> &chsums,
+                             uint16_t               timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented );
+  }
+
   //----------------------------------------------------------------------------
   // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------

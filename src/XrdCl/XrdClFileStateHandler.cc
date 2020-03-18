@@ -759,7 +759,7 @@ namespace XrdCl
                                         ResponseHandler  *handler,
                                         uint16_t          timeout )
   {
-    return XRootDStatus( stError, errNotSupported );
+    return XRootDStatus( stError, errNotImplemented );
   }
 
   //------------------------------------------------------------------------
@@ -772,7 +772,7 @@ namespace XrdCl
                                         ResponseHandler    *handler,
                                         uint16_t            timeout )
   {
-    return XRootDStatus( stError, errNotSupported );
+    return XRootDStatus( stError, errNotImplemented );
   }
 
   //----------------------------------------------------------------------------

@@ -92,6 +92,19 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! @see XrdCl:File PgRead
+      //------------------------------------------------------------------------
+      virtual XRootDStatus PgRead( uint64_t         offset,
+                                   uint32_t         nbpgs,
+                                   void            *buffer,
+                                   ResponseHandler *handler,
+                                   uint16_t         timeout )
+      {
+        (void)offset; (void)nbpgs; (void)buffer; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
       //! @see XrdCl::File::Write
       //------------------------------------------------------------------------
       virtual XRootDStatus Write( uint64_t         offset,
