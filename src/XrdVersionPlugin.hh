@@ -86,6 +86,7 @@
          Unreleased versions can use any version. However, a message is issued.
 */
 #define XrdVERSIONPLUGINRULES \
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, SecEntityPin                  )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObject         )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObjAdd         )\
         XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdBwmPolicyObject            )\
