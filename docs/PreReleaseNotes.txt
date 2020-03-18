@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Implement a stackable post authentication plug-in (sec.entitylib).
   * **[Server]** Allow XrdNetAddr to track socket dialect.
   * **[Apps]** Add xrdpinls to list plugin version requirements.
   * **[Server]** Add ofs.ctllib directive for FSctl plugin.
