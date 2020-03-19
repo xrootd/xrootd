@@ -2086,7 +2086,7 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
 //
    rc = osFS->FSctl(fsctl_cmd, myData, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<Act <<AData <<"'");
-   if (rc == SFS_OK) Response.Send("");
+   if (rc == SFS_OK) return Response.Send("");
    return fsError(rc, 0, myError, 0, 0);
 }
 
@@ -2122,7 +2122,7 @@ int XrdXrootdProtocol::do_Qspace()
 //
    rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" qspace '" <<argp->buff <<"'");
-   if (rc == SFS_OK) Response.Send("");
+   if (rc == SFS_OK) return Response.Send("");
    return fsError(rc, XROOTD_MON_QUERY, myError, argp->buff, opaque);
 }
 
