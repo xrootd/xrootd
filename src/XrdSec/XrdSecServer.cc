@@ -932,7 +932,7 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
 //
    char pName[XrdSecPROTOIDSIZE+2];
    *pName = ':';
-   strcpy(pName+1, pid);
+   strcpy(pName+1, val);
    if (!pidList) pidList = strdup(pName);
       else {std::string pids = pidList;
             pids.append(pName);
