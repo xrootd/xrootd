@@ -309,6 +309,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!ConfigFS(xrootdEnv, pi->ConfigFN)) return 0;
    fsFeatures = osFS->Features();
+   if (pi->theEnv) pi->theEnv->PutPtr("XrdSfsFileSystem*", osFS);
 
 // Check if the file system includes a custom prepare handler as this will
 // affect how we handle prepare requests.
