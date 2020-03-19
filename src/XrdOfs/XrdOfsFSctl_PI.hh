@@ -39,6 +39,7 @@ class XrdOss;
 class XrdOucEnv;
 class XrdOucErrInfo;
 class XrdSecEntity;
+class XrdSfsFile;
 class XrdSfsFileSystem;
 class XrdSfsFSctl;
 class XrdSysError;
@@ -81,14 +82,39 @@ virtual bool           Configure(const char    *CfgFN,
                                  const Plugins &plugs) {return true;}
 
 //-----------------------------------------------------------------------------
+//! Perform a file control operation
+//!
+//! @param  cmd    - The operation to be performed:
+//!                  SFS_FCTL_SPEC1    Return Implementation Dependent Data
+//! @param  alen   - The length of args.
+//! @param  args   - Arguments specific to cmd.
+//!                  SFS_FCTL_SPEC1    Unscreened args string.
+//! @param  file   - Reference to the target file object.
+//! @param  eInfo  - The object where error info or results are to be returned.
+//! @param  client - Client's identify (see common description).
+//!
+//! @return SFS_OK   a null response is sent.
+//!         SFS_DATA error.code    length of the data to be sent.
+//!                  error.message contains the data to be sent.
+//!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
+//-----------------------------------------------------------------------------
+
+virtual int            FSctl(const int               cmd,
+                                   int               alen,
+                             const char             *args,
+                                   XrdSfsFile       &file,
+                                   XrdOucErrInfo    &eInfo,
+                             const XrdSecEntity     *client = 0) = 0;
+
+//-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 2)
 //!
 //! @param  cmd    - The operation to be performed:
 //!                  SFS_FSCTL_PLUGIN  Return Implementation Dependent Data v1
 //!                  SFS_FSCTL_PLUGIO  Return Implementation Dependent Data v2
 //! @param  args   - Arguments specific to cmd.
-//!                  SFS_FSCTL_PLUGIN  path and opaque information.
-//!                  SFS_FSCTL_PLUGIO  Unscreened argument string.
+//!                  SFS_FSCTL_PLUGIN  path and opaque information, fileP == 0
+//!                  SFS_FSCTL_PLUGIO  Unscreened argument string,  fileP == 0
 //! @param  eInfo  - The object where error info or results are to be returned.
 //! @param  client - Client's identify (see common description).
 //!

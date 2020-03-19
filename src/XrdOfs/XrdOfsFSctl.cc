@@ -91,7 +91,7 @@ extern XrdOss *XrdOfsOss;
 /*                     f s c t l   ( V e r s i o n   1 )                      */
 /******************************************************************************/
 
-int XrdOfs::fsctl(const int               cmd,
+int XrdOfs::fsctl(      int               cmd,
                   const char             *args,
                   XrdOucErrInfo          &einfo,
                   const XrdSecEntity     *client)
@@ -273,4 +273,21 @@ int XrdOfs::FSctl(const int            cmd,
 // Operation is not supported
 //
    return XrdOfsFS->Emsg("FSctl", eInfo, ENOTSUP, "FSctl", "");
+}
+
+/******************************************************************************/
+/*                            F S c t l   f i l e                             */
+/******************************************************************************/
+
+int XrdOfs::FSctl(XrdOfsFile &file, const int cmd, int alen, const char *args,
+                  const XrdSecEntity *client)
+{
+// Supported only if we have a plugin for this
+//
+   if (FSctl_PI) return FSctl_PI->FSctl(cmd,alen,args,file,file.error,client);
+
+// No Go
+//
+   file.error.setErrInfo(ENOTSUP, "fctl operation not supported");
+   return SFS_ERROR;
 }
