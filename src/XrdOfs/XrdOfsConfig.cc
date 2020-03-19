@@ -264,10 +264,17 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
    int piOpts = XrdOfsConfigPI::allXXXLib;
    if (!(Options & Authorize)) piOpts &= ~XrdOfsConfigPI::theAutLib;
 
+// We need to export plugins to other protocols which means we need to
+// record them in the outmost environment. So get it.
+//
+   XrdOucEnv *xrdEnv = 0;
+   if (EnvInfo) xrdEnv = (XrdOucEnv*)EnvInfo->GetPtr("xrdEnv*");
+
 // Now load all of the required plugins
 //
    if (!ofsConfig->Load(piOpts, this, EnvInfo)) NoGo = 1;
       else {ofsConfig->Plugin(XrdOfsOss);
+            if (xrdEnv) xrdEnv->PutPtr("XrdOss*", XrdOfsOss);
             ofsConfig->Plugin(Cks);
             CksPfn = !ofsConfig->OssCks();
             CksRdr = !ofsConfig->LclCks();
@@ -279,6 +286,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
             if (Options & Authorize)
                {ofsConfig->Plugin(Authorization);
                 XrdOfsTPC::Init(Authorization);
+                if (xrdEnv) xrdEnv->PutPtr("XrdAccAuthorize*",Authorization);
                }
            }
 

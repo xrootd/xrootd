@@ -301,6 +301,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
           } else osFS->EnvInfo(&myEnv);
       }
 
+   if (pi->theEnv) pi->theEnv->PutPtr("XrdSfsFileSystem*", osFS);
+
 // Check if the file system includes a custom prepare handler as this will
 // affect how we handle prepare requests.
 //
