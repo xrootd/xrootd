@@ -116,10 +116,6 @@ XrdHttpExtHandler *XrdHttpGetExtHandler(
     const char * parms, XrdOucEnv *env)
 {
     void *authz_raw = env->GetPtr("XrdAccAuthorize*");
-    if (!authz_raw) {
-        log->Emsg("Config", "Could not find a copy of the built-in authorization object");
-        return NULL;
-    }
     XrdAccAuthorize *def_authz = static_cast<XrdAccAuthorize *>(authz_raw);
 
     log->Emsg("Initialize", "Creating new Macaroon handler object");
