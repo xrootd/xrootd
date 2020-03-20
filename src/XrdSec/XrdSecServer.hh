@@ -61,6 +61,8 @@ bool                    PostProcess(XrdSecEntity  &entity,
 
 int                     Configure(const char *cfn);
 
+const char             *protTLS() {return PManager.protTLS();}
+
                         XrdSecServer(XrdSysLogger *lp);
                        ~XrdSecServer() {}      // Server is never deleted
 

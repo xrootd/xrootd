@@ -299,6 +299,12 @@ virtual int     setKey(char *buff, int size)
 }
 
 //------------------------------------------------------------------------------
+//! Check if this protocol requires TLS to properly function.
+//------------------------------------------------------------------------------
+
+virtual bool    needTLS() {return false;}
+
+//------------------------------------------------------------------------------
 //! Delete the protocol object. DO NOT use C++ delete() on this object.
 //------------------------------------------------------------------------------
 
@@ -352,12 +358,22 @@ virtual      ~XrdSecProtocol() {}
 //! @return Success: The initial security token to be sent to the client during
 //!                  the login phase (i.e. authentication handshake). If no
 //!                  token need to be sent, a pointer to null string should be
-//!                  returned.
+//!                  returned. However, if  protocol needs TLS to properly
+//!                  authenticate, the token must start with "TLS:" immediately
+//!                  by the token to be sent to the client, if any. See the
+//!                  for more information TLS-based protocols.
 //!         Failure: A null pointer with einfo, if supplied, holding the reason
 //!                  for the failure.
 //!
 //! Notes:   1) Function is called ince in single-thread mode and need not be
 //!             thread-safe.
+//!          2) If the protocol is TLS based then, in addition to returning a
+//!             "TLS:" prefixed token it should do two more things:
+//!             a) Make sure that the connection is in fact using TLS. Simply
+//!                invoke the endPoint argument as endPoint.isUsingTLS() and
+//!                make sure it returns true.
+//!             b) Override the virtual XrdSecProtocol::needTLS() method and
+//!                return true (the default is to return false).
 //------------------------------------------------------------------------------
 
 /*! extern "C" char *XrdSecProtocol<p>Init (const char     who,
@@ -594,6 +610,14 @@ virtual XrdSecProtocol *getProtocol(const char              *host,    // In
 
 virtual bool            PostProcess(XrdSecEntity  &entity,
                                     XrdOucErrInfo &einfo) {return true;}
+
+//------------------------------------------------------------------------------
+//! Get a list of authentication protocols that require TLS.
+//!
+//! @return Pointer to a list of protocols that require TLS or a nil if none.
+//------------------------------------------------------------------------------
+
+virtual const char     *protTLS()=0;
 
 //------------------------------------------------------------------------------
 //! Constructor

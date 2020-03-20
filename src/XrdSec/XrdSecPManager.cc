@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
@@ -64,14 +65,16 @@ class XrdSecProtList
 public:
 
 XrdSecPMask_t    protnum;
+bool             needTLS;
 char             protid[XrdSecPROTOIDSIZE+1];
 char            *protargs;
 XrdSecProtocol  *(*ep)(PROTPARMS);
 XrdSecProtList  *Next;
 
-                XrdSecProtList(const char *pid, const char *parg)
+                XrdSecProtList(const char *pid, const char *parg, bool tls)
+                              : needTLS(tls), ep(0), Next(0)
                       {strncpy(protid, pid, sizeof(protid)-1);
-                       protid[XrdSecPROTOIDSIZE] = '\0'; ep = 0; Next = 0;
+                       protid[XrdSecPROTOIDSIZE] = '\0';
                        protargs = (parg ? strdup(parg): (char *)"");
                       }
                ~XrdSecProtList() {} // ProtList objects never get freed!
@@ -254,6 +257,7 @@ XrdSecProtList *XrdSecPManager::Add(XrdOucErrInfo  *eMsg, const char *pid,
                                     const char *parg)
 {
    XrdSecProtList *plp;
+   bool reqTLS = false;
 
 // Make sure we did not overflow the protocol stack
 //
@@ -262,9 +266,25 @@ XrdSecProtList *XrdSecPManager::Add(XrdOucErrInfo  *eMsg, const char *pid,
        return 0;
       }
 
+// Check if this protocol need TLS
+//
+   if (parg && !strcmp(parg, "TLS:"))
+      {char pBuff[XrdSecPROTOIDSIZE+2];
+       *pBuff = ' ';
+       strcpy(pBuff+1, pid);  // We know it fits
+       if (!tlsProt) tlsProt = strdup(pBuff);
+          else {std::string tmp(tlsProt);
+                tmp.append(pBuff);
+                free(tlsProt);
+                tlsProt = strdup(tmp.c_str());
+               }
+        parg += 4; // Skip 'TLS:'
+        reqTLS = true;
+       }
+
 // Add this protocol to our protocol stack
 //
-   plp = new XrdSecProtList((char *)pid, parg);
+   plp = new XrdSecProtList((char *)pid, parg, reqTLS);
    plp->ep = ep;
    myMutex.Lock();
    if (Last) {Last->Next = plp; Last = plp;}
