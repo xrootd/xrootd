@@ -52,6 +52,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Honor authentication protocol TLS requirements.
   * **[SSS]** Update sss protocol for new SecEntity object.
   * **[SSI]** Avoid SIGABRT when init fails. Fixes 751
   * **[Server]** Turn off IP address caching when dynamic DNS is enabled.
