@@ -795,7 +795,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
     ceph::bufferlist bl;
     int rc = striper->read(fr->name, &bl, count, fr->offset);
     if (rc < 0) return rc;
-    bl.copy(0, rc, (char*)buf);
+    bl.begin().copy(rc, (char*)buf);
     fr->offset += rc;
     fr->rdcount++;
     return rc;
@@ -819,7 +819,7 @@ ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
     ceph::bufferlist bl;
     int rc = striper->read(fr->name, &bl, count, offset);
     if (rc < 0) return rc;
-    bl.copy(0, rc, (char*)buf);
+    bl.begin().copy(rc, (char*)buf);
     fr->rdcount++;
     return rc;
   } else {
@@ -832,7 +832,7 @@ static void ceph_aio_read_complete(rados_completion_t c, void *arg) {
   size_t rc = rados_aio_get_return_value(c);
   if (awa->bl) {
     if (rc > 0) {
-      awa->bl->copy(0, rc, (char*)awa->aiop->sfsAio.aio_buf);
+      awa->bl->begin().copy(rc, (char*)awa->aiop->sfsAio.aio_buf);
     }
     delete awa->bl;
     awa->bl = 0;
@@ -969,7 +969,7 @@ static ssize_t ceph_posix_internal_getxattr(const CephFile &file, const char* na
   int rc = striper->getxattr(file.name, name, bl);
   if (rc < 0) return rc;
   size_t returned_size = (size_t)rc<size?rc:size;
-  bl.copy(0, returned_size, (char*)value);
+  bl.begin().copy(returned_size, (char*)value);
   return returned_size;
 }
 
