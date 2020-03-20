@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Auth]** [Auth] Allow authentication protocols to require TLS.
   * **[Server]** Implement a stackable post authentication plug-in (sec.entitylib).
   * **[Server]** Allow XrdNetAddr to track socket dialect.
   * **[Apps]** Add xrdpinls to list plugin version requirements.
