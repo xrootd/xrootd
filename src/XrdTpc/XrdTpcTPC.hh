@@ -73,9 +73,7 @@ private:
     static XrdSysMutex m_monid_mutex;
     static uint64_t m_monid;
     XrdSysError &m_log;
-    std::unique_ptr<XrdSfsFileSystem> m_sfs;
-    void *m_handle_base;
-    void *m_handle_chained;
+    XrdSfsFileSystem *m_sfs;
 
     // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
     // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental
