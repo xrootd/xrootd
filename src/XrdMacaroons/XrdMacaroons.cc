@@ -5,6 +5,7 @@
 #include "XrdMacaroonsHandler.hh"
 #include "XrdMacaroonsAuthz.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -14,6 +15,7 @@
 #include "XrdVersion.hh"
 
 XrdVERSIONINFO(XrdAccAuthorizeObject, XrdMacaroons);
+XrdVERSIONINFO(XrdAccAuthorizeObjAdd, XrdMacaroons);
 XrdVERSIONINFO(XrdHttpGetExtHandler,  XrdMacaroons);
 
 // Trick to access compiled version and directly call for the default object
@@ -26,6 +28,24 @@ extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
 
 
 extern "C" {
+
+XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *log,
+                                       const char   *config,
+                                       const char   *params,
+                                       XrdOucEnv    * /*not used*/,
+                                       XrdAccAuthorize * chain_authz)
+{
+    try
+    {
+        return new Macaroons::Authz(log, config, chain_authz);
+    }
+    catch (std::runtime_error &e)
+    {
+        XrdSysError err(log, "macaroons");
+        err.Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
+        return NULL;
+    }
+}
 
 XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
                                        const char   *config,
@@ -95,8 +115,12 @@ XrdHttpExtHandler *XrdHttpGetExtHandler(
     XrdSysError *log, const char * config,
     const char * parms, XrdOucEnv *env)
 {
-    XrdAccAuthorize *def_authz = XrdAccDefaultAuthorizeObject(log->logger(),
-        config, parms, compiledVer);
+    void *authz_raw = env->GetPtr("XrdAccAuthorize*");
+    if (!authz_raw) {
+        log->Emsg("Config", "Could not find a copy of the built-in authorization object");
+        return NULL;
+    }
+    XrdAccAuthorize *def_authz = static_cast<XrdAccAuthorize *>(authz_raw);
 
     log->Emsg("Initialize", "Creating new Macaroon handler object");
     try
