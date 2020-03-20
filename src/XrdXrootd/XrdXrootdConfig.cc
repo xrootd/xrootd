@@ -589,6 +589,43 @@ void XrdXrootdProtocol::PidFile()
 }
 
 /******************************************************************************/
+/*                              C h e c k T L S                               */
+/******************************************************************************/
+
+int  XrdXrootdProtocol::CheckTLS(const char *tlsProt)
+{
+
+// If login specified, turn off session as it doesn't make sense together.
+//
+   if (myRole & kXR_tlsLogin) myRole &= ~kXR_tlsSess;
+   if (tlsCap & Req_TLSLogin) tlsCap &= ~Req_TLSSess;
+   if (tlsNot & Req_TLSLogin) tlsNot &= ~Req_TLSSess;
+
+// If some authnetication protocols need TLS then we must requie that login
+// uses TLS. For incapable clients, we leave this alone as we will skip
+// TLS authnetication based protocols should the login phase not have TLS.
+//
+   if (tlsProt && !(tlsCap & Req_TLSLogin))
+      {eDest.Say("Config warning: Authentication protocol(s)", tlsProt,
+                 " require TLS; login now requires TLS.");
+       myRole |= kXR_tlsLogin;
+       tlsCap |= Req_TLSLogin;
+      }
+
+// If there are any TLS requirements then TLS must have been configured.
+//
+    if (myRole & kXR_tlsAny && !tlsCtx)
+       {eDest.Emsg("config", "Unable to honor TLS requirement; "
+                             "TLS not configured!");
+        return 0;
+       }
+
+// All done
+//
+   return 1;
+}
+  
+/******************************************************************************/
 /*                              C o n f i g F S                               */
 /******************************************************************************/
 
@@ -739,6 +776,11 @@ int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
 //
    xEnv.PutPtr("XrdSecGetProtocol*", (void *)secGetProt);
    xEnv.PutPtr("XrdSecProtector*"  , (void *)DHS);
+
+// If any protocol needs TLS then all logins must use TLS, ufortunately.
+//
+   const char *tlsProt = CIA->protTLS();
+   if (tlsProt) return CheckTLS(tlsProt);
    return 1;
 }
   
@@ -1913,12 +1955,6 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
           val = Config.GetWord();
          }
 
-// If login specified, turn off session as it doesn't make sense together.
-//
-   if (myRole & kXR_tlsLogin) myRole &= ~kXR_tlsSess;
-   if (tlsCap & Req_TLSLogin) tlsCap &= ~Req_TLSSess;
-   if (tlsNot & Req_TLSLogin) tlsNot &= ~Req_TLSSess;
-
 // If data needs TLS but the session does not, then force session TLS
 //
    if ((myRole & kXR_tlsData) && !(myRole & (kXR_tlsLogin | kXR_tlsSess)))
@@ -1928,14 +1964,9 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
    if ((tlsNot & kXR_tlsData) && !(tlsNot & (Req_TLSLogin | Req_TLSSess)))
       tlsNot |= Req_TLSSess;
 
-// If there are any TLS requirements then TLS must have been configured.
+// Do final resolution on the settins
 //
-    if (myRole & kXR_tlsAny && !tlsCtx)
-       {eDest.Emsg("config", "Unable to honor TLS requirement; "
-                             "TLS not configured!");
-        return 1;
-       }
-    return 0;
+   return (CheckTLS(0) ? 0 : 1);
 }
   
 /******************************************************************************/
