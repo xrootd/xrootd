@@ -2417,7 +2417,7 @@ namespace XrdCl
 
     if( !pLFileHandler )
     {
-      HandleError( XRootDStatus( stError, errNotSupported ) );
+      HandleError( XRootDStatus( stFatal, errNotSupported ) );
       return;
     }
 
