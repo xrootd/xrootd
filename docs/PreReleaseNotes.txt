@@ -52,6 +52,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Make sure loginid corresponds to the POSIX.1-2008 standard.
   * **[Server]** Honor authentication protocol TLS requirements.
   * **[SSS]** Update sss protocol for new SecEntity object.
   * **[SSI]** Avoid SIGABRT when init fails. Fixes 751
