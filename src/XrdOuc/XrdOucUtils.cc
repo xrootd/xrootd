@@ -803,6 +803,26 @@ int XrdOucUtils::ReLink(const char *path, const char *target, mode_t mode)
 }
 
 /******************************************************************************/
+/*                              S a n i t i z e                               */
+/******************************************************************************/
+
+void XrdOucUtils::Sanitize(char *str, char subc)
+{
+
+// Sanitize string according to POSIX.1-2008 stanadard using only the
+// Portable Filename Character Set: a-z A-Z 0-9 ._- with 1st char not being -
+//
+   if (*str)
+      {if (*str == '-') *str = subc;
+       str++;
+       while(*str)
+            {if (!isalnum(*str) && index("_-.", *str) == 0) *str = subc;
+             str++;
+            }
+      }
+}
+
+/******************************************************************************/
 /*                              s u b L o g f n                               */
 /******************************************************************************/
   

@@ -94,6 +94,8 @@ static bool  parseLib(XrdSysError &eDest, XrdOucStream &Config,
 static char *parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode);
 
 static int   ReLink(const char *path, const char *target, mode_t mode=0);
+
+static void  Sanitize(char *instr, char subc='_');
  
 static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 
