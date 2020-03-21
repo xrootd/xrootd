@@ -880,16 +880,12 @@ int XrdXrootdProtocol::do_Login()
 //
    SI->Bump(SI->LoginAT);
 
-// Unmarshall the data
+// Unmarshall the pid and construct username using the POSIX.1-2008 standard
 //
    pid = (int)ntohl(Request.login.pid);
-   for (i = 0; i < (int)sizeof(Request.login.username); i++)
-      {if (Request.login.username[i] == '\0' ||
-           Request.login.username[i] == ' ') break;
-       uname[i] = Request.login.username[i];
-       if (!isprint(uname[i])) uname[i] = '_';
-      }
-   uname[i] = '\0';
+   strncpy(uname, (const char *)Request.login.username, sizeof(uname)-2);
+   uname[sizeof(uname)-1] = 0;
+   XrdOucUtils::Sanitize(uname);
 
 // Make sure the user is not already logged in
 //
