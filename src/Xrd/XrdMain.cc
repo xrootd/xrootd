@@ -168,10 +168,12 @@ int main(int argc, char *argv[])
 //
    XrdSysUtils::SigBlock();
 
-// Set the default stack size here
+// Set the default stack size here. Note that on modern Linux the default
+// stack size is set at about 8MB. We force a lower limit to not have a huge
+// virtual address space mostly for core file debugging purposes.
 //
-   if (sizeof(long) > 4) XrdSysThread::setStackSize((size_t)1048576);
-      else               XrdSysThread::setStackSize((size_t)786432);
+   if (sizeof(long) > 4) XrdSysThread::setStackSize((size_t)2097152, true);
+      else               XrdSysThread::setStackSize((size_t)1048576, true);
 
 // Process configuration file
 //

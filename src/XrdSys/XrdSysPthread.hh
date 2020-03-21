@@ -505,7 +505,7 @@ static int          Same(pthread_t t1, pthread_t t2)
 
 static void         setDebug(XrdSysError *erp) {eDest = erp;}
 
-static void         setStackSize(size_t stsz) {stackSize = stsz;}
+static void         setStackSize(size_t stsz, bool force=false);
 
 static int          Signal(pthread_t tid, int snum)
                        {return pthread_kill(tid, snum);}
