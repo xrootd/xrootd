@@ -108,7 +108,7 @@ XrdLinkXeq::XrdLinkXeq() : XrdLink(*this), PollInfo((XrdLink *)this)
 
 void XrdLinkXeq::Reset()
 {
-   memcpy(Uname-5, "anon@", 5);
+   memcpy(Uname+sizeof(Uname)-5, "anon@", 5);
    strcpy(Lname, "somewhere");
    ID       = &Uname[sizeof(Uname)-5];
    sendQ    = 0;
