@@ -39,6 +39,7 @@ Version 4.11.3
   * **[Debian]** Proper Debian pkg naming.
   * **[XrdCl]** Use glibc semaphores for rhel>=7.
   * **[Server]** Export pointers to Acc, Ofs, and Sfs plugin into the XrdEnv.
+  * **[XrdMacaroons]** Use env ptrs to get authorize obj.
 
 --------------
 Version 4.11.2
