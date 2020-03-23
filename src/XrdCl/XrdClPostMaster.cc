@@ -33,18 +33,39 @@
 
 namespace XrdCl
 {
+  struct PostMasterImpl
+  {
+    PostMasterImpl() : pPoller( 0 ), pInitialized( false )
+    {
+      Env *env = DefaultEnv::GetEnv();
+      int workerThreads = DefaultWorkerThreads;
+      env->GetInt( "WorkerThreads", workerThreads );
+
+      pTaskManager = new TaskManager();
+      pJobManager  = new JobManager(workerThreads);
+    }
+
+    ~PostMasterImpl()
+    {
+      delete pPoller;
+      delete pTaskManager;
+      delete pJobManager;
+    }
+
+    typedef std::map<std::string, Channel*> ChannelMap;
+    Poller           *pPoller;
+    TaskManager      *pTaskManager;
+    ChannelMap        pChannelMap;
+    XrdSysMutex       pChannelMapMutex;
+    bool              pInitialized;
+    JobManager       *pJobManager;
+  };
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  PostMaster::PostMaster():
-    pPoller( 0 ), pInitialized( false )
+  PostMaster::PostMaster(): pImpl( new PostMasterImpl() )
   {
-    Env *env = DefaultEnv::GetEnv();
-    int workerThreads = DefaultWorkerThreads;
-    env->GetInt( "WorkerThreads", workerThreads );
-
-    pTaskManager = new TaskManager();
-    pJobManager  = new JobManager(workerThreads);
   }
 
   //----------------------------------------------------------------------------
@@ -52,9 +73,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   PostMaster::~PostMaster()
   {
-    delete pPoller;
-    delete pTaskManager;
-    delete pJobManager;
   }
 
   //----------------------------------------------------------------------------
@@ -66,21 +84,21 @@ namespace XrdCl
     std::string pollerPref = DefaultPollerPreference;
     env->GetString( "PollerPreference", pollerPref );
 
-    pPoller = PollerFactory::CreatePoller( pollerPref );
+    pImpl->pPoller = PollerFactory::CreatePoller( pollerPref );
 
-    if( !pPoller )
+    if( !pImpl->pPoller )
       return false;
 
-    bool st = pPoller->Initialize();
+    bool st = pImpl->pPoller->Initialize();
 
     if( !st )
     {
-      delete pPoller;
+      delete pImpl->pPoller;
       return false;
     }
 
-    pJobManager->Initialize();
-    pInitialized = true;
+    pImpl->pJobManager->Initialize();
+    pImpl->pInitialized = true;
     return true;
   }
 
@@ -92,18 +110,18 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Clean up the channels
     //--------------------------------------------------------------------------
-    if( !pInitialized )
+    if( !pImpl->pInitialized )
       return true;
 
-    pInitialized = false;
-    pJobManager->Finalize();
-    ChannelMap::iterator it;
+    pImpl->pInitialized = false;
+    pImpl->pJobManager->Finalize();
+    PostMasterImpl::ChannelMap::iterator it;
 
-    for( it = pChannelMap.begin(); it != pChannelMap.end(); ++it )
+    for( it = pImpl->pChannelMap.begin(); it != pImpl->pChannelMap.end(); ++it )
       delete it->second;
 
-    pChannelMap.clear();
-    return pPoller->Finalize();
+    pImpl->pChannelMap.clear();
+    return pImpl->pPoller->Finalize();
   }
 
   //----------------------------------------------------------------------------
@@ -111,22 +129,22 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PostMaster::Start()
   {
-    if( !pInitialized )
+    if( !pImpl->pInitialized )
       return false;
 
-    if( !pPoller->Start() )
+    if( !pImpl->pPoller->Start() )
       return false;
 
-    if( !pTaskManager->Start() )
+    if( !pImpl->pTaskManager->Start() )
     {
-      pPoller->Stop();
+      pImpl->pPoller->Stop();
       return false;
     }
 
-    if( !pJobManager->Start() )
+    if( !pImpl->pJobManager->Start() )
     {
-      pPoller->Stop();
-      pTaskManager->Stop();
+      pImpl->pPoller->Stop();
+      pImpl->pTaskManager->Stop();
       return false;
     }
 
@@ -138,14 +156,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PostMaster::Stop()
   {
-    if( !pInitialized )
+    if( !pImpl->pInitialized )
       return true;
 
-    if( !pJobManager->Stop() )
+    if( !pImpl->pJobManager->Stop() )
       return false;
-    if( !pTaskManager->Stop() )
+    if( !pImpl->pTaskManager->Stop() )
       return false;
-    if( !pPoller->Stop() )
+    if( !pImpl->pPoller->Stop() )
       return false;
     return true;
   }
@@ -279,19 +297,36 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Get the task manager object user by the post master
+  //------------------------------------------------------------------------
+  TaskManager* PostMaster::GetTaskManager()
+  {
+    return pImpl->pTaskManager;
+  }
+
+  //------------------------------------------------------------------------
+  // Get the job manager object user by the post master
+  //------------------------------------------------------------------------
+  JobManager* PostMaster::GetJobManager()
+  {
+    return pImpl->pJobManager;
+  }
+
+  //------------------------------------------------------------------------
   // Shut down a channel
   //------------------------------------------------------------------------
   Status PostMaster::ForceDisconnect( const URL &url )
   {
-    XrdSysMutexHelper scopedLock( pChannelMapMutex );
-    ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
+    XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
+    PostMasterImpl::ChannelMap::iterator it =
+        pImpl->pChannelMap.find( url.GetHostId() );
 
-    if( it == pChannelMap.end() )
+    if( it == pImpl->pChannelMap.end() )
       return Status( stError, errInvalidOp );
 
     it->second->ForceDisconnect();
     delete it->second;
-    pChannelMap.erase( it );
+    pImpl->pChannelMap.erase( it );
 
     return Status();
   }
@@ -322,11 +357,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Channel *PostMaster::GetChannel( const URL &url )
   {
-    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
     Channel *channel = 0;
-    ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
+    PostMasterImpl::ChannelMap::iterator it = pImpl->pChannelMap.find( url.GetHostId() );
 
-    if( it == pChannelMap.end() )
+    if( it == pImpl->pChannelMap.end() )
     {
       TransportManager *trManager = DefaultEnv::GetTransportManager();
       TransportHandler *trHandler = trManager->GetHandler( url.GetProtocol() );
@@ -339,8 +374,9 @@ namespace XrdCl
         return 0;
       }
 
-      channel = new Channel( url, pPoller, trHandler, pTaskManager, pJobManager );
-      pChannelMap[url.GetHostId()] = channel;
+      channel = new Channel( url, pImpl->pPoller, trHandler, pImpl->pTaskManager,
+                             pImpl->pJobManager );
+      pImpl->pChannelMap[url.GetHostId()] = channel;
     }
     else
       channel = it->second;

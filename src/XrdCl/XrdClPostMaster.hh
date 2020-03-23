@@ -23,6 +23,7 @@
 #include <map>
 #include <vector>
 #include <functional>
+#include <memory>
 
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"
@@ -37,6 +38,8 @@ namespace XrdCl
   class Channel;
   class JobManager;
   class Job;
+
+  struct PostMasterImpl;
 
   //----------------------------------------------------------------------------
   //! A hub for dispatching and receiving messages
@@ -187,18 +190,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get the task manager object user by the post master
       //------------------------------------------------------------------------
-      TaskManager *GetTaskManager()
-      {
-        return pTaskManager;
-      }
+      TaskManager *GetTaskManager();
 
       //------------------------------------------------------------------------
       //! Get the job manager object user by the post master
       //------------------------------------------------------------------------
-      JobManager *GetJobManager()
-      {
-        return pJobManager;
-      }
+      JobManager *GetJobManager();
 
       //------------------------------------------------------------------------
       //! Shut down a channel
@@ -219,13 +216,7 @@ namespace XrdCl
     private:
       Channel *GetChannel( const URL &url );
 
-      typedef std::map<std::string, Channel*> ChannelMap;
-      Poller           *pPoller;
-      TaskManager      *pTaskManager;
-      ChannelMap        pChannelMap;
-      XrdSysMutex       pChannelMapMutex;
-      bool              pInitialized;
-      JobManager       *pJobManager;
+      std::unique_ptr<PostMasterImpl> pImpl;
   };
 }
 
