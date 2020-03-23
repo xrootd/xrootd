@@ -365,9 +365,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Set the on-connect handler for data streams
   //------------------------------------------------------------------------
-  void Channel::SetOnConnectHandler( Job *onConnJob )
+  void Channel::SetOnDataConnectHandler( Job *onConnJob )
   {
-    pStream->SetOnConnectHandler( onConnJob );
+    pStream->SetOnDataConnectHandler( onConnJob );
   }
 
   //----------------------------------------------------------------------------

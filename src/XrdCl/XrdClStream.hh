@@ -252,10 +252,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnConnectHandler( Job *onConnJob )
+      void SetOnDataConnectHandler( Job *onConnJob )
       {
-        delete pOnConnJob;
-        pOnConnJob = onConnJob;
+        delete pOnDataConnJob;
+        pOnDataConnJob = onConnJob;
       }
 
     private:
@@ -355,7 +355,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Data stream on-connect handler
       //------------------------------------------------------------------------
-      Job                           *pOnConnJob;
+      Job                           *pOnDataConnJob;
   };
 }
 

@@ -309,12 +309,12 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Set the on-connect handler for data streams
   //------------------------------------------------------------------------
-  void PostMaster::SetOnConnectHandler( const URL &url,
+  void PostMaster::SetOnDataConnectHandler( const URL &url,
                                         Job       *onConnJob )
   {
     Channel *channel = GetChannel( url );
     if( !channel ) return;
-    channel->SetOnConnectHandler( onConnJob );
+    channel->SetOnDataConnectHandler( onConnJob );
   }
 
   //----------------------------------------------------------------------------

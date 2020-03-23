@@ -578,7 +578,7 @@ namespace
         if( !pUrl->IsLocalFile() )
           pFile->GetProperty( "DataServer", pDataServer );
 
-        SetOnConnectHandler( pFile );
+        SetOnDataConnectHandler( pFile );
 
         return XRootDStatus();
       }
@@ -704,7 +704,7 @@ namespace
       // Set the on-connect handler for data streams
       //------------------------------------------------------------------------
       template<typename READER>
-      void SetOnConnectHandler( READER *reader )
+      void SetOnDataConnectHandler( READER *reader )
       {
         //----------------------------------------------------------------------------
         // On-connect callback job, a lambda would be more elegant, but we still have
@@ -731,7 +731,7 @@ namespace
         };
 
         OnConnJob *callback = new OnConnJob( this, reader );
-        XrdCl::DefaultEnv::GetPostMaster()->SetOnConnectHandler( pDataServer, callback );
+        XrdCl::DefaultEnv::GetPostMaster()->SetOnDataConnectHandler( pDataServer, callback );
       }
 
       //------------------------------------------------------------------------
@@ -893,7 +893,7 @@ namespace
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
 
-        SetOnConnectHandler( pFile );
+        SetOnDataConnectHandler( pFile );
 
         return XrdCl::XRootDStatus();
       }
