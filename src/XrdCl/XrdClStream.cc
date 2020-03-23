@@ -124,7 +124,7 @@ namespace XrdCl
     pQueueIncMsgJob(0),
     pBytesSent( 0 ),
     pBytesReceived( 0 ),
-    pOnConnJob( 0 )
+    pOnDataConnJob( 0 )
   {
     pConnectionStarted.tv_sec = 0; pConnectionStarted.tv_usec = 0;
     pConnectionDone.tv_sec = 0;    pConnectionDone.tv_usec = 0;
@@ -170,7 +170,7 @@ namespace XrdCl
       delete *it;
 
     delete pQueueIncMsgJob;
-    delete pOnConnJob;
+    delete pOnDataConnJob;
   }
 
   //----------------------------------------------------------------------------
@@ -636,12 +636,12 @@ namespace XrdCl
         mon->Event( Monitor::EvConnect, &i );
       }
     }
-    else if( pOnConnJob )
+    else if( pOnDataConnJob )
     {
       //------------------------------------------------------------------------
       // For every connected data-stream call the on-connect handler
       //------------------------------------------------------------------------
-      pJobManager->QueueJob( pOnConnJob, 0 );
+      pJobManager->QueueJob( pOnDataConnJob, 0 );
     }
   }
 
