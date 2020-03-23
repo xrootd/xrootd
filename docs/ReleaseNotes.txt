@@ -7,6 +7,42 @@ Release Notes
 
 
 --------------
+Version 4.11.3
+--------------
+
++ **Major bug fixes**
+  * **[Server]** Avoid SEGV when skipping over large if/else/fi blocks.
+  * **[XrdHttp]** Fix curl speed limit to be really around 10KB/s.
+  * **[xrootdfs]** Make sure xrootdfs_create() checks return code of 
+                   xrootdfs_do_create().
+  * **[XrdHttp]** Change the default ssl cipher.
+  * **[XrdHttp]** Enable elliptic-curve support for OpenSSL 1.0.2+.
+  * **[XrdHttp]** Use Mozilla cipher list only with OpenSSL 1.0.2+.
+
++ **Minor bug fixes**
+  * **[XrdCl]** When xrdcp reports an error refine the message so it is 
+                clear whether the erros comes from the source or destination.
+  * **[XrdCl]** Make sure on error local redirect is not retried infinitely.
+  * **[XrdXrootdConfig]** Fixed wrong segsz parameter.
+  * **[XrdHttp]** Give a chance to map the issuer name in the case of a proxy
+                  certificate (needed to accommodate systems that do user 
+                  mapping, e.g. eos)
+  * **[XrdHttp]** Fix the logic for determining SecEntity.name.
+  * **[XrdHttp]** Don't overwrite SecEntity.name after the gridmap phase.
+  * **[xrootdfs]** Make sure xrootdfs_create() does check the return code of 
+                   xrootdfs_do_create().
+
++ **Miscellaneous**
+  * **[XrdSecgsi]** In the case of delegation, give client a chance to 
+                    use XrdSecGSISRVNAMES to limit where it is being 
+                    redirected to.
+  * **[Python]** Make rpath relative to the module.
+  * **[Debian]** Proper Debian pkg naming.
+  * **[XrdCl]** Use glibc semaphores for rhel>=7.
+  * **[Server]** Export pointers to Acc, Ofs, and Sfs plugin into the XrdEnv.
+  * **[XrdMacaroons]** Use env ptrs to get authorize obj.
+
+--------------
 Version 4.11.2
 --------------
 
