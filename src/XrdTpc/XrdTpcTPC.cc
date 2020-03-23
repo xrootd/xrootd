@@ -105,22 +105,13 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
 }
 
 TPCHandler::~TPCHandler() {
-    m_sfs = NULL;  // NOTE: must delete the SFS here as we may unload the destructor from memory below!
-    if (m_handle_base) {
-        dlclose(m_handle_base);
-        m_handle_base = NULL;
-    }
-    if (m_handle_chained) {
-        dlclose(m_handle_chained);
-        m_handle_chained = NULL;
-    }
+    m_sfs = NULL;
 }
 
 TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_desthttps(false),
         m_log(*log),
-        m_handle_base(NULL),
-        m_handle_chained(NULL)
+        m_sfs(NULL)
 {
     if (!Configure(config, myEnv)) {
         throw std::runtime_error("Failed to configure the HTTP third-party-copy handler.");
