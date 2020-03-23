@@ -885,7 +885,7 @@ namespace XrdCl
     {
       //------------------------------------------------------------------------
       // The server or user asked us to encrypt stream 0, but to send the data
-      // (read/write) using an plain TCP connection
+      // (read/write) using a plain TCP connection
       //------------------------------------------------------------------------
       if( ret == 1 ) ++ret;
     }
@@ -2144,7 +2144,10 @@ namespace XrdCl
     // Loop over the possible protocols to find one that gives us valid
     // credentials
     //--------------------------------------------------------------------------
-    XrdNetAddrInfo &srvAddrInfo = *const_cast<XrdNetAddr *>(hsData->serverAddr);
+    XrdNetAddr &srvAddrInfo = *const_cast<XrdNetAddr *>(hsData->serverAddr);
+    if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
+        ( info->serverFlags & kXR_tlsLogin ) || ( info->serverFlags & kXR_tlsSess ) )
+      srvAddrInfo.SetTLS( true );
     while(1)
     {
       //------------------------------------------------------------------------
