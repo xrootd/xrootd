@@ -61,6 +61,8 @@ public:
 
     int GetStatusCode() const {return m_status_code;}
 
+    std::string GetErrorMessage() const {return m_error_buf;}
+
     void ResetAfterRequest();
 
     CURL *GetHandle() const {return m_curl;}
@@ -118,6 +120,7 @@ private:
     struct curl_slist *m_headers; // any headers we set as part of the libcurl request.
     std::vector<std::string> m_headers_copy; // Copies of custom headers.
     std::string m_resp_protocol;  // Response protocol in the HTTP status line.
+    std::string m_error_buf;  // Any error associated with a response.
 };
 
 };
