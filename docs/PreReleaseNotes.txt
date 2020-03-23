@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Auth]** [Auth] Allow authentication protocols to require TLS.
+  * **[Server]** Implement a stackable post authentication plug-in (sec.entitylib).
   * **[Server]** Allow XrdNetAddr to track socket dialect.
   * **[Apps]** Add xrdpinls to list plugin version requirements.
   * **[Server]** Add ofs.ctllib directive for FSctl plugin.
@@ -50,6 +52,9 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Make sure loginid corresponds to the POSIX.1-2008 standard.
+  * **[Server]** Honor authentication protocol TLS requirements.
+  * **[SSS]** Update sss protocol for new SecEntity object.
   * **[SSI]** Avoid SIGABRT when init fails. Fixes 751
   * **[Server]** Turn off IP address caching when dynamic DNS is enabled.
   * **[Server]** Log unusual stat() errors affecting file availability.

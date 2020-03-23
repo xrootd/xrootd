@@ -176,13 +176,22 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
     if (obj->GetStatusCode() < 0) {
         return 0;
      }  // malformed request - got body before headers.
-    if (obj->GetStatusCode() >= 400) {return 0;}  // Status indicates failure.
+    if (obj->GetStatusCode() >= 400) {
+        obj->m_error_buf += std::string(static_cast<char*>(buffer),
+                                        std::min(static_cast<size_t>(1024), size*nitems));
+        // Record error messages until we hit a KB; at that point, fail out.
+        if (obj->m_error_buf.size() >= 1024)
+            return 0;
+        else
+            return size*nitems;
+    }  // Status indicates failure.
     return obj->Write(static_cast<char*>(buffer), size*nitems);
 }
 
 int State::Write(char *buffer, size_t size) {
     int retval = m_stream->Write(m_start_offset + m_offset, buffer, size);
     if (retval == SFS_ERROR) {
+        m_error_buf = m_stream->GetErrorMessage();
         return -1;
     }
     m_offset += retval;
@@ -253,3 +262,27 @@ bool State::Finalize()
     return m_stream->Finalize();
 }
 
+std::string State::GetConnectionDescription()
+{
+    char *curl_ip = NULL;
+    CURLcode rc = curl_easy_getinfo(m_curl, CURLINFO_PRIMARY_IP, &curl_ip);
+    if ((rc != CURLE_OK) || !curl_ip) {
+        return "";
+    }
+    long curl_port = 0;
+    rc = curl_easy_getinfo(m_curl, CURLINFO_PRIMARY_PORT, &curl_port);
+    if ((rc != CURLE_OK) || !curl_port) {
+        return "";
+    }
+    std::stringstream ss;
+    // libcurl returns IPv6 addresses of the form:
+    //    2600:900:6:1301:5054:ff:fe0b:9cba:8000
+    // However the HTTP-TPC spec says to use the form
+    //   [2600:900:6:1301:5054:ff:fe0b:9cba:8000]
+    // Hence, we add '[' and ']' whenever a ':' is seen.
+    if (NULL == strchr(curl_ip, ':'))
+        ss << "tcp:" << curl_ip << ":" << curl_port;
+    else
+        ss << "tcp:[" << curl_ip << "]:" << curl_port;
+    return ss.str();
+}

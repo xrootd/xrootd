@@ -27,10 +27,10 @@
 
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClOptional.hh"
 
 namespace XrdCl
 {
-  class DataPipe;
 
   //----------------------------------------------------------------------------
   //! An interface for file plug-ins
@@ -91,6 +91,19 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! @see XrdCl:File PgRead
+      //------------------------------------------------------------------------
+      virtual XRootDStatus PgRead( uint64_t         offset,
+                                   uint32_t         nbpgs,
+                                   void            *buffer,
+                                   ResponseHandler *handler,
+                                   uint16_t         timeout )
+      {
+        (void)offset; (void)nbpgs; (void)buffer; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
       //! @see XrdCl::File::Write
       //------------------------------------------------------------------------
       virtual XRootDStatus Write( uint64_t         offset,
@@ -106,13 +119,40 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! @see XrdCl::File::Write
       //------------------------------------------------------------------------
-      virtual XRootDStatus Write( uint64_t         offset,
-                                  uint32_t         size,
-                                  DataPipe        &pipe,
-                                  ResponseHandler *handler,
-                                  uint16_t         timeout = 0 )
+      virtual XRootDStatus Write( uint64_t          offset,
+                                  Buffer          &&buffer,
+                                  ResponseHandler  *handler,
+                                  uint16_t          timeout = 0 )
       {
-        (void)offset; (void)size; (void)pipe; (void)handler; (void)timeout;
+        (void)offset; (void)buffer; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::File::Write
+      //------------------------------------------------------------------------
+      virtual XRootDStatus Write( uint64_t            offset,
+                                  uint32_t            size,
+                                  Optional<uint64_t>  fdoff,
+                                  int                 fd,
+                                  ResponseHandler    *handler,
+                                  uint16_t            timeout = 0 )
+      {
+        (void)offset; (void)size; (void)fdoff; (void)fd, (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::File::PgWrite
+      //------------------------------------------------------------------------
+      virtual XRootDStatus PgWrite( uint64_t               offset,
+                                    uint32_t               nbpgs,
+                                    const void            *buffer,
+                                    std::vector<uint32_t> &chsums,
+                                    ResponseHandler       *handler,
+                                    uint16_t               timeout )
+      {
+        (void)offset; (void)nbpgs; (void)buffer; (void)chsums, (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
 

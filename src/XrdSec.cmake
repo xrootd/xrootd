@@ -18,6 +18,7 @@ add_library(
   MODULE
                                       XrdSec/XrdSecAttr.hh
   XrdSec/XrdSecClient.cc
+                                      XrdSec/XrdSecEntityPin.hh
                                       XrdSec/XrdSecInterface.hh
   XrdSec/XrdSecPManager.cc            XrdSec/XrdSecPManager.hh
   XrdSec/XrdSecProtocolhost.cc        XrdSec/XrdSecProtocolhost.hh

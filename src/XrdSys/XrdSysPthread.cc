@@ -279,6 +279,30 @@ int XrdSysThread::Run(pthread_t *tid, void *(*proc)(void *), void *arg,
 }
 
 /******************************************************************************/
+/*                          s e t S t a c k S i z e                           */
+/******************************************************************************/
+
+void XrdSysThread::setStackSize(size_t stksz, bool force)
+{
+// If not being forced, then we set the stacksize only if the requested
+// size is greater than the default size.
+//
+if (!force)
+   {pthread_attr_t tattr;
+    size_t dflt_stk_sz;
+    pthread_attr_init(&tattr);
+    if (pthread_attr_getstacksize(&tattr, &dflt_stk_sz) || stksz <= dflt_stk_sz)
+       {stackSize = 0;
+        return;
+       }
+   }
+
+// Record the stack size for future use
+//
+   stackSize = stksz;
+}
+
+/******************************************************************************/
 /*                                  W a i t                                   */
 /******************************************************************************/
   

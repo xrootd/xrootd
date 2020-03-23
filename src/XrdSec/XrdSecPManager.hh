@@ -77,10 +77,12 @@ void            setDebug(int dbg) {DebugON = dbg;}
 
 void            setErrP(XrdSysError *eP) {errP = eP;}
 
+const char     *protTLS() {return tlsProt;}
+
                 XrdSecPManager(int dbg=0, bool secproxy=false,
                                           bool fwdcreds=false)
                               : protnum(1), First(0), Last(0), errP(0),
-                                DebugON(dbg), isProxy(secproxy),
+                                tlsProt(0), DebugON(dbg), isProxy(secproxy),
                                 fwdCreds(fwdcreds) {}
                ~XrdSecPManager() {}
 
@@ -100,6 +102,7 @@ XrdSysMutex        myMutex;
 XrdSecProtList    *First;
 XrdSecProtList    *Last;
 XrdSysError       *errP;
+char              *tlsProt;
 int                DebugON;
 bool               isProxy;
 bool               fwdCreds;

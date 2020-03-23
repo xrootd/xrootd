@@ -7,6 +7,7 @@
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
@@ -95,8 +96,8 @@ XrdHttpExtHandler *XrdHttpGetExtHandler(
     XrdSysError *log, const char * config,
     const char * parms, XrdOucEnv *env)
 {
-    XrdAccAuthorize *def_authz = XrdAccDefaultAuthorizeObject(log->logger(),
-        config, parms, compiledVer);
+    void *authz_raw = env->GetPtr("XrdAccAuthorize*");
+    XrdAccAuthorize *def_authz = static_cast<XrdAccAuthorize *>(authz_raw);
 
     log->Emsg("Initialize", "Creating new Macaroon handler object");
     try

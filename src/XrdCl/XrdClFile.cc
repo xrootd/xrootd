@@ -218,6 +218,31 @@ namespace XrdCl
     return status;
   }
 
+  //------------------------------------------------------------------------
+  // Read number of pages at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::PgRead( uint64_t         offset,
+                             uint32_t         nbpgs,
+                             void            *buffer,
+                             ResponseHandler *handler,
+                             uint16_t         timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented );
+  }
+
+  //------------------------------------------------------------------------
+  // Read number of pages at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::PgRead( uint64_t               offset,
+                             uint32_t               nbpgs,
+                             void                  *buffer,
+                             uint32_t              &bytesRead,
+                             std::vector<uint32_t> &chsums,
+                             uint16_t               timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented );
+  }
+
   //----------------------------------------------------------------------------
   // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------
@@ -251,24 +276,26 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  // Write a data chunk from a pipe at a given offset - async
+  // Write number of pages at a given offset - async
   //------------------------------------------------------------------------
-  XRootDStatus File::Write( uint64_t         offset,
-                            uint32_t         size,
-                            DataPipe        &pipe,
-                            ResponseHandler *handler,
-                            uint16_t         timeout )
+  XRootDStatus File::PgWrite( uint64_t               offset,
+                              uint32_t               nbpgs,
+                              const void            *buffer,
+                              std::vector<uint32_t> &chsums,
+                              ResponseHandler       *handler,
+                              uint16_t               timeout )
   {
-    return XRootDStatus( stError, errNotImplemented);
+    return XRootDStatus( stError, errNotImplemented );
   }
 
   //------------------------------------------------------------------------
-  // Write a data chunk from a pipe at a given offset - sync
+  // Write number of pages at a given offset - sync
   //------------------------------------------------------------------------
-  XRootDStatus File::Write( uint64_t    offset,
-                            uint32_t    size,
-                            DataPipe   &pipe,
-                            uint16_t    timeout )
+  XRootDStatus File::PgWrite( uint64_t               offset,
+                              uint32_t               nbpgs,
+                              const void            *buffer,
+                              std::vector<uint32_t> &chsums,
+                              uint16_t               timeout )
   {
     return XRootDStatus( stError, errNotImplemented );
   }

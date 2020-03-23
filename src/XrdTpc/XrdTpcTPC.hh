@@ -64,7 +64,13 @@ private:
     int DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
                           bool &success, TPCLogRecord &);
 
-    int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, off_t bytes_transferred);
+    // Send a 'performance marker' back to the TPC client, informing it of our
+    // progress.  The TPC client will use this information to determine whether
+    // the transfer is making sufficient progress and/or other monitoring info
+    // (such as whether the transfer is happening over IPv4, IPv6, or both).
+    int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state);
+    int SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vector<State*> &state,
+        off_t bytes_transferred);
 
     // Perform the libcurl transfer, periodically sending back chunked updates.
     int RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
@@ -100,9 +106,7 @@ private:
     static XrdSysMutex m_monid_mutex;
     static uint64_t m_monid;
     XrdSysError m_log;
-    std::unique_ptr<XrdSfsFileSystem> m_sfs;
-    void *m_handle_base;
-    void *m_handle_chained;
+    XrdSfsFileSystem *m_sfs;
 
     // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
     // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental

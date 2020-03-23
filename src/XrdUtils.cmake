@@ -94,7 +94,9 @@ add_library(
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh
   XrdOuc/XrdOucNList.cc         XrdOuc/XrdOucNList.hh
   XrdOuc/XrdOucNSWalk.cc        XrdOuc/XrdOucNSWalk.hh
+                                XrdOuc/XrdOucPinKing.hh
   XrdOuc/XrdOucPinLoader.cc     XrdOuc/XrdOucPinLoader.hh
+                                XrdOuc/XrdOucPinObject.hh
   XrdOuc/XrdOucPinPath.cc       XrdOuc/XrdOucPinPath.hh
   XrdOuc/XrdOucPreload.cc       XrdOuc/XrdOucPreload.hh
   XrdOuc/XrdOucProg.cc          XrdOuc/XrdOucProg.hh
@@ -211,6 +213,7 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdSec/XrdSecEntity.cc           XrdSec/XrdSecEntity.hh
   XrdSec/XrdSecLoadSecurity.cc     XrdSec/XrdSecLoadSecurity.hh
+  XrdSecsss/XrdSecsssEnt.cc        XrdSecsss/XrdSecsssEnt.hh
   XrdSecsss/XrdSecsssID.cc         XrdSecsss/XrdSecsssID.hh
   XrdSecsss/XrdSecsssKT.cc         XrdSecsss/XrdSecsssKT.hh
 

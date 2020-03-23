@@ -187,18 +187,19 @@ int XrdXrootdProtocol::do_Auth()
        size_t size = sizeof(Request.auth.credtype);
        strncpy(Entity.prot, (const char *)Request.auth.credtype, size);
        if (!(AuthProt = CIA->getProtocol(Link->Host(), *(Link->AddrInfo()),
-                                         &cred, &eMsg)))
+                                         &cred, eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
           }
-       AuthProt->Entity.tident = Link->ID;
+       AuthProt->Entity.tident = AuthProt->Entity.pident = Link->ID;
        numReads++;
       }
 
 // Now try to authenticate the client using the current protocol
 //
-   if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
+   if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg))
+   &&  CIA->PostProcess(AuthProt->Entity, eMsg))
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        AuthProt->Entity.ueid = mySID;
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
@@ -876,16 +877,12 @@ int XrdXrootdProtocol::do_Login()
    if ((doTLS & Req_TLSLogin) && !Link->hasTLS() && !Link->hasBridge())
       return Response.Send(kXR_TLSRequired, "login requires TLS");
 
-// Unmarshall the data
+// Unmarshall the pid and construct username using the POSIX.1-2008 standard
 //
    pid = (int)ntohl(Request.login.pid);
-   for (i = 0; i < (int)sizeof(Request.login.username); i++)
-      {if (Request.login.username[i] == '\0' ||
-           Request.login.username[i] == ' ') break;
-       uname[i] = Request.login.username[i];
-       if (!isprint(uname[i])) uname[i] = '_';
-      }
-   uname[i] = '\0';
+   strncpy(uname, (const char *)Request.login.username, sizeof(uname)-2);
+   uname[sizeof(uname)-1] = 0;
+   XrdOucUtils::Sanitize(uname);
 
 // Make sure the user is not already logged in
 //
@@ -978,7 +975,7 @@ int XrdXrootdProtocol::do_Login()
 // already supplied the protocol name and the host name. We supply the tident
 // and the connection details in addrInfo.
 //
-   Entity.tident = Link->ID;
+   Entity.tident = Entity.pident = Link->ID;
    Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
 
@@ -2085,7 +2082,7 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
 //
    rc = osFS->FSctl(fsctl_cmd, myData, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<Act <<AData <<"'");
-   if (rc == SFS_OK) Response.Send("");
+   if (rc == SFS_OK) return Response.Send("");
    return fsError(rc, 0, myError, 0, 0);
 }
 
@@ -2121,7 +2118,7 @@ int XrdXrootdProtocol::do_Qspace()
 //
    rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" qspace '" <<argp->buff <<"'");
-   if (rc == SFS_OK) Response.Send("");
+   if (rc == SFS_OK) return Response.Send("");
    return fsError(rc, XROOTD_MON_QUERY, myError, argp->buff, opaque);
 }
 

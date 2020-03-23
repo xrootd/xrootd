@@ -169,7 +169,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnConnectHandler( Job *onConnJob );
+      void SetOnDataConnectHandler( Job *onConnJob );
 
     private:
 

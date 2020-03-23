@@ -751,6 +751,30 @@ namespace XrdCl
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
+  //------------------------------------------------------------------------
+  // Write a data chunk at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Write( uint64_t          offset,
+                                        Buffer          &&buffer,
+                                        ResponseHandler  *handler,
+                                        uint16_t          timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented );
+  }
+
+  //------------------------------------------------------------------------
+  // Write a data from a given file descriptor at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Write( uint64_t            offset,
+                                        uint32_t            size,
+                                        Optional<uint64_t>  fdoff,
+                                        int                 fd,
+                                        ResponseHandler    *handler,
+                                        uint16_t            timeout )
+  {
+    return XRootDStatus( stError, errNotImplemented );
+  }
+
   //----------------------------------------------------------------------------
   // Commit all pending disk writes - async
   //----------------------------------------------------------------------------

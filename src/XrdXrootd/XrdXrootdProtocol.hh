@@ -205,6 +205,7 @@ static void  PidFile();
 static int   rpCheck(char *fn, char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
+static int   CheckTLS(const char *tlsProt);
 static bool  ConfigFS(XrdOucEnv &xEnv, const char *cfn);
 static bool  ConfigFS(const char *path, XrdOucEnv &xEnv, const char *cfn);
 static void  ConfigGStream(XrdOucEnv &myEnv);

@@ -28,171 +28,127 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pwd.h>
 #include <sys/types.h>
 
+#include "XrdSecsss/XrdSecsssEnt.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdSecsss/XrdSecsssRR.hh"
 
+#include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define XRDSECSSSID "XrdSecsssID"
 #define XRDSECSSSENDO "XrdSecsssENDORSEMENT"
 
-XrdSysMutex         XrdSecsssID::InitMutex;
+/******************************************************************************/
+/*                               S t a t i c s                                */
+/******************************************************************************/
+  
+namespace
+{
+XrdSysMutex               sssMutex;
+XrdSecsssID              *IDMapper = 0;
+XrdOucHash<XrdSecsssEnt>  Registry;
+}
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdSecsssID::XrdSecsssID(authType aType, XrdSecEntity *idP) : defaultID(0)
+XrdSecsssID::XrdSecsssID(authType aType, XrdSecEntity *idP, bool *isOK)
+                        : defaultID(0),
+                          myAuth(XrdSecsssID::idStatic), isStatic(true)
 {
-   static char buff[64];
-   union {unsigned long val; XrdSecsssID *myP;} p2i;
 
 // Check if we have initialized already. If so, indicate warning
 //
-   InitMutex.Lock();
-   if (getenv(XRDSECSSSID))
-      {InitMutex.UnLock();
-       cerr <<"SecsssID: Already instantiated; new instance ineffective!" <<endl;
+   sssMutex.Lock();
+   if (IDMapper)
+      {sssMutex.UnLock();
+       if (isOK) *isOK = false;
+          else std::cerr <<"SecsssID: Already instantiated; new instance"
+                           " ineffective!\n" <<std::flush;
        return;
       }
 
 // Verify the authType
 //
    switch(aType)
-         {case idDynamic: break;
+         {case idDynamic: isStatic = false;
           case idStatic:  break;
           case idStaticM: break;
-          default:        idP = 0; aType = idStatic; break;
+          case idMapped:  isStatic = false;
+                          break;
+          case idMappedM: isStatic = false;
+                          break;
+          default:        idP = 0;
+                          aType = idStatic;
+                          isStatic = true;
+                          break;
          }
    myAuth = aType;
 
 // Generate a default identity
 //
-   if (!idP || !(defaultID = genID(idP)))
-      defaultID = genID(aType != idDynamic);
+   if (idP) defaultID = new XrdSecsssEnt(idP);
+      else  defaultID = genID(isStatic);
 
-// Establish a pointer to this object so that the shared library can use it
-// We only do this once!
+// Establish a pointer to this object.
 //
-   p2i.myP = this;
-   sprintf(buff, XRDSECSSSID"=%lx", p2i.val);
-   putenv(buff);
+   IDMapper = this;
 
 // All done with initialization
 //
-   InitMutex.UnLock();
+   if (isOK) *isOK = true;
+   sssMutex.UnLock();
 }
 
 /******************************************************************************/
-/*                                  F i n d                                   */
+/* Private:                   D e s t r u c t o r                             */
+/******************************************************************************/
+
+XrdSecsssID::~XrdSecsssID() {if (defaultID) free(defaultID);}
+  
+/******************************************************************************/
+/* Private:                         F i n d                                   */
 /******************************************************************************/
   
-int XrdSecsssID::Find(const char *lid, char *Buff, int Blen)
+int XrdSecsssID::Find(const char *lid,  char *&dP,
+                      const char *myIP, int dataOpts)
 {
-   sssID *fP;
-   int rc;
+   XrdSecsssEnt *fP;
+   int n;
 
 // Lock the hash table and find the entry
 //
-   myMutex.Lock();
-   if (!(fP = Registry.Find(lid))) fP = defaultID;
-   if (!fP || fP->iLen > Blen) {myMutex.UnLock(); return 0;}
+   sssMutex.Lock();
+   if (!(fP = Registry.Find(lid)))
+      {if (!(fP = defaultID))
+          {sssMutex.UnLock(); return 0;}
+      }
 
 // Return the data
 //
-   memcpy(Buff, fP->iData, fP->iLen);
-   rc = fP->iLen;
-   myMutex.UnLock();
-   return rc;
-}
-  
-/******************************************************************************/
-/*                                g e t O b j                                 */
-/******************************************************************************/
-  
-XrdSecsssID *XrdSecsssID::getObj(authType &aType, char **dID, int &dIDsz)
-{
-   int freeIDP = 0;
-   sssID *idP;
-   char *eP, *xP;
-   union {long long llval; long lval; XrdSecsssID *idP;} i2p;
-
-// Prevent changes
-//
-   InitMutex.Lock();
-
-// Convert to pointer
-//
-   aType = idStatic;
-   if ((eP = getenv(XRDSECSSSID)) && *eP)
-      {if (sizeof(XrdSecsssID *) > 4) i2p.llval = strtoll(eP, &xP, 16);
-          else                        i2p.lval  = strtol (eP, &xP, 16);
-       if (*xP)                       i2p.idP   = 0;
-          else aType = i2p.idP->myAuth;
-      } else i2p.idP = 0;
-
-// Establish the default ID
-//
-   if (!i2p.idP || !(idP = i2p.idP->defaultID))
-      {idP = genID(aType == idDynamic); freeIDP = 1;}
-
-// Copy out the default id to the caller
-//
-   dIDsz = idP->iLen;
-  *dID = (char *)malloc(dIDsz);
-   memcpy(*dID, idP->iData, dIDsz);
-
-// Return result
-//
-   InitMutex.UnLock();
-   if (freeIDP) free(idP);
-   return i2p.idP;
+   n = fP->RR_Data(dP, myIP, dataOpts);
+   sssMutex.UnLock();
+   return n;
 }
 
 /******************************************************************************/
-/*                              R e g i s t e r                               */
-/******************************************************************************/
-
-int XrdSecsssID::Register(const char *lid, XrdSecEntity *eP, int doRep)
-{
-   sssID *idP;
-   int    rc;
-   int    hOpt = (doRep ? Hash_replace : Hash_default) | Hash_dofree;
-
-// Check if we are simply deleting an entry
-//
-   if (!eP)
-      {myMutex.Lock(); Registry.Del(lid); myMutex.UnLock(); return 1;}
-
-// Generate an ID and add it to registry
-//
-   if (!(idP = genID(eP))) return 0;
-   myMutex.Lock(); 
-   rc = (Registry.Add(lid, idP, 0, XrdOucHash_Options(hOpt)) ? 0 : 1);
-   myMutex.UnLock();
-   return rc;
-}
-
-/******************************************************************************/
-/*                       P r i v a t e   M e t h o d s                        */
-/******************************************************************************/
-/******************************************************************************/
-/*                                 g e n I D                                  */
+/* Private:                        g e n I D                                  */
 /******************************************************************************/
   
-XrdSecsssID::sssID *XrdSecsssID::genID(int Secure)
+XrdSecsssEnt *XrdSecsssID::genID(bool Secure)
 {
    XrdSecEntity   myID("sss");
    static const int pgSz = 256;
@@ -210,45 +166,66 @@ XrdSecsssID::sssID *XrdSecsssID::genID(int Secure)
 
 // Just return the sssID
 //
-   return genID(&myID);
+   return new XrdSecsssEnt(&myID);
+}
+  
+/******************************************************************************/
+/* Private:                       g e t O b j                                 */
+/******************************************************************************/
+  
+XrdSecsssID *XrdSecsssID::getObj(authType &aType, XrdSecsssEnt *&idP)
+{
+   bool sType = false;
+
+// Prevent changes
+//
+   sssMutex.Lock();
+
+// Pick up the settings (we might not have any)
+//
+   if (!IDMapper)
+      {aType = idStatic;
+       sType = true;
+       idP   = 0;
+      } else {
+       aType = IDMapper->myAuth;
+       idP   = IDMapper->defaultID;
+      }
+   if (!idP) idP = genID(sType);
+
+// Return result
+//
+   XrdSecsssID *theMapper = IDMapper;
+   sssMutex.UnLock();
+   return theMapper;
 }
 
 /******************************************************************************/
+/*                              R e g i s t e r                               */
+/******************************************************************************/
 
-XrdSecsssID::sssID *XrdSecsssID::genID(XrdSecEntity *eP)
+bool XrdSecsssID::Register(const char *lid, XrdSecEntity *eP,
+                           bool doRep, bool defer)
 {
-   sssID *idP;
-   char *bP;
-   int tLen;
+   XrdSecsssEnt *idP;
+   int    hOpt = (doRep ? Hash_replace : Hash_default);
+   bool   isOK;
 
-// Calculate the length needed for the entity (4 bytes overhead for each item)
+// If this is an invalid call, return failure
 //
-   tLen = (eP->name         ? strlen(eP->name)         + 4 : 0)
-        + (eP->vorg         ? strlen(eP->vorg)         + 4 : 0)
-        + (eP->role         ? strlen(eP->role)         + 4 : 0)
-        + (eP->grps         ? strlen(eP->grps)         + 4 : 0)
-        + (eP->endorsements ? strlen(eP->endorsements) + 4 : 0);
+   if (!defaultID) return false;
 
-// If no identity information, return failure otherwise allocate a struct
+// Check if we are simply deleting an entry
 //
-   if (!tLen || !(idP = (sssID *)malloc(tLen + sizeof(sssID)))) return 0;
+   if (!eP)
+      {sssMutex.Lock(); Registry.Del(lid); sssMutex.UnLock(); return true;}
 
-// Now stick each entry into the iData field
+// Generate an ID and add it to registry
 //
-   bP = idP->iData;
-   if (eP->name)
-      {*bP++ = XrdSecsssRR_Data::theName; XrdOucPup::Pack(&bP,eP->name);}
-   if (eP->vorg)
-      {*bP++ = XrdSecsssRR_Data::theVorg; XrdOucPup::Pack(&bP,eP->vorg);}
-   if (eP->role)
-      {*bP++ = XrdSecsssRR_Data::theRole; XrdOucPup::Pack(&bP,eP->role);}
-   if (eP->grps)
-      {*bP++ = XrdSecsssRR_Data::theGrps; XrdOucPup::Pack(&bP,eP->grps);}
-   if (eP->endorsements)
-      {*bP++ = XrdSecsssRR_Data::theEndo; XrdOucPup::Pack(&bP,eP->endorsements);}
-   idP->iLen = bP - (idP->iData);
-
-// All done
-//
-   return idP;
+   idP = new XrdSecsssEnt(eP, defer);
+   sssMutex.Lock(); 
+   isOK = (Registry.Add(lid, idP, 0, XrdOucHash_Options(hOpt)) ? false : true);
+   sssMutex.UnLock();
+   if (!isOK) delete idP;
+   return isOK;
 }

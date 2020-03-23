@@ -835,10 +835,8 @@ int            XrdOfsFile::fctl(const int               cmd,
 
 /******************************************************************************/
 
-int            XrdOfsFile::fctl(const int               cmd,
-                                      int               alen,
-                                const char             *args,
-                                const XrdSecEntity     *client)
+int XrdOfsFile::fctl(const int cmd, int alen, const char *args,
+                     const XrdSecEntity *client)
 {                             // 12345678901234
    static const char *fctlArg = "ofs.tpc cancel";
    static const int   fctlAsz = 15;
@@ -846,9 +844,7 @@ int            XrdOfsFile::fctl(const int               cmd,
 // See if the is a tpc cancellation (the only thing we support here)
 //
    if (cmd != SFS_FCTL_SPEC1 || !args || alen < fctlAsz || strcmp(fctlArg,args))
-      {error.setErrInfo(ENOTSUP, "fctl operation not supported");
-       return SFS_ERROR;
-      }
+      return XrdOfsFS->FSctl(*this, cmd, alen, args, client);
 
 // Check if we have a tpc operation in progress
 //

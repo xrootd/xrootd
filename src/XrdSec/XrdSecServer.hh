@@ -36,7 +36,9 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecPManager.hh"
 
+class XrdSecPinInfo;
 class XrdSecProtBind;
+class XrdSecSecEntityPin;
 class XrdOucTrace;
 class XrdNetAddrInfo;
   
@@ -52,9 +54,14 @@ const char             *getParms(int &size, XrdNetAddrInfo *endPoint=0);
 XrdSecProtocol         *getProtocol(const char              *host,    // In
                                     XrdNetAddrInfo          &endPoint,// In
                                     const XrdSecCredentials *cred,    // In
-                                    XrdOucErrInfo           *einfo=0);// Out
+                                    XrdOucErrInfo           &einfo);  // Out
+
+bool                    PostProcess(XrdSecEntity  &entity,
+                                    XrdOucErrInfo &einfo);
 
 int                     Configure(const char *cfn);
+
+const char             *protTLS() {return PManager.protTLS();}
 
                         XrdSecServer(XrdSysLogger *lp);
                        ~XrdSecServer() {}      // Server is never deleted
@@ -63,21 +70,26 @@ private:
 
 static XrdSecPManager  PManager;
 
-XrdSysError     eDest;
-XrdOucTrace    *SecTrace;
-XrdSecProtBind *bpFirst;
-XrdSecProtBind *bpLast;
-XrdSecProtBind *bpDefault;
-char           *SToken;
-char           *STBuff;
-int             STBlen;
-int             Enforce;
-int             implauth;
+union {XrdSecPinInfo *pinInfo; XrdSecEntityPin *secEntityPin;};
+
+XrdSysError     eDest;      // Error message object
+const char     *configFN;   // -> Configuration file
+XrdOucTrace    *SecTrace;   // -> Tracing object
+XrdSecProtBind *bpFirst;    // -> First bound protocol
+XrdSecProtBind *bpLast;     // -> Last  bound protocol
+XrdSecProtBind *bpDefault;  // -> Default binding
+char           *pidList;    // -> List of colon separated defined protocols
+char           *SToken;     // -> Security token sent to client
+char           *STBuff;     // -> Buffer used to construct SToken
+int             STBlen;     // -> Length of the buffer
+bool            Enforce;    // True if binding must be enforced
+bool            implauth;   // True if host protocol is implicitly activated
 
 int             add2token(XrdSysError &erp,char *,char **,int &,XrdSecPMask_t &);
 int             ConfigFile(const char *cfn);
 int             ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute);
 int             ProtBind_Complete(XrdSysError &Eroute);
+int             xenlib(XrdOucStream &Config, XrdSysError &Eroute);
 int             xlevel(XrdOucStream &Config, XrdSysError &Eroute);
 int             xpbind(XrdOucStream &Config, XrdSysError &Eroute);
 int             xpparm(XrdOucStream &Config, XrdSysError &Eroute);

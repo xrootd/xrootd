@@ -56,6 +56,10 @@ static char *genPath(const char *path, const char *inst, const char *psfx=0);
 
 static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);
 
+static bool  getGID(const char *gName, gid_t &gID);
+
+static bool  getUID(const char *uName, uid_t &uID, gid_t *gID=0);
+
 static int   GidName(gid_t gID, char *gName, int gNsz, time_t keepT=0);
 
 static int   GroupName(gid_t gID, char *gName, int gNsz);
@@ -90,6 +94,8 @@ static bool  parseLib(XrdSysError &eDest, XrdOucStream &Config,
 static char *parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode);
 
 static int   ReLink(const char *path, const char *target, mode_t mode=0);
+
+static void  Sanitize(char *instr, char subc='_');
  
 static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 

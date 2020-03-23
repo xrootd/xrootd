@@ -341,6 +341,40 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
 }
 
 /******************************************************************************/
+/*                                g e t G I D                                 */
+/******************************************************************************/
+  
+bool XrdOucUtils::getGID(const char *gName, gid_t &gID)
+{
+   struct group Grp, *result;
+   char buff[65536];
+
+   getgrnam_r(gName, &Grp, buff, sizeof(buff), &result);
+   if (!result) return false;
+
+   gID = Grp.gr_gid;
+   return true;
+}
+
+/******************************************************************************/
+/*                                g e t U I D                                 */
+/******************************************************************************/
+  
+bool XrdOucUtils::getUID(const char *uName, uid_t &uID, gid_t *gID)
+{
+   struct passwd pwd, *result;
+   char buff[16384];
+
+   getpwnam_r(uName, &pwd, buff, sizeof(buff), &result);
+   if (!result) return false;
+
+   uID = pwd.pw_uid;
+   if (gID) *gID = pwd.pw_gid;
+
+   return true;
+}
+  
+/******************************************************************************/
 /*                               G i d N a m e                                */
 /******************************************************************************/
   
@@ -766,6 +800,26 @@ int XrdOucUtils::ReLink(const char *path, const char *target, mode_t mode)
    makePath(pbuff, (mode ? mode : AMode));
    if (symlink(target, path)) return errno;
    return 0;
+}
+
+/******************************************************************************/
+/*                              S a n i t i z e                               */
+/******************************************************************************/
+
+void XrdOucUtils::Sanitize(char *str, char subc)
+{
+
+// Sanitize string according to POSIX.1-2008 stanadard using only the
+// Portable Filename Character Set: a-z A-Z 0-9 ._- with 1st char not being -
+//
+   if (*str)
+      {if (*str == '-') *str = subc;
+       str++;
+       while(*str)
+            {if (!isalnum(*str) && index("_-.", *str) == 0) *str = subc;
+             str++;
+            }
+      }
 }
 
 /******************************************************************************/

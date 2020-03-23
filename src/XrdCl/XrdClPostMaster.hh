@@ -213,7 +213,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnConnectHandler( const URL &url,
+      void SetOnDataConnectHandler( const URL &url,
                                 Job       *onConnJob );
 
     private:

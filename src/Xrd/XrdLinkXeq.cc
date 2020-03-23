@@ -108,11 +108,9 @@ XrdLinkXeq::XrdLinkXeq() : XrdLink(*this), PollInfo((XrdLink *)this)
 
 void XrdLinkXeq::Reset()
 {
-   Uname[sizeof(Uname)-1] = '@';
-   Uname[sizeof(Uname)-2] = '?';
-   Lname[0] = '?';
-   Lname[1] = '\0';
-   ID       = &Uname[sizeof(Uname)-2];
+   memcpy(Uname+sizeof(Uname)-5, "anon@", 5);
+   strcpy(Lname, "somewhere");
+   ID       = &Uname[sizeof(Uname)-5];
    sendQ    = 0;
    stallCnt = stallCntTot = 0;
    tardyCnt = tardyCntTot = 0;

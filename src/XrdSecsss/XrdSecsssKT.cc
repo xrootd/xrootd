@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <fcntl.h>
+#include <iostream>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -43,7 +44,6 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
-#include "XrdSys/XrdSysHeaders.hh"
   
 /******************************************************************************/
 /*                    S t a t i c   D e f i n i t i o n s                     */
@@ -200,7 +200,7 @@ int XrdSecsssKT::delKey(ktEnt &ktDel)
 /*                                g e t K e y                                 */
 /******************************************************************************/
   
-int XrdSecsssKT::getKey(ktEnt &theEnt)
+int XrdSecsssKT::getKey(ktEnt &theEnt, bool andKeyID)
 {
    ktEnt *ktP, *ktN;
 
@@ -209,19 +209,23 @@ int XrdSecsssKT::getKey(ktEnt &theEnt)
    myMutex.Lock();
    ktP = ktList;
 
-// Find first key by key name (used normally by clients) or by keyID
+// Find first key by key name (used normally by clients), by keyID, or both
 //
-   if (!*theEnt.Data.Name)
-      {if (theEnt.Data.ID >= 0) 
-          while(ktP && ktP->Data.ID != theEnt.Data.ID)  ktP = ktP->Next;
-      }
-      else {while(ktP && strcmp(ktP->Data.Name,theEnt.Data.Name)) ktP=ktP->Next;
-            while(ktP && ktP->Data.Exp <= time(0))
-                 {if (!(ktN=ktP->Next) 
-                  ||  strcmp(ktN->Data.Name,theEnt.Data.Name)) break;
-                  ktP = ktN;
-                 }
-           }
+     if (!*theEnt.Data.Name)
+        {if (theEnt.Data.ID >= 0)
+            while(ktP && ktP->Data.ID != theEnt.Data.ID)  ktP = ktP->Next;
+        }
+   else if (andKeyID)
+        {while((ktP && ktP->Data.ID != theEnt.Data.ID)
+            || strcmp(ktP->Data.Name,theEnt.Data.Name)) ktP=ktP->Next;
+        }
+   else {while(ktP && strcmp(ktP->Data.Name,theEnt.Data.Name)) ktP=ktP->Next;
+         while(ktP && ktP->Data.Exp <= time(0))
+              {if (!(ktN=ktP->Next) 
+               ||  strcmp(ktN->Data.Name,theEnt.Data.Name)) break;
+               ktP = ktN;
+              }
+        }
 
 // If we found a match, export it
 //
@@ -399,13 +403,13 @@ int XrdSecsssKT::eMsg(const char *epname, int rc,
                       const char *txt1, const char *txt2,
                       const char *txt3, const char *txt4)
 {
-              cerr <<"Secsss (" << epname <<"): ";
-              cerr <<txt1;
-   if (txt2)  cerr <<txt2;
-   if (txt3)  cerr <<txt3;
-   if (txt4)  cerr <<txt4;
-  {if (rc>0) {cerr <<"; " <<XrdSysE2T(rc);}}
-              cerr <<endl;
+              std::cerr <<"Secsss (" << epname <<"): ";
+              std::cerr <<txt1;
+   if (txt2)  std::cerr <<txt2;
+   if (txt3)  std::cerr <<txt3;
+   if (txt4)  std::cerr <<txt4;
+  {if (rc>0) {std::cerr <<"; " <<XrdSysE2T(rc);}}
+              std::cerr <<"\n" <<std::endl;
 
    return (rc ? (rc < 0 ? rc : -rc) : -1);
 }
@@ -682,6 +686,8 @@ while((tp = kTab.GetToken()) && !Prob)
               ktNew->Data.Opts|=ktEnt::usrGRP;
    if (!strcmp(ktNew->Data.User, "anybody"))
       ktNew->Data.Opts|=ktEnt::anyUSR;
+      else if (!strcmp(ktNew->Data.User, "allusers"))
+              ktNew->Data.Opts|=ktEnt::allUSR;
 
 // All done
 //

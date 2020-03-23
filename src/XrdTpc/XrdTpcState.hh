@@ -61,6 +61,8 @@ public:
 
     int GetStatusCode() const {return m_status_code;}
 
+    std::string GetErrorMessage() const {return m_error_buf;}
+
     void ResetAfterRequest();
 
     CURL *GetHandle() const {return m_curl;}
@@ -90,6 +92,12 @@ public:
     // not all buffers have been reordered by the underlying stream.
     bool Finalize();
 
+    // Retrieve the description of the remote connection; is of the form:
+    //   tcp:129.93.3.4:1234
+    //   tcp:[2600:900:6:1301:268a:7ff:fef6:a590]:2345
+    // This is meant to facilitate the monitoring via the performance markers.
+    std::string GetConnectionDescription();
+
 private:
     bool InstallHandlers(CURL *curl);
 
@@ -118,6 +126,7 @@ private:
     struct curl_slist *m_headers; // any headers we set as part of the libcurl request.
     std::vector<std::string> m_headers_copy; // Copies of custom headers.
     std::string m_resp_protocol;  // Response protocol in the HTTP status line.
+    std::string m_error_buf;  // Any error associated with a response.
 };
 
 };

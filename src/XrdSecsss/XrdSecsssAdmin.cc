@@ -29,6 +29,7 @@
 /******************************************************************************/
   
 #include <ctype.h>
+#include <iostream>
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,7 +41,6 @@
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysE2T.hh"
-#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -50,7 +50,7 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define eMsg(x) cerr <<XrdpgmName <<": " <<x << endl
+#define eMsg(x) std::cerr <<XrdpgmName <<": " <<x << std::endl
 
 struct XrdsecsssAdmin_Opts
       {XrdSecsssKT *kTab;
@@ -235,8 +235,8 @@ int isNo(int dflt, const char *Msg1, const char *Msg2, const char *Msg3)
 {
    char Answer[8];
 
-   cerr <<XrdpgmName <<": " <<Msg1 <<Msg2 <<Msg3;
-   cin.getline(Answer, sizeof(Answer));
+   std::cerr <<XrdpgmName <<": " <<Msg1 <<Msg2 <<Msg3;
+   std::cin.getline(Answer, sizeof(Answer));
    if (!*Answer) return dflt;
 
    if (!strcmp("y",Answer) || !strcmp("ye",Answer) || !strcmp("yes",Answer))
@@ -257,10 +257,10 @@ void Usage(int rc, const char *opn, const char *opv)
           else  eMsg(opn <<" argument not specified.");
       }
 
-cerr <<"\nUsage:   " <<XrdpgmName <<" [options] action\n";
-cerr <<"\nOptions: [-d] [-g grpname] [-h hold] [-k keyname] [-l keylen] [-n keynum]";
-cerr <<"\n         [-s {c|g|k|n|u|x}] [-u usrname] [-x {days | mm/dd/yy}]" <<endl;
-cerr <<"\nActions: {add | del | install | list} [keyfn]" <<endl;
+std::cerr <<"\nUsage:   " <<XrdpgmName <<" [options] action\n";
+std::cerr <<"\nOptions: [-d] [-g grpname] [-h hold] [-k keyname] [-l keylen] [-n keynum]";
+std::cerr <<"\n         [-s {c|g|k|n|u|x}] [-u usrname] [-x {days | mm/dd/yy}]" <<std::endl;
+std::cerr <<"\nActions: {add | del | install | list} [keyfn]" <<std::endl;
 exit(rc);
 }
 
@@ -507,13 +507,13 @@ int  XrdSecsssAdmin_lstKey(XrdsecsssAdmin_Opts &Opt)
    ktP = ktSort;
    while(ktP)
         {if (XrdSecsssAdmin_isKey(Opt, ktP))
-            {if (pHdr) {cout <<Hdr1 <<Hdr2; pHdr = 0;}
+            {if (pHdr) {std::cout <<Hdr1 <<Hdr2; pHdr = 0;}
              sprintf(buff, "%11lld %3d ", (ktP->Data.ID & 0x7fffffff), ktP->Data.Len);
              strftime(crbuff, sizeof(crbuff), crfmt, localtime(&ktP->Data.Crt));
              if (!ktP->Data.Exp) strcpy(exbuff, "--------");
                 else strftime(exbuff,sizeof(exbuff),exfmt,localtime(&ktP->Data.Exp));
-             cout <<buff <<crbuff <<' ' <<exbuff <<' ' <<ktP->Data.Name <<' '
-                  <<ktP->Data.User <<' ' <<ktP->Data.Grup <<endl;
+             std::cout <<buff <<crbuff <<' ' <<exbuff <<' ' <<ktP->Data.Name <<' '
+                       <<ktP->Data.User <<' ' <<ktP->Data.Grup <<std::endl;
             }
          ktP = ktP->Next;
         }
