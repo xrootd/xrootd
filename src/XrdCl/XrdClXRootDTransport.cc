@@ -1799,7 +1799,7 @@ namespace XrdCl
       if( !XrdOucUtils::UserName( geteuid(), name, 1024 ) )
 	buffer = name;
       else
-	buffer = "????";
+	buffer = "_anon_";
       delete [] name;
     }
     buffer.resize( 8, 0 );
