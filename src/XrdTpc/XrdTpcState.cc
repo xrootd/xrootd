@@ -262,3 +262,27 @@ bool State::Finalize()
     return m_stream->Finalize();
 }
 
+std::string State::GetConnectionDescription()
+{
+    char *curl_ip = NULL;
+    CURLcode rc = curl_easy_getinfo(m_curl, CURLINFO_PRIMARY_IP, &curl_ip);
+    if ((rc != CURLE_OK) || !curl_ip) {
+        return "";
+    }
+    long curl_port = 0;
+    rc = curl_easy_getinfo(m_curl, CURLINFO_PRIMARY_PORT, &curl_port);
+    if ((rc != CURLE_OK) || !curl_port) {
+        return "";
+    }
+    std::stringstream ss;
+    // libcurl returns IPv6 addresses of the form:
+    //    2600:900:6:1301:5054:ff:fe0b:9cba:8000
+    // However the HTTP-TPC spec says to use the form
+    //   [2600:900:6:1301:5054:ff:fe0b:9cba:8000]
+    // Hence, we add '[' and ']' whenever a ':' is seen.
+    if (NULL == strchr(curl_ip, ':'))
+        ss << "tcp:" << curl_ip << ":" << curl_port;
+    else
+        ss << "tcp:[" << curl_ip << "]:" << curl_port;
+    return ss.str();
+}

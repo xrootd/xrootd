@@ -264,7 +264,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
-            if (SendPerfMarker(req, current_offset)) {
+            if (SendPerfMarker(req, handles, current_offset)) {
                 return -1;
             }
             last_marker = now;
