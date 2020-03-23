@@ -7,6 +7,7 @@
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
