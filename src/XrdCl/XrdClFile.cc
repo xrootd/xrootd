@@ -222,7 +222,7 @@ namespace XrdCl
   // Read number of pages at a given offset - async
   //------------------------------------------------------------------------
   XRootDStatus File::PgRead( uint64_t         offset,
-                             uint32_t         nbpgs,
+                             uint32_t         size,
                              void            *buffer,
                              ResponseHandler *handler,
                              uint16_t         timeout )
@@ -234,7 +234,7 @@ namespace XrdCl
   // Read number of pages at a given offset - async
   //------------------------------------------------------------------------
   XRootDStatus File::PgRead( uint64_t               offset,
-                             uint32_t               nbpgs,
+                             uint32_t               size,
                              void                  *buffer,
                              uint32_t              &bytesRead,
                              std::vector<uint32_t> &chsums,
@@ -279,7 +279,7 @@ namespace XrdCl
   // Write number of pages at a given offset - async
   //------------------------------------------------------------------------
   XRootDStatus File::PgWrite( uint64_t               offset,
-                              uint32_t               nbpgs,
+                              uint32_t               size,
                               const void            *buffer,
                               std::vector<uint32_t> &chsums,
                               ResponseHandler       *handler,
@@ -292,7 +292,7 @@ namespace XrdCl
   // Write number of pages at a given offset - sync
   //------------------------------------------------------------------------
   XRootDStatus File::PgWrite( uint64_t               offset,
-                              uint32_t               nbpgs,
+                              uint32_t               size,
                               const void            *buffer,
                               std::vector<uint32_t> &chsums,
                               uint16_t               timeout )

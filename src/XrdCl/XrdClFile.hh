@@ -195,7 +195,7 @@ namespace XrdCl
       //! Read number of pages at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file
-      //! @param nbpgs   number of 4KB pages to be read
+      //! @param size    buffer size, at least 1 page big (4KB)
       //! @param buffer  a pointer to a buffer big enough to hold the data
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a PgReadInfo object if
@@ -205,7 +205,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus PgRead( uint64_t         offset,
-                           uint32_t         nbpgs,
+                           uint32_t         size,
                            void            *buffer,
                            ResponseHandler *handler,
                            uint16_t         timeout = 0 )
@@ -215,7 +215,7 @@ namespace XrdCl
       //! Read a data chunk at a given offset - sync
       //!
       //! @param offset    offset from the beginning of the file
-      //! @param size      number of bytes to be read
+      //! @param size    buffer size, at least 1 page big (4KB)
       //! @param buffer    a pointer to a buffer big enough to hold the data
       //! @param bytesRead number of bytes actually read
       //! @param chsums    crc32c checksum for each read 4KB page
@@ -224,7 +224,7 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus PgRead( uint64_t               offset,
-                           uint32_t               nbpgs,
+                           uint32_t               size,
                            void                  *buffer,
                            uint32_t              &bytesRead,
                            std::vector<uint32_t> &chsums,
@@ -276,8 +276,8 @@ namespace XrdCl
       //! Write number of pages at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file
-      //! @param nbpgs   number of 4KB pages to be written
-      //! @param buffer  a pointer to a buffer big enough to hold the data
+      //! @param size    buffer size
+      //! @param buffer  a pointer to a buffer holding data pages
       //! @param chsums  the crc32c checksums for each 4KB page
       //! @param handler handler to be notified when the response arrives
       //! @param timeout timeout value, if 0 the environment default will be
@@ -285,7 +285,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus PgWrite( uint64_t               offset,
-                            uint32_t               nbpgs,
+                            uint32_t               size,
                             const void            *buffer,
                             std::vector<uint32_t> &chsums,
                             ResponseHandler       *handler,
@@ -296,15 +296,15 @@ namespace XrdCl
       //! Write number of pages at a given offset - sync
       //!
       //! @param offset  offset from the beginning of the file
-      //! @param nbpgs   number of 4KB pages to be written
-      //! @param buffer  a pointer to a buffer big enough to hold the data
+      //! @param size    buffer size
+      //! @param buffer  a pointer to a buffer holding data pages
       //! @param chsums  the crc32c checksums for each 4KB page
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus PgWrite( uint64_t               offset,
-                            uint32_t               nbpgs,
+                            uint32_t               size,
                             const void            *buffer,
                             std::vector<uint32_t> &chsums,
                             uint16_t               timeout = 0 )
