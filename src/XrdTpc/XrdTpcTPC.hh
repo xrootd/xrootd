@@ -38,14 +38,22 @@ public:
 private:
 
     struct TPCLogRecord {
+
+        TPCLogRecord() : status( -1 ),
+                         tpc_status(-1),
+                         streams( 1 ),
+                         bytes_transferred( -1 )
+        {
+        }
+
         std::string log_prefix;
         std::string local;
         std::string remote;
         std::string name;
-        int status{-1};
-        int tpc_status{-1};
-        unsigned streams{1};
-        off_t bytes_transferred{-1};
+        int status;
+        int tpc_status;
+        unsigned streams;
+        off_t bytes_transferred;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);
