@@ -17,6 +17,8 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
 {
     XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), myEnv, "=====> ");
 
+    m_log.setMsgMask(LogMask::Info | LogMask::Warning | LogMask::Error);
+
     std::string authLib;
     std::string authLibParms;
     int cfgFD = open(configfn, O_RDONLY, 0);
@@ -51,6 +53,11 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 return false;
             }
             m_cadir = val;
+        } else if (!strcmp("tpc.trace", val)) {
+            if (!ConfigureLogger(Config)) {
+                Config.Close();
+                return false;
+            }
         }
     }
     Config.Close();
@@ -64,5 +71,52 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
         m_log.Emsg("Config", "No filesystem object available to HTTP-TPC subsystem.  Internal error.");
         return false;
     }
+    return true;
+}
+
+bool TPCHandler::ConfigureLogger(XrdOucStream &config_obj)
+{
+    char *val = config_obj.GetWord();
+    if (!val || !val[0])
+    {   
+        m_log.Emsg("Config", "tpc.trace requires at least one directive [all | error | warning | info | debug | none]");
+        return false;
+    }
+    // If the config option is given, reset the log mask.
+    m_log.setMsgMask(0);
+    
+    do {
+        if (!strcasecmp(val, "all"))
+        {   
+            m_log.setMsgMask(m_log.getMsgMask() | LogMask::All);
+        }
+        else if (!strcasecmp(val, "error"))
+        {   
+            m_log.setMsgMask(m_log.getMsgMask() | LogMask::Error);
+        }
+        else if (!strcasecmp(val, "warning"))
+        {   
+            m_log.setMsgMask(m_log.getMsgMask() | LogMask::Warning);
+        }
+        else if (!strcasecmp(val, "info"))
+        {   
+            m_log.setMsgMask(m_log.getMsgMask() | LogMask::Info);
+        }
+        else if (!strcasecmp(val, "debug"))
+        {   
+            m_log.setMsgMask(m_log.getMsgMask() | LogMask::Debug);
+        }
+        else if (!strcasecmp(val, "none"))
+        {   
+            m_log.setMsgMask(0);
+        }
+        else
+        {   
+            m_log.Emsg("Config", "tpc.trace encountered an unknown directive (valid values: [all | error | warning | info | debug | none]):", val);
+            return false;
+        }
+        val = config_obj.GetWord();
+    } while (val);
+    
     return true;
 }
