@@ -730,8 +730,8 @@ namespace
 
         };
 
-        OnConnJob *callback = new OnConnJob( this, reader );
-        XrdCl::DefaultEnv::GetPostMaster()->SetOnDataConnectHandler( pDataServer, callback );
+        std::unique_ptr<OnConnJob> callback( new OnConnJob( this, reader ) );
+        XrdCl::DefaultEnv::GetPostMaster()->SetOnDataConnectHandler( pDataServer, std::move( callback ) );
       }
 
       //------------------------------------------------------------------------

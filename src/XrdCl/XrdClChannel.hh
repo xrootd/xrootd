@@ -169,7 +169,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnDataConnectHandler( Job *onConnJob );
+      void SetOnDataConnectHandler( std::unique_ptr<Job> onConnJob );
 
     private:
 

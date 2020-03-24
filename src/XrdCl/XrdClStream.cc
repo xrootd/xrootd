@@ -123,8 +123,7 @@ namespace XrdCl
     pSessionId( 0 ),
     pQueueIncMsgJob(0),
     pBytesSent( 0 ),
-    pBytesReceived( 0 ),
-    pOnDataConnJob( 0 )
+    pBytesReceived( 0 )
   {
     pConnectionStarted.tv_sec = 0; pConnectionStarted.tv_usec = 0;
     pConnectionDone.tv_sec = 0;    pConnectionDone.tv_usec = 0;
@@ -170,7 +169,6 @@ namespace XrdCl
       delete *it;
 
     delete pQueueIncMsgJob;
-    delete pOnDataConnJob;
   }
 
   //----------------------------------------------------------------------------
@@ -641,7 +639,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // For every connected data-stream call the on-connect handler
       //------------------------------------------------------------------------
-      pJobManager->QueueJob( pOnDataConnJob, 0 );
+      pJobManager->QueueJob( pOnDataConnJob.get(), 0 );
     }
   }
 

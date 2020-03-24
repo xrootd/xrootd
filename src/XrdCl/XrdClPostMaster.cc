@@ -345,11 +345,11 @@ namespace XrdCl
   //! Set the on-connect handler for data streams
   //------------------------------------------------------------------------
   void PostMaster::SetOnDataConnectHandler( const URL &url,
-                                        Job       *onConnJob )
+                                            std::unique_ptr<Job> onConnJob )
   {
     Channel *channel = GetChannel( url );
     if( !channel ) return;
-    channel->SetOnDataConnectHandler( onConnJob );
+    channel->SetOnDataConnectHandler( std::move( onConnJob ) );
   }
 
   //----------------------------------------------------------------------------
