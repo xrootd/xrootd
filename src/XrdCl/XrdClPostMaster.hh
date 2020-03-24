@@ -213,6 +213,16 @@ namespace XrdCl
       void SetOnDataConnectHandler( const URL &url,
                                     std::unique_ptr<Job> onConnJob );
 
+      //------------------------------------------------------------------------
+      //! Set the global on-connect handler for control streams
+      //------------------------------------------------------------------------
+      void SetOnConnectHandler( std::unique_ptr<Job> onConnJob );
+
+      //------------------------------------------------------------------------
+      //! Notify the global on-connect handler
+      //------------------------------------------------------------------------
+      void NotifyConnectHandler( const URL &url );
+
     private:
       Channel *GetChannel( const URL &url );
 

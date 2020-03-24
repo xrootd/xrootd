@@ -31,6 +31,8 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 
+#include "XrdSys/XrdSysPthread.hh"
+
 namespace XrdCl
 {
   struct PostMasterImpl
@@ -53,12 +55,16 @@ namespace XrdCl
     }
 
     typedef std::map<std::string, Channel*> ChannelMap;
-    Poller           *pPoller;
-    TaskManager      *pTaskManager;
-    ChannelMap        pChannelMap;
-    XrdSysMutex       pChannelMapMutex;
-    bool              pInitialized;
-    JobManager       *pJobManager;
+
+    Poller               *pPoller;
+    TaskManager          *pTaskManager;
+    ChannelMap            pChannelMap;
+    XrdSysMutex           pChannelMapMutex;
+    bool                  pInitialized;
+    JobManager           *pJobManager;
+
+    XrdSysMutex           pMtx;
+    std::unique_ptr<Job>  pOnConnJob;
   };
 
   //----------------------------------------------------------------------------
@@ -350,6 +356,28 @@ namespace XrdCl
     Channel *channel = GetChannel( url );
     if( !channel ) return;
     channel->SetOnDataConnectHandler( std::move( onConnJob ) );
+  }
+
+  //------------------------------------------------------------------------
+  //! Set the global on-connect handler for control streams
+  //------------------------------------------------------------------------
+  void PostMaster::SetOnConnectHandler( std::unique_ptr<Job> onConnJob )
+  {
+    XrdSysMutexHelper lck( pImpl->pMtx );
+    pImpl->pOnConnJob = std::move( onConnJob );
+  }
+
+  //------------------------------------------------------------------------
+  //! Notify the global on-connect handler
+  //------------------------------------------------------------------------
+  void PostMaster::NotifyConnectHandler( const URL &url )
+  {
+    XrdSysMutexHelper lck( pImpl->pMtx );
+    if( pImpl->pOnConnJob )
+    {
+      URL *ptr = new URL( url );
+      pImpl->pJobManager->QueueJob( pImpl->pOnConnJob.get(), ptr );
+    }
   }
 
   //----------------------------------------------------------------------------

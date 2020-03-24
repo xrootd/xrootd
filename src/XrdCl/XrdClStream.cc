@@ -633,6 +633,11 @@ namespace XrdCl
         delete qryResponse;
         mon->Event( Monitor::EvConnect, &i );
       }
+
+      //------------------------------------------------------------------------
+      // For every connected control-stream call the global on-connect handler
+      //------------------------------------------------------------------------
+      XrdCl::DefaultEnv::GetPostMaster()->NotifyConnectHandler( *pUrl );
     }
     else if( pOnDataConnJob )
     {
