@@ -2146,7 +2146,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     XrdNetAddr &srvAddrInfo = *const_cast<XrdNetAddr *>(hsData->serverAddr);
     if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
-        ( info->serverFlags & kXR_tlsLogin ) || ( info->serverFlags & kXR_tlsSess ) )
+        ( info->serverFlags & kXR_tlsLogin ) )
       srvAddrInfo.SetTLS( true );
     while(1)
     {
