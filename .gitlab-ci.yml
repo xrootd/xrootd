@@ -755,7 +755,7 @@ publish:koji:centos8:
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos8 centos-8-x86_64/SRPMS/*.src.rpm ; fi
+    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos8 centos-8-x86_64/SRPMS/*.src.rpm ; else stat centos-8-x86_64/SRPMS/*.src.rpm ; fi
   tags:
     - docker_node
   dependencies:
@@ -774,7 +774,7 @@ publish:koji:cc7:
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos7 cc-7-x86_64/SRPMS/*.src.rpm ; fi
+    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos7 cc-7-x86_64/SRPMS/*.src.rpm ; else stat cc-7-x86_64/SRPMS/*.src.rpm ; fi
   tags:
     - docker_node
   dependencies:
@@ -793,7 +793,7 @@ publish:koji:slc6:
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos6 slc-6-x86_64/SRPMS/*.src.rpm ; fi
+    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos6 slc-6-x86_64/SRPMS/*.src.rpm ; else stat slc-6-x86_64/SRPMS/*.src.rpm ; fi
   tags:
     - docker_node
   dependencies:
