@@ -84,6 +84,16 @@ Description: This package contains libraries used by xrootd clients.
              installation of dependencies 
 
 #------------------------------------------------------------------------------
+# XRootD client plug-ins
+#------------------------------------------------------------------------------
+Package: xrootd-client-plugins
+Architecture: any
+Section: net
+Depends: ${shlibs:Depends}
+Conflicts: xrootd-client-plugins  (<<${binary:Version})
+Description: This package contains additional plugins used by the client. 
+
+#------------------------------------------------------------------------------
 # XRootD client development files (compatibility)
 #------------------------------------------------------------------------------
 Package: xrootd-client-devel
