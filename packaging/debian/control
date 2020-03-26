@@ -14,11 +14,11 @@ Vcs-Browser: https://github.com/xrootd/xrootd
 Package: xrootd-libs
 Architecture: any
 Section: libs
-Depends: libxrdapputils1        (=${binary:Version}), # xrootd-libs
-         libxrdcrypto1          (=${binary:Version}), # xrootd-libs
-         libxrdcryptolite1      (=${binary:Version}), # xrootd-libs
-	     libxrdutils2           (=${binary:Version}), # xrootd-libs
- 		 libxrdxml2             (=${binary:Version}), # xrootd-libs
+Depends: libxrdapputils1        (=${binary:Version}),
+         libxrdcrypto1          (=${binary:Version}),
+         libxrdcryptolite1      (=${binary:Version}),
+	     libxrdutils2           (=${binary:Version}),
+ 		 libxrdxml2             (=${binary:Version}),
 		 xrootd-plugins         (=${binary:Version})
 Conflicts: xrootd-libs          (<<${binary:Version})
 Description: This package contains libraries used by the xrootd servers and 
@@ -58,11 +58,11 @@ Description: This package contains header files and development libraries for
 Package: libxrootd-dev
 Architecture: any
 Section: libdevel
-Depends: libxrdapputils1    (=${binary:Version}), # xrootd-libs
-         libxrdcrypto1      (=${binary:Version}), # xrootd-libs
-         libxrdcryptolite1  (=${binary:Version}), # xrootd-libs
-	     libxrdutils2       (=${binary:Version}), # xrootd-libs
- 		 libxrdxml2         (=${binary:Version}), # xrootd-libs
+Depends: libxrdapputils1    (=${binary:Version}),
+         libxrdcrypto1      (=${binary:Version}),
+         libxrdcryptolite1  (=${binary:Version}),
+	     libxrdutils2       (=${binary:Version}),
+ 		 libxrdxml2         (=${binary:Version}),
 Conflicts: xrootd-devel     (<<${binary:Version})
 Description: This package contains header files and development libraries for 
              xrootd development.
@@ -72,9 +72,9 @@ Description: This package contains header files and development libraries for
 #------------------------------------------------------------------------------
 Package: xrootd-client-libs
 Architecture: any
-Depends: libxrdcl2              (=${binary:Version}), # xrootd-client-libs
-         libxrdffs2             (=${binary:Version}), # xrootd-client-libs
-         libxrdposix2           (=${binary:Version}), # xrootd-client-libs
+Depends: libxrdcl2              (=${binary:Version}),
+         libxrdffs2             (=${binary:Version}),
+         libxrdposix2           (=${binary:Version}),
          xrootd-client-plugins  (=${binary:Version}),
          xrootd-libs            (=${binary:Version})
 Conflicts: xrootd-client-libs   (<<${binary:Version})
@@ -105,9 +105,9 @@ Architecture: any
 Section: libdevel
 Depends: ${shlibs:Depends}, 
          libxrootd-dev (=${binary:Version}),
-         libxrdcl2     (=${binary:Version}), # xrootd-client-libs
-         libxrdffs2    (=${binary:Version}), # xrootd-client-libs
-         libxrdposix2  (=${binary:Version})  # xrootd-client-libs
+         libxrdcl2     (=${binary:Version}),
+         libxrdffs2    (=${binary:Version}),
+         libxrdposix2  (=${binary:Version})
 Conflicts: xrootd-client-devel (<<${binary:Version})
 Description: This package contains header files and development libraries for 
              xrootd client development.
@@ -183,11 +183,11 @@ Description: This package contains some private XRootd headers. The use of
 Package: xrootd-server-libs
 Architecture: any
 Section: libs
-Depends: libxrdhttputils1       (=${binary:Version}), # xrootd-server-libs
-	     libxrdserver2          (=${binary:Version}), # xrootd-server-libs
-	     libxrdssilib1          (=${binary:Version}), # xrootd-server-libs
-	     libxrdssishmap1        (=${binary:Version}), # xrootd-server-libs
-	     xrootd-client-libs     (=${binary:Version}), # xrootd-server-libs
+Depends: libxrdhttputils1       (=${binary:Version}),
+	     libxrdserver2          (=${binary:Version}),
+	     libxrdssilib1          (=${binary:Version}),
+	     libxrdssishmap1        (=${binary:Version}),
+	     xrootd-client-libs     (=${binary:Version}),
 	     xrootd-server-plugins  (=${binary:Version}) 
 Conflicts: xrootd-server-libs   (<<${binary:Version})
 Description: This package contains libraries used by xrootd servers.
@@ -215,10 +215,10 @@ Description: This package contains header files and development libraries for
 Package: libxrootd-server-dev
 Architecture: any
 Section: libdevel
-Depends: libxrdhttputils1        (=${binary:Version}), # xrootd-server-libs
-	     libxrdserver2           (=${binary:Version}), # xrootd-server-libs
-	     libxrdssilib1           (=${binary:Version}), # xrootd-server-libs
-	     libxrdssishmap1         (=${binary:Version})  # xrootd-server-libs
+Depends: libxrdhttputils1        (=${binary:Version}),
+	     libxrdserver2           (=${binary:Version}),
+	     libxrdssilib1           (=${binary:Version}),
+	     libxrdssishmap1         (=${binary:Version}),
 	     libxrootd-client-dev    (=${binary:Version})
 Conflicts: libxrootd-server-dev  (<<${binary:Version})
 Description: High performance, scalable fault tolerant data repositories.
