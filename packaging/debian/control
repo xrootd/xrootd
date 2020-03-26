@@ -364,7 +364,7 @@ Description: Library of utilities
 Package: libxrdxml2
 Architecture: any
 Section: libs
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends},
          libxml2
 Conflicts: libxrdxml2 (<<${binary:Version})
 Description: XML library
