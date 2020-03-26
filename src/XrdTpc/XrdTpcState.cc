@@ -264,6 +264,9 @@ bool State::Finalize()
 
 std::string State::GetConnectionDescription()
 {
+    // CURLINFO_PRIMARY_PORT is only defined for 7.21.0 or later; on older
+    // library versions, simply omit this information.
+#if LIBCURL_VERSION_NUM >= 0x071500
     char *curl_ip = NULL;
     CURLcode rc = curl_easy_getinfo(m_curl, CURLINFO_PRIMARY_IP, &curl_ip);
     if ((rc != CURLE_OK) || !curl_ip) {
@@ -278,11 +281,14 @@ std::string State::GetConnectionDescription()
     // libcurl returns IPv6 addresses of the form:
     //    2600:900:6:1301:5054:ff:fe0b:9cba:8000
     // However the HTTP-TPC spec says to use the form
-    //   [2600:900:6:1301:5054:ff:fe0b:9cba:8000]
+    //   [2600:900:6:1301:5054:ff:fe0b:9cba]:8000
     // Hence, we add '[' and ']' whenever a ':' is seen.
     if (NULL == strchr(curl_ip, ':'))
         ss << "tcp:" << curl_ip << ":" << curl_port;
     else
         ss << "tcp:[" << curl_ip << "]:" << curl_port;
     return ss.str();
+#else
+    return "";
+#endif
 }
