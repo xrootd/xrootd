@@ -198,6 +198,7 @@ install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
   ${PROJECT_SOURCE_DIR}/docs/man/xrdcp.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdmapc.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
