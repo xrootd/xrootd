@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * **[Server]** Add missing initializer to avoid TPC SEGV on busy systems.
 
 + **Minor bug fixes**
 
