@@ -101,7 +101,7 @@ bool XrdSecEntity::Add(const std::string &key,
 /*                                   G e t                                    */
 /******************************************************************************/
 
-XrdSecAttr *XrdSecEntity::Get(const void *sigkey)
+XrdSecAttr *XrdSecEntity::Get(const void *sigkey) const
 {
    XrdSysMutexHelper mHelp(entXtra->xMutex);
    std::vector<XrdSecAttr*>::iterator it;
@@ -118,7 +118,7 @@ XrdSecAttr *XrdSecEntity::Get(const void *sigkey)
 
 /******************************************************************************/
 
-bool XrdSecEntity::Get(const std::string &key, std::string &val)
+bool XrdSecEntity::Get(const std::string &key, std::string &val) const
 {
    XrdSysMutexHelper mHelp(entXtra->xMutex);
    std::map<std::string, std::string>::iterator it;
@@ -140,7 +140,7 @@ bool XrdSecEntity::Get(const std::string &key, std::string &val)
 /*                                  K e y s                                   */
 /******************************************************************************/
 
-std::vector<std::string> XrdSecEntity::Keys()
+std::vector<std::string> XrdSecEntity::Keys() const
 {
    XrdSysMutexHelper mHelp(entXtra->xMutex);
    std::map<std::string, std::string>::iterator itM;
@@ -156,7 +156,7 @@ std::vector<std::string> XrdSecEntity::Keys()
 /*                                  L i s t                                   */
 /******************************************************************************/
 
-void XrdSecEntity::List(XrdSecEntityAttrCB &attrCB)
+void XrdSecEntity::List(XrdSecEntityAttrCB &attrCB) const
 {
    XrdSysMutexHelper mHelp(entXtra->xMutex);
    std::map<std::string, std::string>::iterator itM;

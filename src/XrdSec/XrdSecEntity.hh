@@ -123,7 +123,7 @@ const    char   *pident;                  //!< Trace identifier (originator)
 //!         Otherwise, a nil pointer is returned.
 //------------------------------------------------------------------------------
 
-XrdSecAttr      *Get(const void *sigkey);
+XrdSecAttr      *Get(const void *sigkey) const;
 
 //------------------------------------------------------------------------------
 //! Get an attribute key value associated with this entity.
@@ -135,7 +135,7 @@ XrdSecAttr      *Get(const void *sigkey);
 //!         is returned and the val object remains unchanged.
 //------------------------------------------------------------------------------
 
-         bool    Get(const std::string &key, std::string &val);
+         bool    Get(const std::string &key, std::string &val) const;
 
 //------------------------------------------------------------------------------
 //! Get all the keys for associated attribytes.
@@ -143,7 +143,7 @@ XrdSecAttr      *Get(const void *sigkey);
 //! @return A vector containing all of the keys.
 //------------------------------------------------------------------------------
 
-std::vector<std::string> Keys();
+std::vector<std::string> Keys() const;
 
 //------------------------------------------------------------------------------
 //! List key-value pairs via iterative callback on passed ovject.
@@ -151,7 +151,7 @@ std::vector<std::string> Keys();
 //! @param  attrCB  - Reference to the callback object to receive list entries.
 //------------------------------------------------------------------------------
 
-         void    List(XrdSecEntityAttrCB &attrCB);
+         void    List(XrdSecEntityAttrCB &attrCB) const;
 
 //------------------------------------------------------------------------------
 //! Reset object to it's pristine self.
