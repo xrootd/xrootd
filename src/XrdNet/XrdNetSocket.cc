@@ -477,7 +477,7 @@ char *XrdNetSocket::socketPath(XrdSysError *Say, char *fnbuff,
            return 0;
           }
        if (access(fnbuff, W_OK))
-          {Say->Emsg("cratePath", errno, "access path", fnbuff);
+          {Say->Emsg("createPath", errno, "access path", fnbuff);
            return 0;
           }
       } else chmod(fnbuff, mode); // This may fail on some platforms
