@@ -88,7 +88,7 @@ T     *Load(const char *Symbol);
 //!               pointer is nil, no version checking occurs.
 //------------------------------------------------------------------------------
 
-       XrdOucPinKing(const char    *&drctv,
+       XrdOucPinKing(const char     *drctv,
                      XrdOucEnv      &envR,
                      XrdSysError    &errR,
                      XrdVersionInfo *vinfo=0)
@@ -105,7 +105,7 @@ T     *Load(const char *Symbol);
 
 private:
 
-const char    *&Drctv;
+const char     *Drctv;
 XrdOucEnv      &eInfo;
 XrdSysError    &eMsg;
 XrdVersionInfo *vInfo;
