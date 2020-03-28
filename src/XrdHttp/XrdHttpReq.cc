@@ -2621,6 +2621,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
+        // Workaround for the cmsd not sending the right error code -- we need to examine the
+        // text.  See GH issue #1167.  In R5, we simply fix the error code.
+        if (httpStatusText == "Unable to create new file; file already exists.\n")
+        {
+            httpStatusCode = 405;
+        }
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                              httpStatusText.c_str(), httpStatusText.length(), false);
         return -1;
