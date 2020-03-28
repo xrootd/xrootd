@@ -645,6 +645,9 @@ void XrdOucUtils::Sanitize(char *str, char subc)
 //
    if (*str)
       {if (*str == '-') *str = subc;
+          else if (*str == ' ') *str = subc;
+       char *blank = rindex(str, ' ');
+       if (blank) while(*blank == ' ') *blank-- = 0;
        str++;
        while(*str)
             {if (!isalnum(*str) && index("_-.", *str) == 0) *str = subc;
