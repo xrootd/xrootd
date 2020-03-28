@@ -170,7 +170,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
    if (myInfo->vNum == XrdVNUMUNK || urInfo.vNum == XrdVNUMUNK)
       {if (eDest)
           {char mBuff[128];
-           sprintf(buff, "%s%s is using %s%s version",
+           snprintf(buff, sizeof(buff), "%s%s is using %s%s version",
                    (myInfo->vNum == XrdVNUMUNK ? "unreleased ":""),myInfo->vStr,
                    (urInfo.vNum  == XrdVNUMUNK ? "unreleased ":""),urInfo.vStr);
            msgSuffix(" in ", mBuff, sizeof(mBuff));
