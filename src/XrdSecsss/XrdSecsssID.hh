@@ -29,26 +29,25 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-  
-#include <string.h>
-#include <time.h>
 
-#include "XrdSec/XrdSecEntity.hh"
+//-----------------------------------------------------------------------------
+/*! The XrdSecsssID class allows you to establish a registery to map loginid's
+    to arbitrary entities. By default, the sss security protocol uses the
+    username as the authenticated username and, if possible, the corresponding
+    primary group membership of username (i.e., static mapping). The server
+    will ignore the username and/or the groupname unless the key is designated
+    as anyuser, anygroup, respectively. By creating an instance of this class
+    you can over-ride the default and map the loginid (i.e., the id supplied
+    at login time which is normally the first 8-characters of the username or
+    the id specified in the url; i.e., id@host) to arbitrary entities using
+    the Register() method. You must create one, and only one, such instance
+    prior to connecting to an sss security enabled server.
 
-// The XrdSecsssID class allows you to establish a registery to map loginid's
-// to arbitrary entities. By default, the sss security protocol uses the
-// username as the authenticated username and, if possible, the corresponding
-// primary group membership of username (i.e., static mapping). The server is
-// will ignore the username and/or the groupname unless the key is designated
-// as anyuser, anygroup, respectively. By creating an instance of this class
-// you can over-ride the default and map the loginid (i.e., the id supplied
-// at login time which is normally the first 8-characters of the username or
-// the id specified in the url; i.e., id@host) to arbitrary entities using
-// the Register() method. You must create one, and only one, such instance
-// prior to making any contact with a sss security enabled server.
+    In order to use XrdSecsssID methods, you should link with libXrdUtils.so
+*/
 
-// In order to use XrdSecsssID methods, you should link with libXrdUtils.so
-
+class  XrdSecEntity;
+class  XrdSecsssCon;
 class  XrdSecsssEnt;
 
 class XrdSecsssID
@@ -62,6 +61,8 @@ friend class XrdSecProtocolsss;
 //! @param  aType  - The type of authentication to perform (see authType enum).
 //! @param  Ident  - Pointer to the default entity to use. If nil, a generic
 //!                  entity is created based on the process uid and gid.
+//! @param  Tracker- pointer to the connection tracker objec if connection
+//!                  tracking is desired. If nil, connections are not tracked.
 //! @param  isOK   - if not nil sets the variable to true if successful and
 //!                  false, otherwise. Strongly recommended it be supplied.
 //!
@@ -89,8 +90,8 @@ enum authType
                          //!<         Ident as specified; if 0 process uid/gid
          };
 
-         XrdSecsssID(authType aType=idStatic, XrdSecEntity *Ident=0,
-                     bool *isOK=0);
+         XrdSecsssID(authType aType=idStatic, const XrdSecEntity *Ident=0,
+                     XrdSecsssCon *Tracker=0, bool *isOK=0);
 
 //-----------------------------------------------------------------------------
 //! Create or delete a mapping from a loginid to an entity description.
@@ -106,10 +107,11 @@ enum authType
 //!
 //! @return true   - Mapping registered.
 //! @return false  - Mapping not registered because this object was not created
-//!                  as idDynamic or the mapping exists and doRep is false.
+//!                  as idDynamic idMapped, or idMappedM; or the mapping exists
+//!                  and doRep is false.
 //-----------------------------------------------------------------------------
 
-bool     Register(const char *lgnid, XrdSecEntity *Ident,
+bool     Register(const char *lgnid, const XrdSecEntity *Ident,
                   bool doReplace=false, bool defer=false);
 
 private:
@@ -145,9 +147,9 @@ XrdSecsssID  *getObj(authType &aType, XrdSecsssEnt *&idP);
 static
 XrdSecsssEnt *genID(bool Secure);
 
-XrdSecsssEnt      *defaultID;
-authType           myAuth;
-short              credLen;
-bool               isStatic;
+XrdSecsssEnt *defaultID;
+authType      myAuth;
+bool          isStatic;
+bool          trackOK;
 };
 #endif

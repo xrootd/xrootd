@@ -114,6 +114,7 @@ class XrdOucEnv;
 class XrdOucStream;
 class XrdOucTList;
 class XrdPssUrlInfo;
+class XrdSecsssID;
 class XrdSysError;
 
 struct XrdVersionInfo;
@@ -126,7 +127,12 @@ virtual XrdOssDF *newDir(const char *tident)
 virtual XrdOssDF *newFile(const char *tident)
                        {return (XrdOssDF *)new XrdPssFile(tident);}
 
+virtual void      Connect(XrdOucEnv &);
+
+virtual void      Disc(XrdOucEnv &);
+
 int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
+bool      ConfigMapID();
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 void      EnvInfo(XrdOucEnv *envP);
@@ -176,6 +182,7 @@ static bool         pfxProxy; // True means outgoing proxy is prefixed
 static bool         xLfn2Pfn;
 static bool         dcaCheck;
 static bool         dcaWorld;
+static bool         deferID;  // Defer ID mapping until needed
 
          XrdPssSys();
 virtual ~XrdPssSys() {}
@@ -186,6 +193,7 @@ char              *LocalRoot;// -> pss Local n2n root, if any
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
 XrdVersionInfo    *myVersion;// -> Compilation version
+XrdSecsssID       *idMapper; // -> Auth ID mapper
 uint64_t          myFeatures;// Our feature set
 
 int    Configure(const char *);
@@ -198,6 +206,7 @@ int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
 int    xdca( XrdSysError *errp,   XrdOucStream &Config);
 int    xexp( XrdSysError *Eroute, XrdOucStream &Config);
 int    xperm(XrdSysError *errp,   XrdOucStream &Config);
+int    xpers(XrdSysError *errp,   XrdOucStream &Config);
 int    xorig(XrdSysError *errp,   XrdOucStream &Config);
 };
 #endif

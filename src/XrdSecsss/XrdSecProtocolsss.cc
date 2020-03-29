@@ -71,7 +71,6 @@ class Persona
 {
 public:
 XrdSecsssKT::ktEnt *kTab;
-XrdSecEntity       *entP;
 char               *xAuth;
 char               *xUser;
 char               *xGrup;
@@ -85,15 +84,15 @@ char               *creds;
 int                 credslen;
 char               *pident;
 
-                    Persona(XrdSecsssKT::ktEnt *kP, XrdSecEntity *eP)
+                    Persona(XrdSecsssKT::ktEnt *kP)
                            {memset(this, 0, sizeof(Persona));
-                            kTab = kP; entP = eP;
+                            kTab = kP;
                            }
                    ~Persona() {}
 
 bool Clonable(const char *aTypes)
              {char aKey[XrdSecPROTOIDSIZE+2];
-              if (!xAuth || !entP->name || !entP->tident
+              if (!xAuth || !name || !pident
               ||  !(kTab->Data.Opts & XrdSecsssKT::ktEnt::allUSR)) return false;
               int n = strlen(xAuth);
               if (n < 2 || n >= XrdSecPROTOIDSIZE) return false;
@@ -117,8 +116,6 @@ XrdSecsssRR_DataHdr *P;
 /******************************************************************************/
 /*                           S t a t i c   D a t a                            */
 /******************************************************************************/
-
-const char    *XrdSecProtocolsss::myName;
 
 XrdCryptoLite *XrdSecProtocolsss::CryptObj   = 0;
 XrdSecsssKT   *XrdSecProtocolsss::ktObject   = 0;
@@ -159,7 +156,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    XrdSecsssRR_Hdr    *rrHdr = (XrdSecsssRR_Hdr *)(cred->buffer);
    XrdSecsssRR_Data   *rrData;
    XrdSecsssKT::ktEnt  decKey;
-   Persona             myID(&decKey, &Entity);
+   Persona             myID(&decKey);
 
    char *idP, *dP, *eodP, *theIP = 0, *theHost = 0, *atKey = 0, eType;
    int idNum = 0, idTLen, idSz, dLen;
@@ -221,7 +218,9 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
                 case XrdSecsssRR_Data::theCred: myID.creds    = idP;
                                                 myID.credslen = idSz;break;
                 case XrdSecsssRR_Data::theHost: 
-                                     if (*idP == '[') theIP   = idP;
+                                     if (*idP == '[')
+                                        myID.host =   theIP   = idP;
+
                                         else          theHost = idP;
                                                                      break;
                 case XrdSecsssRR_Data::theRand: idNum--;             break;
@@ -798,6 +797,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
    struct stat buf;
    XrdSecsssID::authType aType = XrdSecsssID::idStatic;
    const char *kP = 0;
+   char *myName;
 
 // Get our full host name
 //
@@ -809,22 +809,19 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
 // Tell the entity serialization object who we are
 //
    XrdSecsssEnt::setHostName(myName);
+   free(myName);
 
 // Check for the presence of a registry object
 //
    idMap = XrdSecsssID::getObj(aType, staticID);
    switch(aType)
-         {case XrdSecsssID::idDynamic:  isMutual = 1; break;
-          case XrdSecsssID::idStaticM:  isMutual = 1;
-                                        idMap    = 0; break;
-          case XrdSecsssID::idStatic:   idMap    = 0; break;
-          case XrdSecsssID::idMapped:   aType = XrdSecsssID::idDynamic;
-                                        isMapped = true;
-                                                      break;
-          case XrdSecsssID::idMappedM:  aType = XrdSecsssID::idDynamic;
-                                        isMapped = true;
-                                                      break;
-               default:                 idMap    = 0; break;
+         {case XrdSecsssID::idDynamic:  isMutual = true; break;
+          case XrdSecsssID::idStaticM:  isMutual = true;
+                                        idMap    = 0;    break;
+          case XrdSecsssID::idStatic:   idMap    = 0;    break;
+          case XrdSecsssID::idMapped:   isMapped = true; break;
+          case XrdSecsssID::idMappedM:  isMapped = true; break;
+               default:                 idMap    = 0;    break;
           }
 
 // We want to establish the default location of the keytable. First check
@@ -939,12 +936,12 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
 //
    if (parms) strlcpy(parmbuff, parms, sizeof(parmbuff));
 
-// Expected parameters: [{-a | --authmap}  <prots>]
-//                      [{-c | --clientkt} <ckt_path>]
+// Expected parameters: [{-c | --clientkt} <ckt_path>]
 //                      [{-e | --encrypt}  <enctype>]
 //                      [{-g | --getcreds}]
 //                      [{-k | --keyname}]
 //                      [{-l | --lifetime} <seconds>] 
+//                      [{-p | --proxy}  <prots>]
 //                      [{-r | --refresh}  <minutes>]
 //                      [{-s | --serverkt} <skt_path>]
 //
@@ -962,13 +959,7 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
                {sprintf(buff,"Secsss: Missing %s parameter argument",op);
                 msg = buff; break;
                }
-                 if (!strcmp("-a", op) || !strcmp("--authmap", op))
-                    {int n = strlen(od) + 2;
-                     aProts = (char *)malloc(n);
-                     *aProts = ':';
-                     strcpy(aProts+1, od);
-                    }
-            else if (!strcmp("-c", op) || !strcmp("--clientkt", op))
+                 if (!strcmp("-c", op) || !strcmp("--clientkt", op))
                     ktClient = od;
             else if (!strcmp("-e", op) || !strcmp("--encrypt", op))
                     encName  = od;
@@ -976,6 +967,12 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
                     {lifeTime = strtol(od, &eP, 10) * 60;
                      if (errno || *eP || lifeTime < 1)
                         {msg = "Secsss: Invalid life time"; break;}
+                    }
+            else if (!strcmp("-p", op) || !strcmp("--proxy", op))
+                    {int n = strlen(od) + 2;
+                     aProts = (char *)malloc(n);
+                     *aProts = ':';
+                     strcpy(aProts+1, od);
                     }
             else if (!strcmp("-r", op) || !strcmp("--rfresh", op))
                     {rfrTime = strtol(od, &eP, 10) * 60;

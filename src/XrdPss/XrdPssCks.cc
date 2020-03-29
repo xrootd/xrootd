@@ -116,7 +116,7 @@ int XrdPssCks::Get(const char *Pfn, XrdCksData &Cks)
 
 // Construct the correct url info
 //
-   XrdPssUrlInfo uInfo(Cks.tident, Pfn, cgiBuff, false);
+   XrdPssUrlInfo uInfo(Cks.envP, Pfn, cgiBuff, false);
    uInfo.setID();
 
 // Direct the path to the origin

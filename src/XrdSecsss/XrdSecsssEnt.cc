@@ -31,9 +31,13 @@
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSecsss/XrdSecsssCon.hh"
 #include "XrdSecsss/XrdSecsssEnt.hh"
 #include "XrdSecsss/XrdSecsssKT.hh"
+#include "XrdSecsss/XrdSecsssMap.hh"
 #include "XrdSecsss/XrdSecsssRR.hh"
+
+using namespace XrdSecsssMap;
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -72,6 +76,33 @@ bool  calcSz;
 
 char *XrdSecsssEnt::myHostName = 0;
 int   XrdSecsssEnt::myHostNLen = 0;
+  
+/******************************************************************************/
+/*                            A d d C o n t a c t                             */
+/******************************************************************************/
+
+void XrdSecsssEnt::AddContact(const std::string &hostID)
+{
+// If we are tracking connections then add this one to the set. We use the
+// fact that a set can only have one instance of a member and ignores dups.
+//
+   if (conTrack) Contacts.insert(hostID);
+}
+  
+/******************************************************************************/
+/*                                D e l e t e                                 */
+/******************************************************************************/
+
+void XrdSecsssEnt::Delete()
+{
+// Invoke the cleanup call back if there is something to clean up
+//
+   if (conTrack && Contacts.size()) conTrack->Cleanup(Contacts, *eP);
+
+// Now we can delete ourselves
+//
+   delete this;
+}
   
 /******************************************************************************/
 /*                               R R _ D a t a                                */
@@ -268,7 +299,6 @@ bool XrdSecsssEnt::Serialize()
 
 // All done
 //
-   eP = 0;
    return true;
 }
 

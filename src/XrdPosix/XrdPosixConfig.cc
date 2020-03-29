@@ -30,10 +30,15 @@
 
 #include <algorithm>
 #include <iostream>
+#include <memory>
+#include <set>
 #include <stdio.h>
 #include <string>
 
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClURL.hh"
 
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -52,6 +57,8 @@
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 
 #include "XrdRmc/XrdRmc.hh"
+
+#include "XrdSecsss/XrdSecsssCon.hh"
 
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -76,6 +83,79 @@ extern XrdCl::DirListFlags::Flags dlFlag;
 extern bool                       oidsOK;
 };
   
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+
+namespace
+{
+class ConCleanup : public XrdSecsssCon
+{
+public:
+
+using XrdSecsssCon::Contact;
+
+void Cleanup(const std::set<std::string> &Contacts, const XrdSecEntity &Entity)
+{
+   std::set<std::string>::iterator it;
+
+   for (it = Contacts.begin(); it != Contacts.end(); it++)
+       {if (Blab) DMSG("Cleanup", "Disconnecting " <<(*it).c_str());
+        PostMaster->ForceDisconnect(XrdCl::URL(*it));}
+}
+
+      ConCleanup(XrdCl::PostMaster *pm, bool dbg) : PostMaster(pm), Blab(dbg) {}
+     ~ConCleanup() {}
+
+private:
+
+XrdCl::PostMaster *PostMaster;
+bool               Blab;
+};
+
+class ConTrack : public XrdCl::Job
+{
+public:
+
+void Run( void *ptr )
+        {XrdCl::URL *url = reinterpret_cast<XrdCl::URL*>( ptr );
+         const std::string &user = url->GetUserName();
+         const std::string  host = url->GetHostId();
+         if (Blab) DMSG("Tracker", "Connecting to " <<host);
+         if (user.size()) sssCon.Contact(user, host);
+         delete url;
+        }
+
+      ConTrack(ConCleanup &cm, bool dbg) : sssCon(cm), Blab(dbg) {}
+     ~ConTrack() {}
+
+private:
+
+XrdSecsssCon &sssCon;
+bool          Blab;
+};
+}
+  
+/******************************************************************************/
+/*                            C o n T r a c k e r                             */
+/******************************************************************************/
+
+XrdSecsssCon *XrdPosixConfig::conTracker(bool dbg)
+{
+   XrdCl::PostMaster *pm =  XrdCl::DefaultEnv::GetPostMaster();
+   ConCleanup *cuHandler = new ConCleanup(pm, dbg);
+   std::unique_ptr<ConTrack> ctHandler(new ConTrack(*cuHandler, dbg));
+
+// Set the callback for new connections
+//
+   pm->SetOnConnectHandler( std::move( ctHandler ) );
+
+// Return the connection cleanup handler. Note that we split the task into
+// two objects so that we don't violate the semantics of unique pointer.
+//
+   return cuHandler;
+}
+
 /******************************************************************************/
 /*                               E n v I n f o                                */
 /******************************************************************************/

@@ -3654,7 +3654,7 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
 bool XrdXrootdProtocol::logLogin(bool xauth)
 {
    const char *uName, *ipName, *tMsg, *zMsg = "";
-   char lBuff[512];
+   char lBuff[512], pBuff[512];
 
 // Determine ip type
 //
@@ -3674,16 +3674,21 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 
 // Format the line
 //
-   sprintf(lBuff, "%s %s %s%slogin%s",
+   snprintf(lBuff, sizeof(lBuff), "%s %s %s%slogin%s%s",
                   (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"), ipName,
                   tMsg, zMsg,
-                  (xauth                      ? " as"    : ""));
+                  (xauth                      ? " as "   : ""),
+                  (uName                      ? uName    : ""));
 
 // Document the login
 //
-   eDest.Log(SYS_LOG_01, "Xeq", Link->ID, lBuff, uName);
+   if (Client->tident != Client->pident)
+      {snprintf(pBuff, sizeof(pBuff), "via %s auth for %s",
+                       Client->prot, Client->pident);
+      } else *pBuff = 0;
+   eDest.Log(SYS_LOG_01, "Xeq", Link->ID, lBuff, (*pBuff ? pBuff : 0));
 
-// Enable TLS if we need to (note sess setting is off is login setting is on)
+// Enable TLS if we need to (note sess setting is off if login setting is on)
 //
    if (doTLS & Req_TLSSess)
       {if (Link->setTLS(true)) Link->setProtName("xroots");
@@ -3694,11 +3699,15 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 
 // Record the appname in the final SecEntity object
 //
-   if (AppName) Client->Add("xrd.appname", (std::string)AppName, true);
+   if (AppName) Client->Add("xrd.appname", (std::string)AppName);
 
 // Assign unique identifier to the final SecEntity object
 //
    Client->ueid = mySID;
+
+// Propogate a connect through the whole system
+//
+   osFS->Connect(Client);
    return true;
 }
 

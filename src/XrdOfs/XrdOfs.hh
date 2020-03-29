@@ -243,6 +243,10 @@ public:
                              const XrdSecEntity     *client,
                              const char             *opaque = 0);
 
+        void           Connect(const XrdSecEntity     *client = 0);
+
+        void           Disc(const XrdSecEntity *client = 0);
+
         int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,

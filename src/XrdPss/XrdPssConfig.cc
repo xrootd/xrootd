@@ -46,6 +46,7 @@
 
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssTrace.hh"
+#include "XrdPss/XrdPssUrlInfo.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -65,6 +66,8 @@
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPosix/XrdPosixXrootdPath.hh"
+
+#include "XrdSecsss/XrdSecsssID.hh"
 
 #include "XrdXrootd/XrdXrootdGStream.hh"
 
@@ -109,6 +112,7 @@ bool         XrdPssSys::pfxProxy  = false;
 bool         XrdPssSys::xLfn2Pfn  = false;
 bool         XrdPssSys::dcaCheck  = false;
 bool         XrdPssSys::dcaWorld  = false;
+bool         XrdPssSys::deferID   = false;
 
 namespace XrdProxy
 {
@@ -120,6 +124,10 @@ extern XrdOucSid       *sidP;
 
 extern XrdOucEnv       *envP;
 
+extern XrdSecsssID     *idMapper; // -> Auth ID mapper
+
+extern bool             idMapAll;
+
 extern XrdSysTrace      SysTrace;
 
 static const int maxHLen = 1024;
@@ -128,6 +136,8 @@ static const int maxHLen = 1024;
 namespace
 {
 XrdOucPsx *psxConfig;
+
+XrdSecsssID::authType sssMap;// persona setting
 }
 
 using namespace XrdProxy;
@@ -164,7 +174,10 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Set debug level if so wanted
 //
-   if (getenv("XRDDEBUG")) psxConfig->traceLvl = 4;
+   if (getenv("XRDDEBUG"))
+      {psxConfig->traceLvl = 4;
+       SysTrace.What |=  TRACEPSS_Debug;
+      }
 
 // Set the defaault number of worker threads for the client
 //
@@ -188,6 +201,10 @@ int XrdPssSys::Configure(const char *cfn)
       {eDest.Emsg("Config", "Origin for proxy service not specified.");
        return 1;
       }
+
+// Check if we should configure authentication security mapping
+//
+   if (sssMap && !ConfigMapID()) return 1;
 
 // Handle the local root here
 //
@@ -284,6 +301,70 @@ int XrdPssSys::Configure(const char *cfn)
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
 /******************************************************************************/
+/*                           C o n f i g M a p I D                            */
+/******************************************************************************/
+  
+bool XrdPssSys::ConfigMapID()
+{
+   XrdSecsssCon *conTracker;
+   bool isOK, Debug = (SysTrace.What & TRACEPSS_Debug) != 0;
+
+// If this is a generic static ID mapping, we are done
+//
+   if (sssMap == XrdSecsssID::idStatic) return true;
+
+// For optimzation we also note if we have a cache in he way of the map
+//
+   deferID = psxConfig->hasCache();
+
+// Now that we did the cache thing, currently we don't support client personas
+// with a cache because aren't able to tell which client will be used.
+//
+   if (deferID)
+      {eDest.Emsg("Config", "Client personas are not supported for "
+                            "caching proxy servers.");
+       return false;
+      }
+
+// If this server is only a forwarding proxy server, we can't support client
+// personas either because we don't control the URL. However, if we have an
+// origin then simply warn that the client persona applies to the origin.
+//
+   if (outProxy)
+      {if (!ManList)
+          {eDest.Emsg("Config", "Client personas are not supported for "
+                                "strictly forwarding proxy servers.");
+           return false;
+          }
+       eDest.Say("Config warning: client personas only apply to "
+                 "the origin server!");
+      }
+
+// We need to get a connection tracker object from the posix interface.
+// However, we only need it if we are actually mapping id's.
+//
+   if (sssMap == XrdSecsssID::idStaticM) conTracker = 0;
+      else conTracker = XrdPosixConfig::conTracker(Debug);
+
+// Get an mapper object
+//
+   idMapper = new XrdSecsssID(sssMap, 0, conTracker, &isOK);
+   if (!isOK)
+      {eDest.Emsg("Config", "Unable to render persona; persona mapper failed!");
+       return false;
+      }
+
+// If ths is a server persona then we don't need the mapper; abandon it.
+//
+   if (sssMap == XrdSecsssID::idStaticM) idMapper = 0;
+      else XrdPssUrlInfo::setMapID(true);
+
+// We are all done
+//
+   return true;
+}
+
+/******************************************************************************/
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
   
@@ -359,6 +440,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_PSX("inetmode",      ParseINet);
    TS_Xeq("origin",        xorig);
    TS_Xeq("permit",        xperm);
+   TS_Xeq("persona",       xpers);
    TS_PSX("setopt",        ParseSet);
    TS_PSX("trace",         ParseTrace);
 
@@ -716,5 +798,72 @@ do {if (!(val = Config.GetWord()))
             }
         }
 
+    return 0;
+}
+  
+/******************************************************************************/
+/*                                 x p e r s                                  */
+/******************************************************************************/
+
+/* Function: xpers
+
+   Purpose:  To parse the directive: persona {client | server} [options]
+
+   options:  [[non]strict] [[no]verify]
+
+                    client    proxy client's identity via sss authentication
+                    server    use server's identity at end point
+                    strict    all requests must use the client persona
+                    nonstrict certain requests can use a server persona
+                    noverify  do not verify endpoint
+                    verify    verify endpoint
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xpers(XrdSysError *Eroute, XrdOucStream &Config)
+{   char *val;
+    bool isClient = false, strict = false;
+    int doVer = -1;
+
+// Make sure a parameter was specified
+//
+   if (!(val = Config.GetWord()))
+      {Eroute->Emsg("Config", "persona not specified"); return 1;}
+
+// Check for persona
+//
+        if (!strcmp(val, "client")) isClient = true;
+   else if (!strcmp(val, "server")) isClient = false;
+   else {Eroute->Emsg("Config", "Invalid persona - ", val); return 1;}
+
+// Process the subsequent options
+//
+   while ((val = Config.GetWord()))
+         {     if (!strcmp(val, "strict"     )) strict = true;
+          else if (!strcmp(val, "nonstrict"  )) strict = false;
+          else if (!strcmp(val, "verify"     )) doVer  = 1;
+          else if (!strcmp(val, "noverify"   )) doVer  = 0;
+          else {Eroute->Emsg("Config", "Invalid persona option - ", val);
+                return 1;
+               }
+      }
+
+// Resolve options vs persona
+//
+   if (isClient)
+      {idMapAll = (strict ? true : false);
+       if (doVer < 0) doVer = 1;
+      }
+
+// Now record the information for future processin
+//
+   if (isClient) sssMap = (doVer ? XrdSecsssID::idMappedM
+                                 : XrdSecsssID::idMapped);
+      else       sssMap = (doVer ? XrdSecsssID::idStaticM
+                                 : XrdSecsssID::idStatic);
+
+// All done
+//
     return 0;
 }

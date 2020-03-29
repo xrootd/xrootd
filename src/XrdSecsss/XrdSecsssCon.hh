@@ -1,8 +1,8 @@
-#ifndef __SecsssEnt__
-#define __SecsssEnt__
+#ifndef __SecsssCon__
+#define __SecsssCon__
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d S e c s s s E n t . h h                        */
+/*                       X r d S e c s s s C o n . h h                        */
 /*                                                                            */
 /* (c) 2020 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -32,90 +32,48 @@
 
 #include <set>
 #include <string>
-#include <stdlib.h>
 
-#include "XrdSys/XrdSysAtomics.hh"
-#include "XrdSys/XrdSysPthread.hh"
+//-----------------------------------------------------------------------------
+//! The XrdSecsssCon class provides a mechanism to track and cleanup contacts
+//! (i.e. connections). It contains a defined method to add a contact and
+//! an abstract method to cleanup contacts when the XrdSecEntity object is
+//! unregistered from the XrdSecsssID object.
+//-----------------------------------------------------------------------------
 
 class XrdSecEntity;
 
-class XrdSecsssEnt
+class XrdSecsssCon
 {
 public:
 
-char         *eData;    // -> RR
-int           iLen;     // Length of V1 data
-int           tLen;     // Length of V1 plus V2 data (follows iLen)
-
 //-----------------------------------------------------------------------------
-//! Add a new connection created by this entity.
+//! Cleanup connections established by the passed entity.
 //!
-//! @param  hostID - The hostID (i.e. user[:pswd]@host:port).
-//-----------------------------------------------------------------------------
-
-void          AddContact(const std::string &hostID);
-
-//-----------------------------------------------------------------------------
-//! Delete this entity object.
-//-----------------------------------------------------------------------------
-
-void          Delete();
-
-//-----------------------------------------------------------------------------
-//! Return serialized entity infrmation.
+//! @param  Contacts Reference to a set of connections created by the entity.
+//!                  Each entry in the form of 'user[:pswd]@host:port'.
+//! @param  Entity   Reference to the entity object responsible for the contacts.
 //!
-//! @param  dP     - Reference to a pointer where the serialized ID is returned.
-//!                  The caller is responsible for freeing the storage.
-//! @param  myIP   - Pointer to IP address of client.
-//! @param  opts   - Options as follows:
-//!                  addExtra - This is a V2 client, include extra info
-//!                  addCreds - This is a V2 client, add credentials to extra
+//! @note 1) This object is passed to the XrdSecsssID constructor.
+//!       2) It is expected that the callee will disconnect each connection.
+//!       3) Upon return the Contacts and Entity objects are deleted.
+//-----------------------------------------------------------------------------
+
+virtual void Cleanup(const std::set<std::string> &Contacts,
+                     const XrdSecEntity          &Entity) = 0;
+
+//-----------------------------------------------------------------------------
+//! Add a contact for the indicated loginid entity.
 //!
-//! @return The length of the structure pointed to by dP; zero if not found.
+//! @param  lgnid  - The loginid used to to register an Entity via XrdSecsssID.
+//! @param  hostID - The hostID (i.e. lgnid[:pswd]@host:port).
+//!
+//! @return true   - Contact added.
+//! @return false  - Contact not added as the lgnid is not registered.
 //-----------------------------------------------------------------------------
 
-static const int addExtra = 0x00000001; //!< Add v2 data
-static const int addCreds = 0x00000002; //!< Add v2 data plus creds
-static const int v2Client = 0x00000003; //!< Data for a v2 client wanted
+        bool Contact(const std::string &lgnid, const std::string &hostID);
 
-int           RR_Data(char *&dP, const char *hostIP, int dataOpts);
-
-
-void          Ref() {AtomicBeg(eMtx); AtomicInc(refCnt); AtomicEnd(eMtx);}
-
-void          UnRef()
-                    {AtomicBeg(eMtx);
-                     int x = AtomicDec(refCnt);
-                     AtomicEnd(eMtx);
-                     if (x < 1) delete this;
-                    }
-
-static void   setHostName(const char *hnP);
-
-              XrdSecsssEnt(const XrdSecEntity *entity=0, bool defer=false)
-                          : eData(0), iLen(0), tLen(0), eP(entity), refCnt(1)
-                          {if (!defer) Serialize();}
-
-//-----------------------------------------------------------------------------
-//! Destructor cannot be directly called; use Delete() instead.
-//-----------------------------------------------------------------------------
-
-private:
-             ~XrdSecsssEnt() {if (eData) free(eData);}
-
-bool          Serialize();
-
-#ifndef HAVE_ATOMICS
-XrdSysMutex   eMtx;
-#endif
-std::set<std::string> Contacts;
-
-const
-XrdSecEntity *eP;
-int           refCnt;
-short         credLen;
-
-static char  *myHostName;
-static int    myHostNLen;
+             XrdSecsssCon() {}
+virtual     ~XrdSecsssCon() {}
 };
 #endif

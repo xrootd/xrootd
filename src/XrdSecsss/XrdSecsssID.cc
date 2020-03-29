@@ -29,20 +29,23 @@
 /******************************************************************************/
 
 #include <iostream>
+#include <map>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pwd.h>
 #include <sys/types.h>
 
-#include "XrdSecsss/XrdSecsssEnt.hh"
-#include "XrdSecsss/XrdSecsssID.hh"
-#include "XrdSecsss/XrdSecsssRR.hh"
-
-#include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+#include "XrdSec/XrdSecEntity.hh"
+#include "XrdSecsss/XrdSecsssEnt.hh"
+#include "XrdSecsss/XrdSecsssID.hh"
+#include "XrdSecsss/XrdSecsssMap.hh"
+#include "XrdSecsss/XrdSecsssRR.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -54,20 +57,28 @@
 /*                               S t a t i c s                                */
 /******************************************************************************/
   
-namespace
+namespace XrdSecsssMap
 {
-XrdSysMutex               sssMutex;
-XrdSecsssID              *IDMapper = 0;
-XrdOucHash<XrdSecsssEnt>  Registry;
+XrdSysMutex   sssMutex;
+XrdSecsssID  *IDMapper = 0;
+XrdSecsssCon *conTrack = 0;
+
+typedef std::map<std::string, XrdSecsssEnt*> EntityMap;
+
+EntityMap     Registry;
 }
+
+using namespace XrdSecsssMap;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdSecsssID::XrdSecsssID(authType aType, XrdSecEntity *idP, bool *isOK)
+XrdSecsssID::XrdSecsssID(authType aType, const XrdSecEntity *idP,
+                         XrdSecsssCon *Tracker, bool *isOK)
                         : defaultID(0),
-                          myAuth(XrdSecsssID::idStatic), isStatic(true)
+                          myAuth(XrdSecsssID::idStatic), isStatic(true),
+                          trackOK(false)
 {
 
 // Check if we have initialized already. If so, indicate warning
@@ -107,6 +118,10 @@ XrdSecsssID::XrdSecsssID(authType aType, XrdSecEntity *idP, bool *isOK)
 //
    IDMapper = this;
 
+// Decide whether or not we will track connections
+//
+   if (Tracker && (aType == idMapped || aType == idMappedM)) conTrack = Tracker;
+
 // All done with initialization
 //
    if (isOK) *isOK = true;
@@ -126,16 +141,18 @@ XrdSecsssID::~XrdSecsssID() {if (defaultID) free(defaultID);}
 int XrdSecsssID::Find(const char *lid,  char *&dP,
                       const char *myIP, int dataOpts)
 {
+   EntityMap::iterator it;
    XrdSecsssEnt *fP;
    int n;
 
-// Lock the hash table and find the entry
+// Lock the registry and find the entry
 //
    sssMutex.Lock();
-   if (!(fP = Registry.Find(lid)))
+   it = Registry.find(lid);
+   if (it == Registry.end())
       {if (!(fP = defaultID))
           {sssMutex.UnLock(); return 0;}
-      }
+      } else fP = it->second;
 
 // Return the data
 //
@@ -204,28 +221,57 @@ XrdSecsssID *XrdSecsssID::getObj(authType &aType, XrdSecsssEnt *&idP)
 /*                              R e g i s t e r                               */
 /******************************************************************************/
 
-bool XrdSecsssID::Register(const char *lid, XrdSecEntity *eP,
+bool XrdSecsssID::Register(const char *lid, const XrdSecEntity *eP,
                            bool doRep, bool defer)
 {
+   EntityMap::iterator it;
    XrdSecsssEnt *idP;
-   int    hOpt = (doRep ? Hash_replace : Hash_default);
-   bool   isOK;
 
 // If this is an invalid call, return failure
 //
-   if (!defaultID) return false;
+   if (isStatic) return false;
 
 // Check if we are simply deleting an entry
 //
    if (!eP)
-      {sssMutex.Lock(); Registry.Del(lid); sssMutex.UnLock(); return true;}
+      {sssMutex.Lock();
+       it = Registry.find(std::string(lid));
+       if (it == Registry.end()) sssMutex.UnLock();
+          else {idP = it->second;
+                Registry.erase(it);
+                sssMutex.UnLock();
+                idP->Delete();
+               }
+       return true;
+      }
 
-// Generate an ID and add it to registry
+// Generate an ID entry and add it to registry (we are optimistic here)
+// Note: We wish we could use emplace() but that isn't suported until gcc 4.8.0
 //
+   std::pair<EntityMap::iterator, bool>  ret;
+   std::pair<std::string, XrdSecsssEnt*> psp;
    idP = new XrdSecsssEnt(eP, defer);
+   psp = {std::string(lid), idP};
    sssMutex.Lock(); 
-   isOK = (Registry.Add(lid, idP, 0, XrdOucHash_Options(hOpt)) ? false : true);
+   ret = Registry.insert(psp);
+   if (ret.second)
+      {sssMutex.UnLock();
+       return true;
+      }
+
+// We were not successful, replace the element if we are allowed to do so.
+//
+   if (doRep)
+      {XrdSecsssEnt *oldP = ret.first->second;
+       ret.first->second = idP;
+       sssMutex.UnLock();
+       oldP->Delete();
+       return true;
+      }
+
+// Sigh, the element exists but we cannot replace it.
+//
    sssMutex.UnLock();
-   if (!isOK) delete idP;
-   return isOK;
+   idP->Delete();
+   return false;
 }

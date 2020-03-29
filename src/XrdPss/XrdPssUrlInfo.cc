@@ -38,6 +38,12 @@
 #include "XrdSec/XrdSecEntity.hh"
 
 /******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+  
+bool XrdPssUrlInfo::MapID = false;
+
+/******************************************************************************/
 /*                               c o p y C G I                                */
 /******************************************************************************/
 namespace
@@ -113,17 +119,27 @@ bool XrdPssUrlInfo::Extend(const char *cgi, int cgiln)
   
 void XrdPssUrlInfo::setID(const char *tid)
 {
-   const char *colon;
-   char *atP;
+   const char *atP, *colon;
 
+// If we are mapping id then use the entity's idenification
+//
+   if (MapID && eIDvalid)
+      {const char *fmt = (entityID & 0xf0000000 ? "%x@" : "U%x@");
+       snprintf(theID,  sizeof(theID), fmt, entityID); // 8+1+nul = 10 bytes
+       return;
+      }
+
+// Use the connection file descriptor number as the id lgnid.pid:fd@host
+//
    if (tid == 0) tid = tident;
-   if ((colon = index(tid, ':')))
-      {*theID = 'u';
-       strncpy(theID+1, colon+1, sizeof(theID)-2);
-       theID[sizeof(theID)-1] = 0;
-       if ((atP = index(theID, '@'))) *(atP+1)=0;
-          else *theID = 0;
-      } else *theID = 0;
+   if ((colon = index(tid, ':')) && (atP = index(colon+1, '@')))
+      {int n = atP - colon + 2;
+       if (n <= (int)sizeof(theID))
+          {*theID = 'u';
+           strncpy(theID+1, colon+1, n); // Include '@'
+           theID[n] = 0;
+          } else *theID = 0;
+       } else *theID = 0;
 }
 
 /******************************************************************************/
@@ -154,7 +170,11 @@ void XrdPssUrlInfo::Setup(XrdOucEnv *envP, const char *xtra,
                    }
           }
            const XrdSecEntity *secP = envP->secEnv();
-           if (secP) tident = secP->tident;
+           if (secP)
+              {entityID = secP->ueid;
+               eIDvalid = true;
+               tident = secP->tident;
+              }
       }
 
 // Make sure we have a tident

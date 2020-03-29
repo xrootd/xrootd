@@ -58,6 +58,8 @@ const char *getID() {return theID;}
                   snprintf(theID, sizeof(theID), "p%d@", idVal.sidS);
                  }
 
+static void setMapID(bool onoff) {MapID = onoff;}
+
 const char *thePath() {return Path;}
 
 const char *Tident() {return tident;}
@@ -65,13 +67,8 @@ const char *Tident() {return tident;}
       XrdPssUrlInfo(XrdOucEnv *envP, const char *path, const char *xtra="",
                     bool addusrcgi=true, bool addident=true)
                : tident("unk.0:0@host"), Path(path), CgiBuff(0),
-                 CgiUsr(""), CgiUsz(0), CgiSsz(0), sidP(0)
+                 CgiUsr(""), CgiUsz(0), CgiSsz(0), sidP(0), eIDvalid(false)
                  {Setup(envP, xtra, addusrcgi, addident);}
-
-      XrdPssUrlInfo(const char *tid, const char *path, const char *xtra="",
-                    bool addusrcgi=true, bool addident=true)
-               : tident(tid), Path(path), CgiBuff(0), CgiUsr(""), CgiUsz(0),
-                 CgiSsz(0), sidP(0) {Setup(0,    xtra, addusrcgi, addident);}
 
      ~XrdPssUrlInfo() {if (*theID == 'p' && sidP) sidP->Release(&idVal);
                        if (CgiBuff) free(CgiBuff);
@@ -80,6 +77,8 @@ const char *Tident() {return tident;}
 private:
 void  Setup(XrdOucEnv *envP, const char *xtra, bool addusrcgi, bool addident);
 
+static bool       MapID;
+
 const char       *tident;
 const char       *Path;
       char       *CgiBuff;
@@ -87,7 +86,10 @@ const char       *CgiUsr;
       int         CgiUsz;
       int         CgiSsz;
       XrdOucSid  *sidP;
-      char        theID[14];
+unsigned
+      int         entityID;
+      bool        eIDvalid;
+      char        theID[13];
 XrdOucSid::theSid idVal;
       char        CgiSfx[512];
 };

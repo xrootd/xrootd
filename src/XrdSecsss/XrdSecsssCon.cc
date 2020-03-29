@@ -1,10 +1,8 @@
-#ifndef __XRDPOSIXCONFIG_H__
-#define __XRDPOSIXCONFIG_H__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d P o s i x C o n f i g . h h                      */
+/*                       X r d S e c s s s C o n . c c                        */
 /*                                                                            */
-/* (c) 2017 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2020 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -28,47 +26,51 @@
 /* The copyright holder's institutional names and contributor's names may not */
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
-/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include <unistd.h>
-#include <sys/types.h>
+#include <string>
+#include <set>
 
-class XrdOucEnv;
-class XrdOucPsx;
-class XrdScheduler;
-class XrdPosixInfo;
-class XrdSecsssCon;
-class XrdSysLogger;
+#include "XrdSecsss/XrdSecsssCon.hh"
+#include "XrdSecsss/XrdSecsssEnt.hh"
+#include "XrdSecsss/XrdSecsssMap.hh"
 
-class XrdPosixConfig
+using namespace XrdSecsssMap;
+
+/******************************************************************************/
+/*                               C o n t a c t                                */
+/******************************************************************************/
+  
+bool XrdSecsssCon::Contact(const std::string &lgnid, const std::string &hostID)
 {
-public:
+   EntityMap::iterator it;
+   char *colon, lid[256];
+   size_t n;
 
-static
-XrdSecsssCon  *conTracker(bool debug=false);
+// Don't bother we are not tracking contacts
+//
+   if (this != conTrack) return false;
 
-static void    EnvInfo(XrdOucEnv &theEnv);
+// Extract out the loginid
+//
+   n = hostID.find('@');
+   if (n == std::string::npos || n < 1 || n >= sizeof(lid)) return false;
+   strncpy(lid, hostID.c_str(), n);
+   lid[n] = 0;
+   if ((colon = index(lid, ':')))
+      {if (colon == lid) return false;
+       *colon = 0;
+      }
 
-static bool    SetConfig(XrdOucPsx &parms);
+// Find the id in the registry
+//
+   sssMutex.Lock();
+   it = Registry.find(lid);
+   if (it == Registry.end()) {sssMutex.UnLock(); return false;}
 
-static bool    OpenFC(const char *path, int oflag, mode_t mode,
-                      XrdPosixInfo &Info);
-
-static void    SetEnv(const char *kword, int kval);
-
-static void    setOids(bool isok);
-
-static int     Stats(const char *theID, char *buff, int blen);
-
-               XrdPosixConfig() {}
-              ~XrdPosixConfig() {}
-
-private:
-static bool initCCM(XrdOucPsx &parms);
-static void initEnv(char *eData);
-static void initEnv(XrdOucEnv &, const char *, long long &);
-static void SetDebug(int val);
-static void SetIPV4(bool userv4);
-};
-#endif
+// Add this contact to the set of contacts
+//
+   it->second->AddContact(hostID);
+   sssMutex.UnLock();
+   return true;
+}

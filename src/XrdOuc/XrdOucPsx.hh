@@ -55,6 +55,8 @@ bool      ClientConfig(const char *pfx, bool hush=false);
 
 bool      ConfigSetup(XrdSysError &eDest, bool hush=false);
 
+bool      hasCache() {return mCache != 0 || cPath != 0;}
+
 bool      ParseCache(XrdSysError *Eroute, XrdOucStream &Config);
 
 bool      ParseCio(XrdSysError *Eroute, XrdOucStream &Config);

@@ -60,6 +60,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -94,11 +95,15 @@ static XrdPssSys   XrdProxySS;
 
        XrdOucEnv    *envP   = 0;
 
-static const char *ofslclCGI = "ofs.lcl=1";
+       XrdSecsssID  *idMapper = 0;    // -> Auth ID mapper
 
-static const char *osslclCGI = "oss.lcl=1";
+static const char   *ofslclCGI = "ofs.lcl=1";
 
-static const int   PBsz = 4096;
+static const char   *osslclCGI = "oss.lcl=1";
+
+static const int     PBsz = 4096;
+
+       bool          idMapAll = false;
 
        XrdSysTrace SysTrace("Pss",0);
 }
@@ -173,7 +178,7 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN)
 //
    return NoGo;
 }
-
+  
 /******************************************************************************/
 /*                                 C h m o d                                  */
 /******************************************************************************/
@@ -194,6 +199,26 @@ int XrdPssSys::Chmod(const char *path, mode_t mode, XrdOucEnv *eP)
 // We currently do not support chmod()
 //
    return -ENOTSUP;
+}
+
+/******************************************************************************/
+/*                               C o n n e c t                                */
+/******************************************************************************/
+
+void XrdPssSys::Connect(XrdOucEnv &theEnv)
+{
+   EPNAME("Connect");
+   const XrdSecEntity *client = theEnv.secEnv();
+
+// If we need to personify the client, set it up
+//
+   if (idMapper && client)
+      {const char *fmt = (client->ueid & 0xf0000000 ? "%x" : "U%x");
+       char uName[32];
+       snprintf(uName, sizeof(uName), fmt, client->ueid);
+       DEBUG(client->tident,"Registering as ID "<<uName);
+       idMapper->Register(uName, client, deferID);
+      }
 }
 
 /******************************************************************************/
@@ -223,6 +248,26 @@ int XrdPssSys::Create(const char *tident, const char *path, mode_t Mode,
 {
 
    return -ENOTSUP;
+}
+  
+/******************************************************************************/
+/*                                  D i s c                                   */
+/******************************************************************************/
+
+void XrdPssSys::Disc(XrdOucEnv &theEnv)
+{
+   EPNAME("Disc");
+   const XrdSecEntity *client = theEnv.secEnv();
+
+// If we personified a client, remove that persona.
+//
+   if (idMapper && client)
+      {const char *fmt = (client->ueid & 0xf0000000 ? "%x" : "U%x");
+       char uName[32];
+       snprintf(uName, sizeof(uName), fmt, client->ueid);
+       DEBUG(client->tident,"Unregistering as ID "<<uName);
+       idMapper->Register(uName, 0);
+      }
 }
 
 /******************************************************************************/
@@ -422,9 +467,11 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 //
    XrdPssUrlInfo uInfo(eP, path, Cgi);
 
-// Generate an ID if we need to
+// Generate an ID if we need to. We can use the server's identity unless that
+// has been prohibited because client ID mapping is taking place.
 //
-   if (sidP) uInfo.setID(sidP);
+   if (idMapAll) uInfo.setID();
+      else if (sidP) uInfo.setID(sidP);
 
 // Convert path to URL
 //

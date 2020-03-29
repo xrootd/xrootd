@@ -104,7 +104,6 @@ void           setIP(XrdNetAddrInfo &endPoint);
 
 static struct Crypto  CryptoTab[];
 
-static const char    *myName;
        char          *urName;
        char           urIP[48];  // New format
        char           urIQ[48];  // Old format

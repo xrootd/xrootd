@@ -1416,7 +1416,7 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 //
    if (OssIsProxy)
       {if (Func == XrdSfsFileSystem::csGet || Func == XrdSfsFileSystem::csCalc)
-          cksData.tident = tident;
+          cksData.envP = &cksEnv;
       }
 
 // Now determine what to do
@@ -1503,6 +1503,32 @@ int XrdOfs::chmod(const char             *path,    // In
 // An error occured, return the error info
 //
    return XrdOfsFS->Emsg(epname, einfo, retc, "change", path);
+}
+
+/******************************************************************************/
+/*                               C o n n e c t                                */
+/******************************************************************************/
+
+void XrdOfs::Connect(const XrdSecEntity *client)
+{
+   XrdOucEnv myEnv(0, 0, client);
+
+// Pass this call along
+//
+   XrdOfsOss->Connect(myEnv);
+}
+
+/******************************************************************************/
+/*                                  D i s c                                   */
+/******************************************************************************/
+  
+void XrdOfs::Disc(const XrdSecEntity *client)
+{
+   XrdOucEnv myEnv(0, 0, client);
+
+// Pass this call along
+//
+   XrdOfsOss->Disc(myEnv);
 }
 
 /******************************************************************************/
