@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[SSS]** Allow sss authentication protocol to clone credentials.
   * **[Auth]** [Auth] Allow authentication protocols to require TLS.
   * **[Server]** Implement a stackable post authentication plug-in (sec.entitylib).
   * **[Server]** Allow XrdNetAddr to track socket dialect.
