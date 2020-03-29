@@ -34,10 +34,9 @@
     decorate (e.g. add attributes) the entity object. The plugin also has the
     capability of returning failure due to some problem. When failure ooccurs,
     the security framework moves on to another authentication protocol, if one
-    is avalable. Entiry post processing plugins may be stacked. If the protocol
-    used for authentiation is not one which the plugin handles, it should pass
-    control to the next plugin. if one exists. If there is no other plugin
-    if should normally return success.
+    is avalable. Entity post processing plugins may be stacked. You always
+    return the results of the stacked plugin whether or not you wish to handle
+    the entity object, if a stacked plugin exists; unless you return false.
 */
 
 class XrdSecEntityPin

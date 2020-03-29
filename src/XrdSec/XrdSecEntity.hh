@@ -214,7 +214,7 @@ public:
 //!         the end of the list indicator is returned.
 //------------------------------------------------------------------------------
 
-enum     Action {Delete = -1, //!< Delete the key-value
+enum     Action {Delete = -1, //!< Delete the key-value and proceed to next one
                  Stop   =  0, //!< Stop the iteration
                  Next   =  1  //!< Proceed to the next key-value pair
                 };
