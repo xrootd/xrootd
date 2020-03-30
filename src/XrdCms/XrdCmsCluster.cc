@@ -610,7 +610,7 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 //
    if (!Cache.Paths.Find(Path, pinfo) || !pinfo.rovec)
       {Sel.Vec.hf = Sel.Vec.pf = Sel.Vec.wf = 0;
-       return -1;
+       return NotFound;
       } else Sel.Vec.wf = pinfo.rwvec;
 
 // Check if this was a non-lookup request
@@ -639,7 +639,7 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
        if (!(retc = SelDFS(Sel, amask, pmask, smask, 1)))
           return (Sel.Opts & XrdCmsSelect::Asap && Sel.InfoP
                 ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
-       if (retc < 0) return -1;
+       if (retc < 0) return NotFound;
        return 0;
       }
 
@@ -657,7 +657,7 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 // Compute the delay, if any
 //
    if ((!qfVec && retc >= 0) || (Sel.Vec.hf && Sel.InfoP)) retc =  0;
-      else if (!(retc = Cache.WT4File(Sel, Sel.Vec.hf)))   retc = -2;
+      else if (!(retc = Cache.WT4File(Sel, Sel.Vec.hf)))   retc = Wait4CBk;
 
 // Check if we have to ask any nodes if they have the file
 //
@@ -937,7 +937,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    || (amask = ((isRW ? pinfo.rwvec : pinfo.rovec) & ~Sel.nmask)) == 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                        "No servers have %s access to the file", Amode)+1;
-       return -1;
+       Sel.Resp.Port = kYR_ENOENT;
+       return EReplete;
       }
 
 // If we are running a shared file system preform an optional restricted
@@ -961,7 +962,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
           {Sel.Resp.DLen = 0;
            if (!(retc = SelDFS(Sel, amask, pmask, smask, isRW)))
               return (fRD ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
-           if (retc < 0) return -1;
+           if (retc < 0) return retc;
           } else if (noSel) return 0;
        return SelNode(Sel, pmask, smask);
       }
@@ -1150,24 +1151,32 @@ int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
     const char *etext;
 
     switch(rc)
-   {case eExists: etext = "Unable to create new file; file already exists.";
+   {case eExists: if (Sel.Opts & XrdCmsSelect::isMeta)
+                     etext = "Unable to create directory; directory already exists.";
+                     else etext = "Unable to create new file; file already exists.";
+                  Sel.Resp.Port = kYR_RWConflict;
                   break;
-    case eROfs:   etext = "Unable to write file; r/o file already exists.";
+    case eROfs:   etext = "Unable to modify file; r/o file already exists.";
+                  Sel.Resp.Port = kYR_RWConflict;
                   break;
-    case eDups:   etext = "Unable to write file; multiple files exist.";
+    case eDups:   etext = "Unable to modify file; multiple files exist.";
+                  Sel.Resp.Port = kYR_RWConflict;
                   break;
     case eNoRep:  etext = "Unable to replicate file; no new sites available.";
+                  Sel.Resp.Port = kYR_noReplicas;
                   break;
     case eNoSel:  etext = (Sel.Vec.hf & Sel.nmask
-                        ? "Unable to write file; eligible servers shunned."
+                        ? "Unable to access file; eligible servers shunned."
                         : "Unable to write file; r/w exports not found.");
+                  Sel.Resp.Port = kYR_ENOENT;
                   break;
     default:      etext = "Unable to access file; file does not exist.";
+                  Sel.Resp.Port = kYR_ENOENT;
                   break;
    };
 
     Sel.Resp.DLen = strlcpy(Sel.Resp.Data, etext, sizeof(Sel.Resp.Data))+1;
-    return -1;
+    return EReplete;
 }
   
 /******************************************************************************/
@@ -1975,8 +1984,8 @@ int XrdCmsCluster::Unreachable(XrdCmsSelect &Sel, bool none)
                "Eligible server is unreachable via %s network to %s%s the file.",
                XrdNetIF::Name(nType), Xmode, Amode) + 1;
       }
-
-   return -1;
+   Sel.Resp.Port = kYR_ENETUNREACH;
+   return EReplete;
 }
   
 /******************************************************************************/
@@ -1990,5 +1999,6 @@ int XrdCmsCluster::Unuseable(XrdCmsSelect &Sel)
 
    Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                    "No servers are available to %s%s the file.",Xmode,Amode)+1;
-   return -1;
+   Sel.Resp.Port = kYR_ENOENT;
+   return EReplete;
 }

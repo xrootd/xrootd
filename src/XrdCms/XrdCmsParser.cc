@@ -361,6 +361,7 @@ int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, XrdOucBuffer *dBuff,
 int XrdCmsParser::mapError(const char *ecode)
 {
    if (!strcmp("ENOENT", ecode))       return ENOENT;
+   if (!strcmp("EEXIST", ecode))       return EEXIST;
    if (!strcmp("EPERM", ecode))        return EPERM;
    if (!strcmp("EACCES", ecode))       return EACCES;
    if (!strcmp("EIO", ecode))          return EIO;
@@ -388,6 +389,8 @@ int XrdCmsParser::mapError(int ecode)
           case kYR_EISDIR:             return EISDIR;
           case kYR_FSError:            return ENODEV;
           case kYR_SrvError:           return EFAULT;
+          case kYR_RWConflict:         return EEXIST;
+          case kYR_noReplicas:         return EADDRNOTAVAIL;
           default:                     return EINVAL;
          }
 }

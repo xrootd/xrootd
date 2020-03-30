@@ -184,8 +184,11 @@ void            ResetRef(SMask_t smask, bool isLocked=false);
 
 // Called to select the best possible node to serve a file (two forms)
 //
-static const int RetryErr = -3;
-static const int RetryOut = -4;
+static const int NotFound = -1; // Locate() failed to find resource
+static const int Wait4CBk = -2; // Only returned by Locate()
+static const int RetryErr = -3; // Used only by XrdCmsNode retry processing
+static const int EReplete = -4; // Failed, error information is complete
+
 int             Select(XrdCmsSelect &Sel);
 
 int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,

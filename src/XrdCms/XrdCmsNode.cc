@@ -652,7 +652,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
           {Arg.Request.rrCode = kYR_wait;
            bytes = sizeof(Resp.Val); Why = "delay ";
           } else {
-           if (rc == -2) return 0;
+           if (rc == XrdCmsCluster::Wait4CBk) return 0;
            Arg.Request.rrCode = kYR_error;
            rc = kYR_ENOENT; Why = "miss ";
            bytes = strlcpy(Resp.outbuff, "No servers have access to the file",
@@ -1072,7 +1072,7 @@ int XrdCmsNode::do_SelAvoid(XrdCmsRRData &Arg, XrdCmsSelect &Sel,
        Sel.Resp.DLen = msrclen;
        if (Arg.Opts & CmsSelectRequest::kYR_tryRSEL) Sel.Resp.Port = kYR_EPERM;
           else Sel.Resp.Port = kYR_ENOENT;
-       return XrdCmsCluster::RetryOut;
+       return XrdCmsCluster::EReplete;
       }
 
 // Check if we exceeded the retry count
@@ -1187,12 +1187,15 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            DEBUGR("delay " <<rc <<' ' <<Arg.Path);
           } else {
            Arg.Request.rrCode = kYR_error;
-           if (rc != XrdCmsCluster::RetryOut)
-              {if (rc != XrdCmsCluster::RetryErr) Sel.Resp.Port = kYR_ENOENT;
-                  else {int rtRC = (Arg.Opts & CmsSelectRequest::kYR_tryMASK)
-                                 >> CmsSelectRequest::kYR_trySHFT;
-                        Sel.Resp.Port = rtEC[rtRC];
-                       }
+           if (rc != XrdCmsCluster::EReplete) // if error info has not been set
+              {if (rc == XrdCmsCluster::RetryErr)
+                  {int rtRC = (Arg.Opts & CmsSelectRequest::kYR_tryMASK)
+                                       >> CmsSelectRequest::kYR_trySHFT;
+                   Sel.Resp.Port = rtEC[rtRC];
+                  } else {
+                   Sel.Resp.Port = kYR_ENOENT; // This should never happen!
+                   Sel.Resp.DLen = sprintf(Sel.Resp.Data,"%s","File not found.")+1;
+                  }
               }
            DEBUGR("failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);
           }

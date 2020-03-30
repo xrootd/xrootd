@@ -147,19 +147,21 @@ enum CmsRspCode            // Response codes
 };
 
 enum YErrorCode
-{  kYR_ENOENT = 1,
-   kYR_EPERM,
-   kYR_EACCES,
-   kYR_EINVAL,
-   kYR_EIO,
-   kYR_ENOMEM,
-   kYR_ENOSPC,
-   kYR_ENAMETOOLONG,
-   kYR_ENETUNREACH,
-   kYR_ENOTBLK,
-   kYR_EISDIR,
-   kYR_FSError,
-   kYR_SrvError
+{  kYR_ENOENT = 1,        // -> ENOENT
+   kYR_EPERM,             // -> ENOENT
+   kYR_EACCES,            // -> EACCES
+   kYR_EINVAL,            // -> EINVALO
+   kYR_EIO,               // -> EIO
+   kYR_ENOMEM,            // -> ENOMEM
+   kYR_ENOSPC,            // -> ENOSPC
+   kYR_ENAMETOOLONG,      // -> ENAMETOOLONG
+   kYR_ENETUNREACH,       // -> ENETUNREACH
+   kYR_ENOTBLK,           // -> ENOTBLK
+   kYR_EISDIR,            // -> EISDIR
+   kYR_FSError,           // -> ENODEV
+   kYR_SrvError,          // -> EFAULT
+   kYR_RWConflict,        // -> EEXIST
+   kYR_noReplicas         // -> EADDRNOTAVAIL
 };
 
 struct CmsResponse
