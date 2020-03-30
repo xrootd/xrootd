@@ -13,7 +13,7 @@ set( XROOTD_PUBLIC_HEADERS
   Xrd/XrdLinkMatch.hh
   Xrd/XrdProtocol.hh
   Xrd/XrdScheduler.hh
-  Xrd/XrdTcpMon.hh
+  Xrd/XrdTcpMonPin.hh
   XrdNet/XrdNet.hh
   XrdNet/XrdNetAddr.hh
   XrdNet/XrdNetAddrInfo.hh
