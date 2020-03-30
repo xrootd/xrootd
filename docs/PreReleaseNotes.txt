@@ -49,6 +49,7 @@ Prerelease Notes
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[cmsd]** Make sure to return correct error when creation conflict occurs.
   * **[Server]** Correct action determination for debug message to avoid strife.
   * **[Server]** Use correct mechanism to determine DNS registration.
 
