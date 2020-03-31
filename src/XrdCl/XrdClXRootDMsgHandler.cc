@@ -2520,7 +2520,8 @@ namespace XrdCl
     if( !( pLoadBalancer.flags & kXR_attrMeta ) ) return false;
 
     // those errors are retriable for meta-managers
-    if( status.errNo == kXR_Unsupported || status.errNo == kXR_FileLocked )
+    if( status.errNo == kXR_Unsupported || status.errNo == kXR_FileLocked ||
+        status.errNo == kXR_noserver )
       return true;
 
     // in case of not-authorized error there is an imposed upper limit
