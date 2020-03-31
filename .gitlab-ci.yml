@@ -4,6 +4,7 @@ stages:
   - build:dockerimage
   - test
   - publish
+  - post:publish
   - clean
 
 .template:deb_ubuntu_build: &deb_ubuntu_build_def
@@ -711,7 +712,7 @@ publish:debian:release:
     - chmod -R 700 /home/stci
     - sudo -u stci -H gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
     - repo=release
-    - if [[ $CI_COMMIT_TAG == *rc* ]] ; then repo=testing fi
+    - if [[ $CI_COMMIT_TAG == *rc* ]] ; then repo=testing ; fi
     - sudo -u stci -H ./packaging/debian_scripts/publish_debian_cern.sh $repo
   tags:
     - docker_node
@@ -748,18 +749,17 @@ publish:weekly:
     - tags
 
 publish:koji:centos8:
-  stage: publish
+  stage: post:publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client koji
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos8 centos-8-x86_64/SRPMS/*.src.rpm ; else stat centos-8-x86_64/SRPMS/*.src.rpm ; fi
+    - path=/eos/project/s/storage-ci/www/xrootd/centos-8-x86_64/$CI_COMMIT_TAG/source/
+    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos8 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
-  dependencies:
-    - release:centos8-x86_64
   only:
     - web
   except:
@@ -767,18 +767,17 @@ publish:koji:centos8:
   when: manual
 
 publish:koji:cc7:
-  stage: publish
+  stage: post:publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client koji
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos7 cc-7-x86_64/SRPMS/*.src.rpm ; else stat cc-7-x86_64/SRPMS/*.src.rpm ; fi
+    - path=/eos/project/s/storage-ci/www/xrootd/cc-7-x86_64/$CI_COMMIT_TAG/source/
+    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos7 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
-  dependencies:
-    - release:cc7-x86_64
   only:
     - web
   except:
@@ -786,18 +785,17 @@ publish:koji:cc7:
   when: manual
 
 publish:koji:slc6:
-  stage: publish
+  stage: post:publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client koji
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos6 slc-6-x86_64/SRPMS/*.src.rpm ; else stat slc-6-x86_64/SRPMS/*.src.rpm ; fi
+    - path=/eos/project/s/storage-ci/www/xrootd/slc-6-x86_64/$CI_COMMIT_TAG/source/
+    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos6 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
-  dependencies:
-    - release:slc6-x86_64
   only:
     - web
   except:
