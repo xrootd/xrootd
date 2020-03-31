@@ -80,7 +80,6 @@ namespace PyXRootD
 #endif
   {
     // Ensure GIL state is initialized
-    Py_Initialize();
     if ( !PyEval_ThreadsInitialized() ) {
       PyEval_InitThreads();
     }
