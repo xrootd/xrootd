@@ -330,9 +330,6 @@ protected:
   /// Our port, as a string
   static char * Port_str;
 
-  /// Windowsize
-  static int Window;
-
   /// OpenSSL stuff
   static char *sslcert, *sslkey, *sslcadir, *sslcafile, *sslcipherfilter;
 

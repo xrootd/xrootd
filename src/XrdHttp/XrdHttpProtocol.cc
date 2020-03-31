@@ -25,7 +25,6 @@
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
-#include "Xrd/XrdInet.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -73,7 +72,6 @@ int XrdHttpProtocol::hailWait = 0;
 int XrdHttpProtocol::readWait = 0;
 int XrdHttpProtocol::Port = 1094;
 char *XrdHttpProtocol::Port_str = 0;
-int XrdHttpProtocol::Window = 0;
 
 //XrdXrootdStats *XrdHttpProtocol::SI = 0;
 char *XrdHttpProtocol::sslcert = 0;
@@ -1117,8 +1115,6 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   //
   while ((var = Config.GetMyFirstWord())) {
     if ((ismine = !strncmp("http.", var, 5)) && var[5]) var += 5;
-    else if ((ismine = !strcmp("all.export", var))) var += 4;
-    else if ((ismine = !strcmp("all.pidpath", var))) var += 4;
 
     if (ismine) {
            if TS_Xeq("trace", xtrace);
@@ -1565,9 +1561,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
     Output:   0 upon success or !0 otherwise.
    */
 
-  extern int optind, opterr;
-
-  char *rdf, c;
+  char *rdf;
 
   // Copy out the special info we want to use at top level
   //
@@ -1587,64 +1581,11 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
     Port_str = strdup(buf);
   }
 
-
-
-  Window = pi->WSize;
-
-  pi->NetTCP->netIF.Port(Port);
-  pi->NetTCP->netIF.Display("Config ");
-  pi->theEnv->PutPtr("XrdInet*", (void *)(pi->NetTCP));
-  pi->theEnv->PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
-
-  // Prohibit this program from executing as superuser
-  //
-  if (geteuid() == 0) {
-    eDest.Emsg("Config", "Security reasons prohibit xrootd running as "
-            "superuser; xrootd is terminating.");
-    _exit(8);
-  }
-
-  // Process any command line options
-  //
-  opterr = 0;
-  optind = 1;
-  if (pi->argc > 1 && '-' == *(pi->argv[1]))
-    while ((c = getopt(pi->argc, pi->argv, "mrst")) && ((unsigned char) c != 0xff)) {
-      switch (c) {
-        case 'm': XrdOucEnv::Export("XRDREDIRECT", "R");
-          break;
-        case 's': XrdOucEnv::Export("XRDRETARGET", "1");
-          break;
-        default: eDest.Say("Config warning: ignoring invalid option '", pi->argv[optind - 1], "'.");
-      }
-    }
-
-
   // Now process and configuration parameters
   //
   rdf = (parms && *parms ? parms : pi->ConfigFN);
   if (rdf && Config(rdf, pi->theEnv)) return 0;
   if (pi->DebugON) XrdHttpTrace->What = TRACE_ALL;
-
-  // Set the redirect flag if we are a pure redirector
-  //
-  myRole = kXR_isServer;
-  if ((rdf = getenv("XRDROLE"))) {
-    eDest.Emsg("Config", "XRDROLE: ", rdf);
-
-    if (!strcasecmp(rdf, "manager") || !strcasecmp(rdf, "supervisor")) {
-      myRole = kXR_isManager;
-      eDest.Emsg("Config", "Configured as HTTP(s) redirector.");
-    } else {
-
-      eDest.Emsg("Config", "Configured as HTTP(s) data server.");
-    }
-
-  } else {
-    eDest.Emsg("Config", "No XRDROLE specified.");
-  }
-
-
 
   // Schedule protocol object cleanup
   //
@@ -1656,11 +1597,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 
   return 1;
 }
-
-
-
-
-
 
 
 // --------------
