@@ -756,7 +756,7 @@ publish:koji:centos8:
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - path=/eos/project/s/storage-ci/www/xrootd/centos-8-x86_64/$CI_COMMIT_TAG/source/
+    - path=/eos/project/s/storage-ci/www/xrootd/release/centos-8-x86_64/$CI_COMMIT_TAG/source/
     - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos8 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
@@ -774,7 +774,7 @@ publish:koji:cc7:
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - path=/eos/project/s/storage-ci/www/xrootd/cc-7-x86_64/$CI_COMMIT_TAG/source/
+    - path=/eos/project/s/storage-ci/www/xrootd/release/cc-7-x86_64/$CI_COMMIT_TAG/source/
     - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos7 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
@@ -792,7 +792,7 @@ publish:koji:slc6:
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - path=/eos/project/s/storage-ci/www/xrootd/slc-6-x86_64/$CI_COMMIT_TAG/source/
+    - path=/eos/project/s/storage-ci/www/xrootd/release/slc-6-x86_64/$CI_COMMIT_TAG/source/
     - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos6 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
