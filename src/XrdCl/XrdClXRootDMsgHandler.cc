@@ -375,7 +375,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pUrl.IsLocalFile() && pUrl.IsMetalink() )
     {
-      pHosts->back().flags    = kXR_isManager | kXR_attrMeta;
+      pHosts->back().flags    = kXR_isManager | kXR_attrMeta | kXR_attrVirtRdr;
       pHosts->back().protocol = kXR_PROTOCOLVERSION;
     }
     //--------------------------------------------------------------------------
