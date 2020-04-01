@@ -196,14 +196,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    XrdXrootdCallBack::setVals(&eDest, SI, Sched, Port);
 
-// Prohibit this program from executing as superuser
-//
-   if (geteuid() == 0)
-      {eDest.Emsg("Config", "Security reasons prohibit xrootd running as "
-                  "superuser; xrootd is terminating.");
-       _exit(8);
-      }
-
 // Process any command line options
 //
    opterr = 0; optind = 1;

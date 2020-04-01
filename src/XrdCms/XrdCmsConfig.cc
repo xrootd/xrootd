@@ -214,14 +214,6 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
    char c, buff[512];
    extern int opterr, optopt;
 
-// Prohibit this program from executing as superuser
-//
-   if (geteuid() == 0)
-      {Say.Emsg("Config", "Security reasons prohibit cmsd running as "
-                  "superuser; cmsd is terminating.");
-       _exit(8);
-      }
-
 // Process the options
 //
    opterr = 0; optind = 1;

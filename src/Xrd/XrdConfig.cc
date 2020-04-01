@@ -269,7 +269,7 @@ int XrdConfig::Configure(int argc, char **argv)
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    char *ifList = 0;
    int   myArgc = 1, urArgc = argc, i;
-   bool noV6, ipV4 = false, ipV6 = false;
+   bool noV6, ipV4 = false, ipV6 = false, rootChk = true;
 
 // Obtain the program name we will be using
 //
@@ -369,6 +369,7 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'P': dfltProt = optarg;
                  break;
        case 'R': if (!(getUG(optarg, myUid, myGid))) Usage(1);
+                 rootChk = false;
                  break;
        case 's': pidFN = optarg;
                  break;
@@ -419,6 +420,14 @@ int XrdConfig::Configure(int argc, char **argv)
       {Log.Emsg("Config", errno, "set effective gid"); exit(17);}
    if (myUid && seteuid(myUid))
       {Log.Emsg("Config", errno, "set effective uid"); exit(17);}
+
+// Prohibit this program from executing as superuser unless -R was specified.
+//
+   if (rootChk && geteuid() == 0)
+      {Log.Emsg("Config", "Security reasons prohibit running as "
+                "superuser; program is terminating.");
+       _exit(8);
+      }
 
 // Pass over any parameters
 //
