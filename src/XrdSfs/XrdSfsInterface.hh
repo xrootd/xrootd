@@ -378,6 +378,7 @@ public:
 //!                  SFS_O_CREAT   create the file
 //!                  SFS_O_MKPTH   Make directory path if missing
 //!                  SFS_O_NOWAIT  do not impose operational delays
+//!                  SFS_O_NOTPC   do not allow TPC operation
 //!                  SFS_O_POSC    persist only on successful close
 //!                  SFS_O_RAWIO   allow client-side decompression
 //!                  SFS_O_RDONLY  open read/only
