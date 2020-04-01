@@ -442,6 +442,7 @@ unsigned char              rvSeq;
 unsigned char              wvSeq;
 
 char                       doTLS;
+bool                       ableTLS;
 
 // Track usage limts.
 //

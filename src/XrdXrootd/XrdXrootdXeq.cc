@@ -875,7 +875,13 @@ int XrdXrootdProtocol::do_Login()
 // Check if login need to occur on a TLS connection
 //
    if ((doTLS & Req_TLSLogin) && !Link->hasTLS() && !Link->hasBridge())
-      return Response.Send(kXR_TLSRequired, "login requires TLS");
+      {const char *emsg = "login requires TLS be enabled";
+       if (!ableTLS)
+          {emsg = "login requires TLS support";
+           eDest.Emsg("Xeq","login requires TLS but",Link->ID,"is incapable.");
+          }
+       return Response.Send(kXR_TLSRequired, emsg);
+      }
 
 // Unmarshall the pid and construct username using the POSIX.1-2008 standard
 //
@@ -1749,7 +1755,7 @@ int XrdXrootdProtocol::do_Protocol()
 
    ServerResponseBody_Protocol theResp;
    int rc, RespLen = kXR_ShortProtRespLen;
-   bool wantTLS = false, ableTLS = false;
+   bool wantTLS = false;
 
 // Keep Statistics
 //
@@ -1798,7 +1804,9 @@ int XrdXrootdProtocol::do_Protocol()
    rc = Response.Send((void *)&theResp,RespLen);
 
 // If the clientwants to start using TLS, enable it now. If we fail then we
-// have no choice but to terminate the connection.
+// have no choice but to terminate the connection. Note that incapable clients
+// don't want TLS but if we require TLS anyway, they will get an error either
+// pre-login or post-login or on a bind later on.
 //
    if (rc == 0 && wantTLS)
       {if (Link->setTLS(true))
@@ -3688,13 +3696,20 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
       } else *pBuff = 0;
    eDest.Log(SYS_LOG_01, "Xeq", Link->ID, lBuff, (*pBuff ? pBuff : 0));
 
-// Enable TLS if we need to (note sess setting is off if login setting is on)
+// Enable TLS if we need to (note sess setting is off if login setting is on).
+// If we need to but the client is not TLS capable, send an error and terminate.
 //
-   if (doTLS & Req_TLSSess)
-      {if (Link->setTLS(true)) Link->setProtName("xroots");
-          else {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
-                return false;
-               }
+   if ((doTLS & Req_TLSSess) && !Link->hasBridge())
+      {if (ableTLS)
+          {if (Link->setTLS(true)) Link->setProtName("xroots");
+              else {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
+                    return false;
+                   }
+          } else {
+           eDest.Emsg("Xeq","session requires TLS but",Link->ID,"is incapable.");
+           Response.Send(kXR_TLSRequired, "session requires TLS support");
+           return false;
+          }
       }
 
 // Record the appname in the final SecEntity object

@@ -420,7 +420,7 @@ int XrdXrootdProtocol::Process2()
              case kXR_bind:     return do_Bind();
              default:           Response.Send(kXR_InvalidRequest,
                                 "Invalid request; user not logged in");
-                                return Link->setEtext("protocol sequence error 1");
+                                return Link->setEtext("request without login");
             }
 
 // Help the compiler, select the the high activity requests (the ones with
@@ -944,7 +944,8 @@ void XrdXrootdProtocol::Reset()
    PathID             = 0;
    rvSeq              = 0;
    wvSeq              = 0;
-   doTLS              = 0;
+   doTLS              = tlsNot; // Assume client is not capable. This will be
+   ableTLS            = false;  // resolved during the kXR_protocol interchange.
    pioFree = pioFirst = pioLast = 0;
    isActive = isDead  = isNOP = isBound = 0;
    sigNeed = sigHere = sigRead = false;
