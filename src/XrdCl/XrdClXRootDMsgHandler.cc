@@ -2343,8 +2343,7 @@ namespace XrdCl
     if( !( pLoadBalancer.flags & kXR_attrMeta ) ) return false;
 
     // those errors are retriable for meta-managers
-    if( status.errNo == kXR_Unsupported || status.errNo == kXR_FileLocked ||
-        status.errNo == kXR_noserver )
+    if( status.errNo == kXR_Unsupported || status.errNo == kXR_FileLocked )
       return true;
 
     // in case of not-authorized error there is an imposed upper limit
@@ -2364,6 +2363,14 @@ namespace XrdCl
       }
       return ret;
     }
+
+    // check if the load-balancer is a virtual (metalink) redirector,
+    // if yes there are even more errors that can be recovered
+    if( !( pLoadBalancer.flags & kXR_attrVirtRdr ) ) return false;
+
+    // those errors are retriable for virtual (metalink) redirectors
+    if( status.errNo == kXR_noserver || status.errNo == kXR_ArgTooLong )
+      return true;
 
     // otherwise it is a non-retriable error
     return false;
