@@ -107,7 +107,23 @@ void sslTLS_lock(int mode, int n, const char *file, int line)
   
 namespace
 {
+// The following is the default cipher list. Note that for OpenSSL v1.0.2+ we
+// use the recommended cipher list from Mozilla. Otherwise, we use the dumber
+// less secure ciphers as older versions of openssl have issues with them. See
+// ssl-config.mozilla.org/#config=intermediate&openssl=1.0.2k&guideline=5.4
+//
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+const char *sslCiphers = "ECDHE-ECDSA-AES128-GCM-SHA256:"
+                         "ECDHE-RSA-AES128-GCM-SHA256:"
+                         "ECDHE-ECDSA-AES256-GCM-SHA384:"
+                         "ECDHE-RSA-AES256-GCM-SHA384:"
+                         "ECDHE-ECDSA-CHACHA20-POLY1305:"
+                         "ECDHE-RSA-CHACHA20-POLY1305:"
+                         "DHE-RSA-AES128-GCM-SHA256:"
+                         "DHE-RSA-AES256-GCM-SHA384";
+#else
 const char *sslCiphers = "ALL:!LOW:!EXP:!MD5:!MD2";
+#endif
 
 XrdSysMutex            ctxMutex;
 #if __cplusplus >= 201103L
@@ -397,6 +413,18 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
        return;
       }
 
+// If we need to enable eliptic-curve support, do so now. Note that for
+// OpenSSL 1.1.0+ this is automatically done for us.
+//
+#if SSL_CTRL_SET_ECDH_AUTO
+   SSL_CTX_set_ecdh_auto(pImpl->ctx, 1);
+#endif
+
+// The following is for documentation. We normally handle renegotiation during
+// reads and writes. The following enables OpenSSL to do that but by blocking.
+//
+// SSL_CTX_set_mode(pImpl->ctx, SSL_MODE_AUTO_RETRY);
+
 // If there is no cert then assume this is a generic context for a client
 //
    if (cert == 0)
@@ -482,6 +510,15 @@ const char *XrdTlsContext::Init()
 }
 
 /******************************************************************************/
+/*                            S e t C i p h e r s                             */
+/******************************************************************************/
+
+void XrdTlsContext::SetCiphers(const char *ciphers)
+{
+   sslCiphers = ciphers;
+}
+  
+/******************************************************************************/
 /*                            x 5 0 9 V e r i f y                             */
 /******************************************************************************/
   
@@ -489,4 +526,3 @@ bool XrdTlsContext::x509Verify()
 {
    return !(pImpl->Parm.cadir.empty()) || !(pImpl->Parm.cafile.empty());
 }
-

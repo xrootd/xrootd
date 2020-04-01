@@ -77,6 +77,14 @@ static
 const char     *Init();
 
 //------------------------------------------------------------------------
+//! Set allowed ciphers.
+//!
+//! @param  ciphers  The colon separated list of allowable ciphers.
+//------------------------------------------------------------------------
+static
+void            SetCiphers(const char *ciphers);
+
+//------------------------------------------------------------------------
 //! Check if certificates are being verified.
 //!
 //! @return True if certificates are being verified, false otherwise.

@@ -663,6 +663,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("timeout",       xtmo);
    TS_Xeq("tls",           xtls);
    TS_Xeq("tlsca",         xtlsca);
+   TS_Xeq("tlsciphers",    xtlsci);
    }
 
    // No match found, complain.
@@ -2063,6 +2064,37 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
                }
        } while((val = Config.GetWord()));
 
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                x t l s c i                                 */
+/******************************************************************************/
+
+/* Function: xtlsci
+
+   Purpose:  To parse directive: tlsciphers <ciphers>
+
+             <ciphers> list of colon sperated ciphers to use.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdConfig::xtlsci(XrdSysError *eDest, XrdOucStream &Config)
+{
+   char *val, *ciphers;
+
+   if (!(val = Config.GetWord()))
+      {eDest->Emsg("Config", "tlsciphers parameter not specified"); return 1;}
+
+   ciphers = strdup(val);
+
+   if ((val = Config.GetWord()))
+      {eDest->Emsg("Config","Invalid tlsciphers argument -",val);
+       return 1;
+      }
+
+   XrdTlsContext::SetCiphers(ciphers);
    return 0;
 }
   

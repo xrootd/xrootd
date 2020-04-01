@@ -84,6 +84,7 @@ int   xsched(XrdSysError *edest, XrdOucStream &Config);
 int   xsit(XrdSysError *edest, XrdOucStream &Config);
 int   xtls(XrdSysError *edest, XrdOucStream &Config);
 int   xtlsca(XrdSysError *edest, XrdOucStream &Config);
+int   xtlsci(XrdSysError *edest, XrdOucStream &Config);
 int   xtrace(XrdSysError *edest, XrdOucStream &Config);
 int   xtmo(XrdSysError *edest, XrdOucStream &Config);
 int   yport(XrdSysError *edest, const char *ptyp, const char *pval);
