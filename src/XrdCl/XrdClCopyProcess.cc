@@ -253,6 +253,9 @@ namespace XrdCl
     if( !p.HasProperty( "dynamicSource" ) )
       p.Set( "dynamicSource", false );
 
+    if( !p.HasProperty( "xrate" ) )
+      p.Set( "xrate", 0 );
+
     //--------------------------------------------------------------------------
     // Insert the properties
     //--------------------------------------------------------------------------
