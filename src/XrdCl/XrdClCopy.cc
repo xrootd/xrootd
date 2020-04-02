@@ -301,12 +301,6 @@ bool AllOptionsSupported( XrdCpConfig *config )
     return false;
   }
 
-  if( config->xRate )
-  {
-    std::cerr << "Limiting transfer rate is not yet supported" << std::endl;
-    return false;
-  }
-
   return true;
 }
 
@@ -786,6 +780,7 @@ int main( int argc, char **argv )
     properties.Set( "xcpBlockSize",   blockSize      );
     properties.Set( "delegate",       delegate       );
     properties.Set( "targetIsDir",    targetIsDir    );
+    properties.Set( "xrate",          config.xRate   );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );

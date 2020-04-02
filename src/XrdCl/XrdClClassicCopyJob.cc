@@ -41,6 +41,8 @@
 #include <mutex>
 #include <queue>
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1472,6 +1474,33 @@ namespace
   }
 }
 
+//------------------------------------------------------------------------------
+// Get current time in nanoseconds
+//------------------------------------------------------------------------------
+inline std::chrono::nanoseconds time_nsec()
+{
+  using namespace std::chrono;
+  auto since_epoch = high_resolution_clock::now().time_since_epoch();
+  return duration_cast<nanoseconds>( since_epoch );
+}
+
+//------------------------------------------------------------------------------
+// Sleep for # nanoseconds
+//------------------------------------------------------------------------------
+inline void sleep_nsec( long long nsec )
+{
+  using namespace std::chrono;
+  std::this_thread::sleep_for( nanoseconds( nsec ) );
+}
+
+//------------------------------------------------------------------------------
+// Convert seconds to nanoseconds
+//------------------------------------------------------------------------------
+inline long long to_nsec( long long sec )
+{
+  return sec * 1000000000;
+}
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -1503,6 +1532,7 @@ namespace XrdCl
     uint64_t    blockSize;
     bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp;
     int32_t     nbXcpSources;
+    long long   xRate;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
     pProperties->Get( "checkSumType",    checkSumType );
@@ -1517,6 +1547,7 @@ namespace XrdCl
     pProperties->Get( "zipArchive",      zip );
     pProperties->Get( "xcp",             xcp );
     pProperties->Get( "xcpBlockSize",    blockSize );
+    pProperties->Get( "xrate",           xRate );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
@@ -1579,6 +1610,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     ChunkInfo chunkInfo;
     uint64_t  processed = 0;
+    auto      start     = time_nsec();
     while( 1 )
     {
       st = src->GetChunk( chunkInfo );
@@ -1587,6 +1619,19 @@ namespace XrdCl
 
       if( st.IsOK() && st.code == suDone )
         break;
+
+      if( xRate )
+      {
+        auto   elapsed     = ( time_nsec() - start ).count();
+        double transferred = processed;
+        double expected    = double( xRate ) / to_nsec( 1 ) * elapsed;
+        if( elapsed /* make sure elapsed time is greater than 0 */ &&
+            transferred > expected )
+        {
+          auto nsec = ( transferred / xRate * to_nsec( 1 ) ) - elapsed;
+          sleep_nsec( nsec );
+        }
+      }
 
       st = dest->PutChunk( chunkInfo );
       if( !st.IsOK() )
