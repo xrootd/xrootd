@@ -701,6 +701,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
        if (dname)
           {rc = Response.Send(kXR_oksofar, XB.ebuff, buff-XB.ebuff);
            buff = XB.ebuff; bleft = sizeof(XB.ebuff);
+           TRACEP(FS, "dirstat sofar n=" <<cnt <<" path=" <<argp->buff);
           }
      } while(!rc && dname);
 
