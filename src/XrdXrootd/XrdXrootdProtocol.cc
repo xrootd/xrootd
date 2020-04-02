@@ -242,8 +242,7 @@ static  struct hs_response
                 kXR_unt32 rlen;   // Specified as kXR_int32 in doc!
                 kXR_unt32 pval;   // Specified as kXR_int32 in doc!
                 kXR_unt32 styp;   // Specified as kXR_int32 in doc!
-               } hsresp={0, 0, htonl(8), // isRedir == 'M' -> MetaManager
-                         htonl(kXR_PROTOCOLVERSION),
+               } hsresp={0, 0, htonl(8), htonl(kXR_PROTOCOLVERSION),
                          (isRedir ? htonl((unsigned int)kXR_LBalServer)
                                   : htonl((unsigned int)kXR_DataServer))};
 XrdXrootdProtocol *xp;

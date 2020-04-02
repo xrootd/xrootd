@@ -139,11 +139,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
   Output:   0 upon success or !0 otherwise.
 */
-//?extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
-//?                           const char   *, XrdOucEnv  *, XrdVersionInfo &);
    char *var;
    const char *tmp;
-   int  i, j, cfgFD, retc, NoGo = 0;
+   int   cfgFD, retc, NoGo = 0;
    XrdOucEnv myEnv;
    XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
 
@@ -212,22 +210,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // If no exports were specified, the default is that we are writable
 //
    if (ossRW == ' ') ossRW = 'w';
-
-// Check if redirection wanted
-//
-   if (getenv("XRDREDIRECT")) i  = isManager;
-      else i = 0;
-   if (getenv("XRDRETARGET")) i |= isServer;
-   if (getenv("XRDREDPROXY")) i |= isProxy;
-   if (i)
-      {if ((j = Options & haveRole) && (i ^ j))
-          {free(myRole); myRole = strdup(theRole(i));
-           Eroute.Say("Config warning: command line role options override "
-                       "config file; 'all.role", myRole, "' in effect.");
-          }
-       Options &= ~(haveRole);
-       Options |= i;
-      }
 
 // Export our role if we actually have one
 //

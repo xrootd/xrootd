@@ -164,12 +164,11 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                              XrdSysLogger     *Logger,
                              const char       *configFn,
                              const char       *theParms);
-   extern int optind, opterr;
 
    XrdOucEnv xrootdEnv;
    XrdXrootdXPath *xp;
-   char *adminp, *rdf, *bP, *tmp, c, buff[1024];
-   int i, n, deper = 0;
+   char *adminp, *rdf, *bP, *tmp, buff[1024];
+   int i, n;
 
 // Copy out the special info we want to use at top level
 //
@@ -196,36 +195,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    XrdXrootdCallBack::setVals(&eDest, SI, Sched, Port);
 
-// Process any command line options
+// Pick up exported paths from the command line
 //
-   opterr = 0; optind = 1;
-   if (pi->argc > 1 && '-' == *(pi->argv[1]))
-      while ((c=getopt(pi->argc,pi->argv,"mrst")) && ((unsigned char)c != 0xff))
-     { switch(c)
-       {
-       case 'r': deper = 1;
-                 XrdOucEnv::Export("XRDREDIRECT", "R");
-                 break;
-       case 'm': XrdOucEnv::Export("XRDREDIRECT", "R");
-                 break;
-       case 't': deper = 1;
-                 XrdOucEnv::Export("XRDRETARGET", "1");
-                 break;
-       case 's': XrdOucEnv::Export("XRDRETARGET", "1");
-                 break;
-       case 'y': XrdOucEnv::Export("XRDREDPROXY", "1");
-                 break;
-       default:  eDest.Say("Config warning: ignoring invalid option '",pi->argv[optind-1],"'.");
-       }
-     }
-
-// Check for deprecated options
-//
-   if (deper) eDest.Say("Config warning: '-r -t' are deprecated; use '-m -s' instead.");
-
-// Pick up exported paths
-//
-   for ( ; optind < pi->argc; optind++) xexpdo(pi->argv[optind]);
+   for (i = 1; i < pi->argc; i++) xexpdo(pi->argv[i]);
 
 // Pre-initialize some i/o values. Note that we now set maximum readv element
 // transfer size to the buffer size (before it was a reasonable 256K).
@@ -372,8 +344,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        myRole = kXR_isManager; myRolf = kXR_LBalServer;
        if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
       } 
+   if (fsFeatures & XrdSfs::hasPRXY) myRole |= kXR_attrProxy;
    myRole |= tlsFlags;
-   if (getenv("XRDREDPROXY"))  myRole |=kXR_attrProxy;
 
 // Check if we are redirecting anything
 //
