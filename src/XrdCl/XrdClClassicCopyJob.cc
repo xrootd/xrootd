@@ -36,6 +36,7 @@
 #include "XrdCl/XrdClZipArchiveReader.hh"
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClJobManager.hh"
+#include "XrdClXCpCtx.hh"
 
 #include <memory>
 #include <mutex>
@@ -49,7 +50,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
-#include "XrdClXCpCtx.hh"
+
+#if __cplusplus < 201103L
+#include <time.h>
+#endif
 
 namespace
 {
@@ -1485,20 +1489,27 @@ inline std::chrono::nanoseconds time_nsec()
 }
 
 //------------------------------------------------------------------------------
-// Sleep for # nanoseconds
-//------------------------------------------------------------------------------
-inline void sleep_nsec( long long nsec )
-{
-  using namespace std::chrono;
-  std::this_thread::sleep_for( nanoseconds( nsec ) );
-}
-
-//------------------------------------------------------------------------------
 // Convert seconds to nanoseconds
 //------------------------------------------------------------------------------
 inline long long to_nsec( long long sec )
 {
   return sec * 1000000000;
+}
+
+//------------------------------------------------------------------------------
+// Sleep for # nanoseconds
+//------------------------------------------------------------------------------
+inline void sleep_nsec( long long nsec )
+{
+#if __cplusplus >= 201103L
+  using namespace std::chrono;
+  std::this_thread::sleep_for( nanoseconds( nsec ) );
+#else
+  timespec req;
+  req.tv_sec  = nsec / to_nsec( 1 );
+  req.tv_nsec = nsec % to_nsec( 1 );
+  nanosleep( &req, 0 );
+#endif
 }
 
 namespace XrdCl
