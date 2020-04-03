@@ -88,82 +88,85 @@ char               *zipFile;       // The file name if the URL points to a ZIP a
 
 static XrdSysError *Log;           // -> Error message object
 
-static const int    OpCksum    =  'C';        // -adler -MD5 legacy -> DoCksrc
-static const int    DoCksrc    =  0x00000001; // --cksum <type>:source
-static const int    DoCksum    =  0x00000002; // --cksum <type>
-static const int    DoCkprt    =  0x00000004; // --cksum <type>:print
+static const int    OpCksum        =  'C';  // -adler -MD5 legacy -> DoCksrc
+static const int    DoCksrc        =  0x0000000000000001LL; // --cksum <type>:source
+static const int    DoCksum        =  0x0000000000000002LL; // --cksum <type>
+static const int    DoCkprt        =  0x0000000000000004LL; // --cksum <type>:print
 
-static const int    OpCoerce   =  'F';
-static const int    DoCoerce   =  0x00000008; // -F | --coerce
+static const int    OpCoerce       =  'F';
+static const int    DoCoerce       =  0x0000000000000008LL; // -F | --coerce
 
-static const int    OpDebug    =  'd';
-static const int    DoDebug    =  0x00000010; // -d | --debug <val>
+static const int    OpDebug        =  'd';
+static const int    DoDebug        =  0x0000000000000010LL; // -d | --debug <val>
 
-static const int    OpForce    =  'f';
-static const int    DoForce    =  0x00000020; // -f | --force
+static const int    OpForce        =  'f';
+static const int    DoForce        =  0x0000000000000020LL; // -f | --force
 
-static const int    OpHelp     =  'h';
-static const int    DoHelp     =  0x00000040; // -h | --help
+static const int    OpHelp         =  'h';
+static const int    DoHelp         =  0x0000000000000040LL; // -h | --help
 
-static const int    OpIfile    =  'I';
-static const int    DoIfile    =  0x00000080; // -I | --infiles
+static const int    OpIfile        =  'I';
+static const int    DoIfile        =  0x0000000000000080LL; // -I | --infiles
 
-static const int    OpLicense  =  'H';        // -H | --license
+static const int    OpLicense      =  'H';                  // -H | --license
 
-static const int    OpNoPbar   =  'N';
-static const int    DoNoPbar   =  0x00000100; // -N | --nopbar | -np {legacy}
+static const int    OpNoPbar       =  'N';        // -N | --nopbar | -np {legacy}
+static const int    DoNoPbar       =  0x0000000000000100LL;
 
-static const int    OpPosc     =  'P';
-static const int    DoPosc     =  0x00000200; // -P | --posc
+static const int    OpPosc         =  'P';
+static const int    DoPosc         =  0x0000000000000200LL; // -P | --posc
 
-static const int    OpProxy    =  'D';
-static const int    DoProxy    =  0x00000400; // -D | --proxy
+static const int    OpProxy        =  'D';
+static const int    DoProxy        =  0x0000000000000400LL; // -D | --proxy
 
-static const int    OpRecurse  =  'r';
-static const int    OpRecursv  =  'R';
-static const int    DoRecurse  =  0x00000800; // -r | --recursive | -R {legacy}
+static const int    OpRecurse      =  'r';
+static const int    OpRecursv      =  'R';        // -r | --recursive | -R {legacy}
+static const int    DoRecurse      =  0x0000000000000800LL;
 
-static const int    OpRetry    =  't';
-static const int    DoRetry    =  0x00001000; // -t | --retry
+static const int    OpRetry        =  't';
+static const int    DoRetry        =  0x0000000000001000LL; // -t | --retry
 
-static const int    OpServer   =  0x03;
-static const int    DoServer   =  0x00002000; //      --server
+static const int    OpServer       =  0x03;
+static const int    DoServer       =  0x0000000000002000LL; //      --server
 
-static const int    OpSilent   =  's';
-static const int    DoSilent   =  0x00004000; // -s | --silent
+static const int    OpSilent       =  's';
+static const int    DoSilent       =  0x0000000000004000LL; // -s | --silent
 
-static const int    OpSources  =  'y';
-static const int    DoSources  =  0x00008000; // -y | --sources
+static const int    OpSources      =  'y';
+static const int    DoSources      =  0x0000000000008000LL; // -y | --sources
 
-static const int    OpStreams  =  'S';
-static const int    DoStreams  =  0x00010000; // -S | --streams
+static const int    OpStreams      =  'S';
+static const int    DoStreams      =  0x0000000000010000LL; // -S | --streams
 
-static const int    OpTpc      =  'T';
-static const int    DoTpc      =  0x00020000; // -T | --tpc {first | only}
-static const int    DoTpcOnly  =  0x00100000; // -T | --tpc          only
-static const int    DoTpcDlgt  =  0x00800000; // -T | --tpc delegate ...
+static const int    OpTpc          =  'T'; // -T | --tpc [delegate] {first | only}
+static const int    DoTpc          =  0x0000000000020000LL; // --tpc {first | only}
+static const int    DoTpcOnly      =  0x0000000000100000LL; // --tpc          only
+static const int    DoTpcDlgt      =  0x0000000000800000LL; // --tpc delegate ...
 
-static const int    OpVerbose  =  'v';
-static const int    DoVerbose  =  0x00040000; // -v | --verbose
+static const int    OpVerbose      =  'v';
+static const int    DoVerbose      =  0x0000000000040000LL; // -v | --verbose
 
-static const int    OpVersion  =  'V';        // -V | --version
+static const int    OpVersion      =  'V';                  // -V | --version
 
-static const int    OpXrate    =  'X';
-static const int    DoXrate    =  0x00080000; // -X | --xrate
+static const int    OpXrate        =  'X';
+static const int    DoXrate        =  0x0000000000080000LL; // -X | --xrate
 
-static const int    OpParallel =  0x04;
-static const int    DoParallel =  0x00200000; //      --parallel
+static const int    OpParallel     =  0x04;
+static const int    DoParallel     =  0x0000000000200000LL; //      --parallel
 
-static const int    OpDynaSrc  =  'Z';
-static const int    DoDynaSrc  =  0x00400000; //      --dynamic-src
+static const int    OpDynaSrc      =  'Z';
+static const int    DoDynaSrc      =  0x0000000000400000LL; //      --dynamic-src
 
-//     const int    DoTpcDlgt  =  0x00800000; // Marker to show bit used
+//     const int    DoTpcDlgt      =  0x0000000000800000LL; // Marker for bit used
 
-static const int    OpZip      =  'z';
-static const int    DoZip      =  0x01000000;//       --zip
+static const int    OpZip          =  'z';
+static const int    DoZip          =  0x0000000001000000LL; // -z | --zip
 
-static const int    OpPath     =  'p';
-static const int    DoPath     =  0x0000000010000000LL; // -p | --path
+static const int    OpPath         =  'p';
+static const int    DoPath         =  0x0000000010000000LL; // -p | --path
+
+static const int    OpZipMtlnCksum = 0x08;
+static const int    DoZipMtlnCksum = 0x0000000040000000LL; // --zip-mtln-cksum
 
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
