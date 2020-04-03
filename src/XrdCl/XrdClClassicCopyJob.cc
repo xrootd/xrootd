@@ -852,12 +852,10 @@ namespace
                        const XrdCl::URL  *archive,
                        uint32_t           chunkSize,
                        uint8_t            parallelChunks,
-                       const std::string &ckSumType,
-                       bool               useMtlnCksum ):
+                       const std::string &ckSumType ):
                       XRootDSource( archive, chunkSize, parallelChunks, ckSumType ),
                       pFilename( filename ),
-                      pZipArchive( new XrdCl::ZipArchiveReader( *pFile ) ),
-                      pUseMtlnCksum( useMtlnCksum )
+                      pZipArchive( new XrdCl::ZipArchiveReader( *pFile ) )
       {
       }
 
@@ -931,7 +929,10 @@ namespace
         if( checkSumType == "zcrc32" )
           return pZipArchive->ZCRC32( checkSum );
 
-        if( pUseMtlnCksum && pUrl->IsMetalink() )
+        int useMtlnCksum = XrdCl::DefaultZipMtlnCksum;
+        XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+        env->GetInt( "ZipMtlnCksum", useMtlnCksum );
+        if( useMtlnCksum && pUrl->IsMetalink() )
         {
           XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
           XrdCl::VirtualRedirector  *redirector = registry.Get( *pUrl );
@@ -962,7 +963,6 @@ namespace
 
       const std::string         pFilename;
       XrdCl::ZipArchiveReader  *pZipArchive;
-      bool                      pUseMtlnCksum;
   };
 
   //----------------------------------------------------------------------------
@@ -1696,8 +1696,7 @@ namespace XrdCl
     uint16_t    parallelChunks;
     uint32_t    chunkSize;
     uint64_t    blockSize;
-    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp,
-                preserveXAttr, zipMtlnCksum;
+    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr;
     int32_t     nbXcpSources;
     long long   xRate;
 
@@ -1716,7 +1715,6 @@ namespace XrdCl
     pProperties->Get( "xcpBlockSize",    blockSize );
     pProperties->Get( "preserveXAttr",   preserveXAttr );
     pProperties->Get( "xrate",           xRate );
-    pProperties->Get( "zipMtlnCksum",    zipMtlnCksum );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
@@ -1731,7 +1729,7 @@ namespace XrdCl
     if( xcp )
       src.reset( new XRootDSourceXCp( &GetSource(), chunkSize, parallelChunks, nbXcpSources, blockSize ) );
     else if( zip ) // TODO make zip work for xcp
-      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks, checkSumType, zipMtlnCksum ) );
+      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks, checkSumType ) );
     else if( GetSource().GetProtocol() == "stdio" )
       src.reset( new StdInSource( checkSumType, chunkSize ) );
     else

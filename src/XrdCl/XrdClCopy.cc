@@ -491,7 +491,6 @@ int main( int argc, char **argv )
   bool         dynSrc        = false;
   bool         delegate      = false;
   bool         preserveXAttr = false;
-  bool         zipMtlnCksum  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -515,7 +514,6 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
   if( config.Want( XrdCpConfig::DoXAttr ) )        preserveXAttr = true;
-  if( config.Want( XrdCpConfig::DoZipMtlnCksum ) ) zipMtlnCksum  = true;
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -596,6 +594,9 @@ int main( int argc, char **argv )
 
   if( config.Want( XrdCpConfig::DoTlsMLF ) )
     env->PutInt( "TlsMetalink", 1 );
+
+  if( config.Want( XrdCpConfig::DoZipMtlnCksum ) )
+    env->PutInt( "ZipMtlnCksum", 1 );
 
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
@@ -804,7 +805,6 @@ int main( int argc, char **argv )
     properties.Set( "targetIsDir",    targetIsDir    );
     properties.Set( "preserveXAttr",  preserveXAttr  );
     properties.Set( "xrate",          config.xRate   );
-    properties.Set( "zipMtlnCksum",   zipMtlnCksum   );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );
