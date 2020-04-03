@@ -292,6 +292,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "MaxMetalinkWait",         DefaultMaxMetalinkWait         );
     REGISTER_VAR_INT( varsInt, "PreserveLocateTried",     DefaultPreserveLocateTried     );
     REGISTER_VAR_INT( varsInt, "NotAuthorizedRetryLimit", DefaultNotAuthorizedRetryLimit );
+    REGISTER_VAR_INT( varsInt, "ZipMtlnCksum",            DefaultZipMtlnCksum            );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",        DefaultPollerPreference        );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",           DefaultClientMonitor           );

@@ -489,7 +489,6 @@ int main( int argc, char **argv )
   bool         makedir       = false;
   bool         dynSrc        = false;
   bool         delegate      = false;
-  bool         zipMtlnCksum  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -512,7 +511,6 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoRecurse ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
-  if( config.Want( XrdCpConfig::DoZipMtlnCksum ) ) zipMtlnCksum  = true;
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -584,6 +582,9 @@ int main( int argc, char **argv )
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
   if( config.nStrm != 0 )
     env->PutInt( "SubStreamsPerChannel", config.nStrm + 1 /*stands for the control stream*/ );
+
+  if( config.Want( XrdCpConfig::DoZipMtlnCksum ) )
+    env->PutInt( "ZipMtlnCksum", 1 );
 
   int chunkSize = DefaultCPChunkSize;
   env->GetInt( "CPChunkSize", chunkSize );
@@ -783,7 +784,6 @@ int main( int argc, char **argv )
     properties.Set( "delegate",       delegate       );
     properties.Set( "targetIsDir",    targetIsDir    );
     properties.Set( "xrate",          config.xRate   );
-    properties.Set( "zipMtlnCksum",   zipMtlnCksum   );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );
