@@ -85,36 +85,37 @@ const char   *XrdCpConfig::opLetters = ":C:d:D:EfFhHI:NpPrRsS:t:T:vVX:y:z:ZA";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
-      {OPT_TYPE "cksum",       1, 0, XrdCpConfig::OpCksum},
-      {OPT_TYPE "debug",       1, 0, XrdCpConfig::OpDebug},
-      {OPT_TYPE "dynamic-src", 0, 0, XrdCpConfig::OpDynaSrc},
-      {OPT_TYPE "coerce",      0, 0, XrdCpConfig::OpCoerce},
-      {OPT_TYPE "force",       0, 0, XrdCpConfig::OpForce},
-      {OPT_TYPE "help",        0, 0, XrdCpConfig::OpHelp},
-      {OPT_TYPE "infiles",     1, 0, XrdCpConfig::OpIfile},
-      {OPT_TYPE "license",     0, 0, XrdCpConfig::OpLicense},
-      {OPT_TYPE "nopbar",      0, 0, XrdCpConfig::OpNoPbar},
-      {OPT_TYPE "notlsok",     0, 0, XrdCpConfig::OpNoTlsOK},
-      {OPT_TYPE "path",        0, 0, XrdCpConfig::OpPath},
-      {OPT_TYPE "posc",        0, 0, XrdCpConfig::OpPosc},
-      {OPT_TYPE "proxy",       1, 0, XrdCpConfig::OpProxy},
-      {OPT_TYPE "recursive",   0, 0, XrdCpConfig::OpRecurse},
-      {OPT_TYPE "retry",       1, 0, XrdCpConfig::OpRetry},
-      {OPT_TYPE "server",      0, 0, XrdCpConfig::OpServer},
-      {OPT_TYPE "silent",      0, 0, XrdCpConfig::OpSilent},
-      {OPT_TYPE "sources",     1, 0, XrdCpConfig::OpSources},
-      {OPT_TYPE "streams",     1, 0, XrdCpConfig::OpStreams},
-      {OPT_TYPE "tlsnodata",   0, 0, XrdCpConfig::OpTlsNoData},
-      {OPT_TYPE "tlsmetalink", 0, 0, XrdCpConfig::OpTlsMLF},
-      {OPT_TYPE "tpc",         1, 0, XrdCpConfig::OpTpc},
-      {OPT_TYPE "verbose",     0, 0, XrdCpConfig::OpVerbose},
-      {OPT_TYPE "version",     0, 0, XrdCpConfig::OpVersion},
-      {OPT_TYPE "xrate",       1, 0, XrdCpConfig::OpXrate},
-      {OPT_TYPE "parallel",    1, 0, XrdCpConfig::OpParallel},
-      {OPT_TYPE "zip",         1, 0, XrdCpConfig::OpZip},
-      {OPT_TYPE "allow-http",  0, 0, XrdCpConfig::OpAllowHttp},
-      {OPT_TYPE "xattr",       0, 0, XrdCpConfig::OpXAttr},
-      {0,                      0, 0, 0}
+      {OPT_TYPE "cksum",          1, 0, XrdCpConfig::OpCksum},
+      {OPT_TYPE "debug",          1, 0, XrdCpConfig::OpDebug},
+      {OPT_TYPE "dynamic-src",    0, 0, XrdCpConfig::OpDynaSrc},
+      {OPT_TYPE "coerce",         0, 0, XrdCpConfig::OpCoerce},
+      {OPT_TYPE "force",          0, 0, XrdCpConfig::OpForce},
+      {OPT_TYPE "help",           0, 0, XrdCpConfig::OpHelp},
+      {OPT_TYPE "infiles",        1, 0, XrdCpConfig::OpIfile},
+      {OPT_TYPE "license",        0, 0, XrdCpConfig::OpLicense},
+      {OPT_TYPE "nopbar",         0, 0, XrdCpConfig::OpNoPbar},
+      {OPT_TYPE "notlsok",        0, 0, XrdCpConfig::OpNoTlsOK},
+      {OPT_TYPE "path",           0, 0, XrdCpConfig::OpPath},
+      {OPT_TYPE "posc",           0, 0, XrdCpConfig::OpPosc},
+      {OPT_TYPE "proxy",          1, 0, XrdCpConfig::OpProxy},
+      {OPT_TYPE "recursive",      0, 0, XrdCpConfig::OpRecurse},
+      {OPT_TYPE "retry",          1, 0, XrdCpConfig::OpRetry},
+      {OPT_TYPE "server",         0, 0, XrdCpConfig::OpServer},
+      {OPT_TYPE "silent",         0, 0, XrdCpConfig::OpSilent},
+      {OPT_TYPE "sources",        1, 0, XrdCpConfig::OpSources},
+      {OPT_TYPE "streams",        1, 0, XrdCpConfig::OpStreams},
+      {OPT_TYPE "tlsnodata",      0, 0, XrdCpConfig::OpTlsNoData},
+      {OPT_TYPE "tlsmetalink",    0, 0, XrdCpConfig::OpTlsMLF},
+      {OPT_TYPE "tpc",            1, 0, XrdCpConfig::OpTpc},
+      {OPT_TYPE "verbose",        0, 0, XrdCpConfig::OpVerbose},
+      {OPT_TYPE "version",        0, 0, XrdCpConfig::OpVersion},
+      {OPT_TYPE "xrate",          1, 0, XrdCpConfig::OpXrate},
+      {OPT_TYPE "parallel",       1, 0, XrdCpConfig::OpParallel},
+      {OPT_TYPE "zip",            1, 0, XrdCpConfig::OpZip},
+      {OPT_TYPE "allow-http",     0, 0, XrdCpConfig::OpAllowHttp},
+      {OPT_TYPE "xattr",          0, 0, XrdCpConfig::OpXAttr},
+      {OPT_TYPE "zip-mtln-cksum", 0, 0, XrdCpConfig::OpZipMtlnCksum},
+      {0,                         0, 0, 0}
      };
 
 /******************************************************************************/
@@ -220,99 +221,101 @@ void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
 do{while(optind < Argc && Legacy(optind)) {}
    if ((opC = getopt_long(Argc, Argv, opLetters, opVec, &i)) != (char)-1)
       switch(opC)
-         {case OpCksum:     defCks(optarg);
-                            break;
-          case OpCoerce:    OpSpec |= DoCoerce;
-                            break;
-          case OpDebug:     OpSpec |= DoDebug;
-                            if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
-                            break;
-          case OpDynaSrc:   OpSpec |= DoDynaSrc;
-                            break;
-          case OpForce:     OpSpec |= DoForce;
-                            break;
-          case OpZip:       OpSpec |= DoZip;
-                            if (zipFile) free(zipFile);
-                            zipFile = strdup(optarg);
-                            break;
-          case OpHelp:      Usage(0);
-                            break;
-          case OpIfile:     if (inFile) free(inFile);
-                            inFile = strdup(optarg);
-                            OpSpec |= DoIfile;
-                            break;
-          case OpLicense:   License();
-                            break;
-          case OpNoPbar:    OpSpec |= DoNoPbar;
-                            break;
-          case OpNoTlsOK:   OpSpec |= DoNoTlsOK;
-                            break;
-          case OpPath:      OpSpec |= DoPath;
-                            break;
-          case OpPosc:      OpSpec |= DoPosc;
-                            break;
-          case OpProxy:     OpSpec |= DoProxy;
-                            defPxy(optarg);
-                            break;
-          case OpRecurse:   OpSpec |= DoRecurse;
-                            break;
-          case OpRecursv:   OpSpec |= DoRecurse;
-                            break;
-          case OpRetry:     OpSpec |= DoRetry;
-                            if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
-                            break;
-          case OpServer:    OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
-                            break;
-          case OpSilent:    OpSpec |= DoSilent|DoNoPbar;
-                            break;
-          case OpSources:   OpSpec |= DoSources;
-                            if (!a2i(optarg, &nSrcs, 1, 32)) Usage(22);
-                            break;
-          case OpStreams:   OpSpec |= DoStreams;
-                            if (!a2i(optarg, &nStrm, 1, 15)) Usage(22);
-                            break;
-          case OpTlsNoData: OpSpec |= DoTlsNoData;
-                            break;
-          case OpTlsMLF:    OpSpec |= DoTlsMLF;
-                            break;
-          case OpTpc:       OpSpec |= DoTpc;
-                            if (!strcmp("delegate",  optarg))
-                               {OpSpec|= DoTpcDlgt;
-                                if (optind >= Argc)
-                                   {UMSG("Missing tpc qualifier after "
-                                         "'delegate'");
-                                   }
-                                optarg = Argv[optind++];
-                               }
-                            if (!strcmp("only",  optarg)) OpSpec|= DoTpcOnly;
-                               else if (strcmp("first", optarg))
-                                       {optind--;
-                                        UMSG("Invalid option, '" <<OpName()
-                                             <<' ' <<optarg <<"' ");
+         {case OpCksum:         defCks(optarg);
+                                break;
+          case OpCoerce:        OpSpec |= DoCoerce;
+                                break;
+          case OpDebug:         OpSpec |= DoDebug;
+                                if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
+                                break;
+          case OpDynaSrc:       OpSpec |= DoDynaSrc;
+                                break;
+          case OpForce:         OpSpec |= DoForce;
+                                break;
+          case OpZip:           OpSpec |= DoZip;
+                                if (zipFile) free(zipFile);
+                                zipFile = strdup(optarg);
+                                break;
+          case OpHelp:          Usage(0);
+                                break;
+          case OpIfile:         if (inFile) free(inFile);
+                                inFile = strdup(optarg);
+                                OpSpec |= DoIfile;
+                                break;
+          case OpLicense:       License();
+                                break;
+          case OpNoPbar:        OpSpec |= DoNoPbar;
+                                break;
+          case OpNoTlsOK:       OpSpec |= DoNoTlsOK;
+                                break;
+          case OpPath:          OpSpec |= DoPath;
+                                break;
+          case OpPosc:          OpSpec |= DoPosc;
+                                break;
+          case OpProxy:         OpSpec |= DoProxy;
+                                defPxy(optarg);
+                                break;
+          case OpRecurse:       OpSpec |= DoRecurse;
+                                break;
+          case OpRecursv:       OpSpec |= DoRecurse;
+                                break;
+          case OpRetry:         OpSpec |= DoRetry;
+                                if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
+                                break;
+          case OpServer:        OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
+                                break;
+          case OpSilent:        OpSpec |= DoSilent|DoNoPbar;
+                                break;
+          case OpSources:       OpSpec |= DoSources;
+                                if (!a2i(optarg, &nSrcs, 1, 32)) Usage(22);
+                                break;
+          case OpStreams:       OpSpec |= DoStreams;
+                                if (!a2i(optarg, &nStrm, 1, 15)) Usage(22);
+                                break;
+          case OpTlsNoData:     OpSpec |= DoTlsNoData;
+                                break;
+          case OpTlsMLF:        OpSpec |= DoTlsMLF;
+                                break;
+          case OpTpc:           OpSpec |= DoTpc;
+                                if (!strcmp("delegate",  optarg))
+                                   {OpSpec|= DoTpcDlgt;
+                                    if (optind >= Argc)
+                                       {UMSG("Missing tpc qualifier after "
+                                             "'delegate'");
                                        }
-                            break;
-          case OpVerbose:   OpSpec |= DoVerbose;
-                            Verbose = 1;
-                            break;
-          case OpVersion:   cerr <<XrdVERSION <<endl; exit(0);
-                            break;
-          case OpXrate:     OpSpec |= DoXrate;
-                            if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
-                            break;
-          case OpParallel:  OpSpec |= DoParallel;
-                            if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
-                            break;
-          case OpAllowHttp: OpSpec |= DoAllowHttp;
-                            break;
-          case OpXAttr :    OpSpec |= DoXAttr;
-                            break;
-          case ':':         UMSG("'" <<OpName() <<"' argument missing.");
-                            break;
-          case '?':         if (!Legacy(optind-1))
-                               UMSG("Invalid option, '" <<OpName() <<"'.");
-                            break;
-          default:          UMSG("Internal error processing '" <<OpName() <<"'.");
-                            break;
+                                    optarg = Argv[optind++];
+                                   }
+                                if (!strcmp("only",  optarg)) OpSpec|= DoTpcOnly;
+                                   else if (strcmp("first", optarg))
+                                           {optind--;
+                                            UMSG("Invalid option, '" <<OpName()
+                                                 <<' ' <<optarg <<"' ");
+                                           }
+                                break;
+          case OpVerbose:       OpSpec |= DoVerbose;
+                                Verbose = 1;
+                                break;
+          case OpVersion:       cerr <<XrdVERSION <<endl; exit(0);
+                                break;
+          case OpXrate:         OpSpec |= DoXrate;
+                                if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
+                                break;
+          case OpParallel:      OpSpec |= DoParallel;
+                                if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
+                                break;
+          case OpAllowHttp:     OpSpec |= DoAllowHttp;
+                                break;
+          case OpXAttr :        OpSpec |= DoXAttr;
+                                break;
+          case OpZipMtlnCksum : OpSpec |= DoZipMtlnCksum;
+                                break;
+          case ':':             UMSG("'" <<OpName() <<"' argument missing.");
+                                break;
+          case '?':             if (!Legacy(optind-1))
+                                   UMSG("Invalid option, '" <<OpName() <<"'.");
+                                break;
+          default:              UMSG("Internal error processing '" <<OpName() <<"'.");
+                                break;
          }
   } while(opC != (char)-1 && optind < Argc);
 
@@ -898,7 +901,8 @@ void XrdCpConfig::Usage(int rc)
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
    "         [--streams <n>] [--tlsnodata] [--tlsmetalink]\n"
    "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
-   "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n";
+   "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n"
+   "         [--zip-mtln-cksum]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root[s]://<host>[:<port>]/]<path> | -";
@@ -910,48 +914,50 @@ void XrdCpConfig::Usage(int rc)
    "<dest>:  [[x]root[s]://<host>[:<port>]/]<path> | -";
 
    static const char *Detail = "\n"
-   "-C | --cksum <args> verifies the checksum at the destination as provided\n"
-   "                    by the source server or locally computed. The args are\n"
-   "                    {adler32 | crc32 | md5}[:{<value>|print|source}]\n"
-   "                    If the hex value of the checksum is given, it is used.\n"
-   "                    Otherwise, the server's checksum is used for remote files\n"
-   "                    and computed for local files. Specifying print merely\n"
-   "                    prints the checksum but does not verify it.\n"
-   "-d | --debug <lvl>  sets the debug level: 0 off, 1 low, 2 medium, 3 high\n"
-   "-Z | --dynamic-src  file size may change during the copy\n"
-   "-F | --coerce       coerces the copy by ignoring file locking semantics\n"
-   "-f | --force        replaces any existing output file\n"
-   "-h | --help         prints this information\n"
-   "-H | --license      prints license terms and conditions\n"
-   "-I | --infiles      specifies the file that contains a list of input files\n"
-   "-N | --nopbar       does not print the progress bar\n"
-   "     --notlsok      if server is too old to support TLS encryption fallback\n" 
-   "                    to unencrypted communication\n"
-   "-p | --path         automatically create remote destination path\n"
-   "-P | --posc         enables persist on successful close semantics\n"
-   "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
-   "-r | --recursive    recursively copies all source files\n"
-   "-t | --retry <n>    maximum number of times to retry rejected connections\n"
-   "     --server       runs in a server environment with added operations\n"
-   "-s | --silent       produces no output other than error messages\n"
-   "-y | --sources <n>  uses up to the number of sources specified in parallel\n"
-   "-S | --streams <n>  copies using the specified number of TCP connections\n"
-   "-E | --tlsnodata    in case of [x]roots protocol, encrypt only the control\n" 
-   "                    stream and leave the data streams unencrypted\n"
-   "     --tlsmetalink  convert [x]root to [x]roots protocol in metalinks\n"
-   "-T | --tpc          uses third party copy mode between the src and dest.\n"
-   "                    Both the src and dest must allow tpc mode. Argument\n"
-   "                    'first' tries tpc and if it fails, does a normal copy;\n"
-   "                    while 'only' fails the copy unless tpc succeeds.\n"
-   "-v | --verbose      produces more information about the copy\n"
-   "-V | --version      prints the version number\n"
-   "-X | --xrate <rate> limits the transfer to the specified rate. You can\n"
-   "                    suffix the value with 'k', 'm', or 'g'\n"
-   "     --parallel <n> number of copy jobs to be run simultaneously\n\n"
-   "-z | --zip <file>   treat the source as a ZIP archive containing given file\n"
-   "-A | --allow-http   allow HTTP as source or destination protocol. Requires\n"
-   "                    the XrdClHttp client plugin\n"
-   "     --xattr        preserve extended attributes\n"
+   "-C | --cksum <args>   verifies the checksum at the destination as provided\n"
+   "                      by the source server or locally computed. The args are\n"
+   "                      {adler32 | crc32 | md5}[:{<value>|print|source}]\n"
+   "                      If the hex value of the checksum is given, it is used.\n"
+   "                      Otherwise, the server's checksum is used for remote files\n"
+   "                      and computed for local files. Specifying print merely\n"
+   "                      prints the checksum but does not verify it.\n"
+   "-d | --debug <lvl>    sets the debug level: 0 off, 1 low, 2 medium, 3 high\n"
+   "-Z | --dynamic-src    file size may change during the copy\n"
+   "-F | --coerce         coerces the copy by ignoring file locking semantics\n"
+   "-f | --force          replaces any existing output file\n"
+   "-h | --help           prints this information\n"
+   "-H | --license        prints license terms and conditions\n"
+   "-I | --infiles        specifies the file that contains a list of input files\n"
+   "-N | --nopbar         does not print the progress bar\n"
+   "     --notlsok        if server is too old to support TLS encryption fallback\n" 
+   "                      to unencrypted communication\n"
+   "-p | --path           automatically create remote destination path\n"
+   "-P | --posc           enables persist on successful close semantics\n"
+   "-D | --proxy          uses the specified SOCKS4 proxy connection\n"
+   "-r | --recursive      recursively copies all source files\n"
+   "-t | --retry <n>      maximum number of times to retry rejected connections\n"
+   "     --server         runs in a server environment with added operations\n"
+   "-s | --silent         produces no output other than error messages\n"
+   "-y | --sources <n>    uses up to the number of sources specified in parallel\n"
+   "-S | --streams <n>    copies using the specified number of TCP connections\n"
+   "-E | --tlsnodata      in case of [x]roots protocol, encrypt only the control\n" 
+   "                      stream and leave the data streams unencrypted\n"
+   "     --tlsmetalink    convert [x]root to [x]roots protocol in metalinks\n"
+   "-T | --tpc            uses third party copy mode between the src and dest.\n"
+   "                      Both the src and dest must allow tpc mode. Argument\n"
+   "                      'first' tries tpc and if it fails, does a normal copy;\n"
+   "                      while 'only' fails the copy unless tpc succeeds.\n"
+   "-v | --verbose        produces more information about the copy\n"
+   "-V | --version        prints the version number\n"
+   "-X | --xrate <rate>   limits the transfer to the specified rate. You can\n"
+   "                      suffix the value with 'k', 'm', or 'g'\n"
+   "     --parallel <n>   number of copy jobs to be run simultaneously\n\n"
+   "-z | --zip <file>     treat the source as a ZIP archive containing given file\n"
+   "-A | --allow-http     allow HTTP as source or destination protocol. Requires\n"
+   "                      the XrdClHttp client plugin\n"
+   "     --xattr          preserve extended attributes\n"
+   "     --zip-mtln-cksum use the checksum available in a metalink file even if\n"
+   "                      a file is being extracted from a ZIP archive\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 
