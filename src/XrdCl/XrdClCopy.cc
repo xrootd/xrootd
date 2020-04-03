@@ -483,12 +483,13 @@ int main( int argc, char **argv )
   if( config.Want(XrdCpConfig::DoNoPbar) )
     progress.PrintProgressBar( false );
 
-  bool         posc      = false;
-  bool         force     = false;
-  bool         coerce    = false;
-  bool         makedir   = false;
-  bool         dynSrc    = false;
-  bool         delegate  = false;
+  bool         posc          = false;
+  bool         force         = false;
+  bool         coerce        = false;
+  bool         makedir       = false;
+  bool         dynSrc        = false;
+  bool         delegate      = false;
+  bool         zipMtlnCksum  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -508,9 +509,10 @@ int main( int argc, char **argv )
   else
     DlgEnv::Instance().Disable();
 
-  if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
-  if( config.Want( XrdCpConfig::DoPath    ) )  makedir    = true;
-  if( config.Want( XrdCpConfig::DoDynaSrc ) )  dynSrc     = true;
+  if( config.Want( XrdCpConfig::DoRecurse ) )      makedir       = true;
+  if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
+  if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
+  if( config.Want( XrdCpConfig::DoZipMtlnCksum ) ) zipMtlnCksum  = true;
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -781,6 +783,7 @@ int main( int argc, char **argv )
     properties.Set( "delegate",       delegate       );
     properties.Set( "targetIsDir",    targetIsDir    );
     properties.Set( "xrate",          config.xRate   );
+    properties.Set( "zipMtlnCksum",   zipMtlnCksum   );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );

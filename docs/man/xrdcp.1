@@ -14,7 +14,7 @@ xrdcp - copy files
 [\fB--tpc\fR [\fBdelegate\fR] \fBfirst\fR|\fBonly\fR] [\fB--verbose\fR]
 [\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 [\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR] [\fB--path\fR]
-[\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR]
+[\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR] [\fB--zip-mtln-cksum\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -171,6 +171,11 @@ number of copy jobs to be run simultaneously
 \fB--allow-http\fR
 .RS 5
 allow HTTP as source or destination protocol. Requires the XrdClHttp client plugin
+
+.RE
+\fB--zip-mtln-cksum
+.RS 5
+Use the checksum available in a metalink file even if a file is being extracted from a ZIP archive.
 
 .SH LEGACY OPTIONS
 Legacy options are provided for backward compatability. These are now
