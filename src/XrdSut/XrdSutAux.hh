@@ -32,7 +32,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #endif
 #ifndef __XPROTOCOL_H
-#include "XProtocol/XProtocol.hh"
+#include "XProtocol/XPtypes.hh"
 #endif
 
 class XrdCryptoFactory;

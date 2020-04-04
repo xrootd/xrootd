@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #ifndef __XPROTOCOL_H
-#include "XProtocol/XProtocol.hh"
+#include "XProtocol/XPtypes.hh"
 #endif
 #ifndef __OOUC_HASH__
 #include "XrdOuc/XrdOucHash.hh"
