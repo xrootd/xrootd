@@ -289,9 +289,9 @@ char *convertRequestIdToChar(kXR_unt16 requestid)
    case kXR_prepare:
       return (char *)"kXR_prepare";
       break;
-   case kXR_admin:
-      return (char *)"kXR_admin";
-      break;
+// case kXR_admin:
+//    return (char *)"kXR_admin";
+//    break;
    case kXR_statx:
       return (char *)"kXR_statx";
       break;
@@ -385,11 +385,11 @@ void smartPrintClientHeader(ClientRequest* hdr)
           convertRequestIdToChar(hdr->header.requestid), hdr->header.requestid);
 
    switch(hdr->header.requestid) {
-   case kXR_admin:
-      fprintf(stderr, "%40s0 repeated %d times\n", 
-             "ClientHeader.admin.reserved = ",
-             (kXR_int32)sizeof(hdr->admin.reserved));
-      break;
+// case kXR_admin:
+//    fprintf(stderr, "%40s0 repeated %d times\n",
+//           "ClientHeader.admin.reserved = ",
+//           (kXR_int32)sizeof(hdr->admin.reserved));
+//    break;
     
    case kXR_auth:
       fprintf(stderr, "%40s0 repeated %d times\n", 

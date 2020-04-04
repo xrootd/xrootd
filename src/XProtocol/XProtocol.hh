@@ -52,17 +52,16 @@
 /*    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE   */
 /******************************************************************************/
 
-//#ifndef __GNUC__
-//#define __attribute__(x)
-//#ifdef SUNCC
-//#pragma pack(4)
-//#endif
-//#endif
-
 #ifdef __CINT__
 #define __attribute__(x)
 #endif
 
+#include "XProtocol/XPtypes.hh"
+
+/******************************************************************************/
+/*          P r o t o c o l   V e r s i o n   D e f i n i t i o n s           */
+/******************************************************************************/
+  
 // The following is the binary representation of the protocol version here.
 // Protocol version is repesented as three base10 digits x.y.z with x having no
 // upper limit (i.e. n.9.9 + 1 -> n+1.0.0). The kXR_PROTSIGNVERSION defines the
@@ -74,57 +73,41 @@
 #define kXR_PROTSIGNVERSION  0x00000310
 #define kXR_PROTOCOLVSTRING "5.0.0"
 
-#include "XProtocol/XPtypes.hh"
+/******************************************************************************/
+/*               C l i e n t - S e r v e r   H a n d s h a k e                */
+/******************************************************************************/
 
-// KINDS of SERVERS
+// The fields to be sent as initial handshake
 //
-//
-#define kXR_DataServer 1
-#define kXR_LBalServer 0
-
-// The below are defined for protocol version 2.9.7 or higher
-// These are the flag values in the kXR_protool response
-//
-#define kXR_isManager   0x00000002
-#define kXR_isServer    0x00000001
-#define kXR_attrMeta    0x00000100
-#define kXR_attrProxy   0x00000200
-#define kXR_attrSuper   0x00000400
-#define kXR_attrVirtRdr 0x00000800
-
-#define kXR_anongpf     0x00800000
-#define kXR_supgpf      0x00400000
-#define kXR_suppgrw     0x00200000
-#define kXR_supposc     0x00100000
-
-#define kXR_haveTLS     0x80000000
-#define kXR_gotoTLS     0x40000000
-#define kXR_tlsAny      0x1f000000
-#define kXR_tlsData     0x01000000
-#define kXR_tlsGPF      0x02000000
-#define kXR_tlsLogin    0x04000000
-#define kXR_tlsSess     0x08000000
-#define kXR_tlsTPC      0x10000000
-
-#define kXR_maxReqRetry 10
-
-// Kind of error inside a XTNetFile's routine (temporary)
-//
-enum XReqErrorType {
-   kGENERICERR = 0,    // Generic error
-   kREAD,              // Error while reading from stream
-   kWRITE,             // Error while writing to stream
-   kREDIRCONNECT,      // Error redirecting to a given host
-   kOK,                // Everything seems ok
-   kNOMORESTREAMS      // No more available stream IDs for
-                       // async processing
+struct ClientInitHandShake {
+   kXR_int32 first;
+   kXR_int32 second;
+   kXR_int32 third;
+   kXR_int32 fourth;
+   kXR_int32 fifth;
 };
 
-//______________________________________________
-// PROTOCOL DEFINITION: CLIENT'S REQUESTS TYPES
-//______________________________________________
+// The body received after the first handshake's header
+//
+struct ServerInitHandShake {
+   kXR_int32 msglen;
+   kXR_int32 protover;
+   kXR_int32 msgval;
+};
+  
+/******************************************************************************/
+/*                       C l i e n t   R e q u e s t s                        */
+/******************************************************************************/
+
+// G.Ganis: All the following structures never need padding bytes:
+//          no need of packing options like __attribute__((packed))
+//
+// All binary data is sent in network byte order.
+
+// Client request codes
 // 
 enum XRequestTypes {
+   kXR_1stRequest= 3000,
    kXR_auth    =   3000,
    kXR_query,   // 3001
    kXR_chmod,   // 3002
@@ -160,23 +143,181 @@ enum XRequestTypes {
    kXR_REQFENCE // Always last valid request code +1
 };
 
-// OPEN MODE FOR A REMOTE FILE
-enum XOpenRequestMode {
-   kXR_ur = 0x100,
-   kXR_uw = 0x080,
-   kXR_ux = 0x040,
-   kXR_gr = 0x020,
-   kXR_gw = 0x010,
-   kXR_gx = 0x008,
-   kXR_or = 0x004,
-   kXR_ow = 0x002,
-   kXR_ox = 0x001
+// All client requests use a header with the following format
+//
+struct ClientRequestHdr {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  body[16];
+   kXR_int32 dlen;
 };
 
-enum XMkdirOptions {
-   kXR_mknone  = 0,
-   kXR_mkdirpath  = 1
+/******************************************************************************/
+/*                      k X R _ a u t h   R e q u e s t                       */
+/******************************************************************************/
+  
+struct ClientAuthRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[12];
+   kXR_char  credtype[4];
+   kXR_int32 dlen;
 };
+
+/******************************************************************************/
+/*                      k X R _ b i n d   R e q u e s t                       */
+/******************************************************************************/
+  
+struct ClientBindRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  sessid[16];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ c h m o d   R e q u e s t                      */
+/******************************************************************************/
+  
+struct ClientChmodRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[14];
+   kXR_unt16 mode;        // See XOpenRequestMode
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ c l o s e   R e q u e s t                      */
+/******************************************************************************/
+  
+struct ClientCloseRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_char  reserved[12];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                   k X R _ d i r l i s t   R e q u e s t                    */
+/******************************************************************************/
+
+enum XDirlistRequestOption {
+   kXR_online = 1,
+   kXR_dstat  = 2
+};
+  
+struct ClientDirlistRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[15];
+   kXR_char  options[1];     // See XDirlistRequestOption enum
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                   k X R _ e n d s e s s   R e q u e s t                    */
+/******************************************************************************/
+  
+struct ClientEndsessRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  sessid[16];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ f a t t r   R e q u e s t                      */
+/******************************************************************************/
+
+// kXR_fattr subcodes
+//
+enum xfaSubCode {
+   kXR_fattrDel    = 0,
+   kXR_fattrGet    = 1,
+   kXR_fattrList   = 2,
+   kXR_fattrSet    = 3,
+   kXR_fatrrMaxSC  = 3     // Highest valid subcode
+};
+
+// kXR_fattr limits
+//
+enum xfaLimits {
+   kXR_faMaxVars = 16,     // Maximum variables per request
+   kXR_faMaxNlen = 248,    // Maximum length of variable name
+   kXR_faMaxVlen = 65536   // Maximum length of variable value
+};
+  
+struct ClientFattrRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_char  subcode;      // See xfaSubCode enum
+   kXR_char  numattr;
+   kXR_char  options;      // See valid options below
+   kXR_char  reserved[9];
+   kXR_int32 dlen;
+
+// Valid options:
+//
+   static const int isNew = 0x01; // For set,  the variable must not exist
+   static const int aData = 0x10; // For list, return attribute value
+
+// Add an attribute name to nvec (the buffer has to be sufficiently big)
+//
+   static char* NVecInsert( const char *name,  char *buffer );
+
+// Add an attribute name to vvec (the buffer has to be sufficiently big)
+//
+   static char* VVecInsert( const char *value, char *buffer );
+
+// Read error code from nvec
+//
+   static char* NVecRead( char* buffer, kXR_unt16 &rc );
+
+// Read attribute name from nvec, should be deallocated with free()
+//
+   static char* NVecRead( char* buffer, char *&name );
+
+// Read value length from vvec
+//
+   static char* VVecRead( char* buffer, kXR_int32 &len );
+
+// Read attribute value from vvec, should be deallocated with free()
+//
+   static char* VVecRead( char* buffer, kXR_int32 len, char *&value );
+
+};
+  
+/******************************************************************************/
+/*                    k X R _ g p f i l e   R e q u e s t                     */
+/******************************************************************************/
+  
+struct ClientGPfileRequest { // ??? This is all wrong now
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;      // kXR_gpfile
+   kXR_int32 options;
+   kXR_char reserved[8];
+   kXR_int32 buffsz;
+   kXR_int32  dlen;
+};
+
+/******************************************************************************/
+/*                    k X R _ l o c a t e   R e q u e s t                     */
+/******************************************************************************/
+  
+struct ClientLocateRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_unt16 options;     // See XOpenRequestOption enum tagged for locate
+   kXR_char  reserved[14];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ l o g i n   R e q u e s t                      */
+/******************************************************************************/
 
 // this is a bitmask
 enum XLoginAbility {
@@ -190,14 +331,14 @@ enum XLoginAbility {
    kXR_lclfile =  64
 };
 
-// this is a bitmask
+// this is a bitmask (note that XLoginVersion resides in lower bits)
 enum XLoginCapVer {
    kXR_lcvnone = 0,
    kXR_vermask = 63,
    kXR_asyncap = 128
 };
 
-// this is a single number that goes into capver as the version
+// this is a single number that is or'd into capver as the version
 //
 enum XLoginVersion {
    kXR_ver000 = 0,  // Old clients predating history
@@ -207,26 +348,64 @@ enum XLoginVersion {
    kXR_ver004 = 4,  // The 2016 sign-capable   client
    kXR_ver005 = 5   // The 2019 TLS-capable    client
 };
-
-enum XStatRequestOption {
-   kXR_vfs    = 1
+  
+struct ClientLoginRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_int32 pid;
+   kXR_char username[8];
+   kXR_char reserved;
+   kXR_char ability;       // See XLoginAbility enum flags
+   kXR_char capver[1];     // See XLoginCapVer  enum flags
+   kXR_char reserved2;
+   kXR_int32  dlen;
 };
 
-enum XStatRespFlags {
-   kXR_file    = 0,
-   kXR_xset    = 1,
-   kXR_isDir   = 2,
-   kXR_other   = 4,
-   kXR_offline = 8,
-   kXR_readable=16,
-   kXR_writable=32,
-   kXR_poscpend=64,
-   kXR_bkpexist=128
+/******************************************************************************/
+/*                     k X R _ m k d i r   R e q u e s t                      */
+/******************************************************************************/
+
+enum XMkdirOptions {
+   kXR_mknone  = 0,
+   kXR_mkdirpath  = 1
+};
+  
+struct ClientMkdirRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  options[1];
+   kXR_char  reserved[13];
+   kXR_unt16 mode;          // See XOpenRequestMode
+   kXR_int32 dlen;
 };
 
-enum XDirlistRequestOption {
-   kXR_online = 1,
-   kXR_dstat  = 2
+/******************************************************************************/
+/*                        k X R _ m v   R e q u e s t                         */
+/******************************************************************************/
+  
+struct ClientMvRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[14];
+   kXR_int16 arg1len;
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                      k X R _ o p e n   R e q u e s t                       */
+/******************************************************************************/
+
+// OPEN MODE FOR A REMOTE FILE
+enum XOpenRequestMode {
+   kXR_ur = 0x100,
+   kXR_uw = 0x080,
+   kXR_ux = 0x040,
+   kXR_gr = 0x020,
+   kXR_gw = 0x010,
+   kXR_gx = 0x008,
+   kXR_or = 0x004,
+   kXR_ow = 0x002,
+   kXR_ox = 0x001
 };
 
 enum XOpenRequestOption {
@@ -248,6 +427,135 @@ enum XOpenRequestOption {
    kXR_seqio    =16384,
    kXR_open_wrto=32768
 };
+  
+struct ClientOpenRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_unt16 mode;
+   kXR_unt16 options;
+   kXR_char  reserved[12];
+   kXR_int32  dlen;
+};
+
+/******************************************************************************/
+/*                    k X R _ p g r e a d   R e q u e s t                     */
+/******************************************************************************/
+  
+// The page size for pgread and pgwrite and the maximum transmission size
+//
+namespace XrdProto  // Always use this namespace for new additions
+{
+static const int kXR_pgPageSZ = 4096;
+static const int kXR_pgUnitSZ = kXR_pgPageSZ + sizeof(kXR_unt32);
+
+// kXR_pgread/write options
+//
+static const int kXR_pgRetry = 0x00000001;
+}
+  
+struct ClientPgReadRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_int64 offset;
+   kXR_int32 rlen;
+   kXR_int32 dlen;     // Request data length must be 0 unless args present
+};
+
+struct ClientPgReadReqArgs {
+   kXR_char  pathid;   // Request data length must be 1
+   kXR_char  reqflags; // Request data length must be 2
+};
+
+static const int kXR_pgRetry = 0x01; // reqflags for pgRead & pgWrite
+
+/******************************************************************************/
+/*                   k X R _ p r w r i t e   R e q u e s t                    */
+/******************************************************************************/
+  
+struct ClientPgWriteRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_int64 offset;
+   kXR_char  pathid;
+   kXR_char  reqflags;
+   kXR_char  reserved[2];
+   kXR_int32 dlen;
+// kXR_char  data[dlen];
+};
+
+/******************************************************************************/
+/*                      k X R _ p i n g   R e q u e s t                       */
+/******************************************************************************/
+  
+struct ClientPingRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[16];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                  k X R _ p r o t o c o l   R e q u e s t                   */
+/******************************************************************************/
+  
+struct ClientProtocolRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_int32 clientpv;      // 2.9.7 or higher
+   kXR_char  flags;         // 3.1.0 or higher
+   kXR_char  expect;        // 4.0.0 or higher
+   kXR_char  reserved[10];
+   kXR_int32 dlen;
+
+enum RequestFlags {
+   kXR_secreqs  = 0x01,  // Options: Return security requirements
+   kXR_ableTLS  = 0x02,  // Options: Client is TLS capable
+   kXR_wantTLS  = 0x04   // Options: Change connection to use TLS
+};
+
+enum ExpectFlags {
+   kXR_ExpMask   = 0x0f, // Isolate the relevant expect birs (encoded)
+   kXR_ExpNone   = 0x00,
+   kXR_ExpBind   = 0x01,
+   kXR_ExpGPF    = 0x02,
+   kXR_ExpLogin  = 0x03,
+   kXR_ExpTPC    = 0x04
+};
+};
+
+/******************************************************************************/
+/*                   k X R _ p r e p a r e   R e q u e s t                    */
+/******************************************************************************/
+
+enum XPrepRequestOption {
+   kXR_cancel = 1,
+   kXR_notify = 2,
+   kXR_noerrs = 4,
+   kXR_stage  = 8,
+   kXR_wmode  = 16,
+   kXR_coloc  = 32,
+   kXR_fresh  = 64,
+   kXR_usetcp = 128,
+
+   kXR_evict  = 0x0001 // optionsX: file no longer useful
+};
+  
+struct ClientPrepareRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  options;
+   kXR_char  prty;
+   kXR_unt16 port;          // 2.9.9 or higher
+   kXR_unt16 optionX;       // Extended options
+   kXR_char  reserved[10];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ q u e r y   R e q u e s t                      */
+/******************************************************************************/
 
 enum XQueryType {
    kXR_QStats = 1,
@@ -262,33 +570,102 @@ enum XQueryType {
    kXR_Qopaquf=32,
    kXR_Qopaqug=64
 };
-
-enum XVerifyType {
-   kXR_nocrc  = 0,
-   kXR_crc32  = 1
+  
+struct ClientQueryRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_unt16 infotype;    // See XQueryType enum
+   kXR_char  reserved1[2];
+   kXR_char  fhandle[4];
+   kXR_char  reserved2[8];
+   kXR_int32 dlen;
 };
 
-enum XPrepRequestOption {
-   kXR_cancel = 1,
-   kXR_notify = 2,
-   kXR_noerrs = 4,
-   kXR_stage  = 8,
-   kXR_wmode  = 16,
-   kXR_coloc  = 32,
-   kXR_fresh  = 64,
-   kXR_usetcp = 128,
-
-   kXR_evict  = 0x0001 // optionsX: file no longer useful
+/******************************************************************************/
+/*                      k X R _ r e a d   R e q u e s t                       */
+/******************************************************************************/
+  
+struct ClientReadRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_int64 offset;
+   kXR_int32 rlen;
+   kXR_int32 dlen;
+// Optionally followed by read_args
 };
 
-// Version used for kXR_sigver and is set in SigverRequest::version,
-// ServerResponseReqs_Protocol::secver
-#define kXR_secver_0  0
-
-// Flags for kXR_sigver
-enum XSecFlags {
-   kXR_nodata   = 1  // Request payload was not hashed
+struct read_args {
+   kXR_char  pathid;
+   kXR_char  reserved[7];
+// This struct may be followed by an array of readahead_list
 };
+
+struct readahead_list {
+   kXR_char  fhandle[4];
+   kXR_int32 rlen;
+   kXR_int64 offset;
+};
+
+/******************************************************************************/
+/*                     k X R _ r e a d v   R e q u e s t                      */
+/******************************************************************************/
+  
+struct ClientReadVRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[15];
+   kXR_char  pathid;
+   kXR_int32 dlen;
+// This struct followed by the read_list
+};
+
+namespace XrdProto  // Always use this namespace for new additions
+{
+struct read_list {
+   kXR_char  fhandle[4];
+   kXR_int32 rlen;
+   kXR_int64 offset;
+};
+}
+
+/******************************************************************************/
+/*                        k X R _ r m   R e q u e s t                         */
+/******************************************************************************/
+  
+struct ClientRmRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[16];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ r m d i r   R e q u e s t                      */
+/******************************************************************************/
+  
+struct ClientRmdirRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[16];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                       k X R _ s e t   R e q u e s t                        */
+/******************************************************************************/
+  
+struct ClientSetRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char reserved[15];
+   kXR_char  modifier;  // For security purposes, should be zero
+   kXR_int32  dlen;
+};
+
+/******************************************************************************/
+/*                    k X R _ s i g v e r   R e q u e s t                     */
+/******************************************************************************/
 
 // Cryptography used for kXR_sigver SigverRequest::crypto
 enum XSecCrypto {
@@ -297,61 +674,243 @@ enum XSecCrypto {
    kXR_rsaKey   = 0x80    // The rsa key was used
 };
 
-// kXR_fattr subcodes
-//
-enum xfaSubCode {
-   kXR_fattrDel    = 0,
-   kXR_fattrGet    = 1,
-   kXR_fattrList   = 2,
-   kXR_fattrSet    = 3,
-   kXR_fatrrMaxSC  = 3  // Highest valid subcode
+// Flags for kXR_sigver
+enum XSecFlags {
+   kXR_nodata   = 1  // Request payload was not hashed
 };
 
-// kXR_fattr limits
-//
-enum xfaLimits {
-   kXR_faMaxVars = 16,
-   kXR_faMaxNlen = 248,
-   kXR_faMaxVlen = 65536
+// Version number
+enum XSecVersion {
+   kXR_Ver_00 = 0
 };
 
-//_______________________________________________
-// PROTOCOL DEFINITION: SERVER'S RESPONSES TYPES
-//_______________________________________________
+struct ClientSigverRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_unt16 expectrid; // Request code of subsequent request
+   kXR_char  version;   // Security version being used (see XSecVersion)
+   kXR_char  flags;     // One or more flags defined in enum (see XSecFlags)
+   kXR_unt64 seqno;     // Monotonically increasing number (part of hash)
+   kXR_char  crypto;    // Cryptography used (see XSecCrypto)
+   kXR_char  rsvd2[3];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                      k X R _ s t a t   R e q u e s t                       */
+/******************************************************************************/
+
+enum XStatRequestOption {
+   kXR_vfs    = 1
+};
+  
+struct ClientStatRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  options;    // See XStatRequestOption
+   kXR_char  reserved[11];
+   kXR_char  fhandle[4];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                      k X R _ s y n c   R e q u e s t                       */
+/******************************************************************************/
+  
+struct ClientSyncRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_char  reserved[12];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                  k X R _ t r u n c a t e   R e q u e s t                   */
+/******************************************************************************/
+  
+struct ClientTruncateRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_int64 offset;
+   kXR_char  reserved[4];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ w r i t e   R e q u e s t                      */
+/******************************************************************************/
+  
+struct ClientWriteRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_int64 offset;
+   kXR_char  pathid;
+   kXR_char  reserved[3];
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                    k X R _ w r i t e v   R e q u e s t                     */
+/******************************************************************************/
+  
+struct ClientWriteVRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  options;  // See static const ints below
+   kXR_char  reserved[15];
+   kXR_int32 dlen;
+// This struct followed by the write_list
+
+   static const kXR_int32 doSync = 0x01;
+};
+
+namespace XrdProto  // Always use this namespace for new additions
+{
+struct write_list {
+   kXR_char fhandle[4];
+   kXR_int32 wlen;
+   kXR_int64 offset;
+};
+}
+
+/******************************************************************************/
+/*          U n i o n   o f   a l l   C l i e n t   R e q u e s t s           */
+/******************************************************************************/
+  
+typedef union {
+   struct ClientRequestHdr header;
+   struct ClientAuthRequest auth;
+   struct ClientBindRequest bind;
+   struct ClientChmodRequest chmod;
+   struct ClientCloseRequest close;
+   struct ClientDirlistRequest dirlist;
+   struct ClientEndsessRequest endsess;
+   struct ClientFattrRequest fattr;
+   struct ClientGPfileRequest gpfile;
+   struct ClientLocateRequest locate;
+   struct ClientLoginRequest login;
+   struct ClientMkdirRequest mkdir;
+   struct ClientMvRequest mv;
+   struct ClientOpenRequest open;
+   struct ClientPingRequest ping;
+   struct ClientPrepareRequest prepare;
+   struct ClientProtocolRequest protocol;
+   struct ClientQueryRequest query;
+   struct ClientReadRequest read;
+   struct ClientReadVRequest readv;
+   struct ClientRmRequest rm;
+   struct ClientRmdirRequest rmdir;
+   struct ClientSetRequest set;
+   struct ClientSigverRequest sigver;
+   struct ClientStatRequest stat;
+   struct ClientSyncRequest sync;
+   struct ClientTruncateRequest truncate;
+   struct ClientWriteRequest write;
+   struct ClientWriteVRequest writev;
+} ClientRequest;
+
+typedef union {
+   struct ClientRequestHdr header;
+   struct ClientSigverRequest sigver;
+} SecurityRequest;
+
+/******************************************************************************/
+/*                      S e r v e r   R e s p o n s e s                       */
+/******************************************************************************/
+
+// Nice header for the server response.
+// Note that the protocol specifies these values to be in network
+// byte order when sent
+//
+// G.Ganis: The following structures never need padding bytes:
+//          no need of packing options
+
+// Server response codes
 //
 enum XResponseType {
-   kXR_ok      = 0,
-   kXR_oksofar = 4000,
-   kXR_attn,
-   kXR_authmore,
-   kXR_error,
-   kXR_redirect,
-   kXR_wait,
-   kXR_waitresp,
+   kXR_ok      =   0,
+   kXR_oksofar =   4000,
+   kXR_attn,    // 4001
+   kXR_authmore,// 4002
+   kXR_error,   // 4003
+   kXR_redirect,// 4004
+   kXR_wait,    // 4005
+   kXR_waitresp,// 4006
+   kXR_status,  // 4007
    kXR_noResponsesYet = 10000
 };
 
-//_______________________________________________
-// PROTOCOL DEFINITION: SERVER"S ATTN CODES
-//_______________________________________________
+// All serer responses start with the same header
+//
+struct ServerResponseHeader {
+   kXR_char  streamid[2];
+   kXR_unt16 status;
+   kXR_int32 dlen;
+};
+
+/******************************************************************************/
+/*                     k X R _ a t t n   R e s p o n s e                      */
+/******************************************************************************/
 
 enum XActionCode {
    kXR_asyncab =     5000, // No longer supported
    kXR_asyncdi,   // 5001     No longer supported
-   kXR_asyncms,   // 5002
+   kXR_asyncms =     5002,
    kXR_asyncrd,   // 5003     No longer supported
    kXR_asyncwt,   // 5004     No longer supported
    kXR_asyncav,   // 5005     No longer supported
    kXR_asynunav,  // 5006     No longer supported
    kXR_asyncgo,   // 5007     No longer supported
-   kXR_asynresp,  // 5008
-   kXR_asyninfo   // 5009
+   kXR_asynresp=     5008
+};
+  
+struct ServerResponseBody_Attn {
+   kXR_int32 actnum;      // See XActionCode enum
+   char      parms[4096]; // Should be sufficient for every use
 };
 
-//_______________________________________________
-// PROTOCOL DEFINITION: SERVER'S ERROR CODES
-//_______________________________________________
-//
+struct ServerResponseBody_Attn_asyncms  {
+   kXR_int32            actnum;       // XActionCode::kXR_asyncms
+   char                 reserved[4];
+   ServerResponseHeader resphdr;
+   char                 respdata[4096];
+};
+
+struct ServerResponseBody_Attn_asynresp {
+   kXR_int32            actnum;       // XActionCode::kXR_asynresp
+   char                 reserved[4];
+   ServerResponseHeader resphdr;
+   char                 respdata[4096];
+};
+
+/******************************************************************************/
+/*                 k X R _ a u t h m o r e   R e s p o n s e                  */
+/******************************************************************************/
+  
+struct ServerResponseBody_Authmore {
+   char data[4096];
+};
+
+/******************************************************************************/
+/*                     k X R _ b i n d   R e s p o n s e                      */
+/******************************************************************************/
+  
+struct ServerResponseBody_Bind {
+    kXR_char substreamid;
+};
+
+//??? Why this?
+struct ServerResponseBody_Buffer {
+   char data[4096];
+};
+
+/******************************************************************************/
+/*                    k X R _ e r r o r   R e s p o n s e                     */
+/******************************************************************************/
+
 enum XErrorCode {
    kXR_ArgInvalid =        3000,
    kXR_ArgMissing,      // 3001
@@ -386,434 +945,56 @@ enum XErrorCode {
    kXR_ERRFENCE,        // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
-
-
-//______________________________________________
-// PROTOCOL DEFINITION: CLIENT'S REQUESTS STRUCTS
-//______________________________________________
-// 
-// We need to pack structures sent all over the net!
-// __attribute__((packed)) assures no padding bytes.
-//
-// Nice bodies of the headers for the client requests.
-// Note that the protocol specifies these values to be in network
-//  byte order when sent
-//
-// G.Ganis: use of flat structures to avoid packing options
-
-struct ClientAdminRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[16];
-   kXR_int32  dlen;
+  
+struct ServerResponseBody_Error {
+   kXR_int32 errnum;       // See XErrorCode enu
+   char      errmsg[4096]; // Should be sufficient for every use
 };
-struct ClientAuthRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[12];
-   kXR_char credtype[4];
-   kXR_int32  dlen;
-};
-struct ClientBindRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
+
+/******************************************************************************/
+/*                    k X R _ l o g i n   R e s p o n s e                     */
+/******************************************************************************/
+  
+struct ServerResponseBody_Login {
    kXR_char  sessid[16];
-   kXR_int32  dlen;
-};
-struct ClientChmodRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  reserved[14];
-   kXR_unt16 mode;
-   kXR_int32  dlen;
-};
-struct ClientCloseRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  fhandle[4];
-   kXR_char  reserved[10];
-   kXR_unt16 flags;
-   kXR_int32 dlen;
-
-   static const int discard = 0x0001; // flags: Discard file
-};
-struct ClientDecryptRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_unt16 expectrid; // Request code of subsequent request
-   kXR_char  version;   // Security version being used (see enum XSecVersion)
-   kXR_char  flags;     // One or more flags defined in enum XSecFlags
-   kXR_char  reserved[12];
-   kXR_int32 dlen;
-};
-struct ClientDirlistRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[15];
-   kXR_char options[1];
-   kXR_int32  dlen;
-};
-struct ClientEndsessRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  sessid[16];
-   kXR_int32  dlen;
-};
-struct ClientFattrRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  fhandle[4];
-   kXR_char  subcode;
-   kXR_char  numattr;
-   kXR_char  options;
-   kXR_char  reserved[9];
-   kXR_int32 dlen;
-
-// Valid options:
-//
-   static const int isNew = 0x01; // For set,  the variable must not exist
-   static const int aData = 0x10; // For list, return attribute value
-
-// Add an attribute name to nvec (the buffer has to be sufficiently big)
-//
-   static char* NVecInsert( const char *name,  char *buffer );
-
-// Add an attribute name to vvec (the buffer has to be sufficiently big)
-//
-   static char* VVecInsert( const char *value, char *buffer );
-
-// Read error code from nvec
-//
-   static char* NVecRead( char* buffer, kXR_unt16 &rc );
-
-// Read attribute name from nvec, should be deallocated with free()
-//
-   static char* NVecRead( char* buffer, char *&name );
-
-// Read value length from vvec
-//
-   static char* VVecRead( char* buffer, kXR_int32 &len );
-
-// Read attribute value from vvec, should be deallocated with free()
-//
-   static char* VVecRead( char* buffer, kXR_int32 len, char *&value );
-
-};
-struct ClientGetfileRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_int32 options;
-   kXR_char reserved[8];
-   kXR_int32 buffsz;
-   kXR_int32  dlen;
-};
-struct ClientLocateRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_unt16 options;
-   kXR_char reserved[14];
-   kXR_int32  dlen;
-};
-struct ClientLoginRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_int32 pid;
-   kXR_char username[8];
-   kXR_char reserved;
-   kXR_char ability;       // See XLoginAbility enum flags
-   kXR_char capver[1];     // See XLoginCapVer  enum flags
-   kXR_char reserved2;
-   kXR_int32  dlen;
-};
-struct ClientMkdirRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char options[1];
-   kXR_char reserved[13];
-   kXR_unt16 mode;
-   kXR_int32  dlen;
-};
-struct ClientMvRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[14];
-   kXR_int16  arg1len;
-   kXR_int32  dlen;
-};
-struct ClientOpenRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_unt16 mode;
-   kXR_unt16 options;
-   kXR_char  reserved[12];
-   kXR_int32  dlen;
+   kXR_char  sec[4096]; // Should be sufficient for every use
 };
 
-struct ClientPingRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[16];
-   kXR_int32  dlen;
-};
-struct ClientProtocolRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_int32 clientpv;      // 2.9.7 or higher
-   kXR_char  flags;         // 3.1.0 or higher
-   kXR_char  expect;        // 4.0.0 or higher
-   kXR_char  reserved[10];
-   kXR_int32 dlen;
+/******************************************************************************/
+/*                     k X R _ o p e n   R e s p o n s e                      */
+/******************************************************************************/
 
-enum RequestFlags {
-   kXR_secreqs  = 0x01,  // Options: Return security requirements
-   kXR_ableTLS  = 0x02,  // Options: Client is TLS capable
-   kXR_wantTLS  = 0x04   // Options: Change connection to use TLS
-};
-
-enum ExpectFlags {
-   kXR_ExpMask   = 0x0f, // Isolate the relevant expect birs (encoded)
-   kXR_ExpNone   = 0x00,
-   kXR_ExpBind   = 0x01,
-   kXR_ExpGPF    = 0x02,
-   kXR_ExpLogin  = 0x03,
-   kXR_ExpTPC    = 0x04
-};
-
-};
-struct ClientPrepareRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  options;
-   kXR_char  prty;
-   kXR_unt16 port;          // 2.9.9 or higher
-   kXR_unt16 optionX;       // Extended options
-   kXR_char  reserved[10];
-   kXR_int32 dlen;
-};
-struct ClientPutfileRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_int32 options;
-   kXR_char  reserved[8];
-   kXR_int32 buffsz;
-   kXR_int32  dlen;
-};
-struct ClientQueryRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_unt16 infotype;
-   kXR_char  reserved1[2];
-   kXR_char  fhandle[4];
-   kXR_char  reserved2[8];
-   kXR_int32 dlen;
-};
-struct ClientReadRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char fhandle[4];
-   kXR_int64 offset;
-   kXR_int32 rlen;
-   kXR_int32  dlen;
-};
-struct ClientReadVRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  reserved[15];
-   kXR_char  pathid;
-   kXR_int32 dlen;
-};
-struct ClientRmRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[16];
-   kXR_int32  dlen;
-};
-struct ClientRmdirRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[16];
-   kXR_int32  dlen;
-};
-struct ClientSetRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char reserved[15];
-   kXR_char  modifier;  // For security purposes, should be zero
-   kXR_int32  dlen;
-};
-struct ClientSigverRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_unt16 expectrid; // Request code of subsequent request
-   kXR_char  version;   // Security version being used (see XSecVersion)
-   kXR_char  flags;     // One or more flags defined in enum (see XSecFlags)
-   kXR_unt64 seqno;     // Monotonically increasing number (part of hash)
-   kXR_char  crypto;    // Cryptography used (see XSecCrypto)
-   kXR_char  rsvd2[3];
-   kXR_int32 dlen;
-};
-struct ClientStatRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  options;
-   kXR_char reserved[11];
-   kXR_char fhandle[4];
-   kXR_int32  dlen;
-};
-struct ClientSyncRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char fhandle[4];
-   kXR_char reserved[12];
-   kXR_int32  dlen;
-};
-struct ClientTruncateRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char fhandle[4];
-   kXR_int64 offset;
-   kXR_char reserved[4];
-   kXR_int32  dlen;
-};
-struct ClientWriteRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char fhandle[4];
-   kXR_int64 offset;
-   kXR_char  pathid;
-   kXR_char reserved[3];
-   kXR_int32  dlen;
-};
-struct ClientWriteVRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  options;  // See static const ints below
-   kXR_char  reserved[15];
-   kXR_int32 dlen;
-
-   static const kXR_int32 doSync = 0x01;
-};
-struct ClientVerifywRequest {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  fhandle[4];
-   kXR_int64 offset;
-   kXR_char  pathid;
-   kXR_char  vertype;       // One of XVerifyType
-   kXR_char  reserved[2];
-   kXR_int32 dlen;          // Includes crc length
-};
-
-struct ClientRequestHdr {
-   kXR_char  streamid[2];
-   kXR_unt16 requestid;
-   kXR_char  body[16];
-   kXR_int32  dlen;
-};
-
-typedef union {
-   struct ClientRequestHdr header;
-   struct ClientAdminRequest admin;
-   struct ClientAuthRequest auth;
-   struct ClientBindRequest bind;
-   struct ClientChmodRequest chmod;
-   struct ClientCloseRequest close;
-   struct ClientDecryptRequest decrypt;
-   struct ClientDirlistRequest dirlist;
-   struct ClientEndsessRequest endsess;
-   struct ClientFattrRequest fattr;
-   struct ClientGetfileRequest getfile;
-   struct ClientLocateRequest locate;
-   struct ClientLoginRequest login;
-   struct ClientMkdirRequest mkdir;
-   struct ClientMvRequest mv;
-   struct ClientOpenRequest open;
-   struct ClientPingRequest ping;
-   struct ClientPrepareRequest prepare;
-   struct ClientProtocolRequest protocol;
-   struct ClientPutfileRequest putfile;
-   struct ClientQueryRequest query;
-   struct ClientReadRequest read;
-   struct ClientReadVRequest readv;
-   struct ClientRmRequest rm;
-   struct ClientRmdirRequest rmdir;
-   struct ClientSetRequest set;
-   struct ClientSigverRequest sigver;
-   struct ClientStatRequest stat;
-   struct ClientSyncRequest sync;
-   struct ClientTruncateRequest truncate;
-   struct ClientWriteRequest write;
-   struct ClientWriteVRequest writev;
-} ClientRequest;
-
-typedef union {
-   struct ClientRequestHdr header;
-   struct ClientDecryptRequest decrypt;
-   struct ClientSigverRequest sigver;
-} SecurityRequest;
-
-struct readahead_list {
-   kXR_char fhandle[4];
-   kXR_int32 rlen;
-   kXR_int64 offset;
-};
-
-struct read_args {
-   kXR_char       pathid;
-   kXR_char       reserved[7];
-   // his struct is followed by an array of readahead_list
-};
-
-// New additions are placed in a specia namespace to avoid conflicts
-//
-namespace XrdProto
-{
-struct read_list {
-   kXR_char fhandle[4];
-   kXR_int32 rlen;
-   kXR_int64 offset;
-};
-
-struct write_list {
-   kXR_char fhandle[4];
-   kXR_int32 wlen;
-   kXR_int64 offset;
-};
-}
-
-//_____________________________________________________________________
-//   PROTOCOL DEFINITION: SERVER'S RESPONSE
-//_____________________________________________________________________
-//
-
-// Nice header for the server response.
-// Note that the protocol specifies these values to be in network
-// byte order when sent
-//
-// G.Ganis: The following structures never need padding bytes:
-//          no need of packing options
-
-struct ServerResponseHeader {
-   kXR_char streamid[2];
-   kXR_unt16 status;
-   kXR_int32  dlen;
-};
-
-// Body for the kXR_bind response... useful
-struct ServerResponseBody_Bind {
-    kXR_char substreamid;
-};
-
-// Body for the kXR_open response... useful
 struct ServerResponseBody_Open {
-   kXR_char fhandle[4];
-   kXR_int32 cpsize;   // cpsize & cptype returned if kXR_compress *or*
-   kXR_char cptype[4]; // kXR_retstat is specified
+   kXR_char  fhandle[4];
+   kXR_int32 cpsize;    // cpsize & cptype returned if kXR_compress *or*
+   kXR_char  cptype[4]; // kXR_retstat is specified
 }; // info will follow if kXR_retstat is specified
+  
+/******************************************************************************/
+/*                   k X R _ p g r e a d   R e s p o n s e                    */
+/******************************************************************************/
 
+struct ServerResponseBody_pgRead {
+   kXR_int64 offset;    // info[]: File offset of data that follows
+// kXR_char  data[dlen];
+};
+
+/******************************************************************************/
+/*                  k X R _ p g w r i t e   R e s p o n s e                   */
+/******************************************************************************/
+  
+struct ServerResponseBody_pgWrite {
+// kXR_int64 bof[(resplen-8)/8];    // List of offsets of pages in error
+};
+
+/******************************************************************************/
+/*                 k X R _ p r o t o c o l   R e s p o n s e                  */
+/******************************************************************************/
+  
 // The following information is returned in the response body when kXR_secreqs
 // is set in ClientProtocolRequest::flags. Note that the size of secvec is
 // defined by secvsz and will not be present when secvsz == 0.
+//
 struct ServerResponseSVec_Protocol {
    kXR_char  reqindx;     // Request index
    kXR_char  reqsreq;     // Request signing requirement
@@ -848,7 +1029,46 @@ struct ServerResponseReqs_Protocol {
 #define kXR_signLikely    1
 #define kXR_signNeeded    2
 
+// Version used for kXR_sigver and is set in SigverRequest::version,
+// ServerResponseReqs_Protocol::secver
+//
+#define kXR_secver_0  0
+  
+// KINDS of SERVERS (no longer used by new clients)
+//
+#define kXR_DataServer 1
+#define kXR_LBalServer 0
+
+// The below are defined for protocol version 2.9.7 or higher
+// These are the flag values in the kXR_protool response
+//
+#define kXR_isManager   0x00000002
+#define kXR_isServer    0x00000001
+#define kXR_attrMeta    0x00000100
+#define kXR_attrProxy   0x00000200
+#define kXR_attrSuper   0x00000400
+#define kXR_attrVirtRdr 0x00000800
+
+// Things the server supports
+//
+#define kXR_anongpf     0x00800000
+#define kXR_supgpf      0x00400000
+#define kXR_suppgrw     0x00200000
+#define kXR_supposc     0x00100000
+
+// TLS requirements
+//
+#define kXR_haveTLS     0x80000000
+#define kXR_gotoTLS     0x40000000
+#define kXR_tlsAny      0x1f000000
+#define kXR_tlsData     0x01000000
+#define kXR_tlsGPF      0x02000000
+#define kXR_tlsLogin    0x04000000
+#define kXR_tlsSess     0x08000000
+#define kXR_tlsTPC      0x10000000
+
 // Body for the kXR_protocol response... useful
+//
 struct ServerResponseBody_Protocol {
    kXR_int32 pval;
    kXR_int32 flags;
@@ -861,113 +1081,95 @@ struct ServerResponseBody_Protocol {
 #define kXR_ShortProtRespLen sizeof(ServerResponseBody_Protocol)-\
                              sizeof(ServerResponseReqs_Protocol)
 
-struct ServerResponseBody_Login {
-   kXR_char  sessid[16];
-   kXR_char  sec[4096]; // Should be sufficient for every use
-};
-
+/******************************************************************************/
+/*                 k X R _ r e d i r e c t   R e s p o n s e                  */
+/******************************************************************************/
+  
 struct ServerResponseBody_Redirect {
    kXR_int32 port;
    char host[4096]; // Should be sufficient for every use
 };
 
-struct ServerResponseBody_Error {
-   kXR_int32 errnum;
-   char errmsg[4096]; // Should be sufficient for every use
-};
+/******************************************************************************/
+/*                     k X R _ s t a t   R e s p o n s e                      */
+/******************************************************************************/
 
+// The following bits are encoded in the "flags" token in the response
+//
+enum XStatRespFlags {
+   kXR_file    = 0,
+   kXR_xset    = 1,
+   kXR_isDir   = 2,
+   kXR_other   = 4,
+   kXR_offline = 8,
+   kXR_readable=16,
+   kXR_writable=32,
+   kXR_poscpend=64,
+   kXR_bkpexist=128
+};
+  
+/******************************************************************************/
+/*                   k X R _ s t a t u s   R e s p o n s e                    */
+/******************************************************************************/
+
+struct ServerResponseBody_Status { // Always preceeded by ServerResponseHeader
+   kXR_unt16 crc16;       // openSafety-B IEC61508:2010
+   kXR_char  streamID[2]; // Identical to streamid[2]  in ServerResponseHeader
+   kXR_char  requestid;   // requestcode - kXR_1stRequest
+   kXR_char  resptype;    // See RespType enum below
+   kXR_char  reserved[2];
+   kXR_int32 dlen;
+// kXR_char  info[ServerResponseHeader::dlen-8];
+// kXR_char  data[dlen];
+
+enum RespType {
+
+   kXR_FinalResult   = 0x00,
+   kXR_PartialResult = 0x01,
+   kXR_ProgressInfo  = 0x02
+};
+};
+  
+/******************************************************************************/
+/*                     k X R _ w a i t   R e s p o n s e                      */
+/******************************************************************************/
+  
 struct ServerResponseBody_Wait {
    kXR_int32 seconds;
    char infomsg[4096]; // Should be sufficient for every use
 };
 
+/******************************************************************************/
+/*                 k X R _ w a i t r e s p   R e s p o n s e                  */
+/******************************************************************************/
+  
 struct ServerResponseBody_Waitresp {
    kXR_int32 seconds;
 };
 
-struct ServerResponseBody_Attn {
-   kXR_int32 actnum;
-   char parms[4096]; // Should be sufficient for every use
-};
-
-struct ServerResponseBody_Attn_asyninfo {
-   kXR_int32 actnum;
-   kXR_char  streamid[2];
-   kXR_unt16 reqcode;
-   char data[4092];
-};
-
-struct ServerResponseBody_Attn_asyncrd { // No longer supported
-   kXR_int32 actnum;
-   kXR_int32 port;
-   char host[4092];
-};
-
-struct ServerResponseBody_Attn_asynresp {
-   kXR_int32            actnum;
-   char reserved[4];
-   ServerResponseHeader resphdr;
-   char respdata[4096];
-};
-
-struct ServerResponseBody_Attn_asyncwt { // No longer supported
-   kXR_int32 actnum;
-   kXR_int32 wsec;
-};
-
-struct ServerResponseBody_Attn_asyncdi { // No longer supported
-   kXR_int32 actnum;
-   kXR_int32 wsec;
-   kXR_int32 msec;
-};
-
-struct ServerResponseBody_Authmore {
-   char data[4096];
-};
-
-struct ServerResponseBody_Buffer {
-   char data[4096];
-};
-
+/******************************************************************************/
+/*         U n i o n   o f   a l l   S e r v e r   R e s p o n s e s          */
+/******************************************************************************/
+  
 struct ServerResponse
 {
   ServerResponseHeader hdr;
   union
   {
-    ServerResponseBody_Error    error;
+    ServerResponseBody_Attn     attn;
     ServerResponseBody_Authmore authmore;
+    ServerResponseBody_Bind     bind;
+    ServerResponseBody_Buffer   buffer;
+    ServerResponseBody_Error    error;
+    ServerResponseBody_Login    login;
+    ServerResponseBody_pgRead   pgread;
+    ServerResponseBody_pgWrite  pgwrite;
+    ServerResponseBody_Protocol protocol;
+    ServerResponseBody_Redirect redirect;
     ServerResponseBody_Wait     wait;
     ServerResponseBody_Waitresp waitresp;
-    ServerResponseBody_Redirect redirect;
-    ServerResponseBody_Attn     attn;
-    ServerResponseBody_Protocol protocol;
-    ServerResponseBody_Login    login;
-    ServerResponseBody_Buffer   buffer;
-    ServerResponseBody_Bind     bind;
   } body;
 };
-
-void ServerResponseHeader2NetFmt(struct ServerResponseHeader *srh);
-
-// The fields to be sent as initial handshake
-struct ClientInitHandShake {
-   kXR_int32 first;
-   kXR_int32 second;
-   kXR_int32 third;
-   kXR_int32 fourth;
-   kXR_int32 fifth;
-};
-
-// The body received after the first handshake's header
-struct ServerInitHandShake {
-   kXR_int32 msglen;
-   kXR_int32 protover;
-   kXR_int32 msgval;
-};
-
-
-
-typedef kXR_int32 ServerResponseType;
 
 struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
    char chkszrsp[ 9-sizeof(ServerResponseHeader)];
@@ -1036,7 +1238,7 @@ static int mapError(int rc)
            default:            return kXR_FSError;
           }
       }
-
+  
 static int toErrno( int xerr )
 {
     switch(xerr)
@@ -1058,7 +1260,7 @@ static int toErrno( int xerr )
         case kXR_NotFile:       return ENOTBLK;
         case kXR_isDirectory:   return EISDIR;
         case kXR_Cancelled:     return ECANCELED;
-        case kXR_ChkLenErr:     return EDOM;
+        case kXR_ChkLenErr:     return EINVAL;
         case kXR_ChkSumErr:     return EDOM;
         case kXR_inProgress:    return EINPROGRESS;
         case kXR_overQuota:     return EDQUOT;
@@ -1077,6 +1279,43 @@ static int toErrno( int xerr )
 static const char *errName(kXR_int32 errCode);
 
 static const char *reqName(kXR_unt16 reqCode);
+
+/******************************************************************************/
+/*                  O b s o l e t e   D e f i n i t i o n s                   */
+/******************************************************************************/
+
+struct ServerResponseBody_Attn_asyncdi { // No longer supported
+   kXR_int32 actnum;
+   kXR_int32 wsec;
+   kXR_int32 msec;
+};
+
+struct ServerResponseBody_Attn_asyncrd { // No longer supported
+   kXR_int32 actnum;
+   kXR_int32 port;
+   char host[4092];
+};
+
+struct ServerResponseBody_Attn_asyncwt { // No longer supported
+   kXR_int32 actnum;
+   kXR_int32 wsec;
+};
+
+// Kind of error inside a XTNetFile's routine (temporary)
+//
+enum XReqErrorType {
+   kGENERICERR = 0,    // Generic error
+   kREAD,              // Error while reading from stream
+   kWRITE,             // Error while writing to stream
+   kREDIRCONNECT,      // Error redirecting to a given host
+   kOK,                // Everything seems ok
+   kNOMORESTREAMS      // No more available stream IDs for
+                       // async processing
+};
+
+typedef kXR_int32 ServerResponseType;
+
+#define kXR_maxReqRetry 10
 
 }; // XProtocol
 #endif

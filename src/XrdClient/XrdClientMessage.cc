@@ -45,6 +45,8 @@
 #include <stdlib.h> // for malloc
 #include <string.h> // for memcpy
 
+void ServerResponseHeader2NetFmt(struct ServerResponseHeader *srh);
+
 //__________________________________________________________________________
 XrdClientMessage::XrdClientMessage(struct ServerResponseHeader header)
 {
