@@ -55,6 +55,10 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Add kXR_ItExists error for EEXIST errno don't use kXR_BadRequest.
+  * **[Server]** Remap kXR_BadRequest to EBADRQC.
+  * **[Server]** Change uses of ENOSYS to ENOTSUP for consistent meaning.
+  * **[Server]** Make all error code mappings consistent.
   * **[Server]** Make sure loginid corresponds to the POSIX.1-2008 standard.
   * **[Server]** Honor authentication protocol TLS requirements.
   * **[SSS]** Update sss protocol for new SecEntity object.
