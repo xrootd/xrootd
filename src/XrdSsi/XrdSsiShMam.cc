@@ -1005,7 +1005,7 @@ int  XrdSsiShMam::Info(const char *vname, char *buff, int blen)
 
 // Return variable not supported
 //
-   errno = ENOSYS;
+   errno = ENOTSUP;
    return -1;
 }
 

@@ -210,19 +210,7 @@ int XrdSsiUtils::GetErr(XrdCl::XRootDStatus &Status, std::string &eText)
 
 int XrdSsiUtils::MapErr(int xEnum)
 {
-    switch(xEnum)
-       {case kXR_NotFound:      return ENOENT;
-        case kXR_NotAuthorized: return EACCES;
-        case kXR_IOError:       return EIO;
-        case kXR_NoMemory:      return ENOMEM;
-        case kXR_NoSpace:       return ENOSPC;
-        case kXR_ArgTooLong:    return ENAMETOOLONG;
-        case kXR_noserver:      return EHOSTUNREACH;
-        case kXR_NotFile:       return ENOTBLK;
-        case kXR_isDirectory:   return EISDIR;
-        case kXR_FSError:       return ENOSYS;
-        default:                return ECANCELED;
-       }
+    return XProtocol::mapError(xEnum);
 }
 
 /******************************************************************************/

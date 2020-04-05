@@ -387,7 +387,7 @@ int      XrdSfsNativeFile::fctl(const int               cmd,
 
 // We don't support this
 //
-   out_error.setErrInfo(EEXIST, "fctl operation not supported");
+   out_error.setErrInfo(ENOTSUP, "fctl operation not supported");
    return SFS_ERROR;
 }
   

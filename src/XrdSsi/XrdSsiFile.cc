@@ -348,7 +348,7 @@ XrdSfsXferSize XrdSsiFile::readv(XrdOucIOVec     *readV,     // In
 //
    if (fsFile) return fsFile->readv(readV, readCount);
 
-   return XrdSsiUtils::Emsg("readv", ENOSYS, "readv", fSessP->FName(), error);
+   return XrdSsiUtils::Emsg("readv",ENOTSUP,"readv",fSessP->FName(),error);
 }
   
 /******************************************************************************/
@@ -413,7 +413,7 @@ int XrdSsiFile::sync()
 
 // We don't support this
 //
-   return XrdSsiUtils::Emsg("sync", ENOSYS, "sync", fSessP->FName(), error);
+   return XrdSsiUtils::Emsg("sync",ENOTSUP,"sync",fSessP->FName(),error);
 }
 
 /******************************************************************************/
@@ -429,7 +429,7 @@ int XrdSsiFile::sync(XrdSfsAio *aiop)
 
 // We don't support this
 //
-   return XrdSsiUtils::Emsg("syncaio", ENOSYS, "sync", fSessP->FName(), error);
+   return XrdSsiUtils::Emsg("syncaio",ENOTSUP,"sync",fSessP->FName(),error);
 }
 
 /******************************************************************************/

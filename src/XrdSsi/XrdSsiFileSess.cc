@@ -638,7 +638,7 @@ int XrdSsiFileSess::truncate(XrdSfsFileOffset  flen)  // In
 // Process request (this can only be a cancel request)
 //
    if (reqXQ != XrdSsiRRInfo::Can)
-      return XrdSsiUtils::Emsg(epname, ENOSYS, "trunc", gigID, *eInfo);
+      return XrdSsiUtils::Emsg(epname, ENOTSUP, "trunc", gigID, *eInfo);
 
 // Perform the cancellation
 //

@@ -318,7 +318,7 @@ bool         Get(const char *key, T &val);
 //!
 //! @return >=0   - The variable's value.
 //! @return < 0   - The variable's value could not be returned; errno has the
-//!                 error code describing the reason, typically ENOSYS.
+//!                 error code describing the reason, typically ENOTSUP.
 //-----------------------------------------------------------------------------
 
 int          Info(const char *vname, char *buff=0, int blen=0);

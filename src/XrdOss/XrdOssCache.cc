@@ -484,7 +484,7 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
            *Info.Slash='\0'; rc=mkdir(aInfo.cgPFbf,theMode); *Info.Slash='/';
            madeDir = 1;
           } while(!rc);
-       if (datfd < 0) return (errno ? -errno : -ENOSYS);
+       if (datfd < 0) return (errno ? -errno : -EFAULT);
       }
 
 // All done (temporarily adjust down the free space)x

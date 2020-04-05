@@ -1609,7 +1609,7 @@ namespace XrdCl
       // User requested an encrypted connection but the server is to old to
       // support it!
       //------------------------------------------------------------------------
-      if( !notlsok ) return Status( stFatal, errTlsError, ENOSYS );
+      if( !notlsok ) return Status( stFatal, errTlsError, ENOTSUP );
 
       //------------------------------------------------------------------------
       // We are falling back to unencrypted data transmission, as configured

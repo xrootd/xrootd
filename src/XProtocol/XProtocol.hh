@@ -930,7 +930,7 @@ enum XErrorCode {
    kXR_NotFile,         // 3015
    kXR_isDirectory,     // 3016
    kXR_Cancelled,       // 3017
-   kXR_ChkLenErr,       // 3018
+   kXR_ItExists,        // 3018
    kXR_ChkSumErr,       // 3019
    kXR_inProgress,      // 3020
    kXR_overQuota,       // 3021
@@ -1221,8 +1221,10 @@ static int mapError(int rc)
            case ENAMETOOLONG:  return kXR_ArgTooLong;
            case ENETUNREACH:   return kXR_noserver;
            case ENOTBLK:       return kXR_NotFile;
+           case ENOTSUP:       return kXR_Unsupported;
            case EISDIR:        return kXR_isDirectory;
-           case EEXIST:        return kXR_InvalidRequest;
+           case EEXIST:        return kXR_ItExists;
+           case EBADRQC:       return kXR_InvalidRequest;
            case ETXTBSY:       return kXR_inProgress;
            case ENODEV:        return kXR_FSError;
            case EFAULT:        return kXR_ServerError;
@@ -1247,20 +1249,20 @@ static int toErrno( int xerr )
         case kXR_ArgTooLong:    return ENAMETOOLONG;
         case kXR_FileLocked:    return EDEADLK;
         case kXR_FileNotOpen:   return EBADF;
-        case kXR_FSError:       return EIO;
-        case kXR_InvalidRequest:return EEXIST;
+        case kXR_FSError:       return ENODEV;
+        case kXR_InvalidRequest:return EBADRQC;
         case kXR_IOError:       return EIO;
         case kXR_NoMemory:      return ENOMEM;
         case kXR_NoSpace:       return ENOSPC;
         case kXR_NotAuthorized: return EACCES;
         case kXR_NotFound:      return ENOENT;
-        case kXR_ServerError:   return ENOMSG;
-        case kXR_Unsupported:   return ENOSYS;
+        case kXR_ServerError:   return EFAULT;
+        case kXR_Unsupported:   return ENOTSUP;
         case kXR_noserver:      return EHOSTUNREACH;
         case kXR_NotFile:       return ENOTBLK;
         case kXR_isDirectory:   return EISDIR;
         case kXR_Cancelled:     return ECANCELED;
-        case kXR_ChkLenErr:     return EINVAL;
+        case kXR_ItExists:      return EEXIST;
         case kXR_ChkSumErr:     return EDOM;
         case kXR_inProgress:    return EINPROGRESS;
         case kXR_overQuota:     return EDQUOT;

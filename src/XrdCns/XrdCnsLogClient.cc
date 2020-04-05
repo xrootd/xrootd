@@ -605,7 +605,7 @@ int XrdCnsLogClient::mapError(int rc)
         case kXR_noserver:      return EHOSTUNREACH;
         case kXR_NotFile:       return ENOTBLK;
         case kXR_isDirectory:   return EISDIR;
-        case kXR_FSError:       return ENOSYS;
+        case kXR_FSError:       return ENOSUP;
         default:                return ECANCELED;
        }
 }

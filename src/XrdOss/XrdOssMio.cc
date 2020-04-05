@@ -148,7 +148,7 @@ XrdOssMioFile *XrdOssMio::Map(char *path, int fd, int opts)
 //
    if (MM_okmlock && (opts & OSSMIO_MLOK))
       {if (mlock((char *)thefile, statb.st_size))
-          {     if (errno == ENOSYS)
+          {     if (errno == ENOSYS || errno == ENOTSUP)
                    {OssEroute.Emsg("Mio","mlock() not supported; feature disabled.");
                     MM_okmlock = 0;
                    }

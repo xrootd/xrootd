@@ -69,7 +69,7 @@ namespace
 {
 const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                    {"Invalid argument",           // kXR_ArgInvalid = 3000,
-                    "Missing agument",            // kXR_ArgMissing
+                    "Missing argument",           // kXR_ArgMissing
                     "Argument is too long",       // kXR_ArgTooLong
                     "File or object is locked",   // kXR_FileLocked
                     "File or object not open",    // kXR_FileNotOpen
@@ -82,11 +82,11 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "File or object not found",   // kXR_NotFound
                     "Internal server error",      // kXR_ServerError
                     "Unsupported request",        // kXR_Unsupported
-                    "No serves available",        // kXR_noserver
+                    "No servers available",       // kXR_noserver
                     "Target is not a file",       // kXR_NotFile
                     "Target is a directory",      // kXR_isDirectory
                     "Request cancelled",          // kXR_Cancelled
-                    "Checksum length error",      // kXR_ChkLenErr
+                    "Target exists",              // kXR_ItExists
                     "Checksum is invalid",        // kXR_ChkSumErr
                     "Request in progress",        // kXR_inProgress
                     "Quota exceeded",             // kXR_overQuota
@@ -95,7 +95,7 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "Server is overloaded",       // kXR_Overloaded
                     "Filesystem is read only",    // kXR_fsReadOnly
                     "Invalid payload format",     // kXR_BadPayload
-                    "File attrbute not found"     // kXR_AttrNotFound
+                    "File attribute not found"    // kXR_AttrNotFound
                     "Operation requires TLS"      // kXR_TLSRequired
                    };
 
