@@ -14,6 +14,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <string>
+#include <vector>
 #include <map>
 
 namespace XrdCl
@@ -87,6 +88,12 @@ class VirtualRedirector
     //! in the metalink file, or an empty string otherwise
     //----------------------------------------------------------------------------
     virtual std::string GetCheckSum( const std::string &type ) const = 0;
+
+    //----------------------------------------------------------------------------
+    //! Returns the default checksum type (the first one given in the metalink),
+    //! if no checksum is available returns an empty string
+    //----------------------------------------------------------------------------
+    virtual std::vector<std::string> GetSupportedCheckSums() const = 0;
 
     //----------------------------------------------------------------------------
     //! Returns the file size as specified in the metalink,

@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdNet/XrdNetAddr.hh"
 
 #include <algorithm>
@@ -32,6 +33,7 @@
 #include <locale>
 #include <map>
 #include <string>
+#include <set>
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -594,5 +596,142 @@ namespace XrdCl
       return checksum.substr(i);
     }
     return checksum;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get supported checksum types for given URL
+  //----------------------------------------------------------------------------
+  std::vector<std::string> Utils::GetSupportedCheckSums( const XrdCl::URL &url )
+  {
+    std::vector<std::string> ret;
+
+    FileSystem fs( url );
+    Buffer  arg; arg.FromString( "chksum" );
+    Buffer *resp = 0;
+    XRootDStatus st = fs.Query( QueryCode::Config, arg, resp );
+    if( st.IsOK() )
+    {
+      std::string response = resp->ToString();
+      if( response != "chksum" )
+      {
+        // we are expecting a response of format: '0:zcrc32,1:adler32'
+        std::vector<std::string> result;
+        Utils::splitString( result, response, "," );
+
+        std::vector<std::string>::iterator itr = result.begin();
+        for( ; itr != result.end(); ++itr )
+        {
+          size_t pos = itr->find( ':' );
+          if( pos == std::string::npos ) continue;
+          ret.push_back( itr->substr( pos + 1 ) );
+        }
+      }
+    }
+
+    return std::move( ret );
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Automatically infer the right checksum type
+  //----------------------------------------------------------------------------
+  std::string Utils::InferChecksumType( const XrdCl::URL &source,
+                                        const XrdCl::URL &destination,
+                                        bool              zip)
+  {
+    //--------------------------------------------------------------------------
+    // If both files are local we wont be checksumming at all
+    //--------------------------------------------------------------------------
+    if( source.IsLocalFile() && destination.IsLocalFile() ) return std::string();
+
+    // checksums supported by local files
+    std::set<std::string> local_supported;
+    local_supported.insert( "adler32" );
+    local_supported.insert( "crc32" );
+    local_supported.insert( "md5" );
+
+    std::vector<std::string> srccks;
+
+    if( source.IsMetalink() )
+    {
+      int useMtlnCksum = DefaultZipMtlnCksum;
+      Env *env = DefaultEnv::GetEnv();
+      env->GetInt( "ZipMtlnCksum", useMtlnCksum );
+
+      //------------------------------------------------------------------------
+      // In case of ZIP use other checksums than zcrc32 only if the user
+      // requested it explicitly.
+      //------------------------------------------------------------------------
+      if( !zip || ( zip && useMtlnCksum ) )
+      {
+        RedirectorRegistry &registry   = RedirectorRegistry::Instance();
+        VirtualRedirector  *redirector = registry.Get( source );
+        std::vector<std::string> cks = redirector->GetSupportedCheckSums();
+        srccks.insert( srccks.end(), cks.begin(), cks.end() );
+      }
+    }
+
+    if( zip )
+    {
+      //------------------------------------------------------------------------
+      // In case of ZIP we can always extract the checksum from the archive
+      //------------------------------------------------------------------------
+      srccks.push_back( "zcrc32" );
+    }
+    else if( source.GetProtocol() == "root" || source.GetProtocol() == "xroot" )
+    {
+      //------------------------------------------------------------------------
+      // If the source is a remote endpoint query the supported checksums
+      //------------------------------------------------------------------------
+      std::vector<std::string> cks = GetSupportedCheckSums( source );
+      srccks.insert( srccks.end(), cks.begin(), cks.end() );
+    }
+
+    std::vector<std::string> dstcks;
+
+    if( destination.GetProtocol() == "root" ||
+        destination.GetProtocol() == "xroot" )
+    {
+      //------------------------------------------------------------------------
+      // If the destination is a remote endpoint query the supported checksums
+      //------------------------------------------------------------------------
+      std::vector<std::string> cks = GetSupportedCheckSums( destination );
+      srccks.insert( dstcks.end(), cks.begin(), cks.end() );
+    }
+
+    //--------------------------------------------------------------------------
+    // Now we have all the information we need, we can infer the right checksum
+    // type!!!
+    //
+    // First check if source is local
+    //--------------------------------------------------------------------------
+    if( source.IsLocalFile() )
+    {
+      std::vector<std::string>::iterator itr = dstcks.begin();
+      for( ; itr != dstcks.end(); ++itr )
+        if( local_supported.count( *itr ) ) return *itr;
+      return std::string();
+    }
+
+    //--------------------------------------------------------------------------
+    // then check if destination is local
+    //--------------------------------------------------------------------------
+    if( destination.IsLocalFile() )
+    {
+      std::vector<std::string>::iterator itr = srccks.begin();
+      for( ; itr != srccks.end(); ++itr )
+        if( local_supported.count( *itr ) ) return *itr;
+      return std::string();
+    }
+
+    //--------------------------------------------------------------------------
+    // if both source and destination are remote look for a checksum that can
+    // satisfy both
+    //--------------------------------------------------------------------------
+    std::set<std::string> dst_supported( dstcks.begin(), dstcks.end() );
+    std::vector<std::string>::iterator itr = srccks.begin();
+    for( ; itr != srccks.end(); ++itr )
+      if( dst_supported.count( *itr ) ) return *itr;
+    return std::string();
   }
 }
