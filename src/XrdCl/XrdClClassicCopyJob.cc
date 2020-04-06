@@ -1585,7 +1585,10 @@ namespace XrdCl
     {
       checkSumType = Utils::InferChecksumType( GetSource(), GetTarget(), zip );
       if( checkSumType.empty() )
-        log->Info( UtilityMsg, "Could not infer checksum type." );
+      {
+        log->Warning( UtilityMsg, "Could not infer checksum type." );
+        checkSumMode = "";
+      }
       else
         log->Info( UtilityMsg, "Using inferred checksum type: %s.", checkSumType.c_str() );
     }
