@@ -343,7 +343,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( checkSumType == "auto" )
     {
-      checkSumType = Utils::InferChecksumType( GetSource(), GetTarget(), zip );
+      checkSumType = Utils::InferChecksumType( GetSource(), GetTarget() );
       if( checkSumType.empty() )
         log->Info( UtilityMsg, "Could not infer checksum type." );
       else
