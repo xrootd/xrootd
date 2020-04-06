@@ -581,7 +581,7 @@ namespace
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
 
-        if( !pUrl->IsLocalFile() )
+        if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
           pFile->GetProperty( "DataServer", pDataServer );
 
         SetOnDataConnectHandler( pFile );
