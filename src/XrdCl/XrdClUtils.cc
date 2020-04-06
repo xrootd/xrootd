@@ -34,6 +34,7 @@
 #include <map>
 #include <string>
 #include <set>
+#include <cctype>
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -623,7 +624,11 @@ namespace XrdCl
         {
           size_t pos = itr->find( ':' );
           if( pos == std::string::npos ) continue;
-          ret.push_back( itr->substr( pos + 1 ) );
+          std::string cksname = itr->substr( pos + 1 );
+          // remove all white spaces
+          cksname.erase( std::remove_if( cksname.begin(), cksname.end(), ::isspace ), 
+                         cksname.end() );
+          ret.push_back( std::move( cksname ) );
         }
       }
     }
@@ -642,13 +647,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // If both files are local we wont be checksumming at all
     //--------------------------------------------------------------------------
-    if( source.IsLocalFile() && destination.IsLocalFile() ) return std::string();
+    if( source.IsLocalFile() && !source.IsMetalink() && destination.IsLocalFile() ) return std::string();
 
     // checksums supported by local files
     std::set<std::string> local_supported;
     local_supported.insert( "adler32" );
     local_supported.insert( "crc32" );
     local_supported.insert( "md5" );
+    local_supported.insert( "zcrc32" );
 
     std::vector<std::string> srccks;
 
@@ -696,7 +702,7 @@ namespace XrdCl
       // If the destination is a remote endpoint query the supported checksums
       //------------------------------------------------------------------------
       std::vector<std::string> cks = GetSupportedCheckSums( destination );
-      srccks.insert( dstcks.end(), cks.begin(), cks.end() );
+      dstcks.insert( dstcks.end(), cks.begin(), cks.end() );
     }
 
     //--------------------------------------------------------------------------
@@ -705,7 +711,7 @@ namespace XrdCl
     //
     // First check if source is local
     //--------------------------------------------------------------------------
-    if( source.IsLocalFile() )
+    if( source.IsLocalFile() && !source.IsMetalink() )
     {
       std::vector<std::string>::iterator itr = dstcks.begin();
       for( ; itr != dstcks.end(); ++itr )
