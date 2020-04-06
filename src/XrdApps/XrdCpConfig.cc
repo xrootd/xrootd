@@ -601,10 +601,13 @@ int XrdCpConfig::defCks(const char *opval)
 
 // Get a checksum object for this checksum
 //
-   if (CksObj) {delete CksObj; CksObj = 0;}
-   if (!CksData.Set(csName) || !(CksObj = CksMan->Object(CksData.Name)))
-      UMSG("Invalid checksum type, '" <<csName <<"'.");
-   CksObj->Type(CksLen);
+   if( strcmp( csName, "auto" ) )
+   {
+     if (CksObj) {delete CksObj; CksObj = 0;}
+     if (!CksData.Set(csName) || !(CksObj = CksMan->Object(CksData.Name)))
+        UMSG("Invalid checksum type, '" <<csName <<"'.");
+     CksObj->Type(CksLen);
+   }
 
 // Reset checksum information
 //
