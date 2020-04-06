@@ -72,7 +72,8 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     std::string GetCheckSum( const std::string &type ) const
     {
-      CksumMap::const_iterator it = pChecksums.find( type );
+      std::string t = type != "adler32" ? type : "a32";
+      CksumMap::const_iterator it = pChecksums.find( t );
       if( it == pChecksums.end() ) return std::string();
       return type + ":" + it->second;
     }
@@ -86,7 +87,10 @@ class MetalinkRedirector : public VirtualRedirector
       std::vector<std::string> ret;
       CksumMap::const_iterator itr = pChecksums.begin();
       for( ; itr != pChecksums.end(); ++itr )
-        ret.push_back( itr->first );
+      {
+        if( itr->first == "a32" ) ret.push_back( "adler32" );
+        else ret.push_back( itr->first );
+      }
       return std::move( ret );
     }
 
