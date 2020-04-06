@@ -1784,6 +1784,8 @@ namespace XrdCl
 
         if( !match )
           return XRootDStatus( stError, errCheckSumError, 0 );
+
+        log->Info(UtilityMsg, "Checksum verification: succeeded." );
       }
     }
     return XRootDStatus();
