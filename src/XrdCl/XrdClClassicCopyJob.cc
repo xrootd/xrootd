@@ -616,6 +616,9 @@ namespace
       template<typename READER>
       void SetOnConnectHandler( READER *reader )
       {
+        // check if it is a local file
+        if( pDataServer.empty() ) return;
+
         //----------------------------------------------------------------------------
         // On-connect callback job, a lambda would be more elegant, but we still have
         // to support SLC6
