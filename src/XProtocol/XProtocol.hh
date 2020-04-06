@@ -1199,6 +1199,12 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 #define ENOATTR ENODATA
 #endif
 
+#ifndef EBADRQC
+#if defined(__APPLE__)
+#define EBADRQC EBADRPC
+#endif
+#endif
+
 struct stat;
   
 class XProtocol
