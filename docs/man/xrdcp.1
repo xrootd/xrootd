@@ -30,10 +30,13 @@ on multiple servers.
 .SH OPTIONS
 \fB-C\fR | \fB--cksum\fR \fItype\fR[\fB:\fR\fIvalue\fR|\fIprint\fR|\fIsource\fR]
 .RS 5
-obtains the checksum of \fItype\fR (i.e. adler32, crc32, or md5) from the source,
-computes the checksum at the destination, and verifies that they are the same. If a \fIvalue\fR
-is specified, it is used as the source checksum. When \fIprint\fR
-is specified, the checksum at the destination is printed but is \fInot\fR verified.
+obtains the checksum of \fItype\fR (i.e. adler32, crc32, md5 or zcrc32) from the source,
+computes the checksum at the destination, and verifies that they are the same. If \fIauto\fR
+is chosen as the checksum type, xrdcp will try to automatically infer the right checksum
+type based on source/destination configuration, source file type (metalink, ZIP), and
+available checksum plug-ins. If a \fIvalue\fR is specified, it is used as the source checksum.
+When \fIprint\fR is specified, the checksum at the destination is printed but is \fInot\fR
+verified.
 
 .RE
 \fB-d\fR | \fB--debug\fR \fIlvl\fR
