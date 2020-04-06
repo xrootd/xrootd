@@ -237,7 +237,7 @@ namespace XrdCl
                              uint32_t               size,
                              void                  *buffer,
                              uint32_t              &bytesRead,
-                             std::vector<uint32_t> &chsums,
+                             std::vector<uint32_t> &cksums,
                              uint16_t               timeout )
   {
     return XRootDStatus( stError, errNotImplemented );
@@ -281,7 +281,7 @@ namespace XrdCl
   XRootDStatus File::PgWrite( uint64_t               offset,
                               uint32_t               size,
                               const void            *buffer,
-                              std::vector<uint32_t> &chsums,
+                              std::vector<uint32_t> &cksums,
                               ResponseHandler       *handler,
                               uint16_t               timeout )
   {
@@ -294,7 +294,7 @@ namespace XrdCl
   XRootDStatus File::PgWrite( uint64_t               offset,
                               uint32_t               size,
                               const void            *buffer,
-                              std::vector<uint32_t> &chsums,
+                              std::vector<uint32_t> &cksums,
                               uint16_t               timeout )
   {
     return XRootDStatus( stError, errNotImplemented );

@@ -218,7 +218,7 @@ namespace XrdCl
       //! @param size    buffer size, at least 1 page big (4KB)
       //! @param buffer    a pointer to a buffer big enough to hold the data
       //! @param bytesRead number of bytes actually read
-      //! @param chsums    crc32c checksum for each read 4KB page
+      //! @param cksums    crc32c checksum for each read 4KB page
       //! @param timeout   timeout value, if 0 the environment default will be
       //!                  used
       //! @return          status of the operation
@@ -227,7 +227,7 @@ namespace XrdCl
                            uint32_t               size,
                            void                  *buffer,
                            uint32_t              &bytesRead,
-                           std::vector<uint32_t> &chsums,
+                           std::vector<uint32_t> &cksums,
                            uint16_t               timeout = 0 )
                            XRD_WARN_UNUSED_RESULT;
 
@@ -278,7 +278,7 @@ namespace XrdCl
       //! @param offset  offset from the beginning of the file
       //! @param size    buffer size
       //! @param buffer  a pointer to a buffer holding data pages
-      //! @param chsums  the crc32c checksums for each 4KB page
+      //! @param cksums  the crc32c checksums for each 4KB page
       //! @param handler handler to be notified when the response arrives
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
@@ -287,7 +287,7 @@ namespace XrdCl
       XRootDStatus PgWrite( uint64_t               offset,
                             uint32_t               size,
                             const void            *buffer,
-                            std::vector<uint32_t> &chsums,
+                            std::vector<uint32_t> &cksums,
                             ResponseHandler       *handler,
                             uint16_t               timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
@@ -298,7 +298,7 @@ namespace XrdCl
       //! @param offset  offset from the beginning of the file
       //! @param size    buffer size
       //! @param buffer  a pointer to a buffer holding data pages
-      //! @param chsums  the crc32c checksums for each 4KB page
+      //! @param cksums  the crc32c checksums for each 4KB page
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
       //! @return        status of the operation
@@ -306,7 +306,7 @@ namespace XrdCl
       XRootDStatus PgWrite( uint64_t               offset,
                             uint32_t               size,
                             const void            *buffer,
-                            std::vector<uint32_t> &chsums,
+                            std::vector<uint32_t> &cksums,
                             uint16_t               timeout = 0 )
                             XRD_WARN_UNUSED_RESULT;
 

@@ -148,11 +148,11 @@ namespace XrdCl
       virtual XRootDStatus PgWrite( uint64_t               offset,
                                     uint32_t               nbpgs,
                                     const void            *buffer,
-                                    std::vector<uint32_t> &chsums,
+                                    std::vector<uint32_t> &cksums,
                                     ResponseHandler       *handler,
                                     uint16_t               timeout )
       {
-        (void)offset; (void)nbpgs; (void)buffer; (void)chsums, (void)handler; (void)timeout;
+        (void)offset; (void)nbpgs; (void)buffer; (void)cksums, (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
 
