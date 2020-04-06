@@ -909,7 +909,7 @@ void XrdCpConfig::Usage(int rc)
    "                      If 'auto' is chosen as the checksum type, xrdcp will try to\n"
    "                      automatically infer the right checksum type based on source/\n"
    "                      destination configuration, source file type (metalink, ZIP), and \n"
-   "                      available checksum plug-ins."
+   "                      available checksum plug-ins.\n"
    "                      If the hex value of the checksum is given, it is used.\n"
    "                      Otherwise, the server's checksum is used for remote files\n"
    "                      and computed for local files. Specifying print merely\n"
