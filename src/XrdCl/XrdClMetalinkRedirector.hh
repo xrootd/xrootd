@@ -78,6 +78,19 @@ class MetalinkRedirector : public VirtualRedirector
     }
 
     //----------------------------------------------------------------------------
+    //! Returns the first (in alphabetical order) checksum type available in the
+    //! metalink file, if no checksum is available returns an empty string
+    //----------------------------------------------------------------------------
+    std::vector<std::string> GetSupportedCheckSums() const
+    {
+      std::vector<std::string> ret;
+      CksumMap::const_iterator itr = pChecksums.begin();
+      for( ; itr != pChecksums.end(); ++itr )
+        ret.push_back( itr->first );
+      return std::move( ret );
+    }
+
+    //----------------------------------------------------------------------------
     //! Returns the file size if specified in the metalink file,
     //! otherwise a negative number
     //----------------------------------------------------------------------------

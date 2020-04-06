@@ -339,6 +339,18 @@ namespace XrdCl
       log->Info( UtilityMsg, "We are NOT using delegation" );
 
     //--------------------------------------------------------------------------
+    // Resolve the 'auto' checksum type.
+    //--------------------------------------------------------------------------
+    if( checkSumType == "auto" )
+    {
+      checkSumType = Utils::InferChecksumType( GetSource(), GetTarget(), zip );
+      if( checkSumType.empty() )
+        log->Info( UtilityMsg, "Could not infer checksum type." );
+      else
+        log->Info( UtilityMsg, "Using inferred checksum type: %s.", checkSumType.c_str() );
+    }
+
+    //--------------------------------------------------------------------------
     // Check if we can open the source. Note in TPC-lite scenario it is optional
     // for this step to be successful.
     //--------------------------------------------------------------------------

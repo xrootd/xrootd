@@ -204,6 +204,24 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static std::string NormalizeChecksum( const std::string &name,
                                             const std::string &checksum );
+
+      //------------------------------------------------------------------------
+      //! Get supported checksum types for given URL
+      //------------------------------------------------------------------------
+      static std::vector<std::string> GetSupportedCheckSums( const XrdCl::URL &url );
+
+      //------------------------------------------------------------------------
+      //! Automatically infer the right checksum type
+      //!
+      //! @param source      : source URL
+      //! @param destination : destination URL
+      //! @param zip         : true if the source file is being extracted from
+      //!                      a ZIP archive, false otherwise
+      //! @return            : checksum type
+      //------------------------------------------------------------------------
+      static std::string InferChecksumType( const XrdCl::URL &source,
+                                            const XrdCl::URL &destination,
+                                            bool              zip = false );
   };
 
   //----------------------------------------------------------------------------

@@ -1723,6 +1723,18 @@ namespace XrdCl
       pProperties->Get( "nbXcpSources",  nbXcpSources );
 
     //--------------------------------------------------------------------------
+    // Resolve the 'auto' checksum type.
+    //--------------------------------------------------------------------------
+    if( checkSumType == "auto" )
+    {
+      checkSumType = Utils::InferChecksumType( GetSource(), GetTarget(), zip );
+      if( checkSumType.empty() )
+        log->Info( UtilityMsg, "Could not infer checksum type." );
+      else
+        log->Info( UtilityMsg, "Using inferred checksum type: %s.", checkSumType.c_str() );
+    }
+
+    //--------------------------------------------------------------------------
     // Initialize the source and the destination
     //--------------------------------------------------------------------------
     XRDCL_SMART_PTR_T<Source> src;
