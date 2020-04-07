@@ -66,7 +66,7 @@ namespace PyXRootD
       = { "source", "target", "sourcelimit", "force", "posc", "coerce",
           "mkdir", "thirdparty", "checksummode", "checksumtype",
           "checksumpreset", "dynamicsource", "chunksize", "parallelchunks", "inittimeout",
-          "tpctimeout", NULL };
+          "tpctimeout", "rmBadCksum", NULL };
 
     const char  *source;
     const char  *target;
@@ -80,6 +80,7 @@ namespace PyXRootD
     const char  *checkSumType      = "";
     const char  *checkSumPreset    = "";
     bool         dynamicSource     = false;
+    bool         rmBadCksum        = false;
 
 
     int val = XrdCl::DefaultCPChunkSize;
@@ -99,11 +100,11 @@ namespace PyXRootD
     uint16_t tpcTimeout = val;
 
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHH:add_job",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHb:add_job",
          (char**) kwlist, &source, &target, &sourceLimit, &force, &posc,
          &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
          &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks,
-         &initTimeout, &tpcTimeout) )
+         &initTimeout, &tpcTimeout, &rmBadCksum ) )
       return NULL;
 
     XrdCl::PropertyList properties;
@@ -124,6 +125,7 @@ namespace PyXRootD
     properties.Set( "parallelChunks", parallelChunks );
     properties.Set( "initTimeout",    initTimeout    );
     properties.Set( "tpcTimeout",     tpcTimeout     );
+    properties.Set( "rmOnBadCksum",   rmBadCksum     );
 
     if( sourceLimit > 1 )
     {
