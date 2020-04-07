@@ -168,6 +168,9 @@ static const int    DoPath         =  0x0000000010000000LL; // -p | --path
 static const int    OpZipMtlnCksum = 0x08;
 static const int    DoZipMtlnCksum = 0x0000000040000000LL; // --zip-mtln-cksum
 
+static const int    OpRmOnBadCksum = 0x09;
+static const int    DoRmOnBadCksum = 0x0000000080000000LL; // --rm-bad-cksum
+
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
 // for the transfer operations to succeed.

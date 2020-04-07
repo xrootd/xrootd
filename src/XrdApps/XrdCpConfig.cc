@@ -111,6 +111,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "zip",            1, 0, XrdCpConfig::OpZip},
       {OPT_TYPE "allow-http",     0, 0, XrdCpConfig::OpAllowHttp},
       {OPT_TYPE "zip-mtln-cksum", 0, 0, XrdCpConfig::OpZipMtlnCksum},
+      {OPT_TYPE "rm-bad-cksum",   0, 0, XrdCpConfig::OpRmOnBadCksum},
       {0,                         0, 0, 0}
      };
 
@@ -296,6 +297,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpAllowHttp:     OpSpec |= DoAllowHttp;
                                 break;
           case OpZipMtlnCksum : OpSpec |= DoZipMtlnCksum;
+                                break;
+          case OpRmOnBadCksum : OpSpec |= DoRmOnBadCksum;
                                 break;
           case ':':             UMSG("'" <<OpName() <<"' argument missing.");
                                 break;
@@ -891,7 +894,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
    "         [--streams <n>] [--tpc [delegate] {first|only}] [--verbose]\n"
    "         [--version] [--xrate <rate>] [--zip <file>] [--allow-http]\n"
-   "         [--zip-mtln-cksum]\n";
+   "         [--zip-mtln-cksum] [--rm-bad-cksum]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -926,6 +929,8 @@ void XrdCpConfig::Usage(int rc)
    "-P | --posc           enables persist on successful close semantics\n"
    "-D | --proxy          uses the specified SOCKS4 proxy connection\n"
    "-r | --recursive      recursively copies all source files\n"
+   "     --rm-bad-cksum   remove the target file if checksum verification failed\n"
+   "                      (enables also POSC semantics)\n"
    "-t | --retry <n>      maximum number of times to retry rejected connections\n"
    "     --server         runs in a server environment with added operations\n"
    "-s | --silent         produces no output other than error messages\n"
