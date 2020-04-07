@@ -491,6 +491,7 @@ int main( int argc, char **argv )
   bool         dynSrc        = false;
   bool         delegate      = false;
   bool         preserveXAttr = false;
+  bool         rmOnBadCksum  = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -514,6 +515,7 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
   if( config.Want( XrdCpConfig::DoXAttr ) )        preserveXAttr = true;
+  if( config.Want( XrdCpConfig::DoRmOnBadCksum ) ) rmOnBadCksum  = true;
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -805,6 +807,7 @@ int main( int argc, char **argv )
     properties.Set( "targetIsDir",    targetIsDir    );
     properties.Set( "preserveXAttr",  preserveXAttr  );
     properties.Set( "xrate",          config.xRate   );
+    properties.Set( "rmOnBadCksum",   rmOnBadCksum   );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );

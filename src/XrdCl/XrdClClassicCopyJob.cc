@@ -1699,7 +1699,8 @@ namespace XrdCl
     uint16_t    parallelChunks;
     uint32_t    chunkSize;
     uint64_t    blockSize;
-    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr;
+    bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr,
+                rmOnBadCksum;
     int32_t     nbXcpSources;
     long long   xRate;
 
@@ -1718,12 +1719,18 @@ namespace XrdCl
     pProperties->Get( "xcpBlockSize",    blockSize );
     pProperties->Get( "preserveXAttr",   preserveXAttr );
     pProperties->Get( "xrate",           xRate );
+    pProperties->Get( "rmOnBadCksum",    rmOnBadCksum );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
 
     if( xcp )
       pProperties->Get( "nbXcpSources",  nbXcpSources );
+
+    //--------------------------------------------------------------------------
+    // Remove on bad checksum implies that POSC semantics has to be enabled
+    //--------------------------------------------------------------------------
+    if( rmOnBadCksum ) posc = true;
 
     //--------------------------------------------------------------------------
     // Resolve the 'auto' checksum type.
@@ -1860,13 +1867,6 @@ namespace XrdCl
     pResults->Set( "size", processed );
 
     //--------------------------------------------------------------------------
-    // Finalize the destination
-    //--------------------------------------------------------------------------
-    st = dest->Finalize();
-    if( !st.IsOK() )
-      return UpdateErrMsg( st, "destination" );
-
-    //--------------------------------------------------------------------------
     // Verify the checksums if needed
     //--------------------------------------------------------------------------
     if( checkSumMode != "none" )
@@ -1942,11 +1942,33 @@ namespace XrdCl
         }
 
         if( !match )
+        {
+          if( rmOnBadCksum )
+          {
+            FileSystem fs( newDestUrl );
+            st = fs.Rm( newDestUrl.GetPath() );
+            if( !st.IsOK() )
+              log->Error(UtilityMsg, "Failed to remove the target file due to invalid checksum: %s", st.ToString().c_str() );
+          }
+
+          st = dest->Finalize();
+          if( !st.IsOK() )
+            log->Error(UtilityMsg, "Failed to finalize the destination: %s", st.ToString().c_str() );
+
           return XRootDStatus( stError, errCheckSumError, 0 );
+        }
 
         log->Info(UtilityMsg, "Checksum verification: succeeded." );
       }
     }
+
+    //--------------------------------------------------------------------------
+    // Finalize the destination (only after checksum verification)
+    //--------------------------------------------------------------------------
+    st = dest->Finalize();
+    if( !st.IsOK() )
+      return UpdateErrMsg( st, "destination" );
+
     return XRootDStatus();
   }
 }
