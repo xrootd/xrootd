@@ -1792,17 +1792,19 @@ namespace XrdCl
             FileSystem fs( newDestUrl );
             st = fs.Rm( newDestUrl.GetPath() );
             if( !st.IsOK() )
-              log->Error(UtilityMsg, "Failed to remove the target file due to invalid checksum: %s", st.ToString().c_str() );
+              log->Error( UtilityMsg, "Invalid checksum: failed to remove the target file: %s", st.ToString().c_str() );
+            else
+              log->Info( UtilityMsg, "Target file removed due to bad checksum!" );
           }
 
           st = dest->Finalize();
           if( !st.IsOK() )
-            log->Error(UtilityMsg, "Failed to finalize the destination: %s", st.ToString().c_str() );
+            log->Error( UtilityMsg, "Failed to finalize the destination: %s", st.ToString().c_str() );
 
           return XRootDStatus( stError, errCheckSumError, 0 );
         }
 
-        log->Info(UtilityMsg, "Checksum verification: succeeded." );
+        log->Info( UtilityMsg, "Checksum verification: succeeded." );
       }
     }
 
