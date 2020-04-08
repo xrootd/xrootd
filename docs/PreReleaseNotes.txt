@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Allow redirector to handle kXR_dirlist location resolution.
   * **[TLS]** Use recommended ciphers add xrd.tlsciphers directive to override.
   * **[SSS]** Allow sss authentication protocol to clone credentials.
   * **[Auth]** [Auth] Allow authentication protocols to require TLS.
