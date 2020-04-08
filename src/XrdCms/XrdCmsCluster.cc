@@ -1148,34 +1148,44 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
 {
 //
-    const char *etext;
+    const char *etext, *Item = "file";
 
     switch(rc)
-   {case eExists: if (Sel.Opts & XrdCmsSelect::isMeta)
-                     etext = "Unable to create directory; directory already exists.";
-                     else etext = "Unable to create new file; file already exists.";
+   {case eExists: if (Sel.Opts & XrdCmsSelect::isMeta) Item = "directory";
+                  etext = "Unable to create %s; it already exists.";
                   Sel.Resp.Port = kYR_RWConflict;
                   break;
-    case eROfs:   etext = "Unable to modify file; r/o file already exists.";
+    case eROfs:   etext = "Unable to modify %s; r/o copy already exists.";
                   Sel.Resp.Port = kYR_RWConflict;
                   break;
-    case eDups:   etext = "Unable to modify file; multiple files exist.";
+    case eDups:   etext = "Unable to modify %s; multiple copies exist.";
                   Sel.Resp.Port = kYR_RWConflict;
                   break;
-    case eNoRep:  etext = "Unable to replicate file; no new sites available.";
+    case eNoRep:  etext = "Unable to replicate %s; no new sites available.";
                   Sel.Resp.Port = kYR_noReplicas;
                   break;
-    case eNoSel:  etext = (Sel.Vec.hf & Sel.nmask
-                        ? "Unable to access file; eligible servers shunned."
-                        : "Unable to write file; r/w exports not found.");
+    case eNoSel:  if (Sel.Vec.hf & Sel.nmask)
+                     {etext = "Unable to access %s; eligible servers shunned.";
+                      if (Sel.Opts & XrdCmsSelect::isDir) Item = "directory";
+                     } else {
+                      if (Sel.Opts & XrdCmsSelect::Write)
+                         {etext = "Unable to write %s; r/w exports not found.";
+                         } else {
+                          etext = "Unable to access %s; it does not exist.";
+                          if (Sel.Opts & XrdCmsSelect::isDir) Item = "directory";
+                         }
+                     }
                   Sel.Resp.Port = kYR_ENOENT;
                   break;
-    default:      etext = "Unable to access file; file does not exist.";
+    default:      etext = "Unable to access %s; it does not exist.";
                   Sel.Resp.Port = kYR_ENOENT;
                   break;
    };
 
-    Sel.Resp.DLen = strlcpy(Sel.Resp.Data, etext, sizeof(Sel.Resp.Data))+1;
+    int n = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data), etext, Item);
+    if (n < (int)sizeof(Sel.Resp.Data)) Sel.Resp.DLen = n+1;
+       else Sel.Resp.DLen = sizeof(Sel.Resp.Data);
+
     return EReplete;
 }
   
@@ -1996,9 +2006,14 @@ int XrdCmsCluster::Unuseable(XrdCmsSelect &Sel)
 {
    const char *Amode = (Sel.Opts & XrdCmsSelect::Write  ? "write" : "read");
    const char *Xmode = (Sel.Opts & XrdCmsSelect::Online ? "immediately " : "");
+   const char *EType = (Sel.Opts & XrdCmsSelect::isDir  ? "directory" : "file");
 
-   Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                   "No servers are available to %s%s the file.",Xmode,Amode)+1;
+   int n = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data),
+                   "No servers are available to %s%s the %s.",
+                   Xmode, Amode, EType)+1;
+    if (n < (int)sizeof(Sel.Resp.Data)) Sel.Resp.DLen = n+1;
+       else Sel.Resp.DLen = sizeof(Sel.Resp.Data);
+
    Sel.Resp.Port = kYR_ENOENT;
    return EReplete;
 }

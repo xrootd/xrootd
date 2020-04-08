@@ -1140,9 +1140,12 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            {Sel.Opts |= XrdCmsSelect::Write;                       *toP++='w';
             if (Arg.Opts & CmsSelectRequest::kYR_mwfiles || !Config.DoMWChk)
                {Sel.Opts |= XrdCmsSelect::MWFiles;                *(toP-1)='W';}
-            }
+           }
          if (Arg.Opts & CmsSelectRequest::kYR_metaop)
-           {Sel.Opts |= XrdCmsSelect::Write|XrdCmsSelect::isMeta;  *toP++='m';}
+           {Sel.Opts |= XrdCmsSelect::isMeta;                      *toP++='m';
+            if (!(Arg.Opts & CmsSelectRequest::kYR_write))
+               {Sel.Opts |= XrdCmsSelect::isDir;                   *toP++='D';}
+           }
          if (Arg.Opts & CmsSelectRequest::kYR_create)  
            {Sel.Opts |= XrdCmsSelect::Write|XrdCmsSelect::NewFile; *toP++='c';
             if (Arg.Opts & CmsSelectRequest::kYR_replica)
@@ -1194,7 +1197,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
                    Sel.Resp.Port = rtEC[rtRC];
                   } else {
                    Sel.Resp.Port = kYR_ENOENT; // This should never happen!
-                   Sel.Resp.DLen = sprintf(Sel.Resp.Data,"%s","File not found.")+1;
+                   Sel.Resp.DLen = sprintf(Sel.Resp.Data,"%s","Item not found.")+1;
                   }
               }
            DEBUGR("failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);

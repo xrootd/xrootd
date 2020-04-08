@@ -70,8 +70,9 @@ enum {Write   = 0x00010, // File will be open in write mode     (select & cache)
       Pending = 0x80000, // File being staged                   (have   & cache)
       ifWant  = 0x0000f, // XrdNetIF::ifType encoding location
 
-      Pack    = 0x00010000, // Packed selection
-      UseRef  = 0x00020000  // Selection by reference count only
+   Pack    = 0x00100000, // Packed selection
+   UseRef  = 0x00200000, // Selection by reference count only
+   isDir   = 0x00400000  // This selection is for a directory
      };
 
 struct {SMask_t wf;     // Out: Writable locations

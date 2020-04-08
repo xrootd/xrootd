@@ -227,6 +227,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 */
 {
    EPNAME("opendir");
+   static const int od_mode = SFS_O_RDONLY|SFS_O_META;
    XrdOucEnv Open_Env(info,0,client);
    int retc;
 
@@ -242,6 +243,12 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 // Apply security, as needed
 //
    AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
+
+// Find out where we should open this directory
+//
+   if (XrdOfsFS->Finder && XrdOfsFS->Finder->isRemote()
+   &&  (retc = XrdOfsFS->Finder->Locate(error, dir_path, od_mode, &Open_Env)))
+      return XrdOfsFS->fsError(error, retc);
 
 // Open the directory and allocate a handle for it
 //
