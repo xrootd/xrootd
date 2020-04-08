@@ -641,7 +641,8 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 
 // Construct the source url (it may be very big)
 //
-   n = snprintf(myURL, myURLen, "xroot://%s/%s?", tpcSrc, tpcLfn);
+   const char *xProt = (!tpcSpr || strcmp("xroots",tpcSpr) ? "xroot" : tpcSpr);
+   n = snprintf(myURL, myURLen, "%s://%s/%s?", xProt, tpcSrc, tpcLfn);
    char *cgiP = myURL+n;
    int   cgiL = myURLen-n;
    if (cgiL < 3) return Death(Args, "url too long", EINVAL);
