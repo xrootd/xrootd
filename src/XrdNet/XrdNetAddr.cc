@@ -432,14 +432,13 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
   
 const char *XrdNetAddr::Set(int sockFD, bool peer)
 {
-   SOCKLEN_t aSize = static_cast<SOCKLEN_t>(addrSize);
+   SOCKLEN_t aSize = static_cast<SOCKLEN_t>(sizeof(IP));
    int rc;
 
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
-   addrSize = sizeof(sockaddr_in6);
    sockNum = sockFD;
 
 // Get the address on the appropriate side of this socket
@@ -451,13 +450,10 @@ const char *XrdNetAddr::Set(int sockFD, bool peer)
        return XrdSysE2T(errno);
       }
 
-// Set the correct address size
+// Set the correct address size and protocol family
 //
-   if (IP.Addr.sa_family == AF_INET)
-      {addrSize = sizeof(sockaddr_in);  protType = PF_INET;
-      } else {
-       addrSize = sizeof(sockaddr_in6); protType = PF_INET6;
-      }
+   addrSize = aSize;
+   protType = (IP.Addr.sa_family == AF_INET ? PF_INET : PF_INET6);
 
 // All done
 //
