@@ -15,7 +15,7 @@ xrdcp - copy files
 [\fB--version\fR] [\fB--xrate\fR \fIrate\fR] [\fB--zip\fR \fIfile\fR]
 [\fB--dynamic-src\fR] [\fB--infiles\fR \fIfn\fR] [\fB--path\fR]
 [\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR] [\fB--zip-mtln-cksum\fR]
-[\fB--rm-bad-cksum\fR]
+[\fB--rm-bad-cksum\fR] [\fB--continue\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -185,6 +185,11 @@ Use the checksum available in a metalink file even if a file is being extracted 
 \fB--rm-bad-cksum
 .RS 5
 Remove the target file if checksum verification failed (enables also POSC semantics).
+
+.RE
+\fB--continue
+.RS 5
+Continue copying a file from the point where the previous copy was interrupted.
 
 .SH LEGACY OPTIONS
 Legacy options are provided for backward compatability. These are now

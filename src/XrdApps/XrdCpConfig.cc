@@ -112,6 +112,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "allow-http",     0, 0, XrdCpConfig::OpAllowHttp},
       {OPT_TYPE "zip-mtln-cksum", 0, 0, XrdCpConfig::OpZipMtlnCksum},
       {OPT_TYPE "rm-bad-cksum",   0, 0, XrdCpConfig::OpRmOnBadCksum},
+      {OPT_TYPE "continue",       0, 0, XrdCpConfig::OpContinue},
       {0,                         0, 0, 0}
      };
 
@@ -299,6 +300,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpZipMtlnCksum : OpSpec |= DoZipMtlnCksum;
                                 break;
           case OpRmOnBadCksum : OpSpec |= DoRmOnBadCksum;
+                                break;
+          case OpContinue     : OpSpec |= DoContinue;
                                 break;
           case ':':             UMSG("'" <<OpName() <<"' argument missing.");
                                 break;
@@ -894,7 +897,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--recursive] [--retry <n>] [--server] [--silent] [--sources <n>]\n"
    "         [--streams <n>] [--tpc [delegate] {first|only}] [--verbose]\n"
    "         [--version] [--xrate <rate>] [--zip <file>] [--allow-http]\n"
-   "         [--zip-mtln-cksum] [--rm-bad-cksum]\n";
+   "         [--zip-mtln-cksum] [--rm-bad-cksum] [--continue]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -950,6 +953,8 @@ void XrdCpConfig::Usage(int rc)
    "                      the XrdClHttp client plugin\n"
    "     --zip-mtln-cksum use the checksum available in a metalink file even if\n"
    "                      a file is being extracted from a ZIP archive\n"
+   "     --continue       continue copying a file from the point where the previous\n"
+   "                      copy was interrupted\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 
