@@ -122,7 +122,11 @@ int           Truncate(const char* path, off_t size);
 //!
 //! @param  path    -> filepath of file to be removed.
 //!
-//! @return 0       This method is currently not supported.
+//! @return =0      File was removed.
+//! @return !0      File could not be removed, because of one of the below:
+//!                 -EBUSY   - the file is in use.
+//!                 -EAGAIN  - file is currently subject to internal processing.
+//!                 -errno   - file was not removed, filesystem unlink() failed.
 //-----------------------------------------------------------------------------
 
 int           Unlink(const char* path);
