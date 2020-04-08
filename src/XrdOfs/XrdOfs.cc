@@ -216,6 +216,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 */
 {
    EPNAME("opendir");
+   static const int od_mode = SFS_O_RDONLY;
    XrdOucEnv Open_Env(info,0,client);
    int retc;
 
@@ -231,6 +232,18 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 // Apply security, as needed
 //
    AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
+
+// Find out where we should open this directory. In R5 the redirector will
+// return meaningful error msgs but the backport to do this was too difficult.
+// So, upon an error we try to fix up the message as best as we can.
+//
+   if (XrdOfsFS->Finder && XrdOfsFS->Finder->isRemote()
+   &&  (retc = XrdOfsFS->Finder->Locate(error, dir_path, od_mode, &Open_Env)))
+      {char *eMsg = const_cast<char *>(error.getErrText());
+       while((eMsg = strstr(eMsg, " file")))
+            {strncpy(eMsg+1, " dir", 4); eMsg += 5;}
+       return XrdOfsFS->fsError(error, retc);
+      }
 
 // Open the directory and allocate a handle for it
 //
