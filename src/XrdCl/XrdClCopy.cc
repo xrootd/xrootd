@@ -490,6 +490,7 @@ int main( int argc, char **argv )
   bool         dynSrc        = false;
   bool         delegate      = false;
   bool         rmOnBadCksum  = false;
+  bool         continue_     = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -513,6 +514,13 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
   if( config.Want( XrdCpConfig::DoRmOnBadCksum ) ) rmOnBadCksum  = true;
+  if( config.Want( XrdCpConfig::DoContinue ) )     continue_     = true;
+
+  if( force && continue_ )
+  {
+    std::cerr << "Invalid argument combination: continue + force." << std::endl;
+    return 50;
+  }
 
   //----------------------------------------------------------------------------
   // Checksums
@@ -787,6 +795,7 @@ int main( int argc, char **argv )
     properties.Set( "targetIsDir",    targetIsDir    );
     properties.Set( "xrate",          config.xRate   );
     properties.Set( "rmOnBadCksum",   rmOnBadCksum   );
+    properties.Set( "continue",       continue_      );
 
     if( zip )
       properties.Set( "zipSource",    zipFile        );
