@@ -33,6 +33,7 @@
 #include "XrdCks/XrdCksData.hh"
 
 #include <ctype.h>
+#include <stdint.h>
 
 struct option;
 class  XrdCks;
@@ -88,91 +89,91 @@ char               *zipFile;       // The file name if the URL points to a ZIP a
 
 static XrdSysError *Log;           // -> Error message object
 
-static const int    OpCksum        =  'C';  // -adler -MD5 legacy -> DoCksrc
-static const int    DoCksrc        =  0x0000000000000001LL; // --cksum <type>:source
-static const int    DoCksum        =  0x0000000000000002LL; // --cksum <type>
-static const int    DoCkprt        =  0x0000000000000004LL; // --cksum <type>:print
+static const uint64_t    OpCksum        =  'C';  // -adler -MD5 legacy -> DoCksrc
+static const uint64_t    DoCksrc        =  0x0000000000000001LL; // --cksum <type>:source
+static const uint64_t    DoCksum        =  0x0000000000000002LL; // --cksum <type>
+static const uint64_t    DoCkprt        =  0x0000000000000004LL; // --cksum <type>:print
 
-static const int    OpCoerce       =  'F';
-static const int    DoCoerce       =  0x0000000000000008LL; // -F | --coerce
+static const uint64_t    OpCoerce       =  'F';
+static const uint64_t    DoCoerce       =  0x0000000000000008LL; // -F | --coerce
 
-static const int    OpDebug        =  'd';
-static const int    DoDebug        =  0x0000000000000010LL; // -d | --debug <val>
+static const uint64_t    OpDebug        =  'd';
+static const uint64_t    DoDebug        =  0x0000000000000010LL; // -d | --debug <val>
 
-static const int    OpForce        =  'f';
-static const int    DoForce        =  0x0000000000000020LL; // -f | --force
+static const uint64_t    OpForce        =  'f';
+static const uint64_t    DoForce        =  0x0000000000000020LL; // -f | --force
 
-static const int    OpHelp         =  'h';
-static const int    DoHelp         =  0x0000000000000040LL; // -h | --help
+static const uint64_t    OpHelp         =  'h';
+static const uint64_t    DoHelp         =  0x0000000000000040LL; // -h | --help
 
-static const int    OpIfile        =  'I';
-static const int    DoIfile        =  0x0000000000000080LL; // -I | --infiles
+static const uint64_t    OpIfile        =  'I';
+static const uint64_t    DoIfile        =  0x0000000000000080LL; // -I | --infiles
 
-static const int    OpLicense      =  'H';                  // -H | --license
+static const uint64_t    OpLicense      =  'H';                  // -H | --license
 
-static const int    OpNoPbar       =  'N';        // -N | --nopbar | -np {legacy}
-static const int    DoNoPbar       =  0x0000000000000100LL;
+static const uint64_t    OpNoPbar       =  'N';        // -N | --nopbar | -np {legacy}
+static const uint64_t    DoNoPbar       =  0x0000000000000100LL;
 
-static const int    OpPosc         =  'P';
-static const int    DoPosc         =  0x0000000000000200LL; // -P | --posc
+static const uint64_t    OpPosc         =  'P';
+static const uint64_t    DoPosc         =  0x0000000000000200LL; // -P | --posc
 
-static const int    OpProxy        =  'D';
-static const int    DoProxy        =  0x0000000000000400LL; // -D | --proxy
+static const uint64_t    OpProxy        =  'D';
+static const uint64_t    DoProxy        =  0x0000000000000400LL; // -D | --proxy
 
-static const int    OpRecurse      =  'r';
-static const int    OpRecursv      =  'R';        // -r | --recursive | -R {legacy}
-static const int    DoRecurse      =  0x0000000000000800LL;
+static const uint64_t    OpRecurse      =  'r';
+static const uint64_t    OpRecursv      =  'R';        // -r | --recursive | -R {legacy}
+static const uint64_t    DoRecurse      =  0x0000000000000800LL;
 
-static const int    OpRetry        =  't';
-static const int    DoRetry        =  0x0000000000001000LL; // -t | --retry
+static const uint64_t    OpRetry        =  't';
+static const uint64_t    DoRetry        =  0x0000000000001000LL; // -t | --retry
 
-static const int    OpServer       =  0x03;
-static const int    DoServer       =  0x0000000000002000LL; //      --server
+static const uint64_t    OpServer       =  0x03;
+static const uint64_t    DoServer       =  0x0000000000002000LL; //      --server
 
-static const int    OpSilent       =  's';
-static const int    DoSilent       =  0x0000000000004000LL; // -s | --silent
+static const uint64_t    OpSilent       =  's';
+static const uint64_t    DoSilent       =  0x0000000000004000LL; // -s | --silent
 
-static const int    OpSources      =  'y';
-static const int    DoSources      =  0x0000000000008000LL; // -y | --sources
+static const uint64_t    OpSources      =  'y';
+static const uint64_t    DoSources      =  0x0000000000008000LL; // -y | --sources
 
-static const int    OpStreams      =  'S';
-static const int    DoStreams      =  0x0000000000010000LL; // -S | --streams
+static const uint64_t    OpStreams      =  'S';
+static const uint64_t    DoStreams      =  0x0000000000010000LL; // -S | --streams
 
-static const int    OpTpc          =  'T'; // -T | --tpc [delegate] {first | only}
-static const int    DoTpc          =  0x0000000000020000LL; // --tpc {first | only}
-static const int    DoTpcOnly      =  0x0000000000100000LL; // --tpc          only
-static const int    DoTpcDlgt      =  0x0000000000800000LL; // --tpc delegate ...
+static const uint64_t    OpTpc          =  'T'; // -T | --tpc [delegate] {first | only}
+static const uint64_t    DoTpc          =  0x0000000000020000LL; // --tpc {first | only}
+static const uint64_t    DoTpcOnly      =  0x0000000000100000LL; // --tpc          only
+static const uint64_t    DoTpcDlgt      =  0x0000000000800000LL; // --tpc delegate ...
 
-static const int    OpVerbose      =  'v';
-static const int    DoVerbose      =  0x0000000000040000LL; // -v | --verbose
+static const uint64_t    OpVerbose      =  'v';
+static const uint64_t    DoVerbose      =  0x0000000000040000LL; // -v | --verbose
 
-static const int    OpVersion      =  'V';                  // -V | --version
+static const uint64_t    OpVersion      =  'V';                  // -V | --version
 
-static const int    OpXrate        =  'X';
-static const int    DoXrate        =  0x0000000000080000LL; // -X | --xrate
+static const uint64_t    OpXrate        =  'X';
+static const uint64_t    DoXrate        =  0x0000000000080000LL; // -X | --xrate
 
-static const int    OpParallel     =  0x04;
-static const int    DoParallel     =  0x0000000000200000LL; //      --parallel
+static const uint64_t    OpParallel     =  0x04;
+static const uint64_t    DoParallel     =  0x0000000000200000LL; //      --parallel
 
-static const int    OpDynaSrc      =  'Z';
-static const int    DoDynaSrc      =  0x0000000000400000LL; //      --dynamic-src
+static const uint64_t    OpDynaSrc      =  'Z';
+static const uint64_t    DoDynaSrc      =  0x0000000000400000LL; //      --dynamic-src
 
-//     const int    DoTpcDlgt      =  0x0000000000800000LL; // Marker for bit used
+//     const uint64_t    DoTpcDlgt      =  0x0000000000800000LL; // Marker for bit used
 
-static const int    OpZip          =  'z';
-static const int    DoZip          =  0x0000000001000000LL; // -z | --zip
+static const uint64_t    OpZip          =  'z';
+static const uint64_t    DoZip          =  0x0000000001000000LL; // -z | --zip
 
-static const int    OpPath         =  'p';
-static const int    DoPath         =  0x0000000010000000LL; // -p | --path
+static const uint64_t    OpPath         =  'p';
+static const uint64_t    DoPath         =  0x0000000010000000LL; // -p | --path
 
-static const int    OpZipMtlnCksum = 0x08;
-static const int    DoZipMtlnCksum = 0x0000000040000000LL; // --zip-mtln-cksum
+static const uint64_t    OpZipMtlnCksum = 0x08;
+static const uint64_t    DoZipMtlnCksum = 0x0000000040000000LL; // --zip-mtln-cksum
 
-static const int    OpRmOnBadCksum = 0x09;
-static const int    DoRmOnBadCksum = 0x0000000080000000LL; // --rm-bad-cksum
+static const uint64_t    OpRmOnBadCksum = 0x09;
+static const uint64_t    DoRmOnBadCksum = 0x0000000080000000LL; // --rm-bad-cksum
 
-static const int    OpContinue     = 0x10;
-static const int    DoContinue     = 0x0000000100000000LL; // --rm-bad-cksum
+static const uint64_t    OpContinue     = 0x10;
+static const uint64_t    DoContinue     = 0x0000000100000000LL; // --rm-bad-cksum
 
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
@@ -194,7 +195,7 @@ static const int    optNoLclCp  = 0x00000010; // Disallow local/local copy
 
 // Method to check for setting
 //
-inline       int    Want(int What) {return (OpSpec & What) != 0;}
+inline       int    Want(uint64_t What) {return (OpSpec & What) != 0;}
 
                     XrdCpConfig(const char *pgname);
                    ~XrdCpConfig();
