@@ -133,11 +133,11 @@ void XrdPssUrlInfo::setID(const char *tid)
 //
    if (tid == 0) tid = tident;
    if ((colon = index(tid, ':')) && (atP = index(colon+1, '@')))
-      {int n = atP - colon + 2;
+      {int n = atP - colon;
        if (n <= (int)sizeof(theID))
           {*theID = 'u';
            strncpy(theID+1, colon+1, n); // Include '@'
-           theID[n] = 0;
+           theID[n+1] = 0;
           } else *theID = 0;
        } else *theID = 0;
 }
