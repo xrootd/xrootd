@@ -181,7 +181,8 @@ namespace
       //------------------------------------------------------------------------
       // Destructor
       //------------------------------------------------------------------------
-      Source( const std::string &checkSumType = "" ) : pCkSumHelper( 0 )
+      Source( const std::string &checkSumType = "" ) : pCkSumHelper( 0 ),
+                                                       pContinue( false )
       {
         if( !checkSumType.empty() )
           pCkSumHelper = new CheckSumHelper( "source", checkSumType );
@@ -226,6 +227,7 @@ namespace
     protected:
 
       CheckSumHelper    *pCkSumHelper;
+      bool               pContinue;
   };
 
   //----------------------------------------------------------------------------
@@ -518,7 +520,7 @@ namespace
         pSize = statInfo->GetSize();
         delete statInfo;
 
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
           return pCkSumHelper->Initialize();
 
         if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
@@ -543,6 +545,7 @@ namespace
       virtual XrdCl::XRootDStatus StartAt( uint64_t offset )
       {
         pCurrentOffset = offset;
+        pContinue      = true;
         return XrdCl::XRootDStatus();
       }
 
@@ -590,10 +593,14 @@ namespace
 
         if( pUrl->IsLocalFile() )
         {
+          if( pContinue )
+            // in case of --continue option we have to calculate the checksum from scratch
+            return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+
           if( pCkSumHelper )
             return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
-          else
-            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
+
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
         }
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
@@ -735,7 +742,7 @@ namespace
 
         ci = ch->chunk;
         // if it is a local file update the checksum
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
           pCkSumHelper->Update( ci.buffer, ci.length );
 
         return XRootDStatus( stOK, suContinue );
@@ -885,7 +892,7 @@ namespace
         }
 
         // if it is a local file we can calculate the checksum ourself
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
           return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
 
         // if it is a remote file other types of checksum are not supported
@@ -946,7 +953,7 @@ namespace
         if( !st.IsOK() )
           return st;
 
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
           return pCkSumHelper->Initialize();
 
         return XRootDStatus();
@@ -966,6 +973,7 @@ namespace
       virtual XrdCl::XRootDStatus StartAt( uint64_t offset )
       {
         pCurrentOffset = offset;
+        pContinue      = true;
         return XrdCl::XRootDStatus();
       }
 
@@ -1016,7 +1024,7 @@ namespace
           pDone = true;
 
         // if it is a local file update the checksum
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
           pCkSumHelper->Update( buffer, bytesRead );
 
         ci.offset = pCurrentOffset;
@@ -1044,10 +1052,14 @@ namespace
 
         if( pUrl->IsLocalFile() )
         {
+          if( pContinue)
+            // in case of --continue option we have to calculate the checksum from scratch
+            return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+
           if( pCkSumHelper )
             return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
-          else
-            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
+
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
         }
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
@@ -1394,7 +1406,7 @@ namespace
         pSize = info->GetSize();
         delete info;
 
-        if( pUrl->IsLocalFile() && pCkSumHelper )
+        if( pUrl->IsLocalFile() && pCkSumHelper && !pContinue )
           return pCkSumHelper->Initialize();
 
         return XRootDStatus();
@@ -1477,7 +1489,7 @@ namespace
       {
         // we are writing chunks in order so we can calc the checksum
         // in case of local files
-        if( pUrl->IsLocalFile() && pCkSumHelper )
+        if( pUrl->IsLocalFile() && pCkSumHelper && !pContinue )
           pCkSumHelper->Update( ci.buffer, ci.length );
 
         ChunkHandler *ch = new ChunkHandler(ci);
@@ -1522,10 +1534,14 @@ namespace
       {
         if( pUrl->IsLocalFile() )
         {
+          if( pContinue )
+            // in case of --continue option we have to calculate the checksum from scratch
+            return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+
           if( pCkSumHelper )
             return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
-          else
-            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
+
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
         }
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
