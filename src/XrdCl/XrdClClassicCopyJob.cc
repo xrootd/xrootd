@@ -273,6 +273,11 @@ namespace
       virtual int64_t GetSize() = 0;
 
       //------------------------------------------------------------------------
+      //! Start reading from the source at given offset
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus StartAt( uint64_t offset ) = 0;
+
+      //------------------------------------------------------------------------
       //! Get a data chunk from the source
       //!
       //! @param  ci     chunk information
@@ -309,7 +314,7 @@ namespace
       //------------------------------------------------------------------------
       Destination( const std::string &checkSumType = "" ):
         pPosc( false ), pForce( false ), pCoerce( false ), pMakeDir( false ),
-        pCkSumHelper( 0 )
+        pContinue( false ), pCkSumHelper( 0 )
       {
         if( !checkSumType.empty() )
           pCkSumHelper = new CheckSumHelper( "destination", checkSumType );
@@ -358,6 +363,11 @@ namespace
       virtual XrdCl::XRootDStatus SetXAttr( const std::vector<XrdCl::xattr_t> &xattrs ) = 0;
 
       //------------------------------------------------------------------------
+      //! Get size
+      //------------------------------------------------------------------------
+      virtual int64_t GetSize() = 0;
+
+      //------------------------------------------------------------------------
       //! Set POSC
       //------------------------------------------------------------------------
       void SetPOSC( bool posc )
@@ -371,6 +381,14 @@ namespace
       void SetForce( bool force )
       {
         pForce = force;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set continue
+      //------------------------------------------------------------------------
+      void SetContinue( bool continue_ )
+      {
+        pContinue = continue_;
       }
 
       //------------------------------------------------------------------------
@@ -394,6 +412,7 @@ namespace
       bool pForce;
       bool pCoerce;
       bool pMakeDir;
+      bool pContinue;
 
       CheckSumHelper    *pCkSumHelper;
   };
@@ -439,6 +458,15 @@ namespace
       virtual int64_t GetSize()
       {
         return -1;
+      }
+
+      //------------------------------------------------------------------------
+      //! Start reading from the source at given offset
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus StartAt( uint64_t )
+      {
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported, ENOTSUP,
+                                    "Cannot continue from stdin!" );
       }
 
       //------------------------------------------------------------------------
@@ -595,6 +623,15 @@ namespace
       virtual int64_t GetSize()
       {
         return pSize;
+      }
+
+      //------------------------------------------------------------------------
+      //! Start reading from the source at given offset
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus StartAt( uint64_t offset )
+      {
+        pCurrentOffset = offset;
+        return XrdCl::XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -1028,6 +1065,15 @@ namespace
       }
 
       //------------------------------------------------------------------------
+      //! Start reading from the source at given offset
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus StartAt( uint64_t offset )
+      {
+        pCurrentOffset = offset;
+        return XrdCl::XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
       //! Get a data chunk from the source
       //!
       //! @param  buffer buffer for the data
@@ -1208,6 +1254,14 @@ namespace
       }
 
       //------------------------------------------------------------------------
+      //! Start reading from the source at given offset
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus StartAt( uint64_t offset )
+      {
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
       //! Get a data chunk from the source
       //!
       //! @param  buffer buffer for the data
@@ -1306,6 +1360,10 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
       {
+        if( pContinue )
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported,
+                                      ENOTSUP, "Cannot continue to stdout." );
+
         if( pCkSumHelper )
           return pCkSumHelper->Initialize();
         return XrdCl::XRootDStatus();
@@ -1389,6 +1447,14 @@ namespace
         return XrdCl::XRootDStatus();
       }
 
+      //------------------------------------------------------------------------
+      //! Get size
+      //------------------------------------------------------------------------
+      virtual int64_t GetSize()
+      {
+        return -1;
+      }
+
     private:
       StdOutDestination(const StdOutDestination &other);
       StdOutDestination &operator = (const StdOutDestination &other);
@@ -1407,7 +1473,8 @@ namespace
       XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks,
                          const std::string &ckSumType ):
         Destination( ckSumType ),
-        pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ), pParallel( parallelChunks )
+        pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ),
+        pParallel( parallelChunks ), pSize( -1 )
       {
       }
 
@@ -1437,7 +1504,7 @@ namespace
         OpenFlags::Flags flags = OpenFlags::Update;
         if( pForce )
           flags |= OpenFlags::Delete;
-        else
+        else if( !pContinue )
           flags |= OpenFlags::New;
 
         if( pPosc )
@@ -1454,6 +1521,13 @@ namespace
         XrdCl::XRootDStatus st = pFile->Open( pUrl->GetURL(), flags, mode );
         if( !st.IsOK() )
           return st;
+
+        StatInfo *info = 0;
+        st = pFile->Stat( false, info );
+        if( !st.IsOK() )
+          return st;
+        pSize = info->GetSize();
+        delete info;
 
         if( pUrl->IsLocalFile() && pCkSumHelper )
           return pCkSumHelper->Initialize();
@@ -1506,6 +1580,14 @@ namespace
         }
 
         return QueueChunk( ci );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get size
+      //------------------------------------------------------------------------
+      virtual int64_t GetSize()
+      {
+        return pSize;
       }
 
       //------------------------------------------------------------------------
@@ -1625,6 +1707,7 @@ namespace
       XrdCl::File                *pFile;
       uint8_t                     pParallel;
       std::queue<ChunkHandler *>  pChunks;
+      int64_t                     pSize;
   };
 
   static XrdCl::XRootDStatus& UpdateErrMsg( XrdCl::XRootDStatus &status, const std::string &str )
@@ -1700,7 +1783,7 @@ namespace XrdCl
     uint32_t    chunkSize;
     uint64_t    blockSize;
     bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr,
-                rmOnBadCksum;
+                rmOnBadCksum, continue_;
     int32_t     nbXcpSources;
     long long   xRate;
 
@@ -1720,12 +1803,17 @@ namespace XrdCl
     pProperties->Get( "preserveXAttr",   preserveXAttr );
     pProperties->Get( "xrate",           xRate );
     pProperties->Get( "rmOnBadCksum",    rmOnBadCksum );
+    pProperties->Get( "continue",        continue_ );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
 
     if( xcp )
       pProperties->Get( "nbXcpSources",  nbXcpSources );
+
+    if( force && continue_ )
+      return XRootDStatus( stError, errInvalidArgs, EINVAL,
+                           "Invalid argument combination: continue + force." );
 
     //--------------------------------------------------------------------------
     // Remove on bad checksum implies that POSC semantics has to be enabled
@@ -1791,12 +1879,19 @@ namespace XrdCl
     dest->SetPOSC(  posc );
     dest->SetCoerce( coerce );
     dest->SetMakeDir( makeDir );
+    dest->SetContinue( continue_ );
     st = dest->Initialize();
     if( !st.IsOK() ) return UpdateErrMsg( st, "destination" );
 
     //--------------------------------------------------------------------------
     // Copy the chunks
     //--------------------------------------------------------------------------
+    if( continue_ )
+    {
+      XrdCl::XRootDStatus st = src->StartAt( dest->GetSize() );
+      if( !st.IsOK() ) return st;
+    }
+
     ChunkInfo chunkInfo;
     uint64_t  processed = 0;
     auto      start     = time_nsec();
