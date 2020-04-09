@@ -185,7 +185,7 @@ static const uint64_t    OpRmOnBadCksum = 0x09;
 static const uint64_t    DoRmOnBadCksum = 0x0000000080000000LL; // --rm-bad-cksum
 
 static const uint64_t    OpContinue     = 0x10;
-static const uint64_t    DoContinue     = 0x0000000100000000LL; // --rm-bad-cksum
+static const uint64_t    DoContinue     = 0x0000000100000000LL; // --continue
 
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
