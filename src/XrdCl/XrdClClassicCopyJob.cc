@@ -1888,6 +1888,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( continue_ )
     {
+      size -= dest->GetSize();
       XrdCl::XRootDStatus st = src->StartAt( dest->GetSize() );
       if( !st.IsOK() ) return st;
     }
