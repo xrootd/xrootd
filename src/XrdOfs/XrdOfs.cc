@@ -529,7 +529,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Check if we will be redirecting the tpc request
 //
-   if (tpcKey && isRW)
+   if (tpcKey && isRW && (XrdOfsFS->Options & XrdOfs::RdrTPC))
       {const char *dOn = Open_Env.Get(XrdOucTPC::tpcDlgOn);
        int k = ((dOn && *dOn == '1') || strcmp(tpcKey, "delegate") ? 1 : 0);
        if (XrdOfsFS->tpcRdrHost[k])
@@ -547,7 +547,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Preset TPC handling and if not allowed, complain
 //
-   if ((tpcKey = Open_Env.Get(XrdOucTPC::tpcKey)) && (open_flag & SFS_O_NOTPC))
+   if (tpcKey && (open_mode & SFS_O_NOTPC))
       return XrdOfsFS->Emsg(epname, error, EPROTOTYPE, "tpc", path);
 
 // Create the file if so requested o/w try to attach the file

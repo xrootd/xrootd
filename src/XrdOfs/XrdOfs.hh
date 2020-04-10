@@ -347,7 +347,8 @@ enum {Authorize = 0x0001,    // Authorization wanted
       haveRole  = 0x01F0,    // A role is present
       Forwarding= 0x1000,    // Fowarding wanted
       ThirdPC   = 0x2000,    // This party copy wanted
-      SubCluster= 0x4000     // all.subcluster directive encountered
+      SubCluster= 0x4000,    // all.subcluster directive encountered
+      RdrTPC    = 0x8000
      };                      // These are set in Options below
 
 int   Options;               // Various options

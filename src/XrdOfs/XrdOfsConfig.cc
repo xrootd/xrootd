@@ -1634,6 +1634,7 @@ do{if (tpcRdrHost[k]) {free(tpcRdrHost[k]); tpcRdrHost[k] = 0;}
 
 // All done
 //
+   Options |= RdrTPC;
    return 0;
 }
   
