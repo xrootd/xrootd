@@ -149,9 +149,13 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Locate();
        int   do_Mkdir();
        int   do_Mv();
-       int   do_Offload(int pathID, int isRead);
+       int   do_Offload(int pathID, bool isWrite, bool ispgio=false);
        int   do_OffloadIO();
        int   do_Open();
+       int   do_PgRead();
+       int   do_PgRIO();
+       int   do_PgWrite();
+       int   do_PgWIO();
        int   do_Ping();
        int   do_Prepare(bool isQuery=false);
        int   do_Protocol();
@@ -198,6 +202,7 @@ static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
+       int   getPathID(bool isRead);
        bool  logLogin(bool xauth=false);
 static int   mapMode(int mode);
 static void  PidFile();
@@ -425,19 +430,23 @@ XrdSysMutex                streamMutex;
 XrdSysSemaphore           *reTry;
 XrdXrootdProtocol         *Stream[maxStreams];
 unsigned int               mySID;
-char                       isActive;
-char                       isDead;
-char                       isBound;
-char                       isNOP;
+bool                       isActive;
+bool                       isDead;
+bool                       isBound;
+bool                       isNOP;
 
 static const int           maxPio = 4;
 XrdXrootdPio              *pioFirst;
 XrdXrootdPio              *pioLast;
 XrdXrootdPio              *pioFree;
+long long                  bytes2recv;   // For write() to   FS
+long long                  bytes2send;   // For read()  from FS
 
 short                      PathID;
-char                       doWrite;
-char                       doWriteC;
+unsigned short             myFlags;
+bool                       doPgIO;
+bool                       doWrite;
+bool                       doWriteC;
 unsigned char              rvSeq;
 unsigned char              wvSeq;
 

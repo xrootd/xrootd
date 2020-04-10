@@ -27,12 +27,14 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
  
-#include <sys/types.h>
 #include <netinet/in.h>
 #include <inttypes.h>
+#include <stdint.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "Xrd/XrdLink.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdTransit.hh"
@@ -50,6 +52,11 @@ const char *XrdXrootdResponse::TraceID = "Response";
 /******************************************************************************/
 
 #define TRACELINK Link
+
+namespace
+{
+const char *sName[] = {"final ", "partial ", "progress "};
+}
 
 /******************************************************************************/
 /*                                  S e n d                                   */
@@ -204,9 +211,9 @@ int XrdXrootdResponse::Send(void *data, int dlen)
 int XrdXrootdResponse::Send(struct iovec *IOResp, int iornum, int iolen)
 {
     static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
-    int i, dlen = 0;
+    int dlen = 0;
 
-    if (iolen < 0) for (i = 1; i < iornum; i++) dlen += IOResp[i].iov_len;
+    if (iolen < 0) for (int i = 1; i < iornum; i++) dlen += IOResp[i].iov_len;
        else dlen = iolen;
     TRACES(RSP, "sending " <<dlen <<" data bytes; status=0");
 
@@ -319,6 +326,71 @@ int XrdXrootdResponse::Send(XrdOucSFVec *sfvec, int sfvnum, int dlen)
 
 /******************************************************************************/
 
+int XrdXrootdResponse::Send(ServerResponseStatus &srs, int iLen)
+{
+
+// Fill out the status structure and send this off
+//
+    if (Link->Send((char *)&srs, srsComplete(srs, iLen)) < 0)
+       return Link->setEtext("send failure");
+    return 0;
+}
+
+/******************************************************************************/
+
+int XrdXrootdResponse::Send(ServerResponseStatus &srs, int iLen,
+                            void *data, int dlen)
+{
+   struct iovec srsIOV[2];
+
+// Fill out the data structure
+//
+   int rspLen = srsComplete(srs, iLen, dlen);
+
+// Construct an iovec for the send
+
+    srsIOV[0].iov_base = &srs;
+    srsIOV[0].iov_len  = rspLen;
+    srsIOV[1].iov_base = (caddr_t)data;
+    srsIOV[1].iov_len  = dlen;
+
+// Send this off
+//
+   if (Link->Send(srsIOV, 2, rspLen + dlen) < 0)
+       return Link->setEtext("send failure");
+    return 0;
+}
+
+/******************************************************************************/
+
+int XrdXrootdResponse::Send(ServerResponseStatus &srs, int iLen,
+                            struct iovec *IOResp, int iornum, int iolen)
+{
+   int dlen = 0;
+
+// If we need to compute the amount of data we are sending, do so now.
+//
+   if (iolen < 0) for (int i = 1; i < iornum; i++) dlen += IOResp[i].iov_len;
+      else dlen = iolen;
+
+// Fill out the status structure
+//
+   int rspLen = srsComplete(srs, iLen, dlen);
+
+// Complete the iovec for the send
+
+   IOResp[0].iov_base = &srs;
+   IOResp[0].iov_len  = rspLen;
+
+// Send the data off
+//
+   if (Link->Send(IOResp, iornum, rspLen + dlen) < 0)
+      return Link->setEtext("send failure");
+   return 0;
+}
+
+/******************************************************************************/
+
 int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID, 
                             XResponseType   Status,
                             struct iovec   *IOResp, 
@@ -412,4 +484,46 @@ void XrdXrootdResponse::Set(unsigned char *stream)
             }
        *outbuff++ = ' '; *outbuff = '\0';
       }
+}
+
+/******************************************************************************/
+/* Private:                  s r s C o m p l e t e                            */
+/******************************************************************************/
+  
+int XrdXrootdResponse::srsComplete(ServerResponseStatus &srs,
+                                   int iLen, int dlen)
+{
+   static const int csSZ = sizeof(kXR_unt32);
+   static const int bdSZ = sizeof(ServerResponseBody_Status);
+
+   const unsigned char *body;
+   kXR_unt32 crc32c;
+
+// Do some tracing if so requested
+//
+   TRACES(RSP, "sending " <<sName[srs.bdy.resptype]
+          <<iLen <<" info and " <<dlen <<" data bytes");
+
+// Fill out the header
+//
+   srs.hdr.streamid[0] = Resp.streamid[0];
+   srs.hdr.streamid[1] = Resp.streamid[1];
+   srs.hdr.status      = htons(kXR_status);
+   srs.hdr.dlen        = htonl(bdSZ+iLen);
+
+// Complete the status body
+//
+   srs.bdy.streamID[0] = Resp.streamid[0];
+   srs.bdy.streamID[1] = Resp.streamid[1];
+   srs.bdy.dlen        = htonl(dlen);
+
+// Finally, compute the crc for the body
+//
+   body   = ((const unsigned char *)&srs.bdy.crc32c)+csSZ;
+   crc32c = XrdOucCRC::Calc32C(body, bdSZ-csSZ+iLen);
+   srs.bdy.crc32c = htonl(crc32c);
+
+// Return the total amount of bytes to send for the header
+//
+   return sizeof(ServerResponseStatus) + iLen;
 }

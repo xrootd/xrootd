@@ -33,15 +33,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "XrdSys/XrdSysPageSize.hh"
+
 class XrdOucCRC
 {
 public:
-
-//------------------------------------------------------------------------------
-//! The default pagesize.
-//------------------------------------------------------------------------------
-
-static const size_t pagesz = 4096;
 
 //------------------------------------------------------------------------------
 //! Compute a CRC32 checksum.
@@ -76,14 +72,13 @@ static uint32_t Calc32C(const void* data, size_t count, uint32_t prevcs=0);
 //! @param  data   Pointer to the data whose checksum it to be computed.
 //! @param  count  The number of bytes pointed to by data.
 //! @param  csval  Pointer to a vector to hold individual page checksums. The
-//!                vector must be sized (count/pgsz + (count%pgsz != 0)).
-//! @param  pgsz   The length in bytes of each page.
+//!                vector must be sized:
+//!                (count/XrdSys::PageSize + (count%XrdSys::PageSize != 0)).
 //!
 //! @return Each element of csval holds the checksum for the associated page.
 //------------------------------------------------------------------------------
 
-static void Calc32C(const void* data,  size_t count,
-                    uint32_t*   csval, size_t pgsz=pagesz);
+static void Calc32C(const void* data, size_t count, uint32_t* csval);
 
 //------------------------------------------------------------------------------
 //! Verify a CRC32C checksum using hardware assist if available.
@@ -106,19 +101,17 @@ static bool Ver32C(const void*    data,  size_t    count,
 //! @param  data   Pointer to the data whose checksum it to be verified.
 //! @param  count  The number of bytes pointed to by data.
 //! @param  csval  Pointer to a vector of expected page checksums. The
-//!                vector must be sized (count/pgsz + (count%pgsz != 0)).
+//!                vector must be sized:
+//!                (count/XrdSys::PageSize + (count%XrdSys::PageSize != 0)).
 //! @param  valcs  Where the computed checksum is returned for the page
 //!                whose verification failed; otherwise it is untouched.
-//! @param  pgsz   The length in bytes of each page.
 //!
 //! @return -1 if all the checksums match. Otherwise, the non-negative index
-//!         into csval whose checksum does not match. This is the last page
-//!         that was verified.
+//!         into csval whose checksum does not match.
 //------------------------------------------------------------------------------
 
 static int  Ver32C(const void*     data,  size_t    count,
-                   const uint32_t* csval, uint32_t& valcs,
-                         size_t    pgsz=pagesz);
+                   const uint32_t* csval, uint32_t& valcs);
 
 //------------------------------------------------------------------------------
 //! Verify a CRC32C page checksums using hardware assist if available.
@@ -126,7 +119,7 @@ static int  Ver32C(const void*     data,  size_t    count,
 //! @param  data   Pointer to the data whose checksum it to be verified.
 //! @param  count  The number of bytes pointed to by data.
 //! @param  csval  Pointer to a vector of expected page checksums. The
-//!                vector must be sized (count/pgsz + (count%pgsz != 0)).
+//!                vector must be sized (count/PageSize+(count%PageSize != 0)).
 //! @param  valok  Pointer to a vector of the same size as csval to hold
 //!                the results of the comparison (true matches, o/w false).
 //! @param  pgsz   The length in bytes of each page.
@@ -137,7 +130,7 @@ static int  Ver32C(const void*     data,  size_t    count,
 //------------------------------------------------------------------------------
 
 static bool Ver32C(const void*     data,  size_t count,
-                   const uint32_t* csval, bool*  valok, size_t pgsz=pagesz);
+                   const uint32_t* csval, bool*  valok);
 
 //------------------------------------------------------------------------------
 //! Verify a CRC32C page checksums using hardware assist if available.
@@ -145,16 +138,15 @@ static bool Ver32C(const void*     data,  size_t count,
 //! @param  data   Pointer to the data whose checksum it to be verified.
 //! @param  count  The number of bytes pointed to by data.
 //! @param  csval  Pointer to a vector of expected page checksums. The
-//!                vector must be sized (count/pgsz + (count%pgsz != 0)).
+//!                vector must be sized (count/PageSize+(count%PageSize != 0)).
 //! @param  valcs  Pointer to a vector of the same size as csval to hold
 //!                the computed checksum.
-//! @param  pgsz   The length in bytes of each page.
 //!
 //! @return True if all the checksums match; false otherwise.
 //------------------------------------------------------------------------------
 
-static bool Ver32C(const void*     data,  size_t count,
-                   const uint32_t* csval, uint32_t* valcs, size_t pgsz=pagesz);
+static bool Ver32C(const void*     data,  size_t    count,
+                   const uint32_t* csval, uint32_t* valcs);
 
                     XrdOucCRC() {}
                    ~XrdOucCRC() {}

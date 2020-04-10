@@ -31,15 +31,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-
-/******************************************************************************/
-/*                        S t a t i c   S y m b o l s                         */
-/******************************************************************************/
-  
-namespace
-{
-static const size_t pgSize = 4096;
-}
+#include "XrdSys/XrdSysPageSize.hh"
 
 /******************************************************************************/
 /*                          C l a s s   X r d O s s                           */
@@ -169,7 +161,7 @@ int XrdOssDF::Fctl(int cmd, int alen, const char *args, char **resp)
 ssize_t XrdOssDF::pgRead(void     *buffer,
                          off_t     offset,
                          size_t    rdlen,
-                         uint32_t *&csvec,
+                         uint32_t *csvec,
                          uint64_t  opts)
 {
    ssize_t bytes;
@@ -177,7 +169,7 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 // Make sure the offset is on a 4K boundary and the size if a multiple of
 // 4k as well (we use simple and for this).
 //
-   if ((offset & ~pgSize) || (rdlen & ~pgSize)) return -EINVAL;
+   if ((offset & XrdSys::PageMask) || (rdlen & XrdSys::PageMask)) return -EINVAL;
 
 // Read the data into the buffer
 //
@@ -185,8 +177,8 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0)
-      XrdOucCRC::Calc32C((void *)buffer, rdlen, csvec, pgSize);
+   if (bytes > 0 && csvec)
+      XrdOucCRC::Calc32C((void *)buffer, bytes, csvec);
 
 // All done
 //
@@ -217,7 +209,7 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 {
 // Make sure the offset is on a 4K boundary
 //
-   if (offset & ~pgSize) return -EINVAL;
+   if (offset & XrdSys::PageMask) return -EINVAL;
 
 // If a virtual end of file marker is set, make sure we are not trying to
 // write past it.
@@ -226,14 +218,14 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 
 // If this is a short write then establish the virtual eof
 //
-   if (wrlen & ~pgSize) pgwEOF = (offset + wrlen) & ~pgSize;
+   if (wrlen & XrdSys::PageMask) pgwEOF = (offset + wrlen) & ~XrdSys::PageSize;
 
 // If we have a checksum vector and verify is on, make sure the data
 // in the buffer corresponds to he checksums.
 //
    if (csvec && (opts & Verify))
       {uint32_t valcs;
-       if (!XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs, pgSize))
+       if (!XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs))
           return -EDOM;
       }
 

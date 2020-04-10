@@ -45,6 +45,7 @@ add_library(
                                 XrdSys/XrdSysLogPI.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
   XrdSys/XrdSysLogging.cc       XrdSys/XrdSysLogging.hh
+                                XrdSys/XrdSysPageSize.hh
   XrdSys/XrdSysPlatform.cc      XrdSys/XrdSysPlatform.hh
   XrdSys/XrdSysPlugin.cc        XrdSys/XrdSysPlugin.hh
   XrdSys/XrdSysPriv.cc          XrdSys/XrdSysPriv.hh
@@ -55,7 +56,6 @@ add_library(
   XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
   XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
-
 
   #-----------------------------------------------------------------------------
   # XrdTls

@@ -41,6 +41,8 @@
 
 #include "XrdSfs/XrdSfsGPFile.hh"
 
+#include "XrdSys/XrdSysPageSize.hh"
+
 /******************************************************************************/
 /*                            O p e n   M o d e s                             */
 /******************************************************************************/
@@ -116,10 +118,6 @@
 #define SFS_LCLROOT(x) !strncmp(x, SFS_LCLPRFX, SFS_LCLPLEN-1) \
                        && (*(x+SFS_LCLPLEN-1) == '/' || *(x+SFS_LCLPLEN-1) == 0)
 
-// The native SFS page size
-//
-#define XrdSfsPageSize 4096
-
 /******************************************************************************/
 /*                 S t r u c t u r e s   &   T y p e d e f s                  */
 /******************************************************************************/
@@ -175,7 +173,7 @@ struct XrdSfsPrep  //!< Prepare parameters
 };
 
 /******************************************************************************/
-/*                      A b s t r a c t   C l a s s e s                       */
+/*                  F o r w a r d   D e c l a r a t i o n s                   */
 /******************************************************************************/
 
 class  XrdOucEnv;
@@ -493,6 +491,8 @@ virtual int            getMmap(void **Addr, off_t &Size) = 0;
 
 static const uint64_t
 Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
+static const uint64_t
+NetOrder     = 0x4000000000000000ULL; //!< all: bytes in/out in net byte order
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.
@@ -501,9 +501,10 @@ Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 //!                   page aligned.
 //! @param  buffer  - pointer to buffer where the bytes are to be placed.
 //! @param  rdlen   - The number of bytes to read. The amount must be an
-//!                   integral number of XrdSfsPageSize bytes.
-//! @param  csvec   - A vector of [rdlen/XrdSfsPageSize] entries to be filled
-//!                   with the corresponding CRC32C checksum for each page.
+//!                   integral number of XrdSfsPage::Size bytes.
+//! @param  csvec   - A vector of entries to be filled with the cooresponding
+//!                   CRC32C checksum for each page. It must be size to
+//!                   rdlen/XrdSys::PageSize + (rdlen%XrdSys::PageSize != 0)
 //! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes that placed in buffer.
@@ -513,7 +514,7 @@ Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 virtual XrdSfsXferSize pgRead(XrdSfsFileOffset   offset,
                               char              *buffer,
                               XrdSfsXferSize     rdlen,
-                              uint32_t         *&csvec,
+                              uint32_t          *csvec,
                               uint64_t           opts=0);
 
 //-----------------------------------------------------------------------------
@@ -535,10 +536,11 @@ virtual int            pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
 //!                   page aligned.
 //! @param  buffer  - pointer to buffer containing the bytes to write.
 //! @param  wrlen   - The number of bytes to write. If amount is not an
-//!                   integral number of XrdSfsPageSize bytes, then this must
+//!                   integral number of XrdSys::PageSize bytes, then this must
 //!                   be the last write to the file at or above the offset.
-//! @param  csvec   - A vector of [CEILING(wrlen/XrdSfsPageSize)] entries which
-//!                   contain the corresponding CRC32 checksum for each page.
+//! @param  csvec   - A vector which contains the corresponding CRC32 checksum
+//!                   for each page. It must be size to
+//!                   wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0)
 //! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes written.
@@ -548,7 +550,7 @@ virtual int            pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
 virtual XrdSfsXferSize pgWrite(XrdSfsFileOffset   offset,
                                char              *buffer,
                                XrdSfsXferSize     wrlen,
-                               uint32_t         *&csvec,
+                               uint32_t          *csvec,
                                uint64_t           opts=0);
 
 //-----------------------------------------------------------------------------

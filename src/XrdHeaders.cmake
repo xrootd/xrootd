@@ -63,6 +63,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysLinuxSemaphore.hh
   XrdSys/XrdSysLogger.hh
   XrdSys/XrdSysLogPI.hh
+  XrdSys/XrdSysPageSize.hh
   XrdSys/XrdSysPlatform.hh
   XrdSys/XrdSysPlugin.hh
   XrdSys/XrdSysPthread.hh

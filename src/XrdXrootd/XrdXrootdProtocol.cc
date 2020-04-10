@@ -431,6 +431,8 @@ int XrdXrootdProtocol::Process2()
           case kXR_readv:    return do_ReadV();
           case kXR_write:    return do_Write();
           case kXR_writev:   return do_WriteV();
+          case kXR_pgread:   return do_PgRead();
+          case kXR_pgwrite:  return do_PgWrite();
           case kXR_sync:     ReqID.setID(Request.header.streamid);
                              return do_Sync();
           case kXR_close:    ReqID.setID(Request.header.streamid);
@@ -594,9 +596,9 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 //
    if (Status == XRD_BOUNDPATH && Stream[0])
       {Stream[0]->streamMutex.Lock();
-       isDead = 1;
+       isDead = true;
        if (isActive)
-          {isActive = 0;
+          {isActive = false;
            Stream[0]->Link->setRef(-1);
           }
        Stream[0]->streamMutex.UnLock();
@@ -837,7 +839,7 @@ void XrdXrootdProtocol::Cleanup()
       {streamMutex.Lock();
        for (i = 1; i < maxStreams; i++)
            if (Stream[i])
-              {Stream[i]->isBound = 0; Stream[i]->Stream[0] = 0;
+              {Stream[i]->isBound = false; Stream[i]->Stream[0] = 0;
                if (Stream[i]->isDead) Stream[i]->Recycle(0, 0, 0);
                   else Stream[i]->Link->Close();
                Stream[i] = 0;
@@ -895,6 +897,46 @@ int XrdXrootdProtocol::getData(const char *dtype, char *buff, int blen)
 }
 
 /******************************************************************************/
+/*                             g e t P a t h I D                              */
+/******************************************************************************/
+
+int XrdXrootdProtocol::getPathID(bool isRead)
+{
+   XrdXrootdProtocol *pp;;
+   long long sBytes, bestBytes = 0;
+   int  bestStream = 0;
+   bool useS, sBusy, bestIsBusy = false;
+
+// Find a working stream that is least loaded and has at least one free
+// parallel I/O object (it might not be the fastest). We allow for a delay
+// of 50ms so as not to pick a busy stream.
+//
+   for (int i = 1; i < maxStreams; i++)
+       {if (!(pp = Stream[i])) break;
+        pp->streamMutex.Lock();
+        if (!(pp->isDead || pp->isNOP))
+           {sBytes = (isRead ? pp->bytes2send : pp->bytes2recv);
+            sBusy  = (pp->pioFree == 0);
+                 if (!bestStream)        useS = true;
+            else if (bestBytes > sBytes) useS = !sBusy || bestIsBusy;
+            else if (!bestIsBusy)        useS = false;
+            else if (!sBusy)             useS = (bestBytes+5248000 >= sBytes);
+            else                         useS = false;
+            if (useS)
+               {bestBytes  = sBytes;
+                bestStream = i;
+                bestIsBusy = sBusy;
+               }
+           }
+        pp->streamMutex.UnLock();
+       }
+
+// All done, return result
+//
+   return bestStream;
+}
+  
+/******************************************************************************/
 /*                                 R e s e t                                  */
 /******************************************************************************/
   
@@ -911,6 +953,7 @@ void XrdXrootdProtocol::Reset()
    myOffset           = 0;
    myIOLen            = 0;
    myStalls           = 0;
+   myFlags            = 0;
    myAioReq           = 0;
    myFile             = 0;
    wvInfo             = 0;
@@ -946,7 +989,8 @@ void XrdXrootdProtocol::Reset()
    doTLS              = tlsNot; // Assume client is not capable. This will be
    ableTLS            = false;  // resolved during the kXR_protocol interchange.
    pioFree = pioFirst = pioLast = 0;
-   isActive = isDead  = isNOP = isBound = 0;
+   bytes2recv = bytes2send = 0;
+   isActive = isDead  = isNOP = isBound = false;
    sigNeed = sigHere = sigRead = false;
    sigWarn = true;
    rdType             = 0;

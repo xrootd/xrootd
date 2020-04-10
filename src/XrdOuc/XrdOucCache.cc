@@ -30,15 +30,7 @@
 
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucCRC.hh"
-
-/******************************************************************************/
-/*                        S t a t i c   S y m b o l s                         */
-/******************************************************************************/
-  
-namespace
-{
-static const size_t pgSize = 4096;
-}
+#include "XrdSys/XrdSysPageSize.hh"
 
 /******************************************************************************/
 /*                                p g R e a d                                 */
@@ -55,7 +47,8 @@ int XrdOucCacheIO::pgRead(char      *buff,
 // Make sure the offset is on a 4K boundary and the size if a multiple of
 // 4k as well (we use simple and for this).
 //
-   if ((offs & ~pgSize) || (rdlen & ~pgSize)) return -EINVAL;
+   if ((offs & XrdSys::PageMask)
+   || (rdlen & XrdSys::PageMask)) return -EINVAL;
 
 // Read the data into the buffer
 //
@@ -63,7 +56,7 @@ int XrdOucCacheIO::pgRead(char      *buff,
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0) XrdOucCRC::Calc32C((void *)buff, rdlen, csvec, pgSize);
+   if (bytes > 0) XrdOucCRC::Calc32C((void *)buff, rdlen, csvec);
 
 // All done
 //
@@ -82,7 +75,7 @@ int XrdOucCacheIO::pgWrite(char      *buff,
 {
 // Make sure the offset is on a 4K boundary
 //
-   if (offs & ~pgSize) return -EINVAL;
+   if (offs & XrdSys::PageMask) return -EINVAL;
 
 // Now just return the result of a plain write
 //

@@ -311,7 +311,7 @@ int XrdXrootdProtocol::do_Bind()
 //
    pp->Stream[i] = this;
    Stream[0]     = pp;
-   pp->isBound   = 1;
+   pp->isBound   = true;
    PathID        = i;
    sprintf(buff, "FD %d#%d bound", Link->FDnum(), i);
    eDest.Log(SYS_LOG_01, "Xeq", buff, lp->ID);
@@ -1130,7 +1130,7 @@ int XrdXrootdProtocol::do_Mv()
 /*                            d o _ O f f l o a d                             */
 /******************************************************************************/
 
-int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
+int XrdXrootdProtocol::do_Offload(int pathID, bool isWrite, bool ispgio)
 {
    XrdSysSemaphore isAvail(0);
    XrdXrootdProtocol *pp;
@@ -1164,13 +1164,16 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
          {pp->myFile   = myFile;
           pp->myOffset = myOffset;
           pp->myIOLen  = myIOLen;
+          pp->myFlags  = myFlags;
           pp->myBlen   = 0;
-          pp->doWrite  = static_cast<char>(isWrite);
-          pp->doWriteC = 0;
+          pp->doWrite  = isWrite;
+          pp->doWriteC = false;
           pp->Resume   = &XrdXrootdProtocol::do_OffloadIO;
-          pp->isActive = 1;
+          pp->isActive = true;
           pp->reTry    = &isAvail;
           pp->Response.Set(streamID);
+          if (isWrite) pp->bytes2recv = myIOLen;
+             else      pp->bytes2send = myIOLen;
           pp->streamMutex.UnLock();
           Link->setRef(1);
           Sched->Schedule((XrdJob *)(pp->Link));
@@ -1194,7 +1197,7 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 // Fill out the queue entry and add it to the queue
 //
    pp->pioFree = pioP->Next; pioP->Next = 0;
-   pioP->Set(myFile, myOffset, myIOLen, streamID, static_cast<char>(isWrite));
+   pioP->Set(myFile, myOffset, myIOLen, myFlags, streamID, isWrite, ispgio);
    if (pp->pioLast) pp->pioLast->Next = pioP;
       else          pp->pioFirst      = pioP;
    pp->pioLast = pioP;
@@ -1210,6 +1213,7 @@ int XrdXrootdProtocol::do_OffloadIO()
 {
    XrdSysSemaphore *sesSem;
    XrdXrootdPio    *pioP;
+   long long        actvBytes = 0;
    int rc;
 
 // Entry implies that we just got scheduled and are marked as active. Hence
@@ -1217,24 +1221,40 @@ int XrdXrootdProtocol::do_OffloadIO()
 // We can manipulate the semaphore pointer without a lock as the only other
 // thread that can manipulate the pointer is the waiting session thread.
 //
-   if (!doWriteC && (sesSem = reTry)) {reTry = 0; sesSem->Post();}
+   if (!doWriteC)
+      {actvBytes = (doWrite ? bytes2recv : bytes2send);
+       if ((sesSem = reTry)) {reTry = 0; sesSem->Post();}
+      }
   
 // Perform all I/O operations on a parallel stream (suppress async I/O).
 //
-   do {if (!doWrite) rc = do_ReadAll(0);
-          else if ( (rc = (doWriteC ? do_WriteCont() : do_WriteAll()) ) > 0)
-                  {Resume = &XrdXrootdProtocol::do_OffloadIO;
-                   doWriteC = 1;
-                   return rc;
-                  }
+   do {if (!doWrite) rc = (doPgIO ? do_PgRIO() : do_ReadAll(0));
+          else {if (doPgIO) rc = do_PgWIO();
+                   else     rc = (doWriteC ? do_WriteCont() : do_WriteAll());
+                if (rc > 0)
+                   {Resume = &XrdXrootdProtocol::do_OffloadIO;
+                    doWriteC = true;
+                    return rc;
+                   }
+               }
        streamMutex.Lock();
+       if (doWrite)
+          {if (bytes2recv <= actvBytes) bytes2recv = 0;
+              else bytes2recv -= actvBytes;
+          } else {
+           if (bytes2send <= actvBytes) bytes2send = 0;
+              else bytes2send -= actvBytes;
+          }
+
        if (rc || !(pioP = pioFirst)) break;
        if (!(pioFirst = pioP->Next)) pioLast = 0;
        myFile   = pioP->myFile;
        myOffset = pioP->myOffset;
-       myIOLen  = pioP->myIOLen;
+       myIOLen  = actvBytes = pioP->myIOLen;
+       myFlags  = pioP->myFlags;
+       doPgIO   = pioP->isPGio;
        doWrite  = pioP->isWrite;
-       doWriteC = 0;
+       doWriteC = false;
        Response.Set(pioP->StreamID);
        pioP->Next = pioFree; pioFree = pioP;
        if (reTry) {reTry->Post(); reTry = 0;}
@@ -1243,8 +1263,10 @@ int XrdXrootdProtocol::do_OffloadIO()
 
 // There are no pending operations or the link died
 //
-   if (rc) isNOP = 1;
-   isActive = 0;
+   if (doWrite) bytes2recv = 0;
+      else      bytes2send = 0;
+   if (rc) isNOP = true;
+   isActive = false;
    Stream[0]->Link->setRef(-1);
    if (reTry) {reTry->Post(); reTry = 0;}
    streamMutex.UnLock();
@@ -2236,7 +2258,7 @@ int XrdXrootdProtocol::do_Read()
 
 // See if an alternate path is required, offload the read
 //
-   if (pathID) return do_Offload(pathID, 0);
+   if (pathID) return do_Offload(pathID, false);
 
 // Now read all of the data (do pre-reads first)
 //
@@ -2919,7 +2941,7 @@ int XrdXrootdProtocol::do_Write()
 
 // See if an alternate path is required
 //
-   if (pathID) return do_Offload(pathID, 1);
+   if (pathID) return do_Offload(pathID, true);
 
 // If we are in async mode, schedule the write to occur asynchronously
 //

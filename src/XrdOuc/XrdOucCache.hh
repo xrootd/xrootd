@@ -169,9 +169,10 @@ const char  *Path() = 0;
 //! @param  offs  The offset where the read is to start. It must be
 //!               page aligned.
 //! @param  rdlen The number of bytes to read. The amount must be an
-//!               integral number of XrdSfsPageSize bytes.
-//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries which will be
-//!               filled with the corresponding CRC32C checksum for each page.
+//!               integral number of XrdSys::PageSize bytes.
+//! @param  csvec A vector whose entries which will be filled with the
+//!               corresponding CRC32C checksum for each page; sized to:
+//!               (rdlen/XrdSys::PageSize + (rdlen%XrdSys::PageSize != 0).
 //! @param  opts  Processing options.
 //!
 //! @return >= 0      The number of bytes placed in buffer.
@@ -195,9 +196,10 @@ virtual int  pgRead(char      *buff,
 //! @param  offs  The offset where the read is to start. It must be
 //!               page aligned.
 //! @param  rdlen The number of bytes to read. The amount must be an
-//!               integral number of XrdSfsPageSize bytes.
-//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries which will be
-//!               filled with the corresponding CRC32C checksum for each page.
+//!               integral number of XrdSys::PageSize bytes.
+//! @param  csvec A vector of which will be filled with the corresponding
+//!               CRC32C checksum for each page; sized to:
+//!               (rdlen/XrdSys::PageSize + (rdlen%XrdSys::PageSize != 0).
 //! @param  opts  Processing options.
 //-----------------------------------------------------------------------------
 
@@ -216,11 +218,12 @@ virtual void pgRead(XrdOucCacheIOCB &iocb,
 //! @param  offs  The offset where the write is to start. It must be
 //!               page aligned.
 //! @param  wrlen The number of bytes to write. The amount must be an
-//!               integral number of XrdSfsPageSize bytes except for the
+//!               integral number of XrdSys::PageSize bytes except for the last
 //!               page of the file. A short write prohibits writing past
 //!               offs+wrlen (i.e. it establishes an end of file).
-//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries that hold the
-//!               corresponding verified CRC32C checksum for each page.
+//! @param  csvec A vector of that holds the corresponding verified CRC32C
+//!               checksum for each page; sized to:
+//!               (wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0).
 //! @param  opts  Processing options.
 //!
 //! @return >= 0      The number of bytes written.
@@ -244,11 +247,12 @@ virtual int  pgWrite(char      *buff,
 //! @param  offs  The offset where the write is to start. It must be
 //!               page aligned.
 //! @param  wrlen The number of bytes to write. The amount must be an
-//!               integral number of XrdSfsPageSize bytes except for the
+//!               integral number of XrdSys::PageSize bytes except for the last
 //!               page of the file. A short write prohibits writing past
 //!               offs+wrlen (i.e. it establishes an end of file).
-//! @param  csvec A vector of [rdlen/XrdSfsPageSize] entries that holds the
-//!               corresponding verified CRC32C checksum for each page.
+//! @param  csvec A vector of that holds the corresponding verified CRC32C
+//!               checksum for each page; sized to:
+//!               (wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0).
 //! @param  opts  Processing options.
 //-----------------------------------------------------------------------------
 

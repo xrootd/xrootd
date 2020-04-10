@@ -1,11 +1,10 @@
-#ifndef __XRDXROOTDPIO__
-#define __XRDXROOTDPIO__
+#ifndef __XRDSYS_PAGESIZE_H__
+#define __XRDSYS_PAGESIZE_H__
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d X r o o t d P i o . h h                        */
+/*                     X r d S y s P a g e S i z e . h h                      */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*                            All Rights Reserved                             */
+/* (c) 2020 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -29,55 +28,12 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-  
-#include "XProtocol/XPtypes.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
-class XrdXrootdFile;
-
-class XrdXrootdPio
+// Define a uniform page size for all components
+//
+namespace XrdSys
 {
-public:
-
-       XrdXrootdPio      *Next;
-       XrdXrootdFile     *myFile;
-       long long          myOffset;
-       int                myIOLen;
-       unsigned short     myFlags;
-       kXR_char           StreamID[2];
-       bool               isWrite;
-       bool               isPGio;
-
-static XrdXrootdPio      *Alloc(int n=1);
-
-inline XrdXrootdPio      *Clear(XrdXrootdPio *np=0)
-                               {const kXR_char zed[2] = {0,0};
-                                Set(0, 0, 0, 0, zed, false, false);
-                                Next = np; return this;
-                               }
-
-       void               Recycle();
-
-inline void               Set(XrdXrootdFile *theFile, long long theOffset,
-                             int theIOLen, unsigned short theFlags,
-                             const kXR_char *theSID, bool theW, bool theP)
-                             {myFile      = theFile;
-                              myOffset    = theOffset;
-                              myIOLen     = theIOLen;
-                              myFlags     = theFlags,
-                              StreamID[0] = theSID[0]; StreamID[1] = theSID[1];
-                              isWrite     = theW;
-                              isPGio      = theP;
-                             }
-
-                          XrdXrootdPio(XrdXrootdPio *np=0) {Clear(np);}
-                         ~XrdXrootdPio() {}
-
-private:
-
-static const int          FreeMax = 256;
-static XrdSysMutex        myMutex;
-static XrdXrootdPio      *Free;
-static int                FreeNum;
-};
+static const int PageSize = 4096;
+static const int PageMask = 4095;
+}
 #endif

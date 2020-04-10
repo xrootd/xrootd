@@ -139,7 +139,11 @@ unsigned int XrdOucCRC::crctable[256] =
 /*****************************************************************/
 /*                   End of CRC Lookup Table                     */
 /*****************************************************************/
-
+  
+/******************************************************************************/
+/*                                 C R C 3 2                                  */
+/******************************************************************************/
+  
 /* Calculate CRC-32 Checksum for NAACCR Record,
    skipping area of record containing checksum field.
 
@@ -193,18 +197,17 @@ uint32_t XrdOucCRC::Calc32C(const void* data, size_t count, uint32_t prevcs)
 
 /******************************************************************************/
   
-void XrdOucCRC::Calc32C(const void* data,  size_t count,
-                          uint32_t* csval, size_t pgsz)
+void XrdOucCRC::Calc32C(const void* data, size_t count, uint32_t* csval)
 {
-   int i, numpages = count/pgsz;
+   int i, numpages = count/XrdSys::PageSize;
    const uint8_t* dataP = (const uint8_t*)data;
 
 // Calculate the CRC32C for each page
 //
    for (i = 0; i < numpages; i++)
-       {csval[i] = crc32c(0, dataP, pgsz);
-        count -= pgsz;
-        dataP += pgsz;
+       {csval[i] = crc32c(0, dataP, XrdSys::PageSize);
+        count -= XrdSys::PageSize;
+        dataP += XrdSys::PageSize;
        }
 
 // if there is anything left, calculate that as well
@@ -231,9 +234,9 @@ bool XrdOucCRC::Ver32C(const void*    data,  size_t    count,
 /******************************************************************************/
 
 int  XrdOucCRC::Ver32C(const void*     data,  size_t    count,
-                       const uint32_t* csval, uint32_t& valcs, size_t pgsz)
+                       const uint32_t* csval, uint32_t& valcs)
 {
-   int i, numpages = count/pgsz;
+   int i, numpages = count/XrdSys::PageSize;
    const uint8_t* dataP = (const uint8_t*)data;
    uint32_t actualCS;
 
@@ -241,13 +244,13 @@ int  XrdOucCRC::Ver32C(const void*     data,  size_t    count,
 //
    for (i = 0; i < numpages; i++)
        {
-        actualCS = crc32c(0, dataP, pgsz);
+        actualCS = crc32c(0, dataP, XrdSys::PageSize);
         if (csval[i] != actualCS)
            {valcs = actualCS;
             return i;
            }
-        count -= pgsz;
-        dataP += pgsz;
+        count -= XrdSys::PageSize;
+        dataP += XrdSys::PageSize;
        }
 
 // if there is anything left, verify that as well
@@ -269,9 +272,9 @@ int  XrdOucCRC::Ver32C(const void*     data,  size_t    count,
 /******************************************************************************/
 
 bool XrdOucCRC::Ver32C(const void*     data,  size_t count,
-                       const uint32_t* csval, bool*  valok, size_t pgsz)
+                       const uint32_t* csval, bool*  valok)
 {
-   int i, numpages = count/pgsz;
+   int i, numpages = count/XrdSys::PageSize;
    const uint8_t* dataP = (const uint8_t*)data;
    uint32_t actualCS;
    bool retval = true;
@@ -280,11 +283,11 @@ bool XrdOucCRC::Ver32C(const void*     data,  size_t count,
 //
    for (i = 0; i < numpages; i++)
        {
-        actualCS = crc32c(0, dataP, pgsz);
+        actualCS = crc32c(0, dataP, XrdSys::PageSize);
         if (csval[i] == actualCS) valok[i] = true;
            else valok[i] = retval = false;
-        count -= pgsz;
-        dataP += pgsz;
+        count -= XrdSys::PageSize;
+        dataP += XrdSys::PageSize;
        }
 
 // if there is anything left, verify that as well
@@ -304,10 +307,9 @@ bool XrdOucCRC::Ver32C(const void*     data,  size_t count,
 /******************************************************************************/
 
 bool XrdOucCRC::Ver32C(const void*     data,  size_t    count,
-                       const uint32_t* csval, uint32_t* valcs,
-                             size_t    pgsz)
+                       const uint32_t* csval, uint32_t* valcs)
 {
-   int i, numpages = count/pgsz;
+   int i, numpages = count/XrdSys::PageSize;
    const uint8_t* dataP = (const uint8_t*)data;
    bool retval = true;
 
@@ -315,10 +317,10 @@ bool XrdOucCRC::Ver32C(const void*     data,  size_t    count,
 //
    for (i = 0; i < numpages; i++)
        {
-        valcs[i] = crc32c(0, dataP, pgsz);
+        valcs[i] = crc32c(0, dataP, XrdSys::PageSize);
         if (csval[i] != valcs[i]) retval = false;
-        count -= pgsz;
-        dataP += pgsz;
+        count -= XrdSys::PageSize;
+        dataP += XrdSys::PageSize;
        }
 
 // if there is anything left, verify that as well

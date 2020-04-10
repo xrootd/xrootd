@@ -47,6 +47,7 @@ add_library(
   XrdXrootd/XrdXrootdXeq.cc             XrdXrootd/XrdXrootdXeq.hh
   XrdXrootd/XrdXrootdXeqAio.cc
   XrdXrootd/XrdXrootdXeqFAttr.cc
+  XrdXrootd/XrdXrootdXeqPgrw.cc
                                         XrdXrootd/XrdXrootdTrace.hh
                                         XrdXrootd/XrdXrootdXPath.hh
                                         XrdXrootd/XrdXrootdReqID.hh

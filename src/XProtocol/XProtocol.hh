@@ -450,7 +450,8 @@ static const int kXR_pgUnitSZ = kXR_pgPageSZ + sizeof(kXR_unt32);
 
 // kXR_pgread/write options
 //
-static const int kXR_pgRetry = 0x00000001;
+static const kXR_char kXR_AnyPath = 0xff; // In pathid
+static const int      kXR_pgRetry = 0x01; // In reqflags
 }
   
 struct ClientPgReadRequest {
@@ -467,7 +468,9 @@ struct ClientPgReadReqArgs {
    kXR_char  reqflags; // Request data length must be 2
 };
 
-static const int kXR_pgRetry = 0x01; // reqflags for pgRead & pgWrite
+namespace
+{
+}
 
 /******************************************************************************/
 /*                   k X R _ p r w r i t e   R e q u e s t                    */
@@ -795,6 +798,8 @@ typedef union {
    struct ClientMkdirRequest mkdir;
    struct ClientMvRequest mv;
    struct ClientOpenRequest open;
+   struct ClientPgReadRequest pgread;
+   struct ClientPgWriteRequest pgwrite;
    struct ClientPingRequest ping;
    struct ClientPrepareRequest prepare;
    struct ClientProtocolRequest protocol;
@@ -851,6 +856,12 @@ struct ServerResponseHeader {
    kXR_int32 dlen;
 };
 
+// This is a bit of wierdness held over from the very old days, sigh.
+//
+struct ServerResponseBody_Buffer {
+   char data[4096];
+};
+
 /******************************************************************************/
 /*                     k X R _ a t t n   R e s p o n s e                      */
 /******************************************************************************/
@@ -900,11 +911,6 @@ struct ServerResponseBody_Authmore {
   
 struct ServerResponseBody_Bind {
     kXR_char substreamid;
-};
-
-//??? Why this?
-struct ServerResponseBody_Buffer {
-   char data[4096];
 };
 
 /******************************************************************************/
@@ -984,7 +990,8 @@ struct ServerResponseBody_pgRead {
 /******************************************************************************/
   
 struct ServerResponseBody_pgWrite {
-// kXR_int64 bof[(resplen-8)/8];    // List of offsets of pages in error
+   kXR_int64 offset;                // info[]: File offset of data written
+// kXR_int64 bof[(resplen-16)/8-1]; // List of offsets of pages in error
 };
 
 /******************************************************************************/
@@ -1113,21 +1120,33 @@ enum XStatRespFlags {
 /******************************************************************************/
 
 struct ServerResponseBody_Status { // Always preceeded by ServerResponseHeader
-   kXR_unt16 crc16;       // openSafety-B IEC61508:2010
+   kXR_unt32 crc32c;      // IETF RFC 7143 standard
    kXR_char  streamID[2]; // Identical to streamid[2]  in ServerResponseHeader
    kXR_char  requestid;   // requestcode - kXR_1stRequest
    kXR_char  resptype;    // See RespType enum below
-   kXR_char  reserved[2];
+   kXR_char  reserved[4];
    kXR_int32 dlen;
-// kXR_char  info[ServerResponseHeader::dlen-8];
+// kXR_char  info[ServerResponseHeader::dlen-sizeof(ServerResponseBody_Status)];
 // kXR_char  data[dlen];
+};
 
+namespace XrdProto
+{
 enum RespType {
 
    kXR_FinalResult   = 0x00,
    kXR_PartialResult = 0x01,
    kXR_ProgressInfo  = 0x02
 };
+
+   // This is the minimum size of ServerResponseHeader::dlen for kXR_status
+   //
+   static const int kXR_statusBodyLen = sizeof(ServerResponseBody_Status);
+}
+
+struct ServerResponseStatus {
+   struct ServerResponseHeader      hdr;
+   struct ServerResponseBody_Status bdy;
 };
   
 /******************************************************************************/
@@ -1159,7 +1178,7 @@ struct ServerResponse
     ServerResponseBody_Attn     attn;
     ServerResponseBody_Authmore authmore;
     ServerResponseBody_Bind     bind;
-    ServerResponseBody_Buffer   buffer;
+     ServerResponseBody_Buffer  buffer;
     ServerResponseBody_Error    error;
     ServerResponseBody_Login    login;
     ServerResponseBody_pgRead   pgread;

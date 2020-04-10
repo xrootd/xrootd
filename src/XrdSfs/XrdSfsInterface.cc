@@ -27,19 +27,15 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cassert>
+#include <stdio.h>
+#include <arpa/inet.h>
+
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-
-/******************************************************************************/
-/*                        S t a t i c   S y m b o l s                         */
-/******************************************************************************/
-  
-namespace
-{
-static const XrdSfsFileOffset pgSize = XrdSfsPageSize;
-}
+#include "XrdSys/XrdSysPageSize.hh"
 
 /******************************************************************************/
 /*       X r d S f s D i r e c t o r y   M e t h o d   D e f a u l t s        */
@@ -98,7 +94,7 @@ int XrdSfsFile::fctl(const int           cmd,
 XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
                                   char              *buffer,
                                   XrdSfsXferSize     rdlen,
-                                  uint32_t         *&csvec,
+                                  uint32_t          *csvec,
                                   uint64_t           opts)
 {
    XrdSfsXferSize bytes;
@@ -106,19 +102,31 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
 // Make sure the offset is on a 4K boundary and the size if a multiple of
 // 4k as well (we use simple and for this).
 //
-   if ((offset & ~pgSize) || (rdlen & ~XrdSfsPageSize))
+   if ((offset & XrdSys::PageMask) || (rdlen & XrdSys::PageMask))
       {error.setErrInfo(EINVAL,"Offset or readlen not a multiple of pagesize.");
        return SFS_ERROR;
       }
 
 // Read the data into the buffer
 //
-   bytes = read(offset, buffer, rdlen);
+   if ((bytes = read(offset, buffer, rdlen)) <= 0) return bytes;
 
-// Calculate checksums if so wanted
+// If the output needs to be in network byte order, then unroll the calculation
+// Otherwise, use the vector version of the crc calculation.
 //
-   if (bytes > 0)
-      XrdOucCRC::Calc32C((void *)buffer, rdlen, csvec, XrdSfsPageSize);
+   if (opts & NetOrder)
+      {int i = 0, quant = bytes;
+       while (quant >= XrdSys::PageSize)
+             {csvec[i++] = htonl(XrdOucCRC::Calc32C((void *)buffer,
+                                                    XrdSys::PageSize));
+              buffer += XrdSys::PageSize;
+              quant  -= XrdSys::PageSize;
+             }
+       if (quant) csvec[i] = htonl(XrdOucCRC::Calc32C((void *)buffer,quant));
+       return bytes;
+      } else {
+       XrdOucCRC::Calc32C((void *)buffer, bytes, csvec);
+      }
 
 // All done
 //
@@ -144,12 +152,13 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
 XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
                                    char              *buffer,
                                    XrdSfsXferSize     wrlen,
-                                   uint32_t         *&csvec,
+                                   uint32_t          *csvec,
                                    uint64_t           opts)
 {
+
 // Make sure the offset is on a 4K boundary
 //
-   if (offset & ~pgSize)
+   if (offset & XrdSys::PageMask)
       {error.setErrInfo(EINVAL,"Offset or readlen not a multiple of pagesize.");
        return SFS_ERROR;
       }
@@ -164,16 +173,19 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 
 // If this is a short write then establish the virtual eof
 //
-   if (wrlen & ~XrdSfsPageSize) pgwrEOF = (offset + wrlen) & ~pgSize;
+   if (wrlen & XrdSys::PageMask) pgwrEOF = (offset + wrlen) & ~XrdSys::PageMask;
 
 // If we have a checksum vector and verify is on, make sure the data
-// in the buffer corresponds to he checksums.
+// in the buffer corresponds to the checksum.
 //
    if (opts & Verify)
       {uint32_t valcs;
-       if (XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs,
-                             XrdSfsPageSize) >= 0)
-          {error.setErrInfo(EDOM,"Checksum error.");
+       int      pgNum;
+       if ((pgNum = XrdOucCRC::Ver32C((void *)buffer,wrlen,csvec,valcs)) >= 0)
+          {char eMsg[512];
+           XrdSfsFileOffset badoff = offset + (pgNum*XrdSys::PageSize);
+           snprintf(eMsg, sizeof(eMsg),"Checksum error at offset %lld.",badoff);
+           error.setErrInfo(EDOM, eMsg);
            return SFS_ERROR;
           }
       }
