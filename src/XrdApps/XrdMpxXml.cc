@@ -61,6 +61,7 @@ std::map<const char *, const char *, vCmp> vnMap {
 {"pgm",             "Server program: "},
 {"ins",             "Server instance:"},
 {"pid",             "Server process: "},
+{"site",            "Server sitename: "},
 {"ver",             "Server version: "},
 {"info.host",       "Host name:"},
 {"info.port",       "Port:"},
