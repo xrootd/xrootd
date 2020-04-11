@@ -336,6 +336,13 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
    if (isProxy) baseFS.Init(XrdCmsBaseFS::DFSys | XrdCmsBaseFS::Immed |
                (baseFS.Local() ? XrdCmsBaseFS::Cntrl : 0), 0, 0);
 
+// If we are a server and some scheduling parameters were specified but
+// nothing to feed them, give a warning.
+//
+   if (isServer && (P_cpu|P_io|P_load|P_mem|P_pag) && !prfLib && !perfpgm)
+      Say.Say("Config warning: metric scheduling requested without a "
+              "metrics supplier!");
+
 // Determine how we ended and return status
 //
    sprintf(buff, " phase 1 %s initialization %s.", myRole,
