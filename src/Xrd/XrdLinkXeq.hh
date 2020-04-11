@@ -141,6 +141,7 @@ protected:
 
 void   Reset();
 int    sendData(const char *Buff, int Blen);
+int    SendIOV(const struct iovec *iov, int iocnt, int bytes);
 int    SFError(int rc);
 int    TLS_Error(const char *act, XrdTls::RC rc);
 bool   TLS_Write(const char *Buff, int Blen);

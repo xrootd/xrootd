@@ -27,10 +27,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 
@@ -76,6 +78,12 @@ extern XrdOucTrace    XrdTrace;
 extern XrdScheduler   Sched;
 extern XrdTlsContext *tlsCtx;
 extern int            devNull;
+
+#ifdef IOV_MAX
+       int            maxIOV = IOV_MAX;
+#else
+       int            maxIOV = sysconf(_SC_IOV_MAX);
+#endif
 };
 
 using namespace XrdGlobal;
@@ -515,8 +523,7 @@ int XrdLinkXeq::Send(const char *Buff, int Blen)
   
 int XrdLinkXeq::Send(const struct iovec *iov, int iocnt, int bytes)
 {
-   ssize_t bytesleft, n, retc = 0;
-   const char *Buff;
+   int retc;
 
 // Get a lock and assume we will be successful (statistically we are)
 //
@@ -532,39 +539,37 @@ int XrdLinkXeq::Send(const struct iovec *iov, int iocnt, int bytes)
        return retc;
       }
 
-// Write the data out. On some version of Unix (e.g., Linux) a writev() may
-// end at any time without writing all the bytes when directed to a socket.
-// So, we attempt to resume the writev() using a combination of write() and
-// a writev() continuation. This approach slowly converts a writev() to a
-// series of writes if need be. We must do this inline because we must hold
-// the lock until all the bytes are written or an error occurs.
+// If the iocnt is within limits then just go ahead and write this out
 //
-   bytesleft = static_cast<ssize_t>(bytes);
-   while(bytesleft)
-        {do {retc = writev(FD, iov, iocnt);} while(retc < 0 && errno == EINTR);
-         if (retc >= bytesleft || retc < 0) break;
-         bytesleft -= retc;
-         while(retc >= (n = static_cast<ssize_t>(iov->iov_len)))
-              {retc -= n; iov++; iocnt--;}
-         Buff = (const char *)iov->iov_base + retc; n -= retc; iov++; iocnt--;
-         while(n) {if ((retc = write(FD, Buff, n)) < 0)
-                      {if (errno == EINTR) continue;
-                          else break;
-                      }
-                   n -= retc; Buff += retc;
-                  }
-         if (retc < 0 || iocnt < 1) break;
-        }
+   if (iocnt <= maxIOV)
+      {retc = SendIOV(iov, iocnt, bytes);
+       wrMutex.UnLock();
+       return retc;
+      }
+
+// We will have to break this up into allowable segments
+//
+   int seglen, segcnt = maxIOV, iolen = 0;
+   do {seglen = 0;
+       for (int i = 0; i < segcnt; i++) seglen += iov[i].iov_len;
+       if ((retc = SendIOV(iov, segcnt, seglen)) < 0)
+          {wrMutex.UnLock();
+           return retc;
+          }
+       iolen += retc;
+       iov   += segcnt;
+       iocnt -= segcnt;
+       if (iocnt <= maxIOV) segcnt = iocnt;
+      } while(iocnt > 0);
 
 // All done
 //
    wrMutex.UnLock();
-   if (retc >= 0) return bytes;
-   Log.Emsg("Link", errno, "send to", ID);
-   return -1;
+   return iolen;
 }
  
 /******************************************************************************/
+
 int XrdLinkXeq::Send(const sfVec *sfP, int sfN)
 {
 #if !defined(HAVE_SENDFILE) || defined(__APPLE__)
@@ -692,7 +697,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
 }
 
 /******************************************************************************/
-/* private                      s e n d D a t a                               */
+/* Protected:                   s e n d D a t a                               */
 /******************************************************************************/
   
 int XrdLinkXeq::sendData(const char *Buff, int Blen)
@@ -712,6 +717,46 @@ int XrdLinkXeq::sendData(const char *Buff, int Blen)
 // All done
 //
    return retc;
+}
+  
+/******************************************************************************/
+/* Protected:                    S e n d I O V                                */
+/******************************************************************************/
+  
+int XrdLinkXeq::SendIOV(const struct iovec *iov, int iocnt, int bytes)
+{
+   ssize_t bytesleft, n, retc = 0;
+   const char *Buff;
+
+// Write the data out. On some version of Unix (e.g., Linux) a writev() may
+// end at any time without writing all the bytes when directed to a socket.
+// So, we attempt to resume the writev() using a combination of write() and
+// a writev() continuation. This approach slowly converts a writev() to a
+// series of writes if need be. We must do this inline because we must hold
+// the lock until all the bytes are written or an error occurs.
+//
+   bytesleft = static_cast<ssize_t>(bytes);
+   while(bytesleft)
+        {do {retc = writev(FD, iov, iocnt);} while(retc < 0 && errno == EINTR);
+         if (retc >= bytesleft || retc < 0) break;
+         bytesleft -= retc;
+         while(retc >= (n = static_cast<ssize_t>(iov->iov_len)))
+              {retc -= n; iov++; iocnt--;}
+         Buff = (const char *)iov->iov_base + retc; n -= retc; iov++; iocnt--;
+         while(n) {if ((retc = write(FD, Buff, n)) < 0)
+                      {if (errno == EINTR) continue;
+                          else break;
+                      }
+                   n -= retc; Buff += retc;
+                  }
+         if (retc < 0 || iocnt < 1) break;
+        }
+
+// All done
+//
+   if (retc >= 0) return bytes;
+   Log.Emsg("Link", errno, "send to", ID);
+   return -1;
 }
   
 /******************************************************************************/
@@ -986,7 +1031,7 @@ void XrdLinkXeq::syncStats(int *ctime)
 }
 
 /******************************************************************************/
-/* Private:                    T L S _ E r r o r                              */
+/* Protected:                  T L S _ E r r o r                              */
 /******************************************************************************/
 
 int XrdLinkXeq::TLS_Error(const char *act, XrdTls::RC rc)
@@ -1229,7 +1274,7 @@ int XrdLinkXeq::TLS_Send(const sfVec *sfP, int sfN)
 }
 
 /******************************************************************************/
-/* Private:                    T L S _ W r i t e                              */
+/* Protected:                  T L S _ W r i t e                              */
 /******************************************************************************/
 
 bool XrdLinkXeq::TLS_Write(const char *Buff, int Blen)
