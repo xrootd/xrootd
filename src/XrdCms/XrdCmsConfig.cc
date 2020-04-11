@@ -339,9 +339,17 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 // If we are a server and some scheduling parameters were specified but
 // nothing to feed them, give a warning.
 //
-   if (isServer && (P_cpu|P_io|P_load|P_mem|P_pag) && !prfLib && !perfpgm)
-      Say.Say("Config warning: metric scheduling requested without a "
-              "metrics supplier!");
+   if (isServer)
+      {if (P_cpu|P_io|P_load|P_mem|P_pag)
+          {if (!prfLib && !perfpgm)
+              Say.Say("Config warning: metric scheduling requested without a "
+                      "metrics supplier!");
+          } else {
+           if ( prfLib ||  perfpgm)
+              Say.Say("Config warning: metrics supplier specified without "
+                      "any scheduling metrics!");
+          }
+      }
 
 // Determine how we ended and return status
 //
