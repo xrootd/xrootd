@@ -57,6 +57,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Handle iovec's longer than IOV_MAX.
   * **[TPC]** Honor client's source protocol specification server-side.
   * **[Server]** Add kXR_ItExists error for EEXIST errno don't use kXR_BadRequest.
   * **[Server]** Remap kXR_BadRequest to EBADRQC.
