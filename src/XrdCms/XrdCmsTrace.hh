@@ -40,6 +40,7 @@
 #define TRACE_Forward   0x0008
 #define TRACE_Redirect  0x0010
 #define TRACE_Files     0x0020
+#define TRACE_Space     0x0040
 
 #ifndef NODEBUG
 

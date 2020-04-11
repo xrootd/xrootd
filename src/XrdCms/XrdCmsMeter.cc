@@ -569,7 +569,8 @@ void XrdCmsMeter::calcSpace()
    dsk_util = static_cast<int>(fsutil);
    cfsMutex.UnLock();
    if (old_util != dsk_util)
-      DEBUG("New fs info; maxfree=" <<dsk_maxf <<"MB utilized=" <<dsk_util <<"%");
+      TRACE(Space, "New fs info; maxfree=" <<dsk_maxf
+                   <<"MB utilized=" <<dsk_util <<"%");
 }
 
 /******************************************************************************/

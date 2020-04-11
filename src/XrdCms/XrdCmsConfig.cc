@@ -3108,6 +3108,7 @@ int XrdCmsConfig::xtrace(XrdSysError *eDest, XrdOucStream &CFile)
         {"files",    TRACE_Files},
         {"forward",  TRACE_Forward},
         {"redirect", TRACE_Redirect},
+        {"space",    TRACE_Space},
         {"stage",    TRACE_Stage}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
