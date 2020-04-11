@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[CMSD]** Add space trace option for tracing space utilization changes.
   * **[Server]** Implement kXR_pgread and kXR_status.
   * **[Server]** Allow redirector to handle kXR_dirlist location resolution.
   * **[TLS]** Use recommended ciphers add xrd.tlsciphers directive to override.
