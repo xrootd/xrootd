@@ -307,14 +307,18 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // Turn off forwarding if we are not a pure remote redirector or a peer
 //
    if (Options & Forwarding)
-      if (!(Options & isPeer)
-      && (Options & (isServer | isProxy)))
-         {Eroute.Say("Config warning: forwarding turned off; not a pure manager");
+      {const char *why = 0;
+       if (!(Options & Authorize)) why = "authorization not enabled";
+           else if (!(Options & isPeer) && (Options & (isServer | isProxy)))
+                   why = "not a pure manager";
+       if (why)
+         {Eroute.Say("Config warning: forwarding turned off; ", why);
           Options &= ~(Forwarding);
           fwdCHMOD.Reset(); fwdMKDIR.Reset(); fwdMKPATH.Reset();
           fwdMV.Reset();    fwdRM.Reset();    fwdRMDIR.Reset();
           fwdTRUNC.Reset();
          }
+      }
 
 // If we need to send notifications, initialize the interface
 //
