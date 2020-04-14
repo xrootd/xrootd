@@ -17,6 +17,10 @@ Currently, only the usage synopsis is available as documentation.
 .SH NOTES
 Documentation for all components associated with \fBxrdadler32\fR can be found at
 http://xrootd.org/docs.html
+.br
+The \fBxrdadler32\fR command uses the XRootD infrastructure to record the
+computed checksum in the file's extended attributes. Subsequent queries use
+the checksum stored in the file's attributes.
 .SH DIAGNOSTICS
 Errors yield an error message and a non-zero exit status.
 .SH LICENSE
