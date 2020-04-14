@@ -77,7 +77,7 @@ inline void            Recycle(){myMutex.Lock();
                       ~XrdXrootdCBJob() {}
 
 private:
-void DoClose(XrdOucErrInfo *eInfo);
+XrdXrootdFile *DoClose(XrdOucErrInfo *eInfo);
 void DoStatx(XrdOucErrInfo *eInfo);
 static XrdSysMutex         myMutex;
 static XrdXrootdCBJob     *FreeJob;
@@ -142,6 +142,7 @@ XrdXrootdCBJob *XrdXrootdCBJob::Alloc(XrdXrootdCallBack *cbF,
 void XrdXrootdCBJob::DoIt()
 {
    static const char *TraceID = "DoIt";
+   XrdXrootdFile *fP = 0;
 
 // Do some tracing here
 //
@@ -153,7 +154,7 @@ void XrdXrootdCBJob::DoIt()
 // the client to wait zero seconds. Protocol demands a client retry. Close
 // operations are always final and we need to do some cleanup.
 //
-        if (*(cbFunc->Func()) == 'c') DoClose(eInfo);
+        if (*(cbFunc->Func()) == 'c') fP = DoClose(eInfo);
    else if (SFS_OK == Result)
           {if (*(cbFunc->Func()) == 'o')
               {int rc = 0; cbFunc->sendResp(eInfo, kXR_wait, &rc);}
@@ -169,6 +170,7 @@ void XrdXrootdCBJob::DoIt()
    if (eInfo->getErrCB()) eInfo->getErrCB()->Done(Result, eInfo);
       else delete eInfo;
    eInfo = 0;
+   if (fP) delete fP;
    Recycle();
 }
   
@@ -176,21 +178,21 @@ void XrdXrootdCBJob::DoIt()
 /*                               D o C l o s e                                */
 /******************************************************************************/
   
-void XrdXrootdCBJob::DoClose(XrdOucErrInfo *eInfo)
+XrdXrootdFile *XrdXrootdCBJob::DoClose(XrdOucErrInfo *eInfo)
 {
    XrdXrootdFile *fP = (XrdXrootdFile *)eInfo->getErrArg();
 
 // For close the main argument is the file pointer. Set the main arg to
-// be the request identifier which is saved in he file object.
+// be the request identifier which is saved in the file object.
 //
    eInfo->setErrArg(fP->cbArg);
 
-// Responses to close() must be final; otherwise it's a systm error.
+// Responses to close() must be final; otherwise it's a system error.
 //
    if (Result != SFS_OK && Result != SFS_ERROR)
       {char buff[64];
        SI->errorCnt++;
-       sprintf(buff, "Invalid close() callcback result of %d for", Result);
+       sprintf(buff, "Invalid close() callback result of %d for", Result);
        eDest->Emsg("DoClose", buff, Path);
        Result = SFS_ERROR;
        eInfo->setErrInfo(kXR_FSError, "Internal error; file close forced");
@@ -201,9 +203,9 @@ void XrdXrootdCBJob::DoClose(XrdOucErrInfo *eInfo)
    if (Result == SFS_OK) cbFunc->sendResp(eInfo, kXR_ok);
       else               cbFunc->sendError(Result, eInfo, Path);
 
-// Delete he file object
+// Return the file object for disposal
 //
-   delete fP;
+   return fP;
 }
   
 /******************************************************************************/
