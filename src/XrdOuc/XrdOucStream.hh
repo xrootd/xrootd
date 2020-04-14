@@ -85,6 +85,7 @@ int          Drain();
 // the GetxxxWord() methods),
 //
 void         Echo();
+void         Echo(bool capture);
 
 // Execute a command on a stream. Returns 0 upon success or -1 otherwise.
 // Use LastError() to get the actual error code. Subsequent Get() calls
