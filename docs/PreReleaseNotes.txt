@@ -47,6 +47,7 @@ Prerelease Notes
   * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
 
 + **Major bug fixes**
+  * **[Server]** Correct sequencing of an async close to prevent a SEGV.
   * **[Server]** Add missing initializer to avoid TPC SEGV on busy systems.
   * **[Proxy]** Remove offending CGI elements before passing URL.
   * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
