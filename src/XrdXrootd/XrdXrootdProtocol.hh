@@ -205,7 +205,6 @@ static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   getPathID(bool isRead);
        bool  logLogin(bool xauth=false);
 static int   mapMode(int mode);
-static void  PidFile();
        void  Reset();
 static int   rpCheck(char *fn, char **opaque);
        int   rpEmsg(const char *op, char *fn);
@@ -213,7 +212,7 @@ static int   rpCheck(char *fn, char **opaque);
 static int   CheckTLS(const char *tlsProt);
 static bool  ConfigFS(XrdOucEnv &xEnv, const char *cfn);
 static bool  ConfigFS(const char *path, XrdOucEnv &xEnv, const char *cfn);
-static void  ConfigGStream(XrdOucEnv &myEnv);
+static void  ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv);
 static int   Squash(char *);
        int   StatGen(struct stat &buf, char *xxBuff, int xxLen, bool xa=false);
 static int   xapath(XrdOucStream &Config);
@@ -226,7 +225,6 @@ static int   xfsl(XrdOucStream &Config);
 static int   xfsL(XrdOucStream &Config, char *val, int lix);
 static int   xfso(XrdOucStream &Config);
 static int   xgpf(XrdOucStream &Config);
-static int   xpidf(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
 static int   xmon(XrdOucStream &Config);
@@ -269,7 +267,6 @@ static XrdBuffManager       *BPool;     // Buffer manager
 static XrdSysError           eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;
-static       char           *pidPath;
 static int                   RQLxist;   // Something is present in RQList
 static int                   myPID;
 static int                   myRole;     // Role for kXR_protocol (>= 2.9.7)

@@ -267,7 +267,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Config g-stream objects, as needed. This needs to be done before we
 // load any plugins but after we initialize monitoring.
 //
-   ConfigGStream(xrootdEnv);
+   ConfigGStream(xrootdEnv, pi->theEnv);
 
 // Get the filesystem to be used and its features
 //
@@ -408,10 +408,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!(AdminSock = XrdNetSocket::Create(&eDest, adminp, "admin", pi->AdmMode))
    ||  !XrdXrootdAdmin::Init(&eDest, AdminSock)) return 0;
 
-// Setup pid file
-//
-   PidFile();
-
 // Indicate whether or not we support extened attributes
 //
   {XrdOucEnv     myEnv;
@@ -489,7 +485,6 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    while((var = Config.GetMyFirstWord()))
         {     if ((ismine = !strncmp("xrootd.", var, 7)) && var[7]) var += 7;
          else if ((ismine = !strcmp("all.export", var)))    var += 4;
-         else if ((ismine = !strcmp("all.pidpath",var)))    var += 4;
          else if ((ismine = !strcmp("all.seclib", var)))    var += 4;
 
          if (ismine)
@@ -502,15 +497,20 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("gpflib",        xgpf);
              else if TS_Xeq("log",           xlog);
              else if TS_Xeq("monitor",       xmon);
-             else if TS_Xeq("pidpath",       xpidf);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("tls",           xtls);
              else if TS_Xeq("trace",         xtrace);
              else if TS_Xeq("limit",         xlimit);
-             else {eDest.Say("Config warning: ignoring unknown directive '",var,"'.");
-                   Config.Echo();
+             else {if (!strcmp(var, "pidpath"))
+                      {eDest.Say("Config warning: 'xrootd.pidpath' no longer "
+                                 "supported; use 'all.pidpath'.");
+                      } else {
+                       eDest.Say("Config warning: ignoring unknown "
+                                 "directive '", var, "'.");
+                      }
+                   Config.Echo(false);
                    continue;
                   }
              if (GoNo) {Config.Echo(); NoGo = 1;}
@@ -525,33 +525,6 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
-/******************************************************************************/
-/*                               P i d F i l e                                */
-/******************************************************************************/
-  
-void XrdXrootdProtocol::PidFile()
-{
-    int rc, xfd;
-    char buff[32], pidFN[1200];
-    char *ppath=XrdOucUtils::genPath(pidPath,XrdOucUtils::InstName(-1));
-    const char *xop = 0;
-
-    if ((rc = XrdOucUtils::makePath(ppath,XrdOucUtils::pathMode)))
-       {xop = "create"; errno = rc;}
-       else {snprintf(pidFN, sizeof(pidFN), "%s/xrootd.pid", ppath);
-
-            if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-               xop = "open";
-               else {if (write(xfd,buff,snprintf(buff,sizeof(buff),"%d",
-                         static_cast<int>(getpid()))) < 0) xop = "write";
-                     close(xfd);
-                    }
-            }
-
-    free(ppath);
-    if (xop) eDest.Emsg("Config", errno, xop, pidFN);
-}
-
 /******************************************************************************/
 /*                              C h e c k T L S                               */
 /******************************************************************************/
@@ -658,11 +631,12 @@ bool XrdXrootdProtocol::ConfigFS(const char *path, XrdOucEnv &xEnv,
 /*                         C o n f i g G S t r e a m                          */
 /******************************************************************************/
 
-void XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv)
+void XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
 {
-   struct GSTable {const char *pin; int Mode; char Type;} gsObj[] =
-                  {{"ccm", XROOTD_MON_CCM, XROOTD_MON_GSCCM},
-                   {"pfc", XROOTD_MON_PFC, XROOTD_MON_GSPFC}
+   struct GSTable {const char *pin; int Mode; kXR_char Type; bool xrd;}
+   gsObj[] =      {{"ccm",   XROOTD_MON_CCM,   XROOTD_MON_GSCCM, false},
+                   {"pfc",   XROOTD_MON_PFC,   XROOTD_MON_GSPFC, false},
+                   {"tcpmo", XROOTD_MON_TCPMO, XROOTD_MON_GSTCP, true}
                   };
    int numgs = sizeof(gsObj)/sizeof(struct GSTable);
    int flint = XrdXrootdMonitor::Flushing();
@@ -677,7 +651,8 @@ void XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv)
                                                        gsObj[i].Type,
                                                        gsObj[i].Mode, flint);
             snprintf(vbuff, sizeof(vbuff), "%s.gStream*", gsObj[i].pin);
-            myEnv.PutPtr(vbuff, (void *)gs);
+            if (!gsObj[i].xrd) myEnv.PutPtr(vbuff, (void *)gs);
+               else if (urEnv) urEnv->PutPtr(vbuff, (void *)gs);
            }
        }
 }
@@ -1338,7 +1313,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
                                       [rnums <cnt>] [window <sec>]
                                       dest [Events] <host:port>
 
-   Events: [ccm] [files] [fstat] [info] [io] [iov] [pfc] [redir] [user]
+   Events: [ccm] [files] [fstat] [info] [io] [iov] [pfc] [redir] [tcpmo] [user]
 
          all                enables monitoring for all connections.
          auth               add authentication information to "user".
@@ -1471,6 +1446,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                                                            |XROOTD_MON_IOV);
               else if (!strcmp("pfc",  val)) monMode[i] |=  XROOTD_MON_PFC;
               else if (!strcmp("redir",val)) monMode[i] |=  XROOTD_MON_REDR;
+              else if (!strcmp("tcpmo",val)) monMode[i] |=  XROOTD_MON_TCPMO;
               else if (!strcmp("user", val)) monMode[i] |=  XROOTD_MON_USER;
               else break;
           if (!val) {eDest.Emsg("Config","monitor dest value not specified");
@@ -1523,36 +1499,6 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
    if (monDest[1]) monMode[1] |= (monMode[1] ? xmode : XROOTD_MON_FILE|xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
 
-   return 0;
-}
-  
-/******************************************************************************/
-/*                                 x p i d f                                  */
-/******************************************************************************/
-
-/* Function: xpidf
-
-   Purpose:  To parse the directive: pidpath <path>
-
-             <path>    the path where the pid file is to be created.
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdXrootdProtocol::xpidf(XrdOucStream &Config)
-{
-    char *val;
-
-// Get the path
-//
-   val = Config.GetWord();
-   if (!val || !val[0])
-      {eDest.Emsg("Config", "pidpath not specified"); return 1;}
-
-// Record the path
-//
-   if (pidPath) free(pidPath);
-   pidPath = strdup(val);
    return 0;
 }
 

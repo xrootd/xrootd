@@ -32,6 +32,7 @@
    The methods in this file handle cmsd() initialization.
 */
   
+#include <string>
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -44,6 +45,7 @@
 #include <dirent.h>
 
 #include "XrdVersion.hh"
+#include "Xrd/XrdProtocol.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdSendQ.hh"
 
@@ -191,10 +193,40 @@ private:
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, CFile);
 #define TS_Xer(x,m,v)  if (!strcmp(x,var)) return m(eDest, CFile, v);
 
-#define TS_Set(x,v)    if (!strcmp(x,var)) {v=1; CFile.Echo(); return 0;}
+#define TS_Set(x,v)    if (!strcmp(x,var)) {v=1; CFile.Echo(true); return 0;}
 
-#define TS_unSet(x,v)  if (!strcmp(x,var)) {v=0; CFile.Echo(); return 0;}
+#define TS_unSet(x,v)  if (!strcmp(x,var)) {v=0; CFile.Echo(true); return 0;}
 
+/******************************************************************************/
+/*                            C o n f i g u r e 0                             */
+/******************************************************************************/
+  
+int XrdCmsConfig::Configure0(XrdProtocol_Config *pi)
+{
+
+// Initialize the error message handler and get starting values
+//
+   Say.logger(pi->eDest->logger(0));
+   myName    = strdup(pi->myName);
+   PortTCP   = (pi->Port < 0 ? 0 : pi->Port);
+   myInsName = strdup(pi->myInst);
+   myProg    = strdup(pi->myProg);
+   Sched     = pi->Sched;
+   AdminPath = strdup((pi->AdmPath ? pi->AdmPath : "/tmp/"));
+   AdminMode = pi->AdmMode;
+   if (pi->DebugON) Trace.What = TRACE_ALL;
+   xrdEnv    = pi->theEnv;
+
+// Create an xrootd compatabile environment
+//
+   theEnv.PutPtr("XrdScheduler*", Sched);
+   if (pi->theEnv) theEnv.PutPtr("xrdEnv*", pi->theEnv);
+
+// All done
+//
+   return 0;
+}
+  
 /******************************************************************************/
 /*                            C o n f i g u r e 1                             */
 /******************************************************************************/
@@ -468,9 +500,9 @@ int XrdCmsConfig::Configure2()
        else        Who = 0;
     CmsState.Set(SUPCount, Who, AdminPath);
 
-// Create the pid file
+// At this point we will add to the existing manifest file
 //
-   if (!NoGo) NoGo |= PidFile();
+   if (!NoGo) NoGo |= Manifest();
 
 // All done, check for success or failure
 //
@@ -526,7 +558,6 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("nbsendq",       xnbsq);   // Any      non-dynamic
    TS_Lib("osslib",  ossLib,  &ossParms);
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
-   TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
    TS_Xeq("prepmsg",       xprepm);  // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Any,     non-dynamic
@@ -548,9 +579,14 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
 
    // No match found, complain.
    //
-   eDest->Say("Config warning: ignoring unknown directive '", var, "'.");
-   CFile.Echo();
-   return 0;
+   if (!strcmp(var, "pidpath"))
+      {Say.Say("Config warning: 'cms.pidpath' no longer "
+               "supported; use 'all.pidpath'.");
+      } else {
+       Say.Say("Config warning: ignoring unknown directive '", var, "'.");
+      }
+    CFile.Echo(false);
+    return 0;
 }
 
 /******************************************************************************/
@@ -743,12 +779,12 @@ void XrdCmsConfig::ConfigDefaults(void)
    ifList    =0;
    perfint  = 3*60;
    perfpgm  = 0;
-   AdminPath= strdup("/tmp/");
+   xrdEnv   = 0;
+   AdminPath= 0;
    AdminMode= 0700;
    AdminSock= 0;
    AnoteSock= 0;
    RedirSock= 0;
-   pidPath  = strdup("/tmp");
    Police   = 0;
    cachelife= 8*60*60;
    emptylife= 0;
@@ -890,7 +926,6 @@ int XrdCmsConfig::ConfigProc(int getrole)
                 ||  !strcmp(var, "all.adminpath")
                 ||  !strcmp(var, "all.export")
                 ||  !strcmp(var, "all.manager")
-                ||  !strcmp(var, "all.pidpath")
                 ||  !strcmp(var, "all.role")
                 ||  !strcmp(var, "all.seclib")
                 ||  !strcmp(var, "all.subcluster"))
@@ -938,6 +973,42 @@ int XrdCmsConfig::isExec(XrdSysError *eDest, const char *ptype, char *prog)
 //
    *mp = pp;
    return 1;
+}
+
+/******************************************************************************/
+/*                              M a n i f e s t                               */
+/******************************************************************************/
+  
+int XrdCmsConfig::Manifest()
+{
+    int xfd;
+    const char *clID, *xop = 0;
+    char *envFN;
+
+// Get the exiting manifest file from he environment. If none, return.
+//
+   if (!xrdEnv || !(envFN = xrdEnv->Get("envFile"))) return 0;
+
+    if ((clID = index(mySID, ' '))) clID++;
+       else clID = mySID;
+
+    if ((xfd = open(envFN, O_WRONLY|O_APPEND)) < 0) xop = "open";
+       else {bool bad = false;
+             if (LocalRoot)
+                bad =  write(xfd,(void *)"&pfx=",6)  < 0
+                    || write(xfd,(void *)LocalRoot,strlen(LocalRoot)) < 0;
+             if (!bad && AdminPath)
+                bad =  write(xfd,(void *)"&ap=", 5)  < 0
+                    || write(xfd,(void *)AdminPath,strlen(AdminPath)) < 0;
+             if (!bad) bad =  write(xfd,(void *)"&cn=", 5)            < 0
+                           || write(xfd,(void *)clID, strlen(clID))   < 0;
+             if (bad) xop = "append to";
+             close(xfd);
+            }
+
+     if (xop) Say.Emsg("Config", errno, xop, envFN);
+
+     return xop != 0;
 }
 
 /******************************************************************************/
@@ -1005,58 +1076,6 @@ int XrdCmsConfig::MergeP()
 //
    if (DiskSS) CmsState.Update(XrdCmsState::Counts, 0, 1);
    return NoGo;
-}
-
-/******************************************************************************/
-/*                               P i d F i l e                                */
-/******************************************************************************/
-  
-int XrdCmsConfig::PidFile()
-{
-    int rc, xfd;
-    const char *clID;
-    char buff[1024];
-    char pidFN[1200], *ppath=XrdOucUtils::genPath(pidPath,
-                             XrdOucUtils::InstName(myInsName,0));
-    const char *xop = 0;
-
-    if ((rc = XrdOucUtils::makePath(ppath, XrdOucUtils::pathMode)))
-       {Say.Emsg("Config", rc, "create pid file path", ppath);
-        free(ppath);
-        return 1;
-       }
-
-    if ((clID = index(mySID, ' '))) clID++;
-       else clID = mySID;
-
-         if (isManager && isServer)
-            snprintf(pidFN, sizeof(pidFN), "%s/cmsd.super.pid", ppath);
-    else if (isServer)
-            snprintf(pidFN, sizeof(pidFN), "%s/cmsd.pid", ppath);
-    else    snprintf(pidFN, sizeof(pidFN), "%s/cmsd.mangr.pid", ppath);
-
-    if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0) xop = "open";
-       else {if ((write(xfd,buff,snprintf(buff,sizeof(buff),"%d",
-                            static_cast<int>(getpid()))) < 0)
-             || (LocalRoot && 
-                           (write(xfd,(void *)"\n&pfx=",6)  < 0 ||
-                            write(xfd,(void *)LocalRoot,strlen(LocalRoot)) < 0
-                )          )
-             || (AdminPath && 
-                           (write(xfd,(void *)"\n&ap=", 5)  < 0 ||
-                            write(xfd,(void *)AdminPath,strlen(AdminPath)) < 0
-                )          )
-             ||             write(xfd,(void *)"\n&cn=", 5)  < 0
-             ||             write(xfd,(void *)clID,     strlen(clID))      < 0
-                ) xop = "write";
-             close(xfd);
-            }
-
-     if (xop) Say.Emsg("Config", errno, xop, pidFN);
-        else XrdOucEnv::Export("XRDCMSPIDFN", pidFN);
-
-     free(ppath);
-     return xop != 0;
 }
 
 /******************************************************************************/
@@ -2184,36 +2203,6 @@ int XrdCmsConfig::xperf(XrdSysError *eDest, XrdOucStream &CFile)
 // All done.
 //
     return 0;
-}
-  
-/******************************************************************************/
-/*                                 x p i d f                                  */
-/******************************************************************************/
-
-/* Function: xpidf
-
-   Purpose:  To parse the directive: pidpath <path>
-
-             <path>    the path where the pid file is to be created.
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdCmsConfig::xpidf(XrdSysError *eDest, XrdOucStream &CFile)
-{
-    char *val;
-
-// Get the path
-//
-   val = CFile.GetWord();
-   if (!val || !val[0])
-      {eDest->Emsg("Config", "pidpath not specified"); return 1;}
-
-// Record the path
-//
-   if (pidPath) free(pidPath);
-   pidPath = strdup(val);
-   return 0;
 }
   
 /******************************************************************************/

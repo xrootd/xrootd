@@ -187,6 +187,7 @@ XrdConfig::XrdConfig()
    mySitName= 0;
    AdminPath= strdup("/tmp");
    HomePath = 0;
+   PidPath  = strdup("/tmp");
    tlsCert  = 0;
    tlsKey   = 0;
    caDir    = 0;
@@ -254,7 +255,7 @@ int XrdConfig::Configure(int argc, char **argv)
 */
    const char *xrdInst="XRDINSTANCE=";
 
-   int retc, NoGo = 0, clPort = -1, optbg = 0;
+   int retc, NoGo = 0, clPort = -1;
    const char *temp;
    char c, buff[512], *dfltProt, *libProt = 0;
    uid_t myUid = 0;
@@ -269,7 +270,7 @@ int XrdConfig::Configure(int argc, char **argv)
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    char *ifList = 0;
    int   myArgc = 1, urArgc = argc, i;
-   bool noV6, ipV4 = false, ipV6 = false, rootChk = true;
+   bool noV6, ipV4 = false, ipV6 = false, rootChk = true, optbg = false;
 
 // Obtain the program name we will be using
 //
@@ -328,7 +329,7 @@ int XrdConfig::Configure(int argc, char **argv)
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
-       case 'b': optbg = 1;
+       case 'b': optbg = true;
                  break;
        case 'c': if (ConfigFN) free(ConfigFN);
                  ConfigFN = strdup(optarg);
@@ -597,32 +598,33 @@ int XrdConfig::Configure(int argc, char **argv)
        NoGo = 1;
       }
 
-// Now initialize the protocols and other stuff
-//
-   if (!NoGo) NoGo = Setup(dfltProt, libProt);
-
-// If we hae a net name change the working directory
+// If we have an instance name change the working directory
 //
    if ((myInsName || HomePath)
    &&  !XrdOucUtils::makeHome(Log, myInsName, HomePath, HomeMode)) NoGo = 1;
+
+// Create the pid file
+//
+   if (!PidFile(pidFN, optbg)) NoGo = 1;
+
+// Establish a manifest file for auto-collection
+//
+   if (!NoGo) Manifest(pidFN);
+
+// Now initialize the protocols and other stuff
+//
+   if (!NoGo) NoGo = Setup(dfltProt, libProt);
 
    // if we call this it means that the daemon has forked and we are
    // in the child process
 #ifndef WIN32
    if (optbg)
    {
-      if (pidFN && !XrdOucUtils::PidFile(Log, pidFN ) )
-         NoGo = 1;
-
       int status = NoGo ? 1 : 0;
       if(write( pipeFD[1], &status, sizeof( status ) )) {};
       close( pipeFD[1]);
    }
 #endif
-
-// Establish a pid/manifest file for auto-collection
-//
-   if (!NoGo) Manifest(pidFN);
 
 // All done, close the stream and return the return code.
 //
@@ -665,6 +667,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
    TS_Xeq("homepath",      xhpath);
+   TS_Xeq("pidpath",       xpidf);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("report",        xrep);
@@ -759,6 +762,7 @@ int XrdConfig::ConfigProc()
    while((var = Config.GetMyFirstWord()))
         if (!strncmp(var, "xrd.", 4)
         ||  !strcmp (var, "all.adminpath")
+        ||  !strcmp (var, "all.pidpath")
         ||  !strcmp (var, "all.sitename" ))
            if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
 
@@ -862,7 +866,7 @@ void XrdConfig::Manifest(const char *pidfn)
 // Create environment string
 //
    envLen = snprintf(envBuff, sizeof(envBuff), "pid=%d&host=%s&inst=%s&ver=%s"
-                     "&cfgfn=%s&cwd=%s&apath=%s&logfn=%s\n",
+                     "&cfgfn=%s&cwd=%s&apath=%s&logfn=%s",
                      static_cast<int>(getpid()), ProtInfo.myName,
                      ProtInfo.myInst, XrdVSTRING,
                      (getenv("XRDCONFIGFN") ? getenv("XRDCONFIGFN") : ""),
@@ -878,6 +882,7 @@ void XrdConfig::Manifest(const char *pidfn)
 //
    snprintf(pidP, sizeof(manBuff)-(pidP-manBuff), "/%s.%s.env",
                      ProtInfo.myProg, ProtInfo.myInst);
+   theEnv.Put("envFile", manBuff);
 
 // Open the file
 //
@@ -902,6 +907,46 @@ void XrdConfig::Manifest(const char *pidfn)
        totalCF = temp;
        free(temp);
       }
+}
+
+/******************************************************************************/
+/*                               P i d F i l e                                */
+/******************************************************************************/
+  
+bool XrdConfig::PidFile(const char *clpFN, bool optbg)
+{
+   int rc, xfd;
+   char *ppath, buff[32], pidFN[1200];
+   const char *xop = 0;
+
+// If a command line pidfn was specified, we must successfully write it
+// if we are in background mode. Otherwise, we simply continue.
+//
+   if (clpFN && !XrdOucUtils::PidFile(Log, clpFN) && optbg) return false;
+
+// Generate the old-style pidpath we will use
+//
+   ppath=XrdOucUtils::genPath(PidPath,XrdOucUtils::InstName(-1));
+
+// Create the path if it does not exist and write out the pid
+//
+   if ((rc = XrdOucUtils::makePath(ppath,XrdOucUtils::pathMode)))
+      {xop = "create"; errno = rc;}
+      else {snprintf(pidFN, sizeof(pidFN), "%s/%s.pid", ppath, myProg);
+
+           if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
+              xop = "open";
+              else {if (write(xfd,buff,snprintf(buff,sizeof(buff),"%d",
+                        static_cast<int>(getpid()))) < 0) xop = "write";
+                    close(xfd);
+                   }
+           }
+
+// All done
+//
+   free(ppath);
+   if (xop) Log.Emsg("Config", errno, xop, pidFN);
+   return true;
 }
 
 /******************************************************************************/
@@ -1557,6 +1602,36 @@ int XrdConfig::xnkap(XrdSysError *eDest, char *val)
 
 // All done
 //
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                 x p i d f                                  */
+/******************************************************************************/
+
+/* Function: xpidf
+
+   Purpose:  To parse the directive: pidpath <path>
+
+             <path>    the path where the pid file is to be created.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdConfig::xpidf(XrdSysError *eDest, XrdOucStream &Config)
+{
+    char *val;
+
+// Get the path
+//
+   val = Config.GetWord();
+   if (!val || !val[0])
+      {eDest->Emsg("Config", "pidpath not specified"); return 1;}
+
+// Record the path
+//
+   if (PidPath) free(PidPath);
+   PidPath = strdup(val);
    return 0;
 }
   

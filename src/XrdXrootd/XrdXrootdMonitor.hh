@@ -44,18 +44,19 @@
 /*                            X r d M o n i t o r                             */
 /******************************************************************************/
 
-#define XROOTD_MON_ALL      1
-#define XROOTD_MON_FILE     2
-#define XROOTD_MON_IO       4
-#define XROOTD_MON_INFO     8
-#define XROOTD_MON_USER    16
-#define XROOTD_MON_AUTH    32
+#define XROOTD_MON_ALL   0x00000001
+#define XROOTD_MON_FILE  0x00000002
+#define XROOTD_MON_IO    0x00000004
+#define XROOTD_MON_INFO  0x00000008
+#define XROOTD_MON_USER  0x00000010
+#define XROOTD_MON_AUTH  0x00000020
 #define XROOTD_MON_PATH    (XROOTD_MON_IO   | XROOTD_MON_FILE)
-#define XROOTD_MON_REDR    64
-#define XROOTD_MON_IOV    128
-#define XROOTD_MON_FSTA   256
-#define XROOTD_MON_CCM    512
-#define XROOTD_MON_PFC   1024
+#define XROOTD_MON_REDR  0x00000040
+#define XROOTD_MON_IOV   0x00000080
+#define XROOTD_MON_FSTA  0x00000100
+#define XROOTD_MON_CCM   0x00000200
+#define XROOTD_MON_PFC   0x00000400
+#define XROOTD_MON_TCPMO 0x00000800
 
 #define XROOTD_MON_FSLFN    1
 #define XROOTD_MON_FSOPS    2

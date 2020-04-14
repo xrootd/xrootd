@@ -115,6 +115,7 @@ const kXR_char XROOTD_MON_MAPXFER       = 'x';
 
 const kXR_char XROOTD_MON_GSCCM         = 'M'; // pfc: Cache context mgt info
 const kXR_char XROOTD_MON_GSPFC         = 'C'; // pfc: Cache monitoring  info
+const kXR_char XROOTD_MON_GSTCP         = 'T'; // TCP connection statistics
 
 // The following bits are insert in the low order 4 bits of the MON_REDIRECT
 // entry code to indicate the actual operation that was requestded.

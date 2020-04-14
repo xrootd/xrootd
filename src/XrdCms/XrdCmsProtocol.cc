@@ -162,20 +162,10 @@ int XrdgetProtocolPort(const char *pname, char *parms,
        return thePort;
       }
 
-// Initialize the error message handler and some default values
+// Call the level 0 configurator
 //
-   Say.logger(pi->eDest->logger(0));
-   Config.myName    = strdup(pi->myName);
-   Config.PortTCP   = (pi->Port < 0 ? 0 : pi->Port);
-   Config.myInsName = strdup(pi->myInst);
-   Config.myProg    = strdup(pi->myProg);
-   Sched            = pi->Sched;
-   if (pi->DebugON) Trace.What = TRACE_ALL;
-
-// Create an xrootd compatabile environment
-//
-   XrdCms::theEnv.PutPtr("XrdScheduler*", Sched);
-   if (pi->theEnv) XrdCms::theEnv.PutPtr("xrdEnv*", pi->theEnv);
+   if (Config.Configure0(pi))
+      {Config.doWait = -1; return 0;}
 
 // The only parameter we accept is the name of an alternate config file
 //
@@ -190,7 +180,7 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 
 // Put up the banner
 //
-   Say.Say("Copr.  2007 Stanford University/SLAC cmsd.");
+   Say.Say("Copr.  2003-2020 Stanford University/SLAC cmsd.");
 
 // Indicate failure if static init fails
 //

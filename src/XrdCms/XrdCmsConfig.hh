@@ -39,11 +39,13 @@
 #include "XrdOuc/XrdOucTList.hh"
   
 class XrdInet;
+class XrdProtocol_Config;
 class XrdScheduler;
 class XrdNetSecurity;
 class XrdNetSocket;
 class XrdOss;
 class XrdSysError;
+class XrdOucEnv;
 class XrdOucName2Name;
 class XrdOucProg;
 class XrdOucStream;
@@ -55,6 +57,7 @@ class XrdCmsConfig : public XrdJob
 {
 public:
 
+int   Configure0(XrdProtocol_Config *pi);
 int   Configure1(int argc, char **argv, char *cfn);
 int   Configure2();
 int   ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest);
@@ -207,8 +210,8 @@ int  ConfigN2N(void);
 int  ConfigOSS(void);
 int  ConfigProc(int getrole=0);
 int  isExec(XrdSysError *eDest, const char *ptype, char *prog);
+int  Manifest();
 int  MergeP(void);
-int  PidFile(void);
 int  setupManager(void);
 int  setupServer(void);
 char *setupSid();
@@ -229,7 +232,6 @@ int  xlclrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xmang(XrdSysError *edest, XrdOucStream &CFile);
 int  xnbsq(XrdSysError *edest, XrdOucStream &CFile);
 int  xperf(XrdSysError *edest, XrdOucStream &CFile);
-int  xpidf(XrdSysError *edest, XrdOucStream &CFile);
 int  xping(XrdSysError *edest, XrdOucStream &CFile);
 int  xprep(XrdSysError *edest, XrdOucStream &CFile);
 int  xprepm(XrdSysError *edest, XrdOucStream &CFile);
@@ -248,9 +250,9 @@ int  xtrace(XrdSysError *edest, XrdOucStream &CFile);
 int  xvnid(XrdSysError *edest, XrdOucStream &CFile);
 
 XrdInet          *NetTCPr;     // Network for supervisors
+XrdOucEnv        *xrdEnv;
 char             *AdminPath;
 int               AdminMode;
-char             *pidPath;
 char            **inArgv;
 int               inArgc;
 char             *SecLib;

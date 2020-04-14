@@ -66,7 +66,6 @@ XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
 XrdSecService        *XrdXrootdProtocol::CIA      = 0;
 XrdSecProtector      *XrdXrootdProtocol::DHS      = 0;
 XrdTlsContext        *XrdXrootdProtocol::tlsCtx   = 0;
-char                 *XrdXrootdProtocol::pidPath  = strdup("/tmp");
 XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
 XrdSysError           XrdXrootdProtocol::eDest(0, "Xrootd");
