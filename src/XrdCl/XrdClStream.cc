@@ -915,9 +915,16 @@ namespace XrdCl
     log->Error( PostMasterMsg, "[%s] Unable to recover: %s.",
                 pStreamName.c_str(), status.ToString().c_str() );
 
-    pConnectionCount = 0;
-    pLastStreamError = ::time(0);
-    pLastFatalError  = status;
+    //--------------------------------------------------------------------------
+    // Don't set the stream error windows for authentication errors as the user
+    // may refresh his credential at any time
+    //--------------------------------------------------------------------------
+    if( status.code != errAuthFailed )
+    {
+      pConnectionCount = 0;
+      pLastStreamError = ::time(0);
+      pLastFatalError  = status;
+    }
 
     SubStreamList::iterator it;
     OutQueue q;
