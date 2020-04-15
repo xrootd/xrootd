@@ -45,6 +45,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 
 #include "XrdVersion.hh"
 
@@ -192,8 +193,8 @@ XrdConfig::XrdConfig()
    tlsKey   = 0;
    caDir    = 0;
    caFile   = 0;
-   AdminMode= 0700;
-   HomeMode = 0700;
+   AdminMode= S_IRWXU;
+   HomeMode = S_IRWXU;
    Police   = 0;
    Net_Opts = XRDNET_KEEPALIVE;
    TLS_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
@@ -208,6 +209,7 @@ XrdConfig::XrdConfig()
    NetTCPlep  = -1;
    NetADM     = 0;
    coreV      = 1;
+   Specs      = 0;
    memset(NetTCP, 0, sizeof(NetTCP));
 
    Firstcp = Lastcp = 0;
@@ -222,6 +224,7 @@ XrdConfig::XrdConfig()
    ProtInfo.AdmPath = AdminPath;        // Stable -> The admin path
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
    ProtInfo.theEnv  = &theEnv;          // Additional information
+   ProtInfo.xrdFlags= 0;                // Additional information
 
    ProtInfo.Format   = XrdFORMATB;
    memset(ProtInfo.rsvd3, 0, sizeof(ProtInfo.rsvd3));
@@ -325,10 +328,20 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(urArgc,argv,":bc:dhHI:k:l:L:n:p:P:R:s:S:vz"))
+      while ((c = getopt(urArgc,argv,":a:A:bc:dhHI:k:l:L:n:p:P:R:s:S:vw:W:z"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
+       case 'a': if (AdminPath) free(AdminPath);
+                 AdminPath = strdup(optarg);
+                 AdminMode = ProtInfo.AdmMode = S_IRWXU;
+                 ProtInfo.xrdFlags |= XrdProtocol_Config::admPSet;
+                 break;
+       case 'A': if (AdminPath) free(AdminPath);
+                 AdminPath = strdup(optarg);
+                 AdminMode = ProtInfo.AdmMode = S_IRWXU | S_IRWXG;
+                 ProtInfo.xrdFlags |= XrdProtocol_Config::admPSet;
+                 break;
        case 'b': optbg = true;
                  break;
        case 'c': if (ConfigFN) free(ConfigFN);
@@ -383,6 +396,16 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'v': cerr <<XrdVSTRING <<endl;
                  _exit(0);
                  break;
+       case 'w': if (HomePath) free(HomePath);
+                 HomePath = strdup(optarg);
+                 HomeMode = S_IRWXU;
+                 Specs |= hpSpec;
+                 break;
+       case 'W': if (HomePath) free(HomePath);
+                 HomePath = strdup(optarg);
+                 HomeMode = S_IRWXU | S_IRGRP | S_IXGRP;
+                 Specs |= hpSpec;
+                 break;
        case 'z': LogInfo.hiRes = true;
                  break;
 
@@ -399,6 +422,34 @@ int XrdConfig::Configure(int argc, char **argv)
                 break;
        }
      }
+
+// If an adminpath specified, make sure it's absolute
+//
+   if ((ProtInfo.xrdFlags & XrdProtocol_Config::admPSet) && *AdminPath != '/')
+      {Log.Emsg("Config", "Command line adminpath is not absolute.");
+       exit(17);
+      }
+
+// If an homepath specified, make sure it's absolute
+//
+   if (HomePath && *HomePath != '/')
+      {Log.Emsg("Config", "Command line home path is not absolute.");
+       exit(17);
+      }
+
+// If the configuration file is relative to where we are, get the absolute
+// path as we will may be changing the home path.
+//
+   if (ConfigFN && *ConfigFN != '/')
+      {char pwdBuff[4096];
+       if (!getcwd(pwdBuff, sizeof(pwdBuff)))
+          {Log.Emsg("Config", errno, "get current working directory!");
+           exit(17);
+          }
+       std::string cfn = pwdBuff; cfn += '/'; cfn += ConfigFN;
+       free(ConfigFN);
+       ConfigFN = strdup(cfn.c_str());
+      }
 
 // The first thing we must do is to set the correct networking mode
 //
@@ -559,6 +610,10 @@ int XrdConfig::Configure(int argc, char **argv)
        XrdSysThread::setDebug(&Log);
       }
 
+// Setup the admin path now
+//
+   NoGo |= SetupAPath();
+
 // If tls enabled, set it up
 //
    if (!tlsCert) ProtInfo.tlsCtx= 0;
@@ -694,24 +749,15 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
   
 int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 {
-   char xpath[MAXPATHLEN+8], sokpath[108];
+   struct sockaddr_un unix;
    int  plen = strlen(path), flen = strlen(fname);
-   int rc;
 
 // Make sure we can fit everything in our buffer
 //
-   if ((plen + flen + 3) > (int)sizeof(sokpath))
+   if ((plen + flen + 3) > (int)sizeof(unix.sun_path))
       {Log.Emsg("Config", "admin path", path, "too long");
        return 1;
       }
-
-// Create the directory path
-//
-   strcpy(xpath, path);
-   if ((rc = XrdOucUtils::makePath(xpath, mode)))
-       {Log.Emsg("Config", rc, "create admin path", xpath);
-        return 1;
-       }
 
 // *!*!* At this point we do not yet support the admin path for xrd.
 // sp we comment out all of the following code.
@@ -719,6 +765,8 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 /*
 // Construct the actual socket name
 //
+  char sokpath[sizeof(unix.sun_path)];
+
   if (sokpath[plen-1] != '/') sokpath[plen++] = '/';
   strcpy(&sokpath[plen], fname);
 
@@ -818,7 +866,7 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
 void XrdConfig::Manifest(const char *pidfn)
 {
    const char *Slash;
-   char envBuff[8192], pwdBuff[1024], manBuff[1024], *pidP, *sP, *xP;
+   char envBuff[8192], pwdBuff[2048], manBuff[1024], *pidP, *sP, *xP;
    int envFD, envLen;
 
 // Get the current working directory
@@ -827,6 +875,11 @@ void XrdConfig::Manifest(const char *pidfn)
       {Log.Emsg("Config", "Unable to get current working directory!");
        return;
       }
+
+// The above is the authoratative home directory, so recorded here.
+//
+   if (HomePath) free(HomePath);
+   HomePath = strdup(pwdBuff);
 
 // Prepare for symlinks
 //
@@ -866,9 +919,9 @@ void XrdConfig::Manifest(const char *pidfn)
 // Create environment string
 //
    envLen = snprintf(envBuff, sizeof(envBuff), "pid=%d&host=%s&inst=%s&ver=%s"
-                     "&cfgfn=%s&cwd=%s&apath=%s&logfn=%s",
+                     "&home=%s&cfgfn=%s&cwd=%s&apath=%s&logfn=%s",
                      static_cast<int>(getpid()), ProtInfo.myName,
-                     ProtInfo.myInst, XrdVSTRING,
+                     ProtInfo.myInst, XrdVSTRING, HomePath,
                      (getenv("XRDCONFIGFN") ? getenv("XRDCONFIGFN") : ""),
                      pwdBuff, ProtInfo.AdmPath, Log.logger()->xlogFN());
 
@@ -1101,19 +1154,6 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
    if (!XrdLinkCtl::Setup(ProtInfo.ConnMax, ProtInfo.idleWait)
    ||  !XrdPoll::Setup(ProtInfo.ConnMax)) return 1;
 
-// Modify the AdminPath to account for any instance name. Note that there is
-// a negligible memory leak under ceratin path combinations. Not enough to
-// warrant a lot of logic to get around.
-//
-   if (myInsName) ProtInfo.AdmPath = XrdOucUtils::genPath(AdminPath,myInsName);
-      else ProtInfo.AdmPath = AdminPath;
-   XrdOucEnv::Export("XRDADMINPATH", ProtInfo.AdmPath);
-   AdminPath = XrdOucUtils::genPath(AdminPath, myInsName, ".xrd");
-
-// Setup admin connection now
-//
-   if (ASocket(AdminPath, "admin", (mode_t)AdminMode)) return 1;
-
 // Determine the default port number (only for xrootd) if not specified.
 //
    if (PortTCP < 0)  
@@ -1209,6 +1249,37 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
    return 0;
 }
 
+/******************************************************************************/
+/*                            S e t u p A P a t h                             */
+/******************************************************************************/
+
+int XrdConfig::SetupAPath()
+{
+   int rc;
+
+// Modify the AdminPath to account for any instance name. Note that there is
+// a negligible memory leak under certain path combinations. Not enough to
+// warrant a lot of logic to get around.
+//
+   if (myInsName) ProtInfo.AdmPath = XrdOucUtils::genPath(AdminPath,myInsName);
+      else ProtInfo.AdmPath = AdminPath;
+   XrdOucEnv::Export("XRDADMINPATH", ProtInfo.AdmPath);
+   AdminPath = XrdOucUtils::genPath(AdminPath, myInsName, ".xrd");
+
+// Create the path. Only sockets are group writable but allow read access to
+// the path for group members.
+//
+//
+   if ((rc = XrdOucUtils::makePath(AdminPath, AdminMode & ~S_IWGRP, true)))
+       {Log.Emsg("Config", rc, "create admin path", AdminPath);
+        return 1;
+       }
+
+// Setup admin connection now
+//
+   return ASocket(AdminPath, "admin", (mode_t)AdminMode);
+}
+  
 /******************************************************************************/
 /*                              S e t u p T L S                               */
 /******************************************************************************/
@@ -1369,6 +1440,13 @@ int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 
 int XrdConfig::xhpath(XrdSysError *eDest, XrdOucStream &Config)
 {
+// If the command line specified he home, it cannot be undone
+//
+   if (Specs & hpSpec)
+      {eDest->Say("Config warning: command line homepath cannot be overidden.");
+       Config.GetWord();
+       return 0;
+      }
 
 // Free existing home path, if any
 //

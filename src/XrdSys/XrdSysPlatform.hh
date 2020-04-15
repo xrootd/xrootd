@@ -247,6 +247,7 @@ extern "C"
 #define Sokdata_t char *
 #define IOV_INIT(data,dlen) dlen,data
 #define MAKEDIR(path,mode) mkdir(path)
+#define CHMOD(path, mode) {}
 #define net_errno WSAGetLastError()
 #else
 #define O_BINARY 0
@@ -254,6 +255,7 @@ extern "C"
 #define Sokdata_t void *
 #define IOV_INIT(data,dlen) data,dlen
 #define MAKEDIR(path,mode) mkdir(path,mode)
+#define CHMOD(path, mode) chmod(path,mode)
 #define net_errno errno
 #endif
 

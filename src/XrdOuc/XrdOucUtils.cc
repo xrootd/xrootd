@@ -620,7 +620,7 @@ int XrdOucUtils::Log10(unsigned long long n)
   
 void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
 {
-   char buff[1024];
+   char buff[2048];
 
    if (!inst || !getcwd(buff, sizeof(buff))) return;
 
@@ -639,7 +639,7 @@ void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
 bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
                                                const char *path, mode_t mode)
 {
-   char cwDir[1024];
+   char cwDir[2048];
    const char *slash = "", *slash2 = "";
    int n, rc;
 
@@ -664,7 +664,7 @@ bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
 
 // Create the path if it doesn't exist
 //
-   if ((rc = makePath(cwDir, mode)))
+   if ((rc = makePath(cwDir, mode, true)))
       {eDest.Emsg("Config", rc, "create home directory", cwDir);
        return false;
       }
@@ -685,14 +685,15 @@ bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
 /*                              m a k e P a t h                               */
 /******************************************************************************/
   
-int XrdOucUtils::makePath(char *path, mode_t mode)
+int XrdOucUtils::makePath(char *path, mode_t mode, bool reset)
 {
     char *next_path = path+1;
     struct stat buf;
+    bool dochmod = false; // The 1st component stays as is
 
 // Typically, the path exists. So, do a quick check before launching into it
 //
-   if (!stat(path, &buf)) return 0;
+   if (!reset && !stat(path, &buf)) return 0;
 
 // Start creating directories starting with the root
 //
@@ -700,6 +701,8 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
         {*next_path = '\0';
          if (MAKEDIR(path, mode))
             if (errno != EEXIST) return -errno;
+         if (dochmod) CHMOD(path, mode);
+         dochmod = reset;
          *next_path = '/';
          next_path = next_path+1;
         }
@@ -784,7 +787,7 @@ char *XrdOucUtils::parseHome(XrdSysError &eDest, XrdOucStream &Config, int &mode
 
 int XrdOucUtils::ReLink(const char *path, const char *target, mode_t mode)
 {
-   const mode_t AMode = S_IRWXU|S_IRWXG; // 770
+   const mode_t AMode = S_IRWXU;  // Only us as a default
    char pbuff[MAXPATHLEN+64];
    int n;
 

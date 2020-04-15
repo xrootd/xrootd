@@ -76,7 +76,9 @@ int              WSize;        // Window size for Port
 int              rsvd1;
 const char      *AdmPath;      // Admin path
 int              AdmMode;      // Admin path mode
-int              rsvd2;
+int              xrdFlags;
+static const int admPSet    = 0x00000001;  // The adminppath was set via cli
+
 const char      *myInst;       // Instance name
 const char      *myName;       // Host name
 const char      *myProg;       // Program name
@@ -99,7 +101,7 @@ XrdTlsContext   *tlsCtx;       // Stable -> TLS Context (0 if not initialized)
 XrdOucString    *totalCF;      // Stable -> total config after full init
 
                  XrdProtocol_Config(XrdProtocol_Config &rhs) =delete;
-                 XrdProtocol_Config() : rsvd1(0), rsvd2(0)
+                 XrdProtocol_Config() : rsvd1(0)
                                         {memset(rsvd3, 0, sizeof(rsvd3));}
                 ~XrdProtocol_Config() {}
 };

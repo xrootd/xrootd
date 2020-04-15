@@ -86,7 +86,7 @@ static void  makeHome(XrdSysError &eDest, const char *inst);
 static bool  makeHome(XrdSysError &eDest, const char *inst,
                                           const char *path, mode_t mode);
 
-static int   makePath(char *path, mode_t mode);
+static int   makePath(char *path, mode_t mode, bool reset=false);
 
 static bool  parseLib(XrdSysError &eDest, XrdOucStream &Config,
                       const char *libName, char *&path, char **libparm);

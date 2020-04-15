@@ -69,6 +69,7 @@ bool  PidFile(const char *clpFN, bool optbg);
 void  setCFG();
 int   setFDL();
 int   Setup(char *dfltp, char *libProt);
+int   SetupAPath();
 bool  SetupTLS();
 void  Usage(int rc);
 int   xallow(XrdSysError *edest, XrdOucStream &Config);
@@ -127,5 +128,7 @@ bool                tlsNoVer;
 char                repOpts;
 char                ppNet;
 signed char         coreV;
+char                Specs;
+static const int    hpSpec = 0x01;
 };
 #endif
