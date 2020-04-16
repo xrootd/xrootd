@@ -241,7 +241,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
    &&  (retc = XrdOfsFS->Finder->Locate(error, dir_path, od_mode, &Open_Env)))
       {char *eMsg = const_cast<char *>(error.getErrText());
        while((eMsg = strstr(eMsg, " file")))
-            {strncpy(eMsg+1, " dir", 4); eMsg += 5;}
+            {memcpy(eMsg+1, " dir", 4); eMsg += 5;}
        return XrdOfsFS->fsError(error, retc);
       }
 
