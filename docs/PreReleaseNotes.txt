@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Implement tcpmonlib directive for TCP socket monitring.
   * **[Server]** Add command line options -a and -A for adminpath default.
   * **[Server]** Add command line options -w and -W for homepath setting.
   * **[CMSD]** Add space trace option for tracing space utilization changes.
