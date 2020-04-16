@@ -66,6 +66,7 @@
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucLogging.hh"
+#include "XrdOuc/XrdOucPinKing.hh"
 #include "XrdOuc/XrdOucSiteName.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -75,6 +76,8 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysUtils.hh"
+
+#include "XrdTcpMonPin.hh"
 
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
@@ -101,6 +104,7 @@ extern XrdBuffManager    BuffPool;
 extern XrdTlsContext    *tlsCtx;
 extern XrdInet          *XrdNetTCP;
 extern XrdBuffXL         xlBuff;
+extern XrdTcpMonPin     *TcpMonPin;
 extern int               devNull;
 };
 
@@ -120,6 +124,7 @@ extern int ka_Icnt;
 namespace
 {
 XrdOucEnv  theEnv;
+XrdVERSIONINFODEF(myVer, Xrd, XrdVNUMBER, XrdVERSION);
 bool       SSLmsgs = false;
 
 void TlsError(const char *tid, const char *msg, bool sslmsg)
@@ -172,6 +177,25 @@ bool            dotls;
 };
 
 /******************************************************************************/
+/*                         X r d T c p M o n I n f o                          */
+/******************************************************************************/
+
+class XrdTcpMonInfo
+{
+public:
+
+XrdOucPinKing<XrdTcpMonPin> KingPin;
+
+      XrdTcpMonInfo(const char *drctv, const char *cfn, XrdSysError &errR)
+                   : KingPin(drctv, theEnv, errR, &myVer)
+                   {theEnv.Put("configFN", cfn);}
+
+     ~XrdTcpMonInfo() {}
+
+XrdOucEnv theEnv;
+};
+  
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
@@ -184,6 +208,7 @@ XrdConfig::XrdConfig()
    PortUDP  = -1;
    PortTLS  = 0;
    ConfigFN = 0;
+   tmoInfo  = 0;
    myInsName= 0;
    mySitName= 0;
    AdminPath= strdup("/tmp");
@@ -438,7 +463,7 @@ int XrdConfig::Configure(int argc, char **argv)
       }
 
 // If the configuration file is relative to where we are, get the absolute
-// path as we will may be changing the home path.
+// path as we may be changing the home path.
 //
    if (ConfigFN && *ConfigFN != '/')
       {char pwdBuff[4096];
@@ -670,6 +695,19 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if (!NoGo) NoGo = Setup(dfltProt, libProt);
 
+// If we have a tcpmon plug-in try loading it now. We won't do that unless
+// tcp monitoring was enabled by the monitoring framework.
+//
+   if (tmoInfo && !NoGo)
+      {void *theGS = theEnv.GetPtr("TcpMon.gStream*");
+       if (!theGS) Log.Say("Config warning: TCP monitoring not enabled; "
+                   "tcpmonlib plugin not loaded!");
+           else {tmoInfo->theEnv.PutPtr("TcpMon.gStream*", theGS);
+                 TcpMonPin = tmoInfo->KingPin.Load("TcpMonPin");
+                 if (!TcpMonPin) NoGo = 1;
+                }
+      }
+
    // if we call this it means that the daemon has forked and we are
    // in the child process
 #ifndef WIN32
@@ -727,6 +765,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("protocol",      xprot);
    TS_Xeq("report",        xrep);
    TS_Xeq("sitename",      xsit);
+   TS_Xeq("tcpmonlib",     xtcpmon);
    TS_Xeq("timeout",       xtmo);
    TS_Xeq("tls",           xtls);
    TS_Xeq("tlsca",         xtlsca);
@@ -2094,6 +2133,67 @@ int XrdConfig::xsit(XrdSysError *eDest, XrdOucStream &Config)
     return 0;
 }
 
+/******************************************************************************/
+/*                               x t c p m o n                                */
+/******************************************************************************/
+
+/* Function: xtcpmon
+
+   Purpose:  To parse the directive: tcpmonlib [++] <path> [<parms>]
+
+             <path>  absolute path to the tcp monitor plugin.
+             <parms> optional parameters passed to the plugin.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdConfig::xtcpmon(XrdSysError *eDest, XrdOucStream &Config)
+{
+   std::string path;
+   char *val, parms[2048];
+   bool push = false;
+
+// Get the path or the push token
+//
+   if ((val = Config.GetWord()))
+      {if (!strcmp(val, "++"))
+          {push = true;
+           val =  Config.GetWord();
+          }
+      }
+
+// Make sure a path was specified
+//
+   if (!val || !*val)
+      {eDest->Emsg("Config", "tcpmonlib not specified"); return 1;}
+
+// Make sure the path is absolute
+//
+   if (*val != '/')
+      {eDest->Emsg("Config", "tcpmonlib path is not absolute"); return 1;}
+
+// Sequester the path as we will get additional tokens
+//
+   path = val;
+
+// Record any parms
+//
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {eDest->Emsg("Config", "tcpmonlib parameters too long"); return 1;}
+
+// Check if we have a plugin info object (we will need one for this)
+//
+   if (!tmoInfo) tmoInfo = new XrdTcpMonInfo("xrd.tcpmonlib",ConfigFN,*eDest);
+
+// Add the plugin
+//
+   tmoInfo->KingPin.Add(path.c_str(), (*parms ? parms : 0), push);
+
+// All done
+//
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                  x t l s                                   */
 /******************************************************************************/

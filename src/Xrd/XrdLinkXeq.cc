@@ -63,6 +63,7 @@
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdSendQ.hh"
+#include "Xrd/XrdTcpMonPin.hh"
 
 #define  TRACELINK this
 #include "Xrd/XrdTrace.hh"
@@ -77,6 +78,7 @@ extern XrdSysError    Log;
 extern XrdOucTrace    XrdTrace;
 extern XrdScheduler   Sched;
 extern XrdTlsContext *tlsCtx;
+       XrdTcpMonPin  *TcpMonPin = 0;
 extern int            devNull;
 
 #ifdef IOV_MAX
@@ -260,6 +262,10 @@ int XrdLinkXeq::Close(bool defer)
        opHelper.UnLock();
        XrdLinkCtl::Unhook(fd);
       } else opHelper.UnLock();
+
+// Invoke the TCP monitor if it was loaded.
+//
+   if (TcpMonPin && fd > 2) TcpMonPin->Monitor(fd, Addr, ID);
 
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.

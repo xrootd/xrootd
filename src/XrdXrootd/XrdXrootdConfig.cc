@@ -634,9 +634,9 @@ bool XrdXrootdProtocol::ConfigFS(const char *path, XrdOucEnv &xEnv,
 void XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
 {
    struct GSTable {const char *pin; int Mode; kXR_char Type; bool xrd;}
-   gsObj[] =      {{"ccm",   XROOTD_MON_CCM,   XROOTD_MON_GSCCM, false},
-                   {"pfc",   XROOTD_MON_PFC,   XROOTD_MON_GSPFC, false},
-                   {"tcpmo", XROOTD_MON_TCPMO, XROOTD_MON_GSTCP, true}
+   gsObj[] =      {{"ccm",    XROOTD_MON_CCM,   XROOTD_MON_GSCCM, false},
+                   {"pfc",    XROOTD_MON_PFC,   XROOTD_MON_GSPFC, false},
+                   {"TcpMon", XROOTD_MON_TCPMO, XROOTD_MON_GSTCP, true}
                   };
    int numgs = sizeof(gsObj)/sizeof(struct GSTable);
    int flint = XrdXrootdMonitor::Flushing();
@@ -1446,7 +1446,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                                                            |XROOTD_MON_IOV);
               else if (!strcmp("pfc",  val)) monMode[i] |=  XROOTD_MON_PFC;
               else if (!strcmp("redir",val)) monMode[i] |=  XROOTD_MON_REDR;
-              else if (!strcmp("tcpmo",val)) monMode[i] |=  XROOTD_MON_TCPMO;
+              else if (!strcmp("tcpmon",val))monMode[i] |=  XROOTD_MON_TCPMO;
               else if (!strcmp("user", val)) monMode[i] |=  XROOTD_MON_USER;
               else break;
           if (!val) {eDest.Emsg("Config","monitor dest value not specified");

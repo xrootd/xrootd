@@ -52,7 +52,7 @@ public:
 //! @param  tident  Pointer to the trace identifier associated with fd.
 //------------------------------------------------------------------------------
 
-virtual bool Monitor(int fd, XrdNetAddrInfo &netInfo, const char *tident) = 0;
+virtual void Monitor(int fd, XrdNetAddrInfo &netInfo, const char *tident) = 0;
 
              XrdTcpMonPin() {}
 virtual     ~XrdTcpMonPin() {}
@@ -70,12 +70,13 @@ virtual     ~XrdTcpMonPin() {}
 
     } TcpMonPin;
 
-    see XrdOucPinObject.hh for additional details. There are many other
-    ways to accomplish this including inheriting this class along with the
-    XrdTcpMonPin class by the implementation class.
+    see XrdOucPinObject.hh for additional details and the definition of the
+    getInstance() method. There are many other ways to accomplish this
+    including inheriting this class along with the XrdTcpMonPin class by
+    the implementation class.
   
     You should also specify the compilation version. That is, the XRootD
-    version you used to compile your plug-in. Decalre it as:
+    version you used to compile your plug-in. Declare it as:
 
     #include "XrdVersion.hh"
     XrdVERSIONINFO(TcpMonPin,<name>);

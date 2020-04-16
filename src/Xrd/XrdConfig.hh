@@ -40,6 +40,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
+class XrdTcpMonInfo;
 class XrdNetSecurity;
 class XrdOucStream;
 class XrdConfigProt;
@@ -85,6 +86,7 @@ int   xprot(XrdSysError *edest, XrdOucStream &Config);
 int   xrep(XrdSysError *edest, XrdOucStream &Config);
 int   xsched(XrdSysError *edest, XrdOucStream &Config);
 int   xsit(XrdSysError *edest, XrdOucStream &Config);
+int   xtcpmon(XrdSysError *edest, XrdOucStream &Config);
 int   xtls(XrdSysError *edest, XrdOucStream &Config);
 int   xtlsca(XrdSysError *edest, XrdOucStream &Config);
 int   xtlsci(XrdSysError *edest, XrdOucStream &Config);
@@ -94,6 +96,7 @@ int   yport(XrdSysError *edest, const char *ptyp, const char *pval);
 
 static const char  *TraceID;
 XrdNetSecurity     *Police;
+XrdTcpMonInfo      *tmoInfo;
 const char         *myProg;
 const char         *myName;
 const char         *myDomain;

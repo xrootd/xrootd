@@ -87,6 +87,7 @@
 */
 #define XrdVERSIONPLUGINRULES \
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, SecEntityPin                  )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, TcpMonPin                     )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObject         )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObjAdd         )\
         XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdBwmPolicyObject            )\
