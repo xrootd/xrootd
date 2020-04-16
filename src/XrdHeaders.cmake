@@ -153,6 +153,9 @@ if( NOT XRDCL_ONLY )
     XrdOss/XrdOssApi.hh
     XrdOss/XrdOssConfig.hh
     XrdOss/XrdOssError.hh
+
+    XrdCrypto/XrdCryptoX509.hh
+    XrdCrypto/XrdCryptoX509Chain.hh
 )
 endif()
 
