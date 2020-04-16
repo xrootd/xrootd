@@ -61,6 +61,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Distinguish between authentication and authorization failures.
   * **[Server]** Turn off forwarding if authorization has not been enabled.
   * **[Server]** Rationalize how pidfiles are created.
   * **[Server]** Handle iovec's longer than IOV_MAX.
