@@ -36,6 +36,10 @@
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
+#ifndef EAUTH
+#define EAUTH EBADE
+#endif
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -88,7 +92,7 @@ int XrdPosixMap::mapCode(int rc)
         case XrdCl::errConnectionError:    return ECONNREFUSED;
         case XrdCl::errHandShakeFailed:    return EPROTO;
         case XrdCl::errLoginFailed:        return ECONNABORTED;
-        case XrdCl::errAuthFailed:         return EACCES;
+        case XrdCl::errAuthFailed:         return EAUTH;
         case XrdCl::errQueryNotSupported:  return ENOTSUP;
         case XrdCl::errOperationExpired:   return ESTALE;
         case XrdCl::errNoMoreFreeSIDs:     return ENOSR;

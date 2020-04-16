@@ -948,6 +948,7 @@ enum XErrorCode {
    kXR_AttrNotFound,    // 3027
    kXR_TLSRequired,     // 3028
    kXR_noReplicas,      // 3029
+   kXR_AuthFailed,      // 3030
    kXR_ERRFENCE,        // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -1224,6 +1225,10 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 #endif
 #endif
 
+#ifndef EAUTH
+#define EAUTH EBADE
+#endif
+
 struct stat;
   
 class XProtocol
@@ -1262,6 +1267,7 @@ static int mapError(int rc)
            case ENOATTR:       return kXR_AttrNotFound;
            case EPROTOTYPE:    return kXR_TLSRequired;
            case EADDRNOTAVAIL: return kXR_noReplicas;
+           case EAUTH:         return kXR_AuthFailed;
            default:            return kXR_FSError;
           }
       }
@@ -1299,6 +1305,7 @@ static int toErrno( int xerr )
         case kXR_AttrNotFound:  return ENOATTR;
         case kXR_TLSRequired:   return EPROTOTYPE;
         case kXR_noReplicas:    return EADDRNOTAVAIL;
+        case kXR_AuthFailed:    return EAUTH;
         default:                return ENOMSG;
        }
 }

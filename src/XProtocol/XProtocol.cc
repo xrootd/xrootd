@@ -95,8 +95,10 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "Server is overloaded",       // kXR_Overloaded
                     "Filesystem is read only",    // kXR_fsReadOnly
                     "Invalid payload format",     // kXR_BadPayload
-                    "File attribute not found"    // kXR_AttrNotFound
-                    "Operation requires TLS"      // kXR_TLSRequired
+                    "File attribute not found",   // kXR_AttrNotFound
+                    "Operation requires TLS",     // kXR_TLSRequired
+                    "No new servers for replica", // kXR_noReplicas
+                    "Authentication failed"       // kXR_AuthFailed
                    };
 
 const char *reqNames[kXR_REQFENCE-kXR_auth] =

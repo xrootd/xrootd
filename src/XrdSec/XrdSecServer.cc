@@ -54,6 +54,10 @@
 #include "XrdSec/XrdSecServer.hh"
 #include "XrdSec/XrdSecTrace.hh"
 
+#ifndef EAUTH
+#define EAUTH EBADE
+#endif
+
 /******************************************************************************/
 /*                       S e c u r i t y   L e v e l s                        */
 /******************************************************************************/
@@ -402,9 +406,15 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
   
 bool XrdSecServer::PostProcess(XrdSecEntity &entity, XrdOucErrInfo &einfo)
 {
-// Return correct result
+// Return correct result. Make sure there is some kind of message returned.
 //
-   return (secEntityPin ? secEntityPin->Process(entity, einfo) : true);
+   if (secEntityPin && !secEntityPin->Process(entity, einfo))
+      {if (*einfo.getErrText() == '\0')
+          einfo.setErrInfo(EAUTH, "rejected by auth post processing");
+       return false;
+      }
+
+   return true;
 }
 
 /******************************************************************************/

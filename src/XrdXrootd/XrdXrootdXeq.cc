@@ -190,7 +190,7 @@ int XrdXrootdProtocol::do_Auth()
                                          &cred, eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
-           return Response.Send(kXR_NotAuthorized, eText);
+           return Response.Send(kXR_AuthFailed, eText);
           }
        AuthProt->Entity.tident = AuthProt->Entity.pident = Link->ID;
        numReads++;
@@ -234,7 +234,7 @@ int XrdXrootdProtocol::do_Auth()
    SI->Bump(SI->AuthBad);
    eText = eMsg.getErrText(rc);
    eDest.Emsg("Xeq", "User authentication failed;", eText);
-   return Response.Send(kXR_NotAuthorized, eText);
+   return Response.Send(kXR_AuthFailed, eText);
 }
 
 /******************************************************************************/
