@@ -55,6 +55,11 @@ if( NOT XRDCL_ONLY )
   endif()
 endif()
 
+option(VOMSXRD_SUBMODULE "Build xrdvoms plug-in." ON)
+if( VOMSXRD_SUBMODULE AND EXISTS "${PROJECT_SOURCE_DIR}/src/XrdXrootdVoms/CMakeLists.txt" )
+  add_subdirectory( XrdXrootdVoms )
+endif()
+
 #-------------------------------------------------------------------------------
 # Install the utility scripts
 #-------------------------------------------------------------------------------
