@@ -90,6 +90,8 @@ BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
 BuildRequires: libcurl-devel
 BuildRequires: libuuid-devel
+BuildRequires: voms-devel >= 2.0.6
+BuildRequires: git
 %if %{have_macaroons}
 BuildRequires: libmacaroons-devel
 %endif
@@ -385,6 +387,28 @@ Requires: %{name}-client = %{epoch}:%{version}-%{release}
 xrdcl-http is an XRootD client plugin which allows XRootD to interact 
 with HTTP repositories.
 %endif
+
+#-------------------------------------------------------------------------------
+# xrootd-voms
+#-------------------------------------------------------------------------------
+%package  voms
+Summary:  VOMS attribute extractor plug-in for XRootD
+Group:    System Environment/Libraries
+Provides: vomsxrd
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+%description voms
+The VOMS attribute extractor plug-in for XRootD.
+
+#-------------------------------------------------------------------------------
+# xrootd-voms-devel
+#-------------------------------------------------------------------------------
+%package voms-devel
+Summary: Headers for using the VOMS attribute extractor plug-in
+Group:   System Environment/Libraries
+Provides: vomsxrd-devel
+Requires: %{name}-voms = %{epoch}:%{version}-%{release}
+%description voms-devel
+Headers for using the VOMS attribute extractor plug-in
 
 #-------------------------------------------------------------------------------
 # tests
@@ -828,6 +852,15 @@ fi
 
 %files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
 %defattr(-,root,root,-)
+
+%files voms
+%defattr(-,root,root,-)
+%{_libdir}/libXrdSecgsiVOMS-5.so
+%doc %{_mandir}/man1/libXrdSecgsiVOMS.1.gz
+
+%files voms-devel
+%defattr(-,root,root,-)
+%{_includedir}/vomsxrd
 
 %if %{?_with_python3:1}%{!?_with_python3:0}
 %files -n python3-%{name}
