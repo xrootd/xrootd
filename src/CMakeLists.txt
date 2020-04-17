@@ -40,7 +40,6 @@ if( NOT XRDCL_ONLY )
   include( XrdFfs )
   include( XrdPlugins )
   include( XrdSsi )
-  include( XrdCns )
 
   include( XrdFileCache )
 
