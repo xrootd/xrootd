@@ -250,11 +250,11 @@ build:deb_ubuntu_xenial:
     - tags
     - schedules
 
-build:deb_ubuntu_disco:
-  image: ubuntu:disco
+build:deb_ubuntu_eaon:
+  image: ubuntu:eaon
   <<: *deb_ubuntu_build_def
   variables:
-    DIST: disco
+    DIST: eaon
   only:
     - master
     - /^stable-.*$/
@@ -398,11 +398,11 @@ release:deb_ubuntu_xenial:
   except:
     - branches
 
-release:deb_ubuntu_disco:
-  image: ubuntu:disco
+release:deb_ubuntu_eaon:
+  image: ubuntu:eaon
   <<: *deb_ubuntu_build_def
   variables:
-    DIST: disco
+    DIST: eaon
   only:
     - web
   except:
