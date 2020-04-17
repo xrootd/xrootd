@@ -6,11 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
-  * **[Server]** User redirector to find directory to be listed (R5 backport).
 
 + **Major bug fixes**
-  * **[Server]** Correct sequencing of an async close to prevent a SEGV.
-  * **[Server]** Add missing initializer to avoid TPC SEGV on busy systems.
 
 + **Minor bug fixes**
 

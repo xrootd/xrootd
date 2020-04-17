@@ -6,6 +6,36 @@ Release Notes
 =============
 
 --------------
+Version 4.12.0
+--------------
+
++ **New Features**
+  * **[Server]** User redirector to find directory to be listed (R5 backport).
+  * **[XrdCl]** More effective error recovery policy when the source is a metalink.
+  * **[xrdcp]** Implement bandwidth limiting (--xrate option).
+  * **[xrdcp]** Implement ability to continue interrupted transfer (--continue).
+  * **[xrdcp/Python]** Add an option (--zip-mtln-cksum) to use the checksum from
+                       a metalink with files extracted from ZIP archives.
+  * **[xrdcp/Python]** Automatically infer checksum type if asked to.
+  * **[xrdcp/Python]** Add an option (--rm-bad-cksum) to automatically remove
+                       destination file if the checksum check failed.
+
++ **Major bug fixes**
+  * **[Server]** Correct sequencing of an async close to prevent a SEGV.
+  * **[Server]** Add missing initializer to avoid TPC SEGV on busy systems.
+  * **[XrdHttp]** Fix MKCOL response when we have an EEXIST.
+  * **[XrdCl]** Don't set on-connection handler for local files.
+  * **[XrdCl]** Don't set the stream error window for auth errors.
+
++ **Miscellaneous**
+  * **[Deb]** Refine debian packaging.
+  * **[Packaging]** Add additional private headers for vomsxrd.
+  * **[CMake]** Repleace XRootD find module with config module.
+  * **[RPM/CMake]** Don't build XrdCns.
+  * **[Packaging]** Add xrootd-voms and xrootd-voms-devel packages equivalent
+                    to the vomsxrd packages.
+
+--------------
 Version 4.11.3
 --------------
 
