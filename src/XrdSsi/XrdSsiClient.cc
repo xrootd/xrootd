@@ -74,6 +74,7 @@ extern XrdSsiLogger::MCB_t *msgCBCl;
        XrdCl::Env   *clEnvP   = 0;
        short         maxTCB   = 300;
        short         maxCLW   =  30;
+       short         maxPEL   =   3;
        Atomic(bool)  initDone(false);
        bool          dsTTLSet = false;
        bool          reqTOSet = false;
@@ -108,6 +109,9 @@ virtual rStat  QueryResource(const char *rName,
                             ) {return notPresent;}
 
 virtual void   SetCBThreads(int cbNum, int ntNum);
+
+virtual bool   SetConfig(XrdSsiErrInfo &eInfo,
+                         std::string   &optname, int optvalue);
 
 virtual void   SetSpread(short ssz);
 
@@ -145,6 +149,7 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo     &eInfo,
       if (!dsTTLSet) clEnvP->PutInt("DataServerTTL",  maxTMO);
       if (!reqTOSet) clEnvP->PutInt("RequestTimeout", maxTMO);
       if (!strTOSet) clEnvP->PutInt("StreamTimeout",  maxTMO);
+                     clEnvP->PutInt("ParallelEvtLoop",maxPEL);
       initDone = true;
       clMutex.UnLock();
      }
@@ -189,6 +194,44 @@ void XrdSsiClientProvider::SetCBThreads(int cbNum, int ntNum)
       }
 }
  
+/******************************************************************************/
+/*       X r d S s i C l i e n t P r o v i d e r : : S e t C o n f i g        */
+/******************************************************************************/
+  
+bool XrdSsiClientProvider::SetConfig(XrdSsiErrInfo &eInfo,
+                                     std::string   &optname, int optvalue)
+{
+// Look for an option we recognize
+//
+        if (optname == "cbThreads")
+           {if (optvalue < 1)
+               {eInfo.Set("invalid cbThreads value.", EINVAL); return false;}
+            if (optvalue > 32767) optvalue = 32767;
+            clMutex.Lock();
+            maxTCB = static_cast<short>(optvalue);
+            clMutex.UnLock();
+           }
+   else if (optname == "netThreads")
+           {if (optvalue < 1)
+               {eInfo.Set("invalid netThreads value.", EINVAL); return false;}
+            if (optvalue > 32767) optvalue = 32767;
+            clMutex.Lock();
+            maxCLW = static_cast<short>(optvalue);
+            clMutex.UnLock();
+           }
+   else if (optname == "pollers")
+           {if (optvalue < 1)
+               {eInfo.Set("invalid pollers value.", EINVAL); return false;}
+            if (optvalue > 32767) optvalue = 32767;
+            clMutex.Lock();
+            maxPEL =  static_cast<short>(optvalue);
+            clMutex.UnLock();
+           }
+   else {eInfo.Set("invalid option name.", EINVAL); return false;}
+
+   return true;
+}
+
 /******************************************************************************/
 /*       X r d S s i C l i e n t P r o v i d e r : : S e t L o g g e r        */
 /******************************************************************************/

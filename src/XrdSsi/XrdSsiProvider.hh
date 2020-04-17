@@ -226,21 +226,48 @@ virtual void   ResourceAdded(const char *rName) {}
 virtual void   ResourceRemoved(const char *rName) {}
 
 //-----------------------------------------------------------------------------
-//! Set the maximum number of threads for handling callbacks (client-side only).
-//! When the maximum is reached, callbacks wait until an in-progress callback
-//! completes. This method must be called prior to calling GetService().
+//! Set thread values. This call is deprecated. You should use SetConfig().
 //! This method has no meaning server-side and is ignored.
 //!
-//! @param  cbNum    The maximum number of threads to be used for callbacks and
-//!                  sets the maximum number of active callbacks (default 300).
-//!                  The maximum value is 32767. Note that the nproc ulimit is
-//!                  final arbiter of the actual number of threads to use.
-//! @param  ntNum    The maximum number of threads to be used to handle network
-//!                  traffic. The minimum is 3, the default is 10% of cbNum but
-//!                  no more than 100.
+//! @param  cbNum    Equivalent to SetConfig("cbThreads",  cbNum).
+//! @param  ntNum    Equivalent to SetConfig("netThreads", ntNum).
 //-----------------------------------------------------------------------------
 
 virtual void   SetCBThreads(int cbNum, int ntNum=0) {(void)cbNum; (void)ntNum;}
+
+//-----------------------------------------------------------------------------
+//! Set a configuration option for execution behaviour.
+//!
+//! @param  eInfo    The object where error status is to be placed.
+//! @param  optname  The name of the option (see table below).
+//! @param  optvalue The value to be set for the option.
+//!
+//! @return true     Option set.
+//! @return false    Option not set, eInfo holds the reason.
+//!
+//! @note All calls to SetConfig() must occur before GetService() is called.
+//-----------------------------------------------------------------------------
+
+/*! The following table list the currently supported keynames and what the
+    value actually does. These options only apply to the client.
+
+    cbThreads        The maximum number of threads to be used for callbacks and
+                     sets the maximum number of active callbacks (default 300).
+                     set a value between 1 and 32767. Note: the nproc ulimit
+                     is final arbiter of the actual number of threads to use.
+    netThreads       The maximum number of threads to be used to handle network
+                     traffic. The minimum is 3, the default is 10% of cbThreads
+                     but no more than 100.
+    pollers          The number network interrupt pollers to run. Larger values
+                     allow the initial fielding of more interrupts. Care must
+                     be taken to not overrun netThreads. The default is 3. The
+                     suggested maximum is the number of cores.
+*/
+
+virtual bool SetConfig(XrdSsiErrInfo &eInfo,
+                       std::string   &optname,
+                       int            optvalue)
+                      {(void)optname; (void)optvalue; return 0;}
 
 //-----------------------------------------------------------------------------
 //! Set the client-size request spread size.
