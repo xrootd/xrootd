@@ -1001,6 +1001,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Fri Apr 17 2020 Michal Simon <michal.simon@cern.ch> - 4.12.0-1
+- Introduce xrootd-voms and xrootd-voms-devel packages
+
 * Mon Sep 02 2019 Michal Simon <michal.simon@cern.ch> - 4.10.1-1
 - Move xrdmapc to client package
 
