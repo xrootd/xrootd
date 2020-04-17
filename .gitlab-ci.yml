@@ -268,7 +268,7 @@ build:macosx:
     - mkdir build
     - mkdir -p tarball/xrootd
     - cd build
-    - /usr/local/bin/cmake -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2o_2/include/ -D OPENSSL_SSL_LIBRARY=/usr/local/Cellar/openssl/1.0.2o_2/lib/libssl.dylib -D OPENSSL_CRYPTO_LIBRARY=/usr/local/Cellar/openssl/1.0.2o_2/lib/libcrypto.dylib -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
+    - /usr/local/bin/cmake -DVOMSXRD_SUBMODULE=OFF -D ZLIB_INCLUDE_DIR=/usr/local/Cellar/zlib/1.2.8/include/ -D OPENSSL_INCLUDE_DIR=/usr/local/Cellar/openssl/1.0.2t/include/ -D OPENSSL_SSL_LIBRARY=/usr/local/Cellar/openssl/1.0.2t/lib/libssl.dylib -D OPENSSL_CRYPTO_LIBRARY=/usr/local/Cellar/openssl/1.0.2t/lib/libcrypto.1.0.0.dylib -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
     - cd src/XrdCl/
     - make -j4
     - make install
