@@ -250,11 +250,11 @@ build:deb_ubuntu_xenial:
     - tags
     - schedules
 
-build:deb_ubuntu_eaon:
-  image: ubuntu:eaon
+build:deb_ubuntu_eoan:
+  image: ubuntu:eoan
   <<: *deb_ubuntu_build_def
   variables:
-    DIST: eaon
+    DIST: eoan
   only:
     - master
     - /^stable-.*$/
@@ -398,11 +398,11 @@ release:deb_ubuntu_xenial:
   except:
     - branches
 
-release:deb_ubuntu_eaon:
-  image: ubuntu:eaon
+release:deb_ubuntu_eoan:
+  image: ubuntu:eoan
   <<: *deb_ubuntu_build_def
   variables:
-    DIST: eaon
+    DIST: eoan
   only:
     - web
   except:
@@ -669,7 +669,7 @@ publish:debian:
   dependencies:
     - build:deb_ubuntu_bionic
     - build:deb_ubuntu_xenial
-    - build:deb_ubuntu_eaon
+    - build:deb_ubuntu_eoan
   only:
     - master
     - /^stable-.*$/
@@ -719,7 +719,7 @@ publish:debian:release:
   dependencies:
     - release:deb_ubuntu_bionic
     - release:deb_ubuntu_xenial
-    - release:deb_ubuntu_eaon
+    - release:deb_ubuntu_eoan
   only:
     - web
   except:
