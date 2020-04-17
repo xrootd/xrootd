@@ -10,7 +10,7 @@ set -e
 comp=$1
 prefix=/eos/project/s/storage-ci/www/debian/xrootd
 
-for dist in bionic xenial disco; do
+for dist in bionic xenial eoan; do
   echo "Publishing for $dist";
   path=$prefix/pool/$dist/$comp/x/xrootd/;
   mkdir -p $path;
