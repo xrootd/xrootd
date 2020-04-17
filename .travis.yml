@@ -12,7 +12,7 @@ compiler:
 script:
   - mkdir build
   - pushd build
-  - cmake -DCMAKE_INSTALL_PREFIX=$HOME/xrootd -DENABLE_TESTS=1 ..
+  - cmake -DCMAKE_INSTALL_PREFIX=$HOME/xrootd -DENABLE_TESTS=1 -DVOMSXRD_SUBMODULE=OFF ..
   - make
   - make install
   - popd
