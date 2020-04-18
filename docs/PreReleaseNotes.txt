@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[FRM]** Allow frm_xfrd to split in/out copy allocation.
   * **[SSI]** Add generalized option setting method, SetConfig().
   * **[Server]** Implement tcpmonlib directive for TCP socket monitring.
   * **[Server]** Add command line options -a and -A for adminpath default.
