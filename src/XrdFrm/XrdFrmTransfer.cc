@@ -401,12 +401,16 @@ void XrdFrmTransfer::ffMake(int nofile){
   
 void *InitXfer(void *parg)
 {   XrdFrmTransfer *xP = new XrdFrmTransfer;
-    xP->Start();
+    xP->Start(*(int *)parg);
     return (void *)0;
 }
   
 int XrdFrmTransfer::Init()
 {
+   static int anyQ = XrdFrmXfrQueue::useAnyQ;
+   static int inpQ = XrdFrmXfrQueue::useInpQ;
+   static int outQ = XrdFrmXfrQueue::useOutQ;
+   void *qWant;
    pthread_t tid;
    int retc, n;
 
@@ -418,11 +422,18 @@ int XrdFrmTransfer::Init()
 //
    if (!XrdFrmXfrQueue::Init()) return 0;
 
-// Start the required number of transfer threads
+// Start the required number of transfer threads. Note we can split these
+// as dedicated in threads and dedicated out threads.
 //
    n = Config.xfrMax;
    while(n--)
-        {if ((retc = XrdSysThread::Run(&tid, InitXfer, (void *)0,
+        {     if (Config.xfrMaxIn)
+                 { qWant = (void *)&inpQ; Config.xfrMaxIn--;}
+         else if (Config.xfrMaxOt)
+                 { qWant = (void *)&outQ; Config.xfrMaxOt--;}
+         else      qWant = (void *)&anyQ;
+
+         if ((retc = XrdSysThread::Run(&tid, InitXfer, qWant,
                                        XRDSYSTHREAD_BIND, "transfer")))
             {Say.Emsg("main", retc, "create xfr thread"); return 0;}
         }
@@ -483,7 +494,7 @@ int XrdFrmTransfer::SetupCmd(XrdFrmTranArg *argP)
 /* Public:                         S t a r t                                  */
 /******************************************************************************/
   
-void XrdFrmTransfer::Start()
+void XrdFrmTransfer::Start(int ioqType)
 {
    EPNAME("Transfer");  // Wrong but looks better
    const char *Msg;
@@ -493,7 +504,7 @@ void XrdFrmTransfer::Start()
 // Endless loop looking for transfer jobs
 //
    while(1)
-        {xfrP = XrdFrmXfrQueue::Get();
+        {xfrP = XrdFrmXfrQueue::Get(ioqType);
 
          DEBUG(xfrP->Type <<" starting " <<xfrP->reqData.LFN
                <<" for " <<xfrP->reqData.User);

@@ -150,6 +150,8 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    QPath    = 0;
    AdminMode= 0740;
    xfrMax   = 2;
+   xfrMaxIn = 0;
+   xfrMaxOt = 0;
    FailHold = 3*60*60;
    IdleHold = 10*60;
    WaitMigr = 60*60;
@@ -382,7 +384,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 
 // Put out the herald
 //
-   sprintf(buff, "Scalla %s is starting. . .", myProg);
+   sprintf(buff, "File Residency Manager %s is starting. . .", myProg);
    Say.Say(0, buff);
    Say.Say(XrdBANNER);
 
@@ -1501,20 +1503,32 @@ int XrdFrmConfig::xcopy(int &TLim)
 
 /* Function: copymax
 
-   Purpose:  To parse the directive: copymax  <num>
+   Purpose:  To parse the directive: copymax  <num> | split <inmax> <outmax>
 
              <num>     maximum number of simultaneous transfers
+             <inmax>   maximum number of simultaneous transfers in  (get|stage)
+             <outmax>  maximum number of simultaneous transfers out (put|migr)
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdFrmConfig::xcmax()
-{   int xmax = 1;
-    char *val;
+{   char *val;
 
     if (!(val = cFile->GetWord()))
-       {Say.Emsg("Config", "maxio value not specified"); return 1;}
-    if (XrdOuca2x::a2i(Say, "maxio", val, &xmax, 1)) return 1;
-    xfrMax = xmax;
+       {Say.Emsg("Config", "copymax value not specified"); return 1;}
+
+    if (!strcmp(val, "split"))
+       {if (!(val = cFile->GetWord()))
+           {Say.Emsg("Config", "copymax in value not specified"); return 1;}
+        if (XrdOuca2x::a2i(Say,"copymax in",  val, &xfrMaxIn, 1)) return 1;
+        if (!(val = cFile->GetWord()))
+           {Say.Emsg("Config", "copymax out value not specified"); return 1;}
+        if (XrdOuca2x::a2i(Say,"copymax out", val, &xfrMaxOt, 1))  return 1;
+        xfrMax = xfrMaxIn + xfrMaxOt;
+       } else {
+        if (XrdOuca2x::a2i(Say, "copymax", val, &xfrMax, 1)) return 1;
+        xfrMaxIn = xfrMaxOt = 0;
+       }
     return 0;
 }
 

@@ -217,13 +217,13 @@ void XrdFrmXfrQueue::Done(XrdFrmXfrJob *xP, const char *Msg)
 /* Public:                           G e t                                    */
 /******************************************************************************/
   
-XrdFrmXfrJob *XrdFrmXfrQueue::Get()
+XrdFrmXfrJob *XrdFrmXfrQueue::Get(int ioQType)
 {
    XrdFrmXfrJob *xfrP;
 
 // Wait for an available job and return it
 //
-   do {qReady.Wait();} while(!(xfrP = Pull()));
+   do {qReady.Wait();} while(!(xfrP = Pull(ioQType)));
    return xfrP;
 }
   
@@ -291,16 +291,17 @@ int XrdFrmXfrQueue::Init()
 /* Private:                         P u l l                                   */
 /******************************************************************************/
   
-XrdFrmXfrJob *XrdFrmXfrQueue::Pull()
+XrdFrmXfrJob *XrdFrmXfrQueue::Pull(int ioQType)
 {
-   static int ioX = 0, prevQ[2] = {0,0};
+   static bool ioX = false, prevQ[2] = {0,0};
    XrdFrmXfrJob *xfrP;
    int pikQ, theQ, Q1, Q2, nSel = 1;
 
 // Setup to pick a request equally multiplexing between all possible queues
 //
    qMutex.Lock();
-do{ioX = (ioX + 1) & 1;
+do{if (!ioQType) ioX = !ioX;
+      else {ioX = (ioQType < 0 ? 1 : 0); nSel = 0;}
    if (ioX) {Q1 = XrdFrcRequest::migQ; Q2 = XrdFrcRequest::putQ; pikQ = 1;}
       else  {Q1 = XrdFrcRequest::stgQ; Q2 = XrdFrcRequest::getQ; pikQ = 0;}
 

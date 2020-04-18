@@ -46,7 +46,11 @@ static int           Add(XrdFrcRequest *rP, XrdFrcReqFile *reqF, int theQ);
 
 static void          Done(XrdFrmXfrJob *xP, const char *Msg);
 
-static XrdFrmXfrJob *Get();
+static const int useInpQ =  1;
+static const int useAnyQ =  0;
+static const int useOutQ = -1;
+
+static XrdFrmXfrJob *Get(int ioQType);
 
 static int           Init();
 
@@ -57,7 +61,7 @@ static void          StopMon(void *parg);
 
 private:
 
-static XrdFrmXfrJob *Pull();
+static XrdFrmXfrJob *Pull(int ioQType);
 static int           Notify(XrdFrcRequest *rP,int qN,int rc,const char *msg=0);
 static void          Send2File(char *Dest, char *Msg, int Mln);
 static void          Send2UDP(char *Dest, char *Msg, int Mln);

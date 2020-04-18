@@ -97,6 +97,8 @@ int                 cmdHold;
 int                 AdminMode;
 int                 isAgent;
 int                 xfrMax;
+int                 xfrMaxIn;
+int                 xfrMaxOt;
 int                 FailHold;
 int                 IdleHold;
 int                 WaitQChk;

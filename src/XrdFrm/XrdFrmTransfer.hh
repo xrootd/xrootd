@@ -47,7 +47,7 @@ const  char *checkFF(const char *Path);
 
 static int   Init();
 
-       void  Start();
+       void  Start(int ioqType);
 
              XrdFrmTransfer();
             ~XrdFrmTransfer() {}
