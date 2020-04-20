@@ -52,14 +52,15 @@ if( NOT XRDCL_ONLY )
     include( XrdMacaroons )
   endif()
 
-if( XRDCEPH_SUBMODULE )
-  add_subdirectory( XrdCeph )
-endif()
-endif()
+  if( XRDCEPH_SUBMODULE )
+    add_subdirectory( XrdCeph )
+  endif()
 
-option(VOMSXRD_SUBMODULE "Build xrdvoms plug-in." ON)
-if( VOMSXRD_SUBMODULE AND EXISTS "${PROJECT_SOURCE_DIR}/src/XrdXrootdVoms/CMakeLists.txt" )
-  add_subdirectory( XrdXrootdVoms )
+  option(VOMSXRD_SUBMODULE "Build xrdvoms plug-in." ON)
+  if( VOMSXRD_SUBMODULE AND EXISTS "${PROJECT_SOURCE_DIR}/src/XrdXrootdVoms/CMakeLists.txt" )
+    add_subdirectory( XrdXrootdVoms )
+  endif()
+
 endif()
 
 #-------------------------------------------------------------------------------
