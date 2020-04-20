@@ -42,7 +42,12 @@ struct XrdAccEntityInfo
        const char *vorg;
        const char *role;
        const char *grup;
-                   XrdAccEntityInfo() {}
+                   XrdAccEntityInfo() :
+                       name(NULL),
+                       host(NULL),
+                       vorg(NULL),
+                       role(NULL),
+                       grup(NULL) {}
                   ~XrdAccEntityInfo() {}
       };
 
@@ -91,7 +96,7 @@ struct EntityAttr
       {const char *vorg;
        const char *role;
        const char *grup;
-                   EntityAttr() {}
+                   EntityAttr() : vorg(NULL), role(NULL), grup(NULL) {}
                   ~EntityAttr() {}
       };
 
