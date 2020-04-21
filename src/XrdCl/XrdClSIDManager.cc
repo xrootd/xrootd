@@ -119,4 +119,65 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     return pSIDCeiling - pFreeSIDs.size() - pTimeOutSIDs.size() - 1;
   }
+
+  //----------------------------------------------------------------------------
+  // Returns a pointer to the SIDManager object
+  //----------------------------------------------------------------------------
+  std::shared_ptr<SIDManager> SIDMgrPool::GetSIDMgr( const URL &url )
+  {
+    //--------------------------------------------------------------------------
+    // Look for an instance of SID manager in the pool
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper lck1( mtx );
+    SIDManager *mgr = 0;
+    auto itr = pool.find( url.GetHostId() );
+    if( itr == pool.end() )
+    {
+      mgr = new SIDManager();
+      pool[url.GetHostId()] = mgr;
+    }
+    else mgr = itr->second;
+
+    //--------------------------------------------------------------------------
+    // Update the reference counter
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper lck2( mgr->pMutex );
+    ++mgr->pRefCount;
+
+    //--------------------------------------------------------------------------
+    // Create a shared pointer that will recycle the SID manager
+    //--------------------------------------------------------------------------
+    RecycleSidMgr deleter;
+    std::shared_ptr<SIDManager> ptr( mgr, deleter );
+
+    return std::move( ptr );
+  }
+
+  void SIDMgrPool::Recycle( SIDManager *mgr )
+  {
+    //--------------------------------------------------------------------------
+    // Lock the pool, we need to do it in the same order as in 'GetSIDMgr'
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper lck1( mtx );
+
+    //--------------------------------------------------------------------------
+    // Lock the SID manager object
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper lck2( mgr->pMutex );
+    --mgr->pRefCount;
+
+    if( !mgr->pRefCount )
+    {
+      //------------------------------------------------------------------------
+      // Remove the SID manager from the pool
+      //------------------------------------------------------------------------
+      auto itr = pool.begin();
+      for( ; itr != pool.end() ; ++itr )
+        if( itr->second == mgr ) break;
+      pool.erase( itr );
+
+      lck2.UnLock();
+      delete mgr;
+    }
+  }
 }

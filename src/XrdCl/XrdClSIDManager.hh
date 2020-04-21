@@ -21,23 +21,41 @@
 
 #include <list>
 #include <set>
+#include <memory>
+#include <unordered_map>
+#include <string>
 #include <stdint.h>
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClURL.hh"
 
 namespace XrdCl
 {
+  //----------------------------------------------------------------------------
+  // We need the forward declaration for the friendship to work properly
+  //----------------------------------------------------------------------------
+  class SIDMgrPool;
+
   //----------------------------------------------------------------------------
   //! Handle XRootD stream IDs
   //----------------------------------------------------------------------------
   class SIDManager
   {
-    public:
+    friend class SIDMgrPool;
+
+    private:
 
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      SIDManager(): pSIDCeiling(1) {}
+      SIDManager(): pSIDCeiling(1), pRefCount(0) { }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~SIDManager() { }
+
+    public:
 
       //------------------------------------------------------------------------
       //! Allocate a SID
@@ -91,6 +109,78 @@ namespace XrdCl
       std::set<uint16_t>   pTimeOutSIDs;
       uint16_t             pSIDCeiling;
       mutable XrdSysMutex  pMutex;
+      mutable size_t       pRefCount;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Pool of SID manager objects
+  //----------------------------------------------------------------------------
+  class SIDMgrPool
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! @return : instance of SIDMgrPool
+      //------------------------------------------------------------------------
+      static SIDMgrPool& Instance()
+      {
+        //----------------------------------------------------------------------
+        // We could also use a nifty counter but this is simpler and will do!
+        //----------------------------------------------------------------------
+        static SIDMgrPool *instance = new SIDMgrPool();
+        return *instance;
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~SIDMgrPool() { }
+
+      //------------------------------------------------------------------------
+      //! @param url : URL for which we need a SIDManager
+      //! @return    : a shared pointer to SIDManager object, the pointer has
+      //               a custom deleter that will return the object to the pool
+      //------------------------------------------------------------------------
+      std::shared_ptr<SIDManager> GetSIDMgr( const URL &url );
+
+      //------------------------------------------------------------------------
+      //! @param mgr : the SIDManager object to be recycled
+      //------------------------------------------------------------------------
+      void Recycle( SIDManager *mgr );
+
+    private:
+
+      //------------------------------------------------------------------------
+      //! A functional object for handling the deletion of SIDManager objects
+      //------------------------------------------------------------------------
+      struct RecycleSidMgr
+      {
+        inline void operator()( SIDManager *mgr )
+        {
+          SIDMgrPool &pool = SIDMgrPool::Instance();
+          pool.Recycle( mgr );
+        }
+      };
+
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      SIDMgrPool() { }
+
+      //------------------------------------------------------------------------
+      //! Deleted constructors
+      //------------------------------------------------------------------------
+      SIDMgrPool( const SIDMgrPool& ) = delete;
+      SIDMgrPool( SIDMgrPool&& ) = delete;
+
+      //------------------------------------------------------------------------
+      //! Deleted assigment operators
+      //------------------------------------------------------------------------
+      SIDMgrPool& operator=( const SIDMgrPool& ) = delete;
+      SIDMgrPool& operator=( SIDMgrPool&& ) = delete;
+
+      XrdSysMutex                                  mtx;
+      std::unordered_map<std::string, SIDManager*> pool;
   };
 }
 

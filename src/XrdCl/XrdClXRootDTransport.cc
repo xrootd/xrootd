@@ -199,11 +199,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Constructor
     //--------------------------------------------------------------------------
-    XRootDChannelInfo():
+    XRootDChannelInfo( const URL &url ):
       serverFlags(0),
       protocolVersion(0),
       firstLogIn(true),
-      sidManager(0),
       authBuffer(0),
       authProtocol(0),
       authParams(0),
@@ -216,7 +215,7 @@ namespace XrdCl
       strmSelector(0),
       encrypted(false)
     {
-      sidManager = new SIDManager();
+      sidManager = SIDMgrPool::Instance().GetSIDMgr( url.GetHostId() );
       memset( sessionId, 0, 16 );
       memset( oldSessionId, 0, 16 );
     }
@@ -226,7 +225,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     ~XRootDChannelInfo()
     {
-      delete    sidManager;
       delete [] authBuffer;
       delete    strmSelector;
     }
@@ -241,7 +239,7 @@ namespace XrdCl
     uint8_t                      sessionId[16];
     uint8_t                      oldSessionId[16];
     bool                         firstLogIn;
-    SIDManager                  *sidManager;
+    std::shared_ptr<SIDManager>  sidManager;
     char                        *authBuffer;
     XrdSecProtocol              *authProtocol;
     XrdSecParameters            *authParams;
@@ -349,10 +347,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Initialize channel
   //----------------------------------------------------------------------------
-  void XRootDTransport::InitializeChannel( AnyObject  &channelData,
-                                           bool        encrypted )
+  void XRootDTransport::InitializeChannel( const URL  &url,
+                                           AnyObject  &channelData )
   {
-    XRootDChannelInfo *info = new XRootDChannelInfo();
+    XRootDChannelInfo *info = new XRootDChannelInfo( url );
     XrdSysMutexHelper scopedLock( info->mutex );
     channelData.Set( info );
 
@@ -362,7 +360,7 @@ namespace XrdCl
     if( streams < 1 ) streams = 1;
     info->stream.resize( streams );
     info->strmSelector = new StreamSelector( streams );
-    info->encrypted   = encrypted;
+    info->encrypted   = url.IsSecure();
   }
 
   //----------------------------------------------------------------------------
@@ -1229,13 +1227,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case TransportQuery::Auth:
         result.Set( new std::string( info->authProtocolName ), false );
-        return Status();
-
-      //------------------------------------------------------------------------
-      // SID Manager object
-      //------------------------------------------------------------------------
-      case XRootDQuery::SIDManager:
-        result.Set( info->sidManager, false );
         return Status();
 
       //------------------------------------------------------------------------

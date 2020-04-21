@@ -352,8 +352,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Initialize channel
       //------------------------------------------------------------------------
-      virtual void InitializeChannel( AnyObject  &channelData,
-                                      bool        encrypted ) = 0;
+      virtual void InitializeChannel( const URL  &url,
+                                      AnyObject  &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! Finalize channel

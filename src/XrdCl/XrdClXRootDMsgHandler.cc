@@ -2253,20 +2253,8 @@ namespace XrdCl
       // file and in this case there is no SID)
       if( !url.IsLocalFile() )
       {
-        AnyObject sidMgrObj;
-        Status st = pPostMaster->QueryTransport( url, XRootDQuery::SIDManager,
-                                                sidMgrObj );
-        if( !st.IsOK() )
-        {
-          log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
-          pUrl.GetHostId().c_str(),
-          pRequest->GetDescription().c_str() );
-          return st;
-        }
-        sidMgrObj.Get( pSidMgr );
-
-        // and finally allocate new stream id
-        st = pSidMgr->AllocateSID( req->streamid );
+        pSidMgr = SIDMgrPool::Instance().GetSIDMgr( url );
+        Status st = pSidMgr->AllocateSID( req->streamid );
         if( !st.IsOK() )
         {
           log->Error( XRootDMsg, "[%s] Impossible to send message %s.",

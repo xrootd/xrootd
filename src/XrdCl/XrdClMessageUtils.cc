@@ -59,22 +59,11 @@ namespace XrdCl
     log->Dump( XRootDMsg, "[%s] Sending message %s",
                url.GetHostId().c_str(), msg->GetDescription().c_str() );
 
-
-    AnyObject   sidMgrObj;
-    SIDManager *sidMgr    = 0;
-    st = postMaster->QueryTransport( url, XRootDQuery::SIDManager,
-                                     sidMgrObj );
-
-    if( !st.IsOK() )
-    {
-      log->Error( XRootDMsg, "[%s] Unable to get stream id manager",
-                             url.GetHostId().c_str() );
-      return st;
-    }
-    sidMgrObj.Get( sidMgr );
-
+    //--------------------------------------------------------------------------
+    // Get an instance of SID manager object
+    //--------------------------------------------------------------------------
+    std::shared_ptr<SIDManager> sidMgr( SIDMgrPool::Instance().GetSIDMgr( url ) );
     ClientRequestHdr *req = (ClientRequestHdr*)msg->GetBuffer();
-
 
     //--------------------------------------------------------------------------
     // Allocate the SID and marshall the message
