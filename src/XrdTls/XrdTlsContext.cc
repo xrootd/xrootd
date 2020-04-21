@@ -473,6 +473,32 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 XrdTlsContext::~XrdTlsContext() {if (pImpl) delete pImpl;}
 
 /******************************************************************************/
+/*                                 C l o n e                                  */
+/******************************************************************************/
+
+XrdTlsContext *XrdTlsContext::Clone()
+{
+  XrdTlsContext::CTX_Params &my = pImpl->Parm;
+  const char *cert = (my.cert.size()   ? my.cert.c_str()   : 0);
+  const char *pkey = (my.pkey.size()   ? my.pkey.c_str()   : 0);
+  const char *caD  = (my.cadir.size()  ? my.cadir.c_str()  : 0);
+  const char *caF  = (my.cafile.size() ? my.cafile.c_str() : 0);
+
+// Cloning simply means getting a object with the old parameters.
+//
+   XrdTlsContext *xtc = new XrdTlsContext(cert, pkey, caD, caF, my.opts);
+
+// Verify that the context was built
+//
+   if (xtc->Context() != 0) return xtc;
+
+// We failed, cleanup.
+//
+   delete xtc;
+   return 0;
+}
+  
+/******************************************************************************/
 /*                               C o n t e x t                                */
 /******************************************************************************/
 

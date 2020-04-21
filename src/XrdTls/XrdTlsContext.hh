@@ -36,6 +36,15 @@ class XrdTlsContext
 public:
 
 //------------------------------------------------------------------------
+//! Clone a new context from this context.
+//!
+//! @return Upon success, the pointer to a new XrdTlsContext is returned.
+//!         Upon failure, a nil pointer is returned.
+//------------------------------------------------------------------------
+
+XrdTlsContext *Clone();
+
+//------------------------------------------------------------------------
 //! Obtain SSL context attached to this object
 //!
 //! @return Pointer to the SSL context. Nil indicates failure.
