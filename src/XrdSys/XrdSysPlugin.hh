@@ -54,6 +54,26 @@ class XrdSysPlugin
 public:
 
 //------------------------------------------------------------------------------
+//! Prepare shared library for use (optional call).
+//!
+//! @param  allMsgs  When true messages all messages are handled as directed by
+//!                  the constructor. Otherwise, only messages regarding ENOENT
+//!                  (file not found ) are suppressed.
+//! @param  global   when true then the symbols defined in the plug-in shared
+//!                  library are made available for symbol resolution of
+//!                  subsequently loaded libraries.
+//!
+//! @return !0       Library successfully prepared.
+//!         =0       Library cannot be prepared; if mBuff is supplied, it
+//!                  contains the error message. If the file was not found,
+//!                  errno is set to ENOENT; otherwise to ENOEXEC.
+//!
+//! @note   This method is implicitly called when calling getPlugin().
+//------------------------------------------------------------------------------
+
+void *getLibrary(bool allMsgs=true, bool global=false);
+
+//------------------------------------------------------------------------------
 //! Get the address of a plugin from a shared library, opening the plug-in
 //! shared library if not already open. Symbols in the library are local.
 //!
@@ -77,7 +97,7 @@ void *getPlugin(const char *pname, int optional=0);
 //! @param  optional when  0 then issue error message when symbol isn't found.
 //!                  Otherwise, the mising symbol is treated as an error. When
 //!                  optional is greater than 1, the load message is suppressed.
-//! @param  global   when !0 then the symbols defined in the plug-in shared
+//! @param  global   when true then the symbols defined in the plug-in shared
 //!                  library are made available for symbol resolution of
 //!                  subsequently loaded libraries.
 //! @return Success: the address of the symbol in the shared library/executable.
@@ -106,7 +126,7 @@ void *Persist() {void *lHan = libHandle; libHandle = 0; return lHan;}
 //!                     library filename so that LD_LIBRARY_PATH is used to
 //!                     discover the directory path. This allows getPlugin()
 //!                     to properly match preloaded libraries.
-//! @param  ebuff    -> buffer where eror message is to be placed. The mesage
+//! @param  ebuff    -> buffer where eror message is to be placed. The message
 //!                     will always end with a null byte. If no error buffer
 //!                     is supplied, any error messages are discarded.
 //! @param  eblen    -> length of the supplied buffer, eBuff.
@@ -172,7 +192,7 @@ bool  VerCmp(XrdVersionInfo &vInf1, XrdVersionInfo &vInf2, bool noMsg=false);
 //! Constructor #3 (version number checking may be performed and any error
 //!                 is returned in a supplied buffer)
 //!
-//! @param  ebuff    -> buffer where eror message is to be placed. The mesage
+//! @param  ebuff    -> buffer where eror message is to be placed. The message
 //!                     will always end with a null byte.
 //! @param  eblen    -> length of the supplied buffer, eBuff.
 //! @param  path     -> path to the shared library containing a plug-in. If NULL

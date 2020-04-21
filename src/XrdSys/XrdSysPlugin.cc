@@ -54,6 +54,7 @@
   
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdVersion.hh"
 #include "XrdVersionPlugin.hh"
@@ -248,20 +249,21 @@ void *XrdSysPlugin::Find(const char *libpath)
 }
 
 /******************************************************************************/
-/*                             g e t P l u g i n                              */
+/*                            g e t L i b r a r y                             */
 /******************************************************************************/
-
-void *XrdSysPlugin::getPlugin(const char *pname, int optional)
+  
+void *XrdSysPlugin::getLibrary(bool allMsgs, bool global)
 {
-   return getPlugin(pname, optional, false);
-}
+   void *myHandle;
+   int   flags;
 
-void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
-{
-   XrdVERSIONINFODEF(urInfo, unknown, XrdVNUMUNK, "");
-   void *ep, *myHandle;
-   cvResult cvRC;
-   int flags;
+// Check if we should use the preload list
+//
+   if (!(myHandle = libHandle) && plList) myHandle = Find(libPath);
+
+// If already open, return the handle
+//
+   if (myHandle) return myHandle;
 
 // If no path is given then we want to just search the executable. This is easy
 // for some platforms and more difficult for others. So, we do the best we can.
@@ -276,22 +278,44 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 #endif
       }
 
-// Check if we should use the preload list
+// Try to open this library or the executable image
 //
-   if (!(myHandle = libHandle) && plList) myHandle = Find(libPath);
+   if ((myHandle = dlopen(libPath, flags))) libHandle = myHandle;
+      else {const char *eTxt = dlerror();
+            if (strcasestr(eTxt, "no such file")) errno = ENOENT;
+               else errno = ENOEXEC;
+            if (allMsgs || errno != ENOENT) libMsg(eTxt, " loading ");
+           }
+
+// All done
+//
+   return myHandle;
+}
+
+/******************************************************************************/
+/*                             g e t P l u g i n                              */
+/******************************************************************************/
+
+void *XrdSysPlugin::getPlugin(const char *pname, int optional)
+{
+   return getPlugin(pname, optional, false);
+}
+
+void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
+{
+   XrdVERSIONINFODEF(urInfo, unknown, XrdVNUMUNK, "");
+   void *ep, *myHandle;
+   cvResult cvRC;
 
 // Open whatever it is we need to open
 //
-   if (!myHandle)
-      {if ((myHandle = dlopen(libPath, flags))) libHandle = myHandle;
-          else {if (optional < 2) libMsg(dlerror(), " loading "); return 0;}
-      }
+   if (!(myHandle = getLibrary(optional < 2, global))) return 0;
 
 // Get the symbol. In the environment we have defined, null values are not
 // allowed and we will issue an error.
 //
    if (!(ep = dlsym(myHandle, pname)))
-      {if (optional < 2) libMsg(dlerror(), " plugin %s in ", pname);
+      {if (optional < 2) libMsg(dlerror(), " symbol %s in ", pname);
        return 0;
       }
 
@@ -374,7 +398,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::libMsg(const char *txt1, const char *txt2,
 //
         if (mSym)
            {if (!txt1 || strstr(txt1, "undefined"))
-               {txt1 = "Unable to find ";
+               {txt1 = "Unable to find";
                 snprintf(nBuff, sizeof(nBuff), txt2, mSym);
                } else {
                 strcpy(nBuff, fndg);

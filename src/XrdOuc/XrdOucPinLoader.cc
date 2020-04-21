@@ -27,6 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -83,14 +84,19 @@ XrdOucPinLoader::XrdOucPinLoader(XrdVersionInfo *vInfo,
                                  const char     *drctv,
                                  const char     *plib)
 {
+   static const int ebsz = 2048;
+
+// Allocate a message buffer if we need to (failure is OK)
+//
+   errBP = (char *)malloc(ebsz);
+   errBL = ebsz;
+   frBuff= true;
 
 // Save some symbols and do common initialization
 //
+   *errBP= 0;
    eDest = 0;
    viP   = vInfo;
-   errBP = 0;
-   errBL = 0;
-   frBuff= true;
    Init(drctv, plib);
 }
 
@@ -120,29 +126,34 @@ void XrdOucPinLoader::Inform(const char *txt1, const char *txt2,
                              const char *txt3, const char *txt4,
                              const char *txt5)
 {
-   static const int ebsz = 1024;
-
-// Allocate a message buffer if we need to (failure is OK)
-//
-   if (!errBP && frBuff)
-      {errBP = (char *)malloc(ebsz);
-       errBL = ebsz;
-      }
 
 // If we have a messaging object, use that
 //
-   if (eDest) eDest->Say("Config ", txt1, txt2, txt3, txt4, txt5);
-      else   {const char *eTxt[] = {txt1, txt2, txt3, txt4, txt5, 0};
-              char *bP;
-              int n, i, bL;
-              if ((bP = errBP))
-                 {i = 0; bL = errBL;
-                  while(bL > 1 && eTxt[i])
-                       {n = snprintf(bP, bL, "%s", eTxt[i]);
-                        bP += n; bL -= n; i++;
-                       }
-                 }
-             }
+   if (eDest) {eDest->Say("Config ", txt1, txt2, txt3, txt4, txt5); return;}
+
+// If there is already a message in the buffer, then make sure it prints
+//
+   char *bP;
+   int   bL, n , i = 0;
+
+   if (*errBP)
+      {int n = strlen(errBP);
+       if (n+16 > errBL) return;
+       errBP[n] = '\n';
+       bP = errBP + n + 1;
+       bL = errBL - n - 1;
+      } else {
+       bP = errBP;
+       bL = errBL;
+      }
+
+// Place the message in the buffer
+//
+   const char *eTxt[] = {txt1, txt2, txt3, txt4, txt5, 0};
+   while(bL > 1 && eTxt[i])
+        {n = snprintf(bP, bL, "%s", eTxt[i]);
+         bP += n; bL -= n; i++;
+        }
 }
 
 /******************************************************************************/
@@ -159,28 +170,82 @@ void XrdOucPinLoader::Init(const char *drctv, const char *plib)
    piP    = 0;
    dName  = drctv;
    global = false;
+   badLib = false;
 
 // Check if the path has a version in it. This is generally a no-no.
+// We Issue a warning only on servers as that is where it usually occurs.
 //
    if (XrdOucVerName::hasVersion(plib))
-      {tryLib = theLib = strdup(plib);
+      {theLib = strdup(plib);
        altLib = 0;
-       hasVN = true;
+       if (eDest) eDest->Say("Config ", dName, " plugin ", theLib,
+                             " specifies a version (i.e. '-n.so'); ",
+                             "automatic version selection disabled!");
        return;
       }
-   hasVN = false;
 
 // Perform versioning
 //
-   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, noFallBack,
+   if (XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, noFallBack,
                                libBuf, sizeof(libBuf)))
-      {theLib = 0;
-       altLib = strdup(plib);
-       tryLib = "?";
-      } else {
-       tryLib = theLib = strdup(libBuf);
+      {theLib = strdup(libBuf);
        altLib = (noFallBack ? 0 : strdup(plib));
+      } else {
+       theLib = 0;
+       altLib = strdup(plib);
       }
+}
+  
+/******************************************************************************/
+/* Private:                      L o a d L i b                                */
+/******************************************************************************/
+
+bool XrdOucPinLoader::LoadLib(int mcnt)
+{
+   bool allMsgs = altLib == 0;
+
+// Create a plugin object
+//
+   if (eDest) piP = new XrdSysPlugin(eDest,        theLib, dName, viP, mcnt);
+      else    piP = new XrdSysPlugin(errBP, errBL, theLib, dName, viP, mcnt);
+
+// Attempt to load the library
+//
+   if (piP->getLibrary(allMsgs, global)) return true;
+
+// We failed, so delete this plugin
+//
+   delete piP; piP = 0;
+
+// If we have an alternate unversioned name then we can try that but only
+// if the versioned wasn't found.
+//
+   if (!altLib && errno != ENOENT)
+      {badLib = true;
+       return false;
+      }
+
+// Indicate what we are doing but only for server-side plugins
+//
+   if (eDest) eDest->Say("Plugin ", dName, " ", theLib,
+                         " not found; falling back to using ", altLib);
+
+// Readjust library pointers
+//
+   free(theLib);
+   theLib = altLib;
+   altLib = 0;
+
+// Try once more
+//
+   if (eDest) piP = new XrdSysPlugin(eDest,        theLib, dName, viP, mcnt);
+      else    piP = new XrdSysPlugin(errBP, errBL, theLib, dName, viP, mcnt);
+
+// Attempt to load the alternate library
+//
+   if (piP->getLibrary(true, global)) return true;
+   badLib = true;
+   return false;
 }
   
 /******************************************************************************/
@@ -189,25 +254,25 @@ void XrdOucPinLoader::Init(const char *drctv, const char *plib)
 
 void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
 {
-   void *symAddr;
-   int   isOptional = 0;
+   int isOptional = 0;
 
 // Check if we couldn't create the path
 //
-   if (!theLib)
+   if (!theLib && !badLib)
       {Inform("Unable to load ",dName," plugin ",altLib,"; invalid path.");
+       badLib = true;
        return 0;
       }
 
-// Check if we should issue a warning about the plugin being pinned to a
-// specific version. Some people mistakenly do this.
+// If we couldn't load the library return failure. This is likely an alternate
+// resolution as the caller is looking for an alternate symbol.
 //
-   if (hasVN)
-      {hasVN = false;
-       if (eDest) Inform(dName, " plugin ", theLib,
-                         " specifies a version (i.e. '-n.so'); ",
-                         "automatic version selection disabled!");
-      }
+   if (badLib) return 0;
+
+// Load the library so we can get errors about the library irrespective of
+// the symbol we are trying to resolve.
+//
+   if (!piP && !LoadLib(mcnt)) return 0;
 
 // Handle optional resolution
 //
@@ -216,37 +281,9 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
        isOptional = (*symP == '!' ? 1 : 2);
       }
 
-// If we already have a plugin object, then use it
+// We already have a plugin object so look up the symbol.
 //
-   if (piP) return piP->getPlugin(symP, isOptional);
-
-// Now that we have the name of the library we can declare the plugin object
-// inline so that it gets deleted when we return (icky but simple)
-//
-   if (eDest) piP = new XrdSysPlugin(eDest,        theLib, dName, viP, mcnt);
-      else    piP = new XrdSysPlugin(errBP, errBL, theLib, dName, viP, mcnt);
-
-// Resolve the plugin symbol. This may fail for a number of reasons.
-//
-   if ((symAddr = piP->getPlugin(symP, isOptional, global))) return symAddr;
-
-// We failed, so delete this plugin and see if we can revert to the unversioned
-// name or declare a failure.
-//
-   delete piP; piP = 0;
-   if (!altLib) return 0;
-   tryLib = altLib;
-   if (eDest && isOptional < 2)
-      eDest->Say("Config ", "Falling back to using ", altLib);
-   if (eDest) piP = new XrdSysPlugin(eDest,        altLib, dName, viP, mcnt);
-      else    piP = new XrdSysPlugin(errBP, errBL, altLib, dName, viP, mcnt);
-   if ((symAddr = piP->getPlugin(symP, isOptional, global))) return symAddr;
-
-// We failed
-//
-   delete piP; piP = 0;
-   if (isOptional < 2) Inform("Unable to load ", dName, " plugin ", altLib);
-   return 0;
+   return piP->getPlugin(symP, isOptional, global);
 }
 
 /******************************************************************************/

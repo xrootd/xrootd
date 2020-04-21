@@ -88,7 +88,7 @@ const char   *LastMsg() {return (errBP ? errBP : "");}
 //!               path is invalid, a single question mark is returned.
 //------------------------------------------------------------------------------
 
-const char   *Path() {return tryLib;}
+const char   *Path() {return theLib;}
 
 //------------------------------------------------------------------------------
 //! Resolve a desired symbol from the plugin image.
@@ -120,7 +120,7 @@ void          Unload(bool dodel=false);
 //!               pointer is nil, no version checking occurs.
 //! @param drctv  Pointer to the directive that initiated the load. The text is
 //!               used in error messages to relate the directive to the error.
-//!               E.g. "oofs.osslib" -> "Unable to load ofs.osslib plugin...."
+//!               E.g. "ofs.osslib" -> "Unable to load ofs.osslib plugin...."
 //! @param plib   Pointer to the shared library path that contains the plugin.
 //------------------------------------------------------------------------------
 
@@ -173,18 +173,18 @@ void            Inform(const char *txt1,   const char *txt2=0,
                        const char *txt3=0, const char *txt4=0,
                        const char *txt5=0);
 void            Init(const char *drctv, const char *plib);
+bool            LoadLib(int mcnt);
 
 XrdSysError    *eDest;
 XrdSysPlugin   *piP;
 XrdVersionInfo *viP;
 const char     *dName;
-const char     *tryLib;
 char           *theLib;
 char           *altLib;
 char           *errBP;
 int             errBL;
 bool            global;
 bool            frBuff;
-bool            hasVN;
+bool            badLib;
 };
 #endif
