@@ -266,21 +266,14 @@ void PostMasterTest::FunctionalTest()
   AnyObject nameObj, sidMgrObj;
   Status st1, st2;
   const char *name   = 0;
-  SIDManager *sidMgr = 0;
 
   CPPUNIT_ASSERT_XRDST( postMaster.QueryTransport( host,
                                                    TransportQuery::Name,
                                                    nameObj ) );
-  CPPUNIT_ASSERT_XRDST( postMaster.QueryTransport( host,
-                                                   XRootDQuery::SIDManager,
-                                                   sidMgrObj ) );
-
   nameObj.Get( name );
-  sidMgrObj.Get( sidMgr );
 
   CPPUNIT_ASSERT( name );
   CPPUNIT_ASSERT( !::strcmp( name, "XRootD" ) );
-  CPPUNIT_ASSERT( sidMgr );
 
   postMaster.Stop();
   postMaster.Finalize();
