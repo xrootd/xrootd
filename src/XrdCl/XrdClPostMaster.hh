@@ -224,6 +224,7 @@ namespace XrdCl
       TaskManager      *pTaskManager;
       ChannelMap        pChannelMap;
       XrdSysMutex       pChannelMapMutex;
+      XrdSysRWLock      pDisconnectLock;
       bool              pInitialized;
       JobManager       *pJobManager;
   };

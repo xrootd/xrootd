@@ -166,6 +166,7 @@ namespace XrdCl
                            bool       stateful,
                            time_t     expires )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -183,6 +184,7 @@ namespace XrdCl
                            bool                  stateful,
                            time_t                expires )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -210,6 +212,7 @@ namespace XrdCl
                               MessageFilter  *filter,
                               time_t          expires )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -225,6 +228,7 @@ namespace XrdCl
                               IncomingMsgHandler *handler,
                               time_t              expires )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -240,6 +244,7 @@ namespace XrdCl
                                      uint16_t   query,
                                      AnyObject &result )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -254,6 +259,7 @@ namespace XrdCl
   Status PostMaster::RegisterEventHandler( const URL           &url,
                                            ChannelEventHandler *handler )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -269,6 +275,7 @@ namespace XrdCl
   Status PostMaster::RemoveEventHandler( const URL           &url,
                                        ChannelEventHandler *handler )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
@@ -283,7 +290,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status PostMaster::ForceDisconnect( const URL &url )
   {
-    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    XrdSysRWLockHelper scopedLock( pDisconnectLock, false );
     ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
 
     if( it == pChannelMap.end() )
@@ -301,6 +308,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   uint16_t PostMaster::NbConnectedStrm( const URL &url )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
     if( !channel ) return 0;
     return channel->NbConnectedStrm();
@@ -312,6 +320,7 @@ namespace XrdCl
   void PostMaster::SetOnConnectHandler( const URL &url,
                                         Job       *onConnJob )
   {
+    XrdSysRWLockHelper scopedLock( pDisconnectLock );
     Channel *channel = GetChannel( url );
     if( !channel ) return;
     channel->SetOnConnectHandler( onConnJob );
