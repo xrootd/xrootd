@@ -127,7 +127,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
    XrdOssGetStorageSystem_t  getOSS1;
    const char               *epName1 = "XrdOssGetStorageSystem";
    XrdOssGetStorageSystem2_t getOSS2;
-   const char               *epName2 = "XrdOssGetStorageSystem2";
+   const char               *epName2 ="?XrdOssGetStorageSystem2";
 
 // First try finding version 2 of the initializer. If that fails try version 1.
 // In the process, we will get an oss object if we succeed at all.

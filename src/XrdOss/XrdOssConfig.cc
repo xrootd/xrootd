@@ -869,21 +869,29 @@ int XrdOssSys::ConfigStageC(XrdSysError &Eroute)
 int XrdOssSys::ConfigStatLib(XrdSysError &Eroute, XrdOucEnv *envP)
 {
    XrdOucPinLoader myLib(&Eroute, myVersion, "statlib", STT_Lib);
+   const char *stName2 = "?XrdOssStatInfoInit2";
 
-// Get the plugin and stat function
+// Get the plugin and stat function. Let's try version 2 first
 //
-   if (STT_V2)
-      {XrdOssStatInfoInit2_t siGet2;
-       if (!(siGet2=(XrdOssStatInfoInit2_t)myLib.Resolve("XrdOssStatInfoInit2"))
-       ||  !(STT_Fund = siGet2(this,Eroute.logger(),ConfigFN,STT_Parms,envP)))
+   XrdOssStatInfoInit2_t siGet2;
+   if (STT_V2) stName2++;
+   if ((siGet2=(XrdOssStatInfoInit2_t)myLib.Resolve(stName2)))
+      {if (!(STT_Fund = siGet2(this,Eroute.logger(),ConfigFN,STT_Parms,envP)))
           return 1;
        if (STT_DoARE) envP->PutPtr("XrdOssStatInfo2*", (void *)STT_Fund);
-      } else {
-       XrdOssStatInfoInit_t siGet;
-       if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit"))
-       ||  !(STT_Func = siGet (this,Eroute.logger(),ConfigFN,STT_Parms)))
-          return 1;
+       STT_V2 = 1;
       }
+
+// If we are here but the -2 was specified on the config then we fail
+//
+   if (STT_V2) return 1;
+
+// OK, so we better find version 1 in the shared library
+//
+   XrdOssStatInfoInit_t siGet;
+   if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit"))
+   ||  !(STT_Func = siGet (this,Eroute.logger(),ConfigFN,STT_Parms)))
+      return 1;
 
 // Return success
 //
@@ -1673,7 +1681,7 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 
    Purpose:  To parse the directive: statlib <Options> <path> [<parms>]
 
-   Options:  -2        use version 2 initialization interface.
+   Options:  -2        use version 2 initialization interface (deprecated).
              -arevents forward add/remove events (server role cmsd only)
              -non2n    do not apply name2name prior to calling plug-in.
              -preopen  issue the stat() prior to opening the file.
