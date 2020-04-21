@@ -119,11 +119,11 @@ namespace XrdCl
       //! @param sidMgr      the sid manager used to allocate SID for the initial
       //!                    message
       //------------------------------------------------------------------------
-      XRootDMsgHandler( Message          *msg,
-                        ResponseHandler  *respHandler,
-                        const URL        *url,
-                        SIDManager       *sidMgr,
-                        LocalFileHandler *lFileHandler):
+      XRootDMsgHandler( Message                     *msg,
+                        ResponseHandler             *respHandler,
+                        const URL                   *url,
+                        std::shared_ptr<SIDManager>  sidMgr,
+                        LocalFileHandler            *lFileHandler):
         pRequest( msg ),
         pResponse( 0 ),
         pResponseHandler( respHandler ),
@@ -205,7 +205,6 @@ namespace XrdCl
         pResponse               = reinterpret_cast<Message*>( 0xDEADBEEF );
         pResponseHandler        = reinterpret_cast<ResponseHandler*>( 0xDEADBEEF );
         pPostMaster             = reinterpret_cast<PostMaster*>( 0xDEADBEEF );
-        pSidMgr                 = reinterpret_cast<SIDManager*>( 0xDEADBEEF );
         pLFileHandler           = reinterpret_cast<LocalFileHandler*>( 0xDEADBEEF );
         pHosts                  = reinterpret_cast<HostList*>( 0xDEADBEEF );
         pChunkList              = reinterpret_cast<ChunkList*>( 0xDEADBEEF );
@@ -544,7 +543,7 @@ namespace XrdCl
       URL                             pUrl;
       URL                            *pEffectiveDataServerUrl;
       PostMaster                     *pPostMaster;
-      SIDManager                     *pSidMgr;
+      std::shared_ptr<SIDManager>     pSidMgr;
       LocalFileHandler               *pLFileHandler;
       Status                          pStatus;
       Status                          pLastError;

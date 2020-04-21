@@ -35,6 +35,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <ctime>
+#include <stdexcept>
 
 namespace
 {
@@ -245,7 +246,9 @@ namespace XrdCl
     int  timeoutResolution = DefaultTimeoutResolution;
     env->GetInt( "TimeoutResolution", timeoutResolution );
 
-    pTransport->InitializeChannel( pChannelData );
+    XRootDTransport *xrdTransport = dynamic_cast<XRootDTransport*>( pTransport );
+    if( !xrdTransport ) throw std::logic_error( "Expected XRootD transport!" );
+    xrdTransport->InitializeChannel( url, pChannelData );
     uint16_t numStreams = transport->StreamNumber( pChannelData );
     log->Debug( PostMasterMsg, "Creating new channel to: %s %d stream(s)",
                                 url.GetHostId().c_str(), numStreams );

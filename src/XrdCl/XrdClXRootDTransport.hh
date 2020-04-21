@@ -43,7 +43,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   struct XRootDQuery
   {
-    static const uint16_t SIDManager      = 1001; //!< returns the SIDManager object
     static const uint16_t ServerFlags     = 1002; //!< returns server flags
     static const uint16_t ProtocolVersion = 1003; //!< returns the protocol version
   };
@@ -93,7 +92,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Initialize channel
       //------------------------------------------------------------------------
-      virtual void InitializeChannel( AnyObject &channelData );
+      virtual void InitializeChannel( AnyObject &channelData ); //< we keep this as we need to implement the abstract method
+      virtual void InitializeChannel( const URL  &url, AnyObject  &channelData );
 
       //------------------------------------------------------------------------
       //! Finalize channel

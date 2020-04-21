@@ -51,6 +51,7 @@
 #include <iomanip>
 #include <set>
 #include <limits>
+#include <stdexcept>
 
 #if __cplusplus >= 201103L
 #include <atomic>
@@ -192,11 +193,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Constructor
     //--------------------------------------------------------------------------
-    XRootDChannelInfo():
+    XRootDChannelInfo( const URL &url ):
       serverFlags(0),
       protocolVersion(0),
       firstLogIn(true),
-      sidManager(0),
       authBuffer(0),
       authProtocol(0),
       authParams(0),
@@ -208,7 +208,7 @@ namespace XrdCl
       protRespSize(0),
       strmSelector(0)
     {
-      sidManager = new SIDManager();
+      sidManager = SIDMgrPool::Instance().GetSIDMgr( url.GetHostId() );
       memset( sessionId, 0, 16 );
       memset( oldSessionId, 0, 16 );
     }
@@ -218,7 +218,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     ~XRootDChannelInfo()
     {
-      delete    sidManager;
       delete [] authBuffer;
       delete    strmSelector;
     }
@@ -233,7 +232,7 @@ namespace XrdCl
     uint8_t                      sessionId[16];
     uint8_t                      oldSessionId[16];
     bool                         firstLogIn;
-    SIDManager                  *sidManager;
+    std::shared_ptr<SIDManager>  sidManager;
     char                        *authBuffer;
     XrdSecProtocol              *authProtocol;
     XrdSecParameters            *authParams;
@@ -350,7 +349,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void XRootDTransport::InitializeChannel( AnyObject &channelData )
   {
-    XRootDChannelInfo *info = new XRootDChannelInfo();
+    throw std::logic_error( "InitializeChannel: deprecated interface!" );
+  }
+
+  void XRootDTransport::InitializeChannel( const URL  &url, AnyObject  &channelData )
+  {
+    XRootDChannelInfo *info = new XRootDChannelInfo( url );
     XrdSysMutexHelper scopedLock( info->mutex );
     channelData.Set( info );
 
@@ -1182,13 +1186,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case TransportQuery::Auth:
         result.Set( new std::string( info->authProtocolName ), false );
-        return Status();
-
-      //------------------------------------------------------------------------
-      // SID Manager object
-      //------------------------------------------------------------------------
-      case XRootDQuery::SIDManager:
-        result.Set( info->sidManager, false );
         return Status();
 
       //------------------------------------------------------------------------
