@@ -92,18 +92,6 @@ void FileTest::RedirectReturnTest()
   std::string fileUrl = address + "/" + path;
 
   //----------------------------------------------------------------------------
-  // Get the SID manager
-  //----------------------------------------------------------------------------
-  PostMaster *postMaster = DefaultEnv::GetPostMaster();
-  AnyObject   sidMgrObj;
-  SIDManager *sidMgr    = 0;
-  Status      st;
-  st = postMaster->QueryTransport( url, XRootDQuery::SIDManager, sidMgrObj );
-
-  CPPUNIT_ASSERT( st.IsOK() );
-  sidMgrObj.Get( sidMgr );
-
-  //----------------------------------------------------------------------------
   // Build the open request
   //----------------------------------------------------------------------------
   Message           *msg;
