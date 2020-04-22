@@ -50,6 +50,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       SIDManager(): pSIDCeiling(1), pRefCount(0) { }
 
+#if __cplusplus < 201103L
+    //------------------------------------------------------------------------
+    // For older complilers we have to make the destructor public, although
+    // the shared_pointer is using a custom deleter. It will go away once
+    // we drop SLC6 support.
+    //------------------------------------------------------------------------
+    public:
+#endif
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
