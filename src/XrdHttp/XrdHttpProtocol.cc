@@ -1587,6 +1587,23 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   if (rdf && Config(rdf, pi->theEnv)) return 0;
   if (pi->DebugON) XrdHttpTrace->What = TRACE_ALL;
 
+  // Set the redirect flag if we are a pure redirector
+  myRole = kXR_isServer;
+  if ((rdf = getenv("XRDROLE"))) {
+      eDest.Emsg("Config", "XRDROLE: ", rdf);
+
+      if (!strcasecmp(rdf, "manager") || !strcasecmp(rdf, "supervisor")) {
+        myRole = kXR_isManager;
+        eDest.Emsg("Config", "Configured as HTTP(s) redirector.");
+      } else {
+
+        eDest.Emsg("Config", "Configured as HTTP(s) data server.");
+      }
+
+  } else {
+    eDest.Emsg("Config", "No XRDROLE specified.");
+  }
+
   // Schedule protocol object cleanup
   //
   ProtStack.Set(pi->Sched, XrdHttpTrace, TRACE_MEM);
