@@ -2245,7 +2245,7 @@ namespace XrdCl
       if( pSidMgr )
       {
         pSidMgr->ReleaseSID( req->streamid );
-        pSidMgr = 0;
+        pSidMgr.reset();
       }
 
       // then get the new SIDManager

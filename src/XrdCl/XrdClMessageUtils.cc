@@ -157,7 +157,7 @@ namespace XrdCl
     // Create and set up the message handler
     //--------------------------------------------------------------------------
     XRootDMsgHandler *msgHandler;
-    msgHandler = new XRootDMsgHandler( msg, handler, &url, 0, lFileHandler );
+    msgHandler = new XRootDMsgHandler( msg, handler, &url, std::shared_ptr<SIDManager>(), lFileHandler );
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
     msgHandler->SetOksofarAsAnswer( sendParams.chunkedResponse );
