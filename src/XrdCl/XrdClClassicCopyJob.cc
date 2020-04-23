@@ -1820,6 +1820,13 @@ namespace XrdCl
     pResults->Set( "size", processed );
 
     //--------------------------------------------------------------------------
+    // Finalize the destination
+    //--------------------------------------------------------------------------
+    st = dest->Finalize();
+    if( !st.IsOK() )
+      return UpdateErrMsg( st, "destination" );
+
+    //--------------------------------------------------------------------------
     // Verify the checksums if needed
     //--------------------------------------------------------------------------
     if( checkSumMode != "none" )
@@ -1916,13 +1923,6 @@ namespace XrdCl
         log->Info( UtilityMsg, "Checksum verification: succeeded." );
       }
     }
-
-    //--------------------------------------------------------------------------
-    // Finalize the destination (only after checksum verification)
-    //--------------------------------------------------------------------------
-    st = dest->Finalize();
-    if( !st.IsOK() )
-      return UpdateErrMsg( st, "destination" );
 
     return XRootDStatus();
   }
