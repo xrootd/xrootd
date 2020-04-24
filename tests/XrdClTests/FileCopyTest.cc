@@ -411,6 +411,38 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Clear();
 
   //----------------------------------------------------------------------------
+  // Copy to local fs
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source", sourceURL );
+  properties.Set( "target", "file://localhost" + localFile );
+  properties.Set( "checkSumMode", "end2end" );
+  properties.Set( "checkSumType", "zcrc32"  );
+  CPPUNIT_ASSERT_XRDST( process8.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process8.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process8.Run(0) );
+  properties.Clear();
+
+  //----------------------------------------------------------------------------
+  // Copy from local fs with extended attributes
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source", "file://localhost" + localFile );
+  properties.Set( "target", targetURL );
+  properties.Set( "checkSumMode", "end2end" );
+  properties.Set( "checkSumType", "zcrc32"  );
+  CPPUNIT_ASSERT_XRDST( process9.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process9.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process9.Run(0) );
+  properties.Clear();
+
+  //----------------------------------------------------------------------------
+  // Cleanup
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  CPPUNIT_ASSERT( remove( localFile.c_str() ) == 0 );
+
+  //----------------------------------------------------------------------------
   // Initialize and run the copy
   //----------------------------------------------------------------------------
   properties.Set( "source",       sourceURL );
@@ -463,39 +495,6 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process4.Prepare() );
   CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
-  properties.Clear();
-
-  //----------------------------------------------------------------------------
-  // Copy to local fs
-  //----------------------------------------------------------------------------
-  results.Clear();
-  properties.Set( "source", sourceURL );
-  properties.Set( "target", "file://localhost" + localFile );
-  properties.Set( "checkSumMode", "end2end" );
-  properties.Set( "checkSumType", "zcrc32"  );
-  CPPUNIT_ASSERT_XRDST( process8.AddJob( properties, &results ) );
-  CPPUNIT_ASSERT_XRDST( process8.Prepare() );
-  CPPUNIT_ASSERT_XRDST( process8.Run(0) );
-  properties.Clear();
-
-  //----------------------------------------------------------------------------
-  // Copy from local fs
-  //----------------------------------------------------------------------------
-  results.Clear();
-  properties.Set( "source", "file://localhost" + localFile );
-  properties.Set( "target", targetURL );
-  properties.Set( "checkSumMode", "end2end" );
-  properties.Set( "checkSumType", "zcrc32"  );
-  CPPUNIT_ASSERT_XRDST( process9.AddJob( properties, &results ) );
-  CPPUNIT_ASSERT_XRDST( process9.Prepare() );
-  CPPUNIT_ASSERT_XRDST( process9.Run(0) );
-  properties.Clear();
-
-  //----------------------------------------------------------------------------
-  // Cleanup
-  //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
-  CPPUNIT_ASSERT( remove( localFile.c_str() ) == 0 );
 }
 
 //------------------------------------------------------------------------------
