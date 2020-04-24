@@ -345,7 +345,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string xcpSourceURL = metamanager + "/" + dataPath + "/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
   std::string localFile    = "/data/localfile.dat";
 
-  CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9, process10;
+  CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
+               process10, process11;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -441,6 +442,22 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
   CPPUNIT_ASSERT( remove( localFile.c_str() ) == 0 );
+
+  //----------------------------------------------------------------------------
+  // Copy with `auto` checksum
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source",       sourceURL );
+  properties.Set( "target",       targetURL );
+  properties.Set( "checkSumMode", "end2end" );
+  properties.Set( "checkSumType", "auto"    );
+  if( thirdParty )
+    properties.Set( "thirdParty",   "only"    );
+  CPPUNIT_ASSERT_XRDST( process11.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process11.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process11.Run(0) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  properties.Clear();
 
   //----------------------------------------------------------------------------
   // Initialize and run the copy
