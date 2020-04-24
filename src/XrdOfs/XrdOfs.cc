@@ -676,7 +676,7 @@ int XrdOfsFile::open(const char          *path,      // In
           {char *url = Open_Env.Get("FileURL");
            if (url) {error.setErrInfo(-1, url); return SFS_REDIRECT;}
           }
-       if (XrdOfsFS->Balancer && retc != -ECANCELED)
+       if (XrdOfsFS->Balancer && retc == -ENOENT)
           XrdOfsFS->Balancer->Removed(path);
        return XrdOfsFS->Emsg(epname, error, retc, "open", path);
       }
