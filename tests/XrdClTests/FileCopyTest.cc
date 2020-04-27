@@ -338,6 +338,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string targetPath   = dataPath + "/tpcFile";
   std::string targetURL    = manager2 + "/" + targetPath;
   std::string metalinkURL  = metamanager + "/" + dataPath + "/metalink/mlTpcTest.meta4";
+  std::string metalinkURL2 = metamanager + "/" + dataPath + "/metalink/mlZipTest.meta4";
   std::string zipURL       = metamanager + "/" + dataPath + "/data.zip";
   std::string zipURL2      = metamanager + "/" + dataPath + "/large.zip";
   std::string fileInZip    = "paper.txt";
@@ -346,7 +347,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string localFile    = "/data/localfile.dat";
 
   CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
-               process10, process11, process12;
+               process10, process11, process12, process13;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -383,7 +384,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Clear();
 
     //--------------------------------------------------------------------------
-    // Copy with `--rm-on-bad-cksum`
+    // Copy with `--rm-bad-cksum`
     //--------------------------------------------------------------------------
     results.Clear();
     properties.Set( "source",         sourceURL );
@@ -392,8 +393,6 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "checkSumType",   "auto"    );
     properties.Set( "checkSumPreset", "bad-value" ); //< provide wrong checksum value, so the check fails and the file gets removed
     properties.Set( "rmOnBadCksum",   true        );
-    if( thirdParty )
-      properties.Set( "thirdParty",   "only"    );
     CPPUNIT_ASSERT_XRDST( process12.AddJob( properties, &results ) );
     CPPUNIT_ASSERT_XRDST( process12.Prepare() );
     CPPUNIT_ASSERT_XRDST_NOTOK( process12.Run(0), XrdCl::errCheckSumError );
@@ -401,6 +400,22 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     XrdCl::XRootDStatus status = fs.Stat( targetPath, info );
     CPPUNIT_ASSERT_XRDST( status.status == XrdCl::stError && st.code == XrdCl::errNotFound );
     properties.Clear();
+
+    //--------------------------------------------------------------------------
+    // Copy with `--zip-mtln-cksum`
+    //--------------------------------------------------------------------------
+    results.Clear();
+    properties.Set( "source",         metalinkURL2 );
+    properties.Set( "target",         targetURL    );
+    properties.Set( "checkSumMode",   "end2end"    );
+    properties.Set( "checkSumType",   "zcrc32"     );
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    env->PutInt( "ZipMtlnCksum", 1 );
+    CPPUNIT_ASSERT_XRDST( process13.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process13.Prepare() );
+    CPPUNIT_ASSERT_XRDST_NOTOK( process13.Run(0), XrdCl::errCheckSumError );
+    env->PutInt( "ZipMtlnCksum", 0 );
+    CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
   }
 
   //----------------------------------------------------------------------------
