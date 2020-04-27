@@ -346,7 +346,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string localFile    = "/data/localfile.dat";
 
   CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
-               process10, process11;
+               process10, process11, process12;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -380,6 +380,26 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     CPPUNIT_ASSERT_XRDST( process10.Prepare() );
     CPPUNIT_ASSERT_XRDST( process10.Run(0) );
     CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+    properties.Clear();
+
+    //--------------------------------------------------------------------------
+    // Copy with `--rm-on-bad-cksum`
+    //--------------------------------------------------------------------------
+    results.Clear();
+    properties.Set( "source",         sourceURL );
+    properties.Set( "target",         targetURL );
+    properties.Set( "checkSumMode",   "end2end" );
+    properties.Set( "checkSumType",   "auto"    );
+    properties.Set( "checkSumPreset", "bad-value" ); //< provide wrong checksum value, so the check fails and the file gets removed
+    properties.Set( "rmOnBadCksum",   true        );
+    if( thirdParty )
+      properties.Set( "thirdParty",   "only"    );
+    CPPUNIT_ASSERT_XRDST( process12.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process12.Prepare() );
+    CPPUNIT_ASSERT_XRDST_NOTOK( process12.Run(0), XrdCl::errCheckSumError );
+    XrdCl::StatInfo *info = 0;
+    XrdCl::XRootDStatus status = fs.Stat( targetPath, info );
+    CPPUNIT_ASSERT_XRDST( status.status == XrdCl::stError && st.code == XrdCl::errNotFound );
     properties.Clear();
   }
 
@@ -464,6 +484,20 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT( remove( localFile.c_str() ) == 0 );
 
   //----------------------------------------------------------------------------
+  // Initialize and run the copy
+  //----------------------------------------------------------------------------
+  properties.Set( "source",       sourceURL );
+  properties.Set( "target",       targetURL );
+  properties.Set( "checkSumMode", "end2end" );
+  properties.Set( "checkSumType", "zcrc32"  );
+  if( thirdParty )
+    properties.Set( "thirdParty",   "only"    );
+  CPPUNIT_ASSERT_XRDST( process1.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process1.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process1.Run(0) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+
+  //----------------------------------------------------------------------------
   // Copy with `auto` checksum
   //----------------------------------------------------------------------------
   results.Clear();
@@ -478,26 +512,6 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process11.Run(0) );
   CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
   properties.Clear();
-
-  //----------------------------------------------------------------------------
-  // Initialize and run the copy
-  //----------------------------------------------------------------------------
-  properties.Set( "source",       sourceURL );
-  properties.Set( "target",       targetURL );
-  properties.Set( "checkSumMode", "end2end" );
-  properties.Set( "checkSumType", "zcrc32"  );
-
-  if( thirdParty )
-    properties.Set( "thirdParty",   "only"    );
-
-  CPPUNIT_ASSERT_XRDST( process1.AddJob( properties, &results ) );
-  CPPUNIT_ASSERT_XRDST( process1.Prepare() );
-  CPPUNIT_ASSERT_XRDST( process1.Run(0) );
-
-  //----------------------------------------------------------------------------
-  // Cleanup
-  //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
 
   // the further tests are only valid for third party copy for now
   if( !thirdParty )
@@ -516,11 +530,14 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // Copy from a non-existent source
   //----------------------------------------------------------------------------
   results.Clear();
-  properties.Set( "source", "root://localhost:9999//test" );
+  properties.Set( "source",      "root://localhost:9999//test" );
+  properties.Set( "target",      targetURL );
   properties.Set( "initTimeout", 10 );
   CPPUNIT_ASSERT_XRDST( process3.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process3.Prepare() );
-  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Run(0), errOperationExpired );
+  XrdCl::XRootDStatus status = process3.Run(0);
+  std::cout << status.code << std::endl;
+  CPPUNIT_ASSERT_XRDST_NOTOK( status, errOperationExpired );
 
   //----------------------------------------------------------------------------
   // Copy to a non-existent target
