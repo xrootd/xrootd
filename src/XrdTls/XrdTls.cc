@@ -33,7 +33,9 @@
 #include <openssl/ssl.h>
 
 #include "XrdSys/XrdSysE2T.hh"
+#include "XrdSys/XrdSysTrace.hh"
 #include "XrdTls/XrdTls.hh"
+#include "XrdTls/XrdTlsTrace.hh"
 
 /******************************************************************************/
 /*                    G l o b a l   D e f i n i t i o n s                     */
@@ -50,6 +52,7 @@ void ToStdErr(const char *tid, const char *msg, bool sslerr)
 namespace XrdTlsGlobal
 {
 XrdTls::msgCB_t  msgCB = ToStdErr;
+XrdSysTrace      SysTrace("TLS",0);
 };
 
 /******************************************************************************/
@@ -146,6 +149,16 @@ std::string XrdTls::RC2Text(XrdTls::RC rc, bool dbg)
    return std::string(eP);
 }
 
+/******************************************************************************/
+/*                              S e t D e b u g                               */
+/******************************************************************************/
+
+void XrdTls::SetDebug(int opts, XrdSysLogger *logP)
+{
+   XrdTlsGlobal::SysTrace.SetLogger(logP);
+   XrdTlsGlobal::SysTrace.What = opts;
+}
+  
 /******************************************************************************/
 /*                              S e t M s g C B                               */
 /******************************************************************************/

@@ -229,8 +229,11 @@ XrdConfig::XrdConfig()
    repInt     = 600;
    repOpts    = 0;
    ppNet      = 0;
-   tlsOpts    = 0x0000000a | XrdTlsContext::servr;
+   tlsOpts    = 0x00000009 | XrdTlsContext::servr | XrdTlsContext::logVF;
+   tlsRefT    = 8*60*60;
+   tlsCache   = XrdTlsContext::scNone;
    tlsNoVer   = false;
+   tlsNoCAD   = true;
    NetTCPlep  = -1;
    NetADM     = 0;
    coreV      = 1;
@@ -639,28 +642,33 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    NoGo |= SetupAPath();
 
-// If tls enabled, set it up
+// If tls enabled, set it up. We skip this if we failed to avoid confusing msgs
 //
-   if (!tlsCert) ProtInfo.tlsCtx= 0;
-      else {Log.Say("++++++ ", myInstance, " TLS initialization started.");
-            if (SetupTLS())
-               {Log.Say("++++++ ", myInstance, " TLS initialization ended.");
-                ProtInfo.tlsCtx = XrdGlobal::tlsCtx;
-               } else {
-                NoGo = 1;
-                Log.Say("++++++ ", myInstance, " TLS initialization failed.");
+   if (!NoGo)
+      {if (!tlsCert) ProtInfo.tlsCtx= 0;
+          else {Log.Say("++++++ ", myInstance, " TLS initialization started.");
+                if (SetupTLS())
+                   {Log.Say("++++++ ",myInstance," TLS initialization ended.");
+                    ProtInfo.tlsCtx = XrdGlobal::tlsCtx;
+                   } else {
+                    NoGo = 1;
+                    Log.Say("++++++ ",myInstance," TLS initialization failed.");
+                   }
                }
-           }
+      }
 
-// If there is TLS port verify that it can be used
+// If there is TLS port verify that it can be used. We ignore this if we
+// will fal anyway so as to not issue confusing messages.
 //
-   if (PortTLS > 0 && !XrdGlobal::tlsCtx)
-      {Log.Say("Config TLS port specification ignored; TLS not configured!");
-       PortTLS = -1;
-      } else {
-       ProtInfo.tlsCtx  = XrdGlobal::tlsCtx;
-       ProtInfo.tlsPort = PortTLS;
-     }
+   if (!NoGo)
+      {if (PortTLS > 0 && !XrdGlobal::tlsCtx)
+          {Log.Say("Config TLS port specification ignored; TLS not configured!");
+           PortTLS = -1;
+          } else {
+           ProtInfo.tlsCtx  = XrdGlobal::tlsCtx;
+           ProtInfo.tlsPort = PortTLS;
+         }
+      }
 
 // Put largest buffer size in the env
 //
@@ -1325,11 +1333,15 @@ int XrdConfig::SetupAPath()
 
 bool XrdConfig::SetupTLS()
 {
+   const char *sessID = "xroots";
 
 // Check if we should issue a verification error
 //
    if (!caDir && !caFile && !tlsNoVer)
-      {Log.Say("Config failure: the tlsca directive was not specified!");
+      {if (tlsNoCAD)
+          Log.Say("Config failure: the tlsca directive was not specified!");
+          else Log.Say("Config failure: the tlsca directive did not specify "
+                       "a certdir or certfile!");
        return false;
       }
 
@@ -1337,9 +1349,18 @@ bool XrdConfig::SetupTLS()
 //
    XrdTls::SetMsgCB(TlsError);
 
-// Set debug option if need be.
+// Set tracing options as needed
 //
-   if (TRACING((TRACE_DEBUG|TRACE_TLS))) tlsOpts |= XrdTlsContext::debug;
+   if (TRACING((TRACE_DEBUG|TRACE_TLS)))
+      {int tlsdbg = 0;
+       if (TRACING(TRACE_DEBUG)) tlsdbg = XrdTls::dbgALL;
+          else {if (TRACING(TRACE_TLSCTX)) tlsdbg |= XrdTls::dbgCTX;
+                if (TRACING(TRACE_TLSSIO)) tlsdbg |= XrdTls::dbgSIO;
+                if (TRACING(TRACE_TLSSOK)) tlsdbg |= XrdTls::dbgSOK;
+               }
+       XrdTls::SetDebug(tlsdbg, &Logger);
+       SSLmsgs = true;
+      }
 
 // Create a context
 //
@@ -1347,7 +1368,15 @@ bool XrdConfig::SetupTLS()
 
 // Check if all went well
 //
-   if (xrdTLS.Context() == 0) return false;
+   if (!xrdTLS.isOK()) return false;
+
+// Set the cache parameters
+//
+   xrdTLS.SessionCache(tlsCache, sessID, strlen(sessID)+1);
+
+// Set the refresh parameters
+//
+   if (tlsRefT && !tlsNoVer) xrdTLS.SetCrlRefresh(tlsRefT);
 
 // Set address of out TLS object in the global area
 //
@@ -2205,6 +2234,8 @@ int XrdConfig::xtcpmon(XrdSysError *eDest, XrdOucStream &Config)
              <cpath>  is the the certificate file to be used.
              <kpath>  is the the private key file to be used.
              <opts>   options:
+                      cache [server] [client] [flush <sec>] [[no]detail]
+
                       hsto <sec> handshake timeout interval (default 10).
 
    Output: 0 upon success or 1 upon failure.
@@ -2233,8 +2264,8 @@ int XrdConfig::xtls(XrdSysError *eDest, XrdOucStream &Config)
         if (!(val = Config.GetWord())) return 0;
        }
 
-do {     if (!strcmp(val,   "dump")) SSLmsgs = true;
-    else if (!strcmp(val, "nodump")) SSLmsgs = false;
+do {     if (!strcmp(val,   "detail")) SSLmsgs = true;
+    else if (!strcmp(val, "nodetail")) SSLmsgs = false;
     else if (!strcmp(val, "hsto" ))
             {if (!(val = Config.GetWord()))
                 {eDest->Emsg("Config", "tls hsto value not specified");
@@ -2244,6 +2275,31 @@ do {     if (!strcmp(val,   "dump")) SSLmsgs = true;
                 return 1;
              tlsOpts &= ~XrdTlsContext::hsto;
              tlsOpts |= (XrdTlsContext::hsto & num);
+            }
+    else if (!strcmp(val, "cache" ))
+            {if (!(val = Config.GetWord()))
+                {eDest->Emsg("Config", "tls cache value not specified");
+                 return 1;
+                }
+             tlsCache = XrdTlsContext::scNone;
+                  if (!strcmp(val, "off"))
+                        tlsCache   = XrdTlsContext::scOff;
+             else if (!strcmp(val, "on"))
+                     {tlsCache  |= XrdTlsContext::scSrvr;
+                      if (!(val=Config.GetWord())) break;
+                      if (strcmp(val, "flush")) continue;
+                      if (!(val = Config.GetWord()))
+                         {eDest->Emsg("Config",
+                                      "tls cache flush value not specified");
+                          return 1;
+                         }
+                      if (XrdOuca2x::a2tm(*eDest,"tls flush",val,&num,1))
+                         return 1;
+                      if (num < 60) num = 60;
+                         else if (num > XrdTlsContext::scFMax)
+                                  num = XrdTlsContext::scFMax;
+                      tlsCache = (tlsCache & ~XrdTlsContext::scFMax) | num;
+                     }
             }
     else {eDest->Emsg("Config", "invalid tls option -",val); return 1;}
    } while ((val = Config.GetWord()));
@@ -2261,15 +2317,15 @@ do {     if (!strcmp(val,   "dump")) SSLmsgs = true;
 
              parms: {certdir | certfile} <path>
 
-             opts:  [log {all | failure | none}] [verdepth <n>]
+             opts:  [log {failure | off}] [refresh t[m|h|s]] [verdepth <n>]
 
              noverify client's cert need not be verified.
              <path>   is the the certificate path or file to be used.
                       Both a file and a directory path can be specified.
+             <t>      the crl/ca refresh interval.
              <n>      the maximum certificate depth to be check.
-             log      logs verification attempts. The default is 'none' (i.e.
-                      no logging). The 'all' option logs all verifications.
-                      The 'failure' option logs only verification failures.
+             log      logs verification attempts: "failure" (the default) logs
+                      verification failures, while "off" logs nothing.
 
    Output: 0 upon success or 1 upon failure.
 */
@@ -2282,6 +2338,7 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
 
    if (!(val = Config.GetWord()))
       {eDest->Emsg("Config", "tlsca parameter not specified"); return 1;}
+   tlsNoCAD = false;
 
    if (!strcmp(val, "noverify"))
       {tlsNoVer = true;
@@ -2289,6 +2346,7 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
        if (caFile) {free(caFile); caFile = 0;}
        return 0;
       }
+   tlsNoVer = false;
 
    do {if (strlen(val) >= (int)sizeof(kword))
           {eDest->Emsg("Config", "Invalid tlsca parameter -", val);
@@ -2296,7 +2354,7 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
           }
        strcpy(kword, val);
        if (!(val = Config.GetWord()))
-          {eDest->Emsg("Config", "tlsca parameter value not specified");
+          {eDest->Emsg("Config", "tlsca", kword, "value not specified");
            return 1;
           }
             if ((isdir = !strcmp(kword, "certdir"))
@@ -2318,12 +2376,18 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
                       return 1;
                      }
                }
+       else if (!strcmp(kword, "refresh"))
+               {if (XrdOuca2x::a2tm(*eDest, "tlsca refresh interval",
+                                    val, &tlsRefT)) return 1;
+               }
        else if (!strcmp(kword, "verdepth"))
                {if (XrdOuca2x::a2i(*eDest,"tlsca verdepth",val,&vd,1,255))
                    return 1;
                 tlsOpts &= ~XrdTlsContext::vdept;
                 tlsOpts |= ~XrdTlsContext::vdept & (vd << XrdTlsContext::vdepS);
                }
+       else {eDest->Emsg("Config", "invalid tlsca option -",kword); return 1;}
+
        } while((val = Config.GetWord()));
 
    return 0;
@@ -2356,7 +2420,7 @@ int XrdConfig::xtlsci(XrdSysError *eDest, XrdOucStream &Config)
        return 1;
       }
 
-   XrdTlsContext::SetCiphers(ciphers);
+   XrdTlsContext::SetDefaultCiphers(ciphers);
    return 0;
 }
   
@@ -2461,7 +2525,10 @@ int XrdConfig::xtrace(XrdSysError *eDest, XrdOucStream &Config)
         {"poll",     TRACE_POLL},
         {"protocol", TRACE_PROT},
         {"sched",    TRACE_SCHED},
-        {"tls",      TRACE_TLS}
+        {"tls",      TRACE_TLS},
+        {"tlsctx",   TRACE_TLSCTX},
+        {"tlssio",   TRACE_TLSSIO},
+        {"tlssok",   TRACE_TLSSOK}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 

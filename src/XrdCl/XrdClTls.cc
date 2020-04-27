@@ -94,7 +94,7 @@ namespace XrdCl
     // If the context is not valid throw an exception! We throw generic
     // exception as this will be translated to TlsError anyway.
     //----------------------------------------------------------------------
-    if( !tlsContext.Context() ) throw std::exception();
+    if( !tlsContext.isOK() ) throw std::exception();
 
     pTls.reset(
         new XrdTlsSocket( tlsContext, pSocket->GetFD(), XrdTlsSocket::TLS_RNB_WNB,

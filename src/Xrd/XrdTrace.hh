@@ -40,7 +40,11 @@
 #define TRACE_POLL      0x0010
 #define TRACE_PROT      0x0020
 #define TRACE_SCHED     0x0040
-#define TRACE_TLS       0x0080
+
+#define TRACE_TLS       0x0500
+#define TRACE_TLSCTX    0x0100
+#define TRACE_TLSSIO    0x0200
+#define TRACE_TLSSOK    0x0400
 
 #ifndef NODEBUG
 

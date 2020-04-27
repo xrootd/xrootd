@@ -27,9 +27,11 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
+#include "XrdTls/XrdTlsTrace.hh"
 
 #if __cplusplus >= 201103L
 #include <atomic>
@@ -42,6 +44,7 @@
 namespace XrdTlsGlobal
 {
 extern XrdTls::msgCB_t msgCB;
+extern XrdSysTrace SysTrace;
 };
   
 /******************************************************************************/
@@ -50,12 +53,243 @@ extern XrdTls::msgCB_t msgCB;
 
 struct XrdTlsContextImpl
 {
-    XrdTlsContextImpl() : ctx( 0 ) { }
-   ~XrdTlsContextImpl() {if (ctx) SSL_CTX_free(ctx);}
+    XrdTlsContextImpl(XrdTlsContext *p)
+                     : ctx(0), ctxnew(0), owner(p), flsCVar(0), crlInterval(0),
+                       flushT(0), crlRunning(false) {}
+   ~XrdTlsContextImpl() {if (ctx)    SSL_CTX_free(ctx);
+                         if (ctxnew) delete ctxnew;
+                        }
 
     SSL_CTX                      *ctx;
+    XrdTlsContext                *ctxnew;
+    XrdTlsContext                *owner;
     XrdTlsContext::CTX_Params     Parm;
+    XrdSysRWLock                  crlMutex;
+    XrdSysCondVar                *flsCVar;
+    int                           crlInterval;
+    short                         flushT;
+    bool                          crlRunning;
+    bool                          flsRunning;
 };
+  
+/******************************************************************************/
+/*                   C r l   R e f r e s h   S u p p o r t                    */
+/******************************************************************************/
+  
+namespace XrdTlsCrl
+{
+// Inital entry for refreshing crls
+//
+void *Refresh(void *parg)
+{
+   EPNAME("Refresh");
+   int sleepTime;
+   bool doreplace;
+
+// Get the implementation details
+//
+   XrdTlsContextImpl *ctxImpl = static_cast<XrdTlsContextImpl*>(parg);
+
+// Indicate we have started in the trace record
+//
+   DBG_CTX("CRL refresh started.")
+
+// Do this forever but first get the sleep time
+//
+do{ctxImpl->crlMutex.ReadLock();
+   sleepTime = ctxImpl->crlInterval;
+   ctxImpl->crlMutex.UnLock();
+
+// We may have been cancelled, in which case we just exit
+//
+   if (sleepTime < 0)
+      {ctxImpl->crlMutex.WriteLock();
+       ctxImpl->crlRunning = false;
+       ctxImpl->crlMutex.UnLock();
+       DBG_CTX("CRL refresh ending by request!");
+       return (void *)0;
+      }
+
+// Indicate we how long before a refresh
+//
+   DBG_CTX("CRL refresh will happen in " <<sleepTime <<" seconds.");
+
+// Now sleep the request amount of time
+//
+   XrdSysTimer::Snooze(sleepTime);
+
+// Check if this context is still alive. Generally, it never gets deleted.
+//
+   ctxImpl->crlMutex.WriteLock();
+   if (!ctxImpl->owner) break;
+
+// We clone the original, this will give us the latest crls (i.e. refreshed).
+// We drop the lock while doing so as this may take a long time. This is
+// completely safe to do because we implicitly own the implementation.
+//
+   ctxImpl->crlMutex.UnLock();
+   XrdTlsContext *newctx = ctxImpl->owner->Clone();
+
+// Verify that the context was properly built
+//
+   if (!newctx->isOK())
+      {XrdTlsGlobal::msgCB("CrlRefresh:","Refresh of context failed!!!",false);
+       continue;
+      }
+
+// OK, set the new context to be used next time Session() is called.
+//
+   ctxImpl->crlMutex.WriteLock();
+   doreplace = (ctxImpl->ctxnew != 0);
+   if (doreplace) delete ctxImpl->ctxnew;
+   ctxImpl->ctxnew = newctx;
+   ctxImpl->crlMutex.UnLock();
+
+// Do some debugging
+//
+   if (doreplace) {DBG_CTX("CRL refresh created replacement x509 store.");}
+      else {DBG_CTX("CRL refresh created new x509 store.");}
+
+  } while(true);
+
+// If we are here the context that started us has gone away and we are done
+//
+   bool keepctx = ctxImpl->flsRunning;
+   ctxImpl->crlRunning = false;
+   ctxImpl->crlMutex.UnLock();
+   if (!keepctx) delete ctxImpl;
+   return (void *)0;
+}
+}
+
+/******************************************************************************/
+/*                   C a c h e   F l u s h   S u p p o r t                    */
+/******************************************************************************/
+
+namespace XrdTlsFlush
+{
+/******************************************************************************/
+/*                               F l u s h e r                                */
+/******************************************************************************/
+// Inital entry for refreshing crls
+//
+void *Flusher(void *parg)
+{
+   EPNAME("Flusher");
+   time_t tStart, tWaited;
+   int    flushT, waitT, hits, miss, sesn, tmos;
+   long   tNow;
+
+// Get the implementation details
+//
+   XrdTlsContextImpl *ctxImpl = static_cast<XrdTlsContextImpl*>(parg);
+
+// Get the interval as it may change as we are running
+//
+   ctxImpl->crlMutex.ReadLock();
+   waitT = flushT = ctxImpl->flushT;
+   ctxImpl->crlMutex.UnLock();
+
+// Indicate we have started in the trace record
+//
+   DBG_CTX("Cache flusher started; interval="<<flushT<<" seconds.");
+
+// Do this forever
+//
+do{tStart = time(0);
+   ctxImpl->flsCVar->Wait(waitT);
+   tWaited= time(0) - tStart;
+
+// Check if this context is still alive. Generally, it never gets deleted.
+//
+   ctxImpl->crlMutex.ReadLock();
+   if (!ctxImpl->owner) break;
+
+// If the interval changed, see if we should wait a bit longer
+//
+   if (flushT != ctxImpl->flushT && tWaited < ctxImpl->flushT-1)
+      {waitT = ctxImpl->flushT - tWaited;
+       ctxImpl->crlMutex.UnLock();
+       continue;
+      }
+
+// Get the new values and drop the lock
+//
+   waitT = flushT = ctxImpl->flushT;
+   ctxImpl->crlMutex.UnLock();
+
+// Get some relevant statistics
+//
+   sesn = SSL_CTX_sess_number(ctxImpl->ctx);
+   hits = SSL_CTX_sess_hits(ctxImpl->ctx);
+   miss = SSL_CTX_sess_misses(ctxImpl->ctx);
+   tmos = SSL_CTX_sess_timeouts(ctxImpl->ctx);
+
+// Flush the cache
+//
+   tNow = time(0);
+   SSL_CTX_flush_sessions(ctxImpl->ctx, tNow);
+
+// Print some stuff should debugging be on
+//
+   if (TRACING(XrdTls::dbgCTX))
+      {char mBuff[512];
+       snprintf(mBuff, sizeof(mBuff), "sess=%d hits=%d miss=%d timeouts=%d",
+               sesn, hits, miss, tmos);
+       DBG_CTX("Cache flushed; " <<mBuff);
+      }
+  } while(true);
+
+// If we are here the context that started us has gone away and we are done
+//
+   bool keepctx = ctxImpl->crlRunning;
+   ctxImpl->flsRunning = false;
+   ctxImpl->crlMutex.UnLock();
+   if (!keepctx) delete ctxImpl;
+   return (void *)0;
+}
+  
+/******************************************************************************/
+/*                         S e t u p _ F l u s h e r                          */
+/******************************************************************************/
+  
+bool Setup_Flusher(XrdTlsContextImpl *pImpl, int flushT)
+{
+   pthread_t tid;
+   int rc;
+
+// Set the new flush interval
+//
+   pImpl->crlMutex.WriteLock();
+   pImpl->flushT = flushT;
+   pImpl->crlMutex.UnLock();
+
+// If the flush thread is already running, then wake it up to get the new value
+//
+   if (pImpl->flsRunning)
+      {pImpl->flsCVar->Signal();
+       return true;
+      }
+
+// Start the flusher thread
+//
+   pImpl->flsCVar = new XrdSysCondVar();
+   if ((rc = XrdSysThread::Run(&tid, XrdTlsFlush::Flusher, (void *)pImpl,
+                                     0, "Cache Flusher")))
+      {char eBuff[512];
+       snprintf(eBuff, sizeof(eBuff),
+                "Unable to start cache flusher thread; rc=%d", rc);
+       XrdTlsGlobal::msgCB("SessCache:", eBuff, false);
+       return false;
+      }
+
+// Finish up
+//
+   pImpl->flsRunning = true;
+   SSL_CTX_set_session_cache_mode(pImpl->ctx, SSL_SESS_CACHE_NO_AUTO_CLEAR);
+   return true;
+}
+}
   
 /******************************************************************************/
 /*                 S S L   T h r e a d i n g   S u p p o r t                  */
@@ -260,15 +494,15 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 
        X509_NAME_oneline(X509_get_subject_name(cert), name, sizeof(name));
        snprintf(info,sizeof(info),"Cert verification failed for DN=%s",name);
-       XrdTlsGlobal::msgCB("Cert", info, false);
+       XrdTlsGlobal::msgCB("CertVerify:", info, false);
 
        X509_NAME_oneline(X509_get_issuer_name(cert), name, sizeof(name));
        snprintf(info,sizeof(info),"Failing cert issuer=%s", name);
-       XrdTlsGlobal::msgCB("Cert", info, false);
+       XrdTlsGlobal::msgCB("CertVerify:", info, false);
 
        snprintf(info, sizeof(info), "Error %d at depth %d [%s]", err, depth,
                                     X509_verify_cert_error_string(err));
-       XrdTlsGlobal::msgCB("Cert", info, false);
+       XrdTlsGlobal::msgCB("CertVerify", info, false);
       }
 
    return aOK;
@@ -283,7 +517,7 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                              const char *caDir, const char *caFile, int opts) :
-      pImpl( new XrdTlsContextImpl() )
+      pImpl( new XrdTlsContextImpl(this) )
 {
    class ctx_helper
         {public:
@@ -320,7 +554,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 #endif
    AtomicEnd(ctxMutex);
    if (!done && (emsg = Init()))
-      {XrdTlsGlobal::msgCB("TLS_Context", emsg, false);
+      {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
        return;
       }
 
@@ -334,7 +568,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
           {caDir  = getenv("X509_CERT_DIR");
            caFile = getenv("X509_CERT_FILE");
            if (!caDir && !caFile)
-              {XrdTlsGlobal::msgCB("Tls_Context", "Unable to determine the "
+              {XrdTlsGlobal::msgCB("Tls_Context:", "Unable to determine the "
                              "location of trusted CA certificates to verify "
                              "peer identify; this is required!", false);
                return;
@@ -348,7 +582,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // the right type and do not have excessive access privileges.
 //
    if (!VerPaths(cert, key, caDir, caFile, eText))
-      {XrdTlsGlobal::msgCB("TLS_Context", eText.c_str(), false);
+      {XrdTlsGlobal::msgCB("TLS_Context:", eText.c_str(), false);
        return;
       }
 
@@ -366,7 +600,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    const SSL_METHOD *meth;
    emsg = GetTlsMethod(meth);
    if (emsg)
-      {XrdTlsGlobal::msgCB("TLS_Context", emsg, false);
+      {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
        return;
       }
 
@@ -470,7 +704,17 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
 
-XrdTlsContext::~XrdTlsContext() {if (pImpl) delete pImpl;}
+XrdTlsContext::~XrdTlsContext()
+{
+// We can delet eour implementation of there is no refresh thread running. If
+// there is then the refresh thread has to delete the implementation.
+//
+   if (pImpl->crlRunning | pImpl->flsRunning)
+      {pImpl->crlMutex.WriteLock();
+       pImpl->owner = 0;
+       pImpl->crlMutex.UnLock();
+      } else delete pImpl;
+}
 
 /******************************************************************************/
 /*                                 C l o n e                                  */
@@ -490,23 +734,23 @@ XrdTlsContext *XrdTlsContext::Clone()
 
 // Verify that the context was built
 //
-   if (xtc->Context() != 0) return xtc;
+   if (xtc->isOK()) return xtc;
 
 // We failed, cleanup.
 //
    delete xtc;
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                               C o n t e x t                                */
 /******************************************************************************/
 
-void    *XrdTlsContext::Context()
+void *XrdTlsContext::Context()
 {
-  return pImpl->ctx;
+   return pImpl->ctx;
 }
-
+  
 /******************************************************************************/
 /*                             G e t P a r a m s                              */
 /******************************************************************************/
@@ -536,12 +780,228 @@ const char *XrdTlsContext::Init()
 }
 
 /******************************************************************************/
-/*                            S e t C i p h e r s                             */
+/*                                  i s O K                                   */
 /******************************************************************************/
 
-void XrdTlsContext::SetCiphers(const char *ciphers)
+bool XrdTlsContext::isOK()
+{
+   return pImpl->ctx != 0;
+}
+  
+/******************************************************************************/
+/*                               S e s s i o n                                */
+/******************************************************************************/
+
+void *XrdTlsContext::Session()
+{
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+
+   EPNAME("Session");
+   SSL *ssl;
+
+// Check if we have a refreshed context. If so, we need to replace the X509
+// store in the current context with the new one before we create the session.
+//
+   pImpl->crlMutex.ReadLock();
+   if (!(pImpl->ctxnew))
+      {ssl = SSL_new(pImpl->ctx);
+       pImpl->crlMutex.UnLock();
+       return ssl;
+      }
+
+// Things have changed, so we need to take the long route here. We need to
+// replace the x509 cache with the current cache. Get a R/W lock now.
+//
+   pImpl->crlMutex.UnLock();
+   pImpl->crlMutex.WriteLock();
+
+// If some other thread beat us to the punch, just return what we have.
+//
+   if (!(pImpl->ctxnew))
+      {ssl = SSL_new(pImpl->ctx);
+       pImpl->crlMutex.UnLock();
+       return ssl;
+      }
+
+// Do some tracing
+//
+   DBG_CTX("Replacing x509 store with new contents.");
+
+// Get the new store and set it in our context. Setting the store is black
+// magic. For OpenSSL < 1.1, Two stores need to be set with the "set1" variant.
+// Newer version only require SSL_CTX_set1_cert_store() to be used.
+//
+   X509_STORE *newX509 = SSL_CTX_get_cert_store(pImpl->ctx);
+
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+   SSL_CTX_set1_verify_cert_store(pImpl->ctx, newX509);
+   SSL_CTX_set1_chain_cert_store(pImpl->ctx, newX509);
+#else
+   SSL_CTX_set1_cert_store(pImpl->ctx, newX509);
+#endif
+
+// Save the generated context and clear it's presence
+//
+   XrdTlsContext *ctxold = pImpl->ctxnew;
+   pImpl->ctxnew = 0;
+
+// Generate a new session (might as well to keep the lock we have)
+//
+   ssl = SSL_new(pImpl->ctx);
+
+// OK, now we can drop all the locks and get rid of the old context
+//
+   pImpl->crlMutex.UnLock();
+   delete ctxold;
+   return ssl;
+
+#else
+// If we did not compile crl refresh code, we can simply return the OpenSSL
+// session using our context. Otherwise, we need to see if we have a refreshed
+// context and if so, carry forward the X509_store to our original context.
+//
+   return SSL_new(pImpl->ctx);
+#endif
+}
+  
+/******************************************************************************/
+/*                          S e s s i o n C a c h e                           */
+/******************************************************************************/
+
+int XrdTlsContext::SessionCache(int opts, const char *id, int idlen)
+{
+   long sslopt = 0;
+   int flushT = opts & scFMax;
+   bool doset = false;
+
+// If initialization failed there is nothing to do
+//
+   if (pImpl->ctx == 0) return 0;
+
+// Set options as appropriate
+//
+   if (opts)
+      {if (opts & scOff) {sslopt = SSL_SESS_CACHE_OFF; doset = true;}
+          else {if (opts & scSrvr) sslopt  = SSL_SESS_CACHE_SERVER;
+                if (opts & scClnt) sslopt |= SSL_SESS_CACHE_CLIENT;
+                if (opts) doset = true;
+               }
+      }
+
+// Check if we should set any cache options or simply get them
+//
+   if (doset) sslopt = SSL_CTX_set_session_cache_mode(pImpl->ctx, sslopt);
+      else    sslopt = SSL_CTX_get_session_cache_mode(pImpl->ctx);
+
+// Compute what he previous cache options were
+//
+   opts = scNone;
+   if (sslopt & SSL_SESS_CACHE_SERVER) opts |= scSrvr;
+   if (sslopt & SSL_SESS_CACHE_CLIENT) opts |= scClnt;
+   if (!opts) opts = scOff;
+   if (sslopt & SSL_SESS_CACHE_NO_AUTO_CLEAR) opts |= scKeep;
+   opts |= (static_cast<int>(pImpl->flushT) & scFMax);
+
+// Set the id is so wanted
+//
+   if (id && idlen > 0)
+      {unsigned const char *idU = (unsigned const char *)id;
+       unsigned int         idL = (unsigned int)idlen;
+       if (!SSL_CTX_set_session_id_context(pImpl->ctx,idU,idL)) opts |= scIdErr;
+      }
+
+// If a flush interval was specified and it is different from what we have
+// then reset the flush interval.
+//
+   if (flushT && flushT != pImpl->flushT)
+      XrdTlsFlush::Setup_Flusher(pImpl, flushT);
+
+// All done
+//
+   return opts;
+}
+  
+/******************************************************************************/
+/*                     S e t C o n t e x t C i p h e r s                      */
+/******************************************************************************/
+
+bool XrdTlsContext::SetContextCiphers(const char *ciphers)
+{
+   return (!(pImpl->ctx) || !SSL_CTX_set_cipher_list(pImpl->ctx, ciphers)
+         ? false : true);
+}
+
+/******************************************************************************/
+/*                     S e t D e f a u l t C i p h e r s                      */
+/******************************************************************************/
+
+void XrdTlsContext::SetDefaultCiphers(const char *ciphers)
 {
    sslCiphers = ciphers;
+}
+  
+/******************************************************************************/
+/*                         S e t C r l R e f r e s h                          */
+/******************************************************************************/
+
+bool XrdTlsContext::SetCrlRefresh(int refsec)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+
+   pthread_t tid;
+   int       rc;
+
+// If the value is negative, then the caller want to stop refreshing.
+//
+   if (refsec < 0)
+      {pImpl->crlMutex.WriteLock();
+       pImpl->crlInterval = refsec;
+       pImpl->crlMutex.UnLock();
+       return true;
+      }
+
+// Check if there is anything that is refreshable
+//
+   if (pImpl->Parm.cadir.size() == 0 && pImpl->Parm.cafile.size() == 0)
+      {XrdTlsGlobal::msgCB("CrlRefresh:",
+                           "No cert information exists to refresh!", false);
+       return false;
+      }
+
+// Make sure this is at least 60 seconds between refreshes
+//
+// if (refsec < 60) refsec = 60;
+
+// We will set the new interval and start a refresh thread if not running.
+//
+   pImpl->crlMutex.WriteLock();
+   pImpl->crlInterval = refsec;
+   if (!pImpl->crlRunning)
+      {if ((rc = XrdSysThread::Run(&tid, XrdTlsCrl::Refresh, (void *)pImpl,
+                                   0, "CRL Refresh")))
+          {char eBuff[512];
+           snprintf(eBuff, sizeof(eBuff),
+                    "Unable to start CRL refresh thread; rc=%d", rc);
+           XrdTlsGlobal::msgCB("CrlRefresh:", eBuff, false);
+           pImpl->crlMutex.UnLock();
+           return false;
+          } else pImpl->crlRunning = true;
+       pImpl->crlMutex.UnLock();
+      }
+
+// All done
+//
+   return true;
+
+#else
+// We use features present on OpenSSL 1.02 and above to implement crl refresh.
+// Older version are too difficult to deal with. Issue a message if this
+// feature is being enabled on an old version.
+//
+   XrdTlsGlobal::msgCB("CrlRefresh:", "Refreshing CRLs only supported in "
+                       "OpenSSL version >= 1.02; CRL refresh disabled!", false);
+   return false;
+#endif
 }
   
 /******************************************************************************/

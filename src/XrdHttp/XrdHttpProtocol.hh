@@ -180,6 +180,7 @@ private:
   static int xsslverifydepth(XrdOucStream &Config);
   static int xsecretkey(XrdOucStream &Config);
   static int xheader2cgi(XrdOucStream &Config);
+  static int xhttpsmode(XrdOucStream &Config);
   
   static XrdHttpSecXtractor *secxtractor;
   
@@ -251,9 +252,6 @@ private:
   /// Tells that we are just waiting to have N bytes in the buffer
   long ResumeBytes;
   
-  /// Global, static SSL context
-  static SSL_CTX *sslctx;
-
   /// Private SSL context
   SSL *ssl;
 

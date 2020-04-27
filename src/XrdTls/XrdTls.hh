@@ -31,6 +31,8 @@
 
 #include <string>
 
+class XrdSysLogger;
+
 class XrdTls
 {
 public:
@@ -72,6 +74,22 @@ static void Emsg(const char *tid, const char *msg=0, bool flush=true);
 //------------------------------------------------------------------------
 
 static std::string RC2Text(XrdTls::RC rc, bool dbg=false);
+
+//------------------------------------------------------------------------
+//! Set debugging on or off.
+//!
+//! @param opts      One of or more of the options below.
+//! @param logP      Pointer to XrdSysLogger to route messages. If nil then
+//!                  messages are routed to stderr.
+//------------------------------------------------------------------------
+
+static const int dbgOFF = 0; //!< Turn debugging off (initial deault)
+static const int dbgCTX = 1; //!< Turn debugging in for context operations.
+static const int dbgSOK = 2; //!< Turn debugging in for socket  operations.
+static const int dbgSIO = 4; //!< Turn debugging in for socket  I/O
+static const int dbgALL = 7; //!< Turn debugging for everything
+
+static void SetDebug(int opts, XrdSysLogger *logP=0);
 
 //------------------------------------------------------------------------
 //! Set the message callback.

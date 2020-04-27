@@ -30,8 +30,9 @@
 
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdTls/XrdTlsContext.hh"
-#include "XrdTls/XrdTlsSocket.hh"
 #include "XrdTls/XrdTlsNotary.hh"
+#include "XrdTls/XrdTlsSocket.hh"
+#include "XrdTls/XrdTlsTrace.hh"
 
 #include <stdexcept>
 
@@ -88,6 +89,7 @@ XrdTlsSocketImpl *theImpl;
 namespace XrdTlsGlobal
 {
 extern XrdTls::msgCB_t msgCB;
+extern XrdSysTrace SysTrace;
 }
 
 /******************************************************************************/
@@ -260,7 +262,7 @@ std::string XrdTlsSocket::Err2Text(int sslerr)
        eP = eBuff;
       } else {
        ERR_error_string_n(sslerr, eBuff, sizeof(eBuff));
-       if (pImpl->cOpts & Debug) eP = eBuff;
+       if (TRACING((XrdTls::dbgSOK|XrdTls::dbgSIO))) eP = eBuff;
           else {char *colon = rindex(eBuff, ':');
                 eP = (colon ? colon+1 : eBuff);
                }
@@ -290,10 +292,10 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
                }
       }
 
-// Get the ssl object from the context, there better be one.
+// Obtain the ssl object at this point.
 //
-   SSL_CTX *ssl_ctx = static_cast<SSL_CTX *>(ctx.Context());
-   if (ssl_ctx == 0) return "TLS I/O: context inialization failed.";
+   pImpl->ssl = static_cast<SSL *>(ctx.Session());
+   if (pImpl->ssl == 0) return "TLS I/O: failed to get ssl object.";
 
 // Initialze values from the context.
 //
@@ -302,14 +304,8 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
    pImpl->hsWait = (parms->opts & XrdTlsContext::hsto) * 1000; // Poll timeout
    if (ctx.x509Verify()) pImpl->cOpts = xVerify;
       else pImpl->cOpts = 0;
-   if (parms->opts & XrdTlsContext::debug) pImpl->cOpts |= Debug;
    if (parms->opts & XrdTlsContext::dnsok) pImpl->cOpts |= DNSok;
    pImpl->traceID = tid;
-
-// Obtain the ssl object at this point.
-//
-   pImpl->ssl = SSL_new( ssl_ctx );
-   if (pImpl->ssl == 0) return "TLS I/O: failed to get ssl object.";
 
 // Set the ssl object state to correspond to client or server type
 //

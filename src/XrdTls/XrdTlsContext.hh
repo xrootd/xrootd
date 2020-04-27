@@ -24,6 +24,7 @@
 // Forward declarations
 //----------------------------------------------------------------------------
 
+class  XrdSysLogger;
 struct XrdTlsContextImpl;
 struct XrdTlsSocket;
 
@@ -40,17 +41,21 @@ public:
 //!
 //! @return Upon success, the pointer to a new XrdTlsContext is returned.
 //!         Upon failure, a nil pointer is returned.
+//!
+//! @note The session cache settings become scSrvr with no identifier,
+//!       crl refresh is set off, and the default cipher list is used
+//!       for the cloned context.
 //------------------------------------------------------------------------
 
 XrdTlsContext *Clone();
 
 //------------------------------------------------------------------------
-//! Obtain SSL context attached to this object
+//! Get the underlying context (should not be used).
 //!
-//! @return Pointer to the SSL context. Nil indicates failure.
+//! @return Pointer to the underlying context.
 //------------------------------------------------------------------------
 
-void    *Context();
+void          *Context();
 
 //------------------------------------------------------------------------
 //! Get parameters used to create the context.
@@ -86,12 +91,73 @@ static
 const char     *Init();
 
 //------------------------------------------------------------------------
-//! Set allowed ciphers.
+//! Determine if this object was correctly built.
+//!
+//! @return True if this object is usuable and false otherwise.
+//------------------------------------------------------------------------
+
+bool            isOK();
+
+//------------------------------------------------------------------------
+//! Apply this context to obtain a new SSL session.
+//!
+//! @return A pointer to a new SSL session if successful and nil otherwise.
+//------------------------------------------------------------------------
+
+void           *Session();
+
+//------------------------------------------------------------------------
+//! Get or set session cache parameters for generated sessions.
+//!
+//! @param  id       The identifier to be used (may be nil to keep setting).
+//! @param  idlen    The length of the identifier (may be zero as above).
+//! @param  opts     One or more bit or'd options (see below).
+//!
+//! @return The cache settings prior to any changes are returned. When setting
+//!         the id, the scIdErr may be returned if the name is too long.
+//!         If the context has been pprroperly initialized, zero is returned.
+//------------------------------------------------------------------------
+
+static const int scNone = 0x00000000; //!< Do not change any option settings
+static const int scOff  = 0x00010000; //!< Turn off cache
+static const int scSrvr = 0x00020000; //!< Turn on  cache server mode (default)
+static const int scClnt = 0x00040000; //!< Turn on  cache client mode
+static const int scKeep = 0x40000000; //!< Info: TLS-controlled flush disabled
+static const int scIdErr= 0x80000000; //!< Info: Id not set, is too long
+static const int scFMax = 0x00007fff; //!< Maximum flush interval in seconds
+                                      //!  When 0 keeps the current setting
+
+      int       SessionCache(int opts=scNone, const char *id=0, int idlen=0);
+
+//------------------------------------------------------------------------
+//! Set allowed ciphers for this context.
+//!
+//! @param  ciphers  The colon separated list of allowable ciphers.
+//!
+//! @return True if at least one cipher can be used; false otherwise. When
+//!         false is reurned, this context is no longer usable.
+//------------------------------------------------------------------------
+
+bool            SetContextCiphers(const char *ciphers);
+
+//------------------------------------------------------------------------
+//! Set allowed default ciphers.
 //!
 //! @param  ciphers  The colon separated list of allowable ciphers.
 //------------------------------------------------------------------------
 static
-void            SetCiphers(const char *ciphers);
+void            SetDefaultCiphers(const char *ciphers);
+
+//------------------------------------------------------------------------
+//! Set CRL refresh time. By default, CRL's are not refreshed.
+//!
+//! @param  refsec   The number of seconds between refreshes. Minumum is 30.
+//!                  However, if the value is <0, refreshing is stopped.
+//!
+//! @return True if the CRL refresh thread was started; false otherwise.
+//------------------------------------------------------------------------
+
+      bool      SetCrlRefresh(int refsec);
 
 //------------------------------------------------------------------------
 //! Check if certificates are being verified.
@@ -102,8 +168,8 @@ void            SetCiphers(const char *ciphers);
        bool     x509Verify();
 
 //------------------------------------------------------------------------
-//! Constructor. Note that you should use Context() to determine if
-//!              construction was successful. A nil return indicates failure.
+//! Constructor. Note that you should use isOK() to determine if construction
+//!              was successful. A false return indicates failure.
 //!
 //! @param  cert     Pointer to the certificate file to be used. If nil,
 //!                  a generic context is created for client use.
@@ -112,17 +178,14 @@ void            SetCiphers(const char *ciphers);
 //!                  assumed that the key is contained in the cert file.
 //! @param  cadir    path to the directory containing the CA certificates.
 //! @param  cafile   path to the file containing the CA certificates.
-//! @param  vdepth   The maximum depth of the certificate chain that must
-//!                  validated.
 //! @param  opts     Processing options (or'd bitwise):
-//!                  debug   - produce the maximum amount of messages.
 //!                  dnsok   - trust DNS when verifying hostname.
 //!                  hsto    - the handshake timeout value in seconds.
 //!                  logVF   - Turn on verification failure logging.
 //!                  servr   - This is a server-side context and x509 peer
 //!                            certificate validation may be turned off.
 //!                  vdept   - The maximum depth of the certificate chain that
-//!                            must be validated.
+//!                            must be validated (max is 255).
 //!
 //! @note   a) If neither cadir nor cafile is specified, certificate validation
 //!            is *not* performed if and only if the servr option is specified.
@@ -130,11 +193,11 @@ void            SetCiphers(const char *ciphers);
 //!            envar and the cafile value is obtained from the X509_CERT_File
 //!            envar. If both are nil, context creation fails.
 //!         b) Additionally for client-side contructions, if cert or key is
-//!            not specified the location come from X509_USER_PROXY and
+//!            not specified their locations come from X509_USER_PROXY and
 //!            X509_USER_KEY. These may be nil in which case a generic
-//!            context is created with a local key-pair and nor certificate.
-//!         c) You should immediately call Context() after instantiating this
-//!            object. A return value of zero means that construction failed.
+//!            context is created with a local key-pair and no certificate.
+//!         c) You should immediately call isOK() after instantiating this
+//!            object. A return value of false means that construction failed.
 //!         d) Failure messages are routed to the message callback function
 //!            during construction.
 //------------------------------------------------------------------------
@@ -143,9 +206,8 @@ static const int hsto  = 0x000000ff; //!< Mask to isolate the hsto value
 static const int vdept = 0x0000ff00; //!< Mask to isolate the actual value
 static const int vdepS = 8;          //!< Bits to shift vdept value
 static const int logVF = 0x40000000; //!< Enable verification failure logging
-static const int debug = 0x20000000; //!< Output full ssl messages for debuging
-static const int servr = 0x10000000; //!< Phis is a server-side context
-static const int dnsok = 0x08000000; //!< Trust DNS for host verification
+static const int servr = 0x20000000; //!< This is a server-side context
+static const int dnsok = 0x10000000; //!< Trust DNS for host verification
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
