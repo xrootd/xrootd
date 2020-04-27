@@ -496,6 +496,12 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process1.Prepare() );
   CPPUNIT_ASSERT_XRDST( process1.Run(0) );
   CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+ 
+  //----------------------------------------------------------------------------
+  // Separate TPC tests with `sleep`, in docker environment copying happens 
+  // sometimes very fast and TPC key granularity is insufficient.
+  //----------------------------------------------------------------------------
+  sleep( 1 );
 
   //----------------------------------------------------------------------------
   // Copy with `auto` checksum
