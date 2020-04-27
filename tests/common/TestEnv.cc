@@ -31,8 +31,8 @@ XrdCl::Log *TestEnv::sLog       = 0;
 TestEnv::TestEnv()
 {
   PutString( "MainServerURL",    "localhost:1094" );
-  PutString( "Manager1URL",      "localhost:1094" );
-  PutString( "Manager2URL",      "localhost:1094" );
+  PutString( "Manager1URL",      "man1:1094" );
+  PutString( "Manager2URL",      "man2:1094" );
   PutString( "DiskServerURL",    "localhost:1094" );
   PutString( "DataPath",         "/data"         );
   PutString( "RemoteFile",       "/data/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat" );
