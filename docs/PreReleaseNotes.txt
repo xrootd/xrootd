@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[TLS]** Implement crl/ca automatic refresh.
+  * **[TLS]** Add additional options for session caching.
+  * **[TLS]** Add tracing capability to the TLS stack.
   * **[FRM]** Allow frm_xfrd to split in/out copy allocation.
   * **[SSI]** Add generalized option setting method, SetConfig().
   * **[Server]** Implement tcpmonlib directive for TCP socket monitring.
@@ -64,7 +67,8 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
-  * **[[Server]** Deprecate use of '-2' option in oss.statlib.
+  * **[HTTP]** Use the framework to handle OpenSSL contexts.
+  * **[Server]** Deprecate use of '-2' option in oss.statlib.
   * **[Plugins]** Make sure underlying msgs get passed along. Fixes #1015
   * **[Server]** Distinguish between authentication and authorization failures.
   * **[Server]** Turn off forwarding if authorization has not been enabled.
