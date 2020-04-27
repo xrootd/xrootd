@@ -516,8 +516,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   CPPUNIT_ASSERT_XRDST( process3.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process3.Prepare() );
   XrdCl::XRootDStatus status = process3.Run(0);
-  std::cout << status.code << std::endl;
-  CPPUNIT_ASSERT_XRDST_NOTOK( status, errOperationExpired );
+  CPPUNIT_ASSERT( !status.IsOK() && ( status.code == errOperationExpired || status.code == errConnectionError ) );
 
   //----------------------------------------------------------------------------
   // Copy to a non-existent target
@@ -528,7 +527,8 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "initTimeout", 10 );
   CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process4.Prepare() );
-  CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
+  status = process4.Run(0);
+  CPPUNIT_ASSERT( !status.IsOK() && ( status.code == errOperationExpired || status.code == errConnectionError ) );
 }
 
 //------------------------------------------------------------------------------
