@@ -108,7 +108,7 @@ XrdProtocol  *setProtocol(XrdProtocol *pp, bool push);
 
 void          setProtName(const char *name);
 
-bool          setTLS(bool enable);
+bool          setTLS(bool enable, XrdTlsContext *ctx=0);
 
        void   Shutdown(bool getLock);
 

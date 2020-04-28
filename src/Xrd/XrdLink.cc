@@ -451,13 +451,13 @@ void XrdLink::setRef(int use)
 /*                                s e t T L S                                 */
 /******************************************************************************/
 
-bool XrdLink::setTLS(bool enable)
+bool XrdLink::setTLS(bool enable, XrdTlsContext *ctx)
 {
 // If we are already in a compatible mode, we are done
 //
    if (isTLS == enable) return true;
 
-   return linkXQ.setTLS(enable);
+   return linkXQ.setTLS(enable, ctx);
 }
   
 /******************************************************************************/

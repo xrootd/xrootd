@@ -45,6 +45,7 @@ class XrdLinkMatch;
 class XrdLinkXeq;
 class XrdPollInfo;
 class XrdProtocol;
+class XrdTlsContext;
 
 class XrdLink : public XrdJob
 {
@@ -460,11 +461,13 @@ void            setRef(int cnt);
 //! @param  enable  if true, TLS is enabled if not already enabled. Otherwise,
 //!                 TLS is disabled and the TLS logical connection torn down.
 //!                 statistics may be contradictory as they are collected async.
+//! @param  ctx     The context to use when enabling TLS. When nil, the default
+//!                 context is used.
 //!
 //! @return         True if successful, false otherwise.
 //-----------------------------------------------------------------------------
 
-bool            setTLS(bool enable);
+bool            setTLS(bool enable, XrdTlsContext *ctx=0);
 
 //-----------------------------------------------------------------------------
 //! Shutdown the link but otherwise keep it intact.

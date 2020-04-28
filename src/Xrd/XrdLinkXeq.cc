@@ -849,7 +849,7 @@ void XrdLinkXeq::setProtName(const char *name)
 /*                                s e t T L S                                 */
 /******************************************************************************/
 
-bool XrdLinkXeq::setTLS(bool enable)
+bool XrdLinkXeq::setTLS(bool enable, XrdTlsContext *ctx)
 { //???
 // static const XrdTlsConnection::RW_Mode rwMode=XrdTlsConnection::TLS_RNB_WBL;
    static const XrdTlsSocket::RW_Mode rwMode=XrdTlsSocket::TLS_RBL_WBL;
@@ -871,7 +871,8 @@ bool XrdLinkXeq::setTLS(bool enable)
       }
 // We want to initialize TLS, do so now.
 //
-   eNote = tlsIO.Init(*tlsCtx, FD, rwMode, hsMode, false);
+   if (!ctx) ctx = tlsCtx;
+   eNote = tlsIO.Init(*ctx, FD, rwMode, hsMode, false);
 
 // Check for errors
 //
