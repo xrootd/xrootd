@@ -231,7 +231,7 @@ namespace XrdCl
                     TransportHandler *transport,
                     TaskManager      *taskManager,
                     JobManager       *jobManager ):
-    pUrl( url.GetChannelId() ),
+    pUrl( url.GetHostId() ),
     pPoller( poller ),
     pTransport( transport ),
     pTaskManager( taskManager ),
