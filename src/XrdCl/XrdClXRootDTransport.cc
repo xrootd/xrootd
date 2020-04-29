@@ -213,7 +213,8 @@ namespace XrdCl
       protRespBody(0),
       protRespSize(0),
       strmSelector(0),
-      encrypted(false)
+      encrypted(false),
+      istpc(false)
     {
       sidManager = SIDMgrPool::Instance().GetSIDMgr( url.GetChannelId() );
       memset( sessionId, 0, 16 );
@@ -256,6 +257,7 @@ namespace XrdCl
     unsigned int                 protRespSize;
     StreamSelector              *strmSelector;
     bool                         encrypted;
+    bool                         istpc;
     XrdSysMutex                  mutex;
   };
 
@@ -360,7 +362,8 @@ namespace XrdCl
     if( streams < 1 ) streams = 1;
     info->stream.resize( streams );
     info->strmSelector = new StreamSelector( streams );
-    info->encrypted   = url.IsSecure();
+    info->encrypted    = url.IsSecure();
+    info->istpc        = url.IsTPC();
   }
 
   //----------------------------------------------------------------------------
@@ -1529,6 +1532,11 @@ namespace XrdCl
 
     if( info->encrypted && !nodata ) proto->flags |= ClientProtocolRequest::kXR_wantTLS;
     proto->expect = expect;
+    //--------------------------------------------------------------------------
+    // If we are in the curse of establishing a connection in the context of
+    // TPC update the expect!
+    //--------------------------------------------------------------------------
+    if( info->istpc ) proto->expect |= ClientProtocolRequest::kXR_ExpTPC;
     return msg;
   }
 

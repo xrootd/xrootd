@@ -181,6 +181,24 @@ namespace XrdCl
       void CleanUpJobs();
 
       //------------------------------------------------------------------------
+      //! Mark the URLs in the property list as ment for TPC
+      //------------------------------------------------------------------------
+      inline static void MarkTPC( PropertyList &properties )
+      {
+        std::string keys[] = { "source", "target" };
+        size_t      size   = sizeof( keys ) / sizeof( std::string );
+        for( size_t i = 0; i < size; ++i )
+        {
+          URL url;
+          properties.Get( keys[i], url );
+          URL::ParamsMap params = url.GetParams();
+          params["xrdcl.intent"] = "tpc";
+          url.SetParams( params );
+          properties.Set( keys[i], url.GetURL() );
+        }
+      }
+
+      //------------------------------------------------------------------------
       //! Pointer to implementation
       //------------------------------------------------------------------------
       CopyProcessImpl *pImpl;

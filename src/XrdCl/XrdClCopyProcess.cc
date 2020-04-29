@@ -391,7 +391,10 @@ namespace XrdCl
       CopyJob *job = 0;
 
       if( tpc == true )
+      {
+        MarkTPC( props );
         job = new TPFallBackCopyJob( i+1, &props, res );
+      }
       else
         job = new ClassicCopyJob( i+1, &props, res );
 

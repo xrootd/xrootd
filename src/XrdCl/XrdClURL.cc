@@ -448,6 +448,17 @@ namespace XrdCl
     return ( pProtocol == "roots" || pProtocol == "xroots" );
   }
 
+  //------------------------------------------------------------------------
+  // Is the URL used in TPC context
+  //------------------------------------------------------------------------
+  bool URL::IsTPC() const
+  {
+    ParamsMap::const_iterator itr = pParams.find( "xrdcl.intent" );
+    if( itr != pParams.end() )
+      return itr->second == "tpc";
+    return false;
+  }
+
   bool URL::PathEndsWith(const std::string & sufix) const
   {
     if (sufix.size() > pPath.size()) return false;
