@@ -334,7 +334,7 @@ namespace XrdCl
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );
     PostMasterImpl::ChannelMap::iterator it =
-        pImpl->pChannelMap.find( url.GetHostId() );
+        pImpl->pChannelMap.find( url.GetChannelId() );
 
     if( it == pImpl->pChannelMap.end() )
       return Status( stError, errInvalidOp );
@@ -398,7 +398,7 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
     Channel *channel = 0;
-    PostMasterImpl::ChannelMap::iterator it = pImpl->pChannelMap.find( url.GetHostId() );
+    PostMasterImpl::ChannelMap::iterator it = pImpl->pChannelMap.find( url.GetChannelId() );
 
     if( it == pImpl->pChannelMap.end() )
     {
@@ -415,7 +415,7 @@ namespace XrdCl
 
       channel = new Channel( url, pImpl->pPoller, trHandler, pImpl->pTaskManager,
                              pImpl->pJobManager );
-      pImpl->pChannelMap[url.GetHostId()] = channel;
+      pImpl->pChannelMap[url.GetChannelId()] = channel;
     }
     else
       channel = it->second;

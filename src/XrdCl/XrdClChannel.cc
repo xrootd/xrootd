@@ -231,7 +231,7 @@ namespace XrdCl
                     TransportHandler *transport,
                     TaskManager      *taskManager,
                     JobManager       *jobManager ):
-    pUrl( url.GetHostId() ),
+    pUrl( url.GetChannelId() ),
     pPoller( poller ),
     pTransport( transport ),
     pTaskManager( taskManager ),
@@ -246,7 +246,7 @@ namespace XrdCl
 
     pTransport->InitializeChannel( url, pChannelData );
     log->Debug( PostMasterMsg, "Creating new channel to: %s",
-                                url.GetHostId().c_str() );
+                                url.GetChannelId().c_str() );
 
     pUrl.SetParams( url.GetParams() );
     pUrl.SetProtocol( url.GetProtocol() );
@@ -266,7 +266,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Register the task generating timeout events
     //--------------------------------------------------------------------------
-    pTickGenerator = new TickGeneratorTask( this, pUrl.GetHostId() );
+    pTickGenerator = new TickGeneratorTask( this, pUrl.GetChannelId() );
     pTaskManager->RegisterTask( pTickGenerator, ::time(0)+timeoutResolution );
   }
 

@@ -130,11 +130,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     XrdSysMutexHelper lck1( mtx );
     SIDManager *mgr = 0;
-    auto itr = pool.find( url.GetHostId() );
+    auto itr = pool.find( url.GetChannelId() );
     if( itr == pool.end() )
     {
       mgr = new SIDManager();
-      pool[url.GetHostId()] = mgr;
+      pool[url.GetChannelId()] = mgr;
     }
     else mgr = itr->second;
 

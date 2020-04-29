@@ -215,7 +215,7 @@ namespace XrdCl
       strmSelector(0),
       encrypted(false)
     {
-      sidManager = SIDMgrPool::Instance().GetSIDMgr( url.GetHostId() );
+      sidManager = SIDMgrPool::Instance().GetSIDMgr( url.GetChannelId() );
       memset( sessionId, 0, 16 );
       memset( oldSessionId, 0, 16 );
     }

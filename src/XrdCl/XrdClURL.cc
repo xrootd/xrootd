@@ -454,6 +454,39 @@ namespace XrdCl
     return std::equal(sufix.rbegin(), sufix.rend(), pPath.rbegin() );
   }
 
+  //------------------------------------------------------------------------
+  //Get the host part of the URL (user:password\@host:port) plus channel
+  //specific CGI (xrdcl.identity & xrd.gsiusrpxy)
+  //------------------------------------------------------------------------
+  std::string URL::GetChannelId() const
+  {
+    std::string ret = GetHostId();
+    bool hascgi = false;
+
+    std::string keys[] = { "xrdcl.intent",
+                           "xrd.gsiusrpxy",
+                           "xrd.gsiusrcrt",
+                           "xrd.gsiusrkey",
+                           "xrd.sss",
+                           "xrd.k5ccname" };
+    size_t size = sizeof( keys ) / sizeof( std::string );
+
+    for( size_t i = 0; i < size; ++i )
+    {
+      ParamsMap::const_iterator itr = pParams.find( keys[i] );
+      if( itr != pParams.end() )
+      {
+        ret += hascgi ? '&' : '?';
+        ret += itr->first;
+        ret += '=';
+        ret += itr->second;
+        hascgi = true;
+      }
+    }
+
+    return ret;
+  }
+
   //----------------------------------------------------------------------------
   // Recompute the host id
   //----------------------------------------------------------------------------
