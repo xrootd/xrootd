@@ -869,9 +869,16 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( info->mutex );
 
     //--------------------------------------------------------------------------
+    // If the connection has been opened in order to orchestrate a TPC or
+    // the remote server is a Manager or Metamanager we will need only one
+    // (control) stream.
+    //--------------------------------------------------------------------------
+    if( info->istpc || !(info->serverFlags & kXR_isServer ) ) return 1;
+
+    //--------------------------------------------------------------------------
     // Number of streams requested by user
     //--------------------------------------------------------------------------
-    uint16_t ret = ( info->serverFlags & kXR_isServer ) ? info->stream.size() : 1;
+    uint16_t ret = info->stream.size();
 
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
     int nodata = DefaultTlsNoData;
