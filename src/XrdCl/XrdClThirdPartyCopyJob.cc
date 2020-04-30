@@ -434,7 +434,15 @@ namespace XrdCl
       tpcsrcparams[itr->first] = itr->second;
     tpcSourceUrl.SetParams( tpcsrcparams );
     // save the merged opaque parameter list for later
-    std::string scgi = tpcSourceUrl.GetParamsAsString();
+    std::string scgi;
+    const URL::ParamsMap &scgiparams = tpcSourceUrl.GetParams();
+    itr = scgiparams.begin();
+    for( ; itr != scgiparams.end(); ++itr )
+      if( itr->first.compare( 0, 6, "xrdcl." ) != 0 )
+      {
+        if( !scgi.empty() ) scgi += '\t';
+        scgi += itr->first + '=' + itr->second;
+      }
 
     if( !timeLeft().IsOK() )
     {
@@ -493,10 +501,7 @@ namespace XrdCl
 
     // forward source cgi info to the destination in case we are going to do delegation
     if( !scgi.empty() && delegate )
-    {
-      std::replace( scgi.begin(), scgi.end(), '&', '\t' );
-      params["tpc.scgi"] = scgi.substr( 1 ); // omit the leading '?'
-    }
+      params["tpc.scgi"] = scgi;
 
     realTarget.SetParams( params );
 
