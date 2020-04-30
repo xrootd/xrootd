@@ -1782,6 +1782,13 @@ int XrdHttpProtocol::InitSecurity() {
     exit(1);
   }
 
+  // NOTE(bbockelm): OpenSSL docs note that peer_chain is not available
+  // in reused sessions.  We should build a session cache, but we just
+  // disable sessions for now.  The session cache breaks X509 auth that
+  // is built-in to XrdHttp.
+  SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_OFF);
+  SSL_CTX_set_options(sslctx, SSL_OP_NO_TICKET);
+
 #if SSL_CTRL_SET_ECDH_AUTO
     // Enable elliptic-curve support
     // not needed in OpenSSL 1.1.0+
