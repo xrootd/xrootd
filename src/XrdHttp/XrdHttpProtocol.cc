@@ -642,7 +642,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           // so we simply rely on the global one in SSL_CTX.  The latter
           // doesn't refresh the verify store, which causes issues with some
           // plugins.
-#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
           XrdSysRWLockHelper scopedLock(x509_store_lock, true);
           SSL_set1_verify_cert_store(ssl, verify_store);
           SSL_set1_chain_cert_store(ssl, verify_store);
@@ -1836,7 +1836,7 @@ int XrdHttpProtocol::InitSecurity() {
   // Initialize a store for use on individual SSL objects and schedule
   // a periodic update.  These separate stores are only usable on versions
   // of OpenSSL 1.1.0 or later.
-#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
   {
     XrdSysRWLockHelper scopedLock(x509_store_lock, false);
     verify_store = PrepareStore();
