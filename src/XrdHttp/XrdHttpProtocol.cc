@@ -91,6 +91,8 @@ char *XrdHttpProtocol::gridmap = 0;
 XrdOucGMap *XrdHttpProtocol::servGMap = 0;  // Grid mapping service
 
 int XrdHttpProtocol::sslverifydepth = 9;
+XrdSysRWLock XrdHttpProtocol::x509_store_lock;
+X509_STORE *XrdHttpProtocol::verify_store = NULL;
 SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
@@ -633,6 +635,19 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           sbio = CreateBIO(Link);
           BIO_set_nbio(sbio, 1);
           ssl = SSL_new(sslctx);
+
+          // On newer versions of OpenSSL, we use the periodically
+          // updated store `verify_store` with the `x509_store_lock`
+          // held; older OpenSSL versions are missing `SSL_set1_*_cert_store`,
+          // so we simply rely on the global one in SSL_CTX.  The latter
+          // doesn't refresh the verify store, which causes issues with some
+          // plugins.
+#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+          XrdSysRWLockHelper scopedLock(x509_store_lock, true);
+          SSL_set1_verify_cert_store(ssl, verify_store);
+          SSL_set1_chain_cert_store(ssl, verify_store);
+#endif
+
         }
 
       if (!ssl) {
@@ -1686,6 +1701,57 @@ extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
 
 
 /// Initialization of the ssl security
+//  Only scheduled on sufficiently new OpenSSL.
+
+class XrdCertStoreJob : XrdJob
+{
+public:
+
+  void DoIt() {XrdHttpProtocol::PeriodicUpdate();
+               Sched->Schedule((XrdJob *)this, time(0)+iVal);
+              }
+
+  XrdCertStoreJob(XrdScheduler *schP, int iV)
+                  : XrdJob("cert store updater"),
+                       Sched(schP), iVal(iV)
+                    {Sched->Schedule((XrdJob *)this, time(0)+iVal);}
+  ~XrdCertStoreJob() {}
+private:
+
+  XrdScheduler *Sched;
+  int           iVal;
+};
+
+void XrdHttpProtocol::PeriodicUpdate() {
+
+    X509_STORE *new_store = PrepareStore();
+    TRACE(EMSG, "Updating new cert store");
+    if (new_store) {
+      XrdSysRWLockHelper scopedLock(x509_store_lock, false);
+      X509_STORE_free(verify_store);
+      verify_store = new_store;
+    }
+}
+
+X509_STORE *XrdHttpProtocol::PrepareStore() {
+  X509_STORE *store = X509_STORE_new();
+
+  if (!store) {
+    eDest.Say(" error: failed to allocate new certificate store");
+    return NULL;
+  }
+
+  X509_STORE_set_depth(store, sslverifydepth);
+  X509_STORE_set_flags(store, X509_V_FLAG_ALLOW_PROXY_CERTS);
+
+  if (!X509_STORE_load_locations(store, sslcafile, sslcadir)) {
+    TRACE(EMSG, " Error setting the ca file or directory.");
+    ERR_print_errors(sslbio_err);
+    return NULL;
+  }
+
+  return store;
+}
 
 int XrdHttpProtocol::InitSecurity() {
   
@@ -1766,6 +1832,20 @@ int XrdHttpProtocol::InitSecurity() {
       exit(1);
     }
   }
+
+  // Initialize a store for use on individual SSL objects and schedule
+  // a periodic update.  These separate stores are only usable on versions
+  // of OpenSSL 1.1.0 or later.
+#if OPENSSL_VERSION_NUMBER >= 0x010100000L
+  {
+    XrdSysRWLockHelper scopedLock(x509_store_lock, false);
+    verify_store = PrepareStore();
+    if (!verify_store) {
+      exit(1);
+    }
+  }
+  new XrdCertStoreJob(Sched, 3600);
+#endif
 
   // Use default cipherlist filter if none is provided
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L

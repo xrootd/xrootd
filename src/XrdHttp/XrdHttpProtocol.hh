@@ -128,6 +128,9 @@ public:
   /// called via https
   bool isHTTPS() { return ishttps; }
 
+  /// Handle periodic refresh of the CRLs
+  static void PeriodicUpdate();
+
 private:
 
 
@@ -136,6 +139,9 @@ private:
 
   /// Initialization of the ssl security things
   static int InitSecurity();
+
+  /// Generate a new cert store.
+  static X509_STORE *PrepareStore();
 
   /// Start a response back to the client
   int StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
@@ -254,6 +260,10 @@ private:
   
   /// Global, static SSL context
   static SSL_CTX *sslctx;
+
+  /// Current X509_STORE and associated locks.
+  static X509_STORE *verify_store;
+  static XrdSysRWLock x509_store_lock;
 
   /// Private SSL context
   SSL *ssl;
