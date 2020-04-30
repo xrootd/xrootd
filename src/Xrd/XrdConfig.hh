@@ -123,14 +123,15 @@ int                 PortTCP;      // TCP Port to listen on
 int                 PortUDP;      // UDP Port to listen on (currently unsupported)
 int                 PortTLS;      // TCP port to listen on for TLS connections
 int                 NetTCPlep;
+
 int                 AdminMode;
 int                 HomeMode;
 int                 repInt;
-int                 tlsOpts;
-int                 tlsRefT;
-int                 tlsCache;
+
+uint64_t            tlsOpts;
 bool                tlsNoVer;
 bool                tlsNoCAD;
+
 char                repOpts;
 char                ppNet;
 signed char         coreV;

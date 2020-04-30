@@ -134,7 +134,10 @@ private:
   int (XrdHttpProtocol::*Resume)();
 
   /// Initialization of the ssl security things
-  static int InitSecurity();
+  static bool InitTLS();
+
+  /// Initialization fo security addon
+  static bool InitSecurity();
 
   /// Start a response back to the client
   int StartSimpleResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);

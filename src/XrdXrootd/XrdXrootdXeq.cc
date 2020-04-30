@@ -1832,7 +1832,7 @@ int XrdXrootdProtocol::do_Protocol()
 // pre-login or post-login or on a bind later on.
 //
    if (rc == 0 && wantTLS)
-      {if (Link->setTLS(true))
+      {if (Link->setTLS(true, tlsCtx))
           {Link->setProtName("xroots");
            eDest.Emsg("Xeq",Link->ID,"connection upgraded to",Link->verTLS());
           } else {
@@ -3724,7 +3724,7 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 //
    if ((doTLS & Req_TLSSess) && !Link->hasBridge())
       {if (ableTLS)
-          {if (Link->setTLS(true)) Link->setProtName("xroots");
+          {if (Link->setTLS(true, tlsCtx)) Link->setProtName("xroots");
               else {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
                     return false;
                    }

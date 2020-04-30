@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdTls/XrdTlsNotary.hh"
@@ -134,7 +135,7 @@ XrdTlsSocket::~XrdTlsSocket()
   
 XrdTls::RC XrdTlsSocket::Accept()
 {
-   int rc, error;
+   int rc, ssler;
 
 // Make sure there is a context here
 //
@@ -160,19 +161,19 @@ do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
 
    // Get the actual SSL error code.
    //
-   error = Diagnose(rc);
+   ssler = Diagnose(rc);
 
    // Check why we did not succeed. We may be able to recover.
    //
-   if (error != SSL_ERROR_WANT_READ && error != SSL_ERROR_WANT_WRITE)
+   if (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE)
       {std::string eTxt("TLS Accept() failed; ");
-       eTxt += Err2Text(error);
+       eTxt += Err2Text(ssler);
        XrdTls::Emsg(pImpl->traceID, eTxt.c_str());;
        errno = ECONNABORTED;
        return XrdTls::TLS_SYS_Error;
       }
 
-  } while(Wait4OK(error == SSL_ERROR_WANT_READ));
+  } while(Wait4OK(ssler == SSL_ERROR_WANT_READ));
 
 // If we are here then we got a syscall error
 //
@@ -194,7 +195,20 @@ XrdTls::RC XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
 // Do the connect.
 //
    int rc = SSL_connect( pImpl->ssl );
-   if (rc != 1) return Diagnose(rc);
+   if (rc != 1)
+      {int ssler = Diagnose(rc);
+       if (eMsg)
+          {const char *hName;
+           if (thehost) hName = thehost;
+              else if (netInfo) hName = netInfo->Name("host");
+                      else hName = "host";
+           *eMsg = "Unable to connect to ";
+           *eMsg += hName;
+           *eMsg += "; ";
+           *eMsg += Err2Text(ssler);
+          }
+       return XrdTls::ssl2RC(ssler);
+      }
 
 //  Set the hsDone flag!
 //
@@ -233,7 +247,7 @@ XrdTlsContext* XrdTlsSocket::Context()
 /* Private:                     D i a g n o s e                               */
 /******************************************************************************/
   
-XrdTls::RC XrdTlsSocket::Diagnose(int sslrc)
+int XrdTlsSocket::Diagnose(int sslrc)
 {
 int eCode = SSL_get_error( pImpl->ssl, sslrc );
 
@@ -243,7 +257,7 @@ int eCode = SSL_get_error( pImpl->ssl, sslrc );
 
 // Return the errors
 //
-   return XrdTls::ssl2RC(eCode);
+   return eCode;
 }
   
 /******************************************************************************/
@@ -393,7 +407,7 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
   
 XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
   {
-    XrdTls::RC error;
+    int ssler;
 
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
@@ -413,17 +427,18 @@ XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
     // not the handshake actually is finished (semi-accurate)
     //
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
-    error = Diagnose(rc);
+    ssler = Diagnose(rc);
 
     // The connection creator may wish that we wait for the handshake to
     // complete. This is a tricky issue for non-blocking bio's as a read
     // may force us to wait until writes are possible. All of this is rare!
     //
-    if ((!pImpl->hsMode || pImpl->hsDone || (error != XrdTls::TLS_WantRead &&
-                               error != XrdTls::TLS_WantWrite))
-    ||   (pImpl->hsMode == xyBlock && error == XrdTls::TLS_WantRead)) return error;
+    if (!pImpl->hsMode || pImpl->hsDone
+    || (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE)
+    || (pImpl->hsMode == xyBlock && ssler == SSL_ERROR_WANT_READ))
+       return XrdTls::ssl2RC(ssler);
 
-   } while(Wait4OK(error == XrdTls::TLS_WantRead));
+   } while(Wait4OK(ssler == SSL_ERROR_WANT_READ));
 
     return XrdTls::TLS_SYS_Error;
   }
@@ -448,7 +463,7 @@ int XrdTlsSocket::Pending(bool any)
   
 XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
   {
-    XrdTls::RC error;
+    int ssler;
 
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
@@ -461,26 +476,28 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
     //
     if( rc > 0 )
       {bytesRead = rc;
-       if( !pImpl->hsDone ) pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
+       if( !pImpl->hsDone )
+         pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
        return XrdTls::TLS_AOK;
       }
 
     // We have a potential error. Get the SSL error code and whether or
     // not the handshake actually is finished (semi-accurate)
     //
-    error = Diagnose(SSL_get_error( pImpl->ssl, rc ));
-    if( error == XrdTls::RC::TLS_AOK ) bytesRead = 0;
+    ssler = Diagnose(rc);
+    if( ssler == SSL_ERROR_NONE ) bytesRead = 0;
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
 
     // The connection creator may wish that we wait for the handshake to
     // complete. This is a tricky issue for non-blocking bio's as a read
     // may force us to wait until writes are possible. All of this is rare!
     //
-    if ((!pImpl->hsMode || pImpl->hsDone || (error != XrdTls::TLS_WantRead &&
-                               error != XrdTls::TLS_WantWrite))
-    ||   (pImpl->hsMode == xyBlock && error == XrdTls::TLS_WantRead)) return error;
+    if (!pImpl->hsMode || pImpl->hsDone
+    || (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE)
+    || (pImpl->hsMode == xyBlock && ssler == SSL_ERROR_WANT_READ))
+       return XrdTls::ssl2RC(ssler);
 
-   } while(Wait4OK(error == XrdTls::TLS_WantRead));
+   } while(Wait4OK(ssler == SSL_ERROR_WANT_READ));
 
     return XrdTls::TLS_SYS_Error;
   }
@@ -548,7 +565,7 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
 XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
                                 int &bytesWritten )
   {
-    XrdTls::RC error;
+    int ssler;
 
     //------------------------------------------------------------------------
     // If necessary, SSL_write() will negotiate a TLS/SSL session, so we don't
@@ -561,29 +578,31 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
     //
     if( rc > 0 )
       {bytesWritten = rc;
-       if( !pImpl->hsDone ) pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
+       if (!pImpl->hsDone)
+          pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
        return XrdTls::TLS_AOK;
       }
 
     // We have a potential error. Get the SSL error code and whether or
     // not the handshake actually is finished (semi-accurate)
     //
-    error = Diagnose(SSL_get_error( pImpl->ssl, rc ));
-    if( error == XrdTls::RC::TLS_AOK ) bytesWritten = 0;
+    ssler = Diagnose(rc);
+    if( ssler == SSL_ERROR_NONE ) bytesWritten = 0;
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
 
     // The connection creator may wish that we wait for the handshake to
     // complete. This is a tricky issue for non-blocking bio's as a write
     // may force us to wait until reads are possible. All of this is rare!
     //
-    if ((!pImpl->hsMode || pImpl->hsDone || (error != XrdTls::TLS_WantRead &&
-                                             error != XrdTls::TLS_WantWrite))
-    ||   (pImpl->hsMode == xyBlock && error == XrdTls::TLS_WantWrite)) return error;
+    if (!pImpl->hsMode || pImpl->hsDone
+    ||  (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE)
+    ||  (pImpl->hsMode == xyBlock && ssler == SSL_ERROR_WANT_WRITE))
+       return XrdTls::ssl2RC(ssler);
 
-   } while(Wait4OK(error == XrdTls::TLS_WantRead));
+   } while(Wait4OK(ssler == SSL_ERROR_WANT_READ));
 
     return XrdTls::TLS_SYS_Error;
-  }
+}
 
 /******************************************************************************/
 /*                         N e e d H a n d S h a k e                          */

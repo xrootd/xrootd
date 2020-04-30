@@ -54,8 +54,9 @@ extern XrdSysTrace SysTrace;
 struct XrdTlsContextImpl
 {
     XrdTlsContextImpl(XrdTlsContext *p)
-                     : ctx(0), ctxnew(0), owner(p), flsCVar(0), crlInterval(0),
-                       flushT(0), crlRunning(false) {}
+                     : ctx(0), ctxnew(0), owner(p), flsCVar(0),
+                       flushT(0),
+                       crlRunning(false), flsRunning(false) {}
    ~XrdTlsContextImpl() {if (ctx)    SSL_CTX_free(ctx);
                          if (ctxnew) delete ctxnew;
                         }
@@ -66,7 +67,6 @@ struct XrdTlsContextImpl
     XrdTlsContext::CTX_Params     Parm;
     XrdSysRWLock                  crlMutex;
     XrdSysCondVar                *flsCVar;
-    int                           crlInterval;
     short                         flushT;
     bool                          crlRunning;
     bool                          flsRunning;
@@ -97,12 +97,12 @@ void *Refresh(void *parg)
 // Do this forever but first get the sleep time
 //
 do{ctxImpl->crlMutex.ReadLock();
-   sleepTime = ctxImpl->crlInterval;
+   sleepTime = ctxImpl->Parm.crlRT;
    ctxImpl->crlMutex.UnLock();
 
 // We may have been cancelled, in which case we just exit
 //
-   if (sleepTime < 0)
+   if (!sleepTime)
       {ctxImpl->crlMutex.WriteLock();
        ctxImpl->crlRunning = false;
        ctxImpl->crlMutex.UnLock();
@@ -516,8 +516,9 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 /******************************************************************************/
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
-                             const char *caDir, const char *caFile, int opts) :
-      pImpl( new XrdTlsContextImpl(this) )
+                             const char *caDir, const char *caFile,
+                             uint64_t opts)
+                            : pImpl( new XrdTlsContextImpl(this) )
 {
    class ctx_helper
         {public:
@@ -553,9 +554,13 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    bool done = AtomicGet(initDone);
 #endif
    AtomicEnd(ctxMutex);
-   if (!done && (emsg = Init()))
-      {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
-       return;
+   if (!done)
+      {if (!(opts & servr) && getenv("XRDTLS_DEBUG"))
+          XrdTls::SetDebug(XrdTls::dbgALL, XrdTlsGlobal::msgCB);
+       if ((emsg = Init()))
+          {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
+           return;
+          }
       }
 
 // If no CA cert information is specified and this is not a server context,
@@ -593,6 +598,8 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    if (caDir)  pImpl->Parm.cadir  = caDir;
    if (caFile) pImpl->Parm.cafile = caFile;
    pImpl->Parm.opts   = opts;
+   if (opts & crlRF)
+      pImpl->Parm.crlRT = static_cast<int>((opts & crlRF)>>crlRS);
 
 // Get the correct method to use for TLS and check if successful create a
 // server context that uses the method.
@@ -621,6 +628,10 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    SSL_CTX_set_mode(pImpl->ctx, sslMode);
 
+// Turn off the session cache as it's useless with peer cert chains
+//
+   SSL_CTX_set_session_cache_mode(pImpl->ctx, SSL_SESS_CACHE_OFF);
+
 // Establish the CA cert locations, if specified. Then set the verification
 // depth and turn on peer cert validation. For now, we don't set a callback.
 // In the future we may to grab debugging information.
@@ -636,6 +647,13 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
       bool LogVF = (opts & logVF) != 0;
       SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_PEER, (LogVF ? VerCB : 0));
+
+      unsigned long xFlags = (opts & nopxy ? 0 : X509_V_FLAG_ALLOW_PROXY_CERTS);
+      if (opts & crlON)
+         {xFlags |= X509_V_FLAG_CRL_CHECK;
+          if (opts & crlFC) xFlags |= X509_V_FLAG_CRL_CHECK_ALL;
+         }
+      if (opts) X509_STORE_set_flags(SSL_CTX_get_cert_store(pImpl->ctx),xFlags);
      } else {
       SSL_CTX_set_verify(pImpl->ctx, SSL_VERIFY_NONE, 0);
      }
@@ -720,13 +738,17 @@ XrdTlsContext::~XrdTlsContext()
 /*                                 C l o n e                                  */
 /******************************************************************************/
 
-XrdTlsContext *XrdTlsContext::Clone()
+XrdTlsContext *XrdTlsContext::Clone(bool full)
 {
   XrdTlsContext::CTX_Params &my = pImpl->Parm;
   const char *cert = (my.cert.size()   ? my.cert.c_str()   : 0);
   const char *pkey = (my.pkey.size()   ? my.pkey.c_str()   : 0);
   const char *caD  = (my.cadir.size()  ? my.cadir.c_str()  : 0);
   const char *caF  = (my.cafile.size() ? my.cafile.c_str() : 0);
+
+// If this is a non-full context, get rid of any verification
+//
+   if (!full) caD = caF = 0;
 
 // Cloning simply means getting a object with the old parameters.
 //
@@ -791,6 +813,12 @@ bool XrdTlsContext::isOK()
 /******************************************************************************/
 /*                               S e s s i o n                                */
 /******************************************************************************/
+
+// Note: The reason we handle the x509 store update here is because allow the
+// SSL context to be exported and then have no lock control over it. This may
+// happen for transient purposes other than creating sessions. Once we
+// disallow direct access to the context, the exchange can happen in the
+// refresh thread which simplifies this whole process.
 
 void *XrdTlsContext::Session()
 {
@@ -951,18 +979,28 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
    pthread_t tid;
    int       rc;
 
-// If the value is negative, then the caller want to stop refreshing.
+// If the value is zero, then the caller want to stop refreshing.
 //
-   if (refsec < 0)
+   if (!refsec)
       {pImpl->crlMutex.WriteLock();
-       pImpl->crlInterval = refsec;
+       pImpl->Parm.crlRT = 0;
        pImpl->crlMutex.UnLock();
        return true;
       }
 
+// If it's negative, use the curren setting
+//
+   if (refsec < 0)
+      {pImpl->crlMutex.WriteLock();
+       refsec = pImpl->Parm.crlRT;
+       pImpl->crlMutex.UnLock();
+       if (!refsec) refsec = 8*60*60;
+      }
+
+
 // Check if there is anything that is refreshable
 //
-   if (pImpl->Parm.cadir.size() == 0 && pImpl->Parm.cafile.size() == 0)
+   if (!x509Verify())
       {XrdTlsGlobal::msgCB("CrlRefresh:",
                            "No cert information exists to refresh!", false);
        return false;
@@ -975,7 +1013,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 // We will set the new interval and start a refresh thread if not running.
 //
    pImpl->crlMutex.WriteLock();
-   pImpl->crlInterval = refsec;
+   pImpl->Parm.crlRT = refsec;
    if (!pImpl->crlRunning)
       {if ((rc = XrdSysThread::Run(&tid, XrdTlsCrl::Refresh, (void *)pImpl,
                                    0, "CRL Refresh")))

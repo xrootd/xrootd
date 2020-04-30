@@ -53,7 +53,11 @@ XrdSysTrace& Beg(const char *usr=0, const char *epn=0, const char *txt=0);
 
 XrdSysTrace *End() {return this;}
 
-void         SetLogger(XrdSysLogger *logp) {logP = logp;}
+void         SetLogger(XrdSysLogger *logp);
+
+typedef void (*msgCB_t)(const char *tid, const char *msg, bool dbgmsg);
+
+void         SetLogger(msgCB_t cbP);
 
 inline bool  Tracing(int mask) {return (mask & What) != 0;}
 

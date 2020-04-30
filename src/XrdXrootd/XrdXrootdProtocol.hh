@@ -234,6 +234,7 @@ static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
 static int   xtls(XrdOucStream &Config);
+static int   xtlsr(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 static int   xlimit(XrdOucStream &Config);
 

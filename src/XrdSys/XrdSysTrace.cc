@@ -44,6 +44,38 @@
 XrdSysTrace XrdSysTraceXrd("xrd_");
   
 /******************************************************************************/
+/*                  C o n v e r s i o n   F u n c t i o n s                   */
+/******************************************************************************/
+
+namespace
+{
+XrdSysTrace::msgCB_t msgCB = 0;
+
+void ToMsgCB(int iovcnt, struct iovec *iov)
+{
+   std::string msg;
+   int n = 0;
+
+   for (int i = 2; i < iovcnt; i++) n += iov[i].iov_len;
+
+   msg.reserve(n+1);
+
+   for (int i = 2; i < iovcnt; i++)
+       msg.append((const char *)iov[i].iov_base, iov[i].iov_len);
+
+   msgCB((const char *)iov[1].iov_base, msg.c_str(), true);
+}
+}
+  
+/******************************************************************************/
+/*                             S e t L o g g e r                              */
+/******************************************************************************/
+
+void XrdSysTrace::SetLogger(XrdSysLogger *logp) {logP = logp;}
+
+void XrdSysTrace::SetLogger(msgCB_t cbP) {msgCB = cbP;}
+
+/******************************************************************************/
 /*                                   B e g                                    */
 /******************************************************************************/
   
@@ -94,7 +126,7 @@ XrdSysTrace& XrdSysTrace::Beg(const char *usr,
 XrdSysTrace& XrdSysTrace::operator<<(XrdSysTrace *val)
 {
 
-// Make sure and endline character appears
+// Make sure an endline character appears
 //
    if (vPnt >= iovMax) vPnt = iovMax-1;
    ioVec[vPnt]  .iov_base = (char *)"\n";
@@ -102,10 +134,11 @@ XrdSysTrace& XrdSysTrace::operator<<(XrdSysTrace *val)
 
 // Output the line
 //
-   if (logP) logP->Put(vPnt, ioVec);
-      else {static XrdSysLogger tLog(XrdSysFD_Dup(STDERR_FILENO), 0);
-            tLog.Put(vPnt, ioVec);
-           }
+        if (logP)  logP->Put(vPnt, ioVec);
+   else if (msgCB) ToMsgCB(vPnt, ioVec);
+   else {static XrdSysLogger tLog(XrdSysFD_Dup(STDERR_FILENO), 0);
+         tLog.Put(vPnt, ioVec);
+        }
 
 // All done
 //

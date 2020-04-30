@@ -158,6 +158,14 @@ void XrdTls::SetDebug(int opts, XrdSysLogger *logP)
    XrdTlsGlobal::SysTrace.SetLogger(logP);
    XrdTlsGlobal::SysTrace.What = opts;
 }
+
+/******************************************************************************/
+
+void XrdTls::SetDebug(int opts, XrdTls::msgCB_t cbP)
+{
+   XrdTlsGlobal::SysTrace.SetLogger(cbP);
+   XrdTlsGlobal::SysTrace.What = opts;
+}
   
 /******************************************************************************/
 /*                              S e t M s g C B                               */
@@ -166,6 +174,7 @@ void XrdTls::SetDebug(int opts, XrdSysLogger *logP)
 void XrdTls::SetMsgCB(XrdTls::msgCB_t cbP)
 {
    XrdTlsGlobal::msgCB = (cbP ? cbP : ToStdErr);
+   XrdTlsGlobal::SysTrace.SetLogger(cbP);
 }
 
 /******************************************************************************/

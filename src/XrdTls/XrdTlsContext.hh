@@ -18,7 +18,8 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <string>
+#include <cstdint>
+//#include <string>
   
 //----------------------------------------------------------------------------
 // Forward declarations
@@ -39,15 +40,19 @@ public:
 //------------------------------------------------------------------------
 //! Clone a new context from this context.
 //!
+//! @param full   When true the complete context is cloned. When false,
+//!               a context with no peer verification is cloned.
+//!
 //! @return Upon success, the pointer to a new XrdTlsContext is returned.
 //!         Upon failure, a nil pointer is returned.
 //!
-//! @note The session cache settings become scSrvr with no identifier,
-//!       crl refresh is set off, and the default cipher list is used
-//!       for the cloned context.
+//! @note The cloned context is identical to the one created by the original
+//!       constructor. Note that while the crl refresh interval is set, the
+//!       refresh thread needs to be started by calling crlRefresh(). Also,
+//!       the session cache is set to off with no identifier.
 //------------------------------------------------------------------------
 
-XrdTlsContext *Clone();
+XrdTlsContext *Clone(bool full=true);
 
 //------------------------------------------------------------------------
 //! Get the underlying context (should not be used).
@@ -65,13 +70,14 @@ void          *Context();
 
 struct CTX_Params
       {std::string cert;   //!< -> certificate path.
-       std::string pkey;   //!> -> private key path.
-       std::string cadir;  //!> -> ca cert directory.
-       std::string cafile; //!> -> ca cert file.
-       int         opts;   //!> Options as passed to the constructor.
+       std::string pkey;   //!< -> private key path.
+       std::string cadir;  //!< -> ca cert directory.
+       std::string cafile; //!< -> ca cert file.
+       uint64_t    opts;   //!< Options as passed to the constructor.
+       int         crlRT;  //!< crl refresh interval time in seconds
        int         rsvd;
 
-       CTX_Params() : opts(0), rsvd(0) {}
+       CTX_Params() : opts(0), crlRT(8*60*60), rsvd(0) {}
       ~CTX_Params() {}
       };
 
@@ -109,13 +115,15 @@ void           *Session();
 //------------------------------------------------------------------------
 //! Get or set session cache parameters for generated sessions.
 //!
+//! @param  opts     One or more bit or'd options (see below).
 //! @param  id       The identifier to be used (may be nil to keep setting).
 //! @param  idlen    The length of the identifier (may be zero as above).
-//! @param  opts     One or more bit or'd options (see below).
 //!
 //! @return The cache settings prior to any changes are returned. When setting
 //!         the id, the scIdErr may be returned if the name is too long.
 //!         If the context has been pprroperly initialized, zero is returned.
+//!         By default, the session cache is disabled as it is impossible to
+//!         verify a peer certificate chain when a cached session is reused.
 //------------------------------------------------------------------------
 
 static const int scNone = 0x00000000; //!< Do not change any option settings
@@ -151,13 +159,16 @@ void            SetDefaultCiphers(const char *ciphers);
 //------------------------------------------------------------------------
 //! Set CRL refresh time. By default, CRL's are not refreshed.
 //!
-//! @param  refsec   The number of seconds between refreshes. Minumum is 30.
-//!                  However, if the value is <0, refreshing is stopped.
+//! @param  refsec   >0: The number of seconds between refreshes. A value
+//!                      less than 60 sets it to 60.
+//!                  =0: Stops automatic refreshing.
+//!                  <0: Starts automatic refreshing with the current setting
+//!                      if it has not already been started.
 //!
 //! @return True if the CRL refresh thread was started; false otherwise.
 //------------------------------------------------------------------------
 
-      bool      SetCrlRefresh(int refsec);
+      bool      SetCrlRefresh(int refsec=-1);
 
 //------------------------------------------------------------------------
 //! Check if certificates are being verified.
@@ -179,9 +190,13 @@ void            SetDefaultCiphers(const char *ciphers);
 //! @param  cadir    path to the directory containing the CA certificates.
 //! @param  cafile   path to the file containing the CA certificates.
 //! @param  opts     Processing options (or'd bitwise):
+//!                  crlON   - Perform crl check on the leaf node
+//!                  crlFC   - Apply crl check to full chain
+//!                  crlRF   - Initial crl refresh interval in minutes.
 //!                  dnsok   - trust DNS when verifying hostname.
 //!                  hsto    - the handshake timeout value in seconds.
 //!                  logVF   - Turn on verification failure logging.
+//!                  nopxy   - Do not allow proxy cert (normally allowed)
 //!                  servr   - This is a server-side context and x509 peer
 //!                            certificate validation may be turned off.
 //!                  vdept   - The maximum depth of the certificate chain that
@@ -200,18 +215,25 @@ void            SetDefaultCiphers(const char *ciphers);
 //!            object. A return value of false means that construction failed.
 //!         d) Failure messages are routed to the message callback function
 //!            during construction.
+//!         e) While the crl refresh interval is set you must engage it by
+//!            calling crlRefresh() so as to avoid unnecessary refresh threads.
 //------------------------------------------------------------------------
 
-static const int hsto  = 0x000000ff; //!< Mask to isolate the hsto value
-static const int vdept = 0x0000ff00; //!< Mask to isolate the actual value
-static const int vdepS = 8;          //!< Bits to shift vdept value
-static const int logVF = 0x40000000; //!< Enable verification failure logging
-static const int servr = 0x20000000; //!< This is a server-side context
-static const int dnsok = 0x10000000; //!< Trust DNS for host verification
+static const uint64_t hsto  = 0x00000000000000ff; //!< Mask to isolate the hsto
+static const uint64_t vdept = 0x000000000000ff00; //!< Mask to isolate vdept
+static const int      vdepS = 8;                  //!< Bits to shift   vdept
+static const uint64_t logVF = 0x0000000800000000; //!< Log verify failures
+static const uint64_t servr = 0x0000000400000000; //!< This is a server context
+static const uint64_t dnsok = 0x0000000200000000; //!< Trust DNS for host name
+static const uint64_t nopxy = 0x0000000100000000; //!< Do not allow proxy certs
+static const uint64_t crlON = 0x0000008000000000; //!< Enables crl checking
+static const uint64_t crlFC = 0x000000C000000000; //!< Full crl chain checking
+static const uint64_t crlRF = 0x000000003fff0000; //!< Init crl refresh in Min
+static const int      crlRS = 16;                 //!< Bits to shift   vdept
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
-                     int opts=0);
+                     uint64_t opts=0);
 
 //------------------------------------------------------------------------
 //! Destructor
@@ -232,4 +254,43 @@ static const int dnsok = 0x10000000; //!< Trust DNS for host verification
 private:
    XrdTlsContextImpl *pImpl;
 };
+
+/******************************************************************************/
+/*            O p t i o n   M a n i p u l a t i o n   M a c r o s             */
+/******************************************************************************/
+  
+//------------------------------------------------------------------------
+//! Set handshake timeout in contructor options.
+//!
+//! @param cOpts  - the constructor options.
+//! @param hstv   - the handshake timeout value.
+//------------------------------------------------------------------------
+
+#define TLS_SET_HSTO(cOpts,hstv) \
+        ((cOpts & ~XrdTlsContext::hsto) | (hstv & XrdTlsContext::hsto))
+  
+//------------------------------------------------------------------------
+//! Set crl refresh interval in contructor options.
+//!
+//! @param cOpts  - the constructor options.
+//! @param refi   - the refresh interval value.
+//!
+//! @return cOpts with the value positioned in the proper place.
+//------------------------------------------------------------------------
+
+#define TLS_SET_REFINT(cOpts,refi) ((cOpts & ~XrdTlsContext::crlRF) |\
+        (XrdTlsContext::crlRF & (refi <<XrdTlsContext::crlRS)))
+
+//------------------------------------------------------------------------
+//! Set verifydepth value in contructor options.
+//!
+//! @param cOpts  - the constructor options.
+//! @param vdv    - the verify depth value.
+//!
+//! @return cOpts with the value positioned in the proper place.
+//------------------------------------------------------------------------
+
+#define TLS_SET_VDEPTH(cOpts,vdv) ((cOpts & ~XrdTlsContext::vdept) |\
+        (XrdTlsContext::vdept & (vdv <<XrdTlsContext::vdepS)))
+
 #endif // __XRD_TLSCONTEXT_HH__

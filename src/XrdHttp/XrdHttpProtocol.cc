@@ -113,12 +113,11 @@ XrdTlsContext *xrdctx = 0;
 
 static const int hsmAuto = -1;
 static const int hsmOff  =  0;
-static const int hsmOn   =  1;
-
-int sslRefresh = 60*60; // CRL refresh every hour
+static const int hsmMan  =  1;
+static const int hsmOn   =  1; // Dual purpose but use a meaningful varname
 
 int  httpsmode = hsmAuto;
-bool sslCaching = true;  // The default, make it false to turn it off
+bool xrdctxVer = false;
 }
 
 using namespace XrdHttpProtoInfo;
@@ -1107,6 +1106,11 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
     #endif
   }
 
+  // If we have a tls context record whether it configured for verification
+  // so that we can provide meaningful error and warning messages.
+  //
+  xrdctxVer = xrdctx && xrdctx->x509Verify();
+
   // Open and attach the config file
   //
   if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
@@ -1152,36 +1156,88 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
     }
   }
 
-// If https was disabled, then issue a warning message and return
+// Record what we have now
 //
-   if (httpsmode == hsmOff)
-      {eDest.Say("Config warning: HTTPS functionality has been disabled!");
+bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
+
+// If a gridmap or secxtractor is present then we must be able to verify certs
+//
+   if ((secxtractor || gridmap) && !haveCA)
+      {const char *what = (gridmap ? "gridmap" : "secxtractor");
+       const char *why  = (httpsmode == hsmOff ? "HTTPS was disabled!"
+                          : "a cadir or cafile was not specified!");
+       eDest.Say("Config failure: ",what," requires cert verification but ",why);
+       return 1;
+      }
+
+// If https was disabled, then issue a warning message if xrdtls configured
+// of it's disabled because httpsmode was auto and xrdtls was not configured.
+//
+   if (httpsmode == hsmOff || (httpsmode == hsmAuto && !xrdctx))
+      {const char *why = (httpsmode == hsmOff ? "has been disabled!"
+                         : "was not configured.");
+       eDest.Say("Config warning: HTTPS functionality ", why);
+       httpsmode = hsmOff;
        return NoGo;
       }
 
-// Check if the required options have been specified for https
+// Warn if a private key was specified without a cert as this has no meaning
+// even as an auto overide as they must be paired.
 //
-   if (sslcert)
-      {if (httpsmode == hsmAuto && xrdctx)
-          eDest.Say("Config warning: Enabling HTTPS with xrd TLS "
-                    "directive overrides!");
-       httpsmode = hsmOn;
-       xrdctx = 0;
+   if (sslkey && !sslcert)
+      {eDest.Say("Config warning: specifying http.key without http.cert "
+                 "is meaningless; ignoring key!");
+       free(sslkey); sslkey = 0;
+      }
+
+// We have sifted through all possibilities. It's either auto with xrdtls
+// configured or manual which needs at least a cert specification. For auto
+// configuration we will only issue a warning if overrides were specified.
+//
+   if (httpsmode == hsmMan)
+      {if (!sslcert)
+          {eDest.Say("Config failure: 'httpsmode manual' requires atleast a "
+                     "a cert specification!");
+           return 1;
+          }
       } else {
-       if (httpsmode == hsmAuto && xrdctx) httpsmode = hsmOn;
-          else httpsmode = hsmOff;
+       if (sslcert || sslcadir || sslcafile || sslcipherfilter)
+          {eDest.Say("Config warning: Enabling HTTPS with xrd TLS "
+                     "directive overrides!");
+           const XrdTlsContext::CTX_Params *cP = xrdctx->GetParams();
+           if (!sslcert)  {sslcert   = strdup(cP->cert.c_str());
+                           sslkey    = strdup(cP->pkey.c_str());
+                          }
+           if (!sslcadir)  sslcadir  = strdup(cP->cadir.c_str());
+           if (!sslcafile) sslcafile = strdup(cP->cafile.c_str());
+           xrdctx = 0;
+          }
       }
+   httpsmode = hsmOn;
 
-// Initialize HTTPS if enabled
+// Oddly we need to create an error bio at this point
 //
-   if (httpsmode)
-      {const char *how = "completed.";
-       eDest.Say("++++++ HTTPS initialization started.");
-       if (InitSecurity()) {NoGo = 1; how = "failed.";}
-       eDest.Say("------ HTTPS initialization ", how);
-      }
+   sslbio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 
-  return NoGo;
+// If we are going to reuse the passed conext, just say all is well. Otherwise,
+// do a full https configuration.
+//
+   if (xrdctx) eDest.Say("Config HTTPS has been auto-enabled.");
+      else {const char *how = "completed.";
+            eDest.Say("++++++ HTTPS initialization started.");
+            if (!InitTLS()) {NoGo = 1; how = "failed.";}
+            eDest.Say("------ HTTPS initialization ", how);
+            if (NoGo) return NoGo;
+            }
+
+// Turn on the refreshing
+//
+   if (!NoGo && xrdctx->x509Verify() && !(xrdctx->SetCrlRefresh()))
+      eDest.Say("Config warning: CRL refreshing could not be enabled!");
+
+// At this point, we can actually initialize security plugins
+//
+   return (InitSecurity() ? NoGo : 1);
 }
 
 /******************************************************************************/
@@ -1687,54 +1743,8 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 /******************************************************************************/
 /*                          I n i t S e c u r i t y                           */
 /******************************************************************************/
-  
-/// Initialization of the ssl security
 
-int XrdHttpProtocol::InitSecurity() {
-
-   static const char *sess_ctx_id = "XrdHTTPSessionCtx";
-
-// Create an error write context object
-//
-   sslbio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
-
-// If we already have an xrd context, then clone it. Otherwise, create a new
-// one using the specified parameters.
-//
-   if (!xrdctx)
-      {int opts = XrdTlsContext::servr | XrdTlsContext::logVF;
-       if (sslverifydepth > 255) sslverifydepth = 255;
-       opts |= sslverifydepth << XrdTlsContext::vdepS;
-       xrdctx = new XrdTlsContext(sslcert, sslkey, sslcadir, sslcafile, opts);
-       } else xrdctx = xrdctx->Clone();
-
-// Make sure the context was created
-//
-   if (!xrdctx->isOK())
-      {XrdTls::Emsg("HTTPS_Config:", "Unable to setup TLS context!", true);
-       return 1;
-      }
-
-// Setup session cache (this is controversial). We will use the default
-// which is Server mode enabled but we should supply an ID.
-//
-   if (sslCaching)
-      {unsigned int n =(unsigned int)(strlen(sess_ctx_id)+1);
-       xrdctx->SessionCache(XrdTlsContext::scSrvr, sess_ctx_id, n);
-      } else xrdctx->SessionCache(0, 0, XrdTlsContext::scOff);
-
-// Set special ciphers if so specified.
-//
-   if (sslcipherfilter && !xrdctx->SetContextCiphers(sslcipherfilter))
-      {XrdTls::Emsg("HTTPS_Config:","Unable to set allowable https ciphers!",
-                     true);
-       return 1;
-      }
-
-// Turn on the crl refreshing
-//
-   if (!(xrdctx->SetCrlRefresh(sslRefresh)))
-      eDest.Say("Config warning: CRL refreshing could not be enabled!");
+bool XrdHttpProtocol::InitSecurity() {
 
 // If GRID map file was specified, load the plugin for it
 //
@@ -1744,7 +1754,7 @@ int XrdHttpProtocol::InitSecurity() {
 
      if (!(servGMap = XrdOucgetGMap(&eDest, gridmap, pars.c_str()))) {
        eDest.Say("Error loading grid map file:", gridmap);
-       exit(1);
+       return false;
      }
      TRACE(ALL, "using grid map file: "<< gridmap);
    }
@@ -1758,7 +1768,49 @@ int XrdHttpProtocol::InitSecurity() {
 
 // All done
 //
-   return 0;
+   return true;
+}
+
+/******************************************************************************/
+/*                               I n i t T L S                                */
+/******************************************************************************/
+  
+bool XrdHttpProtocol::InitTLS() {
+
+   uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF;
+
+// Create a new TLS context
+//
+   if (sslverifydepth > 255) sslverifydepth = 255;
+   opts = TLS_SET_VDEPTH(opts, sslverifydepth);
+   xrdctx = new XrdTlsContext(sslcert, sslkey, sslcadir, sslcafile, opts);
+
+// Make sure the context was created
+//
+   if (!xrdctx->isOK())
+      {XrdTls::Emsg("HTTPS_Config:", "Unable to setup TLS context!", true);
+       return false;
+      }
+
+// Setup session cache (this is controversial). The default is off, so we keep
+// that way until session reuse is actualy fixed.
+//
+// {static const char *sess_ctx_id = "XrdHTTPSessionCtx";
+//  unsigned int n =(unsigned int)(strlen(sess_ctx_id)+1);
+//  rdctx->SessionCache(XrdTlsContext::scSrvr, sess_ctx_id, n);
+// }
+
+// Set special ciphers if so specified.
+//
+   if (sslcipherfilter && !xrdctx->SetContextCiphers(sslcipherfilter))
+      {XrdTls::Emsg("HTTPS_Config:","Unable to set allowable https ciphers!",
+                     true);
+       return false;
+      }
+
+// All done
+//
+   return true;
 }
 
 /******************************************************************************/
@@ -1860,11 +1912,11 @@ void XrdHttpProtocol::Reset() {
 
 /* Function: xhttpsmode
 
-   Purpose:  To parse the directive: httpsmode {auto | disable | enable}
+   Purpose:  To parse the directive: httpsmode {auto | disable | manual}
 
              auto      configure https if configured in xrd framework.
              disable   do not configure https no matter what
-             enable    configure https and ignore the xrd framework
+             manual    configure https and ignore the xrd framework
 
   Output: 0 upon success or !0 upon failure.
  */
@@ -1884,7 +1936,7 @@ int XrdHttpProtocol::xhttpsmode(XrdOucStream & Config) {
   //
        if (!strcmp(val, "auto"))    httpsmode = hsmAuto;
   else if (!strcmp(val, "disable")) httpsmode = hsmOff;
-  else if (!strcmp(val, "enable"))  httpsmode = hsmOn;
+  else if (!strcmp(val, "manual"))  httpsmode = hsmMan;
   else {eDest.Emsg("Config", "invalid httpsmode parameter - ", val);
         return 1;
        }
@@ -1919,7 +1971,7 @@ int XrdHttpProtocol::xsslverifydepth(XrdOucStream & Config) {
   //
   sslverifydepth = atoi(val);
 
-  HTTPS_ALERT("verifydepth","xrd.tlsca");
+  if (xrdctxVer) HTTPS_ALERT("verifydepth","xrd.tlsca");
   return 0;
 }
 
@@ -2055,7 +2107,7 @@ int XrdHttpProtocol::xsslcafile(XrdOucStream & Config) {
   if (sslcafile) free(sslcafile);
   sslcafile = strdup(val);
 
-  HTTPS_ALERT("cafile","xrd.tlsca");
+  if (xrdctxVer) HTTPS_ALERT("cafile","xrd.tlsca");
   return 0;
 }
 
@@ -2602,7 +2654,7 @@ int XrdHttpProtocol::xsslcadir(XrdOucStream & Config) {
   if (sslcadir) free(sslcadir);
   sslcadir = strdup(val);
 
-  HTTPS_ALERT("cadir","xrd.tlsca");
+  if (xrdctxVer) HTTPS_ALERT("cadir","xrd.tlsca");
   return 0;
 }
 

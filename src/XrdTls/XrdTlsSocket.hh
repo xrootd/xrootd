@@ -229,7 +229,7 @@ enum HS_Mode
 
 private:
 
-XrdTls::RC Diagnose(int sslrc);
+int Diagnose(int sslrc);
 std::string Err2Text(int sslerr);
 bool Wait4OK(bool wantRead);
 

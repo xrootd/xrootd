@@ -65,6 +65,8 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
+#include "XrdTls/XrdTlsContext.hh"
+
 #include "XrdXrootd/XrdXrootdAdmin.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
@@ -143,6 +145,7 @@ std::vector<std::string> FSLPath;
 char                    *gpfLib  = 0;// Normally zero for default
 char                    *gpfParm = 0;
 char                    *SecLib;
+int                      tlsCache= XrdTlsContext::scNone;
 }
   
 /******************************************************************************/
@@ -501,6 +504,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("tls",           xtls);
+             else if TS_Xeq("tlsreuse",      xtlsr);
              else if TS_Xeq("trace",         xtrace);
              else if TS_Xeq("limit",         xlimit);
              else {if (!strcmp(var, "pidpath"))
@@ -516,6 +520,20 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              if (GoNo) {Config.Echo(); NoGo = 1;}
             }
         }
+
+// We now have to generate the correct TLS context if one was specified. Our
+// context must be of the non-verified kind as we don't accept certs.
+//
+   if (!NoGo && tlsCtx)
+      {tlsCtx = tlsCtx->Clone(false);
+       if (!tlsCtx)
+          {eDest.Say("Config failure: unable to setup TLS for protocol!");
+           NoGo = 1;
+          } else {
+           const char *sessID = "xroots";
+           tlsCtx->SessionCache(tlsCache, sessID, sizeof(sessID));
+          }
+      }
 
 // Add our config to our environment and return
 //
@@ -1775,7 +1793,7 @@ int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
 //
    val = Config.GetWord();
    if (!val || !val[0])
-      {eDest.Emsg("Config", "XRootd seclib not specified"); return 1;}
+      {eDest.Emsg("Config", "seclib argument not specified"); return 1;}
 
 // Record the path
 //
@@ -1790,7 +1808,7 @@ int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
   
 /* Function: xtls
 
-   Purpose:  To parse the directive: [capable] <reqs>
+topPurpose:  To parse the directive: tls [capable] <reqs>
 
              capable   Enforce TLS requirements only for TLS capable clients.
                        Otherwise, TLS is enforced for all clients.
@@ -1877,6 +1895,68 @@ int XrdXrootdProtocol::xtls(XrdOucStream &Config)
 // Do final resolution on the settins
 //
    return (CheckTLS(0) ? 0 : 1);
+}
+  
+/******************************************************************************/
+/*                                 x t l s r                                  */
+/******************************************************************************/
+
+/* Function: xtlsr
+
+   Purpose:  To parse the directive: tlsreuse off | on [flush <ft>[h|m|s]]
+
+             off       turns off the TLS session reuse cache.
+             on        turns on  the TLS session reuse cache.
+             <ft>      sets the cache flush frequency. the default is set
+                       by the TLS libraries and is typically connection count.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xtlsr(XrdOucStream &Config)
+{
+   char *val;
+   int num;
+
+// Get the argument
+//
+   val = Config.GetWord();
+   if (!val || !val[0])
+      {eDest.Emsg("Config", "tlsreuse argument not specified"); return 1;}
+
+// If it's off, we set it off
+//
+   if (!strcmp(val, "off"))
+      {tlsCache = XrdTlsContext::scOff;
+       return 0;
+      }
+
+// If it's on we may need more to do
+//
+   if (!strcmp(val, "on"))
+      {if (!tlsCtx) {eDest.Emsg("Config warning:", "Ignoring "
+                                "'tlsreuse on'; TLS not configured!");
+                     return 0;
+                    }
+       tlsCache = XrdTlsContext::scSrvr;
+       if (!(val = Config.GetWord())) return 0;
+       if (!strcmp(val, "flush" ))
+            {if (!(val = Config.GetWord()))
+                {eDest.Emsg("Config", "tlsreuse flush value not specified");
+                 return 1;
+                }
+             if (XrdOuca2x::a2tm(eDest,"tlsreuse flush",val,&num,1)) return 1;
+             if (num < 60) num = 60;
+                else if (num > XrdTlsContext::scFMax)
+                         num = XrdTlsContext::scFMax;
+             tlsCache |= num;
+            }
+      }
+
+// We have a bad keyword
+//
+   eDest.Emsg("config", "Invalid tlsreuse option -", val);
+   return 1;
 }
   
 /******************************************************************************/
