@@ -1541,9 +1541,9 @@ namespace XrdCl
     proto->expect = expect;
     //--------------------------------------------------------------------------
     // If we are in the curse of establishing a connection in the context of
-    // TPC update the expect!
+    // TPC update the expect! (this will be never followed be a bind)
     //--------------------------------------------------------------------------
-    if( info->istpc ) proto->expect |= ClientProtocolRequest::kXR_ExpTPC;
+    if( info->istpc ) proto->expect = ClientProtocolRequest::kXR_ExpTPC;
     return msg;
   }
 
