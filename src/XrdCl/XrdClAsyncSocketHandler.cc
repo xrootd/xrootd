@@ -917,7 +917,7 @@ namespace XrdCl
     }
 
     pTlsHandShakeOngoing = false;
-    log->Debug( AsyncSockMsg, "[%s] TLS hand-shake done.", pStreamName.c_str() );
+    log->Info( AsyncSockMsg, "[%s] TLS hand-shake done.", pStreamName.c_str() );
 
     return st;
   }
