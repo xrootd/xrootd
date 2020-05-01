@@ -467,7 +467,8 @@ XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call SSL_connect or SSL_do_handshake.
     //------------------------------------------------------------------------
- do{int rc = SSL_peek( pImpl->ssl, buffer, size );
+ do{ERR_clear_error();
+    int rc = SSL_peek( pImpl->ssl, buffer, size );
 
     // Note that according to SSL whenever rc > 0 then SSL_ERROR_NONE can be
     // returned to the caller. So, we short-circuit all the error handling.
@@ -524,7 +525,8 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call SSL_connect or SSL_do_handshake.
     //------------------------------------------------------------------------
- do{int rc = SSL_read( pImpl->ssl, buffer, size );
+ do{ERR_clear_error();
+    int rc = SSL_read( pImpl->ssl, buffer, size );
 
     // Note that according to SSL whenever rc > 0 then SSL_ERROR_NONE can be
     // returned to the caller. So, we short-circuit all the error handling.
@@ -634,7 +636,8 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
     // If necessary, SSL_write() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call SSL_connect or SSL_do_handshake.
     //------------------------------------------------------------------------
- do{int rc = SSL_write( pImpl->ssl, buffer, size );
+ do{ERR_clear_error();
+    int rc = SSL_write( pImpl->ssl, buffer, size );
 
     // Note that according to SSL whenever rc > 0 then SSL_ERROR_NONE can be
     // returned to the caller. So, we short-circuit all the error handling.
