@@ -46,7 +46,7 @@ enum RC {TLS_AOK = 0,          //!< All went well, will always be zero.
          TLS_SYS_Error,        //!< A system call error occurred
          TLS_UNK_Error,        //!< An unknown error occurred
          TLS_VER_Error,        //!< Certificate verification failed
-         TLS_WantAccept,       //!< AReissu call when Accept()  completes
+         TLS_WantAccept,       //!< Reissue call when Accept()  completes
          TLS_WantConnect,      //!< Reissue call when Connect() completes
          TLS_WantRead,         //!< Reissue call when reads  do not block
          TLS_WantWrite         //!< Reissue call when writes do not block

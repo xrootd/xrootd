@@ -91,10 +91,12 @@ enum HS_Mode
 //------------------------------------------------------------------------
 //! Accept an incoming TLS connection
 //!
+//! @param  eWhy     - If not nil, receives the associated error message.
+//!
 //! @return The appropriate TLS return code.
 //------------------------------------------------------------------------
 
-  XrdTls::RC Accept();
+  XrdTls::RC Accept(std::string *eMsg=0);
 
 //------------------------------------------------------------------------
 //! Establish a TLS connection
@@ -105,14 +107,14 @@ enum HS_Mode
 //!                    may be used to validate the hostname, subject to
 //!                    the XrdTlsContext::dnsok option. If the pointer is
 //!                    nil, DNS will not be used to validate the hostname.
-//!         eText    - If not nil, receives the associated error message.
+//! @param  eWhy     - If not nil, receives the associated error message.
 //!
 //! @return TLS_AOK if the operation was successful; otherwise the appropraite
 //!                 return code indicating the problem.
 //------------------------------------------------------------------------
 
   XrdTls::RC Connect(const char *thehost=0, XrdNetAddrInfo *netInfo=0,
-                     std::string *eMsg=0);
+                     std::string *eWhy=0);
 
 //------------------------------------------------------------------------
 //! Obtain context associated with this connection.
@@ -146,7 +148,7 @@ enum HS_Mode
 //------------------------------------------------------------------------
 
   const char *Init( XrdTlsContext &ctx, int sfd, RW_Mode rwm, HS_Mode hsm,
-                    bool isClient, const char *tid="?" );
+                    bool isClient, const char *tid="" );
 
 //------------------------------------------------------------------------
 //! Peek at the TLS connection data. If necessary, a handshake will be done.
@@ -229,7 +231,8 @@ enum HS_Mode
 
 private:
 
-int Diagnose(int sslrc);
+void AcceptEMsg(std::string *eWhy, const char *reason);
+int  Diagnose(const char *what, int sslrc, int tcode);
 std::string Err2Text(int sslerr);
 bool Wait4OK(bool wantRead);
 

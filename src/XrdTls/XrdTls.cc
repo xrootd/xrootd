@@ -87,7 +87,7 @@ int RC2SSL_Error(XrdTls::RC rc)
 }
   
 /******************************************************************************/
-/*                           F l u s h E r r o r s                            */
+/*                                  E m s g                                   */
 /******************************************************************************/
 
 void XrdTls::Emsg(const char *tid, const char *msg, bool flush)
@@ -174,7 +174,6 @@ void XrdTls::SetDebug(int opts, XrdTls::msgCB_t cbP)
 void XrdTls::SetMsgCB(XrdTls::msgCB_t cbP)
 {
    XrdTlsGlobal::msgCB = (cbP ? cbP : ToStdErr);
-   XrdTlsGlobal::SysTrace.SetLogger(cbP);
 }
 
 /******************************************************************************/

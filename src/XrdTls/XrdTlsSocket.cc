@@ -43,7 +43,7 @@
 
 struct XrdTlsSocketImpl
 {
-    XrdTlsSocketImpl() : tlsctx(0), ssl(0), traceID(0), sFD(-1),
+    XrdTlsSocketImpl() : tlsctx(0), ssl(0), traceID(""), sFD(-1),
                              hsWait(15), hsDone(false), fatal(false),
                              cOpts(0), cAttr(0), hsMode(0) {}
 
@@ -133,25 +133,37 @@ XrdTlsSocket::~XrdTlsSocket()
 /*                                A c c e p t                                 */
 /******************************************************************************/
   
-XrdTls::RC XrdTlsSocket::Accept()
+XrdTls::RC XrdTlsSocket::Accept(std::string *eWhy)
 {
+   EPNAME("Accept");
    int rc, ssler;
+   bool wOK, aOK = true;
 
 // Make sure there is a context here
 //
-   if (pImpl->ssl == 0) return XrdTls::TLS_CTX_Missing;
+   if (pImpl->ssl == 0)
+      {AcceptEMsg(eWhy, "TLS socket has no context");
+       return XrdTls::TLS_CTX_Missing;
+      }
    undoImpl ImplTracker(pImpl);
+
+// Do some tracing
+//
+   DBG_SOK("Accepting a TLS connection...");
 
 // An accept may require several tries, so we do that here.
 //
 do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
       {if (pImpl->cOpts & xVerify)
           {X509 *theCert = SSL_get_peer_certificate(pImpl->ssl);
-           if (!theCert) return XrdTls::TLS_CRT_Missing;
+           if (!theCert)
+              {AcceptEMsg(eWhy, "x509 certificate is missing");
+               return XrdTls::TLS_CRT_Missing;
+              }
            X509_free(theCert);
            rc = SSL_get_verify_result(pImpl->ssl);
            if (rc != X509_V_OK)
-              {XrdTls::Emsg(pImpl->traceID, "x509 cert verification failed");
+              {AcceptEMsg(eWhy, "x509 certificate verification failed");
                return XrdTls::TLS_VER_Error;
               }
           }
@@ -161,23 +173,34 @@ do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
 
    // Get the actual SSL error code.
    //
-   ssler = Diagnose(rc);
+   ssler = Diagnose("TLS_Accept", rc, XrdTls::dbgSOK);
 
    // Check why we did not succeed. We may be able to recover.
    //
    if (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE)
-      {std::string eTxt("TLS Accept() failed; ");
-       eTxt += Err2Text(ssler);
-       XrdTls::Emsg(pImpl->traceID, eTxt.c_str());;
-       errno = ECONNABORTED;
-       return XrdTls::TLS_SYS_Error;
-      }
+      {aOK = false; break;}
 
-  } while(Wait4OK(ssler == SSL_ERROR_WANT_READ));
+  } while((wOK = Wait4OK(ssler == SSL_ERROR_WANT_READ)));
 
-// If we are here then we got a syscall error
+// If we are here then we got an error
 //
+   AcceptEMsg(eWhy, (!aOK ? Err2Text(ssler).c_str() : XrdSysE2T(errno)));
+   errno = ECONNABORTED;
    return XrdTls::TLS_SYS_Error;
+}
+
+/******************************************************************************/
+/* Private:                   A c c e p t E M s g                             */
+/******************************************************************************/
+  
+void XrdTlsSocket::AcceptEMsg(std::string *eWhy, const char *reason)
+{
+   if (eWhy)
+      {*eWhy  = "TLS connection from ";
+       *eWhy += pImpl->traceID;
+       *eWhy += " failed; ";
+       *eWhy += reason;
+      }
 }
 
 /******************************************************************************/
@@ -185,29 +208,46 @@ do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
 /******************************************************************************/
   
 XrdTls::RC XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
-                                 std::string *eMsg)
+                                 std::string *eWhy)
 {
+   EPNAME("Connect");
+   int ssler;
+   bool wOK, aOK = true;
 
 // Setup host verification of a host has been specified. This is a to-do
 // when we move to new versions of SSL. For now, we use the notary object.
 //
 
+// Do some tracing
+//
+   DBG_SOK("Connecting to " <<(thehost ? thehost : "unverified")
+           <<" (" <<(netInfo ? netInfo->Name("host") : "") <<")"
+           <<(pImpl->cOpts & DNSok ? " dnsok" : "" ));
+
 // Do the connect.
 //
-   int rc = SSL_connect( pImpl->ssl );
-   if (rc != 1)
-      {int ssler = Diagnose(rc);
-       if (eMsg)
+do{int rc = SSL_connect( pImpl->ssl );
+   if (rc == 1) break;
+   ssler = Diagnose("TLS_Connect", rc, XrdTls::dbgSOK);
+   if (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE)
+      {aOK = false; break;}
+   } while((wOK = Wait4OK(ssler == SSL_ERROR_WANT_READ)));
+
+// Check if everything went well
+//
+   if (!aOK || !wOK)
+      {if (eWhy)
           {const char *hName;
            if (thehost) hName = thehost;
               else if (netInfo) hName = netInfo->Name("host");
                       else hName = "host";
-           *eMsg = "Unable to connect to ";
-           *eMsg += hName;
-           *eMsg += "; ";
-           *eMsg += Err2Text(ssler);
+           *eWhy = "Unable to connect to ";
+           *eWhy += hName;
+           *eWhy += "; ";
+           if (!aOK) *eWhy += Err2Text(ssler);
+              else   *eWhy += XrdSysE2T(errno);
           }
-       return XrdTls::ssl2RC(ssler);
+       return (!aOK ? XrdTls::ssl2RC(ssler) : XrdTls::TLS_SYS_Error);
       }
 
 //  Set the hsDone flag!
@@ -220,12 +260,11 @@ XrdTls::RC XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
    if (thehost)
       {const char *eTxt = XrdTlsNotary::Validate(pImpl->ssl, thehost,
                                         (pImpl->cOpts & DNSok ? netInfo : 0));
-       if (eTxt && eMsg)
-          {
-           if (eMsg)
+       if (eTxt)
+          {if (eWhy)
               {
-               *eMsg  = "Unable to validate "; *eMsg += thehost;
-               *eMsg += "; "; *eMsg += eTxt;
+               *eWhy  = "Unable to validate "; *eWhy += thehost;
+               *eWhy += "; "; *eWhy += eTxt;
               }
            return XrdTls::TLS_HNV_Error;
           }
@@ -247,9 +286,24 @@ XrdTlsContext* XrdTlsSocket::Context()
 /* Private:                     D i a g n o s e                               */
 /******************************************************************************/
   
-int XrdTlsSocket::Diagnose(int sslrc)
+int XrdTlsSocket::Diagnose(const char *what, int sslrc, int tcode)
 {
 int eCode = SSL_get_error( pImpl->ssl, sslrc );
+
+// The most common code which is not an error is the EAGAIN kind
+//
+   if (eCode == SSL_ERROR_WANT_READ || eCode == SSL_ERROR_WANT_WRITE
+   ||  eCode == SSL_ERROR_NONE) return eCode;
+
+// We need to dispose of the error queue otherwise the next operation will
+// fail. We do this by either printing them or flushing them down the drain.
+//
+   if (TRACING(tcode))
+      {char ebuff[256];
+       snprintf(ebuff, sizeof(ebuff), "%s TLS error rc=%d ecode=%d; "
+                "msg traceback follows.", what, sslrc, eCode);
+       XrdTls::Emsg(pImpl->traceID, ebuff, true);
+      } else ERR_clear_error();
 
 // Make sure we can shutdown
 //
@@ -427,7 +481,7 @@ XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
     // not the handshake actually is finished (semi-accurate)
     //
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
-    ssler = Diagnose(rc);
+    ssler = Diagnose("TLS_Peek", rc, XrdTls::dbgSIO);
 
     // The connection creator may wish that we wait for the handshake to
     // complete. This is a tricky issue for non-blocking bio's as a read
@@ -462,7 +516,8 @@ int XrdTlsSocket::Pending(bool any)
 /******************************************************************************/
   
 XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
-  {
+{
+    EPNAME("Read");
     int ssler;
 
     //------------------------------------------------------------------------
@@ -478,13 +533,14 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
       {bytesRead = rc;
        if( !pImpl->hsDone )
          pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
+       DBG_SIO(rc <<" out of " <<size <<" bytes.");
        return XrdTls::TLS_AOK;
       }
 
     // We have a potential error. Get the SSL error code and whether or
     // not the handshake actually is finished (semi-accurate)
     //
-    ssler = Diagnose(rc);
+    ssler = Diagnose("TLS_Read", rc, XrdTls::dbgSIO);
     if( ssler == SSL_ERROR_NONE ) bytesRead = 0;
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
 
@@ -508,6 +564,8 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
   
 void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
 {
+   EPNAME("Shutdown");
+   const char *how;
    int sdMode, rc;
 
 // Make sure we have an ssl object
@@ -522,15 +580,19 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
       {switch(sdType)
              {case sdForce: // Forced shutdown which violate TLS standard!
                    sdMode = SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN;
+                   how    = "forced";
                    break;
               case sdWait:  // Wait for client acknowledgement
                    sdMode = 0;
+                   how    = "clean";
                    break;
               default:      // Fast shutdown, don't wait for ack (compliant)
                    sdMode = SSL_RECEIVED_SHUTDOWN;
+                   how    = "fast";
                    break;
              }
 
+       DBG_SOK("Doing " <<how <<" shutdown.");
        SSL_set_shutdown(pImpl->ssl, sdMode);
 
        for (int i = 0; i < 4; i++)
@@ -564,7 +626,8 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
   
 XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
                                 int &bytesWritten )
-  {
+{
+    EPNAME("Write");
     int ssler;
 
     //------------------------------------------------------------------------
@@ -580,13 +643,14 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
       {bytesWritten = rc;
        if (!pImpl->hsDone)
           pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
+       DBG_SIO(rc <<" out of " <<size <<" bytes.");
        return XrdTls::TLS_AOK;
       }
 
     // We have a potential error. Get the SSL error code and whether or
     // not the handshake actually is finished (semi-accurate)
     //
-    ssler = Diagnose(rc);
+    ssler = Diagnose("TLS_Write", rc, XrdTls::dbgSIO);
     if( ssler == SSL_ERROR_NONE ) bytesWritten = 0;
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
 

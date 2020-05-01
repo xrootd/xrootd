@@ -41,11 +41,11 @@
        SYSTRACE(XrdTlsGlobal::SysTrace., 0, epname, 0, y)
 
 #define DBG_SOK(y)\
-    if (SysTrace.What & XrdTls::dbgSOK) \
+    if (XrdTlsGlobal::SysTrace.What & XrdTls::dbgSOK) \
        SYSTRACE(XrdTlsGlobal::SysTrace., pImpl->traceID, epname, 0, y)
 
 #define DBG_SIO(y)\
-    if (SysTrace.What & XrdTls::dbgSIO) \
+    if (XrdTlsGlobal::SysTrace.What & XrdTls::dbgSIO) \
        SYSTRACE(XrdTlsGlobal::SysTrace., pImpl->traceID, epname, 0, y)
 
 #define EPNAME(x) static const char *epname = x;

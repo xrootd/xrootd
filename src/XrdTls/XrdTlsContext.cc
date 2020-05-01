@@ -57,8 +57,9 @@ struct XrdTlsContextImpl
                      : ctx(0), ctxnew(0), owner(p), flsCVar(0),
                        flushT(0),
                        crlRunning(false), flsRunning(false) {}
-   ~XrdTlsContextImpl() {if (ctx)    SSL_CTX_free(ctx);
-                         if (ctxnew) delete ctxnew;
+   ~XrdTlsContextImpl() {if (ctx)     SSL_CTX_free(ctx);
+                         if (ctxnew)  delete ctxnew;
+                         if (flsCVar) delete flsCVar;
                         }
 
     SSL_CTX                      *ctx;
@@ -539,6 +540,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
    std::string eText;
    const char *emsg;
+   bool doFlush = TRACING(XrdTls::dbgCTX);
 
 // Assume we will fail
 //
@@ -555,10 +557,18 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 #endif
    AtomicEnd(ctxMutex);
    if (!done)
-      {if (!(opts & servr) && getenv("XRDTLS_DEBUG"))
-          XrdTls::SetDebug(XrdTls::dbgALL, XrdTlsGlobal::msgCB);
+      {const char *dbg;
+       if (!(opts & servr) && (dbg = getenv("XRDTLS_DEBUG")))
+          {int dbgOpts = 0;
+           if (strstr(dbg, "ctx")) dbgOpts |= XrdTls::dbgCTX;
+           if (strstr(dbg, "sok")) dbgOpts |= XrdTls::dbgSOK;
+           if (strstr(dbg, "sio")) dbgOpts |= XrdTls::dbgSIO;
+           if (!dbgOpts) dbgOpts = XrdTls::dbgALL;
+           XrdTls::SetDebug(dbgOpts);
+          }
        if ((emsg = Init()))
           {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
+           ERR_clear_error();
            return;
           }
       }
@@ -616,7 +626,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Make sure we have a context here
 //
    if (pImpl->ctx == 0)
-      {XrdTls::Emsg("TLS_Context", "Unable to allocate TLS context!");
+      {XrdTls::Emsg("TLS_Context", "Unable to allocate TLS context!",doFlush);
        return;
       }
 
@@ -639,7 +649,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    if (caDir || caFile)
      {if (!SSL_CTX_load_verify_locations(pImpl->ctx, caFile, caDir))
          {XrdTls::Emsg("TLS_Context",
-                       "Unable to set the CA cert file or directory.");
+                       "Unable to set the CA cert file or directory.",doFlush);
           return;
          }
       int vDepth = (opts & vdept) >> vdepS;
@@ -661,7 +671,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Set cipher list
 //
    if (!SSL_CTX_set_cipher_list(pImpl->ctx, sslCiphers))
-      {XrdTls::Emsg("TLS_Context", "Unable to set SSL cipher list.");
+      {XrdTls::Emsg("TLS_Context", "Unable to set SSL cipher list.",doFlush);
        return;
       }
 
@@ -693,7 +703,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (SSL_CTX_use_certificate_file(pImpl->ctx, cert, SSL_FILETYPE_PEM) != 1)
       {XrdTls::Emsg("LS_Context",
-                    "Unable to create TLS context; certificate error.");
+                    "Unable to create TLS context; certificate error.",doFlush);
        return;
       }
 
@@ -701,7 +711,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (SSL_CTX_use_PrivateKey_file(pImpl->ctx, key, SSL_FILETYPE_PEM) != 1 )
       {XrdTls::Emsg("TLS_Context",
-                    "Unable to create TLS context; private key error.");
+                    "Unable to create TLS context; private key error.",doFlush);
        return;
       }
 
@@ -709,7 +719,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (SSL_CTX_check_private_key(pImpl->ctx) != 1 )
       {XrdTls::Emsg("TLS_Context",
-                    "Unable to create TLS context; cert-key mismatch.");
+                    "Unable to create TLS context; cert-key mismatch.",doFlush);
        return;
       }
 

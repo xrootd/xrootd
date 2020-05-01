@@ -859,6 +859,7 @@ bool XrdLinkXeq::setTLS(bool enable, XrdTlsContext *ctx)
 
 // If we are already in a compatible mode, we are done
 //
+
    if (isTLS == enable) return true;
 
 // If this is a shutdown, then do it now.
@@ -885,19 +886,15 @@ bool XrdLinkXeq::setTLS(bool enable, XrdTlsContext *ctx)
 
 // Now we need to accept this TLS connection
 //
-   rc = tlsIO.Accept();
+   std::string eMsg;
+   rc = tlsIO.Accept(&eMsg);
 
 // Diagnose return state
 //
-   if (rc == XrdTls::TLS_AOK)
-      {isTLS = enable;
-       Addr.SetTLS(enable);
-      } else {
-       char buff[1024];
-       std::string eTxt = XrdTls::RC2Text(rc);
-       snprintf(buff, sizeof(buff), "Unable to enable tls for %s;", ID);
-       Log.Emsg("LinkXeq", buff, eTxt.c_str());
-      }
+   if (rc != XrdTls::TLS_AOK) Log.Emsg("LinkXeq", eMsg.c_str());
+      else {isTLS = enable;
+            Addr.SetTLS(enable);
+           }
    return rc == XrdTls::TLS_AOK;
 }
 
