@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClTransportManager.hh"
+#include "XrdCl/XrdClTls.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -2037,6 +2038,15 @@ namespace XrdCl
         log->Debug( XRootDTransportMsg,
                     "[%s] Authenticated with %s.", hsData->streamName.c_str(),
                     protocolName.c_str() );
+
+        if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
+            ( info->serverFlags & kXR_tlsLogin ) )
+          //--------------------------------------------------------------------
+          // Clear the SSL error queue of the calling thread, as there might be
+          // some leftover from the authentication!
+          //--------------------------------------------------------------------
+          Tls::ClearErrorQueue();
+
         return Status();
       } 
       //------------------------------------------------------------------------
@@ -2098,6 +2108,15 @@ namespace XrdCl
     hsData->out = msg;
     MarshallRequest( msg );
     delete credentials;
+
+    if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
+        ( info->serverFlags & kXR_tlsLogin ) )
+      //------------------------------------------------------------------------
+      // Clear the SSL error queue of the calling thread, as there might be
+      // some leftover from the authentication!
+      //------------------------------------------------------------------------
+      Tls::ClearErrorQueue();
+
     return Status( stOK, suContinue );
   }
 

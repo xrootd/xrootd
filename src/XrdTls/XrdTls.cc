@@ -257,3 +257,11 @@ const char *XrdTls::ssl2Text(int sslrc, const char *dflt)
           default:                         return dflt;
          }
 }
+
+/******************************************************************************/
+/*                      C l e a r E r r o r Q u e u e                         */
+/******************************************************************************/
+void XrdTls::ClearErrorQueue()
+{
+  ERR_clear_error();
+}

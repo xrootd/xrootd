@@ -130,5 +130,11 @@ static RC ssl2RC(int sslrc);
 //------------------------------------------------------------------------
 
 static const char *ssl2Text(int sslrc, const char *dflt="unknown_error");
+
+//------------------------------------------------------------------------
+//! Clear the SSL error queue for the calling thread
+//------------------------------------------------------------------------
+
+static void ClearErrorQueue();
 };
 #endif

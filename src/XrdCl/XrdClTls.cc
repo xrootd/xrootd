@@ -325,4 +325,9 @@ namespace XrdCl
 
     return event;
   }
+
+  void Tls::ClearErrorQueue()
+  {
+    XrdTls::ClearErrorQueue();
+  }
 }
