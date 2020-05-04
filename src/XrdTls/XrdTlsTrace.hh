@@ -48,6 +48,9 @@
     if (XrdTlsGlobal::SysTrace.What & XrdTls::dbgSIO) \
        SYSTRACE(XrdTlsGlobal::SysTrace., pImpl->traceID, epname, 0, y)
 
+#define DBG_TLS(y)\
+       SYSTRACE(XrdTlsGlobal::SysTrace., pImpl->traceID, epname, 0, y)
+
 #define EPNAME(x) static const char *epname = x;
 
 #else

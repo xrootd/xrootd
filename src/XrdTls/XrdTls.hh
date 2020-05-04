@@ -101,6 +101,7 @@ static const int dbgCTX = 1; //!< Turn debugging in for context operations.
 static const int dbgSOK = 2; //!< Turn debugging in for socket  operations.
 static const int dbgSIO = 4; //!< Turn debugging in for socket  I/O
 static const int dbgALL = 7; //!< Turn debugging for everything
+static const int dbgOUT = 8; //!< Force msgs to stderr for easier client debug
 
 static void SetDebug(int opts, XrdSysLogger *logP=0);
 
@@ -115,5 +116,19 @@ static void SetDebug(int opts, msgCB_t logP);
 //------------------------------------------------------------------------
 
 static RC ssl2RC(int sslrc);
+
+//------------------------------------------------------------------------
+//! Convert SSL error to text.
+//!
+//! @param  sslerr - the SSL error return code.
+//! @param  dflt   - the default to be return when mapping does no exist.
+//!
+//! @return The corresponding text or the dflt string is returned.
+//!
+//! @note This is provided because some versions of OpenSSL do not
+//!       provide a reasonable textual reason no matter what you use.
+//------------------------------------------------------------------------
+
+static const char *ssl2Text(int sslrc, const char *dflt="unknown_error");
 };
 #endif

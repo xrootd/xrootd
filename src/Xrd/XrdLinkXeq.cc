@@ -783,6 +783,10 @@ void XrdLinkXeq::setID(const char *userid, int procid)
    while(ulen--) {*bp = *sp; bp--; sp--;}
    ID = bp+1;
    Comment = (const char *)ID;
+
+// Update the ID in the TLS socket if enabled
+//
+   if (isTLS) tlsIO.SetTraceID(ID);
 }
  
 /******************************************************************************/
@@ -1133,11 +1137,14 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
             }
 
          // Read as much data as you can. Note that we will force an error
-         // if we get a zero-length read after poll said it was OK.
+         // if we get a zero-length read after poll said it was OK. However,
+         // if we never read anything, then we fake it as a time out to
+         // avoid generating a "read link error" as clearly there was a hangup.
          //
          retc = tlsIO.Read(Buff, Blen, rlen);
          if (retc != XrdTls::TLS_AOK)
-            {AtomicAdd(BytesIn, totlen);
+            {if (!totlen) return 0;
+             AtomicAdd(BytesIn, totlen);
              return TLS_Error("receive from", retc);
             }
          if (rlen <= 0) break;
@@ -1259,15 +1266,15 @@ int XrdLinkXeq::TLS_Send(const sfVec *sfP, int sfN)
            {if (!TLS_Write(sfP->buffer, bytes)) return -1;
             continue;
            }
-        offset = (off_t)sfP->buffer;
+        offset = sfP->offset;
         fileFD = sfP->fdnum;
         buffsz = (bytes < (int)sizeof(myBuff) ? bytes : sizeof(myBuff));
         do {do {retc = pread(fileFD, myBuff, buffsz, offset);}
                        while(retc < 0 && errno == EINTR);
-            if (retc < 0)       return SFError(errno);
-            if (retc != buffsz) return SFError(EOVERFLOW);
+            if (retc < 0) return SFError(errno);
+            if (!retc) break;
             if (!TLS_Write(myBuff, buffsz)) return -1;
-            offset += buffsz; bytes -= buffsz;
+            offset += buffsz; bytes -= buffsz; totamt += retc;
            } while(bytes > 0);
        }
 
@@ -1291,7 +1298,7 @@ bool XrdLinkXeq::TLS_Write(const char *Buff, int Blen)
    while(Blen)
         {retc = tlsIO.Write(Buff, Blen, byteswritten);
          if (retc != XrdTls::TLS_AOK)
-            {TLS_Error("send to", retc);
+            {TLS_Error("write to", retc);
              return false;
             }
          Blen -= byteswritten; Buff += byteswritten;

@@ -536,7 +536,6 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
    static const int sslOpts = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
                             | SSL_OP_NO_COMPRESSION;
-   static const int sslMode = SSL_MODE_AUTO_RETRY;
 
    std::string eText;
    const char *emsg;
@@ -564,7 +563,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
            if (strstr(dbg, "sok")) dbgOpts |= XrdTls::dbgSOK;
            if (strstr(dbg, "sio")) dbgOpts |= XrdTls::dbgSIO;
            if (!dbgOpts) dbgOpts = XrdTls::dbgALL;
-           XrdTls::SetDebug(dbgOpts);
+           XrdTls::SetDebug(dbgOpts|XrdTls::dbgOUT);
           }
        if ((emsg = Init()))
           {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
@@ -636,7 +635,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Handle session re-negotiation automatically
 //
-   SSL_CTX_set_mode(pImpl->ctx, sslMode);
+// SSL_CTX_set_mode(pImpl->ctx, sslMode);
 
 // Turn off the session cache as it's useless with peer cert chains
 //
@@ -682,10 +681,11 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    SSL_CTX_set_ecdh_auto(pImpl->ctx, 1);
 #endif
 
-// The following is for documentation. We normally handle renegotiation during
-// reads and writes. The following enables OpenSSL to do that but by blocking.
+// We normally handle renegotiation during reads and writes or selective
+// prohibit on a SSL socket basis. The calle may request this be applied
+// to all SSL's generated from this context. If so, do it here.
 //
-// SSL_CTX_set_mode(pImpl->ctx, SSL_MODE_AUTO_RETRY);
+   if (opts & artON) SSL_CTX_set_mode(pImpl->ctx, SSL_MODE_AUTO_RETRY);
 
 // If there is no cert then assume this is a generic context for a client
 //

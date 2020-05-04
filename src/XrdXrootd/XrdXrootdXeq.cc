@@ -255,7 +255,7 @@ int XrdXrootdProtocol::do_Bind()
 
 // Check if binds need to occur on a TLS connection.
 //
-   if ((doTLS & Req_TLSData) && !Link->hasTLS() && !Link->hasBridge())
+   if ((doTLS & Req_TLSData) && !isTLS && !Link->hasBridge())
       return Response.Send(kXR_TLSRequired, "bind requires TLS");
 
 // Find the link we are to bind to
@@ -792,7 +792,7 @@ int XrdXrootdProtocol::do_gpFile()
 
 // Check if gpfile need to occur on a TLS connection
 //
-   if ((doTLS & Req_TLSGPFile) && !Link->hasTLS() && !Link->hasBridge())
+   if ((doTLS & Req_TLSGPFile) && !isTLS && !Link->hasBridge())
       return Response.Send(kXR_TLSRequired, "gpfile requires TLS");
 
    return Response.Send(kXR_Unsupported, "gpfile request is not supported");
@@ -875,7 +875,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Check if login need to occur on a TLS connection
 //
-   if ((doTLS & Req_TLSLogin) && !Link->hasTLS() && !Link->hasBridge())
+   if ((doTLS & Req_TLSLogin) && !isTLS && !Link->hasBridge())
       {const char *emsg = "login requires TLS be enabled";
        if (!ableTLS)
           {emsg = "login requires TLS support";
@@ -1440,7 +1440,7 @@ int XrdXrootdProtocol::do_Open()
 
 // If TPC opens require TLS but this is not a TLS connection, prohibit TPC
 //
-   if ((doTLS && Req_TLSTPC) && !Link->hasTLS() && !Link->hasBridge())
+   if ((doTLS && Req_TLSTPC) && !isTLS && !Link->hasBridge())
       openopts|= SFS_O_NOTPC;
 
 // Open the file
@@ -1810,7 +1810,8 @@ int XrdXrootdProtocol::do_Protocol()
                           wantTLS = (doTLS & Req_TLSLogin) != 0;
                           break;
                      case ClientProtocolRequest::kXR_ExpTPC:
-                          wantTLS = (doTLS & Req_TLSTPC)   != 0;
+                          wantTLS = (doTLS & Req_TLSTPC)   != 0 ||
+                                    (doTLS & Req_TLSLogin) != 0;
                           break;
                      default: break;
                     }
@@ -1835,6 +1836,7 @@ int XrdXrootdProtocol::do_Protocol()
       {if (Link->setTLS(true, tlsCtx))
           {Link->setProtName("xroots");
            eDest.Emsg("Xeq",Link->ID,"connection upgraded to",Link->verTLS());
+           isTLS = true;
           } else {
            eDest.Emsg("Xeq", "Unable to enable TLS for", Link->ID);
            rc = -1;
@@ -2294,7 +2296,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 
 // If we are sendfile enabled, then just send the file if possible
 //
-   if (myFile->sfEnabled && myIOLen >= as_minsfsz
+   if (myFile->sfEnabled && !isTLS && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->Stats.fSize)
       {myFile->Stats.rdOps(myIOLen);
        if (myFile->fdNum >= 0)
@@ -3724,10 +3726,13 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 //
    if ((doTLS & Req_TLSSess) && !Link->hasBridge())
       {if (ableTLS)
-          {if (Link->setTLS(true, tlsCtx)) Link->setProtName("xroots");
-              else {eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
-                    return false;
-                   }
+          {if (Link->setTLS(true, tlsCtx))
+              {Link->setProtName("xroots");
+               isTLS = true;
+              } else {
+               eDest.Emsg("Xeq", "Unable to require TLS for", Link->ID);
+               return false;
+              }
           } else {
            eDest.Emsg("Xeq","session requires TLS but",Link->ID,"is incapable.");
            Response.Send(kXR_TLSRequired, "session requires TLS support");

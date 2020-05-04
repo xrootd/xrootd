@@ -47,6 +47,7 @@ void ToStdErr(const char *tid, const char *msg, bool sslerr)
 {
    std::cerr <<"TLS: " <<msg <<'\n' <<std::flush;
 }
+bool echoMsg = false;
 }
 
 namespace XrdTlsGlobal
@@ -90,10 +91,18 @@ int RC2SSL_Error(XrdTls::RC rc)
 /*                                  E m s g                                   */
 /******************************************************************************/
 
+namespace
+{
+int ssl_msg_CB(const char *str, size_t len, void *u)
+{   const char *tid = (const char *)u;
+    XrdTlsGlobal::msgCB(tid, str, true);
+    if (echoMsg && XrdTlsGlobal::msgCB != ToStdErr) ToStdErr(tid, str, true);
+    return 0;
+}
+}
+
 void XrdTls::Emsg(const char *tid, const char *msg, bool flush)
 {
-  char emsg[2040];
-  unsigned long eCode;
 
 // Setup the trace ID
 //
@@ -101,16 +110,14 @@ void XrdTls::Emsg(const char *tid, const char *msg, bool flush)
 
 // Print passed in error, if any
 //
-  if (msg) XrdTlsGlobal::msgCB(tid, msg, false);
+  if (msg)
+     {XrdTlsGlobal::msgCB(tid, msg, false);
+      if (echoMsg && XrdTlsGlobal::msgCB != ToStdErr) ToStdErr(tid, msg, false);
+     }
 
 // Flush all openssl errors if so wanted
 //
-  if (flush)
-     {while((eCode = ERR_get_error()))
-           {ERR_error_string_n(eCode, emsg, sizeof(emsg));
-            XrdTlsGlobal::msgCB(tid, emsg, true);
-           }
-     } else ERR_clear_error();
+  if (flush) ERR_print_errors_cb(ssl_msg_CB, (void *)tid);
 }
   
 /******************************************************************************/
@@ -119,34 +126,47 @@ void XrdTls::Emsg(const char *tid, const char *msg, bool flush)
   
 std::string XrdTls::RC2Text(XrdTls::RC rc, bool dbg)
 {
-   char *eP, eBuff[1024];
-   int ec;
-
    switch(rc)
-         {case TLS_CRT_Missing:
+         {case TLS_CON_Closed:
+               return std::string("connection closed");
+               break;
+          case TLS_CRT_Missing:
                return std::string("x509 certificate is missing");
                break;
           case TLS_CTX_Missing:
                return std::string("context is missing");
                break;
+          case TLS_HNV_Error:
+               return std::string("host name verification failed");
+               break;
+          case TLS_SSL_Error:
+               return std::string("TLS fatal error");
+               break;
           case TLS_SYS_Error:
-               ec = errno;
-               if (!ec) ec = EPIPE;
-               snprintf(eBuff, sizeof(eBuff), "%s", XrdSysE2T(ec));
-               *eBuff = tolower(*eBuff);
-               eP = eBuff;
+               return std::string( XrdSysE2T(errno));
+               break;
+          case TLS_UNK_Error:
+               return std::string("detected unknown error occured, sorry!");
                break;
           case TLS_VER_Error:
                return std::string("x509 certificate verification failed");
                break;
-          default:
-               ERR_error_string_n(RC2SSL_Error(rc), eBuff, sizeof(eBuff));
-               if (dbg) eP = eBuff;
-                  else {char *colon = rindex(eBuff, ':');
-                        eP = (colon ? colon+1 : eBuff);
-                       }
+          case TLS_WantAccept:
+               return std::string("unhandled TLS accept");
+               break;
+          case TLS_WantConnect:
+               return std::string("unhandled TLS connect");
+               break;
+          case TLS_WantRead:
+               return std::string("unhandled TLS read want");
+               break;
+          case TLS_WantWrite:
+               return std::string("unhandled TLS write want");
+               break;
+
+          default: break;
          }
-   return std::string(eP);
+  return std::string("unfathomable error occurred!");
 }
 
 /******************************************************************************/
@@ -157,6 +177,7 @@ void XrdTls::SetDebug(int opts, XrdSysLogger *logP)
 {
    XrdTlsGlobal::SysTrace.SetLogger(logP);
    XrdTlsGlobal::SysTrace.What = opts;
+   echoMsg = (opts & dbgOUT) != 0;
 }
 
 /******************************************************************************/
@@ -204,4 +225,35 @@ XrdTls::RC XrdTls::ssl2RC(int sslrc)
           default: break;
          }
    return TLS_UNK_Error;
+}
+
+/******************************************************************************/
+/*                              s s l 2 T e x t                               */
+/******************************************************************************/
+  
+const char *XrdTls::ssl2Text(int sslrc, const char *dflt)
+{
+// Convert SSL error code to the TLS one
+//
+   switch(sslrc)
+         {case SSL_ERROR_NONE:             return "error_none";
+               break;
+          case SSL_ERROR_ZERO_RETURN:      return "zero_return";
+               break;
+          case SSL_ERROR_WANT_READ:        return "want_read";
+               break;
+          case SSL_ERROR_WANT_WRITE:       return "want_write";
+               break;
+          case SSL_ERROR_WANT_ACCEPT:      return "want_accept";
+               break;
+          case SSL_ERROR_WANT_CONNECT:     return "want_connect";
+               break;
+          case SSL_ERROR_WANT_X509_LOOKUP: return "want_x509_lookup";
+               break;
+          case SSL_ERROR_SYSCALL:          return "error_syscall";
+               break;
+          case SSL_ERROR_SSL:              return "error_ssl";
+               break;
+          default:                         return dflt;
+         }
 }

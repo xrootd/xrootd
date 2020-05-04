@@ -556,6 +556,12 @@ int  XrdXrootdProtocol::CheckTLS(const char *tlsProt)
    if (tlsCap & Req_TLSLogin) tlsCap &= ~Req_TLSSess;
    if (tlsNot & Req_TLSLogin) tlsNot &= ~Req_TLSSess;
 
+// Turn off TPC TLS requirement if login or session is required to have TLS
+// However, that flag must remain to be set in the protocol response.
+//
+   if (tlsCap & (Req_TLSLogin|Req_TLSSess)) tlsCap &= ~Req_TLSTPC;
+   if (tlsNot & (Req_TLSLogin|Req_TLSSess)) tlsNot &= ~Req_TLSTPC;
+
 // If some authnetication protocols need TLS then we must requie that login
 // uses TLS. For incapable clients, we leave this alone as we will skip
 // TLS authnetication based protocols should the login phase not have TLS.

@@ -49,9 +49,8 @@ enum RW_Mode
 
 enum HS_Mode
 {
-  TLS_HS_BLOCK,  //!< Always block during handshake
-  TLS_HS_NOBLK,  //!< Do not block during handshake
-  TLS_HS_XYBLK   //!< Block during handshake if it conflicts with request
+  TLS_HS_BLOCK = true,  //!< Always block during handshake
+  TLS_HS_NOBLK = false, //!< Do not block during handshake
 };
 
 //------------------------------------------------------------------------
@@ -191,6 +190,14 @@ enum HS_Mode
   XrdTls::RC Read( char *buffer, size_t size, int &bytesRead );
 
 //------------------------------------------------------------------------
+//! Set the trace identifier (used when it's updated).
+//!
+//! @param  tid        - Pointer to trace identifier.
+//------------------------------------------------------------------------
+
+  void       SetTraceID(const char *tid);
+
+//------------------------------------------------------------------------
 //! Tear down a TLS connection
 //!
 //! @param  One of the following enums:
@@ -237,17 +244,5 @@ std::string Err2Text(int sslerr);
 bool Wait4OK(bool wantRead);
 
 XrdTlsSocketImpl *pImpl;
-
-static const int noBlock = 0;
-static const int rwBlock = 'a';
-static const int xyBlock = 'x';
-
-static const int xVerify = 0x01;   //!< Peer cetrificate is to be verified
-static const int DNSok   = 0x04;   //!< DNS can be used to verify peer.
-
-static const int isServer  = 0x01;
-static const int rBlocking = 0x02;
-static const int wBlocking = 0x04;
 };
-
 #endif // __XRD_TLS_IO_HH__

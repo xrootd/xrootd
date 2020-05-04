@@ -190,6 +190,7 @@ void            SetDefaultCiphers(const char *ciphers);
 //! @param  cadir    path to the directory containing the CA certificates.
 //! @param  cafile   path to the file containing the CA certificates.
 //! @param  opts     Processing options (or'd bitwise):
+//!                  artON   - Auto retry handshakes (i.e. block on handshake)
 //!                  crlON   - Perform crl check on the leaf node
 //!                  crlFC   - Apply crl check to full chain
 //!                  crlRF   - Initial crl refresh interval in minutes.
@@ -230,6 +231,7 @@ static const uint64_t crlON = 0x0000008000000000; //!< Enables crl checking
 static const uint64_t crlFC = 0x000000C000000000; //!< Full crl chain checking
 static const uint64_t crlRF = 0x000000003fff0000; //!< Init crl refresh in Min
 static const int      crlRS = 16;                 //!< Bits to shift   vdept
+static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,

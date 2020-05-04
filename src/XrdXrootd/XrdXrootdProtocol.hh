@@ -448,8 +448,9 @@ bool                       doWriteC;
 unsigned char              rvSeq;
 unsigned char              wvSeq;
 
-char                       doTLS;
-bool                       ableTLS;
+char                       doTLS;       // TLS requuirements for client
+bool                       ableTLS;     // T->Client is able to use TLS
+bool                       isTLS;       // T->Client using TLS on control stream
 
 // Track usage limts.
 //
