@@ -519,12 +519,13 @@ enum RequestFlags {
 };
 
 enum ExpectFlags {
-   kXR_ExpMask   = 0x0f, // Isolate the relevant expect birs (encoded)
+   kXR_ExpMask   = 0x0f, // Isolate the relevant expect enumeration value
    kXR_ExpNone   = 0x00,
    kXR_ExpBind   = 0x01,
    kXR_ExpGPF    = 0x02,
    kXR_ExpLogin  = 0x03,
-   kXR_ExpTPC    = 0x04
+   kXR_ExpTPC    = 0x04,
+   kXR_ExpGPFA   = 0x08
 };
 };
 
@@ -1074,6 +1075,7 @@ struct ServerResponseReqs_Protocol {
 #define kXR_tlsLogin    0x04000000
 #define kXR_tlsSess     0x08000000
 #define kXR_tlsTPC      0x10000000
+#define kXR_tlsGPFA     0x20000000
 
 // Body for the kXR_protocol response... useful
 //
