@@ -242,8 +242,7 @@ void XrdTlsSocket::AcceptEMsg(std::string *eWhy, const char *reason)
 /*                               C o n n e c t                                */
 /******************************************************************************/
   
-XrdTls::RC XrdTlsSocket::Connect(const char *thehost, XrdNetAddrInfo *netInfo,
-                                 std::string *eWhy)
+XrdTls::RC XrdTlsSocket::Connect(const char *thehost, std::string *eWhy)
 {
    EPNAME("Connect");
    int ssler, rc;
@@ -273,16 +272,13 @@ do{int rc = SSL_connect( pImpl->ssl );
    } while((wOK = Wait4OK(ssler == SSL_ERROR_WANT_READ)));
 
 // Check if everything went well. Note that we need to save the errno as
-// we may be calling external methods that may generate other errors.
+// we may be calling external methods that may generate other errors. We
 //
    if (!aOK || !wOK)
       {rc = errno;
        DBG_SOK("Handshake failed; "<<(!aOK ? Err2Text(ssler) : XrdSysE2T(rc)));
        if (eWhy)
-          {const char *hName;
-           if (thehost) hName = thehost;
-              else if (netInfo) hName = netInfo->Name("host");
-                      else hName = "host";
+          {const char *hName = (thehost ? thehost : "host");
            *eWhy = "Unable to connect to ";
            *eWhy += hName;
            *eWhy += "; ";
@@ -299,11 +295,12 @@ do{int rc = SSL_connect( pImpl->ssl );
    pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
 
 // Validate the host name if so desired. Note that cert verification is
-// checked by the notary since only hostname validation requires it.
-
+// checked by the notary since hostname validation requires it. We currently
+// do not support dnsOK but doing so just means we need to check the option
+// and if on, also pass a XrdNetAddrInfo object generated from the hostname.
+//
    if (thehost)
-      {const char *eTxt = XrdTlsNotary::Validate(pImpl->ssl, thehost,
-                                        (pImpl->cOpts & DNSok ? netInfo : 0));
+      {const char *eTxt = XrdTlsNotary::Validate(pImpl->ssl, thehost, 0);
        if (eTxt)
           {DBG_SOK(thehost << " verification failed; " <<eTxt);
            if (eWhy)

@@ -107,7 +107,7 @@ namespace XrdCl
   Status Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
   {
     std::string errmsg;
-    XrdTls::RC error = pTls->Connect( thehost.c_str(), netInfo, &errmsg );
+    XrdTls::RC error = pTls->Connect( thehost.c_str(), &errmsg );
     Status status = ToStatus( error );
 
     //--------------------------------------------------------------------------
