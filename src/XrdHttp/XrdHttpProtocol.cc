@@ -1156,6 +1156,17 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
     }
   }
 
+// If https was disabled, then issue a warning message if xrdtls configured
+// of it's disabled because httpsmode was auto and xrdtls was not configured.
+//
+   if (httpsmode == hsmOff || (httpsmode == hsmAuto && !xrdctx))
+      {const char *why = (httpsmode == hsmOff ? "has been disabled!"
+                         : "was not configured.");
+       eDest.Say("Config warning: HTTPS functionality ", why);
+       httpsmode = hsmOff;
+       return NoGo;
+      }
+
 // Record what we have now
 //
 bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
@@ -1168,17 +1179,6 @@ bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
                           : "a cadir or cafile was not specified!");
        eDest.Say("Config failure: ",what," requires cert verification but ",why);
        return 1;
-      }
-
-// If https was disabled, then issue a warning message if xrdtls configured
-// of it's disabled because httpsmode was auto and xrdtls was not configured.
-//
-   if (httpsmode == hsmOff || (httpsmode == hsmAuto && !xrdctx))
-      {const char *why = (httpsmode == hsmOff ? "has been disabled!"
-                         : "was not configured.");
-       eDest.Say("Config warning: HTTPS functionality ", why);
-       httpsmode = hsmOff;
-       return NoGo;
       }
 
 // Warn if a private key was specified without a cert as this has no meaning
@@ -1202,16 +1202,14 @@ bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
           }
       } else {
        if (sslcert || sslcadir || sslcafile || sslcipherfilter)
-          {eDest.Say("Config warning: Enabling HTTPS with xrd TLS "
-                     "directive overrides!");
-           const XrdTlsContext::CTX_Params *cP = xrdctx->GetParams();
-           if (!sslcert)  {sslcert   = strdup(cP->cert.c_str());
-                           sslkey    = strdup(cP->pkey.c_str());
-                          }
-           if (!sslcadir)  sslcadir  = strdup(cP->cadir.c_str());
-           if (!sslcafile) sslcafile = strdup(cP->cafile.c_str());
-           xrdctx = 0;
-          }
+          eDest.Say("Config warning: Enabling HTTPS with xrd TLS "
+                    "directive overrides!");
+       const XrdTlsContext::CTX_Params *cP = xrdctx->GetParams();
+       if (!sslcert)  {sslcert   = strdup(cP->cert.c_str());
+                       sslkey    = strdup(cP->pkey.c_str());
+                      }
+       if (!sslcadir)  sslcadir  = strdup(cP->cadir.c_str());
+       if (!sslcafile) sslcafile = strdup(cP->cafile.c_str());
       }
    httpsmode = hsmOn;
 
@@ -1219,16 +1217,14 @@ bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
 //
    sslbio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 
-// If we are going to reuse the passed conext, just say all is well. Otherwise,
-// do a full https configuration.
+// Now we can configure HTTPS. We will not reuse the passed context as we will
+// be setting our own options specific to out implementation. One day we will.
 //
-   if (xrdctx) eDest.Say("Config HTTPS has been auto-enabled.");
-      else {const char *how = "completed.";
-            eDest.Say("++++++ HTTPS initialization started.");
-            if (!InitTLS()) {NoGo = 1; how = "failed.";}
-            eDest.Say("------ HTTPS initialization ", how);
-            if (NoGo) return NoGo;
-            }
+   const char *how = "completed.";
+   eDest.Say("++++++ HTTPS initialization started.");
+   if (!InitTLS()) {NoGo = 1; how = "failed.";}
+   eDest.Say("------ HTTPS initialization ", how);
+   if (NoGo) return NoGo;
 
 // Turn on the refreshing
 //
@@ -1777,7 +1773,8 @@ bool XrdHttpProtocol::InitSecurity() {
   
 bool XrdHttpProtocol::InitTLS() {
 
-   uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF;
+   uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF |
+                   XrdTlsContext::artON;
 
 // Create a new TLS context
 //
