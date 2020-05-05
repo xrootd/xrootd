@@ -337,13 +337,19 @@ int XrdTlsSocket::Diagnose(const char *what, int sslrc, int tcode)
 
 // We need to dispose of the error queue otherwise the next operation will
 // fail. We do this by either printing them or flushing them down the drain.
+// We avoid the tracing hangups indicated by SSL_ERROR_SYSCALL w/ errno == 0.
 //
    if (TRACING(tcode)
    || (eCode != SSL_ERROR_WANT_READ && eCode != SSL_ERROR_WANT_WRITE))
-      {char eBuff[256];
-       snprintf(eBuff, sizeof(eBuff), "TLS error rc=%d ec=%d (%s).",
-                sslrc, eCode, XrdTls::ssl2Text(eCode));
-       XrdTls::Emsg(pImpl->traceID, eBuff, true);
+      {int eNO = errno;
+       if (!eNO && eCode == SSL_ERROR_SYSCALL) ERR_clear_error();
+           else {char eBuff[256];
+                 snprintf(eBuff, sizeof(eBuff),
+                          "TLS error rc=%d ec=%d (%s) errno=%d.",
+                          sslrc, eCode, XrdTls::ssl2Text(eCode), eNO);
+                 XrdTls::Emsg(pImpl->traceID, eBuff, true);
+                 errno = eNO;
+                }
       } else ERR_clear_error();
 
 // Make sure we can shutdown
