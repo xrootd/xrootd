@@ -405,6 +405,22 @@ void InitTLS() // This is strictly a one-time call!
 }
 
 /******************************************************************************/
+/*                                 F a t a l                                  */
+/******************************************************************************/
+  
+void Fatal(std::string *eMsg, const char *msg)
+{
+// If there is an outboard error string object, return the message there.
+//
+   if (eMsg) *eMsg = msg;
+
+// Now route the message to the message callback function. We always flush the
+// ssl error queue, even if not an ssl error, to prevent suprises.
+//
+   XrdTlsGlobal::msgCB("TLS_Context:", msg, true);
+}
+
+/******************************************************************************/
 /*                          G e t T l s M e t h o d                           */
 /******************************************************************************/
 
@@ -515,10 +531,12 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
+
+#define FATAL(msg) {Fatal(eMsg, msg); return;}
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                              const char *caDir, const char *caFile,
-                             uint64_t opts)
+                             uint64_t opts, std::string *eMsg)
                             : pImpl( new XrdTlsContextImpl(this) )
 {
    class ctx_helper
@@ -537,9 +555,8 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    static const int sslOpts = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3
                             | SSL_OP_NO_COMPRESSION;
 
-   std::string eText;
+   std::string certFN, eText;
    const char *emsg;
-   bool doFlush = TRACING(XrdTls::dbgCTX);
 
 // Assume we will fail
 //
@@ -565,11 +582,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
            if (!dbgOpts) dbgOpts = XrdTls::dbgALL;
            XrdTls::SetDebug(dbgOpts|XrdTls::dbgOUT);
           }
-       if ((emsg = Init()))
-          {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
-           ERR_clear_error();
-           return;
-          }
+       if ((emsg = Init())) FATAL(emsg);
       }
 
 // If no CA cert information is specified and this is not a server context,
@@ -582,23 +595,22 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
           {caDir  = getenv("X509_CERT_DIR");
            caFile = getenv("X509_CERT_FILE");
            if (!caDir && !caFile)
-              {XrdTlsGlobal::msgCB("Tls_Context:", "Unable to determine the "
-                             "location of trusted CA certificates to verify "
-                             "peer identify; this is required!", false);
-               return;
-              }
+              FATAL("No CA cert specified; host identity cannot be verified.");
           }
-       if (!cert) cert = getenv("X509_USER_PROXY");
        if (!key)  key  = getenv("X509_USER_KEY");
+       if (!cert) cert = getenv("X509_USER_PROXY");
+       if (!cert)
+          {struct stat Stat;
+           long long int uid = static_cast<long long int>(getuid());
+           certFN = std::string("/tmp/x509up_u") + std::to_string(uid);
+           if (!stat(certFN.c_str(), &Stat)) cert = certFN.c_str();
+          }
       }
 
 // Before we try to use any specified files, make sure they exist, are of
 // the right type and do not have excessive access privileges.
 //
-   if (!VerPaths(cert, key, caDir, caFile, eText))
-      {XrdTlsGlobal::msgCB("TLS_Context:", eText.c_str(), false);
-       return;
-      }
+   if (!VerPaths(cert, key, caDir, caFile, eText)) FATAL( eText.c_str());
 
 // Copy parameters to out parm structure.
 //
@@ -615,19 +627,13 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    const SSL_METHOD *meth;
    emsg = GetTlsMethod(meth);
-   if (emsg)
-      {XrdTlsGlobal::msgCB("TLS_Context:", emsg, false);
-       return;
-      }
+   if (emsg) FATAL(emsg);
 
    pImpl->ctx = SSL_CTX_new(meth);
 
 // Make sure we have a context here
 //
-   if (pImpl->ctx == 0)
-      {XrdTls::Emsg("TLS_Context", "Unable to allocate TLS context!",doFlush);
-       return;
-      }
+   if (pImpl->ctx == 0) FATAL("Unable to allocate TLS context!");
 
 // Always prohibit SSLv2 & SSLv3 as these are not secure.
 //
@@ -647,10 +653,8 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (caDir || caFile)
      {if (!SSL_CTX_load_verify_locations(pImpl->ctx, caFile, caDir))
-         {XrdTls::Emsg("TLS_Context",
-                       "Unable to set the CA cert file or directory.",doFlush);
-          return;
-         }
+         FATAL("Unable to load the CA cert file or directory.");
+
       int vDepth = (opts & vdept) >> vdepS;
       SSL_CTX_set_verify_depth(pImpl->ctx, (vDepth ? vDepth : 9));
 
@@ -670,9 +674,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Set cipher list
 //
    if (!SSL_CTX_set_cipher_list(pImpl->ctx, sslCiphers))
-      {XrdTls::Emsg("TLS_Context", "Unable to set SSL cipher list.",doFlush);
-       return;
-      }
+      FATAL("Unable to set SSL cipher list; no supported ciphers.");
 
 // If we need to enable eliptic-curve support, do so now. Note that for
 // OpenSSL 1.1.0+ this is automatically done for us.
@@ -702,26 +704,17 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Load certificate
 //
    if (SSL_CTX_use_certificate_file(pImpl->ctx, cert, SSL_FILETYPE_PEM) != 1)
-      {XrdTls::Emsg("LS_Context",
-                    "Unable to create TLS context; certificate error.",doFlush);
-       return;
-      }
+      FATAL("Unable to create TLS context; invalid certificate.");
 
 // Load the private key
 //
    if (SSL_CTX_use_PrivateKey_file(pImpl->ctx, key, SSL_FILETYPE_PEM) != 1 )
-      {XrdTls::Emsg("TLS_Context",
-                    "Unable to create TLS context; private key error.",doFlush);
-       return;
-      }
+      FATAL("Unable to create TLS context; invalid private key.");
 
 // Make sure the key and certificate file match.
 //
    if (SSL_CTX_check_private_key(pImpl->ctx) != 1 )
-      {XrdTls::Emsg("TLS_Context",
-                    "Unable to create TLS context; cert-key mismatch.",doFlush);
-       return;
-      }
+      FATAL("Unable to create TLS context; cert-key mismatch.");
 
 // All went well, so keep the context.
 //

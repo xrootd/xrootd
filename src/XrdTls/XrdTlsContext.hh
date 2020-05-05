@@ -202,6 +202,7 @@ void            SetDefaultCiphers(const char *ciphers);
 //!                            certificate validation may be turned off.
 //!                  vdept   - The maximum depth of the certificate chain that
 //!                            must be validated (max is 255).
+//! @param   eMsg    If non-zero, the reason for the failure is returned,
 //!
 //! @note   a) If neither cadir nor cafile is specified, certificate validation
 //!            is *not* performed if and only if the servr option is specified.
@@ -235,7 +236,7 @@ static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
-                     uint64_t opts=0);
+                     uint64_t opts=0, std::string *eMsg=0);
 
 //------------------------------------------------------------------------
 //! Destructor
