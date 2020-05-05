@@ -1205,11 +1205,12 @@ bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
           eDest.Say("Config warning: Enabling HTTPS with xrd TLS "
                     "directive overrides!");
        const XrdTlsContext::CTX_Params *cP = xrdctx->GetParams();
-       if (!sslcert)  {sslcert   = strdup(cP->cert.c_str());
-                       sslkey    = strdup(cP->pkey.c_str());
+
+       if (!sslcert)  {if (cP->cert.size()) sslcert = strdup(cP->cert.c_str());
+                       if (cP->pkey.size()) sslkey  = strdup(cP->pkey.c_str());
                       }
-       if (!sslcadir)  sslcadir  = strdup(cP->cadir.c_str());
-       if (!sslcafile) sslcafile = strdup(cP->cafile.c_str());
+       if (!sslcadir)  if (cP->cadir.size()) sslcadir  = strdup(cP->cadir.c_str());
+       if (!sslcafile) if (cP->cafile.size())sslcafile = strdup(cP->cafile.c_str());
       }
    httpsmode = hsmOn;
 
@@ -1773,6 +1774,7 @@ bool XrdHttpProtocol::InitSecurity() {
   
 bool XrdHttpProtocol::InitTLS() {
 
+   std::string eMsg;
    uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF |
                    XrdTlsContext::artON;
 
@@ -1780,12 +1782,12 @@ bool XrdHttpProtocol::InitTLS() {
 //
    if (sslverifydepth > 255) sslverifydepth = 255;
    opts = TLS_SET_VDEPTH(opts, sslverifydepth);
-   xrdctx = new XrdTlsContext(sslcert, sslkey, sslcadir, sslcafile, opts);
+   xrdctx = new XrdTlsContext(sslcert,sslkey,sslcadir,sslcafile,opts,&eMsg);
 
 // Make sure the context was created
 //
    if (!xrdctx->isOK())
-      {XrdTls::Emsg("HTTPS_Config:", "Unable to setup TLS context!", true);
+      {eDest.Say("Config failure: ", eMsg.c_str());
        return false;
       }
 
@@ -1800,8 +1802,7 @@ bool XrdHttpProtocol::InitTLS() {
 // Set special ciphers if so specified.
 //
    if (sslcipherfilter && !xrdctx->SetContextCiphers(sslcipherfilter))
-      {XrdTls::Emsg("HTTPS_Config:","Unable to set allowable https ciphers!",
-                     true);
+      {eDest.Say("Config failure: ", "Unable to set allowable https ciphers!");
        return false;
       }
 
