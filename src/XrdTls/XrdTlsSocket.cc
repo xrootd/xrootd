@@ -196,10 +196,12 @@ do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
 //
    if (pImpl->cAttr & acc2Block)
 //    BIO_set_nbio(SSL_get_rbio(pImpl->ssl), 0); *Does not work after accept*
-      {int flags = fcntl(pImpl->sFD, F_GETFL, 0);
+      {int eNO = errno;
+       int flags = fcntl(pImpl->sFD, F_GETFL, 0);
        flags &= ~O_NONBLOCK;
        fcntl(pImpl->sFD, F_SETFL, flags);
        SSL_set_mode(pImpl->ssl, SSL_MODE_AUTO_RETRY);
+       errno = eNO;
       }
        return XrdTls::TLS_AOK;
       }
