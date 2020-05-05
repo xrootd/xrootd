@@ -898,6 +898,7 @@ bool XrdLinkXeq::setTLS(bool enable, XrdTlsContext *ctx)
    if (rc != XrdTls::TLS_AOK) Log.Emsg("LinkXeq", eMsg.c_str());
       else {isTLS = enable;
             Addr.SetTLS(enable);
+            Log.Emsg("LinkXeq", ID, "connection upgraded to", verTLS());
            }
    return rc == XrdTls::TLS_AOK;
 }

@@ -1835,7 +1835,6 @@ int XrdXrootdProtocol::do_Protocol()
    if (rc == 0 && wantTLS)
       {if (Link->setTLS(true, tlsCtx))
           {Link->setProtName("xroots");
-           eDest.Emsg("Xeq",Link->ID,"connection upgraded to",Link->verTLS());
            isTLS = true;
           } else {
            eDest.Emsg("Xeq", "Unable to enable TLS for", Link->ID);
