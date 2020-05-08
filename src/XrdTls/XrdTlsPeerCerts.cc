@@ -27,7 +27,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-~XrdTlsPeerCerts::XrdTlsPeerCerts()
+#include "XrdTls/XrdTlsPeerCerts.hh"
+
+XrdTlsPeerCerts::~XrdTlsPeerCerts()
 {
 // Free the peer cert
 //
@@ -37,4 +39,3 @@ if (cert) X509_free(cert);
 //
 // if (chain) sk_X509_pop_free(chain, X509_free);
 }
-#endif

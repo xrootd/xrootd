@@ -29,6 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <openssl/ssl.h>
+
 class XrdTlsPeerCerts
 {
 public:
