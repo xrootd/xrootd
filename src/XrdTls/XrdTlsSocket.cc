@@ -33,6 +33,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdTls/XrdTlsNotary.hh"
+#include "XrdTls/XrdTlsPeerCerts.hh"
 #include "XrdTls/XrdTlsSocket.hh"
 #include "XrdTls/XrdTlsTrace.hh"
 
@@ -381,6 +382,26 @@ std::string XrdTlsSocket::Err2Text(int sslerr)
    return std::string(eP);
 }
 
+/******************************************************************************/
+/*                              g e t C e r t s                               */
+/******************************************************************************/
+
+XrdTlsPeerCerts *XrdTlsSocket::getCerts(bool ver)
+{
+// If verified certs need to be returned, make sure the certs are verified
+//
+   if (ver && SSL_get_verify_result(pImpl->ssl) != X509_V_OK) return 0;
+
+// Get the certs and return
+//
+   X509 *pcert = SSL_get_peer_certificate(pImpl->ssl);
+   if (pcert == 0) return 0;
+   XrdTlsPeerCerts *pc = new XrdTlsPeerCerts;
+   pc->cert  = pcert;
+   pc->chain = SSL_get_peer_cert_chain(pImpl->ssl);
+   return pc;
+}
+  
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/

@@ -29,6 +29,7 @@
 class  XrdNetAddrInfo;
 class  XrdSysError;
 class  XrdTlsContext;
+class  XrdTlsPeerCerts;
 struct XrdTlsSocketImpl;
 
 //----------------------------------------------------------------------------
@@ -118,6 +119,19 @@ enum HS_Mode
 //------------------------------------------------------------------------
 
   XrdTlsContext *Context();
+
+//------------------------------------------------------------------------
+//! Get peer certificates associated with the socket.
+//!
+//! @param  ver      - When true, only return verified certificates.
+//!
+//! @return A pointer to the object holding the peer certificate and the
+//!         associated chain. Nill is returned if there are no certificates
+//!         of if verification did not occur but ver was true. The caller
+//!         is responsible for deleting the returned object.
+//------------------------------------------------------------------------
+
+XrdTlsPeerCerts *getCerts(bool ver=true);
 
 //------------------------------------------------------------------------
 //! Initialize this object to handle the specified TLS I/O mode for the

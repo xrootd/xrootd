@@ -45,6 +45,7 @@ class XrdLinkMatch;
 class XrdLinkXeq;
 class XrdPollInfo;
 class XrdProtocol;
+class XrdTlsPeerCerts;
 class XrdTlsContext;
 
 class XrdLink : public XrdJob
@@ -184,13 +185,24 @@ static XrdLink *Find(int &curr, XrdLinkMatch *who=0);
 static int      getName(int &curr, char *bname, int blen, XrdLinkMatch *who=0);
 
 //-----------------------------------------------------------------------------
+//! Get the x509 certificate information for this TLS enabled link.
+//!
+//! @return A pointer to the XrdTlsCerts object holding verified certificates
+//!         if such certificates exist. Otherwise a nil pointer is returned.
+//!
+//! @note Used by various protocols, so XrdTlsPeerCerts is a private header.
+//-----------------------------------------------------------------------------
+
+XrdTlsPeerCerts *getPeerCerts();
+
+//-----------------------------------------------------------------------------
 //! Obtain current protocol object pointer.
 //-----------------------------------------------------------------------------
 
 XrdProtocol    *getProtocol();
 
 //-----------------------------------------------------------------------------
-//! Obtain polling information object (used by poller only)
+//! Obtain polling information object (used by poller only - non public)
 //-----------------------------------------------------------------------------
 
 XrdPollInfo    &getPollInfo();

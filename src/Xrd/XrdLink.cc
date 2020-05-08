@@ -218,6 +218,15 @@ int XrdLink::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
                     {return XrdLinkCtl::getName(curr, nbuf, nbsz, who);}
 
 /******************************************************************************/
+/*                          g e t P e e r C e r t s                           */
+/******************************************************************************/
+
+XrdTlsPeerCerts *XrdLink::getPeerCerts()
+{
+   return linkXQ.getPeerCerts();
+}
+  
+/******************************************************************************/
 /*                           g e t P o l l I n f o                            */
 /******************************************************************************/
 

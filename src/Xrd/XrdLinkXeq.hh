@@ -73,6 +73,8 @@ void          DoIt(); // Override
                          return InUse;
                         }
 
+XrdTlsPeerCerts *getPeerCerts();
+
 static int    getName(int &curr, char *bname, int blen, XrdLinkMatch *who=0);
 
 inline

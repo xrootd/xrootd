@@ -65,6 +65,7 @@ add_library(
   XrdTls/XrdTlsHostcheck.icc    XrdTls/XrdTlsHostcheck.hh
   XrdTls/XrdTlsNotary.cc        XrdTls/XrdTlsNotary.hh
   XrdTls/XrdTlsNotaryUtils.icc  XrdTls/XrdTlsNotaryUtils.hh
+  XrdTls/XrdTlsPeerCerts.cc     XrdTls/XrdTlsPeerCerts.hh
   XrdTls/XrdTlsSocket.cc        XrdTls/XrdTlsSocket.hh
 
   #-----------------------------------------------------------------------------
