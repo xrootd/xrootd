@@ -93,7 +93,6 @@ int             Client(char *buff, int blen);
 
 int             Close(bool defer=false);
 
-
 //-----------------------------------------------------------------------------
 //! Enable the link to field interrupts.
 //-----------------------------------------------------------------------------
@@ -245,8 +244,8 @@ unsigned int    Inst() const {return Instance;}
 //! @return True    the link has an outstanding error.
 //!                 the link has no outstanding error.
 //-----------------------------------------------------------------------------
-inline
-bool            isFlawed() const {return Etext != 0;}
+
+bool            isFlawed() const;
 
 //-----------------------------------------------------------------------------
 //! Indicate whether or not this link is of a particular instance.
@@ -534,13 +533,13 @@ int             Terminate(const char *owner, int fdnum, unsigned int inst);
 //! Return the time the link was made active (i.e. time of connection).
 //-----------------------------------------------------------------------------
 
-time_t          timeCon() const {return conTime;}
+time_t          timeCon() const;
 
 //-----------------------------------------------------------------------------
 //! Return link's reference count.
 //-----------------------------------------------------------------------------
 
-inline int      UseCnt() const {return InUse;}
+int             UseCnt() const;
 
 //-----------------------------------------------------------------------------
 //! Mark this link as an in-memory communications bridge (internal use only).
@@ -593,22 +592,13 @@ void            DoIt();       // This is an override of XrdJob::DoIt.
 void            ResetLink();
 int             Wait4Data(int timeout);
 
-void           *rsvd2[3];     // Reserved for future use
-XrdSysCondVar  *KillcvP;      // Protected by opMutex!
-
-XrdSysSemaphore IOSemaphore;  // Serialization semaphore
-time_t          conTime;      // Unix time connected
-char           *Etext;        // -> error text, if nil then no error.
-char           *HostName;     // -> peer's host nameh
+void           *rsvd1[3];     // Reserved for future use
 XrdLinkXeq     &linkXQ;       // The implementation
-int             FD;           // File descriptor (may be negative)
+char           *HostName;     // Pointer to the hostname
+int             FD;           // File descriptor number (may be negative)
 unsigned int    Instance;     // Instance number of this object
-XrdSysRecMutex  opMutex;      // Serialization mutex
-int             InUse;        // Number of threads using this object
-int             doPost;       // Number of threads waiting for serialization
 bool            isBridged;    // If true, this link is an in-memory bridge
 bool            isTLS;        // If true, this link uses TLS for all I/O
-char            KillCnt;      // Number of times a kill has been attempted
-char            rsvd1[5];
+char            rsvd2[6];
 };
 #endif

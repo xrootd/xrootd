@@ -294,18 +294,19 @@ void XrdLinkCtl::idleScan()
        {if (LinkBat[i] != XRDLINK_USED
         || !(lp = LinkTab[i])) continue;
         lnum++;
-        lp->opMutex.Lock();
+        lp->LinkInfo.opMutex.Lock();
         if (lp->isIdle) tmo++;
         lp->isIdle++;
-        if ((int(lp->isIdle)) < idleTicks) {lp->opMutex.UnLock(); continue;}
+        if ((int(lp->isIdle)) < idleTicks)
+           {lp->LinkInfo.opMutex.UnLock(); continue;}
         lp->isIdle = 0;
         if (!(lp->PollInfo.Poller) || !(lp->PollInfo.isEnabled))
            Log.Emsg("LinkScan","Link",lp->ID,"is disabled and idle.");
-           else if (lp->InUse == 1)
+           else if (lp->LinkInfo.InUse == 1)
                    {lp->PollInfo.Poller->Disable(lp, "idle timeout");
                     tmod++;
                    }
-        lp->opMutex.UnLock();
+        lp->LinkInfo.opMutex.UnLock();
        }
 
 // Trace what we did

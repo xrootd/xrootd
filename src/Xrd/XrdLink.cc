@@ -109,28 +109,20 @@ const char  *TraceID = "Link";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdLink::XrdLink(XrdLinkXeq &lxq)
-                : XrdJob("connection"), IOSemaphore(0, "link i/o"), linkXQ(lxq)
+XrdLink::XrdLink(XrdLinkXeq &lxq) : XrdJob("connection"), linkXQ(lxq)
 {
-   Etext    = 0;
-   HostName = 0;
+   memset(rsvd1, 0, sizeof(rsvd1));
+   memset(rsvd2, 0, sizeof(rsvd2));
    ResetLink();
 }
 
 void XrdLink::ResetLink()
 {
-   KillcvP  =  0;
-   conTime  = time(0);
-   if (Etext)    {free(Etext); Etext = 0;}
    if (HostName) {free(HostName); HostName = 0;}
-   Comment  = ID;
    FD       = -1;
    Instance =  0;
-   InUse    =  1;
-   doPost   =  0;
    isBridged= false;
    isTLS    = false;
-   KillCnt  =  0;
 }
 
 /******************************************************************************/
@@ -242,7 +234,16 @@ XrdProtocol *XrdLink::getProtocol() {return linkXQ.getProtocol();}
 /*                                  H o l d                                   */
 /******************************************************************************/
 
-void XrdLink::Hold(bool lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
+void XrdLink::Hold(bool lk) 
+{
+   (lk ? linkXQ.LinkInfo.opMutex.Lock() : linkXQ.LinkInfo.opMutex.UnLock());
+}
+  
+/******************************************************************************/
+/*                              i s F l a w e d                               */
+/******************************************************************************/
+
+bool XrdLink::isFlawed() const {return linkXQ.LinkInfo.Etext != 0;}
   
 /******************************************************************************/
 /*                                  N a m e                                   */
@@ -355,12 +356,13 @@ void XrdLink::Serialize()
 // link so that we can safely run in psuedo single thread mode for critical
 // functions.
 //
-   opMutex.Lock();
-   if (InUse <= 1) opMutex.UnLock();
-      else {doPost++;
-            opMutex.UnLock();
-            TRACEI(DEBUG, "Waiting for link serialization; use=" <<InUse);
-            IOSemaphore.Wait();
+   linkXQ.LinkInfo.opMutex.Lock();
+   if (linkXQ.LinkInfo.InUse <= 1) linkXQ.LinkInfo.opMutex.UnLock();
+      else {linkXQ.LinkInfo.doPost++;
+            linkXQ.LinkInfo.opMutex.UnLock();
+            TRACEI(DEBUG, "Waiting for link serialization; use=" 
+                          <<linkXQ.LinkInfo.InUse);
+            linkXQ.LinkInfo.IOSemaphore.Wait();
            }
 }
 
@@ -370,10 +372,10 @@ void XrdLink::Serialize()
 
 int XrdLink::setEtext(const char *text)
 {
-     opMutex.Lock();
-     if (Etext) free(Etext);
-     Etext = (text ? strdup(text) : 0);
-     opMutex.UnLock();
+     linkXQ.LinkInfo.opMutex.Lock();
+     if (linkXQ.LinkInfo.Etext) free(linkXQ.LinkInfo.Etext);
+     linkXQ.LinkInfo.Etext = (text ? strdup(text) : 0);
+     linkXQ.LinkInfo.opMutex.UnLock();
      return -1;
 }
   
@@ -432,28 +434,29 @@ void XrdLink::setProtName(const char *name)
   
 void XrdLink::setRef(int use)
 {
-   opMutex.Lock();
-   TRACEI(DEBUG,"Setting ref to " <<InUse <<'+' <<use <<" post=" <<doPost);
-   InUse += use;
+   linkXQ.LinkInfo.opMutex.Lock();
+   TRACEI(DEBUG,"Setting ref to " <<linkXQ.LinkInfo.InUse <<'+' 
+                 <<use <<" post=" <<linkXQ.LinkInfo.doPost);
+   linkXQ.LinkInfo.InUse += use;
 
-         if (!InUse)
-            {InUse = 1; opMutex.UnLock();
+         if (!linkXQ.LinkInfo.InUse)
+            {linkXQ.LinkInfo.InUse = 1; linkXQ.LinkInfo.opMutex.UnLock();
              Log.Emsg("Link", "Zero use count for", ID);
             }
-    else if (InUse == 1 && doPost)
-            {while(doPost)
-                {IOSemaphore.Post();
+    else if (linkXQ.LinkInfo.InUse == 1 && linkXQ.LinkInfo.doPost)
+            {while(linkXQ.LinkInfo.doPost)
+                {linkXQ.LinkInfo.IOSemaphore.Post();
                  TRACEI(CONN, "setRef posted link");
-                 doPost--;
+                 linkXQ.LinkInfo.doPost--;
                 }
-             opMutex.UnLock();
+             linkXQ.LinkInfo.opMutex.UnLock();
             }
-    else if (InUse < 0)
-            {InUse = 1;
-             opMutex.UnLock();
+    else if (linkXQ.LinkInfo.InUse < 0)
+            {linkXQ.LinkInfo.InUse = 1;
+             linkXQ.LinkInfo.opMutex.UnLock();
              Log.Emsg("Link", "Negative use count for", ID);
             }
-    else opMutex.UnLock();
+    else linkXQ.LinkInfo.opMutex.UnLock();
 }
  
 /******************************************************************************/
@@ -524,18 +527,19 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
 // Check if we have too many tries here
 //
    int wTime, killTries;
-   killTries = KillCnt & KillMsk;
+   killTries = linkXQ.LinkInfo.KillCnt & KillMsk;
    if (killTries > KillMax) return -ETIME;
 
 // Wait time increases as we have more unsuccessful kills. Update numbers.
 //
    wTime = killTries++;
-   KillCnt = killTries | KillXwt;
+   linkXQ.LinkInfo.KillCnt = killTries | KillXwt;
 
 // Make sure we can disable this link. If not, then force the caller to wait
 // a tad more than the read timeout interval.
 //
-   if (!linkXQ.PollInfo.isEnabled || InUse > 1 || KillcvP)
+   if (!linkXQ.PollInfo.isEnabled || linkXQ.LinkInfo.InUse > 1
+   ||  linkXQ.LinkInfo.KillcvP)
       {wTime = wTime*2+XrdLinkCtl::waitKill;
        return (wTime > 60 ? 60: wTime);
       }
@@ -543,7 +547,7 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
 // Set the pointer to our condvar. We are holding the opMutex to prevent a race.
 //
    XrdSysCondVar killDone(0);
-   KillcvP = &killDone;
+   linkXQ.LinkInfo.KillcvP = &killDone;
    killDone.Lock();
 
 // We can now disable the link and schedule a close
@@ -552,7 +556,7 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
    snprintf(buff, sizeof(buff), "ended by %s", owner);
    buff[sizeof(buff)-1] = '\0';
    linkXQ.PollInfo.Poller->Disable(this, buff);
-   opMutex.UnLock();
+   linkXQ.LinkInfo.opMutex.UnLock();
 
 // Now wait for the link to shutdown. This avoids lock problems.
 //
@@ -565,7 +569,9 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
 // an arbitrary mutex with a condvar. But since this code is rarely executed
 // the ugliness is sort of tolerable.
 //
-   opMutex.Lock(); KillcvP = 0; opMutex.UnLock();
+   linkXQ.LinkInfo.opMutex.Lock();
+   linkXQ.LinkInfo.KillcvP = 0;
+   linkXQ.LinkInfo.opMutex.UnLock();
 
 // Do some tracing
 //
@@ -573,6 +579,18 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
    return wTime;
 }
 
+/******************************************************************************/
+/*                               t i m e C o n                                */
+/******************************************************************************/
+
+time_t XrdLink::timeCon() const {return linkXQ.LinkInfo.conTime;}
+  
+/******************************************************************************/
+/*                                U s e C n t                                 */
+/******************************************************************************/
+
+int XrdLink::UseCnt() const {return linkXQ.LinkInfo.InUse;}
+  
 /******************************************************************************/
 /*                                v e r T L S                                 */
 /******************************************************************************/

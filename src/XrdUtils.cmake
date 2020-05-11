@@ -169,6 +169,7 @@ add_library(
   Xrd/XrdJob.hh
   Xrd/XrdLink.cc                Xrd/XrdLink.hh
   Xrd/XrdLinkCtl.cc             Xrd/XrdLinkCtl.hh
+                                Xrd/XrdLinkInfo.hh
   Xrd/XrdLinkXeq.cc             Xrd/XrdLinkXeq.hh
   Xrd/XrdLinkMatch.cc           Xrd/XrdLinkMatch.hh
   Xrd/XrdGlobals.cc

@@ -121,6 +121,7 @@ void XrdLinkXeq::Reset()
    memcpy(Uname+sizeof(Uname)-5, "anon@", 5);
    strcpy(Lname, "somewhere");
    ID       = &Uname[sizeof(Uname)-5];
+   Comment  = ID;
    sendQ    = 0;
    stallCnt = stallCntTot = 0;
    tardyCnt = tardyCntTot = 0;
@@ -132,6 +133,7 @@ void XrdLinkXeq::Reset()
    Protocol = 0;
    ProtoAlt = 0;
 
+   LinkInfo.Reset();
    PollInfo.Zorch();
    ResetLink();
 }
@@ -174,7 +176,7 @@ int XrdLinkXeq::Client(char *nbuf, int nbsz)
 /******************************************************************************/
   
 int XrdLinkXeq::Close(bool defer)
-{  XrdSysMutexHelper opHelper(opMutex);
+{  XrdSysMutexHelper opHelper(LinkInfo.opMutex);
    int csec, fd, rc = 0;
 
 // Cleanup TLS if it is active
@@ -198,7 +200,7 @@ int XrdLinkXeq::Close(bool defer)
    if (defer)
       {if (!sendQ) Shutdown(false);
           else {TRACEI(DEBUG, "Shutdown FD only via SendQ");
-                InUse++;
+                LinkInfo.InUse++;
                 FD = -FD;
                 wrMutex.Lock();
                 sendQ->Terminate(this);
@@ -221,13 +223,13 @@ int XrdLinkXeq::Close(bool defer)
 // Multiple protocols may be bound to this link. If it is in use, defer the
 // actual close until the use count drops to one.
 //
-   while(InUse > 1)
+   while(LinkInfo.InUse > 1)
       {opHelper.UnLock();
-       TRACEI(DEBUG, "Close defered, use count=" <<InUse);
+       TRACEI(DEBUG, "Close defered, use count=" <<LinkInfo.InUse);
        Serialize();
-       opHelper.Lock(&opMutex);
+       opHelper.Lock(&LinkInfo.opMutex);
       }
-   InUse--;
+   LinkInfo.InUse--;
    Instance = 0;
 
 // Add up the statistic for this link
@@ -236,19 +238,22 @@ int XrdLinkXeq::Close(bool defer)
 
 // Clean this link up
 //
-   if (Protocol) {Protocol->Recycle(this, csec, Etext); Protocol = 0;}
-   if (ProtoAlt) {ProtoAlt->Recycle(this, csec, Etext); ProtoAlt = 0;}
-   if (Etext) {free(Etext); Etext = 0;}
-   InUse    = 0;
+   if (Protocol) {Protocol->Recycle(this, csec, LinkInfo.Etext); Protocol = 0;}
+   if (ProtoAlt) {ProtoAlt->Recycle(this, csec, LinkInfo.Etext); ProtoAlt = 0;}
+   if (LinkInfo.Etext) {free(LinkInfo.Etext); LinkInfo.Etext = 0;}
+   LinkInfo.InUse    = 0;
 
 // At this point we can have no lock conflicts, so if someone is waiting for
 // us to terminate let them know about it. Note that we will get the condvar
 // mutex while we hold the opMutex. This is the required order! We will also
 // zero out the pointer to the condvar while holding the opmutex.
 //
-   if (KillcvP) {KillcvP->  Lock(); KillcvP->Signal();
-                 KillcvP->UnLock(); KillcvP = 0;
-                }
+   if (LinkInfo.KillcvP)
+      {LinkInfo.KillcvP->Lock();
+       LinkInfo.KillcvP->Signal();
+       LinkInfo.KillcvP->UnLock();
+       LinkInfo.KillcvP = 0;
+      }
 
 // Remove ourselves from the poll table and then from the Link table. We may
 // not hold on to the opMutex when we acquire the LTMutex. However, the link
@@ -816,13 +821,13 @@ bool XrdLinkXeq::setNB()
 // If we don't already have a sendQ object get one. This is a one-time call
 // so to optimize checking if this object exists we also get the opMutex.'
 //
-   opMutex.Lock();
+   LinkInfo.opMutex.Lock();
    if (!sendQ)
       {wrMutex.Lock();
        sendQ = new XrdSendQ(*this, wrMutex);
        wrMutex.UnLock();
       }
-   opMutex.UnLock();
+   LinkInfo.opMutex.UnLock();
    return true;
 #endif
 }
@@ -836,11 +841,11 @@ XrdProtocol *XrdLinkXeq::setProtocol(XrdProtocol *pp, bool push)
 
 // Set new protocol.
 //
-   opMutex.Lock();
+   LinkInfo.opMutex.Lock();
    XrdProtocol *op = Protocol;
    if (push) ProtoAlt = Protocol;
    Protocol = pp; 
-   opMutex.UnLock();
+   LinkInfo.opMutex.UnLock();
    return op;
 }
 
@@ -853,9 +858,9 @@ void XrdLinkXeq::setProtName(const char *name)
 
 // Set the protocol name.
 //
-   opMutex.Lock();
+   LinkInfo.opMutex.Lock();
    Addr.SetDialect(name);
-   opMutex.UnLock();
+   LinkInfo.opMutex.UnLock();
 }
  
 /******************************************************************************/
@@ -936,7 +941,7 @@ void XrdLinkXeq::Shutdown(bool getLock)
 
 // Get the lock if we need too (external entry via another thread)
 //
-   if (getLock) opMutex.Lock();
+   if (getLock) LinkInfo.opMutex.Lock();
 
 // If there is something to do, do it now
 //
@@ -952,7 +957,7 @@ void XrdLinkXeq::Shutdown(bool getLock)
 
 // All done
 //
-   if (getLock) opMutex.UnLock();
+   if (getLock) LinkInfo.opMutex.UnLock();
 }
 
 /******************************************************************************/
@@ -1002,7 +1007,7 @@ void XrdLinkXeq::syncStats(int *ctime)
 
 // If this is dynamic, get the opMutex lock
 //
-   if (!ctime) opMutex.Lock();
+   if (!ctime) LinkInfo.opMutex.Lock();
 
 // Either the caller has the opMutex or this is called out of close. In either
 // case, we need to get the read and write mutexes; each followed by the stats
@@ -1015,7 +1020,7 @@ void XrdLinkXeq::syncStats(int *ctime)
    AtomicBeg(rdMutex);
 
    if (ctime)
-      {*ctime = time(0) - conTime;
+      {*ctime = time(0) - LinkInfo.conTime;
        AtomicAdd(LinkConTime, *ctime);
        statsMutex.Lock();
        if (LinkCount > 0) AtomicDec(LinkCount);
@@ -1045,7 +1050,7 @@ void XrdLinkXeq::syncStats(int *ctime)
 
 // All done
 //
-   if (!ctime) opMutex.UnLock();
+   if (!ctime) LinkInfo.opMutex.UnLock();
 }
 
 /******************************************************************************/
