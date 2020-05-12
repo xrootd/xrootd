@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[POSIX]** Add N2N pfn2lfn option -cachesrc to pass data source to the N2N.
   * **[Server]** Add xrootd.tlsreuse directive for session cache control.
   * **[TLS]** Implement crl/ca automatic refresh.
   * **[TLS]** Add additional options for session caching.
