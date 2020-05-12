@@ -576,6 +576,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Forward any "xrd.*" params from the original client request also to
         // the new redirection url
+        // Also, we need to preserve any "xrdcl.*' as they are important for
+        // our internal workflows.
         //----------------------------------------------------------------------
         std::ostringstream ossXrd;
         const URL::ParamsMap &urlParams = pUrl.GetParams();
@@ -583,7 +585,8 @@ namespace XrdCl
         for(URL::ParamsMap::const_iterator it = urlParams.begin();
             it != urlParams.end(); ++it )
         {
-          if( it->first.compare( 0, 4, "xrd." ) )
+          if( it->first.compare( 0, 4, "xrd." ) &&
+              it->first.compare( 0, 6, "xrdcl." ) )
             continue;
 
           ossXrd << it->first << '=' << it->second << '&';
