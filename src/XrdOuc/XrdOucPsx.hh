@@ -91,8 +91,12 @@ int                  cioWait;
 int                  cioTries;
 bool                 useV4;
 bool                 xLfn2Pfn;
-bool                 xPfn2Lfn;
+char                 xPfn2Lfn; // See xP2Lxxx definitions below
 bool                 xNameLib;
+
+static const int     xP2Loff = 0;
+static const int     xP2Lon  = 1;
+static const int     xP2Lsrc = 2;
 
           XrdOucPsx(XrdVersionInfo *vInfo, const char *cfn,
                     XrdSysLogger *lp=0,    XrdOucEnv  *vp=0)
@@ -100,7 +104,7 @@ bool                 xNameLib;
                      theN2N(0), theCache(0), initCCM(0),
                      mCache(0), setFirst(0), setLast(0), maxRHCB(0),
                      traceLvl(0), debugLvl(0), cioWait(0), cioTries(0),
-                     useV4(false), xLfn2Pfn(false), xPfn2Lfn(false),
+                     useV4(false), xLfn2Pfn(false), xPfn2Lfn(xP2Loff),
                      xNameLib(false),
                      LocalRoot(0), RemotRoot(0), N2NLib(0), N2NParms(0),
                      cPath(0), cParm(0), mPath(0), mParm(0),

@@ -190,7 +190,11 @@ bool XrdOucPsx::ConfigN2N(XrdSysError &eDest)
 
 // Skip all of this we are not doing name mapping.
 //
-  if (!N2NLib && !LocalRoot) {xLfn2Pfn = xPfn2Lfn = false; return true;}
+  if (!N2NLib && !LocalRoot)
+     {xLfn2Pfn = false;
+      xPfn2Lfn = xP2Loff;
+      return true;
+     }
 
 // Check if the n2n is applicable
 //
@@ -632,7 +636,7 @@ bool XrdOucPsx::ParseINet(XrdSysError *Eroute, XrdOucStream &Config)
 
    Purpose:  To parse the directive: namelib [<opts>] pfn<path> [<parms>]
 
-             <opts>    one or more: [-lfn2pfn] [-lfncache]
+             <opts>    one or more: [-lfn2pfn] [-lfncache[src]]
              <path>    the path of the filesystem library to be used.
              <parms>   optional parms to be passed
 
@@ -642,18 +646,22 @@ bool XrdOucPsx::ParseINet(XrdSysError *Eroute, XrdOucStream &Config)
 bool XrdOucPsx::ParseNLib(XrdSysError *Eroute, XrdOucStream &Config)
 {
     char *val, parms[1024];
-    bool l2p = false, p2l = false;
+    bool l2p = false, p2l = false, p2lsrc = false;
 
 // Parse options, if any
 //
    while((val = Config.GetWord()) && val[0])
-        {     if (!strcmp(val, "-lfn2pfn"))  l2p = true;
-         else if (!strcmp(val, "-lfncache")) p2l = true;
+        {     if (!strcmp(val, "-lfn2pfn"))     l2p = true;
+         else if (!strcmp(val, "-lfncache"))    p2l = true;
+         else if (!strcmp(val, "-lfncachesrc")) p2l = p2lsrc = true;
          else break;
         }
+
    if (!l2p && !p2l) l2p = true;
    xLfn2Pfn = l2p;
-   xPfn2Lfn = p2l;
+    if (!p2l) xPfn2Lfn = xP2Loff;
+       else if (p2lsrc) xPfn2Lfn = xP2Lsrc;
+               else xPfn2Lfn = xP2Lon;
 
 // Get the path
 //

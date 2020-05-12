@@ -58,8 +58,10 @@ namespace XrdPosixGlobals
 {
 extern XrdOucName2Name *theN2N;
 extern bool             oidsOK;
+extern bool             p2lSRC;
 
-       ProtoTable       protoTab[ptEnts] = {{"root://", 7}, {"xroot://", 8}};
+       ProtoTable       protoTab[ptEnts] = {{"root://",  7}, {"xroot://",  8},
+                                            {"roots://", 8}, {"xroots://", 9}};
 }
   
 /******************************************************************************/
@@ -161,7 +163,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 {
    EPNAME("P2L");
    const char *urlP, *slash, *quest;
-   char *outP, *lfnP, pfnBuff[1032], lfnBuff[1032];
+   char *outP, *lfnP, lfnBuff[1032];
    int cgiLen, lfnLen, pfnLen, pfxLen, n;
    bool notOurs = true;
 
@@ -202,24 +204,33 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
        pfnLen = strlen(slash);
       }
 
-// Copy out the pfn. It must fit our buffer
+// Allocate sufficient space for the pfn with possible extensions (e.g. "?src="
+// and the whole url prefix)
 //
-   if (pfnLen >= (int)sizeof(pfnBuff))
-      {errno = ENAMETOOLONG;
-       return 0;
-      }
-   strncpy(pfnBuff, slash, pfnLen);
-   *(pfnBuff+pfnLen) = 0;
+   char *pfnBP = (char *)alloca(pfnLen + 5 *pfxLen + 1);
+
+// Copy out the pfn. We know it will definitely fit.
+//
+   strncpy(pfnBP, slash, pfnLen);
+
+// Check if the N2N wants to know the source and add it if so.
+//
+   if (!XrdPosixGlobals::p2lSRC) *(pfnBP+pfnLen) = 0;
+      else {char *bP = pfnBP+pfnLen;
+            strncpy(bP, "?src=", 5); bP += 5;
+            strncpy(bP, inP, pfxLen);
+            *(bP+pfxLen) = 0;
+           }
 
 // Invoke the name2name translator if we have one
 //
    if (XrdPosixGlobals::theN2N)
-      {if ((n = XrdPosixGlobals::theN2N->pfn2lfn(pfnBuff,lfnBuff,sizeof(lfnBuff))))
+      {if ((n = XrdPosixGlobals::theN2N->pfn2lfn(pfnBP,lfnBuff,sizeof(lfnBuff))))
           {errno = n;
            return 0;
           }
        lfnP = lfnBuff;
-      } else lfnP = pfnBuff;
+      } else lfnP = pfnBP;
 
 // If only the path is wanted, then adjust lengths
 //
@@ -242,7 +253,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 
 // Do some debugging
 //
-   DEBUG(who <<' ' <<pfnBuff <<" pfn2lfn " <<lfnBuff);
+   DEBUG(who <<' ' <<pfnBP <<" pfn2lfn " <<lfnBuff);
 
 // All done, return result
 //

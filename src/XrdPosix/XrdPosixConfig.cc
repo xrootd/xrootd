@@ -81,6 +81,7 @@ extern int                        ddInterval;
 extern int                        ddMaxTries;
 extern XrdCl::DirListFlags::Flags dlFlag;
 extern bool                       oidsOK;
+extern bool                       p2lSRC;
 };
   
 /******************************************************************************/
@@ -364,7 +365,10 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 
 // Handle the Name2Name for pfn2lfn translations.
 //
-   if (parms.xPfn2Lfn) XrdPosixGlobals::theN2N = parms.theN2N;
+   if (parms.xPfn2Lfn)
+      {XrdPosixGlobals::theN2N = parms.theN2N;
+       XrdPosixGlobals::p2lSRC = parms.xPfn2Lfn == parms.xP2Lsrc;
+      }
 
 // Handle client settings
 //
