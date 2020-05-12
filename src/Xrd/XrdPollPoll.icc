@@ -118,7 +118,7 @@ int XrdPollPoll::Include(XrdLink *lp)
 // Initialize the polltable entry
 //
    pfd = &(PollTab[ptnum]);
-   pfd->fd      = -pInfo.pollFD;
+   pfd->fd      = -pInfo.FD;
    pfd->events  = POLLIN | POLLRDNORM;
    pfd->revents = 0;
 
@@ -154,14 +154,14 @@ void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
 
 // Trace this event
 //
-   TRACEI(POLL, "Poller " <<PID <<" async disabling link FD " <<pInfo.pollFD);
+   TRACEI(POLL, "Poller " <<PID <<" async disabling link FD " <<pInfo.FD);
 
 // Send a disable request to the poller thread handling this link. We need to
 // wait until the operation is actually completed before returning.
 //
    memset(&cmdbuff, 0, sizeof(cmdbuff));
    cmdbuff[0].req           = PipeData::DiFD;
-   cmdbuff[0].Parms.Arg.fd  = pInfo.pollFD;
+   cmdbuff[0].Parms.Arg.fd  = pInfo.FD;
    cmdbuff[0].Parms.Arg.ent = pInfo.PollEnt - PollTab;
    cmdbuff[1].req           = PipeData::Post;
    cmdbuff[1].Parms.theSem  = &mySem;
@@ -201,9 +201,9 @@ int XrdPollPoll::Enable(XrdLink *lp)
 
 // Send an enable request to the poller thread handling this link
 //
-   TRACEI(POLL, "sending poller " <<PID <<" enable for link " <<pInfo.pollFD);
+   TRACEI(POLL, "sending poller " <<PID <<" enable for link " <<pInfo.FD);
    cmdbuff.req           = PipeData::EnFD;
-   cmdbuff.Parms.Arg.fd  = pInfo.pollFD;
+   cmdbuff.Parms.Arg.fd  = pInfo.FD;
    cmdbuff.Parms.Arg.ent = pInfo.PollEnt - PollTab;
    PollPipe.Lock();
    if (write(CmdFD, &cmdbuff, sizeof(cmdbuff)) < 0) myerrno = errno;
@@ -240,9 +240,9 @@ void XrdPollPoll::Exclude(XrdLink *lp)
 
 // Send a deatch request to the poller thread handling this link
 //
-   TRACEI(POLL, "sending poller " <<PID <<" detach for link " <<pInfo.pollFD);
+   TRACEI(POLL, "sending poller " <<PID <<" detach for link " <<pInfo.FD);
    cmdbuff[0].req           = PipeData::RmFD;
-   cmdbuff[0].Parms.Arg.fd  = pInfo.pollFD;
+   cmdbuff[0].Parms.Arg.fd  = pInfo.FD;
    cmdbuff[0].Parms.Arg.ent = pInfo.PollEnt - PollTab;
    cmdbuff[1].req           = PipeData::Post;
    cmdbuff[1].Parms.theSem  = &mySem;
