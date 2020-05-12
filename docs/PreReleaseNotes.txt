@@ -66,6 +66,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Server]** Remove Solaris polldev support (reverts to using pollpoll).
   * **[TLS]** Always configure with session cache disabled.
   * **[Protocol]** Add TLS-specific bits for anonymous get/putfile.
   * **[Server]** Allow TLS session reuse for xroots protocol.
