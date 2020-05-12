@@ -272,7 +272,7 @@ namespace XrdCl
         currentPath.SetParams( currentCgi );
         if( !newPath.empty() )
           currentPath.SetPath( newPath );
-        std::string newPathWitParams = currentPath.GetPathWithParams();
+        std::string newPathWitParams = currentPath.GetPathWithFilteredParams();
 
         //----------------------------------------------------------------------
         // Write the path with the new cgi appended to the message
@@ -333,7 +333,7 @@ namespace XrdCl
         URL::ParamsMap currentCgi = currentPath.GetParams();
         MergeCGI( currentCgi, triedCgi, replace );
         currentPath.SetParams( currentCgi );
-        std::string pathWitParams = currentPath.GetPathWithParams();
+        std::string pathWitParams = currentPath.GetPathWithFilteredParams();
 
         //----------------------------------------------------------------------
         // Write the path with the new cgi appended to the message
