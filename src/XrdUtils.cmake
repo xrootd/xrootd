@@ -174,8 +174,6 @@ add_library(
   Xrd/XrdLinkMatch.cc           Xrd/XrdLinkMatch.hh
   Xrd/XrdGlobals.cc
   Xrd/XrdPoll.cc                Xrd/XrdPoll.hh
-                                Xrd/XrdPollDev.hh
-                                Xrd/XrdPollDev.icc
                                 Xrd/XrdPollE.hh
                                 Xrd/XrdPollE.icc
                                 Xrd/XrdPollInfo.hh
