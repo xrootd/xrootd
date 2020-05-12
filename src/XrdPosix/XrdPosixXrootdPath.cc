@@ -217,7 +217,7 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 //
    if (!XrdPosixGlobals::p2lSRC) *(pfnBP+pfnLen) = 0;
       else {char *bP = pfnBP+pfnLen;
-            strncpy(bP, "?src=", 5); bP += 5;
+            memcpy(bP, "?src=", 5); bP += 5;
             strncpy(bP, inP, pfxLen);
             *(bP+pfxLen) = 0;
            }
