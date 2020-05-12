@@ -165,7 +165,7 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
    unp = lp->Uname + sizeof(Uname) - bl - 1; // Solaris compatability
    memcpy(unp, buff, bl);
    lp->ID = unp;
-   lp->FD = lp->PollInfo.pollFD = peerFD;
+   lp->PollInfo.FD = peerFD;
    lp->Comment = (const char *)unp;
 
 // Set options as needed

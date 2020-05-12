@@ -105,7 +105,7 @@ void            Enable();
 //! @return         The file descriptor number.
 //-----------------------------------------------------------------------------
 
-inline int      FDnum() {int fd = FD; return (fd < 0 ? -fd : fd);}
+int             FDnum();
 
 //-----------------------------------------------------------------------------
 //! Translate a file descriptor number to the corresponding link object.
@@ -235,7 +235,7 @@ char           *ID;      // This is referenced a lot (should have been const).
 //!
 //! @return The link's instance number.
 //-----------------------------------------------------------------------------
-inline
+
 unsigned int    Inst() const {return Instance;}
 
 //-----------------------------------------------------------------------------
@@ -256,9 +256,8 @@ bool            isFlawed() const;
 //! @return true    the link matches the instance number.
 //!         false   the link differs the instance number.
 //-----------------------------------------------------------------------------
-inline
-bool            isInstance(unsigned int inst) const
-                          {return FD >= 0 && Instance == inst;}
+
+bool            isInstance(unsigned int inst) const;
 
 //-----------------------------------------------------------------------------
 //! Obtain the domain trimmed name of the end-point. The returned value should
@@ -554,7 +553,7 @@ void            armBridge();
 //! @return false   this link is a plain old link.
 //-----------------------------------------------------------------------------
 
-inline bool     hasBridge() const {return isBridged;}
+bool            hasBridge() const {return isBridged;}
 
 //-----------------------------------------------------------------------------
 //! Determine if this link is using TLS.
@@ -566,7 +565,7 @@ inline bool     hasBridge() const {return isBridged;}
 //! @return false   this link not using TLS.
 //-----------------------------------------------------------------------------
 
-inline bool     hasTLS() const {return isTLS;}
+bool            hasTLS() const {return isTLS;}
 
 //-----------------------------------------------------------------------------
 //! Return TLS protocol version being used.
@@ -595,10 +594,9 @@ int             Wait4Data(int timeout);
 void           *rsvd1[3];     // Reserved for future use
 XrdLinkXeq     &linkXQ;       // The implementation
 char           *HostName;     // Pointer to the hostname
-int             FD;           // File descriptor number (may be negative)
 unsigned int    Instance;     // Instance number of this object
 bool            isBridged;    // If true, this link is an in-memory bridge
 bool            isTLS;        // If true, this link uses TLS for all I/O
-char            rsvd2[6];
+char            rsvd2[2];
 };
 #endif

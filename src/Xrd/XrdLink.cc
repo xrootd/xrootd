@@ -119,7 +119,6 @@ XrdLink::XrdLink(XrdLinkXeq &lxq) : XrdJob("connection"), linkXQ(lxq)
 void XrdLink::ResetLink()
 {
    if (HostName) {free(HostName); HostName = 0;}
-   FD       = -1;
    Instance =  0;
    isBridged= false;
    isTLS    = false;
@@ -170,6 +169,17 @@ void XrdLink::Enable()
    if (linkXQ.PollInfo.Poller) linkXQ.PollInfo.Poller->Enable(this);
 }
 
+/******************************************************************************/
+/*                                 F D n u m                                  */
+/******************************************************************************/
+
+int XrdLink::FDnum()
+{
+  int fd = linkXQ.PollInfo.FD;
+
+  return (fd < 0 ? -fd : fd);
+}
+               
 /******************************************************************************/
 /*                                  F i n d                                   */
 /******************************************************************************/
@@ -245,6 +255,13 @@ void XrdLink::Hold(bool lk)
 
 bool XrdLink::isFlawed() const {return linkXQ.LinkInfo.Etext != 0;}
   
+/******************************************************************************/
+/*                            i s I n s t a n c e                             */
+/******************************************************************************/
+  
+bool XrdLink::isInstance(unsigned int inst) const
+                        {return Instance == inst && linkXQ.PollInfo.FD >= 0;}
+
 /******************************************************************************/
 /*                                  N a m e                                   */
 /******************************************************************************/
@@ -521,7 +538,7 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
 // If this link is now dead, simply ignore the request. Typically, this
 // indicates a race condition that the server won.
 //
-   if ( FD != fdnum || Instance != inst
+   if ( linkXQ.PollInfo.FD != fdnum || Instance != inst
    || !linkXQ.PollInfo.Poller || !linkXQ.getProtocol()) return -EPIPE;
 
 // Check if we have too many tries here
@@ -606,7 +623,7 @@ const char *XrdLink::verTLS()
   
 int XrdLink::Wait4Data(int timeout)
 {
-   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
+   struct pollfd polltab = {linkXQ.PollInfo.FD, POLLIN|POLLRDNORM, 0};
    int retc;
 
 // Issue poll and do preliminary check

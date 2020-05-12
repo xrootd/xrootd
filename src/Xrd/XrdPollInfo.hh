@@ -41,13 +41,13 @@ XrdPollInfo   *Next;        // Chain of links waiting for a PollPoll event
 XrdLink       *Link;        // Link associated with this object
 struct pollfd *PollEnt;     // Used only by PollPoll
 XrdPoll       *Poller;      // -> Poller object associated with this object
-int            pollFD;      // Associated file descriptor number
+int            FD;          // Associated target file descriptor number
 bool           inQ;         // True -> in a PollPoll event queue
 bool           isEnabled;   // True -> interrupts are enabled
 char           rsv[2];      // Reserved for future flags
 
 void           Zorch() {Next      = 0;     PollEnt  = 0;
-                        Poller    = 0;     pollFD   = -1;
+                        Poller    = 0;     FD       = -1;
                         isEnabled = false; inQ      = false;
                         rsv[0]    = 0;     rsv[1]   = 0;
                        }
