@@ -13,6 +13,10 @@ Version 4.12.1
 + **Major bug fixes**
   * **[XrdXrootdVoms]** Fix run-time lib dependencies.
 
++ **Minor bug fixes**
+  * **[xrdcp]** Don't create unwanted dir if --recursive option was used and the
+                source is a file.
+
 --------------
 Version 4.12.0
 --------------
