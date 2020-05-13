@@ -61,7 +61,7 @@
 
 #define TRACEI(act, x) \
    if (XRD_TRACE What & TRACE_ ## act) \
-      {XRD_TRACE Beg(TraceID,TRACELINK->ID); cerr <<x; \
+      {XRD_TRACE Beg(TraceID,TRACE_IDENT); cerr <<x; \
        XRD_TRACE End();}
 
 #define TRACING(x) XRD_TRACE What & x

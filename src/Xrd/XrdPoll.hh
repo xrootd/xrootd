@@ -34,10 +34,7 @@
 
 #define XRD_NUMPOLLERS 3
 
-class XrdOucTrace;
-class XrdSysError;
-class XrdLink;
-class XrdScheduler;
+class XrdPollInfo;
 class XrdSysSemaphore;
   
 class XrdPoll
@@ -46,28 +43,23 @@ public:
 
 // Attach() is called when a new link needs to be assigned to a poller
 //
-static  int   Attach(XrdLink *lp);    // Implementation supplied
+static  int   Attach(XrdPollInfo &pInfo);
 
 // Detach() is called when a link is being discarded
 //
-static  void  Detach(XrdLink *lp);   //  Implementation supplied
+static  void  Detach(XrdPollInfo &pInfo);
 
 // Disable() is called when we need to mask interrupts from a link
 //
-virtual void  Disable(XrdLink *lp, const char *etxt=0) = 0;
+virtual void  Disable(XrdPollInfo &pInfo, const char *etxt=0) = 0;
 
 // Enable() is called when we want to receive interrupts from a link
 //
-virtual int   Enable(XrdLink *lp)  = 0;
+virtual int   Enable(XrdPollInfo &pInfo)  = 0;
 
 // Finish() is called to allow a link to gracefully terminate when scheduled
 //
-static  int   Finish(XrdLink *lp, const char *etxt=0); //Implementation supplied
-
-// Init()   is called to set pointers to external interfaces at config time.
-//
-static  void  Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
-                  {XrdLog = eP; XrdTrace = tP; XrdSched = sP;}
+static  int   Finish(XrdPollInfo &pInfo, const char *etxt=0); //Implementation supplied
 
 // Poll2Text() converts bits in an revents item to text
 //
@@ -100,9 +92,6 @@ virtual   ~XrdPoll() {}
 protected:
 
 static     const char   *TraceID;                  // For tracing
-static     XrdOucTrace  *XrdTrace;
-static     XrdSysError  *XrdLog;
-static     XrdScheduler *XrdSched;
 
 // Gets the next request on the poll pipe. This is common to all implentations.
 //
@@ -110,11 +99,11 @@ static     XrdScheduler *XrdSched;
 
 // Exclude() called to exclude a link from a poll set
 //
-virtual    void        Exclude(XrdLink *lp) = 0;
+virtual    void        Exclude(XrdPollInfo &pInfo) = 0;
 
 // Include() called to include a link in a poll set
 //
-virtual    int         Include(XrdLink *lp) = 0;
+virtual    int         Include(XrdPollInfo &pInfo) = 0;
 
 // newPoller() called to get a new poll object at initialization time
 //             Even though static, an implementation must be supplied.

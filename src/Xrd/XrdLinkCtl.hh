@@ -92,6 +92,22 @@ static XrdLink  *fd2link(int fd, unsigned int inst)
                  }
 
 //-----------------------------------------------------------------------------
+//! Translate a file descriptor number to the corresponding PollInfo object.
+//!
+//! @param  fd      The file descriptor number.
+//!
+//! @return !0      Pointer to the PollInfo object.
+//!         =0      The file descriptor is not associated with a link.
+//-----------------------------------------------------------------------------
+
+static XrdPollInfo *fd2PollInfo(int fd)
+                    {if (fd < 0) fd = -fd;
+                     if (fd <= LTLast && LinkBat[fd])
+                        return &(LinkTab[fd]->PollInfo);
+                     return 0;
+                    }
+
+//-----------------------------------------------------------------------------
 //! Find the next link matching certain attributes.
 //!
 //! @param  cur     Is an internal tracking value that allows repeated calls.

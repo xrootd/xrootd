@@ -53,6 +53,14 @@ class XrdLink : public XrdJob
 public:
 
 //-----------------------------------------------------------------------------
+//! Activate a link by attaching it to a poller object.
+//!
+//! @return True if activation succeeded and false otherwise.
+//-----------------------------------------------------------------------------
+
+bool            Activate();
+
+//-----------------------------------------------------------------------------
 //! Obtain the address information for this link.
 //!
 //! @return Pointer to the XrdAddrInfo object. The pointer is valid while the
@@ -108,37 +116,14 @@ void            Enable();
 int             FDnum();
 
 //-----------------------------------------------------------------------------
-//! Translate a file descriptor number to the corresponding link object.
-//!
-//! @param  fd      The file descriptor number.
-//!
-//! @return !0      Pointer to the link object.
-//!         =0      The file descriptor is not associated with a link.
-//-----------------------------------------------------------------------------
-
-static XrdLink *fd2link(int fd);
-
-//-----------------------------------------------------------------------------
-//! Translate a file descriptor number and an instance to a link object.
-//!
-//! @param  fd      The file descriptor number.
-//! @param  inst    The file descriptor number instance number.
-//!
-//! @return !0      Pointer to the link object.
-//!         =0      The file descriptor instance is not associated with a link.
-//-----------------------------------------------------------------------------
-
-static XrdLink *fd2link(int fd, unsigned int inst);
-
-//-----------------------------------------------------------------------------
 //! Find the next link matching certain attributes.
 //!
 //! @param  curr    Is an internal tracking value that allows repeated calls.
 //!                 It must be set to a value of 0 or less on the initial call
 //!                 and not touched therafter unless a null pointer is returned.
-//! @param  who     If the object use to check if teh link matches the wanted
+//! @param  who     If the object use to check if the link matches the wanted
 //!                 criterea (typically, client name and host name). If the
-//!                 ppointer is nil, the next link is always returned.
+//!                 pointer is nil, the next link is always returned.
 //!
 //! @return !0      Pointer to the link object that matches the criterea. The
 //!                 link's reference counter is increased to prevent it from
@@ -199,12 +184,6 @@ XrdTlsPeerCerts *getPeerCerts();
 //-----------------------------------------------------------------------------
 
 XrdProtocol    *getProtocol();
-
-//-----------------------------------------------------------------------------
-//! Obtain polling information object (used by poller only - non public)
-//-----------------------------------------------------------------------------
-
-XrdPollInfo    &getPollInfo();
 
 //-----------------------------------------------------------------------------
 //! Lock or unlock the mutex used for control operations.
@@ -349,6 +328,7 @@ int             RecvAll(char *buff, int blen, int timeout=-1);
 //------------------------------------------------------------------------------
 
 bool        Register(const char *hName);
+
 //-----------------------------------------------------------------------------
 //! Send data on a link. This calls may block unless the socket was marked
 //! nonblocking. If a block would occur, the data is copied for later sending.

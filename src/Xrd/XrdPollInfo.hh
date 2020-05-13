@@ -38,7 +38,7 @@ class XrdPollInfo
 public:
 
 XrdPollInfo   *Next;        // Chain of links waiting for a PollPoll event
-XrdLink       *Link;        // Link associated with this object
+XrdLink       &Link;        // Link associated with this object (always the same)
 struct pollfd *PollEnt;     // Used only by PollPoll
 XrdPoll       *Poller;      // -> Poller object associated with this object
 int            FD;          // Associated target file descriptor number
@@ -52,7 +52,7 @@ void           Zorch() {Next      = 0;     PollEnt  = 0;
                         rsv[0]    = 0;     rsv[1]   = 0;
                        }
 
-               XrdPollInfo(XrdLink *lnk) : Link(lnk) {Zorch();}
+               XrdPollInfo(XrdLink &lnk) : Link(lnk) {Zorch();}
               ~XrdPollInfo() {}
 };
 #endif

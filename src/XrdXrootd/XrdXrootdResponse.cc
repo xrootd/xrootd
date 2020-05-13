@@ -33,7 +33,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "Xrd/XrdLink.hh"
+#include "Xrd/XrdLinkCtl.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -446,7 +446,7 @@ int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID,
 
 // Map the destination to an endpoint, and send the response
 //
-   if ((Link = XrdLink::fd2link(theFD, theInst)))
+   if ((Link = XrdLinkCtl::fd2link(theFD, theInst)))
       {Link->setRef(1);
        if (Link->isInstance(theInst))
           {if (Link->hasBridge())

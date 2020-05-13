@@ -47,7 +47,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdInet.hh"
-#include "Xrd/XrdLink.hh"
+#include "Xrd/XrdLinkCtl.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -260,13 +260,13 @@ int XrdXrootdProtocol::do_Bind()
 
 // Find the link we are to bind to
 //
-   if (sp->FD <= 0 || !(lp = XrdLink::fd2link(sp->FD, sp->Inst)))
+   if (sp->FD <= 0 || !(lp = XrdLinkCtl::fd2link(sp->FD, sp->Inst)))
       return Response.Send(kXR_NotFound, "session not found");
 
 // The link may have escaped so we need to hold this link and try again
 //
    lp->Hold(1);
-   if (lp != XrdLink::fd2link(sp->FD, sp->Inst))
+   if (lp != XrdLinkCtl::fd2link(sp->FD, sp->Inst))
       {lp->Hold(0);
        return Response.Send(kXR_NotFound, "session just closed");
       }

@@ -31,7 +31,6 @@
 #include "XrdSys/XrdSysError.hh"
 
 #include "Xrd/XrdLink.hh"
-#include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtLoad.hh"
 
 #include "XrdVersion.hh"
@@ -195,9 +194,9 @@ int XrdProtLoad::Process(XrdLink *lp)
 //
    TRACE(DEBUG, "matched port " <<myPort <<" protocol " <<ProtName[i]);
 
-// Attach this link to the appropriate poller
+// Activate this link
 //
-   if (!XrdPoll::Attach(lp)) {lp->setEtext("attach failed"); return -1;}
+   if (!lp->Activate()) {lp->setEtext("activation failed"); return -1;}
 
 // Take a short-cut and process the initial request as a sticky request
 //

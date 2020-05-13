@@ -161,11 +161,11 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
    XrdNetTCP->Trim(hName);
    lp->Addr = peer;
    strlcpy(lp->Lname, hName, sizeof(lp->Lname));
-   bl = sprintf(buff, "anon:%d", peerFD);
+   bl = sprintf(buff, "anon.0:%d", peerFD);
    unp = lp->Uname + sizeof(Uname) - bl - 1; // Solaris compatability
    memcpy(unp, buff, bl);
    lp->ID = unp;
-   lp->PollInfo.FD = peerFD;
+   lp->PollInfo.FD = lp->LinkInfo.FD = peerFD;
    lp->Comment = (const char *)unp;
 
 // Set options as needed
@@ -303,7 +303,7 @@ void XrdLinkCtl::idleScan()
         if (!(lp->PollInfo.Poller) || !(lp->PollInfo.isEnabled))
            Log.Emsg("LinkScan","Link",lp->ID,"is disabled and idle.");
            else if (lp->LinkInfo.InUse == 1)
-                   {lp->PollInfo.Poller->Disable(lp, "idle timeout");
+                   {lp->PollInfo.Poller->Disable(lp->PollInfo, "idle timeout");
                     tmod++;
                    }
         lp->LinkInfo.opMutex.UnLock();

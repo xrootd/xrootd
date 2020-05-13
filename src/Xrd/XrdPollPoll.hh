@@ -33,18 +33,15 @@
 
 #include "Xrd/XrdPoll.hh"
 
-class XrdLink;
 class XrdPollInfo;
   
 class XrdPollPoll : XrdPoll
 {
 public:
 
-       void Detach(XrdLink *lp);
+       void Disable(XrdPollInfo &pInfo, const char *etxt=0);
 
-       void Disable(XrdLink *lp, const char *etxt=0);
-
-       int  Enable(XrdLink *lp);
+       int  Enable(XrdPollInfo &pInfo);
 
        void Start(XrdSysSemaphore *syncp, int &rc);
 
@@ -53,13 +50,13 @@ public:
 
 protected:
        void doDetach(int pti);
-       void Exclude(XrdLink *lp);
-       int  Include(XrdLink *lp);
+       void Exclude(XrdPollInfo &pInfo);
+       int  Include(XrdPollInfo &pInfo);
 
 private:
 
 void  doRequests(int maxreq);
-void  dqLink(XrdLink *lp, XrdPollInfo *pInfo);
+void  dqLink(XrdPollInfo *pInfo);
 void  LogEvent(int req, int pollfd, int cmdfd);
 void  Recover(int numleft);
 void  Restart(int ecode);

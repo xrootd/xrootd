@@ -41,9 +41,9 @@ class XrdPollE : public XrdPoll
 {
 public:
 
-       void Disable(XrdLink *lp, const char *etxt=0);
+       void Disable(XrdPollInfo &pInfo, const char *etxt=0);
 
-       int   Enable(XrdLink *lp);
+       int   Enable(XrdPollInfo &pInfo);
 
        void Start(XrdSysSemaphore *syncp, int &rc);
 
@@ -52,12 +52,12 @@ public:
            ~XrdPollE();
 
 protected:
-       void  Exclude(XrdLink *lp);
-       int   Include(XrdLink *lp);
+       void  Exclude(XrdPollInfo &pInfo);
+       int   Include(XrdPollInfo &pInfo);
 const  char *x2Text(unsigned int evf, char *buff);
 
 private:
-void remFD(XrdLink *lp, unsigned int events);
+void remFD(XrdPollInfo &pInfo, unsigned int events);
 
 #ifdef EPOLLONESHOT
    static const int ePollOneShot = EPOLLONESHOT;

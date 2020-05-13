@@ -1195,7 +1195,6 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 // Setup the link and socket polling infrastructure
 //
-   XrdPoll::Init(&Log, &XrdTrace, &Sched);
    if (!XrdLinkCtl::Setup(ProtInfo.ConnMax, ProtInfo.idleWait)
    ||  !XrdPoll::Setup(ProtInfo.ConnMax)) return 1;
 

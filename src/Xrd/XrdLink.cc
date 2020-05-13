@@ -62,12 +62,10 @@
 
 #include "Xrd/XrdBuffer.hh"
 
-#include "Xrd/XrdLink.hh"
 #include "Xrd/XrdLinkCtl.hh"
-#include "Xrd/XrdLinkXeq.hh"
 #include "Xrd/XrdPoll.hh"
 
-#define  TRACELINK this
+#define  TRACE_IDENT ID
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdOuc/XrdOucTrace.hh"
@@ -125,6 +123,18 @@ void XrdLink::ResetLink()
 }
 
 /******************************************************************************/
+/*                              A c t i v a t e                               */
+/******************************************************************************/
+  
+bool XrdLink::Activate()
+{
+
+// Attach this link to a poller
+//
+   return XrdPoll::Attach(linkXQ.PollInfo);
+}
+
+/******************************************************************************/
 /*                              A d d r I n f o                               */
 /******************************************************************************/
 
@@ -166,7 +176,7 @@ void XrdLink::DoIt() {} // This is overridden by the implementation
   
 void XrdLink::Enable()
 {
-   if (linkXQ.PollInfo.Poller) linkXQ.PollInfo.Poller->Enable(this);
+   if (linkXQ.PollInfo.Poller) linkXQ.PollInfo.Poller->Enable(linkXQ.PollInfo);
 }
 
 /******************************************************************************/
@@ -175,9 +185,7 @@ void XrdLink::Enable()
 
 int XrdLink::FDnum()
 {
-  int fd = linkXQ.PollInfo.FD;
-
-  return (fd < 0 ? -fd : fd);
+  return linkXQ.PollInfo.FD;
 }
                
 /******************************************************************************/
@@ -186,17 +194,6 @@ int XrdLink::FDnum()
 
 XrdLink *XrdLink::Find(int &curr, XrdLinkMatch *who)
                       {return XrdLinkCtl::Find(curr, who);}
-
-/******************************************************************************/
-/*                               f d 2 l i n k                                */
-/******************************************************************************/
-  
-XrdLink *XrdLink::fd2link(int fd) {return XrdLinkCtl::fd2link(fd);}
-
-/******************************************************************************/
-
-XrdLink *XrdLink::fd2link(int fd, unsigned int inst)
-                         {return XrdLinkCtl::fd2link(fd, inst);}
   
 /******************************************************************************/
 /*                            g e t I O S t a t s                             */
@@ -227,12 +224,6 @@ XrdTlsPeerCerts *XrdLink::getPeerCerts()
 {
    return linkXQ.getPeerCerts();
 }
-  
-/******************************************************************************/
-/*                           g e t P o l l I n f o                            */
-/******************************************************************************/
-
-XrdPollInfo &XrdLink::getPollInfo() {return linkXQ.PollInfo;}
   
 /******************************************************************************/
 /*                           g e t P r o t o c o l                            */
@@ -521,7 +512,7 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
    if (!owner)
       {XrdLink *lp;
        char *cp;
-       if (!(lp = fd2link(fdnum, inst))) return -ESRCH;
+       if (!(lp = XrdLinkCtl::fd2link(fdnum, inst))) return -ESRCH;
        if (lp == this) return 0;
        lp->Hold(true);
        if (!(cp = index(ID, ':')) || strncmp(lp->ID, ID, cp-ID)
@@ -572,7 +563,7 @@ int XrdLink::Terminate(const char *owner, int fdnum, unsigned int inst)
    char buff[1024];
    snprintf(buff, sizeof(buff), "ended by %s", owner);
    buff[sizeof(buff)-1] = '\0';
-   linkXQ.PollInfo.Poller->Disable(this, buff);
+   linkXQ.PollInfo.Poller->Disable(linkXQ.PollInfo, buff);
    linkXQ.LinkInfo.opMutex.UnLock();
 
 // Now wait for the link to shutdown. This avoids lock problems.

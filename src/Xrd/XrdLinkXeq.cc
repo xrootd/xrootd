@@ -65,7 +65,7 @@
 #include "Xrd/XrdSendQ.hh"
 #include "Xrd/XrdTcpMonPin.hh"
 
-#define  TRACELINK this
+#define  TRACE_IDENT ID
 #include "Xrd/XrdTrace.hh"
   
 /******************************************************************************/
@@ -111,14 +111,14 @@ using namespace XrdGlobal;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdLinkXeq::XrdLinkXeq() : XrdLink(*this), PollInfo((XrdLink *)this)
+XrdLinkXeq::XrdLinkXeq() : XrdLink(*this), PollInfo((XrdLink &)*this)
 {
    XrdLinkXeq::Reset();
 }
 
 void XrdLinkXeq::Reset()
 {
-   memcpy(Uname+sizeof(Uname)-5, "anon@", 5);
+   memcpy(Uname+sizeof(Uname)-7, "anon.0@", 7);
    strcpy(Lname, "somewhere");
    ID       = &Uname[sizeof(Uname)-5];
    Comment  = ID;
@@ -201,7 +201,7 @@ int XrdLinkXeq::Close(bool defer)
       {if (!sendQ) Shutdown(false);
           else {TRACEI(DEBUG, "Shutdown FD only via SendQ");
                 LinkInfo.InUse++;
-                PollInfo.FD = -PollInfo.FD;
+                LinkInfo.FD = -LinkInfo.FD; // Leave poll version untouched!
                 wrMutex.Lock();
                 sendQ->Terminate(this);
                 sendQ = 0;
@@ -260,9 +260,9 @@ int XrdLinkXeq::Close(bool defer)
 // table needs to be cleaned up prior to actually closing the socket. So, we
 // do some fancy footwork to prevent multiple closes of this link.
 //
-   fd = (PollInfo.FD < 0 ? -PollInfo.FD : PollInfo.FD);
+   fd = abs(LinkInfo.FD);
    if (PollInfo.FD > 0)
-      {if (PollInfo.Poller) {XrdPoll::Detach(this); PollInfo.Poller = 0;}
+      {if (PollInfo.Poller) {XrdPoll::Detach(PollInfo); PollInfo.Poller = 0;}
        PollInfo.FD = -1;
        opHelper.UnLock();
        XrdLinkCtl::Unhook(fd);
@@ -307,7 +307,7 @@ void XrdLinkXeq::DoIt()
 // disabled, or terminate the connection.
 //
    if (rc >= 0)
-      {if (PollInfo.Poller && !PollInfo.Poller->Enable(this)) Close();}
+      {if (PollInfo.Poller && !PollInfo.Poller->Enable(PollInfo)) Close();}
       else if (rc != -EINPROGRESS) Close();
 }
 
@@ -353,7 +353,7 @@ int XrdLinkXeq::Peek(char *Buff, int Blen, int timeout)
 
 // Do the peek.
 //
-   do {mlen = recv(PollInfo.FD, Buff, Blen, MSG_PEEK);}
+   do {mlen = recv(LinkInfo.FD, Buff, Blen, MSG_PEEK);}
       while(mlen < 0 && errno == EINTR);
 
 // Return the result
@@ -376,12 +376,12 @@ int XrdLinkXeq::Recv(char *Buff, int Blen)
 //
    if (LockReads) rdMutex.Lock();
    isIdle = 0;
-   do {rlen = read(PollInfo.FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
+   do {rlen = read(LinkInfo.FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
    if (rlen > 0) AtomicAdd(BytesIn, rlen);
    if (LockReads) rdMutex.UnLock();
 
    if (rlen >= 0) return int(rlen);
-   if (PollInfo.FD >= 0) Log.Emsg("Link", errno, "receive from", ID);
+   if (LinkInfo.FD >= 0) Log.Emsg("Link", errno, "receive from", ID);
    return -1;
 }
 
@@ -412,7 +412,7 @@ int XrdLinkXeq::Recv(char *Buff, int Blen, int timeout)
                     }
                  return int(totlen);
                 }
-             return (PollInfo.FD >= 0 ? Log.Emsg("Link",-errno,"poll",ID) : -1);
+             return (LinkInfo.FD >= 0 ? Log.Emsg("Link",-errno,"poll",ID) : -1);
             }
 
          // Verify it is safe to read now
@@ -426,11 +426,11 @@ int XrdLinkXeq::Recv(char *Buff, int Blen, int timeout)
          // Read as much data as you can. Note that we will force an error
          // if we get a zero-length read after poll said it was OK.
          //
-         do {rlen = recv(PollInfo.FD, Buff, Blen, 0);}
+         do {rlen = recv(LinkInfo.FD, Buff, Blen, 0);}
             while(rlen < 0 && errno == EINTR);
          if (rlen <= 0)
             {if (!rlen) return -ENOMSG;
-             if (PollInfo.FD > 0) Log.Emsg("Link", -errno, "receive from", ID);
+             if (LinkInfo.FD > 0) Log.Emsg("Link", -errno, "receive from", ID);
              return -1;
             }
          totlen += rlen; Blen -= rlen; Buff += rlen;
@@ -471,7 +471,7 @@ int XrdLinkXeq::RecvAll(char *Buff, int Blen, int timeout)
 //
    if (LockReads) rdMutex.Lock();
    isIdle = 0;
-   do {rlen = recv(PollInfo.FD, Buff, Blen, MSG_WAITALL);}
+   do {rlen = recv(LinkInfo.FD, Buff, Blen, MSG_WAITALL);}
       while(rlen < 0 && errno == EINTR);
    if (rlen > 0) AtomicAdd(BytesIn, rlen);
    if (LockReads) rdMutex.UnLock();
@@ -479,7 +479,7 @@ int XrdLinkXeq::RecvAll(char *Buff, int Blen, int timeout)
    if (int(rlen) == Blen) return Blen;
         if (!rlen) {TRACEI(DEBUG, "No RecvAll() data; errno=" <<errno);}
    else if (rlen > 0) Log.Emsg("RecvAll", "Premature end from", ID);
-   else if (PollInfo.FD >= 0) Log.Emsg("Link", errno, "recieve from", ID);
+   else if (LinkInfo.FD >= 0) Log.Emsg("Link", errno, "recieve from", ID);
    return -1;
 }
 
@@ -527,7 +527,7 @@ int XrdLinkXeq::Send(const char *Buff, int Blen)
 // Write the data out
 //
    while(bytesleft)
-        {if ((retc = write(PollInfo.FD, Buff, bytesleft)) < 0)
+        {if ((retc = write(LinkInfo.FD, Buff, bytesleft)) < 0)
             {if (errno == EINTR) continue;
                 else break;
             }
@@ -628,7 +628,7 @@ int XrdLinkXeq::Send(const sfVec *sfP, int sfN)
 //
    wrMutex.Lock();
    isIdle = 0;
-do{retc = sendfilev(PollInfo.FD, vecSFP, sfN, &xframt);
+do{retc = sendfilev(LinkInfo.FD, vecSFP, sfN, &xframt);
 
 // Check if all went well and return if so (usual case)
 //
@@ -687,7 +687,7 @@ do{retc = sendfilev(PollInfo.FD, vecSFP, sfN, &xframt);
        {if (sfP->fdnum < 0) retc = sendData(sfP->buffer, sfP->sendsz);
            else {myOffset = sfP->offset; bytesleft = sfP->sendsz;
                  while(bytesleft
-                 && (retc=sendfile(PollInfo.FD,sfP->fdnum,&myOffset,bytesleft)) > 0)
+                 && (retc=sendfile(LinkInfo.FD,sfP->fdnum,&myOffset,bytesleft)) > 0)
                       {bytesleft -= retc; xIntr++;}
                 }
         if (retc <  0 && errno == EINTR) continue;
@@ -731,7 +731,7 @@ int XrdLinkXeq::sendData(const char *Buff, int Blen)
 // Write the data out
 //
    while(bytesleft)
-        {if ((retc = write(PollInfo.FD, Buff, bytesleft)) < 0)
+        {if ((retc = write(LinkInfo.FD, Buff, bytesleft)) < 0)
             {if (errno == EINTR) continue;
                 else break;
             }
@@ -761,14 +761,14 @@ int XrdLinkXeq::SendIOV(const struct iovec *iov, int iocnt, int bytes)
 //
    bytesleft = static_cast<ssize_t>(bytes);
    while(bytesleft)
-        {do {retc = writev(PollInfo.FD, iov, iocnt);}
+        {do {retc = writev(LinkInfo.FD, iov, iocnt);}
             while(retc < 0 && errno == EINTR);
          if (retc >= bytesleft || retc < 0) break;
          bytesleft -= retc;
          while(retc >= (n = static_cast<ssize_t>(iov->iov_len)))
               {retc -= n; iov++; iocnt--;}
          Buff = (const char *)iov->iov_base + retc; n -= retc; iov++; iocnt--;
-         while(n) {if ((retc = write(PollInfo.FD, Buff, n)) < 0)
+         while(n) {if ((retc = write(LinkInfo.FD, Buff, n)) < 0)
                       {if (errno == EINTR) continue;
                           else break;
                       }
@@ -938,7 +938,7 @@ int XrdLinkXeq::SFError(int rc)
 
 void XrdLinkXeq::Shutdown(bool getLock)
 {
-   int temp, theFD;
+   int temp;
 
 // Trace the entry
 //
@@ -952,9 +952,8 @@ void XrdLinkXeq::Shutdown(bool getLock)
 //
    temp = Instance; Instance = 0;
    if (!KeepFD)
-      {theFD = (PollInfo.FD < 0 ? -PollInfo.FD : PollInfo.FD);
-       shutdown(theFD, SHUT_RDWR);
-       if (dup2(devNull, theFD) < 0)
+      {shutdown(PollInfo.FD, SHUT_RDWR);
+       if (dup2(devNull, PollInfo.FD) < 0)
           {Instance = temp;
            Log.Emsg("Link", errno, "shutdown FD for", ID);
           }
