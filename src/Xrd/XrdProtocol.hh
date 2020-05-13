@@ -44,7 +44,6 @@ class XrdSysError;
 union XrdNetSockAddr;
 class XrdOucEnv;
 class XrdOucString;
-class XrdOucTrace;
 class XrdBuffManager;
 class XrdInet;
 class XrdScheduler;
@@ -65,7 +64,7 @@ XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler
 XrdStats       *Stats;       // Stable -> System Statistics (@ XrdgetProtocol)
 XrdOucEnv      *theEnv;      // Stable -> Additional environmental information
-XrdOucTrace    *Trace;       // Stable -> Trace Information
+void           *rsvd0;
 
 // The following information must be duplicated; it is unstable.
 //
@@ -101,7 +100,7 @@ XrdTlsContext   *tlsCtx;       // Stable -> TLS Context (0 if not initialized)
 XrdOucString    *totalCF;      // Stable -> total config after full init
 
                  XrdProtocol_Config(XrdProtocol_Config &rhs) =delete;
-                 XrdProtocol_Config() : rsvd1(0)
+                 XrdProtocol_Config() : rsvd0(0), rsvd1(0)
                                         {memset(rsvd3, 0, sizeof(rsvd3));}
                 ~XrdProtocol_Config() {}
 };

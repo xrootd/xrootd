@@ -39,7 +39,6 @@
 // support framework. However, Accept and Connect have been augmented to
 // provide for more scalable communications handling.
 //
-class XrdOucTrace;
 class XrdSysError;
 class XrdSysSemaphore;
 class XrdNetSecurity;
@@ -57,8 +56,8 @@ XrdLink    *Connect(const char *host, int port, int opts=0, int timeout=-1);
 
 void        Secure(XrdNetSecurity *secp);
 
-            XrdInet(XrdSysError *erp, XrdOucTrace *tP, XrdNetSecurity *secp=0)
-                      : XrdNet(erp,0), Patrol(secp), XrdTrace(tP) {}
+            XrdInet(XrdSysError *erp, XrdNetSecurity *secp=0)
+                      : XrdNet(erp,0), Patrol(secp) {}
            ~XrdInet() {}
 
 static void SetAssumeV4(bool newVal) {AssumeV4 = newVal;}
@@ -72,7 +71,6 @@ private:
 int Listen();
 
 XrdNetSecurity    *Patrol;
-XrdOucTrace       *XrdTrace;
 static const char *TraceID;
 static  bool       AssumeV4;
 };

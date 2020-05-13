@@ -48,7 +48,7 @@ XrdSysLogger      Logger;
 XrdSysError       Log(&Logger, "Xrd");
 XrdOucTrace       XrdTrace(&Log);
 XrdScheduler      Sched(&Log, &XrdTrace);
-XrdBuffManager    BuffPool(&Log, &XrdTrace);
+XrdBuffManager    BuffPool;
 XrdTlsContext    *tlsCtx = 0;
 XrdInet          *XrdNetTCP = 0;
 extern XrdBuffXL  xlBuff;

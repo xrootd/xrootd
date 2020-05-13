@@ -75,7 +75,6 @@
 namespace XrdGlobal
 {
 extern XrdSysError    Log;
-extern XrdOucTrace    XrdTrace;
 extern XrdScheduler   Sched;
 extern XrdTlsContext *tlsCtx;
        XrdTcpMonPin  *TcpMonPin = 0;

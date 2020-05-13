@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <string>
 #include <string.h>
 #include <stdio.h>
@@ -49,12 +50,15 @@
 
 #include "XrdVersion.hh"
 
+#include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdBuffXL.hh"
 #include "Xrd/XrdConfig.hh"
+#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdLinkCtl.hh"
 #include "Xrd/XrdPoll.hh"
+#include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
 #include "Xrd/XrdTrace.hh"
 
@@ -72,8 +76,10 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysUtils.hh"
 
@@ -246,7 +252,6 @@ XrdConfig::XrdConfig()
    ProtInfo.Sched   = &Sched;           // Stable -> System Scheduler
    ProtInfo.ConfigFN= 0;                // We will fill this in later
    ProtInfo.Stats   = 0;                // We will fill this in later
-   ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
    ProtInfo.AdmPath = AdminPath;        // Stable -> The admin path
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
    ProtInfo.theEnv  = &theEnv;          // Additional information
@@ -1217,7 +1222,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 // We now go through all of the protocols and get each respective port number.
 //
-   XrdProtLoad::Init(&Log, &XrdTrace); cp = Firstcp;
+   cp = Firstcp;
    while(cp)
         {if (cp->dotls)
             {if (!tlsCtx)
@@ -1251,7 +1256,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
             else for (i = 0; i < XrdProtLoad::ProtoMax && NetTCP[i]; i++)
                      {if (cp->port == NetTCP[i]->Port()) break;}
          if (i >= XrdProtLoad::ProtoMax || !NetTCP[i])
-            {NetTCP[++NetTCPlep] = new XrdInet(&Log, &XrdTrace, Police);
+            {NetTCP[++NetTCPlep] = new XrdInet(&Log, Police);
              if (cp->dotls)
                 {the_Opts = TLS_Opts; the_Blen = TLS_Blen;
                 } else {

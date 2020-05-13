@@ -85,7 +85,6 @@ int           Stats(char *buff, int blen, int do_sync=0) {return 0;}
 namespace XrdGlobal
 {
 extern XrdSysError  Log;
-extern XrdOucTrace  XrdTrace;
 extern XrdScheduler Sched;
 }
 

@@ -68,8 +68,6 @@
 #define  TRACE_IDENT ID
 #include "Xrd/XrdTrace.hh"
 
-#include "XrdOuc/XrdOucTrace.hh"
-
 #include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
@@ -79,7 +77,6 @@
 namespace XrdGlobal
 {
 extern XrdSysError  Log;
-extern XrdOucTrace  XrdTrace;
 };
 
 using namespace XrdGlobal;

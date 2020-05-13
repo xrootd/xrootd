@@ -39,9 +39,6 @@ public:
 
 void          DoIt() {}
 
-static void   Init(XrdSysError *eP, XrdOucTrace *tP)
-                  {XrdLog = eP; XrdTrace = tP;}
-
 static int    Load(const char *lname, const char *pname, char *parms,
                    XrdProtocol_Config *pi, bool istls);
 
@@ -69,9 +66,6 @@ static XrdProtocol *getProtocol    (const char *lname, const char *pname,
                                     char *parms, XrdProtocol_Config *pi);
 static int          getProtocolPort(const char *lname, const char *pname,
                                     char *parms, XrdProtocol_Config *pi);
-
-static XrdSysError   *XrdLog;
-static XrdOucTrace   *XrdTrace;
 
 static char          *ProtName[ProtoMax];   // ->Supported protocol names
 static XrdProtocol   *Protocol[ProtoMax];   // ->Supported protocol objects

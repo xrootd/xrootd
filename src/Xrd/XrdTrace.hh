@@ -48,11 +48,18 @@
 
 #ifndef NODEBUG
 
+#include "XrdOuc/XrdOucTrace.hh"
+
+namespace XrdGlobal
+{
+extern XrdOucTrace XrdTrace;
+}
+
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
 #ifndef XRD_TRACE
-#define XRD_TRACE XrdTrace.
+#define XRD_TRACE XrdGlobal::XrdTrace.
 #endif
 
 #define TRACE(act, x) \

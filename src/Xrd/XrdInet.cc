@@ -44,7 +44,6 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLinkCtl.hh"
 
-#define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdNet/XrdNetAddr.hh"

@@ -173,6 +173,7 @@ add_library(
   Xrd/XrdLinkXeq.cc             Xrd/XrdLinkXeq.hh
   Xrd/XrdLinkMatch.cc           Xrd/XrdLinkMatch.hh
   Xrd/XrdGlobals.cc
+  Xrd/XrdObject.icc             Xrd/XrdObject.hh
   Xrd/XrdPoll.cc                Xrd/XrdPoll.hh
                                 Xrd/XrdPollE.hh
                                 Xrd/XrdPollE.icc

@@ -29,20 +29,14 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "Xrd/XrdBuffer.hh"
-#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
-#include "Xrd/XrdScheduler.hh"
-#include "Xrd/XrdTrace.hh"
 
-#include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysLogger.hh"
-
+class XrdSysError;
 class XrdTcpMonInfo;
 class XrdNetSecurity;
 class XrdOucStream;
+class XrdInet;
 class XrdConfigProt;
 
 class XrdConfig

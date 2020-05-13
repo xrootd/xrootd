@@ -68,9 +68,6 @@ static int pagesz;
 
 // There should be only one instance of this class per buffer pool.
 //
-class XrdOucTrace;
-class XrdSysError;
-  
 class XrdBuffManager
 {
 public:
@@ -91,14 +88,11 @@ void        Set(int maxmem=-1, int minw=-1);
 
 int         Stats(char *buff, int blen, int do_sync=0);
 
-            XrdBuffManager(XrdSysError *lP, XrdOucTrace *tP, int minrst=20*60);
+            XrdBuffManager(int minrst=20*60);
 
            ~XrdBuffManager();   // The buffmanager is never deleted
 
 private:
-
-XrdOucTrace *XrdTrace;
-XrdSysError *XrdLog;
 
 const int  slots;
 const int  shift;

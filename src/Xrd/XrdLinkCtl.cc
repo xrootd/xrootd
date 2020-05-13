@@ -40,8 +40,6 @@
 #define  TRACELINK this
 #include "Xrd/XrdTrace.hh"
 
-#include "XrdOuc/XrdOucTrace.hh"
-
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -53,7 +51,6 @@
 namespace XrdGlobal
 {
 extern XrdSysError  Log;
-extern XrdOucTrace  XrdTrace;
 extern XrdScheduler Sched;
 extern XrdInet     *XrdNetTCP;
 };

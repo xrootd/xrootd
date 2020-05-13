@@ -41,9 +41,7 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdBuffer.hh"
-#include "XrdBuffXL.hh"
-
-#define XRD_TRACE XrdTrace->
+#include "Xrd/XrdBuffXL.hh"
 #include "Xrd/XrdTrace.hh"
 
 /******************************************************************************/
@@ -70,7 +68,8 @@ static const int minBuffSz = 1 << XRD_BUSHIFT;
 
 namespace XrdGlobal
 {
-XrdBuffXL xlBuff;
+       XrdBuffXL   xlBuff;
+extern XrdSysError Log;
 }
 
 using namespace XrdGlobal;
@@ -79,9 +78,7 @@ using namespace XrdGlobal;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdBuffManager::XrdBuffManager(XrdSysError *lP, XrdOucTrace *tP, int minrst) :
-                   XrdTrace(tP),
-                   XrdLog(lP),
+XrdBuffManager::XrdBuffManager(int minrst) :
                    slots(XRD_BUCKETS),
                    shift(XRD_BUSHIFT),
                    pagsz(getpagesize()),
@@ -136,7 +133,7 @@ void XrdBuffManager::Init()
 //
    if ((rc = XrdSysThread::Run(&tid, XrdReshaper, static_cast<void *>(this), 0,
                           "Buffer Manager reshaper")))
-      XrdLog->Emsg("BuffManager", rc, "create reshaper thread");
+      Log.Emsg("BuffManager", rc, "create reshaper thread");
 }
   
 /******************************************************************************/
