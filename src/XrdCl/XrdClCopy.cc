@@ -687,6 +687,7 @@ int main( int argc, char **argv )
   // If we're doing remote recursive copy, chain all the files (if it's a
   // directory)
   //----------------------------------------------------------------------------
+  bool srcIsDir = config.srcFile->Protocol == XrdCpFile::isDir;
   if( config.Want( XrdCpConfig::DoRecurse ) &&
       config.srcFile->Protocol == XrdCpFile::isXroot )
   {
@@ -697,6 +698,7 @@ int main( int argc, char **argv )
     XRootDStatus st = fs->Stat( source.GetPath(), statInfo );
     if( st.IsOK() && statInfo->TestFlags( StatInfo::IsDir ) )
     {
+      srcIsDir = true;
       //------------------------------------------------------------------------
       // Recursively index the remote directory
       //------------------------------------------------------------------------
@@ -758,7 +760,7 @@ int main( int argc, char **argv )
     //--------------------------------------------------------------------------
     std::string target = dest;
     // if this is a recursive copy make sure we preserve the directory structure
-    if( config.Want( XrdCpConfig::DoRecurse ) )
+    if( config.Want( XrdCpConfig::DoRecurse ) && srcIsDir )
     {
       // get the source directory
       std::string srcDir( sourceFile->Path, sourceFile->Doff );
