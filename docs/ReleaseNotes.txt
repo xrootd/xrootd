@@ -5,6 +5,14 @@ XRootD
 Release Notes
 =============
 
+
+--------------
+Version 4.12.1
+--------------
+
++ **Major bug fixes**
+  * **[XrdXrootdVoms]** Fix run-time lib dependencies.
+
 --------------
 Version 4.12.0
 --------------
