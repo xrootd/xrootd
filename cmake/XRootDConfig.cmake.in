@@ -19,6 +19,16 @@
 #   List of components: CLIENT, UTILS, SERVER, POSIX, HTTP and SSI
 ################################################################################
 
+################################################################################
+# Make sure all *_FOUND variables are intialized to FALSE
+################################################################################
+SET( XROOTD_FOUND         FALSE )
+SET( XROOTD_CLIENT_FOUND  FALSE )
+SET( XROOTD_UTILS_FOUND   FALSE )
+SET( XROOTD_SERVER_FOUND  FALSE )
+SET( XROOTD_POSIX_FOUND   FALSE )
+SET( XROOTD_HTTP_FOUND    FALSE )
+SET( XROOTD_SSI_FOUND     FALSE )
 
 ################################################################################
 # Set XRootD include paths
@@ -63,7 +73,7 @@ ENDIF()
 IF( XRootD_FIND_REQUIRED_CLIENT AND NOT XROOTD_CLIENT_FOUND )
   MESSAGE( "XRootD client required but not found!" )
   LIST( APPEND _XROOTD_MISSING_COMPONENTS XROOTD_CLIENT_FOUND )
-  UNSET( XROOTD_FOUND )
+  SER( XROOTD_FOUND FALSE )
 ENDIF()
 
 ################################################################################
@@ -87,7 +97,7 @@ ENDIF()
 IF( XRootD_FIND_REQUIRED_UTILS AND NOT XROOTD_UTILS_FOUND )
   MESSAGE( "XRootD utils required but not found!" )
   LIST( APPEND _XROOTD_MISSING_COMPONENTS XROOTD_UTILS_FOUND )
-  UNSET( XROOTD_FOUND )
+  SET( XROOTD_FOUND FALSE )
 ENDIF()
 
 ################################################################################
@@ -111,7 +121,7 @@ ENDIF()
 IF( XRootD_FIND_REQUIRED_SERVER AND NOT XROOTD_SERVER_FOUND )
   MESSAGE( "XRootD server required but not found!" )
   LIST( APPEND _XROOTD_MISSING_COMPONENTS XROOTD_SERVER_FOUND )
-  UNSET( XROOTD_FOUND )
+  SET( XROOTD_FOUND FALSE )
 ENDIF()
 
 ################################################################################
@@ -148,7 +158,7 @@ ENDIF()
 IF( XRootD_FIND_REQUIRED_POSIX AND NOT XROOTD_POSIX_FOUND )
   MESSAGE( "XRootD posix required but not found!" )
   LIST( APPEND _XROOTD_MISSING_COMPONENTS XROOTD_POSIX_FOUND )
-  UNSET( XROOTD_FOUND )
+  SET( XROOTD_FOUND FALSE )
 ENDIF()
 
 ################################################################################
@@ -172,7 +182,7 @@ ENDIF()
 IF( XRootD_FIND_REQUIRED_HTTP AND NOT XROOTD_HTTP_FOUND )
   MESSAGE( "XRootD http required but not found!" )
   LIST( APPEND _XROOTD_MISSING_COMPONENTS XROOTD_HTTP_FOUND )
-  UNSET( XROOTD_FOUND )
+  SET( XROOTD_FOUND FALSE )
 ENDIF()
 
 ################################################################################
@@ -209,14 +219,14 @@ ENDIF()
 IF( XRootD_FIND_REQUIRED_SSI AND NOT XROOTD_SSI_FOUND )
   MESSAGE( "XRootD ssi required but not found!" )
   LIST (APPEND _XROOTD_MISSING_COMPONENTS XROOTD_SSI_FOUND )
-  UNSET( XROOTD_FOUND )
+  SET( XROOTD_FOUND FALSE )
 ENDIF()
 
 ################################################################################
 # Utility variables for plug-in development
 ################################################################################
 IF( XROOTD_FOUND )
-  SET( XROOTD_PLUGIN_VERSION, @PLUGIN_VERSION@ )
+  SET( XROOTD_PLUGIN_VERSION @PLUGIN_VERSION@ )
 ENDIF()
 
 ################################################################################
