@@ -1,0 +1,139 @@
+.TH libXrdSecgsiVOMS 1 "28 June 2019"
+.SH NAME
+libXrdSecgsiVOMS - XRootD plug-in to extract VOMS attributes
+.SH SYNOPSIS
+.nf
+
+sec.protparm gsi -vomsfun:\fBlibXrdSecgsiVOMS.so\fR
+sec.protparm gsi -vomsfunparms:\fIoptions\fR
+
+.SH DESCRIPTION
+The \fBlibXrdSecgsiVOMS\fR plug-in provides an implementation of the
+
+.nf
+int XrdSecgsiVOMSFun(XrdSecEntity &ent)
+int XrdSecgsiVOMSInit(const char *cfg)
+
+functions making use of the official VOMS API libraries to validate and extract the VOMS attributes from a VOMS proxy.
+
+.SH OPTIONS
+The following options are available:
+
+\fBcertfmt={raw,pem,x509}\fR
+.RS 2
+Certificate format: \fBraw\fR to be used with XrdCrypto tools; \fBpem\fR PEM base64 format (as in cert files); \fBx509\fR, as a STACK_OF(X509). Default: \fBraw\fR.
+.RE
+
+\fBgrpopt=opt\fR
+.RS 2
+Defines how to use the group names information; \fBopt\fR is defined as \fBsel\fR * 10 + \fBwhich\fR, with \fBsel\fR either \fB0\fR
+(consider all the groups present in the VOMS extension)
+or \fB1\fR (select among those groups specified by the \fBgrps\fR option; see below); \fBwhich\fR can be either \fB0\fR (take the first one)
+or \fB1\fR (take the last) or \fB2\fR (take all, comma separated, and created a vertically sliced tuple; see \fBNOTES\fR below).
+.RE
+
+\fBgrps=grp1[,grp2,...]\fR
+.RS 2
+Group(s) for which the information is extracted; if specified, the grpopt \fBsel\fR is set to \fB1\fR regardless of the setting; see \fBNOTES\fR below.
+.RE
+
+\fBvos=vo1[,vo2,...]\fR
+.RS 2
+VOs to be considered; the first match is taken; see \fBNOTES\fR below.
+.RE
+
+\fBgrpfmt=fmtstring\fR, \fBrolefmt=fmtstring\fR, \fBvofmt=fmtstring\fR
+.RS 2
+String to be used to format the content of XrdSecEntity::grps, XrdSecEntity::role, XrdSecEntity::vorg, respectively.
+These strings are optional and by default they are empty.
+.RE
+.RS 2
+Recognized place holders in the above format strings:
+.RE
+.RS 5
+
+.nf
+<r>: role
+<g>: group
+<vo>: VO
+<an>: Full Qualified Attribute Name
+
+.RE
+.RS 2
+For example, rolefmt=<g>|grpfmt=<r>|vofmt="<vo> <an>" will inverse the group and role, and will add a space and the FQAN
+in the vorg field of XrdSecEntity.
+.RE
+
+\fBdbg\fR
+.RS 2
+Force verbose mode.
+.RE
+
+Multiple options can be specified separated by '\fR|\fB'.
+
+.SH NOTES
+
+Specifying \fBgrps\fR or \fBvos\fR options forces a failure if the requested group and/or VO is not found. In this regard, this plug-in may
+act as a sort of authorization filter. Note that most refined authorization based on VOMS information may be achieved using
+the \fBlibXrdSecgsiAuthzVO\fR plug-in distributed with XRootD.
+
+Option 'all' for the group selection (which=2) will generated a vertically sliced tuple including VO, group and role fields. For example, the following VOMS attributes
+
+.nf
+attribute : /atlas/de/Role=production/Capability=NULL
+attribute : /atlas/de/Role=NULL/Capability=NULL
+attribute : /atlas/Role=NULL/Capability=NULL
+
+would result in following content in the XrdSecEntity fields:
+
+.nf
+
+vorg: atlas atlas atlas
+grps: /atlas/de /atlas/de /atlas
+role: producton NULL NULL
+
+The default XrdAcc will take its decision by checking in turn the triplets obtained slicing vertically this tuple.
+
+.SH EXAMPLES
+
+The following example shows how configure the plugin to select VO=cms, select the first group, use the PEM format for the proxy
+and switch on debugging; it shows also how to specify multiple options, either on the same line or on multiple lines.
+.RS 5
+
+.nf
+sec.protparm gsi -vomsfun:libXrdSecgsiVOMS.so
+sec.protparm gsi -vomsfunparms:grpopt=0|vos=cms|certfmt=pem
+sec.protparm gsi -vomsfunparms:dbg
+
+.SH FILES
+The plug-in files are
+.nf
+
+lib64/libXrdSecgsiVOMS-4.so (or lib/libXrdSecgsiVOMS-4.so)\fR
+include/vomsxrd/XrdSecgsiVOMS.hh\fR
+include/vomsxrd/XrdSecgsiVOMSVers.hh\fR
+
+and are typically available under \fB/usr\fR.
+
+
+.SH ENVIRONMENT
+The environment \fBX509_VOMS_DIR\fR must be set to a valid directory; this is typically \fB/etc/grid-security/vomsdir\fR.
+
+.SH DIAGNOSTICS
+The \fBlibXrdSecgsiVOMS\fR plug-in requires \fBlibvomsapi.so\fR and the openssl libraries. In case of load failure it may be
+useful to check with ldd if all the required dependencies are correctly resolved.
+
+.SH LICENSE
+LGPL; see http://www.gnu.org/licenses/.
+
+.SH AUTHOR AND SUPPORT
+The \fBlibXrdSecgsiVOMS\fR plug-in has been implemented by Gerardo Ganis (Gerardo.Ganis@cern.ch).
+Any request for support should addressed via the project main web site
+.ce
+https://github.com/gganis/vomsxrd
+
+or via the XRootD support site
+.ce
+https://github.com/xrootd/xrootd
+
+

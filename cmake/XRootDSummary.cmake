@@ -12,7 +12,7 @@ component_status( HTTP      BUILD_HTTP        OPENSSL_FOUND )
 component_status( TPC       BUILD_TPC         CURL_FOUND )
 component_status( MACAROONS BUILD_MACAROONS   MACAROONS_FOUND )
 component_status( PYTHON    BUILD_PYTHON      PYTHON_FOUND )
-component_status( VOMSXRD   VOMSXRD_SUBMODULE VOMS_FOUND )
+component_status( VOMSXRD   BUILD_VOMS        VOMS_FOUND )
 
 message( STATUS "----------------------------------------" )
 message( STATUS "Installation path: " ${CMAKE_INSTALL_PREFIX} )
