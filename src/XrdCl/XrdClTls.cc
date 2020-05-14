@@ -26,6 +26,8 @@
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
+#include <string>
+
 namespace
 {
   //------------------------------------------------------------------------
@@ -104,11 +106,13 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Establish a TLS/SSL session and perform host verification.
   //------------------------------------------------------------------------
-  Status Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
+  XRootDStatus Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
   {
     std::string errmsg;
     XrdTls::RC error = pTls->Connect( thehost.c_str(), &errmsg );
-    Status status = ToStatus( error );
+    XRootDStatus status = ToStatus( error );
+    if( !status.IsOK() )
+      status.SetErrorMessage( errmsg );
 
     //--------------------------------------------------------------------------
     // There's no follow up if the read simply failed
@@ -153,14 +157,14 @@ namespace XrdCl
     return status;
   }
 
-  Status Tls::Read( char *buffer, size_t size, int &bytesRead )
+  XRootDStatus Tls::Read( char *buffer, size_t size, int &bytesRead )
   {
     //--------------------------------------------------------------------------
     // If necessary, TLS_read() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call connect or do_handshake.
     //--------------------------------------------------------------------------
     XrdTls::RC error = pTls->Read( buffer, size, bytesRead );
-    Status status = ToStatus( error );
+    XRootDStatus status = ToStatus( error );
 
     //--------------------------------------------------------------------------
     // There's no follow up if the read simply failed
@@ -212,14 +216,14 @@ namespace XrdCl
     return status;
   }
 
-  Status Tls::Send( const char *buffer, size_t size, int &bytesWritten )
+  XRootDStatus Tls::Send( const char *buffer, size_t size, int &bytesWritten )
   {
     //--------------------------------------------------------------------------
     // If necessary, TLS_write() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call connect or do_handshake.
     //--------------------------------------------------------------------------
     XrdTls::RC error = pTls->Write( buffer, size, bytesWritten );
-    Status status = ToStatus( error );
+    XRootDStatus status = ToStatus( error );
 
     //--------------------------------------------------------------------------
     // There's no follow up if the write simply failed
@@ -277,25 +281,27 @@ namespace XrdCl
     return status;
   }
 
-  Status Tls::ToStatus( int error )
+  XRootDStatus Tls::ToStatus( XrdTls::RC rc )
   {
-    switch( error )
+    std::string msg = XrdTls::RC2Text( rc, true );
+
+    switch( rc )
     {
       case XrdTls::TLS_AOK: return Status();
 
       case XrdTls::TLS_WantConnect:
       case XrdTls::TLS_WantWrite:
-      case XrdTls::TLS_WantRead:  return Status( stOK, suRetry, error );
+      case XrdTls::TLS_WantRead:  return XRootDStatus( stOK, suRetry, 0, msg );
 
       case XrdTls::TLS_SSL_Error:
       case XrdTls::TLS_UNK_Error:
-      case XrdTls::TLS_SYS_Error: return Status( stError, errTlsError, errno );
+      case XrdTls::TLS_SYS_Error: return XRootDStatus( stError, errTlsError, errno, msg );
 
       case XrdTls::TLS_VER_Error:
-      case XrdTls::TLS_HNV_Error: return Status( stFatal, errTlsError, errno );
+      case XrdTls::TLS_HNV_Error: return XRootDStatus( stFatal, errTlsError, errno, msg );
 
       default:
-        return Status( stError, errTlsError, error );
+        return XRootDStatus( stError, errTlsError, rc, msg );
     }
   }
 

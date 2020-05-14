@@ -23,7 +23,7 @@
 
 #include "XrdTls/XrdTlsSocket.hh"
 
-#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
 
 namespace XrdCl
@@ -52,19 +52,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Establish a TLS/SSL session and perform host verification.
       //------------------------------------------------------------------------
-      Status Connect( const std::string &thehost, XrdNetAddrInfo *netInfo );
+      XRootDStatus Connect( const std::string &thehost, XrdNetAddrInfo *netInfo );
 
       //------------------------------------------------------------------------
       //! Read through the TLS layer from the socket
       //! If necessary, will establish a TLS/SSL session.
       //------------------------------------------------------------------------
-      Status Read( char *buffer, size_t size, int &bytesRead );
+      XRootDStatus Read( char *buffer, size_t size, int &bytesRead );
 
       //------------------------------------------------------------------------
       //! Write through the TLS layer to the socket
       //! If necessary, will establish a TLS/SSL session.
       //------------------------------------------------------------------------
-      Status Send( const char *buffer, size_t size, int &bytesWritten );
+      XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten );
 
       //------------------------------------------------------------------------
       //! Map:
@@ -96,7 +96,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Translate OPEN SSL error code into XRootD Status
       //------------------------------------------------------------------------
-      Status ToStatus( int rc );
+      XRootDStatus ToStatus( XrdTls::RC rc );
 
       //------------------------------------------------------------------------
       //! The underlying vanilla socket
