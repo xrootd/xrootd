@@ -33,8 +33,7 @@ install(
 
 install(
    FILES
-   ${CMAKE_BINARY_DIR}/src/XrdSecgsiVOMSVers.hh
-   ${CMAKE_SOURCE_DIR}/src/XrdSecgsiVOMS.hh
+   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdSecgsiVOMS.hh
    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/XrdVoms )
 
 install(

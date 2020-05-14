@@ -299,27 +299,6 @@ fi
 cd - > /dev/null
 
 #-------------------------------------------------------------------------------
-# Add XrdXrootdVoms sub-module to our tarball
-#-------------------------------------------------------------------------------
-cd src/XrdXrootdVoms
-
-COMMIT=`git log --pretty=format:"%H" -1`
-
-git archive --prefix=xrootd/src/XrdXrootdVoms/ --format=tar $COMMIT > $RPMSOURCES/xrootd-voms.tar
-if test $? -ne 0; then
-  echo "[!] Unable to create the xrootd-voms source tarball" 1>&2
-  exit 6
-fi
-
-tar --concatenate --file $RPMSOURCES/xrootd.tar $RPMSOURCES/xrootd-voms.tar
-if test $? -ne 0; then
-  echo "[!] Unable to add xrootd-voms to xrootd tarball" 1>&2
-  exit 6
-fi
-
-cd - > /dev/null
-
-#-------------------------------------------------------------------------------
 # gzip the tarball
 #-------------------------------------------------------------------------------
 gzip -9fn $RPMSOURCES/xrootd.tar
