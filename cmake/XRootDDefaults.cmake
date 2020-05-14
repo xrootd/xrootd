@@ -21,5 +21,5 @@ option( ENABLE_PYTHON    "Enable python bindings."                              
 option( XRDCL_ONLY       "Build only the client and necessary dependencies"               FALSE )
 option( XRDCL_LIB_ONLY   "Build only the client libraries and necessary dependencies"     FALSE )
 option( PYPI_BUILD       "The project is being built for PyPI release"                    FALSE )
-option( ENABLE_VOMS      "Enable VOMS plug-in if possible."                               FALSE )
+option( ENABLE_VOMS      "Enable VOMS plug-in if possible."                               TRUE )
 define_default( XRD_PYTHON_REQ_VERSION 2.4 )
