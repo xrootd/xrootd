@@ -53,16 +53,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Status Socket::Initialize( int family )
+  XRootDStatus Socket::Initialize( int family )
   {
     if( pSocket != -1 )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     pSocket = ::socket( family, SOCK_STREAM, 0 );
     if( pSocket < 0 )
     {
       pSocket = -1;
-      return Status( stError, errSocketError );
+      return XRootDStatus( stError, errSocketError );
     }
 
     pProtocolFamily = family;
@@ -77,7 +77,7 @@ namespace XrdCl
     if( ::fcntl( pSocket, F_SETFL, flags | O_NONBLOCK | O_NDELAY ) == -1 )
     {
       Close();
-      return Status( stError, errFcntl, errno );
+      return XRootDStatus( stError, errFcntl, errno );
     }
 
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
@@ -86,7 +86,7 @@ namespace XrdCl
     if( setsockopt( pSocket, IPPROTO_TCP, TCP_NODELAY, &flags, sizeof( int ) ) < 0 )
     {
       Close();
-      return Status( stError, errFcntl, errno );
+      return XRootDStatus( stError, errFcntl, errno );
     }
 
     //--------------------------------------------------------------------------
@@ -95,7 +95,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
 #ifdef __APPLE__
     int set = 1;
-    Status st = SetSockOpt( SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int) );
+    XRootDStatus st = SetSockOpt( SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int) );
     if( !st.IsOK() )
     {
       Close();
@@ -107,82 +107,82 @@ namespace XrdCl
     sigaction( SIGPIPE, &act, NULL );
 #endif
 
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Set the socket flags
   //----------------------------------------------------------------------------
-  Status Socket::SetFlags( int flags )
+  XRootDStatus Socket::SetFlags( int flags )
   {
     if( pSocket == -1 )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     int st = ::fcntl( pSocket, F_SETFL, flags );
     if( st == -1 )
-      return Status( stError, errSocketError, errno );
-    return Status();
+      return XRootDStatus( stError, errSocketError, errno );
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Get the socket flags
   //----------------------------------------------------------------------------
-  Status Socket::GetFlags( int &flags )
+  XRootDStatus Socket::GetFlags( int &flags )
   {
     if( pSocket == -1 )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     int st = ::fcntl( pSocket, F_GETFL, 0 );
     if( st == -1 )
-      return Status( stError, errSocketError, errno );
+      return XRootDStatus( stError, errSocketError, errno );
     flags = st;
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Get socket options
   //----------------------------------------------------------------------------
-  Status Socket::GetSockOpt( int level, int optname, void *optval,
-                             socklen_t *optlen )
+  XRootDStatus Socket::GetSockOpt( int level, int optname, void *optval,
+                                   socklen_t *optlen )
   {
     if( pSocket == -1 )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     if( ::getsockopt( pSocket, level, optname, optval, optlen ) != 0 )
-      return Status( stError, errSocketOptError, errno );
+      return XRootDStatus( stError, errSocketOptError, errno );
 
-    return Status();
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
   // Set socket options
   //------------------------------------------------------------------------
-  Status Socket::SetSockOpt( int level, int optname, const void *optval,
-                             socklen_t optlen )
+  XRootDStatus Socket::SetSockOpt( int level, int optname, const void *optval,
+                                   socklen_t optlen )
   {
     if( pSocket == -1 )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     if( ::setsockopt( pSocket, level, optname, optval, optlen ) != 0 )
-      return Status( stError, errSocketOptError, errno );
+      return XRootDStatus( stError, errSocketOptError, errno );
 
-    return Status();
+    return XRootDStatus();
   }
 
 
   //----------------------------------------------------------------------------
   // Connect to the given host name
   //----------------------------------------------------------------------------
-  Status Socket::Connect( const std::string &host,
-                          uint16_t           port,
-                          uint16_t           timeout )
+  XRootDStatus Socket::Connect( const std::string &host,
+                                uint16_t           port,
+                                uint16_t           timeout )
   {
     if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     std::vector<XrdNetAddr> addrs;
     std::ostringstream o; o << host << ":" << port;
-    Status st;
+    XRootDStatus st;
 
     if( pProtocolFamily == AF_INET6 )
       st = Utils::GetHostAddresses( addrs, URL( o.str() ), Utils::IPAll );
@@ -202,11 +202,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Connect to the given host
   //----------------------------------------------------------------------------
-  Status Socket::ConnectToAddress( const XrdNetAddr &addr,
-                                   uint16_t          timeout )
+  XRootDStatus Socket::ConnectToAddress( const XrdNetAddr &addr,
+                                         uint16_t          timeout )
   {
     if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     pServerAddr = addr;
 
@@ -217,7 +217,7 @@ namespace XrdCl
                                          pServerAddr.SockSize(), timeout );
     if( status != 0 )
     {
-      Status st( stError );
+      XRootDStatus st( stError );
 
       //------------------------------------------------------------------------
       // If we connect asynchronously this is not really an error
@@ -225,7 +225,7 @@ namespace XrdCl
       if( !timeout && status == EINPROGRESS )
       {
         pStatus = Connecting;
-        return Status();
+        return XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -241,7 +241,7 @@ namespace XrdCl
       return st;
     }
     pStatus = Connected;
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
@@ -263,25 +263,25 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Read raw bytes from the socket
   //----------------------------------------------------------------------------
-  Status Socket::ReadRaw( void *buffer, uint32_t size, int32_t timeout,
-                          uint32_t &bytesRead )
+  XRootDStatus Socket::ReadRaw( void *buffer, uint32_t size, int32_t timeout,
+                                uint32_t &bytesRead )
   {
     //--------------------------------------------------------------------------
     // Check if we're connected
     //--------------------------------------------------------------------------
     if( pStatus != Connected )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
     // Some useful variables
     //--------------------------------------------------------------------------
     bytesRead = 0;
 
-    char    *current    = (char *)buffer;
-    bool     useTimeout = (timeout!=-1);
-    time_t   now        = 0;
-    time_t   newNow     = 0;
-    Status   sc;
+    char          *current    = (char *)buffer;
+    bool           useTimeout = (timeout!=-1);
+    time_t         now        = 0;
+    time_t         newNow     = 0;
+    XRootDStatus   sc;
 
     if( useTimeout )
       now = ::time(0);
@@ -316,7 +316,7 @@ namespace XrdCl
         if( n == 0 )
         {
           Close();
-          return Status( stError, errSocketDisconnected );
+          return XRootDStatus( stError, errSocketDisconnected );
         }
 
         //----------------------------------------------------------------------
@@ -325,7 +325,7 @@ namespace XrdCl
         if( (n < 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK) )
         {
           Close();
-          return Status( stError, errSocketError, errno );
+          return XRootDStatus( stError, errSocketError, errno );
         }
       }
       else
@@ -351,32 +351,32 @@ namespace XrdCl
     // Have we managed to read everything?
     //--------------------------------------------------------------------------
     if( bytesRead < size )
-      return Status( stError, errSocketTimeout );
-    return Status( stOK );
+      return XRootDStatus( stError, errSocketTimeout );
+    return XRootDStatus( stOK );
   }
 
   //----------------------------------------------------------------------------
   // Write raw bytes to the socket
   //----------------------------------------------------------------------------
-  Status Socket::WriteRaw( void *buffer, uint32_t size, int32_t timeout,
-                           uint32_t &bytesWritten )
+  XRootDStatus Socket::WriteRaw( void *buffer, uint32_t size, int32_t timeout,
+                                 uint32_t &bytesWritten )
   {
     //--------------------------------------------------------------------------
     // Check if we're connected
     //--------------------------------------------------------------------------
     if( pStatus != Connected )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
     // Some useful variables
     //--------------------------------------------------------------------------
     bytesWritten = 0;
 
-    char    *current    = (char *)buffer;
-    bool     useTimeout = (timeout!=-1);
-    time_t   now        = 0;
-    time_t   newNow     = 0;
-    Status   sc;
+    char          *current    = (char *)buffer;
+    bool           useTimeout = (timeout!=-1);
+    time_t         now        = 0;
+    time_t         newNow     = 0;
+    XRootDStatus   sc;
 
     if( useTimeout )
       now = ::time(0);
@@ -410,7 +410,7 @@ namespace XrdCl
         if( (n <= 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK) )
         {
           Close();
-          return Status( stError, errSocketError, errno );
+          return XRootDStatus( stError, errSocketError, errno );
         }
       }
       else
@@ -436,15 +436,15 @@ namespace XrdCl
     // Have we managed to read everything?
     //--------------------------------------------------------------------------
     if( bytesWritten < size )
-      return Status( stError, errSocketTimeout );
+      return XRootDStatus( stError, errSocketTimeout );
 
-    return Status( stOK );
+    return XRootDStatus( stOK );
   }
 
   //------------------------------------------------------------------------
   // Portable wrapper around SIGPIPE free send
   //----------------------------------------------------------------------------
-  Status Socket::Send( const char *buffer, size_t size, int &bytesWritten )
+  XRootDStatus Socket::Send( const char *buffer, size_t size, int &bytesWritten )
   {
     if( pTls ) return pTls->Send( buffer, size, bytesWritten );
 
@@ -461,20 +461,20 @@ namespace XrdCl
       return ClassifyErrno( errno );
 
     bytesWritten = status;
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Poll the descriptor
   //----------------------------------------------------------------------------
-  Status Socket::Poll( bool readyForReading, bool readyForWriting,
-                       int32_t timeout )
+  XRootDStatus Socket::Poll( bool readyForReading, bool readyForWriting,
+                             int32_t timeout )
   {
     //--------------------------------------------------------------------------
     // Check if we're connected
     //--------------------------------------------------------------------------
     if( pStatus != Connected )
-      return Status( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
     // Prepare the stuff
@@ -513,7 +513,7 @@ namespace XrdCl
     {
       pollRet = poll( &pollDesc, 1, (useTimeout ? timeout*1000 : -1) );
       if( (pollRet < 0) && (errno != EINTR) && (errno != EAGAIN) )
-        return Status( stError, errPoll, errno );
+        return XRootDStatus( stError, errPoll, errno );
 
       //------------------------------------------------------------------------
       // Check if we did not time out in the case where we are not supposed
@@ -525,7 +525,7 @@ namespace XrdCl
         timeout -= (newNow-now);
         now      = newNow;
         if( timeout < 0 )
-          return Status( stError, errSocketTimeout );
+          return XRootDStatus( stError, errSocketTimeout );
       }
     }
     while( pollRet == -1 );
@@ -534,25 +534,25 @@ namespace XrdCl
     // Check if we have timed out
     //--------------------------------------------------------------------------
     if( pollRet == 0 )
-      return Status( stError, errSocketTimeout );
+      return XRootDStatus( stError, errSocketTimeout );
 
     //--------------------------------------------------------------------------
     // We have some events
     //--------------------------------------------------------------------------
     if( pollDesc.revents & (POLLIN | POLLPRI | POLLOUT) )
-      return Status( stOK );
+      return XRootDStatus( stOK );
 
     //--------------------------------------------------------------------------
     // We've been hang up on
     //--------------------------------------------------------------------------
     if( pollDesc.revents & hupEvents )
-      return Status( stError, errSocketDisconnected );
+      return XRootDStatus( stError, errSocketDisconnected );
 
     //--------------------------------------------------------------------------
     // We're messed up, either because we messed up ourselves (POLLNVAL) or
     // got messed up by the network (POLLERR)
     //--------------------------------------------------------------------------
-    return Status( stError, errSocketError );
+    return XRootDStatus( stError, errSocketError );
   }
 
   //----------------------------------------------------------------------------
@@ -618,7 +618,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Classify errno while reading/writing
   //------------------------------------------------------------------------
-  Status Socket::ClassifyErrno( int error )
+  XRootDStatus Socket::ClassifyErrno( int error )
   {
     switch( errno )
     {
@@ -632,7 +632,7 @@ namespace XrdCl
         // Reading/writing operation would block! So we are done for now,
         // but we will be back ;-)
         //------------------------------------------------------------------
-        return Status( stOK, suRetry );
+        return XRootDStatus( stOK, suRetry );
       }
       case ECONNRESET:
       case EDESTADDRREQ:
@@ -643,21 +643,21 @@ namespace XrdCl
         //------------------------------------------------------------------
         // Actual socket error error!
         //------------------------------------------------------------------
-        return Status( stError, errSocketError, errno );
+        return XRootDStatus( stError, errSocketError, errno );
       }
       case EFAULT:
       {
         //------------------------------------------------------------------
         // The buffer provided by the user for reading/writing is invalid
         //------------------------------------------------------------------
-        return Status( stError, errInvalidArgs );
+        return XRootDStatus( stError, errInvalidArgs );
       }
       default:
       {
         //------------------------------------------------------------------
         // Not a socket error
         //------------------------------------------------------------------
-        return Status( stError, errInternal, errno );
+        return XRootDStatus( stError, errInternal, errno );
       }
     }
   }
@@ -666,7 +666,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read helper from raw socket helper
   //----------------------------------------------------------------------------
-  Status Socket::Read( char *buffer, size_t size, int &bytesRead )
+  XRootDStatus Socket::Read( char *buffer, size_t size, int &bytesRead )
   {
     if( pTls ) return pTls->Read( buffer, size, bytesRead );
 
@@ -675,58 +675,58 @@ namespace XrdCl
     // if the server shut down the socket declare a socket error (it
     // will trigger a re-connect)
     if( status == 0 )
-      return Status( stError, errSocketError, errno );
+      return XRootDStatus( stError, errSocketError, errno );
 
     if( status < 0 )
       return ClassifyErrno( errno );
 
     bytesRead = status;
-    return Status();
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
   // Cork the underlying socket
   //------------------------------------------------------------------------
-  Status Socket::Cork()
+  XRootDStatus Socket::Cork()
   {
 #if defined(TCP_CORK) // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
-    if( pCorked ) return Status();
+    if( pCorked ) return XRootDStatus();
 
     int state = 1;
     int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
     if( rc != 0 )
-      return Status( stFatal, errSocketOptError, errno );
+      return XRootDStatus( stFatal, errSocketOptError, errno );
 #endif
     pCorked = true;
-    return Status();
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
   // Uncork the underlying socket
   //------------------------------------------------------------------------
-  Status Socket::Uncork()
+  XRootDStatus Socket::Uncork()
   {
 #if defined(TCP_CORK) // it's not defined on mac, we might want explore the possibility of using TCP_NOPUSH
-    if( !pCorked ) return Status();
+    if( !pCorked ) return XRootDStatus();
 
     int state = 0;
     int rc = setsockopt( pSocket, IPPROTO_TCP, TCP_CORK, &state, sizeof( state ) );
     if( rc != 0 )
-      return Status( stFatal, errSocketOptError, errno );
+      return XRootDStatus( stFatal, errSocketOptError, errno );
 #endif
     pCorked = false;
-    return Status();
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
   // Flash the underlying socket
   //------------------------------------------------------------------------
-  Status Socket::Flash()
+  XRootDStatus Socket::Flash()
   {
     //----------------------------------------------------------------------
     // Uncork the socket in order to flash the socket
     //----------------------------------------------------------------------
-    Status st = Uncork();
+    XRootDStatus st = Uncork();
     if( !st.IsOK() ) return st;
 
     //----------------------------------------------------------------------
@@ -747,7 +747,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Enable encryption
   //------------------------------------------------------------------------
-  Status Socket::TlsHandShake( AsyncSocketHandler *socketHandler,
+  XRootDStatus Socket::TlsHandShake( AsyncSocketHandler *socketHandler,
                                    const std::string  &thehost )
   {
     try
@@ -759,10 +759,10 @@ namespace XrdCl
     {
       // the exception has been thrown when we tried to create
       // the TLS context
-      return Status( stFatal, errTlsError );
+      return XRootDStatus( stFatal, errTlsError );
     }
 
-    return Status();
+    return XRootDStatus();
   }
 
 }

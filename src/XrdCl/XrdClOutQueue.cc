@@ -72,7 +72,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Report status to all handlers
   //----------------------------------------------------------------------------
-  void OutQueue::Report( Status status )
+  void OutQueue::Report( XRootDStatus status )
   {
     MessageList::iterator it;
     for( it = pMessages.begin(); it != pMessages.end(); ++it )

@@ -154,8 +154,8 @@ namespace XrdCl
       //! @param status    status info
       //! @return          Action::RemoveHandler or 0
       //------------------------------------------------------------------------
-      virtual uint8_t OnStreamEvent( StreamEvent event,
-                                     Status      status )
+      virtual uint8_t OnStreamEvent( StreamEvent   event,
+                                     XRootDStatus  status )
       {
         (void)event; (void)status;
         return 0;
@@ -174,7 +174,7 @@ namespace XrdCl
       //! The requested action has been performed and the status is available
       //------------------------------------------------------------------------
       virtual void OnStatusReady( const Message *message,
-                                  Status         status ) = 0;
+                                  XRootDStatus   status ) = 0;
 
       //------------------------------------------------------------------------
       //! Called just before the message is going to be sent through

@@ -22,7 +22,7 @@
 #include <XrdSys/XrdSysPthread.hh>
 #include <map>
 #include <utility>
-#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 
 namespace XrdCl
@@ -76,7 +76,7 @@ namespace XrdCl
       //! Report an event to the handlers
       //------------------------------------------------------------------------
       void ReportStreamEvent( IncomingMsgHandler::StreamEvent event,
-                              Status                          status );
+                              XRootDStatus                    status );
 
       //------------------------------------------------------------------------
       //! Timeout handlers

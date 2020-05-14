@@ -132,7 +132,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( pSocket->IsCorked() )
       {
-        Status st = pSocket->Uncork();
+        XRootDStatus st = pSocket->Uncork();
         if( !st.IsOK() ) return st;
       }
 
@@ -141,7 +141,7 @@ namespace XrdCl
       //----------------------------------------------------------------------
       if( error == XrdTls::TLS_WantWrite )
       {
-        Status st = pSocketHandler->EnableUplink();
+        XRootDStatus st = pSocketHandler->EnableUplink();
         if( !st.IsOK() ) return st;
       }
       //----------------------------------------------------------------------
@@ -149,7 +149,7 @@ namespace XrdCl
       //----------------------------------------------------------------------
       else if( error == XrdTls::TLS_WantRead )
       {
-        Status st = pSocketHandler->DisableUplink();
+        XRootDStatus st = pSocketHandler->DisableUplink();
         if( !st.IsOK() ) return st;
       }
     }
@@ -178,7 +178,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( pSocket->IsCorked() )
       {
-        Status st = pSocket->Uncork();
+        XRootDStatus st = pSocket->Uncork();
         if( !st.IsOK() ) return st;
       }
 
@@ -188,7 +188,7 @@ namespace XrdCl
       if( error == XrdTls::TLS_WantWrite )
       {
         pTlsHSRevert = ReadOnWrite;
-        Status st = pSocketHandler->EnableUplink();
+        XRootDStatus st = pSocketHandler->EnableUplink();
         if( !st.IsOK() ) status = st;
         //--------------------------------------------------------------------
         // Return early so the revert state wont get cleared
@@ -202,7 +202,7 @@ namespace XrdCl
     //------------------------------------------------------------------------
     if( pTlsHSRevert == ReadOnWrite )
     {
-      Status st = pSocketHandler->DisableUplink();
+      XRootDStatus st = pSocketHandler->DisableUplink();
       if( !st.IsOK() ) status = st;
     }
     pTlsHSRevert = None;
@@ -211,7 +211,7 @@ namespace XrdCl
     // If we didn't manage to read any data wait for another read event
     //------------------------------------------------------------------------
     if( bytesRead == 0 )
-      return Status( stOK, suRetry );
+      return XRootDStatus( stOK, suRetry );
 
     return status;
   }
@@ -240,7 +240,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( pSocket->IsCorked() )
       {
-        Status st = pSocket->Uncork();
+        XRootDStatus st = pSocket->Uncork();
         if( !st.IsOK() ) return st;
       }
 
@@ -250,7 +250,7 @@ namespace XrdCl
       if( error == XrdTls::TLS_WantRead )
       {
         pTlsHSRevert = WriteOnRead;
-        Status st = pSocketHandler->DisableUplink();
+        XRootDStatus st = pSocketHandler->DisableUplink();
         if( !st.IsOK() ) status = st;
         //----------------------------------------------------------------------
         // Return early so the revert state wont get cleared
@@ -264,7 +264,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pTlsHSRevert == WriteOnRead )
     {
-      Status st = pSocketHandler->EnableUplink();
+      XRootDStatus st = pSocketHandler->EnableUplink();
       if( !st.IsOK() ) status = st;
     }
     pTlsHSRevert = None;
@@ -276,7 +276,7 @@ namespace XrdCl
     // it has been experienced)
     //------------------------------------------------------------------------
     if( bytesWritten == 0 )
-      return Status( stOK, suRetry );
+      return XRootDStatus( stOK, suRetry );
 
     return status;
   }
@@ -287,7 +287,7 @@ namespace XrdCl
 
     switch( rc )
     {
-      case XrdTls::TLS_AOK: return Status();
+      case XrdTls::TLS_AOK: return XRootDStatus();
 
       case XrdTls::TLS_WantConnect:
       case XrdTls::TLS_WantWrite:

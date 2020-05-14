@@ -21,7 +21,7 @@
 
 #include <list>
 #include <utility>
-#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 
 namespace XrdCl
 {
@@ -83,7 +83,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Report status to all the handlers
       //------------------------------------------------------------------------
-      void Report( Status status );
+      void Report( XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! Check if the queue is empty

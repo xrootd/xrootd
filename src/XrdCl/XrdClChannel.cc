@@ -79,8 +79,8 @@ namespace
       //------------------------------------------------------------------------
       // Handle a fault
       //------------------------------------------------------------------------
-      virtual uint8_t OnStreamEvent( StreamEvent   event,
-                                     XrdCl::Status status )
+      virtual uint8_t OnStreamEvent( StreamEvent         event,
+                                     XrdCl::XRootDStatus status )
       {
         if( event == Ready )
           return 0;
@@ -92,7 +92,7 @@ namespace
       //------------------------------------------------------------------------
       // Wait for a status of the message
       //------------------------------------------------------------------------
-      XrdCl::Status WaitForStatus()
+      XrdCl::XRootDStatus WaitForStatus()
       {
         pSem->Wait();
         return pStatus;
@@ -124,7 +124,7 @@ namespace
       XrdCl::Semaphore     *pSem;
       XrdCl::MessageFilter *pFilter;
       XrdCl::Message       *pMsg;
-      XrdCl::Status         pStatus;
+      XrdCl::XRootDStatus   pStatus;
   };
 
   //----------------------------------------------------------------------------
@@ -152,7 +152,7 @@ namespace
       // Handle the status information
       //------------------------------------------------------------------------
       void OnStatusReady( const XrdCl::Message *message,
-                          XrdCl::Status         status )
+                          XrdCl::XRootDStatus   status )
       {
         if( pMsg == message )
           pStatus = status;
@@ -162,7 +162,7 @@ namespace
       //------------------------------------------------------------------------
       // Wait for the status to be ready
       //------------------------------------------------------------------------
-      XrdCl::Status WaitForStatus()
+      XrdCl::XRootDStatus WaitForStatus()
       {
         pSem->Wait();
         return pStatus;
@@ -172,9 +172,9 @@ namespace
       StatusHandler(const StatusHandler &other);
       StatusHandler &operator = (const StatusHandler &other);
 
-      XrdCl::Semaphore *pSem;
-      XrdCl::Status     pStatus;
-      XrdCl::Message   *pMsg;
+      XrdCl::Semaphore    *pSem;
+      XrdCl::XRootDStatus  pStatus;
+      XrdCl::Message      *pMsg;
   };
 
 }

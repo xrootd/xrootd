@@ -23,7 +23,7 @@
 #include <string>
 #include <sys/socket.h>
 
-#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdNet/XrdNetAddr.hh"
 
 
@@ -72,29 +72,29 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Initialize the socket
       //------------------------------------------------------------------------
-      Status Initialize( int family = AF_INET );
+      XRootDStatus Initialize( int family = AF_INET );
 
       //------------------------------------------------------------------------
       //! Set the socket flags (man fcntl)
       //------------------------------------------------------------------------
-      Status SetFlags( int flags );
+      XRootDStatus SetFlags( int flags );
 
       //------------------------------------------------------------------------
       //! Get the socket flags (man fcntl)
       //------------------------------------------------------------------------
-      Status GetFlags( int &flags );
+      XRootDStatus GetFlags( int &flags );
 
       //------------------------------------------------------------------------
       //! Get socket options
       //------------------------------------------------------------------------
-      Status GetSockOpt( int level, int optname, void *optval,
-                         socklen_t *optlen );
+      XRootDStatus GetSockOpt( int level, int optname, void *optval,
+                               socklen_t *optlen );
 
       //------------------------------------------------------------------------
       //! Set socket options
       //------------------------------------------------------------------------
-      Status SetSockOpt( int level, int optname, const void *optval,
-                         socklen_t optlen );
+      XRootDStatus SetSockOpt( int level, int optname, const void *optval,
+                               socklen_t optlen );
 
       //------------------------------------------------------------------------
       //! Connect to the given host name
@@ -104,9 +104,9 @@ namespace XrdCl
       //! @param timout timeout in seconds, 0 for no timeout handling (may be
       //!               used for non blocking IO)
       //------------------------------------------------------------------------
-      Status Connect( const std::string &host,
-                      uint16_t           port,
-                      uint16_t           timout = 10 );
+      XRootDStatus Connect( const std::string &host,
+                            uint16_t           port,
+                            uint16_t           timout = 10 );
 
       //------------------------------------------------------------------------
       //! Connect to the given host address
@@ -115,8 +115,8 @@ namespace XrdCl
       //! @param timout timeout in seconds, 0 for no timeout handling (may be
       //!               used for non blocking IO)
       //------------------------------------------------------------------------
-      Status ConnectToAddress( const XrdNetAddr &addr,
-                               uint16_t          timout = 10 );
+      XRootDStatus ConnectToAddress( const XrdNetAddr &addr,
+                                     uint16_t          timout = 10 );
 
       //------------------------------------------------------------------------
       //! Disconnect
@@ -147,8 +147,8 @@ namespace XrdCl
       //! @param timeout   timout value in seconds, -1 to wait indefinitely
       //! @param bytesRead the amount of data actually read
       //------------------------------------------------------------------------
-      Status ReadRaw( void *buffer, uint32_t size, int32_t timeout,
-                      uint32_t &bytesRead );
+      XRootDStatus ReadRaw( void *buffer, uint32_t size, int32_t timeout,
+                            uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Write raw bytes to the socket
@@ -158,8 +158,8 @@ namespace XrdCl
       //! @param timeout      timeout value in seconds, -1 to wait indefinitely
       //! @param bytesWritten the amount of data actually written
       //------------------------------------------------------------------------
-      Status WriteRaw( void *buffer, uint32_t size, int32_t timeout,
-                       uint32_t &bytesWritten );
+      XRootDStatus WriteRaw( void *buffer, uint32_t size, int32_t timeout,
+                             uint32_t &bytesWritten );
 
       //------------------------------------------------------------------------
       //! Portable wrapper around SIGPIPE free send
@@ -168,7 +168,7 @@ namespace XrdCl
       //! @param size   : size of the data buffer
       //! @return       : the amount of data actually written
       //------------------------------------------------------------------------
-      Status Send( const char *buffer, size_t size, int &bytesWritten );
+      XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten );
 
       //----------------------------------------------------------------------------
       //! Read helper for raw socket
@@ -181,7 +181,7 @@ namespace XrdCl
       //!                    EWOULDBLOCK : ( stOK,    suRetry )
       //!                    other error : ( stError, errSocketError )
       //----------------------------------------------------------------------------
-      Status Read( char *buffer, size_t size, int &bytesRead );
+      XRootDStatus Read( char *buffer, size_t size, int &bytesRead );
 
       //------------------------------------------------------------------------
       //! Get the file descriptor
@@ -235,7 +235,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Classify errno while reading/writing
       //------------------------------------------------------------------------
-      static Status ClassifyErrno( int error );
+      static XRootDStatus ClassifyErrno( int error );
 
       //------------------------------------------------------------------------
       // Cork the underlying socket
@@ -243,17 +243,17 @@ namespace XrdCl
       // As there is no way to do vector writes with SSL/TLS we need to cork
       // the socket and then flash it when appropriate
       //------------------------------------------------------------------------
-      Status Cork();
+      XRootDStatus Cork();
 
       //------------------------------------------------------------------------
       // Uncork the underlying socket
       //------------------------------------------------------------------------
-      Status Uncork();
+      XRootDStatus Uncork();
 
       //------------------------------------------------------------------------
       // Flash the underlying socket
       //------------------------------------------------------------------------
-      Status Flash();
+      XRootDStatus Flash();
 
       //------------------------------------------------------------------------
       // Check if the socket is corked
@@ -274,7 +274,7 @@ namespace XrdCl
       // @param socketHandler : the socket handler that is handling the socket
       // @param the host      : host name for verification
       //------------------------------------------------------------------------
-      Status TlsHandShake( AsyncSocketHandler *socketHandler,
+      XRootDStatus TlsHandShake( AsyncSocketHandler *socketHandler,
                                const std::string  &thehost = std::string() );
 
       //------------------------------------------------------------------------
@@ -299,8 +299,8 @@ namespace XrdCl
       //!         errSocketTimeout      - on socket timeout
       //!         errInvalidOp          - when called on a non connected socket
       //------------------------------------------------------------------------
-      Status Poll( bool readyForReading, bool readyForWriting,
-                   int32_t timeout );
+      XRootDStatus Poll( bool readyForReading, bool readyForWriting,
+                         int32_t timeout );
 
       int                  pSocket;
       SocketStatus         pStatus;

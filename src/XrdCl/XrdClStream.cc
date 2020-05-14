@@ -162,7 +162,7 @@ namespace XrdCl
     log->Debug( PostMasterMsg, "[%s] Destroying stream",
                 pStreamName.c_str() );
 
-    MonitorDisconnection( Status() );
+    MonitorDisconnection( XRootDStatus() );
 
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
@@ -174,10 +174,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Initializer
   //----------------------------------------------------------------------------
-  Status Stream::Initialize()
+  XRootDStatus Stream::Initialize()
   {
     if( !pTransport || !pPoller || !pChannelData )
-      return Status( stError, errUninitialized );
+      return XRootDStatus( stError, errUninitialized );
 
     AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller, pTransport,
                                                     pChannelData, 0 );
@@ -185,14 +185,14 @@ namespace XrdCl
 
     pSubStreams.push_back( new SubStreamData() );
     pSubStreams[0]->socket = s;
-    return Status();
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
   // Make sure that the underlying socket handler gets write readiness
   // events
   //------------------------------------------------------------------------
-  Status Stream::EnableLink( PathID &path )
+  XRootDStatus Stream::EnableLink( PathID &path )
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
@@ -202,7 +202,7 @@ namespace XrdCl
     // all the other streams
     //--------------------------------------------------------------------------
     if( pSubStreams[0]->status == Socket::Connecting )
-      return Status();
+      return XRootDStatus();
 
     //--------------------------------------------------------------------------
     // The main stream is connected, so we can verify whether we have
@@ -223,7 +223,7 @@ namespace XrdCl
       if( pSubStreams[path.up]->status == Socket::Connected )
         return pSubStreams[path.up]->socket->EnableUplink();
 
-      return Status();
+      return XRootDStatus();
     }
 
     //--------------------------------------------------------------------------
@@ -243,7 +243,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Resolve all the addresses of the host we're supposed to connect to
     //--------------------------------------------------------------------------
-    Status st = Utils::GetHostAddresses( pAddresses, *pUrl, pAddressType );
+    XRootDStatus st = Utils::GetHostAddresses( pAddresses, *pUrl, pAddressType );
     if( !st.IsOK() )
     {
       log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
@@ -275,10 +275,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Queue the message for sending
   //----------------------------------------------------------------------------
-  Status Stream::Send( Message              *msg,
-                       OutgoingMsgHandler   *handler,
-                       bool                  stateful,
-                       time_t                expires )
+  XRootDStatus Stream::Send( Message              *msg,
+                             OutgoingMsgHandler   *handler,
+                             bool                  stateful,
+                             time_t                expires )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -289,7 +289,7 @@ namespace XrdCl
     if( msg->GetSessionId() &&
         (pSubStreams[0]->status != Socket::Connected ||
         pSessionId != msg->GetSessionId()) )
-      return Status( stError, errInvalidSession );
+      return XRootDStatus( stError, errInvalidSession );
 
     //--------------------------------------------------------------------------
     // Decide on the path to send the message
@@ -310,7 +310,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Enable *a* path and insert the message to the right queue
     //--------------------------------------------------------------------------
-    Status st = EnableLink( path );
+    XRootDStatus st = EnableLink( path );
     if( st.IsOK() )
     {
       pTransport->MultiplexSubStream( msg, *pChannelData, &path );
@@ -330,7 +330,7 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     pSubStreams[0]->status = Socket::Disconnected;
     XrdCl::PathID path( 0, 0 );
-    XrdCl::Status st = EnableLink( path );
+    XrdCl::XRootDStatus st = EnableLink( path );
     if( !st.IsOK() )
       OnConnectError( 0, st );
   }
@@ -364,7 +364,7 @@ namespace XrdCl
       q.GrabExpired( *(*it)->outQueue, now );
     pMutex.UnLock();
 
-    q.Report( Status( stError, errOperationExpired ) );
+    q.Report( XRootDStatus( stError, errOperationExpired ) );
     pIncomingQueue->ReportTimeout( now );
   }
 }
@@ -404,10 +404,10 @@ namespace
 
 namespace XrdCl
 {
-  Status Stream::RequestClose( Message *response )
+  XRootDStatus Stream::RequestClose( Message *response )
   {
     ServerResponse *rsp = reinterpret_cast<ServerResponse*>( response->GetBuffer() );
-    if( rsp->hdr.dlen < 4 ) return Status( stError );
+    if( rsp->hdr.dlen < 4 ) return XRootDStatus( stError );
     Message            *msg;
     ClientCloseRequest *req;
     MessageUtils::CreateRequest( msg, req );
@@ -547,7 +547,7 @@ namespace XrdCl
     OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     pBytesSent += bytesSent;
     if( h.handler )
-      h.handler->OnStatusReady( msg, Status() );
+      h.handler->OnStatusReady( msg, XRootDStatus() );
     pSubStreams[subStream]->outMsgHelper.Reset();
   }
 
@@ -565,7 +565,7 @@ namespace XrdCl
     if( subStream == 0 )
     {
       pLastStreamError = 0;
-      pLastFatalError  = Status();
+      pLastFatalError  = XRootDStatus();
       pConnectionCount = 0;
       uint16_t numSub = pTransport->SubStreamNumber( *pChannelData );
       ++pSessionId;
@@ -597,7 +597,7 @@ namespace XrdCl
         for( size_t i = 1; i < pSubStreams.size(); ++i )
         {
           pSubStreams[i]->socket->SetAddress( pSubStreams[0]->socket->GetAddress() );
-          Status st = pSubStreams[i]->socket->Connect( pConnectionWindow );
+          XRootDStatus st = pSubStreams[i]->socket->Connect( pConnectionWindow );
           if( !st.IsOK() )
           {
             pSubStreams[0]->outQueue->GrabItems( *pSubStreams[i]->outQueue );
@@ -651,7 +651,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // On connect error
   //----------------------------------------------------------------------------
-  void Stream::OnConnectError( uint16_t subStream, Status status )
+  void Stream::OnConnectError( uint16_t subStream, XRootDStatus status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -668,7 +668,7 @@ namespace XrdCl
       pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
       if( pSubStreams[0]->status == Socket::Connected )
       {
-        Status st = pSubStreams[0]->socket->EnableUplink();
+        XRootDStatus st = pSubStreams[0]->socket->EnableUplink();
         if( !st.IsOK() )
           OnFatalError( 0, st, scopedLock );
         return;
@@ -693,7 +693,7 @@ namespace XrdCl
     //------------------------------------------------------------------------
     if( !pAddresses.empty() )
     {
-      Status st;
+      XRootDStatus st;
       do
       {
         pSubStreams[0]->socket->SetAddress( pAddresses.back() );
@@ -731,7 +731,7 @@ namespace XrdCl
       pAddresses.clear();
       pSubStreams[0]->status = Socket::Disconnected;
       PathID path( 0, 0 );
-      Status st = EnableLink( path );
+      XRootDStatus st = EnableLink( path );
       if( !st.IsOK() )
         OnFatalError( subStream, st, scopedLock );
       return;
@@ -746,7 +746,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when an error has occurred
   //----------------------------------------------------------------------------
-  void Stream::OnError( uint16_t subStream, Status status )
+  void Stream::OnError( uint16_t subStream, XRootDStatus status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -792,7 +792,7 @@ namespace XrdCl
         pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
         if( pSubStreams[0]->status == Socket::Connected )
         {
-          Status st = pSubStreams[0]->socket->EnableUplink();
+          XRootDStatus st = pSubStreams[0]->socket->EnableUplink();
           if( !st.IsOK() )
             OnFatalError( 0, st, scopedLock );
           return;
@@ -819,7 +819,7 @@ namespace XrdCl
       if( outstanding )
       {
         PathID path( 0, 0 );
-        Status st = EnableLink( path );
+        XRootDStatus st = EnableLink( path );
         if( !st.IsOK() )
         {
           OnFatalError( 0, st, scopedLock );
@@ -848,7 +848,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Force error
   //------------------------------------------------------------------------
-  void Stream::ForceError( Status status )
+  void Stream::ForceError( XRootDStatus status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
@@ -907,7 +907,7 @@ namespace XrdCl
   // On fatal error
   //----------------------------------------------------------------------------
   void Stream::OnFatalError( uint16_t           subStream,
-                             Status             status,
+                             XRootDStatus       status,
                              XrdSysMutexHelper &lock )
   {
     Log    *log = DefaultEnv::GetLog();
@@ -942,7 +942,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Inform monitoring about disconnection
   //----------------------------------------------------------------------------
-  void Stream::MonitorDisconnection( Status status )
+  void Stream::MonitorDisconnection( XRootDStatus status )
   {
     Monitor *mon = DefaultEnv::GetMonitor();
     if( mon )
@@ -1015,7 +1015,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Check if the stream is broken
     //--------------------------------------------------------------------------
-    Status st = pTransport->IsStreamBroken( now-lastActivity,
+    XRootDStatus st = pTransport->IsStreamBroken( now-lastActivity,
                                             *pChannelData );
     if( !st.IsOK() )
     {

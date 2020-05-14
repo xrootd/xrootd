@@ -97,12 +97,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Connect to the currently set address
       //------------------------------------------------------------------------
-      Status Connect( time_t timeout );
+      XRootDStatus Connect( time_t timeout );
 
       //------------------------------------------------------------------------
       //! Close the connection
       //------------------------------------------------------------------------
-      Status Close();
+      XRootDStatus Close();
 
       //------------------------------------------------------------------------
       //! Set a stream object to be notified about the status of the operations
@@ -117,21 +117,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Enable uplink
       //------------------------------------------------------------------------
-      Status EnableUplink()
+      XRootDStatus EnableUplink()
       {
         if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
-          return Status( stFatal, errPollerError );
-        return Status();
+          return XRootDStatus( stFatal, errPollerError );
+        return XRootDStatus();
       }
 
       //------------------------------------------------------------------------
       //! Disable uplink
       //------------------------------------------------------------------------
-      Status DisableUplink()
+      XRootDStatus DisableUplink()
       {
         if( !pPoller->EnableWriteNotification( pSocket, false ) )
-          return Status( stFatal, errPollerError );
-        return Status();
+          return XRootDStatus( stFatal, errPollerError );
+        return XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -170,12 +170,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Write the message and it's signature in one go with writev
       //------------------------------------------------------------------------
-      Status WriteMessageAndRaw( Message *toWrite, Message *&sign );
+      XRootDStatus WriteMessageAndRaw( Message *toWrite, Message *&sign );
 
       //------------------------------------------------------------------------
       // Write the current message
       //------------------------------------------------------------------------
-      Status WriteCurrentMessage( Message *toWrite );
+      XRootDStatus WriteCurrentMessage( Message *toWrite );
 
       //------------------------------------------------------------------------
       // Got a read readiness event
@@ -200,17 +200,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Read a message
       //------------------------------------------------------------------------
-      Status ReadMessage( Message *&toRead );
+      XRootDStatus ReadMessage( Message *&toRead );
 
       //------------------------------------------------------------------------
       // Handle fault
       //------------------------------------------------------------------------
-      void OnFault( Status st );
+      void OnFault( XRootDStatus st );
 
       //------------------------------------------------------------------------
       // Handle fault while handshaking
       //------------------------------------------------------------------------
-      void OnFaultWhileHandshaking( Status st );
+      void OnFaultWhileHandshaking( XRootDStatus st );
 
       //------------------------------------------------------------------------
       // Handle write timeout event
@@ -239,7 +239,7 @@ namespace XrdCl
       // under the hood by read and write requests and facilitated by
       // Socket::MapEvent()
       //------------------------------------------------------------------------
-      Status DoTlsHandShake();
+      XRootDStatus DoTlsHandShake();
 
       //------------------------------------------------------------------------
       // Handle read/write event if we are in the middle of a TLS hand-shake

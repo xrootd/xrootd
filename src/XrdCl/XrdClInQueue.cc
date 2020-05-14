@@ -189,7 +189,7 @@ namespace XrdCl
   // Report an event to the handlers
   //----------------------------------------------------------------------------
   void InQueue::ReportStreamEvent( IncomingMsgHandler::StreamEvent event,
-				   Status                          status )
+				   XRootDStatus                    status )
   {
     uint8_t action = 0;
     XrdSysMutexHelper scopedLock( pMutex );

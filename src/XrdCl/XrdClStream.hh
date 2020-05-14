@@ -72,15 +72,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Initializer
       //------------------------------------------------------------------------
-      Status Initialize();
+      XRootDStatus Initialize();
 
       //------------------------------------------------------------------------
       //! Queue the message for sending
       //------------------------------------------------------------------------
-      Status Send( Message              *msg,
-                   OutgoingMsgHandler   *handler,
-                   bool                  stateful,
-                   time_t                expires );
+      XRootDStatus Send( Message              *msg,
+                         OutgoingMsgHandler   *handler,
+                         bool                  stateful,
+                         time_t                expires );
 
       //------------------------------------------------------------------------
       //! Set the transport
@@ -137,7 +137,7 @@ namespace XrdCl
       //! handler gets write readiness events, it will update the path with
       //! what it has actually enabled
       //------------------------------------------------------------------------
-      Status EnableLink( PathID &path );
+      XRootDStatus EnableLink( PathID &path );
 
       //------------------------------------------------------------------------
       //! Disconnect the stream
@@ -204,17 +204,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! On connect error
       //------------------------------------------------------------------------
-      void OnConnectError( uint16_t subStream, Status status );
+      void OnConnectError( uint16_t subStream, XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! On error
       //------------------------------------------------------------------------
-      void OnError( uint16_t subStream, Status status );
+      void OnError( uint16_t subStream, XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! Force error
       //------------------------------------------------------------------------
-      void ForceError( Status status );
+      void ForceError( XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! On read timeout
@@ -298,18 +298,18 @@ namespace XrdCl
       //! On fatal error - unlocks the stream
       //------------------------------------------------------------------------
       void OnFatalError( uint16_t           subStream,
-                         Status             status,
+                         XRootDStatus       status,
                          XrdSysMutexHelper &lock );
 
       //------------------------------------------------------------------------
       //! Inform the monitoring about disconnection
       //------------------------------------------------------------------------
-      void MonitorDisconnection( Status status );
+      void MonitorDisconnection( XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! Send close after an open request timed out
       //------------------------------------------------------------------------
-      Status RequestClose( Message  *resp );
+      XRootDStatus RequestClose( Message  *resp );
 
       typedef std::vector<SubStreamData*> SubStreamList;
 
@@ -326,7 +326,7 @@ namespace XrdCl
       InQueue                       *pIncomingQueue;
       AnyObject                     *pChannelData;
       uint32_t                       pLastStreamError;
-      Status                         pLastFatalError;
+      XRootDStatus                   pLastFatalError;
       uint16_t                       pStreamErrorWindow;
       uint16_t                       pConnectionCount;
       uint16_t                       pConnectionRetry;

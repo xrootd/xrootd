@@ -262,14 +262,14 @@ namespace XrdCl
       //! @param streamNum stream concerned
       //! @param status    status info
       //------------------------------------------------------------------------
-      virtual uint8_t OnStreamEvent( StreamEvent event,
-                                     Status      status );
+      virtual uint8_t OnStreamEvent( StreamEvent  event,
+                                     XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
       //------------------------------------------------------------------------
       virtual void OnStatusReady( const Message *message,
-                                  Status         status );
+                                  XRootDStatus   status );
 
       //------------------------------------------------------------------------
       //! Are we a raw writer or not?
@@ -417,7 +417,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Recover error
       //------------------------------------------------------------------------
-      void HandleError( Status status, Message *msg = 0 );
+      void HandleError( XRootDStatus status, Message *msg = 0 );
 
       //------------------------------------------------------------------------
       //! Retry the request at another server
@@ -573,7 +573,7 @@ namespace XrdCl
       PostMaster                     *pPostMaster;
       std::shared_ptr<SIDManager>     pSidMgr;
       LocalFileHandler               *pLFileHandler;
-      Status                          pStatus;
+      XRootDStatus                    pStatus;
       Status                          pLastError;
       time_t                          pExpiration;
       bool                            pRedirectAsAnswer;
