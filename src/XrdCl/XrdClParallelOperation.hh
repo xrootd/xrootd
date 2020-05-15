@@ -46,9 +46,18 @@ namespace XrdCl
   //              order for the parallel operation to be successful (the
   //              user handler will be called only when all operations are
   //              resolved)
+  //
+  // @param status : status returned by one of the aggregated operations
+  //
+  // @return       : true if the status should be passed to the user handler,
+  //                 false otherwise.
   //----------------------------------------------------------------------------
   struct PolicyExecutor
   {
+    virtual ~PolicyExecutor()
+    {
+    }
+
     virtual bool Examine( const XrdCl::XRootDStatus &status ) = 0;
   };
 

@@ -105,6 +105,15 @@ namespace XrdCl
       void Assign( std::promise<XRootDStatus>               prms,
                    std::function<void(const XRootDStatus&)> final );
 
+      //------------------------------------------------------------------------
+      //! Set recovery routine for given operation
+      //------------------------------------------------------------------------
+      inline void Recovery(
+          std::function<Operation<true>(const XRootDStatus&)> && recovery )
+      {
+        this->recovery = std::move( recovery );
+      }
+
     private:
 
       //------------------------------------------------------------------------
@@ -141,6 +150,11 @@ namespace XrdCl
       //! pipeline (traveling along the pipeline)
       //------------------------------------------------------------------------
       std::function<void(const XRootDStatus&)> final;
+
+      //------------------------------------------------------------------------
+      //! The recovery routine for the respective operation
+      //------------------------------------------------------------------------
+      std::function<Operation<true>(const XRootDStatus&)> recovery;
   };
 
   //----------------------------------------------------------------------------
@@ -202,7 +216,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual Operation<HasHndl>* Move() = 0;
 
-       //------------------------------------------------------------------------
+      //------------------------------------------------------------------------
       //! Move current object into newly allocated instance, and convert
       //! it into 'handled' operation.
       //!
@@ -249,7 +263,7 @@ namespace XrdCl
       //!
       //! @param err : error object
       //!
-      //! @return    : default operation status (actual status containg
+      //! @return    : default operation status (actual status containing
       //!              error information is passed to the handler)
       //------------------------------------------------------------------------
       void ForceHandler( const XRootDStatus &status )
@@ -555,6 +569,13 @@ namespace XrdCl
         return PipeImpl( *this, op );
       }
 
+      Derived<HasHndl> Recovery(
+          std::function<Operation<true>(const XRootDStatus&)> recovery )
+      {
+        handler->Recovery( std::move( recovery ) );
+        return Transform<HasHndl>();
+      }
+
     protected:
 
       //------------------------------------------------------------------------
@@ -562,7 +583,7 @@ namespace XrdCl
       //!
       //! @return : the new instance
       //------------------------------------------------------------------------
-      Operation<HasHndl>* Move()
+      inline Operation<HasHndl>* Move()
       {
         Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
         return new Derived<HasHndl>( std::move( *me ) );
@@ -573,7 +594,7 @@ namespace XrdCl
       //!
       //! @return Operation<true>&
       //------------------------------------------------------------------------
-      Operation<true>* ToHandled()
+      inline Operation<true>* ToHandled()
       {
         this->handler.reset( new PipelineHandler() );
         Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
@@ -586,7 +607,7 @@ namespace XrdCl
       //! @return : new instance in the desired state
       //------------------------------------------------------------------------
       template<bool to>
-      Derived<to> Transform()
+      inline Derived<to> Transform()
       {
         Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
         return Derived<to>( std::move( *me ) );

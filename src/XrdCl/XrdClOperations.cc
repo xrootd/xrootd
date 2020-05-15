@@ -64,12 +64,29 @@ namespace XrdCl
   {
     std::unique_ptr<PipelineHandler> myself( this );
 
-    // We need to copy status as original status object is destroyed in HandleResponse function
+    // We need to copy status as original status object is destroyed in
+    // HandleResponse function
     XRootDStatus st( *status );
     if( responseHandler )
       responseHandler->HandleResponseWithHosts( status, response, hostList );
     else
       dealloc( status, response, hostList );
+
+    if( !st.IsOK() && recovery )
+    {
+      try
+      {
+        // named reference to temporary will extend its lifetime
+        auto &&op = recovery( st );
+        op.AddOperation( nextOperation.release() );
+        op->Run( std::move( prms ), std::move( final ) );
+        return;
+      }
+      catch( const std::exception &ex )
+      {
+        // just proceed as if there would be no recovery routine at all
+      }
+    }
 
     if( !st.IsOK() || !nextOperation )
     {
