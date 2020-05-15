@@ -860,7 +860,7 @@ fi
 
 %files voms-devel
 %defattr(-,root,root,-)
-%{_includedir}/XrdVoms
+%{_includedir}/xrootd/XrdVoms
 
 %if %{?_with_python3:1}%{!?_with_python3:0}
 %files -n python3-%{name}
