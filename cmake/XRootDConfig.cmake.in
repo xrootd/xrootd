@@ -73,7 +73,7 @@ ENDIF()
 IF( XRootD_FIND_REQUIRED_CLIENT AND NOT XROOTD_CLIENT_FOUND )
   MESSAGE( "XRootD client required but not found!" )
   LIST( APPEND _XROOTD_MISSING_COMPONENTS XROOTD_CLIENT_FOUND )
-  SER( XROOTD_FOUND FALSE )
+  SET( XROOTD_FOUND FALSE )
 ENDIF()
 
 ################################################################################
