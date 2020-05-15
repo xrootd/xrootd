@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                X r d S e c g s i V O M S F u n . c c                       */
+/*                         X r d V o m s F u n . c c                          */
 /*                                                                            */
 /*  (C) 2013  G. Ganis, CERN                                                  */
 /*                                                                            */
@@ -39,53 +39,36 @@
 #include <errno.h>
 
 #include "XrdSecgsiVOMS.hh"
-#include "XrdSecgsiVOMSTrace.hh"
+#include "XrdVomsFun.hh"
+#include "XrdVomsTrace.hh"
 
 #ifdef HAVE_XRDCRYPTO
 #include "XrdCrypto/XrdCryptoX509.hh"
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #endif
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucString.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
+/******************************************************************************/
+/*                         L o c a l   D e f i n e s                          */
+/******************************************************************************/
+  
 #ifndef SafeFree
 #define SafeFree(x) { if (x) free(x) ; x = 0; }
 #endif
 
-//
-// These settings are configurable
-#ifdef HAVE_XRDCRYPTO
-static int gCertFmt = 0;                       //  certfmt:raw|pem|x509 [raw]
-#else
-static int gCertFmt = 1;                       //  certfmt:pem|x509 [pem]
-#endif
-static int gGrpSel = 0;                        //  grpopt's sel = 0|1 [0]
-static int gGrpWhich = 2;                      //  grpopt's which = 0|1|2 [2]
-static XrdOucHash<int> gGrps;                  //  hash table with grps=grp1[,grp2,...]
-static XrdOucHash<int> gVOs;                   //  hash table with vos=vo1[,vo2,...]
-static bool gDebug = 0;                        //  Verbosity control
-static XrdOucString gRequire;                  //  String with configuration options
-static XrdOucString gGrpFmt;                   //  String to be used to format the content of XrdSecEntity::grps
-static XrdOucString gRoleFmt;                  //  String to be used to format the content of XrdSecEntity::role
-static XrdOucString gVoFmt;                    //  String to be used to format the content of XrdSecEntity::vorg
-
-static XrdSysError gDest(0, "secgsiVOMS_");
-static XrdSysLogger gLogger;
-
 #define VOMSDBG(m) \
    if (gDebug) { \
       PRINT(m); \
-   } else { \
-      DEBUG(m); \
    }
+
 #define VOMSDBGSUBJ(m, c) \
    if (gDebug) { \
       XrdOucString subject; \
       NameOneLine(X509_get_subject_name(c), subject); \
       PRINT(m << subject); \
    }
+
 #define VOMSREPLACE(a, f, e) \
    if (a.length() > 0) { \
       f.replace("<g>", e.grps); \
@@ -93,15 +76,35 @@ static XrdSysLogger gLogger;
       f.replace("<vo>", e.vorg); \
       f.replace("<an>", e.endorsements); \
    }
+
 #define VOMSSPTTAB(a) \
    if (a.length() > 0) { \
       int sp = -1; \
       while ((sp = a.find(' ', sp+1)) != STR_NPOS) { a[sp] = '\t'; } \
    }
 
-//
+/******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
+
+XrdVomsFun::XrdVomsFun(XrdSysError &erp)
+                 : gGrpSel(0), gGrpWhich(2), gDebug(0), gDest(erp),
+                   gLogger(erp.logger())
+{
+#ifdef HAVE_XRDCRYPTO
+                gCertFmt = 0;     //  certfmt:raw|pem|x509 [raw]
+#else
+                gCertFmt = 1;     //  certfmt:pem|x509 [pem]
+#endif
+};
+
+/******************************************************************************/
+/*                           N a m e O n e L i n e                            */
+/******************************************************************************/
+  
 // Function to convert X509_NAME into a one-line human readable string
-static void NameOneLine(X509_NAME *nm, XrdOucString &s)
+//
+void XrdVomsFun::NameOneLine(X509_NAME *nm, XrdOucString &s)
 {
    BIO *mbio = BIO_new(BIO_s_mem());
    X509_NAME_print_ex(mbio, nm, 0, XN_FLAG_COMPAT);
@@ -116,9 +119,13 @@ static void NameOneLine(X509_NAME *nm, XrdOucString &s)
    return;
 }
 
+/******************************************************************************/
+/*                            F m t R e p l a c e                             */
+/******************************************************************************/
+  
+// Method to convert X509_NAME into a one-line human readable string
 //
-// Function to convert X509_NAME into a one-line human readable string
-static void FmtReplace(XrdSecEntity &ent)
+void XrdVomsFun::FmtReplace(XrdSecEntity &ent)
 {
    XrdOucString gf(gGrpFmt), rf(gRoleFmt), vf(gVoFmt);
 
@@ -140,7 +147,14 @@ static void FmtReplace(XrdSecEntity &ent)
    }   
 }
 
-static void FmtExtract(XrdOucString &out, XrdOucString in, const char *tag)
+/******************************************************************************/
+/*                            F m t E x t r a c t                             */
+/******************************************************************************/
+  
+// Method to extract out a tag
+//
+void XrdVomsFun::FmtExtract(XrdOucString &out,
+                                  XrdOucString  in, const char *tag)
 {
    // Output group format string
    int igf = in.find(tag);
@@ -155,12 +169,13 @@ static void FmtExtract(XrdOucString &out, XrdOucString in, const char *tag)
    }
 }
 
+/******************************************************************************/
+/*                               V O M S F u n                                */
+/******************************************************************************/
+  
+// The Main Method
 //
-// Main function
-//
-extern "C"
-{
-int XrdSecgsiVOMSFun(XrdSecEntity &ent)
+int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
 {
    // Implementation of XrdSecgsiAuthzFun extracting the information from the 
    // proxy chain in entity.creds
@@ -352,14 +367,15 @@ int XrdSecgsiVOMSFun(XrdSecEntity &ent)
    
    // Done
    return rc;
-}}
+}
 
+/******************************************************************************/
+/*                              V O M S I n i t                               */
+/******************************************************************************/
+  
+// Method to initialize this object
 //
-// Init the relevant parameters from a dedicated config file
-//
-extern "C"
-{
-int XrdSecgsiVOMSInit(const char *cfg)
+int XrdVomsFun::VOMSInit(const char *cfg)
 {
    // Initialize the relevant parameters from the 'cfg' string.
    // Return -1 on failure.
@@ -396,19 +412,18 @@ int XrdSecgsiVOMSInit(const char *cfg)
    //         dbg                    To force verbose mode
    //
    EPNAME("Init");
-   gDest.logger(&gLogger);
-   gsiVOMSTrace = new XrdOucTrace(&gDest);
 
    XrdOucString oos(cfg);
 
-   XrdOucString fmt, go, grps, voss, gfmt, rfmt, vfmt, sdbg;
+   XrdOucString fmt, go, grps, voss, gfmt, rfmt, vfmt, sdbg, sdbg2;
    XrdOucString gr, vo, ss;
    if (oos.length() > 0) {
 
-#define NTAG 8
-      XrdOucString *var[NTAG] = { &fmt, &go, &grps, &voss, &gfmt, &rfmt, &vfmt, &sdbg};
+#define NTAG 9
+      XrdOucString *var[NTAG] = { &fmt, &go, &grps, &voss, &gfmt, &rfmt, &vfmt,
+                                  &sdbg, &sdbg2};
       const char *tag[] = {"certfmt=", "grpopt=", "grps=", "vos=",
-                           "grpfmt=", "rolefmt=", "vofmt=", "dbg"};
+                           "grpfmt=", "rolefmt=", "vofmt=", "dbg", "dbg2"};
       int jb[NTAG], je[NTAG];
 
       // Begin of ranges
@@ -417,7 +432,7 @@ int XrdSecgsiVOMSInit(const char *cfg)
          jb[i] = -1;
          int j = oos.find(tag[i]);
          if (j != STR_NPOS) jb[i] = j;
-         DEBUG("i:"<<i<<" = "<<j);
+         DEBUG(tag[i]<<" i:"<<i<<" = "<<j<<(j == STR_NPOS?" no":" ")<<"spec");
       }
       // End of ranges
       for(i = 0; i < NTAG; i++) {
@@ -436,13 +451,13 @@ int XrdSecgsiVOMSInit(const char *cfg)
             } else {
                je[i] = oos.length() - 1;
             }
-            if (i != NTAG-1) {
+            if (i < NTAG-2) {
                ss.assign(oos, jb[i], je[i]-jb[i]+1);
                FmtExtract(*var[i], ss, tag[i]);
-               DEBUG(" s:\"" << ss << "\" (" << *var[i] <<")");
+               DEBUG("\"" << ss << "\" (" << *var[i] <<")");
             } else {
-               var[i]->assign(oos, jb[i], je[i]-jb[i]+1);
-               DEBUG(" s:\"" << *var[i] << "\"");
+               *var[i] = tag[i];
+               DEBUG(tag[i] <<"=\"" << *var[i] << "\"");
             }
          }
          DEBUG("jb["<<i<<"] = "<<jb[i] <<"  --->  "<< "je["<<i<<"] = "<<je[i]);
@@ -521,7 +536,8 @@ int XrdSecgsiVOMSInit(const char *cfg)
       FmtExtract(gVoFmt, vfmt, "vofmt=");
 
       // Verbose mode
-      if (sdbg == "dbg") gDebug = 1;
+      if (sdbg == "dbg" && !gDebug) gDebug = 1;
+      if (sdbg2 == "dbg2") gDebug = 2;
    }
 
    // Notify
@@ -548,4 +564,4 @@ int XrdSecgsiVOMSInit(const char *cfg)
    PRINT("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    // Done
    return gCertFmt;
-}}
+}

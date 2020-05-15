@@ -1,8 +1,8 @@
-#ifndef ___SECGSI_VOMS_TRACE_H___
-#define ___SECGSI_VOMS_TRACE_H___
+#ifndef ___XRDVOMS_TRACE_H___
+#define ___XRDVOMS_TRACE_H___
 /******************************************************************************/
 /*                                                                            */
-/*               X r d S e c g s i V O M S T r a c e . h h                    */
+/*                       X r d V o m s T r a c e . h h                        */
 /*                                                                            */
 /* (C) 2005  G. Ganis, CERN                                                   */
 /*                                                                            */
@@ -28,38 +28,21 @@
 /*                                                                            */
 /******************************************************************************/
 
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysLogger.hh"
 
 #ifndef NODEBUG
 
-#include "XrdSys/XrdSysHeaders.hh"
-
-#define QTRACE(act) (gsiVOMSTrace && (gsiVOMSTrace->What & TRACE_ ## act))
-#define PRINT(y)    {if (gsiVOMSTrace) {gsiVOMSTrace->Beg(epname); \
-                                       cerr <<y; gsiVOMSTrace->End();}}
-#define TRACE(act,x) if (QTRACE(act)) PRINT(x)
-#define NOTIFY(y)    TRACE(Debug,y)
-#define DEBUG(y)     TRACE(Authen,y)
-#define EPNAME(x)    static const char *epname = x;
+#define PRINT(y)    if (gDebug) {cerr <<gLogger->traceBeg() <<" XrdVoms"\
+                                      <<epname <<": " <<y <<gLogger->traceEnd();}
+#define DEBUG(y)    if (gDebug > 1) {PRINT(y)}
+#define EPNAME(x)   static const char *epname = x;
 
 #else
 
-#define QTRACE(x)
 #define  PRINT(x)
-#define  TRACE(x,y)
-#define NOTIFY(x)
 #define  DEBUG(x)
 #define EPNAME(x)
 
 #endif
-
-#define TRACE_ALL      0x000f
-#define TRACE_Dump     0x0004
-#define TRACE_Authen   0x0002
-#define TRACE_Debug    0x0001
-
-//
-// For error logging and tracing
-XrdOucTrace *gsiVOMSTrace = 0;
 
 #endif
