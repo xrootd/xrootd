@@ -53,6 +53,7 @@ class XrdNetAddrInfo;
 class XrdSecAttr;
 class XrdSecEntityAttrCB;
 class XrdSecEntityXtra;
+class XrdSysError;
   
 /******************************************************************************/
 /*                          X r d S e c E n t i t y                           */
@@ -113,6 +114,14 @@ const    char   *pident;                  //!< Trace identifier (originator)
 
          bool    Add(const std::string &key,
                      const std::string &val, bool replace=false);
+
+//------------------------------------------------------------------------------
+//! Dislay the contents of this object for debugging purposes.
+//!
+//! @param  mDest   - Reference to the message object to use.
+//------------------------------------------------------------------------------
+
+         void    Display(XrdSysError &mDest);
 
 //------------------------------------------------------------------------------
 //! Get an attribute object associated with this entity.
