@@ -42,6 +42,7 @@
 #define TRACE_RSP       0x0080
 #define TRACE_SCHED     0x0100
 #define TRACE_STALL     0x0200
+#define TRACE_AUTH      0x0400
  
 #ifndef NODEBUG
 

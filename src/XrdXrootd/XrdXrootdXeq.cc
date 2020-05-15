@@ -203,6 +203,7 @@ int XrdXrootdProtocol::do_Auth()
       {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        AuthProt->Entity.ueid = mySID;
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
+       if (TRACING(TRACE_AUTH)) Client->Display(eDest);
        if (DHS) Protect = DHS->New4Server(*AuthProt,clientPV&XrdOucEI::uVMask);
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
        if (!logLogin(true)) return -1;

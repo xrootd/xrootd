@@ -1985,6 +1985,7 @@ int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
     static struct traceopts {const char *opname; int opval;} tropts[] =
        {
         {"all",      TRACE_ALL},
+        {"auth",     TRACE_AUTH},
         {"emsg",     TRACE_EMSG},
         {"debug",    TRACE_DEBUG},
         {"fs",       TRACE_FS},

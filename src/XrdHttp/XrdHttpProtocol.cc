@@ -699,6 +699,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
       if (res != X509_V_OK) return -1;
       ssldone = true;
+      if (TRACING(TRACE_AUTH)) SecEntity.Display(eDest);
     }
 
 
@@ -2712,12 +2713,9 @@ int XrdHttpProtocol::xtrace(XrdOucStream & Config) {
     int opval;
   } tropts[] = {
     {"all", TRACE_ALL},
-    {"emsg", TRACE_EMSG},
+    {"auth", TRACE_AUTH},
     {"debug", TRACE_DEBUG},
-    {"fs", TRACE_FS},
-    {"login", TRACE_LOGIN},
     {"mem", TRACE_MEM},
-    {"stall", TRACE_STALL},
     {"redirect", TRACE_REDIR},
     {"request", TRACE_REQ},
     {"response", TRACE_RSP}
