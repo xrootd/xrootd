@@ -27,6 +27,7 @@
 #include "XrdTls/XrdTlsContext.hh"
 
 #include <string>
+#include <stdexcept>
 
 namespace
 {
@@ -62,6 +63,7 @@ namespace
       inline SetTlsMsgCB()
       {
         XrdTls::SetMsgCB( MsgCallBack );
+        XrdTls::SetDebug( XrdTls::dbgALL, MsgCallBack );
       }
   };
 
@@ -91,12 +93,14 @@ namespace XrdCl
     //----------------------------------------------------------------------
     // we only need one instance of TLS
     //----------------------------------------------------------------------
-    static XrdTlsContext tlsContext( 0, 0, GetCaDir(), 0, 0 );
+    std::string *emsg = 0;
+    static XrdTlsContext tlsContext( 0, 0, GetCaDir(), 0, 0, emsg );
+
     //----------------------------------------------------------------------
     // If the context is not valid throw an exception! We throw generic
     // exception as this will be translated to TlsError anyway.
     //----------------------------------------------------------------------
-    if( !tlsContext.isOK() ) throw std::exception();
+    if( !tlsContext.isOK() ) throw std::runtime_error( emsg ? *emsg : "" );
 
     pTls.reset(
         new XrdTlsSocket( tlsContext, pSocket->GetFD(), XrdTlsSocket::TLS_RNB_WNB,

@@ -759,7 +759,7 @@ namespace XrdCl
     {
       // the exception has been thrown when we tried to create
       // the TLS context
-      return XRootDStatus( stFatal, errTlsError );
+      return XRootDStatus( stFatal, errTlsError, 0, ex.what() );
     }
 
     return XRootDStatus();
