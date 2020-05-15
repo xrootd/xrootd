@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Allow display of SecEntity for https and xroot.
   * **[Voms]** Allow Voms plugin to work for gsi and https.
   * **[POSIX]** Add N2N pfn2lfn option -cachesrc to pass data source to the N2N.
   * **[Server]** Add xrootd.tlsreuse directive for session cache control.
