@@ -33,10 +33,23 @@
 
 namespace XrdCl
 {
-
-  class ParallelHandler: public PipelineHandler
+  
+  //----------------------------------------------------------------------------
+  // Interface for different execution policies:
+  // - all      : all operations need to succeed in order for the parallel
+  //              operation to be successful
+  // - any      : just one of the operations needs to succeed in order for
+  //              the parallel operation to be successful
+  // - some     : n (user defined) operations need to succeed in order for
+  //              the parallel operation to be successful
+  // - at least : at least n (user defined) operations need to succeed in
+  //              order for the parallel operation to be successful (the
+  //              user handler will be called only when all operations are
+  //              resolved)
+  //----------------------------------------------------------------------------
+  struct PolicyExecutor
   {
-
+    virtual bool Examine( const XrdCl::XRootDStatus &status ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -59,7 +72,8 @@ namespace XrdCl
       template<bool from>
       ParallelOperation( ParallelOperation<from> &&obj ) :
           ConcreteOperation<ParallelOperation, HasHndl, Resp<void>>( std::move( obj ) ),
-            pipelines( std::move( obj.pipelines ) )
+          pipelines( std::move( obj.pipelines ) ),
+          policy( std::move( obj.policy ) )
       {
       }
 
@@ -121,7 +135,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ParallelOperation<HasHndl> Any()
       {
-        policy.reset( new AnyPolicy() );
+        policy.reset( new AnyPolicy( pipelines.size() ) );
         return std::move( *this );
       }
 
@@ -153,30 +167,12 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
-      //! Interface for different execution policies:
-      //! - all      : all operations need to succeed in order for the parallel
-      //!              operation to be successful
-      //! - any      : just one of the operations needs to succeed in order for
-      //!              the parallel operation to be successful
-      //! - some     : n (user defined) operations need to succeed in order for
-      //!              the parallel operation to be successful
-      //! - at least : at least n (user defined) operations need to succeed in
-      //!              order for the parallel operation to be successful (the
-      //!              user handler will be called only when all operations are
-      //!              resolved)
-      //------------------------------------------------------------------------
-      struct PolicyExecutor
-      {
-        virtual bool Examine( const XrdCl::XRootDStatus &status ) = 0;
-      };
-
-      //------------------------------------------------------------------------
       //! `All` policy implementation
       //!
       //! All operations need to succeed in order for the parallel operation to
       //! be successful.
       //------------------------------------------------------------------------
-      struct AllPolicy
+      struct AllPolicy : public PolicyExecutor
       {
         bool Examine( const XrdCl::XRootDStatus &status )
         {
@@ -192,7 +188,7 @@ namespace XrdCl
       //! Just one of the operations needs to succeed in order for the parallel
       //! operation to be successful.
       //------------------------------------------------------------------------
-      struct AnyPolicy
+      struct AnyPolicy : public PolicyExecutor
       {
         AnyPolicy( size_t size) : cnt( size )
         {
@@ -200,10 +196,11 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          // decrement the counter
+          size_t nb = cnt.fetch_sub( 1 );
           // we require just one operation to be successful
           if( status.IsOK() ) return true;
           // lets see if this is the last one?
-          size_t nb = cnt.fetch_sub( 1 );
           if( nb == 1 ) return true;
           // we still have a chance there will be one that is successful
           return false;
@@ -219,7 +216,7 @@ namespace XrdCl
       //! n (user defined) operations need to succeed in order for the parallel
       //! operation to be successful.
       //------------------------------------------------------------------------
-      struct SomePolicy
+      struct SomePolicy : PolicyExecutor
       {
         SomePolicy( size_t size, size_t threshold ) : cnt( size ), succeeded( 0 ), threshold( threshold )
         {
@@ -227,17 +224,17 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
-          // although we might have the minimum to succeed we wait for the rest
+          // decrement the counter
+          size_t nb = cnt.fetch_sub( 1 );
           if( status.IsOK() )
           {
-            size_t nb = succeeded.fetch_add( 1 );
-            if( nb + 1 == threshold ) return true; // we  the requirement
+            size_t s = succeeded.fetch_add( 1 );
+            if( s + 1 == threshold ) return true; // we reached the threshold
             // we are not yet there
             return false;
           }
-
-          size_t nb = cnt.fetch_sub( 1 );
-          if( nb == threshold ) return true; // we dropped bellow the threshold
+          // did we dropped bellow the threshold
+          if( nb == threshold ) return true;
           // we still have a chance there will be enough of successful operations
           return false;
         }
@@ -255,7 +252,7 @@ namespace XrdCl
       //! parallel operation to be successful (the user handler will be called
       //! only when all operations are resolved).
       //------------------------------------------------------------------------
-      struct AtLeastPolicy
+      struct AtLeastPolicy : PolicyExecutor
       {
         AtLeastPolicy( size_t size, size_t threshold ) : cnt( size ), threshold( threshold )
         {
@@ -263,9 +260,10 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          // decrement the counter
+          size_t nb = cnt.fetch_sub( 1 );
           // although we might have the minimum to succeed we wait for the rest
           if( status.IsOK() ) return false;
-          size_t nb = cnt.fetch_sub( 1 );
           if( nb == threshold ) return true; // we dropped bellow the threshold
           // we still have a chance there will be enough of successful operations
           return false;
@@ -289,11 +287,9 @@ namespace XrdCl
         //!
         //! @param handler : the PipelineHandler of the Parallel operation
         //----------------------------------------------------------------------
-        Ctx( PipelineHandler *handler,
-             PolicyExecutor  *policy = new AllPolicy() ): handler( handler ),
-                                                          policy( policy )
+        Ctx( PipelineHandler *handler, PolicyExecutor  *policy  ): handler( handler ),
+                                                                   policy( policy )
         {
-
         }
 
         //----------------------------------------------------------------------
@@ -310,14 +306,23 @@ namespace XrdCl
         //!
         //! @param st : status
         //----------------------------------------------------------------------
-        void Handle( const XRootDStatus &st )
+        inline void Examine( const XRootDStatus &st )
         {
           if( policy->Examine( st ) )
-          {
+            Handle( st );
+        }
+
+        //----------------------------------------------------------------------
+        //! Forwards the status to the PipelineHandler if the handler haven't
+        //! been called yet.
+        //!
+        //! @param st : status
+        //---------------------------------------------------------------------
+        inline void Handle( const XRootDStatus &st )
+        {
             PipelineHandler* hdlr = handler.exchange( nullptr );
             if( hdlr )
               hdlr->HandleResponse( new XRootDStatus( st ), nullptr );
-          }
         }
 
         //----------------------------------------------------------------------
@@ -350,7 +355,7 @@ namespace XrdCl
         {
           for( size_t i = 0; i < pipelines.size(); ++i )
           {
-            pipelines[i].Run( [ctx]( const XRootDStatus &st ){ ctx->Handle( st ); } );
+            pipelines[i].Run( [ctx]( const XRootDStatus &st ){ ctx->Examine( st ); } );
           }
         }
         catch( const PipelineException& ex )
