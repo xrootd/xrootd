@@ -109,7 +109,7 @@ namespace XrdCl
       //! Set recovery routine for given operation
       //------------------------------------------------------------------------
       inline void Recovery(
-          std::function<Operation<true>(const XRootDStatus&)> && recovery )
+          std::function<Operation<true>*(const XRootDStatus&)> && recovery )
       {
         this->recovery = std::move( recovery );
       }
@@ -154,7 +154,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The recovery routine for the respective operation
       //------------------------------------------------------------------------
-      std::function<Operation<true>(const XRootDStatus&)> recovery;
+      std::function<Operation<true>*(const XRootDStatus&)> recovery;
   };
 
   //----------------------------------------------------------------------------
@@ -570,9 +570,9 @@ namespace XrdCl
       }
 
       Derived<HasHndl> Recovery(
-          std::function<Operation<true>(const XRootDStatus&)> recovery )
+          std::function<Operation<true>*(const XRootDStatus&)> recovery )
       {
-        handler->Recovery( std::move( recovery ) );
+        this->handler->Recovery( std::move( recovery ) );
         return Transform<HasHndl>();
       }
 

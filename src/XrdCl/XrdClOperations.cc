@@ -76,9 +76,8 @@ namespace XrdCl
     {
       try
       {
-        // named reference to temporary will extend its lifetime
-        auto &&op = recovery( st );
-        op.AddOperation( nextOperation.release() );
+        std::unique_ptr<Operation<true>> op( recovery( st ) );
+        op->AddOperation( nextOperation.release() );
         op->Run( std::move( prms ), std::move( final ) );
         return;
       }
