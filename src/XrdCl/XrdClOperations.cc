@@ -36,8 +36,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // OperationHandler Constructor.
   //----------------------------------------------------------------------------
-  PipelineHandler::PipelineHandler( ResponseHandler *handler ) :
-      responseHandler( handler )
+  PipelineHandler::PipelineHandler( ResponseHandler                                       *handler,
+                                    std::function<Operation<true>*(const XRootDStatus&)> &&recovery ) :
+      responseHandler( handler ),
+      recovery( std::move( recovery ) )
   {
   }
 

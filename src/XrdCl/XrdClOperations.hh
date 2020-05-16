@@ -56,16 +56,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor.
       //!
-      //! @param handler : the handler of our operation
-      //! @param own     : if true we have the ownership of handler (it's
-      //!                  memory), and it is our responsibility to deallocate it
+      //! @param handler  : the handler of our operation
+      //! @param recovery : the recovery procedure for our operation
       //------------------------------------------------------------------------
-      PipelineHandler( ResponseHandler *handler );
+      PipelineHandler( ResponseHandler                                       *handler,
+                       std::function<Operation<true>*(const XRootDStatus&)> &&recovery );
 
       //------------------------------------------------------------------------
       //! Default Constructor.
       //------------------------------------------------------------------------
-      PipelineHandler()
+      PipelineHandler( std::function<Operation<true>*(const XRootDStatus&)> &&recovery ) :
+          recovery( std::move( recovery ) )
       {
       }
 
@@ -104,15 +105,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Assign( std::promise<XRootDStatus>               prms,
                    std::function<void(const XRootDStatus&)> final );
-
-      //------------------------------------------------------------------------
-      //! Set recovery routine for given operation
-      //------------------------------------------------------------------------
-      inline void Recovery(
-          std::function<Operation<true>*(const XRootDStatus&)> && recovery )
-      {
-        this->recovery = std::move( recovery );
-      }
 
     private:
 
@@ -569,14 +561,15 @@ namespace XrdCl
         return PipeImpl( *this, op );
       }
 
+      //------------------------------------------------------------------------
+      //! Set recovery procedure in case the operation fails
+      //------------------------------------------------------------------------
       Derived<HasHndl> Recovery(
           std::function<Operation<true>*(const XRootDStatus&)> recovery )
       {
-        this->handler->Recovery( std::move( recovery ) );
+        this->recovery = std::move( recovery );
         return Transform<HasHndl>();
       }
-
-    protected:
 
       //------------------------------------------------------------------------
       //! Move current object into newly allocated instance
@@ -596,10 +589,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline Operation<true>* ToHandled()
       {
-        this->handler.reset( new PipelineHandler() );
+        this->handler.reset( new PipelineHandler( std::move( this->recovery ) ) );
         Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
         return new Derived<true>( std::move( *me ) );
       }
+
+    protected:
 
       //------------------------------------------------------------------------
       //! Transform into a new instance with desired state
@@ -623,7 +618,7 @@ namespace XrdCl
       inline Derived<true> StreamImpl( ResponseHandler *handler )
       {
         static_assert( !HasHndl, "Operator >> is available only for operation without handler" );
-        this->handler.reset( new PipelineHandler( handler ) );
+        this->handler.reset( new PipelineHandler( handler, std::move( this->recovery ) ) );
         return Transform<true>();
       }
 
@@ -671,7 +666,7 @@ namespace XrdCl
       Derived<true> PipeImpl( ConcreteOperation<Derived, false, HdlrFactory,
           Args...> &me, Operation<true> &op )
       {
-        me.handler.reset( new PipelineHandler() );
+        me.handler.reset( new PipelineHandler( std::move( me.recovery ) ) );
         me.AddOperation( op.Move() );
         return me.template Transform<true>();
       }
@@ -688,7 +683,7 @@ namespace XrdCl
       Derived<true> PipeImpl( ConcreteOperation<Derived, false, HdlrFactory,
           Args...> &me, Operation<false> &op )
       {
-        me.handler.reset( new PipelineHandler() );
+        me.handler.reset( new PipelineHandler( std::move( me.recovery ) ) );
         me.AddOperation( op.ToHandled() );
         return me.template Transform<true>();
       }
@@ -697,6 +692,11 @@ namespace XrdCl
       //! Operation arguments
       //------------------------------------------------------------------------
       std::tuple<Args...> args;
+
+      //------------------------------------------------------------------------
+      //! The recovery routine for this operation
+      //------------------------------------------------------------------------
+      std::function<Operation<true>*(const XRootDStatus&)> recovery;
     };
 }
 
