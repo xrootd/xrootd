@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <sys/types.h>
+#include <sstream>
 
 #include "XrdVersion.hh"
 
@@ -43,6 +44,8 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
+
+bool g_anonymous_mode = false;
 
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l u n i x   C l a s s               */
@@ -61,8 +64,10 @@ friend class XrdSecProtocolDummy; // Avoid stupid gcc warnings about destructor
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        XrdSecProtocolunix(const char *hname, XrdNetAddrInfo &endPoint)
-                          : XrdSecProtocol("unix")
+        XrdSecProtocolunix(const char *hname, XrdNetAddrInfo &endPoint,
+                           bool anonymous_mode)
+                          : XrdSecProtocol("unix"),
+                            m_anonymous_mode(anonymous_mode)
                           {Entity.host = strdup(hname);
                            Entity.name = (char *)"?";
                            epAddr      = endPoint;
@@ -80,6 +85,7 @@ private:
 
 XrdNetAddrInfo            epAddr;
 char                     *credBuff;      // Credentials buffer (server)
+bool                      m_anonymous_mode;
 };
 
 /******************************************************************************/
@@ -156,6 +162,11 @@ int XrdSecProtocolunix::Authenticate(XrdSecCredentials *cred,
    bp = credBuff = strdup((cred->buffer)+5);
    ep = bp + strlen(bp);
 
+// If we are in anonymous mode, we don't utilize the username or
+// group information.
+//
+   if (m_anonymous_mode) return 0;
+
 // Extract out username
 //
    while(*bp && *bp == ' ') bp++;
@@ -184,6 +195,17 @@ char  *XrdSecProtocolunixInit(const char     mode,
                               const char    *parms,
                               XrdOucErrInfo *erp)
 {
+   if (parms)
+      {std::stringstream ss(parms);
+       std::string item;
+       while (std::getline(ss, item, ' '))
+          {if (item.empty()) continue;
+           if (item == "anonymous") g_anonymous_mode = true;
+           else std::cerr << "Secunix: Ignoring unknown argument '"
+                          << item << "'" << std::endl;
+          }
+      }
+
    return (char *)"";
 }
 }
@@ -206,7 +228,7 @@ XrdSecProtocol *XrdSecProtocolunixObject(const char              mode,
 
 // Return a new protocol object
 //
-   if (!(prot = new XrdSecProtocolunix(hostname, endPoint)))
+   if (!(prot = new XrdSecProtocolunix(hostname, endPoint, g_anonymous_mode)))
       {const char *msg = "Seckunix: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
           else cerr <<msg <<endl;
