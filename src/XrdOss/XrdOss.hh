@@ -60,42 +60,166 @@ class XrdSfsAio;
 class XrdOssDF
 {
 public:
-                // Directory oriented methods
-virtual int     Opendir(const char *, XrdOucEnv &)           {return -ENOTDIR;}
-virtual int     Readdir(char *, int)                         {return -ENOTDIR;}
+
+/******************************************************************************/
+/*            D i r e c t o r y   O r i e n t e d   M e t h o d s             */
+/******************************************************************************/
+
+//-----------------------------------------------------------------------------
+//! Open a directory.
+//!
+//! @param  path   - Pointer to the path of the directory to be opened.
+//! @param  env    - Reference to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Opendir(const char *path, XrdOucEnv &env)    {return -ENOTDIR;}
+
+//-----------------------------------------------------------------------------
+//! Get the next directory entry.
+//!
+//! @param  buff   - Pointer to buffer where a null terminated string of the
+//!                  entry name is to be returned. If no more entries exist,
+//!                  a null string is returned.
+//! @param  blen   - Length of the buffer.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
+
+//-----------------------------------------------------------------------------
+//! Set the stat() buffer where stat information is to be placed corresponding
+//! to the directory entry returned by Readdir().
+//!
+//! @param  buff   - Pointer to stat structure to be used.
+//!
+//! @return 0 upon success or -ENOTSUP if not supported.
+//!
+//! @note This is a one-time call as stat structure is reused for each Readdir.
+//-----------------------------------------------------------------------------
+
 virtual int     StatRet(struct stat *)                       {return -ENOTSUP;}
 
-                // File oriented methods
-virtual int     Fchmod(mode_t)                               {return -EISDIR;}
+/******************************************************************************/
+/*                 F i l e   O r i e n t e d   M e t h o d s                  */
+/******************************************************************************/
+//-----------------------------------------------------------------------------
+//! Change file mode settings.
+//!
+//! @param  mode   - The new file mode setting.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Fchmod(mode_t mode)                          {return -EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Flush filesystem cached pages for this file (used for checksums).
+//-----------------------------------------------------------------------------
+
 virtual void    Flush()                                      {}
+
+//-----------------------------------------------------------------------------
+//! Return state information for this file.
+//!
+//! @param  buf    - Pointer to the structure where info it to be returned.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
 virtual int     Fstat(struct stat *)                         {return -EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Synchronize associated file with media (synchronous).
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
 virtual int     Fsync()                                      {return -EISDIR;}
-virtual int     Fsync(XrdSfsAio *)                           {return -EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Synchronize associated file with media (asynchronous).
+//!
+//! @param  aiop   - Pointer to async I/O request object.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Fsync(XrdSfsAio *aiop)                       {return -EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Set the size of the associated file.
+//!
+//! @param  flen   - The new size of the file.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
 virtual int     Ftruncate(unsigned long long)                {return -EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Return the underlying file descriptor.
+//!
+//! @return -1 if there is no file descriptor or a non-negative FD number.
+//-----------------------------------------------------------------------------
+
 virtual int     getFD()                                      {return -1;}
+
+//-----------------------------------------------------------------------------
+//! Return the memory mapped characteristics of the file.
+//!
+//! @param  addr   - Pointer to where the memory mapped address is to be returned.
+//!
+//! @return If mapped, the size of the file is returned and it memory location
+//!         is placed in addr. Otherwise, addr is set to zero and zero is
+//!         returned. Note that zero length files cannot be memory mapped.
+//-----------------------------------------------------------------------------
+
 virtual off_t   getMmap(void **)                             {return 0;}
-virtual int     isCompressed(char *cxidp=0)                  {(void)cxidp; return -EISDIR;}
-virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
-virtual ssize_t pgRead (void*, off_t, size_t, uint32_t*, uint64_t);
-virtual int     pgRead (XrdSfsAio*, uint64_t);
-virtual ssize_t pgWrite(void*, off_t, size_t, uint32_t*, uint64_t);
-virtual int     pgWrite(XrdSfsAio*, uint64_t);
-virtual ssize_t Read(off_t, size_t)                          {return (ssize_t)-EISDIR;}
-virtual ssize_t Read(void *, off_t, size_t)                  {return (ssize_t)-EISDIR;}
-virtual int     Read(XrdSfsAio *aoip)                        {(void)aoip; return (ssize_t)-EISDIR;}
-virtual ssize_t ReadRaw(void *, off_t, size_t)               {return (ssize_t)-EISDIR;}
-virtual ssize_t ReadV(XrdOucIOVec *readV, int n);
-virtual ssize_t Write(const void *, off_t, size_t)           {return (ssize_t)-EISDIR;}
-virtual int     Write(XrdSfsAio *aiop)                       {(void)aiop; return (ssize_t)-EISDIR;}
-virtual ssize_t WriteV(XrdOucIOVec *writeV, int n);
 
-                // Methods common to both
-virtual int     Close(long long *retsz=0)=0;
-inline  int     Handle() {return fd;}
-virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
+//-----------------------------------------------------------------------------
+//! Return file compression charectistics.
+//!
+//! @param  cxidp  - Pointer to where the compression algorithm name returned.
+//!
+//! @return If the file is compressed, the region size if returned. Otherwise,
+//!         zero is returned (file not compressed).
+//-----------------------------------------------------------------------------
 
-                XrdOssDF() : pgwEOF(0), fd(-1) {}
-virtual        ~XrdOssDF() {}
+virtual int     isCompressed(char *cxidp=0)      {(void)cxidp; return -EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Open a file.
+//!
+//! @param  path   - Pointer to the path of the file to be opened.
+//! @param  Oflag  - Standard open flags.
+//! @param  Mode   - File open mode (ignored unless creating a file).
+//! @param  env    - Reference to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &env)
+                    {return -EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Read file pages into a buffer and return corresponding checksums.
+//!
+//! @param  buffer  - pointer to buffer where the bytes are to be placed.
+//! @param  offset  - The offset where the read is to start. It must be
+//!                   page aligned.
+//! @param  rdlen   - The number of bytes to read. The amount must be an
+//!                   integral number of XrdSfsPage::Size bytes.
+//! @param  csvec   - A vector of entries to be filled with the cooresponding
+//!                   CRC32C checksum for each page. It must be size to
+//!                   rdlen/XrdSys::PageSize + (rdlen%XrdSys::PageSize != 0)
+//! @param  opts    - Processing options (see below).
+//!
+//! @return >= 0      The number of bytes that placed in buffer upon success.
+//! @return  < 0       -errno or -osserr upon failure. (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
 
 // pgRead and pgWrite options as noted.
 //
@@ -104,10 +228,214 @@ Verify       = 0x8000000000000000ULL; //!< all: Verify    checksums
 static const uint64_t
 doCalc       = 0x4000000000000000ULL; //!< pgw: Calculate checksums
 
+virtual ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
+                        uint32_t* csvec, uint64_t opts);
+
+//-----------------------------------------------------------------------------
+//! Read file pages and checksums using asynchronous I/O.
+//!
+//! @param  aioparm - Pointer to async I/O object controlling the I/O.
+//! @param  opts    - Processing options (see above).
+//!
+//! @return 0 upon if request started success or -errno or -osserr
+//!         (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     pgRead (XrdSfsAio* aioparm, uint64_t opts);
+
+//-----------------------------------------------------------------------------
+//! Write file pages into a file with corresponding checksums.
+//!
+//! @param  buffer  - pointer to buffer containing the bytes to write.
+//! @param  offset  - The offset where the write is to start. It must be
+//!                   page aligned.
+//! @param  wrlen   - The number of bytes to write. If amount is not an
+//!                   integral number of XrdSys::PageSize bytes, then this must
+//!                   be the last write to the file at or above the offset.
+//! @param  csvec   - A vector which contains the corresponding CRC32 checksum
+//!                   for each page. It must be size to
+//!                   wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0)
+//! @param  opts    - Processing options (see above).
+//!
+//! @return >= 0      The number of bytes written upon success.
+//!                   or -errno or -osserr upon failure. (see XrdOssError.hh).
+//! @return  < 0      -errno or -osserr upon failure. (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t pgWrite(void* buffer, off_t offset, size_t wrlen,
+                        uint32_t* csvec, uint64_t opts);
+
+//-----------------------------------------------------------------------------
+//! Write file pages and checksums using asynchronous I/O.
+//!
+//! @param  aioparm - Pointer to async I/O object controlling the I/O.
+//! @param  opts    - Processing options (see above).
+//!
+//! @return 0 upon if request started success or -errno or -osserr
+//!         (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     pgWrite(XrdSfsAio* aoiparm, uint64_t opts);
+
+//-----------------------------------------------------------------------------
+//! Preread file blocks into the file system cache.
+//!
+//! @param  offset  - The offset where the read is to start.
+//! @param  size    - The number of bytes to pre-read.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t Read(off_t offset, size_t size)      {return (ssize_t)-EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Read file bytes into a buffer.
+//!
+//! @param  buffer  - pointer to buffer where the bytes are to be placed.
+//! @param  offset  - The offset where the read is to start.
+//! @param  size    - The number of bytes to read.
+//!
+//! @return >= 0      The number of bytes that placed in buffer.
+//! @return  < 0      -errno or -osserr upon failure (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t Read(void *buffer, off_t offset, size_t size)
+                    {return (ssize_t)-EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Read file bytes using asynchronous I/O.
+//!
+//! @param  aiop    - Pointer to async I/O object controlling the I/O.
+//!
+//! @return 0 upon if request started success or -errno or -osserr
+//!         (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Read(XrdSfsAio *aoip)    {(void)aoip; return (ssize_t)-EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Read uncompressed file bytes into a buffer.
+//!
+//! @param  buffer  - pointer to buffer where the bytes are to be placed.
+//! @param  offset  - The offset where the read is to start.
+//! @param  size    - The number of bytes to read.
+//!
+//! @return >= 0      The number of bytes that placed in buffer.
+//! @return  < 0      -errno or -osserr upon failure (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t ReadRaw(void *buffer, off_t offset, size_t size)
+                       {return (ssize_t)-EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Read file bytes as directed by the read vector.
+//!
+//! @param  readV     pointer to the array of read requests.
+//! @param  rdvcnt    the number of elements in readV.
+//!
+//! @return >=0       The numbe of bytes read.
+//! @return < 0       -errno or -osserr upon failure (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t ReadV(XrdOucIOVec *readV, int rdvcnt);
+
+//-----------------------------------------------------------------------------
+//! Write file bytes from a buffer.
+//!
+//! @param  buffer  - pointer to buffer where the bytes reside.
+//! @param  offset  - The offset where the write is to start.
+//! @param  size    - The number of bytes to write.
+//!
+//! @return >= 0      The number of bytes that were written.
+//! @return <  0      -errno or -osserr upon failure (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t Write(const void *buffer, off_t offset, size_t size)
+                     {return (ssize_t)-EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Write file bytes using asynchronous I/O.
+//!
+//! @param  aiop    - Pointer to async I/O object controlling the I/O.
+//!
+//! @return 0 upon if request started success or -errno or -osserr
+//!         (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Write(XrdSfsAio *aiop)   {(void)aiop; return (ssize_t)-EISDIR;}
+
+//-----------------------------------------------------------------------------
+//! Write file bytes as directed by the write vector.
+//!
+//! @param  writeV    pointer to the array of write requests.
+//! @param  wrvcnt    the number of elements in writeV.
+//!
+//! @return >=0       The numbe of bytes read.
+//! @return < 0       -errno or -osserr upon failure (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual ssize_t WriteV(XrdOucIOVec *writeV, int wrvcnt);
+
+/******************************************************************************/
+/*     C o m m o n   D i r e c t o r y   a n d   F i l e   M e t h o d s      */
+/******************************************************************************/
+//-----------------------------------------------------------------------------
+//! Close a directory or file.
+//!
+//! @param  retsz     If not nil, where the size of the file is to be returned.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Close(long long *retsz=0)=0;
+
+//-----------------------------------------------------------------------------
+//! Return the underlying object type.
+//!
+//! @return Type of object.
+//-----------------------------------------------------------------------------
+
+// Returned value will have one or more bits set as below.
+//
+static const uint16_t DF_isDir   = 0x0001;  //!< Object is for a directory
+static const uint16_t DF_isFile  = 0x0002;  //!< Object is for a file
+static const uint16_t DF_isOpen  = 0x0010;  //!< Object target has been opened
+static const uint16_t DF_isProxy = 0x0020;  //!< Object is a proxy object
+
+uint16_t        DFType() {return dfType;}
+
+//-----------------------------------------------------------------------------
+//! Execute a special operation on the directory or file.
+//!
+//! @param  cmd    - The operation to be performed.
+//! @param  alen   - Length of data pointed to by args.
+//! @param  args   - Data sent with request, zero if alen is zero.
+//! @param  resp   - Where the response is to be set. The caller must call
+//!                  delete on the returned object.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
+
+//-----------------------------------------------------------------------------
+//! Constructor and Destructor
+//!
+//! @param  dftpe  - The type of the object.
+//-----------------------------------------------------------------------------
+
+                XrdOssDF(uint16_t dftype=0)
+                        : pgwEOF(0), fd(-1), dfType(dftype), rsvd(0) {}
+
+virtual        ~XrdOssDF() {}
+
+
 protected:
 
-off_t   pgwEOF;  // Highest short offset on pgWrite (0 means none yet)
-int     fd;      // The associated file descriptor.
+off_t    pgwEOF;  // Highest short offset on pgWrite (0 means none yet)
+int      fd;      // The associated file descriptor.
+uint16_t dfType;  // Type of this object
+short    rsvd;    // Reserved
 };
 
 /******************************************************************************/
@@ -169,52 +497,375 @@ int       Reserved;
 class XrdOss
 {
 public:
+
+//-----------------------------------------------------------------------------
+//! Obtain a new director object to be used for future directory requests.
+//!
+//! @param  tident - The trace identifier.
+//!
+//! @return pointer- Pointer to an XrdOssDF object.
+//! @return nil    - Insufficient memory to allocate an object.
+//-----------------------------------------------------------------------------
+
 virtual XrdOssDF *newDir(const char *tident)=0;
+
+//-----------------------------------------------------------------------------
+//! Obtain a new file object to be used for a future file requests.
+//!
+//! @param  tident - The trace identifier.
+//!
+//! @return pointer- Pointer to an XrdOssDF object.
+//! @return nil    - Insufficient memory to allocate an object.
+//-----------------------------------------------------------------------------
+
 virtual XrdOssDF *newFile(const char *tident)=0;
 
-virtual int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0)=0;
+//-----------------------------------------------------------------------------
+//! Change file mode settings.
+//!
+//! @param  path   - Pointer to the path of the file in question.
+//! @param  mode   - The new file mode setting.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
 
-virtual void      Connect(XrdOucEnv &);
+virtual int       Chmod(const char * path, mode_t mode, XrdOucEnv *envP=0)=0;
+
+//-----------------------------------------------------------------------------
+//! Notify storage system that a client has connected.
+//!
+//! @param  env    - Reference to environmental information.
+//-----------------------------------------------------------------------------
+
+virtual void      Connect(XrdOucEnv &env);
+
+//-----------------------------------------------------------------------------
+//! Create file.
+//!
+//! @param  path   - Pointer to the path of the file to create.
+//! @param  mode   - The new file mode setting.
+//! @param  env    - Reference to environmental information.
+//! @param  opts   - Create options:
+//!                  XRDOSS_mkpath - create dir path if it does not exist.
+//!                  XRDOSS_new    - the file must not already exist.
+//!                  oflags<<8     - open flags shifted 8 bits to the left/
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
 
 virtual int       Create(const char *, const char *, mode_t, XrdOucEnv &,
                          int opts=0)=0;
 
-virtual void      Disc(XrdOucEnv &);
-virtual void      EnvInfo(XrdOucEnv *);
+//-----------------------------------------------------------------------------
+//! Notify storage system that a client has disconnected.
+//!
+//! @param  env    - Reference to environmental information.
+//-----------------------------------------------------------------------------
+
+virtual void      Disc(XrdOucEnv &env);
+
+//-----------------------------------------------------------------------------
+//! Notify storage system of initialization information (deprecated).
+//!
+//! @param  envP   - Pointer to environmental information.
+//-----------------------------------------------------------------------------
+
+virtual void      EnvInfo(XrdOucEnv *envP);
+
+//-----------------------------------------------------------------------------
+//! Return storage system features.
+//!
+//! @return Storage system features (see XRDOSS_HASxxx flags).
+//-----------------------------------------------------------------------------
+
 virtual uint64_t  Features();
-virtual int       FSctl(int, int, const char *, char **x=0);
 
-virtual int       Init(XrdSysLogger *, const char *)=0;
-virtual int       Mkdir(const char *, mode_t, int mkpath=0, XrdOucEnv *eP=0)=0;
+//-----------------------------------------------------------------------------
+//! Execute a special storage system operation.
+//!
+//! @param  cmd    - The operation to be performed.
+//! @param  alen   - Length of data pointed to by args.
+//! @param  args   - Data sent with request, zero if alen is zero.
+//! @param  resp   - Where the response is to be set. The caller must call
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
 
-virtual int       Reloc(const char *, const char *, const char *, const char *x=0);
+virtual int       FSctl(int cms, int alen, const char *args, char **resp=0);
 
-virtual int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
-virtual int       Rename(const char *, const char *,
-                         XrdOucEnv *eP1=0, XrdOucEnv *eP2=0)=0;
-virtual int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *x=0)=0;
+//-----------------------------------------------------------------------------
+//! Initialize the storage system V1 (deprecated).
+//!
+//! @param  lp     - Pointer to the message logging object.
+//! @param  cfn    - Pointer to the configuration file.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
 
-virtual int       Stats(char *bp, int bl) { (void)bp; (void)bl; return 0;}
+virtual int       Init(XrdSysLogger *lp, const char *cfn)=0;
 
-                  // Specialized stat type function (none supported by default)
-virtual int       StatFS(const char *, char *, int &, XrdOucEnv *x=0);
-virtual int       StatLS(XrdOucEnv &, const char *, char *, int &);
-virtual int       StatPF(const char *, struct stat *);
-virtual int       StatVS(XrdOssVSInfo *, const char *x=0, int y=0);
-virtual int       StatXA(const char *, char *, int &, XrdOucEnv *x=0);
+//-----------------------------------------------------------------------------
+//! Initialize the storage system V2.
+//!
+//! @param  lp     - Pointer to the message logging object.
+//! @param  cfn    - Pointer to the configuration file.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *envP)
+                      {return Init(lp, cfn);}
+
+//-----------------------------------------------------------------------------
+//! Create a directory.
+//!
+//! @param  path   - Pointer to the path of the directory to be created.
+//! @param  mode   - The directory mode setting.
+//! @param  mkpath - When true the path is created if it does not exist.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Mkdir(const char *path, mode_t mode, int mkpath=0,
+                        XrdOucEnv  *envP=0)=0;
+
+//-----------------------------------------------------------------------------
+//! Relocate/Copy the file at `path' to a new location.
+//!
+//! @param  tident - -> trace identifier for this operation.
+//! @param  path   - -> fully qualified name of the file to relocate.
+//! @param  cgName - -> target space name[:path]
+//! @param  anchor - Processing directions (see XrdOssReloc.cc example).
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Reloc(const char *tident, const char *path,
+                        const char *cgName, const char *anchor=0);
+
+//-----------------------------------------------------------------------------
+//! Remove a directory.
+//!
+//! @param  path   - Pointer to the path of the directory to be removed.
+//! @param  opts   - The processing options:
+//!                  XRDOSS_Online   - only remove online copy
+//!                  XRDOSS_isPFN    - path is already translated.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Remdir(const char *path, int Opts=0, XrdOucEnv *envP=0)=0;
+
+//-----------------------------------------------------------------------------
+//! Rename a file or directory.
+//!
+//! @param  oPath   - Pointer to the path to be renamed.
+//! @param  nPath   - Pointer to the path oPath is to have.
+//! @param  oEnvP   - Environmental information for oPath.
+//! @param  nEnvP   - Environmental information for nPath.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Rename(const char *oPath, const char *nPath,
+                         XrdOucEnv  *oEnvP=0, XrdOucEnv *nEnvP=0)=0;
+
+//-----------------------------------------------------------------------------
+//! Return state information on a file or directory.
+//!
+//! @param  path   - Pointer to the path in question.
+//! @param  buff   - Pointer to the structure where info it to be returned.
+//! @param  opts   - Options:
+//!                  XRDOSS_preop    - this is a stat prior to open.
+//!                  XRDOSS_resonly  - only look for resident files.
+//!                  XRDOSS_updtatm  - update file access time.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Stat(const char *path, struct stat *buff,
+                       int opts=0, XrdOucEnv *envP=0)=0;
+
+//-----------------------------------------------------------------------------
+//! Return statistics.
+//!
+//! @param  buff   - Pointer to the buffer to hold statistics.
+//! @param  blen   - Length of the buffer.
+//!
+//! @return The number of bytes placed in the buffer excluding null byte.
+//-----------------------------------------------------------------------------
+
+virtual int       Stats(char *buff, int blen) {(void)buff; (void)blen; return 0;}
+
+//-----------------------------------------------------------------------------
+//! Return filesystem physical space information associated with a path.
+//!
+//! @param  path   - Path in the partition in question.
+//! @param  buff   - Pointer to the buffer to hold the information.
+//! @param  blen   - Length of the buffer. This is updated with the actual
+//!                  number of bytes placed in the buffer as in snprintf().
+//! @param  opts   - Options:
+//!                  XRDEXP_STAGE - info for stageable space wanted.
+//!                  XRDEXP_NOTRW - info for Read/Only space wanted.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return "<wval> <fsp> <utl> <sval> <fsp> <utl>"
+//!         where: <wval> is "0" if XRDEXP_NOTRW specified, otherwise "1"
+//!                <fsp>  is free space in megabytes.
+//!                <utl>  is percentage utilization (i.e. allocated space)
+//!                <sval> is "1' if XRDEXP_STAGE specified, otherwise "0"
+//!         Upon failure -errno or -osserr (see XrdOssError.hh) returned.
+//-----------------------------------------------------------------------------
+
+virtual int       StatFS(const char *path, char *buff, int &blen,
+                         XrdOucEnv  *envP=0);
+
+//-----------------------------------------------------------------------------
+//! Return filesystem physical space information associated with a space name.
+//!
+//! @param  path   - Path in the name space in question. The space name
+//!                  associated with gthe path is used unless overridden.
+//! @param  buff   - Pointer to the buffer to hold the information.
+//! @param  blen   - Length of the buffer. This is updated with the actual
+//!                  number of bytes placed in the buffer as in snprintf().
+//! @param  opts   - Options (see StatFS()) apply only when there are no
+//!                  spaces defined.
+//! @param  envP   - Ref to environmental information. If the environment
+//!                  has the key oss.cgroup defined, the associated value is
+//!                  used as the space name and the path is ignored.
+//!
+//! @return "oss.cgroup=<name>&oss.space=<totbytes>&oss.free=<freebytes>
+//!          &oss.maxf=<maxcontigbytes>&oss.used=<bytesused>
+//!          &oss.quota=<quotabytes>" in buff upon success.
+//!         Upon failure -errno or -osserr (see XrdOssError.hh) returned.
+//-----------------------------------------------------------------------------
+
+virtual int       StatLS(XrdOucEnv &env, const char *path,
+                         char *buff, int &blen);
+
+//-----------------------------------------------------------------------------
+//! Return state information on a resident physical file or directory.
+//!
+//! @param  path   - Pointer to the path in question. No translation is
+//!                  done on this path.
+//! @param  buff   - Pointer to the structure where info it to be returned.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       StatPF(const char *path, struct stat *buff);
+
+//-----------------------------------------------------------------------------
+//! Return space information for a space name.
+//!
+//! @param  vsP    - Pointer to the XrdOssVSInfo object to hold results.
+//! @param  sname  - Pointer to the space name. If nil, space information for
+//!                  all spaces is returned.
+//! @param  updt   - When true, a space update occurrs prior to a query.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       StatVS(XrdOssVSInfo *vsP, const char *sname=0, int updt=0);
+
+//-----------------------------------------------------------------------------
+//! Return logical extended attributes associated with a path.
+//!
+//! @param  path   - Path in whose information is wanted.
+//! @param  buff   - Pointer to the buffer to hold the information.
+//! @param  blen   - Length of the buffer. This is updated with the actual
+//!                  number of bytes placed in the buffer as in snprintf().
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return "oss.cgroup=<name>&oss.type={'f'|'d'|'o'}&oss.used=<totbytes>
+//!          &oss.mt=<mtime>&oss.ct=<ctime>&oss.at=<atime>&oss.u=*&oss.g=*
+//!          &oss.fs={'w'|'r'}"
+//!         Upon failure -errno or -osserr (see XrdOssError.hh) returned.
+//-----------------------------------------------------------------------------
+
+virtual int       StatXA(const char *path, char *buff, int &blen,
+                         XrdOucEnv *envP=0);
+
+//-----------------------------------------------------------------------------
+//! Return export attributes associated with a path.
+//!
+//! @param  path   - Path in whose information is wanted.
+//! @param  attr   - Reference to where the inforamation is to be stored.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
 virtual int       StatXP(const char *, unsigned long long &, XrdOucEnv *x=0);
 
-virtual int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0)=0;
-virtual int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
+//-----------------------------------------------------------------------------
+//! Truncate a file.
+//!
+//! @param  path   - Pointer to the path of the file to be truncated.
+//! @param  fsize  - The size that the file is to have.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Truncate(const char *path, unsigned long long fsize,
+                           XrdOucEnv *envP=0)=0;
+
+//-----------------------------------------------------------------------------
+//! Remove a file.
+//!
+//! @param  path   - Pointer to the path of the file to be removed.
+//! @param  opts   - Options:
+//!                  XRDOSS_isMIG  - this is a migratable path.
+//!                  XRDOSS_isPFN  - do not apply name2name to path.
+//!                  XRDOSS_Online - remove only the online copy.
+//! @param  envP   - Pointer to environmental information.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *envP=0)=0;
 
                   // Default Name-to-Name Methods
+
+//-----------------------------------------------------------------------------
+//! Translate logical name to physical name V1 (deprecated).
+//!
+//! @param  Path   - Path in whose information is wanted.
+//! @param  buff   - Pointer to the buffer to hold the new path.
+//! @param  blen   - Length of the buffer.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
 virtual int       Lfn2Pfn(const char *Path, char *buff, int blen)
                          {if ((int)strlen(Path) >= blen) return -ENAMETOOLONG;
                           strcpy(buff, Path); return 0;
                          }
+
+//-----------------------------------------------------------------------------
+//! Translate logical name to physical name V2.
+//!
+//! @param  Path   - Path in whose information is wanted.
+//! @param  buff   - Pointer to the buffer to hold the new path.
+//! @param  blen   - Length of the buffer.
+//! @param  rc     - Place where failure return code is to be returned:
+//!                  -errno or -osserr (see XrdOssError.hh).
+//!
+//! @return Pointer to the translated path upon success or nil on failure.
+//-----------------------------------------------------------------------------
 virtual
 const char       *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
                          { (void)buff; (void)blen; rc = 0; return Path;}
+
+//-----------------------------------------------------------------------------
+//! Constructor and Destructor.
+//-----------------------------------------------------------------------------
 
                 XrdOss() {}
 virtual        ~XrdOss() {}
