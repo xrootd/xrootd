@@ -185,6 +185,10 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
    X509 *pxy = 0;
    STACK_OF(X509) *stk = 0;
    int freestk = 1;
+
+// Set extractor name in the XrdSecEntity object
+//
+   strcpy(ent.prox, "xrdvoms");
    
    if (gCertFmt == 0) {
 #ifdef HAVE_XRDCRYPTO
@@ -385,30 +389,34 @@ int XrdVomsFun::VOMSInit(const char *cfg)
    // Supported options:
    //         certfmt=raw|pem|x509   Certificate format:  [raw]
    //                                  raw   to be used with XrdCrypto tools
-   //                                  pem   PEM base64 format (as in cert files)
+   //                                  pem   PEM base64 format (i.e. cert files)
    //                                  x509  As a STACK_OF(X509)
    //         grpopt=opt               What to do with the group names:  [1]
    //                                    opt = sel * 10 + which
    //                                  with 'sel'
    //                                    0    consider all those present
-   //                                    1    select among those specified by 'grps' (see below)
+   //                                    1    select among those specified by
+   //                                         'grps' (see below)
    //                                  and 'which'
    //                                    0    take the first one
    //                                    1    take the last
    //                                    2    take all (comma separated)
-   //         grps=grp1[,grp2,...]   Group(s) for which the information is extracted; if specified
-   //                                the grpopt 'sel' is set to 1 regardless of the setting.
+   //         grps=grp1[,grp2,...]   Group(s) for which the information is
+   //                                         extracted; if specified the gropt
+   //                                         'sel' is set to 1 regardless of
+   //                                         the setting.
    //         vos=vo1[,vo2,...]      VOs to be considered; the first match is taken
-   //         grpfmt=<string>        String to be used to format the content of XrdSecEntity::grps
-   //         rolefmt=<string>       String to be used to format the content of XrdSecEntity::role
-   //         vofmt=<string>         String to be used to format the content of XrdSecEntity::vorg
-   //                                Recognized place holders in the above format strings:
-   //                                   <r>   role, as resulting from the parsing procedure
-   //                                   <g>   group
-   //                                   <vo>  VO
-   //                                   <an>  Full Qualified Attribute Name
-   //                                For example, rolefmt=<r>,grpfmt=<r> will inverse the group and
-   //                                role in the output XrdSecEntity
+   //         grpfmt=<string>        Format to use for XrdSecEntity::grps
+   //         rolefmt=<string>       Format to use for XrdSecEntity::role
+   //         vofmt=<string>         Format to use for XrdSecEntity::vorg
+   //                                Recognized place holders in the above
+   //                                format strings:
+   //                                <r>   role, from the parsing procedure
+   //                                <g>   group
+   //                                <vo>  VO
+   //                                <an>  Full Qualified Attribute Name
+   //                                For example, rolefmt=<g>,grpfmt=<r> will
+   //                                inverse the group and role in XrdSecEntity
    //         dbg                    To force verbose mode
    //
    EPNAME("Init");
