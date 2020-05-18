@@ -549,10 +549,16 @@ void XrdCmsMeter::calcSpace()
    long long fsutil;
 
 // Get free space statistics. On error, all fields will be zero, which is
-// what we really want to kill space allocation.
+// what we really want to kill space allocation. Note that some DFS's are
+// unreliable (e.g. Lustre) and the total space may be returned as zero.
+// If so, we wait a second and try again, up to 3 times.
 //
-   if ((rc = Config.ossFS->StatVS(&vsInfo, 0, 1)))
-      Say.Emsg("Meter", rc, "calculate file system space");
+   for (int i = 0; i < 3; i++)
+       {if ((rc = Config.ossFS->StatVS(&vsInfo, 0, 1)))
+           {Say.Emsg("Meter", rc, "calculate file system space"); break;}
+        if (vsInfo.Total) break;
+        XrdSysTimer::Snooze(1);
+       }
 
 // Calculate the disk utilization (note that dsk_tot is in MB)
 //
