@@ -238,6 +238,7 @@ void XrdSecEntity::List(XrdSecEntityAttrCB &attrCB) const
 void XrdSecEntity::Reset(bool isnew, const char *spV)
 {
    memset( prot, 0, sizeof(prot) );
+   memset( prox, 0, sizeof(prox) );
    if (spV) strncpy(prot, spV, sizeof(prot)-1);
 
    name = 0;

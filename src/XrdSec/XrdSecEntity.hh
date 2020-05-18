@@ -68,7 +68,8 @@ class XrdSysError;
 class XrdSecEntity
 {
 public:
-         char    prot[XrdSecPROTOIDSIZE]; //!< Security protocol used (e.g. krb5)
+         char    prot[XrdSecPROTOIDSIZE]; //!< Auth protocol  used (e.g. krb5)
+         char    prox[XrdSecPROTOIDSIZE]; //!< Auth extractor used (e.g. xrdvoms)
          char   *name;                    //!< Entity's name
          char   *host;                    //!< Entity's host name dnr dependent
          char   *vorg;                    //!< Entity's virtual organization(s)
