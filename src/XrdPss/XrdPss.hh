@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <vector>
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
@@ -201,6 +202,7 @@ int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
 const
 char  *getDomain(const char *hName);
+bool   Vectorize(char *str, std::vector<char *> &vec, char sep);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
 int    xdca( XrdSysError *errp,   XrdOucStream &Config);

@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <vector>
 
 #include "XrdVersion.hh"
 
@@ -137,7 +138,9 @@ namespace
 {
 XrdOucPsx *psxConfig;
 
-XrdSecsssID::authType sssMap;// persona setting
+XrdSecsssID::authType sssMap;      // persona setting
+
+std::vector<const char *> protVec;    // Additional wanted protocols
 }
 
 using namespace XrdProxy;
@@ -266,6 +269,19 @@ int XrdPssSys::Configure(const char *cfn)
    if (!XrdPosixXrootPath::AddProto(protName))
       {eDest.Emsg("Config", "Unable to add origin protocol to protocol list.");
        return 1;
+      }
+
+// Add any other protocols to the recognized list of protocol names
+//
+   if (protVec.size())
+      {for (int i = 0; i < (int)protVec.size(); i++)
+           {if (!XrdPosixXrootPath::AddProto(protVec[i]))
+               {eDest.Emsg("Config", "Unable to add", protVec[i],
+                                     "protocol to protocol list.");
+                return 1;
+               }
+           }
+       protVec.clear();
       }
 
 // Construct the redirector name:port (we might not have one) export it
@@ -483,9 +499,9 @@ const char *XrdPssSys::getDomain(const char *hName)
 const char *XrdPssSys::valProt(const char *pname, int &plen, int adj)
 {
    static  struct pEnt {const char *pname; int pnlen;} pTab[] =
-                       {{ "http://", 7},  { "https://", 8},
-                        { "root://", 7},//{ "roots://", 8},
-                        {"xroot://", 8} //{"xroots://", 9},
+                       {{ "https://", 8},  { "http://", 7},
+                        { "roots://", 8},//{ "root://", 7},
+                        {"xroots://", 9} //{"xroot://", 8},
                        };
    static int pTNum = sizeof(pTab)/sizeof(pEnt);
    int i;
@@ -499,6 +515,28 @@ const char *XrdPssSys::valProt(const char *pname, int &plen, int adj)
    return pTab[i].pname;
 }
   
+/******************************************************************************/
+/*                             V e c t o r i z e                              */
+/******************************************************************************/
+
+bool XrdPssSys::Vectorize(char *str, std::vector<char *> &vec, char sep)
+{
+   char *seppos;
+
+// Get each element and place it in the vecor. Null elements are not allowed.
+//
+   do {seppos = index(str, sep);
+       if (seppos)
+          {if (!(*(seppos+1))) return false;
+           *seppos = '\0';
+          }
+       if (!strlen(str)) return false;
+       vec.push_back(str);
+       str = seppos+1;
+      } while(seppos && *str);
+   return true;
+}
+
 /******************************************************************************/
 /*                                 x c o n f                                  */
 /******************************************************************************/
@@ -653,7 +691,7 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 
 /* Function: xorig
 
-   Purpose:  Parse: origin {= [<dest>] | <dest>}
+   Purpose:  Parse: origin {=[<prot>,<prot>,...] [<dest>] | <dest>}
 
                                                                                  d
    where:    <dest> <host>[+][:<port>|<port>] or a URL of the form
@@ -677,8 +715,30 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 
 // Check for outgoing proxy
 //
-   if (!strcmp(val, "="))
+   if (*val == '=')
       {pfxProxy = outProxy = true;
+       if (*(val+1))
+          {std::vector<char *> pVec;
+           char *pData = strdup(val+1);
+           const char *pName;
+           protVec.clear();
+           if (!Vectorize(pData, pVec, ','))
+              {errp->Emsg("Config", "Malformed forwarding specification");
+               free(pData);
+               return 1;
+              }
+           protVec.reserve(pVec.size());
+           for (int i = 0; i < (int)pVec.size(); i++)
+               {int n = strlen(pVec[i]);
+                if (!(pName = valProt(pVec[i], n, 3)))
+                   {errp->Emsg("Config","Unsupported forwarding protocol -",pVec[i]);
+                    free(pData);
+                    return 1;
+                   }
+                protVec.push_back(pName);
+               }
+           free(pData);
+          }
        if (!(val = Config.GetWord())) return 0;
       }
       else pfxProxy = outProxy = false;
