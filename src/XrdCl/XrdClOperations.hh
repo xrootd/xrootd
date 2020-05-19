@@ -43,6 +43,12 @@ namespace XrdCl
 
   class Pipeline;
 
+
+  //----------------------------------------------------------------------------
+  //! Type of the recovery function to be provided by the user
+  //----------------------------------------------------------------------------
+  typedef std::function<Operation<true>*(const XRootDStatus&)>  rcvry_func;
+
   //----------------------------------------------------------------------------
   //! Wrapper for ResponseHandler, used only internally to run next operation
   //! after previous one is finished
@@ -59,14 +65,13 @@ namespace XrdCl
       //! @param handler  : the handler of our operation
       //! @param recovery : the recovery procedure for our operation
       //------------------------------------------------------------------------
-      PipelineHandler( ResponseHandler                                       *handler,
-                       std::function<Operation<true>*(const XRootDStatus&)> &&recovery );
+      PipelineHandler( ResponseHandler   *handler,
+                       rcvry_func       &&recovery );
 
       //------------------------------------------------------------------------
       //! Default Constructor.
       //------------------------------------------------------------------------
-      PipelineHandler( std::function<Operation<true>*(const XRootDStatus&)> &&recovery ) :
-          recovery( std::move( recovery ) )
+      PipelineHandler( rcvry_func &&recovery ) : recovery( std::move( recovery ) )
       {
       }
 
@@ -146,7 +151,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The recovery routine for the respective operation
       //------------------------------------------------------------------------
-      std::function<Operation<true>*(const XRootDStatus&)> recovery;
+      rcvry_func recovery;
   };
 
   //----------------------------------------------------------------------------
@@ -564,8 +569,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set recovery procedure in case the operation fails
       //------------------------------------------------------------------------
-      Derived<HasHndl> Recovery(
-          std::function<Operation<true>*(const XRootDStatus&)> recovery )
+      Derived<HasHndl> Recovery( rcvry_func recovery )
       {
         this->recovery = std::move( recovery );
         return Transform<HasHndl>();
@@ -696,7 +700,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The recovery routine for this operation
       //------------------------------------------------------------------------
-      std::function<Operation<true>*(const XRootDStatus&)> recovery;
+      
+      rcvry_func recovery;
     };
 }
 
