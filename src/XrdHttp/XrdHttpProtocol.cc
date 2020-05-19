@@ -631,6 +631,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
     if (nfo) {
       TRACEI(REQ, " Setting host: " << nfo);
       SecEntity.host = nfo;
+      strcpy(SecEntity.prot, "http");
     }
   }
 
@@ -699,6 +700,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
       if (res != X509_V_OK) return -1;
       ssldone = true;
+      strcpy(SecEntity.prot, "https");
       if (TRACING(TRACE_AUTH)) SecEntity.Display(eDest);
     }
 
