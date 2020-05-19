@@ -171,6 +171,7 @@ install(
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
+    XrdClOptional.hh
     XrdClPlugInInterface.hh
     XrdClPlugInManager.hh
     XrdClPropertyList.hh
