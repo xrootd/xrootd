@@ -104,7 +104,8 @@ const char  *TraceID = "Link";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdLink::XrdLink(XrdLinkXeq &lxq) : XrdJob("connection"), linkXQ(lxq)
+XrdLink::XrdLink(XrdLinkXeq &lxq) : XrdJob("connection"), linkXQ(lxq),
+                                    HostName(0)
 {
    memset(rsvd1, 0, sizeof(rsvd1));
    memset(rsvd2, 0, sizeof(rsvd2));
