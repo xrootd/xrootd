@@ -471,7 +471,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   std::string URL::GetChannelId() const
   {
-    std::string ret = GetHostId();
+    std::string ret = pProtocol + "://" + pHostId;
     bool hascgi = false;
 
     std::string keys[] = { "xrdcl.intent",
