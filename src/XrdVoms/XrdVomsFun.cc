@@ -83,18 +83,29 @@
       while ((sp = a.find(' ', sp+1)) != STR_NPOS) { a[sp] = '\t'; } \
    }
 
+#define FATAL(x) {cerr <<"VomsFun: "<<x<<endl; aOK = false;}
+
+namespace
+{
+static const int   gSelAll   = 0;
+static const int   gSelGrps  = 1;
+static const short gUseFirst = 0;
+static const short gUseLast  = 1;
+static const short gUseAll   = 2;
+}
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
 XrdVomsFun::XrdVomsFun(XrdSysError &erp)
-                 : gGrpSel(0), gGrpWhich(2), gDebug(0), gDest(erp),
+                 : gGrpWhich(gUseAll), gDebug(0), gDest(erp),
                    gLogger(erp.logger())
 {
 #ifdef HAVE_XRDCRYPTO
-                gCertFmt = 0;     //  certfmt:raw|pem|x509 [raw]
+                gCertFmt = gCertRaw;     //  certfmt:raw|pem|x509 [raw]
 #else
-                gCertFmt = 1;     //  certfmt:pem|x509 [pem]
+                gCertFmt = gCertPEM;     //  certfmt:pem|x509 [pem]
 #endif
 };
 
@@ -160,11 +171,12 @@ void XrdVomsFun::FmtExtract(XrdOucString &out,
    int igf = in.find(tag);
    if (igf != STR_NPOS) {
       int from = igf + strlen(tag);
-      if (in[from+1] == '"') {
-         out.assign(in, igf + from + 1);
+      if (in[from] == '"') {
+         out.assign(in, from + 1);
          out.erase(out.find('"'));
       } else {
-         out.assign(in, igf + from);
+         out.assign(in, from);
+         while(out.endswith(' ')) out.erasefromend(1);
       }
    }
 }
@@ -190,7 +202,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
 //
    strcpy(ent.prox, "xrdvoms");
    
-   if (gCertFmt == 0) {
+   if (gCertFmt == gCertRaw) {
 #ifdef HAVE_XRDCRYPTO
       //
       // RAW format
@@ -227,7 +239,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
       PRINT("ERROR: compiled without support for RAW format! Re-run with 'certfmt=pem'");
       return -1;
 #endif
-   } else if (gCertFmt == 1) {
+   } else if (gCertFmt == gCertPEM) {
       //
       // PEM format
       //
@@ -287,7 +299,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
          // Filter the VO? (*i) is voms
          if (gVOs.Num() > 0 && !gVOs.Find((*i).voname.c_str())) continue;
          // Save VO name (in tuple mode this is done later, in the loop over groups)
-         if (gGrpWhich < 2) vo = xvo;
+         if (gGrpWhich < gUseAll) vo = xvo;
          std::vector<data> dat = (*i).std;
          std::vector<data>::iterator idat = dat.begin();
          // Same size as std::vector<data> by construction (same information in compact form)
@@ -300,10 +312,11 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
             xgrps = (*idat).group.c_str(); VOMSSPTTAB(xgrps);
             xrole = (*idat).role.c_str(); VOMSSPTTAB(xrole);
             xendor = (*ifqa).c_str(); VOMSSPTTAB(xendor);
-            bool fillgrp = 1;
-            if (gGrpSel == 1 && !gGrps.Find((*idat).group.c_str())) fillgrp = 0;
+            bool fillgrp = true;
+            if (gGrps.Num() && !gGrps.Find((*idat).group.c_str()))
+               fillgrp = false;
             if (fillgrp) {
-               if (gGrpWhich == 2) {
+               if (gGrpWhich == gUseAll) {
                   if (vo.length() > 0) vo += " ";
                   vo += (*i).voname.c_str();
                   if (grps.length() > 0) grps += " ";
@@ -319,7 +332,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
                }
             }
             // If we are asked to take the first we break
-            if (gGrpWhich == 0 && grps.length() > 0) break;            
+            if (gGrpWhich == gUseFirst && grps.length() > 0) break;
          }
          if (grps.length() <= 0) {
             // Reset all the fields
@@ -333,7 +346,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
       SafeFree(ent.grps);
       SafeFree(ent.role);
       SafeFree(ent.endorsements);
-      if (vo.length() > 0 && (gGrpSel == 0 || grps.length() > 0)) {
+      if (vo.length() > 0) {
          ent.vorg = strdup(vo.c_str());
          // Save the groups
          if (grps.length() > 0) ent.grps = strdup(grps.c_str());
@@ -367,7 +380,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
    
    // Success or failure?
    int rc = !ent.vorg ? -1 : 0;
-   if (rc == 0 && gGrpSel == 1 && !ent.grps) rc = -1;
+   if (rc == 0 && gGrps.Num() && !ent.grps) rc = -1;
    
    // Done
    return rc;
@@ -400,7 +413,13 @@ int XrdVomsFun::VOMSInit(const char *cfg)
    //                                  and 'which'
    //                                    0    take the first one
    //                                    1    take the last
-   //                                    2    take all (comma separated)
+   //                                    2    take all
+   //
+   //         grpopt=useall|usefirst|uselast
+   //                                useall:   all applicable groups
+   //                                usefirst: only the first applicable on
+   //                                uselast:  only the last  applicable on
+   //
    //         grps=grp1[,grp2,...]   Group(s) for which the information is
    //                                         extracted; if specified the gropt
    //                                         'sel' is set to 1 regardless of
@@ -425,6 +444,8 @@ int XrdVomsFun::VOMSInit(const char *cfg)
 
    XrdOucString fmt, go, grps, voss, gfmt, rfmt, vfmt, sdbg, sdbg2;
    XrdOucString gr, vo, ss;
+   bool aOK = true;
+
    if (oos.length() > 0) {
 
 #define NTAG 9
@@ -440,18 +461,18 @@ int XrdVomsFun::VOMSInit(const char *cfg)
          jb[i] = -1;
          int j = oos.find(tag[i]);
          if (j != STR_NPOS) jb[i] = j;
-         DEBUG(tag[i]<<" i:"<<i<<" = "<<j<<(j == STR_NPOS?" no":" ")<<"spec");
+//       DEBUG("["<<i<<"] "<<tag[i]<<" is "<<(j == STR_NPOS?"no":"")<<"spec");
       }
       // End of ranges
       for(i = 0; i < NTAG; i++) {
          je[i] = -1;
-         DEBUG("-------------");
+//       DEBUG("-------------");
          if (jb[i] > -1) {
             int k = -1;
             for(j = 0; j < NTAG; j++) {
                if (j != i) {
                   if (jb[j] > jb[i] && (k < 0 || jb[j] < jb[k])) k = j; 
-                  DEBUG("jb[" << j << "] = " << jb[j] <<" jb[ "<< i<<"] = "<<jb[i] << "  ->  k:" << k);
+//                DEBUG("jb[" << j << "] = " << jb[j] <<" jb[ "<< i<<"] = "<<jb[i] << "  ->  k:" << k);
                }
             }
             if (k >= 0) {
@@ -460,15 +481,14 @@ int XrdVomsFun::VOMSInit(const char *cfg)
                je[i] = oos.length() - 1;
             }
             if (i < NTAG-2) {
-               ss.assign(oos, jb[i], je[i]-jb[i]+1);
+               ss.assign(oos, jb[i], je[i]);
                FmtExtract(*var[i], ss, tag[i]);
-               DEBUG("\"" << ss << "\" (" << *var[i] <<")");
             } else {
                *var[i] = tag[i];
-               DEBUG(tag[i] <<"=\"" << *var[i] << "\"");
             }
+          DEBUG(tag[i] <<"\"" << *var[i] << "\"");
          }
-         DEBUG("jb["<<i<<"] = "<<jb[i] <<"  --->  "<< "je["<<i<<"] = "<<je[i]);
+//       DEBUG("jb["<<i<<"] = "<<jb[i] <<"  --->  "<< "je["<<i<<"] = "<<je[i]);
       }
 
 
@@ -476,37 +496,40 @@ int XrdVomsFun::VOMSInit(const char *cfg)
       if (fmt.length() > 0) {
          if (fmt == "raw") {
 #ifdef HAVE_XRDCRYPTO
-            gCertFmt = 0;
+            gCertFmt = gCertRaw;
 #else
             //
             // Do not have support for RAW format
             //
-            PRINT("WARNING: support for RAW format not available: forcing PEM");
-            gCertFmt = 1;
+            PRINT("VomsFun: support for RAW format not available: forcing PEM");
+            gCertFmt = gCertPEM;
 #endif
          } else if (fmt == "pem") {
-            gCertFmt = 1;
+            gCertFmt = gCertPEM;
          } else if (fmt == "x509") {
-            gCertFmt = 2;
+            gCertFmt = gCertX509;
          }
+           else FATAL("Unsupported cert format - '"<<fmt.c_str()<<"'.")
       }
 
       // Group option
       if (go.length() > 0) {
          if (go.isdigit()) {
             int grpopt = go.atoi();
-            gGrpSel = grpopt / 10;
-            if (gGrpSel != 0 && gGrpSel != 1) {
-               gGrpSel = 0;
-               PRINT("WARNING: grpopt sel must be in [0,1] - ignoring");
+            int n = grpopt / 10;
+            if (n != gSelAll && n != gSelGrps) {
+               FATAL("grpopt 'select' must be in [0,1] not '"<<n<<"'");
             }
             gGrpWhich = grpopt % 10;
-            if (gGrpWhich != 0 && gGrpWhich != 1 && gGrpWhich != 2) {
-               gGrpWhich = 1;
-               PRINT("WARNING: grpopt which must be in [0,2] - ignoring");
+            if (gGrpWhich != gUseFirst && gGrpWhich != gUseLast
+            &&  gGrpWhich != gUseAll) {
+               FATAL("grpopt 'which' must be in [0,2] not '"<<gGrpWhich<<"'");
             }
          } else {
-            PRINT("WARNING: you must pass a digit to grpopt: "<<go);
+                 if (go == "useall")   gGrpWhich = gUseAll;
+            else if (go == "usefirst") gGrpWhich = gUseFirst;
+            else if (go == "uselast")  gGrpWhich = gUseLast;
+            else FATAL("Invalid grpopt '"<<go<<"'");
          }
          gRequire = "grpopt="; gRequire += go;
       }
@@ -518,7 +541,6 @@ int XrdVomsFun::VOMSInit(const char *cfg)
             // Analyse tok
             VOMSSPTTAB(gr);
             gGrps.Add(gr.c_str(), &flag);
-            gGrpSel = 1;
          }
          if (gRequire.length() > 0) gRequire += ";";
          gRequire += "grps="; gRequire += grps;
@@ -550,17 +572,16 @@ int XrdVomsFun::VOMSInit(const char *cfg)
 
    // Notify
    const char *cfmt[3] = { "raw", "pem base64", "STACK_OF(X509)" };
-   const char *cgrs[2] = { "all", "specified group(s)"};
+   const char *cgrs[2] = { "all groups", "specified group(s)"};
    const char *cgrw[3] = { "first", "last", "all" };
+   int n = (gGrps.Num() ? 1 : 0);
    PRINT("++++++++++++++++++ VOMS plug-in +++++++++++++++++++++++++++++++");
    PRINT("+++ proxy fmt:    "<< cfmt[gCertFmt]);
-   PRINT("+++ group option: "<<cgrw[gGrpWhich]<<" of "<<cgrs[gGrpSel]);
-   if (gGrpSel == 1) {
-      if (grps.length() > 0) {
-         PRINT("+++ group(s):     "<< grps);
-      } else {
-         PRINT("+++ group(s):      <not specified>");
-      }
+   PRINT("+++ group option: "<<cgrw[gGrpWhich]<<" of "<<cgrs[n]);
+   if (grps.length() > 0) {
+      PRINT("+++ group(s):     "<< grps);
+   } else {
+      PRINT("+++ group(s):      <not specified>");
    }
    if (gGrpFmt.length() > 0)
       PRINT("+++ grps fmt:     "<< gGrpFmt);
@@ -568,8 +589,9 @@ int XrdVomsFun::VOMSInit(const char *cfg)
       PRINT("+++ role fmt:     "<< gRoleFmt);
    if (gVoFmt.length() > 0)
       PRINT("+++ vorg fmt:     "<< gVoFmt);
-   if (gVOs.Num() > 0) PRINT("+++ VO(s):        "<< voss);
+   if (gVOs.Num() > 0) {PRINT("+++ VO(s):        "<< voss);}
+      else             {PRINT("+++ VO(s):         all");}
    PRINT("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
    // Done
-   return gCertFmt;
+   return (aOK ? gCertFmt : -1);
 }

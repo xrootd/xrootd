@@ -43,7 +43,15 @@ class XrdVomsFun
 {
 public:
 
-void SetCertFmt(int n) {gCertFmt = n;}
+// Supported cert formats
+//
+enum CertFormat
+    {gCertRaw  = 0,
+     gCertPEM  = 1,
+     gCertX509 = 2
+    };
+
+void SetCertFmt(CertFormat n) {gCertFmt = n;}
 
 int  VOMSFun(XrdSecEntity &ent);
 
@@ -61,10 +69,10 @@ void FmtReplace(XrdSecEntity &ent);
 
 // These settings are configurable
 //
-int             gCertFmt;         // certfmt: see constructor
-int             gGrpSel;          // grpopt's sel = 0|1 [0]
-int             gGrpWhich;        // grpopt's which = 0|1|2 [2]
-int             gDebug;           // Verbosity control 0 | 1 | 2
+
+CertFormat      gCertFmt;         // certfmt: see constructor
+short           gGrpWhich;        // grpopt's which = 0|1|2 [2]
+short           gDebug;           // Verbosity control 0 | 1 | 2
 XrdOucHash<int> gGrps;            // hash table with grps=grp1[,grp2,...]
 XrdOucHash<int> gVOs;             // hash table with vos=vo1[,vo2,...]
 XrdOucString    gRequire;         // String with configuration options use to:

@@ -137,7 +137,7 @@ XrdHttpSecXtractor *XrdHttpGetSecXtractor(XrdHttpSecXtractorArgs)
 // We will always use a stack of x509 certs, make sure that is what the
 // voms fund will actually think it wants.
 //
-   vomsFun->SetCertFmt(2);
+   vomsFun->SetCertFmt(XrdVomsFun::gCertX509);
 
 // Now return the interface object
 //
