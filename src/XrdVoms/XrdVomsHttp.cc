@@ -85,6 +85,7 @@ private:
 int XrdVomsHttp::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl)
 {
    gsiVOMS_x509_in_t xCerts;
+   int rc;
 
 // Make sure the certs have been verified. Note that HTTP doesn't do well if
 // we return failure. So, we always return success as there will be no entity.
@@ -102,9 +103,9 @@ int XrdVomsHttp::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl)
 //
    sec.creds = (char *)&xCerts;
 
-// Do the voms tango now
+// Do the voms tango now and upon success pretend we are "gsi" authentication
 //
-   vomsFun.VOMSFun(sec);
+   if (!(rc = vomsFun.VOMSFun(sec))) strcpy(sec.prot, "gsi");
 
 // Free the x509 cert the chain will stick arround until the session is freed
 //
@@ -113,7 +114,7 @@ int XrdVomsHttp::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl)
 // All done
 //
    sec.creds = 0;
-   return 0;
+   return rc;
 }
 
 /******************************************************************************/

@@ -688,6 +688,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       res = SSL_get_verify_result(ssl);
       TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
       ERR_print_errors(sslbio_err);
+      strcpy(SecEntity.prot, "https");
 
 
       // Get the voms string and auth information
@@ -700,7 +701,6 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
       if (res != X509_V_OK) return -1;
       ssldone = true;
-      strcpy(SecEntity.prot, "https");
       if (TRACING(TRACE_AUTH)) SecEntity.Display(eDest);
     }
 
