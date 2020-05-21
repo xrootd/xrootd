@@ -455,7 +455,7 @@ void Usage(const char *emsg)
         <<"<opt>: [--help] [--list {all|m|s}] [--quiet] [--refresh] [--verify]" <<endl;
    if (!emsg)
       {cerr <<
-"--list    | -1 'all' lists managers and servers (default), 'm' lists only\n"
+"--list    | -l 'all' lists managers and servers (default), 'm' lists only\n"
 "               managers and 's' lists only servers.\n"
 "--quiet   | -q does not print error messages to cerr; errors appear inline.\n"
 "--refresh | -r does not use cached information but will refresh the cache.\n"
