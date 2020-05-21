@@ -1031,6 +1031,7 @@ void XrdSecProtocolgsi::Delete()
    SafeFree(Entity.vorg);
    SafeFree(Entity.role);
    SafeFree(Entity.grps);
+   SafeFree(Entity.caps);
    SafeFree(Entity.endorsements);
    if (Entity.creds && Entity.credslen > 0) {
       SafeFree(Entity.creds);

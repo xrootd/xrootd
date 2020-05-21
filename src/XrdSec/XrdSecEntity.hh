@@ -75,6 +75,7 @@ public:
          char   *vorg;                    //!< Entity's virtual organization(s)
          char   *role;                    //!< Entity's role(s)
          char   *grps;                    //!< Entity's group name(s)
+         char   *caps;                    //!< Entity's capabilities
          char   *endorsements;            //!< Protocol specific endorsements
          char   *moninfo;                 //!< Information for monitoring
          char   *creds;                   //!< Raw entity credentials or cert

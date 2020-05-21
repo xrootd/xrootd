@@ -185,6 +185,7 @@ bool XrdSecsssEnt::Serialize()
         + (eP->vorg         ? strlen(eP->vorg)         + 4 : 0)
         + (eP->role         ? strlen(eP->role)         + 4 : 0)
         + (eP->grps         ? strlen(eP->grps)         + 4 : 0)
+        + (eP->caps         ? strlen(eP->caps)         + 4 : 0)
         + (eP->endorsements ? strlen(eP->endorsements) + 4 : 0);
 
 // The above is always sent to V1 servers and it can't be too short
@@ -252,6 +253,8 @@ bool XrdSecsssEnt::Serialize()
       {*bP++ = XrdSecsssRR_Data::theRole; XrdOucPup::Pack(&bP,eP->role);}
    if (eP->grps)
       {*bP++ = XrdSecsssRR_Data::theGrps; XrdOucPup::Pack(&bP,eP->grps);}
+   if (eP->caps)
+      {*bP++ = XrdSecsssRR_Data::theCaps; XrdOucPup::Pack(&bP,eP->caps);}
    if (eP->endorsements)
       {*bP++ = XrdSecsssRR_Data::theEndo; XrdOucPup::Pack(&bP,eP->endorsements);}
    if (rLen)

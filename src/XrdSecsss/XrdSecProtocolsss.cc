@@ -79,6 +79,7 @@ char               *host;
 char               *vorg;
 char               *role;
 char               *grps;
+char               *caps;
 char               *endo;
 char               *creds;
 int                 credslen;
@@ -239,6 +240,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
                      break;
                 case XrdSecsssRR_Data::theUser: myID.xUser    = idP; break;
                 case XrdSecsssRR_Data::theGrup: myID.xGrup    = idP; break;
+                case XrdSecsssRR_Data::theCaps: myID.caps     = idP; break;
                 default: break;
                }
         }
@@ -317,6 +319,7 @@ if (!(decKey.Data.Opts & XrdSecsssKT::ktEnt::noIPCK))
           + (myID.vorg   ? strlen(myID.vorg)+1   : 0)
           + (myID.role   ? strlen(myID.role)+1   : 0)
           + (myID.grps   ? strlen(myID.grps)+1   : 0)
+          + (myID.caps   ? strlen(myID.caps)+1   : 0)
           + (myID.endo   ? strlen(myID.endo)+1   : 0)
           + (myID.creds  ? myID.credslen         : 0)
           + (myID.pident ? strlen(myID.pident)+1 : 0);
@@ -330,6 +333,7 @@ if (!(decKey.Data.Opts & XrdSecsssKT::ktEnt::noIPCK))
    Entity.vorg         = setID(myID.vorg, &idP);
    Entity.role         = setID(myID.role, &idP);
    Entity.grps         = setID(myID.grps, &idP);
+   Entity.caps         = setID(myID.caps, &idP);
    Entity.endorsements = setID(myID.endo, &idP);
 
    if (myID.pident)

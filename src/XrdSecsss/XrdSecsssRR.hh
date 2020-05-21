@@ -100,6 +100,7 @@ static const char theAKey = 0x0a; // V2: attribute key
 static const char theAVal = 0x0b; // V2: attribute value for preceeding key
 static const char theUser = 0x0c; // V2: the Unix user  name (original)
 static const char theGrup = 0x0d; // V2: the Unix group name (original)
+static const char theCaps = 0x0e; // V2: the x509 capabilities
 
 static const char theLgid = 0x10; // from server only
 static const char theHost = 0x20; // from client only (required)

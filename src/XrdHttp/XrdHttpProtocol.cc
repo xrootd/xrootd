@@ -1847,6 +1847,7 @@ void XrdHttpProtocol::Cleanup() {
   ssl = 0;
   sbio = 0;
 
+  if (SecEntity.caps) free(SecEntity.caps);
   if (SecEntity.grps) free(SecEntity.grps);
   if (SecEntity.endorsements) free(SecEntity.endorsements);
   if (SecEntity.vorg) free(SecEntity.vorg);

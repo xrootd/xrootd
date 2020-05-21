@@ -120,7 +120,7 @@ void XrdSecEntity::Display(XrdSysError &mDest)
 
    char theprot[XrdSecPROTOIDSIZE+1];
 
-// Avoid the vulgarities of old gcc compilers thatidn't implemented full C++11
+// Avoid vulgarities of old gcc compilers that didn't implemented full C++11
 //
    typedef long long          int LLint;
    typedef long long unsigned int ULint;
@@ -138,6 +138,7 @@ void XrdSecEntity::Display(XrdSysError &mDest)
    mDest.Say(tident, " Vorg '", (vorg ? vorg : ""), "'");
    mDest.Say(tident, " Role '", (role ? role : ""), "'");
    mDest.Say(tident, " Grps '", (grps ? grps : ""), "'");
+   mDest.Say(tident, " Caps '", (caps ? caps : ""), "'");
    mDest.Say(tident, " Pidn '", (pident ? pident : ""), "'");
 
    mDest.Say(tident, " Crlen ", std::to_string((LLint)credslen).c_str());
@@ -246,6 +247,7 @@ void XrdSecEntity::Reset(bool isnew, const char *spV)
    vorg = 0;
    role = 0;
    grps = 0;
+   caps = 0;
    endorsements = 0;
    moninfo = 0;
    creds = 0;
