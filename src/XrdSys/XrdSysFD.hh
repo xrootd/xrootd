@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <dirent.h>
 
 namespace
 {
@@ -63,6 +64,12 @@ inline int  XrdSysFD_Open(const char *path, int flags)
 
 inline int  XrdSysFD_Open(const char *path, int flags, mode_t mode)
                  {return open(path, flags|O_CLOEXEC, mode);}
+
+inline DIR* XrdSysFD_OpenDir(const char *path)
+                 {int fd;
+                  if ((fd = open(path, O_RDONLY|O_CLOEXEC))) return 0;
+                  return fdopendir(fd);
+                 }
 
 inline int  XrdSysFD_Pipe(int pipefd[2])
                  {return pipe2(pipefd, O_CLOEXEC);}
@@ -107,6 +114,12 @@ inline int  XrdSysFD_Open(const char *path, int flags, mode_t mode)
                  {int newfd = open(path, flags, mode);
                   if (newfd >= 0) fcntl(newfd, F_SETFD, FD_CLOEXEC);
                   return newfd;
+                 }
+
+inline DIR* XrdSysFD_OpenDir(const char *path)
+                 {int fd = XrdSysFD_Open(path, O_RDONLY);
+                  if (fd < 0) return 0;
+                  return fdopendir(fd);
                  }
 
 inline int  XrdSysFD_Pipe(int pipefd[2])
