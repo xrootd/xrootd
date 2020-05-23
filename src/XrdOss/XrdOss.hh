@@ -742,6 +742,7 @@ virtual int       StatPF(const char *path, struct stat *buff);
 //! Return space information for a space name.
 //!
 //! @param  vsP    - Pointer to the XrdOssVSInfo object to hold results.
+//!                  It should be fully initialized (i.e. a new copy).
 //! @param  sname  - Pointer to the space name. If the name starts with a
 //!                  plus (e.g. "+public"), partition information is
 //!                  returned, should it exist. If nil, space information for
