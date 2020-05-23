@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Define method to get partition information; mostly for Xcache.
   * **[Sec]** Add support for x509 capabilities.
   * **[PSS]** Allow http and https for forwarding proxies.
   * **[Server]** Allow display of SecEntity for https and xroot.
