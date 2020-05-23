@@ -38,6 +38,7 @@
 #include <sys/types.h>
 #include <string.h>
 
+#include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
 class XrdOucEnv;
@@ -466,29 +467,6 @@ short    rsvd;    // Reserved
 // Commands that can be passed to FSctl
 //
 #define XRDOSS_FSCTLFA 0x0001
-
-/******************************************************************************/
-/*                    C l a s s   X r d O s s V S I n f o                     */
-/******************************************************************************/
-  
-// Class passed to StatVS()
-//
-class XrdOssVSInfo
-{
-public:
-long long Total;   // Total bytes
-long long Free;    // Total bytes free
-long long Large;   // Total bytes in largest partition
-long long LFree;   // Max   bytes free in contiguous chunk
-long long Usage;   // Used  bytes (if usage enabled)
-long long Quota;   // Quota bytes (if quota enabled)
-int       Extents; // Number of partitions/extents
-int       Reserved;
-
-          XrdOssVSInfo() : Total(0),Free(0),Large(0),LFree(0),Usage(-1),
-                           Quota(-1),Extents(0),Reserved(0) {}
-         ~XrdOssVSInfo() {}
-};
   
 /******************************************************************************/
 /*                          C l a s s   X r d O s s                           */
@@ -764,8 +742,10 @@ virtual int       StatPF(const char *path, struct stat *buff);
 //! Return space information for a space name.
 //!
 //! @param  vsP    - Pointer to the XrdOssVSInfo object to hold results.
-//! @param  sname  - Pointer to the space name. If nil, space information for
-//!                  all spaces is returned.
+//! @param  sname  - Pointer to the space name. If the name starts with a
+//!                  plus (e.g. "+public"), partition information is
+//!                  returned, should it exist. If nil, space information for
+//!                  all spaces is returned. See, XrdOssVS.hh for more info.
 //! @param  updt   - When true, a space update occurrs prior to a query.
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).

@@ -116,6 +116,8 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
    struct stat sfbuff;
    XrdOssCache_FSData *fdp;
    XrdOssCache_FS     *fsp;
+   int n;
+   bool newfs = false;
 
 // Prefill in case of failure
 //
@@ -154,6 +156,7 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
    if (!fdp)
       {if (!(fdp = new XrdOssCache_FSData(fsPath,fsbuff,sfbuff.st_dev))) return;
           else {fdp->next = XrdOssCache::fsdata; XrdOssCache::fsdata = fdp;}
+       newfs = true;
       }
 
 // Complete the filesystem block (failure now is not an option)
@@ -180,6 +183,26 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
       {fsgroup->next = XrdOssCache_Group::fsgroups; 
        XrdOssCache_Group::fsgroups=fsgroup;
       }
+
+// Add a filesystem to this group but only if it is a new one
+//
+   XrdOssCache_FSAP *fsAP;
+   for (n = 0; n < fsgroup->fsNum && fdp != fsgroup->fsVec[n].fsP; n++);
+   if (n >= fsgroup->fsNum)
+      {n= (fsgroup->fsNum + 1) * sizeof(XrdOssCache_FSAP);
+       fsgroup->fsVec = (XrdOssCache_FSAP *)realloc((void *)fsgroup->fsVec,n);
+       fsAP = &(fsgroup->fsVec[fsgroup->fsNum++]);
+       fsAP->fsP   = fdp;
+       fsAP->apVec = 0;
+       fsAP->apNum = 0;
+      } else fsAP = &(fsgroup->fsVec[n]);
+
+// Add the allocation path to this partition
+//
+   n = (fsAP->apNum + 2) * sizeof(char *);
+   fsAP->apVec = (const char **)realloc((void *)fsAP->apVec, n);
+   fsAP->apVec[fsAP->apNum++] = path;
+   fsAP->apVec[fsAP->apNum]   = 0;
 }
 
 /******************************************************************************/
@@ -266,7 +289,8 @@ long long XrdOssCache_FS::freeSpace(XrdOssCache_Space &Space, const char *path)
 /*                              g e t S p a c e                               */
 /******************************************************************************/
   
-int XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, const char *sname)
+int XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, const char *sname,
+                             XrdOssVSPart **vsPart)
 {
    XrdOssCache_Group  *fsg = XrdOssCache_Group::fsgroups;
 
@@ -275,45 +299,55 @@ int XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, const char *sname)
    while(fsg && strcmp(sname, fsg->group)) fsg = fsg->next;
    if (!fsg) return 0;
 
-// Return the space
+// Return the accumulated result
 //
-   return getSpace(Space, fsg);
+   return getSpace(Space, fsg, vsPart);
 }
 
 /******************************************************************************/
-  
-int XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, XrdOssCache_Group *fsg)
+
+int  XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, XrdOssCache_Group *fsg,
+                              XrdOssVSPart **vsPart)
 {
-   static unsigned int seenVal = 0;
-   XrdOssCache_FS     *fsp;
+   XrdOssVSPart       *pVec;
    XrdOssCache_FSData *fsd;
-   int pnum = 0;
 
-// Initialize some fields
+// Get values that don't change
 //
-   Space.Total = 0;
-   Space.Free  = 0;
+   Space.Usage = fsg->Usage;
+   Space.Quota = fsg->Quota;
 
-// Prepare to accumulate the stats. Note that a file system may appear in
-// multiple cache groups. The code below only counts those once.
+// If there is no partition table then we really have no space to report
+//
+   if (fsg->fsNum < 1 || !fsg->fsVec) return 0;
+
+// If partion information is wanted, allocate a partition table
+//
+   if (vsPart) *vsPart = pVec = new XrdOssVSPart[fsg->fsNum];
+      else pVec = 0;
+
+// Prepare to accumulate the stats.
 //
    XrdOssCache::Mutex.Lock();
-   seenVal++;
-   Space.Usage = fsg->Usage; Space.Quota = fsg->Quota;
-   if ((fsp = XrdOssCache::fsfirst)) do
-      {if (fsp->fsgroup == fsg && fsp->fsdata->seen != seenVal)
-          {fsd = fsp->fsdata; pnum++; fsd->seen = seenVal;
-           Space.Total += fsd->size;      Space.Free   += fsd->frsz;
-           if (fsd->frsz > Space.Maxfree) Space.Maxfree = fsd->frsz;
-           if (fsd->size > Space.Largest) Space.Largest = fsd->size;
-          }
-       fsp = fsp->next;
-      } while(fsp != XrdOssCache::fsfirst);
+   for (int i = 0; i < fsg->fsNum; i++)
+       {fsd = fsg->fsVec[i].fsP;
+        Space.Total +=  fsd->size;
+        Space.Free  +=  fsd->frsz;
+        if (fsd->frsz > Space.Maxfree) Space.Maxfree = fsd->frsz;
+        if (fsd->size > Space.Largest) Space.Largest = fsd->size;
+
+        if (pVec)
+           {pVec[i].pPath = fsd->path;
+            pVec[i].aPath = fsg->fsVec[i].apVec;
+            pVec[i].Total = fsd->size;
+            pVec[i].Free  = fsd->frsz;
+           }
+       }
    XrdOssCache::Mutex.UnLock();
 
 // All done
 //
-   return pnum;
+   return fsg->fsNum;
 }
 
 /******************************************************************************/

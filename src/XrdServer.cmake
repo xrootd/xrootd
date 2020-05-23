@@ -122,7 +122,8 @@ add_library(
   XrdOss/XrdOssSpace.cc        XrdOss/XrdOssSpace.hh
   XrdOss/XrdOssStage.cc        XrdOss/XrdOssStage.hh
   XrdOss/XrdOssStat.cc         XrdOss/XrdOssStatInfo.hh
-                               XrdOss/XrdOssUnlink.cc
+  XrdOss/XrdOssUnlink.cc
+                               XrdOss/XrdOssVS.hh
                                XrdOss/XrdOssError.hh
 
   #-----------------------------------------------------------------------------

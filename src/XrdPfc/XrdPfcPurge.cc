@@ -513,7 +513,6 @@ void Cache::Purge()
 
    XrdOucEnv    env;
    XrdOss*      oss = Cache::GetInstance().GetOss();
-   XrdOssVSInfo sP;
    long long    disk_usage;
    long long    estimated_file_usage = m_configuration.m_diskUsageHWM;
 
@@ -545,6 +544,7 @@ void Cache::Purge()
       long long bytesToRemove_d = 0, bytesToRemove_f = 0;
 
       // get amount of space to potentially erase based on total disk usage
+      XrdOssVSInfo sP; // Make sure we start when a clean slate in each loop
       if (oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
          TRACE(Error, trc_pfx << "can't get StatVS for oss space " << m_configuration.m_data_space);

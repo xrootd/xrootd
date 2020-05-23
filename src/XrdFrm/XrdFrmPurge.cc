@@ -416,7 +416,6 @@ int XrdFrmPurge::Init(XrdOucTList *sP, long long minV, int hVal)
                         };
 
    XrdFrmConfig::VPInfo *vP;
-   XrdOssVSInfo vsInfo;
    XrdFrmPurge *xP, *ppP = 0, *spP = First;
    XrdOucTList  *tP;
    char xBuff[32];
@@ -459,7 +458,8 @@ int XrdFrmPurge::Init(XrdOucTList *sP, long long minV, int hVal)
 //
    spP = First; ppP = 0;
    while(spP)
-        {if ((rc = Config.ossFS->StatVS(&vsInfo, spP->SName, 1)))
+        {XrdOssVSInfo vsInfo;
+         if ((rc = Config.ossFS->StatVS(&vsInfo, spP->SName, 1)))
             {Say.Emsg("Init", rc, "calculate space for", spP->SName);
              if (ppP) ppP->Next = spP->Next;
                 else  First =     spP->Next;
@@ -516,7 +516,6 @@ int XrdFrmPurge::Init(XrdOucTList *sP, long long minV, int hVal)
   
 int XrdFrmPurge::LowOnSpace()
 {
-   XrdOssVSInfo VSInfo;
    XrdFrmPurge *psP = First;
    time_t eNow;
 
@@ -525,7 +524,8 @@ int XrdFrmPurge::LowOnSpace()
    Left2Do = 0;
    while(psP)
         {if (psP->Enabled)
-            {if (Config.ossFS->StatVS(&VSInfo, psP->SName, 1)) psP->Stop = 1;
+            {XrdOssVSInfo VSInfo;
+             if (Config.ossFS->StatVS(&VSInfo, psP->SName, 1)) psP->Stop = 1;
                 else {psP->freeSpace = VSInfo.Free;
                       psP->contSpace = VSInfo.LFree;
                       psP->usedSpace = VSInfo.Usage;

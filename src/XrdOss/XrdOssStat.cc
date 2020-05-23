@@ -300,7 +300,8 @@ int XrdOssSys::StatPF(const char *path, struct stat *buff)
 
 int XrdOssSys::StatVS(XrdOssVSInfo *sP, const char *sname, int updt)
 {
-   XrdOssCache_Space   CSpace;
+   XrdOssCache_Space CSpace;
+   XrdOssVSPart **vsP;
 
 // Check if we should update the statistics
 //
@@ -320,9 +321,17 @@ int XrdOssSys::StatVS(XrdOssVSInfo *sP, const char *sname, int updt)
        return XrdOssOK;
       }
 
+// Check if partition table wanted
+//
+   if (*sname != '+') vsP = 0;
+      else {sname++;
+            vsP = &(sP->vsPart);
+           }
+
 // Get the space stats
 //
-   if (!(sP->Extents=XrdOssCache_FS::getSpace(CSpace,sname))) return -ENOENT;
+   if (!(sP->Extents=XrdOssCache_FS::getSpace(CSpace, sname, vsP)))
+      return -ENOENT;
 
 // Return the result
 //
@@ -469,7 +478,6 @@ int XrdOssSys::getStats(char *buff, int blen)
                             + stagqsz + stagssz;
 
    XrdOssCache_Group  *fsg = XrdOssCache_Group::fsgroups;
-   XrdOssCache_Space   CSpace;
    OssDPath           *dpP = DPList;
    char *bp = buff;
    int dpNum = 0, spNum = 0, n, flen;
@@ -492,7 +500,8 @@ int XrdOssSys::getStats(char *buff, int blen)
 // Output individual entries
 //
    while(dpP && blen > 0)
-        {XrdOssCache_FS::freeSpace(CSpace, dpP->Path2);
+        {XrdOssCache_Space CSpace;
+         XrdOssCache_FS::freeSpace(CSpace, dpP->Path2);
          flen = snprintf(bp, blen, ptag2, dpNum, dpP->Path1, dpP->Path2,
                                    CSpace.Total>>10, CSpace.Free>>10,
                                    CSpace.Inodes,    CSpace.Inleft);
@@ -514,7 +523,8 @@ int XrdOssSys::getStats(char *buff, int blen)
 // Generate info for each path
 //
    while(fsg && blen > 0)
-        {n = XrdOssCache_FS::getSpace(CSpace, fsg);
+        {XrdOssCache_Space CSpace;
+         n = XrdOssCache_FS::getSpace(CSpace, fsg);
          flen = snprintf(bp, blen, stag2, spNum, fsg->group, CSpace.Total>>10,
                 CSpace.Free>>10, CSpace.Maxfree>>10, n, CSpace.Usage>>10);
          bp += flen; blen -= flen; spNum++;

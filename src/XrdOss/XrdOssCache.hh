@@ -33,6 +33,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include "XrdOuc/XrdOucDLlist.hh"
+#include "XrdOss/XrdOssVS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -143,8 +144,11 @@ XrdOssCache_Group  *fsgroup;
 static int          Add(const char *Path);
 static long long    freeSpace(long long         &Size,  const char *path=0);
 static long long    freeSpace(XrdOssCache_Space &Space, const char *path);
-static int          getSpace( XrdOssCache_Space &Space, const char *sname);
-static int          getSpace( XrdOssCache_Space &Space, XrdOssCache_Group *fsg);
+
+static int          getSpace( XrdOssCache_Space &Space, const char *sname,
+                              XrdOssVSPart **vsPart=0);
+static int          getSpace( XrdOssCache_Space &Space, XrdOssCache_Group *fsg,
+                              XrdOssVSPart **vsPart=0);
 
        XrdOssCache_FS(      int  &retc,
                       const char *fsg,
@@ -153,6 +157,17 @@ static int          getSpace( XrdOssCache_Space &Space, XrdOssCache_Group *fsg);
       ~XrdOssCache_FS() {if (group) free((void *)group);
                          if (path)  free((void *)path);
                         }
+};
+
+/******************************************************************************/
+/*                      X r d O s s C a c h e _ F S A P                       */
+/******************************************************************************/
+  
+struct XrdOssCache_FSAP
+{
+XrdOssCache_FSData  *fsP;   // Pointer to partition
+const char         **apVec; // Allocation root paths in this partition (nil end)
+int                  apNum;
 };
 
 /******************************************************************************/
@@ -165,19 +180,22 @@ class XrdOssCache_Group
 {
 public:
 
-XrdOssCache_Group *next;
-char              *group;
-XrdOssCache_FS    *curr;
-long long          Usage;
-long long          Quota;
-int                GRPid;
-static long long   PubQuota;
+XrdOssCache_Group   *next;
+char                *group;
+XrdOssCache_FS      *curr;
+XrdOssCache_FSAP    *fsVec; // Partitions where space may be allocated
+long long            Usage;
+long long            Quota;
+int                  GRPid;
+short                fsNum;
+short                rsvd;
+static long long     PubQuota;
 
 static XrdOssCache_Group *fsgroups;
 
        XrdOssCache_Group(const char *grp, XrdOssCache_FS *fsp=0) 
-                        : next(0), group(strdup(grp)), curr(fsp), Usage(0),
-                          Quota(-1), GRPid(-1) {}
+                        : next(0), group(strdup(grp)), curr(fsp), fsVec(0),
+                          Usage(0), Quota(-1), GRPid(-1), fsNum(0), rsvd(0) {}
       ~XrdOssCache_Group() {if (group) free((void *)group);}
 };
   
