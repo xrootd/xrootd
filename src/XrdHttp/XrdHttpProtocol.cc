@@ -763,7 +763,8 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     if (!CurrentReq.headerok) {
       TRACEI(REQ, " rc:" << rc << "Header not yet complete.");
-      CurrentReq.reqstate--;
+      if (CurrentReq.reqstate > 0)
+        CurrentReq.reqstate--;
       // Waiting for more data
       return 1;
     }
