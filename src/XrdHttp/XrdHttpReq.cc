@@ -1118,6 +1118,11 @@ int XrdHttpReq::ProcessHTTPReq() {
         case 1: // Open() or dirlist
         {
 
+          if (!prot->Bridge) {
+              prot->SendSimpleResp(500, NULL, NULL, (char *) "prot->Bridge is NULL.", 0, false);
+              return -1;
+            }
+
           if (fileflags & kXR_isDir) {
 
             if (prot->listdeny) {
