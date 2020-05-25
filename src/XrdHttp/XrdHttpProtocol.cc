@@ -2764,6 +2764,7 @@ int XrdHttpProtocol::doStat(char *fname) {
   l = strlen(fname) + 1;
   CurrentReq.xrdreq.stat.dlen = htonl(l);
 
+  if (!Bridge) return -1;
   b = Bridge->Run((char *) &CurrentReq.xrdreq, fname, l);
   if (!b) {
     return -1;
@@ -2787,6 +2788,8 @@ int XrdHttpProtocol::doChksum(const XrdOucString &fname) {
   memset(CurrentReq.xrdreq.query.reserved2, '\0', sizeof(CurrentReq.xrdreq.query.reserved2));
   length = fname.length() + 1;
   CurrentReq.xrdreq.query.dlen = htonl(length);
+
+  if (!Bridge) return -1;
 
   return Bridge->Run(reinterpret_cast<char *>(&CurrentReq.xrdreq), const_cast<char *>(fname.c_str()), length) ? 0 : -1;
 }
