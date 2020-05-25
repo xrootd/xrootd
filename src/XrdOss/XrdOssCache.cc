@@ -117,7 +117,7 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
    XrdOssCache_FSData *fdp;
    XrdOssCache_FS     *fsp;
    int n;
-   bool newfs = false;
+   //bool newfs = false;
 
 // Prefill in case of failure
 //
@@ -156,7 +156,7 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
    if (!fdp)
       {if (!(fdp = new XrdOssCache_FSData(fsPath,fsbuff,sfbuff.st_dev))) return;
           else {fdp->next = XrdOssCache::fsdata; XrdOssCache::fsdata = fdp;}
-       newfs = true;
+   //    newfs = true;
       }
 
 // Complete the filesystem block (failure now is not an option)
