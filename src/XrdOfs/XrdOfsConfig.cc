@@ -716,6 +716,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_XPI("ckslib",        theCksLib);
     TS_Xeq("cksrdsz",       xcrds);
     TS_XPI("cmslib",        theCmsLib);
+    TS_Xeq("dirlist",       xdirl);
     TS_Xeq("forward",       xforward);
     TS_Xeq("maxdelay",      xmaxd);
     TS_Xeq("notify",        xnot);
@@ -776,6 +777,40 @@ int XrdOfs::xcrds(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (XrdOuca2x::a2sz(Eroute, "cksrdsz size", val, &rdsz, 1, maxRds)) return 1;
    ofsConfig->SetCksRdSz(static_cast<int>(rdsz));
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                 x d i r l                                  */
+/******************************************************************************/
+  
+/* Function: xdirl
+
+   Purpose:  To parse the directive: dirlist {local | remote}
+
+             local   processes directory listings locally. The oss plugin
+                     must be capable of doing this. This is the default.
+             remote  if clustering is enabled, directory listings are
+                     processed as directed by the cmsd.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xdirl(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   char *val;
+
+// Get the parameter
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "dirlist parameter not specified"); return 1;}
+
+// Set appropriate option
+//
+        if (!strcmp(val, "local"))  DirRdr = false;
+   else if (!strcmp(val, "remote")) DirRdr = true;
+   else {Eroute.Emsg("Config", "Invalid dirlist parameter -", val); return 1;}
+
    return 0;
 }
   

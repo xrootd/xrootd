@@ -173,6 +173,10 @@ XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
 //
    prepHandler = 0;
    prepAuth = true;
+
+// Other options
+//
+   DirRdr    = false;
 }
   
 /******************************************************************************/
@@ -237,7 +241,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 // return meaningful error msgs but the backport to do this was too difficult.
 // So, upon an error we try to fix up the message as best as we can.
 //
-   if (XrdOfsFS->Finder && XrdOfsFS->Finder->isRemote()
+   if (XrdOfsFS->DirRdr && XrdOfsFS->Finder && XrdOfsFS->Finder->isRemote()
    &&  (retc = XrdOfsFS->Finder->Locate(error, dir_path, od_mode, &Open_Env)))
       {char *eMsg = const_cast<char *>(error.getErrText());
        while((eMsg = strstr(eMsg, " file")))

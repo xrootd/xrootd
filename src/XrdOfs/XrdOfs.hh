@@ -397,6 +397,8 @@ XrdVersionInfo   *myVersion;      // Version number compiled against
 static XrdOfsHandle     *dummyHandle;
 XrdSysMutex              ocMutex; // Global mutex for open/close
 
+bool              DirRdr;         // Opendir() can be redirected.
+
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */
 /******************************************************************************/
@@ -421,6 +423,7 @@ int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
 int           Reformat(XrdOucErrInfo &);
 const char   *theRole(int opts);
 int           xcrds(XrdOucStream &, XrdSysError &);
+int           xdirl(XrdOucStream &, XrdSysError &);
 int           xexp(XrdOucStream &, XrdSysError &, bool);
 int           xforward(XrdOucStream &, XrdSysError &);
 int           xmaxd(XrdOucStream &, XrdSysError &);
