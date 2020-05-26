@@ -183,6 +183,10 @@ XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
 //
    usxMaxNsz = kXR_faMaxNlen;
    usxMaxVsz = kXR_faMaxVlen;
+
+// Other options
+//
+   DirRdr    = false;
 }
   
 /******************************************************************************/
@@ -246,7 +250,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 
 // Find out where we should open this directory
 //
-   if (XrdOfsFS->Finder && XrdOfsFS->Finder->isRemote()
+   if (XrdOfsFS->DirRdr && XrdOfsFS->Finder && XrdOfsFS->Finder->isRemote()
    &&  (retc = XrdOfsFS->Finder->Locate(error, dir_path, od_mode, &Open_Env)))
       return XrdOfsFS->fsError(error, retc);
 

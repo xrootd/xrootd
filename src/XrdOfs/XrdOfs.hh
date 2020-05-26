@@ -447,6 +447,8 @@ int               usxMaxVsz;      // Maximum length of attribute value
 static XrdOfsHandle     *dummyHandle;
 XrdSysMutex              ocMutex; // Global mutex for open/close
 
+bool              DirRdr;         // Opendir() can be redirected.
+
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */
 /******************************************************************************/
@@ -479,6 +481,7 @@ int           FSctl(XrdOfsFile &file, int cmd, int alen, const char *args,
 int           Reformat(XrdOucErrInfo &);
 const char   *theRole(int opts);
 int           xcrds(XrdOucStream &, XrdSysError &);
+int           xdirl(XrdOucStream &, XrdSysError &);
 int           xexp(XrdOucStream &, XrdSysError &, bool);
 int           xforward(XrdOucStream &, XrdSysError &);
 int           xmaxd(XrdOucStream &, XrdSysError &);
