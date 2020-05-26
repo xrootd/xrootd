@@ -4,6 +4,3 @@
 [submodule "src/XrdCeph"]
 	path = src/XrdCeph
 	url = https://github.com/xrootd/xrootd-ceph
-[submodule "src/XrdXrootdVoms"]
-	path = src/XrdXrootdVoms
-	url = https://github.com/xrootd/vomsxrd
