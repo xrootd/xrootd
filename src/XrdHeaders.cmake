@@ -175,6 +175,8 @@ if( NOT XRDCL_ONLY )
 
     XrdSut/XrdSutAux.hh
     XrdSut/XrdSutBucket.hh
+
+    XrdVoms/XrdVoms.hh
 )
 endif()
 

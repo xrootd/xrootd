@@ -34,11 +34,6 @@ install(
    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(
-   FILES
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVoms.hh
-   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdVoms )
-
-install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/libXrdSecgsiVOMS.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
