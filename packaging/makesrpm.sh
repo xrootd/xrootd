@@ -245,7 +245,6 @@ fi
 git submodule init
 git submodule update -- src/XrdClHttp
 git submodule update -- src/XrdCeph
-git submodule update -- src/XrdXrootdVoms
 #git submodule foreach git pull origin master
 
 #-------------------------------------------------------------------------------
