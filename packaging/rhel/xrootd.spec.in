@@ -239,14 +239,15 @@ server development.
 # private devel
 #-------------------------------------------------------------------------------
 %package private-devel
-Summary:	Legacy xrootd headers
+Summary:	Private xrootd headers
 Group:		Development/Libraries
-Requires:	%{name}-libs = %{epoch}:%{version}-%{release}
+Requires:	%{name}-devel%{?_isa} = %{epoch}:%{version}-%{release}
+Requires:	%{name}-client-devel%{?_isa} = %{epoch}:%{version}-%{release}
+Requires:	%{name}-server-devel%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description private-devel
-This package contains some private xrootd headers. The use of these
-headers is strongly discouraged. Backward compatibility between
-versions is not guaranteed for these headers.
+This package contains some private xrootd headers. Backward and forward
+compatibility between versions is not guaranteed for these headers.
 
 #-------------------------------------------------------------------------------
 # client
