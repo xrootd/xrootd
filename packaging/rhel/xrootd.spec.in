@@ -401,17 +401,6 @@ Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 The VOMS attribute extractor plug-in for XRootD.
 
 #-------------------------------------------------------------------------------
-# xrootd-voms-devel
-#-------------------------------------------------------------------------------
-%package voms-devel
-Summary: Headers for using the VOMS attribute extractor plug-in
-Group:   System Environment/Libraries
-Provides: vomsxrd-devel
-Requires: %{name}-voms = %{epoch}:%{version}-%{release}
-%description voms-devel
-Headers for using the VOMS attribute extractor plug-in
-
-#-------------------------------------------------------------------------------
 # tests
 #-------------------------------------------------------------------------------
 %if %{?_with_tests:1}%{!?_with_tests:0}
@@ -859,10 +848,6 @@ fi
 %{_libdir}/libXrdSecgsiVOMS-5.so
 %doc %{_mandir}/man1/libXrdSecgsiVOMS.1.gz
 
-%files voms-devel
-%defattr(-,root,root,-)
-%{_includedir}/xrootd/XrdVoms
-
 %if %{?_with_python3:1}%{!?_with_python3:0}
 %files -n python3-%{name}
 %defattr(-,root,root,-)
@@ -910,6 +895,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Wed May 27 2020 Michal Simon <michal.simon@cern.ch> - 4.12.2-1
+- Remove xrootd-voms-devel
+
 * Fri Apr 17 2020 Michal Simon <michal.simon@cern.ch> - 4.12.0-1
 - Introduce xrootd-voms and xrootd-voms-devel packages
 
