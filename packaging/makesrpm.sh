@@ -243,8 +243,9 @@ fi
 # Make sure submodules are in place
 #-------------------------------------------------------------------------------
 git submodule init
-git submodule update --recursive
-git submodule foreach git pull origin master
+git submodule update -- src/XrdClHttp
+git submodule update -- src/XrdCeph
+#git submodule foreach git pull origin master
 
 #-------------------------------------------------------------------------------
 # Add XrdClHttp sub-module to our tarball
