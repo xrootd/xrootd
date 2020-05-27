@@ -110,7 +110,9 @@ int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
    myHost = getenv("XRDHOST");
    if (!myHost) myHost = "localhost";
    myName = XrdOucUtils::InstName(1);
-   CMSPath= strdup("/tmp/");
+   CMSPath = getenv("XRDADMINPATH");
+   if (CMSPath && *CMSPath) CMSPath = strdup(CMSPath);
+      else CMSPath = XrdOucUtils::genPath("/tmp/",XrdOucUtils::InstName(myName,0));
    isMeta = (How & configMeta) != 0;
    isMan  = (What& configMan)  != 0;
    isServer = What == configServer;
@@ -130,7 +132,7 @@ int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
 
 // Set proper local socket path
 //
-   temp=XrdOucUtils::genPath(CMSPath, XrdOucUtils::InstName(-1), ".olb");
+   temp = XrdOucUtils::genPath(CMSPath, (const char *)0, ".olb");
    free(CMSPath); CMSPath = temp;
    XrdOucEnv::Export("XRDCMSPATH", temp);
    XrdOucEnv::Export("XRDOLBPATH", temp); //Compatability
@@ -348,7 +350,7 @@ int XrdCmsClientConfig::xapath(XrdOucStream &Config)
 // Record the path
 //
    if (CMSPath) free(CMSPath);
-   CMSPath = strdup(pval);
+   CMSPath = XrdOucUtils::genPath(pval,XrdOucUtils::InstName(myName,0));
    return 0;
 }
 

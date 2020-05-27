@@ -212,7 +212,9 @@ int XrdCmsConfig::Configure0(XrdProtocol_Config *pi)
    myInsName = strdup(pi->myInst);
    myProg    = strdup(pi->myProg);
    Sched     = pi->Sched;
-   AdminPath = strdup((pi->AdmPath ? pi->AdmPath : "/tmp/"));
+   if (pi->AdmPath) AdminPath = strdup(pi->AdmPath);
+      else AdminPath = XrdOucUtils::genPath("/tmp/",
+                                    XrdOucUtils::InstName(myInsName,0));
    AdminMode = pi->AdmMode;
    if (pi->DebugON) Trace.What = TRACE_ALL;
    xrdEnv    = pi->theEnv;
@@ -440,9 +442,10 @@ int XrdCmsConfig::Configure2()
       Say.Say("Config warning: adminpath resides in /tmp and may be unstable!");
 
 
-// Establish the path to be used for admin functions
+// Establish the path to be used for admin functions. It has already been
+// qualified by the instance name.
 //
-   p = XrdOucUtils::genPath(AdminPath,XrdOucUtils::InstName(myInsName,0),".olb");
+   p = XrdOucUtils::genPath(AdminPath, (const char *)0, ".olb");
    free(AdminPath);
    AdminPath = p;
 
@@ -1414,7 +1417,8 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
 // Record the path
 //
    if (AdminPath) free(AdminPath);
-   AdminPath = pval;
+   AdminPath = XrdOucUtils::genPath(pval,XrdOucUtils::InstName(myName,0));
+   free(pval);
    AdminMode = mode;
    return 0;
 }
