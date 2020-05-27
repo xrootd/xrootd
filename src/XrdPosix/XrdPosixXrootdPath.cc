@@ -59,6 +59,7 @@ namespace XrdPosixGlobals
 extern XrdOucName2Name *theN2N;
 extern bool             oidsOK;
 extern bool             p2lSRC;
+extern bool             p2lSGI;
 
        ProtoTable       protoTab[ptEnts] = {{"root://",  7}, {"xroot://",  8},
                                             {"roots://", 8}, {"xroots://", 9}};
@@ -205,9 +206,10 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
       }
 
 // Allocate sufficient space for the pfn with possible extensions (e.g. "?src="
-// and the whole url prefix)
+// and the whole url prefix and possible cgi).
 //
-   char *pfnBP = (char *)alloca(pfnLen + 5 *pfxLen + 1);
+   n = (XrdPosixGlobals::p2lSGI ? cgiLen : 0);
+   char *pfnBP = (char *)alloca(pfnLen + 5 + pfxLen + n + 1);
 
 // Copy out the pfn. We know it will definitely fit.
 //
@@ -219,7 +221,11 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
       else {char *bP = pfnBP+pfnLen;
             memcpy(bP, "?src=", 5); bP += 5;
             strncpy(bP, inP, pfxLen);
-            *(bP+pfxLen) = 0;
+            bP += pfxLen;
+            if (XrdPosixGlobals::p2lSGI && cgiLen)
+               {if (*(quest+1) != '&') *bP++ = '&';
+                strcpy(bP, quest+1);
+               } else *bP = 0;
            }
 
 // Invoke the name2name translator if we have one

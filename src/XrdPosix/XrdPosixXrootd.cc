@@ -92,6 +92,7 @@ int              ddMaxTries= 180/30;
 XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 bool             oidsOK    = false;
 bool             p2lSRC    = false;
+bool             p2lSGI    = false;
 };
 
 int            XrdPosixXrootd::baseFD    = 0;

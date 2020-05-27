@@ -82,6 +82,7 @@ extern int                        ddMaxTries;
 extern XrdCl::DirListFlags::Flags dlFlag;
 extern bool                       oidsOK;
 extern bool                       p2lSRC;
+extern bool                       p2lSGI;
 };
   
 /******************************************************************************/
@@ -367,7 +368,10 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 //
    if (parms.xPfn2Lfn)
       {XrdPosixGlobals::theN2N = parms.theN2N;
-       XrdPosixGlobals::p2lSRC = parms.xPfn2Lfn == parms.xP2Lsrc;
+       if (parms.xPfn2Lfn == parms.xP2Lsrc || parms.xPfn2Lfn == parms.xP2Lsgi)
+          {XrdPosixGlobals::p2lSRC = true;
+           XrdPosixGlobals::p2lSGI = parms.xPfn2Lfn == parms.xP2Lsrc;
+          } else XrdPosixGlobals::p2lSRC = XrdPosixGlobals::p2lSGI = false;
       }
 
 // Handle client settings

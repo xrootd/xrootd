@@ -97,6 +97,7 @@ bool                 xNameLib;
 static const int     xP2Loff = 0;
 static const int     xP2Lon  = 1;
 static const int     xP2Lsrc = 2;
+static const int     xP2Lsgi = 3;
 
           XrdOucPsx(XrdVersionInfo *vInfo, const char *cfn,
                     XrdSysLogger *lp=0,    XrdOucEnv  *vp=0)
