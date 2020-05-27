@@ -36,12 +36,17 @@ install(
 
 install(
   FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/libXrdSecgsiVOMS.1
+  ${PROJECT_SOURCE_DIR}/docs/man/libXrdVoms.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
   CODE "
     EXECUTE_PROCESS(
-      COMMAND ln -sf ${LIB_XRD_VOMS} ${LIB_XRD_SEC_GSI_VOMS}
+      COMMAND ln -sf lib${LIB_XRD_VOMS}.so lib${LIB_XRD_SEC_GSI_VOMS}.so
       WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} )" )
 
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf libXrdVoms.1 libXrdSecgsiVOMS.1
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )" )
