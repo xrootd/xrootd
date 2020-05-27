@@ -35,7 +35,7 @@ install(
 
 install(
    FILES
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdSecgsiVOMS.hh
+   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVoms.hh
    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdVoms )
 
 install(

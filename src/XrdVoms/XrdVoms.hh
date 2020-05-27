@@ -1,8 +1,8 @@
-#ifndef ___SECGSI_VOMS_H___
-#define ___SECGSI_VOMS_H___
+#ifndef ___XRD_VOMS_H___
+#define ___XRD_VOMS_H___
 /******************************************************************************/
 /*                                                                            */
-/*                    X r d S e c g s i V O M S . h h                         */
+/*                            X r d V o m s . h h                             */
 /*                                                                            */
 /*  (C) 2013  G. Ganis, CERN                                                  */
 /*                                                                            */
@@ -39,6 +39,6 @@
 typedef struct {
    X509           *cert;
    STACK_OF(X509) *chain;
-} gsiVOMS_x509_in_t; 
+} Voms_x509_in_t;
 
 #endif

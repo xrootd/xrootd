@@ -46,7 +46,7 @@
 #include "XrdHttp/XrdHttpSecXtractor.hh"
 #include "XrdSec/XrdSecInterface.hh"
 
-#include "XrdSecgsiVOMS.hh"
+#include "XrdVoms.hh"
 
 /******************************************************************************/
 /*               C l a s s   X r d X r o o t d V o m s H t t p                */
@@ -84,7 +84,7 @@ private:
   
 int XrdVomsHttp::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl)
 {
-   gsiVOMS_x509_in_t xCerts;
+   Voms_x509_in_t xCerts;
    int rc;
 
 // Make sure the certs have been verified. Note that HTTP doesn't do well if
