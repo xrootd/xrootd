@@ -10,7 +10,9 @@ set( LIB_XRD_SEC_GSI_VOMS     XrdSecgsiVOMS-${PLUGIN_VERSION} )
 add_library(
    ${LIB_XRD_SEC_GSI_VOMS}
    MODULE
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdSecgsiVOMSFun.cc )
+   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsFun.cc
+   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsgsi.cc
+   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsHttp.cc )
 
 target_link_libraries(
    ${LIB_XRD_SEC_GSI_VOMS}
@@ -33,7 +35,7 @@ install(
 
 install(
    FILES
-   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdSecgsiVOMS.hh
+   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVoms.hh
    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdVoms )
 
 install(

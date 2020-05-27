@@ -38,7 +38,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "XrdSecgsiVOMS.hh"
+#include "XrdVoms.hh"
 #include "XrdVomsFun.hh"
 #include "XrdVomsTrace.hh"
 
@@ -200,7 +200,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
 
 // Set extractor name in the XrdSecEntity object
 //
-   strcpy(ent.prox, "xrdvoms");
+// strcpy(ent.prox, "xrdvoms");
    
    if (gCertFmt == gCertRaw) {
 #ifdef HAVE_XRDCRYPTO
@@ -281,7 +281,7 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
       //
       // STACK_OF(X509) format
       //
-      gsiVOMS_x509_in_t *voms_in = (gsiVOMS_x509_in_t *) ent.creds;
+      Voms_x509_in_t *voms_in = (Voms_x509_in_t *) ent.creds;
       pxy = voms_in->cert;
       stk = voms_in->chain;
       freestk = 0;
