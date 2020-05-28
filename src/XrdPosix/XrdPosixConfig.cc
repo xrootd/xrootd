@@ -370,7 +370,7 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
       {XrdPosixGlobals::theN2N = parms.theN2N;
        if (parms.xPfn2Lfn == parms.xP2Lsrc || parms.xPfn2Lfn == parms.xP2Lsgi)
           {XrdPosixGlobals::p2lSRC = true;
-           XrdPosixGlobals::p2lSGI = parms.xPfn2Lfn == parms.xP2Lsrc;
+           XrdPosixGlobals::p2lSGI = parms.xPfn2Lfn == parms.xP2Lsgi;
           } else XrdPosixGlobals::p2lSRC = XrdPosixGlobals::p2lSGI = false;
       }
 

@@ -28,13 +28,14 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-//#include <iostream>
+#include <iostream>
 #include <string.h>
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucSid.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdPss/XrdPssUrlInfo.hh"
+#include "XrdPss/XrdPssUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 
 /******************************************************************************/
@@ -46,11 +47,14 @@ bool XrdPssUrlInfo::MapID = false;
 /******************************************************************************/
 /*                               c o p y C G I                                */
 /******************************************************************************/
+
 namespace
 {
 int copyCGI(const char *cgi, char *Buff, int Blen)
 {
    int n;
+
+//std::cerr <<"PSS cgi IN: '" <<cgi <<"' " <<strlen(cgi) <<'\n' <<std::flush;
 
 // Skip over initial ampersands
 //
@@ -93,10 +97,102 @@ int copyCGI(const char *cgi, char *Buff, int Blen)
 // Return length make sure buffer ends with a null
 //
    *bP = 0;
+//std::cerr <<"PSS cgi OT: '" <<Buff <<"' " <<(bP-Buff) <<'\n' <<std::flush;
    return bP - Buff;
 }
 }
+  
+/******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
 
+XrdPssUrlInfo::XrdPssUrlInfo(XrdOucEnv  *envP, const char *path,
+                             const char *xtra, bool addusrcgi, bool addident)
+               : Path(path), CgiUsr(""), CgiUsz(0), CgiSsz(0), sidP(0),
+                 eIDvalid(false)
+{
+   const char *amp1= "", *amp2 = "";
+
+// Preset for no id in the url
+//
+   *theID  = 0;
+
+// If there is an environment point, get user's cgi and set the tident from it
+//
+   if (envP)
+      {if (addusrcgi && !(CgiUsr = envP->Env(CgiUsz))) CgiUsr = "";
+       const XrdSecEntity *secP = envP->secEnv();
+       if (secP)
+          {entityID = secP->ueid;
+           eIDvalid = true;
+           tident = secP->tident;
+          }
+      }
+
+// Make sure we have a tident
+//
+   if (!tident) tident = "unk.0:0@host";
+
+// Generate additional cgi information as needed
+//
+   if (*xtra && *xtra != '&') amp2 = "&";
+   if (CgiUsz) amp1 = "&";
+
+   if (addident)
+      {CgiSsz = snprintf(CgiSfx, sizeof(CgiSfx),
+                         "%spss.tid=%s%s%s", amp1, tident, amp2, xtra);
+      } else {
+       if (*xtra) CgiSsz = snprintf(CgiSfx, sizeof(CgiSfx), "%s%s", amp1, xtra);
+          else *CgiSfx = 0;
+      }
+}
+  
+/******************************************************************************/
+/*                                a d d C G I                                 */
+/******************************************************************************/
+
+bool XrdPssUrlInfo::addCGI(const char *prot, char *buff, int blen)
+{
+   bool forXrd = XrdPssUtils::is4Xrootd(prot);
+
+// Short circuit all of this if there is no cgi
+//
+   if (!CgiUsz && (forXrd && !CgiSsz))
+      {*buff = 0;
+       return true;
+      }
+
+// Make sure that we can fit whatever CGI we have into the buffer. Include the
+// implicit question mark and ending null byte.
+//
+   int n = CgiUsz + (forXrd ? CgiSsz : 0) + 1;
+   if (n >= blen) return false;
+   *buff++ = '?'; blen--;
+
+// If the protocol is headed to an xroot server then we need to remove any
+// offending CGI elements from the user CGI. Otherwise, we can use the CGI
+// that was specified by the client.
+//
+   if (CgiUsz)
+      {if (forXrd) n = copyCGI(CgiUsr, buff, blen);
+          else {n = CgiUsz;
+                strcpy(buff, CgiUsr);
+               }
+       buff += n; blen -= n;
+      }
+// If this is destined to an xroot server, add any extended CGI.
+//
+   if (forXrd && CgiSsz)
+      {if (CgiSsz >= blen) return false;
+       strcpy(buff, CgiSfx);
+      }
+
+// All done
+//
+std::cerr <<"Final URL: '" <<prot <<"' " <<strlen(prot) <<'\n' <<std::flush;
+   return true;
+}
+  
 /******************************************************************************/
 /*                                E x t e n d                                 */
 /******************************************************************************/
@@ -140,56 +236,4 @@ void XrdPssUrlInfo::setID(const char *tid)
            theID[n+1] = 0;
           } else *theID = 0;
        } else *theID = 0;
-}
-
-/******************************************************************************/
-/* Private:                        S e t u p                                  */
-/******************************************************************************/
-  
-void XrdPssUrlInfo::Setup(XrdOucEnv *envP, const char *xtra,
-                    bool addusrcgi, bool addident)
-{
-   const char *amp1= "", *amp2 = "";
-
-// Preset for no id in the url
-//
-   *theID  = 0;
-   *CgiSfx = 0;
-
-// If there is an environment point, get user's cgi and set the tident from it
-//
-   if (envP)
-      {if (addusrcgi)
-          {CgiUsr = envP->Env(CgiUsz);
-           if (!CgiUsz) CgiUsr = "";
-              else {CgiBuff = (char *)malloc(CgiUsz+8);
-//std::cerr <<"PSS cgi IN: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
-                    CgiUsz = copyCGI(CgiUsr, CgiBuff, CgiUsz+8);
-                    CgiUsr = CgiBuff;
-//std::cerr <<"PSS cgi OT: " <<CgiUsr <<' ' <<CgiUsz <<'\n' <<std::flush;
-                   }
-          }
-           const XrdSecEntity *secP = envP->secEnv();
-           if (secP)
-              {entityID = secP->ueid;
-               eIDvalid = true;
-               tident = secP->tident;
-              }
-      }
-
-// Make sure we have a tident
-//
-   if (!tident) tident = "unk.0:0@host";
-
-// Generate additional cgi information as needed
-//
-   if (*xtra && *xtra != '&') amp2 = "&";
-   if (CgiUsz) amp1 = "&";
-
-   if (addident)
-      {CgiSsz = snprintf(CgiSfx, sizeof(CgiSfx),
-                         "%spss.tid=%s%s%s", amp1, tident, amp2, xtra);
-      } else {
-       if (*xtra) CgiSsz = snprintf(CgiSfx, sizeof(CgiSfx), "%s%s", amp1, xtra);
-      }
 }

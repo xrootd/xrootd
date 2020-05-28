@@ -1,10 +1,10 @@
-#ifndef _XRDPSS_URLINFO_H
-#define _XRDPSS_URLINFO_H
+#ifndef __XRDPSS_UTILS_HH__
+#define __XRDPSS_UTILS_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d P s s U r l I n f o . h h                       */
+/*                        X r d P s s U t i l s . h h                         */
 /*                                                                            */
-/* (c) 2018 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2020 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,56 +30,38 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
-
-class XrdOucEnv;
-
-class XrdPssUrlInfo
+#include <vector>
+  
+class XrdPssUtils
 {
 public:
 
-      bool  addCGI(const char *prot, char *buff, int blen);
+// Get the domain associated with he hostname
+//
+static
+const char *getDomain(const char *hName);
 
-      bool  Extend(const char *cgi, int cgiln);
+// Check if protocol will send this to an xrootd protocol server
+//
+static bool is4Xrootd(const char *pname);
 
-const char *getID() {return theID;}
+// Validate a protocol (i.e. it is one we actually support)
+//
+static
+const char *valProt(const char *pname, int &plen, int adj=0);
 
-      bool  hasCGI() {return CgiSsz || CgiUsz;}
+// Vectorize a comma separated list and return pointers into the input string
+// to each element in the list. The list itself is modified.
+//
+static bool Vectorize(char *str, std::vector<char *> &vec, char sep);
 
-      void  setID(const char *tid=0);
-
-      void  setID(XrdOucSid *sP)
-                 {if (sP != 0 && !(sP->Obtain(&idVal))) return;
-                  sidP = sP;
-                  snprintf(theID, sizeof(theID), "p%d@", idVal.sidS);
-                 }
-
-static void setMapID(bool onoff) {MapID = onoff;}
-
-const char *thePath() {return Path;}
-
-const char *Tident() {return tident;}
-
-      XrdPssUrlInfo(XrdOucEnv *envP, const char *path, const char *xtra="",
-                    bool addusrcgi=true, bool addident=true);
-
-     ~XrdPssUrlInfo() {if (*theID == 'p' && sidP) sidP->Release(&idVal);}
-
-private:
-
-static bool       MapID;
-
-const char       *tident;
-const char       *Path;
-const char       *CgiUsr;
-      int         CgiUsz;
-      int         CgiSsz;
-      XrdOucSid  *sidP;
-unsigned
-      int         entityID;
-      bool        eIDvalid;
-      char        theID[13];
-XrdOucSid::theSid idVal;
-      char        CgiSfx[512];
+                   XrdPssUtils() {}
+                  ~XrdPssUtils() {}
 };
+
+// A quick inline to test for xroot path forwarding
+//
+#define IS_FWDPATH(x) ((*(x+1) == 'x' || *(x+1) == 'r') \
+                    && (!strncmp("/xroot:/", x,8) || !strncmp("/root:/", x,7)\
+                    ||  !strncmp("/xroots:/",x,9) || !strncmp("/roots:/",x,8)))
 #endif

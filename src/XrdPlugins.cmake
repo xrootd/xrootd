@@ -28,7 +28,8 @@ add_library(
   XrdPss/XrdPssCks.cc        XrdPss/XrdPssCks.hh
   XrdPss/XrdPssConfig.cc
                              XrdPss/XrdPssTrace.hh
-  XrdPss/XrdPssUrlInfo.cc    XrdPss/XrdPssUrlInfo.hh )
+  XrdPss/XrdPssUrlInfo.cc    XrdPss/XrdPssUrlInfo.hh
+  XrdPss/XrdPssUtils.cc      XrdPss/XrdPssUtils.hh )
 
 target_link_libraries(
   ${LIB_XRD_PSS}

@@ -52,6 +52,7 @@
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssTrace.hh"
 #include "XrdPss/XrdPssUrlInfo.hh"
+#include "XrdPss/XrdPssUtils.hh"
 #include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
@@ -104,6 +105,10 @@ static const char   *osslclCGI = "oss.lcl=1";
 static const int     PBsz = 4096;
 
        bool          idMapAll = false;
+
+       bool          outProxy = false; // True means outgoing proxy
+
+       bool          xrdProxy = false; // True means dest using xroot protocol
 
        XrdSysTrace SysTrace("Pss",0);
 }
@@ -710,9 +715,6 @@ int XrdPssDir::Close(long long *retsz)
 /*                                  o p e n                                   */
 /******************************************************************************/
 
-#define IS_FWDPATH(x) (!strncmp("/xroot:/", x,8) || !strncmp("/root:/", x,7)\
-                    || !strncmp("/xroots:/",x,9) || !strncmp("/roots:/",x,8))
-
 /*
   Function: Open the file `path' in the mode indicated by `Mode'.
 
@@ -760,7 +762,7 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 //
    if (tpcMode)
       {Oflag &= ~O_NOFOLLOW;
-       if (!XrdPssSys::outProxy || !IS_FWDPATH(path))
+       if (!XrdProxy::outProxy || !IS_FWDPATH(path))
           {if (rwMode) {tpcPath = strdup(path); return XrdOssOK;}
            ucgiOK = false;
           }
@@ -769,7 +771,7 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 // Setup any required cgi information. Don't mess with it if it's an objectid
 // or if the we are an outgoing proxy server.
 //
-   if (!XrdPssSys::outProxy && *path == '/' && !(XRDEXP_STAGE & popts))
+   if (!XrdProxy::outProxy && *path == '/' && !(XRDEXP_STAGE & popts))
       Cgi = osslclCGI;
 
 // Construct the url info
@@ -1113,10 +1115,10 @@ int XrdPssSys::P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo)
 // Make sure the path is valid for an outgoing proxy
 //
    if (*path == '/') path++;
-   if ((pname = XrdPssSys::valProt(path, n, 1))) path += n;
+   if ((pname = XrdPssUtils::valProt(path, n, 1))) path += n;
       else {if (!hdrLen) return -ENOTSUP;
             n = snprintf(pbuff, pblen, hdrData, theID, thePath);
-            if (n >= pblen || !uInfo.addCGI(pbuff+n, pblen-n))
+            if (n >= pblen || !uInfo.addCGI(pbuff, pbuff+n, pblen-n))
                return -ENAMETOOLONG;
             return 0;
            }
@@ -1131,7 +1133,7 @@ int XrdPssSys::P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo)
        if (Police[PolObj] && !P2DST(retc, hBuff, sizeof(hBuff), PolObj,
                                     path+(*path == '/' ? 1:0))) return 0;
        n = snprintf(pbuff, pblen, "%s%s%s", pname, theID, path);
-       if (n >= pblen || !uInfo.addCGI(pbuff+n, pblen-n))
+       if (n >= pblen || !uInfo.addCGI(pbuff, pbuff+n, pblen-n))
           return -ENAMETOOLONG;
        return 0;
       }
@@ -1149,7 +1151,7 @@ int XrdPssSys::P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo)
 
 // Make sure the path will fit
 //
-   if (n >= pblen || !uInfo.addCGI(pbuff+n, pblen-n))
+   if (n >= pblen || !uInfo.addCGI(pbuff, pbuff+n, pblen-n))
       return -ENAMETOOLONG;
 
 // All done
@@ -1196,7 +1198,9 @@ int XrdPssSys::P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo, bool doN2N)
 // Add any cgi information
 //
    if (uInfo.hasCGI())
-      {if (!uInfo.addCGI(pbuff+pfxLen, pblen-pfxLen)) return -ENAMETOOLONG;}
+      {if (!uInfo.addCGI(pbuff, pbuff+pfxLen, pblen-pfxLen))
+          return -ENAMETOOLONG;
+      }
 
 // All done
 //

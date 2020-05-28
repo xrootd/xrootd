@@ -192,8 +192,8 @@ const char *XrdPosixXrootPath::P2L(const char  *who,
 //
    if (!(slash = index(urlP, '/'))) return inP;
    if (*(slash+1) != '/' && !XrdPosixGlobals::oidsOK) return inP;
-   slash++;
    pfxLen = slash - inP;
+   slash++;
 
 // Search for start of the cgi
 //

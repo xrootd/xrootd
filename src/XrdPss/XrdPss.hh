@@ -159,8 +159,6 @@ static int   P2DST(int &retc, char *hBuff, int hBlen, PolAct pType,
 static int   P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo);
 static int   P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo,
                    bool doN2N=true);
-static
-const  char *valProt(const char *pname, int &plen, int adj=0);
 
 static const char  *ConfigFN;       // -> Pointer to the config file name
 static const char  *myHost;
@@ -178,8 +176,6 @@ static int          Workers;
 static int          Trace;
 static int          dcaCTime;
 
-static bool         outProxy; // True means outgoing proxy
-static bool         pfxProxy; // True means outgoing proxy is prefixed
 static bool         xLfn2Pfn;
 static bool         dcaCheck;
 static bool         dcaWorld;
@@ -200,9 +196,6 @@ uint64_t          myFeatures;// Our feature set
 int    Configure(const char *);
 int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
-const
-char  *getDomain(const char *hName);
-bool   Vectorize(char *str, std::vector<char *> &vec, char sep);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
 int    xdca( XrdSysError *errp,   XrdOucStream &Config);

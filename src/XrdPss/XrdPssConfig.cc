@@ -37,7 +37,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <vector>
 
 #include "XrdVersion.hh"
 
@@ -48,6 +47,7 @@
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssTrace.hh"
 #include "XrdPss/XrdPssUrlInfo.hh"
+#include "XrdPss/XrdPssUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -108,8 +108,6 @@ int          XrdPssSys::Workers   = 16;
 int          XrdPssSys::Trace     =  0;
 int          XrdPssSys::dcaCTime  =  0;
 
-bool         XrdPssSys::outProxy  = false;
-bool         XrdPssSys::pfxProxy  = false;
 bool         XrdPssSys::xLfn2Pfn  = false;
 bool         XrdPssSys::dcaCheck  = false;
 bool         XrdPssSys::dcaWorld  = false;
@@ -128,6 +126,10 @@ extern XrdOucEnv       *envP;
 extern XrdSecsssID     *idMapper; // -> Auth ID mapper
 
 extern bool             idMapAll;
+
+extern bool             outProxy; // True means outgoing proxy
+
+extern bool             xrdProxy; // True means dest using xroot protocol
 
 extern XrdSysTrace      SysTrace;
 
@@ -481,63 +483,6 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 }
   
 /******************************************************************************/
-/*                             g e t D o m a i n                              */
-/******************************************************************************/
-
-const char *XrdPssSys::getDomain(const char *hName)
-{
-   const char *dot = index(hName, '.');
-
-   if (dot) return dot+1;
-   return hName;
-}
-  
-/******************************************************************************/
-/*                               v a l P r o t                                */
-/******************************************************************************/
-
-const char *XrdPssSys::valProt(const char *pname, int &plen, int adj)
-{
-   static  struct pEnt {const char *pname; int pnlen;} pTab[] =
-                       {{ "https://", 8},  { "http://", 7},
-                        { "roots://", 8},//{ "root://", 7},
-                        {"xroots://", 9} //{"xroot://", 8},
-                       };
-   static int pTNum = sizeof(pTab)/sizeof(pEnt);
-   int i;
-
-// Find a match
-//
-   for (i = 0; i < pTNum; i++)
-       {if (!strncmp(pname, pTab[i].pname, pTab[i].pnlen-adj)) break;}
-   if (i >= pTNum) return 0;
-   plen = pTab[i].pnlen-adj;
-   return pTab[i].pname;
-}
-  
-/******************************************************************************/
-/*                             V e c t o r i z e                              */
-/******************************************************************************/
-
-bool XrdPssSys::Vectorize(char *str, std::vector<char *> &vec, char sep)
-{
-   char *seppos;
-
-// Get each element and place it in the vecor. Null elements are not allowed.
-//
-   do {seppos = index(str, sep);
-       if (seppos)
-          {if (!(*(seppos+1))) return false;
-           *seppos = '\0';
-          }
-       if (!strlen(str)) return false;
-       vec.push_back(str);
-       str = seppos+1;
-      } while(seppos && *str);
-   return true;
-}
-
-/******************************************************************************/
 /*                                 x c o n f                                  */
 /******************************************************************************/
 
@@ -716,13 +661,13 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // Check for outgoing proxy
 //
    if (*val == '=')
-      {pfxProxy = outProxy = true;
+      {outProxy = true;
        if (*(val+1))
           {std::vector<char *> pVec;
            char *pData = strdup(val+1);
            const char *pName;
            protVec.clear();
-           if (!Vectorize(pData, pVec, ','))
+           if (!XrdPssUtils::Vectorize(pData, pVec, ','))
               {errp->Emsg("Config", "Malformed forwarding specification");
                free(pData);
                return 1;
@@ -730,7 +675,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
            protVec.reserve(pVec.size());
            for (int i = 0; i < (int)pVec.size(); i++)
                {int n = strlen(pVec[i]);
-                if (!(pName = valProt(pVec[i], n, 3)))
+                if (!(pName = XrdPssUtils::valProt(pVec[i], n, 3)))
                    {errp->Emsg("Config","Unsupported forwarding protocol -",pVec[i]);
                     free(pData);
                     return 1;
@@ -741,18 +686,19 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
           }
        if (!(val = Config.GetWord())) return 0;
       }
-      else pfxProxy = outProxy = false;
+      else outProxy = false;
 
 // Check if the <dest> is a url, if so, the protocol, must be supported
 //
    if ((colon = index(val, ':')) && *(colon+1) == '/' && *(colon+2) == '/')
       {int pnlen;
-       protName = valProt(val, pnlen);
+       protName = XrdPssUtils::valProt(val, pnlen);
        if (!protName)
           {errp->Emsg("Config", "Unsupported origin protocol -", val);
            return 1;
           }
        if (*val == 'x') protName++;
+       xrdProxy = (*val == 'r');
        val += pnlen;
        if ((slash = index(val, '/')))
           {if (*(slash+1))
@@ -765,6 +711,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
        protName = "root://";
        mval = strdup(val);
        isURL = false;
+       xrdProxy = true;
       }
 
 // Check if there is a port number. This could be as ':port' or ' port'.
@@ -813,7 +760,8 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // We now set the default dirlist flag based on whether the origin is in or out
 // of domain. Composite listings are normally disabled for out of domain nodes.
 //
-   if (!index(mval, '.') || !strcmp(getDomain(mval), getDomain(myHost)))
+   if (!index(mval, '.')
+   || !strcmp(XrdPssUtils::getDomain(mval), XrdPssUtils::getDomain(myHost)))
       XrdPosixConfig::SetEnv("DirlistDflt", 1);
 
 // All done
