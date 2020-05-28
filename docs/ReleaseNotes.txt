@@ -15,6 +15,7 @@ Version 4.12.2
   * **[XrdHttp]** Avoid the reqstate to go below zero in case of strange headers.
   * **[XrdVoms]** Set the prox field to "xrdvoms" as the extractor.
   * **[XrdVoms]** Fix various option parsing problems.
+  * **[XrdVoms]** Backport a clean patched VOMS version from R5.
 
 + **Minor bug fixes**
   * **[Docs]** Make the xrdmapc help text and manpage match the code.
@@ -25,6 +26,8 @@ Version 4.12.2
   * **[Server]** Allow specification of whether or not dirlist is locally handled.
   * **[XrdVoms]** Replace git sub-module with full-fledged component of xrootd core.
   * **[XrdVoms]** Simplify the gropts parameter.
+  * **[XrdVoms]** Rename XrdSecgsiVOMS-4.so to XrdVoms-4.so, create XrdSecgsiVOMS-4.so
+                  symlink for compability. 
 
 --------------
 Version 4.12.1

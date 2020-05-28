@@ -8,7 +8,6 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
-  * **[Voms]** Backport a clean patched VOMS version from R5.
 
 + **Minor bug fixes**
 
