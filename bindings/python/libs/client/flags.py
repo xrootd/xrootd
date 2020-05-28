@@ -47,12 +47,13 @@ OpenFlags = enum(
 # ASYNC     = 64,
   REFRESH   = 128,
   MAKEPATH  = 256,
-  APPEND    = 512,
+# APPEND    = 512,
 # RETSTAT   = 1024,
   REPLICA   = 2048,
   POSC      = 4096,
   NOWAIT    = 8192,
-  SEQIO     = 16384
+  SEQIO     = 16384,
+  WRITE     = 32768
 )
 
 AccessMode = enum(
