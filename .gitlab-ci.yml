@@ -580,7 +580,7 @@ xrootd_docker_test:
     - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/SocketTest/"
     - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/PollerTest/"
     - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/PostMasterTest/"
-##    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/FileSystemTest/"
+    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/FileSystemTest/"
 ##    - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/FileTest/"
     - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/LocalFileHandlerTest/"
 
