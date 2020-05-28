@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Xcache]** Optionally supply source and CGI to N2N cache plugin.
   * **[Server]** Define method to get partition information; mostly for Xcache.
   * **[Sec]** Add support for x509 capabilities.
   * **[PSS]** Allow http and https for forwarding proxies.
@@ -67,6 +68,7 @@ Prerelease Notes
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[Proxy]** Properly handle non-xroot URLs.
   * **[cmsd]** Make sure to return correct error when creation conflict occurs.
   * **[Server]** Correct action determination for debug message to avoid strife.
   * **[Server]** Use correct mechanism to determine DNS registration.
