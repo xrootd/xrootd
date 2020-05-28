@@ -150,7 +150,7 @@ namespace XrdCl
     RecycleSidMgr deleter;
     std::shared_ptr<SIDManager> ptr( mgr, deleter );
 
-    return std::move( ptr );
+    return ptr;
   }
 
   void SIDMgrPool::Recycle( SIDManager *mgr )
