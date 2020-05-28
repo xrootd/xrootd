@@ -52,7 +52,8 @@ OpenFlags = enum(
   REPLICA   = 2048,
   POSC      = 4096,
   NOWAIT    = 8192,
-  SEQIO     = 16384
+  SEQIO     = 16384,
+  WRITE     = 32768
 )
 
 AccessMode = enum(
