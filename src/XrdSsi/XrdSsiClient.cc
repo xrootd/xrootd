@@ -149,7 +149,7 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo     &eInfo,
       if (!dsTTLSet) clEnvP->PutInt("DataServerTTL",  maxTMO);
       if (!reqTOSet) clEnvP->PutInt("RequestTimeout", maxTMO);
       if (!strTOSet) clEnvP->PutInt("StreamTimeout",  maxTMO);
-                     clEnvP->PutInt("ParallelEvtLoop",maxPEL);
+      clEnvP->PutInt("ParallelEvtLoop",maxPEL);
       initDone = true;
       clMutex.UnLock();
      }
