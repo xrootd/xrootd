@@ -1,18 +1,19 @@
-.TH libXrdSecgsiVOMS 1 "28 June 2019"
+.TH libXrdVoms 1 "__VERSION__"
 .SH NAME
-libXrdSecgsiVOMS - XRootD plug-in to extract VOMS attributes
+libXrdVoms - XRootD plug-in to extract VOMS attributes
 .SH SYNOPSIS
 .nf
-
-sec.protparm gsi -vomsfun:\fBlibXrdSecgsiVOMS.so\fR
+sec.protparm gsi -vomsfun:\fBlibXrdVoms.so\fR
 sec.protparm gsi -vomsfunparms:\fIoptions\fR
+.fi
 
 .SH DESCRIPTION
-The \fBlibXrdSecgsiVOMS\fR plug-in provides an implementation of the
+The \fBlibXrdVoms\fR plug-in provides an implementation of the
 
 .nf
 int XrdSecgsiVOMSFun(XrdSecEntity &ent)
 int XrdSecgsiVOMSInit(const char *cfg)
+.fi
 
 functions making use of the official VOMS API libraries to validate and extract the VOMS attributes from a VOMS proxy.
 
@@ -57,6 +58,7 @@ Recognized place holders in the above format strings:
 <g>: group
 <vo>: VO
 <an>: Full Qualified Attribute Name
+.fi
 
 .RE
 .RS 2
@@ -83,14 +85,15 @@ Option 'all' for the group selection (which=2) will generated a vertically slice
 attribute : /atlas/de/Role=production/Capability=NULL
 attribute : /atlas/de/Role=NULL/Capability=NULL
 attribute : /atlas/Role=NULL/Capability=NULL
+.fi
 
 would result in following content in the XrdSecEntity fields:
 
 .nf
-
 vorg: atlas atlas atlas
 grps: /atlas/de /atlas/de /atlas
 role: producton NULL NULL
+.fi
 
 The default XrdAcc will take its decision by checking in turn the triplets obtained slicing vertically this tuple.
 
@@ -101,17 +104,17 @@ and switch on debugging; it shows also how to specify multiple options, either o
 .RS 5
 
 .nf
-sec.protparm gsi -vomsfun:libXrdSecgsiVOMS.so
+sec.protparm gsi -vomsfun:libXrdVoms.so
 sec.protparm gsi -vomsfunparms:grpopt=0|vos=cms|certfmt=pem
 sec.protparm gsi -vomsfunparms:dbg
+.fi
 
 .SH FILES
 The plug-in files are
 .nf
-
-lib64/libXrdSecgsiVOMS-4.so (or lib/libXrdSecgsiVOMS-4.so)\fR
-include/vomsxrd/XrdSecgsiVOMS.hh\fR
-include/vomsxrd/XrdSecgsiVOMSVers.hh\fR
+lib64/libXrdVoms-4.so (or lib/libXrdVoms-4.so)\fR
+include/xrootd/private/XrdVoms/XrdVoms.hh\fR
+.fi
 
 and are typically available under \fB/usr\fR.
 
@@ -120,14 +123,14 @@ and are typically available under \fB/usr\fR.
 The environment \fBX509_VOMS_DIR\fR must be set to a valid directory; this is typically \fB/etc/grid-security/vomsdir\fR.
 
 .SH DIAGNOSTICS
-The \fBlibXrdSecgsiVOMS\fR plug-in requires \fBlibvomsapi.so\fR and the openssl libraries. In case of load failure it may be
+The \fBlibXrdVoms\fR plug-in requires \fBlibvomsapi.so\fR and the openssl libraries. In case of load failure it may be
 useful to check with ldd if all the required dependencies are correctly resolved.
 
 .SH LICENSE
 LGPL; see http://www.gnu.org/licenses/.
 
 .SH AUTHOR AND SUPPORT
-The \fBlibXrdSecgsiVOMS\fR plug-in has been implemented by Gerardo Ganis (Gerardo.Ganis@cern.ch).
+The \fBlibXrdVoms\fR plug-in has been implemented by Gerardo Ganis (Gerardo.Ganis@cern.ch).
 Any request for support should addressed via the project main web site
 .ce
 https://github.com/gganis/vomsxrd
@@ -135,5 +138,3 @@ https://github.com/gganis/vomsxrd
 or via the XRootD support site
 .ce
 https://github.com/xrootd/xrootd
-
-
