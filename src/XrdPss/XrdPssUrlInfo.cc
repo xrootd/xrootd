@@ -157,7 +157,7 @@ bool XrdPssUrlInfo::addCGI(const char *prot, char *buff, int blen)
 
 // Short circuit all of this if there is no cgi
 //
-   if (!CgiUsz && (forXrd && !CgiSsz))
+   if (!CgiUsz && (!CgiSsz || forXrd))
       {*buff = 0;
        return true;
       }
@@ -180,16 +180,17 @@ bool XrdPssUrlInfo::addCGI(const char *prot, char *buff, int blen)
                }
        buff += n; blen -= n;
       }
+
 // If this is destined to an xroot server, add any extended CGI.
 //
    if (forXrd && CgiSsz)
       {if (CgiSsz >= blen) return false;
        strcpy(buff, CgiSfx);
-      }
+      } else *buff = 0;
 
 // All done
 //
-std::cerr <<"Final URL: '" <<prot <<"' " <<strlen(prot) <<'\n' <<std::flush;
+//std::cerr <<"Final URL: '" <<prot <<"' " <<strlen(prot) <<'\n' <<std::flush;
    return true;
 }
   
