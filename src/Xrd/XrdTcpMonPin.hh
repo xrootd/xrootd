@@ -47,12 +47,20 @@ public:
 //------------------------------------------------------------------------------
 //! Produce monitoring information upon connection termination.
 //!
-//! @param  fd      The file descriptor associated with the socket.
-//! @param  netInfo Reference to the network object associated with fd.
-//! @param  tident  Pointer to the trace identifier associated with fd.
+//! @param  netInfo Reference to the network object associated with link.
+//! @param  lnkInfo Reference to link-specific information.
+//! @param  liLen   Byte length of lnkInfo being passed.
 //------------------------------------------------------------------------------
 
-virtual void Monitor(int fd, XrdNetAddrInfo &netInfo, const char *tident) = 0;
+struct LinkInfo
+      {const char *tident;   //!< Pointer to the client's trace identifier
+       int         fd;       //!< Socket file descriptor
+       int         consec;   //!< Seconds connected
+       long long   bytesIn;  //!< Bytes read  from the socket
+       long long   bytesOut; //!< Bytes written to the socket
+      };
+
+virtual void Monitor(XrdNetAddrInfo &netInfo, LinkInfo &lnkInfo, int liLen) = 0;
 
              XrdTcpMonPin() {}
 virtual     ~XrdTcpMonPin() {}

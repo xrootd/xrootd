@@ -269,7 +269,15 @@ int XrdLinkXeq::Close(bool defer)
 
 // Invoke the TCP monitor if it was loaded.
 //
-   if (TcpMonPin && fd > 2) TcpMonPin->Monitor(fd, Addr, ID);
+   if (TcpMonPin && fd > 2)
+      {XrdTcpMonPin::LinkInfo lnkInfo;
+       lnkInfo.tident   = ID;
+       lnkInfo.fd       = fd;
+       lnkInfo.consec   = csec;
+       lnkInfo.bytesIn  = BytesInTot;
+       lnkInfo.bytesOut = BytesOutTot;
+       TcpMonPin->Monitor(Addr, lnkInfo, sizeof(lnkInfo));
+      }
 
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.
