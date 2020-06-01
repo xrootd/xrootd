@@ -175,7 +175,7 @@ void XrdPollE::Exclude(XrdPollInfo &pInfo)
   
 int XrdPollE::Include(XrdPollInfo &pInfo)
 {
-   struct epoll_event myEvent = {0, {(void *)&pInfo.Link}};
+   struct epoll_event myEvent = {0, {(void *)&pInfo}};
    int rc;
 
 // Add this fd to the poll set
