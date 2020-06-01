@@ -373,8 +373,13 @@ char* Cache::RequestRAM(long long size)
       else
       {
          m_RAM_mutex.UnLock();
-         char *buf = 0;
-         posix_memalign((void**) &buf, s_block_align, (size_t) size);
+         char *buf;
+         if (posix_memalign((void**) &buf, s_block_align, (size_t) size))
+         {
+            // Report out of mem? Probably should report it at least the first time,
+            // then periodically.
+            return 0;
+         }
          return buf;
       }
    }
