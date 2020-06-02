@@ -143,15 +143,15 @@ void Info::SetAllBitsSynced()
 void Info::SetBufferSize(long long bs)
 {
    // Needed only info is created first time in File::Open()
-   m_store.m_bufferSize = bs;
+   m_store.m_buffer_size = bs;
 }
 
 //------------------------------------------------------------------------------s
 
 void Info::SetFileSize(long long fs)
 {
-   m_store.m_fileSize = fs;
-   ResizeBits((m_store.m_fileSize - 1) / m_store.m_bufferSize + 1);
+   m_store.m_file_size = fs;
+   ResizeBits((m_store.m_file_size - 1) / m_store.m_buffer_size + 1);
    m_store.m_creationTime = time(0);
 }
 
@@ -213,7 +213,7 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
       }
    }
 
-   if (r.Read(m_store.m_bufferSize)) return false;
+   if (r.Read(m_store.m_buffer_size)) return false;
 
    long long fs;
    if (r.Read(fs)) return false;
@@ -300,8 +300,8 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
 
    m_store.m_version = s_defaultVersion;
    if (w.Write(m_store.m_version))    return false;
-   if (w.Write(m_store.m_bufferSize)) return false;
-   if (w.Write(m_store.m_fileSize))   return false;
+   if (w.Write(m_store.m_buffer_size)) return false;
+   if (w.Write(m_store.m_file_size))   return false;
 
    if (w.WriteRaw(m_store.m_buff_synced, GetSizeInBytes())) return false;
 
@@ -456,6 +456,10 @@ bool Info::GetLatestDetachTime(time_t& t) const
    return t != 0;
 }
 
+const Info::AStat* Info::GetLastAccessStats() const
+{
+   return m_store.m_astats.empty() ? 0 : & m_store.m_astats.back();
+}
 
 //==============================================================================
 // Support for reading of previous cinfo versions
@@ -478,7 +482,7 @@ bool Info::ReadV2(XrdOssDF* fp, const std::string &fname)
    FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
 
    if (r.Read(m_store.m_version))    return false;
-   if (r.Read(m_store.m_bufferSize)) return false;
+   if (r.Read(m_store.m_buffer_size)) return false;
 
    long long fs;
    if (r.Read(fs)) return false;
@@ -553,7 +557,7 @@ bool Info::ReadV1(XrdOssDF* fp, const std::string &fname)
    FpHelper r(fp, 0, m_trace, m_traceID, trace_pfx + "oss read failed");
 
    if (r.Read(m_store.m_version)) return false;
-   if (r.Read(m_store.m_bufferSize)) return false;
+   if (r.Read(m_store.m_buffer_size)) return false;
 
    long long fs;
    if (r.Read(fs)) return false;

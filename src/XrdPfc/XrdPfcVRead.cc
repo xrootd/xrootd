@@ -98,24 +98,24 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
    std::vector<XrdOucIOVec>       chunkVec;
    DirectResponseHandler         *direct_handler = 0;
 
-   m_downloadCond.Lock();
+   m_state_cond.Lock();
 
    if ( ! m_is_open)
    {
-      m_downloadCond.UnLock();
+      m_state_cond.UnLock();
       TRACEF(Error, "File::ReadV file is not open");
       return io->GetInput()->ReadV(readV, n);
    }
 
    if (m_in_shutdown)
    {
-      m_downloadCond.UnLock();
+      m_state_cond.UnLock();
       return -ENOENT;
    }
 
    VReadPreProcess(io, readV, n, blks_to_request, blocks_to_process, blocks_on_disk, chunkVec);
 
-   m_downloadCond.UnLock();
+   m_state_cond.UnLock();
 
    // ----------------------------------------------------------------
 
@@ -196,7 +196,7 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
    }
 
    {
-      XrdSysCondVarHelper _lck(m_downloadCond);
+      XrdSysCondVarHelper _lck(m_state_cond);
 
       // Decrease ref count on the remaining blocks.
       // This happens when read process aborts due to encountered errors.
@@ -227,8 +227,8 @@ bool File::VReadValidate(const XrdOucIOVec *vr, int n)
 {
    for (int i = 0; i < n; ++i)
    {
-      if (vr[i].offset < 0 || vr[i].offset >= m_fileSize ||
-          vr[i].offset + vr[i].size > m_fileSize)
+      if (vr[i].offset < 0 || vr[i].offset >= m_file_size ||
+          vr[i].offset + vr[i].size > m_file_size)
       {
          return false;
       }
@@ -271,8 +271,9 @@ void File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
          }
          else
          {
-            Block *b;
-            if (Cache::GetInstance().RequestRAMBlock() && (b = PrepareBlockRequest(block_idx, io, false)) != 0)
+            Block *b = PrepareBlockRequest(block_idx, io, false);
+
+            if (b)
             {
                inc_ref_count(b);
                blocks_to_process.AddEntry(b, iov_idx, true);
@@ -316,7 +317,7 @@ int File::VReadFromDisk(const XrdOucIOVec *readV, int n, ReadVBlockListDisk& blo
 
          overlap(blockIdx, m_cfi.GetBufferSize(), readV[chunkIdx].offset, readV[chunkIdx].size, off, blk_off, size);
 
-         int rs = m_output->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off - m_offset, size);
+         int rs = m_data_file->Read(readV[chunkIdx].data + off,  blockIdx*m_cfi.GetBufferSize() + blk_off - m_offset, size);
 
          if (rs < 0)
          {
@@ -353,7 +354,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
       std::vector<ReadVChunkListRAM> finished;
       BlockList_t                    to_reissue;
       {
-         XrdSysCondVarHelper _lck(m_downloadCond);
+         XrdSysCondVarHelper _lck(m_state_cond);
 
          std::vector<ReadVChunkListRAM>::iterator bi = blocks_to_process.begin();
          while (bi != blocks_to_process.end())
@@ -381,7 +382,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
 
          if (finished.empty() && to_reissue.empty())
          {
-            m_downloadCond.Wait();
+            m_state_cond.Wait();
             continue;
          }
       }

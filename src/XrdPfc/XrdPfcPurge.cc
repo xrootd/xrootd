@@ -40,7 +40,7 @@ class DirState
 
    int          m_depth;
    int          m_max_depth;
-   bool         m_stat_report;  // storing of stats required
+   bool         m_stat_report;  // not used - storing of stats required
 
    typedef std::map<std::string, DirState> DsMap_t;
    typedef DsMap_t::iterator               DsMap_i;
@@ -222,7 +222,7 @@ public:
       std::string path;
       long long   nBytes;
       time_t      time;
-      DirState   *dirState;
+      DirState   *dirState; // XXXX if this is stored, why is it not used later in purge?
 
       FS(const std::string& p, long long n, time_t t, DirState *ds) :
          path(p), nBytes(n), time(t), dirState(ds)
@@ -463,8 +463,39 @@ public:
 
 };
 
-} // end XrdPfc namespace
 
+//==============================================================================
+// ResourceMonitor
+//==============================================================================
+
+// Encapsulates local variables used withing the previous mega-function Purge().
+//
+// This will be used within the continuously/periodically ran heart-beat / breath
+// function ... and then parts of it will be passed to invoked FS scan and purge
+// jobs (which will be controlled throught this as well).
+
+class ResourceMonitor
+{
+
+};
+
+
+//==============================================================================
+//
+//==============================================================================
+
+namespace
+{
+
+class ScanAndPurgeJob : public XrdJob
+{
+public:
+   ScanAndPurgeJob(const char *desc = "") : XrdJob(desc) {}
+
+   void DoIt() {} // { Cache::GetInstance().ScanAndPurge(); }
+};
+
+}
 
 //==============================================================================
 // Cache methods
@@ -478,6 +509,7 @@ void Cache::copy_out_active_stats_and_update_data_fs_state()
    {
       XrdSysCondVarHelper lock(&m_active_cond);
 
+      // Slurp in stats from files closed since last cycle.
       updates.swap( m_closed_files_stats );
 
       for (ActiveMap_i i = m_active.begin(); i != m_active.end(); ++i)
@@ -507,12 +539,103 @@ void Cache::copy_out_active_stats_and_update_data_fs_state()
 
 //==============================================================================
 
+void Cache::ResourceMonitorHeartBeat()
+{
+   // static const char *trc_pfx = "Cache::ResourceMonitorHeartBeat() ";
+
+   // Pause before initial run
+   sleep(1);
+
+   // XXXX Setup initial / constant stats (total RAM, total disk, ???)
+
+   XrdOucCacheStats             &S = Statistics;
+   XrdOucCacheStats::CacheStats &X = Statistics.X;
+
+   S.Lock();
+
+   X.DiskSize = m_configuration.m_diskTotalSpace;
+
+   X.MemSize = m_configuration.m_RamAbsAvailable;
+
+   S.UnLock();
+
+   // XXXX Schedule initial disk scan, time it!
+   //
+   // TRACE(Info, trc_pfx << "scheduling intial disk scan.");
+   // schedP->Schedule( new ScanAndPurgeJob("XrdPfc::ScanAndPurge") );
+   //
+   // bool scan_and_purge_running = true;
+
+   // XXXX Could we really hold last-usage for all files in memory?
+
+   // XXXX Think how to handle disk-full, scan/purge not finishing:
+   // - start dropping things out of write queue, but only when RAM gets near full;
+   // - monitoring this then becomes a high-priority job, inner loop with sleep of,
+   //   say, 5 or 10 seconds.
+
+   while (true)
+   {
+      time_t heartbeat_start = time(0);
+
+      // TRACE(Info, trc_pfx << "HeartBeat starting ...");
+
+      // if sumary monitoring configured, pupulate OucCacheStats:
+      S.Lock();
+
+      // - available / used disk space (files usage calculated elsewhere (maybe))
+
+      // - RAM usage
+      {  XrdSysMutexHelper lck(&m_RAM_mutex);
+         X.MemUsed   = m_RAM_used;
+         X.MemWriteQ = m_RAM_write_queue;
+      }
+      // - files opened / closed etc
+
+      // do estimate of available space
+      S.UnLock();
+
+      // if needed, schedule purge in a different thread.
+      // purge is:
+      // - deep scan + gather FSPurgeState
+      // - actual purge
+      //
+      // this thread can continue running and, if needed, stop writing to disk
+      // if purge is taking too long.
+
+      // think how data is passed / synchronized between this and purge thread
+
+      // !!!! think how stat collection is done and propgated upwards;
+      // until now it was done once per purge-interval.
+      // now stats will be added up more often, but purge will be done
+      // only occasionally.
+      // also, do we report cumulative values or deltas? cumulative should
+      // be easier and consistent with summary data.
+      // still, some are state - like disk usage, num of files.
+
+      // Do we take care of directories that need to be newly added into DirState hierarchy?
+      // I.e., when user creates new directories and these are covered by either full
+      // spec or by root + depth declaration.
+
+      int heartbeat_duration = time(0) - heartbeat_start;
+
+      // TRACE(Info, trc_pfx << "HeartBeat finished, heartbeat_duration " << heartbeat_duration);
+
+      // int sleep_time = m_configuration.m_purgeInterval - heartbeat_duration;
+      int sleep_time = 60 - heartbeat_duration;
+      if (sleep_time > 0)
+      {
+         sleep(sleep_time);
+      }
+   }
+}
+
+//==============================================================================
+
 void Cache::Purge()
 {
    static const char *trc_pfx = "Cache::Purge() ";
 
    XrdOucEnv    env;
-   XrdOss*      oss = Cache::GetInstance().GetOss();
    long long    disk_usage;
    long long    estimated_file_usage = m_configuration.m_diskUsageHWM;
 
@@ -541,11 +664,12 @@ void Cache::Purge()
 
       TRACE(Info, trc_pfx << "Started.");
 
+      // Bytes to remove based on total disk usage (d) and file usage (f).
       long long bytesToRemove_d = 0, bytesToRemove_f = 0;
 
       // get amount of space to potentially erase based on total disk usage
       XrdOssVSInfo sP; // Make sure we start when a clean slate in each loop
-      if (oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
+      if (m_oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
          TRACE(Error, trc_pfx << "can't get StatVS for oss space " << m_configuration.m_data_space);
          continue;
@@ -633,7 +757,7 @@ void Cache::Purge()
             purgeState.setMinTime(time(0) - m_configuration.m_purgeColdFilesAge);
          }
 
-         XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
+         XrdOssDF* dh = m_oss->newDir(m_configuration.m_username.c_str());
          if (dh->Opendir("", env) == XrdOssOK)
          {
             if (m_fs_state)
@@ -726,7 +850,7 @@ void Cache::Purge()
             }
 
             // remove info file
-            if (oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
+            if (m_oss->Stat(infoPath.c_str(), &fstat) == XrdOssOK)
             {
                // cinfo file can be on another oss.space, do not subtract for now.
                // Could be relevant for very small block sizes.
@@ -734,18 +858,18 @@ void Cache::Purge()
                // estimated_file_usage -= fstat.st_size;
                // ++deleted_file_count;
 
-               oss->Unlink(infoPath.c_str());
+               m_oss->Unlink(infoPath.c_str());
                TRACE(Dump, trc_pfx << "Removed file: '" << infoPath << "' size: " << fstat.st_size);
             }
 
             // remove data file
-            if (oss->Stat(dataPath.c_str(), &fstat) == XrdOssOK)
+            if (m_oss->Stat(dataPath.c_str(), &fstat) == XrdOssOK)
             {
                bytesToRemove        -= it->second.nBytes;
                estimated_file_usage -= it->second.nBytes;
                ++deleted_file_count;
 
-               oss->Unlink(dataPath.c_str());
+               m_oss->Unlink(dataPath.c_str());
                TRACE(Dump, trc_pfx << "Removed file: '" << dataPath << "' size: " << it->second.nBytes << ", time: " << it->first);
 
                if (m_fs_state)
@@ -822,3 +946,5 @@ void Cache::Purge()
   5. ADD disk_usage !!!!
      DS:disk_usage:GAUGE:...
  */
+
+} // end XrdPfc namespace

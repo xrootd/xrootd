@@ -48,7 +48,7 @@ class Stats;
 class Info
 {
 public:
-   // !Access statistics
+   //! Access statistics
    struct AStat
    {
       time_t    AttachTime;       //!< open time
@@ -71,15 +71,15 @@ public:
    struct Store
    {
       int                m_version;                //!< info version
-      long long          m_bufferSize;             //!< prefetch buffer size
-      long long          m_fileSize;               //!< number of file blocks
+      long long          m_buffer_size;             //!< prefetch buffer size
+      long long          m_file_size;               //!< number of file blocks
       unsigned char     *m_buff_synced;            //!< disk written state vector
       char               m_cksum[16];              //!< cksum of downloaded information
       time_t             m_creationTime;           //!< time the info file was created
       size_t             m_accessCnt;              //!< total access count for the file
       std::vector<AStat> m_astats;                 //!< access records
 
-      Store () : m_version(1), m_bufferSize(-1), m_fileSize(0), m_buff_synced(0), m_creationTime(0), m_accessCnt(0) {}
+      Store () : m_version(1), m_buffer_size(-1), m_file_size(0), m_buff_synced(0), m_creationTime(0), m_accessCnt(0) {}
    };
 
 
@@ -128,7 +128,7 @@ public:
    void SetFileSize(long long);
 
    //---------------------------------------------------------------------
-   //! \brief Reserve buffer for fileSize/bufferSize bytes
+   //! \brief Reserve buffer for file_size / buffer_size bytes
    //!
    //! @param n number of file blocks
    //---------------------------------------------------------------------
@@ -216,6 +216,11 @@ public:
    bool GetLatestDetachTime(time_t& t) const;
 
    //---------------------------------------------------------------------
+   //! Get latest access stats
+   //---------------------------------------------------------------------
+   const AStat* GetLastAccessStats() const;
+
+   //---------------------------------------------------------------------
    //! Get prefetch buffer size
    //---------------------------------------------------------------------
    long long GetBufferSize() const;
@@ -253,7 +258,7 @@ public:
    //---------------------------------------------------------------------
    //! Get number of accesses
    //---------------------------------------------------------------------
-   size_t GetAccessCnt() { return m_store.m_accessCnt; }
+   size_t GetAccessCnt() const { return m_store.m_accessCnt; }
 
    //---------------------------------------------------------------------
    //! Get version
@@ -362,7 +367,7 @@ inline int Info::GetNDownloadedBlocks() const
 
 inline long long Info::GetNDownloadedBytes() const
 {
-   return m_store.m_bufferSize * GetNDownloadedBlocks();
+   return m_store.m_buffer_size * GetNDownloadedBlocks();
 }
 
 inline int Info::GetLastDownloadedBlock() const
@@ -377,9 +382,9 @@ inline long long Info::GetExpectedDataFileSize() const
 {
    int last_block = GetLastDownloadedBlock();
    if (last_block == m_sizeInBits - 1)
-      return m_store.m_fileSize;
+      return m_store.m_file_size;
    else
-      return (last_block + 1) * m_store.m_bufferSize;
+      return (last_block + 1) * m_store.m_buffer_size;
 }
 
 inline int Info::GetSizeInBytes() const
@@ -397,7 +402,7 @@ inline int Info::GetSizeInBits() const
 
 inline long long Info::GetFileSize() const
 {
-   return m_store.m_fileSize;
+   return m_store.m_file_size;
 }
 
 inline bool Info::IsComplete() const
@@ -422,7 +427,7 @@ inline void Info::UpdateDownloadCompleteStatus()
 
 inline long long Info::GetBufferSize() const
 {
-   return m_store.m_bufferSize;
+   return m_store.m_buffer_size;
 }
 
 }

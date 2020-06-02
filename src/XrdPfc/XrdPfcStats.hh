@@ -25,7 +25,7 @@
 namespace XrdPfc
 {
 //----------------------------------------------------------------------------
-//! Statistics of disk cache utilisation.
+//! Statistics of cache utilisation by a File object.
 //----------------------------------------------------------------------------
 class Stats
 {
