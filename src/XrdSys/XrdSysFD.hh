@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <errno.h>
 
 namespace
 {
@@ -69,7 +70,7 @@ inline DIR* XrdSysFD_OpenDir(const char *path)
                  {int fd;
                   if ((fd = open(path, O_RDONLY|O_CLOEXEC)) < 0) return 0;
                   DIR *dP = fdopendir(fd);
-                  if (!dP) {int rc = errno, close(fd); errno = rc;}
+                  if (!dP) {int rc = errno; close(fd); errno = rc;}
                   return dP;
                  }
 
