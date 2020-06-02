@@ -29,20 +29,28 @@
 /******************************************************************************/
 
 #include <unistd.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <map>
 #include <stdio.h>
+#include <string>
 #include <strings.h>
 #include <time.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#ifdef __linux__
+#include <sys/sysmacros.h>
+#endif
+
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssOpaque.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
   
@@ -74,6 +82,21 @@ int                 XrdOssCache::ovhAlloc= 0;
 int                 XrdOssCache::Quotas  = 0;
 int                 XrdOssCache::Usage   = 0;
 
+namespace XrdOssCacheDevs
+{
+struct devID
+      {int  bdevID;
+       int  partID;
+       char nDev[16];
+      };
+
+std::map<dev_t, devID> dev2ID;
+
+int devNMax = 1;
+int prtNMax = 1;
+}
+using namespace XrdOssCacheDevs;
+
 /******************************************************************************/
 /*            X r d O s s C a c h e _ F S D a t a   M e t h o d s             */
 /******************************************************************************/
@@ -82,7 +105,6 @@ XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp,
                                        STATFS_t   &fsbuff,
                                        dev_t       fsID)
 {
-
      path = strdup(fsp);
      size = static_cast<long long>(fsbuff.f_blocks)
           * static_cast<long long>(fsbuff.FS_BLKSZ);
@@ -97,7 +119,20 @@ XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp,
      updt = time(0);
      next = 0;
      stat = 0;
-     seen = 0;
+
+// This is created only for new partitions!
+//
+     std::map<dev_t, devID>::iterator it = dev2ID.find(fsID);
+     if (it != dev2ID.end())
+        {bdevID = static_cast<unsigned short>(it->second.bdevID);
+         if (it->second.partID == 0) it->second.partID = prtNMax++;
+         partID = static_cast<unsigned short>(it->second.partID);
+         devN = it->second.nDev;
+        } else {
+         bdevID = 0;
+         partID = static_cast<unsigned short>(prtNMax++);
+         devN = "dev";
+        }
 }
   
 /******************************************************************************/
@@ -339,6 +374,8 @@ int  XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, XrdOssCache_Group *fsg,
             pVec[i].aPath = fsg->fsVec[i].apVec;
             pVec[i].Total = fsd->size;
             pVec[i].Free  = fsd->frsz;
+            pVec[i].bdevID= fsd->bdevID;
+            pVec[i].partID= fsd->partID;
            }
        }
    XrdOssCache::Mutex.UnLock();
@@ -530,6 +567,34 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
 }
   
 /******************************************************************************/
+/*                               D e v I n f o                                */
+/******************************************************************************/
+
+void XrdOssCache::DevInfo(struct stat &buf, bool limits)
+{
+
+// Check if only the maximum values ae to be returned
+//
+   if (limits)
+      {memset(&buf, 0, sizeof(struct stat));
+       buf.st_dev  = static_cast<dev_t>(XrdOssCacheDevs::prtNMax);
+       buf.st_rdev = static_cast<dev_t>(XrdOssCacheDevs::devNMax);
+       return;
+      }
+
+// Look up the device info
+//
+   std::map<dev_t, devID>::iterator it = dev2ID.find(buf.st_dev);
+   if (it != dev2ID.end())
+      {buf.st_rdev = static_cast<dev_t>(it->second.bdevID);
+       buf.st_dev  = static_cast<dev_t>(it->second.partID);
+      } else {
+       buf.st_rdev = 0;
+       buf.st_dev  = 0;
+      }
+}
+  
+/******************************************************************************/
 /*                                  F i n d                                   */
 /******************************************************************************/
   
@@ -616,12 +681,118 @@ void XrdOssCache::List(const char *lname, XrdSysError &Eroute)
              do {pP--;} while(*pP != '/');
              *pP = '\0';   theCmd = "space";
             } else {pP=0;  theCmd = "cache";}
-         snprintf(buff, sizeof(buff), "%s%s %s %s", lname, theCmd,
-                        fsp->group, fsp->path);
+         snprintf(buff, sizeof(buff), "%s%s %s %s -> %s[%d:%d]", lname, theCmd,
+                        fsp->group, fsp->path, fsp->fsdata->devN,
+                        fsp->fsdata->bdevID, fsp->fsdata->partID);
          if (pP) *pP = '/';
          Eroute.Say(buff);
          fsp = fsp->next;
         } while(fsp != fsfirst);
+}
+  
+/******************************************************************************/
+/*                               M a p D e v s                                */
+/******************************************************************************/
+
+void XrdOssCache::MapDevs(bool dBug)
+{
+#ifdef __linux__
+   const char *pPart = "/proc/partitions";
+   std::map<std::string, int> dn2id;
+   XrdOucStream strm;
+   std::string  sOrg;
+   char *line, *sMaj, *sMin, *sBlk, *sDev, sAlt[16], sDN[sizeof(devID::nDev)];
+   dev_t dNode;
+   int dNum, n, fd, vMaj, vMin;
+
+// Our first step is to find all of the block devices on this machine and
+// map them to device numbers (our own as well as the st_dev values).
+//
+   if ((fd = open(pPart, O_RDONLY)) < 0) return;
+   strm.Attach(fd);
+
+// Read through the table until the end getting information we need
+//
+   while((line = strm.GetLine()))
+        {if (!(sMaj = strm.GetToken()) || !isdigit(*sMaj)) continue;
+         if (!(vMaj = atoi(sMaj))) continue;
+         if (!(sMin = strm.GetToken()) || !isdigit(*sMin)) continue;
+         vMin = atoi(sMin);
+         if (!(sBlk = strm.GetToken()) || !isdigit(*sBlk)) continue;
+         if (!(sDev = strm.GetToken())) continue;
+
+      // Preprocess LVM devices
+      //
+         if (!strncmp(sDev, "dm-", 3))
+            {if (!MapDM(sDev, sAlt, sizeof(sAlt)))
+                {if (dBug) std::cerr <<"Config " <<sDev <<'[' <<vMaj <<':'
+                           <<vMin <<"] -> dev[0]" <<std::endl;
+                 continue;
+                }
+             sOrg = sDev;
+             sDev = sAlt;
+            } else sOrg = sDev;
+
+      // We are only concerned about normal block devices
+      //
+         if (sDev[1] != 'd' || (*sDev != 's' && *sDev != 'h')) continue;
+         strncpy(sDN, sDev, sizeof(sDN));
+         sDN[sizeof(sDN)-1] = 0;
+
+      // Trim off any numbers from the id
+      //
+         n = strlen(sDev)-1;
+         while(isdigit(sDev[n])) sDev[n--] = 0;
+
+      // Generate the device number (existing or new)
+      //
+         std::map<std::string,int>::iterator it = dn2id.find(std::string(sDev));
+         if (it != dn2id.end()) dNum = it->second;
+            else {dNum = devNMax++;
+                  dn2id[std::string(sDev)] = dNum;
+                 }
+
+      // Add the device to out map
+      //
+         dNode = makedev(vMaj, vMin);
+         devID theID = {dNum, 0, {0}};
+         strcpy(theID.nDev, sDN);
+         dev2ID[dNode] = theID;
+
+      // Print result if so wanted
+      //
+         if (dBug) std::cerr <<"Config " <<sOrg <<'[' <<vMaj <<':' <<vMin
+                             <<"] -> " <<sDev <<'[' <<dNum <<']' <<std::endl;
+        }
+#endif
+}
+
+/******************************************************************************/
+/* Private:                        M a p D M                                  */
+/******************************************************************************/
+  
+bool XrdOssCache::MapDM(const char *ldm, char *buff, int blen)
+{
+   const char *dmInfo1 = "/sys/devices/virtual/block/", *dmInfo2 = "/slaves";
+   struct dirent *dP;
+   bool aOK = false;
+
+   std::string dmPath = dmInfo1;
+   dmPath += ldm;
+   dmPath += dmInfo2;
+
+   DIR *slaves = opendir(dmPath.c_str());
+   if (!slaves) return 0;
+   while((dP = readdir(slaves)))
+        {if (dP->d_type == DT_LNK && dP->d_name[1] == 'd'
+         && (dP->d_name[0] == 's' || dP->d_name[0] == 'h'))
+            {if ((int)strlen(dP->d_name) < blen)
+                {strcpy(buff, dP->d_name); aOK = true; break;}
+            }
+        }
+
+   closedir(slaves);
+   return aOK;
 }
  
 /******************************************************************************/

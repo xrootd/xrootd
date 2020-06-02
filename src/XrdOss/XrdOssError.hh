@@ -58,8 +58,10 @@
 #define XRDOSS_E8024 8024
 #define XRDOSS_E8025 8025
 #define XRDOSS_E8026 8026
+#define XRDOSS_E8027 8027
+#define XRDOSS_E8028 8028
 
-#define XRDOSS_ELAST 8026
+#define XRDOSS_ELAST 8028
   
 #define XRDOSS_T8001 "directory object in use (internal error)"
 #define XRDOSS_T8002 "directory object not open (internal error)"
@@ -87,4 +89,6 @@
 #define XRDOSS_T8024 "invalid response from remote storage service"
 #define XRDOSS_T8025 "unable to queue stage request to the remote storage service"
 #define XRDOSS_T8026 "file creation is prohibited"
+#define XRDOSS_T8027 "path is not a relative path"
+#define XRDOSS_T8028 "dynamic cast failed (internal error)"
 #endif

@@ -494,8 +494,11 @@ int XrdOssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 
 // Get the processing flags for this directory
 //
-   pflags = XrdOssSS->PathOpts(dir_path);
-   ateof = 0;
+   unsigned long long pflags = XrdOssSS->PathOpts(dir_path);
+   if (pflags & XRDEXP_STAGE)   dOpts |= isStage;
+   if (pflags & XRDEXP_NODREAD) dOpts |= noDread;
+   if (pflags & XRDEXP_NOCHECK) dOpts |= noCheck;
+   ateof = false;
 
 // Generate local path
 //
@@ -505,12 +508,15 @@ int XrdOssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
          else local_path = actual_path;
       else local_path = (char *)dir_path;
 
-// If this is a local filesystem request, open locally.
+// If this is a local filesystem request, open locally. We also obtian the
+// underlying file descriptor.
 //
-   if (!(pflags & XRDEXP_STAGE) || (pflags & XRDEXP_NODREAD))
+   if (!(dOpts & isStage) || (dOpts & noDread))
       {TRACE(Opendir, "lcl path " <<local_path <<" (" <<dir_path <<")");
-       if ((lclfd = opendir((char *)local_path))) {isopen = 1; return XrdOssOK;}
-       return -errno;
+       if (!(lclfd = XrdSysFD_OpenDir(local_path))) return -errno;
+       fd = dirfd(lclfd);
+       isopen = true;
+       return XrdOssOK;
       }
 
 // Generate remote path
@@ -528,18 +534,18 @@ int XrdOssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 // by making NODREAD mean to read the local directory only (which is not always
 // ideal). So, we keep the code below but comment it out for now.
 //
-// if ((pflags & XRDEXP_NODREAD) && !(pflags & XRDEXP_NOCHECK))
+// if ((dOpts & noDread) && !(dOpts & noCheck))
 //    {struct stat fstat;
 //     if ((retc = XrdOssSS->MSS_Stat(remote_path,&fstat))) return retc;
 //     if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
-//     isopen = 1;
+//     isopen = true;
 //     return XrdOssOK;
 //    }
 
 // Open the directory at the remote location.
 //
    if (!(mssfd = XrdOssSS->MSS_Opendir(remote_path, retc))) return retc;
-   isopen = 1;
+   isopen = true;
    return XrdOssOK;
 }
 
@@ -577,19 +583,19 @@ int XrdOssDir::Readdir(char *buff, int blen)
        if ((rp = readdir(lclfd)))
           {strlcpy(buff, rp->d_name, blen);
 #ifdef HAVE_FSTATAT
-           if (Stat && fstatat(dirFD, rp->d_name, Stat, 0)) return -errno;
+           if (Stat && fstatat(fd, rp->d_name, Stat, 0)) return -errno;
 #endif
            return XrdOssOK;
           }
-       *buff = '\0'; ateof = 1;
+       *buff = '\0'; ateof = true;
        return -errno;
       }
 
 // Simulate the read operation, if need be.
 //
-   if (pflags & XRDEXP_NODREAD)
+   if (noDread)
       {if (ateof) *buff = '\0';
-          else   {*buff = '.'; ateof = 1;}
+          else   {*buff = '.'; ateof = true;}
        return XrdOssOK;
       }
 
@@ -629,14 +635,6 @@ int XrdOssDir::StatRet(struct stat *buff)
    return -ENOTSUP;
 #endif
 
-// Now obtain the correct file descriptor which is special in Solaris
-//
-#ifdef __solaris__
-   dirFD = lclfd->dd_fd;
-#else
-   dirFD = dirfd(lclfd);
-#endif
-
 // All is well
 //
    Stat = buff;
@@ -658,15 +656,25 @@ int XrdOssDir::Close(long long *retsz)
 {
     int retc;
 
+// We do not support returing a size
+//
+   if (retsz) *retsz = 0;
+
 // Make sure this object is open
 //
     if (!isopen) return -XRDOSS_E8002;
 
 // Close whichever handle is open
 //
-    if (lclfd) {if (!(retc = closedir(lclfd))) lclfd = 0;}
-       else if (mssfd) { if (!(retc = XrdOssSS->MSS_Closedir(mssfd))) mssfd = 0;}
-               else retc = 0;
+    if (lclfd)
+       {if (!(retc = closedir(lclfd)))
+           {lclfd = 0;
+            isopen = false;
+           }
+       } else {
+        if (mssfd) { if (!(retc = XrdOssSS->MSS_Closedir(mssfd))) mssfd = 0;}
+           else retc = 0;
+       }
 
 // Indicate whether or not we really closed this object
 //

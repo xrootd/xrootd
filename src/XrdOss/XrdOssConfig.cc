@@ -215,6 +215,7 @@ XrdOssSys::XrdOssSys()
    STT_Lib       = 0;
    STT_Parms     = 0;
    STT_Func      = 0;
+   STT_Fund      = 0;
    STT_PreOp     = 0;
    STT_DoN2N     = 1;
    STT_V2        = 0;
@@ -278,6 +279,10 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
                      }
           }
    if (FDFence < 0 || FDFence >= FDLimit) FDFence = FDLimit >> 1;
+
+// Configure devices
+//
+   XrdOssCache::MapDevs(OssTrace.What != 0);
 
 // Process the configuration file
 //

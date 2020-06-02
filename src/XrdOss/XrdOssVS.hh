@@ -36,12 +36,28 @@
   
 //-----------------------------------------------------------------------------
 //! Class describing the patitions associated with a space. This is returned
-//! as a vector by StatVS() when so requested. Note that pPath poins to a path
+//! as a vector by StatVS() when so requested. Note that pPath points to a path
 //! associated with the partition. No inference should be made about this
-//! path other thant it is one of, perhaps of many, paths associated with the
+//! path other than it is one of, perhaps of many, paths associated with the
 //! partition. The aPath vector provides specific paths that are associated
-//! with allocated files in this partition relative to the space name. There
-//! may be many of these for the partition; it always ends with a nil pointer.
+//! with allocated files in the partition relative to the space name. There
+//! may be many of these for the partition. The vector always ends with a nil
+//! pointer.
+//!
+//! The bdevID is a unique identifier for each block device. It is currently
+//! only supported in Linux. Other systems assign all partitions the generic ID
+//! of 0. Even in Linux, the ID will be zero for softwared devices (though not
+//! for LVM devices backed by a real device). Softwared devices such as
+//! distributed file systems cannot be identified correctly as they do not
+//! provide sufficiently distinguishing information.
+//!
+//! The partID is an ascending value that uniquely identifies a partition
+//! irrespective of its associated bdevID. However, using this information to
+//! schedule read/write requests is not trivial and may overwhelm the
+//! underlying device if it has many partitions. You can check if the system
+//! correctly identified all devices using DevID(0,x,y). If 'x' is one upon
+//! return, then using partID for scheduling is the only recourse as either
+//! no real devices were found or the system only has one such device.
 //-----------------------------------------------------------------------------
 
 class XrdOssVSPart
@@ -51,9 +67,13 @@ const char    *pPath;   // Valid path to partition (not the allocation path)
 const char   **aPath;   // Allocation root paths for this partition
 long long      Total;   // Total bytes
 long long      Free;    // Total bytes free
-void          *rsvd;    // Reserved
+unsigned short bdevID;  // Device    unique ID (bdevs may have many partitions)
+unsigned short partID;  // Partition unique ID (parts may have the same bdevID)
+int            rsvd1;
+void          *rsvd2;   // Reserved
 
-               XrdOssVSPart() : pPath(0), aPath(0), Total(0), Free(0), rsvd(0)
+               XrdOssVSPart() : pPath(0),  aPath(0), Total(0), Free(0),
+                                bdevID(0), partID(0), rsvd1(0), rsvd2(0)
                               {}
               ~XrdOssVSPart() {}
 };

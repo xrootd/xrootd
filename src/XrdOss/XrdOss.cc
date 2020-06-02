@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                             X r d O s s . h h                              */
+/*                             X r d O s s . c c                              */
 /*                                                                            */
 /* (c) 2019 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -105,7 +105,7 @@ int XrdOss::StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
 /*                                S t a t P F                                 */
 /******************************************************************************/
   
-int XrdOss::StatPF(const char *path, struct stat *buff)
+int XrdOss::StatPF(const char *path, struct stat *buff, int opts)
 {
    (void)path; (void)buff;
    return -ENOTSUP;

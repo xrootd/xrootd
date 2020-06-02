@@ -75,7 +75,7 @@ public:
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Opendir(const char *path, XrdOucEnv &env)    {return -ENOTDIR;}
+virtual int     Opendir(const char *path, XrdOucEnv &env) {return -ENOTDIR;}
 
 //-----------------------------------------------------------------------------
 //! Get the next directory entry.
@@ -88,7 +88,7 @@ virtual int     Opendir(const char *path, XrdOucEnv &env)    {return -ENOTDIR;}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
+virtual int     Readdir(char *buff, int blen) {return -ENOTDIR;}
 
 //-----------------------------------------------------------------------------
 //! Set the stat() buffer where stat information is to be placed corresponding
@@ -101,7 +101,7 @@ virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
 //! @note This is a one-time call as stat structure is reused for each Readdir.
 //-----------------------------------------------------------------------------
 
-virtual int     StatRet(struct stat *)                       {return -ENOTSUP;}
+virtual int     StatRet(struct stat *) {return -ENOTSUP;}
 
 /******************************************************************************/
 /*                 F i l e   O r i e n t e d   M e t h o d s                  */
@@ -114,13 +114,13 @@ virtual int     StatRet(struct stat *)                       {return -ENOTSUP;}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Fchmod(mode_t mode)                          {return -EISDIR;}
+virtual int     Fchmod(mode_t mode) {return -EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Flush filesystem cached pages for this file (used for checksums).
 //-----------------------------------------------------------------------------
 
-virtual void    Flush()                                      {}
+virtual void    Flush() {}
 
 //-----------------------------------------------------------------------------
 //! Return state information for this file.
@@ -130,7 +130,7 @@ virtual void    Flush()                                      {}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Fstat(struct stat *)                         {return -EISDIR;}
+virtual int     Fstat(struct stat *buf) {return -EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Synchronize associated file with media (synchronous).
@@ -138,7 +138,7 @@ virtual int     Fstat(struct stat *)                         {return -EISDIR;}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Fsync()                                      {return -EISDIR;}
+virtual int     Fsync() {return -EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Synchronize associated file with media (asynchronous).
@@ -148,7 +148,7 @@ virtual int     Fsync()                                      {return -EISDIR;}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Fsync(XrdSfsAio *aiop)                       {return -EISDIR;}
+virtual int     Fsync(XrdSfsAio *aiop) {return -EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Set the size of the associated file.
@@ -158,15 +158,7 @@ virtual int     Fsync(XrdSfsAio *aiop)                       {return -EISDIR;}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Ftruncate(unsigned long long)                {return -EISDIR;}
-
-//-----------------------------------------------------------------------------
-//! Return the underlying file descriptor.
-//!
-//! @return -1 if there is no file descriptor or a non-negative FD number.
-//-----------------------------------------------------------------------------
-
-virtual int     getFD()                                      {return -1;}
+virtual int     Ftruncate(unsigned long long) {return -EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Return the memory mapped characteristics of the file.
@@ -178,7 +170,7 @@ virtual int     getFD()                                      {return -1;}
 //!         returned. Note that zero length files cannot be memory mapped.
 //-----------------------------------------------------------------------------
 
-virtual off_t   getMmap(void **)                             {return 0;}
+virtual off_t   getMmap(void **) {return 0;}
 
 //-----------------------------------------------------------------------------
 //! Return file compression charectistics.
@@ -189,7 +181,7 @@ virtual off_t   getMmap(void **)                             {return 0;}
 //!         zero is returned (file not compressed).
 //-----------------------------------------------------------------------------
 
-virtual int     isCompressed(char *cxidp=0)      {(void)cxidp; return -EISDIR;}
+virtual int     isCompressed(char *cxidp=0) {(void)cxidp; return -EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Open a file.
@@ -287,7 +279,7 @@ virtual int     pgWrite(XrdSfsAio* aoiparm, uint64_t opts);
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual ssize_t Read(off_t offset, size_t size)      {return (ssize_t)-EISDIR;}
+virtual ssize_t Read(off_t offset, size_t size) {return (ssize_t)-EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Read file bytes into a buffer.
@@ -312,7 +304,7 @@ virtual ssize_t Read(void *buffer, off_t offset, size_t size)
 //!         (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Read(XrdSfsAio *aoip)    {(void)aoip; return (ssize_t)-EISDIR;}
+virtual int     Read(XrdSfsAio *aoip) {(void)aoip; return (ssize_t)-EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Read uncompressed file bytes into a buffer.
@@ -363,7 +355,7 @@ virtual ssize_t Write(const void *buffer, off_t offset, size_t size)
 //!         (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Write(XrdSfsAio *aiop)   {(void)aiop; return (ssize_t)-EISDIR;}
+virtual int     Write(XrdSfsAio *aiop) {(void)aiop; return (ssize_t)-EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Write file bytes as directed by the write vector.
@@ -400,8 +392,7 @@ virtual int     Close(long long *retsz=0)=0;
 //
 static const uint16_t DF_isDir   = 0x0001;  //!< Object is for a directory
 static const uint16_t DF_isFile  = 0x0002;  //!< Object is for a file
-static const uint16_t DF_isOpen  = 0x0010;  //!< Object target has been opened
-static const uint16_t DF_isProxy = 0x0020;  //!< Object is a proxy object
+static const uint16_t DF_isProxy = 0x0010;  //!< Object is a proxy object
 
 uint16_t        DFType() {return dfType;}
 
@@ -420,23 +411,43 @@ uint16_t        DFType() {return dfType;}
 virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 
 //-----------------------------------------------------------------------------
-//! Constructor and Destructor
+//! Return the underlying file descriptor.
 //!
-//! @param  dftpe  - The type of the object.
+//! @return -1 if there is no file descriptor or a non-negative FD number.
 //-----------------------------------------------------------------------------
 
-                XrdOssDF(uint16_t dftype=0)
-                        : pgwEOF(0), fd(-1), dfType(dftype), rsvd(0) {}
+virtual int     getFD() {return fd;}
+
+//-----------------------------------------------------------------------------
+//! Return trace identifier associated with this object.
+//!
+//! @return Pointer to trace identifier
+//-----------------------------------------------------------------------------
+virtual
+const char     *getTID() {return tident;}
+
+//-----------------------------------------------------------------------------
+//! Constructor and Destructor
+//!
+//! @param  tid    - Pointer to the trace identifier.
+//! @param  dftype - The type of the object.
+//! @param  fdnum  - The value for the file descriptor.
+//-----------------------------------------------------------------------------
+
+                XrdOssDF(const char *tid="", uint16_t dftype=0, int fdnum=-1)
+                        : tident(tid), pgwEOF(0), fd(fdnum), dfType(dftype),
+                          rsvd(0) {}
 
 virtual        ~XrdOssDF() {}
 
 
 protected:
 
-off_t    pgwEOF;  // Highest short offset on pgWrite (0 means none yet)
-int      fd;      // The associated file descriptor.
-uint16_t dfType;  // Type of this object
-short    rsvd;    // Reserved
+const char *tident;  // Trace identifier
+off_t       pgwEOF;  // Highest short offset on pgWrite (0 means none yet)
+int         fd;      // The associated file descriptor.
+uint16_t    dfType;  // Type of this object
+short       rsvd;    // Reserved
 };
 
 /******************************************************************************/
@@ -729,14 +740,28 @@ virtual int       StatLS(XrdOucEnv &env, const char *path,
 //-----------------------------------------------------------------------------
 //! Return state information on a resident physical file or directory.
 //!
-//! @param  path   - Pointer to the path in question. No translation is
-//!                  done on this path.
+//! @param  path   - Pointer to the path in question.
 //! @param  buff   - Pointer to the structure where info it to be returned.
+//! @param  opts   - Options:
+//!                  PF_dInfo - provide bdevID in st_rdev and partID in st_dev
+//!                             based on path. If path is nil then the contents
+//!                             of the of buff is used as the input source.
+//!                  PF_dNums - provide number of bdev's in st_rdev and the
+//!                             number of partitions in st_dev. The path
+//!                             argument is ignored. This superceeds PF_dInfo.
+//!                  PF_isLFN - Do N2N translation on path (default is none).
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int       StatPF(const char *path, struct stat *buff);
+static const int  PF_dInfo = 0x00000001;
+static const int  PF_dNums = 0x00000002;
+static const int  PF_isLFN = 0x00000004;
+
+virtual int       StatPF(const char *path, struct stat *buff, int opts);
+
+virtual int       StatPF(const char *path, struct stat *buff)
+                        {return StatPF(path, buff, 0);} // Backward compat
 
 //-----------------------------------------------------------------------------
 //! Return space information for a space name.
@@ -782,7 +807,8 @@ virtual int       StatXA(const char *path, char *buff, int &blen,
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int       StatXP(const char *, unsigned long long &, XrdOucEnv *x=0);
+virtual int       StatXP(const char *path, unsigned long long &attr,
+                         XrdOucEnv  *envP=0);
 
 //-----------------------------------------------------------------------------
 //! Truncate a file.

@@ -273,15 +273,46 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
 
-int XrdOssSys::StatPF(const char *path, struct stat *buff)
+int XrdOssSys::StatPF(const char *path, struct stat *buff, int opts)
 {
+   char lcl_path[MAXPATHLEN+1];
    int retc;
 
-// Stat the file in the local filesystem. Return result.
+// If just the maximum values wanted then we can return these right away
 //
-   retc = (STT_Func ? (*STT_Func)(path, buff, XRDOSS_resonly, 0) :
-                            stat (path, buff));
-   return (retc ? (errno ? -errno : -ENOMSG) : XrdOssOK);
+   if (opts & PF_dNums)
+      {XrdOssCache::DevInfo(*buff, true);
+       return 0;
+      }
+
+// Check if path is nil and do he appropriate thing
+//
+   if (!path)
+      {if (opts & PF_dInfo) XrdOssCache::DevInfo(*buff, false);
+          else return -EINVAL;
+       return 0;
+      }
+
+// Check if we should do lfn2pfn conversion (previously we didn't allow it)
+//
+   if (lcl_N2N && (opts & PF_isLFN))
+      {if ((retc = lcl_N2N->lfn2pfn(path, lcl_path, sizeof(lcl_path))))
+          return retc;
+       path = lcl_path;
+      }
+
+// We no longer use the custom stat plug-in for this function. It never
+// worked in the first place, anyway.
+//
+   if (stat(path, buff)) return (errno ? -errno : -ENOMSG);
+
+// Check if device info is to be returned
+//
+   if (opts & PF_dInfo) XrdOssCache::DevInfo(*buff);
+
+// All done
+//
+   return XrdOssOK;
 }
   
 /******************************************************************************/
@@ -435,8 +466,8 @@ int XrdOssSys::getCname(const char *path, struct stat *sbuff, char *cgbuff)
 // Now determine if we should get the cache group name. There is none
 // for offline files and it's always public for directories.
 //
-   if (S_ISDIR(sbuff->st_mode))          strcpy(cgbuff, "public");
-      else if (sbuff->st_mode & S_IFBLK) strcpy(cgbuff, "*");
+   if (S_ISDIR(sbuff->st_mode))         strcpy(cgbuff, "public");
+      else if (S_ISBLK(sbuff->st_mode)) strcpy(cgbuff, "*");
               else XrdOssPath::getCname(thePath, cgbuff);
 
 // All done

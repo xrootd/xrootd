@@ -57,19 +57,22 @@ int     Readdir(char *buff, int blen);
 int     StatRet(struct stat *buff);
 
         // Constructor and destructor
-        XrdOssDir(const char *tid) : lclfd(0), mssfd(0), Stat(0), tident(tid),
-                                     pflags(0), ateof(0), isopen(0), dirFD(0)
-                                   {}
-       ~XrdOssDir() {if (isopen > 0) Close(); isopen = 0;}
+        XrdOssDir(const char *tid, DIR *dP=0)
+                 : XrdOssDF(tid, DF_isDir),
+                   lclfd(dP), mssfd(0), Stat(0), ateof(false),
+                   isopen(dP != 0), dOpts(0) {if (dP) fd = dirfd(dP);}
+
+       ~XrdOssDir() {if (isopen) Close();}
 private:
          DIR       *lclfd;
          void      *mssfd;
 struct   stat      *Stat;
-const    char      *tident;
-unsigned long long  pflags;
-         int        ateof;
-         int        isopen;
-         int        dirFD;
+         bool       ateof;
+         bool       isopen;
+unsigned char       dOpts;
+static const int    isStage  = 0x01;
+static const int    noCheck  = 0x02;
+static const int    noDread  = 0x04;
 };
   
 /******************************************************************************/
@@ -97,7 +100,6 @@ int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
-int     getFD() {return fd;}
 off_t   getMmap(void **addr);
 int     isCompressed(char *cxidp=0);
 ssize_t Read(               off_t, size_t);
@@ -109,10 +111,10 @@ ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
  
         // Constructor and destructor
-        XrdOssFile(const char *tid)
-                  {cxobj = 0; rawio = 0; cxpgsz = 0; cxid[0] = '\0';
-                   mmFile = 0; tident = tid;
-                  }
+        XrdOssFile(const char *tid, int fdnum=-1)
+                  : XrdOssDF(tid, DF_isFile, fdnum),
+                    cxobj(0), cacheP(0), mmFile(0),
+                    rawio(0), cxpgsz(0) {cxid[0] = '\0';}
 
 virtual ~XrdOssFile() {if (fd >= 0) Close();}
 
@@ -123,7 +125,6 @@ static int      AioFailure;
 oocx_CXFile    *cxobj;
 XrdOssCache_FS *cacheP;
 XrdOssMioFile  *mmFile;
-const char     *tident;
 long long       FSize;
 int             rawio;
 int             cxpgsz;
@@ -183,7 +184,7 @@ int       StatFS(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatFS(const char *path, unsigned long long &Opt,
                  long long &fSize, long long &fSpace);
 int       StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);
-int       StatPF(const char *, struct stat *);
+int       StatPF(const char *, struct stat *, int);
 int       StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0);
 int       StatXA(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatXP(const char *path, unsigned long long &attr, XrdOucEnv *Env=0);

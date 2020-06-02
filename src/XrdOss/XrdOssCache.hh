@@ -112,9 +112,11 @@ long long           size;
 long long           frsz;
 dev_t               fsid;
 const char         *path;
+const char         *devN;
 time_t              updt;
 int                 stat;
-unsigned int        seen;
+unsigned short      bdevID;
+unsigned short      partID;
 
        XrdOssCache_FSData(const char *, STATFS_t &, dev_t);
       ~XrdOssCache_FSData() {if (path) free((void *)path);}
@@ -233,6 +235,8 @@ struct allocInfo
 
 static int             Alloc(allocInfo &aInfo);
 
+static void            DevInfo(struct stat &buf, bool limits=false);
+
 static XrdOssCache_FS *Find(const char *Path, int lklen=0);
 
 static int             Init(const char *UDir, const char *Qfile, int isSOL);
@@ -240,6 +244,8 @@ static int             Init(const char *UDir, const char *Qfile, int isSOL);
 static int             Init(long long aMin, int ovhd, int aFuzz);
 
 static void            List(const char *lname, XrdSysError &Eroute);
+
+static void            MapDevs(bool dBug=false);
 
 static char           *Parse(const char *token, char *cbuff, int cblen);
 
@@ -261,6 +267,7 @@ static XrdOssCache_FSData *fsdata;   // -> Filesystem data
 static int                 fsCount;  // Number of file systems
 
 private:
+static bool MapDM(const char *ldm, char *buff, int blen);
 
 static long long           minAlloc;
 static double              fuzAlloc;
