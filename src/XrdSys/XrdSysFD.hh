@@ -67,8 +67,10 @@ inline int  XrdSysFD_Open(const char *path, int flags, mode_t mode)
 
 inline DIR* XrdSysFD_OpenDir(const char *path)
                  {int fd;
-                  if ((fd = open(path, O_RDONLY|O_CLOEXEC))) return 0;
-                  return fdopendir(fd);
+                  if ((fd = open(path, O_RDONLY|O_CLOEXEC)) < 0) return 0;
+                  DIR *dP = fdopendir(fd);
+                  if (!dP) {int rc = errno, close(fd); errno = rc;}
+                  return dP;
                  }
 
 inline int  XrdSysFD_Pipe(int pipefd[2])
@@ -119,7 +121,10 @@ inline int  XrdSysFD_Open(const char *path, int flags, mode_t mode)
 inline DIR* XrdSysFD_OpenDir(const char *path)
                  {int fd = XrdSysFD_Open(path, O_RDONLY);
                   if (fd < 0) return 0;
-                  return fdopendir(fd);
+                  fcntl(newfd, F_SETFD, FD_CLOEXEC);
+                  DIR *dP = fdopendir(fd);
+                  if (!dP) {int rc = errno, close(fd); errno = rc;}
+                  return dP;
                  }
 
 inline int  XrdSysFD_Pipe(int pipefd[2])
