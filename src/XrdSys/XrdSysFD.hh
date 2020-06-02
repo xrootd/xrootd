@@ -122,7 +122,7 @@ inline int  XrdSysFD_Open(const char *path, int flags, mode_t mode)
 inline DIR* XrdSysFD_OpenDir(const char *path)
                  {int fd = XrdSysFD_Open(path, O_RDONLY);
                   if (fd < 0) return 0;
-                  fcntl(newfd, F_SETFD, FD_CLOEXEC);
+                  fcntl(fd, F_SETFD, FD_CLOEXEC);
                   DIR *dP = fdopendir(fd);
                   if (!dP) {int rc = errno, close(fd); errno = rc;}
                   return dP;
