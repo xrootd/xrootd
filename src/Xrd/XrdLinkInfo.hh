@@ -59,7 +59,7 @@ void            Reset()
                       KillCnt  =  0;
                      }
 
-                XrdLinkInfo() : IOSemaphore(0, "link i/o") {Reset();}
+                XrdLinkInfo() : IOSemaphore(0, "link i/o"), Etext(0) {Reset();}
 
                ~XrdLinkInfo() {}
 };
