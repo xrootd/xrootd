@@ -103,6 +103,7 @@ add_library(
   # XrdOss - Default storage system
   #-----------------------------------------------------------------------------
   XrdOss/XrdOss.cc             XrdOss/XrdOss.hh
+  XrdOss/XrdOssAt.cc           XrdOss/XrdOssAt.hh
   XrdOss/XrdOssAio.cc
                                XrdOss/XrdOssTrace.hh
                                XrdOss/XrdOssError.hh
