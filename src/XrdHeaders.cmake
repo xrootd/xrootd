@@ -95,6 +95,7 @@ if( NOT XRDCL_ONLY )
     XrdOfs/XrdOfsFSctl_PI.hh
     XrdOfs/XrdOfsPrepare.hh
     XrdOss/XrdOss.hh
+    XrdOss/XrdOssVS.hh
     XrdOss/XrdOssDefaultSS.hh
     XrdOss/XrdOssStatInfo.hh
     XrdPosix/XrdPosix.hh
