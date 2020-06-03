@@ -29,6 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdint>
 #include <signal.h>
 #include <sys/types.h>
 // _POSIX_ASYNCHRONOUS_IO, if it is defined, is in unistd.h.
@@ -59,7 +60,7 @@ class XrdSfsAio
 public:
 
 struct aiocb  sfsAio;
-unsigned int *cksVec; // For pgRead and pgWrite
+uint32_t     *cksVec; // For pgRead and pgWrite
 
 ssize_t      Result; // If >= 0 valid result; else is -errno
 
