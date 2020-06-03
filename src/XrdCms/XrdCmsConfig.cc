@@ -1021,6 +1021,9 @@ int XrdCmsConfig::Manifest()
 int XrdCmsConfig::MergeP()
 {
    static const unsigned long long stage4MM = XRDEXP_STAGEMM & ~XRDEXP_STAGE;
+   static const unsigned long long stageAny = XRDEXP_PFCACHE |  XRDEXP_STAGE;
+   static const unsigned long long readOnly = XRDEXP_PFCACHE |  XRDEXP_NOTRW;
+
    XrdOucPList *plp = PexpList.First();
    XrdCmsPList *pp;
    XrdCmsPInfo opinfo, npinfo;
@@ -1035,9 +1038,9 @@ int XrdCmsConfig::MergeP()
    while(plp)
         {Opts = plp->Flag();
          if (!(Opts & XRDEXP_LOCAL))
-            {npinfo.rwvec = (Opts & (XRDEXP_GLBLRO | XRDEXP_NOTRW) ? 0 : 1);
-             if (export2MM) npinfo.ssvec = (Opts &  stage4MM       ? 1 : 0);
-                else        npinfo.ssvec = (Opts &  XRDEXP_STAGE   ? 1 : 0);
+            {npinfo.rwvec = (Opts & (XRDEXP_GLBLRO | readOnly) ? 0 : 1);
+             if (export2MM) npinfo.ssvec = (Opts &  stage4MM   ? 1 : 0);
+                else        npinfo.ssvec = (Opts &  stageAny   ? 1 : 0);
              if (!PathList.Add(plp->Path(), &npinfo))
                 Say.Emsg("Config","Ignoring duplicate export path",plp->Path());
                 else if (npinfo.ssvec) DiskSS = 1;
