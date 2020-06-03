@@ -474,7 +474,7 @@ void XrdOssSys::ConfigCache(XrdSysError &Eroute, bool pass2)
      unsigned long long oflag, pflag;
 
 // If this is pass 2 then if we are in pfcMode, then reset r/o flag to r/w
-// to allow the pfc to actually write into the pfcache paths.
+// to allow the pfc to actually write into the cache paths.
 //
    if (pass2)
       {if (pfcMode)
@@ -2027,14 +2027,14 @@ void XrdOssSys::List_Path(const char *pfx, const char *pname,
      if (flags & XRDEXP_GLBLRO)  ss += " globalro";
 
      if (!(flags & XRDEXP_PFCACHE))
-        {if (flags & XRDEXP_PFCACHE_X) ss += " nopfcache";
+        {if (flags & XRDEXP_PFCACHE_X) ss += " nocache";
          ss += (flags & XRDEXP_NOCHECK  ? " nocheck" : " check");
          ss += (flags & XRDEXP_NODREAD  ? " nodread" : " dread");
          ss += (flags & XRDEXP_MIG      ? " mig"     : " nomig");
          ss += (flags & XRDEXP_PURGE    ? " purge"   : " nopurge");
          ss += (flags & XRDEXP_RCREATE  ? " rcreate" : " norcreate");
          ss += (flags & XRDEXP_STAGE    ? " stage"   : " nostage");
-        } else ss += " pfcache";
+        } else ss += " cache";
 
 
      if (flags & XRDEXP_MMAP)

@@ -75,8 +75,8 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
         {"r/w",           XRDEXP_NOTRW,   0,              XRDEXP_ROW_X},
         {"inplace",       0,              XRDEXP_INPLACE, XRDEXP_INPLACE_X},
         {"outplace",      XRDEXP_INPLACE, 0,              XRDEXP_INPLACE_X},
-//      {"nopfcache",     XRDEXP_PFCACHE, 0,              XRDEXP_PFCACHE_X},
-        {"pfcache",       0,              XRDEXP_PFCACHE, XRDEXP_PFCACHE_X},
+//      {"nocache",       XRDEXP_PFCACHE, 0,              XRDEXP_PFCACHE_X},
+        {"cache",         0,              XRDEXP_PFCACHE, XRDEXP_PFCACHE_X},
         {"nomig",         XRDEXP_MIG,     0,              XRDEXP_MIG_X},
         {"mig",           0,              XRDEXP_MIG,     XRDEXP_MIG_X},
         {"notmigratable", XRDEXP_MIG,     0,              XRDEXP_MIG_X},
@@ -142,6 +142,7 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
 
              <path>    the path prefix that applies
              <options> a blank separated list of options:
+                       [no]cache    - is [not] file caching
                        [no]check    - [don't] check if new file exists in MSS
                        [no]dread    - [don't] read actual directory contents
                            forcero  - force r/w opens to r/o opens
@@ -154,7 +155,6 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
                        [no]mkeep    - this is [not] a memory keepable name space
                        [no]mlock    - this is [not] a memory lockable name space
                        [no]mmap     - this is [not] a memory mappable name space
-                       [no]pfcache  - [isn't] proxy file cache space
                        [no]rcreate  - [don't] create file in MSS as well
                            r/o      - do not allow modifications (read/only)
                            r/w      - path is writable/modifiable
