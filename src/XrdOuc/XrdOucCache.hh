@@ -182,7 +182,7 @@ const char  *Path() = 0;
 virtual int  pgRead(char      *buff,
                     long long  offs,
                     int        rdlen,
-                    uint32_t *&csvec,
+                    uint32_t  *csvec,
                     uint64_t   opts=0);
 
 //-----------------------------------------------------------------------------
@@ -207,7 +207,7 @@ virtual void pgRead(XrdOucCacheIOCB &iocb,
                     char            *buff,
                     long long        offs,
                     int              rdlen,
-                    uint32_t       *&csvec,
+                    uint32_t        *csvec,
                     uint64_t         opts=0)
                    {iocb.Done(pgRead(buff, offs, rdlen, csvec, opts));}
 
@@ -233,7 +233,7 @@ virtual void pgRead(XrdOucCacheIOCB &iocb,
 virtual int  pgWrite(char      *buff,
                      long long  offs,
                      int        rdlen,
-                     uint32_t *&csvec,
+                     uint32_t  *csvec,
                      uint64_t   opts=0);
 
 //-----------------------------------------------------------------------------
@@ -260,7 +260,7 @@ virtual void pgWrite(XrdOucCacheIOCB &iocb,
                      char            *buff,
                      long long        offs,
                      int              wrlen,
-                     uint32_t       *&csvec,
+                     uint32_t        *csvec,
                      uint64_t         opts=0)
                     {iocb.Done(pgWrite(buff, offs, wrlen, csvec, opts));}
 
@@ -269,7 +269,7 @@ virtual void pgWrite(XrdOucCacheIOCB &iocb,
 //!
 //! @param  offs  the offset into the file.
 //! @param  rlen  the number of bytes to preread into the cache.
-//! @param  opts  one or more of he options defined below.
+//! @param  opts  one or more of the options defined below.
 //------------------------------------------------------------------------------
 
 static const int SingleUse = 0x0001; //!< Mark pages for single use

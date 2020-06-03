@@ -39,7 +39,7 @@
 int XrdOucCacheIO::pgRead(char      *buff,
                           long long  offs,
                           int        rdlen,
-                          uint32_t *&csvec,
+                          uint32_t  *csvec,
                           uint64_t   opts)
 {
    int bytes;
@@ -56,7 +56,7 @@ int XrdOucCacheIO::pgRead(char      *buff,
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0) XrdOucCRC::Calc32C((void *)buff, rdlen, csvec);
+   if (bytes > 0) XrdOucCRC::Calc32C((void *)buff, bytes, csvec);
 
 // All done
 //
@@ -70,7 +70,7 @@ int XrdOucCacheIO::pgRead(char      *buff,
 int XrdOucCacheIO::pgWrite(char      *buff,
                            long long  offs,
                            int        wrlen,
-                           uint32_t *&csvec,
+                           uint32_t  *csvec,
                            uint64_t   opts)
 {
 // Make sure the offset is on a 4K boundary
