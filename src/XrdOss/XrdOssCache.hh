@@ -112,6 +112,7 @@ long long           size;
 long long           frsz;
 dev_t               fsid;
 const char         *path;
+const char         *pact;
 const char         *devN;
 time_t              updt;
 int                 stat;

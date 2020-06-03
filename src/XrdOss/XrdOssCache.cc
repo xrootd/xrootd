@@ -106,6 +106,7 @@ XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp,
                                        dev_t       fsID)
 {
      path = strdup(fsp);
+     if (!(pact= realpath(fsp,0))) pact = path;
      size = static_cast<long long>(fsbuff.f_blocks)
           * static_cast<long long>(fsbuff.FS_BLKSZ);
      frsz = static_cast<long long>(fsbuff.f_bavail)
@@ -672,7 +673,7 @@ int XrdOssCache::Init(long long aMin, int ovhd, int aFuzz)
 void XrdOssCache::List(const char *lname, XrdSysError &Eroute)
 {
      XrdOssCache_FS *fsp;
-     const char *theCmd;
+     const char *theCmd, *rpath;
      char *pP, buff[4096];
 
      if ((fsp = fsfirst)) do
@@ -681,9 +682,11 @@ void XrdOssCache::List(const char *lname, XrdSysError &Eroute)
              do {pP--;} while(*pP != '/');
              *pP = '\0';   theCmd = "space";
             } else {pP=0;  theCmd = "cache";}
-         snprintf(buff, sizeof(buff), "%s%s %s %s -> %s[%d:%d]", lname, theCmd,
-                        fsp->group, fsp->path, fsp->fsdata->devN,
-                        fsp->fsdata->bdevID, fsp->fsdata->partID);
+         rpath = (strcmp(fsp->fsdata->path, fsp->fsdata->pact)
+               ? fsp->fsdata->pact : "");
+         snprintf(buff, sizeof(buff), "%s%s %s %s -> %s[%d:%d] %s",
+                  lname, theCmd, fsp->group, fsp->path, fsp->fsdata->devN,
+                  fsp->fsdata->bdevID, fsp->fsdata->partID, rpath);
          if (pP) *pP = '/';
          Eroute.Say(buff);
          fsp = fsp->next;
