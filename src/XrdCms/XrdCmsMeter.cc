@@ -46,7 +46,6 @@
 #include "XrdCms/XrdCmsTrace.hh"
 #include "XrdCms/XrdCmsUtils.hh"
 #include "XrdOss/XrdOss.hh"
-#include "XrdOss/XrdOssVS.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 

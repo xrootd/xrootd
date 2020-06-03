@@ -38,12 +38,12 @@
 #include <sys/types.h>
 #include <string.h>
 
+#include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
 class XrdOucEnv;
 class XrdSysLogger;
 class XrdSfsAio;
-class XrdOssVSInfo;
 
 #ifndef XrdOssOK
 #define XrdOssOK 0

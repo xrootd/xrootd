@@ -3,7 +3,6 @@
 #include "XrdPfcInfo.hh"
 
 #include "XrdOss/XrdOss.hh"
-#include "XrdOss/XrdOssVS.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"

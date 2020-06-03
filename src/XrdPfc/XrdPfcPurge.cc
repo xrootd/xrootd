@@ -6,7 +6,6 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysTrace.hh"
-#include "XrdOss/XrdOssVS.hh"
 
 using namespace XrdPfc;
 
