@@ -167,6 +167,7 @@ install(
     XrdClEnv.hh
     XrdClFile.hh
     XrdClFileSystem.hh
+    XrdClFileSystemUtils.hh
     XrdClMonitor.hh
     XrdClStatus.hh
     XrdClURL.hh
@@ -180,7 +181,6 @@ install(
   
 install(
   FILES
-    XrdClFileSystemUtils.hh
     XrdClMessage.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
