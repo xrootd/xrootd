@@ -38,7 +38,7 @@
   
 /* Function: ParseDefs
 
-   Purpose:  Parse: defaults [[no]check] [[no]dread]
+   Purpose:  Parse: defaults [[no]cache] [[no]check] [[no]dread]
 
                              [[no]filter] [forcero]
 
@@ -75,6 +75,8 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
         {"r/w",           XRDEXP_NOTRW,   0,              XRDEXP_ROW_X},
         {"inplace",       0,              XRDEXP_INPLACE, XRDEXP_INPLACE_X},
         {"outplace",      XRDEXP_INPLACE, 0,              XRDEXP_INPLACE_X},
+//      {"nopfcache",     XRDEXP_PFCACHE, 0,              XRDEXP_PFCACHE_X},
+        {"pfcache",       0,              XRDEXP_PFCACHE, XRDEXP_PFCACHE_X},
         {"nomig",         XRDEXP_MIG,     0,              XRDEXP_MIG_X},
         {"mig",           0,              XRDEXP_MIG,     XRDEXP_MIG_X},
         {"notmigratable", XRDEXP_MIG,     0,              XRDEXP_MIG_X},
@@ -152,6 +154,7 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
                        [no]mkeep    - this is [not] a memory keepable name space
                        [no]mlock    - this is [not] a memory lockable name space
                        [no]mmap     - this is [not] a memory mappable name space
+                       [no]pfcache  - [isn't] proxy file cache space
                        [no]rcreate  - [don't] create file in MSS as well
                            r/o      - do not allow modifications (read/only)
                            r/w      - path is writable/modifiable
@@ -192,7 +195,6 @@ XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
                              "to be readonly");
        rpval |= XRDEXP_FORCERO;
       }
-   if (rpval & (XRDEXP_MLOK | XRDEXP_MKEEP)) rpval |= XRDEXP_MMAP;
 
 // Update the export list. If this path is being modified, turn off all bits
 // in the old path specified in the new path and then set the new bits.

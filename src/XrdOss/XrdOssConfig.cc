@@ -33,6 +33,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <string>
 #include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
@@ -202,6 +203,7 @@ XrdOssSys::XrdOssSys()
    numCG = numDP = 0;
    xfrFdir       = 0;
    xfrFdln       = 0;
+   pfcMode       = false;
    RSSProg       = 0;
    StageProg     = 0;
    prPBits       = (long long)sysconf(_SC_PAGESIZE);
@@ -299,7 +301,11 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 // a true data server, those services will be initialized but then disabled.
 //
    Solitary = ((val = getenv("XRDREDIRECT")) && !strcmp(val, "Q"));
-   if (Solitary) Eroute.Say("++++++ Configuring standalone mode . . .");
+   pfcMode  = (envP && (val = envP->Get("oss.runmode")) && !strcmp(val,"pfc"));
+  {const char *m1 = (Solitary ? "standalone " : 0);
+   const char *m2 = (pfcMode  ? "pfc " : 0);
+   if (m1 || m2) Eroute.Say("++++++ Configuring ", m1, m2, "mode . . .");
+  }
    NoGo |= XrdOssCache::Init(UDir, QFile, Solitary)
           |XrdOssCache::Init(minalloc, ovhalloc, fuzalloc);
 
@@ -314,6 +320,10 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 // Initialize memory mapping setting to speed execution
 //
    if (!NoGo) ConfigMio(Eroute);
+
+// Provide support for the PFC. This also resolve cache attribute conflicts.
+//
+   if (!NoGo) ConfigCache(Eroute);
 
 // Establish the actual default path settings (modified by the above)
 //
@@ -346,6 +356,10 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
 // Display the final config if we can continue
 //
    if (!NoGo) Config_Display(Eroute);
+
+// Do final reset of paths if we are in proxy file cache mode
+//
+   if (pfcMode && !NoGo) ConfigCache(Eroute, true);
 
 // Export the real path list (for frm et. al.)
 //
@@ -444,6 +458,57 @@ void XrdOssSys::Config_Display(XrdSysError &Eroute)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
+/******************************************************************************/
+/*                           C o n f i g C a c h e                            */
+/******************************************************************************/
+  
+void XrdOssSys::ConfigCache(XrdSysError &Eroute, bool pass2)
+{
+     const unsigned long long conFlags = 
+                    XRDEXP_NOCHECK | XRDEXP_NODREAD |
+                    XRDEXP_MLOK    | XRDEXP_MKEEP   | XRDEXP_MMAP  |
+                    XRDEXP_MIG     | XRDEXP_MWMODE  | XRDEXP_PURGE |
+                    XRDEXP_RCREATE | XRDEXP_STAGE   | XRDEXP_STAGEMM;
+
+     XrdOucPList *fp = RPList.First();
+     unsigned long long oflag, pflag;
+
+// If this is pass 2 then if we are in pfcMode, then reset r/o flag to r/w
+// to allow the pfc to actually write into the pfcache paths.
+//
+   if (pass2)
+      {if (pfcMode)
+          {while(fp)
+                {pflag = fp->Flag();
+                 if (pflag & XRDEXP_PFCACHE) fp->Set(pflag & ~XRDEXP_NOTRW);
+                 fp = fp->Next();
+                }
+          }
+       return;
+      }
+
+// Run through all the paths and resolve any conflicts with a cache
+//
+   while(fp)
+        {oflag = pflag = fp->Flag();
+         if ((pflag & XRDEXP_PFCACHE)
+         ||  (pfcMode && !(pflag & XRDEXP_PFCACHE_X)))
+            {if (!(pflag & XRDEXP_NOTRW)) pflag |= XRDEXP_READONLY;
+             pflag &= ~conFlags;
+             pflag |=  XRDEXP_PFCACHE;
+             if (oflag != pflag) fp->Set(pflag);
+            }
+         fp = fp->Next();
+        }
+
+// Handle default settings
+//
+   if (DirFlags & XRDEXP_PFCACHE)
+      {DirFlags |=  XRDEXP_READONLY;
+       DirFlags &= ~conFlags;
+      }
+}
+  
 /******************************************************************************/
 /*                             C o n f i g M i o                              */
 /******************************************************************************/
@@ -594,9 +659,10 @@ void XrdOssSys::ConfigSpace(XrdSysError &Eroute)
 // space that can actually be modified in some way.
 //
    while(fp)
-        {if ((noCacheFS || (fp->Flag() & XRDEXP_INPLACE))
-         &&  ((fp->Flag() & (XRDEXP_STAGE | XRDEXP_PURGE))
-         ||  !(fp->Flag() & XRDEXP_NOTRW)))
+        {if ( ((noCacheFS || (fp->Flag() & XRDEXP_INPLACE)) &&
+               (fp->Flag() & (XRDEXP_STAGE | XRDEXP_PURGE)))
+         ||   !(fp->Flag() &  XRDEXP_NOTRW)
+         ||    (fp->Flag() &  XRDEXP_PFCACHE) )
             ConfigSpace(fp->Path());
          fp = fp->Next();
         }
@@ -1949,30 +2015,33 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdSysError &Eroute)
 void XrdOssSys::List_Path(const char *pfx, const char *pname,
                           unsigned long long flags, XrdSysError &Eroute)
 {
-     char buff[4096], *rwmode;
+     std::string ss;
+     const char *rwmode;
 
-     if (flags & XRDEXP_FORCERO) rwmode = (char *)" forcero";
-        else if (flags & XRDEXP_READONLY) rwmode = (char *)" r/o ";
-                else rwmode = (char *)" r/w ";
-                                 //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-     snprintf(buff, sizeof(buff), "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-              pfx, pname,                                           // 0
-              rwmode,                                               // 1
-              (flags & XRDEXP_INPLACE  ? " inplace" : ""),          // 2
-              (flags & XRDEXP_LOCAL    ? " local"   : ""),          // 3
-              (flags & XRDEXP_GLBLRO   ? " globalro": ""),          // 4
-              (flags & XRDEXP_NOCHECK  ? " nocheck" : " check"),    // 5
-              (flags & XRDEXP_NODREAD  ? " nodread" : " dread"),    // 6
-              (flags & XRDEXP_MIG      ? " mig"     : " nomig"),    // 7
-     (!(flags & XRDEXP_MMAP)           ? ""         :               // 8
-              (flags & XRDEXP_MKEEP    ? " mkeep"   : " nomkeep")),
-     (!(flags & XRDEXP_MMAP)           ? ""         :               // 9
-              (flags & XRDEXP_MLOK     ? " mlock"   : " nomlock")),
-              (flags & XRDEXP_MMAP     ? " mmap"    : ""),          // 10
-              (flags & XRDEXP_RCREATE  ? " rcreate" : " norcreate"),// 11
-              (flags & XRDEXP_PURGE    ? " purge"   : " nopurge"),  // 12
-              (flags & XRDEXP_STAGE    ? " stage"   : " nostage"),  // 13
-              (flags & XRDEXP_NOXATTR  ? " noxattr" : " xattr")     // 14
-              );
-     Eroute.Say(buff); 
+     if (flags & XRDEXP_FORCERO) rwmode = " forcero";
+        else if (flags & XRDEXP_READONLY) rwmode = " r/o";
+                else rwmode = " r/w";
+
+     if (flags & XRDEXP_INPLACE) ss += " inplace";
+     if (flags & XRDEXP_LOCAL)   ss += " local";
+     if (flags & XRDEXP_GLBLRO)  ss += " globalro";
+
+     if (!(flags & XRDEXP_PFCACHE))
+        {if (flags & XRDEXP_PFCACHE_X) ss += " nopfcache";
+         ss += (flags & XRDEXP_NOCHECK  ? " nocheck" : " check");
+         ss += (flags & XRDEXP_NODREAD  ? " nodread" : " dread");
+         ss += (flags & XRDEXP_MIG      ? " mig"     : " nomig");
+         ss += (flags & XRDEXP_PURGE    ? " purge"   : " nopurge");
+         ss += (flags & XRDEXP_RCREATE  ? " rcreate" : " norcreate");
+         ss += (flags & XRDEXP_STAGE    ? " stage"   : " nostage");
+        } else ss += " pfcache";
+
+
+     if (flags & XRDEXP_MMAP)
+        {ss += " mmap";
+         ss += (flags & XRDEXP_MKEEP    ? " mkeep"   : " nomkeep");
+         ss += (flags & XRDEXP_MLOK     ? " mlock"   : " nomlock");
+        }
+
+     Eroute.Say(pfx, pname, rwmode, ss.c_str());
 }

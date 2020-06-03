@@ -3,7 +3,6 @@
 #include "XrdPfcInfo.hh"
 
 #include "XrdOss/XrdOss.hh"
-#include "XrdOss/XrdOssCache.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -225,7 +224,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    Config.Close();
 
    // Load OSS plugin.
-   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib))
+   myEnv.Put("oss.runmode", "pfc");
+   if (ofsCfg->Load(XrdOfsConfigPI::theOssLib, &myEnv))
    {
       ofsCfg->Plugin(m_oss);
    }

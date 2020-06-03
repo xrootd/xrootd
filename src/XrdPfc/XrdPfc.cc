@@ -898,10 +898,10 @@ int Cache::Prepare(const char *curl, int oflags, mode_t mode)
    std::string i_name = f_name + Info::s_infoExtension;
 
    // Do not allow write access.
-   if (oflags & (O_WRONLY | O_RDWR))
+   if (oflags & (O_WRONLY | O_RDWR | O_APPEND | O_CREAT))
    {
       TRACE(Warning, "Cache::Prepare write access requested on file " << f_name << ". Denying access.");
-      return -ENOTSUP;
+      return -EROFS;
    }
 
    // Intercept xrdpfc_command requests.

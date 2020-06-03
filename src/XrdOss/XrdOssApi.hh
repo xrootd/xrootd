@@ -308,6 +308,7 @@ char           *UDir;         // -> Usage logdir
 char           *QFile;        // -> Quota file
 char           *xfrFdir;      // -> Fail file base dir
 int             xfrFdln;      //    strlen(xfrFDir)
+bool            pfcMode;      // Setup for Proxy File Cache
 
 int                Alloc_Cache(XrdOssCreateInfo &, XrdOucEnv &);
 int                Alloc_Local(XrdOssCreateInfo &, XrdOucEnv &);
@@ -327,6 +328,7 @@ int                Stage_RT(const char *, const char *, XrdOucEnv &, unsigned lo
 
 // Configuration related methods
 //
+void   ConfigCache(XrdSysError &Eroute, bool pass2=false);
 void   ConfigMio(XrdSysError &Eroute);
 int    ConfigN2N(XrdSysError &Eroute, XrdOucEnv *envP);
 int    ConfigProc(XrdSysError &Eroute);
