@@ -35,6 +35,65 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
+  // The data holder implementation
+  //----------------------------------------------------------------------------
+  struct FileSystemUtils::SpaceInfoImpl
+  {
+    SpaceInfoImpl( uint64_t total, uint64_t free, uint64_t used,
+                   uint64_t largestChunk ):
+        pTotal( total ),
+        pFree( free ),
+        pUsed( used ),
+        pLargestChunk( largestChunk )
+    {
+    }
+
+    uint64_t pTotal;
+    uint64_t pFree;
+    uint64_t pUsed;
+    uint64_t pLargestChunk;
+  };
+
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  FileSystemUtils::SpaceInfo::SpaceInfo( uint64_t total, uint64_t free, uint64_t used,
+                                       uint64_t largestChunk ):
+      pImpl( new SpaceInfoImpl( total, free, used, largestChunk ) )
+  {
+  }
+
+  //---------------------------------------------------------------------------
+  // Destructor (needs to be here due to the unique_ptr guarding PIMPL)
+  //---------------------------------------------------------------------------
+  FileSystemUtils::SpaceInfo::~SpaceInfo()
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Amount of total space in MB
+  //----------------------------------------------------------------------------
+  uint64_t FileSystemUtils::SpaceInfo::GetTotal() const { return pImpl->pTotal; }
+
+  //----------------------------------------------------------------------------
+  // Amount of free space in MB
+  //----------------------------------------------------------------------------
+  uint64_t FileSystemUtils::SpaceInfo::GetFree() const { return pImpl->pFree; }
+
+  //----------------------------------------------------------------------------
+  // Amount of used space in MB
+  //----------------------------------------------------------------------------
+  uint64_t FileSystemUtils::SpaceInfo::GetUsed() const { return pImpl->pUsed; }
+
+  //----------------------------------------------------------------------------
+  // Largest single chunk of free space
+  //----------------------------------------------------------------------------
+  uint64_t FileSystemUtils::SpaceInfo::GetLargestFreeChunk() const
+  { 
+    return pImpl->pLargestChunk;
+  }
+
+  //----------------------------------------------------------------------------
   // Recursively get space information for given path
   //----------------------------------------------------------------------------
   XRootDStatus FileSystemUtils::GetSpaceInfo( SpaceInfo         *&result,

@@ -29,6 +29,7 @@
 
 #include <string>
 #include <stdint.h>
+#include <memory>
 
 namespace XrdCl
 {
@@ -40,6 +41,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class FileSystemUtils
   {
+      //------------------------------------------------------------------------
+      // Forward declaration for PIMPL
+      //------------------------------------------------------------------------
+      struct SpaceInfoImpl;
+
     public:
       //------------------------------------------------------------------------
       //! Container for space information
@@ -48,35 +54,32 @@ namespace XrdCl
       {
         public:
           SpaceInfo( uint64_t total, uint64_t free, uint64_t used,
-                     uint64_t largestChunk ):
-            pTotal( total ), pFree( free ), pUsed( used ),
-            pLargestChunk( largestChunk ) { }
+                     uint64_t largestChunk );
+
+          ~SpaceInfo();
 
           //--------------------------------------------------------------------
           //! Amount of total space in MB
           //--------------------------------------------------------------------
-          uint64_t GetTotal() const { return pTotal; }
+          uint64_t GetTotal() const;
 
           //--------------------------------------------------------------------
           //! Amount of free space in MB
           //--------------------------------------------------------------------
-          uint64_t GetFree() const { return pFree; }
+          uint64_t GetFree() const;
 
           //--------------------------------------------------------------------
           //! Amount of used space in MB
           //--------------------------------------------------------------------
-          uint64_t GetUsed() const { return pUsed; }
+          uint64_t GetUsed() const;
 
           //--------------------------------------------------------------------
           //! Largest single chunk of free space
           //--------------------------------------------------------------------
-          uint64_t GetLargestFreeChunk() const { return pLargestChunk; }
+          uint64_t GetLargestFreeChunk() const;
 
         private:
-          uint64_t pTotal;
-          uint64_t pFree;
-          uint64_t pUsed;
-          uint64_t pLargestChunk;
+          std::unique_ptr<SpaceInfoImpl> pImpl;
       };
 
       //------------------------------------------------------------------------
