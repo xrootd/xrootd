@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Xcache]** Autoconfig oss and cmsd using pfcache export attribute.
   * **[Xcache]** Optionally supply source and CGI to N2N cache plugin.
   * **[Server]** Define method to get partition information; mostly for Xcache.
   * **[Sec]** Add support for x509 capabilities.
