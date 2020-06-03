@@ -37,6 +37,7 @@
 
 #include "XrdNet/XrdNetCmsNotify.hh"
 #include "XrdOss/XrdOss.hh"
+#include "XrdOss/XrdOssVS.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
