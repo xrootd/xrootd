@@ -777,7 +777,16 @@ fi
 %{_libdir}/libXrdCrypto.so.1*
 %{_libdir}/libXrdCryptoLite.so.1*
 %{_libdir}/libXrdCryptossl-4.so
-%{_libdir}/libXrdSec*-4.so
+%{_libdir}/libXrdCryptossl-4.so
+%{_libdir}/libXrdSec-4.so
+%{_libdir}/libXrdSecProt-4.so
+%{_libdir}/libXrdSecgsi-4.so
+%{_libdir}/libXrdSecgsiAUTHZVO-4.so
+%{_libdir}/libXrdSecgsiGMAPDN-4.so
+%{_libdir}/libXrdSeckrb5-4.so
+%{_libdir}/libXrdSecpwd-4.so
+%{_libdir}/libXrdSecsss-4.so
+%{_libdir}/libXrdSecunix-4.so
 %{_libdir}/libXrdUtils.so.*
 %{_libdir}/libXrdXml.so.*
 
