@@ -731,7 +731,15 @@ fi
 %{_libdir}/libXrdCrypto.so.1*
 %{_libdir}/libXrdCryptoLite.so.1*
 %{_libdir}/libXrdCryptossl-5.so
-%{_libdir}/libXrdSec*-5.so
+%{_libdir}/libXrdSec-5.so
+%{_libdir}/libXrdSecProt-5.so
+%{_libdir}/libXrdSecgsi-5.so
+%{_libdir}/libXrdSecgsiAUTHZVO-5.so
+%{_libdir}/libXrdSecgsiGMAPDN-5.so
+%{_libdir}/libXrdSeckrb5-5.so
+%{_libdir}/libXrdSecpwd-5.so
+%{_libdir}/libXrdSecsss-5.so
+%{_libdir}/libXrdSecunix-5.so
 %{_libdir}/libXrdUtils.so.*
 %{_libdir}/libXrdXml.so.*
 
