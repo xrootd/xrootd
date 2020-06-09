@@ -699,7 +699,7 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
    char *origP = xxBuff;
    char *nullP = xxBuff + m++;
    xxBuff += m; xxLen -= m;
-   n = snprintf(xxBuff, xxLen, "%ld %ld 0%o ",
+   n = snprintf(xxBuff, xxLen, "%ld %ld %04o ",
                 buf.st_ctime, buf.st_atime, buf.st_mode&07777);
    if (n >= xxLen) return m;
    xxBuff += n; xxLen -= n;
