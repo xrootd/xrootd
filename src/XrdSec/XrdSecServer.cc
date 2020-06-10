@@ -977,6 +977,7 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
    pap = myParms.Result(psize);
    if (!PManager.Load(&erp, 's', pid, (psize ? pap : 0), path))
       {if (*(erp.getErrText())) Eroute.Say(erp.getErrText());
+       Eroute.Say("Config Failed to load ", pid, " authentication protocol!");
        return 1;
       }
 

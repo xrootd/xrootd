@@ -49,6 +49,7 @@
 #include "XrdOuc/XrdOucGMap.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSys/XrdSysE2T.hh"
 
 enum XrdOucGMap_Match {kFull     = 0,
                        kBegins   = 1,
@@ -120,7 +121,7 @@ XrdOucGMap::XrdOucGMap(XrdOucGMapArgs)
             if (p.isdigit()) {
                timeout = p.atoi();
             } else {
-               PRINT(tracer, "XrdOucGMap", "timeout value badly formatted ("<<p<<"): ignoring");
+               PRINT(tracer, "OucGMap", "timeout value badly formatted ("<<p<<"); ignoring");
             }
          }
       }
@@ -141,15 +142,15 @@ XrdOucGMap::XrdOucGMap(XrdOucGMapArgs)
    // Check if it can be read
    //
    if (access(mf_name.c_str(), R_OK) != 0) {
-      PRINT(tracer, "XrdOucGMap", "cannot access grid map file '"<< mf_name <<"'in read mode; errno: "
-                                  <<errno<<" - aborting");
+      PRINT(tracer, "OucGMap", "cannot access grid map file '"<< mf_name
+            <<"' in read mode; " <<XrdSysE2T(errno));
       return;
    }
 
    // Load the file
    //
    if (load(mf_name.c_str()) != 0) {
-      PRINT(tracer, "XrdOucGMap", "problems loading file "<<mf_name<<" - aborting");
+      PRINT(tracer, "OucGMap", "unable to load file "<<mf_name<<" - aborting");
       return;
    }
 
@@ -169,7 +170,8 @@ int XrdOucGMap::load(const char *mf, bool force)
    //
    struct stat st;
    if (stat(mf_name.c_str(), &st) != 0) {
-      PRINT(tracer, "XrdOucGMap::load", "cannot access grid map file; errno: "<<errno<<" - aborting");
+      PRINT(tracer, "OucGMap::load", "cannot access grid map file '"
+            <<mf_name <<"'; " <<XrdSysE2T(errno));
       // Delete the stored information if the file has been deleted
       if (errno == ENOENT) mappings.Purge();
       xsl.UnLock();
@@ -180,7 +182,7 @@ int XrdOucGMap::load(const char *mf, bool force)
 #else
    if (mf_mtime > 0 && (mf_mtime >= st.st_mtim.tv_sec) && !force) {
 #endif
-      DEBUG(dbg, tracer, "XrdOucGMap::load", "map information up-to-date: no need to load");
+      DEBUG(dbg, tracer, "OucGMap::load", "map information up-to-date: no need to load");
       xsl.UnLock();
       return 0;
    }
@@ -197,7 +199,8 @@ int XrdOucGMap::load(const char *mf, bool force)
    XrdOucStream mapf(elogger, inst, &myEnv, "");
    
    if ( (fD = open(mf_name.c_str(), O_RDONLY, 0)) < 0) {
-      PRINT(tracer, "XrdOucGMap::load", "ERROR: map file '"<<mf_name<<"' could not be open (errno: "<<errno<<")");
+      PRINT(tracer, "OucGMap::load", "map file '"<<mf_name
+            <<"' could not be open; " <<XrdSysE2T(errno));
       xsl.UnLock();
       return -(int)errno;
    }
@@ -257,14 +260,15 @@ int XrdOucGMap::load(const char *mf, bool force)
          mappings.Add(p, new XrdSecGMapEntry_t(udn.c_str(), usr.c_str(), type));
          DEBUG(dbg, tracer, "XrdOucGMap::load", "mapping DN: '"<<udn<<"' to user: '"<< usr <<"' (type:'"<< stype <<"')");
       } else {
-         PRINT(tracer, "XrdOucGMap::load", "ERROR: uncomplete line found in file '"<<mf_name
-                     <<"': "<<var<<" - skipping");
+         PRINT(tracer, "OucGMap::load", "ERROR: uncomplete line found in file '"
+              <<mf_name <<"': "<<var<<" - skipping");
       }
    }
    // Now check if any errors occured during file i/o
    //
    if ((rc = mapf.LastError())) {
-      PRINT(tracer, "XrdOucGMap::load", "ERROR: reading file '"<<mf_name<<"': "<<rc);
+      PRINT(tracer, "OucGMap::load", "ERROR: reading file '"<<mf_name<<"'; "
+           <<XrdSysE2T(rc));
       rc = -rc;
    }
    mapf.Close();
@@ -293,7 +297,8 @@ int XrdOucGMap::dn2user(const char *dn, char *user, int ulen, time_t now)
    if (user && ulen > 0) {
       memset(user, '\0', ulen);
    } else {
-      PRINT(tracer, "XrdOucGMap::dn2user", "buffer for the user name is undefined or has undefined length");
+      PRINT(tracer, "OucGMap::dn2user",
+            "buffer for the user name is undefined or has undefined length");
       return -(int)EINVAL;
    }
 
@@ -304,7 +309,8 @@ int XrdOucGMap::dn2user(const char *dn, char *user, int ulen, time_t now)
       if (notafter < now) {
          // Reload the file
          if (load(mf_name.c_str()) != 0) {
-            PRINT(tracer, "XrdOucGMap::dn2user", "problems loading file "<<mf_name);
+            PRINT(tracer, "OucGMap::dn2user", 
+                  "problems loading file "<<mf_name);
             return -(int)errno;
          }
          if (timeout > 0) notafter = now + (time_t) timeout;
