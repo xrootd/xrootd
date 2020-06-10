@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[gsi]** Allow keywords for options that accept numeric values.
+  * **[gsi]** Add -authzcall option to better control authz usage.
   * **[Xcache]** Autoconfig oss and cmsd using pfcache export attribute.
   * **[Xcache]** Optionally supply source and CGI to N2N cache plugin.
   * **[Server]** Define method to get partition information; mostly for Xcache.
@@ -69,12 +71,16 @@ Prerelease Notes
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[gsi]** Fail server initialization when gsi did not initialize. Fixes #1042
   * **[Proxy]** Properly handle non-xroot URLs.
   * **[cmsd]** Make sure to return correct error when creation conflict occurs.
   * **[Server]** Correct action determination for debug message to avoid strife.
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[gsi]** Make -trustdns default false (i.e. do not use DNS).
+  * **[gsi]** Remove built-in VOMS extractor and FunLite example.
+  * **[gsi]**  Make -vomsat default "ignore".
   * **[Server]** Remove Solaris polldev support (reverts to using pollpoll).
   * **[TLS]** Always configure with session cache disabled.
   * **[Protocol]** Add TLS-specific bits for anonymous get/putfile.
