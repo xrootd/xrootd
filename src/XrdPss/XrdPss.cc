@@ -47,7 +47,6 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdFfs/XrdFfsPosix.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssTrace.hh"
