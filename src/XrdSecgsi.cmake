@@ -15,6 +15,7 @@ add_library(
   ${LIB_XRD_SEC_GSI}
   MODULE
   XrdSecgsi/XrdSecProtocolgsi.cc      XrdSecgsi/XrdSecProtocolgsi.hh
+                                      XrdSecgsi/XrdSecgsiOpts.hh
                                       XrdSecgsi/XrdSecgsiTrace.hh )
 
 target_link_libraries(

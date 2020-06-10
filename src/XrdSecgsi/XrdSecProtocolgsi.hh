@@ -190,6 +190,7 @@ public:
    char  *gmapfunparms;// [s] parameters for the function to map DN to usernames [0]
    char  *authzfun;// [s] file with the function to fill entities [0]
    char  *authzfunparms;// [s] parameters for the function to fill entities [0]
+   int    authzcall; // [s] when to call authz function [1 -> always]
    int    authzto; // [s] validity in secs of authz cache entries [-1 => unlimited]
    int    ogmap;  // [s] gridmap file checking option
    int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy; default 0
@@ -212,10 +213,12 @@ public:
                   cipher = 0; md = 0; ca = 1 ; crl = 1; crlrefresh = 86400;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
                   gridmap = 0; gmapto = 600;
-                  gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
+                  gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0;
+                  authzto = -1; authzcall = 1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
-                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; trustdns = true; }
+                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0;
+                  hashcomp = 1; trustdns = true;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -342,6 +345,7 @@ private:
    static int              PxyReqOpts;
    static int              AuthzPxyWhat;
    static int              AuthzPxyWhere;
+   static int              AuthzAlways;
    static String           SrvAllowedNames;
    static int              VOMSAttrOpt; 
    static XrdSecgsiVOMS_t  VOMSFun;
@@ -483,9 +487,6 @@ private:
    // Entity handling
    void CopyEntity(XrdSecEntity *in, XrdSecEntity *out, int *lout = 0);
    void FreeEntity(XrdSecEntity *in);
-
-   // VOMS parsing
-   int ExtractVOMS(X509Chain *c, XrdSecEntity &ent);
 };
 
 class gsiHSVars {
