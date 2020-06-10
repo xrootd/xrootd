@@ -392,11 +392,12 @@ with HTTP repositories.
 #-------------------------------------------------------------------------------
 # xrootd-voms
 #-------------------------------------------------------------------------------
-%package  voms
-Summary:  VOMS attribute extractor plug-in for XRootD
-Group:    System Environment/Libraries
-Provides: vomsxrd
-Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+%package   voms
+Summary:   VOMS attribute extractor plug-in for XRootD
+Group:     System Environment/Libraries
+Provides:  vomsxrd
+Requires:  %{name}-libs = %{epoch}:%{version}-%{release}
+Obsoletes: xrootd-voms-plugin
 %description voms
 The VOMS attribute extractor plug-in for XRootD.
 
