@@ -212,25 +212,26 @@ int getOptVal(OptsTab &oTab, const char *oVal)
 }
 
 /******************************************************************************/
-  
-//int getOptVal(OptsTab &oTab1, OptsTab &oTab2, char *oVal)
-//{
-//// Check if this is a two-factor option
-////
-//   char *comma = index(oVal, ',');
-//   if (comma) *comma = 0;
+/*
+int getOptVal(OptsTab &oTab1, OptsTab &oTab2, char *oVal)
+{
+// Check if this is a two-factor option
 //
-//// Handle the first part
-////
-//   int flag = getOptVal(oTab1, oVal);
+   char *comma = index(oVal, ',');
+   if (comma) *comma = 0;
+
+// Handle the first part
 //
-//// Get the second part
-////
-//   if (comma)
-//      {flag += getOptVal(oTab2, comma+1);
-//       *comma = ',';
-//      }
-//   return flag;
-//}
+   int flag = getOptVal(oTab1, oVal);
+
+// Get the second part
+//
+   if (comma)
+      {flag += getOptVal(oTab2, comma+1);
+       *comma = ',';
+      }
+   return flag;
+}
+*/
 }
 #endif
