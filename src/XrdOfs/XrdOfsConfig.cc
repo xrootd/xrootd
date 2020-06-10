@@ -854,7 +854,8 @@ int XrdOfs::xexp(XrdOucStream &Config, XrdSysError &Eroute, bool isExport)
 //
    while((val = Config.GetWord()))
         {for (int i = 0; i < numopts; i++)
-             if (!strcmp(val, rwtab[i].opname)) {isrw = rwtab[i].isRW; break;}
+             if (!strcmp(val, rwtab[i].opname))  isrw = rwtab[i].isRW;
+                else if (!strcmp(val, "cache")) {isrw = 0; break;}
         }
 
 // Handle result depending if this is an export or a defaults
