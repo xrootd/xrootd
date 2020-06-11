@@ -576,7 +576,8 @@ xrootd_docker_test:
   stage: test
   script:
     - docker pull gitlab-registry.cern.ch/dss/xrootd
-    - sudo ./xrootd-docker/start.sh -i gitlab-registry.cern.ch/dss/xrootd
+    - cd xrootd-docker   
+    - sudo ./start.sh -i gitlab-registry.cern.ch/dss/xrootd
     - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/UtilsTest/"
     - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/SocketTest/"
     - docker exec metaman text-runner /usr/lib64/libXrdClTests.so "All Tests/PollerTest/"
