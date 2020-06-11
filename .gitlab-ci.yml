@@ -62,6 +62,7 @@ build:centos8:
   except:
     - tags
     - schedules
+    - web
 
 build:cc7:
   stage: build:rpm
@@ -89,6 +90,7 @@ build:cc7:
   except:
     - tags
     - schedules
+    - web
     
 build:slc6:
   stage: build:rpm
@@ -116,6 +118,7 @@ build:slc6:
   except:
     - tags
     - schedules
+    - web
 
 build:fedora-rawhide:
   stage: build:rpm
@@ -143,6 +146,7 @@ build:fedora-rawhide:
   except:
     - tags
     - schedules
+    - web
 
 build:fedora-30:
   stage: build:rpm
@@ -170,6 +174,7 @@ build:fedora-30:
   except:
     - tags
     - schedules
+    - web
 
 build:fedora-29:
   stage: build:rpm
@@ -197,6 +202,7 @@ build:fedora-29:
   except:
     - tags
     - schedules
+    - web
 
 build:fedora-31:
   stage: build:rpm
@@ -224,6 +230,7 @@ build:fedora-31:
   except:
     - tags
     - schedules
+    - web
  
 build:deb_ubuntu_bionic:
   image: ubuntu:bionic
@@ -237,6 +244,7 @@ build:deb_ubuntu_bionic:
   except:
     - tags
     - schedules 
+    - web
  
 build:deb_ubuntu_xenial:
   image: ubuntu:xenial
@@ -249,6 +257,7 @@ build:deb_ubuntu_xenial:
   except:
     - tags
     - schedules
+    - web
 
 build:deb_ubuntu_eoan:
   image: ubuntu:eoan
@@ -261,6 +270,7 @@ build:deb_ubuntu_eoan:
   except:
     - tags
     - schedules
+    - web
 
 build:macosx:
   stage: build:rpm
@@ -289,6 +299,7 @@ build:macosx:
   except:
     - tags
     - schedules
+    - web
   allow_failure: true
 
 release:centos8-x86_64:
