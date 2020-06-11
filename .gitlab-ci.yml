@@ -764,13 +764,12 @@ publish:weekly:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - "for platform in epel-8 epel-7 epel-6; do
-         if [ -d $platform ]
-         then
+         if [ -d $platform ] ; then
            path=$prefix/experimental/$platform/x86_64/;
            sudo -u stci -H mkdir -p $path;
            sudo -u stci -H cp $platform/* $path;
            sudo -u stci -H createrepo --update -q $path;
-         fi
+         fi;
       done"
   tags:
     - docker_node
