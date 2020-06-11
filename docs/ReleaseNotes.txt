@@ -7,6 +7,14 @@ Release Notes
 
 
 --------------
+Version 4.12.3
+--------------
+
++ **Major bug fixes**
+  * **[RPM]** xrootd-voms pkg obsoletes xrootd-voms-plugin.
+  * **[Python]** Make sure XrdVersion.hh is generated correctly during pip install.
+
+--------------
 Version 4.12.2
 --------------
 
