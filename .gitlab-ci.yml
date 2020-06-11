@@ -594,7 +594,7 @@ xrootd_docker_test:
     - xrootd_docker_get
   only:
     - schedules
-
+  allow_failure: true
 
 pyxrootd_dockerimage:
   stage: build:dockerimage
