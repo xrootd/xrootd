@@ -681,6 +681,7 @@ publish:rhel:
   except:
     - tags
     - schedules
+    - web
     
 publish:debian:
   stage: publish
@@ -705,6 +706,7 @@ publish:debian:
   except:
     - tags
     - schedules
+    - web
 
 publish:rhel:release:
   stage: publish
