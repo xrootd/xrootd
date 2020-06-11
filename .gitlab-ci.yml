@@ -508,6 +508,7 @@ weekly:cc7:
     - docker_node
   only:
     - schedules
+    - web
   except:
     - tags
 
@@ -556,7 +557,10 @@ xrootd_docker_get:
   tags:
     - docker_node
   only:
+    - web
     - schedules
+  except:
+    - tags
     
 xrootd_dockerimage:
   stage: build:dockerimage
@@ -571,7 +575,10 @@ xrootd_dockerimage:
     - xrootd_docker_get
   only:
     - schedules
-    
+    - web
+  except:
+    - tags
+
 xrootd_docker_test:
   stage: test
   script:
@@ -594,6 +601,9 @@ xrootd_docker_test:
     - xrootd_docker_get
   only:
     - schedules
+    - web
+  except:
+    - tags
   allow_failure: true
 
 pyxrootd_dockerimage:
@@ -609,6 +619,9 @@ pyxrootd_dockerimage:
     - xrootd_docker_get
   only:
     - schedules
+    - web
+  except:
+    - tags
   allow_failure: true
     
 pyxrootd_docker_test:
@@ -629,6 +642,9 @@ pyxrootd_docker_test:
     - xrootd_docker_get
   only:
     - schedules
+    - web
+  except:
+    - tags
   allow_failure: true
 
 publish:rhel:
@@ -747,6 +763,7 @@ publish:weekly:
     - weekly:centos8
   only:
     - schedules
+    - web
   except:
     - tags
 
@@ -816,3 +833,7 @@ clean:artifacts:
   allow_failure: true
   only:
     - schedules
+    - web
+  except:
+    - tags
+
