@@ -100,6 +100,9 @@ extern XrdSsiProvider         *Provider;
 
        int                     respWT   = 0x7fffffff;
 
+       int                     minRSZ   = 1024;
+       int                     maxRSZ   = 2097152;
+
        bool                    fsChk    = false;
 
        bool                    detReqOK = false;
@@ -129,7 +132,6 @@ XrdSsiSfsConfig::XrdSsiSfsConfig(bool iscms)
    SvcLib        = 0;
    SvcParms      = 0;
    myRole        = 0;
-   maxRSZ        = 2097152;
    respWT        = 0x7fffffff;
    isServer      = true;
    isCms         = iscms;
@@ -336,13 +338,11 @@ int XrdSsiSfsConfig::ConfigCms(XrdOucEnv *envP)
 
 int XrdSsiSfsConfig::ConfigObj()
 {
-   static const int minRSZ = 8192;
 
 // Allocate a buffer pool
 //
    if (maxRSZ < minRSZ) maxRSZ = minRSZ;
    BuffPool = new XrdOucBuffPool(minRSZ, maxRSZ);
-   XrdSsiFileSess::SetMaxSz(maxRSZ);
    return 0;
 }
   

@@ -81,7 +81,7 @@ public:
                                   XrdSfsFileOffset   offset,
                                   XrdSfsXferSize     size);
 
-        void             setXio(XrdSfsXio *xP) {xioP = xP;}
+        void             setXio(XrdSfsXio *xP);
                         
         int              stat(struct stat *buf);
                         
@@ -101,7 +101,7 @@ public:
 //                      
                          XrdSsiFile(const char *user, int MonID)
                                    : XrdSfsFile(myEInfo), fsFile(0), fSessP(0),
-                                     xioP(0), myEInfo(user, MonID) {}
+                                     myEInfo(user, MonID) {}
                         
 virtual                 ~XrdSsiFile();
                         
@@ -109,7 +109,6 @@ private:
 
 XrdSfsFile              *fsFile;
 XrdSsiFileSess          *fSessP;
-XrdSfsXio               *xioP;
 XrdOucErrInfo            myEInfo;
 };
 #endif

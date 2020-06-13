@@ -46,7 +46,6 @@
 #include "XrdSec/XrdSecEntity.hh"
 
 #include "XrdSfs/XrdSfsAio.hh"
-#include "XrdSfs/XrdSfsXio.hh"
 
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
@@ -74,7 +73,9 @@ extern XrdSsiService    *Service;
 extern XrdSsiStats       Stats;
 extern XrdSysError       Log;
 extern int               respWT;
-};
+extern int               minRSZ;
+extern int               maxRSZ;
+}
 
 using namespace XrdSsi;
 
@@ -117,8 +118,6 @@ int             XrdSsiFileSess::freeMax  = 100;
 int             XrdSsiFileSess::freeAbs  = 200;
 
 bool            XrdSsiFileSess::authDNS  = false;
-
-int             XrdSsiFileSess::maxRSZ   = 0;
 
 /******************************************************************************/
 /*                                 A l l o c                                  */
@@ -361,7 +360,7 @@ void XrdSsiFileSess::Init(XrdOucErrInfo &einfo, const char *user, bool forReuse)
   
 bool XrdSsiFileSess::NewRequest(unsigned int     reqid,
                                 XrdOucBuffer    *oP,
-                                XrdSfsXioHandle *bR,
+                                XrdSfsXioHandle  bR,
                                 int              rSz)
 {
    XrdSsiFileReq *reqP;
@@ -709,17 +708,13 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
 // the request object, and then activate it for processing.
 //
    if (reqSize == blen && xioP)
-      {XrdSfsXioHandle *bRef;
-       XrdSfsXio::XioStatus xStat = xioP->Swap(buff, bRef);
-       if (xStat != XrdSfsXio::allOK)
-          {char etxt[16];
-           sprintf(etxt, "%d", xStat);
-           Log.Emsg(epname, "Xio.Swap() return error status of ", etxt);
-           return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
-          }
-       if (!NewRequest(reqID, 0, bRef, reqPass))
-          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
-       return blen;
+      {XrdSfsXioHandle bRef = xioP->Claim(buff, reqSize, minRSZ);
+       if (!bRef)
+          {if (errno) Log.Emsg(epname,"Xio.Claim() failed;",XrdSysE2T(errno));}
+          else {if (!NewRequest(reqID, 0, bRef, reqPass))
+                   return XrdSsiUtils::Emsg(epname,ENOMEM,"write",gigID,*eInfo);
+                return blen;
+               }
       }
 
 // The full request is not present, so get a buffer to piece it together

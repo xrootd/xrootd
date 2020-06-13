@@ -70,6 +70,7 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 
 #include "XrdVersion.hh"
 
@@ -148,6 +149,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem2(XrdSfsFileSystem *nativeFS,
 
 // All done, we can return the callout vector to these routines.
 //
+   mySfs.setFeatures(nativeFS);
    return &mySfs;
 }
 }
@@ -431,6 +433,17 @@ int XrdSsiSfs::rename(const char             *old_name,  // In
    return SFS_ERROR;
 }
 
+/******************************************************************************/
+/* Private:                  s e t F e a t u r e s                            */
+/******************************************************************************/
+
+void XrdSsiSfs::setFeatures(XrdSfsFileSystem *prevFS)
+{
+   uint64_t fSet = (prevFS ? prevFS->Features() : 0);
+
+   FeatureSet = fSet | XrdSfs::hasSXIO;
+}
+  
 /******************************************************************************/
 /* Private:                        S p l i t                                  */
 /******************************************************************************/

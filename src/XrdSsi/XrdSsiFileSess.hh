@@ -33,6 +33,7 @@
 #include <sys/types.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSfs/XrdSfsXio.hh"
 #include "XrdSsi/XrdSsiBVec.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
 #include "XrdSsi/XrdSsiFileResource.hh"
@@ -40,7 +41,6 @@
 #include "XrdSys/XrdSysPthread.hh"
   
 class  XrdOucEnv;
-class  XrdSfsXioHandle;
 struct XrdSsiRespInfo;
 
 class XrdSsiFileSess
@@ -81,8 +81,6 @@ XrdSsiFileResource      &Resource() {return fileResource;}
                                   XrdSfsXferSize     size);
 
 static  void             SetAuthDNS() {authDNS = true;}
-
-static  void             SetMaxSz(int mSz) {maxRSZ = mSz;}
                         
         void             setXio(XrdSfsXio *xP) {xioP = xP;}
                         
@@ -102,7 +100,7 @@ private:
 
 void                     Init(XrdOucErrInfo &einfo, const char *user, bool forReuse);
 bool                     NewRequest(unsigned int reqid, XrdOucBuffer *oP,
-                                    XrdSfsXioHandle *bR, int rSz);
+                                    XrdSfsXioHandle bR, int rSz);
 void                     Reset();
 XrdSfsXferSize           writeAdd(const char *buff, XrdSfsXferSize blen,
                                   unsigned int rid);
@@ -113,8 +111,6 @@ static int               freeNum;
 static int               freeNew;
 static int               freeMax;
 static int               freeAbs;
-
-static int               maxRSZ;
 static bool              authDNS;
 
 XrdSsiFileResource       fileResource;

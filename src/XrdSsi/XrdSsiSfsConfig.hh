@@ -65,7 +65,6 @@ char         *CmsLib;         //    ->Cms Library
 char         *CmsParms;       //    ->Cms Library Parameters
 char         *SvcLib;         //    ->Svc Library
 char         *SvcParms;       //    ->Svc Library Parameters
-int           maxRSZ;         // Maximum request size
 int           roleID;
 
 int           ConfigCms(XrdOucEnv *envP);

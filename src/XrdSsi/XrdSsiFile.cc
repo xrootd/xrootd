@@ -38,7 +38,6 @@
 #include "XrdOuc/XrdOucPList.hh"
 
 #include "XrdSfs/XrdSfsAio.hh"
-#include "XrdSfs/XrdSfsXio.hh"
 
 #include "XrdSsi/XrdSsiFile.hh"
 #include "XrdSsi/XrdSsiFileSess.hh"
@@ -369,6 +368,16 @@ int XrdSsiFile::SendData(XrdSfsDio         *sfDio,
    return fSessP->SendData(sfDio, offset, size);
 }
 
+/******************************************************************************/
+/*                                s e t X i o                                 */
+/******************************************************************************/
+
+void XrdSsiFile::setXio(XrdSfsXio *xP)
+{
+   if (fSessP) fSessP->setXio(xP);
+   if (fsFile) fsFile->setXio(xP);
+}
+  
 /******************************************************************************/
 /*                                  s t a t                                   */
 /******************************************************************************/

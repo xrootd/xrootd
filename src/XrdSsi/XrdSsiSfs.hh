@@ -132,6 +132,8 @@ const   char          *getVersion();
 
 // Management functions
 //
+        void           setFeatures(XrdSfsFileSystem *prevFS);
+
 static  void           setMax(int mVal) {freeMax = mVal;}
 
                        XrdSsiSfs() {}

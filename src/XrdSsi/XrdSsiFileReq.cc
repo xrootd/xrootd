@@ -36,7 +36,6 @@
 #include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsDio.hh"
-#include "XrdSfs/XrdSfsXio.hh"
 #include "XrdSsi/XrdSsiAlert.hh"
 #include "XrdSsi/XrdSsiFileReq.hh"
 #include "XrdSsi/XrdSsiFileResource.hh"
@@ -102,7 +101,7 @@ int             XrdSsiFileReq::freeMax = 256;
 /*                              A c t i v a t e                               */
 /******************************************************************************/
   
-void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz)
+void XrdSsiFileReq::Activate(XrdOucBuffer *oP, XrdSfsXioHandle bR, int rSz)
 {
    EPNAME("Activate");
 
@@ -536,7 +535,7 @@ char *XrdSsiFileReq::GetRequest(int &rLen)
 //
    rLen = reqSize;
    if (oucBuff) return oucBuff->Data();
-   return sfsBref->Buffer();
+   return XrdSfsXio::Buffer(sfsBref);
 }
 
 /******************************************************************************/
@@ -795,7 +794,7 @@ void XrdSsiFileReq::Recycle()
 // and sfs buffer, put it on the defered release queue.
 //
         if (oucBuff) {oucBuff->Recycle(); oucBuff = 0;}
-   else if (sfsBref) {sfsBref->Recycle(); sfsBref = 0;}
+   else if (sfsBref) {XrdSfsXio::Reclaim(sfsBref);}
    reqSize = 0;
 
 // Add to queue unless we have too many of these. If we add it back to the
@@ -829,7 +828,7 @@ void XrdSsiFileReq::RelRequestBuffer()
 // Release buffers
 //
         if (oucBuff) {oucBuff->Recycle(); oucBuff = 0;}
-   else if (sfsBref) {sfsBref->Recycle(); sfsBref = 0;}
+   else if (sfsBref) {XrdSfsXio::Reclaim(sfsBref);}
    reqSize = 0;
 }
 

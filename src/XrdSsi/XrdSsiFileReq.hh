@@ -35,13 +35,13 @@
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSfs/XrdSfsXio.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiResponder.hh"
 #include "XrdSsi/XrdSsiStream.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class  XrdOucErrInfo;
-class  XrdSfsXioHandle;
 class  XrdSsiAlert;
 class  XrdSsiFileResource;
 class  XrdSsiFileSess;
@@ -57,7 +57,7 @@ public:
 
 // SsiRequest methods
 //
-        void           Activate(XrdOucBuffer *oP, XrdSfsXioHandle *bR, int rSz);
+        void           Activate(XrdOucBuffer *oP, XrdSfsXioHandle bR, int rSz);
 
         void           Alert(XrdSsiRespInfoMsg &aMsg);
 
@@ -154,7 +154,7 @@ long long              respOff;
 union {long long       fileSz;
        int             respLen;
       };
-XrdSfsXioHandle       *sfsBref;
+XrdSfsXioHandle        sfsBref;
 XrdOucBuffer          *oucBuff;
 XrdSsiStream::Buffer  *strBuff;
 reqState               myState;
