@@ -32,6 +32,7 @@
 #include <sys/time.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -1476,6 +1477,10 @@ int XrdXrootdProtocol::do_Open()
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
+
+// If the file supports exchange buffering, supply it with the object
+//
+   if (fsFeatures & XrdSfs::hasSXIO) fp->setXio(this);
 
 // Document forced opens
 //

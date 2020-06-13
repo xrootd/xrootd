@@ -85,6 +85,8 @@ add_library(
                                XrdSfs/XrdSfsFlags.hh
                                XrdSfs/XrdSfsGPFile.hh
   XrdSfs/XrdSfsInterface.cc    XrdSfs/XrdSfsInterface.hh
+  XrdSfs/XrdSfsXio.cc          XrdSfs/XrdSfsXio.hh
+                               XrdSfs/XrdSfsXioImpl.hh
 
   #-----------------------------------------------------------------------------
   # XrdFrc - File Residency Manager client

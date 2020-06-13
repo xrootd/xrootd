@@ -37,6 +37,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsDio.hh"
+#include "XrdSfs/XrdSfsXioImpl.hh"
 
 #include "Xrd/XrdObject.hh"
 #include "Xrd/XrdProtocol.hh"
@@ -91,11 +92,15 @@ class XrdXrootdStats;
 class XrdXrootdWVInfo;
 class XrdXrootdXPath;
 
-class XrdXrootdProtocol : public XrdProtocol, public XrdSfsDio
+class XrdXrootdProtocol : public XrdProtocol, public XrdSfsDio, public XrdSfsXio
 {
 friend class XrdXrootdAdmin;
 friend class XrdXrootdAioReq;
 public:
+
+static char         *Buffer(XrdSfsXioHandle h, int *bsz); // XrdSfsXio
+
+XrdSfsXioHandle      Claim(const char *buff, int datasz, int minasz=0);// XrdSfsXio
 
 static int           Configure(char *parms, XrdProtocol_Config *pi);
 
@@ -113,13 +118,17 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        void          Recycle(XrdLink *lp, int consec, const char *reason);
 
-       int           SendFile(int fildes);
+static void          Reclaim(XrdSfsXioHandle h); // XrdSfsXio
 
-       int           SendFile(XrdOucSFVec *sfvec, int sfvnum);
+       int           SendFile(int fildes); // XrdSfsDio
 
-       void          SetFD(int fildes);
+       int           SendFile(XrdOucSFVec *sfvec, int sfvnum); // XrdSfsDio
+
+       void          SetFD(int fildes); // XrdSfsDio
 
        int           Stats(char *buff, int blen, int do_sync=0);
+
+XrdSfsXioHandle      Swap(const char *buff, XrdSfsXioHandle h=0); // XrdSfsXio
 
               XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
               XrdXrootdProtocol();

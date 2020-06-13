@@ -211,15 +211,22 @@ int XrdgetProtocolPort(const char *pname, char *parms, XrdProtocol_Config *pi)
 /******************************************************************************/
 /*               X r d P r o t o c o l X r o o t d   C l a s s                */
 /******************************************************************************/
+
+namespace
+{
+XrdSfsXioImpl SfsXioImpl(&XrdXrootdProtocol::Buffer,
+                         &XrdXrootdProtocol::Reclaim);
+}
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
 XrdXrootdProtocol::XrdXrootdProtocol() 
-                    : XrdProtocol("xrootd protocol handler"), ProtLink(this),
-                      Entity(0)
+                    : XrdProtocol("xrootd protocol handler"),
+                      XrdSfsXio(SfsXioImpl),
+                      ProtLink(this), Entity(0), AppName(0)
 {
-   AppName = 0;
    Reset();
 }
 
@@ -767,6 +774,75 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
 // Now return the statistics
 //
    return SI->Stats(buff, blen, do_sync);
+}
+  
+/******************************************************************************/
+/*                     X r d S f s X i o   M e t h o d s                      */
+/******************************************************************************/
+/******************************************************************************/
+/* Static:                        B u f f e r                                 */
+/******************************************************************************/
+  
+char *XrdXrootdProtocol::Buffer(XrdSfsXioHandle h, int *bsz)
+{
+   XrdBuffer *xbP = (XrdBuffer *)h;
+
+   if (h)
+      {if (bsz) *bsz = xbP->bsize;
+       return xbP->buff;
+      }
+   if (bsz) *bsz = 0;
+   return 0;
+}
+
+/******************************************************************************/
+/*                                 C l a i m                                  */
+/******************************************************************************/
+
+XrdSfsXioHandle XrdXrootdProtocol::Claim(const char *buff, int datasz,
+                                                           int minasz)
+{
+
+// Qualify swap choice
+//
+   if (minasz >= argp->bsize || datasz >= argp->bsize/2) return Swap(buff);
+   errno = 0;
+   return 0;
+}
+  
+/******************************************************************************/
+/* Static:                       R e c l a i m                                */
+/******************************************************************************/
+  
+void XrdXrootdProtocol::Reclaim(XrdSfsXioHandle h)
+{
+
+   if (h) BPool->Release((XrdBuffer *)h);
+}
+  
+/******************************************************************************/
+/*                                  S w a p                                   */
+/******************************************************************************/
+  
+XrdSfsXioHandle XrdXrootdProtocol::Swap(const char *buff, XrdSfsXioHandle h)
+{
+   XrdBuffer *oldBP = argp;
+
+// Verify the context and linkage and if OK, swap buffers
+//
+   if (Request.header.requestid != kXR_write) errno = ENOTSUP;
+      else if (buff != argp->buff) errno = EINVAL;
+              else {if (h)
+                       {argp = (XrdBuffer *)h;
+                        return oldBP;
+                       } else {
+                        argp = BPool->Obtain(argp->bsize);
+                        if (argp) return oldBP;
+                        argp = oldBP;
+                        errno = ENOBUFS;
+                       }
+                   }
+   return 0;
 }
   
 /******************************************************************************/

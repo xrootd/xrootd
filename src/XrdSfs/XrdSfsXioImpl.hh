@@ -1,12 +1,12 @@
-#ifndef __SFS_FLAGS_H__
-#define __SFS_FLAGS_H__
+#ifndef __SFS_XIO_IMPL_H__
+#define __SFS_XIO_IMPL_H__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d S f s F l a g s . h h                         */
+/*                      X r d S f s X i o I m p l . h h                       */
 /*                                                                            */
-/*(c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University   */
-/*Produced by Andrew Hanushevsky for Stanford University under contract       */
-/*           DE-AC02-76-SFO0515 with the Deprtment of Energy                  */
+/* (c) 2020 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -29,69 +29,55 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <cstdint>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include "XrdSfs/XrdSfsXio.hh"
 
 //-----------------------------------------------------------------------------
-//! This include file defines certain flags that can be used by various Sfs
-//! plug-ins to passthrough features and special attributes of regular files.
+//! This class is used to allow a class that inherits XrdSfsXio to specify
+//! the implementation to be used for the static methods. It is passed to the
+//! XrdSfsXio constructor. The static methost in XrdSfsXio use the method
+//! pointers in the passed object to effect the desired action. This class
+//! is meant to be a private interface for inherited objects. Note that the
+//! reason some methods in XrdSfsXio need to be static because we wish to allow
+//! the user of XrdSfsXio to call them irrespective of any instance.
 //-----------------------------------------------------------------------------
-
-namespace XrdSfs
+  
+class XrdSfsXioImpl
 {
-//! Feature: Authorization
-static const uint64_t hasAUTZ = 0x0000000000000001LL;
+public:
 
-//! Feature: Checkpointing
-static const uint64_t hasCHKP = 0x0000000000000002LL;
-
-//! Feature: gpFile
-static const uint64_t hasGPF  = 0x0000000000000004LL;
-
-//! Feature: gpFile anonymous
-static const uint64_t hasGPFA = 0x0000000000000008LL;
-
-//! Feature: pgRead and pgWrite
-static const uint64_t hasPGRW = 0x0000000000000010LL;
-
-//! Feature: Persist On Successful Close
-static const uint64_t hasPOSC = 0x0000000000000020LL;
-
-//! Feature: Prepare Handler Version 2 (different calling conventions)
-static const uint64_t hasPRP2 = 0x0000000000000040LL;
-
-//! Feature: Proxy Server
-static const uint64_t hasPRXY = 0x0000000000000080LL;
-
-//! Feature: Supports SfsXio
-static const uint64_t hasSXIO = 0x0000000000000100LL;
-}
+typedef char* (*Buffer_t)(XrdSfsXioHandle, int *);
+typedef void  (*Reclaim_t )(XrdSfsXioHandle);
 
 //-----------------------------------------------------------------------------
-//! The following flags define the mode bit that can be used to mark a file
-//! as close pending. This varies depending on the platform. This supports the
-//! Persist On Successful Close (POSC) feature in an efficient way.
+//! Implementation of XrdSfsXio::Buffer(...).
+//! Get the address and size of the buffer associated with a handle.
 //-----------------------------------------------------------------------------
 
-#ifdef __solaris__
-#define XRDSFS_POSCPEND S_ISUID
-#else
-#define XRDSFS_POSCPEND S_ISVTX
-#endif
+Buffer_t          Buffer;
 
 //-----------------------------------------------------------------------------
-//! The following bits may be set in the st_rdev member of the stat() structure
-//! to indicate special attributes of a regular file. These bits are inspected
-//! only when the remaining bits identified by XRD_RDVMASK are set to zero.
-//! For backward compatability, offline status is also assumed when st_dev and
-//! st_ino are both set to zero.
+//! Implementation of XrdSfsXio::Reclaim(...).
 //-----------------------------------------------------------------------------
 
-static const dev_t XRDSFS_OFFLINE =
-                   static_cast<dev_t>(0x80LL<<((sizeof(dev_t)*8)-8));
-static const dev_t XRDSFS_HASBKUP =
-                   static_cast<dev_t>(0x40LL<<((sizeof(dev_t)*8)-8));
-static const dev_t XRDSFS_RDVMASK =
-                   static_cast<dev_t>(~(0xffLL<<((sizeof(dev_t)*8)-8)));
+Reclaim_t         Reclaim;
+
+//-----------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param buff_func  Pointer to the Buffer()  implementation.
+//! @param recl_func  Pointer to the Reclaim() implementation.
+//-----------------------------------------------------------------------------
+
+
+             XrdSfsXioImpl(Buffer_t buff_func, Reclaim_t recl_func)
+                          {Buffer  = buff_func;
+                           Reclaim = recl_func;
+                          }
+
+//-----------------------------------------------------------------------------
+//! Destructor
+//-----------------------------------------------------------------------------
+
+            ~XrdSfsXioImpl() {}
+};
 #endif

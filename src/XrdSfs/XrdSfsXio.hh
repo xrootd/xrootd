@@ -36,42 +36,16 @@
 //! I/O in order to minimize data copying. When this feature is enabled, the
 //! XrdSfsInterface::setXio() method is called on a newly created XrdSfsFile
 //! object. Ideally, all oustanding buffers should be be released when the file
-//! is closed. Alternatively, the XrdSfsXioHandle::Recycle() method may be used
+//! is closed. Alternatively, the XrdSfsXio::Reclaim() method may be used
 //! at any time when it is convenient to do so. For best performance, use
 //! XrdSfsXio::Swap() as it provides memory locality and is kind to the cache.
-//! Buffer swapping is only supported for file write operations.
+//! Buffer swapping is only supported for common file write operations.
 //-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
-//! The XrdSfsXioHandle class describes a handle to a buffer returned by
-//! XrdSfsXio::Swap().
-//-----------------------------------------------------------------------------
+//typedef void* XrdSfsXioHandle;
+typedef class XrdBuffer* XrdSfsXioHandle;
 
-class XrdSfsXioHandle
-{
-public:
-
-//-----------------------------------------------------------------------------
-//! Obtain te address and, optionally, the length of the associated buffer.
-//!
-//! @param  blen  When not null will hold the length of the buffer. This is
-//!               not to be confused with the length of data in the buffer!
-//!
-//! @return Pointer to the buffer.
-//-----------------------------------------------------------------------------
-
-virtual char *Buffer(int **blen=0) = 0;
-
-//-----------------------------------------------------------------------------
-//! Recycle a buffer that was previously given to the caller via
-//! XrdSfsXio::Swap(). Use it when future swaps will no longer be requested.
-//-----------------------------------------------------------------------------
-
-virtual void  Recycle() = 0;
-
-              XrdSfsXioHandle() {}
-virtual      ~XrdSfsXioHandle() {}
-};
+class XrdSfsXioImpl;
 
 /******************************************************************************/
 /*                       C l a s s   X r d S f s X i o                        */
@@ -82,43 +56,75 @@ class XrdSfsXio
 public:
 
 //-----------------------------------------------------------------------------
-//! Values return by Swap().
+//! Get the address and size of the buffer associated with a handle.
+//!
+//! @param theHand  - The handle associated with the buffer.
+//! @param buffsz   - If not nil, the size of the buffer is returned. The
+//!                   size will always be >= to the original data length.
+//!
+//! @return A pointer to the buffer.
 //-----------------------------------------------------------------------------
 
-enum XioStatus {allOK = 0,   //!< Successful completion
-                BadBuff,     //!< Swap failed, curBuff is bad.
-                BadHandle,   //!< Swap failed, oHandle is bad
-                NotWrite,    //!< Swap failed, not from a write() call
-                TooMany      //!< Swap failed, too many buffs outstanding
-               };
+static char      *Buffer(XrdSfsXioHandle theHand, int *buffsz=0);
+
+//-----------------------------------------------------------------------------
+//! Claim ownership of the current buffer if it is memory effecient to do so.
+//!
+//! @param  curBuff - The address of the current buffer. It must match the
+//!                   the buffer that was most recently passed to the caller.
+//! @param  datasz  - Number of useful bytes in the buffer (i.e. write size).
+//! @param  minasz  - Minimum buffer size that would be allocated to copy data.
+//!
+//! @return !0        The buffer handle of the current buffer is returned along
+//!                   with ownership rights.
+//! @return =0        Too much memory would be wasted by transferring ownership
+//!                   (errno == 0) or an error ocurred (errno != 0). When an
+//!                   error see Swap() below for possible types of errors.
+//-----------------------------------------------------------------------------
+virtual
+XrdSfsXioHandle   Claim(const char *curBuff, int datasz, int minasz) = 0;
+
+//-----------------------------------------------------------------------------
+//! Return a buffer previously gotten from a Claim() or Swap() call.
+//!
+//! @param theHand  - The handle associated with the buffer.
+//-----------------------------------------------------------------------------
+
+static void       Reclaim(XrdSfsXioHandle theHand);
 
 //-----------------------------------------------------------------------------
 //! Swap the current I/O buffer
 //!
 //! @param  curBuff - The address of the current buffer. It must match the
 //!                   the buffer that was most recently passed to the caller.
-//! @param  curHand - Where the handle associated with curBuff is to be placed.
 //! @param  oldHand - The handle associated with a buffer returned by a
 //!                   previous call to Swap(). A value of zero indicates that
 //!                   the caller is taking control of the buffer but has no
 //!                   replacement buffer.
-//! @return !allOK    One or more arguments or context is invalid. Nothing was
-//!                   swapped. The returned value describes the problem. The
-//!                   curHand has been set to zero.
-//! @return =allOK    The handle associated with curBuff has been placed in
-//!                   curHand. This handle must be used in a future Swap() call.
+//! @return !0        The buffer handle of the current buffer is returned along
+//!                   with ownership rights. If oldHand was not nil, the
+//!                   caller's ownership of the associated buffer is reclaimed.
+//! @return =0        An error occurred and nothing has changed; errno holds
+//!                   the reason for the error. Typically,
+//!                   EINVAL  - curBuff doe not match current buffer.
+//!                   ENOBUFS - not enough memory to give up buffer.
+//!                   ENOTSUP - unsupported context for call.
+//-----------------------------------------------------------------------------
+virtual
+XrdSfsXioHandle   Swap(const char *curBuff, XrdSfsXioHandle oldHand=0) = 0;
+
+//-----------------------------------------------------------------------------
+//! Constructor and destructor
+//!
+//! @param xioimpl    Reference to static method implementations.
 //-----------------------------------------------------------------------------
 
-virtual XioStatus Swap(const char      * curBuff,
-                       XrdSfsXioHandle *&curHand,
-                       XrdSfsXioHandle * oldHand=0
-                      ) = 0;
+             XrdSfsXio(XrdSfsXioImpl &xioimpl);
 
 //-----------------------------------------------------------------------------
 //! Constructor and destructor
 //-----------------------------------------------------------------------------
 
-             XrdSfsXio() {}
 virtual     ~XrdSfsXio() {}
 };
 #endif
