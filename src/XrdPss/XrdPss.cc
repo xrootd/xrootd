@@ -736,6 +736,10 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    bool ucgiOK  = true;
    bool ioCache = (Oflag & O_DIRECT);
 
+// Record the security environment
+//
+   entity = Env.secEnv();
+
 // Turn off direct flag if set (we record it separately
 //
    if (ioCache) Oflag &= ~O_DIRECT;
@@ -976,7 +980,8 @@ int XrdPssFile::Fstat(struct stat *buff)
 {
     if (fd < 0)
        {if (!tpcPath) return -XRDOSS_E8004;
-        if (XrdProxySS.Stat(tpcPath, buff))
+        XrdOucEnv fstatEnv(0, 0, entity);
+        if (XrdProxySS.Stat(tpcPath, buff, 0, &fstatEnv))
            memset(buff, 0, sizeof(struct stat));
         return XrdOssOK;
        }

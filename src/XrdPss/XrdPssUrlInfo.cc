@@ -116,6 +116,7 @@ XrdPssUrlInfo::XrdPssUrlInfo(XrdOucEnv  *envP, const char *path,
 // Preset for no id in the url
 //
    *theID  = 0;
+    tident = 0;
 
 // If there is an environment point, get user's cgi and set the tident from it
 //

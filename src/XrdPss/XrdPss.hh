@@ -65,6 +65,7 @@ const    char      *tident;
 /******************************************************************************/
 
 struct XrdOucIOVec;
+class  XrdSecEntity;
 class  XrdSfsAio;
   
 class XrdPssFile : public XrdOssDF
@@ -93,7 +94,7 @@ ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
  
          // Constructor and destructor
-         XrdPssFile(const char *tid) : tident(tid), tpcPath(0)
+         XrdPssFile(const char *tid) : tident(tid), tpcPath(0), entity(0)
                                        {fd = -1;}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
@@ -104,6 +105,8 @@ private:
 
 const char *tident;
       char *tpcPath;
+
+const XrdSecEntity *entity;
 };
 
 /******************************************************************************/
