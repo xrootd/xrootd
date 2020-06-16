@@ -274,7 +274,7 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
          }
       for (i = 0; i < maxEnt; i++)
           {if (*uData[i].gName != '\0')
-              {uDvec[fencEnt++] = i; updt = Readjust(i);}
+              {uDvec[fencEnt++] = i; updt |= Readjust(i);}
               else if (freeEnt < 0) freeEnt = i;
           }
       if (freeEnt < 0) OssEroute.Emsg("Init", uFname, "is full.");
