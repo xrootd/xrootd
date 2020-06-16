@@ -726,11 +726,11 @@ fi
 
 %files libs
 %defattr(-,root,root,-)
-%{_libdir}/libXrdAppUtils.so.1*
+%{_libdir}/libXrdAppUtils.so.*
 %{_libdir}/libXrdClProxyPlugin-5.so
 %{_libdir}/libXrdCks*-5.so
-%{_libdir}/libXrdCrypto.so.1*
-%{_libdir}/libXrdCryptoLite.so.1*
+%{_libdir}/libXrdCrypto.so.*
+%{_libdir}/libXrdCryptoLite.so.*
 %{_libdir}/libXrdCryptossl-5.so
 %{_libdir}/libXrdSec-5.so
 %{_libdir}/libXrdSecProt-5.so
@@ -766,10 +766,10 @@ fi
 
 %files client-libs
 %defattr(-,root,root,-)
-%{_libdir}/libXrdCl.so.2*
-%{_libdir}/libXrdFfs.so.2*
-%{_libdir}/libXrdPosix.so.2*
-%{_libdir}/libXrdPosixPreload.so.1*
+%{_libdir}/libXrdCl.so.*
+%{_libdir}/libXrdFfs.so.*
+%{_libdir}/libXrdPosix.so.*
+%{_libdir}/libXrdPosixPreload.so.*
 %{_libdir}/libXrdSsiLib.so.*
 %{_libdir}/libXrdSsiShMap.so.*
 %{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
