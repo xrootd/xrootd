@@ -9,8 +9,8 @@ set( MOD_XRD_HTTP       XrdHttp-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_HTTP_UTILS_VERSION   1.0.0 )
-set( XRD_HTTP_UTILS_SOVERSION 1 )
+set( XRD_HTTP_UTILS_VERSION   2.0.0 )
+set( XRD_HTTP_UTILS_SOVERSION 2 )
 
 if( BUILD_HTTP )
   #-----------------------------------------------------------------------------

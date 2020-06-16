@@ -17,10 +17,10 @@ endif()
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_XML_VERSION   2.0.0 )
-set( XRD_XML_SOVERSION 2 )
-set( XRD_XML_PRELOAD_VERSION   1.0.0 )
-set( XRD_XML_PRELOAD_SOVERSION 1 )
+set( XRD_XML_VERSION   3.0.0 )
+set( XRD_XML_SOVERSION 3 )
+set( XRD_XML_PRELOAD_VERSION   2.0.0 )
+set( XRD_XML_PRELOAD_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdXml library

@@ -4,10 +4,10 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_UTILS_VERSION   2.0.0 )
-set( XRD_UTILS_SOVERSION 2 )
-set( XRD_ZCRC32_VERSION   2.0.0 )
-set( XRD_ZCRC32_SOVERSION 2 )
+set( XRD_UTILS_VERSION   3.0.0 )
+set( XRD_UTILS_SOVERSION 3 )
+set( XRD_ZCRC32_VERSION   3.0.0 )
+set( XRD_ZCRC32_SOVERSION 3 )
 
 #-------------------------------------------------------------------------------
 # The XrdUtils library

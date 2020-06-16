@@ -8,11 +8,11 @@ set( LIB_XRD_CRYPTOSSL     XrdCryptossl-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_CRYPTO_VERSION   1.0.0 )
-set( XRD_CRYPTO_SOVERSION 1 )
+set( XRD_CRYPTO_VERSION   2.0.0 )
+set( XRD_CRYPTO_SOVERSION 2 )
 
-set( XRD_CRYPTO_LITE_VERSION   1.0.0 )
-set( XRD_CRYPTO_LITE_SOVERSION 1 )
+set( XRD_CRYPTO_LITE_VERSION   2.0.0 )
+set( XRD_CRYPTO_LITE_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdCrypto library

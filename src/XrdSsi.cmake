@@ -10,10 +10,10 @@ set( LIB_XRD_SSILOG     XrdSsiLog-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SSI_LIB_VERSION   1.0.0 )
-set( XRD_SSI_LIB_SOVERSION 1 )
-set( XRD_SSI_SHMAP_VERSION   1.0.0 )
-set( XRD_SSI_SHMAP_SOVERSION 1 )
+set( XRD_SSI_LIB_VERSION   2.0.0 )
+set( XRD_SSI_LIB_SOVERSION 2 )
+set( XRD_SSI_SHMAP_VERSION   2.0.0 )
+set( XRD_SSI_SHMAP_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdSsiLib library

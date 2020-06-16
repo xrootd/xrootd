@@ -9,8 +9,8 @@ set( LIB_XRD_PROTOCOL XrdXrootd-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SERVER_VERSION   2.0.0 )
-set( XRD_SERVER_SOVERSION 2 )
+set( XRD_SERVER_VERSION   3.0.0 )
+set( XRD_SERVER_SOVERSION 3 )
 
 #-------------------------------------------------------------------------------
 # The XRootD protocol implementation

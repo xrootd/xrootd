@@ -9,8 +9,8 @@ set( LIB_XRDCL_PROXY_PLUGIN XrdClProxyPlugin-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_APP_UTILS_VERSION   1.0.0 )
-set( XRD_APP_UTILS_SOVERSION 1 )
+set( XRD_APP_UTILS_VERSION   2.0.0 )
+set( XRD_APP_UTILS_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # This part is NOT built for XrdCl only builds
