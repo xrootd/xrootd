@@ -72,6 +72,7 @@ Prerelease Notes
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[Server]** Avoid duplicate usage update under certain conditions.
   * **[gsi]** Fail server initialization when gsi did not initialize. Fixes #1042
   * **[Proxy]** Properly handle non-xroot URLs.
   * **[cmsd]** Make sure to return correct error when creation conflict occurs.
