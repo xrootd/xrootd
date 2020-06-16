@@ -174,26 +174,33 @@
    to an unversioned name is not allowed). This is enforced by XrdOucVerName.
 */
 #define XrdVERSIONPLUGINSTRICT       \
-        {"libXrdBwm.so",             \
+        {"libXrdBlacklistDecision.so", \
+         "libXrdBwm.so",             \
          "libXrdCksCalczcrc32.so",   \
+         "libXrdClProxyPlugin.so",   \
+         "libXrdCmsRedirectLocal.so", \
          "libXrdCryptossl.so",       \
-         "libXrdPfc.so",       \
          "libXrdHttp.so",            \
          "libXrdHttpTPC.so",         \
-         "libXrdOssSIgpfsT.so",      \
+         "libXrdMacaroons.so",       \
          "libXrdN2No2p.so",          \
+         "libXrdOssSIgpfsT.so",      \
+         "libXrdPfc.so",             \
          "libXrdPss.so",             \
          "libXrdSec.so",             \
          "libXrdSecgsi.so",          \
          "libXrdSecgsiAUTHZVO.so",   \
-         "libXrdSecgsiGMAPDLAP.so",  \
+         "libXrdSecgsiGMAPDN.so",    \
+         "libXrdSecgsiVOMS.so",      \
          "libXrdSeckrb5.so",         \
+         "libXrdSecProt.so",         \
          "libXrdSecpwd.so",          \
          "libXrdSecsss.so",          \
          "libXrdSecunix.so",         \
          "libXrdSsi.so",             \
-         "libXrdSsLog.so",           \
+         "libXrdSsiLog.so",          \
          "libXrdThrottle.so",        \
+         "libXrdVoms.so",            \
          "libXrdXrootd.so",          \
          0}
 
