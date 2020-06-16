@@ -5,7 +5,7 @@
 
 
 if exec xrootd
-   xrd.protocol XrdHttp /usr/lib64/libXrdHttp.so.1
+   xrd.protocol XrdHttp /usr/lib64/libXrdHttp.so
 fi
 
 # Regular SSL stuff ... adjust as needed
