@@ -461,7 +461,7 @@ int XrdOssSys::getCname(const char *path, struct stat *sbuff, char *cgbuff)
 
 // Get regular stat informtion for this file
 //
-   if ((retc = stat(thePath, sbuff))) return retc;
+   if ((retc = stat(thePath, sbuff))) return -errno;
 
 // Now determine if we should get the cache group name. There is none
 // for offline files and it's always public for directories.
