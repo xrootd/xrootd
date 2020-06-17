@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stddef.h>
@@ -42,6 +43,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -55,13 +57,22 @@ extern XrdSysError OssEroute;
 
        const char       *XrdOssSpace::qFname                     = 0;
        const char       *XrdOssSpace::uFname                     = 0;
+       const char       *XrdOssSpace::uUname                     = 0;
        XrdOssSpace::uEnt XrdOssSpace::uData[XrdOssSpace::maxEnt];
        short             XrdOssSpace::uDvec[XrdOssSpace::maxEnt] = {0};
        int               XrdOssSpace::fencEnt                    = 0;
        int               XrdOssSpace::freeEnt                    =-1;
        int               XrdOssSpace::aFD                        =-1;
+       int               XrdOssSpace::uAdj                       = 0;
+       int               XrdOssSpace::uSync                      = 0;
        int               XrdOssSpace::Solitary                   = 0;
        time_t            XrdOssSpace::lastMtime                  = 0;
+       time_t            XrdOssSpace::lastUtime                  = 0;
+
+namespace
+{
+XrdSysMutex uMutex;
+}
 
 /******************************************************************************/
 /*                                A d j u s t                                 */
@@ -69,6 +80,7 @@ extern XrdSysError OssEroute;
   
 void XrdOssSpace::Adjust(int Gent, off_t Space, sType stNum)
 {
+   XrdSysMutexHelper uHelp(uMutex);
    int offset, unlk = 0;
    int uOff = offsetof(uEnt,Bytes[0]) + (sizeof(long long)*stNum);
 
@@ -109,6 +121,17 @@ void XrdOssSpace::Adjust(int Gent, off_t Space, sType stNum)
    if (pwrite(aFD, &uData[Gent].Bytes[stNum], ULen, offset) < 0)
       OssEroute.Emsg("Adjust", errno, "update usage file", uFname);
 
+// Update the time this occurred if we are not a server
+//
+   if (stNum != Serv) utimes(uUname, 0);
+
+// Check if we need to sync the file
+//
+   if (uSync)
+      {uAdj++;
+       if (uAdj >= uSync) {fsync(aFD); uAdj = 0;}
+      }
+
 // Unlock the file if we locked it
 //
    if (unlk) UsageLock(0);
@@ -128,7 +151,10 @@ void XrdOssSpace::Adjust(const char *GName, off_t Space, sType stNum)
 /******************************************************************************/
 /*                                A s s i g n                                 */
 /******************************************************************************/
-  
+
+// This is called during initialization and only needs a file lock if the
+// file is going to be updated. No local mutex is needed.
+//
 int XrdOssSpace::Assign(const char *GName, long long &Usage)
 {
    off_t offset;
@@ -199,7 +225,7 @@ int XrdOssSpace::Init() {return (uFname ? haveUsage:0) | (qFname ? haveQuota:0);
 
 /******************************************************************************/
   
-int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
+int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL, int us)
 {
    static const mode_t theMode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
    struct stat buf;
@@ -235,7 +261,20 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
       }
    strcpy(aP, ".Usage");
    uFname = strdup(buff);
+   strncat(buff, ".upd", sizeof(buff));
+   uUname = strdup(buff);
    XrdOucEnv::Export("XRDOSSUSAGEFILE", uFname);
+
+// Create the usage update file if it does not exist
+//
+   if ((i = open(uUname, O_CREAT|O_TRUNC|O_RDWR, theMode)) < 0)
+      {OssEroute.Emsg("Init", errno, "create", uUname);
+       return 0;
+      } else {
+       if (!fstat(i, &buf)) lastUtime = buf.st_mtime;
+       close(i);
+       utimes(uUname, 0);
+      }
 
 // First check if the file really exists, if not, create it
 //
@@ -248,9 +287,14 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
               {OssEroute.Emsg("Init", uFname, "has invalid size."); return 0;}
               else opts = 0;
 
+// Handle synchornization
+//
+   if (us > 1) uSync = us;
+      else opts |= O_DSYNC;
+
 // Open the target file
 //
-   if ((aFD = open(uFname, opts|O_RDWR|O_SYNC, theMode)) < 0)
+   if ((aFD = XrdSysFD_Open(uFname, opts|O_RDWR, theMode)) < 0)
       {OssEroute.Emsg("Init", errno, "open", uFname);
        return 0;
       }
@@ -363,14 +407,22 @@ int XrdOssSpace::Quotas()
   
 int XrdOssSpace::Readjust()
 {
-   static time_t lastUtime = 0;
+   XrdSysMutexHelper uHelp(uMutex);
    struct stat buf;
    int k, rwsz, updt = 0;
+
+// Sync the usage file if need be
+//
+   if (uSync && uAdj)
+      {uAdj = 0;
+       if (fsync(aFD))
+          OssEroute.Emsg("Readjust", errno, "sync usage file", uFname);
+      }
 
 // No readjustment needed if we are not a server or we have nothing
 //
    if (fencEnt <= 0) return 0;
-   if (!fstat(aFD, &buf))
+   if (!stat(uUname, &buf))
       {if (buf.st_mtime == lastUtime) return 0;
        lastUtime = buf.st_mtime;
       }
@@ -378,7 +430,7 @@ int XrdOssSpace::Readjust()
 
 // Lock the file
 //
-   UsageLock();
+   if (!UsageLock()) return 0;
 
 // Read the file again
 //
@@ -393,8 +445,12 @@ int XrdOssSpace::Readjust()
 
 // If we need to rewrite the data, do so
 //
-   if (updt && pwrite(aFD, uData, rwsz, 0) < 0)
-      OssEroute.Emsg("Readjust", errno, "rewrite", uFname);
+   if (updt)
+      {if (pwrite(aFD, uData, rwsz, 0) < 0)
+          OssEroute.Emsg("Readjust", errno, "rewrite", uFname);
+          else if (uSync && fsync(aFD))
+                  OssEroute.Emsg("Readjust", errno, "sync usage file", uFname);
+      }
 
 // All done
 //
@@ -410,9 +466,14 @@ int XrdOssSpace::Readjust(int i)
 // Check if any readjustment is needed
 //
    if (uData[i].Bytes[Pstg] || uData[i].Bytes[Purg] || uData[i].Bytes[Admin])
-      {uData[i].Bytes[Serv] = uData[i].Bytes[Serv] + uData[i].Bytes[Pstg]
+      {long long oldVal = uData[i].Bytes[Serv];
+       char buff[256];
+       uData[i].Bytes[Serv] = uData[i].Bytes[Serv] + uData[i].Bytes[Pstg]
                             - uData[i].Bytes[Purg] + uData[i].Bytes[Admin];
        uData[i].Bytes[Pstg] = uData[i].Bytes[Purg] = uData[i].Bytes[Admin] = 0;
+       snprintf(buff, sizeof(buff), "%lld to %lld bytes",
+                                    oldVal, uData[i].Bytes[Serv]);
+       OssEroute.Emsg("Readjust",uData[i].gName,"space usage adjusted from",buff);
        return 1;
       }
    return 0;
@@ -456,9 +517,24 @@ int XrdOssSpace::Unassign(const char *GName)
 /******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
+
+long long XrdOssSpace::Usage(int gent)
+{
+   long long retVal;
+
+// Safelu get the value and return it
+//
+   uMutex.Lock();
+   retVal = (gent < 0 || gent >= maxEnt ? 0 : uData[gent].Bytes[Serv]);
+   uMutex.UnLock();
+   return retVal;
+}
+
+/******************************************************************************/
   
 long long XrdOssSpace::Usage(const char *GName, struct uEnt &uVal, int rrd)
 {
+   XrdSysMutexHelper uHelp(uMutex);
    int i, rwsz;
 
 // If we need to re-read the file, do so
@@ -490,6 +566,11 @@ long long XrdOssSpace::Usage(const char *GName, struct uEnt &uVal, int rrd)
 /******************************************************************************/
 /* private:                    U s a g e L o c k                              */
 /******************************************************************************/
+
+// Warning: The uMutex must be held when calling this method as it is the
+// only thing that allows file locking to be effective in an MT environment!
+// There is no need to hold the mutex when MT execution has not yet started
+// such as during initialization sequencing.
   
 int XrdOssSpace::UsageLock(int Dolock)
 {
@@ -504,15 +585,10 @@ int XrdOssSpace::UsageLock(int Dolock)
    if (Dolock) {lock_args.l_type = F_WRLCK; What =   "lock";}
       else     {lock_args.l_type = F_UNLCK; What = "unlock";}
 
-// First obtain the usage mutex or unlock it
-//
-   if (Dolock) uMutex.Lock();
-      else     uMutex.UnLock();
-
 // Perform action.
 //
    do {rc = fcntl(aFD,F_SETLKW,&lock_args);} while(rc < 0 && errno == EINTR);
-   if (rc < 0) {OssEroute.Emsg("UpdateLock", errno, What, uFname); return 0;}
+   if (rc < 0) {OssEroute.Emsg("UsageLock", errno, What, uFname); return 0;}
 
 // All done
 //
