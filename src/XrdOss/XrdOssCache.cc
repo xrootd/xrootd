@@ -63,6 +63,7 @@ extern XrdSysError  OssEroute;
 extern XrdOucTrace  OssTrace;
 
 XrdOssCache_Group  *XrdOssCache_Group::fsgroups = 0;
+XrdOssCache_Group  *XrdOssCache_Group::PubGroup = 0;
 
 long long           XrdOssCache_Group::PubQuota = -1;
 
@@ -346,11 +347,6 @@ int  XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, XrdOssCache_Group *fsg,
    XrdOssVSPart       *pVec;
    XrdOssCache_FSData *fsd;
 
-// Get values that don't change
-//
-   Space.Usage = fsg->Usage;
-   Space.Quota = fsg->Quota;
-
 // If there is no partition table then we really have no space to report
 //
    if (fsg->fsNum < 1 || !fsg->fsVec) return 0;
@@ -360,9 +356,17 @@ int  XrdOssCache_FS::getSpace(XrdOssCache_Space &Space, XrdOssCache_Group *fsg,
    if (vsPart) *vsPart = pVec = new XrdOssVSPart[fsg->fsNum];
       else pVec = 0;
 
-// Prepare to accumulate the stats.
+// Prevent any changes
 //
    XrdOssCache::Mutex.Lock();
+
+// Get overall values
+//
+   Space.Quota = fsg->Quota;
+   Space.Usage = fsg->Usage;
+
+// Accumulate the stats.
+//
    for (int i = 0; i < fsg->fsNum; i++)
        {fsd = fsg->fsVec[i].fsP;
         Space.Total +=  fsd->size;
@@ -394,31 +398,36 @@ void  XrdOssCache::Adjust(dev_t devid, off_t size)
 {
    EPNAME("Adjust")
    XrdOssCache_FSData *fsdp;
-   XrdOssCache_Group  *fsgp;
 
 // Search for matching filesystem
 //
    fsdp = XrdOssCache::fsdata;
    while(fsdp && fsdp->fsid != devid) fsdp = fsdp->next;
-   if (!fsdp) {DEBUG("dev " <<devid <<" not found."); return;}
 
-// Find the public cache group (it might not exist)
+// Adjust file system free space
 //
-   fsgp = XrdOssCache_Group::fsgroups;
-   while(fsgp && strcmp("public", fsgp->group)) fsgp = fsgp->next;
-
-// Process the result
-//
+   Mutex.Lock();
    if (fsdp) 
       {DEBUG("free=" <<fsdp->frsz <<'-' <<size <<" path=" <<fsdp->path);
-       Mutex.Lock();
-       if (        (fsdp->frsz  -= size) < 0) fsdp->frsz = 0;
+       if ((fsdp->frsz  -= size) < 0) fsdp->frsz = 0;
        fsdp->stat |= XrdOssFSData_ADJUSTED;
-       if (fsgp && (fsgp->Usage += size) < 0) fsgp->Usage = 0;
-       Mutex.UnLock();
       } else {
        DEBUG("dev " <<devid <<" not found.");
       }
+
+// Adjust group usage
+//
+   if (XrdOssCache_Group::PubGroup)
+      {DEBUG("usage=" <<XrdOssCache_Group::PubGroup->Usage <<'+' <<size 
+             <<" space=" <<XrdOssCache_Group::PubGroup->group);
+       if ((XrdOssCache_Group::PubGroup->Usage += size) < 0)
+          XrdOssCache_Group::PubGroup->Usage = 0;
+       if (Usage) XrdOssSpace::Adjust(XrdOssCache_Group::PubGroup->GRPid, size);
+      }
+
+// All done
+//
+   Mutex.UnLock();
 }
 
 /******************************************************************************/
@@ -632,7 +641,7 @@ XrdOssCache_FS *XrdOssCache::Find(const char *Path, int lnklen)
 
 // Init() is only called during configuration and no locks are needed.
   
-int XrdOssCache::Init(const char *UPath, const char *Qfile, int isSOL)
+int XrdOssCache::Init(const char *UPath, const char *Qfile, int isSOL, int us)
 {
      XrdOssCache_Group *cgp;
      long long bytesUsed;
@@ -640,7 +649,7 @@ int XrdOssCache::Init(const char *UPath, const char *Qfile, int isSOL)
 // If usage directory or quota file was passed then we initialize space handling
 // We need to create a space object to track usage across failures.
 //
-   if ((UPath || Qfile) && !XrdOssSpace::Init(UPath, Qfile, isSOL)) return 1;
+   if ((UPath || Qfile) && !XrdOssSpace::Init(UPath,Qfile,isSOL,us)) return 1;
    if (Qfile) Quotas = !isSOL;
    if (UPath) Usage  = 1;
 

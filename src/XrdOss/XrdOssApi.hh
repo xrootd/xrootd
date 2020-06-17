@@ -308,6 +308,7 @@ char           *UDir;         // -> Usage logdir
 char           *QFile;        // -> Quota file
 char           *xfrFdir;      // -> Fail file base dir
 int             xfrFdln;      //    strlen(xfrFDir)
+short           USync;        // Usage sync interval
 bool            pfcMode;      // Setup for Proxy File Cache
 
 int                Alloc_Cache(XrdOssCreateInfo &, XrdOucEnv &);

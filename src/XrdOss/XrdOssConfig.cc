@@ -195,6 +195,7 @@ XrdOssSys::XrdOssSys()
    ConfigFN      = 0;
    QFile         = 0;
    UDir          = 0;
+   USync         = 0;
    Solitary      = 0;
    DPList        = 0;
    lenDP         = 0;
@@ -306,7 +307,7 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
    const char *m2 = (pfcMode  ? "pfc " : 0);
    if (m1 || m2) Eroute.Say("++++++ Configuring ", m1, m2, "mode . . .");
   }
-   NoGo |= XrdOssCache::Init(UDir, QFile, Solitary)
+   NoGo |= XrdOssCache::Init(UDir, QFile, Solitary, USync)
           |XrdOssCache::Init(minalloc, ovhalloc, fuzalloc);
 
 // Configure the MSS interface including staging
@@ -1856,10 +1857,12 @@ int XrdOssSys::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 
    Purpose:  To parse the directive: usage <parms>
 
-             <parms>: [nolog | log <path>] [noquotafile | quotafile <qfile>]
+             <parms>: [nolog | log <path> [sync <num>]]
+                      [noquotafile | quotafile <qfile>]
 
              nolog    does not save usage info across restarts
              log      saves usages information in the <path> directory
+             sync     sync the usage file to disk every <num> changes.
              qfile    where the quota file resides.
 
    Output: 0 upon success or !0 upon failure.
@@ -1868,6 +1871,7 @@ int XrdOssSys::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOssSys::xusage(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
+    int usval;
 
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("Config", "usage option not specified"); return 1;}
@@ -1886,6 +1890,15 @@ int XrdOssSys::xusage(XrdOucStream &Config, XrdSysError &Eroute)
                        return 1;
                       }
                    UDir = strdup(val);
+                   if (!(val = Config.GetWord()) || strcmp("sync", val))
+                      continue;
+                   if (!(val = Config.GetWord()))
+                      {Eroute.Emsg("Config", "log sync value not specified");
+                       return 1;
+                      }
+                    if (XrdOuca2x::a2i(Eroute,"sync value",val,&usval,1,32767))
+                       return 1;
+                    USync = usval;
                   }
           else if (!strcmp("noquotafile",val))
                   {if (QFile) {free(QFile); QFile= 0;}}

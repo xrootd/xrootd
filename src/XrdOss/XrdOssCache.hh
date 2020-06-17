@@ -192,13 +192,16 @@ long long            Quota;
 int                  GRPid;
 short                fsNum;
 short                rsvd;
+static
+XrdOssCache_Group   *PubGroup;
 static long long     PubQuota;
 
 static XrdOssCache_Group *fsgroups;
 
        XrdOssCache_Group(const char *grp, XrdOssCache_FS *fsp=0) 
                         : next(0), group(strdup(grp)), curr(fsp), fsVec(0),
-                          Usage(0), Quota(-1), GRPid(-1), fsNum(0), rsvd(0) {}
+                          Usage(0), Quota(-1), GRPid(-1), fsNum(0), rsvd(0)
+                        {if (!strcmp("public", grp)) PubGroup = this;}
       ~XrdOssCache_Group() {if (group) free((void *)group);}
 };
   
@@ -240,7 +243,8 @@ static void            DevInfo(struct stat &buf, bool limits=false);
 
 static XrdOssCache_FS *Find(const char *Path, int lklen=0);
 
-static int             Init(const char *UDir, const char *Qfile, int isSOL);
+static int             Init(const char *UDir, const char *Qfile,
+                            int isSOL, int usync=0);
 
 static int             Init(long long aMin, int ovhd, int aFuzz);
 
