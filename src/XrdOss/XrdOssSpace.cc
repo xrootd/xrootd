@@ -261,7 +261,7 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL, int us)
       }
    strcpy(aP, ".Usage");
    uFname = strdup(buff);
-   strncat(buff, ".upd", sizeof(buff));
+   strcpy(aP, ".Usage.upd");
    uUname = strdup(buff);
    XrdOucEnv::Export("XRDOSSUSAGEFILE", uFname);
 
