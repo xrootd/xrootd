@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  * **[Server]** Provide option to reduce performance impact of usage tracking.
   * **[gsi]** Allow keywords for options that accept numeric values.
   * **[gsi]** Add -authzcall option to better control authz usage.
   * **[Xcache]** Autoconfig oss and cmsd using pfcache export attribute.
@@ -72,6 +73,7 @@ Prerelease Notes
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[Server]** Make space usage maintenance fully thread safe.
   * **[Server]** Avoid duplicate usage update under certain conditions.
   * **[gsi]** Fail server initialization when gsi did not initialize. Fixes #1042
   * **[Proxy]** Properly handle non-xroot URLs.
