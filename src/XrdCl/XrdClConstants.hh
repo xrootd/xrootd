@@ -96,6 +96,7 @@ namespace XrdCl
   const char * const DefaultWriteRecovery      = "true";
   const char * const DefaultOpenRecovery       = "true";
   const char * const DefaultGlfnRedirector     = "";
+  const char * const DefaultTlsDbgLvl          = "OFF";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

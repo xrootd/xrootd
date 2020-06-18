@@ -63,7 +63,26 @@ namespace
       inline SetTlsMsgCB()
       {
         XrdTls::SetMsgCB( MsgCallBack );
-        XrdTls::SetDebug( XrdTls::dbgALL, MsgCallBack );
+        XrdTls::SetDebug( TlsDbgLvl(), MsgCallBack );
+      }
+
+      //--------------------------------------------------------------------
+      // Get TLS debug level
+      //--------------------------------------------------------------------
+      static int TlsDbgLvl()
+      {
+        XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+        std::string tlsDbgLvl;
+        env->GetString( "TlsDbgLvl", tlsDbgLvl );
+
+        if( tlsDbgLvl == "OFF" ) return XrdTls::dbgOFF;
+        if( tlsDbgLvl == "CTX" ) return XrdTls::dbgCTX;
+        if( tlsDbgLvl == "SOK" ) return XrdTls::dbgSOK;
+        if( tlsDbgLvl == "SIO" ) return XrdTls::dbgSIO;
+        if( tlsDbgLvl == "ALL" ) return XrdTls::dbgALL;
+        if( tlsDbgLvl == "OUT" ) return XrdTls::dbgOUT;
+
+        return XrdTls::dbgOFF;
       }
   };
 
