@@ -508,7 +508,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Send a close and ignore the response
       //------------------------------------------------------------------------
-      Status SendClose( uint16_t timeout );
+      XRootDStatus SendClose( uint16_t timeout );
 
       //------------------------------------------------------------------------
       //! Check if the file is open for read only
@@ -518,7 +518,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Re-open the current file at a given server
       //------------------------------------------------------------------------
-      Status ReOpenFileAtServer( const URL &url, uint16_t timeout );
+      XRootDStatus ReOpenFileAtServer( const URL &url, uint16_t timeout );
 
       //------------------------------------------------------------------------
       //! Fail a message

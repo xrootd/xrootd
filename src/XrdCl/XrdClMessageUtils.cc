@@ -40,21 +40,21 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message
   //----------------------------------------------------------------------------
-  Status MessageUtils::SendMessage( const URL               &url,
-                                    Message                 *msg,
-                                    ResponseHandler         *handler,
-                                    const MessageSendParams &sendParams,
-                                    LocalFileHandler        *lFileHandler )
+  XRootDStatus MessageUtils::SendMessage( const URL               &url,
+                                          Message                 *msg,
+                                          ResponseHandler         *handler,
+                                          const MessageSendParams &sendParams,
+                                          LocalFileHandler        *lFileHandler )
   {
     //--------------------------------------------------------------------------
     // Get the stuff needed to send the message
     //--------------------------------------------------------------------------
     Log        *log        = DefaultEnv::GetLog();
     PostMaster *postMaster = DefaultEnv::GetPostMaster();
-    Status      st;
+    XRootDStatus      st;
 
     if( !postMaster )
-      return Status( stError, errUninitialized );
+      return XRootDStatus( stError, errUninitialized );
 
     log->Dump( XRootDMsg, "[%s] Sending message %s",
                url.GetHostId().c_str(), msg->GetDescription().c_str() );
@@ -119,7 +119,7 @@ namespace XrdCl
       delete list;
       return st;
     }
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------

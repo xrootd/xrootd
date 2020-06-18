@@ -284,10 +284,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message synchronously
   //----------------------------------------------------------------------------
-  Status Channel::Send( Message *msg, bool stateful, time_t expires )
+  XRootDStatus Channel::Send( Message *msg, bool stateful, time_t expires )
   {
     StatusHandler sh( msg );
-    Status sc = Send( msg, &sh, stateful, expires );
+    XRootDStatus sc = Send( msg, &sh, stateful, expires );
     if( !sc.IsOK() )
       return sc;
     sc = sh.WaitForStatus();
@@ -297,10 +297,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send the message asynchronously
   //----------------------------------------------------------------------------
-  Status Channel::Send( Message              *msg,
-                        OutgoingMsgHandler   *handler,
-                        bool                  stateful,
-                        time_t                expires )
+  XRootDStatus Channel::Send( Message              *msg,
+                              OutgoingMsgHandler   *handler,
+                              bool                  stateful,
+                              time_t                expires )
 
   {
     return pStream->Send( msg, handler, stateful, expires );

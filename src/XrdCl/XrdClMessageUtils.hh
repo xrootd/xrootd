@@ -204,11 +204,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Send message
       //------------------------------------------------------------------------
-      static Status SendMessage( const URL               &url,
-                                 Message                 *msg,
-                                 ResponseHandler         *handler,
-                                 const MessageSendParams &sendParams,
-                                 LocalFileHandler        *lFileHandler );
+      static XRootDStatus SendMessage( const URL               &url,
+                                       Message                 *msg,
+                                       ResponseHandler         *handler,
+                                       const MessageSendParams &sendParams,
+                                       LocalFileHandler        *lFileHandler );
 
       //------------------------------------------------------------------------
       //! Redirect message

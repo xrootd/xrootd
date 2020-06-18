@@ -97,10 +97,10 @@ namespace XrdCl
       //! @return        success if the message has been pushed through the wire,
       //!                failure otherwise
       //------------------------------------------------------------------------
-      Status Send( const URL &url,
-                   Message   *msg,
-                   bool       stateful,
-                   time_t     expires );
+      XRootDStatus Send( const URL &url,
+                         Message   *msg,
+                         bool       stateful,
+                         time_t     expires );
 
       //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
@@ -119,11 +119,11 @@ namespace XrdCl
       //! @return              success if the message was successfully inserted
       //!                      into the send queues, failure otherwise
       //------------------------------------------------------------------------
-      Status Send( const URL            &url,
-                   Message              *msg,
-                   OutgoingMsgHandler   *handler,
-                   bool                  stateful,
-                   time_t                expires );
+      XRootDStatus Send( const URL            &url,
+                         Message              *msg,
+                         OutgoingMsgHandler   *handler,
+                         bool                  stateful,
+                         time_t                expires );
 
       //------------------------------------------------------------------------
       //!

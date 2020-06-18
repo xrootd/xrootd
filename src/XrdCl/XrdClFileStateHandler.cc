@@ -532,7 +532,7 @@ namespace XrdCl
     params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
-    Status st = IssueRequest( *pFileUrl, msg, openHandler, params );
+    XRootDStatus st = IssueRequest( *pFileUrl, msg, openHandler, params );
 
     if( !st.IsOK() )
     {
@@ -591,7 +591,7 @@ namespace XrdCl
     params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
 
-    Status st = IssueRequest( *pDataServer, msg, closeHandler, params );
+    XRootDStatus st = IssueRequest( *pDataServer, msg, closeHandler, params );
 
     if( !st.IsOK() )
     {
@@ -1754,7 +1754,7 @@ namespace XrdCl
     if( pFileState == Opened )
     {
       msg->SetSessionId( pSessionId );
-      Status st = IssueRequest( *pDataServer, msg, handler, sendParams );
+      XRootDStatus st = IssueRequest( *pDataServer, msg, handler, sendParams );
 
       //------------------------------------------------------------------------
       // Invalid session id means that the connection has been broken while we
@@ -1866,7 +1866,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a close and ignore the response
   //----------------------------------------------------------------------------
-  Status FileStateHandler::SendClose( uint16_t timeout )
+  XRootDStatus FileStateHandler::SendClose( uint16_t timeout )
   {
     Message            *msg;
     ClientCloseRequest *req;
@@ -1891,7 +1891,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Re-open the current file at a given server
   //----------------------------------------------------------------------------
-  Status FileStateHandler::ReOpenFileAtServer( const URL &url, uint16_t timeout )
+  XRootDStatus FileStateHandler::ReOpenFileAtServer( const URL &url, uint16_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( FileMsg, "[0x%x@%s] Sending a recovery open command to %s",
@@ -1947,7 +1947,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Issue the open request
     //--------------------------------------------------------------------------
-    Status st = IssueRequest( url, msg, openHandler, params );
+    XRootDStatus st = IssueRequest( url, msg, openHandler, params );
 
     // if there was a problem destroy the open handler
     if( !st.IsOK() )
@@ -2014,7 +2014,7 @@ namespace XrdCl
     {
       it->request->SetSessionId( pSessionId );
       ReWriteFileHandle( it->request );
-      Status st = IssueRequest( *pDataServer, it->request,
+      XRootDStatus st = IssueRequest( *pDataServer, it->request,
                                  it->handler, it->params );
       if( !st.IsOK() )
         FailMessage( *it, st );

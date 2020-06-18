@@ -117,7 +117,7 @@ namespace XrdCl
                            uint16_t           timeout )
   {
     SyncResponseHandler handler;
-    Status st = Open( url, flags, mode, &handler, timeout );
+    XRootDStatus st = Open( url, flags, mode, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -143,7 +143,7 @@ namespace XrdCl
   XRootDStatus File::Close( uint16_t timeout )
   {
     SyncResponseHandler handler;
-    Status st = Close( &handler, timeout );
+    XRootDStatus st = Close( &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -171,7 +171,7 @@ namespace XrdCl
                            uint16_t   timeout )
   {
     SyncResponseHandler handler;
-    Status st = Stat( force, &handler, timeout );
+    XRootDStatus st = Stat( force, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -204,7 +204,7 @@ namespace XrdCl
                            uint16_t  timeout )
   {
     SyncResponseHandler handler;
-    Status st = Read( offset, size, buffer, &handler, timeout );
+    XRootDStatus st = Read( offset, size, buffer, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -267,7 +267,7 @@ namespace XrdCl
                             uint16_t    timeout )
   {
     SyncResponseHandler handler;
-    Status st = Write( offset, size, buffer, &handler, timeout );
+    XRootDStatus st = Write( offset, size, buffer, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -318,7 +318,7 @@ namespace XrdCl
   XRootDStatus File::Sync( uint16_t timeout )
   {
     SyncResponseHandler handler;
-    Status st = Sync( &handler, timeout );
+    XRootDStatus st = Sync( &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -346,7 +346,7 @@ namespace XrdCl
   XRootDStatus File::Truncate( uint64_t size, uint16_t timeout )
   {
     SyncResponseHandler handler;
-    Status st = Truncate( size, &handler, timeout );
+    XRootDStatus st = Truncate( size, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -377,7 +377,7 @@ namespace XrdCl
                                  uint16_t          timeout )
   {
     SyncResponseHandler handler;
-    Status st = VectorRead( chunks, buffer, &handler, timeout );
+    XRootDStatus st = VectorRead( chunks, buffer, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -404,7 +404,7 @@ namespace XrdCl
                            uint16_t          timeout )
   {
     SyncResponseHandler handler;
-    Status st = VectorWrite( chunks, &handler, timeout );
+    XRootDStatus st = VectorWrite( chunks, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -434,7 +434,7 @@ namespace XrdCl
                                   uint16_t            timeout )
   {
     SyncResponseHandler handler;
-    Status st = WriteV( offset, iov, iovcnt, &handler, timeout );
+    XRootDStatus st = WriteV( offset, iov, iovcnt, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -466,7 +466,7 @@ namespace XrdCl
                             uint16_t          timeout )
   {
     SyncResponseHandler handler;
-    Status st = Fcntl( arg, &handler, timeout );
+    XRootDStatus st = Fcntl( arg, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -492,7 +492,7 @@ namespace XrdCl
                            uint16_t   timeout )
   {
     SyncResponseHandler handler;
-    Status st = Visa( &handler, timeout );
+    XRootDStatus st = Visa( &handler, timeout );
     if( !st.IsOK() )
       return st;
 

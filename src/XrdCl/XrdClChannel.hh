@@ -87,7 +87,7 @@ namespace XrdCl
       //! @return        success if the message has been pushed through the wire,
       //!                failure otherwise
       //------------------------------------------------------------------------
-      Status Send( Message *msg, bool stateful, time_t expires );
+      XRootDStatus Send( Message *msg, bool stateful, time_t expires );
 
       //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
@@ -103,10 +103,10 @@ namespace XrdCl
       //! @return        success if the message was successfully inserted
       //!                into the send queues, failure otherwise
       //------------------------------------------------------------------------
-      Status Send( Message              *msg,
-                   OutgoingMsgHandler   *handler,
-                   bool                  stateful,
-                   time_t                expires );
+      XRootDStatus Send( Message              *msg,
+                         OutgoingMsgHandler   *handler,
+                         bool                  stateful,
+                         time_t                expires );
 
       //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message matching

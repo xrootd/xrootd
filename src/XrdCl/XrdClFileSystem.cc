@@ -935,9 +935,9 @@ namespace XrdCl
     //------------------------------------------------------------------------
     // Send a message in a locked environment
     //------------------------------------------------------------------------
-    Status Send( Message                 *msg,
-                 ResponseHandler         *handler,
-                 MessageSendParams       &params )
+    XRootDStatus Send( Message                 *msg,
+                       ResponseHandler         *handler,
+                       MessageSendParams       &params )
     {
       Log *log = DefaultEnv::GetLog();
       XrdSysMutexHelper scopedLock( pMutex );

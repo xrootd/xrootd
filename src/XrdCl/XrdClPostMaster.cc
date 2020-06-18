@@ -187,16 +187,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message synchronously
   //----------------------------------------------------------------------------
-  Status PostMaster::Send( const URL &url,
-                           Message   *msg,
-                           bool       stateful,
-                           time_t     expires )
+  XRootDStatus PostMaster::Send( const URL &url,
+                                 Message   *msg,
+                                 bool       stateful,
+                                 time_t     expires )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
-      return Status( stError, errNotSupported );
+      return XRootDStatus( stError, errNotSupported );
 
     return channel->Send( msg, stateful, expires );
   }
@@ -204,17 +204,17 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send the message asynchronously
   //----------------------------------------------------------------------------
-  Status PostMaster::Send( const URL            &url,
-                           Message              *msg,
-                           OutgoingMsgHandler   *handler,
-                           bool                  stateful,
-                           time_t                expires )
+  XRootDStatus PostMaster::Send( const URL            &url,
+                                 Message              *msg,
+                                 OutgoingMsgHandler   *handler,
+                                 bool                  stateful,
+                                 time_t                expires )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
     Channel *channel = GetChannel( url );
 
     if( !channel )
-      return Status( stError, errNotSupported );
+      return XRootDStatus( stError, errNotSupported );
 
     return channel->Send( msg, handler, stateful, expires );
   }
