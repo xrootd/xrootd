@@ -423,7 +423,6 @@ release:pypi:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - ./gen_pip_versioninfo.sh
     - yum install --nogpg -y git python-pip which
     - pip install --upgrade pip
     - pip install setuptools wheel --upgrade
