@@ -81,8 +81,8 @@ XrdXrootdPrepare::XrdXrootdPrepare(XrdSysError *errp, XrdScheduler *sp,
 {eDest    = errp;
  SchedP   = sp;
  if (LogDir) SchedP->Schedule((XrdJob *)this, scrubtime+time(0));
-    else if (!nomsg) eDest->Say("Config warning: 'xrootd.prepare logdir' "
-                                "not specified; prepare tracking disabled.");
+//  else if (!nomsg) eDest->Say("Config warning: 'xrootd.prepare logdir' "
+//                              "not specified; prepare tracking disabled.");
 }
   
 /******************************************************************************/
