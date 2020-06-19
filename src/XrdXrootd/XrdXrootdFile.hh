@@ -105,9 +105,9 @@ union {char       *mmAddr;       // Memory mapped location, if any
       };
 char              *FileKey;      // -> File hash name (actual file name now)
 char               FileMode;     // 'r' or 'w'
-char               AsyncMode;    // 1 -> if file in async r/w mode
-char               isMMapped;    // 1 -> file is memory mapped
-char               sfEnabled;    // 1 -> file is sendfile enabled
+bool               AsyncMode;    // 1 -> if file in async r/w mode
+bool               isMMapped;    // 1 -> file is memory mapped
+bool               sfEnabled;    // 1 -> file is sendfile enabled
 union {int         fdNum;        // File descriptor number if regular file
        int         fHandle;      // The file handle upon close()
       };
@@ -119,8 +119,7 @@ XrdXrootdFileStats Stats;        // File access statistics
 static void Init(XrdXrootdFileLock *lp, XrdSysError *erP, int sfok);
 
            XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
-                         char mode='r', bool async=false, int sfOK=0,
-                         struct stat *sP=0);
+                         char mode='r', bool async=false, struct stat *sP=0);
           ~XrdXrootdFile();
 
 private:

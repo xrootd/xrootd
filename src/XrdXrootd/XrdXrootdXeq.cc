@@ -1453,7 +1453,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Obtain a hyper file object
 //
-   xp = new XrdXrootdFile(Link->ID,fn,fp,usage,isAsync,Link->sfOK,&statbuf);
+   xp = new XrdXrootdFile(Link->ID, fn, fp, usage, isAsync, &statbuf);
    if (!xp)
       {snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);

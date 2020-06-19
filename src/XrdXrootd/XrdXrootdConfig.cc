@@ -85,6 +85,7 @@
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdInet.hh"
+#include "Xrd/XrdLink.hh"
 
 /******************************************************************************/
 /*         P r o t o c o l   C o m m a n d   L i n e   O p t i o n s          */
@@ -310,15 +311,26 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialiaze for AIO
 //
-        if (getenv("XRDXROOTD_NOAIO")) as_noaio = 1;
-   else if (!as_noaio) XrdXrootdAioReq::Init(as_segsize, as_maxperreq, as_maxpersrv);
-   else eDest.Say("Config warning: asynchronous I/O has been disabled!");
+   if (!as_noaio) XrdXrootdAioReq::Init(as_segsize, as_maxperreq, as_maxpersrv);
+      else eDest.Say("Config asynchronous I/O has been disabled!");
 
-// Create the file lock manager
+// Establish final sendfile processing mode. This may be turned off by the
+// link or by the SFS plugin usually because ot's a proxy.
+//
+   const char *why = 0;
+   if (!as_nosf)
+      {if (fsFeatures & XrdSfs::hasNOSF) why = "file system plugin.";
+          else if (!XrdLink::sfOK) why = "OS kernel.";
+       if (why)
+          {as_nosf = 1;
+           eDest.Say("Config sendfile has been disabled by ", why);
+          }
+      }
+
+// Create the file lock manager and initialize file handling
 //
    Locker = (XrdXrootdFileLock *)new XrdXrootdFileLock1();
    XrdXrootdFile::Init(Locker, &eDest, as_nosf == 0);
-   if (as_nosf) eDest.Say("Config warning: sendfile I/O has been disabled!");
 
 // Schedule protocol object cleanup (also advise the transit protocol)
 //
@@ -567,7 +579,7 @@ int  XrdXrootdProtocol::CheckTLS(const char *tlsProt)
 // TLS authnetication based protocols should the login phase not have TLS.
 //
    if (tlsProt && !(tlsCap & Req_TLSLogin))
-      {eDest.Say("Config warning: Authentication protocol(s)", tlsProt,
+      {eDest.Say("Config Authentication protocol(s)", tlsProt,
                  " require TLS; login now requires TLS.");
        myRole |= kXR_tlsLogin;
        tlsCap |= Req_TLSLogin;

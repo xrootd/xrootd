@@ -79,32 +79,33 @@ static const unsigned long  heldMask = ~1UL;
 /******************************************************************************/
   
 XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
-                             char mode, bool async, int sfok, struct stat *sP)
+                             char mode, bool async, struct stat *sP)
+                            : XrdSfsp(fp), mmAddr(0), FileKey(strdup(path)),
+                              FileMode(mode), AsyncMode(async), fhProc(0),
+                              ID(id)
 {
     static XrdSysMutex seqMutex;
     struct stat buf;
     off_t mmSize;
 
-    XrdSfsp  = fp;
-    FileKey  = strdup(path);
-    mmAddr   = 0;
-    FileMode = mode;
-    AsyncMode= (async ? 1 : 0);
-    fhProc   = 0;
-    ID       = id;
-
+// Initialize statistical counters
+//
     Stats.Init();
 
-// Get the file descriptor number (none if not a regular file)
+// Get the file descriptor number for sendfile() processing
 //
-   if (fp->fctl(SFS_FCTL_GETFD, 0, fp->error) != SFS_OK) fdNum = -1;
-      else fdNum = fp->error.getErrInfo();
-   sfEnabled = (sfOK && sfok && (fdNum >= 0||fdNum==(int)SFS_SFIO_FDVAL) ? 1:0);
+   if (!sfOK || fp->fctl(SFS_FCTL_GETFD, 0, fp->error) != SFS_OK)
+      {fdNum = -1;
+       sfEnabled = false;
+      } else {
+       fdNum = fp->error.getErrInfo();
+       sfEnabled = (fdNum >= 0 || fdNum == (int)SFS_SFIO_FDVAL);
+      }
 
 // Determine if file is memory mapped
 //
-   if (fp->getMmap((void **)&mmAddr, mmSize) != SFS_OK) isMMapped = 0;
-      else {isMMapped = (mmSize ? 1 : 0);
+   if (fp->getMmap((void **)&mmAddr, mmSize) != SFS_OK) isMMapped = false;
+      else {isMMapped = (mmSize ? true : false);
             Stats.fSize = static_cast<long long>(mmSize);
            }
 

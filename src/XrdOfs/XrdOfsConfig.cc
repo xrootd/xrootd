@@ -262,6 +262,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
    if (!ofsConfig->Load(piOpts, EnvInfo)) NoGo = 1;
       else {ofsConfig->Plugin(XrdOfsOss);
             ossFeatures = XrdOfsOss->Features();
+            if (ossFeatures & XRDOSS_HASNOSF)  FeatureSet |= XrdSfs::hasNOSF;
             if (xrdEnv) xrdEnv->PutPtr("XrdOss*", XrdOfsOss);
             ofsConfig->Plugin(Cks);
             CksPfn = !ofsConfig->OssCks();
@@ -324,23 +325,24 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    if (!NoGo && evsObject) NoGo = evsObject->Start(&Eroute);
 
-// If POSC processing is enabled (as by default) do it. Warning! This must be
-// the last item in the configuration list as we need a working filesystem.
-// Note that in proxy mode we always disable posc!
-//
-   if (getenv("XRDXROOTD_NOPOSC"))
-      {if (poscAuto != -1 && !NoGo)
-          Eroute.Say("Config POSC has been disabled by the osslib plugin.");
-      } else if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
-
 // If the OSS plugin is really a proxy. If it is, it will export its origin.
 // We also suppress translating lfn to pfn (usually done via osslib +cksio).
+// Note: consulting the ENVAR below is historic and remains for compatibility
 //
-   if (getenv("XRDXROOTD_PROXY"))
+   if (ossFeatures & XRDOSS_HASPRXY || getenv("XRDXROOTD_PROXY"))
       {OssIsProxy = 1;
        CksPfn = false;
        FeatureSet |= XrdSfs::hasPRXY;
       }
+
+// If POSC processing is enabled (as by default) do it. Warning! This must be
+// the last item in the configuration list as we need a working filesystem.
+// Note that in proxy mode we always disable posc!
+//
+   if (OssIsProxy || getenv("XRDXROOTD_NOPOSC"))
+      {if (poscAuto != -1 && !NoGo)
+          Eroute.Say("Config POSC has been disabled by the osslib plugin.");
+      } else if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
 
 // Setup statistical monitoring
 //

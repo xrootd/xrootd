@@ -66,6 +66,9 @@ static const uint64_t hasPRXY = 0x0000000000000080LL;
 
 //! Feature: Supports SfsXio
 static const uint64_t hasSXIO = 0x0000000000000100LL;
+
+//! Feature: Supports no sendfile
+static const uint64_t hasNOSF = 0x0000000000000200LL;
 }
 
 //-----------------------------------------------------------------------------

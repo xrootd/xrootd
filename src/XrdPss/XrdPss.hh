@@ -53,10 +53,12 @@ int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 
         // Constructor and destructor
-        XrdPssDir(const char *tid) : tident(tid), myDir(0) {}
+        XrdPssDir(const char *tid)
+                 : XrdOssDF(tid, XrdOssDF::DF_isDir|XrdOssDF::DF_isProxy),
+                   myDir(0) {}
+
        ~XrdPssDir() {if (myDir) Close();}
 private:
-const    char      *tident;
          DIR       *myDir;
 };
   
@@ -83,8 +85,6 @@ int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
-off_t   getMmap(void **addr);
-int     isCompressed(char *cxidp=0);
 ssize_t Read(               off_t, size_t);
 ssize_t Read(       void *, off_t, size_t);
 int     Read(XrdSfsAio *aiop);
@@ -94,8 +94,9 @@ ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
  
          // Constructor and destructor
-         XrdPssFile(const char *tid) : tident(tid), tpcPath(0), entity(0)
-                                       {fd = -1;}
+         XrdPssFile(const char *tid)
+                   : XrdOssDF(tid, XrdOssDF::DF_isFile|XrdOssDF::DF_isProxy),
+                     tpcPath(0), entity(0) {}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
                        if (tpcPath) free(tpcPath);
@@ -103,7 +104,6 @@ virtual ~XrdPssFile() {if (fd >= 0) Close();
 
 private:
 
-const char *tident;
       char *tpcPath;
 
 const XrdSecEntity *entity;

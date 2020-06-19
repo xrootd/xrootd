@@ -148,7 +148,7 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
   
 XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
-                         myFeatures(XRDOSS_HASPRXY)
+                         myFeatures(XRDOSS_HASPRXY|XRDOSS_HASNOSF)
                          {}
 
 /******************************************************************************/
@@ -1034,45 +1034,6 @@ int XrdPssFile::Ftruncate(unsigned long long flen)
     if (fd < 0) return -XRDOSS_E8004;
 
     return (XrdPosixXrootd::Ftruncate(fd, flen) ?  -errno : XrdOssOK);
-}
-
-/******************************************************************************/
-/*                               g e t M m a p                                */
-/******************************************************************************/
-  
-/*
-  Function: Indicate whether or not file is memory mapped.
-
-  Input:    addr      - Points to an address which will receive the location
-                        memory where the file is mapped. If the address is
-                        null, true is returned if a mapping exist.
-
-  Output:   Returns the size of the file if it is memory mapped (see above).
-            Otherwise, zero is returned and addr is set to zero.
-*/
-off_t XrdPssFile::getMmap(void **addr)   // Not Supported for proxies
-{
-   if (addr) *addr = 0;
-   return 0;
-}
-  
-/******************************************************************************/
-/*                          i s C o m p r e s s e d                           */
-/******************************************************************************/
-  
-/*
-  Function: Indicate whether or not file is compressed.
-
-  Input:    cxidp     - Points to a four byte buffer to hold the compression
-                        algorithm used if the file is compressed or null.
-
-  Output:   Returns the region size which is 0 if the file is not compressed.
-            If cxidp is not null, the algorithm is returned only if the file
-            is compressed.
-*/
-int XrdPssFile::isCompressed(char *cxidp)  // Not supported for proxies
-{
-    return 0;
 }
   
 /******************************************************************************/

@@ -170,7 +170,7 @@ virtual int     Ftruncate(unsigned long long) {return -EISDIR;}
 //!         returned. Note that zero length files cannot be memory mapped.
 //-----------------------------------------------------------------------------
 
-virtual off_t   getMmap(void **) {return 0;}
+virtual off_t   getMmap(void **addr) {*addr = 0; return 0;}
 
 //-----------------------------------------------------------------------------
 //! Return file compression charectistics.
@@ -181,7 +181,7 @@ virtual off_t   getMmap(void **) {return 0;}
 //!         zero is returned (file not compressed).
 //-----------------------------------------------------------------------------
 
-virtual int     isCompressed(char *cxidp=0) {(void)cxidp; return -EISDIR;}
+virtual int     isCompressed(char *cxidp=0) {(void)cxidp; return 0;}
 
 //-----------------------------------------------------------------------------
 //! Open a file.
@@ -416,7 +416,7 @@ virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 //! @return -1 if there is no file descriptor or a non-negative FD number.
 //-----------------------------------------------------------------------------
 
-virtual int     getFD() {return fd;}
+virtual int     getFD() {return -1;} // Must override to support sendfile()
 
 //-----------------------------------------------------------------------------
 //! Return trace identifier associated with this object.
@@ -468,6 +468,7 @@ short       rsvd;    // Reserved
 #define XRDOSS_HASPGRW 0x0000000000000001ULL
 #define XRDOSS_HASFSCS 0x0000000000000002ULL
 #define XRDOSS_HASPRXY 0x0000000000000004ULL
+#define XRDOSS_HASNOSF 0x0000000000000008ULL
 
 // Options that can be passed to Stat()
 //
