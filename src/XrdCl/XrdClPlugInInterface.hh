@@ -76,7 +76,6 @@ namespace XrdCl
         return XRootDStatus( stError, errNotImplemented );
       }
 
-
       //------------------------------------------------------------------------
       //! @see XrdCl::File::Read
       //------------------------------------------------------------------------
@@ -87,6 +86,20 @@ namespace XrdCl
                                  uint16_t         timeout )
       {
         (void)offset; (void)size; (void)buffer; (void)handler; (void)timeout;
+        return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::File::Read
+      //------------------------------------------------------------------------
+      virtual XRootDStatus Read( uint64_t            offset,
+                                 uint32_t            size,
+                                 Optional<uint64_t>  fdoff,
+                                 int                 fd,
+                                 ResponseHandler    *handler,
+                                 uint16_t            timeout = 0 )
+      {
+        (void)offset; (void)size; (void)fdoff; (void)fd, (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
 
