@@ -130,7 +130,10 @@ if test ! -d ${SOURCEPATH}.git; then
   # We cannot figure out what version we are
   #----------------------------------------------------------------------------
   echo "[I] No git repository info found. Trying to interpret VERSION_INFO" 1>&2
-  if test ! -r ${SOURCEPATH}VERSION_INFO; then
+  if test -f src/XrdVersion.hh; then
+    echo "[I] The XrdVersion.hh file already exists" 1>&2
+    exit 0
+  elif test ! -r ${SOURCEPATH}VERSION_INFO; then
     echo "[!] VERSION_INFO file absent. Unable to determine the version. Using \"unknown\"" 1>&2
   elif test x"`grep Format ${SOURCEPATH}VERSION_INFO`" != x; then
     echo "[!] VERSION_INFO file invalid. Unable to determine the version. Using \"unknown\"" 1>&2
