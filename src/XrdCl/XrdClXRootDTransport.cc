@@ -885,12 +885,19 @@ namespace XrdCl
     int nodata = DefaultTlsNoData;
     env->GetInt( "TlsNoData", nodata );
 
-    if( ( info->encrypted && nodata )              ||
-        ( ( ( info->serverFlags & kXR_gotoTLS )    ||
-            ( info->serverFlags & kXR_tlsLogin )   ||
-            ( info->serverFlags & kXR_tlsSess ) )  &&
-          !( info->serverFlags & kXR_tlsData )     &&
-          !info->encrypted ) )
+    // Does the server require the stream 0 to be encrypted?
+    bool srvTlsStrm0 = ( info->serverFlags & kXR_gotoTLS )  ||
+                       ( info->serverFlags & kXR_tlsLogin ) ||
+                       ( info->serverFlags & kXR_tlsSess );
+    // Does the server NOT require the data streams to be encrypted?
+    bool srvNoTlsData = !( info->serverFlags & kXR_tlsData );
+    // Does the user require the stream 0 to be encrypted?
+    bool usrTlsStrm0 = info->encrypted;
+    // Does the user NOT require the data streams to be encrypted?
+    bool usrNoTlsData = !info->encrypted || ( info->encrypted && nodata );
+
+    if( ( usrTlsStrm0 && usrNoTlsData && srvNoTlsData ) ||
+        ( srvTlsStrm0 && srvNoTlsData && usrNoTlsData ) )
     {
       //------------------------------------------------------------------------
       // The server or user asked us to encrypt stream 0, but to send the data
