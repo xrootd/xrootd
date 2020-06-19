@@ -363,7 +363,7 @@ namespace XrdCl
     oct = pImpl->pMode[size - 1] - '0';
     OctToString( oct, ret );
 
-    return std::move( ret );
+    return ret;
   }
 
   //------------------------------------------------------------------------

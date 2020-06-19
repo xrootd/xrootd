@@ -270,7 +270,7 @@ XrdNetAddr *XrdLink::NetAddr() const {return linkXQ.NetAddr();}
 int XrdLink::Peek(char *Buff, int Blen, int timeout)
 {
    if (isTLS) return linkXQ.TLS_Peek(Buff, Blen, timeout);
-              return linkXQ.Peek    (Buff, Blen, timeout);
+   else       return linkXQ.Peek    (Buff, Blen, timeout);
 }
   
 /******************************************************************************/
@@ -280,7 +280,7 @@ int XrdLink::Peek(char *Buff, int Blen, int timeout)
 int XrdLink::Recv(char *Buff, int Blen)
 {
    if (isTLS) return linkXQ.TLS_Recv(Buff, Blen);
-              return linkXQ.Recv    (Buff, Blen);
+   else       return linkXQ.Recv    (Buff, Blen);
 }
 
 /******************************************************************************/
@@ -288,7 +288,7 @@ int XrdLink::Recv(char *Buff, int Blen)
 int XrdLink::Recv(char *Buff, int Blen, int timeout)
 {
    if (isTLS) return linkXQ.TLS_Recv(Buff, Blen, timeout);
-              return linkXQ.Recv    (Buff, Blen, timeout);
+   else       return linkXQ.Recv    (Buff, Blen, timeout);
 }
 
 /******************************************************************************/
@@ -298,7 +298,7 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
 int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
 {
    if (isTLS) return linkXQ.TLS_RecvAll(Buff, Blen, timeout);
-              return linkXQ.RecvAll    (Buff, Blen, timeout);
+   else       return linkXQ.RecvAll    (Buff, Blen, timeout);
 }
 
 /******************************************************************************/
@@ -317,7 +317,7 @@ bool XrdLink::Register(const char *hName)
 int XrdLink::Send(const char *Buff, int Blen)
 {
    if (isTLS) return linkXQ.TLS_Send(Buff, Blen);
-              return linkXQ.Send    (Buff, Blen);
+   else       return linkXQ.Send    (Buff, Blen);
 }
 
 /******************************************************************************/
@@ -331,7 +331,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 // Execute the send
 //
    if (isTLS) return linkXQ.TLS_Send(iov, iocnt, bytes);
-              return linkXQ.Send    (iov, iocnt, bytes);
+   else       return linkXQ.Send    (iov, iocnt, bytes);
 }
  
 /******************************************************************************/
@@ -348,7 +348,7 @@ int XrdLink::Send(const sfVec *sfP, int sfN)
 // Do the send
 //
    if (isTLS) return linkXQ.TLS_Send(sfP, sfN);
-              return linkXQ.Send    (sfP, sfN);
+   else       return linkXQ.Send    (sfP, sfN);
 }
 
 /******************************************************************************/

@@ -91,7 +91,7 @@ class MetalinkRedirector : public VirtualRedirector
         if( itr->first == "a32" ) ret.push_back( "adler32" );
         else ret.push_back( itr->first );
       }
-      return std::move( ret );
+      return ret;
     }
 
     //----------------------------------------------------------------------------

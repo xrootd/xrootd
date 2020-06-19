@@ -633,7 +633,7 @@ namespace XrdCl
       }
     }
 
-    return std::move( ret );
+    return ret;
   }
 
 
