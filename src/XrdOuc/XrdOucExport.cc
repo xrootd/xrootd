@@ -196,6 +196,23 @@ XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
        rpval |= XRDEXP_FORCERO;
       }
 
+// cache conflicts with mig or purge
+//
+   if ((rpval & XRDEXP_PFCACHE) && (rpval & XRDEXP_MIGPRG))
+      {Eroute.Emsg("config", "cache attribute is incompatible with "
+                   "mig and purge attributes.");
+       return 0;
+      }
+
+// noxattr conflicts with mig or purge
+//
+   if ((rpval & XRDEXP_PFCACHE) && (rpval & XRDEXP_MIGPRG))
+      {Eroute.Emsg("config", "noxattrs attribute is incompatible with "
+                   "mig and purge attributes.");
+       return 0;
+      }
+
+
 // Update the export list. If this path is being modified, turn off all bits
 // in the old path specified in the new path and then set the new bits.
 //
