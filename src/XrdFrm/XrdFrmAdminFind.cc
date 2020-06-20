@@ -173,42 +173,6 @@ int XrdFrmAdmin::FindNocs(XrdOucArgs &Spec)
    Msg(buff);
    return rc;
 }
-
-/******************************************************************************/
-/*                              F i n d N o l k                               */
-/******************************************************************************/
-  
-int XrdFrmAdmin::FindNolk(XrdOucArgs &Spec)
-{
-   XrdFrmFileset *sP;
-   XrdFrmFiles   *fP;
-   char pDir[MAXPATHLEN], *lDir = Opt.Args[1];
-   int opts = (Opt.Recurse ? XrdFrmFiles::Recursive : 0);
-   int ec = 0, rc = 0, num = 0;
-
-// This mode is not supported in new-style spaces
-//
-   if (Config.runNew)
-      {Msg("New runmode does not have any lock files!"); return 0;}
-
-// Process each directory
-//
-   do {if (!Config.LocalPath(lDir, pDir, sizeof(pDir))) continue;
-       fP = new XrdFrmFiles(pDir, opts | XrdFrmFiles::NoAutoDel);
-       while((sP = fP->Get(ec)))
-            {if (!(sP->lockFile())) {Msg(sP->basePath()); num++;} // runOld
-             delete sP;
-            }
-       if (ec) rc = 4;
-       delete fP;
-      } while((lDir = Spec.getarg()));
-
-// All done
-//
-   sprintf(pDir,"%d missing lock file%s found.", num, (num == 1 ? "" : "s"));
-   Msg(pDir);
-   return rc;
-}
   
 /******************************************************************************/
 /*                              F i n d P i n s                               */
@@ -304,8 +268,7 @@ int XrdFrmAdmin::FindPins(XrdFrmFileset *sP)
   
 int XrdFrmAdmin::FindUnmi(XrdOucArgs &Spec)
 {
-   static const char *noCPT = (Config.runNew ? "Unmigrated; no copy time: "
-                                             : "Unmigrated; no lock file: ");
+   static const char *noCPT = "Unmigrated; no copy time: ";
    XrdFrmFileset *sP;
    XrdFrmFiles   *fP;
    const char *Why;

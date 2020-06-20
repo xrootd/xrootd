@@ -77,8 +77,6 @@ extern XrdOucTrace  OssTrace;
 
 XrdOucPListAnchor  *XrdOssRPList;
 
-int                *XrdOssRunMode = 0;
-
 /******************************************************************************/
 /*                            E r r o r   T e x t                             */
 /******************************************************************************/
@@ -199,8 +197,6 @@ XrdOssSys::XrdOssSys()
    Solitary      = 0;
    DPList        = 0;
    lenDP         = 0;
-   runOld        = 0;
-   XrdOssRunMode = &runOld;
    numCG = numDP = 0;
    xfrFdir       = 0;
    xfrFdln       = 0;
@@ -338,20 +334,20 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
    if ( OptFlags & XrdOss_CacheFS ) 
        if (!NoGo) {
            NoGo = XrdOssPath::InitPrefix();
-           if (NoGo) Eroute.Emsg("Config", "cache file prefix initialization failed");
+           if (NoGo) Eroute.Emsg("Config", "space initialization failed");
        }
 
 // Configure statiscal reporting
 //
    if (!NoGo) ConfigStats(Eroute);
 
-// Start up the cache scan thread unless specifically told not to. Some programs
+// Start up the space scan thread unless specifically told not to. Some programs
 // like the cmsd manually handle space updates.
 //
    if (!(val = getenv("XRDOSSCSCAN")) || strcmp(val, "off"))
       {if ((retc = XrdSysThread::Run(&tid, XrdOssCacheScan,
-                                    (void *)&cscanint, 0, "cache scan")))
-          Eroute.Emsg("Config", retc, "create cache scan thread");
+                                    (void *)&cscanint, 0, "space scan")))
+          Eroute.Emsg("Config", retc, "create space scan thread");
       }
 
 // Display the final config if we can continue
@@ -409,7 +405,7 @@ void XrdOssSys::Config_Display(XrdSysError &Eroute)
 
      snprintf(buff, sizeof(buff), "Config effective %s oss configuration:\n"
                                   "       oss.alloc        %lld %d %d\n"
-                                  "       oss.cachescan    %d\n"
+                                  "       oss.spacescan    %d\n"
                                   "       oss.fdlimit      %d %d\n"
                                   "       oss.maxsize      %lld\n"
                                   "%s%s%s"
@@ -418,7 +414,6 @@ void XrdOssSys::Config_Display(XrdSysError &Eroute)
                                   "%s%s%s%s%s"
                                   "%s%s%s"
                                   "%s%s%s"
-                                  "%s"
                                   "       oss.trace        %x\n"
                                   "       oss.xfr          %d deny %d keep %d",
              cloc,
@@ -432,7 +427,6 @@ void XrdOssSys::Config_Display(XrdSysError &Eroute)
                                                     StageCreate, "creates ", ""),
              XrdOssConfig_Val(StageMsg,   stagemsg),
              XrdOssConfig_Val(RSSCmd,     rsscmd),
-             (runOld           ? "       oss.runmodeold\n" : ""),
              OssTrace.What,
              xfrthreads, xfrhold, xfrkeep);
 
@@ -732,13 +726,6 @@ void XrdOssSys::ConfigSpath(XrdSysError &Eroute, const char *Path,
           else     flags |=  XRDEXP_NODREAD;
       }
 
-// mig| (purge+r/w) -> lock file creation
-//
-   if ((flags & XRDEXP_MIG)
-   || ((flags & XRDEXP_PURGE) && !(flags & XRDEXP_NOTRW)))
-           flags |=  XRDEXP_MAKELF;
-      else flags &= ~XRDEXP_MAKELF;
-
 // If there is no mss then turn off all mss related optionss, otherwise check
 // if the options may leave the system in an inconsistent state
 //
@@ -772,12 +759,8 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
    flags = (RSSCmd ? 0 : XRDEXP_NOCHECK | XRDEXP_NODREAD);
    DirFlags = DirFlags | (flags & (~(DirFlags >> XRDEXP_MASKSHIFT)));
 
-// Indicate whether lock files are to be created. We create them for migratable
-// space and purgeable space that is writable.
+// Set default flags
 //
-   if ((DirFlags & XRDEXP_MIG)
-   || ((DirFlags & XRDEXP_PURGE) && !(DirFlags & XRDEXP_NOTRW)))
-      DirFlags |= XRDEXP_MAKELF;
    RPList.Default(DirFlags);
 
 // Reprocess the paths to set correct defaults
@@ -1056,7 +1039,8 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
 
    TS_Xeq("alloc",         xalloc);
    TS_Xeq("cache",         xcache);
-   TS_Xeq("cachescan",     xcachescan);
+   TS_Xeq("cachescan",     xcachescan); // Backward compatibility
+   TS_Xeq("spacescan",     xcachescan);
    TS_Xeq("defaults",      xdefault);
    TS_Xeq("fdlimit",       xfdlimit);
    TS_Xeq("maxsize",       xmaxsz);
@@ -1070,8 +1054,6 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
    TS_Xeq("trace",         xtrace);
    TS_Xeq("usage",         xusage);
    TS_Xeq("xfr",           xxfr);
-
-   TS_Set("runmodeold",    runOld, 1);
 
    // Check if var substitutions are prohibited (e.g., stagemsg). Note that
    // TS_String() returns upon success so be careful when adding new opts.
@@ -1136,7 +1118,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
              <headroom>  percentage of requested space to be added to the
                          free space amount (asterisk uses default).
              <fuzz>      the percentage difference between two free space
-                         quantities that may be ignored when selecting a cache
+                         quantities that may be ignored when selecting a space
                            0 - reduces to finding the largest free space
                          100 - reduces to simple round-robin allocation
 
@@ -1193,9 +1175,14 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdSysError &Eroute)
 // Skip out to process this entry and upon success indicate that it is
 // deprecated and "space" should be used instead if an XA-style space defined.
 //
-   if (!(rc = xspace(Config, Eroute, &isXA)) && isXA)
-      Eroute.Say("Config warning: 'oss.cache' is deprecated; "
-                                 "use 'oss.space' instead!");
+   if (!(rc = xspace(Config, Eroute, &isXA)))
+      {if (isXA) Eroute.Say("Config warning: 'oss.cache' is deprecated; "
+                            "use 'oss.space' instead!");
+          else  {Eroute.Say("Config failure: non-xa spaces are no longer "
+                            "supported!");
+                 rc = 1;
+                }
+      }
     return rc;
 }
 

@@ -283,7 +283,6 @@ int XrdFrmAdmin::Find()
    else if (Abbrev(Opt.Args[0], "mmapped",   4)) return FindMmap(Spec);
    else if (Abbrev(Opt.Args[0], "nocs",      4)) return FindNocs(Spec);
    else if (Abbrev(Opt.Args[0], "nochksum",  8)) return FindNocs(Spec);
-   else if (Abbrev(Opt.Args[0], "nolkfiles", 4)) return FindNolk(Spec);
    else if (Abbrev(Opt.Args[0], "pinned",    3)) return FindPins(Spec);
    else if (Abbrev(Opt.Args[0], "unmigrated",4)) return FindUnmi(Spec);
 
@@ -711,7 +710,6 @@ int XrdFrmAdmin::xeqArgs(char *Cmd)
                          }
                  CmdTab[] = {{"audit",  5, 5, &XrdFrmAdmin::Audit},
                              {"chksum", 6, 6, &XrdFrmAdmin::Chksum},
-                             {"convert",7, 7, &XrdFrmAdmin::Convert},
                              {"exit",   4, 4, &XrdFrmAdmin::Quit},
                              {"find",   1, 4, &XrdFrmAdmin::Find},
                              {"help",   1, 4, &XrdFrmAdmin::Help},

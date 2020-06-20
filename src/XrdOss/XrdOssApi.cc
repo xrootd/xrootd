@@ -84,7 +84,6 @@ XrdOucTrace OssTrace(&OssEroute);
 /*           S t o r a g e   S y s t e m   I n s t a n t i a t o r            */
 /******************************************************************************/
 
-int       XrdOssSys::runOld  = 0;
 char      XrdOssSys::tryMmap = 0;
 char      XrdOssSys::chkMmap = 0;
 

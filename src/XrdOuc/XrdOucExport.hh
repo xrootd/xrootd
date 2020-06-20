@@ -86,6 +86,7 @@
 
 #define XRDEXP_ROOTDIR    0x0000000001000000LL
 #define XRDEXP_MAKELF     0x0000000002000000LL
+#define XRDEXP_MIGPRG     0x0000000000004400LL
 
 
 // The following options are prescreened elsewhere

@@ -92,8 +92,6 @@ int  AuditNameNF(XrdFrmFileset *sP);
 int  AuditNameNL(XrdFrmFileset *sP);
 int  AuditNames();
 int  AuditNameXA(XrdFrmFileset *sP);
-int  AuditNameXB(XrdFrmFileset *sP);                // runOld
-int  AuditNameXL(XrdFrmFileset *sP, int dorm);      // runOld
 int  AuditRemove(XrdFrmFileset *sP);
 int  AuditSpace();
 int  AuditSpaceAX(const char *Path);
@@ -102,8 +100,6 @@ int  AuditSpaceAXDC(const char *Path, XrdOucNSWalk::NSEnt *nP);
 int  AuditSpaceAXDL(int dorm, const char *Path, const char *Dest);
 int  AuditSpaceXA(const char *Space, const char *Path);
 int  AuditSpaceXA(XrdFrmFileset *sP);
-int  AuditSpaceXB(const char *Space, const char *Path); // runOld
-int  AuditSpaceXANB(XrdFrmFileset *sP);                 // runOld
 int  AuditUsage();
 int  AuditUsage(char *Space);
 int  AuditUsageAX(const char *Path);
@@ -116,7 +112,6 @@ void ChksumPrint(const char *Lfn, int rc);
 int  FindFail(XrdOucArgs &Spec);
 int  FindMmap(XrdOucArgs &Spec);
 int  FindNocs(XrdOucArgs &Spec);
-int  FindNolk(XrdOucArgs &Spec);
 int  FindPins(XrdOucArgs &Spec);
 int  FindPins(XrdFrmFileset *sP);
 int  FindUnmi(XrdOucArgs &Spec);
@@ -172,23 +167,11 @@ int  UnlinkFile(const char *lclPath);
 int  VerifyAll(char *path);
 char VerifyMP(const char *func, const char *path);
 
-// The following are for runOld conversion purposes and will be removed
-//
-int          Convert();
-int          ConvTest(int doNames, int doSpaces);
-int          New2Old(int doNames, int doSpaces);
-int          Old2New(int doNames, int doSpaces);
-int          o2nFiles(XrdFrmFileset *sP, int &numOld);
-int          o2nSpace(XrdFrmFileset *sP, const char *Space);
-XrdOucTList *x2xPaths();
-int          x2xRemove(const char *Type, const char *Path, int cvt=0);
-XrdOucTList *x2xSpaces();
-
 static const char *AuditHelp;
 static const char *ChksumHelp;
 static const char *FindHelp;
 static const char *HelpHelp;
-static const char *MakeLFHelp;
+static const char *MakeLFHelp; // runOld
 static const char *MarkHelp;
 static const char *MmapHelp;
 static const char *MvHelp;

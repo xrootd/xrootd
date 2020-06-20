@@ -172,14 +172,6 @@ int XrdOssSys::Reloc(const char *tident, const char *path,
    if (!anchor && rename(tbuff, local_path) < 0) return -errno;
    PF.tbuff = 0; PF.pbuff = 0; rc = 0;
 
-// Now create a symlink from the cache pfn to the actual path (xa runOld only)
-//
-   if (runOld)
-      {strcpy(aInfo.cgPsfx, ".pfn");
-       if ((symlink(local_path, pbuff) && errno != EEXIST)
-       || unlink(pbuff) || symlink(local_path, pbuff)) rc = errno;
-      }
-
 // Issue warning if the pfn file could not be created (very very rare).
 // At this point we can't do much about it.
 //
@@ -196,10 +188,6 @@ int XrdOssSys::Reloc(const char *tident, const char *path,
 //
    if (*lbuff)
       {if (unlink(lbuff))     OssEroute.Emsg("Reloc",errno,"removing",lbuff);
-       if (runOld && XrdOssPath::isXA(lbuff))
-          {strcat(lbuff, ".pfn");
-           if (unlink(lbuff)) OssEroute.Emsg("Reloc",errno,"removing",lbuff);
-          }
        XrdOssCache::Adjust(XrdOssCache::Find(lbuff, lblen), -buf.st_size);
        } else XrdOssCache::Adjust(buf.st_dev, -buf.st_size);
 

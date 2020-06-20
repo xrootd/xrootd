@@ -196,8 +196,6 @@ int       Stats(char *bp, int bl);
 static int   AioInit();
 static int   AioAllOk;
 
-static int   runOld;            // Run in backward compatability mode
-
 static char  tryMmap;           // Memory mapped files enabled
 static char  chkMmap;           // Memory mapped files are selective
    
@@ -373,8 +371,6 @@ int    MSS_Xeq(XrdOucStream **xfd, int okerr,
 // Other methods
 //
 int    RenameLink(char *old_path, char *new_path);
-int    RenameLink2(int Llen, char *oLnk, char *old_path,
-                             char *nLnk, char *new_path);
 int    RenameLink3(char *cPath, char *old_path, char *new_path);
 };
 

@@ -233,7 +233,6 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
                               const char   *, XrdOucEnv *,  XrdVersionInfo &);
-   extern int *XrdOssRunMode;
    static XrdNetAddr myAddr(0);
    XrdFrmConfigSE theSE;
    int retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
@@ -413,7 +412,6 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
                     OfsCfg->Plugin(ossFS);
                     OfsCfg->Plugin(CksMan);
                     doStatPF = ossFS->StatPF("/", &Stat) != -ENOTSUP;
-                    runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
                    }
           }
       }
@@ -1020,9 +1018,9 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "ofs.ckslib"    )) PARSEPI(theCksLib);
        if (!strcmp(var, "ofs.osslib"    )) PARSEPI(theOssLib);
        if (!strcmp(var, "ofs.xattrlib"  )) PARSEPI(theAtrLib);
-       if (!strcmp(var, "oss.cache"     )){hasCache = 1; // runOld
-                                           return xspace(0,0);
-                                          }
+//     if (!strcmp(var, "oss.cache"     )){hasCache = 1; // runOld
+//                                         return xspace(0,0);
+//                                        }
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
@@ -2033,6 +2031,14 @@ int XrdFrmConfig::xspace(int isPrg, int isXA)
           {Say.Emsg("Config","invalid cache option - ",val); return 1;}
           else isXA = 1;
       }
+
+// We only support xa caches now
+//
+    if (!isXA)
+       {Say.Emsg("Config","old-style spaces using oss.cache are no longer "
+                 "supported!");
+        return 1;
+       }
 
    if (fn[k-1] != '*')
       {for (i = k-1; i; i--) if (fn[i] != '/') break;

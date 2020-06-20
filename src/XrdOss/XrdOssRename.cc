@@ -76,13 +76,13 @@ int XrdOssSys::Rename(const char *oldname, const char *newname,
 {
     EPNAME("Rename")
     static const mode_t pMode = S_IRWXU | S_IRWXG;
-    unsigned long long remotefs_Old, remotefs_New, remotefs, haslf;
+    unsigned long long remotefs_Old, remotefs_New, remotefs;
     unsigned long long old_popts, new_popts;
-    int i, retc2, retc = XrdOssOK;
+    int retc2, retc = XrdOssOK;
     struct stat statbuff;
     char  *slashPlus, sPChar;
-    char  local_path_Old[MAXPATHLEN+8], *lpo;
-    char  local_path_New[MAXPATHLEN+8], *lpn;
+    char  local_path_Old[MAXPATHLEN+8];
+    char  local_path_New[MAXPATHLEN+8];
     char remote_path_Old[MAXPATHLEN+1];
     char remote_path_New[MAXPATHLEN+1];
 
@@ -100,7 +100,6 @@ int XrdOssSys::Rename(const char *oldname, const char *newname,
        return OssEroute.Emsg("Rename",-XRDOSS_E8011,buff,(char *)newname);
       }
    remotefs = remotefs_Old | remotefs_New;
-   haslf    = (XRDEXP_MAKELF & (old_popts | new_popts));
 
 // Construct the filename that we will be dealing with.
 //
@@ -131,20 +130,6 @@ int XrdOssSys::Rename(const char *oldname, const char *newname,
                retc = RenameLink(local_path_Old, local_path_New);
                else if (rename(local_path_Old, local_path_New)) retc = -errno;
     DEBUG("lcl rc=" <<retc <<" op=" <<local_path_Old <<" np=" <<local_path_New);
-
-// For migratable space, rename all suffix variations of the base file
-//
-   if (haslf && runOld)
-      {if ((!retc || retc == -ENOENT))
-          {i = strlen(local_path_Old); lpo = &local_path_Old[i];
-           i = strlen(local_path_New); lpn = &local_path_New[i];
-           for (i = 0;  i < XrdOssPath::sfxMigL; i++)
-               {strcpy(lpo,XrdOssPath::Sfx[i]); strcpy(lpn,XrdOssPath::Sfx[i]);
-                if (rename(local_path_Old,local_path_New) && ENOENT != errno)
-                   DEBUG("sfx retc=" <<errno <<" op=" <<local_path_Old);
-               }
-          }
-      }
 
 // Now rename the data file in the remote system if the local rename "worked".
 // Do not do this if we really should not use the MSS.
@@ -184,8 +169,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 // and if so, add the space to the usage to account for stage-ins
 //
    if (oldlnk[lnklen-1] == XrdOssPath::xChar)
-      {rc = (runOld ? RenameLink2(lnklen,oldlnk,old_path,newlnk,new_path)
-                    : RenameLink3(oldlnk, old_path, new_path));
+      {rc = RenameLink3(oldlnk, old_path, new_path);
        if (rc) return rc;
        if (Solitary && UDir)
           {n = strlen(old_path);
@@ -234,48 +218,6 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
       OssEroute.Emsg("RenameLink", rc, "unlink", old_path);
 
 // All done
-//
-   return 0;
-}
-
-/******************************************************************************/
-/*                           R e n a m e L i n k 2                            */
-/******************************************************************************/
-
-int XrdOssSys::RenameLink2(int Llen, char *oLnk, char *old_path,
-                                     char *nLnk, char *new_path)
-{
-   int rc;
-
-// Setup to create new pfn file for this file
-//
-   strcpy(nLnk, oLnk);
-   strcpy(nLnk+Llen, ".pfn");
-   unlink(nLnk);
-
-// Create the new pfn symlink
-//
-   if (symlink(new_path, nLnk))
-      {rc = errno;
-       OssEroute.Emsg("RenameLink", rc, "create symlink", nLnk);
-       return -rc;
-      }
-
-// Create the new lfn symlink
-//
-   if (symlink(oLnk, new_path))
-      {rc = errno;
-       OssEroute.Emsg("RenameLink", rc, "symlink to", oLnk);
-       unlink(nLnk);
-       return -rc;
-      }
-
-// Now, unlink the old lfn path
-//
-   if (unlink(old_path))
-      OssEroute.Emsg("RenameLink", errno, "unlink", old_path);
-
-// All done (well, as well as it needs to be at this point)
 //
    return 0;
 }

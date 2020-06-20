@@ -29,7 +29,6 @@ add_executable(
   frm_admin
   XrdFrm/XrdFrmAdminAudit.cc
   XrdFrm/XrdFrmAdmin.cc            XrdFrm/XrdFrmAdmin.hh
-  XrdFrm/XrdFrmAdminConvert.cc
   XrdFrm/XrdFrmAdminFiles.cc
   XrdFrm/XrdFrmAdminFind.cc
   XrdFrm/XrdFrmAdminMain.cc

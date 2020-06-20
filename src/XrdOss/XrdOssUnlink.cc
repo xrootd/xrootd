@@ -105,7 +105,7 @@ int XrdOssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 int XrdOssSys::Unlink(const char *path, int Opts, XrdOucEnv *eP)
 {
     EPNAME("Unlink")
-    unsigned long long haslf, remotefs;
+    unsigned long long dummy, remotefs;
     int i, retc2, doAdjust = 0, retc = XrdOssOK;
     struct stat statbuff;
     char *fnp;
@@ -117,13 +117,11 @@ int XrdOssSys::Unlink(const char *path, int Opts, XrdOucEnv *eP)
    if (Opts & XRDOSS_isPFN)
       {strcpy(local_path, path),
        *remote_path = '\0';
-       haslf = Opts & XRDOSS_isMIG;
        remotefs = 0;
       } else {
-       remotefs = Check_RO(Unlink, haslf, path, "remove");
+       remotefs = Check_RO(Unlink, dummy, path, "remove");
        if ( (retc = GenLocalPath( path,  local_path))
        ||   (retc = GenRemotePath(path, remote_path)) ) return retc;
-       haslf &= XRDEXP_MAKELF;
       }
 
 // Check if this path is really a directory of a symbolic link elsewhere
@@ -139,22 +137,13 @@ int XrdOssSys::Unlink(const char *path, int Opts, XrdOucEnv *eP)
                         return retc;
                        } else doAdjust = 1;
 
-// Delete the local copy and every valid suffix variation
+// Delete the local copy and adjust usage
 //
    if (!retc)
       {if (unlink(local_path)) retc = -errno;
           else {i = strlen(local_path); fnp = &local_path[i];
                 if (doAdjust && statbuff.st_size)
                    XrdOssCache::Adjust(statbuff.st_dev, -statbuff.st_size);
-                if (haslf && runOld)
-                   for (i = 0; i < XrdOssPath::sfxMigL; i++)
-                      {strcpy(fnp, XrdOssPath::Sfx[i]);
-                       if (unlink(local_path))
-                          if (errno == ENOENT) continue;
-                             else retc2 = errno;
-                          else retc2 = 0;
-                       DEBUG("sfx retc=" <<retc2 <<' ' <<local_path);
-                      }
                }
        DEBUG("lcl rc=" <<retc <<" path=" <<local_path);
       }
@@ -204,8 +193,7 @@ int XrdOssSys::BreakLink(const char *local_path, struct stat &statbuff)
 //
    lP = lnkbuff+lnklen-1;
    if (*lP == XrdOssPath::xChar)
-      {if (runOld) {strcpy(lP+1, ".pfn"); unlink(lnkbuff);}
-       if (statbuff.st_size)
+      {if (statbuff.st_size)
           {XrdOssPath::Trim2Base(lP);
            XrdOssCache::Adjust(lnkbuff, -statbuff.st_size);
           }

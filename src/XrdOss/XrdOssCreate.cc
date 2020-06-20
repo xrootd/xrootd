@@ -260,7 +260,7 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 
 // Set the pfn as the extended attribute if we are in new mode
 //
-   if (!runOld && !(crInfo.pOpts & XRDEXP_NOXATTR)
+   if (!(crInfo.pOpts & XRDEXP_NOXATTR)
    &&  (rc = XrdSysFAttr::Xat->Set(XrdFrcXAttrPfn::Name(), crInfo.Path,
                                    strlen(crInfo.Path)+1, pbuff, datfd)))
       {close(datfd); return rc;}
@@ -275,16 +275,6 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
    if ((symlink(pbuff, crInfo.Path) && errno != EEXIST)
    ||  unlink(crInfo.Path) || symlink(pbuff, crInfo.Path))
       {rc = -errno; unlink(pbuff);}
-
-// Now create a symlink from the cache pfn to the actual path (xa runOld only)
-//
-   if (runOld && aInfo.cgPsfx)
-      {strcpy(aInfo.cgPsfx, ".pfn");
-       if ((symlink(crInfo.Path, pbuff) && errno != EEXIST)
-       ||  unlink(pbuff) || symlink(crInfo.Path, pbuff)) rc = -errno;
-       *(aInfo.cgPsfx) = '\0';
-       if (rc) {unlink(pbuff); unlink(crInfo.Path);}
-      }
 
 // All done
 //
@@ -322,9 +312,6 @@ int XrdOssSys::Alloc_Local(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
   
 int XrdOssSys::SetFattr(XrdOssCreateInfo &crInfo, int fd, time_t mtime)
 {
-   static const char *lkSuffix = ".lock";
-   static const int   lkSuffsz = 5;
-
    class  fdCloser
          {public:
           const char *Path;
@@ -337,34 +324,10 @@ int XrdOssSys::SetFattr(XrdOssCreateInfo &crInfo, int fd, time_t mtime)
    XrdOucXAttr<XrdFrcXAttrCpy> crX;
    int rc;
 
-// Skip all of this if we do not need to create a lock file
+// Check if we need or can record the create time
 //
-   if (!(XRDEXP_MAKELF & crInfo.pOpts)) return Act.Done(0);
-
-// If we are running in backward compatability mode, then we need to create
-// an old-style lock file.
-//
-   if (runOld)
-      {struct utimbuf times;
-       char lkBuff[MAXPATHLEN+lkSuffsz+1];
-       int  lkfd, n = strlen(crInfo.Path);
-       if (n+lkSuffsz >= (int)sizeof(lkBuff))
-          return Act.Done(OssEroute.Emsg("Create", -ENAMETOOLONG,
-                                         "generate lkfname for", crInfo.Path));
-       strcpy(lkBuff, crInfo.Path); strcpy(lkBuff+n, lkSuffix);
-       do {lkfd = open(lkBuff, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);}
-          while( lkfd < 0 && errno == EINTR);
-       if ( lkfd < 0)
-          return Act.Done(OssEroute.Emsg("Create", -errno, "create", lkBuff));
-       close(lkfd); times.actime = time(0); times.modtime = mtime;
-       if (utime(lkBuff, (const struct utimbuf *)&times))
-          return Act.Done(OssEroute.Emsg("Create",-errno,"set mtime for",lkBuff));
-       return Act.Done(0);
-      }
-
-// Check if we should really create any extended attribute
-//
-   if ((crInfo.pOpts & XRDEXP_NOXATTR)) return Act.Done(0);
+   if (!(XRDEXP_MIGPRG & crInfo.pOpts)
+   ||  (crInfo.pOpts & XRDEXP_NOXATTR)) return Act.Done(0);
 
 // Set copy time
 //

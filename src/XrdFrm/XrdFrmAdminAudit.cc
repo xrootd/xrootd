@@ -126,10 +126,8 @@ int XrdFrmAdmin::AuditNameNF(XrdFrmFileset *sP)
 
 int XrdFrmAdmin::AuditNameNL(XrdFrmFileset *sP)
 {
-   static const char *noCPT = (Config.runNew ? "No copy time for: "
-                                             : "Missing lock file: ");
-   static const char *mkCPT = (Config.runNew ? "Set copy time?"
-                                             : "Create lock file?");
+   static const char *noCPT = "No copy time for: ";
+   static const char *mkCPT = "Set copy time?";
    char Resp;
 
 // Indicate what is wrong
@@ -145,18 +143,11 @@ int XrdFrmAdmin::AuditNameNL(XrdFrmFileset *sP)
        if (Resp != 'y') return Resp != 'a';
       }
 
-// Set copy time or create a lock file
+// Set copy time
 //
-   if (Config.runNew)
-      {if (XrdFrcUtils::updtCpy(sP->basePath(),(Opt.MPType == 'p' ? 0 : -113)))
-          {numFix++;
-           Msg("Copy time set.");
-          }
-      } else {
-       if (mkFile(mkLF|isPFN, sP->basePath()))
-          {numFix++;
-           Msg("Lock file created.");
-          }
+   if (XrdFrcUtils::updtCpy(sP->basePath(),(Opt.MPType == 'p' ? 0 : -113)))
+      {numFix++;
+       Msg("Copy time set.");
       }
    return 1;
 }
@@ -190,7 +181,7 @@ int XrdFrmAdmin::AuditNames()
                    if (Act && Opt.MPType && !(sP->cpyInfo.Attr.cpyTime))
                       Act = AuditNameNL(sP);
                    if (Act && sP->baseFile()->Link && isXA(sP->baseFile()))
-                      Act = Config.runNew ? AuditNameXA(sP) : AuditNameXB(sP);
+                      Act = AuditNameXA(sP);
                   }
          delete sP;
          }
@@ -248,79 +239,6 @@ int XrdFrmAdmin::AuditNameXA(XrdFrmFileset *sP)
 
 // All done.
 //
-   return 1;
-}
-
-/******************************************************************************/
-/*                           A u d i t N a m e X B                            */
-/******************************************************************************/
-  
-int XrdFrmAdmin::AuditNameXB(XrdFrmFileset *sP)
-{
-   struct stat buf;
-   char Path[1032], lkbuff[1032];
-   int n;
-
-// Make sure there is a PFN file here
-//
-   strcpy(Path, sP->baseFile()->Link); strcat(Path, ".pfn");
-   if (lstat(Path,&buf))
-      {if (errno != ENOENT)
-          {Emsg(errno, "stat ", Path); return AuditNameXL(sP,-1);}
-       Msg("Missing pfn link to ", sP->basePath());
-       return AuditNameXL(sP,0);
-      }
-
-// Make sure the PFN file is a link
-//
-   if ((buf.st_mode & S_IFMT) != S_IFLNK)
-      {Msg("Invalid pfn file for ", sP->basePath());
-       return AuditNameXL(sP,1);
-      }
-
-// Make sure the link points to the right file
-//
-   if ((n = readlink(Path, lkbuff, sizeof(lkbuff)-1)) < 0)
-      {Emsg(errno, "read link from ", Path); return AuditNameXL(sP,-1);}
-   lkbuff[n] = '\0';
-   if (strcmp(sP->basePath(), lkbuff))
-      {Msg("Incorrect pfn link to ", sP->basePath());
-       return AuditNameXL(sP,1);
-      }
-
-// All is well
-//
-   return 1;
-}
-
-/******************************************************************************/
-/*                           A u d i t N a m e X L                            */
-/******************************************************************************/
-  
-int XrdFrmAdmin::AuditNameXL(XrdFrmFileset *sP, int dorm)
-{
-   char Resp, Path[1032];
-
-// Return if no fix is needed, otherwise check if we should ask before doing it
-//
-   numProb++;
-   if (!Opt.Fix || dorm < 0) return 1;
-   if (!Opt.Force)
-      {if (dorm)
-          Resp = XrdFrcUtils::Ask('n', "Recreate pfn symlink?");
-          else
-          Resp = XrdFrcUtils::Ask('y',   "Create pfn symlink?");
-       if (Resp != 'y') return Resp != 'a';
-      }
-
-// Create the pfn symlink
-//
-   strcpy(Path, sP->baseFile()->Link); strcat(Path, ".pfn");
-   if (dorm) unlink(Path);
-   if (symlink(sP->basePath(), Path))
-      {Emsg(errno, "create symlink ", Path); return 1;}
-   Msg("pfn symlink created.");
-   numFix++;
    return 1;
 }
 
@@ -661,70 +579,6 @@ int XrdFrmAdmin::AuditSpaceXA(XrdFrmFileset *sP)
 //
    numBLost += sP->baseFile()->Stat.st_size;
    return Resp != 'a';
-}
-
-/******************************************************************************/
-/*                          A u d i t S p a c e X B                           */
-/******************************************************************************/
-  
-int XrdFrmAdmin::AuditSpaceXB(const char *Space, const char *Path)
-{
-   XrdFrmFileset *sP;
-   XrdFrmFiles   *fP;
-   char tmpv[8], *buff;
-   int ec = 0, Act = 1;
-
-// Construct the right space path and get a files object
-//
-   buff = XrdOssPath::genPath(Path, Space, tmpv);
-   fP = new XrdFrmFiles(buff, XrdFrmFiles::Recursive | XrdFrmFiles::NoAutoDel);
-
-// Go and check out the files
-//
-   while(Act && (sP = fP->Get(ec,1)))
-        {     if (!(sP->baseFile())) Act = AuditNameNB(sP);
-         else if (!(sP-> pfnFile())) Act = AuditSpaceXANB(sP);
-         else {numFiles++; numBytes += sP->baseFile()->Stat.st_size;}
-         delete sP;
-        }
-
-// All done
-//
-   if (ec) finalRC = 4;
-   free(buff);
-   delete fP;
-   return Act;
-}
-
-/******************************************************************************/
-/*                        A u d i t S p a c e X A N B                         */
-/******************************************************************************/
-
-int XrdFrmAdmin::AuditSpaceXANB(XrdFrmFileset *sP)
-{
-   char Resp;
-
-// Update statistics which we may have to correct later
-//
-   numProb++; numFiles++; numBytes += sP->baseFile()->Stat.st_size;
-
-// Report what is orphaned
-//
-   Msg("Missing pfn file for data file ", sP->basePath());
-
-// Return if no fix is needed, otherwise check if we should ask before removal
-//
-   if (!Opt.Fix) return -1;
-   if (!Opt.Force)
-      {Resp = XrdFrcUtils::Ask('n', "Remove data file?");
-       if (Resp != 'y') return Resp != 'a';
-      }
-
-// Remove the file
-//
-   if (unlink(sP->basePath())) Emsg(errno,"remove data file ", sP->basePath());
-      else {numFix++; numFiles--; numBytes -= sP->baseFile()->Stat.st_size;}
-   return 1;
 }
   
 /******************************************************************************/
