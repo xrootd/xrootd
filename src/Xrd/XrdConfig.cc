@@ -469,18 +469,9 @@ int XrdConfig::Configure(int argc, char **argv)
       }
 
 // If the configuration file is relative to where we are, get the absolute
-// path as we may be changing the home path.
+// path as we may be changing the home path. This also starts capturing.
 //
-   if (ConfigFN && *ConfigFN != '/')
-      {char pwdBuff[4096];
-       if (!getcwd(pwdBuff, sizeof(pwdBuff)))
-          {Log.Emsg("Config", errno, "get current working directory!");
-           exit(17);
-          }
-       std::string cfn = pwdBuff; cfn += '/'; cfn += ConfigFN;
-       free(ConfigFN);
-       ConfigFN = strdup(cfn.c_str());
-      }
+   if (ConfigFN) setCFG(true);
 
 // The first thing we must do is to set the correct networking mode
 //
@@ -629,10 +620,9 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Process the configuration file, if one is present
 //
-   if (ConfigFN && *ConfigFN)
+   if (ConfigFN)
       {Log.Say("Config using configuration file ", ConfigFN);
        ProtInfo.ConfigFN = ConfigFN;
-       setCFG();
        NoGo = ConfigProc();
       }
    if (clPort >= 0) PortTCP = clPort;
@@ -705,6 +695,10 @@ int XrdConfig::Configure(int argc, char **argv)
 // Now initialize the protocols and other stuff
 //
    if (!NoGo) NoGo = Setup(dfltProt, libProt);
+
+// End config capture
+//
+   setCFG(false);
 
 // If we have a tcpmon plug-in try loading it now. We won't do that unless
 // tcp monitoring was enabled by the monitoring framework.
@@ -999,17 +993,6 @@ void XrdConfig::Manifest(const char *pidfn)
    if (write(envFD, envBuff, envLen) < 0)
       Log.Emsg("Config", errno, "write to envfile", manBuff);
    close(envFD);
-
-// Cleanup the config capture string
-//
-   XrdOucStream::Capture((XrdOucString *)0);
-   if (totalCF.length())
-      {char *temp = (char *)malloc(totalCF.length()+1);
-       strcpy(temp, totalCF.c_str());
-       totalCF.resize();
-       totalCF = temp;
-       free(temp);
-      }
 }
 
 /******************************************************************************/
@@ -1056,36 +1039,56 @@ bool XrdConfig::PidFile(const char *clpFN, bool optbg)
 /*                                s e t C F G                                 */
 /******************************************************************************/
   
-void XrdConfig::setCFG()
+void XrdConfig::setCFG(bool start)
 {
-   char cwdBuff[1024], *cfnP = cwdBuff;
-   int n;
 
-// If the config file is absolute, export it as is
+// If there is no config file there is nothing to do
 //
-   if (*ConfigFN == '/')
-      {XrdOucEnv::Export("XRDCONFIGFN", ConfigFN);
+   if (!ConfigFN || !(*ConfigFN))
+      {if (ConfigFN)
+          {free(ConfigFN);
+           ConfigFN = 0;
+          }
        return;
       }
 
-// Prefix current working directory to the config file
+// If ending, post process the config capture
 //
-   if (!getcwd(cwdBuff, sizeof(cwdBuff)-strlen(ConfigFN)-2)) cfnP = ConfigFN;
-      else {n = strlen(cwdBuff);
-            if (cwdBuff[n-1] != '/') cwdBuff[n++] = '/';
-            strcpy(cwdBuff+n, ConfigFN);
-           }
+   if (!start)
+      {XrdOucStream::Capture((XrdOucString *)0);
+       if (totalCF.length())
+          {char *temp = (char *)malloc(totalCF.length()+1);
+           strcpy(temp, totalCF.c_str());
+           totalCF.resize();
+           totalCF = temp;
+           free(temp);
+          }
+       return;
+      }
+
+// Prefix current working directory to the config file if not absolute
+//
+   if (*ConfigFN != '/')
+      {char cwdBuff[1024];
+       if (getcwd(cwdBuff,sizeof(cwdBuff)-strlen(ConfigFN)-2))
+          {int n = strlen(cwdBuff);
+           if (cwdBuff[n-1] != '/') cwdBuff[n++] = '/';
+           strcpy(cwdBuff+n, ConfigFN);
+           free(ConfigFN);
+           ConfigFN = strdup(cwdBuff);
+          }
+      }
 
 // Export result
 //
-   XrdOucEnv::Export("XRDCONFIGFN", cfnP);
+   XrdOucEnv::Export("XRDCONFIGFN", ConfigFN);
 
 // Setup capturing for the XrdOucStream that will be used by all others to
 // process config files.
 //
    XrdOucStream::Capture(&totalCF);
    totalCF.resize(1024*1024);
-   const char *cvec[] = { "*** ", myProg, " config from '", cfnP, "':", 0 };
+   const char *cvec[] = { "*** ", myProg, " config from '", ConfigFN, "':", 0 };
    XrdOucStream::Capture(cvec);
 }
 

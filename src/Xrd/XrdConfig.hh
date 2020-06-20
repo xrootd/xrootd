@@ -61,7 +61,7 @@ int   ConfigProc(void);
 int   getUG(char *parm, uid_t &theUid, gid_t &theGid);
 void  Manifest(const char *pidfn);
 bool  PidFile(const char *clpFN, bool optbg);
-void  setCFG();
+void  setCFG(bool start);
 int   setFDL();
 int   Setup(char *dfltp, char *libProt);
 int   SetupAPath();
