@@ -40,13 +40,19 @@
 
 namespace XrdCl
 {
+  Socket::Socket( int socket, SocketStatus status ):
+    pSocket(socket), pStatus( status ), pServerAddr( 0 ),
+    pProtocolFamily( AF_INET ),
+    pChannelID( 0 ),
+    pCorked( false )
+  {
+  };
+
   //------------------------------------------------------------------------
   // Desctuctor
   //------------------------------------------------------------------------
   Socket::~Socket()
   {
-    if( pTls ) delete pTls;
-
     Close();
   };
 
@@ -752,7 +758,7 @@ namespace XrdCl
   {
     try
     {
-      if( !pTls ) pTls = new Tls( this, socketHandler );
+      if( !pTls ) pTls.reset( new Tls( this, socketHandler ) );
       return pTls->Connect( thehost, &pServerAddr );
     }
     catch( std::exception& ex )
@@ -763,6 +769,15 @@ namespace XrdCl
     }
 
     return XRootDStatus();
+  }
+
+  //------------------------------------------------------------------------
+  // @return : true if socket is using TLS layer for encryption,
+  //           false otherwise
+  //------------------------------------------------------------------------
+  bool Socket::IsEncrypted()
+  {
+    return bool( pTls.get() );
   }
 
 }

@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <string>
 #include <sys/socket.h>
+#include <memory>
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdNet/XrdNetAddr.hh"
@@ -55,14 +56,7 @@ namespace XrdCl
       //! @param socket already connected socket if available, -1 otherwise
       //! @param status status of a socket if available
       //------------------------------------------------------------------------
-      Socket( int socket = -1, SocketStatus status = Disconnected ):
-        pSocket(socket), pStatus( status ), pServerAddr( 0 ),
-        pProtocolFamily( AF_INET ),
-        pChannelID( 0 ),
-        pCorked( false ),
-        pTls( 0 )
-      {
-      };
+      Socket( int socket = -1, SocketStatus status = Disconnected );
 
       //------------------------------------------------------------------------
       //! Desctuctor
@@ -281,10 +275,7 @@ namespace XrdCl
       // @return : true if socket is using TLS layer for encryption,
       //           false otherwise
       //------------------------------------------------------------------------
-      inline bool IsEncrypted()
-      {
-        return bool( pTls );
-      }
+      bool IsEncrypted();
 
     protected:
       //------------------------------------------------------------------------
@@ -302,17 +293,17 @@ namespace XrdCl
       XRootDStatus Poll( bool readyForReading, bool readyForWriting,
                          int32_t timeout );
 
-      int                  pSocket;
-      SocketStatus         pStatus;
-      XrdNetAddr           pServerAddr;
-      mutable std::string  pSockName;     // mutable because it's for caching
-      mutable std::string  pPeerName;
-      mutable std::string  pName;
-      int                  pProtocolFamily;
-      AnyObject           *pChannelID;
-      bool                 pCorked;
+      int                   pSocket;
+      SocketStatus          pStatus;
+      XrdNetAddr            pServerAddr;
+      mutable std::string   pSockName;     // mutable because it's for caching
+      mutable std::string   pPeerName;
+      mutable std::string   pName;
+      int                   pProtocolFamily;
+      AnyObject            *pChannelID;
+      bool                  pCorked;
 
-      Tls                 *pTls;
+      std::unique_ptr<Tls>  pTls;
   };
 }
 
