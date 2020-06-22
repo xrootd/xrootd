@@ -907,6 +907,7 @@ namespace XrdCl
     if( !( st = pSocket->TlsHandShake( this, pUrl.GetHostName() ) ).IsOK() )
     {
       OnFaultWhileHandshaking( st );
+      pTlsHandShakeOngoing = false;
       return st;
     }
 
