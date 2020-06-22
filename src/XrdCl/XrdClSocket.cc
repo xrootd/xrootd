@@ -217,6 +217,11 @@ namespace XrdCl
     pServerAddr = addr;
 
     //--------------------------------------------------------------------------
+    // Make sure TLS is off when the physical connection is newly established
+    //--------------------------------------------------------------------------
+    pTls.reset();
+
+    //--------------------------------------------------------------------------
     // Connect
     //--------------------------------------------------------------------------
     int status = XrdNetConnect::Connect( pSocket, pServerAddr.SockAddr(),
