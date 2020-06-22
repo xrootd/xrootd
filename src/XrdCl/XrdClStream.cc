@@ -689,11 +689,9 @@ namespace XrdCl
                "seconds.", pStreamName.c_str(), elapsed, pConnectionWindow );
 
     //------------------------------------------------------------------------
-    // If we have some IP addresses left we try them,
-    // unless it is a TLS error (in this case the error is not due to the
-    // physical address but for example due to hostname verification)
+    // If we have some IP addresses left we try them
     //------------------------------------------------------------------------
-    if( !pAddresses.empty() && status.code != errTlsError )
+    if( !pAddresses.empty() )
     {
       XRootDStatus st;
       do
