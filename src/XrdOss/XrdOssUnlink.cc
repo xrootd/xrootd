@@ -108,7 +108,7 @@ int XrdOssSys::Unlink(const char *path, int Opts, XrdOucEnv *eP)
     unsigned long long dummy, remotefs;
     int i, retc2, doAdjust = 0, retc = XrdOssOK;
     struct stat statbuff;
-    char *fnp;
+    //char *fnp;
     char  local_path[MAXPATHLEN+1+8];
     char remote_path[MAXPATHLEN+1];
 
@@ -141,7 +141,7 @@ int XrdOssSys::Unlink(const char *path, int Opts, XrdOucEnv *eP)
 //
    if (!retc)
       {if (unlink(local_path)) retc = -errno;
-          else {i = strlen(local_path); fnp = &local_path[i];
+          else {i = strlen(local_path); //fnp = &local_path[i];
                 if (doAdjust && statbuff.st_size)
                    XrdOssCache::Adjust(statbuff.st_dev, -statbuff.st_size);
                }
