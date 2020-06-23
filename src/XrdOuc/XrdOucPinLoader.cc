@@ -230,11 +230,16 @@ bool XrdOucPinLoader::LoadLib(int mcnt)
    if (eDest) eDest->Say("Plugin ", dName, " ", theLib,
                          " not found; falling back to using ", altLib);
 
-// Readjust library pointers
+// if we have an alternative, readjust library pointers
 //
-   free(theLib);
-   theLib = altLib;
-   altLib = 0;
+   if (altLib)
+      {free(theLib);
+       theLib = altLib;
+       altLib = 0;
+      } else {
+       badLib = true;
+       return false;
+      }
 
 // Try once more
 //
