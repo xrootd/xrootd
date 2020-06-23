@@ -82,6 +82,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Utils]** Don't hide true error when loading a plugin w/o an alternate.
   * **[SSI]** Use exchange buffering to avoid using memcpy for improved peformance.
   * **[Server]** Implement exchange buffering for increased performance.
   * **[gsi]** Make -trustdns default false (i.e. do not use DNS).
