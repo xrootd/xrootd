@@ -416,7 +416,7 @@ void XrdXrootdMonFile::Flush() // The bfMutex must be locked
 
 // Write this out
 //
-   XrdXrootdMonitor::Send(XROOTD_MON_FSTA, repBuff, bfSize);
+   XrdXrootdMonitor::Send(XROOTD_MON_FSTA, repBuff, bfSize, NULL);
    repTOD->tBeg = repTOD->tEnd;
    xfrRecs = totRecs = 0;
 }

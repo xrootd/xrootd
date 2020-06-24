@@ -118,7 +118,7 @@ static void              Defaults(int msz,     int rsz,     int wsz,
 
 static int               Flushing() {return autoFlush;}
 
-static void              Ident() {Send(-1, idRec, idLen);}
+static void              Ident() {Send(-1, idRec, idLen, NULL);}
 
 static int               Init(XrdScheduler *sp,    XrdSysError *errp,
                               const char   *iHost, const char  *iProg,
@@ -134,7 +134,15 @@ static int               Redirect() {return monREDR;}
 static int               Redirect(kXR_unt32  mID, const char *hName, int Port,
                                   const char opC, const char *Path);
 
-static int               Send(int mmode, void *buff, int size);
+/*
+ * Send data to the monitoring nodes
+ * Args:
+ *     mmode:
+ *     buf: Message buffer
+ *     size: Size of the buffer
+ *     header: Pointer to the header within the buff.  If NULL, do not set a header.
+ */
+static int               Send(int mmode, void *buff, int size, XrdXrootdMonHeader *header = NULL);
 
 static time_t            Tick();
 
@@ -223,8 +231,13 @@ inline void              Add_io(kXR_unt32 duid, kXR_int32 blen, kXR_int64 offs)
 static XrdXrootdMonitor *Alloc(int force=0);
        unsigned char     do_Shift(long long xTot, unsigned int &xVal);
        void              Dup(XrdXrootdMonTrace *mrec);
+
+/*
+ * Fill the message header.  If the seq_num < 0, also insert 0.
+ * Otherwise, seq_num is the index of the sender.  Currently limited to 0 or 1
+ */
 static void              fillHeader(XrdXrootdMonHeader *hdr,
-                                    const char id, int size);
+                                    const char id, int size, int seq_num = 0);
 static MonRdrBuff       *Fetch();
        void              Flush();
 static void              Flush(MonRdrBuff *mP);

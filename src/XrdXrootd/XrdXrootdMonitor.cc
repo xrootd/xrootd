@@ -116,7 +116,7 @@ XrdSysError    *eDest     = 0;
 char           *monHost   = 0;
 long long       mySID     = 0;
 int32_t         startTime = InitStartTime();
-int             seq       = 0;
+int             seq[2]    = {0, 0};
 XrdSysMutex     seqMutex;
 }
 
@@ -623,7 +623,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
    idLen = strlen(iBuff) + sizeof(XrdXrootdMonHeader) + sizeof(kXR_int32);
    idRec = (char *)malloc(idLen+1);
    mP = (XrdXrootdMonMap *)idRec;
-   fillHeader(&(mP->hdr), XROOTD_MON_MAPIDNT, idLen);
+   fillHeader(&(mP->hdr), XROOTD_MON_MAPIDNT, idLen, -1);
    mP->hdr.pseq = 0;
    mP->dictid   = 0;
    strcpy(mP->info, iBuff);
@@ -709,14 +709,13 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
 // Fill in the header
 //
    size = sizeof(XrdXrootdMonHeader)+sizeof(kXR_int32)+size;
-   fillHeader(&map.hdr, code, size);
 
 // Route the packet to all destinations that need them
 //
         if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
    else if (code == XROOTD_MON_MAPUSER) montype = XROOTD_MON_USER;
    else                                 montype = XROOTD_MON_INFO;
-   Send(montype, (void *)&map, size);
+   Send(montype, (void *)&map, size, &map.hdr);
 
 // Return the dictionary id
 //
@@ -907,14 +906,21 @@ unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
 /******************************************************************************/
   
 void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
-                                  const char          id, int size)
+                                  const char          id, int size, int seq_id)
 {  int myseq;
 
 // Generate a new sequence number
 //
-   seqMutex.Lock();
-   myseq = 0x00ff & (seq++);
-   seqMutex.UnLock();
+   if (seq_id >= 0) 
+   {
+      seqMutex.Lock();
+      myseq = 0x00ff & (seq[seq_id]++);
+      seqMutex.UnLock();
+   } 
+   else 
+   {
+      myseq = 0;
+   }
 
 // Fill in the header
 //
@@ -945,7 +951,6 @@ void XrdXrootdMonitor::Flush()
 // Fill in the header and in the process we will have the current time
 //
    size = (nextEnt+1)*sizeof(XrdXrootdMonTrace)+sizeof(XrdXrootdMonHeader);
-   fillHeader(&monBuff->hdr, XROOTD_MON_MAPTRCE, size);
 
 // Punt on the right ending time. We are trying to keep same-sized windows
 // This was corrected by Matevz Tadel, as before we were using real time which
@@ -957,8 +962,8 @@ void XrdXrootdMonitor::Flush()
 
 // Send off the buffer and reinitialize it
 //
-   if (this != altMon) Send(XROOTD_MON_IO, (void *)monBuff, size);
-      else {Send(XROOTD_MON_FILE, (void *)monBuff, size);
+   if (this != altMon) Send(XROOTD_MON_IO, (void *)monBuff, size, &monBuff->hdr);
+      else {Send(XROOTD_MON_FILE, (void *)monBuff, size, &monBuff->hdr);
             FlushTime = localWindow + autoFlush;
            }
    setTMark(monBuff, 0, localWindow);
@@ -985,11 +990,10 @@ void XrdXrootdMonitor::Flush(XrdXrootdMonitor::MonRdrBuff *mP)
 // Fill in the header and in the process we will have the current time
 //
    size = (mP->nextEnt+1)*sizeof(XrdXrootdMonRedir)+sizeof(XrdXrootdMonHeader)+8;
-   fillHeader(&(mP->Buff->hdr), XROOTD_MON_MAPREDR, size);
 
 // Send off the buffer and reinitialize it
 //
-   Send(XROOTD_MON_REDR, (void *)(mP->Buff), size);
+   Send(XROOTD_MON_REDR, (void *)(mP->Buff), size, &(mP->Buff->hdr));
    mP->nextEnt = 0;
 }
 
@@ -1052,7 +1056,7 @@ void XrdXrootdMonitor::Mark()
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-int XrdXrootdMonitor::Send(int monMode, void *buff, int blen)
+int XrdXrootdMonitor::Send(int monMode, void *buff, int blen, XrdXrootdMonHeader *header)
 {
 #ifndef NODEBUG
     const char *TraceID = "Monitor";
@@ -1062,14 +1066,23 @@ int XrdXrootdMonitor::Send(int monMode, void *buff, int blen)
 
     sendMutex.Lock();
     if (monMode & monMode1 && InetDest1)
-       {rc1  = InetDest1->Send((char *)buff, blen);
-        TRACE(DEBUG,blen <<" bytes sent to " <<Dest1 <<" rc=" <<rc1);
-       }
+    {
+         // Fill in the header
+         if (header != NULL) {
+            fillHeader(header, monMode, blen, 0);
+         }
+         rc1  = InetDest1->Send((char *)buff, blen);
+         TRACE(DEBUG,blen <<" bytes sent to " <<Dest1 <<" rc=" <<rc1);
+    }
        else rc1 = 0;
     if (monMode & monMode2 && InetDest2)
-       {rc2  = InetDest2->Send((char *)buff, blen);
-        TRACE(DEBUG,blen <<" bytes sent to " <<Dest2 <<" rc=" <<rc2);
-       }
+    {
+         if (header != NULL) {
+            fillHeader(header, monMode, blen, 1);
+         }
+         rc2  = InetDest2->Send((char *)buff, blen);
+         TRACE(DEBUG,blen <<" bytes sent to " <<Dest2 <<" rc=" <<rc2);
+    }
        else rc2 = 0;
     sendMutex.UnLock();
 
