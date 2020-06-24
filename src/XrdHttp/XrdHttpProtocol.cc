@@ -285,101 +285,100 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
 
 int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   TRACEI(DEBUG, " Extracting auth info.");
+  char bufname[256];
+  int mape;
+  XrdCryptoX509Chain chain;
 
-  // No external plugin, hence we fill our XrdSec with what we can do here
-  STACK_OF(X509) *peer_chain = SSL_get_peer_cert_chain(ssl);
-  TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_chain);
-  ERR_print_errors(sslbio_err);
-
-  if (peer_chain) {
-    char bufname[256];
-
-    // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
-    if (SecEntity.moninfo) free(SecEntity.moninfo);
-
-    int mape;
-
-    XrdCryptoX509Chain chain;
-    int count = XrdCryptosslX509ParseStack(peer_chain, &chain);
-    if (!count) {
-           TRACEI(DEBUG, " No certificates found in peer chain.");
-    }
-    const char * dn = chain.EECname();
-    SecEntity.moninfo = strdup(dn);
-
-    TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
-    if (servGMap) {
-      
-      mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
-      if ( !mape && SecEntity.moninfo[0] ) {
-        TRACEI(DEBUG, " Mapping name: '" << SecEntity.moninfo << "' --> " << bufname);
-        if (SecEntity.name) free(SecEntity.name);
-        SecEntity.name = strdup(bufname);
-      }
-      else {
-        TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
-      }
-      
-    }
-
-    if (!SecEntity.name) {
-      // Here we have the user DN, and try to extract an useful user name from it
-      if (SecEntity.name) free(SecEntity.name);
-      SecEntity.name = 0;
-      // To set the name we pick the first CN of the certificate subject
-      // and hope that it makes some sense, it usually does
-      char *lnpos = strstr(SecEntity.moninfo, "/CN=");
-      char bufname2[9];
-      
-      
-      if (lnpos) {
-        lnpos += 4;
-        char *lnpos2 = index(lnpos, '/');
-        if (lnpos2) {
-          int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
-          strncpy(bufname, lnpos, l);
-          bufname[l] = '\0';
-          
-          // Here we have the string in the buffer. Take the last 8 non-space characters
-          size_t j = 8;
-          strcpy(bufname2, "unknown-\0"); // note it's 9 chars
-          for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
-            if (isalnum(bufname[i])) {
-              j--;
-              bufname2[j] = bufname[i];
-              if (j == 0) break;
-            }
-            
-          }
-          
-          SecEntity.name = strdup(bufname);
-          TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
-          lp->setID(bufname2+j, 0);
-        }
-      }
-    }
-    
-    
-    // If we could not find anything good, take the last 8 non-space characters of the main subject
-    if (!SecEntity.name) {
-      size_t j = 8;
-      SecEntity.name = strdup("unknown-\0"); // note it's 9 chars
-      for (int i = (int)strlen(SecEntity.moninfo)-1; i >= 0; i--) {
-        if (isalnum(SecEntity.moninfo[i])) {
-          j--;
-          SecEntity.name[j] = SecEntity.moninfo[i];
-          if (j == 0) break;
-         
-        }
-      }
-    }
-   
-    
-    
+  if (!myCryptoFactory->X509ParseStack()((void*) ssl, &chain)) {
+    TRACEI(DEBUG, "No certificates found in peer chain.");
+    return 0;
   }
-  else return 0; // Don't fail if no cert
+
+  const char * dn = chain.EECname();
+
+  if (!dn) {
+    X509* peer_cert = SSL_get_peer_certificate(ssl);
+
+    if (peer_cert) {
+      TRACE(DEBUG, "SSL_get_peer_certificate returned: " << peer_cert);
+      dn = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
+    } else {
+      // There is no certificate info
+      return 0;
+    }
+  }
+
+  if (SecEntity.moninfo) {
+    free(SecEntity.moninfo);
+  }
+
+  SecEntity.moninfo = strdup(dn);
+  TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
+
+  if (servGMap) {
+    mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
+    if ( !mape && SecEntity.moninfo[0] ) {
+      TRACEI(DEBUG, " Mapping name: '" << SecEntity.moninfo << "' --> " << bufname);
+      if (SecEntity.name) free(SecEntity.name);
+      SecEntity.name = strdup(bufname);
+    }
+    else {
+      TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
+    }
+
+  }
+
+  if (!SecEntity.name) {
+    // Here we have the user DN, and try to extract an useful user name from it
+    if (SecEntity.name) free(SecEntity.name);
+    SecEntity.name = 0;
+    // To set the name we pick the first CN of the certificate subject
+    // and hope that it makes some sense, it usually does
+    char *lnpos = strstr(SecEntity.moninfo, "/CN=");
+    char bufname2[9];
 
 
+    if (lnpos) {
+      lnpos += 4;
+      char *lnpos2 = index(lnpos, '/');
+      if (lnpos2) {
+        int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
+        strncpy(bufname, lnpos, l);
+        bufname[l] = '\0';
+
+        // Here we have the string in the buffer. Take the last 8 non-space characters
+        size_t j = 8;
+        strcpy(bufname2, "unknown-\0"); // note it's 9 chars
+        for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
+          if (isalnum(bufname[i])) {
+            j--;
+            bufname2[j] = bufname[i];
+            if (j == 0) break;
+          }
+
+        }
+
+        SecEntity.name = strdup(bufname);
+        TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
+        lp->setID(bufname2+j, 0);
+      }
+    }
+  }
+
+
+  // If we could not find anything good, take the last 8 non-space characters of the main subject
+  if (!SecEntity.name) {
+    size_t j = 8;
+    SecEntity.name = strdup("unknown-\0"); // note it's 9 chars
+    for (int i = (int)strlen(SecEntity.moninfo)-1; i >= 0; i--) {
+      if (isalnum(SecEntity.moninfo[i])) {
+        j--;
+        SecEntity.name[j] = SecEntity.moninfo[i];
+        if (j == 0) break;
+
+      }
+    }
+  }
 
   // Invoke our instance of the Security exctractor plugin
   // This will fill the XrdSec thing with VOMS info, if VOMS is
@@ -392,16 +391,16 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     char *savestr = 0;
     if (servGMap && SecEntity.name)
       savestr = strdup(SecEntity.name);
-      
+
     int r = secxtractor->GetSecData(lp, SecEntity, ssl);
-    
+
     if (servGMap && savestr) {
       if (SecEntity.name)
         free(SecEntity.name);
       SecEntity.name = savestr;
     }
-      
-      
+
+
     if (r)
       TRACEI(ALL, " Certificate data extraction failed: " << SecEntity.moninfo << " Failed. err: " << r);
     return r;

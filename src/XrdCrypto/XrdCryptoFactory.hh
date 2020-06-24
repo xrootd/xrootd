@@ -79,6 +79,11 @@ typedef int (*XrdCryptoX509ChainToFile_t)(XrdCryptoX509Chain *, const char *);
 // certificates from file parsing
 typedef int (*XrdCryptoX509ParseFile_t)(const char *fname,
                                         XrdCryptoX509Chain *);
+
+// certificates from STACK_OF(X509*)
+typedef int (*XrdCryptoX509ParseStack_t)(void* ssl_conn,
+                                         XrdCryptoX509Chain *c);
+
 // certificates from bucket parsing
 typedef int (*XrdCryptoX509ParseBucket_t)(XrdSutBucket *,
                                           XrdCryptoX509Chain *);
@@ -173,6 +178,7 @@ public:
    virtual XrdCryptoX509VerifyCert_t X509VerifyCert();
    virtual XrdCryptoX509VerifyChain_t X509VerifyChain();
    virtual XrdCryptoX509ParseFile_t X509ParseFile();
+   virtual XrdCryptoX509ParseStack_t X509ParseStack();
    virtual XrdCryptoX509ParseBucket_t X509ParseBucket();
    virtual XrdCryptoX509ExportChain_t X509ExportChain();
    virtual XrdCryptoX509ChainToFile_t X509ChainToFile();

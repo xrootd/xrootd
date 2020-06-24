@@ -43,6 +43,7 @@
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 #include <openssl/pem.h>
+#include <openssl/ssl.h>
 
 // Error code from verification set by verify callback function
 static int gErrVerifyChain = 0;
@@ -377,9 +378,15 @@ int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *ch, const char *fn)
 }
 
 //____________________________________________________________________________
-int XrdCryptosslX509ParseStack(STACK_OF(X509*) st_x509, XrdCryptoX509Chain *chain)
+int XrdCryptosslX509ParseStack(void* ssl_conn, XrdCryptoX509Chain *chain)
 {
    EPNAME("X509ParseStack");
+   SSL* ssl = (SSL*) ssl_conn;
+   STACK_OF(X509) *st_x509 = SSL_get_peer_cert_chain(ssl);
+
+   if (!st_x509) {
+     return 0;
+   }
 
    int nci = 0;
    // Make sure we got a chain where to add the certificates

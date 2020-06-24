@@ -61,7 +61,7 @@ int XrdCryptosslX509ParseFile(const char *fname, XrdCryptoX509Chain *c);
 // certificates from bucket parsing
 int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *c);
 // certificates from STACK_OF(X509*)
-int XrdCryptosslX509ParseStack(STACK_OF(X509*) st_x509, XrdCryptoX509Chain *c);
+int XrdCryptosslX509ParseStack(void* ssl_conn, XrdCryptoX509Chain *c);
 //
 // Function to convert from ASN1 time format into UTC since Epoch (Jan 1, 1970) 
 time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1);
