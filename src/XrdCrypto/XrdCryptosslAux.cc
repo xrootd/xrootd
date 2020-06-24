@@ -377,6 +377,34 @@ int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *ch, const char *fn)
 }
 
 //____________________________________________________________________________
+int XrdCryptosslX509ParseStack(STACK_OF(X509*) st_x509, XrdCryptoX509Chain *chain)
+{
+   EPNAME("X509ParseStack");
+
+   int nci = 0;
+   // Make sure we got a chain where to add the certificates
+   if (!chain) {
+      DEBUG("chain undefined: can do nothing");
+      return nci;
+   }
+
+   for (int i=0; i < sk_X509_num(st_x509); i++) {
+      X509 *cert = sk_X509_value(st_x509, i);
+      XrdCryptoX509 *c = new XrdCryptosslX509(cert);
+      if (c) {
+         chain->PushBack(c);
+      } else {
+         DEBUG("could not create certificate: memory exhausted?");
+         chain->Reorder();
+         return nci;
+      }
+      nci ++;
+   }
+   chain->Reorder();
+   return nci;
+}
+
+//____________________________________________________________________________
 int XrdCryptosslX509ParseFile(const char *fname,
                               XrdCryptoX509Chain *chain)
 {

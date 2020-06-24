@@ -32,6 +32,8 @@
 #include "XrdOuc/XrdOucGMap.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
+#include "XrdCrypto/XrdCryptosslAux.hh"
 
 #include "XrdHttpTrace.hh"
 #include "XrdHttpProtocol.hh"
@@ -284,30 +286,29 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
 int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   TRACEI(DEBUG, " Extracting auth info.");
 
-  X509 *peer_cert;
-
   // No external plugin, hence we fill our XrdSec with what we can do here
-  peer_cert = SSL_get_peer_certificate(ssl);
-  TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
+  STACK_OF(X509) *peer_chain = SSL_get_peer_cert_chain(ssl);
+  TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_chain);
   ERR_print_errors(sslbio_err);
 
-  if (peer_cert) {
+  if (peer_chain) {
     char bufname[256];
-    
+
     // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
     if (SecEntity.moninfo) free(SecEntity.moninfo);
-    
-    // The original DN is not so univoque. In the case of a proxy this can be either
-    // the issuer name or the subject name
-    // Here we try to use the one that is known to the user mapping
-    
-    
-    
+
+    int mape;
+
+    XrdCryptoX509Chain chain;
+    int count = XrdCryptosslX509ParseStack(peer_chain, &chain);
+    if (!count) {
+           TRACEI(DEBUG, " No certificates found in peer chain.");
+    }
+    const char * dn = chain.EECname();
+    SecEntity.moninfo = strdup(dn);
+
+    TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
     if (servGMap) {
-      int mape;
-      
-      SecEntity.moninfo = X509_NAME_oneline(X509_get_issuer_name(peer_cert), NULL, 0);
-      TRACEI(DEBUG, " Issuer name is : '" << SecEntity.moninfo << "'");
       
       mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
       if ( !mape && SecEntity.moninfo[0] ) {
@@ -316,31 +317,11 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
         SecEntity.name = strdup(bufname);
       }
       else {
-        TRACEI(ALL, " Mapping name: '" << SecEntity.moninfo << "' Failed. err: " << mape);
-        
-        // Mapping the issuer name failed, let's try with the subject name
-        if (SecEntity.moninfo) free(SecEntity.moninfo);
-        SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
-        TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
-        
-        mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
-        if ( !mape ) {
-          TRACEI(DEBUG, " Mapping name: " << SecEntity.moninfo << " --> " << bufname);
-          if (SecEntity.name) free(SecEntity.name);
-          SecEntity.name = strdup(bufname);
-        }
-        else {
-          TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
-        }
+        TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
       }
       
     }
-    else {
-      
-      SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
-      TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
-    }
-    
+
     if (!SecEntity.name) {
       // Here we have the user DN, and try to extract an useful user name from it
       if (SecEntity.name) free(SecEntity.name);
@@ -397,8 +378,6 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     
   }
   else return 0; // Don't fail if no cert
-
-  if (peer_cert) X509_free(peer_cert);
 
 
 
