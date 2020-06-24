@@ -233,8 +233,8 @@ static XrdXrootdMonitor *Alloc(int force=0);
        void              Dup(XrdXrootdMonTrace *mrec);
 
 /*
- * Fill the message header.  If the seq_num < 0, also insert 0.
- * Otherwise, seq_num is the index of the sender.  Currently limited to 0 or 1
+ * Fill the message header.  If the seq_idx < 0, also insert 0.
+ * Otherwise, seq_idx is the index of the sender.  Currently limited to 0 or 1
  */
 static void              fillHeader(XrdXrootdMonHeader *hdr,
                                     const char id, int size, int seq_idx = 0);
