@@ -71,6 +71,7 @@ class XrdHttpSecXtractor;
 class XrdHttpExtHandler;
 struct XrdVersionInfo;
 class XrdOucGMap;
+class XrdCryptoFactory;
 
 class XrdHttpProtocol : public XrdProtocol {
   
@@ -151,9 +152,16 @@ private:
   /// Reset values, counters, in order to reutilize an object of this class
   void Reset();
 
+  /// Handle authentication of the client
+  /// @return 0 if successful, otherwise error
+  int HandleAuthentication(XrdLink* lp);
+
   /// After the SSL handshake, retrieve the VOMS info and the various stuff
   /// that is needed for autorization
   int GetVOMSData(XrdLink *lp);
+
+  // Handle gridmap file mapping if present
+  void HandleGridMap(XrdLink* lp);
 
   /// Get up to blen bytes from the connection. Put them into mybuff.
   /// This primitive, for the way it is used, is not supposed to block
@@ -271,7 +279,7 @@ private:
   /// Flag to tell if the https handshake has finished, in the case of an https
   /// connection being established
   bool ssldone;
-
+  static XrdCryptoFactory *myCryptoFactory;
 
 protected:
 
