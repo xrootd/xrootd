@@ -82,6 +82,7 @@ Prerelease Notes
   * **[Server]** Use correct mechanism to determine DNS registration.
 
 + **Miscellaneous**
+  * **[Acc]** Dynamically attach a sliced SecEntity as one of its object attributes.
   * **[Utils]** Don't hide true error when loading a plugin w/o an alternate.
   * **[SSI]** Use exchange buffering to avoid using memcpy for improved peformance.
   * **[Server]** Implement exchange buffering for increased performance.
