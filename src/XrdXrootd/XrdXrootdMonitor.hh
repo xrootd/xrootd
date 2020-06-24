@@ -237,7 +237,7 @@ static XrdXrootdMonitor *Alloc(int force=0);
  * Otherwise, seq_num is the index of the sender.  Currently limited to 0 or 1
  */
 static void              fillHeader(XrdXrootdMonHeader *hdr,
-                                    const char id, int size, int seq_num = 0);
+                                    const char id, int size, int seq_idx = 0);
 static MonRdrBuff       *Fetch();
        void              Flush();
 static void              Flush(MonRdrBuff *mP);

@@ -906,15 +906,15 @@ unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
 /******************************************************************************/
   
 void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
-                                  const char          id, int size, int seq_id)
+                                  const char          id, int size, int seq_idx)
 {  int myseq;
 
 // Generate a new sequence number
 //
-   if (seq_id >= 0) 
+   if (seq_idx >= 0)
    {
       seqMutex.Lock();
-      myseq = 0x00ff & (seq[seq_id]++);
+      myseq = 0x00ff & (seq[seq_idx]++);
       seqMutex.UnLock();
    } 
    else 
