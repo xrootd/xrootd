@@ -751,6 +751,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         int result = CurrentReq.parseFirstLine((char *)tmpline.c_str(), rc);
         if (result < 0) {
           TRACE(DEBUG, " Parsing of first line failed with " << result);
+          return -1;
         }
       }
       else
