@@ -32,6 +32,8 @@
 #include <stdlib.h>
 #include <vector>
 
+#include "XrdSec/XrdSecAttr.hh"
+
 /******************************************************************************/
 /*                      X r d A c c E n t i t y I n f o                       */
 /******************************************************************************/
@@ -59,12 +61,12 @@ class XrdOucTokenizer;
 class XrdSecEntity;
 class XrdSysError;
   
-class XrdAccEntity
+class XrdAccEntity : public XrdSecAttr
 {
 public:
 
 static
-XrdAccEntity *GetEntity(const XrdSecEntity *secP);
+XrdAccEntity *GetEntity(const XrdSecEntity *secP, bool &isNew);
 
 bool          Next(int &seq, XrdAccEntityInfo &info)
                   {if (int(attrVec.size()) <= seq) return false;
@@ -75,7 +77,7 @@ bool          Next(int &seq, XrdAccEntityInfo &info)
                    return true;
                   }
 
-void          PutEntity();
+void          PutEntity(const XrdSecEntity *secP);
 
 static
 void          setError(XrdSysError *errP);
@@ -106,7 +108,7 @@ std::vector<EntityAttr> attrVec;
 char          *vorgInfo;
 char          *roleInfo;
 char          *grpsInfo;
-unsigned int   ueid;
+static int     accSig;   // Attribute Object Signture
 };
   
 /******************************************************************************/
@@ -117,13 +119,17 @@ class XrdAccEntityInit
 {
 public:
 
-      XrdAccEntityInit(const XrdSecEntity *secP, XrdAccEntity *&aeR)
-                      {aeR = aeP = XrdAccEntity::GetEntity(secP);}
+      XrdAccEntityInit(const XrdSecEntity *secP, XrdAccEntity *&aeR) : seP(secP)
+                      {bool isNew;
+                       aeR = XrdAccEntity::GetEntity(secP, isNew);
+                       aeP = (isNew ? aeR : 0);
+                      }
 
-     ~XrdAccEntityInit() {if (aeP) aeP->PutEntity();}
+     ~XrdAccEntityInit() {if (aeP) aeP->PutEntity(seP);}
 
 private:
 
-XrdAccEntity *aeP;
+const XrdSecEntity *seP;
+XrdAccEntity       *aeP;
 };
 #endif

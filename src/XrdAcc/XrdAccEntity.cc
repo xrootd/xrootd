@@ -34,23 +34,16 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
-/*                    X r d A c c E n t i t y   C a c h e                     */
+/*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
-// This is a small cache of recently generated entities. It is a hit or miss
-// affair but will get better in release 5 when we can tie this object to
-// the secentity object and have it deleted automatically.
-//
+int XrdAccEntity::accSig = 0;
+  
 namespace
 {
-XrdSysError     *eDest = 0;
-XrdSysMutex      cacheMutex;
-
-static const int cacheSize = 256;
-XrdAccEntity    *cacheVec[cacheSize] = {0};
+XrdSysError      *eDest = 0;
 }
   
 /******************************************************************************/
@@ -58,6 +51,7 @@ XrdAccEntity    *cacheVec[cacheSize] = {0};
 /******************************************************************************/
   
 XrdAccEntity::XrdAccEntity(const XrdSecEntity *secP, bool &aOK)
+             : XrdSecAttr(&accSig)
 {
    EntityAttr attrInfo;
    int have, want = 0;
@@ -65,7 +59,6 @@ XrdAccEntity::XrdAccEntity(const XrdSecEntity *secP, bool &aOK)
 // Assume all is going to be well and set our unique id.
 //
    aOK = true;
-   ueid = secP->ueid;
 
 // Copy out the various attributes we want to tokenize
 //
@@ -127,29 +120,25 @@ XrdAccEntity::XrdAccEntity(const XrdSecEntity *secP, bool &aOK)
 /*                             G e t E n t i t y                              */
 /******************************************************************************/
 
-XrdAccEntity *XrdAccEntity::GetEntity(const XrdSecEntity *secP)
+XrdAccEntity *XrdAccEntity::GetEntity(const XrdSecEntity *secP, bool &isNew)
 {
    XrdAccEntity *aeP;
+   XrdSecAttr   *seP;
    bool aOK;
 
-// New versions of xrootd assign a unique ID to every secentity structure.
-// If assigned then we can see if we cached this information and reuse it.
-// Otherwise, we must generate it anew.
+// If we already compiled the identity informaion, reuse it.
 //
-   if (secP->ueid)
-      {int entNum = secP->ueid % cacheSize;
-       cacheMutex.Lock();
-       if ((aeP = cacheVec[entNum]) && aeP->ueid == secP->ueid)
-          {cacheVec[entNum] = 0;
-           cacheMutex.UnLock();
-           return aeP;
-          }
-       cacheMutex.UnLock();
+   if ((seP = secP->Get(&accSig)))
+      {isNew = false;
+       return static_cast<XrdAccEntity *>(seP);
       }
 
 // At this point we muxt create a new entity for authorization purposes and
-// return it if all went well.
+// return it if all went well. We do not attach it to its SecEntity object as
+// this will be done by the AccEntityInit object upon deletion to avoid
+// race conditions and memory leaks. This allows for parallel processing.
 //
+   isNew = true;
    aeP = new XrdAccEntity(secP, aOK);
    if (aOK) return aeP;
 
@@ -197,21 +186,14 @@ bool XrdAccEntity::OneOrZero(char *src, const char *&dest)
 /*                             P u t E n t i t y                              */
 /******************************************************************************/
   
-void XrdAccEntity::PutEntity()
+void XrdAccEntity::PutEntity(const XrdSecEntity *secP)
 {
-   XrdAccEntity *aeP;
 
-// Compute cache entry and replace any existing entry with this one. If we
-// did replace an entry then delete the it as it can't be in use if cached.
+// Add this object to the indicated SecEntity object. There may be one there
+// already if some other thread beat us to the punch (unlike). If there is
+// we simply delete ourselves to avoid a memory leak.
 //
-   if (!ueid) delete this;
-      else {int entNum = ueid % cacheSize;
-            cacheMutex.Lock();
-            aeP = cacheVec[entNum];
-            cacheVec[entNum] = this;
-            cacheMutex.UnLock();
-            if (aeP) delete aeP;
-           }
+   if (!(const_cast<XrdSecEntity*>(secP)->Add(*this))) delete this;
 }
 
 /******************************************************************************/
