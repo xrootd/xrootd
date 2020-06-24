@@ -32,7 +32,6 @@
 #include "XrdOuc/XrdOucGMap.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
-
 #include "XrdHttpTrace.hh"
 #include "XrdHttpProtocol.hh"
 //#include "XrdXrootd/XrdXrootdStats.hh"
@@ -50,7 +49,6 @@
 #include <ctype.h>
 
 #define XRHTTP_TK_GRACETIME     600
-
 
 
 /******************************************************************************/
@@ -89,7 +87,6 @@ char *XrdHttpProtocol::secretkey = 0;
 
 char *XrdHttpProtocol::gridmap = 0;
 XrdOucGMap *XrdHttpProtocol::servGMap = 0;  // Grid mapping service
-
 int XrdHttpProtocol::sslverifydepth = 9;
 XrdSysRWLock XrdHttpProtocol::x509_store_lock;
 X509_STORE *XrdHttpProtocol::verify_store = NULL;
@@ -262,173 +259,7 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
   // Bind the protocol to the link and return the protocol
   //
   hp->Link = lp;
-
-
   return (XrdProtocol *) hp;
-}
-
-
-
-
-
-
-
-
-/******************************************************************************/
-/*                               G e t V O M S D a t a                        */
-
-/******************************************************************************/
-
-
-
-int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
-  TRACEI(DEBUG, " Extracting auth info.");
-
-  X509 *peer_cert;
-
-  // No external plugin, hence we fill our XrdSec with what we can do here
-  peer_cert = SSL_get_peer_certificate(ssl);
-  TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
-  ERR_print_errors(sslbio_err);
-
-  if (peer_cert) {
-    char bufname[256];
-    
-    // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
-    if (SecEntity.moninfo) free(SecEntity.moninfo);
-    
-    // The original DN is not so univoque. In the case of a proxy this can be either
-    // the issuer name or the subject name
-    // Here we try to use the one that is known to the user mapping
-    
-    
-    
-    if (servGMap) {
-      int mape;
-      
-      SecEntity.moninfo = X509_NAME_oneline(X509_get_issuer_name(peer_cert), NULL, 0);
-      TRACEI(DEBUG, " Issuer name is : '" << SecEntity.moninfo << "'");
-      
-      mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
-      if ( !mape && SecEntity.moninfo[0] ) {
-        TRACEI(DEBUG, " Mapping name: '" << SecEntity.moninfo << "' --> " << bufname);
-        if (SecEntity.name) free(SecEntity.name);
-        SecEntity.name = strdup(bufname);
-      }
-      else {
-        TRACEI(ALL, " Mapping name: '" << SecEntity.moninfo << "' Failed. err: " << mape);
-        
-        // Mapping the issuer name failed, let's try with the subject name
-        if (SecEntity.moninfo) free(SecEntity.moninfo);
-        SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
-        TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
-        
-        mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
-        if ( !mape ) {
-          TRACEI(DEBUG, " Mapping name: " << SecEntity.moninfo << " --> " << bufname);
-          if (SecEntity.name) free(SecEntity.name);
-          SecEntity.name = strdup(bufname);
-        }
-        else {
-          TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
-        }
-      }
-      
-    }
-    else {
-      
-      SecEntity.moninfo = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
-      TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
-    }
-    
-    if (!SecEntity.name) {
-      // Here we have the user DN, and try to extract an useful user name from it
-      if (SecEntity.name) free(SecEntity.name);
-      SecEntity.name = 0;
-      // To set the name we pick the first CN of the certificate subject
-      // and hope that it makes some sense, it usually does
-      char *lnpos = strstr(SecEntity.moninfo, "/CN=");
-      char bufname2[9];
-      
-      
-      if (lnpos) {
-        lnpos += 4;
-        char *lnpos2 = index(lnpos, '/');
-        if (lnpos2) {
-          int l = ( lnpos2-lnpos < (int)sizeof(bufname) ? lnpos2-lnpos : (int)sizeof(bufname)-1 );
-          strncpy(bufname, lnpos, l);
-          bufname[l] = '\0';
-          
-          // Here we have the string in the buffer. Take the last 8 non-space characters
-          size_t j = 8;
-          strcpy(bufname2, "unknown-\0"); // note it's 9 chars
-          for (int i = (int)strlen(bufname)-1; i >= 0; i--) {
-            if (isalnum(bufname[i])) {
-              j--;
-              bufname2[j] = bufname[i];
-              if (j == 0) break;
-            }
-            
-          }
-          
-          SecEntity.name = strdup(bufname);
-          TRACEI(DEBUG, " Setting link name: '" << bufname2+j << "'");
-          lp->setID(bufname2+j, 0);
-        }
-      }
-    }
-    
-    
-    // If we could not find anything good, take the last 8 non-space characters of the main subject
-    if (!SecEntity.name) {
-      size_t j = 8;
-      SecEntity.name = strdup("unknown-\0"); // note it's 9 chars
-      for (int i = (int)strlen(SecEntity.moninfo)-1; i >= 0; i--) {
-        if (isalnum(SecEntity.moninfo[i])) {
-          j--;
-          SecEntity.name[j] = SecEntity.moninfo[i];
-          if (j == 0) break;
-         
-        }
-      }
-    }
-   
-    
-    
-  }
-  else return 0; // Don't fail if no cert
-
-  if (peer_cert) X509_free(peer_cert);
-
-
-
-  // Invoke our instance of the Security exctractor plugin
-  // This will fill the XrdSec thing with VOMS info, if VOMS is
-  // installed. If we have no sec extractor then do nothing, just plain https
-  // will work.
-  if (secxtractor) {
-    // We assume that if the sysadmin has assigned a gridmap file then he
-    // is interested in the mapped name, not the original one that would be
-    // overwritten inside the plugin
-    char *savestr = 0;
-    if (servGMap && SecEntity.name)
-      savestr = strdup(SecEntity.name);
-      
-    int r = secxtractor->GetSecData(lp, SecEntity, ssl);
-    
-    if (servGMap && savestr) {
-      if (SecEntity.name)
-        free(SecEntity.name);
-      SecEntity.name = savestr;
-    }
-      
-      
-    if (r)
-      TRACEI(ALL, " Certificate data extraction failed: " << SecEntity.moninfo << " Failed. err: " << r);
-    return r;
-  }
-
-  return 0;
 }
 
 char *XrdHttpProtocol::GetClientIPStr() {
@@ -687,22 +518,17 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
           ssl = 0;
           return -1;
         }
-      BIO_set_nbio(sbio, 0);
 
-      res = SSL_get_verify_result(ssl);
-      TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
+      BIO_set_nbio(sbio, 0);
       ERR_print_errors(sslbio_err);
 
-
       // Get the voms string and auth information
-      if (GetVOMSData(Link)) {
+      if (HandleAuthentication(Link)) {
           SSL_free(ssl);
           ssl = 0;
           return -1;
       }
 
-
-      if (res != X509_V_OK) return -1;
       ssldone = true;
     }
 
@@ -1669,11 +1495,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 }
 
 
-
-
-
-
-
 // --------------
 // security stuff
 // --------------
@@ -1697,10 +1518,6 @@ extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
 
   return ok;
 }
-
-
-
-
 
 /// Initialization of the ssl security
 //  Only scheduled on sufficiently new OpenSSL.
