@@ -42,6 +42,7 @@
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
+#include "XrdTls/XrdTlsPeerCerts.hh"
 #include <openssl/pem.h>
 
 // Error code from verification set by verify callback function
@@ -374,6 +375,57 @@ int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *ch, const char *fn)
    //
    // We are done
    return 0;
+}
+
+//______________________________________________________________________________
+int XrdCryptosslX509ParseStack(XrdTlsPeerCerts* pc, XrdCryptoX509Chain *chain)
+{
+   EPNAME("X509ParseStack");
+   int nci = 0;
+   // Make sure we got a chain where to add the certificates
+   if (!chain) {
+      DEBUG("chain undefined: can do nothing");
+      return nci;
+   }
+
+   if (pc->cert) {
+     XrdCryptoX509 *c = new XrdCryptosslX509(pc->cert);
+
+     if (c) {
+       chain->PushBack(c);
+       nci ++;
+     }
+   }
+
+   if (!pc->chain) {
+     return nci;
+   }
+
+   for (int i=0; i < sk_X509_num(pc->chain); i++) {
+      X509 *cert = sk_X509_value(pc->chain, i);
+      XrdCryptoX509 *c = new XrdCryptosslX509(cert);
+
+      if (c) {
+         // The SSL_get_peer_chain method does not increment the
+         // refcount; the XrdCryptoX509 object assumes it owns
+         // the X509* but also does not increment the refcount.
+         // Hence, we increment manually.
+#if OPENSSL_VERSION_NUMBER < 0x010100000L
+         CRYPTO_add(&(cert->references), 1, CRYPTO_LOCK_X509);
+#else
+         X509_up_ref(cert);
+#endif
+         chain->PushBack(c);
+      } else {
+         X509_free(cert);
+         DEBUG("could not create certificate: memory exhausted?");
+         chain->Reorder();
+         return nci;
+      }
+      nci ++;
+   }
+   chain->Reorder();
+   return nci;
 }
 
 //____________________________________________________________________________

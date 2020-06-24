@@ -24,6 +24,7 @@ if( BUILD_HTTP )
     ${LIB_XRD_HTTP_UTILS}
     SHARED
     XrdHttp/XrdHttpProtocol.cc    XrdHttp/XrdHttpProtocol.hh
+    XrdHttp/XrdHttpSecurity.cc
     XrdHttp/XrdHttpReq.cc         XrdHttp/XrdHttpReq.hh
                                   XrdHttp/XrdHttpSecXtractor.hh
     XrdHttp/XrdHttpExtHandler.cc  XrdHttp/XrdHttpExtHandler.hh
