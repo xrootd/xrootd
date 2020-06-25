@@ -225,6 +225,7 @@ enum XOpenRequestOption {
    kXR_prefname = 256,   // only locate
    kXR_open_apnd= 512,
    kXR_retstat  = 1024,
+   kXR_4dirlist = 1024,  // for locate intending a dirlist
    kXR_replica  = 2048,
    kXR_posc     = 4096,
    kXR_nowait   = 8192,  // also locate
