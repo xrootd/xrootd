@@ -400,15 +400,10 @@ int XrdOfsDirectory::autoStat(struct stat *buf)
              return SFS_ERROR;
             }
 
-// Set the stat buffer in the storage system directory.
+// Set the stat buffer in the storage system directory but don't complain.
 //
-    if ((retc = dp->StatRet(buf)))
-       retc = XrdOfsFS->Emsg(epname, error, retc, "autostat", fname);
-       else retc = SFS_OK;
-
-// All done
-//
-   return retc;
+    if ((retc = dp->StatRet(buf))) return retc;
+    return SFS_OK;
 }
   
 /******************************************************************************/
