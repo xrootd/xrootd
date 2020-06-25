@@ -164,6 +164,7 @@ private:
   
   /// Functions related to the configuration
   static int Config(const char *fn, XrdOucEnv *myEnv);
+  static const char *Configed();
   static int xtrace(XrdOucStream &Config);
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);

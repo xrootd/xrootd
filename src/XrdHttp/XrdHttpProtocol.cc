@@ -117,6 +117,7 @@ static const int hsmMan  =  1;
 static const int hsmOn   =  1; // Dual purpose but use a meaningful varname
 
 int  httpsmode = hsmAuto;
+bool httpsspec = false;
 bool xrdctxVer = false;
 }
 
@@ -1069,8 +1070,10 @@ int XrdHttpProtocol::Stats(char *buff, int blen, int do_sync) {
 
 #define TS_Xeq(x,m) (!strcmp(x,var)) GoNo = m(Config)
 #define TS_Xeq3(x,m) (!strcmp(x,var)) GoNo = m(Config, ConfigFN, myEnv)
-#define HTTPS_ALERT(x,y) if (xrdctx && httpsmode == hsmAuto) \
-        eDest.Say("Config " x "already specified by the '" y "' directive.")
+
+#define HTTPS_ALERT(x,y,z) httpsspec = true;\
+        if (xrdctx && httpsmode == hsmAuto && (z || xrdctx->x509Verify())) \
+        eDest.Say("Config http." x " overrides the xrd." y " directive.")
 
 int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), myEnv, "=====> ");
@@ -1162,27 +1165,22 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 
 // If https was disabled, then issue a warning message if xrdtls configured
 // of it's disabled because httpsmode was auto and xrdtls was not configured.
+// If we get past this point then we know https is a plausible option but we
+// can still fail if we cannot supply any missing but required options.
 //
-   if (httpsmode == hsmOff || (httpsmode == hsmAuto && !xrdctx))
+   if (httpsmode == hsmOff || (httpsmode == hsmAuto && !xrdctx && !httpsspec))
       {const char *why = (httpsmode == hsmOff ? "has been disabled!"
                          : "was not configured.");
+       const char *what = Configed();
+
        eDest.Say("Config warning: HTTPS functionality ", why);
        httpsmode = hsmOff;
+
+       if (what)
+          {eDest.Say("Config failure: ", what, " HTTPS but it ", why);
+           NoGo = 1;
+          }
        return NoGo;
-      }
-
-// Record what we have now
-//
-bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
-
-// If a gridmap or secxtractor is present then we must be able to verify certs
-//
-   if ((secxtractor || gridmap) && !haveCA)
-      {const char *what = (gridmap ? "gridmap" : "secxtractor");
-       const char *why  = (httpsmode == hsmOff ? "HTTPS was disabled!"
-                          : "a cadir or cafile was not specified!");
-       eDest.Say("Config failure: ",what," requires cert verification but ",why);
-       return 1;
       }
 
 // Warn if a private key was specified without a cert as this has no meaning
@@ -1194,9 +1192,7 @@ bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
        free(sslkey); sslkey = 0;
       }
 
-// We have sifted through all possibilities. It's either auto with xrdtls
-// configured or manual which needs at least a cert specification. For auto
-// configuration we will only issue a warning if overrides were specified.
+// If the mode is manual then we need to have at least a cert.
 //
    if (httpsmode == hsmMan)
       {if (!sslcert)
@@ -1204,17 +1200,43 @@ bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
                      "a cert specification!");
            return 1;
           }
-      } else {
-       if (sslcert || sslcadir || sslcafile || sslcipherfilter)
-          eDest.Say("Config warning: Enabling HTTPS with xrd TLS "
-                    "directive overrides!");
-       const XrdTlsContext::CTX_Params *cP = xrdctx->GetParams();
+      }
 
-       if (!sslcert)  {if (cP->cert.size()) sslcert = strdup(cP->cert.c_str());
-                       if (cP->pkey.size()) sslkey  = strdup(cP->pkey.c_str());
-                      }
-       if (!sslcadir)  if (cP->cadir.size()) sslcadir  = strdup(cP->cadir.c_str());
-       if (!sslcafile) if (cP->cafile.size())sslcafile = strdup(cP->cafile.c_str());
+// If it's auto d through all possibilities. It's either auto with xrdtls
+// configured or manual which needs at least a cert specification. For auto
+// configuration we will only issue a warning if overrides were specified.
+//
+   if (httpsmode == hsmAuto && xrdctx)
+      {const XrdTlsContext::CTX_Params *cP = xrdctx->GetParams();
+       const char *what1 = 0, *what2 = 0;
+
+       if (!sslcert && cP->cert.size())
+          {sslcert = strdup(cP->cert.c_str());
+           if (cP->pkey.size()) sslkey  = strdup(cP->pkey.c_str());
+           what1 = "xrd.tls to supply 'cert' and 'key'.";
+          }
+       if (!sslcadir && cP->cadir.size())
+          {sslcadir  = strdup(cP->cadir.c_str());
+           what2 = "xrd.tlsca to supply 'cadir'.";
+          }
+       if (!sslcafile && cP->cafile.size())
+          {sslcafile = strdup(cP->cafile.c_str());
+           what2 = (what2 ? "xrd.tlsca to supply 'cadir' and 'cafile'."
+                          : "xrd.tlsca to supply 'cafile'.");
+          }
+       if (httpsspec && what1) eDest.Say("Config Using ", what1);
+       if (httpsspec && what2) eDest.Say("Config Using ", what2);
+      }
+
+// If a gridmap or secxtractor is present then we must be able to verify certs
+//
+   if (!(sslcadir || sslcafile))
+      {const char *what = Configed();
+       const char *why  = (httpsspec ? "a cadir or cafile was not specified!"
+                                     : "'xrd.tlsca noverify' was specified!");
+       if (what)
+          eDest.Say("Config failure: ", what, " cert verification but ", why);
+       return 1;
       }
    httpsmode = hsmOn;
 
@@ -1242,8 +1264,17 @@ bool haveCA = (sslcadir || sslcafile) || ((httpsmode == hsmAuto) && xrdctxVer);
 }
 
 /******************************************************************************/
-/*                       P r i v a t e   M e t h o d s                        */
+/*                              C o n f i g e d                               */
 /******************************************************************************/
+
+const char *XrdHttpProtocol::Configed()
+{
+   if (secxtractor && gridmap) return "gridmap and secxtractor require";
+   if (secxtractor) return "secxtractor requires";
+   if (gridmap) return "gridmap requires";
+   return 0;
+}
+  
 /******************************************************************************/
 /*                           B u f f g e t L i n e                            */
 /******************************************************************************/
@@ -1974,7 +2005,7 @@ int XrdHttpProtocol::xsslverifydepth(XrdOucStream & Config) {
   //
   sslverifydepth = atoi(val);
 
-  if (xrdctxVer) HTTPS_ALERT("verifydepth","xrd.tlsca");
+  if (xrdctxVer) HTTPS_ALERT("verifydepth","tlsca",false);
   return 0;
 }
 
@@ -2009,7 +2040,7 @@ int XrdHttpProtocol::xsslcert(XrdOucStream & Config) {
 
   // If we have an xrd context issue reminder
   //
-  HTTPS_ALERT("cert","xrd.tls");
+  HTTPS_ALERT("cert","tls",true);
   return 0;
 }
 
@@ -2042,7 +2073,7 @@ int XrdHttpProtocol::xsslkey(XrdOucStream & Config) {
   if (sslkey) free(sslkey);
   sslkey = strdup(val);
 
-  HTTPS_ALERT("key","xrd.tls");
+  HTTPS_ALERT("key","tls",true);
   return 0;
 }
 
@@ -2110,7 +2141,7 @@ int XrdHttpProtocol::xsslcafile(XrdOucStream & Config) {
   if (sslcafile) free(sslcafile);
   sslcafile = strdup(val);
 
-  if (xrdctxVer) HTTPS_ALERT("cafile","xrd.tlsca");
+  if (xrdctxVer) HTTPS_ALERT("cafile","tlsca",false);
   return 0;
 }
 
@@ -2657,7 +2688,7 @@ int XrdHttpProtocol::xsslcadir(XrdOucStream & Config) {
   if (sslcadir) free(sslcadir);
   sslcadir = strdup(val);
 
-  if (xrdctxVer) HTTPS_ALERT("cadir","xrd.tlsca");
+  if (xrdctxVer) HTTPS_ALERT("cadir","tlsca",false);
   return 0;
 }
 
