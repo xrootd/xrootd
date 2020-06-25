@@ -368,8 +368,8 @@ void Info::CompactifyAccessRecords()
       {
          AStat &a = v[i], &b = v[i + 1];
 
-         double s = (double) (b.AttachTime - a.DetachTime) /
-                    ((now - b.AttachTime) / 2 + (now - a.DetachTime) / 2);
+         time_t t = std::max((time_t) 1, (now - b.AttachTime) / 2 + (now - a.DetachTime) / 2);
+         double s = (double) (b.AttachTime - a.DetachTime) / t;
 
          if (s < min_s)
          {
