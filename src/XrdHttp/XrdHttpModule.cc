@@ -23,7 +23,7 @@ extern "C" {
 
     // Put up the banner
     //
-    pi->eDest->Say("Copr. 2012 CERN IT, an HTTP implementation for the XROOTD framework.");
+    pi->eDest->Say("Copr. 2012 CERN IT, an HTTP implementation for the XRootD framework.");
     pi->eDest->Say("++++++ HTTP protocol initialization started.");
 
     // Return the protocol object to be used if static init succeeds
