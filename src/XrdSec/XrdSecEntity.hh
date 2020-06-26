@@ -35,7 +35,7 @@
 //! in which case the client can also authenticate the server. It is embeded
 //! in each security protocol object to facilitate mutual authentication. Note
 //! that the destructor does nothing and it is the responsibility of the 
-//! seurity protocol object to delete the public XrdSecEntity data members.
+//! security protocol object to delete the public XrdSecEntity data members.
 //!
 //! Note: The host member contents are depdent on the dnr/nodnr setting and
 //!       and contain a host name or an IP address. To get the real host name
@@ -44,15 +44,10 @@
 
 #include <sys/types.h>
 
-#include <string>
-#include <vector>
-
 #define XrdSecPROTOIDSIZE 8
 
 class XrdNetAddrInfo;
-class XrdSecAttr;
-class XrdSecEntityAttrCB;
-class XrdSecEntityXtra;
+class XrdSecEntityAttr;
 class XrdSysError;
   
 /******************************************************************************/
@@ -89,33 +84,10 @@ const    char   *pident;                  //!< Trace identifier (originator)
                                           //!< attribute objects instead.
          uid_t   uid;                     //!< Unix uid or 0 if none
          gid_t   gid;                     //!< Unix gid or 0 if none
+
          void   *future[3];               //!< Reserved for future expansion
 
-//------------------------------------------------------------------------------
-//! Add an attribute object to this entity.
-//!
-//! @param  attr    - Reference to the attribute object.
-//!
-//! @return True, the object was added.
-//! @return False, the object was not added because such an object exists.
-//------------------------------------------------------------------------------
-
-         bool    Add(XrdSecAttr &attr);
-
-//------------------------------------------------------------------------------
-//! Add a key-value attribute to this entity. If one exists it is replaced.
-//!
-//! @param  key     - Reference to the key.
-//! @param  val     - Reference to the value.
-//! @param  replace - When true, any existing key-value is replaced. Otherwise,
-//!                    the add is not performed.
-//!
-//! @return True, the key-value was added or replaced.
-//! @return False, the key already exists so he value was not added.
-//------------------------------------------------------------------------------
-
-         bool    Add(const std::string &key,
-                     const std::string &val, bool replace=false);
+XrdSecEntityAttr *eaAPI;                  //!< non-const API to attributes
 
 //------------------------------------------------------------------------------
 //! Dislay the contents of this object for debugging purposes.
@@ -126,59 +98,12 @@ const    char   *pident;                  //!< Trace identifier (originator)
          void    Display(XrdSysError &mDest);
 
 //------------------------------------------------------------------------------
-//! Get an attribute object associated with this entity.
-//!
-//! @param  sigkey  - A unique attribute object signature key.
-//!
-//! @return Upon success a pointer to the attribute object is returned.
-//!         Otherwise, a nil pointer is returned.
-//------------------------------------------------------------------------------
-
-XrdSecAttr      *Get(const void *sigkey) const;
-
-//------------------------------------------------------------------------------
-//! Get an attribute key value associated with this entity.
-//!
-//! @param  key     - The reference to the key.
-//! @param  val     - The reference to the string object to receive the value.
-//!
-//! @return Upon success true is returned. If the key does not exist, false
-//!         is returned and the val object remains unchanged.
-//------------------------------------------------------------------------------
-
-         bool    Get(const std::string &key, std::string &val) const;
-
-//------------------------------------------------------------------------------
-//! Get all the keys for associated attribytes.
-//!
-//! @return A vector containing all of the keys.
-//------------------------------------------------------------------------------
-
-std::vector<std::string> Keys() const;
-
-//------------------------------------------------------------------------------
-//! List key-value pairs via iterative callback on passed ovject.
-//!
-//! @param  attrCB  - Reference to the callback object to receive list entries.
-//------------------------------------------------------------------------------
-
-         void    List(XrdSecEntityAttrCB &attrCB) const;
-
-//------------------------------------------------------------------------------
 //! Reset object to it's pristine self.
 //!
 //! @param  spV     - The name of the security protocol.
 //------------------------------------------------------------------------------
 
-         void    Reset(const char *spV=0) {Reset(false, spV);}
-
-//------------------------------------------------------------------------------
-//! Reset object attributes.
-//!
-//! @param  doDel   - When true, the attribute extension is deleted as well.
-//------------------------------------------------------------------------------
-
-         void    ResetXtra(bool doDel=false);
+         void    Reset(const char *spV=0);
 
 //------------------------------------------------------------------------------
 //! Constructor.
@@ -186,57 +111,15 @@ std::vector<std::string> Keys() const;
 //! @param  spName  - The name of the security protocol.
 //------------------------------------------------------------------------------
 
-         XrdSecEntity(const char *spName=0) {Reset(true, spName);}
+         XrdSecEntity(const char *spName=0);
 
-        ~XrdSecEntity() {ResetXtra(true);}
+        ~XrdSecEntity();
 
 private:
-void              Reset(bool isnew, const char *spV);
-XrdSecEntityXtra *entXtra;
+void     Init(const char *spV);
 };
 
 #define XrdSecClientName XrdSecEntity
 #define XrdSecServerName XrdSecEntity
 
-
-/******************************************************************************/
-/*                    X r d S e c E n t i t y A t t r C B                     */
-/******************************************************************************/
-
-// The XrdSecEntityAttrCB class defines the callback object passed to the
-// XrdSecEntity::List() method to iteratively obtain the key-value attribute
-// pairs associated with the entity. The XrdSecEntityAttrCB::Attr() method is
-// called for each key-value pair. The end of the list is indicated by calling
-// Attr() with nil key-value pointers. The Attr() method should not call
-// the XrdSecEntity::Add() or XrdSecEntity::Get() methods; otherwise, a
-// deadlock will occur.
-//
-class XrdSecEntityAttrCB
-{
-public:
-
-//------------------------------------------------------------------------------
-//! Acceppt a key-value attribute pair from the XrdSecEntity::List() method.
-//!
-//! @param  key   - The key, if nil this is the end of the list.
-//! @param  val   - The associated value, if nil this is the end of the list.
-//!
-//! @return One of the Action enum values. The return value is ignored when
-//!         the end of the list indicator is returned.
-//------------------------------------------------------------------------------
-
-enum     Action {Delete = -1, //!< Delete the key-value and proceed to next one
-                 Stop   =  0, //!< Stop the iteration
-                 Next   =  1  //!< Proceed to the next key-value pair
-                };
-
-virtual  Action Attr(const char *key, const char *val) = 0;
-
-//------------------------------------------------------------------------------
-//! Constructor and Destructor.
-//------------------------------------------------------------------------------
-
-         XrdSecEntityAttrCB() {}
-virtual ~XrdSecEntityAttrCB() {}
-};
 #endif

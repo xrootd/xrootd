@@ -43,6 +43,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecProtector.hh"
 #include "XrdSys/XrdSysE2T.hh"
@@ -823,6 +824,7 @@ int XrdXrootdProtocol::do_Locate()
    if (opts & kXR_force  ) {fsctl_cmd |= SFS_O_FORCE;  *op++ = 'f';}
    if (opts & kXR_prefname){fsctl_cmd |= SFS_O_HNAME;  *op++ = 'n';}
    if (opts & kXR_compress){fsctl_cmd |= SFS_O_RAWIO;  *op++ = 'u';}
+   if (opts & kXR_4dirlist){fsctl_cmd |= SFS_O_DIRLIST;*op++ = 'D';}
    *op = '\0';
    TRACEP(FS, "locate " <<opt <<' ' <<fn);
 
@@ -3747,7 +3749,7 @@ bool XrdXrootdProtocol::logLogin(bool xauth)
 
 // Record the appname in the final SecEntity object
 //
-   if (AppName) Client->Add("xrd.appname", (std::string)AppName);
+   if (AppName) Client->eaAPI->Add("xrd.appname", (std::string)AppName);
 
 // Assign unique identifier to the final SecEntity object
 //

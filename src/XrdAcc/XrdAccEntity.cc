@@ -33,6 +33,7 @@
 #include "XrdAcc/XrdAccEntity.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
@@ -128,7 +129,7 @@ XrdAccEntity *XrdAccEntity::GetEntity(const XrdSecEntity *secP, bool &isNew)
 
 // If we already compiled the identity informaion, reuse it.
 //
-   if ((seP = secP->Get(&accSig)))
+   if ((seP = secP->eaAPI->Get(&accSig)))
       {isNew = false;
        return static_cast<XrdAccEntity *>(seP);
       }
@@ -193,7 +194,7 @@ void XrdAccEntity::PutEntity(const XrdSecEntity *secP)
 // already if some other thread beat us to the punch (unlike). If there is
 // we simply delete ourselves to avoid a memory leak.
 //
-   if (!(const_cast<XrdSecEntity*>(secP)->Add(*this))) delete this;
+   if (!secP->eaAPI->Add(*this)) delete this;
 }
 
 /******************************************************************************/

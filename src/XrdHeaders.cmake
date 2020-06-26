@@ -53,7 +53,9 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucEnum.hh
   XrdOuc/XrdOucCompiler.hh
+  XrdSec/XrdSecAttr.hh
   XrdSec/XrdSecEntity.hh
+  XrdSec/XrdSecEntityAttr.hh
   XrdSec/XrdSecEntityPin.hh
   XrdSec/XrdSecInterface.hh
   XrdSys/XrdSysAtomics.hh

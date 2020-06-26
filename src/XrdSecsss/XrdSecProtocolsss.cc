@@ -47,6 +47,7 @@
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSecsss/XrdSecsssEnt.hh"
 #include "XrdSecsss/XrdSecProtocolsss.hh"
 #include "XrdSys/XrdSysE2T.hh"
@@ -233,7 +234,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
                                                 atKey         = idP; break;
                 case XrdSecsssRR_Data::theAVal:
                      if (!atKey) badAttr = true;
-                        else {Entity.Add(std::string(atKey),
+                        else {Entity.eaAPI->Add(std::string(atKey),
                                          std::string(idP), true);
                               atKey = 0;
                              }

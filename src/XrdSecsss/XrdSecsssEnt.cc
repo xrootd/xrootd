@@ -31,6 +31,7 @@
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSecsss/XrdSecsssCon.hh"
 #include "XrdSecsss/XrdSecsssEnt.hh"
 #include "XrdSecsss/XrdSecsssKT.hh"
@@ -204,7 +205,7 @@ bool XrdSecsssEnt::Serialize()
 //
    tLen = iLen;
    theAttr.calcSz = true;
-   eP->List(theAttr);
+   eP->eaAPI->List(theAttr);
    theAttr.calcSz = false;
    tLen += theAttr.bL;
 
@@ -285,7 +286,7 @@ bool XrdSecsssEnt::Serialize()
 //
    if (theAttr.bL > 0)
       {theAttr.bP = bP;
-       eP->List(theAttr);
+       eP->eaAPI->List(theAttr);
        bP = theAttr.bP;
       }
 

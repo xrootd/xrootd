@@ -60,10 +60,10 @@ class  XrdSecEntity;
 class  XrdSecAttr
 {
 public:
-friend class XrdSecEntity;
+friend class XrdSecEntityAttr;
 
 //------------------------------------------------------------------------------
-//! Delete this object (may be over-ridden for cusom action).
+//! Delete this object (may be over-ridden for custom action).
 //------------------------------------------------------------------------------
 
 virtual void Delete() {delete this;}
