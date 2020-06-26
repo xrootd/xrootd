@@ -2005,7 +2005,7 @@ int XrdHttpProtocol::xsslverifydepth(XrdOucStream & Config) {
   //
   sslverifydepth = atoi(val);
 
-  if (xrdctxVer) HTTPS_ALERT("verifydepth","tlsca",false);
+  if (xrdctxVer){ HTTPS_ALERT("verifydepth","tlsca",false); }
   return 0;
 }
 
@@ -2141,7 +2141,7 @@ int XrdHttpProtocol::xsslcafile(XrdOucStream & Config) {
   if (sslcafile) free(sslcafile);
   sslcafile = strdup(val);
 
-  if (xrdctxVer) HTTPS_ALERT("cafile","tlsca",false);
+  if (xrdctxVer){ HTTPS_ALERT("cafile","tlsca",false); }
   return 0;
 }
 
@@ -2688,7 +2688,7 @@ int XrdHttpProtocol::xsslcadir(XrdOucStream & Config) {
   if (sslcadir) free(sslcadir);
   sslcadir = strdup(val);
 
-  if (xrdctxVer) HTTPS_ALERT("cadir","tlsca",false);
+  if (xrdctxVer){ HTTPS_ALERT("cadir","tlsca",false); }
   return 0;
 }
 
