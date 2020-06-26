@@ -50,14 +50,15 @@
 #define SFS_O_RDONLY           0         // open read/only
 #define SFS_O_WRONLY           1         // open write/only
 #define SFS_O_RDWR             2         // open read/write
-#define SFS_O_CREAT        0x100         // used for file creation
-#define SFS_O_TRUNC        0x200         // used for file truncation
-#define SFS_O_MULTIW       0x400         // used for multi-write locations
-#define SFS_O_NOTPC        0x800         // used to suppress TPC opens
-#define SFS_O_POSC     0x0100000         // persist on successful close
-#define SFS_O_FORCE    0x0200000         // used for locate only
-#define SFS_O_HNAME    0x0400000         // used for locate only
-#define SFS_O_LOCAL    0x0800000         // used for locate only (local cmd)
+#define SFS_O_CREAT   0x00000100         // used for file creation
+#define SFS_O_TRUNC   0x00000200         // used for file truncation
+#define SFS_O_MULTIW  0x00000400         // used for multi-write locations
+#define SFS_O_NOTPC   0x00000800         // used to suppress TPC opens
+#define SFS_O_DIRLIST 0x00010000         // used for locate only
+#define SFS_O_POSC    0x00100000         // persist on successful close
+#define SFS_O_FORCE   0x00200000         // used for locate only
+#define SFS_O_HNAME   0x00400000         // used for locate only
+#define SFS_O_LOCAL   0x00800000         // used for locate only (local cmd)
 #define SFS_O_NOWAIT  0x01000000         // do not impose operational delays
 #define SFS_O_RAWIO   0x02000000         // allow client-side decompression
 #define SFS_O_RESET   0x04000000         // Reset any cached information
