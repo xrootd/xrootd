@@ -297,15 +297,8 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   const char * dn = chain.EECname();
 
   if (!dn) {
-    X509* peer_cert = SSL_get_peer_certificate(ssl);
-
-    if (peer_cert) {
-      TRACE(DEBUG, "SSL_get_peer_certificate returned: " << peer_cert);
-      dn = X509_NAME_oneline(X509_get_subject_name(peer_cert), NULL, 0);
-    } else {
-      // There is no certificate info
-      return 0;
-    }
+    chain.Cleanup();
+    return 0;
   }
 
   if (SecEntity.moninfo) {
@@ -314,6 +307,11 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
 
   SecEntity.moninfo = strdup(dn);
   TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
+
+    // X509Chain doesn't assume it owns the underlying certs unless
+    // you explicitly invoke the Cleanup method; the destructor will
+    // otherwise leak these.
+  chain.Cleanup();
 
   if (servGMap) {
     mape = servGMap->dn2user(SecEntity.moninfo, bufname, sizeof(bufname), 0);
