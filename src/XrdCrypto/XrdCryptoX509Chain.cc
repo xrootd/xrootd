@@ -308,6 +308,8 @@ void XrdCryptoX509Chain::PushBack(XrdCryptoX509 *c)
          end->SetNext(nc);
       end = nc;
       size++;
+   } else if (c) {
+      delete c;
    }
 
    // Search for the effective CA (the last one, in case of subCAs)

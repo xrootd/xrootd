@@ -382,11 +382,6 @@ int XrdCryptosslX509ParseStack(void* ssl_conn, XrdCryptoX509Chain *chain)
 {
    EPNAME("X509ParseStack");
    SSL* ssl = (SSL*) ssl_conn;
-   STACK_OF(X509) *st_x509 = SSL_get_peer_cert_chain(ssl);
-
-   if (!st_x509) {
-     return 0;
-   }
 
    int nci = 0;
    // Make sure we got a chain where to add the certificates
@@ -395,12 +390,40 @@ int XrdCryptosslX509ParseStack(void* ssl_conn, XrdCryptoX509Chain *chain)
       return nci;
    }
 
+   STACK_OF(X509) *st_x509 = SSL_get_peer_cert_chain(ssl);
+      // NOTE: SSL_get_peer_certificate increments the refcount;
+      // we must free it or pass along ownership.
+   X509 *peer_cert = SSL_get_peer_certificate(ssl);
+
+   if (peer_cert) {
+      XrdCryptoX509 *c = new XrdCryptosslX509(peer_cert);
+      if (c) {
+         chain->PushBack(c);
+         nci ++;
+      } else {
+         X509_free(peer_cert);
+      }
+   }
+   if (!st_x509) {
+     return nci;
+   }
+
    for (int i=0; i < sk_X509_num(st_x509); i++) {
       X509 *cert = sk_X509_value(st_x509, i);
       XrdCryptoX509 *c = new XrdCryptosslX509(cert);
       if (c) {
+         // The SSL_get_peer_chain method does not increment the
+         // refcount; the XrdCryptoX509 object assumes it owns
+         // the X509* but also does not increment the refcount.
+         // Hence, we increment manually.
+#if OPENSSL_VERSION_NUMBER < 0x010100000L
+         CRYPTO_add(&(cert->references), 1, CRYPTO_LOCK_X509);
+#else
+         X509_up_ref(cert);
+#endif
          chain->PushBack(c);
       } else {
+         X509_free(cert);
          DEBUG("could not create certificate: memory exhausted?");
          chain->Reorder();
          return nci;
