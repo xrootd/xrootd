@@ -1172,6 +1172,7 @@ int XrdXrootdProtocol::do_Offload(int pathID, bool isWrite, bool ispgio)
           pp->myBlen   = 0;
           pp->doWrite  = isWrite;
           pp->doWriteC = false;
+          pp->doPgIO   = ispgio;
           pp->Resume   = &XrdXrootdProtocol::do_OffloadIO;
           pp->isActive = true;
           pp->reTry    = &isAvail;
