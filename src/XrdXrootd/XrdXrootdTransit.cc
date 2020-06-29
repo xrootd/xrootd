@@ -39,6 +39,7 @@
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -267,6 +268,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    if (n >= int(sizeof(uname))) n = sizeof(uname)-1;
    strncpy(uname, nameP, sizeof(uname)-1);
    uname[n] = 0;
+   XrdOucUtils::Sanitize(uname);
    linkP->setID(uname, pID);
 
 // Indicate that this brige supports asynchronous responses
