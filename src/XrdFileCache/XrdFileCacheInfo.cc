@@ -202,7 +202,14 @@ bool Info::Read(XrdOssDF* fp, const std::string &fname)
       return false;
    }
    else if (abs(m_store.m_version) == 1)
+   {
       return ReadV1(fp, fname);
+   }
+   else if (m_store.m_version > m_defaultVersion)
+   {
+      TRACE(Warning, trace_pfx << " File version larger than current, recreating file");
+      return false;
+   }
 
    if (r.Read(m_store.m_bufferSize)) return false;
 
