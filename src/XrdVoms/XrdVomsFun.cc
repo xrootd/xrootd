@@ -305,7 +305,6 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
          // Same size as std::vector<data> by construction (same information in compact form)
          std::vector<std::string> fqa = (*i).fqan;
          std::vector<std::string>::iterator ifqa = fqa.begin();
-         grps = ""; role = "";
          for (; idat != dat.end(); idat++, ifqa++) {
             VOMSDBG(" ---> group: '"<<(*idat).group<<"', role: '"<<(*idat).role<<"', cap: '" <<(*idat).cap<<"'");
             VOMSDBG(" ---> fqan: '"<<(*ifqa)<<"'");
