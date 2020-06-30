@@ -395,7 +395,8 @@ with HTTP repositories.
 %package   voms
 Summary:   VOMS attribute extractor plug-in for XRootD
 Group:     System Environment/Libraries
-Provides:  vomsxrd
+Provides:  vomsxrd = %{epoch}:%{version}-%{release}
+Obsoletes: vomsxrd < 1:4.12.4-1
 Requires:  %{name}-libs = %{epoch}:%{version}-%{release}
 Obsoletes: xrootd-voms-plugin
 %description voms
