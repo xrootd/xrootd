@@ -1443,7 +1443,7 @@ int XrdXrootdProtocol::do_Open()
 
 // If TPC opens require TLS but this is not a TLS connection, prohibit TPC
 //
-   if ((doTLS && Req_TLSTPC) && !isTLS && !Link->hasBridge())
+   if ((doTLS & Req_TLSTPC) && !isTLS && !Link->hasBridge())
       openopts|= SFS_O_NOTPC;
 
 // Open the file
