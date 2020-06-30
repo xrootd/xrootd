@@ -866,8 +866,6 @@ int XrdXrootdProtocol::do_Locate()
   
 int XrdXrootdProtocol::do_Login()
 {
-   static XrdSysMutex sessMutex;
-   static unsigned int Sid = 0;
    XrdXrootdSessID sessID;
    XrdNetAddrInfo *addrP;
    int i, pid, rc, sendSID = 0;
@@ -911,7 +909,7 @@ int XrdXrootdProtocol::do_Login()
       {sessID.FD   = Link->FDnum();
        sessID.Inst = Link->Inst();
        sessID.Pid  = myPID;
-       sessMutex.Lock(); mySID = ++Sid; sessMutex.UnLock();
+       mySID = getSID();
        sessID.Sid  = mySID;
        sendSID = 1;
        if (!clientPV)

@@ -260,6 +260,8 @@ XrdObject<XrdXrootdProtocol>         ProtLink;
 
 protected:
 
+static unsigned int getSID();
+
        void  MonAuth();
        int   SetSF(kXR_char *fhandle, bool seton=false);
 

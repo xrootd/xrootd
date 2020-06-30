@@ -38,6 +38,7 @@
 #include "XrdSec/XrdSecProtect.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -230,6 +231,24 @@ XrdXrootdProtocol::XrdXrootdProtocol()
    Reset();
 }
 
+/******************************************************************************/
+/* protected:                     g e t S I D                                 */
+/******************************************************************************/
+
+unsigned int XrdXrootdProtocol::getSID()
+{
+   static XrdSysMutex  SidMutex;
+   static unsigned int Sid = 1;
+   unsigned int theSid;
+
+// Generate unqiue number for this server instance
+//
+   AtomicBeg(SidMutex);
+   theSid = AtomicInc(Sid);
+   AtomicEnd(SidMutex);
+   return theSid;
+}
+  
 /******************************************************************************/
 /*                                 M a t c h                                  */
 /******************************************************************************/

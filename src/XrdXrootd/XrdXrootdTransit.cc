@@ -40,6 +40,7 @@
 #include "Xrd/XrdLink.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -227,12 +228,10 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
                             const char                *protP
                            )
 {
-   static XrdSysMutex myMutex;
-   static int bID = 0;
    XrdNetAddrInfo *addrP;
    const char *who;
    char uname[sizeof(Request.login.username)+1];
-   int pID, n;
+   int n;
 
 // Set standard stuff
 //
@@ -251,6 +250,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    wBLen     = 0;
    respObj   = respP;
    pName     = protP;
+   mySID     = getSID();
 
 // Bind the protocol to the link
 //
@@ -263,19 +263,21 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 
 // Develop a trace identifier
 //
-   myMutex.Lock(); pID = ++bID; myMutex.UnLock();
    n = strlen(nameP);
    if (n >= int(sizeof(uname))) n = sizeof(uname)-1;
    strncpy(uname, nameP, sizeof(uname)-1);
    uname[n] = 0;
    XrdOucUtils::Sanitize(uname);
-   linkP->setID(uname, pID);
+   linkP->setID(uname, mySID);
+
+// Place trace identifier everywhere is should be located
 
 // Indicate that this brige supports asynchronous responses
 //
    CapVer = kXR_asyncap | kXR_ver002;
 
-// Mark the client as IPv4 if they came in as IPv4 or mapped IPv4
+// Mark the client as IPv4 if they came in as IPv4 or mapped IPv4. Note
+// there is no way we can figure out if this is a dual-stack client.
 //
    addrP = Link->AddrInfo();
    if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
@@ -289,6 +291,9 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 // Now tie the security information
 //
    Client = (seceP ? seceP : &Entity);
+   Client->ueid = mySID;
+   Client->tident = Client->pident = Link->ID;
+   Client->addrInfo = addrP;
 
 // Allocate a monitoring object, if needed for this connection and record login
 //
@@ -319,6 +324,10 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 //
    Status = XRD_LOGGEDIN;
    cTime = time(0);
+
+// Propogate a connect through the whole system
+//
+   osFS->Connect(Client);
 }
   
 /******************************************************************************/
