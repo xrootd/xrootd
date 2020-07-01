@@ -4,6 +4,7 @@ include( XRootDCommon )
 # Modules
 #-------------------------------------------------------------------------------
 set( LIB_XRD_FILECACHE  XrdPfc-${PLUGIN_VERSION} )
+set( LIB_XRD_FILECACHE_LEGACY XrdFileCache-${PLUGIN_VERSION} )
 set( LIB_XRD_BLACKLIST  XrdBlacklistDecision-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
@@ -82,6 +83,12 @@ target_link_libraries(
 install(
   TARGETS ${LIB_XRD_FILECACHE}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf lib${LIB_XRD_FILECACHE}.so lib${LIB_XRD_FILECACHE_LEGACY}.so
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} )" )
 
 install(
   TARGETS ${LIB_XRD_BLACKLIST}

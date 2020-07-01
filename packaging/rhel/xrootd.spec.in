@@ -794,6 +794,7 @@ fi
 %{_libdir}/libXrdPss-5.so
 %{_libdir}/libXrdXrootd-5.so
 %{_libdir}/libXrdPfc-5.so
+%{_libdir}/libXrdFileCache-5.so
 %{_libdir}/libXrdBlacklistDecision-5.so
 %{_libdir}/libXrdHttp-5.so
 %{_libdir}/libXrdHttpTPC-5.so
