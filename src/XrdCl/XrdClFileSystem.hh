@@ -75,36 +75,38 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     enum Flags
     {
-      None     = 0,              //!< Nothing
-      Compress = kXR_compress,   //!< Read compressed data for open (ignored),
-                                 //!< for kXR_locate return unique hosts
-      Delete   = kXR_delete,     //!< Open a new file, deleting any existing
-                                 //!< file
-      Force    = kXR_force,      //!< Ignore file usage rules, for kXR_locate
-                                 //!< it means ignoreing network dependencies
-      MakePath = kXR_mkpath,     //!< Create directory path if it does not
-                                 //!< already exist
-      New      = kXR_new,        //!< Open the file only if it does not already
-                                 //!< exist
-      NoWait   = kXR_nowait,     //!< Open the file only if it does not cause
-                                 //!< a wait. For locate: provide a location as
-                                 //!< soon as one becomes known. This means
-                                 //!< that not all locations are necessarily
-                                 //!< returned. If the file does not exist a
-                                 //!< wait is still imposed.
-      Append   = kXR_open_apnd,  //!< Open only for appending
-      Read     = kXR_open_read,  //!< Open only for reading
-      Update   = kXR_open_updt,  //!< Open for reading and writing
-      Write    = kXR_open_wrto,  //!< Open only for writing
-      POSC     = kXR_posc,       //!< Enable Persist On Successful Close
-                                 //!< processing
-      Refresh  = kXR_refresh,    //!< Refresh the cached information on file's
-                                 //!< location. Voids NoWait.
-      Replica  = kXR_replica,    //!< The file is being opened for replica
-                                 //!< creation
-      SeqIO    = kXR_seqio,      //!< File will be read or written sequentially
-      PrefName = kXR_prefname    //!< Hostname response is prefered, applies
-                                 //!< only to FileSystem::Locate
+      None     = 0,                 //!< Nothing
+      Compress = kXR_compress,      //!< Read compressed data for open (ignored),
+                                    //!< for kXR_locate return unique hosts
+      Delete   = kXR_delete,        //!< Open a new file, deleting any existing
+                                    //!< file
+      Force    = kXR_force,         //!< Ignore file usage rules, for kXR_locate
+                                    //!< it means ignoreing network dependencies
+      MakePath = kXR_mkpath,        //!< Create directory path if it does not
+                                    //!< already exist
+      New      = kXR_new,           //!< Open the file only if it does not already
+                                    //!< exist
+      NoWait   = kXR_nowait,        //!< Open the file only if it does not cause
+                                    //!< a wait. For locate: provide a location as
+                                    //!< soon as one becomes known. This means
+                                    //!< that not all locations are necessarily
+                                    //!< returned. If the file does not exist a
+                                    //!< wait is still imposed.
+      Append   = kXR_open_apnd,   //!< Open only for appending
+      Read     = kXR_open_read,     //!< Open only for reading
+      Update   = kXR_open_updt,     //!< Open for reading and writing
+      Write    = kXR_open_wrto,     //!< Open only for writing
+      POSC     = kXR_posc,          //!< Enable Persist On Successful Close
+                                    //!< processing
+      Refresh  = kXR_refresh,       //!< Refresh the cached information on file's
+                                    //!< location. Voids NoWait.
+      Replica  = kXR_replica,       //!< The file is being opened for replica
+                                    //!< creation
+      SeqIO    = kXR_seqio,         //!< File will be read or written sequentially
+      PrefName = kXR_prefname,      //!< Hostname response is prefered, applies
+                                    //!< only to FileSystem::Locate
+      IntentDirList = kXR_4dirlist  //!< Make sure the server knows we are doing
+                                    //!< locate in context of a dir list operation
     };
   };
   XRDOUC_ENUM_OPERATORS( OpenFlags::Flags )
