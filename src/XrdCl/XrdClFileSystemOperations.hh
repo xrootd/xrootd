@@ -693,7 +693,7 @@ namespace XrdCl
         try
         {
           std::string path = std::get<PathArg>( this->args ).Get();
-          return this->filesystem->RmDir( path, this->handler.get() );
+          return this->filesystem->Stat( path, this->handler.get() );
         }
         catch( const PipelineException& ex )
         {
