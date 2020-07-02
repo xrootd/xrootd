@@ -67,6 +67,7 @@ Prerelease Notes
   * **[Server]** Add additional fields to he SecEntity structure (breaks ABI).
 
 + **Major bug fixes**
+  * **[VOMS]** Do not touch the Entity.name field; especially converting spaces.
   * **[Proxy]** Avoid SEGV when doing passthrough TPC.
   * **[Proxy]** Remove offending CGI elements before passing URL.
   * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
