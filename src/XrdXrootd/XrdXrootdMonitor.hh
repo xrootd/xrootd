@@ -114,7 +114,7 @@ inline void              Add_wr(kXR_unt32 dictid,
 static void              Defaults(char *dest1, int m1, char *dest2, int m2);
 static void              Defaults(int msz,     int rsz,     int wsz,
                                   int flush,   int flash,   int iDent, int rnm,
-                                  int fsint=0, int fsopt=0, int fsion=0);
+                                  int fbuff, int fsint=0, int fsopt=0, int fsion=0);
 
 static int               Flushing() {return autoFlush;}
 

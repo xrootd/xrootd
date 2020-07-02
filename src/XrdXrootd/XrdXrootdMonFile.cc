@@ -71,6 +71,7 @@ int                  XrdXrootdMonFile::repTime  = 0;
 int                  XrdXrootdMonFile::fmHWM    =-1;
 int                  XrdXrootdMonFile::crecSize = 0;
 int                  XrdXrootdMonFile::xfrCnt   = 0;
+int                  XrdXrootdMonFile::fBuff    = 65472;
 int                  XrdXrootdMonFile::xfrRem   = 0;
 XrdXrootdMonFileXFR  XrdXrootdMonFile::xfrRec;
 short                XrdXrootdMonFile::crecNLen = 0;
@@ -174,7 +175,7 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
 /*                              D e f a u l t s                               */
 /******************************************************************************/
   
-void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt)
+void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbuff)
 {
 
 // Set the reporting interval and I/O counter
@@ -182,6 +183,7 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt)
    repTime = intv;
    xfrCnt  = xfrcnt;
    xfrRem  = xfrcnt;
+   fBuff   = fbuff;
 
 // Expand out the options
 //
@@ -319,15 +321,15 @@ void XrdXrootdMonFile::DoXFR(XrdXrootdFileStats *fsP)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-bool XrdXrootdMonFile::Init(int bfsz)
+bool XrdXrootdMonFile::Init()
 {
    XrdXrootdMonFile *mfP;
    int alignment, pagsz = getpagesize();
 
 // Allocate a socket buffer
 //
-   alignment = (bfsz < pagsz ? 1024 : pagsz);
-   if (posix_memalign((void **)&repBuff, alignment, bfsz))
+   alignment = (fBuff < pagsz ? 1024 : pagsz);
+   if (posix_memalign((void **)&repBuff, alignment, fBuff))
       {XrdXrootdMonInfo::eDest->Emsg("MonFile", "Unable to allocate monitor buffer.");
        return false;
       }
@@ -353,7 +355,7 @@ bool XrdXrootdMonFile::Init(int bfsz)
 
 // Calculate the end nut the next slot always starts with a null pointer
 //
-   repLast = repBuff+bfsz-1;
+   repLast = repBuff+fBuff-1;
    repNext = 0;
 
 // Calculate the close record size and the initial flags
