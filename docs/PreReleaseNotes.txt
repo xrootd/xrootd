@@ -73,6 +73,7 @@ Prerelease Notes
   * **[SSI]** Fix double delete due to extraneous code addition.
 
 + **Minor bug fixes**
+  * **[Acc]** Process compound capability rules as documented.
   * **[Server]** Make space usage maintenance fully thread safe.
   * **[Server]** Avoid duplicate usage update under certain conditions.
   * **[gsi]** Fail server initialization when gsi did not initialize. Fixes #1042
