@@ -141,18 +141,17 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 // Run through the exclusive list first as only one rule will apply
 //
    if (Atab.SXList)
-      {int aSeq = 0;
-       while(aeP->Next(aSeq, eInfo))
-            {XrdAccAccess_ID *xlP = Atab.SXList;
-             while (xlP)
-                   {if (xlP->Applies(eInfo))
-                       {xlP->caps->Privs(caps, path, plen, phash);
-                        Access_Context.UnLock(xs_Shared);
-                        return Access(caps, Entity, path, oper);
-                       }
-                    xlP = xlP->next;
-                   }
-            }
+      {XrdAccAccess_ID *xlP = Atab.SXList;
+       do {int aSeq = 0;
+           while(aeP->Next(aSeq, eInfo))
+                {if (xlP->Applies(eInfo))
+                    {xlP->caps->Privs(caps, path, plen, phash);
+                     Access_Context.UnLock(xs_Shared);
+                     return Access(caps, Entity, path, oper);
+                    }
+                }
+           xlP = xlP->next;
+          } while(xlP);
       }
 
 // Check if we really need to resolve the host name
