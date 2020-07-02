@@ -360,8 +360,8 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
    }
 
    // Fix spaces in XrdSecEntity::name
-   char *sp = 0;
-   while ((sp = strchr(ent.name, ' '))) { *sp = '\t'; }
+// char *sp = 0;
+// while ((sp = strchr(ent.name, ' '))) { *sp = '\t'; }
 
    // Adjust the output format, if required
    FmtReplace(ent);
