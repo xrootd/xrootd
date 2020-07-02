@@ -71,7 +71,7 @@ int                  XrdXrootdMonFile::repTime  = 0;
 int                  XrdXrootdMonFile::fmHWM    =-1;
 int                  XrdXrootdMonFile::crecSize = 0;
 int                  XrdXrootdMonFile::xfrCnt   = 0;
-int                  XrdXrootdMonFile::fBuff    = 65472;
+int                  XrdXrootdMonFile::fBsz    = 65472;
 int                  XrdXrootdMonFile::xfrRem   = 0;
 XrdXrootdMonFileXFR  XrdXrootdMonFile::xfrRec;
 short                XrdXrootdMonFile::crecNLen = 0;
@@ -175,7 +175,7 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
 /*                              D e f a u l t s                               */
 /******************************************************************************/
   
-void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbuff)
+void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbsz)
 {
 
 // Set the reporting interval and I/O counter
@@ -183,7 +183,7 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt, int fbuff)
    repTime = intv;
    xfrCnt  = xfrcnt;
    xfrRem  = xfrcnt;
-   fBuff   = fbuff;
+   fBsz   =  (fbsz <= 0 ? 65472 : fbsz);
 
 // Expand out the options
 //
@@ -328,8 +328,8 @@ bool XrdXrootdMonFile::Init()
 
 // Allocate a socket buffer
 //
-   alignment = (fBuff < pagsz ? 1024 : pagsz);
-   if (posix_memalign((void **)&repBuff, alignment, fBuff))
+   alignment = (fBsz < pagsz ? 1024 : pagsz);
+   if (posix_memalign((void **)&repBuff, alignment, fBsz))
       {XrdXrootdMonInfo::eDest->Emsg("MonFile", "Unable to allocate monitor buffer.");
        return false;
       }
@@ -355,7 +355,7 @@ bool XrdXrootdMonFile::Init()
 
 // Calculate the end nut the next slot always starts with a null pointer
 //
-   repLast = repBuff+fBuff-1;
+   repLast = repBuff+fBsz-1;
    repNext = 0;
 
 // Calculate the close record size and the initial flags

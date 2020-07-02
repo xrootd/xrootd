@@ -45,7 +45,7 @@ public:
 
 static void Close(XrdXrootdFileStats *fsP, bool isDisc=false);
 
-static void Defaults(int intv, int opts, int iocnt, int fbuff);
+static void Defaults(int intv, int opts, int iocnt, int fbsz);
 
 static void Disc(unsigned int usrID);
 
@@ -83,7 +83,7 @@ static int                  repTime;
 static int                  fmHWM;
 static int                  crecSize;
 static int                  xfrCnt;
-static int                  fBuff;
+static int                  fBsz;
 static int                  xfrRem;
 static XrdXrootdMonFileXFR  xfrRec;
 static short                crecNLen;
