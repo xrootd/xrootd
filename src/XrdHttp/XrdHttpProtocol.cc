@@ -2523,13 +2523,22 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
     eDest.Emsg("Config", "No security extractor plugin specified.");
     return 1;
   } else {
+    char libName[4096];
+    strncpy(libName, val, sizeof(libName));
+    libName[sizeof(libName) - 1] = '\0';
+    char libParms[4096];
 
-      // Try to load the plugin (if available) that extracts info from the user cert/proxy
-      //
-      if (LoadSecXtractor(&eDest, val, 0))
-          return 1;
+    if (!Config.GetRest(libParms, 4095)) {
+      eDest.Emsg("Config", "secxtractor config params longer than 4k");
+      return 1;
+    }
+
+    // Try to load the plugin (if available) that extracts info from the
+    // user cert/proxy
+    if (LoadSecXtractor(&eDest, libName, libParms)) {
+      return 1;
+    }
   }
-
 
   return 0;
 }
