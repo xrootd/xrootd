@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  * **[VOMS]** Do not touch the Entity.name field; especially converting spaces.
 
 + **Minor bug fixes**
 
