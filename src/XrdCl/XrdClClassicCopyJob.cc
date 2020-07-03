@@ -552,6 +552,46 @@ namespace
   //----------------------------------------------------------------------------
   class XRootDSource: public Source
   {
+    struct CancellableJob : public XrdCl::Job
+    {
+      virtual void Cancel() = 0;
+
+      std::mutex mtx;
+    };
+
+    //----------------------------------------------------------------------------
+    // On-connect callback job, a lambda would be more elegant, but we still have
+    // to support SLC6
+    //----------------------------------------------------------------------------
+    template<typename READER>
+    struct OnConnJob : public CancellableJob
+    {
+        OnConnJob( XRootDSource *self, READER *reader ) : self( self ), reader( reader )
+        {
+        }
+
+        void Run( void* )
+        {
+          std::unique_lock<std::mutex> lck( mtx );
+          if( !self || !reader ) return;
+          // add new chunks to the queue
+          if( self->pNbConn < self->pMaxNbConn )
+            self->FillQueue( reader );
+        }
+
+        void Cancel()
+        {
+          std::unique_lock<std::mutex> lck( mtx );
+          self   = 0;
+          reader = 0;
+        }
+
+      private:
+        XRootDSource *self;
+        READER       *reader;
+
+    };
+
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -576,6 +616,8 @@ namespace
       //------------------------------------------------------------------------
       virtual ~XRootDSource()
       {
+        pDataConnCB->Cancel();
+
         CleanUpChunks();
         if( pFile->IsOpen() )
           XrdCl::XRootDStatus status = pFile->Close();
@@ -759,32 +801,8 @@ namespace
         // check if it is a local file
         if( pDataServer.empty() ) return;
 
-        //----------------------------------------------------------------------------
-        // On-connect callback job, a lambda would be more elegant, but we still have
-        // to support SLC6
-        //----------------------------------------------------------------------------
-        struct OnConnJob : public XrdCl::Job
-        {
-            OnConnJob( XRootDSource *self, READER *reader ) : self( self ), reader( reader )
-            {
-            }
-
-            void Run( void* )
-            {
-              std::unique_lock<std::mutex> lck( self->pMtx );
-              // add new chunks to the queue
-              if( self->pNbConn < self->pMaxNbConn )
-                self->FillQueue( reader );
-            }
-
-          private:
-            XRootDSource *self;
-            READER       *reader;
-
-        };
-
-        std::unique_ptr<XrdCl::Job> callback( new OnConnJob( this, reader ) );
-        XrdCl::DefaultEnv::GetPostMaster()->SetOnDataConnectHandler( pDataServer, std::move( callback ) );
+        pDataConnCB.reset( new OnConnJob<READER>( this, reader ) );
+        XrdCl::DefaultEnv::GetPostMaster()->SetOnDataConnectHandler( pDataServer, pDataConnCB );
       }
 
       //------------------------------------------------------------------------
@@ -811,7 +829,7 @@ namespace
         //- ---------------------------------------------------------------------
         // Fill the queue
         //----------------------------------------------------------------------
-        std::unique_lock<std::mutex> lck( pMtx );
+        std::unique_lock<std::mutex> lck( pDataConnCB->mtx );
         FillQueue( reader );
 
         //----------------------------------------------------------------------
@@ -873,17 +891,18 @@ namespace
         XrdCl::XRootDStatus  status;
       };
 
-      const XrdCl::URL           *pUrl;
-      XrdCl::File                *pFile;
-      int64_t                     pSize;
-      int64_t                     pCurrentOffset;
-      uint32_t                    pChunkSize;
-      uint16_t                    pParallel;
-      std::queue<ChunkHandler *>  pChunks;
-      std::string                 pDataServer;
-      std::mutex                  pMtx;
-      uint16_t                    pNbConn;
-      uint16_t                    pMaxNbConn;
+      const XrdCl::URL               *pUrl;
+      XrdCl::File                    *pFile;
+      int64_t                         pSize;
+      int64_t                         pCurrentOffset;
+      uint32_t                        pChunkSize;
+      uint16_t                        pParallel;
+      std::queue<ChunkHandler *>      pChunks;
+      std::string                     pDataServer;
+      uint16_t                        pNbConn;
+      uint16_t                        pMaxNbConn;
+
+      std::shared_ptr<CancellableJob> pDataConnCB;
   };
 
   //----------------------------------------------------------------------------
@@ -947,7 +966,7 @@ namespace
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
           return pCkSumHelper->Initialize();
 
-        SetOnDataConnectHandler( pFile );
+        SetOnDataConnectHandler( pZipArchive );
 
         return XrdCl::XRootDStatus();
       }

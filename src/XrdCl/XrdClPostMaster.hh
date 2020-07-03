@@ -211,7 +211,7 @@ namespace XrdCl
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
       void SetOnDataConnectHandler( const URL &url,
-                                    std::unique_ptr<Job> onConnJob );
+                                    std::shared_ptr<Job> onConnJob );
 
       //------------------------------------------------------------------------
       //! Set the global on-connect handler for control streams
