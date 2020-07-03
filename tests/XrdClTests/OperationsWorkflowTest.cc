@@ -882,19 +882,22 @@ void WorkflowTest::XAttrWorkflowTest()
 void WorkflowTest::MkDirAsyncTest() {
   using namespace XrdCl;
 
-  FileSystem fs{"/"};
+  FileSystem fs( GetAddress() );
 
-  std::packaged_task<void(XrdCl::XRootDStatus & st)> mkdirTask{
-    [](XrdCl::XRootDStatus &st) {
+  std::packaged_task<void( XrdCl::XRootDStatus & st )> mkdirTask{
+    []( XrdCl::XRootDStatus &st ) {
         if (!st.IsOK())
-          throw XrdCl::PipelineException(st);
+          throw XrdCl::PipelineException( st );
     }};
 
-  auto &&t = Async(MkDir(fs, "MkDirAsyncTest", XrdCl::MkDirFlags::None,
-            XrdCl::Access::Mode::UR | XrdCl::Access::Mode::UW |
-                XrdCl::Access::Mode::UX | XrdCl::Access::Mode::GR |
-                XrdCl::Access::Mode::GW | XrdCl::Access::Mode::GX) >> mkdirTask);
+  XrdCl::Access::Mode access = XrdCl::Access::Mode::UR | XrdCl::Access::Mode::UW |
+                               XrdCl::Access::Mode::UX | XrdCl::Access::Mode::GR |
+                               XrdCl::Access::Mode::GW | XrdCl::Access::Mode::GX;
 
-  CPPUNIT_ASSERT(t.get().status == stOK);
+  auto &&t = Async( MkDir( fs, "/data/MkDirAsyncTest", XrdCl::MkDirFlags::None, access ) >> mkdirTask |
+                    RmDir( fs, "/data/MkDirAsyncTest" )
+                  );
+
+  CPPUNIT_ASSERT(t.get().status == stOK); 
 }
 
