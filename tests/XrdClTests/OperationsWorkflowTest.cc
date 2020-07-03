@@ -54,6 +54,7 @@ class WorkflowTest: public CppUnit::TestCase
       CPPUNIT_TEST( MixedWorkflowTest );
       CPPUNIT_TEST( WorkflowWithFutureTest );
       CPPUNIT_TEST( XAttrWorkflowTest );
+      CPPUNIT_TEST( MkDirAsyncTest );
     CPPUNIT_TEST_SUITE_END();
     void ReadingWorkflowTest();
     void WritingWorkflowTest();
@@ -65,6 +66,7 @@ class WorkflowTest: public CppUnit::TestCase
     void MixedWorkflowTest();
     void WorkflowWithFutureTest();
     void XAttrWorkflowTest();
+    void MkDirAsyncTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( WorkflowTest );
@@ -85,7 +87,7 @@ namespace {
 
         std::string dataPath;
         CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
-        
+
         return dataPath + "/" + fileName;
     }
 
@@ -227,7 +229,7 @@ void WorkflowTest::WritingWorkflowTest(){
     auto flags = OpenFlags::Write | OpenFlags::Delete | OpenFlags::Update;
     std::string texts[3] = {"First line\n", "Second line\n", "Third line\n"};
     File f;
-    
+
     auto url = GetAddress();
     FileSystem fs(url);
     auto relativePath = GetPath("testFile.dat");
@@ -876,3 +878,23 @@ void WorkflowTest::XAttrWorkflowTest()
     CPPUNIT_ASSERT( false );
   }
 }
+
+void WorkflowTest::MkDirAsyncTest() {
+  using namespace XrdCl;
+
+  FileSystem fs{"/"};
+
+  std::packaged_task<void(XrdCl::XRootDStatus & st)> mkdirTask{
+    [](XrdCl::XRootDStatus &st) {
+        if (!st.IsOK())
+          throw XrdCl::PipelineException(st);
+    }};
+
+  auto &&t = Async(MkDir(fs, "MkDirAsyncTest", XrdCl::MkDirFlags::None,
+            XrdCl::Access::Mode::UR | XrdCl::Access::Mode::UW |
+                XrdCl::Access::Mode::UX | XrdCl::Access::Mode::GR |
+                XrdCl::Access::Mode::GW | XrdCl::Access::Mode::GX) >> mkdirTask);
+
+  CPPUNIT_ASSERT(t.get().status == stOK);
+}
+

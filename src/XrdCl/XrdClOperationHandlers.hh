@@ -276,7 +276,7 @@ namespace XrdCl
   //! @arg Return   : type of the value returned by the task
   //----------------------------------------------------------------------------
   template<typename Return>
-  class TaskWrapper<void, Return>
+  class TaskWrapper<void, Return>: public ResponseHandler
   {
     public:
 
