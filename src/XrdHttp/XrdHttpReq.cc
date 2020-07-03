@@ -661,6 +661,13 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   else
     redirdest = "Location: http://";
   
+  // port -1 signals redirect to local filesystem
+  // switch to file:// protocol
+  if (port == -1)
+  {
+    TRACE(REQ, " XrdHttpReq::Redir Switching to file:// ");
+    redirdest = "Location: file://";
+  }
   // Beware, certain Ofs implementations (e.g. EOS) add opaque data directly to the host name
   // This must be correctly treated here and appended to the opaque info
   // that we may already have
@@ -681,7 +688,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   else
     redirdest += hname;
 
-  if (port) {
+  if (port > 0) {
     sprintf(buf, ":%d", port);
     redirdest += buf;
   }
