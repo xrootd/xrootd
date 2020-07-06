@@ -25,7 +25,6 @@
 
 #include "XrdOss/XrdOss.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
-#include "XrdOuc/XrdOucSxeq.hh"
 #include "XrdSys/XrdSysTrace.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -289,13 +288,6 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
 
    if (m_store.m_astats.size() > s_maxNumAccess) CompactifyAccessRecords();
 
-   int rc;
-   if ((rc = XrdOucSxeq::Serialize(fp->getFD(), XrdOucSxeq::noWait)))
-   {
-      TRACE(Error, trace_pfx << " lock failed " << XrdSysE2T(rc));
-      return false;
-   }
-
    FpHelper w(fp, 0, m_trace, m_traceID, trace_pfx + "oss write failed");
 
    m_store.m_version = s_defaultVersion;
@@ -314,12 +306,6 @@ bool Info::Write(XrdOssDF* fp, const std::string &fname)
    for (std::vector<AStat>::iterator it = m_store.m_astats.begin(); it != m_store.m_astats.end(); ++it)
    {
       if (w.Write(*it)) return false;
-   }
-
-   // Can this really fail?
-   if (XrdOucSxeq::Release(fp->getFD()))
-   {
-      TRACE(Error, trace_pfx << "un-lock failed");
    }
 
    return true;

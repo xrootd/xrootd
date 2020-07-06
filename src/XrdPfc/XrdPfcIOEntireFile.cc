@@ -81,6 +81,8 @@ int IOEntireFile::initCachedStat(const char* path)
 {
    // Called indirectly from the constructor.
 
+   static const char* trace_pfx = "IOEntireFile::initCachedStat ";
+
    int res = -1;
    struct stat tmpStat;
 
@@ -95,18 +97,18 @@ int IOEntireFile::initCachedStat(const char* path)
          if (info.Read(infoFile, path))
          {
             tmpStat.st_size = info.GetFileSize();
-            TRACEIO(Info, "IOEntireFile::initCachedStat successfuly read size from info file = " << tmpStat.st_size);
+            TRACEIO(Info, trace_pfx << "successfuly read size from info file = " << tmpStat.st_size);
             res = 0;
          }
          else
          {
             // file exist but can't read it
-            TRACEIO(Debug, "IOEntireFile::initCachedStat info file is not complete");
+            TRACEIO(Info, trace_pfx << "info file is incomplete or corrupt");
          }
       }
       else
       {
-         TRACEIO(Error, "IOEntireFile::initCachedStat can't open info file " << XrdSysE2T(-res_open));
+         TRACEIO(Error, trace_pfx << "can't open info file " << XrdSysE2T(-res_open));
       }
       infoFile->Close();
       delete infoFile;
@@ -115,7 +117,7 @@ int IOEntireFile::initCachedStat(const char* path)
    if (res)
    {
       res = GetInput()->Fstat(tmpStat);
-      TRACEIO(Debug, "IOEntireFile::initCachedStat get stat from client res = " << res << ", size = " << tmpStat.st_size);
+      TRACEIO(Debug, trace_pfx << "got stat from client res = " << res << ", size = " << tmpStat.st_size);
    }
 
    if (res == 0)
@@ -177,7 +179,7 @@ int IOEntireFile::Read(char *buff, long long off, int size)
    }
    else
    {
-      TRACEIO(Warning, "IOEntireFile::Read() pass to origin, File::Read() exit status=" << retval
+      TRACEIO(Warning, "IOEntireFile::Read() error in File::Read(), exit status=" << retval
               << ", error=" << XrdSysE2T(-retval));
    }
 
