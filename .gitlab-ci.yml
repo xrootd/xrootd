@@ -259,11 +259,11 @@ build:deb_ubuntu_xenial:
     - schedules
     - web
 
-build:deb_ubuntu_eoan:
-  image: ubuntu:eoan
+build:deb_ubuntu_focal:
+  image: ubuntu:focal
   <<: *deb_ubuntu_build_def
   variables:
-    DIST: eoan
+    DIST: focal
   only:
     - master
     - /^stable-.*$/
@@ -409,11 +409,11 @@ release:deb_ubuntu_xenial:
   except:
     - branches
 
-release:deb_ubuntu_eoan:
-  image: ubuntu:eoan
+release:deb_ubuntu_focal:
+  image: ubuntu:focal
   <<: *deb_ubuntu_build_def
   variables:
-    DIST: eoan
+    DIST: focal
   only:
     - web
   except:
@@ -699,7 +699,7 @@ publish:debian:
   dependencies:
     - build:deb_ubuntu_bionic
     - build:deb_ubuntu_xenial
-    - build:deb_ubuntu_eoan
+    - build:deb_ubuntu_focal
   only:
     - master
     - /^stable-.*$/
@@ -750,7 +750,7 @@ publish:debian:release:
   dependencies:
     - release:deb_ubuntu_bionic
     - release:deb_ubuntu_xenial
-    - release:deb_ubuntu_eoan
+    - release:deb_ubuntu_focal
   only:
     - web
   except:
