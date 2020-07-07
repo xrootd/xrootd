@@ -549,6 +549,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   properties.Set( "source",      "root://localhost:9999//test" );
   properties.Set( "target",      targetURL );
   properties.Set( "initTimeout", 10 );
+  properties.Set( "thirdParty",  "only"    );
   CPPUNIT_ASSERT_XRDST( process3.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process3.Prepare() );
   XrdCl::XRootDStatus status = process3.Run(0);
@@ -558,9 +559,10 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   // Copy to a non-existent target
   //----------------------------------------------------------------------------
   results.Clear();
-  properties.Set( "source", sourceURL );
-  properties.Set( "target", "root://localhost:9999//test" );
+  properties.Set( "source",      sourceURL );
+  properties.Set( "target",      "root://localhost:9999//test" );
   properties.Set( "initTimeout", 10 );
+  properties.Set( "thirdParty",  "only"    );
   CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
   CPPUNIT_ASSERT_XRDST( process4.Prepare() );
   status = process4.Run(0);
