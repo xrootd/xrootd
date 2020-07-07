@@ -616,7 +616,8 @@ namespace
       //------------------------------------------------------------------------
       virtual ~XRootDSource()
       {
-        pDataConnCB->Cancel();
+        if( pDataConnCB )
+          pDataConnCB->Cancel();
 
         CleanUpChunks();
         if( pFile->IsOpen() )
@@ -651,7 +652,10 @@ namespace
         delete statInfo;
 
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
-          return pCkSumHelper->Initialize();
+        {
+          st = pCkSumHelper->Initialize();
+          if( !st.IsOK() ) return st;
+        }
 
         if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
           pFile->GetProperty( "DataServer", pDataServer );
