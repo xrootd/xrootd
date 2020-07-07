@@ -360,8 +360,8 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Set the on-connect handler for data streams
   //------------------------------------------------------------------------
-  void PostMaster::SetOnDataConnectHandler( const URL &url,
-                                            std::shared_ptr<Job> onConnJob )
+  void PostMaster::SetOnDataConnectHandler( const URL            &url,
+                                            std::shared_ptr<Job>  onConnJob )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
     Channel *channel = GetChannel( url );

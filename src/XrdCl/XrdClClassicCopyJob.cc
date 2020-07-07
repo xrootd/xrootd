@@ -798,10 +798,12 @@ namespace
       template<typename READER>
       void SetOnDataConnectHandler( READER *reader )
       {
+        // we need to create the object anyway as it contains our mutex now
+        pDataConnCB.reset( new OnConnJob<READER>( this, reader ) );
+
         // check if it is a local file
         if( pDataServer.empty() ) return;
 
-        pDataConnCB.reset( new OnConnJob<READER>( this, reader ) );
         XrdCl::DefaultEnv::GetPostMaster()->SetOnDataConnectHandler( pDataServer, pDataConnCB );
       }
 

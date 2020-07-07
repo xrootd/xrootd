@@ -252,7 +252,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
       //------------------------------------------------------------------------
-      void SetOnDataConnectHandler( std::shared_ptr<Job> onConnJob )
+      void SetOnDataConnectHandler( std::shared_ptr<Job> &onConnJob )
       {
         pOnDataConnJob = onConnJob;
       }
