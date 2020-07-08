@@ -130,7 +130,7 @@ XrdHttpSecXtractor *XrdHttpGetSecXtractor(XrdHttpSecXtractorArgs)
 
 // Initialize it using the parameters supplied
 //
-   if (vomsFun->VOMSInit(confg) < 0)
+   if (vomsFun->VOMSInit(parms) < 0)
       {delete vomsFun;
        return 0;
       }
