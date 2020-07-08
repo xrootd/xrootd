@@ -89,9 +89,11 @@ char *XrdHttpProtocol::sslcafile = 0;
 char *XrdHttpProtocol::secretkey = 0;
 
 char *XrdHttpProtocol::gridmap = 0;
+bool XrdHttpProtocol::isRequiredGridmap = false;
 int XrdHttpProtocol::sslverifydepth = 9;
 BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
+bool XrdHttpProtocol::isRequiredXtractor = false;
 struct XrdHttpProtocol::XrdHttpExtHandlerInfo XrdHttpProtocol::exthandler[MAX_XRDHTTPEXTHANDLERS];
 int XrdHttpProtocol::exthandlercnt = 0;
 std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
@@ -1892,12 +1894,13 @@ int XrdHttpProtocol::xsslkey(XrdOucStream & Config) {
 
 /* Function: xgmap
 
-   Purpose:  To parse the directive: gridmap <path>
+   Purpose:  To parse the directive: gridmap [required] <path>
 
-             <path>    the path of the gridmap file to be used. Normally
-                       it's /etc/grid-security/gridmap
-                       No mapfile means no translation required
-                       Pointing to a non existing mapfile is an error
+     required   optional parameter which if present treats any grimap errors
+                as fatal.
+     <path>     the path of the gridmap file to be used. Normally it's
+                /etc/grid-security/gridmap. No mapfile means no translation
+                required. Pointing to a non existing mapfile is an error.
 
   Output: 0 upon success or !0 upon failure.
  */
@@ -1913,11 +1916,23 @@ int XrdHttpProtocol::xgmap(XrdOucStream & Config) {
     return 1;
   }
 
+  // Handle optional parameter "required"
+  //
+  if (!strncmp(val, "required", 8)) {
+    isRequiredGridmap = true;
+    val = Config.GetWord();
+
+    if (!val || !val[0]) {
+      eDest.Emsg("Config", "HTTP X509 gridmap file missing after [required] "
+                 "parameter");
+      return 1;
+    }
+  }
+
   // Record the path
   //
   if (gridmap) free(gridmap);
   gridmap = strdup(val);
-
   return 0;
 }
 
@@ -2314,14 +2329,17 @@ int XrdHttpProtocol::xselfhttps2http(XrdOucStream & Config) {
 
 /* Function: xsecxtractor
 
-   Purpose:  To parse the directive: secxtractor <path>
+   Purpose:  To parse the directive: secxtractor [required] <path> <params>
 
-             <path>    the path of the plugin to be loaded
+     required    optional parameter which if present treats any secxtractor
+                 errors as fatal.
+     <path>      the path of the plugin to be loaded
+     <params>    parameters passed to the secxtractor library
 
   Output: 0 upon success or !0 upon failure.
  */
 
-int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
+int XrdHttpProtocol::xsecxtractor(XrdOucStream& Config) {
   char *val;
 
   // Get the path
@@ -2331,6 +2349,19 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream & Config) {
     eDest.Emsg("Config", "No security extractor plugin specified.");
     return 1;
   } else {
+    // Handle optional parameter [required]
+    //
+    if (!strncmp(val, "required", 8)) {
+      isRequiredXtractor = true;
+      val = Config.GetWord();
+
+      if (!val || !val[0]) {
+        eDest.Emsg("Config", "No security extractor plugin after [required] "
+                   "parameter");
+        return 1;
+      }
+    }
+
     char libName[4096];
     strncpy(libName, val, sizeof(libName));
     libName[sizeof(libName) - 1] = '\0';

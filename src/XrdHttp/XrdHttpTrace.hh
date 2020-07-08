@@ -80,6 +80,7 @@ extern const char *XrdHttpTraceID;
        XrdHttpTrace->End();}
 
 #define TRACING(x) XrdHttpTrace->What & x
+#define EPNAME(x)  static const char* epname = x;
 
 #else
 
@@ -88,6 +89,7 @@ extern const char *XrdHttpTraceID;
 #define TRACEP(act,x)
 #define TRACES(act,x)
 #define TRACING(x) 0
+#define EPNAME(x)
 #endif
 
 #endif

@@ -161,7 +161,9 @@ private:
   int GetVOMSData(XrdLink *lp);
 
   // Handle gridmap file mapping if present
-  void HandleGridMap(XrdLink* lp);
+  //
+  // @return 0 if successful, otherwise !0
+  int HandleGridMap(XrdLink* lp);
 
   /// Get up to blen bytes from the connection. Put them into mybuff.
   /// This primitive, for the way it is used, is not supposed to block
@@ -194,6 +196,7 @@ private:
   static int xheader2cgi(XrdOucStream &Config);
   static int xhttpsmode(XrdOucStream &Config);
   
+  static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
   
   // Loads the SecXtractor plugin, if available
@@ -345,6 +348,7 @@ protected:
 
   /// Gridmap file location. The same used by XrdSecGsi
   static char *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
+  static bool isRequiredGridmap; // If true treat gridmap errors as fatal
    
   /// The key used to calculate the url hashes
   static char *secretkey;

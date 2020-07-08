@@ -89,6 +89,7 @@ bool XrdHttpProtocol::InitSecurity() {
 int
 XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
 {
+  EPNAME("HandleAuthentication");
   int rc_ssl = SSL_get_verify_result(ssl);
 
   if (rc_ssl) { 
@@ -132,10 +133,15 @@ XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
 
   if (GetVOMSData(lp)) {
     TRACEI(DEBUG, " No VOMS information for DN: " << SecEntity.moninfo);
+
+    if (isRequiredXtractor) {
+      eDest.Emsg(epname, "Failed extracting required VOMS info for DN: ",
+                 SecEntity.moninfo);
+      return 1;
+    }
   }
 
-  HandleGridMap(lp);
-  return 0;
+  return HandleGridMap(lp);
 }
 
 
@@ -143,9 +149,10 @@ XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
 /*                          H a n d l e G r i d M a p                         */
 /******************************************************************************/
 
-void
+int
 XrdHttpProtocol::HandleGridMap(XrdLink* lp)
 {
+  EPNAME("HandleGridMap");
   char bufname[256];
 
   if (servGMap) {
@@ -157,6 +164,12 @@ XrdHttpProtocol::HandleGridMap(XrdLink* lp)
     }
     else {
       TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
+
+      if (isRequiredGridmap) {
+        eDest.Emsg(epname, "Required gridmap mapping failed for DN:",
+                   SecEntity.moninfo);
+        return 1;
+      }
     }
   }
 
@@ -206,10 +219,11 @@ XrdHttpProtocol::HandleGridMap(XrdLink* lp)
         j--;
         SecEntity.name[j] = SecEntity.moninfo[i];
         if (j == 0) break;
-
       }
     }
   }
+
+  return 0;
 }
 
 
@@ -221,26 +235,22 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp)
 {
   TRACEI(DEBUG, " Extracting auth info.");
 
-  // Invoke our instance of the Security exctractor plugin
-  // This will fill the XrdSec thing with VOMS info, if VOMS is
-  // installed. If we have no sec extractor then do nothing, just plain https
-  // will work.
+  // Invoke the Security exctractor plugin which will fill in the XrdSecEntity
+  // with VOMS info, if VOMS is installed. If we have no sec extractor then do
+  // nothing, just plain https will work.
   if (secxtractor) {
-    // We assume that if the sysadmin has assigned a gridmap file then he
-    // is interested in the mapped name, not the original one that would be
-    // overwritten inside the plugin
+    // Note: this is kept for compatibility with XrdHttpVOMS which modified the
+    // SecEntity.name filed
     char *savestr = 0;
+
     if (servGMap && SecEntity.name) {
       savestr = strdup(SecEntity.name);
     }
 
     int r = secxtractor->GetSecData(lp, SecEntity, ssl);
-    // Note: this is kept for compatilibyt with XrdHttpVOMS which modified the
-    // SecEntity.name filed.
+
     if (servGMap && savestr) {
-      if (SecEntity.name) {
-        free(SecEntity.name);
-      }
+      if (SecEntity.name) free(SecEntity.name);
       SecEntity.name = savestr;
     }
 
