@@ -10,6 +10,7 @@ stages:
 .template:deb_ubuntu_build: &deb_ubuntu_build_def
   stage: build:rpm
   script:
+    - export DEBIAN_FRONTEND=noninteractive
     - apt-get update
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
     - cp -R packaging/debian/ .
