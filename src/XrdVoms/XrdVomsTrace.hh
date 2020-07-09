@@ -33,7 +33,8 @@
 #ifndef NODEBUG
 
 #define PRINT(y)    if (gDebug) {cerr <<gLogger->traceBeg() <<" XrdVoms"\
-                                      <<epname <<": " <<y <<gLogger->traceEnd();}
+                                      <<epname <<": " <<y <<'\n' <<flush;\
+                                 gLogger->traceEnd();}
 #define DEBUG(y)    if (gDebug > 1) {PRINT(y)}
 #define EPNAME(x)   static const char *epname = x;
 
