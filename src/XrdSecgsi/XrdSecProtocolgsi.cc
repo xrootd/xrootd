@@ -1067,7 +1067,7 @@ void XrdSecProtocolgsi::Delete()
    SafeDelete(sessionKver);   // RSA key to verify
    if (proxyChain) proxyChain->Cleanup(1);
    SafeDelete(proxyChain);    // Chain with delegated proxies
-   SafeDelete(expectedHost);
+   SafeFree(expectedHost);
 
    delete this;
 }
