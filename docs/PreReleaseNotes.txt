@@ -10,5 +10,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[VOMS]** Correct use of undocumented API that caused hang w/ dbg. Fixes #1245
+  **[GSI]** Use the storage deallocator that matches the allocator.
 
 + **Miscellaneous**
