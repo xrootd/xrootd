@@ -134,7 +134,7 @@ static int               Redirect() {return monREDR;}
 static int               Redirect(kXR_unt32  mID, const char *hName, int Port,
                                   const char opC, const char *Path);
 
-static int               Send(int mmode, void *buff, int size);
+static int               Send(int mmode, void *buff, int size, bool setseq=true);
 
 static time_t            Tick();
 

@@ -908,18 +908,12 @@ unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
   
 void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
                                   const char          id, int size)
-{  int myseq;
-
-// Generate a new sequence number
-//
-   seqMutex.Lock();
-   myseq = 0x00ff & (seq++);
-   seqMutex.UnLock();
+{
 
 // Fill in the header
 //
    hdr->code = static_cast<kXR_char>(id);
-   hdr->pseq = static_cast<kXR_char>(myseq);
+// hdr->pseq = static_cast<kXR_char>(myseq);  // Filled in Send()
    hdr->plen = htons(static_cast<uint16_t>(size));
    hdr->stod = startTime;
 }
@@ -1052,22 +1046,31 @@ void XrdXrootdMonitor::Mark()
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-int XrdXrootdMonitor::Send(int monMode, void *buff, int blen)
+int XrdXrootdMonitor::Send(int monMode, void *buff, int blen, bool setseq)
 {
 #ifndef NODEBUG
     const char *TraceID = "Monitor";
 #endif
     static XrdSysMutex sendMutex;
+    static int seq1=0, seq2=0;
+    XrdXrootdMonHeader *mHdr=0;
     int rc1, rc2;
+
+// If we are to set sequence numbers, recast the buffer. We are assured that
+// the buffer always starts with the standard monitor header.
+//
+   if (setseq) mHdr = static_cast<XrdXrootdMonHeader*>(buff);
 
     sendMutex.Lock();
     if (monMode & monMode1 && InetDest1)
-       {rc1  = InetDest1->Send((char *)buff, blen);
+       {if (mHdr) mHdr->pseq = (seq1++) & 0xff;
+        rc1  = InetDest1->Send((char *)buff, blen);
         TRACE(DEBUG,blen <<" bytes sent to " <<Dest1 <<" rc=" <<rc1);
        }
        else rc1 = 0;
     if (monMode & monMode2 && InetDest2)
-       {rc2  = InetDest2->Send((char *)buff, blen);
+       {if (mHdr) mHdr->pseq = (seq2++) & 0xff;
+        rc2  = InetDest2->Send((char *)buff, blen);
         TRACE(DEBUG,blen <<" bytes sent to " <<Dest2 <<" rc=" <<rc2);
        }
        else rc2 = 0;

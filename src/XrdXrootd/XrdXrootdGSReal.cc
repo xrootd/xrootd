@@ -139,7 +139,7 @@ void XrdXrootdGSReal::Expel(int dlen) // gMutex is held
 
 // Send off the packet
 //
-   XrdXrootdMonitor::Send(monType, &gMsg, size);
+   XrdXrootdMonitor::Send(monType, &gMsg, size, false);
 
 // Reset the buffer
 //
