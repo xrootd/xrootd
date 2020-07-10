@@ -191,6 +191,7 @@ Cache::Cache(XrdSysLogger *logger, XrdOucEnv *env) :
    m_prefetch_enabled(false),
    m_RAM_used(0),
    m_RAM_write_queue(0),
+   m_RAM_std_size(0),
    m_isClient(false),
    m_in_purge(false),
    m_active_cond(0),
