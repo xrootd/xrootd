@@ -452,7 +452,7 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 
 void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
                                 int flush, int flash, int idt, int rnm,
-                                int fsint, int fsopt, int fsion)
+                                int fbsz, int fsint, int fsopt, int fsion)
 {
 
 // Set default window size and flush time
@@ -467,7 +467,7 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
 
 // Set the fstat defaults
 //
-   XrdXrootdMonFile::Defaults(fsint, fsopt, fsion);
+   XrdXrootdMonFile::Defaults(fsint, fsopt, fsion, fbsz);
    monFSTAT = fsint != 0;
 
 // Set default monitor buffer size

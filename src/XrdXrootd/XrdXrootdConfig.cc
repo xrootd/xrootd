@@ -1345,6 +1345,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 
    Purpose:  Parse directive: monitor [all] [auth]  [flush [io] <sec>]
                                       [fstat <sec> [lfn] [ops] [ssq] [xfr <n>]
+                                      [fbuff <sz>]
                                       [ident <sec>] [mbuff <sz>] [rbuff <sz>]
                                       [rnums <cnt>] [window <sec>]
                                       dest [Events] <host:port>
@@ -1362,6 +1363,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
                             ssq    - computes the sum of squares for the ops rec
                             xfr <n>- inserts i/o stats for open files every
                                      <sec>*<n>. Minimum is 1.
+         fbsz   <sz>        size of message buffer for file stream monitoring.
          ident  <sec>       time (seconds, M, H) between identification records.
          mbuff  <sz>        size of message buffer for event trace monitoring.
          rbuff  <sz>        size of message buffer for redirection monitoring.
@@ -1389,7 +1391,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                                  };
     char  *val = 0, *cp, *monDest[2] = {0, 0};
     long long tempval;
-    int i, monFlash = 0, monFlush=0, monMBval=0, monRBval=0, monWWval=0;
+    int i, monFlash = 0, monFlush=0, monMBval=0, monRBval=0, monWWval=0, monFbsz=0;
     int    monIdent = 3600, xmode=0, monMode[2] = {0, 0}, mrType, *flushDest;
     int    monRnums = 0, monFSint = 0, monFSopt = 0, monFSion = 0;
     int    haveWord = 0;
@@ -1441,6 +1443,15 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                    if (mrType) monRBval = static_cast<int>(tempval);
                       else     monMBval = static_cast<int>(tempval);
                   }
+         else if (!strcmp("fbsz", val))
+                {if (!(val = Config.GetWord()))
+                    {eDest.Emsg("Config", "monitor fbsz value not specified");
+                     return 1;
+                    }
+                 if (XrdOuca2x::a2sz(eDest,"monitor fbsz", val,
+                                             &tempval, 1024, 65472)) return 1;
+                  monFbsz = static_cast<int>(tempval);
+                }
           else if (!strcmp("ident", val))
                 {if (!(val = Config.GetWord()))
                     {eDest.Emsg("Config", "monitor ident value not specified");
@@ -1528,7 +1539,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 // Set the monitor defaults
 //
    XrdXrootdMonitor::Defaults(monMBval, monRBval, monWWval,
-                              monFlush, monFlash, monIdent, monRnums,
+                              monFlush, monFlash, monIdent, monRnums, monFbsz,
                               monFSint, monFSopt, monFSion);
 
    if (monDest[0]) monMode[0] |= (monMode[0] ? xmode : XROOTD_MON_FILE|xmode);

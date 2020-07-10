@@ -45,13 +45,13 @@ public:
 
 static void Close(XrdXrootdFileStats *fsP, bool isDisc=false);
 
-static void Defaults(int intv, int opts, int iocnt);
+static void Defaults(int intv, int opts, int iocnt, int fbsz);
 
 static void Disc(unsigned int usrID);
 
        void DoIt();
 
-static bool Init(int bfsz=65472);
+static bool Init();
 
 static void Open(XrdXrootdFileStats *fsP,
                  const char *Path, unsigned int uDID, bool isRW);
@@ -83,6 +83,7 @@ static int                  repTime;
 static int                  fmHWM;
 static int                  crecSize;
 static int                  xfrCnt;
+static int                  fBsz;
 static int                  xfrRem;
 static XrdXrootdMonFileXFR  xfrRec;
 static short                crecNLen;
