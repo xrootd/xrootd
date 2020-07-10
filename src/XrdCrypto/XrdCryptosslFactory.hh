@@ -95,6 +95,7 @@ public:
    XrdCryptoX509VerifyCert_t X509VerifyCert();
    XrdCryptoX509VerifyChain_t X509VerifyChain();
    XrdCryptoX509ParseFile_t X509ParseFile();
+   XrdCryptoX509ParseStack_t X509ParseStack();
    XrdCryptoX509ParseBucket_t X509ParseBucket();
    XrdCryptoX509ExportChain_t X509ExportChain();
    XrdCryptoX509ChainToFile_t X509ChainToFile();

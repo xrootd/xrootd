@@ -478,6 +478,15 @@ XrdCryptoX509ParseFile_t XrdCryptosslFactory::X509ParseFile()
 }
 
 //______________________________________________________________________________
+XrdCryptoX509ParseStack_t XrdCryptosslFactory::X509ParseStack()
+{
+   // Return an instance of an implementation of a function
+   // to parse a file supposed to contain for X509 certificates.
+
+   return &XrdCryptosslX509ParseStack;
+}
+
+//______________________________________________________________________________
 XrdCryptoX509ParseBucket_t XrdCryptosslFactory::X509ParseBucket()
 {
    // Return an instance of an implementation of a function
