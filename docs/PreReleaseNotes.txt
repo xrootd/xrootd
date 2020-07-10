@@ -14,3 +14,4 @@ Prerelease Notes
   **[GSI]** Use the storage deallocator that matches the allocator.
 
 + **Miscellaneous**
+  **[Mon]** Rationalize UDP packet sequence numbers.
