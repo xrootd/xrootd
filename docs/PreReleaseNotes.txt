@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  **[Xcache]** Add missing initializer to avoid malloc() abort.
 
 + **Minor bug fixes**
   **[VOMS]** Correct use of undocumented API that caused hang w/ dbg. Fixes #1245
