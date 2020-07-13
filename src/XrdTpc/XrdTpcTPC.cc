@@ -521,7 +521,6 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     rec.log_prefix = "PushRequest";
     rec.local = req.resource;
     rec.remote = resource;
-    rec.name = req.GetSecEntity().name;
     char *name = req.GetSecEntity().name;
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PUSH_START", "Starting a push request");
