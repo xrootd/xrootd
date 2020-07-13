@@ -167,7 +167,7 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
     int maxPathLength = 4096;
     char *buff = new char[maxPathLength];
     // prepend oss.localroot
-    const char *ppath = theSS->Lfn2Pfn(path, buff, maxPathLength, rc);
+    const char *ppath = ("file://" + string(theSS->Lfn2Pfn(path, buff, maxPathLength, rc))).c_str();
     if (httpDialects.find(dialect) != string::npos)
     {
       // set info which will be sent to client
