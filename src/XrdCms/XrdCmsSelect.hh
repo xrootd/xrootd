@@ -143,7 +143,7 @@ const  char *reason;
        short nPick;
        char  needNet;
        char  needSpace;
-       bool  selPack;
+       char  selPack;
        bool  xFull;
        bool  xNoNet;
        bool  xOff;

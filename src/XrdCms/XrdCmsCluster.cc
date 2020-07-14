@@ -1091,7 +1091,7 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 
 // Packed selection can never occur in this code path so we turn it off
 //
-   selR.selPack = false;
+   selR.selPack = 0;
 
 // If we are exporting a shared-everything system then the incomming mask
 // may have more than one server indicated. So, we need to do a full select.
@@ -1560,7 +1560,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 {
     EPNAME("SelNode")
     const char *act=0;
-    int isalt = 0, pass = 2;
+    int affsel = 1, count = 0, isalt = 0, pass = 2;
     SMask_t mask;
     XrdCmsNode *nP = 0;
     XrdCmsSelector selR;
@@ -1572,7 +1572,12 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 
 // Indicate whether or not stable selection is required
 //
-   selR.selPack = (Sel.Opts & XrdCmsSelect::Pack) != 0;
+   if (!(Sel.Opts & XrdCmsSelect::Pack)) selR.selPack = 0;
+      else {SMask_t sVec = pmask;
+            for (count = 0; sVec; count++) sVec &= (sVec - 1);
+            if (count > 1) selR.selPack = affsel = (Sel.Path.Hash % count) + 1;
+               else        selR.selPack = 0;
+           }
 
 // There is a difference bwteen needing space and needing r/w access. The former
 // is needed when we will be writing data the latter for inode modifications.
@@ -1597,6 +1602,14 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
          mask = amask & peerMask; isalt = XrdCmsNode::allowsSS;
          if (!(Sel.Opts & XrdCmsSelect::isMeta)) selR.needSpace |= isalt;
         }
+
+// Produce affinity result trace
+//
+   if (Sel.Opts & XrdCmsSelect::Pack && nP)
+      {TRACE(Redirect, "affinity " <<affsel <<'/' <<count <<'/'
+                       <<(int)selR.selPack <<(selR.selPack ? " go " : " ng ")
+                       <<nP->Name() <<' ' <<Sel.Path.Val);
+      }
 
 // If we found an eligible node then dispatch the client to it. We will
 // swap the global mutex for the node mutex to minimize interefrence.
@@ -1731,7 +1744,9 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, XrdCmsSelector &selR)
            if (!sp) sp = np;
               else{if (abs(sp->myCost - np->myCost) <= Config.P_fuzz)
                       {     if (selR.selPack)
-                               {if (sp->Inst() > np->Inst()) sp=np;}
+                               {if (--selR.selPack) sp=np;
+                                   else break;
+                               }
                        else if (selR.needSpace)
                                {if (sp->RefW > (np->RefW+Config.DiskLinger))
                                    sp=np;
@@ -1777,16 +1792,14 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, XrdCmsSelector &selR)
            if (!sp) sp = np;
               else{if (selR.needSpace)
                       {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
-                          {if (selR.selPack)
-                              {if (sp->Inst() > np->Inst())             sp=np;}
-                           else
-                           if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;
-                          }
+                          {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
                           else if (sp->myMass > np->myMass)             sp=np;
                       } else {
                        if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
                           {if (selR.selPack)
-                              {if (sp->Inst() > np->Inst())             sp=np;}
+                              {if (--selR.selPack)                      sp=np;
+                                  else break;
+                              }
                               else if (sp->RefR > np->RefR)             sp=np;
                           }
                           else if (sp->myLoad > np->myLoad)             sp=np;
@@ -1827,7 +1840,10 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, XrdCmsSelector &selR)
               {selR.xFull = true; continue;}
            if (!sp) sp = np;
               else {Multi = true;
-                         if (selR.selPack) {if (sp->Inst() > np->Inst())sp=np;}
+                         if (selR.selPack)
+                            {if (--selR.selPack) sp=np;
+                                else break;
+                            }
                     else if (selR.needSpace)
                             {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
                     else if (sp->RefR > np->RefR)                         sp=np;
