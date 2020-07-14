@@ -664,7 +664,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   // port < 0 signals switch to full URL
   if (port < 0)
   {
-    if (string(hname).find("file://") != string::npos)
+    if (strncmp(hname, "file://", 7) == 0)
     {
       TRACE(REQ, " XrdHttpReq::Redir Switching to file:// ");
       redirdest = "Location: "; // "file://" already contained in hname

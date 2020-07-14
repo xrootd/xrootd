@@ -114,11 +114,11 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
   int rcode = 0;
   if (nativeCmsFinder) {
     string dialect = EnvInfo->secEnv()->addrInfo->Dialect();
-    const string httpDialects = "https";
     // get regular target host
     rcode = nativeCmsFinder->Locate(Resp, path, flags, EnvInfo);
+
     // check if http redirect to local filesystem is allowed
-    if (httpDialects.find(dialect) != string::npos && !httpRedirect)
+    if (strncmp(dialect.c_str(), "http", 4) == 0 && !httpRedirect)
       return rcode;
 
     // define target host from locate result
@@ -132,12 +132,12 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
       return rcode;
 
     // as we can't rely on the flags from http clients, we do not perform the below
-    if (httpDialects.find(dialect) == string::npos)
+    if (strncmp(dialect.c_str(), "http", 4) != 0)
     {
       // get client url redirect capability
       int urlRedirSupport = Resp.getUCap();
       urlRedirSupport &= XrdOucEI::uUrlOK;
-      if (!urlRedirSupport && httpDialects.find(dialect) == string::npos)
+      if (!urlRedirSupport)
         return rcode;
 
       // get client localredirect capability
@@ -149,7 +149,7 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 
     // http gets SFS_O_STAT flag when opening to read, instead of SFS_O_RDONLY
     // in case of http dialect and stat, we do not perform the checks below
-    if (!(httpDialects.find(dialect) != string::npos && flags == 0x20000000))
+    if (!(strncmp(dialect.c_str(), "http", 4) == 0 && flags == 0x20000000))
     {
       // only allow simple (but most prominent) operations to avoid complications
       // RDONLY, WRONLY, RDWR, CREAT, TRUNC are allowed
@@ -168,10 +168,10 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
     char *buff = new char[maxPathLength];
     // prepend oss.localroot
     const char *ppath = ("file://" + string(theSS->Lfn2Pfn(path, buff, maxPathLength, rc))).c_str();
-    if (httpDialects.find(dialect) != string::npos)
+    if (strncmp(dialect.c_str(), "http", 4) == 0)
     {
       // set info which will be sent to client
-      // eliminate the resource name so we it is not doubled in XrdHttpReq::Redir.
+      // eliminate the resource name so it is not doubled in XrdHttpReq::Redir.
       Resp.setErrInfo(-1, string(ppath).substr(0, string(ppath).find(path)).c_str());
     }
     else{
