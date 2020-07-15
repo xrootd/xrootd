@@ -15,5 +15,6 @@ Prerelease Notes
   **[GSI]** Use the storage deallocator that matches the allocator.
 
 + **Miscellaneous**
+  **[HTTP]** Enable session cache by default, provide http.tlsreuse directive.
   **[cmsd]** Reimplement affinity algorithm using verified LSST mechanism.
   **[Mon]** Rationalize UDP packet sequence numbers.
