@@ -115,6 +115,7 @@ static const int hsmMan  =  1;
 static const int hsmOn   =  1; // Dual purpose but use a meaningful varname
 
 int  httpsmode = hsmAuto;
+int  tlsCache  = XrdTlsContext::scSrvr;
 bool httpsspec = false;
 bool xrdctxVer = false;
 }
@@ -991,6 +992,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       else if TS_Xeq("listingdeny", xlistdeny);
       else if TS_Xeq("header2cgi", xheader2cgi);
       else if TS_Xeq("httpsmode", xhttpsmode);
+      else if TS_Xeq("tlsreuse", xtlsreuse);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
         Config.Echo();
@@ -1637,13 +1639,13 @@ bool XrdHttpProtocol::InitTLS() {
        return false;
       }
 
-// Setup session cache (this is controversial). The default is off, so we keep
-// that way until session reuse is actualy fixed.
+// Setup session cache (this is controversial). The default is on as many
+// program are written to expect it being enabled and can't handle it when
+// it is disabled. This is, of course, a big OpenSSL mess.
 //
-// {static const char *sess_ctx_id = "XrdHTTPSessionCtx";
-//  unsigned int n =(unsigned int)(strlen(sess_ctx_id)+1);
-//  rdctx->SessionCache(XrdTlsContext::scSrvr, sess_ctx_id, n);
-// }
+   static const char *sess_ctx_id = "XrdHTTPSessionCtx";
+   unsigned int n =(unsigned int)(strlen(sess_ctx_id)+1);
+   xrdctx->SessionCache(XrdTlsContext::scSrvr, sess_ctx_id, n);
 
 // Set special ciphers if so specified.
 //
@@ -2574,6 +2576,47 @@ int XrdHttpProtocol::xsslcipherfilter(XrdOucStream & Config) {
   return 0;
 }
 
+/******************************************************************************/
+/*                             x t l s r e u s e                              */
+/******************************************************************************/
+
+/* Function: xtlsreuse
+
+   Purpose:  To parse the directive: tlsreuse {on | off}
+
+   Output: 0 upon success or 1 upon failure.
+ */
+
+int XrdHttpProtocol::xtlsreuse(XrdOucStream & Config) {
+
+  char *val;
+
+// Get the argument
+//
+   val = Config.GetWord();
+   if (!val || !val[0])
+      {eDest.Emsg("Config", "tlsreuse argument not specified"); return 1;}
+
+// If it's off, we set it off
+//
+   if (!strcmp(val, "off"))
+      {tlsCache = XrdTlsContext::scOff;
+       return 0;
+      }
+
+// If it's on we set it on.
+//
+   if (!strcmp(val, "on"))
+      {tlsCache = XrdTlsContext::scSrvr;
+       return 0;
+      }
+
+// Bad argument
+//
+   eDest.Emsg("config", "invalid tlsreuse parameter -", val);
+   return 1;
+}
+  
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
