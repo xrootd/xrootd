@@ -396,10 +396,7 @@ XrdTlsPeerCerts *XrdTlsSocket::getCerts(bool ver)
 //
    X509 *pcert = SSL_get_peer_certificate(pImpl->ssl);
    if (pcert == 0) return 0;
-   XrdTlsPeerCerts *pc = new XrdTlsPeerCerts;
-   pc->cert  = pcert;
-   pc->chain = SSL_get_peer_cert_chain(pImpl->ssl);
-   return pc;
+   return new XrdTlsPeerCerts(pcert, SSL_get_peer_cert_chain(pImpl->ssl));
 }
   
 /******************************************************************************/

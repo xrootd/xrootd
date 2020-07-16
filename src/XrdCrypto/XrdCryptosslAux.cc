@@ -388,8 +388,8 @@ int XrdCryptosslX509ParseStack(XrdTlsPeerCerts* pc, XrdCryptoX509Chain *chain)
       return nci;
    }
 
-   if (pc->cert) {
-     XrdCryptoX509 *c = new XrdCryptosslX509(pc->cert);
+   if (pc->hasCert()) {
+     XrdCryptoX509 *c = new XrdCryptosslX509(pc->getCert());
 
      if (c) {
        chain->PushBack(c);
@@ -397,12 +397,14 @@ int XrdCryptosslX509ParseStack(XrdTlsPeerCerts* pc, XrdCryptoX509Chain *chain)
      }
    }
 
-   if (!pc->chain) {
+   if (!pc->hasChain()) {
      return nci;
    }
 
-   for (int i=0; i < sk_X509_num(pc->chain); i++) {
-      X509 *cert = sk_X509_value(pc->chain, i);
+   STACK_OF(X509) *pChain = pc->getChain();
+
+   for (int i=0; i < sk_X509_num(pChain); i++) {
+      X509 *cert = sk_X509_value(pChain, i);
       XrdCryptoX509 *c = new XrdCryptosslX509(cert);
 
       if (c) {

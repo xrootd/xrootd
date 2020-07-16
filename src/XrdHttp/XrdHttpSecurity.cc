@@ -97,12 +97,10 @@ XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
     return 1;
   }
 
-  XrdTlsPeerCerts pc;
+  XrdTlsPeerCerts pc(SSL_get_peer_certificate(ssl),SSL_get_peer_cert_chain(ssl));
   XrdCryptoX509Chain chain;
-  pc.cert = SSL_get_peer_certificate(ssl);
-  pc.chain = SSL_get_peer_cert_chain(ssl);
 
-  if ((!pc.cert) ||
+  if ((!pc.hasCert()) ||
       (myCryptoFactory && !myCryptoFactory->X509ParseStack()(&pc, &chain))) {
     TRACEI(DEBUG, "No certificate found in peer chain.");
     chain.Cleanup();

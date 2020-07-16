@@ -35,11 +35,69 @@ class XrdTlsPeerCerts
 {
 public:
 
-X509           *cert;
-STACK_OF(X509) *chain;
+//------------------------------------------------------------------------
+//! Obtain pointer to the cert.
+//!
+//! @param upref  When true the cert reference count is increased by one.
+//!               Otherwise, the reference count stays the same (see note).
+//!
+//! @return Upon success, the pointer to the cert is returned.
+//!         Upon failure, a nil pointer is returned.
+//!
+//! @note If the cert is being passed to a method that will call X509_free()
+//!       on the cert (many do) the reference count must be increased as the
+//!       destructor decreases the reference count. Incorrrect handling of
+//!       the reference count will invariable SEGV when the session is freed.
+//!       Do *not* pass the cert to an opaque method without verifying how it
+//!       handles the cert upon return.
+//------------------------------------------------------------------------
 
-                XrdTlsPeerCerts() : cert(0), chain(0) {}
+X509           *getCert(bool upref=true);
+
+//------------------------------------------------------------------------
+//! Obtain pointer to the chain.
+//!
+//! @return Upon success, the pointer to the cert is returned which may be
+//!         nil if there is no chain.
+//!
+//! @note The chain is the actual chain associated with the SSL session.
+//!       When he SSL session is freed, the chain becomes invalid and all
+//!       references to it must cease.
+//------------------------------------------------------------------------
+
+STACK_OF(X509) *getChain() {return chain;}
+
+//------------------------------------------------------------------------
+//! Check if this object has a cert.
+//!
+//! @return True if a cert is present and false otherwise.
+//------------------------------------------------------------------------
+
+bool            hasCert() {return cert != 0;}
+
+//------------------------------------------------------------------------
+//! Check if this object has a chain.
+//!
+//! @return True if a chain is present and false otherwise.
+//------------------------------------------------------------------------
+
+bool            hasChain() {return chain != 0;}
+
+//------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param  pCert    - pointer to the cert.
+//! @param  pChain   - pointer to the chain.
+//------------------------------------------------------------------------
+
+                XrdTlsPeerCerts(X509 *pCert=0,  STACK_OF(X509) *pChain=0)
+                               : cert(pCert), chain(pChain) {}
 
                ~XrdTlsPeerCerts();
+
+private:
+
+X509           *cert;
+STACK_OF(X509) *chain;
 };
 #endif
