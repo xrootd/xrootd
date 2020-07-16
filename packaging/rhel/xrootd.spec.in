@@ -601,7 +601,7 @@ fi
 
 %preun server
 if [ $1 -eq 0 ] ; then
-    for DAEMON in xrootd cmsd frm_purged frm xfrd; do
+    for DAEMON in xrootd cmsd frm_purged frm_xfrd; do
         for INSTANCE in `/usr/bin/systemctl | grep $DAEMON@ | awk '{print $1;}'`; do
             /usr/bin/systemctl --no-reload disable $INSTANCE > /dev/null 2>&1 || :
             /usr/bin/systemctl stop $INSTANCE > /dev/null 2>&1 || :
@@ -612,7 +612,7 @@ fi
 %postun server
 if [ $1 -ge 1 ] ; then
     /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
-    for DAEMON in xrootd cmsd frm_purged frm xfrd; do
+    for DAEMON in xrootd cmsd frm_purged frm_xfrd; do
         for INSTANCE in `/usr/bin/systemctl | grep $DAEMON@ | awk '{print $1;}'`; do
             /usr/bin/systemctl try-restart $INSTANCE >/dev/null 2>&1 || :
         done
