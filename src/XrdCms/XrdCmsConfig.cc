@@ -926,7 +926,6 @@ int XrdCmsConfig::ConfigProc(int getrole)
                 ||  !strcmp(var, "oss.localroot")
                 ||  !strcmp(var, "oss.remoteroot")
                 ||  !strcmp(var, "oss.namelib")
-                ||  !strcmp(var, "all.adminpath")
                 ||  !strcmp(var, "all.export")
                 ||  !strcmp(var, "all.manager")
                 ||  !strcmp(var, "all.role")
@@ -1420,7 +1419,7 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
 // Record the path
 //
    if (AdminPath) free(AdminPath);
-   AdminPath = XrdOucUtils::genPath(pval,XrdOucUtils::InstName(myName,0));
+   AdminPath = XrdOucUtils::genPath(pval,XrdOucUtils::InstName(myInsName,0));
    free(pval);
    AdminMode = mode;
    return 0;
