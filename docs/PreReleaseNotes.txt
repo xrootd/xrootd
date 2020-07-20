@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  **[CMS]** Use correct adminpath for creating Unix socket. Fixes #1255
   **[HTTP]** Correctly handle certs relative to refcount to avoid SEGV.
   **[Xcache]** Add missing initializer to avoid malloc() abort.
 
