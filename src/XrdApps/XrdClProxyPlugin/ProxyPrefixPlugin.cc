@@ -25,7 +25,6 @@
 #include "ProxyPrefixPlugin.hh"
 #include "ProxyPrefixFile.hh"
 #include "XrdVersion.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 #include <stdlib.h>
