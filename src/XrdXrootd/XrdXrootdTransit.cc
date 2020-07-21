@@ -231,7 +231,6 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
    XrdNetAddrInfo *addrP;
    const char *who;
    char uname[sizeof(Request.login.username)+1];
-   int n;
 
 // Set standard stuff
 //
@@ -263,10 +262,8 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP, // Private
 
 // Develop a trace identifier
 //
-   n = strlen(nameP);
-   if (n >= int(sizeof(uname))) n = sizeof(uname)-1;
    strncpy(uname, nameP, sizeof(uname)-1);
-   uname[n] = 0;
+   uname[sizeof(uname)-1] = 0;
    XrdOucUtils::Sanitize(uname);
    linkP->setID(uname, mySID);
 
