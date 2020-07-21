@@ -410,6 +410,8 @@ void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid, int *id)
 
         XrdFfsMiscUent.name = pw.pw_name;
         XrdFfsMiscUent.grps = gr.gr_name;
+        XrdFfsMiscUent.uid = user_uid;
+        XrdFfsMiscUent.gid = user_gid;
         XrdFfsMiscSssid->Register(user_num, &XrdFfsMiscUent, 0);
         free(pwbuf);
         free(grbuf);
