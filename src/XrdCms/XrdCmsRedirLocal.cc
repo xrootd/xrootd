@@ -35,7 +35,8 @@ XrdCmsRedirLocal::XrdCmsRedirLocal(XrdSysLogger *Logger, int opMode, int myPort,
                          XrdOss *theSS) : XrdCmsClient(amLocal) {
   nativeCmsFinder = new XrdCmsFinderRMT(Logger, opMode, myPort);
   this->theSS = theSS;
-  readOnlyredirect = false;
+  readOnlyredirect = true;
+  httpRedirect = true;
 }
 //------------------------------------------------------------------------------
 //! Destructor
@@ -64,14 +65,24 @@ void XrdCmsRedirLocal::loadConfig(const char *filename) {
   while ((word = Config.GetFirstWord(true))) { //get word in lower case
     // search for readonlyredirect,
     // which only allows read calls to be redirected to local
-    if (strcmp(word, "XrdCmsRedirLocal.readonlyredirect") == 0){
-      // get next word in lower case
+    if (strcmp(word, "xrdcmsredirlocal.readonlyredirect") == 0){
       std::string readWord = std::string(Config.GetWord(true));//to lower case
-      if(readWord.find("true") != string::npos){
+      if (readWord.find("true") != string::npos){
         readOnlyredirect = true;
       }
       else {
         readOnlyredirect = false;
+      }
+    }
+    // search for httpredirect,
+    // which allows http(s) calls to be redirected to local
+    else if (strcmp(word, "xrdcmsredirlocal.httpredirect") == 0){
+      std::string readWord = std::string(Config.GetWord(true));//to lower case
+      if(readWord.find("true") != string::npos){
+        httpRedirect = true;
+      }
+      else {
+        httpRedirect = false;
       }
     }
   }
@@ -80,8 +91,12 @@ void XrdCmsRedirLocal::loadConfig(const char *filename) {
 
 //------------------------------------------------------------------------------
 //! Preconditions:
-//! Client Protocol Version is >= 784
+//! Writing must be enabled  via xrdcmsredirlocal.readonlyredirect false
+//! Client has urlRedirSupport
+//! Client has localredirect capability
 //! Flag is one of: SFS_O_RDONLY, SFS_O_RDWR, SFS_O_WRONLY, SFS_O_CREAT, SFS_O_TRUNC
+//! [Only HTTP] Flag may also be SFS_O_STAT in case of read access
+//! [Only HTTP] xrdcmsredirlocal.httpRedirect is true in the config
 //! Locate the file, get Client IP and target IP.
 //! 1) If both are private, redirect to local does apply.
 //!    set ErrInfo of param Resp and return SFS_REDIRECT.
@@ -98,40 +113,53 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                         XrdOucEnv *EnvInfo) {
   int rcode = 0;
   if (nativeCmsFinder) {
+    string dialect = EnvInfo->secEnv()->addrInfo->Dialect();
     // get regular target host
     rcode = nativeCmsFinder->Locate(Resp, path, flags, EnvInfo);
+
+    // check if http redirect to local filesystem is allowed
+    if (strncmp(dialect.c_str(), "http", 4) == 0 && !httpRedirect)
+      return rcode;
+
     // define target host from locate result
     XrdNetAddr target(-1); // port is necessary, but can be any
     target.Set(Resp.getErrText());
     // does the target host have a private IP?
     if (!target.isPrivate())
       return rcode;
-
     // does the client host have a private IP?
     if (!EnvInfo->secEnv()->addrInfo->isPrivate())
       return rcode;
 
-    // get client url redirect capability
-    int urlRedirSupport = Resp.getUCap();
-    urlRedirSupport &= XrdOucEI::uUrlOK;
-    if (!urlRedirSupport)
-      return rcode;
+    // as we can't rely on the flags from http clients, we do not perform the below
+    if (strncmp(dialect.c_str(), "http", 4) != 0)
+    {
+      // get client url redirect capability
+      int urlRedirSupport = Resp.getUCap();
+      urlRedirSupport &= XrdOucEI::uUrlOK;
+      if (!urlRedirSupport)
+        return rcode;
 
-    // get client localredirect capability
-    int clientLRedirSupport = Resp.getUCap();
-    clientLRedirSupport &= XrdOucEI::uLclF;
-    if (!clientLRedirSupport)
-      return rcode;
+      // get client localredirect capability
+      int clientLRedirSupport = Resp.getUCap();
+      clientLRedirSupport &= XrdOucEI::uLclF;
+      if (!clientLRedirSupport)
+        return rcode;
+    }
 
-    // only allow simple (but most prominent) operations to avoid complications
-    // RDONLY, WRONLY, RDWR, CREAT, TRUNC are allowed
-    if (flags > 0x202)
-      return rcode;
-    // always use native function if readOnlyredirect is configured and a
-    // non readonly flag is passed
-    if (readOnlyredirect && !(flags == SFS_O_RDONLY))
-      return rcode;
-
+    // http gets SFS_O_STAT flag when opening to read, instead of SFS_O_RDONLY
+    // in case of http dialect and stat, we do not perform the checks below
+    if (!(strncmp(dialect.c_str(), "http", 4) == 0 && flags == 0x20000000))
+    {
+      // only allow simple (but most prominent) operations to avoid complications
+      // RDONLY, WRONLY, RDWR, CREAT, TRUNC are allowed
+      if (flags > 0x202)
+        return rcode;
+      // always use native function if readOnlyredirect is configured and a
+      // non readonly flag is passed
+      if (readOnlyredirect && !(flags == SFS_O_RDONLY))
+        return rcode;
+    }
     // passed all checks, now to actual business
     // build a buffer with a total acceptable buffer length,
     // which must have a larger capacity than localroot and filename concatenated
@@ -139,9 +167,17 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
     int maxPathLength = 4096;
     char *buff = new char[maxPathLength];
     // prepend oss.localroot
-    const char *ppath = theSS->Lfn2Pfn(path, buff, maxPathLength, rc);
-    // set info which will be sent to client
-    Resp.setErrInfo(-1, ppath);
+    const char *ppath = ("file://" + string(theSS->Lfn2Pfn(path, buff, maxPathLength, rc))).c_str();
+    if (strncmp(dialect.c_str(), "http", 4) == 0)
+    {
+      // set info which will be sent to client
+      // eliminate the resource name so it is not doubled in XrdHttpReq::Redir.
+      Resp.setErrInfo(-1, string(ppath).substr(0, string(ppath).find(path)).c_str());
+    }
+    else{
+      // set info which will be sent to client
+      Resp.setErrInfo(-1, ppath);
+    }
     delete[] buff;
     return SFS_REDIRECT;
   }

@@ -76,6 +76,7 @@ public:
   XrdCmsClient *nativeCmsFinder;
   XrdOss *theSS;
   bool readOnlyredirect;
+  bool httpRedirect;
 };
 
 #endif // XRDCMSREDIRPLUGIN_HH_
