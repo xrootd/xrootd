@@ -83,5 +83,11 @@ char *quote(const char *str);
 // unquote a string and return a new one
 char *unquote(char *str);
 
+
+
+
+// Escape a string and return a new one
+char *escapeXML(const char *str);
+
 #endif	/* XRDHTTPUTILS_HH */
 

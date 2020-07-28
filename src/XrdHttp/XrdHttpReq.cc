@@ -1890,10 +1890,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           stringresp += "</head>\n"
                   "<body>\n";
 
+          char *estr = escapeXML(resource.c_str());
+          
           stringresp += "<h1>Listing of: ";
-          stringresp += resource.c_str();
+          stringresp += estr;
           stringresp += "</h1>\n";
 
+          free(estr);
+          
           stringresp += "<div id=\"header\">";
 
 
@@ -1966,13 +1970,22 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                       "<a href=\"";
 
               if (resource != "/") {
-                  p += resource.c_str();
+                
+                char *estr = escapeXML(resource.c_str());
+                
+                  p += estr;
                   p += "/";
+                  
+                free(estr);
               }
+              
+              char *estr = escapeXML(e.path.c_str());
+              
               p += e.path + "\">";
-
               p += e.path;
-
+              
+              free(estr);
+              
               p += "</a></td></tr>";
 
               stringresp += p;
@@ -2454,7 +2467,15 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
               string p;
               stringresp += "<D:response xmlns:lp1=\"DAV:\" xmlns:lp2=\"http://apache.org/dav/props/\" xmlns:lp3=\"LCGDM:\">\n";
-              stringresp += "<D:href>" + e.path + "</D:href>\n";
+              
+              char *estr = escapeXML(e.path.c_str());
+              
+              stringresp += "<D:href>";
+              stringresp += estr;
+              stringresp += "</D:href>\n";
+              
+              free(estr);
+              
               stringresp += "<D:propstat>\n<D:prop>\n";
 
               // Now add the properties that we have to add
@@ -2561,9 +2582,17 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
                 string p = resource.c_str();
                 if (*p.rbegin() != '/') p += "/";
+                
                 p += e.path;
+                
                 stringresp += "<D:response xmlns:lp1=\"DAV:\" xmlns:lp2=\"http://apache.org/dav/props/\" xmlns:lp3=\"LCGDM:\">\n";
-                stringresp += "<D:href>" + p + "</D:href>\n";
+                
+                char *estr = escapeXML(p.c_str());
+                stringresp += "<D:href>";
+                stringresp += estr;
+                stringresp += "</D:href>\n";
+                free(estr);
+                
                 stringresp += "<D:propstat>\n<D:prop>\n";
 
 
