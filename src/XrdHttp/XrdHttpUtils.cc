@@ -394,6 +394,49 @@ char *quote(const char *str) {
 }
 
 
+// Escape a string and return a new one
+
+char *escapeXML(const char *str) {
+  int l = strlen(str);
+  char *r = (char *) malloc(l*6 + 1);
+  r[0] = '\0';
+  int i, j = 0;
+  
+  for (i = 0; i < l; i++) {
+    char c = str[i];
+    
+    switch (c) {
+      case '"':
+        strcpy(r + j, "&quot;");
+        j += 6;
+        break;
+      case '&':
+        strcpy(r + j, "&amp;");
+        j += 5;
+        break;
+      case '<':
+        strcpy(r + j, "&lt;");
+        j += 4;
+        break;
+      case '>':
+        strcpy(r + j, "&gt;");
+        j += 4;
+        break;
+      case '\'':
+        strcpy(r + j, "&apos;");
+        j += 6;
+        break;
+      
+      default:
+        r[j++] = c;
+    }
+  }
+  
+  r[j] = '\0';
+  
+  return r;
+}
+
 
 
 
