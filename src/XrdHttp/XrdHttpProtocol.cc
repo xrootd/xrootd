@@ -115,7 +115,7 @@ static const int hsmMan  =  1;
 static const int hsmOn   =  1; // Dual purpose but use a meaningful varname
 
 int  httpsmode = hsmAuto;
-int  tlsCache  = XrdTlsContext::scSrvr;
+int  tlsCache  = XrdTlsContext::scOff;
 bool httpsspec = false;
 bool xrdctxVer = false;
 }
