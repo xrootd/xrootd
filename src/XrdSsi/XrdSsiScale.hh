@@ -29,6 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdint>
 #include <string.h>
 
 #include "XrdSys/XrdSysPthread.hh"
@@ -37,83 +38,41 @@ class XrdSsiScale
 {
 public:
 
-static const int          maxSprd =  1024;
-static const int          maxEnt  =    32;       // Must be power of two
-static const int          entShft =    10;       // Allows a spread of 1024
-static const unsigned int maxPend = 65500;
+static const uint16_t defSprd =     4; // Initial spread
+static const uint16_t maxSprd =  1024; // Maximum spread
+static const uint16_t maxPend = 64000; // Maximum pending requests
+static const uint16_t minTune =     3; // Minimum remaining channels to tune
+static const uint16_t midTune =    64; // Quadratic tuning limit
+static const uint16_t maxTune =   128; // Maximum   linear increase
+static const uint16_t zipTune =   512; // Channel count when maxTune applies
 
-int   getEnt() {entMutex.Lock();
-                if (pendCnt[nowEnt] < maxPend) 
-                   {pendCnt[nowEnt]++;
-                    if (maxSpread) return Spread(nowEnt);
-                    entMutex.UnLock();
-                    return nowEnt << entShft;
-                   }
-                int xEnt = (nowEnt < maxEnt ? nowEnt+1 : 0);
-                int zEnt = maxEnt;
-                do {for (int i = xEnt; i < zEnt; i++)
-                        {if (pendCnt[i] < maxPend)
-                            {pendCnt[i]++;
-                             nowEnt = i;
-                             if (maxSpread) return Spread(i);
-                             entMutex.UnLock();
-                             return i;
+int   getEnt();
 
-                            }
-                        }
-                    if (!xEnt) break;
-                    xEnt = 0; zEnt = nowEnt;
-                   } while(true);
-                 entMutex.UnLock();
-                 return -1;
-                }
+void  retEnt(int xEnt);
 
-void  retEnt(int xEnt) {xEnt >>= entShft;
-                        if (xEnt >= 0 && xEnt < maxEnt)
-                           {entMutex.Lock();
-                            if (pendCnt[xEnt]) pendCnt[xEnt]--;
-                            entMutex.UnLock();
-                           }
-                       }
+bool  rsvEnt(int xEnt);
 
-bool  rsvEnt(int xEnt) {xEnt >>= entShft;
-                        if (xEnt < 0 && xEnt >= maxEnt) return false;
-                        entMutex.Lock();
-                        if (pendCnt[nowEnt] < maxPend)
-                           {pendCnt[nowEnt]++;
-                            entMutex.UnLock();
-                            return true;
-                           }
-                        entMutex.UnLock();
-                        return false;
-                       }
+void  setSpread(short sval);
 
-void  setSpread(short sval) {entMutex.Lock();
-                             if (sval <= 0) maxSpread = 0;
-                                else if (sval < maxSprd) maxSpread = sval;
-                                        else maxSpread = maxSprd;
-                             entMutex.UnLock();
-                            }
-
-      XrdSsiScale() : nowEnt(0), maxSpread(4), nowSpread(0)
-                      {memset(pendCnt, 0, sizeof(uint16_t)*maxEnt);}
+      XrdSsiScale() : Active(0), reActive(0), begEnt(0), nowEnt(0),
+                      curSpread(defSprd), autoTune(false), needTune(false)
+                      {memset(pendCnt, 0, sizeof(uint16_t)*maxSprd);}
 
      ~XrdSsiScale() {}
 
 private:
 
-int   Spread(int ent) // Called with entMutex locked and return unlocked.
-            {int n = nowSpread;
-             nowSpread++;
-             if (nowSpread >= maxSpread) nowSpread = 0;
-             entMutex.UnLock();
-             return (ent << entShft) | n;
-            }
+void        Retune();
+bool        Tune(char *buff, int blen);
 
 XrdSysMutex entMutex;
-uint16_t    pendCnt[maxEnt];
-int         nowEnt;
-short       maxSpread;
-short       nowSpread;
+uint32_t    Active;
+uint32_t    reActive;
+uint16_t    begEnt;
+uint16_t    nowEnt;
+uint16_t    curSpread;
+bool        autoTune;
+bool        needTune;
+uint16_t    pendCnt[maxSprd];
 };
 #endif

@@ -271,10 +271,19 @@ virtual bool SetConfig(XrdSsiErrInfo &eInfo,
 
 //-----------------------------------------------------------------------------
 //! Set the client-size request spread size.
+//! @param  ssz      The spread value which may be <0, -0, or >0:
+//!                  >0 The maximum number of connections to use to to handle
+//!                     requests. No more or less are used until reset.
+//!                  =0 Turns on auto-tuning using curent setting. The initial
+//!                     default is 4. The size is automatically increased to
+//!                     accomodate the number of simultaeous requests.
+//!                  <0 Turns on auto-tuning using curent setting using the
+//!                     abs(sval) as the new spread value. The size is
+//!                     The size is automatically increased to accomodate the
+//!                     number of simultaeous requests.
 //!
-//! @param  ssz      The maximum number of connections to use to to handle
-//!                  requests. The initial default is 4. This method may be
-//!                  called at any time. An ssz value > 1024 is set to 1024.
+//! @note   This method may be called at any time. An abs(ssz) value > 1024
+//!         is set to 1024. Auto-tuning must be requested; it's not the default.
 //-----------------------------------------------------------------------------
 
 virtual void   SetSpread(short ssz) {(void)ssz;}
