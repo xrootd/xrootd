@@ -1,7 +1,7 @@
 /var/log/xrootd/*/*.log /var/log/xrootd/*.log
 {
   # if the xrootd log rotate is enabled don't do anything
-  # (by convention if xrootd log rotate is enabled the 
+  # (by convention if xrootd log rotate is enabled the
   # .lock file exists)
   prerotate
     LOCK=`dirname $1`/.lock
