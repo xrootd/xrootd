@@ -297,6 +297,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "TlsNoData",               DefaultTlsNoData               );
     REGISTER_VAR_INT( varsInt, "TlsMetalink",             DefaultTlsMetalink             );
     REGISTER_VAR_INT( varsInt, "ZipMtlnCksum",            DefaultZipMtlnCksum            );
+    REGISTER_VAR_INT( varsInt, "IPNoShuffle",             DefaultIPNoShuffle             );
 
     REGISTER_VAR_STR( varsStr, "ClientMonitor",           DefaultClientMonitor           );
     REGISTER_VAR_STR( varsStr, "ClientMonitorParam",      DefaultClientMonitorParam      );
