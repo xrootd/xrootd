@@ -7,6 +7,40 @@ Release Notes
 
 
 --------------
+Version 5.0.1
+--------------
+
++ **Major bug fixes**
+  **[CMS]** Use correct adminpath for creating Unix socket. Fixes #1255
+  **[HTTP]** Correctly handle certs relative to refcount to avoid SEGV.
+  **[HTTP]** Escape pathnames in HTTP and XML responses.
+  **[Xcache]** Add missing initializer to avoid malloc() abort.
+
++ **Minor bug fixes**
+  **[VOMS]** Correct use of undocumented API that caused hang w/ dbg. Fixes #1245
+  **[GSI]** Use the storage deallocator that matches the allocator.
+  **[TPC]** Fix potential null pointer dereference on Push.
+  **[XrdOuc]** Fix XrdOucUtils::Sanitize not sanitizing the first character in
+               the string.
+
++ **Miscellaneous**
+  **[SSI]** Forward port LSST request scaler with auto-tuning.
+  **[HTTP]** Enable session cache by default, provide http.tlsreuse directive.
+  **[cmsd]** Reimplement affinity algorithm using verified LSST mechanism.
+  **[CMS]** Allow redirect to local filesystem when using HTTP.
+  **[Mon]** Rationalize UDP packet sequence numbers.
+  **[Server]** Adding fbuff argument to monitoring to restrict maximum size of
+               fstream packet.
+  **[XrdHttp/XrdVoms]** Pass parameters specified in the http.secxtractor down the
+                        chain.
+  **[XrdCrypto/XrdHttp]** Extract DN from user (proxy, multi-proxy) certificate and
+                          properly handle the gridmap-file functionality when accessing
+                          through HTTP.
+  **[XrdHttp]** Add "required" parameter to the http.secxtractor and http.gridmap
+                configuration directives.
+  **[xrootdfs]** Set XrdSecEntity.uid/gid in xrootdfs.
+
+--------------
 Version 5.0.0
 --------------
 
