@@ -35,9 +35,15 @@
 #include <string>
 #include <set>
 #include <cctype>
+#include <random>
+#include <chrono>
 
 #include <sys/types.h>
 #include <dirent.h>
+
+#if __cplusplus < 201103L
+#include <time.h>
+#endif
 
 namespace
 {
@@ -197,8 +203,26 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Shuffle each partition
     //--------------------------------------------------------------------------
+#if __cplusplus < 201103L
+
+    // initialize the random generator only once
+    static struct only_once_t
+    {
+      only_once_t()
+      {
+        std::srand ( unsigned ( std::time(0) ) );
+      }
+    } only_once;
+
     std::random_shuffle( result.begin(), itr );
     std::random_shuffle( itr, result.end() );
+#else
+    static std::default_random_engine rand_engine(
+        std::chrono::system_clock::now().time_since_epoch().count() );
+
+    std::shuffle( result.begin(), itr, rand_engine );
+    std::shuffle( itr, result.end(), rand_engine );
+#endif
 
     //--------------------------------------------------------------------------
     // Return result through output parameter
