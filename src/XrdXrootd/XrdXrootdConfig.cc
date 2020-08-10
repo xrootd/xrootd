@@ -1530,7 +1530,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 //
 #if !defined(__solaris__) || !defined(_IEEE_754)
    if (monFSopt & XROOTD_MON_FSSSQ && !(std::numeric_limits<double>::is_iec559))
-      {monFSopt &= !XROOTD_MON_FSSSQ;
+      {monFSopt &= ~XROOTD_MON_FSSSQ;
        eDest.Emsg("Config","Warning, 'fstat ssq' ignored; platform does not "
                            "use IEEE754 floating point.");
       }
