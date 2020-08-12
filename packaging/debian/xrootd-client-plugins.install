@@ -1,2 +1,4 @@
 usr/lib/*/libXrdClProxyPlugin-4.so
 usr/lib/*/libXrdPosixPreload.so*
+usr/lib/*/libXrdClHttp-4.so
+etc/xrootd/client.plugins.d/xrdcl-http-plugin.conf
