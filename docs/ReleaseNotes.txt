@@ -5,6 +5,34 @@ XRootD
 Release Notes
 =============
 
+--------------
+Version 4.12.4
+--------------
+
++ **Major bug fixes**
+  * **[XrdCl]** Fix regression in recursive copy (introduced in f6723e00).
+  * **[VOMS]** Do not touch the Entity.name field; especially converting spaces.
+  * **[VOMS]** Fix improper collection of multi-VO cert attributes.
+  * **[RPM]** Refine xrootd-voms obsoletes/provides for vomsxrd.
+  * **[RPM]** Remove libXrdSecgsiVOMS-4.so from xrootd-libs pkg.
+  * **[pfc] Make sure v4 does not try to read v5 cinfo files.
+  * **[XrdHttp]** Shutdown the connection in the case of an unrecognized HTTP 
+                  first line.
+
++ **Minor bug fixes**
+  * **[Server]** Make sure to sanitize username in the HTTP bridge.
+  * **[Server]** Make sure loginid corresponds to the POSIX.1-2008 standard.
+
++ **Miscellaneous**
+  * **[Debian]** Add XrdClHttp plugin to xrootd-client-plugins package.
+  * **[XrdHttp]** Add "required" parameter to the http.secxtractor and http.gridmap
+                  configuration directives.
+  * **[XrdCrypto/XrdHttp]** Extract DN from user (proxy, multi-proxy) certificate and
+                            properly   handle the gridmap-file functionality when
+                            accessing through HTTP.
+  * **[Protocol]** Add flag to say locate is for dirlist.
+  * **[XrdCl]** Apply kXR_compress & kXR_4dirlist to deep locate if done in context of
+                dir list.
 
 --------------
 Version 4.12.3
