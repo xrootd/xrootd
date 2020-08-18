@@ -1104,23 +1104,19 @@ namespace XrdCl
   // Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
   // and pAsyncOffset
   //--------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadAsync( Socket *socket, uint32_t &bytesRead )
+  Status XRootDMsgHandler::ReadBytesAsync( Socket *socket, char *&buffer, uint32_t toBeRead, uint32_t &bytesRead )
   {
-    char *buffer = pAsyncReadBuffer;
-    buffer += pAsyncOffset;
-    while( pAsyncOffset < pAsyncReadSize )
+    while( toBeRead > 0 )
     {
-      uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
       int btsRead = 0;
-
       Status status = socket->Read( buffer, toBeRead, btsRead );
 
       if( !status.IsOK() || status.code == suRetry )
         return status;
 
-      pAsyncOffset     += btsRead;
-      buffer           += btsRead;
-      bytesRead        += btsRead;
+      buffer    += btsRead;
+      bytesRead += btsRead;
+      toBeRead  -= btsRead;
     }
     return Status( stOK, suDone );
   }

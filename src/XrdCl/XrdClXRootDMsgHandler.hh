@@ -412,7 +412,21 @@ namespace XrdCl
       //! Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
       //! and pAsyncOffset
       //------------------------------------------------------------------------
-      Status ReadAsync( Socket *socket, uint32_t &btesRead );
+      inline Status ReadAsync( Socket *socket, uint32_t &bytesRead )
+      {
+        uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
+        uint32_t btsRead  = 0;
+        Status st = ReadBytesAsync( socket, pAsyncReadBuffer, toBeRead, btsRead );
+        pAsyncOffset += btsRead;
+        bytesRead    += btsRead;
+        return st;
+      }
+
+      //------------------------------------------------------------------------
+      //! Read a buffer asynchronously
+      //------------------------------------------------------------------------
+      static Status ReadBytesAsync( Socket   *socket,   char     *&buffer,
+                                    uint32_t  toBeRead, uint32_t  &bytesRead );
 
       //------------------------------------------------------------------------
       //! Recover error
