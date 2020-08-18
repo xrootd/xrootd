@@ -64,8 +64,8 @@ BuildRequires: cmake
 BuildRequires: cppunit-devel
 %endif
 
-BuildRequires: librados-devel >= 11.0
-BuildRequires: libradosstriper-devel >= 11.0
+BuildRequires: librados-devel = 14.2.11
+BuildRequires: libradosstriper-devel = 14.2.11
 
 %if %{?_with_clang:1}%{!?_with_clang:0}
 BuildRequires: clang
