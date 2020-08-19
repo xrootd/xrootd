@@ -878,6 +878,58 @@ namespace XrdCl
     return ReadAsync( socket, bytesRead );
   }
 
+  //------------------------------------------------------------------------
+  // Handle a kXR_pgread in raw mode
+  //------------------------------------------------------------------------
+  Status XRootDMsgHandler::ReadRawPgRead( Message  *msg,
+                                          Socket   *socket,
+                                          uint32_t &bytesRead )
+  {
+    Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // We need to check if we have and overflow, before we start reading
+    // anything
+    //--------------------------------------------------------------------------
+    if( !pReadRawStarted )
+    {
+      ChunkInfo chunk  = pChunkList->front();
+      pAsyncOffset     = 0;
+      pAsyncReadSize   = pAsyncMsgSize;
+      pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
+      size_t rawDataSize      = pAsyncMsgSize - pPgReadNbPages * CksumSize;
+      if( pReadRawCurrentOffset + rawDataSize > chunk.length )
+      {
+        log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
+                    ": expected: %d, got %d bytes",
+                   pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
+                   chunk.length, pReadRawCurrentOffset + rawDataSize );
+
+        pChunkStatus.front().sizeError = true;
+        pOtherRawStarted               = false;
+      }
+      else
+        pReadRawCurrentOffset += pAsyncMsgSize;
+      pReadRawStarted = true;
+    }
+
+    //--------------------------------------------------------------------------
+    // If we have an overflow we discard all the incoming data. We do this
+    // instead of just quitting in order to keep the stream sane.
+    //--------------------------------------------------------------------------
+    if( pChunkStatus.front().sizeError )
+      return ReadRawOther( msg, socket, bytesRead );
+
+
+    // TODO
+
+
+    //--------------------------------------------------------------------------
+    // Read the data
+    //--------------------------------------------------------------------------
+    return ReadAsync( socket, bytesRead );
+  }
+
   //----------------------------------------------------------------------------
   // Handle a kXR_readv in raw mode
   //----------------------------------------------------------------------------
@@ -1096,6 +1148,49 @@ namespace XrdCl
     delete [] pAsyncReadBuffer;
     pAsyncReadBuffer = 0;
     pAsyncOffset     = pAsyncReadSize = 0;
+
+    return st;
+  }
+
+  //--------------------------------------------------------------------------
+  // Read a single page asynchronously - depends on pAsyncBuffer, pAsyncSize
+  // and pAsyncOffset
+  //--------------------------------------------------------------------------
+  Status XRootDMsgHandler::ReadPageAsync( Socket *socket, uint32_t &bytesRead )
+  {
+    uint32_t totalToBeRead = pAsyncReadSize - pAsyncOffset;
+    if( totalToBeRead == 0 )  return Status();
+
+    uint32_t reminder = pAsyncOffset % PageWithCksum;
+    if( reminder < 4 ) // we are reading the checksum
+    {
+      uint32_t toBeRead = CksumSize - reminder;
+      uint32_t btsRead = 0;
+      char *buffer = pPgReadCksumBuff.data() + reminder;
+      Status st = ReadBytesAsync( socket, buffer, toBeRead, btsRead );
+      pAsyncOffset  += btsRead;
+      bytesRead     += btsRead;
+      totalToBeRead -= btsRead;
+      if( !st.IsOK() || st.code == suRetry ) return st;
+
+      // now check if we have the full checksum
+      if( btsRead + reminder == CksumSize )
+      {
+        uint32_t crc32c = 0;
+        memcpy( &crc32c, pPgReadCksumBuff.data(), CksumSize );
+        pPgReadCksums.push_back( crc32c );
+      }
+      else return Status();
+    }
+
+    // we are reading the page
+    reminder = pAsyncOffset % PageWithCksum;
+    uint32_t toBeRead = PageWithCksum - reminder;
+    if( toBeRead > totalToBeRead ) toBeRead = totalToBeRead;
+    uint32_t btsRead = 0;
+    Status st = ReadBytesAsync( socket, pAsyncReadBuffer, toBeRead, btsRead );
+    pAsyncOffset  += btsRead;
+    bytesRead     += btsRead;
 
     return st;
   }

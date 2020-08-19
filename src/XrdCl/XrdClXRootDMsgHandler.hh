@@ -151,6 +151,8 @@ namespace XrdCl
         pReadRawStarted( false ),
         pReadRawCurrentOffset( 0 ),
 
+        pPgReadNbPages( 0 ),
+
         pReadVRawMsgOffset( 0 ),
         pReadVRawChunkHeaderDone( false ),
         pReadVRawChunkHeaderStarted( false ),
@@ -395,6 +397,13 @@ namespace XrdCl
                           uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
+      //! Handle a kXR_pgread in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawPgRead( Message  *msg,
+                            Socket   *socket,
+                            uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
       //! Handle a kXR_readv in raw mode
       //------------------------------------------------------------------------
       Status ReadRawReadV( Message  *msg,
@@ -421,6 +430,30 @@ namespace XrdCl
         bytesRead    += btsRead;
         return st;
       }
+
+      //------------------------------------------------------------------------
+      //! Read all page asynchronously - depends on pAsyncBuffer,
+      //! pAsyncSize and pAsyncOffset
+      //------------------------------------------------------------------------
+      inline Status ReadPagesAsync( Socket *socket, uint32_t &bytesRead )
+      {
+        uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
+        while( toBeRead > 0 )
+        {
+          uint32_t btsRead = 0;
+          Status st = ReadPageAsync( socket, btsRead );
+          if( !st.IsOK() || st.code == suRetry ) return st;
+          bytesRead += btsRead;
+        }
+
+        return Status();
+      }
+
+      //------------------------------------------------------------------------
+      //! Read a single page asynchronously - depends on pAsyncBuffer,
+      //! pAsyncSize and pAsyncOffset
+      //------------------------------------------------------------------------
+      Status ReadPageAsync( Socket *socket, uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Read a buffer asynchronously
@@ -578,6 +611,17 @@ namespace XrdCl
 
       typedef std::list<std::unique_ptr<RedirectEntry>> RedirectTraceBack;
 
+      static const size_t             PageSize      = 4096;
+      static const size_t             CksumSize     = 4;
+      static const size_t             PageWithCksum = 4100;
+
+      inline static size_t NbPages( uint32_t dlen )
+      {
+        size_t nbpages = dlen / PageWithCksum;
+        if( dlen % PageWithCksum ) ++nbpages;
+        return nbpages;
+      }
+
       Message                        *pRequest;
       Message                        *pResponse;
       std::vector<Message *>          pPartialResps;
@@ -610,6 +654,10 @@ namespace XrdCl
 
       bool                            pReadRawStarted;
       uint32_t                        pReadRawCurrentOffset;
+
+      size_t                          pPgReadNbPages;
+      std::array<char, 4>             pPgReadCksumBuff;
+      std::vector<uint32_t>           pPgReadCksums;
 
       uint32_t                        pReadVRawMsgOffset;
       bool                            pReadVRawChunkHeaderDone;
