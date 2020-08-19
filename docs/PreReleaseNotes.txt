@@ -21,3 +21,4 @@ Prerelease Notes
   **[HTTP]** Avoid issuing confusing messages for improbable configs.
   **[TLS]** Really kill the session cache when asked.
   **[Xcache]** Correct regression that killed dca option.
+  **[Utils]** Add SHA3 checksum to utils.
