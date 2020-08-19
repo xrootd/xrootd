@@ -37,6 +37,7 @@
 
 #include <sys/uio.h>
 
+#include <array>
 #include <list>
 #include <memory>
 
