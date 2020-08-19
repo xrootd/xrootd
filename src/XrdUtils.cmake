@@ -104,6 +104,7 @@ add_library(
   XrdOuc/XrdOucPsx.cc           XrdOuc/XrdOucPsx.hh
   XrdOuc/XrdOucPup.cc           XrdOuc/XrdOucPup.hh
   XrdOuc/XrdOucReqID.cc         XrdOuc/XrdOucReqID.hh
+  XrdOuc/XrdOucSHA3.cc          XrdOuc/XrdOucSHA3.hh
   XrdOuc/XrdOucSid.cc           XrdOuc/XrdOucSid.hh
   XrdOuc/XrdOucSiteName.cc      XrdOuc/XrdOucSiteName.hh
   XrdOuc/XrdOucStream.cc        XrdOuc/XrdOucStream.hh
