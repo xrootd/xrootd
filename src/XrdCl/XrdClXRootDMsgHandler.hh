@@ -188,6 +188,13 @@ namespace XrdCl
         log->Debug( ExDbgMsg, "[%s] MsgHandler created: 0x%x (message: %s ).",
                     pUrl.GetHostId().c_str(), this,
                     pRequest->GetDescription().c_str() );
+
+        ClientRequestHdr *hdr = (ClientRequestHdr*)pRequest->GetBuffer();
+        if( hdr->requestid == kXR_pgread ) // TODO check the byte order !!!
+        {
+          ClientPgReadRequest *pgrdreq = (ClientPgReadRequest*)pRequest->GetBuffer();
+          pPgReadCksums.reserve( NbPages( pgrdreq->rlen) );
+        }
       }
 
       //------------------------------------------------------------------------
@@ -228,6 +235,18 @@ namespace XrdCl
       //!               the handler
       //------------------------------------------------------------------------
       virtual uint16_t Examine( Message *msg  );
+
+      //------------------------------------------------------------------------
+      //! Reexamine the incoming message, and decide on the action to be taken
+      //!
+      //! In case of kXR_status the message can be only fully examined after
+      //! reading the whole body (without raw data).
+      //!
+      //! @param msg    the message, may be zero if receive failed
+      //! @return       action type that needs to be take wrt the message and
+      //!               the handler
+      //------------------------------------------------------------------------
+      virtual uint16_t Reexamine( Message *msg );
 
       //------------------------------------------------------------------------
       //! Get handler sid
@@ -445,6 +464,7 @@ namespace XrdCl
           Status st = ReadPageAsync( socket, btsRead );
           if( !st.IsOK() || st.code == suRetry ) return st;
           bytesRead += btsRead;
+          toBeRead  -= btsRead;
         }
 
         return Status();

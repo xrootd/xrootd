@@ -898,6 +898,28 @@ namespace XrdCl
     void     *buffer; //! optional buffer pointer
   };
 
+  struct PageInfo
+  {
+      PageInfo( uint64_t offset = 0, uint32_t length = 0, void *buffer = 0, std::vector<uint32_t> &&cksums = std::vector<uint32_t>() ) :
+        offset( offset ),
+        length( length ),
+        buffer( buffer ),
+        cksums( std::move( cksums ) )
+      {
+      }
+
+      PageInfo( PageInfo &&pginf ) : offset( pginf.offset ), length( pginf.length ),
+                                     buffer( pginf.buffer ), cksums( std::move( pginf.cksums ) )
+      {
+
+      }
+
+      uint64_t               offset; //> offset in the file
+      uint32_t               length; //> length of the data read
+      void                  *buffer; //> buffer with the read data
+      std::vector<uint32_t>  cksums; //> a vector of crc32c checksums
+  };
+
   //----------------------------------------------------------------------------
   //! List of chunks
   //----------------------------------------------------------------------------

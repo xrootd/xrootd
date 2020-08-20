@@ -1068,4 +1068,22 @@ namespace XrdCl
       return std::make_pair( mh.handler, ownership );
     return std::make_pair( (IncomingMsgHandler*)0, ownership );
   }
+
+  //------------------------------------------------------------------------
+  //! In case the message is a kXR_status response it needs further attention
+  //!
+  //! @return : a IncomingMsgHandler in case we need to read out raw data
+  //------------------------------------------------------------------------
+  bool Stream::ExamineMessage( Message *msg, uint16_t stream, IncomingMsgHandler *&incHandler )
+  {
+    InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
+    uint16_t action = mh.handler->Reexamine( msg );
+    mh.action |= action;
+    if( action & IncomingMsgHandler::Raw )
+    {
+      incHandler = mh.handler;
+      return true;
+    }
+    return false;
+  }
 }

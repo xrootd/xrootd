@@ -198,7 +198,7 @@ namespace XrdCl
       //! @param size    buffer size, at least 1 page big (4KB)
       //! @param buffer  a pointer to a buffer big enough to hold the data
       //! @param handler handler to be notified when the response arrives,
-      //!                the response parameter will hold a PgReadInfo object if
+      //!                the response parameter will hold a PageInfo object if
       //!                the procedure was successful
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
@@ -226,8 +226,8 @@ namespace XrdCl
       XRootDStatus PgRead( uint64_t               offset,
                            uint32_t               size,
                            void                  *buffer,
-                           uint32_t              &bytesRead,
                            std::vector<uint32_t> &cksums,
+                           uint32_t              &bytesRead,
                            uint16_t               timeout = 0 )
                            XRD_WARN_UNUSED_RESULT;
 

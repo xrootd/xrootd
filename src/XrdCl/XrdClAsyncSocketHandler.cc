@@ -642,6 +642,15 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
+    // Now check if there are some additional raw data to be read
+    //--------------------------------------------------------------------------
+    if( !pIncHandler.first )
+    {
+      if( pStream->ExamineMessage( pIncoming, pSubStreamNum, pIncHandler.first ) )
+        return;
+    }
+
+    //--------------------------------------------------------------------------
     // Report the incoming message
     //--------------------------------------------------------------------------
     log->Dump( AsyncSockMsg, "[%s] Received message 0x%x of %d bytes",

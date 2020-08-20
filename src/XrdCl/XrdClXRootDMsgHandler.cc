@@ -40,6 +40,8 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClTls.hh"
 
+#include "XrdOuc/XrdOucCRC32C.hh"
+
 #include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
 #include "XrdSys/XrdSysAtomics.hh"
@@ -305,6 +307,20 @@ namespace XrdCl
         return Take | ( pOksofarAsAnswer ? 0 : NoProcess );
       }
 
+      case kXR_status:
+      {
+        log->Dump( XRootDMsg, "[%s] Got a kXR_status response to request "
+                   "%s", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
+
+        //----------------------------------------------------------------------
+        // first of all we need to read the body of the kXR_status response,
+        // we can handle the raw data (if any) only after we have the whole
+        // kXR_status body
+        //----------------------------------------------------------------------
+        return Take | RemoveHandler;
+      }
+
       //------------------------------------------------------------------------
       // Default
       //------------------------------------------------------------------------
@@ -312,6 +328,55 @@ namespace XrdCl
         return Take | RemoveHandler;
     }
     return Take | RemoveHandler;
+  }
+
+  //------------------------------------------------------------------------
+  // Reexamine the incoming message, and decide on the action to be taken
+  //------------------------------------------------------------------------
+  uint16_t XRootDMsgHandler::Reexamine( Message *msg )
+  {
+    ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+    if( rsp->hdr.status != kXR_status ) return 0;
+
+    Status st = XRootDTransport::UnMarshalStatusBody( msg );
+    if( !st.IsOK() )
+    {
+      // TODO report an error !
+    }
+
+    ServerResponseStatus *rspst = (ServerResponseStatus*)msg->GetBuffer();
+
+    char   *buffer = msg->GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
+    size_t  length = rspst->hdr.dlen - sizeof( rspst->bdy.crc32c );
+    uint32_t crcval = crc32c( 0, buffer, length );
+    if( crcval != rspst->bdy.crc32c )
+    {
+      // TODO we need to report an error!
+    }
+
+    if( rspst->hdr.streamid[0] != rspst->bdy.streamID[0] ||
+        rspst->hdr.streamid[1] != rspst->bdy.streamID[1] )
+    {
+      // TODO we need to report an error
+    }
+
+    ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
+    uint16_t reqId = ntohs( req->header.requestid );
+
+    if( rspst->bdy.requestid + kXR_1stRequest != reqId )
+    {
+      // TODO we need to report an error
+    }
+
+    uint16_t action = 0;
+    if( reqId == kXR_pgread )
+    {
+      pAsyncMsgSize = rspst->bdy.dlen;
+      action |= Raw;
+    }
+    if( rspst->bdy.resptype == XrdProto::kXR_PartialResult ) action |= NoProcess;
+
+    return action;
   }
 
   //----------------------------------------------------------------------------
@@ -426,6 +491,16 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Got a kXR_ok response to request %s",
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
+        pStatus  = Status();
+        HandleResponse();
+        return;
+      }
+
+      case kXR_status:
+      {
+        log->Dump( XRootDMsg, "[%s] Got a kXR_status response to request %s",
+                    pUrl.GetHostId().c_str(),
+                    pRequest->GetDescription().c_str() );
         pStatus   = Status();
         HandleResponse();
         return;
@@ -439,7 +514,7 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request %s",
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
-        pStatus   = Status( stOK, suContinue );
+        pStatus  = Status( stOK, suContinue );
         HandleResponse();
         return;
       }
@@ -828,6 +903,9 @@ namespace XrdCl
     if( reqId == kXR_readv )
       return ReadRawReadV( msg, socket, bytesRead );
 
+    if( reqId == kXR_pgread )
+      return ReadRawPgRead( msg, socket, bytesRead );
+
     return ReadRawOther( msg, socket, bytesRead );
   }
 
@@ -897,7 +975,8 @@ namespace XrdCl
       pAsyncOffset     = 0;
       pAsyncReadSize   = pAsyncMsgSize;
       pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
-      size_t rawDataSize      = pAsyncMsgSize - pPgReadNbPages * CksumSize;
+      size_t rawDataSize      = pAsyncMsgSize - NbPages( pAsyncMsgSize ) * CksumSize;
+
       if( pReadRawCurrentOffset + rawDataSize > chunk.length )
       {
         log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
@@ -920,14 +999,10 @@ namespace XrdCl
     if( pChunkStatus.front().sizeError )
       return ReadRawOther( msg, socket, bytesRead );
 
-
-    // TODO
-
-
     //--------------------------------------------------------------------------
     // Read the data
     //--------------------------------------------------------------------------
-    return ReadAsync( socket, bytesRead );
+    return ReadPagesAsync( socket, bytesRead );
   }
 
   //----------------------------------------------------------------------------
@@ -1797,6 +1872,83 @@ namespace XrdCl
         ChunkInfo *retChunk = new ChunkInfo( chunk.offset, currentOffset,
                                              chunk.buffer );
         obj->Set( retChunk );
+        response = obj;
+        return Status();
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_pgread
+      //------------------------------------------------------------------------
+      case kXR_pgread:
+      {
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as PageInfo",
+                   pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
+
+        size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
+
+        //----------------------------------------------------------------------
+        // Glue in the cached responses if necessary
+        //----------------------------------------------------------------------
+        ChunkInfo  chunk         = pChunkList->front();
+        bool       sizeMismatch  = false;
+        uint32_t   currentOffset = 0;
+        char      *cursor        = (char*)chunk.buffer;
+        for( uint32_t i = 0; i < pPartialResps.size(); ++i )
+        {
+          ServerResponseStatus *part = (ServerResponseStatus*)pPartialResps[i]->GetBuffer();
+
+          //--------------------------------------------------------------------
+          // the actual size of the raw data without the crc32c checksums
+          //--------------------------------------------------------------------
+          size_t datalen = part->bdy.dlen - NbPages( part->bdy.dlen ) * 4;
+
+          if( currentOffset + datalen > chunk.length )
+          {
+            sizeMismatch = true;
+            break;
+          }
+
+          if( pPartialResps[i]->GetSize() > stlen )
+          {
+            char *databuff = pPartialResps[i]->GetBuffer( stlen );
+            memcpy( cursor, databuff, datalen );
+          }
+          currentOffset += datalen;
+          cursor        += datalen;
+        }
+
+        ServerResponseStatus *rspst = (ServerResponseStatus*)pResponse->GetBuffer();
+        size_t datalen = rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
+        if( currentOffset + datalen <= chunk.length )
+        {
+          if( pResponse->GetSize() > stlen )
+          {
+            char *databuff = pResponse->GetBuffer( stlen );
+            memcpy( cursor, databuff, rspst->bdy.dlen );
+          }
+          currentOffset += rspst->bdy.dlen;
+        }
+        else
+          sizeMismatch = true;
+
+        //----------------------------------------------------------------------
+        // Overflow
+        //----------------------------------------------------------------------
+        if( pChunkStatus.front().sizeError || sizeMismatch )
+        {
+          log->Error( XRootDMsg, "[%s] Handling response to %s: user supplied "
+                      "buffer is too small for the received data.",
+                      pUrl.GetHostId().c_str(),
+                      pRequest->GetDescription().c_str() );
+          return Status( stError, errInvalidResponse );
+        }
+
+        AnyObject *obj   = new AnyObject();
+        PageInfo *pgInfo = new PageInfo( chunk.offset, currentOffset, chunk.buffer,
+                                         std::move( pPgReadCksums) );
+
+        obj->Set( pgInfo );
         response = obj;
         return Status();
       }

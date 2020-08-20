@@ -115,6 +115,18 @@ namespace XrdCl
       virtual uint16_t Examine( Message *msg ) = 0;
 
       //------------------------------------------------------------------------
+      //! Reexamine the incoming message, and decide on the action to be taken
+      //!
+      //! In case of kXR_status the message can be only fully examined after
+      //! reading the whole body (without raw data).
+      //!
+      //! @param msg    the message, may be zero if receive failed
+      //! @return       action type that needs to be take wrt the message and
+      //!               the handler
+      //------------------------------------------------------------------------
+      virtual uint16_t Reexamine( Message *msg ) = 0;
+
+      //------------------------------------------------------------------------
       //! Get handler sid
       //!
       //! return sid of the corresponding request, otherwise 0

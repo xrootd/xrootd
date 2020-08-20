@@ -706,6 +706,63 @@ namespace XrdCl
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
+  //------------------------------------------------------------------------
+  // Read data pages at a given offset
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::PgRead( uint64_t         offset,
+                                         uint32_t         size,
+                                         void            *buffer,
+                                         uint16_t         flags,
+                                         ResponseHandler *handler,
+                                         uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( offset % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead offset not 4KB aligned." );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a pgread command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message             *msg;
+    ClientPgReadRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid  = kXR_pgread;
+    req->offset     = offset;
+    req->rlen       = size;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    //--------------------------------------------------------------------------
+    // Now adjust the message size so it can hold PgRead arguments
+    //--------------------------------------------------------------------------
+    msg->ReAllocate( sizeof( ClientPgReadRequest ) + sizeof( ClientPgReadReqArgs ) );
+    void *newBuf = msg->GetBuffer( sizeof( ClientPgReadRequest ) );
+    memset( newBuf, 0, sizeof( ClientPgReadReqArgs ) );
+    req->dlen = sizeof( ClientPgReadReqArgs );
+    ClientPgReadReqArgs *args = reinterpret_cast<ClientPgReadReqArgs*>(
+        msg->GetBuffer( sizeof( ClientPgReadRequest ) ) );
+    args->reqflags = flags | PgReadFlags::Retry;
+
+    ChunkList *list   = new ChunkList();
+    list->push_back( ChunkInfo( offset, size, buffer ) );
+
+    XRootDTransport::SetDescription( msg );
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+    MessageUtils::ProcessSendParams( params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
   //----------------------------------------------------------------------------
   // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------
@@ -1482,6 +1539,7 @@ namespace XrdCl
       {
         case kXR_read:   i.opCode = Monitor::ErrorInfo::ErrRead;   break;
         case kXR_readv:  i.opCode = Monitor::ErrorInfo::ErrReadV;  break;
+        case kXR_pgread: i.opCode = Monitor::ErrorInfo::ErrRead;   break;
         case kXR_write:  i.opCode = Monitor::ErrorInfo::ErrWrite;  break;
         case kXR_writev: i.opCode = Monitor::ErrorInfo::ErrWriteV; break;
         default: i.opCode = Monitor::ErrorInfo::ErrUnc;
@@ -1590,6 +1648,16 @@ namespace XrdCl
       {
         ++pRCount;
         pRBytes += req->read.rlen;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Handle read response
+      //------------------------------------------------------------------------
+      case kXR_pgread:
+      {
+        ++pRCount;
+        pRBytes += req->pgread.rlen;
         break;
       }
 
@@ -2071,6 +2139,12 @@ namespace XrdCl
         size_t size = req->dlen / sizeof(XrdProto::write_list);
         for( size_t i = 0; i < size; ++i )
           memcpy( wrtList[i].fhandle, pFileHandle, 4 );
+        break;
+      }
+      case kXR_pgread:
+      {
+        ClientPgReadRequest *req = (ClientPgReadRequest*) msg->GetBuffer();
+        memcpy( req->fhandle, pFileHandle, 4 );
         break;
       }
     }

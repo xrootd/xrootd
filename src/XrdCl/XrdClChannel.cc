@@ -70,6 +70,14 @@ namespace
         return Ignore;
       }
 
+      //------------------------------------------------------------------------
+      //! Reexamine the incoming message, and decide on the action to be taken
+      //------------------------------------------------------------------------
+      virtual uint16_t Reexamine( XrdCl::Message *msg )
+      {
+        return 0;
+      }
+
       virtual void Process( XrdCl::Message *msg )
       {
         pMsg = msg;

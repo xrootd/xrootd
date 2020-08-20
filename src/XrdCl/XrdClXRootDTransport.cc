@@ -327,9 +327,24 @@ namespace XrdCl
     // Retrieve the body
     //--------------------------------------------------------------------------
     size_t   leftToBeRead = 0;
-    uint32_t bodySize = *(uint32_t*)(message->GetBuffer(4));
+    uint32_t bodySize = 0;
+    ServerResponseHeader* rsphdr = (ServerResponseHeader*)message->GetBuffer();
+    if( rsphdr->status != kXR_status )
+      bodySize = rsphdr->dlen;
+    else
+    {
+      size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
+      if( message->GetSize() < stlen )
+        bodySize = rsphdr->dlen;
+      else
+      {
+        ServerResponseStatus *rspst = (ServerResponseStatus*)message->GetBuffer();
+        bodySize = rspst->hdr.dlen + rspst->bdy.dlen;
+      }
 
-    if( message->GetCursor() == 8 )
+    }
+
+    if( message->GetSize() < bodySize + 8 )
       message->ReAllocate( bodySize + 8 );
 
     leftToBeRead = bodySize-(message->GetCursor()-8);
@@ -822,6 +837,29 @@ namespace XrdCl
         break;
       }
 
+
+      //------------------------------------------------------------------------
+      // PgRead - we update the path id to tell the server where we want to
+      // get the response, but we still send the request through stream 0
+      // We need to allocate space for ClientPgReadReqArgs if we don't have it
+      // included yet
+      //------------------------------------------------------------------------
+      case kXR_pgread:
+      {
+        if( msg->GetSize() < sizeof( ClientPgReadRequest ) + sizeof( ClientPgReadReqArgs ) )
+        {
+          msg->ReAllocate( sizeof( ClientPgReadRequest ) + sizeof( ClientPgReadReqArgs ) );
+          void *newBuf = msg->GetBuffer( sizeof( ClientPgReadRequest ) );
+          memset( newBuf, 0, sizeof( ClientPgReadReqArgs ) );
+          ClientPgReadRequest *req = (ClientPgReadRequest*)msg->GetBuffer();
+          req->dlen += sizeof( ClientPgReadReqArgs );
+        }
+        ClientPgReadReqArgs *args = reinterpret_cast<ClientPgReadReqArgs*>(
+            msg->GetBuffer( sizeof( ClientPgReadRequest ) ) );
+        args->pathid   = info->stream[downStream].pathId;
+        break;
+      }
+
       //------------------------------------------------------------------------
       // ReadV - the situation is identical to read but we don't need any
       // additional structures to specify the return path
@@ -1034,6 +1072,13 @@ namespace XrdCl
         break;
       }
 
+      case kXR_pgread:
+      {
+        req->pgread.offset = htonl( req->pgread.offset );
+        req->pgread.rlen   = htonl( req->pgread.rlen );
+        break;
+      }
+
       //------------------------------------------------------------------------
       // kXR_prepare
       //------------------------------------------------------------------------
@@ -1147,6 +1192,25 @@ namespace XrdCl
         return Status( stError, errInvalidMessage );
       m->body.attn.actnum = htonl( m->body.attn.actnum );
     }
+
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  //! Unmarshall the body of the status response
+  //------------------------------------------------------------------------
+  Status XRootDTransport::UnMarshalStatusBody( Message *msg )
+  {
+    size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
+
+    if( msg->GetSize() < stlen ) return Status( stError, errInvalidMessage );
+
+    ServerResponseStatus      *rspst   = (ServerResponseStatus*)msg->GetBuffer();
+    rspst->bdy.crc32c = ntohl( rspst->bdy.crc32c );
+    rspst->bdy.dlen   = ntohl( rspst->bdy.dlen );
+
+    ServerResponseBody_pgRead *pgrdbdy = (ServerResponseBody_pgRead*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
+    pgrdbdy->offset = ntohl( pgrdbdy->offset );
 
     return Status();
   }
@@ -2550,6 +2614,21 @@ namespace XrdCl
       {
         ClientReadRequest *sreq = (ClientReadRequest *)msg->GetBuffer();
         o << "kXR_read (";
+        o << "handle: " << FileHandleToStr( sreq->fhandle );
+        o << std::setbase(10);
+        o << ", ";
+        o << "offset: " << sreq->offset << ", ";
+        o << "size: " << sreq->rlen << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_pgread
+      //------------------------------------------------------------------------
+      case kXR_pgread:
+      {
+        ClientPgReadRequest *sreq = (ClientPgReadRequest *)msg->GetBuffer();
+        o << "kXR_pgread (";
         o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << std::setbase(10);
         o << ", ";

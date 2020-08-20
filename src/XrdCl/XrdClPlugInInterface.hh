@@ -107,12 +107,12 @@ namespace XrdCl
       //! @see XrdCl:File PgRead
       //------------------------------------------------------------------------
       virtual XRootDStatus PgRead( uint64_t         offset,
-                                   uint32_t         nbpgs,
+                                   uint32_t         size,
                                    void            *buffer,
                                    ResponseHandler *handler,
                                    uint16_t         timeout )
       {
-        (void)offset; (void)nbpgs; (void)buffer; (void)handler; (void)timeout;
+        (void)offset; (void)size; (void)buffer; (void)handler; (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
 

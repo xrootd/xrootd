@@ -147,6 +147,28 @@ namespace XrdCl
                          uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Read data pages at a given offset
+      //!
+      //! @param offset  : offset from the beginning of the file (Note: has to
+      //!                  4KB aligned)
+      //! @param size    : buffer size
+      //! @param buffer  : a pointer to buffer big enough to hold the data
+      //! @param flags   : pgread flags (used to indicate a retry request)
+      //! @param handler : handler to be notified when the response arrives, the
+      //!                  response parameter will hold a PgReadInfo object if
+      //!                  the procedure was successful
+      //! @param timeout : timeout value, if 0 environment default will be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PgRead( uint64_t         offset,
+                           uint32_t         size,
+                           void            *buffer,
+                           uint16_t         flags,
+                           ResponseHandler *handler,
+                           uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file
