@@ -40,7 +40,7 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClTls.hh"
 
-#include "XrdOuc/XrdOucCRC32C.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 
 #include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
@@ -338,17 +338,18 @@ namespace XrdCl
     ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
     if( rsp->hdr.status != kXR_status ) return 0;
 
+    // Calculate the crc32c before the unmarshaling the body!
+    ServerResponseStatus *rspst = (ServerResponseStatus*)msg->GetBuffer();
+    char   *buffer = msg->GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
+    size_t  length = rspst->hdr.dlen - sizeof( rspst->bdy.crc32c );
+    uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
+
     Status st = XRootDTransport::UnMarshalStatusBody( msg );
     if( !st.IsOK() )
     {
       // TODO report an error !
     }
 
-    ServerResponseStatus *rspst = (ServerResponseStatus*)msg->GetBuffer();
-
-    char   *buffer = msg->GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
-    size_t  length = rspst->hdr.dlen - sizeof( rspst->bdy.crc32c );
-    uint32_t crcval = crc32c( 0, buffer, length );
     if( crcval != rspst->bdy.crc32c )
     {
       // TODO we need to report an error!
@@ -1253,7 +1254,7 @@ namespace XrdCl
       {
         uint32_t crc32c = 0;
         memcpy( &crc32c, pPgReadCksumBuff.data(), CksumSize );
-        pPgReadCksums.push_back( crc32c );
+        pPgReadCksums.push_back( ntohl( crc32c ) );
       }
       else return Status();
     }
@@ -1927,7 +1928,7 @@ namespace XrdCl
             char *databuff = pResponse->GetBuffer( stlen );
             memcpy( cursor, databuff, rspst->bdy.dlen );
           }
-          currentOffset += rspst->bdy.dlen;
+          currentOffset += rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
         }
         else
           sizeMismatch = true;

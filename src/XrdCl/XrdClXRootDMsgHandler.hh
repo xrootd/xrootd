@@ -152,8 +152,6 @@ namespace XrdCl
         pReadRawStarted( false ),
         pReadRawCurrentOffset( 0 ),
 
-        pPgReadNbPages( 0 ),
-
         pReadVRawMsgOffset( 0 ),
         pReadVRawChunkHeaderDone( false ),
         pReadVRawChunkHeaderStarted( false ),
@@ -676,7 +674,6 @@ namespace XrdCl
       bool                            pReadRawStarted;
       uint32_t                        pReadRawCurrentOffset;
 
-      size_t                          pPgReadNbPages;
       std::array<char, 4>             pPgReadCksumBuff;
       std::vector<uint32_t>           pPgReadCksums;
 

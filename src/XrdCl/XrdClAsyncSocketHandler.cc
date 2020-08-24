@@ -646,7 +646,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pIncHandler.first )
     {
-      if( pStream->ExamineMessage( pIncoming, pSubStreamNum, pIncHandler.first ) )
+      if( pStream->HasAdditionalRawData( pIncoming, pSubStreamNum, pIncHandler.first ) )
         return;
     }
 
