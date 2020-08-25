@@ -1182,15 +1182,27 @@ struct ServerResponse
     ServerResponseBody_Attn     attn;
     ServerResponseBody_Authmore authmore;
     ServerResponseBody_Bind     bind;
-     ServerResponseBody_Buffer  buffer;
+    ServerResponseBody_Buffer   buffer;
     ServerResponseBody_Error    error;
     ServerResponseBody_Login    login;
-    ServerResponseBody_pgRead   pgread;
-    ServerResponseBody_pgWrite  pgwrite;
     ServerResponseBody_Protocol protocol;
     ServerResponseBody_Redirect redirect;
+    ServerResponseBody_Status   status;
     ServerResponseBody_Wait     wait;
     ServerResponseBody_Waitresp waitresp;
+  } body;
+};
+
+// The pgread and pgwrite do not fit the union above because they are composed
+// of three structs not two as all the above. So, we define the exceptions here.
+//
+struct ServerResponseV2
+{
+  ServerResponseStatus status; // status.bdy and status.hdr
+  union
+  {
+    ServerResponseBody_pgRead   pgread;
+    ServerResponseBody_pgWrite  pgwrite;
   } body;
 };
 
