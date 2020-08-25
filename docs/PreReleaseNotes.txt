@@ -20,3 +20,4 @@ Prerelease Notes
   **[HTTP]** Honor the tlsreuse option.
   **[HTTP]** Avoid issuing confusing messages for improbable configs.
   **[TLS]** Really kill the session cache when asked.
+  **[Xcache]** Correct regression that killed dca option.
