@@ -321,14 +321,15 @@ struct ClientLocateRequest {
 
 // this is a bitmask
 enum XLoginAbility {
-   kXR_nothing =   0,
-   kXR_fullurl =   1,
-   kXR_multipr =   3,
-   kXR_readrdok=   4,
-   kXR_hasipv64=   8,
-   kXR_onlyprv4=  16,
-   kXR_onlyprv6=  32,
-   kXR_lclfile =  64
+   kXR_nothing    =   0,
+   kXR_fullurl    =   1,
+   kXR_multipr    =   3,
+   kXR_readrdok   =   4,
+   kXR_hasipv64   =   8,
+   kXR_onlyprv4   =  16,
+   kXR_onlyprv6   =  32,
+   kXR_lclfile    =  64,
+   kXR_redirflags = 128
 };
 
 // this is a bitmask (note that XLoginVersion resides in lower bits)
