@@ -71,8 +71,8 @@ public:
    struct Store
    {
       int                m_version;                //!< info version
-      long long          m_buffer_size;             //!< prefetch buffer size
-      long long          m_file_size;               //!< number of file blocks
+      long long          m_buffer_size;            //!< buffer / block size
+      long long          m_file_size;              //!< size of file in bytes
       unsigned char     *m_buff_synced;            //!< disk written state vector
       char               m_cksum[16];              //!< cksum of downloaded information
       time_t             m_creationTime;           //!< time the info file was created
