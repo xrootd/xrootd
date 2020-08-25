@@ -18,6 +18,7 @@ Prerelease Notes
   **[GSI]** Use the storage deallocator that matches the allocator.
 
 + **Miscellaneous**
+  **[Xcache]** Correct regression that killed dca option.
   **[Utils]** Add SHA3 checksum to utils.
   **[SSI]** Forward port LSST request scaler with auto-tuning.
   **[HTTP]** Enable session cache by default, provide http.tlsreuse directive.
