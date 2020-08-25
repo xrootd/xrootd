@@ -538,7 +538,7 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(Xopts[i].Key, val)) break;
 
 /* Function: xdca
 
-   Purpose:  To parse the directive: dca [world] [recheck {<tm> | off}]
+   Purpose:  To parse the directive: dca [group|world] [recheck {<tm> | off}]
 
              <tm>      recheck for applicability every <tm> interval
              world     When specified, files are made world deadable.
@@ -562,6 +562,7 @@ int XrdPssSys::xdca(XrdSysError *errp, XrdOucStream &Config)
 //
    while((val = Config.GetWord()))
         {     if (!strcmp(val, "world")) dcaWorld = true;
+         else if (!strcmp(val, "group")) dcaWorld = false;
          else if (!strcmp(val, "recheck"))
                  {if (!strcmp(val, "off")) dcaCTime = 0;
                      else {if (!(val = Config.GetWord()))
