@@ -785,6 +785,9 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 {
    static const mode_t groupReadable = S_IRUSR | S_IWUSR | S_IRGRP;
    static const mode_t worldReadable = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+   static const char  *lfpReason[] = { "ForAccess", "ForInfo", "ForPath" };
+
+   TRACE(Debug, "Cache::LocalFilePath '" << curl << "', why=" << lfpReason[why]);
 
    if (buff && blen > 0) buff[0] = 0;
 
@@ -794,7 +797,9 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
 
    if (why == ForPath)
    {
-     return m_oss->Lfn2Pfn(f_name.c_str(), buff, blen);
+     int ret = m_oss->Lfn2Pfn(f_name.c_str(), buff, blen);
+     TRACE(Info, "Cache::LocalFilePath '" << curl << "', why=" << lfpReason[why] << " -> " << ret);
+     return ret;
    }
 
    {
@@ -808,8 +813,8 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
    {
       if ( S_ISDIR(sbuff.st_mode))
       {
-         return -EISDIR; // Andy ... this violates ForInfo docs.
-                         // In fact, ForInfo is actually silly.
+         TRACE(Info, "Cache::LocalFilePath '" << curl << "', why=" << lfpReason[why] << " -> EISDIR");
+         return -EISDIR;
       }
       else
       {
@@ -872,11 +877,15 @@ int Cache::LocalFilePath(const char *curl, char *buff, int blen,
                   }
             }
 
+            TRACE(Info, "Cache::LocalFilePath '" << curl << "', why=" << lfpReason[why] <<
+                  (is_complete ? " -> FILE_COMPLETE_IN_CACHE" : " -> EREMOTE"));
+
             return is_complete ? 0 : -EREMOTE;
          }
       }
    }
 
+   TRACE(Info, "Cache::LocalFilePath '" << curl << "', why=" << lfpReason[why] << " -> ENOENT");
    return -ENOENT;
 }
 
