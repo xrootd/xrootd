@@ -341,7 +341,7 @@ void Info::CompactifyAccessRecords()
    for (int i = 0; i < (int) v.size() - 1; ++i)
    {
       if (v[i].DetachTime == 0)
-         v[i].DetachTime = v[i].AttachTime + v[i].Duration / v[i].NumIos;
+         v[i].DetachTime = std::min(v[i].AttachTime + v[i].Duration / v[i].NumIos, v[i+1].AttachTime);
    }
 
    while (v.size() > s_maxNumAccess)
