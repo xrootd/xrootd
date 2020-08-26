@@ -11,6 +11,7 @@
 class XrdSfsFile;
 class XrdHttpExtReq;
 typedef void CURL;
+struct curl_slist;
 
 namespace TPC {
 class Stream;

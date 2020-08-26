@@ -883,7 +883,7 @@ int XrdXrootdProtocol::do_Login()
 // Unmarshall the pid and construct username using the POSIX.1-2008 standard
 //
    pid = (int)ntohl(Request.login.pid);
-   strncpy(uname, (const char *)Request.login.username, sizeof(uname)-2);
+   strncpy(uname, (const char *)Request.login.username, sizeof(uname)-1);
    uname[sizeof(uname)-1] = 0;
    XrdOucUtils::Sanitize(uname);
 

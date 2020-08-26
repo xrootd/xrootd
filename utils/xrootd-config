@@ -39,7 +39,7 @@ Generic options
 
 Compilation support options
   --cflags      print pre-processor and compiler flags
-  --plugin-vesion print plug-in version suffix
+  --plugin-version print plug-in version suffix
 
 Install directories XRootD was configured to
   --prefix
