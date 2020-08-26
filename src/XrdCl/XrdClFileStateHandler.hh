@@ -38,6 +38,12 @@
 
 #include <sys/uio.h>
 
+namespace
+{
+  class PgReadHandler;
+  class PgReadRetryHandler;
+}
+
 namespace XrdCl
 {
   class ResponseHandlerHolder;
@@ -48,6 +54,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class FileStateHandler
   {
+      friend class ::PgReadHandler;
+      friend class ::PgReadRetryHandler;
+
     public:
       //------------------------------------------------------------------------
       //! State of the file
@@ -153,7 +162,6 @@ namespace XrdCl
       //!                  4KB aligned)
       //! @param size    : buffer size
       //! @param buffer  : a pointer to buffer big enough to hold the data
-      //! @param flags   : pgread flags (used to indicate a retry request)
       //! @param handler : handler to be notified when the response arrives, the
       //!                  response parameter will hold a PgReadInfo object if
       //!                  the procedure was successful
@@ -161,12 +169,52 @@ namespace XrdCl
       //!
       //! @return        : status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus PgRead( uint64_t         offset,
-                           uint32_t         size,
-                           void            *buffer,
-                           uint16_t         flags,
-                           ResponseHandler *handler,
-                           uint16_t         timeout = 0 );
+      XRootDStatus PgRead( uint64_t          offset,
+                           uint32_t          size,
+                           void             *buffer,
+                           ResponseHandler  *handler,
+                           uint16_t          timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Retry reading one page of data at a given offset
+      //!
+      //! @param offset  : offset from the beginning of the file (Note: has to
+      //!                  4KB aligned)
+      //! @param size    : buffer size
+      //! @param buffer  : a pointer to buffer big enough to hold the data
+      //! @param handler : handler to be notified when the response arrives
+      //! @param timeout : timeout value, if 0 environment default will be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PgReadRetry( uint64_t        offset,
+                                uint32_t        size,
+                                size_t          pgnb,
+                                void           *buffer,
+                                PgReadHandler  *handler,
+                                uint16_t        timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Read data pages at a given offset (actual implementation)
+      //!
+      //! @param offset  : offset from the beginning of the file (Note: has to
+      //!                  4KB aligned)
+      //! @param size    : buffer size
+      //! @param buffer  : a pointer to buffer big enough to hold the data
+      //! @param flags   : PgRead flags
+      //! @param handler : handler to be notified when the response arrives, the
+      //!                  response parameter will hold a PgReadInfo object if
+      //!                  the procedure was successful
+      //! @param timeout : timeout value, if 0 environment default will be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PgReadImpl( uint64_t          offset,
+                               uint32_t          size,
+                               void             *buffer,
+                               uint16_t          flags,
+                               ResponseHandler  *handler,
+                               uint16_t          timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - async

@@ -39,13 +39,258 @@
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdClRedirectorRegistry.hh"
 
+#include "XrdOuc/XrdOucCRC.hh"
+
 #include <sstream>
 #include <memory>
 #include <sys/time.h>
 #include <uuid/uuid.h>
+#include <mutex>
 
 namespace
 {
+  //----------------------------------------------------------------------------
+  // Helper callback for handling PgRead responses
+  //----------------------------------------------------------------------------
+  class PgReadHandler : public XrdCl::ResponseHandler
+  {
+      friend PgReadRetryHandler;
+
+    public:
+
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      PgReadHandler( XrdCl::FileStateHandler *stateHandler,
+                     XrdCl::ResponseHandler  *userHandler,
+                     uint64_t                 orgOffset ) : stateHandler( stateHandler ),
+                                                            userHandler( userHandler ),
+                                                            orgOffset( orgOffset ),
+                                                            maincall( true ),
+                                                            retrycnt( 0 )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                    XrdCl::AnyObject    *response,
+                                    XrdCl::HostList     *hostList )
+      {
+        using namespace XrdCl;
+
+        std::unique_lock<std::mutex> lck( mtx );
+
+        if( !maincall )
+        {
+          //--------------------------------------------------------------------
+          // We are serving PgRead retry request
+          //--------------------------------------------------------------------
+          --retrycnt;
+          if( !status->IsOK() )
+            st.reset( status );
+          else
+            delete status; // by convention other args are null (see PgReadRetryHandler)
+
+          if( retrycnt == 0 )
+          {
+            //------------------------------------------------------------------
+            // All retries came back
+            //------------------------------------------------------------------
+            if( st->IsOK() )
+              userHandler->HandleResponseWithHosts( st.release(), resp.release(), hosts.release() );
+            else
+              userHandler->HandleResponseWithHosts( st.release(), 0, 0 );
+            lck.unlock();
+            delete this;
+          }
+
+          return;
+        }
+
+        //----------------------------------------------------------------------
+        // We are serving main PgRead request
+        //----------------------------------------------------------------------
+        if( !status->IsOK() )
+        {
+          //--------------------------------------------------------------------
+          // The main PgRead request has failed
+          //--------------------------------------------------------------------
+          userHandler->HandleResponseWithHosts( status, response, hostList );
+          lck.unlock();
+          delete this;
+          return;
+        }
+
+        maincall = false;
+
+        //----------------------------------------------------------------------
+        // Do the integrity check
+        //----------------------------------------------------------------------
+        PageInfo *pginf = 0;
+        response->Get( pginf );
+
+        uint32_t               bytesRead = pginf->length;
+        std::vector<uint32_t> &cksums    = pginf->cksums;
+        char                  *buffer    = reinterpret_cast<char*>( pginf->buffer );
+        size_t                 pgnb      = 0;
+
+        while( bytesRead > 0 )
+        {
+          uint32_t pgsize = 4096;
+          if( pgsize > bytesRead ) pgsize = bytesRead;
+          uint32_t crcval = XrdOucCRC::Calc32C( buffer, pgsize );
+          if( crcval != cksums[pgnb] )
+          {
+            Log *log = DefaultEnv::GetLog();
+            log->Info( FileMsg, "[0x%x@%s] Received corrupted page, will retry page #%d.",
+                        this, stateHandler->pFileUrl->GetURL().c_str(), pgnb );
+
+            uint64_t offset = orgOffset + pgnb * 4096;
+            XRootDStatus st = stateHandler->PgReadRetry( offset, pgsize, pgnb, buffer, this, 0 );
+            if( !st.IsOK())
+            {
+              *status = st; // the reason for this failure
+              break;
+            }
+            ++retrycnt; // update the retry counter
+          }
+          bytesRead -= pgsize;
+          buffer    += pgsize;
+          ++pgnb;
+        }
+
+
+        if( retrycnt == 0 )
+        {
+          //--------------------------------------------------------------------
+          // All went well!
+          //--------------------------------------------------------------------
+          userHandler->HandleResponseWithHosts( status, response, hostList );
+          lck.unlock();
+          delete this;
+          return;
+        }
+
+        //----------------------------------------------------------------------
+        // We have to wait for retries!
+        //----------------------------------------------------------------------
+        resp.reset( response );
+        hosts.reset( hostList );
+        st.reset( status );
+      }
+
+      void UpdateCksum( size_t pgnb, uint32_t crcval )
+      {
+        if( resp )
+        {
+          XrdCl::PageInfo *pginf = 0;
+          resp->Get( pginf );
+          pginf->cksums[pgnb] = crcval;
+        }
+      }
+
+    private:
+
+      XrdCl::FileStateHandler *stateHandler;
+      XrdCl::ResponseHandler  *userHandler;
+
+      uint64_t                 orgOffset;
+
+      std::unique_ptr<XrdCl::AnyObject>    resp;
+      std::unique_ptr<XrdCl::HostList>     hosts;
+      std::unique_ptr<XrdCl::XRootDStatus> st;
+
+      std::mutex mtx;
+      bool       maincall;
+      size_t     retrycnt;
+
+  };
+
+  //----------------------------------------------------------------------------
+  // Helper callback for handling PgRead retries
+  //----------------------------------------------------------------------------
+  class PgReadRetryHandler : public XrdCl::ResponseHandler
+  {
+    public:
+
+      PgReadRetryHandler( PgReadHandler *pgReadHandler, size_t pgnb ) : pgReadHandler( pgReadHandler ),
+                                                                        pgnb( pgnb )
+      {
+
+      }
+
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                    XrdCl::AnyObject    *response,
+                                    XrdCl::HostList     *hostList )
+      {
+        using namespace XrdCl;
+
+        if( !status->IsOK() )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Info( FileMsg, "[0x%x@%s] Failed to recover page #%d.",
+                      this, pgReadHandler->stateHandler->pFileUrl->GetURL().c_str(), pgnb );
+          pgReadHandler->HandleResponseWithHosts( status, response, hostList );
+          delete this;
+          return;
+        }
+
+        XrdCl::PageInfo *pginf = 0;
+        response->Get( pginf );
+        if( pginf->length > 4096 || pginf->cksums.size() != 1 )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Info( FileMsg, "[0x%x@%s] Failed to recover page #%d.",
+                      this, pgReadHandler->stateHandler->pFileUrl->GetURL().c_str(), pgnb );
+          // we retry a page at a time so the length cannot exceed 4KB
+          DeleteArgs( status, response, hostList );
+          pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
+          delete this;
+          return;
+        }
+
+        uint32_t crcval = XrdOucCRC::Calc32C( pginf->buffer, pginf->length );
+        if( crcval != pginf->cksums.front() )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Info( FileMsg, "[0x%x@%s] Failed to recover page #%d.",
+                      this, pgReadHandler->stateHandler->pFileUrl->GetURL().c_str(), pgnb );
+          DeleteArgs( status, response, hostList );
+          pgReadHandler->HandleResponseWithHosts( new XRootDStatus( stError, errDataError ), 0, 0 );
+          delete this;
+          return;
+        }
+
+        Log *log = DefaultEnv::GetLog();
+        log->Info( FileMsg, "[0x%x@%s] Successfully recovered page #%d.",
+                    this, pgReadHandler->stateHandler->pFileUrl->GetURL().c_str(), pgnb );
+
+        DeleteArgs( 0, response, hostList );
+        pgReadHandler->UpdateCksum( pgnb, crcval );
+        pgReadHandler->HandleResponseWithHosts( status, 0, 0 );
+        delete this;
+      }
+
+    private:
+
+      inline void DeleteArgs( XrdCl::XRootDStatus *status,
+                              XrdCl::AnyObject    *response,
+                              XrdCl::HostList     *hostList )
+      {
+        delete status;
+        delete response;
+        delete hostList;
+      }
+
+      PgReadHandler *pgReadHandler;
+      size_t         pgnb;
+  };
+
   //----------------------------------------------------------------------------
   // Object that does things to the FileStateHandler when kXR_open returns
   // and then calls the user handler
@@ -712,13 +957,42 @@ namespace XrdCl
   XRootDStatus FileStateHandler::PgRead( uint64_t         offset,
                                          uint32_t         size,
                                          void            *buffer,
-                                         uint16_t         flags,
                                          ResponseHandler *handler,
                                          uint16_t         timeout )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
-
     if( offset % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead offset not 4KB aligned." );
+    if( size % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead size not 4KB aligned." );
+
+    ResponseHandler* pgHandler = new PgReadHandler( this, handler, offset );
+    XRootDStatus st = PgReadImpl( offset, size, buffer, PgReadFlags::None, pgHandler, timeout );
+    if( !st.IsOK() ) delete pgHandler;
+    return st;
+  }
+
+  XRootDStatus FileStateHandler::PgReadRetry( uint64_t        offset,
+                                              uint32_t        size,
+                                              size_t          pgnb,
+                                              void           *buffer,
+                                              PgReadHandler  *handler,
+                                              uint16_t        timeout )
+  {
+    if( offset % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead offset not 4KB aligned." );
+    if( size > 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead retry size exceeded 4KB." );
+
+    ResponseHandler *retryHandler = new PgReadRetryHandler( handler, pgnb );
+    XRootDStatus st = PgReadImpl( offset, size, buffer, PgReadFlags::Retry, retryHandler, timeout );
+    if( !st.IsOK() ) delete retryHandler;
+    return st;
+  }
+
+  XRootDStatus FileStateHandler::PgReadImpl( uint64_t         offset,
+                                             uint32_t         size,
+                                             void            *buffer,
+                                             uint16_t         flags,
+                                             ResponseHandler *handler,
+                                             uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
@@ -740,13 +1014,13 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Now adjust the message size so it can hold PgRead arguments
     //--------------------------------------------------------------------------
+    req->dlen = sizeof( ClientPgReadReqArgs );
     msg->ReAllocate( sizeof( ClientPgReadRequest ) + sizeof( ClientPgReadReqArgs ) );
     void *newBuf = msg->GetBuffer( sizeof( ClientPgReadRequest ) );
     memset( newBuf, 0, sizeof( ClientPgReadReqArgs ) );
-    req->dlen = sizeof( ClientPgReadReqArgs );
     ClientPgReadReqArgs *args = reinterpret_cast<ClientPgReadReqArgs*>(
         msg->GetBuffer( sizeof( ClientPgReadRequest ) ) );
-    args->reqflags = flags | PgReadFlags::Retry;
+    args->reqflags = flags;
 
     ChunkList *list   = new ChunkList();
     list->push_back( ChunkInfo( offset, size, buffer ) );

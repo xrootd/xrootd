@@ -230,8 +230,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->PgRead( offset, size, buffer, handler, timeout );
 
-    return pStateHandler->PgRead( offset, size, buffer, PgReadFlags::None,
-                                  handler, timeout );
+    return pStateHandler->PgRead( offset, size, buffer, handler, timeout );
   }
 
   //------------------------------------------------------------------------
