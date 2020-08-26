@@ -63,9 +63,19 @@ struct CephFile {
 struct CephFileRef : CephFile {
   int flags;
   mode_t mode;
-  unsigned long long offset;
+  uint64_t offset;
+  // This mutex protects against parallel updates of the stats.
+  XrdSysMutex statsMutex;
+  uint64_t maxOffsetWritten;
+  uint64_t bytesAsyncWritePending;
+  uint64_t bytesWritten;
   unsigned rdcount;
   unsigned wrcount;
+  unsigned asyncRdStartCount;
+  unsigned asyncRdCompletionCount;
+  unsigned asyncWrStartCount;
+  unsigned asyncWrCompletionCount;
+  ::timeval lastAsyncSubmission;
 };
 
 /// small struct for directory listing
@@ -76,11 +86,12 @@ struct DirIterator {
 
 /// small struct for aio API callbacks
 struct AioArgs {
-  AioArgs(XrdSfsAio* a, AioCB *b, size_t n, ceph::bufferlist *_bl=0) :
-    aiop(a), callback(b), nbBytes(n), bl(_bl) {}
+  AioArgs(XrdSfsAio* a, AioCB *b, size_t n, int _fd, ceph::bufferlist *_bl=0) :
+    aiop(a), callback(b), nbBytes(n), fd(_fd), bl(_bl) {}
   XrdSfsAio* aiop;
   AioCB *callback;
   size_t nbBytes;
+  int fd;
   ceph::bufferlist *bl;
 };
 
@@ -152,6 +163,10 @@ CephFileRef* getFileRef(int fd) {
   XrdSysMutexHelper lock(g_fd_mutex);
   std::map<unsigned int, CephFileRef>::iterator it = g_fds.find(fd);
   if (it != g_fds.end()) {
+    // We will release the lock upon exiting this function.
+    // The structure here is not protected from deletion, but we trust xrootd to
+    // ensure close (which does the deletion) will not be called before all previous
+    // calls are complete (including the async ones).
     return &(it->second);
   } else {
     return 0;
@@ -424,8 +439,17 @@ static CephFileRef getCephFileRef(const char *path, XrdOucEnv *env, int flags,
   fr.flags = flags;
   fr.mode = mode;
   fr.offset = 0;
+  fr.maxOffsetWritten = 0;
+  fr.bytesAsyncWritePending = 0;
+  fr.bytesWritten = 0;
   fr.rdcount = 0;
   fr.wrcount = 0;
+  fr.asyncRdStartCount = 0;
+  fr.asyncRdCompletionCount = 0;
+  fr.asyncWrStartCount = 0;
+  fr.asyncWrCompletionCount = 0;
+  fr.lastAsyncSubmission.tv_sec = 0;
+  fr.lastAsyncSubmission.tv_usec = 0;
   return fr;
 }
 
@@ -644,8 +668,19 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 int ceph_posix_close(int fd) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
-    logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d",
-               fd, fr->name.c_str(), fr->rdcount, fr->wrcount);
+    ::timeval now;
+    ::gettimeofday(&now, nullptr);
+    XrdSysMutexHelper lock(fr->statsMutex);
+    double lastAsyncAge = 1.0 * (now.tv_sec - fr->lastAsyncSubmission.tv_sec) 
+            + 0.000001 * (now.tv_usec - fr->lastAsyncSubmission.tv_usec);
+    logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d, "
+               "async write ops %d/%d, async pending write bytes %ld, "
+               "async read ops %d/%d, bytes written/max offset %ld/%ld, "
+               "last async op age %f", 
+               fd, fr->name.c_str(), fr->rdcount, fr->wrcount, 
+               fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesAsyncWritePending,
+               fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
+               lastAsyncAge);
     deleteFileRef(fd, *fr);
     return 0;
   } else {
@@ -703,7 +738,10 @@ ssize_t ceph_posix_write(int fd, const void *buf, size_t count) {
     int rc = striper->write(fr->name, bl, count, fr->offset);
     if (rc) return rc;
     fr->offset += count;
+    XrdSysMutexHelper lock(fr->statsMutex);
     fr->wrcount++;
+    fr->bytesWritten+=count;
+    if (fr->offset) fr->maxOffsetWritten = std::max(fr->offset - 1, fr->maxOffsetWritten);
     return count;
   } else {
     return -EBADF;
@@ -726,7 +764,10 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     bl.append((const char*)buf, count);
     int rc = striper->write(fr->name, bl, count, offset);
     if (rc) return rc;
+    XrdSysMutexHelper lock(fr->statsMutex);
     fr->wrcount++;
+    fr->bytesWritten+=count;
+    if (offset + count) fr->maxOffsetWritten = std::max(offset + count - 1, fr->maxOffsetWritten);
     return count;
   } else {
     return -EBADF;
@@ -736,6 +777,17 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
 static void ceph_aio_write_complete(rados_completion_t c, void *arg) {
   AioArgs *awa = reinterpret_cast<AioArgs*>(arg);
   size_t rc = rados_aio_get_return_value(c);
+  // Compute statistics before reportng to xrootd, so that a close cannot happen
+  // in the meantime.
+  CephFileRef* fr = getFileRef(awa->fd);
+  if (fr) {
+    XrdSysMutexHelper lock(fr->statsMutex);
+    fr->asyncWrCompletionCount++;
+    fr->bytesAsyncWritePending -= awa->nbBytes;
+    if (awa->aiop->sfsAio.aio_nbytes)
+      fr->maxOffsetWritten = std::max(fr->maxOffsetWritten, awa->aiop->sfsAio.aio_offset + awa->aiop->sfsAio.aio_nbytes - 1);
+    ::gettimeofday(&fr->lastAsyncSubmission, nullptr);
+  }
   awa->callback(awa->aiop, rc == 0 ? awa->nbBytes : rc);
   delete(awa);
 }
@@ -768,12 +820,15 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
       return -EINVAL;
     }
     // prepare a ceph AioCompletion object and do async call
-    AioArgs *args = new AioArgs(aiop, cb, count);
+    AioArgs *args = new AioArgs(aiop, cb, count, fd);
     librados::AioCompletion *completion =
       cluster->aio_create_completion(args, ceph_aio_write_complete, NULL);
     // do the write
     int rc = striper->aio_write(fr->name, completion, bl, count, offset);
     completion->release();
+    XrdSysMutexHelper lock(fr->statsMutex);
+    fr->asyncWrStartCount++;
+    fr->bytesAsyncWritePending+=count;
     return rc;
   } else {
     return -EBADF;
@@ -796,6 +851,7 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
     int rc = striper->read(fr->name, &bl, count, fr->offset);
     if (rc < 0) return rc;
     bl.begin().copy(rc, (char*)buf);
+    XrdSysMutexHelper lock(fr->statsMutex);
     fr->offset += rc;
     fr->rdcount++;
     return rc;
@@ -820,6 +876,7 @@ ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
     int rc = striper->read(fr->name, &bl, count, offset);
     if (rc < 0) return rc;
     bl.begin().copy(rc, (char*)buf);
+    XrdSysMutexHelper lock(fr->statsMutex);
     fr->rdcount++;
     return rc;
   } else {
@@ -836,6 +893,13 @@ static void ceph_aio_read_complete(rados_completion_t c, void *arg) {
     }
     delete awa->bl;
     awa->bl = 0;
+  }
+  // Compute statistics before reportng to xrootd, so that a close cannot happen
+  // in the meantime.
+  CephFileRef* fr = getFileRef(awa->fd);
+  if (fr) {
+    XrdSysMutexHelper lock(fr->statsMutex);
+    fr->asyncRdCompletionCount++;
   }
   awa->callback(awa->aiop, rc == 0 ? awa->nbBytes : rc);
   delete(awa);
@@ -867,12 +931,14 @@ ssize_t ceph_aio_read(int fd, XrdSfsAio *aiop, AioCB *cb) {
       return -EINVAL;
     }
     // prepare a ceph AioCompletion object and do async call
-    AioArgs *args = new AioArgs(aiop, cb, count, bl);
+    AioArgs *args = new AioArgs(aiop, cb, count, fd, bl);
     librados::AioCompletion *completion =
       cluster->aio_create_completion(args, ceph_aio_read_complete, NULL);
     // do the read
     int rc = striper->aio_read(fr->name, completion, bl, count, offset);
     completion->release();
+    XrdSysMutexHelper lock(fr->statsMutex);
+    fr->asyncRdStartCount++;
     return rc;
   } else {
     return -EBADF;
@@ -936,6 +1002,7 @@ int ceph_posix_stat(XrdOucEnv* env, const char *pathname, struct stat *buf) {
 int ceph_posix_fsync(int fd) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
+    // no locking of fr as it is not used.
     logwrapper((char*)"ceph_sync: fd %d", fd);
     return 0;
   } else {
