@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
   **[CMS]** Use correct adminpath for creating Unix socket. Fixes #1255
