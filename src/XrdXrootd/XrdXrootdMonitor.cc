@@ -609,7 +609,7 @@ void XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
    const char *jsID3 = "%s\"pgm\":\"%s\",\"ver\":\"%s\"}";
 
    XrdXrootdMonMap *mP;
-   char       iBuff[1024], iMuff[1024], iPuff[1024];
+   char       iBuff[1024], iMuff[2048], iPuff[1024];
    int        n, i, j;
 
 // Set static variables
@@ -677,7 +677,7 @@ void XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
    LidJSON[2] = strlen(iPuff);
 
    strcpy(iPuff+n-1, ",");
-       snprintf(iMuff, sizeof(iMuff), jsID3, iPuff, iProg, XrdVERSION);
+   snprintf(iMuff, sizeof(iMuff), jsID3, iPuff, iProg, XrdVERSION);
    SidJSON[3] = strdup(iMuff);
    LidJSON[3] = strlen(iMuff);
 }
