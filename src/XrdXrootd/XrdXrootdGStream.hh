@@ -69,6 +69,16 @@ void      Flush();
 uint32_t  GetDictID(const char *text, bool isPath=false);
 
 //-----------------------------------------------------------------------------
+//! Check if payload is fronted by a header.
+//!
+//! @return true      payload is fronted by a header.
+//! @return false     payload is not fronted by a header. GetDictID() mappings
+//!                   are not sent and must be manually included inline.
+//-----------------------------------------------------------------------------
+
+bool      HasHdr();
+
+//-----------------------------------------------------------------------------
 //! Insert information into the G-Stream.
 //!
 //! @param  data   -> to null-terminated text to be included in the G-Stream.
@@ -124,6 +134,14 @@ char     *Reserve(int dlen);
 //-----------------------------------------------------------------------------
 
 int       SetAutoFlush(int afsec);
+
+//-----------------------------------------------------------------------------
+//! Get the amount of buffer space remaining.
+//!
+//! @return The maximum number of bytes that can be inserted at time of call.
+//-----------------------------------------------------------------------------
+
+int       Space();
 
 //-----------------------------------------------------------------------------
 //! The larest amount of data that can be inserted in a single call to GStream.

@@ -23,6 +23,7 @@ add_library(
   XrdXrootd/XrdXrootdBridge.cc          XrdXrootd/XrdXrootdBridge.hh
   XrdXrootd/XrdXrootdCallBack.cc        XrdXrootd/XrdXrootdCallBack.hh
   XrdXrootd/XrdXrootdConfig.cc
+  XrdXrootd/XrdXrootdConfigMon.cc
   XrdXrootd/XrdXrootdFile.cc            XrdXrootd/XrdXrootdFile.hh
                                         XrdXrootd/XrdXrootdFileLock.hh
   XrdXrootd/XrdXrootdFileLock1.cc       XrdXrootd/XrdXrootdFileLock1.hh

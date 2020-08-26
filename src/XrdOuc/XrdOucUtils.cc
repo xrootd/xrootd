@@ -43,8 +43,11 @@
 #endif
 #include <map>
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucSHA3.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -464,21 +467,62 @@ int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
 /*                                 I d e n t                                  */
 /******************************************************************************/
 
+namespace
+{
+long long genSID(char *&urSID, const char *iHost, int         iPort,
+                               const char *iName, const char *iProg)
+{
+   static const XrdOucSHA3::MDLen mdLen = XrdOucSHA3::SHA3_512;
+   static const uint32_t fpOffs = 2, fpSize = 6;  // 48 bit finger print
+
+   const char *iSite = getenv("XRDSITE");
+   unsigned char mDigest[mdLen];
+   XrdOucString  myID;
+   union {uint64_t mdLL; unsigned char mdUC[8];}; // Works for fpSize only!
+
+// Construct our unique identification
+//
+   if (iSite) myID  = iSite;
+   myID += iHost;
+   myID += iPort;
+   if (iName) myID += iName;
+   myID += iProg;
+
+// Generate a SHA3 digest of this string.
+//
+   memset(mDigest, 0, sizeof(mDigest));
+   XrdOucSHA3::Calc(myID.c_str(), myID.length(), mDigest, mdLen);
+
+// Generate a CRC32C of the same string
+//
+   uint32_t crc32c = XrdOucCRC::Calc32C(myID.c_str(), myID.length());
+
+// We need a 48-bit fingerprint that has a very low probability of collision.
+// We accomplish this by convoluting the CRC32C checksum with the SHA3 checksum.
+//
+   uint64_t fpPos = crc32c % (((uint32_t)mdLen) - fpSize);
+   mdLL = 0;
+   memcpy(mdUC+fpOffs, mDigest+fpPos, fpSize);
+   long long fpVal = static_cast<long long>(ntohll(mdLL));
+
+// Generate the character version of our fingerprint and return the binary one.
+//
+   char fpBuff[64];
+   snprintf(fpBuff, sizeof(fpBuff), "%lld", fpVal);
+   urSID = strdup(fpBuff);
+   return fpVal;
+}
+}
+
 char *XrdOucUtils::Ident(long long  &mySID, char *iBuff, int iBlen,
                          const char *iHost, const char *iProg,
-                         const char *iName, int Port)
+                         const char *iName, int iPort)
 {
-   const char *sP;
-   char sName[64], uName[256];
-   long long urSID;
-   int  myPid;
-
-// Generate our server ID
-//
-   myPid   = static_cast<int>(getpid());
-   urSID   = static_cast<long long>(myPid)<<16ll | Port;
-   sprintf(sName, "%lld", urSID);
-   if (!(sP = getenv("XRDSITE"))) sP = "";
+   static char *theSIN;
+   static long long theSID = genSID(theSIN, iHost, iPort, iName, iProg);
+   const char *sP = getenv("XRDSITE");
+   char uName[256];
+   int myPid   = static_cast<int>(getpid());
 
 // Get our username
 //
@@ -487,13 +531,13 @@ char *XrdOucUtils::Ident(long long  &mySID, char *iBuff, int iBlen,
 
 // Create identification record
 //
-   snprintf(iBuff, iBlen, "%s.%d:%s@%s\n&pgm=%s&inst=%s&port=%d&site=%s",
-                          uName, myPid, sName, iHost, iProg, iName, Port, sP);
+   snprintf(iBuff,iBlen,"%s.%d:%s@%s\n&site=%s&port=%d&inst=%s&pgm=%s",
+            uName, myPid, theSIN, iHost, (sP ? sP : ""), iPort, iName, iProg);
 
-// Return a copy of the sid
+// Return a copy of the sid key
 //
-   h2nll(urSID, mySID);
-   return strdup(sName);
+   h2nll(theSID, mySID);
+   return strdup(theSIN);
 }
   
 /******************************************************************************/

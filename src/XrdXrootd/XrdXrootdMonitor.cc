@@ -85,8 +85,6 @@ int                XrdXrootdMonitor::rdrTOD     = 0;
 int                XrdXrootdMonitor::rdrWin     = 0;
 int                XrdXrootdMonitor::rdrNum     = 3;
 kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
-char               XrdXrootdMonitor::sidName[16]= {0};
-short              XrdXrootdMonitor::sidSize    = 0;
 char               XrdXrootdMonitor::monINFO    = 0;
 char               XrdXrootdMonitor::monIO      = 0;
 char               XrdXrootdMonitor::monFILE    = 0;
@@ -114,10 +112,16 @@ inline static int32_t  InitStartTime()
 XrdScheduler   *Sched     = 0;
 XrdSysError    *eDest     = 0;
 char           *monHost   = 0;
+char           *kySID     = 0;
 long long       mySID     = 0;
 int32_t         startTime = InitStartTime();
-int             seq       = 0;
+int             kySIDSZ   = 0;
 XrdSysMutex     seqMutex;
+
+char           *SidCGI[4] = {0};
+int             LidCGI[4] = {0};
+char           *SidJSON[4]= {0}; // 0:sidsite 1:sidhostid 2:sidinst 3:sidfull
+int             LidJSON[4]= {0};
 }
 
 using namespace XrdXrootdMonInfo;
@@ -148,17 +152,22 @@ class XrdXrootdMonitor_Ident : public XrdJob
 public:
 
 void          DoIt() {
-                      XrdXrootdMonitor::Ident();
-                      Sched->Schedule((XrdJob *)this, time(0)+idInt);
+                      if (idInt >= 0)
+                         {if (doIdnt) XrdXrootdMonitor::Ident();
+                          if (doHail) doHail = XrdXrootdMonitor::Hello::Hail();
+                         }
+                      if ((doIdnt || doHail) && idInt > 0)
+                         Sched->Schedule((XrdJob *)this, time(0)+idInt);
                      }
 
-      XrdXrootdMonitor_Ident(XrdScheduler *sP, int idt)
-                            : XrdJob("monitor ident"), Sched(sP), idInt(idt) {}
+      XrdXrootdMonitor_Ident(int idt, bool ison) : XrdJob("monitor ident"),
+                             idInt(idt), doIdnt(ison), doHail(true) {}
      ~XrdXrootdMonitor_Ident() {}
 
 private:
-XrdScheduler  *Sched;     // System scheduler
-int            idInt;
+int           idInt;
+bool          doIdnt;
+bool          doHail;
 };
 
 /******************************************************************************/
@@ -217,6 +226,44 @@ static XrdSysMutex monLock;
 XrdSysMutex XrdXrootdMonitorLock::monLock;
 
 /******************************************************************************/
+/*               X r d X r o o t d M o n i t o r : : H e l l o                */
+/******************************************************************************/
+  
+XrdXrootdMonitor::Hello::Hello(const char *dest, char mode)
+                              : Next(0), theDest(0), theMode(0)
+{
+   if (dest)
+      {Hello *nP = First;
+       while(nP) {if (!strcmp(dest, nP->theDest) && mode == theMode) return;
+                  nP = nP->Next;
+                 }
+       Next    = First;
+       First   = this;
+       theDest = strdup(dest);
+       theMode = mode;
+      }
+}
+
+/******************************************************************************/
+/*         X r d X r o o t d M o n i t o r : : H e l l o : : H a i l          */
+/******************************************************************************/
+
+XrdXrootdMonitor::Hello *XrdXrootdMonitor::Hello::First = 0;
+  
+bool XrdXrootdMonitor::Hello::Hail()
+{
+   Hello *nP = First;
+
+// Call all the registered ident methods
+//
+   while(nP) {nP->Ident(); nP = nP->Next;}
+
+// Indicate whether or not anything would have been sent
+//
+   return First != 0;
+}
+  
+/******************************************************************************/
 /*       X r d X r o o t d M o n i t o r : : U s e r : : D i s a b l e        */
 /******************************************************************************/
 
@@ -261,8 +308,8 @@ void XrdXrootdMonitor::User::Register(const char *Uname,
    if ((colonP = index(Uname, ':')) && (atP = index(colonP+1, '@')))
       {n = colonP - Uname + 1;
        strncpy(uBP, Uname, n);
-       strcpy(uBP+n, sidName);
-       n += sidSize; *(uBP+n) = '@'; n++;
+       strcpy(uBP+n, kySID);
+       n += kySIDSZ; *(uBP+n) = '@'; n++;
        strcpy(uBP+n, Hname);
       } else strcpy(uBP, Uname);
 
@@ -394,15 +441,13 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 
 void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 {
-   int mmode;
+   int  mmode;
 
-// Make sure if we have a dest1 we have mode
+// If there are no destination then only g-stream events may be enabled.
+// Otherwise, sort out the destinations relative to modes.
 //
-   if (!dest1)
-      {mode1 = (dest1 = dest2) ? mode2 : 0;
-       dest2 = 0; mode2 = 0;
-      } else if (!dest2) mode2 = 0;
-
+   if (!dest1 && !dest2) {isEnabled = 0; return;}
+   if (!dest1) {dest1 = dest2; dest2 = 0; mode1 |= mode2; mode2 = 0;}
 
 // Set the default destinations (caller supplied strdup'd strings)
 //
@@ -442,10 +487,6 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 // should be sent (this also tips off other layers to handle such monitoring)
 //
    if (monREDR) XrdOucEnv::Export("XRDMONRDR", monIdent);
-
-// Do final check
-//
-   if (Dest1 == 0 && Dest2 == 0) isEnabled = 0;
 }
 
 /******************************************************************************/
@@ -460,7 +501,7 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
    sizeWindow = (wsz <= 0 ? 60 : wsz);
    autoFlush  = (flush <= 0 ? 600 : flush);
    autoFlash  = (flash <= 0 ?   0 : flash);
-   monIdent   = (idt   <  0 ?   0 : idt);
+   monIdent   =  idt;
    rdrNum     = (rnm   <= 0 || rnm > rdrMax ? 3 : rnm);
    rdrWin     = (sizeWindow > 16777215 ? 16777215 : sizeWindow);
    rdrWin     = htonl(rdrWin);
@@ -553,44 +594,110 @@ XrdXrootdMonitor::MonRdrBuff *XrdXrootdMonitor::Fetch()
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
-                           const char   *iHost, const char  *iProg,
-                           const char   *iName, int Port)
+void XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
+                            const char   *iHost, const char  *iProg,
+                            const char   *iName, int Port)
 {
-   static     XrdXrootdMonitor_Ident MonIdent(sp, monIdent);
+   const char *cgID0 = "&site=%s";
+   const char *cgID1 = "&host=%s";
+   const char *cgID2 = "&port=%d&inst=%s";
+   const char *cgID3 = "&pgm=%s&ver=%s";
+
+   const char *jsID0 = "\"src\":{\"site\":\"%s\"}";
+   const char *jsID1 = "%s\"host\":\"%s\"}";
+   const char *jsID2 = "%s\"port\":%d,\"inst\":\"%s\"}";
+   const char *jsID3 = "%s\"pgm\":\"%s\",\"ver\":\"%s\"}";
+
    XrdXrootdMonMap *mP;
-   char       iBuff[1024], iPuff[1024], *sName, *cP;
-   int        i, Now = time(0);
-   bool       aOK;
+   char       iBuff[1024], iMuff[1024], iPuff[1024];
+   int        n, i, j;
 
 // Set static variables
 //
    Sched = sp;
    eDest = errp;
 
-// Generate our server ID
+// Generate our server ID (the version is not part of he fingerprint)
 //
    strcpy(iBuff, "=/");
-   sprintf(iPuff, "%s&ver=%s", iProg, XrdVERSION);
-   sName = XrdOucUtils::Ident(mySID, iBuff+2, sizeof(iBuff)-2,
-                              iHost, iPuff, iName, Port);
-   cP = (char *)&mySID; *cP = 0; *(cP+1) = 0;
-   sidSize = strlen(sName);
-   if (sidSize >= (int)sizeof(sidName)) sName[sizeof(sidName)-1] = 0;
-   strcpy(sidName, sName);
-   free(sName);
+   kySID = XrdOucUtils::Ident(mySID, iBuff+2, sizeof(iBuff)-2,
+                              iHost, iProg, iName, Port);
+   n = strlen(iBuff);
+   snprintf(iBuff+n, sizeof(iBuff)-n, "&ver=%s", XrdVERSION);
+
+   kySIDSZ = strlen(kySID);
    monHost = strdup(iHost);
 
-// There is nothing to do unless we have been enabled via Defaults()
+// Create identification record
 //
-   if (!isEnabled) return 1;
+   idLen = strlen(iBuff) + sizeof(XrdXrootdMonHeader) + sizeof(kXR_int32);
+   idRec = (char *)malloc(idLen+1);
+   mP = (XrdXrootdMonMap *)idRec;
+   fillHeader(&(mP->hdr), XROOTD_MON_MAPIDNT, idLen);
+   mP->hdr.pseq = 0;
+   mP->dictid   = 0;
+   strcpy(mP->info, iBuff);
+
+// Generate a CGI version of all the variations
+//
+   const char *Site (getenv("XRDSITE") ? getenv("XRDSITE") : "");
+   i = snprintf(iPuff, sizeof(iPuff), cgID0, Site);
+   SidCGI[0] = strdup(iPuff);
+   LidCGI[0] = strlen(iPuff);
+
+   n = sizeof(iPuff)-i; j = i;
+   i = snprintf(iPuff+j, n, cgID1, iHost);
+   SidCGI[1] = strdup(iPuff);
+   LidCGI[1] = strlen(iPuff);
+
+   n -= i; j += i;
+   i = snprintf(iPuff+j, n, cgID2, Port, iName);
+   SidCGI[2] = strdup(iPuff);
+   LidCGI[2] = strlen(iPuff);
+
+   n -= i; j += i;
+       snprintf(iPuff+j, n, cgID3, iProg, XrdVERSION);
+   SidCGI[3] = strdup(iPuff);
+   LidCGI[3] = strlen(iPuff);
+
+// Generate a JSON version of all the variations.
+//
+   n = snprintf(iPuff, sizeof(iPuff), jsID0, Site);
+   SidJSON[0] = strdup(iPuff);
+   LidJSON[0] = strlen(iPuff);
+
+   strcpy(iPuff+n-1, ",");
+   n = snprintf(iMuff, sizeof(iMuff), jsID1, iPuff, iHost);
+   SidJSON[1] = strdup(iMuff);
+   LidJSON[1] = strlen(iMuff);
+
+   strcpy(iMuff+n-1, ",");
+   n = snprintf(iPuff, sizeof(iPuff), jsID2, iMuff, Port, iName);
+   SidJSON[2] = strdup(iPuff);
+   LidJSON[2] = strlen(iPuff);
+
+   strcpy(iPuff+n-1, ",");
+       snprintf(iMuff, sizeof(iMuff), jsID3, iPuff, iProg, XrdVERSION);
+   SidJSON[3] = strdup(iMuff);
+   LidJSON[3] = strlen(iMuff);
+}
+
+/******************************************************************************/
+  
+int XrdXrootdMonitor::Init()
+{
+   static     XrdXrootdMonitor_Ident MonIdent(monIdent, isEnabled);
+   int        i, Now = time(0);
+   bool       aOK;
 
 // Setup the primary destination
 //
-   InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
-   if (!aOK)
-      {eDest->Emsg("Monitor", "Unable to setup primary monitor collector.");
-       return 0;
+   if (Dest1)
+      {InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
+       if (!aOK)
+          {eDest->Emsg("Monitor", "Unable to setup primary monitor collector.");
+           return 0;
+          }
       }
 
 // Setup the secondary destination
@@ -602,6 +709,14 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
            return 0;
           }
       }
+
+// Now schedule the first identification record
+//
+   if (Sched && monIdent >= 0) Sched->Schedule((XrdJob *)&MonIdent);
+
+// There is nothing more to do unless we have been enabled via Defaults()
+//
+   if (!isEnabled) return 1;
 
 // If there is a destination that is only collecting file events, then
 // allocate a global monitor object but don't start the timer just yet.
@@ -617,20 +732,6 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 // Turn on the monitoring clock if we need it running all the time
 //
    if (monCLOCK) startClock();
-
-// Create identification record
-//
-   idLen = strlen(iBuff) + sizeof(XrdXrootdMonHeader) + sizeof(kXR_int32);
-   idRec = (char *)malloc(idLen+1);
-   mP = (XrdXrootdMonMap *)idRec;
-   fillHeader(&(mP->hdr), XROOTD_MON_MAPIDNT, idLen);
-   mP->hdr.pseq = 0;
-   mP->dictid   = 0;
-   strcpy(mP->info, iBuff);
-
-// Now schedule the first identification record
-//
-   if (Sched && monIdent) Sched->Schedule((XrdJob *)&MonIdent);
 
 // If we are monitoring file stats then start that up
 //
@@ -665,10 +766,10 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 }
 
 /******************************************************************************/
-/* Private:                    G e t D i c t I D                              */
+/*                             G e t D i c t I D                              */
 /******************************************************************************/
   
-kXR_unt32 XrdXrootdMonitor::GetDictID()
+kXR_unt32 XrdXrootdMonitor::GetDictID(bool hbo)
 {
    static XrdSysMutex  seqMutex;
    static unsigned int monSeqID = 1;
@@ -682,6 +783,7 @@ kXR_unt32 XrdXrootdMonitor::GetDictID()
 
 // Return the ID
 //
+   if (hbo) return mySeqID;
    return htonl(mySeqID);
 }
 

@@ -42,8 +42,6 @@
 #include <sys/isa_defs.h>
 #endif
 
-#include <limits>
-
 #include "XrdVersion.hh"
 
 #include "XProtocol/XProtocol.hh"
@@ -73,9 +71,7 @@
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
-#include "XrdXrootd/XrdXrootdGSReal.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
-#include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -263,15 +259,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (pi->theEnv) xrootdEnv.PutPtr("xrdEnv*", pi->theEnv);
 
-// Initialize monitoring (it won't do anything if it wasn't enabled)
+// Initialize monitoring (it won't do anything if it wasn't enabled). This
+// needs to be done before we load any plugins as plugins may need monitoring.
 //
-   if (!XrdXrootdMonitor::Init(Sched, &eDest, pi->myName, pi->myProg,
-                               myInst, Port)) return 0;
-
-// Config g-stream objects, as needed. This needs to be done before we
-// load any plugins but after we initialize monitoring.
-//
-   ConfigGStream(xrootdEnv, pi->theEnv);
+   if (!ConfigMon(pi, xrootdEnv)) return 0;
 
 // Get the filesystem to be used and its features
 //
@@ -511,6 +502,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("fsoverload",    xfso);
              else if TS_Xeq("gpflib",        xgpf);
              else if TS_Xeq("log",           xlog);
+             else if TS_Xeq("mongstream",    xmongs);
              else if TS_Xeq("monitor",       xmon);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("redirect",      xred);
@@ -662,37 +654,6 @@ bool XrdXrootdProtocol::ConfigFS(const char *path, XrdOucEnv &xEnv,
    osFS->EnvInfo(&xEnv);
    return true;
 }
-  
-/******************************************************************************/
-/*                         C o n f i g G S t r e a m                          */
-/******************************************************************************/
-
-void XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
-{
-   struct GSTable {const char *pin; int Mode; kXR_char Type; bool xrd;}
-   gsObj[] =      {{"ccm",    XROOTD_MON_CCM,   XROOTD_MON_GSCCM, false},
-                   {"pfc",    XROOTD_MON_PFC,   XROOTD_MON_GSPFC, false},
-                   {"TcpMon", XROOTD_MON_TCPMO, XROOTD_MON_GSTCP, true}
-                  };
-   int numgs = sizeof(gsObj)/sizeof(struct GSTable);
-   int flint = XrdXrootdMonitor::Flushing();
-   char vbuff[64];
-
-// For each enabled monitoring provider, allocate a g-stream and put
-// its address in our environment.
-//
-   for (int i = 0; i < numgs; i++)
-       {if (XrdXrootdMonitor::ModeEnabled(gsObj[i].Mode))
-           {XrdXrootdGStream *gs = new XrdXrootdGSReal(gsObj[i].pin,
-                                                       gsObj[i].Type,
-                                                       gsObj[i].Mode, flint);
-            snprintf(vbuff, sizeof(vbuff), "%s.gStream*", gsObj[i].pin);
-            if (!gsObj[i].xrd) myEnv.PutPtr(vbuff, (void *)gs);
-               else if (urEnv) urEnv->PutPtr(vbuff, (void *)gs);
-           }
-       }
-}
-
   
 /******************************************************************************/
 /*                        C o n f i g S e c u r i t y                         */
@@ -1335,218 +1296,6 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
           }
     eDest.setMsgMask(lgval);
     return 0;
-}
-
-/******************************************************************************/
-/*                                  x m o n                                   */
-/******************************************************************************/
-
-/* Function: xmon
-
-   Purpose:  Parse directive: monitor [all] [auth]  [flush [io] <sec>]
-                                      [fstat <sec> [lfn] [ops] [ssq] [xfr <n>]
-                                      [fbuff <sz>]
-                                      [ident <sec>] [mbuff <sz>] [rbuff <sz>]
-                                      [rnums <cnt>] [window <sec>]
-                                      dest [Events] <host:port>
-
-   Events: [ccm] [files] [fstat] [info] [io] [iov] [pfc] [redir] [tcpmo] [user]
-
-         all                enables monitoring for all connections.
-         auth               add authentication information to "user".
-         flush  [io] <sec>  time (seconds, M, H) between auto flushes. When
-                            io is given applies only to i/o events.
-         fstat  <sec>       produces an "f" stream for open & close events
-                            <sec> specifies the flush interval (also see xfr)
-                            lfn    - adds lfn to the open event
-                            ops    - adds the ops record when the file is closed
-                            ssq    - computes the sum of squares for the ops rec
-                            xfr <n>- inserts i/o stats for open files every
-                                     <sec>*<n>. Minimum is 1.
-         fbsz   <sz>        size of message buffer for file stream monitoring.
-         ident  <sec>       time (seconds, M, H) between identification records.
-         mbuff  <sz>        size of message buffer for event trace monitoring.
-         rbuff  <sz>        size of message buffer for redirection monitoring.
-         rnums  <cnt>       bumber of redirections monitoring streams.
-         window <sec>       time (seconds, M, H) between timing marks.
-         dest               specified routing information. Up to two dests
-                            may be specified.
-         ccm                monitor cache context management
-         files              only monitors file open/close events.
-         fstats             vectors the "f" stream to the destination
-         info               monitors client appid and info requests.
-         io                 monitors I/O requests, and files open/close events.
-         iov                like I/O but also unwinds vector reads.
-         pfc                monitor proxy file cache
-         redir              monitors request redirections
-         user               monitors user login and disconnect events.
-         <host:port>        where monitor records are to be sentvia UDP.
-
-   Output: 0 upon success or !0 upon failure. Ignored by master.
-*/
-int XrdXrootdProtocol::xmon(XrdOucStream &Config)
-{   static const char *mrMsg[] = {"monitor mbuff value not specified",
-                                  "monitor rbuff value not specified",
-                                  "monitor mbuff", "monitor rbuff"
-                                 };
-    char  *val = 0, *cp, *monDest[2] = {0, 0};
-    long long tempval;
-    int i, monFlash = 0, monFlush=0, monMBval=0, monRBval=0, monWWval=0, monFbsz=0;
-    int    monIdent = 3600, xmode=0, monMode[2] = {0, 0}, mrType, *flushDest;
-    int    monRnums = 0, monFSint = 0, monFSopt = 0, monFSion = 0;
-    int    haveWord = 0;
-
-    while(haveWord || (val = Config.GetWord()))
-         {haveWord = 0;
-               if (!strcmp("all",  val)) xmode = XROOTD_MON_ALL;
-          else if (!strcmp("auth",  val))
-                  monMode[0] = monMode[1] = XROOTD_MON_AUTH;
-          else if (!strcmp("flush", val))
-                {if ((val = Config.GetWord()) && !strcmp("io", val))
-                    {    flushDest = &monFlash; val = Config.GetWord();}
-                    else flushDest = &monFlush;
-                 if (!val)
-                    {eDest.Emsg("Config", "monitor flush value not specified");
-                     return 1;
-                    }
-                 if (XrdOuca2x::a2tm(eDest,"monitor flush",val,
-                                           flushDest,1)) return 1;
-                }
-          else if (!strcmp("fstat",val))
-                  {if (!(val = Config.GetWord()))
-                      {eDest.Emsg("Config", "monitor fstat value not specified");
-                       return 1;
-                      }
-                   if (XrdOuca2x::a2tm(eDest,"monitor fstat",val,
-                                             &monFSint,0)) return 1;
-                   while((val = Config.GetWord()))
-                        if (!strcmp("lfn", val)) monFSopt |=  XROOTD_MON_FSLFN;
-                   else if (!strcmp("ops", val)) monFSopt |=  XROOTD_MON_FSOPS;
-                   else if (!strcmp("ssq", val)) monFSopt |=  XROOTD_MON_FSSSQ;
-                   else if (!strcmp("xfr", val))
-                           {if (!(val = Config.GetWord()))
-                               {eDest.Emsg("Config", "monitor fstat xfr count not specified");
-                                return 1;
-                               }
-                            if (XrdOuca2x::a2i(eDest,"monitor fstat io count",
-                                               val, &monFSion,1)) return 1;
-                            monFSopt |=  XROOTD_MON_FSXFR;
-                           }
-                   else {haveWord = 1; break;}
-                  }
-          else if (!strcmp("mbuff",val) || !strcmp("rbuff",val))
-                  {mrType = (*val == 'r');
-                   if (!(val = Config.GetWord()))
-                      {eDest.Emsg("Config",  mrMsg[mrType]); return 1;}
-                   if (XrdOuca2x::a2sz(eDest,mrMsg[mrType+2], val,
-                                             &tempval, 1024, 65536)) return 1;
-                   if (mrType) monRBval = static_cast<int>(tempval);
-                      else     monMBval = static_cast<int>(tempval);
-                  }
-         else if (!strcmp("fbsz", val))
-                {if (!(val = Config.GetWord()))
-                    {eDest.Emsg("Config", "monitor fbsz value not specified");
-                     return 1;
-                    }
-                 if (XrdOuca2x::a2sz(eDest,"monitor fbsz", val,
-                                             &tempval, 1024, 65472)) return 1;
-                  monFbsz = static_cast<int>(tempval);
-                }
-          else if (!strcmp("ident", val))
-                {if (!(val = Config.GetWord()))
-                    {eDest.Emsg("Config", "monitor ident value not specified");
-                     return 1;
-                    }
-                 if (XrdOuca2x::a2tm(eDest,"monitor ident",val,
-                                           &monIdent,0)) return 1;
-                }
-          else if (!strcmp("rnums", val))
-                {if (!(val = Config.GetWord()))
-                    {eDest.Emsg("Config", "monitor rnums value not specified");
-                     return 1;
-                    }
-                 if (XrdOuca2x::a2i(eDest,"monitor rnums",val, &monRnums,1,
-                                    XrdXrootdMonitor::rdrMax)) return 1;
-                }
-          else if (!strcmp("window", val))
-                {if (!(val = Config.GetWord()))
-                    {eDest.Emsg("Config", "monitor window value not specified");
-                     return 1;
-                    }
-                 if (XrdOuca2x::a2tm(eDest,"monitor window",val,
-                                           &monWWval,1)) return 1;
-                }
-          else break;
-         }
-
-    if (!val) {eDest.Emsg("Config", "monitor dest not specified"); return 1;}
-
-    for (i = 0; i < 2; i++)
-        {if (strcmp("dest", val)) break;
-         while((val = Config.GetWord()))
-                   if (!strcmp("ccm",  val)) monMode[i] |=  XROOTD_MON_CCM;
-              else if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
-              else if (!strcmp("fstat",val)) monMode[i] |=  XROOTD_MON_FSTA;
-              else if (!strcmp("info", val)) monMode[i] |=  XROOTD_MON_INFO;
-              else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
-              else if (!strcmp("iov",  val)) monMode[i] |= (XROOTD_MON_IO
-                                                           |XROOTD_MON_IOV);
-              else if (!strcmp("pfc",  val)) monMode[i] |=  XROOTD_MON_PFC;
-              else if (!strcmp("redir",val)) monMode[i] |=  XROOTD_MON_REDR;
-              else if (!strcmp("tcpmon",val))monMode[i] |=  XROOTD_MON_TCPMO;
-              else if (!strcmp("user", val)) monMode[i] |=  XROOTD_MON_USER;
-              else break;
-          if (!val) {eDest.Emsg("Config","monitor dest value not specified");
-                     return 1;
-                    }
-          if (!(cp = index(val, (int)':')) || !atoi(cp+1))
-             {eDest.Emsg("Config","monitor dest port missing or invalid in",val);
-              return 1;
-             }
-          monDest[i] = strdup(val);
-         if (!(val = Config.GetWord())) break;
-        }
-
-    if (val)
-       {if (!strcmp("dest", val))
-           eDest.Emsg("Config", "Warning, a maximum of two dest values allowed.");
-           else eDest.Emsg("Config", "Warning, invalid monitor option", val);
-       }
-
-// Make sure dests differ
-//
-   if (monDest[0] && monDest[1] && !strcmp(monDest[0], monDest[1]))
-      {eDest.Emsg("Config", "Warning, monitor dests are identical.");
-       monMode[0] |= monMode[1]; monMode[1] = 0;
-       free(monDest[1]); monDest[1] = 0;
-      }
-
-// Add files option if I/O is enabled
-//
-   if (monMode[0] & XROOTD_MON_IO) monMode[0] |= XROOTD_MON_FILE;
-   if (monMode[1] & XROOTD_MON_IO) monMode[1] |= XROOTD_MON_FILE;
-
-// If ssq was specified, make sure we support IEEE754 floating point
-//
-#if !defined(__solaris__) || !defined(_IEEE_754)
-   if (monFSopt & XROOTD_MON_FSSSQ && !(std::numeric_limits<double>::is_iec559))
-      {monFSopt &= ~XROOTD_MON_FSSSQ;
-       eDest.Emsg("Config","Warning, 'fstat ssq' ignored; platform does not "
-                           "use IEEE754 floating point.");
-      }
-#endif
-
-// Set the monitor defaults
-//
-   XrdXrootdMonitor::Defaults(monMBval, monRBval, monWWval,
-                              monFlush, monFlash, monIdent, monRnums, monFbsz,
-                              monFSint, monFSopt, monFSion);
-
-   if (monDest[0]) monMode[0] |= (monMode[0] ? xmode : XROOTD_MON_FILE|xmode);
-   if (monDest[1]) monMode[1] |= (monMode[1] ? xmode : XROOTD_MON_FILE|xmode);
-   XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
-
-   return 0;
 }
 
 /******************************************************************************/

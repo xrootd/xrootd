@@ -204,6 +204,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
 static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
+static bool  ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv);
 static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError,
                      const char *Path, char *Cgi);
@@ -221,7 +222,7 @@ static int   rpCheck(char *fn, char **opaque);
 static int   CheckTLS(const char *tlsProt);
 static bool  ConfigFS(XrdOucEnv &xEnv, const char *cfn);
 static bool  ConfigFS(const char *path, XrdOucEnv &xEnv, const char *cfn);
-static void  ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv);
+static bool  ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv);
 static int   Squash(char *);
        int   StatGen(struct stat &buf, char *xxBuff, int xxLen, bool xa=false);
 static int   xapath(XrdOucStream &Config);
@@ -237,6 +238,10 @@ static int   xgpf(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
 static int   xmon(XrdOucStream &Config);
+static char *xmondest(const char *what, char *val);
+static int   xmongs(XrdOucStream &Config);
+static bool  xmongsend(XrdOucStream &Config, char *val, char *&dest,
+                       int &opt, int &fmt, int &hdr);
 static int   xred(XrdOucStream &Config);
 static bool  xred_php(char *val, char *hP[2], int rPort[2]);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);

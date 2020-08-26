@@ -45,6 +45,13 @@ uint32_t  XrdXrootdGStream::GetDictID(const char *text, bool isPath)
                            {return gStream.GetDictID(text, isPath);}
 
 /******************************************************************************/
+/*                                H a s H d r                                 */
+/******************************************************************************/
+
+bool      XrdXrootdGStream::HasHdr()
+                           {return gStream.HasHdr();}
+  
+/******************************************************************************/
 /*                                I n s e r t                                 */
 /******************************************************************************/
 
@@ -68,3 +75,10 @@ int       XrdXrootdGStream::SetAutoFlush(int afsec)
                                else if (afsec < 60) afsec = 60;
                             return gStream.SetAutoFlush(afsec);
                            }
+
+/******************************************************************************/
+/*                                 S p a c e                                  */
+/******************************************************************************/
+
+int       XrdXrootdGStream::Space()
+                           {return gStream.Space();}

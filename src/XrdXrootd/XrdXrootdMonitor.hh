@@ -57,6 +57,7 @@
 #define XROOTD_MON_CCM   0x00000200
 #define XROOTD_MON_PFC   0x00000400
 #define XROOTD_MON_TCPMO 0x00000800
+#define XROOTD_MON_GSTRM (XROOTD_MON_CCM | XROOTD_MON_PFC | XROOTD_MON_TCPMO)
 
 #define XROOTD_MON_FSLFN    1
 #define XROOTD_MON_FSOPS    2
@@ -118,11 +119,15 @@ static void              Defaults(int msz,     int rsz,     int wsz,
 
 static int               Flushing() {return autoFlush;}
 
+static kXR_unt32         GetDictID(bool hbo=false);
+
 static void              Ident() {Send(-1, idRec, idLen);}
 
-static int               Init(XrdScheduler *sp,    XrdSysError *errp,
+static void              Init(XrdScheduler *sp,    XrdSysError *errp,
                               const char   *iHost, const char  *iProg,
                               const char   *iName, int Port);
+
+static int               Init();
 
 static bool              ModeEnabled(int mode)
                                     {return ((monMode1|monMode2) & mode) != 0;}
@@ -137,6 +142,29 @@ static int               Redirect(kXR_unt32  mID, const char *hName, int Port,
 static int               Send(int mmode, void *buff, int size, bool setseq=true);
 
 static time_t            Tick();
+
+/******************************************************************************/
+
+class   Hello
+{
+public:
+
+static  bool       Hail();
+
+virtual void       Ident() {};
+
+                   Hello(const char *dest, char mode);
+
+virtual           ~Hello() {if (theDest) free(theDest);}
+
+private:
+static  Hello     *First;
+        Hello     *Next;
+        char      *theDest;
+        char       theMode;
+};
+
+/******************************************************************************/
 
 class  User
 {
@@ -192,6 +220,8 @@ inline int         Ready()  {return XrdXrootdMonitor::monACTIVE;}
       ~User() {Clear();}
 };
 
+/******************************************************************************/
+
 static XrdXrootdMonitor *altMon;
 
                          XrdXrootdMonitor();
@@ -228,7 +258,6 @@ static void              fillHeader(XrdXrootdMonHeader *hdr,
 static MonRdrBuff       *Fetch();
        void              Flush();
 static void              Flush(MonRdrBuff *mP);
-static kXR_unt32         GetDictID();
 static kXR_unt32         Map(char  code, XrdXrootdMonitor::User &uInfo,
                              const char *path);
        void              Mark();
@@ -262,8 +291,6 @@ static int                isEnabled;
 static int                numMonitor;
 static int                monIdent;
 static int                monRlen;
-static char               sidName[16];
-static short              sidSize;
 static char               monIO;
 static char               monINFO;
 static char               monFILE;

@@ -28,10 +28,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/uio.h>
 
 #include "Xrd/XrdScheduler.hh"
+#include "XrdNet/XrdNetMsg.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdXrootd/XrdXrootdGSReal.hh"
 
@@ -42,47 +45,101 @@
 namespace XrdXrootdMonInfo
 {
 extern XrdScheduler *Sched;
+extern XrdSysError  *eDest;
 extern char         *monHost;
+extern char         *kySID;
 extern long long     mySID;
 extern int           startTime;
+
+extern char         *SidCGI[4];
+extern char         *SidJSON[4];
 }
 
 using namespace XrdXrootdMonInfo;
-  
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdXrootdGSReal::XrdXrootdGSReal(const char *gNamePI, char gDataID,
-                                 int mtype, int flint)
-                                : XrdJob("GStream"), XrdXrootdGStream(*this)
+XrdXrootdGSReal::XrdXrootdGSReal(const XrdXrootdGSReal::GSParms &gsParms,
+                                 bool &aOK)
+                                : XrdJob("GStream"), XrdXrootdGStream(*this),
+                                  Hello(gsParms.Opt & XrdXrootdGSReal::optNoID
+                                    || gsParms.Hdr == XrdXrootdGSReal::hdrNone
+                                     ? 0 : gsParms.dest, gsParms.Fmt),
+                                  pSeq(0), binHdr(0), isCGI(false)
 {
-   char idBuff[1024];
+   static const int minSZ = 1024;
+   static const int dflSZ = 1024*32;
+   static const int maxSZ = 1024*64;
+   int flsT, maxL, hdrLen, pgSZ = getpagesize();
 
-// Initialze the udp buffer
+// Do common initialization
 //
-   memset(&gMsg.info, 0, sizeof(gMsg.info));
-   gMsg.info.hdr.code = XROOTD_MON_MAPGSTA;
-   gMsg.info.hdr.stod = startTime;
+   memset(&hInfo, 0, sizeof(hInfo));
+   aOK = true;
 
-   long long theSID = ntohll(mySID) & 0x00ffffffffffffff;
-   gMsg.info.sID = htonll(theSID | (static_cast<long long>(gDataID) << 56));
+// Compute the correct size of the UDP buffer
+//
+   if (gsParms.maxL <= 0) maxL = dflSZ;
+      else if (gsParms.maxL < minSZ) maxL = minSZ;
+              else if (gsParms.maxL > maxSZ) maxL = maxSZ;
+                      else maxL = gsParms.maxL;
+   maxL &= ~7; // Doubleword lengths
+
+// Allocate the UDP buffer
+//
+   if (maxL < pgSZ) udpBuffer = (char *)memalign(maxL, maxL);
+      else udpBuffer = (char *)memalign(pgSZ, maxL);
+
+// Setup the header as needed
+//
+   if (gsParms.Hdr == hdrNone)
+      {hdrLen = 0;
+       binHdr = 0;
+       dictHdr = idntHdr0 = idntHdr1 = 0;
+      } else {
+       switch(gsParms.Fmt)
+             {case fmtBin:  hdrLen = hdrBIN(gsParms);
+                            break;
+              case fmtCgi:  hdrLen = hdrCGI(gsParms, udpBuffer, maxL);
+                            break;
+              case fmtJson: hdrLen = hdrJSN(gsParms, udpBuffer, maxL);
+                            break;
+              default:      hdrLen = 0;
+             }
+       if (gsParms.Opt & optNoID)
+          {if (idntHdr0) {free(idntHdr0); idntHdr0 = 0;}
+           if (idntHdr1) {free(idntHdr1); idntHdr1 = 0;}
+          }
+      }
 
 // Setup buffer pointers
 //
-   udpBFirst = udpBNext = gMsg.buff;
-   udpBEnd = gMsg.buff + sizeof(gMsg.buff) - 1;
+   udpBFirst = udpBNext = udpBuffer + hdrLen;
+   udpBEnd = udpBuffer + maxL - 1;
 
 // Initialize remaining variables
 //
-   monType = mtype;
+   monType = gsParms.Mode;
    rsvbytes = 0;
+
+// If we have a specific end-point, then create a network relay to it
+//
+   if (gsParms.dest) udpDest = new XrdNetMsg(eDest, gsParms.dest, &aOK);
+      else udpDest = 0;
+
+// Setup autoflush (a negative value uses the default)
+//
+   if (gsParms.flsT < 0) flsT = XrdXrootdMonitor::Flushing();
+      else flsT = gsParms.flsT;
    afRunning = false;
-   SetAutoFlush(flint);
+   SetAutoFlush(flsT);
 
 // Construct our user name as in <gNamePI>.0:0@<myhost>
 //
-   snprintf(idBuff, sizeof(idBuff), "%s.0:0@%s", gNamePI, monHost);
+   char idBuff[1024];
+   snprintf(idBuff, sizeof(idBuff), "%s.0:0@%s", gsParms.pin, monHost);
 
 // Register ourselves
 //
@@ -113,7 +170,7 @@ void XrdXrootdGSReal::DoIt()
 //
    afRunning = false;
    if (afTime)
-      {if (gMsg.info.tBeg && time(0)-gMsg.info.tBeg >= afTime) Expel(0);
+      {if (tBeg && time(0)-tBeg >= afTime) Expel(0);
        AutoFlush();
       }
 }
@@ -124,27 +181,49 @@ void XrdXrootdGSReal::DoIt()
 
 void XrdXrootdGSReal::Expel(int dlen) // gMutex is held
 {
-   int size;
 
 // Check if we need to flush this buffer.
 //
    if (udpBFirst == udpBNext || (dlen && (udpBNext + dlen) < udpBEnd)) return;
+   int size =  udpBNext-udpBuffer;
 
-// Complete the buffer
+// Complete the buffer header if may be binary of text
 //
-   size =  udpBNext-(char *)&gMsg;
-   gMsg.info.hdr.pseq++;
-   gMsg.info.hdr.plen = htons(static_cast<uint16_t>(size));
+   if (binHdr)
+      {binHdr->hdr.pseq++;
+       binHdr->hdr.plen = htons(static_cast<uint16_t>(size));
+       binHdr->tBeg = htonl(tBeg);
+       binHdr->tEnd = htonl(tEnd);
+      } else {
+       if (hInfo.pseq)
+          {char tBuff[32];
+           if (pSeq > 999) pSeq = 0;
+              else pSeq++;
+           snprintf(tBuff, sizeof(tBuff), "%3d%10u%10u", pSeq,
+                           (unsigned int)tBeg, (unsigned int)tEnd);
+           if (isCGI)
+              {char *plus, *bP = tBuff;
+               while((plus = index(bP, ' '))) {*plus = '+'; bP = plus+1;}
+              }
+           memcpy(hInfo.pseq, tBuff,     3);
+           memcpy(hInfo.tbeg, tBuff+ 3, 10);
+           memcpy(hInfo.tend, tBuff+13, 10);
+          }
+      }
+
+// Make sure the whole thing ends with a null byte
+//
    *(udpBNext-1) = 0;
 
 // Send off the packet
 //
-   XrdXrootdMonitor::Send(monType, &gMsg, size, false);
+   if (udpDest) udpDest->Send(udpBuffer, size);
+      else XrdXrootdMonitor::Send(monType, udpBuffer, size, false);
 
 // Reset the buffer
 //
    udpBNext = udpBFirst;
-   gMsg.info.tBeg = gMsg.info.tEnd = 0;
+   tBeg = tEnd = 0;
 }
 
 /******************************************************************************/
@@ -163,9 +242,233 @@ void XrdXrootdGSReal::Flush()
   
 uint32_t XrdXrootdGSReal::GetDictID(const char *text, bool isPath)
 {
-// Record the mapping and return it
+// If this is binary encoded, the record the mapping and return it
 //
-   return (isPath ? gMon.MapPath(text) : gMon.MapInfo(text));
+   if (binHdr) return (isPath ? gMon.MapPath(text) : gMon.MapInfo(text));
+
+// If there are no headers then we can't produce this record
+//
+   uint32_t psq, did = XrdXrootdMonitor::GetDictID(true);
+   if (!dictHdr) return htonl(did);
+
+// We need to do some additional work to generate non-binary headers here
+//
+   struct iovec iov[3];
+   char dit = (isPath ? XROOTD_MON_MAPPATH : XROOTD_MON_MAPINFO);
+   char buff[1024];
+
+// Generate a new packet sequence number
+//
+   gMutex.Lock();
+   if (pSeq > 999) pSeq = 0;
+      else pSeq++;
+   psq = pSeq;
+   gMutex.UnLock();
+
+// Generate the packet
+//
+   iov[0].iov_base = buff;
+   iov[0].iov_len  = snprintf(buff, sizeof(buff), dictHdr, dit, psq, did);
+   iov[1].iov_base = (void *)text;
+   iov[1].iov_len  = strlen(text);
+   iov[2].iov_base = (void *)"\"}";
+   iov[2].iov_len  = 3;
+
+// Now send it off
+//
+   udpDest->Send(iov, (*dictHdr == '{' ? 3 : 2));
+   return htonl(did);
+}
+
+/******************************************************************************/
+/*                                H a s H d r                                 */
+/******************************************************************************/
+
+bool XrdXrootdGSReal::HasHdr()
+{
+   return binHdr != 0 || dictHdr != 0;
+}
+  
+/******************************************************************************/
+/* Private:                       h d r B I N                                 */
+/******************************************************************************/
+
+int XrdXrootdGSReal::hdrBIN(const XrdXrootdGSReal::GSParms &gs)
+{
+
+// Initialze the udp heaader in the buffer
+//
+   binHdr = (XrdXrootdMonGS*)udpBuffer;
+   memset(binHdr, 0, sizeof(XrdXrootdMonGS));
+   binHdr->hdr.code = XROOTD_MON_MAPGSTA;
+   binHdr->hdr.stod = startTime;
+
+   long long theSID = ntohll(mySID) & 0x00ffffffffffffff;
+   theSID = theSID | (static_cast<long long>(gs.Type) << XROOTD_MON_PIDSHFT);
+   binHdr->sID = htonll(theSID);
+
+   return (int)sizeof(XrdXrootdMonGS);
+}
+
+/******************************************************************************/
+/* Private:                       h d r C G I                                 */
+/******************************************************************************/
+
+int XrdXrootdGSReal::hdrCGI(const XrdXrootdGSReal::GSParms &gs,
+                            char *buff, int blen)
+{
+   const char *hdr, *plug = "\n";
+   char hBuff[2048];
+   int n;
+
+// Pick any needed extensions to this header
+//
+   switch(gs.Hdr)
+         {case hdrSite: plug = SidCGI[0]; break;
+          case hdrHost: plug = SidCGI[1]; break;
+          case hdrInst: plug = SidCGI[2]; break;
+          case hdrFull: plug = SidCGI[3]; break;
+          default:      break;
+         }
+
+// Generate the header to use for 'd' or 'i' packets
+//
+   hdr = "code=%%c&pseq=%%u&stod=%u&sid=%s%s&gs.type=%c&did=%%u&data=";
+
+   snprintf(hBuff, sizeof(hBuff), hdr, ntohl(startTime), kySID, plug, gs.Type);
+   dictHdr = strdup(hBuff);
+
+// Generate the headers to use for '=' packets. These have a changeable part
+// and a non-changeable part.
+//
+   hdr = "code=%c&pseq=%%u";
+
+   snprintf(hBuff, sizeof(hBuff), hdr, XROOTD_MON_MAPIDNT);
+   idntHdr0 = strdup(hBuff);
+
+   hdr = "&stod=%u&sid=%s%s";
+
+   n = snprintf(hBuff, sizeof(hBuff), hdr, ntohl(startTime), kySID, SidCGI[3]);
+   idntHdr1 = strdup(hBuff);
+   idntHsz1 = n+1;
+
+// Format the header
+//
+   hdr = "code=%c&pseq=$12&stod=%u&sid=%s%s&gs.type=%c"
+         "&gs.tbeg=$123456789&gs.tend=$123456789%s\n";
+
+   n = snprintf(buff, blen, hdr, XROOTD_MON_MAPGSTA, ntohl(startTime),
+                                 kySID, plug, gs.Type);
+
+// Return all of the substitution addresses
+//
+   hInfo.pseq = index(buff, '$');
+   hInfo.tbeg = index(hInfo.pseq+1, '$');
+   hInfo.tend = index(hInfo.tbeg+1, '$');
+
+// Return the length
+//
+   isCGI = true;
+   return n;
+}
+
+/******************************************************************************/
+/* Private:                       h d r J S N                                 */
+/******************************************************************************/
+  
+int XrdXrootdGSReal::hdrJSN(const XrdXrootdGSReal::GSParms &gs,
+                            char *buff, int blen)
+{
+   const char *hdr, *plug1 = "", *plug2 = "";
+   char hBuff[2048];
+   int n;
+
+// Add any needed extensions to this header
+//
+   if (gs.Hdr != hdrNorm)
+      {plug1 = ",";
+       switch(gs.Hdr)
+             {case hdrSite: plug2 = SidJSON[0]; break;
+              case hdrHost: plug2 = SidJSON[1]; break;
+              case hdrInst: plug2 = SidJSON[2]; break;
+              case hdrFull: plug2 = SidJSON[3]; break;
+              default:      plug1 = ""; break;
+             }
+      }
+
+// Generate the header to use for 'd' or 'i' packets
+//
+   hdr = "{\"code\":\"%%c\",\"pseq\":%%u,\"stod\":%u,\"sid\":%s%s%s,"
+         "\"gs\":{\"type\":\"%c\"},\"did\":%%u,\"data\":\"";
+
+   snprintf(hBuff, sizeof(hBuff), hdr, ntohl(startTime), kySID,
+                                       plug1, plug2, gs.Type);
+   dictHdr = strdup(hBuff);
+
+// Generate the headers to use for '=' packets. These have a changeable part
+// and a non-changeable part.
+//
+   hdr = "{\"code\":\"%c\",\"pseq\":%%u,";
+
+   snprintf(hBuff, sizeof(hBuff), hdr, XROOTD_MON_MAPIDNT);
+   idntHdr0 = strdup(hBuff);
+
+   hdr = "\"stod\":%u,\"sid\":%s,%s}";
+
+   n = snprintf(hBuff, sizeof(hBuff), hdr, ntohl(startTime), kySID, SidJSON[3]);
+   idntHdr1 = strdup(hBuff);
+   idntHsz1 = n+1;
+
+// Generate the header of plugin output
+//
+   hdr = "{\"code\":\"%c\",\"pseq\":$12,\"stod\":%u,\"sid\":%s%s%s,"
+         "\"gs\":{\"type\":\"%c\",\"tbeg\":$123456789,\"tend\":$123456789}}\n";
+
+// Format the header (we are gauranteed to have at least 1024 bytes here)
+//
+   n = snprintf(buff, blen, hdr, XROOTD_MON_MAPGSTA, ntohl(startTime),
+                                 kySID, plug1, plug2, gs.Type);
+
+// Return all of the substitution addresses
+//
+   hInfo.pseq = index(buff, '$');
+   hInfo.tbeg = index(hInfo.pseq+1, '$');
+   hInfo.tend = index(hInfo.tbeg+1, '$');
+
+// Return the length
+//
+   return n;
+}
+  
+/******************************************************************************/
+/*                                 I d e n t                                  */
+/******************************************************************************/
+
+void XrdXrootdGSReal::Ident()
+{
+   struct iovec iov[2];
+   char buff[40];
+   uint32_t psq;
+
+// If identification suppressed, then just return
+//
+   if (!idntHdr0 || !udpDest) return;
+
+// Generate a new packet sequence number
+//
+   gMutex.Lock();
+   if (pSeq > 999) pSeq = 0;
+      else pSeq++;
+   psq = pSeq;
+   gMutex.UnLock();
+
+// Create header and iovec to send the header
+//
+   iov[0].iov_base = buff;
+   iov[0].iov_len  = snprintf(buff, sizeof(buff), idntHdr0, psq);
+   iov[1].iov_base = idntHdr1;
+   iov[1].iov_len  = idntHsz1;
+   udpDest->Send(iov, 2);
 }
 
 /******************************************************************************/
@@ -189,8 +492,8 @@ bool XrdXrootdGSReal::Insert(const char *data, int dlen)
 
 // Timestamp the record and aAdjust buffer pointers
 //
-   gMsg.info.tEnd = time(0);
-   if (udpBNext == udpBFirst) gMsg.info.tBeg = gMsg.info.tEnd;
+   tEnd = time(0);
+   if (udpBNext == udpBFirst) tBeg = tEnd;
    udpBNext += dlen;
 
 // All done
@@ -230,8 +533,8 @@ bool XrdXrootdGSReal::Insert(int dlen)
 
 // Adjust the buffer space and time stamp the record
 //
-   gMsg.info.tEnd = time(0);
-   if (udpBNext == udpBFirst) gMsg.info.tBeg = gMsg.info.tEnd;
+   tEnd = time(0);
+   if (udpBNext == udpBFirst) tBeg = tEnd;
    udpBNext += dlen;
    *(udpBNext-1) = '\n';
    rsvbytes = 0;
@@ -283,4 +586,17 @@ int XrdXrootdGSReal::SetAutoFlush(int afsec)
 // All done
 //
    return afNow;
+}
+
+/******************************************************************************/
+/*                                 S p a c e                                  */
+/******************************************************************************/
+  
+int XrdXrootdGSReal::Space()
+{
+   XrdSysMutexHelper gHelp(gMutex);
+  
+// Return amount of space left
+//
+   return udpBEnd - udpBNext;
 }

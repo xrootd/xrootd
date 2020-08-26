@@ -42,7 +42,11 @@
 //! plugins to allow them to add monitoring information into the G-Stream.
 //-----------------------------------------------------------------------------
 
-class XrdXrootdGSReal : public XrdJob, public XrdXrootdGStream
+class XrdNetMsg;
+class XrdSysError;
+
+class XrdXrootdGSReal : public XrdJob, public XrdXrootdGStream,
+                        public XrdXrootdMonitor::Hello
 {
 public:
 
@@ -52,6 +56,10 @@ void      Flush();
 
 uint32_t  GetDictID(const char *text, bool isPath=false);
 
+bool      HasHdr();
+
+void      Ident();
+
 bool      Insert(const char *data, int dlen);
 
 bool      Insert(int dlen);
@@ -60,19 +68,42 @@ char     *Reserve(int dlen);
 
 int       SetAutoFlush(int afsec);
 
+int       Space();
+
 //-----------------------------------------------------------------------------
 //! Constructor
 //!
-//! @param  gNamePI   the plugin name.
-//! @param  gDataID   the G-Stream identifier associated with all of the data
-//!                   that will be placed in the stream using this object.
-//!                   See XrdXrootdMonData.hh for valid subtypes.
-//! @param  mtype     the monitor type for send routing.
-//! @param  flint     the autoflush interval.
+//! @param  gsParms   the stream parameters as defined by GSParms.
+//! @param  aOK       reference to a boolean which will contain true on success
+//!                   or will be set to false, otherwise.
 //-----------------------------------------------------------------------------
 
-          XrdXrootdGSReal(const char *gNamePI, char gDataID,
-                          int mtype, int flint);
+   static const int fmtNone = 0;       //! Do not include info
+   static const int fmtBin  = 1;       //! Format as binary info
+   static const int fmtCgi  = 2;       //! Format as CGI    info
+   static const int fmtJson = 3;       //! Format as JSON   info
+
+   static const int hdrNone = 0;       //!< Do not include header
+   static const int hdrNorm = 1;       //!< Include standard header
+   static const int hdrSite = 2;       //!< Include site
+   static const int hdrHost = 3;       //!< Include site, host
+   static const int hdrInst = 4;       //!< Include site, host, port, inst
+   static const int hdrFull = 5;       //!< Include site, host, port, inst, pgm
+
+   static const int optNoID = 0x01;    //!< Don't send ident records
+
+   struct GSParms {const char *pin;    //!< the plugin name.
+                   const char *dest;   //!< Destination for records
+                   int         Mode;   //!< the monitor type for send routing.
+                   int         maxL;   //!< Maximum packet length (default 32K)
+                   int         flsT;   //!< Flush time (default from monitor)
+                   kXR_char    Type;   //!< the specific G-Stream identifier
+                   char        Opt;    //!< Options
+                   char        Fmt;    //!< How to handle the records
+                   char        Hdr;    //!< Hdr type
+                  };
+
+          XrdXrootdGSReal(const GSParms &gsParms, bool &aOK);
 
 //-----------------------------------------------------------------------------
 //! Destructor. Normally, this object is never deleted.
@@ -82,22 +113,39 @@ int       SetAutoFlush(int afsec);
 
 private:
 
+
 void AutoFlush();
 void Expel(int dlen);
+int  hdrBIN(const GSParms &gs);
+int  hdrCGI(const GSParms &gs, char *buff, int blen);
+int  hdrJSN(const GSParms &gs, char *buff, int blen);
 
+struct HdrInfo
+      {char *pseq;
+       char *tbeg;
+       char *tend;
+      }      hInfo;
+
+char                  *dictHdr;
+char                  *idntHdr0;
+char                  *idntHdr1;
+int                    idntHsz1;
+int                    pSeq;
 XrdSysRecMutex         gMutex;
+XrdNetMsg             *udpDest;
+XrdXrootdMonGS        *binHdr;
+char                  *udpBuffer;
 char                  *udpBFirst;
 char                  *udpBNext;
 char                  *udpBEnd;
+int                    tBeg;
+int                    tEnd;
 int                    rsvbytes;
 int                    monType;
 int                    afTime;
 bool                   afRunning;
+bool                   isCGI;
 
 XrdXrootdMonitor::User gMon;
-
-struct GStream {XrdXrootdMonGS info;
-                char           buff[64536-sizeof(info)];
-               } gMsg;
 };
 #endif
