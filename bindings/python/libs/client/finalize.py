@@ -21,9 +21,14 @@
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
 #------------------------------------------------------------------------------
+from __future__ import absolute_import
 
+import gc
 import atexit
+
 from pyxrootd import client
+from .file import File
+
 
 @atexit.register
 def finalize():
@@ -32,4 +37,12 @@ def finalize():
         no Python APIs are called after the Python Interpreter gets
         finalized.
      """
+     # Ensure there are no files left open as calling their destructor will
+     # cause "close" commands to be sent.
+     # If this isn't done, there will be no running threads to process requests
+     # after this function returns so the interpreter will deadlock.
+     for obj in gc.get_objects():
+         if isinstance(obj, File) and obj.is_open():
+             obj.close()
+
      client.__XrdCl_Stop_Threads()
