@@ -36,6 +36,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <sys/uio.h>
+#include <arpa/inet.h> // for network unmarshaling stuff
 
 #include <array>
 #include <list>
@@ -188,10 +189,10 @@ namespace XrdCl
                     pRequest->GetDescription().c_str() );
 
         ClientRequestHdr *hdr = (ClientRequestHdr*)pRequest->GetBuffer();
-        if( hdr->requestid == kXR_pgread ) // TODO check the byte order !!!
+        if( ntohs( hdr->requestid ) == kXR_pgread )
         {
           ClientPgReadRequest *pgrdreq = (ClientPgReadRequest*)pRequest->GetBuffer();
-          pPgReadCksums.reserve( NbPages( pgrdreq->rlen) );
+          pPgReadCksums.reserve( NbPages( ntohl( pgrdreq->rlen ) ) );
         }
       }
 

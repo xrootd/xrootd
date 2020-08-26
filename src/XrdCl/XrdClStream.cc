@@ -424,6 +424,25 @@ namespace XrdCl
     return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
   }
 
+  //------------------------------------------------------------------------
+  // Check if message is a partial response
+  //------------------------------------------------------------------------
+  bool Stream::IsPartial( Message *msg )
+  {
+    ServerResponseHeader *rsphdr = (ServerResponseHeader*)msg->GetBuffer();
+    if( rsphdr->status == kXR_oksofar )
+      return true;
+
+    if( rsphdr->status == kXR_status )
+    {
+      ServerResponseStatus *rspst = (ServerResponseStatus*)msg->GetBuffer();
+      if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+        return true;
+    }
+
+    return false;
+  }
+
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
@@ -475,9 +494,8 @@ namespace XrdCl
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
 
-      // if we are handling oksofar we have to take down the timeout fence
-      ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
-      if( rsp->hdr.status == kXR_oksofar )
+      // if we are handling partial response we have to take down the timeout fence
+      if( IsPartial( msg ) )
       {
         XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( mh.handler );
         if( xrdHandler ) xrdHandler->TakeDownTimeoutFence();
@@ -1077,6 +1095,8 @@ namespace XrdCl
   bool Stream::HasAdditionalRawData( Message *msg, uint16_t stream, IncomingMsgHandler *&incHandler )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
+    if( !mh.handler ) return false;
+
     uint16_t action = mh.handler->Reexamine( msg );
     mh.action |= action;
     if( action & IncomingMsgHandler::Raw )

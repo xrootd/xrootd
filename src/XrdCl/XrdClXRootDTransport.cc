@@ -1199,9 +1199,17 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Unmarshall the body of the status response
   //------------------------------------------------------------------------
-  Status XRootDTransport::UnMarshalStatusBody( Message *msg )
+  Status XRootDTransport::UnMarshalStatusBody( Message *msg, uint16_t reqType )
   {
-    size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
+    size_t stlen = sizeof( ServerResponseStatus );
+    switch( reqType )
+    {
+      case kXR_pgread:
+      {
+        stlen += sizeof( ServerResponseBody_pgRead );
+        break;
+      }
+    }
 
     if( msg->GetSize() < stlen ) return Status( stError, errInvalidMessage );
 
@@ -1209,8 +1217,15 @@ namespace XrdCl
     rspst->bdy.crc32c = ntohl( rspst->bdy.crc32c );
     rspst->bdy.dlen   = ntohl( rspst->bdy.dlen );
 
-    ServerResponseBody_pgRead *pgrdbdy = (ServerResponseBody_pgRead*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
-    pgrdbdy->offset = ntohl( pgrdbdy->offset );
+    switch( reqType )
+    {
+      case kXR_pgread:
+      {
+        ServerResponseBody_pgRead *pgrdbdy = (ServerResponseBody_pgRead*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
+        pgrdbdy->offset = ntohl( pgrdbdy->offset );
+        break;
+      }
+    }
 
     return Status();
   }

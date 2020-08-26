@@ -42,7 +42,6 @@
 
 #include "XrdOuc/XrdOucCRC.hh"
 
-#include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
 #include "XrdSys/XrdSysAtomics.hh"
 #include <memory>
@@ -318,7 +317,7 @@ namespace XrdCl
         // we can handle the raw data (if any) only after we have the whole
         // kXR_status body
         //----------------------------------------------------------------------
-        return Take | RemoveHandler;
+        return Take;
       }
 
       //------------------------------------------------------------------------
@@ -330,52 +329,119 @@ namespace XrdCl
     return Take | RemoveHandler;
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Reexamine the incoming message, and decide on the action to be taken
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   uint16_t XRootDMsgHandler::Reexamine( Message *msg )
   {
     ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+    //--------------------------------------------------------------------------
+    // Additional action is only required for kXR_status
+    //--------------------------------------------------------------------------
     if( rsp->hdr.status != kXR_status ) return 0;
 
+    //--------------------------------------------------------------------------
+    // Ignore malformed status response
+    //--------------------------------------------------------------------------
+    if( msg->GetSize() < sizeof( ServerResponseStatus ) )
+      return Ignore;
+
+    //--------------------------------------------------------------------------
     // Calculate the crc32c before the unmarshaling the body!
+    //--------------------------------------------------------------------------
     ServerResponseStatus *rspst = (ServerResponseStatus*)msg->GetBuffer();
     char   *buffer = msg->GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
     size_t  length = rspst->hdr.dlen - sizeof( rspst->bdy.crc32c );
     uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
 
-    Status st = XRootDTransport::UnMarshalStatusBody( msg );
+    //--------------------------------------------------------------------------
+    // Unmarshal the status body
+    //--------------------------------------------------------------------------
+    ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
+    uint16_t reqId = ntohs( req->header.requestid );
+    Status st = XRootDTransport::UnMarshalStatusBody( msg, reqId );
     if( !st.IsOK() )
     {
       // TODO report an error !
+      // simply fail the message
     }
 
+    //--------------------------------------------------------------------------
+    // Do the integrity checks
+    //--------------------------------------------------------------------------
     if( crcval != rspst->bdy.crc32c )
     {
       // TODO we need to report an error!
+      // tear down the socket
     }
 
     if( rspst->hdr.streamid[0] != rspst->bdy.streamID[0] ||
         rspst->hdr.streamid[1] != rspst->bdy.streamID[1] )
     {
       // TODO we need to report an error
+      // tear down the socket
     }
 
-    ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
-    uint16_t reqId = ntohs( req->header.requestid );
+
 
     if( rspst->bdy.requestid + kXR_1stRequest != reqId )
     {
       // TODO we need to report an error
+      // tear down the socket
     }
 
+    //--------------------------------------------------------------------------
+    // Common handling for partial results
+    //--------------------------------------------------------------------------
+    if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+    {
+      pResponse = 0;
+      pPartialResps.push_back( msg );
+    }
+
+    //--------------------------------------------------------------------------
+    // Decide the actions that we need to take
+    //--------------------------------------------------------------------------
     uint16_t action = 0;
     if( reqId == kXR_pgread )
     {
-      pAsyncMsgSize = rspst->bdy.dlen;
-      action |= Raw;
+      size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
+      if( msg->GetSize() == stlen )
+      {
+        //----------------------------------------------------------------------
+        // The message contains only Status header and body but no raw data
+        //----------------------------------------------------------------------
+        pReadRawStarted = false;
+        pAsyncMsgSize   = rspst->bdy.dlen;
+        action |= Raw;
+
+        if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+        {
+          action |= NoProcess;
+#if __cplusplus >= 201103L
+          pTimeoutFence = true;
+#else
+          AtomicCAS( pTimeoutFence, pTimeoutFence, true );
+#endif
+        }
+        else
+          action |= RemoveHandler;
+      }
+      else
+      {
+        //----------------------------------------------------------------------
+        // The message contains the Status header and body and also the raw data
+        //----------------------------------------------------------------------
+        if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+        {
+          //--------------------------------------------------------------------
+          // the actual size of the raw data without the crc32c checksums
+          //--------------------------------------------------------------------
+          size_t datalen = rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
+          pReadRawCurrentOffset += datalen;
+        }
+      }
     }
-    if( rspst->bdy.resptype == XrdProto::kXR_PartialResult ) action |= NoProcess;
 
     return action;
   }
@@ -989,7 +1055,10 @@ namespace XrdCl
         pOtherRawStarted               = false;
       }
       else
-        pReadRawCurrentOffset += pAsyncMsgSize;
+      {
+        size_t datalen = pAsyncMsgSize - NbPages( pAsyncMsgSize ) * 4;
+        pReadRawCurrentOffset += datalen;
+      }
       pReadRawStarted = true;
     }
 

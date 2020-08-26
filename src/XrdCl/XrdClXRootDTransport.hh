@@ -183,7 +183,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Unmarshall the body of the status response
       //------------------------------------------------------------------------
-      static Status UnMarshalStatusBody( Message *msg );
+      static Status UnMarshalStatusBody( Message *msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
       //! Unmarshall the header incoming message
