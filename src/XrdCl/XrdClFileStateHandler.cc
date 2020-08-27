@@ -54,7 +54,7 @@ namespace
   //----------------------------------------------------------------------------
   class PgReadHandler : public XrdCl::ResponseHandler
   {
-      friend PgReadRetryHandler;
+      friend class PgReadRetryHandler;
 
     public:
 
