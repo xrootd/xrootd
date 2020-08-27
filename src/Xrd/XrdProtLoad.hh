@@ -74,6 +74,6 @@ static bool           ProtoTLS[ProtoMax];   // ->Supported protocol objects TLS
 static int            ProtoCnt;             // Number in table (at least 1)
 
        int            myPort;
-       char           myProt[ProtoMax+2];   // My protocols
+       signed char    myProt[ProtoMax+2];   // My protocols
 };
 #endif
