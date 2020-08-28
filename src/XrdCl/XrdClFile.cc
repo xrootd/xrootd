@@ -259,6 +259,20 @@ namespace XrdCl
     return status;
   }
 
+  //------------------------------------------------------------------------
+  // Read a data chunk at a given offset - sync
+  // (does not provide the crc32c checksums to the end user)
+  //------------------------------------------------------------------------
+  XRootDStatus File::PgRead( uint64_t               offset,
+                             uint32_t               size,
+                             void                  *buffer,
+                             uint32_t              &bytesRead,
+                             uint16_t               timeout )
+  {
+    std::vector<uint32_t> cksums;
+    return PgRead( offset, size, buffer, cksums, bytesRead, timeout );
+  }
+
   //----------------------------------------------------------------------------
   // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------
