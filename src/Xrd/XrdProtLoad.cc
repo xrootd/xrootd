@@ -164,7 +164,7 @@ int XrdProtLoad::Port(const char *lname, const char *pname,
 int XrdProtLoad::Process(XrdLink *lp)
 {
      XrdProtocol *pp = 0;
-     char *pVec = myProt;
+     signed char *pVec = myProt;
      int i = 0;
 
 // Try to find a protocol match for this connection
