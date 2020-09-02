@@ -19,6 +19,9 @@ Prerelease Notes
   **[GSI]** Use the storage deallocator that matches the allocator.
 
 + **Miscellaneous**
+  **[HTTP]** Honor the tlsreuse option.
+  **[HTTP]** Avoid issuing confusing messages for improbable configs.
+  **[TLS]** Really kill the session cache when asked.
   **[Xcache]** Correct regression that killed dca option.
   **[Utils]** Add SHA3 checksum to utils.
   **[SSI]** Forward port LSST request scaler with auto-tuning.
