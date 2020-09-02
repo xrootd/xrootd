@@ -17,4 +17,6 @@ Prerelease Notes
 
 + **Miscellaneous**
   **[Server]** Strip out explicit plugin version designation with nasty message.
-
+  **[HTTP]** Honor the tlsreuse option.
+  **[HTTP]** Avoid issuing confusing messages for improbable configs.
+  **[TLS]** Really kill the session cache when asked.
