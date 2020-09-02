@@ -901,9 +901,9 @@ void *XrdTlsContext::Session()
 
 int XrdTlsContext::SessionCache(int opts, const char *id, int idlen)
 {
+   static const int doSet = scSrvr | scClnt | scOff;
    long sslopt = 0;
    int flushT = opts & scFMax;
-   bool doset = false;
 
 // If initialization failed there is nothing to do
 //
@@ -911,18 +911,19 @@ int XrdTlsContext::SessionCache(int opts, const char *id, int idlen)
 
 // Set options as appropriate
 //
-   if (opts)
-      {if (opts & scOff) {sslopt = SSL_SESS_CACHE_OFF; doset = true;}
+   if (opts & doSet)
+      {if (opts & scOff) sslopt = SSL_SESS_CACHE_OFF;
           else {if (opts & scSrvr) sslopt  = SSL_SESS_CACHE_SERVER;
                 if (opts & scClnt) sslopt |= SSL_SESS_CACHE_CLIENT;
-                if (opts) doset = true;
                }
       }
 
 // Check if we should set any cache options or simply get them
 //
-   if (doset) sslopt = SSL_CTX_set_session_cache_mode(pImpl->ctx, sslopt);
-      else    sslopt = SSL_CTX_get_session_cache_mode(pImpl->ctx);
+   if (!(opts & doSet)) sslopt = SSL_CTX_get_session_cache_mode(pImpl->ctx);
+      else {sslopt = SSL_CTX_set_session_cache_mode(pImpl->ctx, sslopt);
+            if (opts & scOff) SSL_CTX_set_options(pImpl->ctx, SSL_OP_NO_TICKET);
+           }
 
 // Compute what he previous cache options were
 //
