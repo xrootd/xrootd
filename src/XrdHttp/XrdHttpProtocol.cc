@@ -1005,6 +1005,14 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
     }
   }
 
+// To minimize message confusion down, if an error occurred during config
+// parsing, just bail out now with a confirming message.
+//
+   if (NoGo)
+      {eDest.Say("Config failure: one or more directives are flawed!");
+       return 1;
+      }
+
 // If https was disabled, then issue a warning message if xrdtls configured
 // of it's disabled because httpsmode was auto and xrdtls was not configured.
 // If we get past this point then we know https is a plausible option but we
@@ -1066,8 +1074,8 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
            what2 = (what2 ? "xrd.tlsca to supply 'cadir' and 'cafile'."
                           : "xrd.tlsca to supply 'cafile'.");
           }
-       if (httpsspec && what1) eDest.Say("Config Using ", what1);
-       if (httpsspec && what2) eDest.Say("Config Using ", what2);
+       if (!httpsspec && what1) eDest.Say("Config Using ", what1);
+       if (!httpsspec && what2) eDest.Say("Config Using ", what2);
       }
 
 // If a gridmap or secxtractor is present then we must be able to verify certs
@@ -1077,8 +1085,9 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
        const char *why  = (httpsspec ? "a cadir or cafile was not specified!"
                                      : "'xrd.tlsca noverify' was specified!");
        if (what)
-          eDest.Say("Config failure: ", what, " cert verification but ", why);
-       return 1;
+          {eDest.Say("Config failure: ", what, " cert verification but ", why);
+           return 1;
+          }
       }
    httpsmode = hsmOn;
 
@@ -1639,13 +1648,13 @@ bool XrdHttpProtocol::InitTLS() {
        return false;
       }
 
-// Setup session cache (this is controversial). The default is on as many
-// program are written to expect it being enabled and can't handle it when
-// it is disabled. This is, of course, a big OpenSSL mess.
+// Setup session cache (this is controversial). The default is off but many
+// programs expect it being enabled and break when it is disabled. In such
+// cases it should be enabled. This is, of course, a big OpenSSL mess.
 //
    static const char *sess_ctx_id = "XrdHTTPSessionCtx";
    unsigned int n =(unsigned int)(strlen(sess_ctx_id)+1);
-   xrdctx->SessionCache(XrdTlsContext::scSrvr, sess_ctx_id, n);
+   xrdctx->SessionCache(tlsCache, sess_ctx_id, n);
 
 // Set special ciphers if so specified.
 //
