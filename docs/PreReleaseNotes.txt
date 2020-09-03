@@ -9,6 +9,7 @@ Prerelease Notes
 
 + **Major bug fixes**
   **[Server]** Avoid POSC deletion when file creation fails because it exists.
+  **[HTTP]** Prevent secret key leakage if specified in the config file.
 
 + **Minor bug fixes**
   **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
@@ -16,3 +17,4 @@ Prerelease Notes
 
 + **Miscellaneous**
   **[Server]** Strip out explicit plugin version designation with nasty message.
+
