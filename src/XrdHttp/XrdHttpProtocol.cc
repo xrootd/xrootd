@@ -1995,6 +1995,7 @@ int XrdHttpProtocol::xsslcafile(XrdOucStream & Config) {
 
 int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
   char *val;
+  bool inFile = false;
 
   // Get the path
   //
@@ -2010,6 +2011,7 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
   // otherwise, the token itself is the secretkey
   if (val[0] == '/') {
     struct stat st;
+    inFile = true;
     if ( stat(val, &st) ) {
       eDest.Emsg("Config", errno, "stat shared secret key file", val);
       return 1;
@@ -2068,6 +2070,7 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
   // Record the path
   if (secretkey) free(secretkey);
   secretkey = strdup(val);
+  if (!inFile) Config.noEcho();
 
   return 0;
 }
