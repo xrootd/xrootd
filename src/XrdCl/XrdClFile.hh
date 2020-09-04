@@ -232,25 +232,6 @@ namespace XrdCl
                            XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
-      //! Read a data chunk at a given offset - sync
-      //! (does not provide the crc32c checksums to the end user)
-      //!
-      //! @param offset    offset from the beginning of the file
-      //! @param size    buffer size, at least 1 page big (4KB)
-      //! @param buffer    a pointer to a buffer big enough to hold the data
-      //! @param bytesRead number of bytes actually read
-      //! @param timeout   timeout value, if 0 the environment default will be
-      //!                  used
-      //! @return          status of the operation
-      //------------------------------------------------------------------------
-      XRootDStatus PgRead( uint64_t               offset,
-                           uint32_t               size,
-                           void                  *buffer,
-                           uint32_t              &bytesRead,
-                           uint16_t               timeout = 0 )
-                           XRD_WARN_UNUSED_RESULT;
-
-      //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - async
       //! The call interprets and returns the server response, which may be
       //! either a success or a failure, it does not contain the number
