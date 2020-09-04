@@ -7,6 +7,7 @@ include_directories( ${VOMS_INCLUDE_DIR} )
 
 set( LIB_XRD_VOMS             XrdVoms-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_VOMS     XrdSecgsiVOMS-${PLUGIN_VERSION} )
+set( LIB_XRD_HTTP_VOMS        XrdHttpVOMS-${PLUGIN_VERSION} )
 
 add_library(
    ${LIB_XRD_VOMS}
@@ -43,6 +44,12 @@ install(
   CODE "
     EXECUTE_PROCESS(
       COMMAND ln -sf lib${LIB_XRD_VOMS}.so lib${LIB_XRD_SEC_GSI_VOMS}.so
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} )" )
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf lib${LIB_XRD_VOMS}.so lib${LIB_XRD_HTTP_VOMS}.so
       WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} )" )
 
 install(

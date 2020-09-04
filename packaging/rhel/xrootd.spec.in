@@ -858,6 +858,7 @@ fi
 %defattr(-,root,root,-)
 %{_libdir}/libXrdVoms-5.so
 %{_libdir}/libXrdSecgsiVOMS-5.so
+%{_libdir}/libXrdHttpVOMS-5.so
 %doc %{_mandir}/man1/libXrdVoms.1.gz
 %doc %{_mandir}/man1/libXrdSecgsiVOMS.1.gz
 
