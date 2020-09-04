@@ -292,6 +292,70 @@ namespace
   };
 
   //----------------------------------------------------------------------------
+  //
+  //----------------------------------------------------------------------------
+  class PgReadCompatibilityHandler : public XrdCl::ResponseHandler
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      PgReadCompatibilityHandler( XrdCl::FileStateHandler *stateHandler,
+                                  XrdCl::ResponseHandler  *userHandler,
+                                  uint64_t                 orgOffset ) : stateHandler( stateHandler ),
+                                                                         userHandler( userHandler ),
+                                                                         orgOffset( orgOffset )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                    XrdCl::AnyObject    *response,
+                                    XrdCl::HostList     *hostList )
+      {
+        if( status->IsOK() )
+        {
+          //--------------------------------------------------------------------
+          // check if the PgRead has been substituted with a Read request due
+          // to the server being too old to support the operation
+          //--------------------------------------------------------------------
+          if( response->Has<XrdCl::ChunkInfo>() )
+          {
+            XrdCl::ChunkInfo *chunk = 0;
+            response->Get( chunk );
+            // leave the checksum vector empty so the user knows that there was
+            // no integrity check
+            XrdCl::PageInfo *page = new XrdCl::PageInfo( chunk->offset,
+                                                         chunk->length,
+                                                         chunk->buffer );
+            delete chunk;
+            response->Set( page );
+            userHandler->HandleResponseWithHosts( status, response, hostList );
+
+          }
+          else
+          {
+            PgReadHandler *pgReadHandler = new PgReadHandler( stateHandler, userHandler, orgOffset );
+            pgReadHandler->HandleResponseWithHosts( status, response, hostList );
+          }
+        }
+        else
+          userHandler->HandleResponseWithHosts( status, response, hostList );
+
+        delete this;
+      }
+
+    private:
+
+      XrdCl::FileStateHandler *stateHandler;
+      XrdCl::ResponseHandler  *userHandler;
+      uint64_t                 orgOffset;
+  };
+
+  //----------------------------------------------------------------------------
   // Object that does things to the FileStateHandler when kXR_open returns
   // and then calls the user handler
   //----------------------------------------------------------------------------
@@ -963,7 +1027,7 @@ namespace XrdCl
     if( offset % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead offset not 4KB aligned." );
     if( size % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead size not 4KB aligned." );
 
-    ResponseHandler* pgHandler = new PgReadHandler( this, handler, offset );
+    ResponseHandler* pgHandler = new PgReadCompatibilityHandler( this, handler, offset );
     XRootDStatus st = PgReadImpl( offset, size, buffer, PgReadFlags::None, pgHandler, timeout );
     if( !st.IsOK() ) delete pgHandler;
     return st;
@@ -1004,7 +1068,7 @@ namespace XrdCl
 
     Message             *msg;
     ClientPgReadRequest *req;
-    MessageUtils::CreateRequest( msg, req );
+    MessageUtils::CreateRequest( msg, req, sizeof( ClientPgReadRequest ) + sizeof( ClientPgReadReqArgs ) );
 
     req->requestid  = kXR_pgread;
     req->offset     = offset;
@@ -1015,7 +1079,6 @@ namespace XrdCl
     // Now adjust the message size so it can hold PgRead arguments
     //--------------------------------------------------------------------------
     req->dlen = sizeof( ClientPgReadReqArgs );
-    msg->ReAllocate( sizeof( ClientPgReadRequest ) + sizeof( ClientPgReadReqArgs ) );
     void *newBuf = msg->GetBuffer( sizeof( ClientPgReadRequest ) );
     memset( newBuf, 0, sizeof( ClientPgReadReqArgs ) );
     ClientPgReadReqArgs *args = reinterpret_cast<ClientPgReadReqArgs*>(
