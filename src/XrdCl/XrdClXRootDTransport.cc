@@ -45,6 +45,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdCl/XrdClTls.hh"
 #include "XrdCl/XrdClSocket.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdVersion.hh"
 
@@ -1585,6 +1586,67 @@ namespace XrdCl
     }
 
     return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Ensure compatibility of the request with old servers
+  //!
+  //! Currently:
+  //! - PgRead: if server is too old to support PgRead the request will be
+  //!   rewritten into a Read
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::EnsureCompatibility( Message   *msg,
+                                               AnyObject &channelData )
+  {
+    ClientRequestHdr *hdr = (ClientRequestHdr*)msg->GetBuffer();
+    kXR_unt16 reqid = ntohs( hdr->requestid );
+
+    switch( reqid )
+    {
+      case kXR_pgread:
+      {
+        XRootDChannelInfo *info = 0;
+        channelData.Get( info );
+        //----------------------------------------------------------------------
+        // If the server does not support PgRead we need to fall-back to normal
+        // Read
+        //----------------------------------------------------------------------
+        if( !( info->serverFlags & kXR_suppgrw ) )
+        {
+          UnMarshallRequest( msg );
+
+          ClientPgReadRequest *req  = (ClientPgReadRequest*)msg->GetBuffer();
+          ClientPgReadReqArgs *args =
+              (ClientPgReadReqArgs*)msg->GetBuffer( sizeof( ClientPgReadRequest ) );
+
+          ClientReadRequest *rdreq = 0;
+          Message           *rdmsg = 0;
+          MessageUtils::CreateRequest( rdmsg, rdreq, sizeof( read_args ) );
+
+          rdreq->requestid  = kXR_read;
+          rdreq->offset     = req->offset;
+          rdreq->rlen       = req->rlen;
+          memcpy( rdreq->fhandle, req->fhandle, 4 );
+          memcpy( rdreq->streamid, req->streamid, 2 );
+
+          rdreq->dlen = sizeof( read_args );
+          read_args* rdargs = (read_args*)rdmsg->GetBuffer( sizeof( ClientReadRequest ) );
+          rdargs->pathid = args->pathid;
+
+          SetDescription( rdmsg );
+          Log *log = DefaultEnv::GetLog();
+          log->Info( XRootDTransportMsg,
+                     "Server does not support kXR_pgread, substituting the request %s with %s.",
+                      msg->GetDescription().c_str(), rdmsg->GetDescription().c_str() );
+
+          *msg = std::move( *rdmsg );
+          MarshallRequest( msg );
+        }
+        break;
+      }
+    }
+
+    return Status();
   }
 
   //----------------------------------------------------------------------------

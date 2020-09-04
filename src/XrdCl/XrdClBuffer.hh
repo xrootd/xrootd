@@ -244,10 +244,12 @@ namespace XrdCl
         return buffer;
       }
 
-    private:
+    protected:
 
       void Steal( Buffer &&buffer )
       {
+        Free();
+
         pBuffer = buffer.pBuffer;
         buffer.pBuffer = 0;
 
@@ -257,6 +259,8 @@ namespace XrdCl
         pCursor = buffer.pCursor;
         buffer.pCursor = 0;
       }
+
+    private:
 
       Buffer( const Buffer& );
       Buffer& operator=( const Buffer& );
