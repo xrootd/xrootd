@@ -10,5 +10,6 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
 
 + **Miscellaneous**
