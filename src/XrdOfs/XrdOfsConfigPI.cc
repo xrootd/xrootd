@@ -614,7 +614,7 @@ bool XrdOfsConfigPI::ParseOssLib()
    while(val)
         {     if (!strcmp("+cksio",  val))
                  {if (!ossCksio) strcat(oBuff, "+cksio  "); ossCksio = true;}
-              if (!strcmp("+mmapio", val))
+         else if (!strcmp("+mmapio", val))
                  {if ( ossCksio) strcat(oBuff, "+mmapio "); ossCksio = false;}
          else if (!strcmp("+xattr",  val))
                  {if (!ossXAttr) strcat(oBuff, "+xattr ");  ossXAttr = true;}
