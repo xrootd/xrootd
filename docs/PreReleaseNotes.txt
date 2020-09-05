@@ -20,6 +20,7 @@ Prerelease Notes
   **[GSI]** Use the storage deallocator that matches the allocator.
 
 + **Miscellaneous**
+  **[Server]** Strip out explicit plugin version designation with nasty message.
   **[HTTP]** Prevent secret key leakage if specified in the config file.
   **[HTTP]** Honor the tlsreuse option.
   **[HTTP]** Avoid issuing confusing messages for improbable configs.
