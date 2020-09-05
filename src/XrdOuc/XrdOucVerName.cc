@@ -49,19 +49,44 @@ static const char *StrictName[] = XrdVERSIONPLUGINSTRICT;
 /*                            h a s V e r s i o n                             */
 /******************************************************************************/
 
-int XrdOucVerName::hasVersion(const char *piPath)
+int XrdOucVerName::hasVersion(const char *piPath, char **piNoVN)
 {
    const char *Dash;
 
 // We check for an embeded version number. This is usually used to issue a
 // warning that including a specific version disables automatic versioning.
+// We only return an alternate name if the library is an official one.
 //
    if ((Dash = rindex(piPath, '-')))
       {char *endP;
        int vn = strtol(Dash+1, &endP, 10);
-       if (vn && !strcmp(endP, ".so")) return vn;
+       if (vn && !strcmp(endP, ".so"))
+          {if (piNoVN)
+              {char buff[2048];
+               snprintf(buff,sizeof(buff),"%.*s%s",int(Dash-piPath),piPath,endP);
+               if (isOurs(buff)) *piNoVN = strdup(buff);
+                  else *piNoVN = 0;
+              }
+           return vn;
+          }
       }
+   if (piNoVN) *piNoVN = 0;
    return 0;
+}
+
+/******************************************************************************/
+/* Private:                       i s O u r s                                 */
+/******************************************************************************/
+
+bool XrdOucVerName::isOurs(const char *path)
+{
+   const char *Slash = rindex(path, '/');
+
+   Slash = (Slash ? Slash+1 : path);
+   int n = 0;
+   while(StrictName[n] && strcmp(Slash, StrictName[n])) n++;
+
+   return (StrictName[n] != 0);
 }
 
 /******************************************************************************/

@@ -162,7 +162,8 @@ void XrdOucPinLoader::Inform(const char *txt1, const char *txt2,
 
 void XrdOucPinLoader::Init(const char *drctv, const char *plib)
 {
-   char libBuf[2048];
+   char *plib2 = 0, libBuf[2048];
+   int  n;
    bool noFallBack;
 
 // We have no plugin
@@ -175,13 +176,16 @@ void XrdOucPinLoader::Init(const char *drctv, const char *plib)
 // Check if the path has a version in it. This is generally a no-no.
 // We Issue a warning only on servers as that is where it usually occurs.
 //
-   if (XrdOucVerName::hasVersion(plib))
-      {theLib = strdup(plib);
-       altLib = 0;
-       if (eDest) eDest->Say("Config ", dName, " plugin ", theLib,
-                             " specifies a version (i.e. '-n.so'); ",
-                             "automatic version selection disabled!");
-       return;
+   if ((n = XrdOucVerName::hasVersion(plib, &plib2)))
+      {if (plib2)
+          {snprintf(libBuf, sizeof(libBuf), "'%s' wrongly coerces version "
+                    "'-%d'; using '%s' instead!", plib, n, plib2);
+          } else {
+           snprintf(libBuf, sizeof(libBuf), "'%s' should not use '-%d' "
+                    "version syntax in its name!", plib, n);
+          }
+       if (eDest) eDest->Say("Config warning: ", dName, " path ", libBuf);
+       if (plib2) plib = plib2;
       }
 
 // Perform versioning
@@ -194,6 +198,9 @@ void XrdOucPinLoader::Init(const char *drctv, const char *plib)
        theLib = 0;
        altLib = strdup(plib);
       }
+// Free up any allocated storage
+//
+   if (plib2) free(plib2);
 }
   
 /******************************************************************************/
