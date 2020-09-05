@@ -13,3 +13,4 @@ Prerelease Notes
   **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
 
 + **Miscellaneous**
+  **[Server]** Strip out explicit plugin version designation with nasty message.
