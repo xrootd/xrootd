@@ -43,12 +43,15 @@ public:
 //! Test if plugin path contains a version number.
 //!
 //! @param  piPath  Pointer to the original path to the plug-in.
+//! @param  piNoVm  != 0: If piPath has a version, an strdup'd path without a
+//!                 version is returned. Otherwise, nil is returned.
+//!                 == 0: Does not return an alternate path.
 //!
 //! @return >0 the version number if path contains a version.
 //! @return =0 the path does not contain a version number.
 //-----------------------------------------------------------------------------
 
-static int hasVersion(const char *piPath);
+static int hasVersion(const char *piPath, char **piNoVN=0);
 
 //-----------------------------------------------------------------------------
 //! Version a plug-in library path.
@@ -66,5 +69,9 @@ static int hasVersion(const char *piPath);
 
 static int Version(const char *piVers, const char *piPath, bool &noFBK,
                          char *buff,         int   blen);
+
+private:
+
+static bool isOurs(const char *path);
 };
 #endif
