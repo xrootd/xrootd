@@ -42,6 +42,7 @@ namespace
 {
   class PgReadHandler;
   class PgReadRetryHandler;
+  class PgReadSubstitutionHandler;
 }
 
 namespace XrdCl
@@ -73,6 +74,7 @@ namespace XrdCl
   {
       friend class ::PgReadHandler;
       friend class ::PgReadRetryHandler;
+      friend class ::PgReadSubstitutionHandler;
 
     public:
       //------------------------------------------------------------------------
