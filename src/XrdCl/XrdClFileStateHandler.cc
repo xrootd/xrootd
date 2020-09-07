@@ -294,18 +294,16 @@ namespace
   //----------------------------------------------------------------------------
   //
   //----------------------------------------------------------------------------
-  class PgReadCompatibilityHandler : public XrdCl::ResponseHandler
+  class PgReadSubstitutionHandler : public XrdCl::ResponseHandler
   {
     public:
 
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      PgReadCompatibilityHandler( XrdCl::FileStateHandler *stateHandler,
-                                  XrdCl::ResponseHandler  *userHandler,
-                                  uint64_t                 orgOffset ) : stateHandler( stateHandler ),
-                                                                         userHandler( userHandler ),
-                                                                         orgOffset( orgOffset )
+      PgReadSubstitutionHandler( XrdCl::FileStateHandler *stateHandler,
+                                 XrdCl::ResponseHandler  *userHandler ) : stateHandler( stateHandler ),
+                                                                          userHandler( userHandler )
       {
       }
 
@@ -313,37 +311,25 @@ namespace
       // Handle the response
       //------------------------------------------------------------------------
       void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
-                                    XrdCl::AnyObject    *response,
+                                    XrdCl::AnyObject    *rdresp,
                                     XrdCl::HostList     *hostList )
       {
-        if( status->IsOK() )
+        if( !status->IsOK() )
         {
-          //--------------------------------------------------------------------
-          // check if the PgRead has been substituted with a Read request due
-          // to the server being too old to support the operation
-          //--------------------------------------------------------------------
-          if( response->Has<XrdCl::ChunkInfo>() )
-          {
-            XrdCl::ChunkInfo *chunk = 0;
-            response->Get( chunk );
-            // leave the checksum vector empty so the user knows that there was
-            // no integrity check
-            XrdCl::PageInfo *page = new XrdCl::PageInfo( chunk->offset,
-                                                         chunk->length,
-                                                         chunk->buffer );
-            delete chunk;
-            response->Set( page );
-            userHandler->HandleResponseWithHosts( status, response, hostList );
-
-          }
-          else
-          {
-            PgReadHandler *pgReadHandler = new PgReadHandler( stateHandler, userHandler, orgOffset );
-            pgReadHandler->HandleResponseWithHosts( status, response, hostList );
-          }
+          userHandler->HandleResponseWithHosts( status, rdresp, hostList );
+          delete this;
+          return;
         }
-        else
-          userHandler->HandleResponseWithHosts( status, response, hostList );
+
+        using namespace XrdCl;
+
+        ChunkInfo *chunk = 0;
+        rdresp->Get( chunk );
+        PageInfo *pages = new PageInfo( chunk->offset, chunk->length, chunk->buffer );
+        delete rdresp;
+        AnyObject *response = new AnyObject();
+        response->Set( pages );
+        userHandler->HandleResponseWithHosts( status, response, hostList );
 
         delete this;
       }
@@ -352,7 +338,6 @@ namespace
 
       XrdCl::FileStateHandler *stateHandler;
       XrdCl::ResponseHandler  *userHandler;
-      uint64_t                 orgOffset;
   };
 
   //----------------------------------------------------------------------------
@@ -1028,8 +1013,27 @@ namespace XrdCl
     if( offset % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead offset not 4KB aligned." );
     if( size % 4096 ) return XRootDStatus( stError, errInvalidArgs, EINVAL, "PgRead size not 4KB aligned." );
 
-    ResponseHandler* pgHandler = new PgReadCompatibilityHandler( this, handler, offset );
-    XRootDStatus st = PgReadImpl( offset, size, buffer, PgReadFlags::None, pgHandler, timeout );
+    int issupported = true;
+    AnyObject obj;
+    XRootDStatus st = DefaultEnv::GetPostMaster()->QueryTransport( *pDataServer, XRootDQuery::ServerFlags, obj );
+    if( st.IsOK() )
+    {
+      int *ptr = 0;
+      obj.Get( ptr );
+      issupported = ( *ptr & kXR_suppgrw );
+      delete ptr;
+    }
+
+    if( !issupported )
+    {
+      ResponseHandler *substitHandler = new PgReadSubstitutionHandler( this, handler );
+      st = Read( offset, size, buffer, substitHandler, timeout );
+      if( !st.IsOK() ) delete substitHandler;
+      return st;
+    }
+
+    ResponseHandler* pgHandler = new PgReadHandler( this, handler, offset );
+    st = PgReadImpl( offset, size, buffer, PgReadFlags::None, pgHandler, timeout );
     if( !st.IsOK() ) delete pgHandler;
     return st;
   }
