@@ -34,6 +34,7 @@
 #include "XrdCl/XrdClConstants.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysPageSize.hh"
 
 #include <sys/uio.h>
 #include <arpa/inet.h> // for network unmarshaling stuff
@@ -631,9 +632,9 @@ namespace XrdCl
 
       typedef std::list<std::unique_ptr<RedirectEntry>> RedirectTraceBack;
 
-      static const size_t             PageSize      = 4096;
-      static const size_t             CksumSize     = 4;
-      static const size_t             PageWithCksum = 4100;
+      static const size_t             PageSize      = XrdSys::PageSize;
+      static const size_t             CksumSize     = sizeof( uint32_t );
+      static const size_t             PageWithCksum = PageSize + CksumSize;
 
       inline static size_t NbPages( uint32_t dlen )
       {
