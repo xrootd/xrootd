@@ -397,11 +397,6 @@ namespace XrdCl
       if( !pOutgoing )
         return;
 
-      //------------------------------------------------------------------------
-      // Ensure compatibility with the server
-      //------------------------------------------------------------------------
-      pTransport->EnsureCompatibility( pOutgoing, *pChannelData );
-
       pOutgoing->SetCursor( 0 );
       pOutMsgSize = pOutgoing->GetSize();
 

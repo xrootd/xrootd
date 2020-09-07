@@ -40,32 +40,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Move constructor
-      //------------------------------------------------------------------------
-      Message( Message && msg ) : Buffer( std::move( msg ) )
-      {
-        pIsMarshalled = msg.pIsMarshalled;
-        pSessionId    = msg.pSessionId;
-        pDescription  = msg.pDescription;
-      }
-
-      //------------------------------------------------------------------------
-      //! Move assigment operator
-      //------------------------------------------------------------------------
-      Message& operator=( Message && msg )
-      {
-        if( this == &msg ) return *this;
-
-        pIsMarshalled = msg.pIsMarshalled;
-        pSessionId    = msg.pSessionId;
-        pDescription  = msg.pDescription;
-
-        Steal( std::move( msg ) );
-
-        return *this;
-      }
-
-      //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~Message() {}

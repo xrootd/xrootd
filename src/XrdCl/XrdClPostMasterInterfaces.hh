@@ -469,16 +469,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual Status GetSignature( Message *toSign, Message *&sign,
                                    AnyObject &channelData ) = 0;
-
-      //------------------------------------------------------------------------
-      //! Ensure compatibility of the request with old servers
-      //!
-      //! Currently:
-      //! - PgRead: if server is too old to support PgRead the request will be
-      //!   rewritten into a Read
-      //------------------------------------------------------------------------
-      virtual Status EnsureCompatibility( Message *msg,
-                                          AnyObject &channelData ) = 0;
   };
 }
 
