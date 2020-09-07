@@ -274,6 +274,7 @@ void PostMasterTest::FunctionalTest()
 
   CPPUNIT_ASSERT( name );
   CPPUNIT_ASSERT( !::strcmp( name, "XRootD" ) );
+  delete name;
 
   postMaster.Stop();
   postMaster.Finalize();
