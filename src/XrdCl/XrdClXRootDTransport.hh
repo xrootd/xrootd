@@ -47,6 +47,7 @@ namespace XrdCl
   {
     static const uint16_t ServerFlags     = 1002; //!< returns server flags
     static const uint16_t ProtocolVersion = 1003; //!< returns the protocol version
+    static const uint16_t IsEncrypted     = 1004; //!< returns true if the channel is encrypted
   };
 
   //----------------------------------------------------------------------------

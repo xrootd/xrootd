@@ -651,6 +651,7 @@ namespace XrdCl
     pDoRecoverWrite( true ),
     pFollowRedirects( true ),
     pUseVirtRedirector( true ),
+    pIsChannelEncrypted( false ),
     pReOpenHandler( 0 )
   {
     pFileHandle = new uint8_t[4];
@@ -1730,6 +1731,20 @@ namespace XrdCl
 
     log->Debug( FileMsg, "[0x%x@%s] Open has returned with status %s",
                 this, pFileUrl->GetURL().c_str(), status->ToStr().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Check if we are using a secure connection
+    //--------------------------------------------------------------------------
+    XrdCl::AnyObject isencobj;
+    XrdCl::XRootDStatus st = XrdCl::DefaultEnv::GetPostMaster()->
+              QueryTransport( *pDataServer, XRootDQuery::IsEncrypted, isencobj );
+    if( st.IsOK() )
+    {
+      bool *isenc;
+      isencobj.Get( isenc );
+      pIsChannelEncrypted = *isenc;
+      delete isenc;
+    }
 
     //--------------------------------------------------------------------------
     // We have failed

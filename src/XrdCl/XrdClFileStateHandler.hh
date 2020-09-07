@@ -678,6 +678,7 @@ namespace XrdCl
       bool                    pDoRecoverWrite;
       bool                    pFollowRedirects;
       bool                    pUseVirtRedirector;
+      bool                    pIsChannelEncrypted;
 
       //------------------------------------------------------------------------
       // Monitoring variables

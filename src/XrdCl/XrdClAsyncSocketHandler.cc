@@ -741,7 +741,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // If now is the time enable encryption
+    // If now is the time to enable encryption
     //--------------------------------------------------------------------------
     if( !pSocket->IsEncrypted() &&
          pTransport->NeedEncryption( pHandShakeData, *pChannelData ) )

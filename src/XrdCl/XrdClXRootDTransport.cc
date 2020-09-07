@@ -1340,6 +1340,10 @@ namespace XrdCl
       case XRootDQuery::ProtocolVersion:
         result.Set( new int( info->protocolVersion ), false );
         return Status();
+
+      case XRootDQuery::IsEncrypted:
+        result.Set( new bool( info->encrypted ), false );
+        return Status();
     };
     return Status( stError, errQueryNotSupported );
   }
@@ -1533,14 +1537,17 @@ namespace XrdCl
   // @return : true if encryption should be turned on, false otherwise
   //----------------------------------------------------------------------------
   bool XRootDTransport::NeedEncryption( HandShakeData  *handShakeData,
-                                       AnyObject      &channelData )
+                                        AnyObject      &channelData )
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
 
     // Did the server instructed us to switch to TLS right away?
     if( info->serverFlags & kXR_gotoTLS )
-      return true;
+    {
+      info->encrypted = true;
+      return true ;
+    }
 
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 
@@ -1556,7 +1563,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( ( sInfo.status == XRootDStreamInfo::LoginSent ) &&
           ( info->serverFlags & kXR_tlsLogin ) )
+      {
+        info->encrypted = true;
         return true;
+      }
 
       //--------------------------------------------------------------------
       // The hand-shake is done and the server requested to encrypt the session
@@ -1568,7 +1578,10 @@ namespace XrdCl
           //--------------------------------------------------------------------
            sInfo.status == XRootDStreamInfo::EndSessionSent ) &&
           ( info->serverFlags & kXR_tlsSess ) )
+      {
+        info->encrypted = true;
         return true;
+      }
     }
     //--------------------------------------------------------------------------
     // A data stream (sub-stream > 0) if need be will be switched to TLS before
@@ -1582,7 +1595,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( ( sInfo.status == XRootDStreamInfo::BindSent ) &&
           ( info->serverFlags & kXR_tlsData ) )
+      {
+        info->encrypted = true;
         return true;
+      }
     }
 
     return false;
