@@ -237,7 +237,9 @@ namespace
     {
       int *protver = 0;
       qryResult.Get( protver );
-      return ( *protver == kXR_PROTXATTVERSION );
+      bool result = ( *protver == kXR_PROTXATTVERSION );
+      delete protver;
+      return result;
     }
     return false;
   }
