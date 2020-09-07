@@ -493,6 +493,7 @@ int main( int argc, char **argv )
   bool         preserveXAttr = false;
   bool         rmOnBadCksum  = false;
   bool         continue_     = false;
+  bool         recurse       = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
@@ -512,7 +513,11 @@ int main( int argc, char **argv )
   else
     DlgEnv::Instance().Disable();
 
-  if( config.Want( XrdCpConfig::DoRecurse ) )      makedir       = true;
+  if( config.Want( XrdCpConfig::DoRecurse ) )
+  {
+    makedir = true;
+    recurse = true;
+  }
   if( config.Want( XrdCpConfig::DoPath    ) )      makedir       = true;
   if( config.Want( XrdCpConfig::DoDynaSrc ) )      dynSrc        = true;
   if( config.Want( XrdCpConfig::DoXAttr ) )        preserveXAttr = true;
@@ -671,7 +676,8 @@ int main( int argc, char **argv )
   //    * we can accept multiple sources
   //    * we need to append the source name
   //----------------------------------------------------------------------------
-  bool targetIsDir = false;
+  bool targetIsDir  = false;
+  bool targetExists = false;
   if( config.dstFile->Protocol == XrdCpFile::isDir )
     targetIsDir = true;
   else if( config.dstFile->Protocol == XrdCpFile::isXroot ||
@@ -682,13 +688,27 @@ int main( int argc, char **argv )
     StatInfo *statInfo = 0;
     XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
     if( st.IsOK() )
-      {if (statInfo->TestFlags( StatInfo::IsDir ) ) targetIsDir = true;}
-      else if (st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ))
-              {int n = strlen(config.dstFile->Path);
-               if (config.dstFile->Path[n-1] == '/') targetIsDir = true;
-              }
+    {
+      if( statInfo->TestFlags( StatInfo::IsDir ) )
+        targetIsDir = true;
+      targetExists = true;
+    }
+    else if( st.errNo == kXR_NotFound && config.Want( XrdCpConfig::DoPath ) )
+    {
+      int n = strlen(config.dstFile->Path);
+      if( config.dstFile->Path[n-1] == '/' )
+        targetIsDir = true;
+    }
 
     delete statInfo;
+  }
+
+  if( !targetIsDir && targetExists && !force && !recurse )
+  {
+    XRootDStatus st( stError, errInvalidOp, EEXIST );
+    // Unable to create /tmp/test.txt; file exists
+    log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
+    return st.GetShellCode();
   }
 
   //----------------------------------------------------------------------------
