@@ -244,7 +244,7 @@ namespace
 
         XrdCl::PageInfo *pginf = 0;
         response->Get( pginf );
-        if( pginf->length > XrdSys::PageSize || pginf->cksums.size() != 1 )
+        if( pginf->length > (uint32_t)XrdSys::PageSize || pginf->cksums.size() != 1 )
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[0x%x@%s] Failed to recover page #%d.",
@@ -1075,8 +1075,9 @@ namespace XrdCl
   {
     if( offset % XrdSys::PageSize ) return XRootDStatus( stError, errInvalidArgs, EINVAL,
                                                          "PgRead offset not 4KB aligned." );
-    if( size > XrdSys::PageSize ) return XRootDStatus( stError, errInvalidArgs, EINVAL,
-                                                       "PgRead retry size exceeded 4KB." );
+    if( size > (uint32_t)XrdSys::PageSize )
+      return XRootDStatus( stError, errInvalidArgs, EINVAL,
+                          "PgRead retry size exceeded 4KB." );
 
     ResponseHandler *retryHandler = new PgReadRetryHandler( handler, pgnb );
     XRootDStatus st = PgReadImpl( offset, size, buffer, PgReadFlags::Retry, retryHandler, timeout );
