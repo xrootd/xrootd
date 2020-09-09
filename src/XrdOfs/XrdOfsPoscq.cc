@@ -72,8 +72,14 @@ XrdOfsPoscq::XrdOfsPoscq(XrdSysError *erp, XrdOss *oss, const char *fn, int sv)
 int XrdOfsPoscq::Add(const char *Tident, const char *Lfn)
 {
    XrdOfsPoscq::Request tmpReq;
+   struct stat Stat;
    FileSlot *freeSlot;
-   int fP;
+   int fP, rc;
+
+// Add is only called when file is to be created. Therefore, it must not exist.
+// We need to check this to avoid deleting already created files.
+//
+   if (!(rc = ossFS->Stat(Lfn, &Stat))) return -EEXIST;
 
 // Construct the request
 //
