@@ -10,15 +10,10 @@ Prerelease Notes
 
 + **Major bug fixes**
   **[Server]** Avoid POSC deletion when file creation fails because it exists.
-  **[CMS]** Use correct adminpath for creating Unix socket. Fixes #1255
-  **[HTTP]** Correctly handle certs relative to refcount to avoid SEGV.
-  **[Xcache]** Add missing initializer to avoid malloc() abort.
 
 + **Minor bug fixes**
   **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
   **[XRootD]** Correct flag reset code for esoteric ssq monitor option.
-  **[VOMS]** Correct use of undocumented API that caused hang w/ dbg. Fixes #1245
-  **[GSI]** Use the storage deallocator that matches the allocator.
 
 + **Miscellaneous**
   **[Server]** Strip out explicit plugin version designation with nasty message.
@@ -28,7 +23,3 @@ Prerelease Notes
   **[TLS]** Really kill the session cache when asked.
   **[Xcache]** Correct regression that killed dca option.
   **[Utils]** Add SHA3 checksum to utils.
-  **[SSI]** Forward port LSST request scaler with auto-tuning.
-  **[HTTP]** Enable session cache by default, provide http.tlsreuse directive.
-  **[cmsd]** Reimplement affinity algorithm using verified LSST mechanism.
-  **[Mon]** Rationalize UDP packet sequence numbers.
