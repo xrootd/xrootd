@@ -1092,18 +1092,24 @@ namespace XrdCl
   //!
   //! @return : a IncomingMsgHandler in case we need to read out raw data
   //------------------------------------------------------------------------
-  bool Stream::HasAdditionalRawData( Message *msg, uint16_t stream, IncomingMsgHandler *&incHandler )
+  uint16_t Stream::InspectStatusRsp( Message             *msg,
+                                     uint16_t             stream,
+                                     IncomingMsgHandler *&incHandler )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
     if( !mh.handler ) return false;
 
-    uint16_t action = mh.handler->Reexamine( msg );
+    uint16_t action = mh.handler->InspectStatusRsp( msg );
     mh.action |= action;
     if( action & IncomingMsgHandler::Raw )
     {
       incHandler = mh.handler;
-      return true;
+      return IncomingMsgHandler::Raw;
     }
-    return false;
+
+    if( action & IncomingMsgHandler::Corrupted )
+      return IncomingMsgHandler::Corrupted;
+
+    return IncomingMsgHandler::None;
   }
 }

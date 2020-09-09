@@ -246,7 +246,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t Reexamine( Message *msg );
+      virtual uint16_t InspectStatusRsp( Message *msg );
 
       //------------------------------------------------------------------------
       //! Get handler sid

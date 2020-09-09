@@ -76,6 +76,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       enum Action
       {
+        None          = 0x0000,
         Take          = 0x0001,    //!< Take ownership over the message
         Ignore        = 0x0002,    //!< Ignore the message
         RemoveHandler = 0x0004,    //!< Remove the handler from the notification
@@ -83,9 +84,12 @@ namespace XrdCl
         Raw           = 0x0008,    //!< the handler is interested in reading
                                    //!< the message body directly from the
                                    //!< socket
-        NoProcess     = 0x0010     //!< don't call the processing callback
+        NoProcess     = 0x0010,    //!< don't call the processing callback
                                    //!< even if the message belongs to this
                                    //!< handler
+        Corrupted     = 0x0020     //!< the handler discovered that the message
+                                   //!< header is corrupted, we will have to
+                                   //!< tear down the socket
       };
 
       //------------------------------------------------------------------------
@@ -124,7 +128,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t Reexamine( Message *msg ) = 0;
+      virtual uint16_t InspectStatusRsp( Message *msg ) = 0;
 
       //------------------------------------------------------------------------
       //! Get handler sid

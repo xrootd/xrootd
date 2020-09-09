@@ -646,8 +646,20 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pIncHandler.first )
     {
-      if( pStream->HasAdditionalRawData( pIncoming, pSubStreamNum, pIncHandler.first ) )
+      uint16_t action = pStream->InspectStatusRsp( pIncoming, pSubStreamNum,
+                                                   pIncHandler.first );
+
+      if( action & IncomingMsgHandler::Corrupted )
+      {
+        OnHeaderCorruption();
         return;
+      }
+
+      if( action & IncomingMsgHandler::Raw )
+      {
+        pIncHandler.second = true;
+        return;
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -902,6 +914,25 @@ namespace XrdCl
     time_t now = time(0);
     if( now > pConnectionStarted+pConnectionTimeout )
       OnFaultWhileHandshaking( XRootDStatus( stError, errSocketTimeout ) );
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle header corruption in case of kXR_status response
+  //----------------------------------------------------------------------------
+  void AsyncSocketHandler::OnHeaderCorruption()
+  {
+    //--------------------------------------------------------------------------
+    // We need to force a socket error so this is handled in a similar way as
+    // a stream t/o and all requests are retried
+    //--------------------------------------------------------------------------
+    pStream->ForceError( XRootDStatus( stError, errSocketError ) );
+
+    if( !pIncHandler.second )
+      delete pIncoming;
+
+    pIncoming   = 0;
+    pOutgoing   = 0;
+    pOutHandler = 0;
   }
 
   //------------------------------------------------------------------------

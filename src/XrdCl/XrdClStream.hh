@@ -254,7 +254,7 @@ namespace XrdCl
       //!
       //! @return : a IncomingMsgHandler in case we need to read out raw data
       //------------------------------------------------------------------------
-      bool HasAdditionalRawData( Message *msg, uint16_t stream, IncomingMsgHandler *&incHandler );
+      uint16_t InspectStatusRsp( Message *msg, uint16_t stream, IncomingMsgHandler *&incHandler );
 
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams

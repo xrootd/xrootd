@@ -332,9 +332,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Reexamine the incoming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
-  uint16_t XRootDMsgHandler::Reexamine( Message *msg )
+  uint16_t XRootDMsgHandler::InspectStatusRsp( Message *msg )
   {
+    Log *log = DefaultEnv::GetLog();
     ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+
     //--------------------------------------------------------------------------
     // Additional action is only required for kXR_status
     //--------------------------------------------------------------------------
@@ -362,8 +364,11 @@ namespace XrdCl
     Status st = XRootDTransport::UnMarshalStatusBody( msg, reqId );
     if( !st.IsOK() )
     {
-      // TODO report an error !
-      // simply fail the message
+      log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
+                  pUrl.GetHostId().c_str() );
+      pStatus = Status( stFatal, errInvalidMessage );
+      HandleRspOrQueue();
+      return Ignore;
     }
 
     //--------------------------------------------------------------------------
@@ -371,23 +376,26 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( crcval != rspst->bdy.crc32c )
     {
-      // TODO we need to report an error!
-      // tear down the socket
+      log->Error( XRootDMsg, "[%s] kXR_status response header corrupted "
+                  "(crc32c integrity check failed).", pUrl.GetHostId().c_str() );
+      return Corrupted;
     }
 
     if( rspst->hdr.streamid[0] != rspst->bdy.streamID[0] ||
         rspst->hdr.streamid[1] != rspst->bdy.streamID[1] )
     {
-      // TODO we need to report an error
-      // tear down the socket
+      log->Error( XRootDMsg, "[%s] kXR_status response header corrupted "
+                  "(stream ID mismatch).", pUrl.GetHostId().c_str() );
+      return Corrupted;
     }
 
 
 
     if( rspst->bdy.requestid + kXR_1stRequest != reqId )
     {
-      // TODO we need to report an error
-      // tear down the socket
+      log->Error( XRootDMsg, "[%s] kXR_status response header corrupted "
+                  "(request ID mismatch).", pUrl.GetHostId().c_str() );
+      return Corrupted;
     }
 
     //--------------------------------------------------------------------------

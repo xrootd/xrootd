@@ -228,6 +228,11 @@ namespace XrdCl
       void OnTimeoutWhileHandshaking();
 
       //------------------------------------------------------------------------
+      // Handle header corruption in case of kXR_status response
+      //------------------------------------------------------------------------
+      void OnHeaderCorruption();
+
+      //------------------------------------------------------------------------
       // Carry out the TLS hand-shake
       //
       // The TLS hand-shake is being initiated in HandleHandShake() by calling
