@@ -9,6 +9,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[Server]** Avoid POSC deletion when file creation fails because it exists.
   **[CMS]** Use correct adminpath for creating Unix socket. Fixes #1255
   **[HTTP]** Correctly handle certs relative to refcount to avoid SEGV.
   **[Xcache]** Add missing initializer to avoid malloc() abort.
