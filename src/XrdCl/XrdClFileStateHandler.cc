@@ -1104,7 +1104,7 @@ namespace XrdCl
 
     Message             *msg;
     ClientPgReadRequest *req;
-    MessageUtils::CreateRequest( msg, req, sizeof( ClientPgReadRequest ) + sizeof( ClientPgReadReqArgs ) );
+    MessageUtils::CreateRequest( msg, req, sizeof( ClientPgReadReqArgs ) );
 
     req->requestid  = kXR_pgread;
     req->offset     = offset;
