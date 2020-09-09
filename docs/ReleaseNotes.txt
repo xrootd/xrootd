@@ -7,6 +7,32 @@ Release Notes
 
 
 --------------
+Version 5.0.2
+--------------
+
++ **Major bug fixes**
+  **[Server]** Avoid POSC deletion when file creation fails because it exists.
+  **[HTTP]** Prevent secret key leakage if specified in the config file.
+  **[Python]** Prevent deadlock in Python bindings from XRootD.client.finalize.
+
++ **Minor bug fixes**
+  **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
+  **[XRootD]** Correct flag reset code for esoteric ssq monitor option.
+  **[XrdCl]** Fix memory leak in copy process.
+
++ **Miscellaneous**
+  **[Server]** Strip out explicit plugin version designation with nasty message.
+  **[HTTP]** Honor the tlsreuse option.
+  **[HTTP]** Avoid issuing confusing messages for improbable configs.
+  **[TLS]** Really kill the session cache when asked.
+  **[Xcache]** Correct regression that killed dca option.
+  **[Utils]** Add SHA3 checksum to utils.
+  **[XrdCl]** Utils::GetHostAddresses: use shuffle insted of random_shuffle.
+  **[XrdCl]** xrdcp: short circuit file exists error.
+  **[Debian]** Add XrdClHttp plugin to xrootd-client-plugins package.
+  **[XrdVom]** Add symlink to libXrdHttpVOMS for backwards compatibility.
+
+--------------
 Version 5.0.1
 --------------
 

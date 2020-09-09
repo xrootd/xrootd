@@ -8,17 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
-  **[Server]** Avoid POSC deletion when file creation fails because it exists.
-  **[HTTP]** Prevent secret key leakage if specified in the config file.
 
 + **Minor bug fixes**
-  **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
-  **[XRootD]** Correct flag reset code for esoteric ssq monitor option.
 
 + **Miscellaneous**
-  **[Server]** Strip out explicit plugin version designation with nasty message.
-  **[HTTP]** Honor the tlsreuse option.
-  **[HTTP]** Avoid issuing confusing messages for improbable configs.
-  **[TLS]** Really kill the session cache when asked.
-  **[Xcache]** Correct regression that killed dca option.
-  **[Utils]** Add SHA3 checksum to utils.
