@@ -509,7 +509,7 @@ namespace
                                             XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
-        XRDCL_SMART_PTR_T<AnyObject>       responsePtr( response );
+        std::unique_ptr<AnyObject>       responsePtr( response );
         pSendParams.hostList = hostList;
 
         //----------------------------------------------------------------------

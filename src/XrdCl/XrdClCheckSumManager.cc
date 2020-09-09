@@ -111,7 +111,7 @@ namespace XrdCl
                   algName.c_str() );
       return false;
     }
-    XRDCL_SMART_PTR_T<XrdCksCalc> calcPtr( calc );
+    std::unique_ptr<XrdCksCalc> calcPtr( calc );
 
     //--------------------------------------------------------------------------
     // Open the file

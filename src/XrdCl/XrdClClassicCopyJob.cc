@@ -846,7 +846,7 @@ namespace
         if( pChunks.empty() )
           return XRootDStatus( stOK, suDone );
 
-        XRDCL_SMART_PTR_T<ChunkHandler> ch( pChunks.front() );
+        std::unique_ptr<ChunkHandler> ch( pChunks.front() );
         pChunks.pop();
         lck.unlock();
 
@@ -1604,7 +1604,7 @@ namespace
         // We wait for a chunk to be sent so that we have space for the current
         // one
         //----------------------------------------------------------------------
-        XRDCL_SMART_PTR_T<ChunkHandler> ch( pChunks.front() );
+        std::unique_ptr<ChunkHandler> ch( pChunks.front() );
         pChunks.pop();
         ch->sem->Wait();
         delete [] (char*)ch->chunk.buffer;
@@ -1878,7 +1878,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
     //--------------------------------------------------------------------------
-    XRDCL_SMART_PTR_T<Source> src;
+    std::unique_ptr<Source> src;
     if( xcp )
       src.reset( new XRootDSourceXCp( &GetSource(), chunkSize, parallelChunks, nbXcpSources, blockSize ) );
     else if( zip ) // TODO make zip work for xcp
@@ -1897,7 +1897,7 @@ namespace XrdCl
     if( !st.IsOK() ) return UpdateErrMsg( st, "source" );
     uint64_t size = src->GetSize() >= 0 ? src->GetSize() : 0;
 
-    XRDCL_SMART_PTR_T<Destination> dest;
+    std::unique_ptr<Destination> dest;
     URL newDestUrl( GetTarget() );
 
     if( GetTarget().GetProtocol() == "stdio" )

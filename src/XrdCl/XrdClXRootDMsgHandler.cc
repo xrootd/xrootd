@@ -483,7 +483,7 @@ namespace XrdCl
                  pRequest->GetDescription().c_str() );
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
       embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
-      XRDCL_SMART_PTR_T<Message> msgPtr( msg );
+      std::unique_ptr<Message> msgPtr( msg );
       pResponse = embededMsg; // this can never happen for oksofars
 
       // we need to unmarshall the header by hand
@@ -617,7 +617,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_redirect:
       {
-        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
+        std::unique_ptr<Message> msgPtr( pResponse );
         pResponse = 0;
 
         if( rsp->hdr.dlen <= 4 )
@@ -822,7 +822,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_wait:
       {
-        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
+        std::unique_ptr<Message> msgPtr( pResponse );
         pResponse = 0;
         uint32_t waitSeconds = 0;
 
@@ -908,7 +908,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_waitresp:
       {
-        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
+        std::unique_ptr<Message> msgPtr( pResponse );
         pResponse = 0;
 
         if( rsp->hdr.dlen < 4 )
@@ -932,7 +932,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       default:
       {
-        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
+        std::unique_ptr<Message> msgPtr( pResponse );
         pResponse = 0;
         log->Dump( XRootDMsg, "[%s] Got unrecognized response %d to "
                    "message %s", pUrl.GetHostId().c_str(),

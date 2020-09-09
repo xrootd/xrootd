@@ -108,7 +108,7 @@ namespace XrdCl
     if( !st.IsOK() )
       return st;
 
-    XRDCL_SMART_PTR_T<LocationInfo> locationInfoPtr( locationInfo );
+    std::unique_ptr<LocationInfo> locationInfoPtr( locationInfo );
 
     bool partial = st.code == suPartial ? true : false;
 
@@ -134,7 +134,7 @@ namespace XrdCl
       if( !st.IsOK() )
         return st;
 
-      XRDCL_SMART_PTR_T<Buffer> spaceInfoPtr( spaceInfo );
+      std::unique_ptr<Buffer> spaceInfoPtr( spaceInfo );
 
       //------------------------------------------------------------------------
       // Parse the cgi
