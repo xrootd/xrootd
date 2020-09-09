@@ -835,6 +835,7 @@ publish:koji:slc6:
     - web
   except:
     - branches
+  when: manual
 
 clean:artifacts:
   stage: clean
