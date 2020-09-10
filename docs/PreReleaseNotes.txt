@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Xcache]** Phase 1 of checksum integrity implementation (a.k.a pgread).
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
