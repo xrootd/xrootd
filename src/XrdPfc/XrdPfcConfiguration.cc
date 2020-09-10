@@ -56,6 +56,73 @@ bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalS
    return true;
 }
 
+/* Function: xcschk
+
+   Purpose:  To parse the directive: cschk [[no]net] [[no]cache] [uvkeep <arg>]
+
+             all     Checksum check on cache & net transfers.
+             cache   Checksum check on cache only, 'no' turns it off.
+             net     Checksum check on net transfers 'no' turns it off.
+             uvkeep  Maximum amount of time a cached file make be kept if it
+                     contains unverified checksums as n[d|h|m|s], where 'n'
+                     is a non-negative integer. A value of 0 prohibits disk
+                     caching unless the checksum can be verified. You can
+                     also specify "lru" which means the standard purge policy
+                     is to be used.
+
+   Output: true upon success or false upon failure.
+ */
+bool Cache::xcschk(XrdOucStream &Config)
+{
+   const char *val, *val2;
+   struct cschkopts {const char *opname; int opval;} csopts[] =
+   {
+      {"off",     csChk_None},
+      {"cache",   csChk_Cache},
+      {"net",     csChk_Net}
+   };
+   int i, numopts = sizeof(csopts)/sizeof(struct cschkopts);
+   bool isNo;
+
+   if (! (val = Config.GetWord()))
+   {m_log.Emsg("Config", "cschk parameter not specified"); return false; }
+
+   while(val)
+        {if ((isNo = strncmp(val, "no", 2) == 0)) val2 = val+2;
+            else val2 = val;
+         for (i = 0; i < numopts; i++)
+            {
+               if (! strcmp(val2, csopts[i].opname))
+               {
+                  if (isNo) m_csChk &= ~csopts[i].opval;
+                     else if (csopts[i].opval) m_csChk |= csopts[i].opval;
+                             else m_csChk = csopts[i].opval;
+                  break;
+               }
+            }
+          if (i >= numopts)
+          {  if (strcmp(val, "uvkeep"))
+             {  m_log.Emsg("Config", "invalid cschk option -", val);
+                return false;
+             }
+             if (! (val = Config.GetWord()))
+             {  m_log.Emsg("Config","cschk uvkeep value not specified");
+                return false;
+             }
+             if (!strcmp(val, "lru")) m_csUVKeep = -1;
+                else if (XrdOuca2x::a2tm(m_log,"uvkeep time",val,&m_csUVKeep,0))
+                        return false;
+          }
+          val = Config.GetWord();
+        }
+
+   if (m_csChk & csChk_Net) m_env->Put("psx.CSNet", "1");
+      else m_env->Put("psx.CSNet", "0");
+
+   return true;
+}
+
+
 /* Function: xdlib
 
    Purpose:  To parse the directive: decisionlib <path> [<parms>]
@@ -137,6 +204,7 @@ bool Cache::xtrace(XrdOucStream &Config)
          return true;
       }
    }
+   m_log.Emsg("Config", "invalid trace option -", val);
    return false;
 }
 
@@ -188,14 +256,22 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       m_configuration.m_wqueue_threads = 1;
    }
 
+   // If network checksum processing is the default, indicate so.
+   //
+   if (m_csChk & csChk_Net) m_env->Put("psx.CSNet", "1");
+
    // Actual parsing of the config file.
-   bool retval = true;
+   bool retval = true, aOK = true;
    char *var;
    while ((var = Config.GetMyFirstWord()))
    {
       if (! strcmp(var,"pfc.osslib"))
       {
          retval = ofsCfg->Parse(XrdOfsConfigPI::theOssLib);
+      }
+      else if (! strcmp(var,"pfc.cschk"))
+      {
+         retval = xcschk(Config);
       }
       else if (! strcmp(var,"pfc.decisionlib"))
       {
@@ -217,7 +293,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       if ( ! retval)
       {
          TRACE(Error, "Cache::Config() error in parsing");
-         break;
+         aOK = false;
       }
    }
 
@@ -259,10 +335,10 @@ bool Cache::Config(const char *config_filename, const char *parameters)
          if (m_configuration.m_diskUsageLWM >= m_configuration.m_diskUsageHWM) {
             printf("GGGG %lld %lld\n", m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
             m_log.Emsg("Cache::ConfigParameters()", "pfc.diskusage should have lowWatermark < highWatermark.");
-            retval = false;
+            aOK = false;
          }
       }
-      else retval = false;
+      else aOK = false;
 
       if ( ! tmpc.m_fileUsageMax.empty())
       {
@@ -275,10 +351,10 @@ bool Cache::Config(const char *config_filename, const char *parameters)
               m_configuration.m_fileUsageNominal  >= m_configuration.m_fileUsageMax)
           {
             m_log.Emsg("Cache::ConfigParameters()", "pfc.diskusage files should have baseline < nominal < max.");
-            retval = false;
+            aOK = false;
           }
         }
-        else retval = false;
+        else aOK = false;
       }
    }
    // sets flush frequency
@@ -320,12 +396,16 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    char* cenv = getenv("XRDDEBUG");
    if (cenv && ! strcmp(cenv,"1") && m_trace->What < 4) m_trace->What = 4;
 
-   if (retval)
+   if (aOK)
    {
       int  loff = 0;
-      char buff[8192];
+      const char *csc[] = {"off", "cache nonet", "nocache net", "cache net"};
+      char buff[8192], uvk[32];
+      if (m_csUVKeep < 0) strcpy(uvk, "lru");
+         else sprintf(uvk, "%d", m_csUVKeep);
       float rg =  (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
+                      "       pfc.cschk %s uvkeep %s\n"
                       "       pfc.blocksize %lld\n"
                       "       pfc.prefetch %d\n"
                       "       pfc.ram %.fg\n"
@@ -337,6 +417,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       "       pfc.flush %lld\n"
                       "       pfc.acchistorysize %d\n",
                       config_filename,
+                      csc[int(m_csChk)], uvk,
                       m_configuration.m_bufferSize,
                       m_configuration.m_prefetch_max_blocks,
                       rg,
@@ -392,11 +473,11 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    m_log.Say("Config Proxy File Cache g-stream has", m_gstream ? "" : " NOT", " been configured via xrootd.monitor directive");
 
-   m_log.Say("------ Proxy File Cache configuration parsing ", retval ? "completed" : "failed");
+   m_log.Say("------ Proxy File Cache configuration parsing ", aOK ? "completed" : "failed");
 
    if (ofsCfg) delete ofsCfg;
 
-   return retval;
+   return aOK;
 }
 
 //------------------------------------------------------------------------------

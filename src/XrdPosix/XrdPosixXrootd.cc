@@ -93,6 +93,7 @@ XrdCl::DirListFlags::Flags dlFlag = XrdCl::DirListFlags::None;
 bool             oidsOK    = false;
 bool             p2lSRC    = false;
 bool             p2lSGI    = false;
+bool             autoPGRD  = false;
 };
 
 int            XrdPosixXrootd::baseFD    = 0;

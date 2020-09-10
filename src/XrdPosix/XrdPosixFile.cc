@@ -47,6 +47,7 @@
 #include "XrdPosix/XrdPosixXrootdPath.hh"
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPageSize.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 /******************************************************************************/
@@ -61,6 +62,7 @@ extern XrdSysError     *eDest;
 extern XrdPosixStats    Stats;
 extern int              ddInterval;
 extern int              ddMaxTries;
+extern bool             autoPGRD;
 };
 
 namespace
@@ -84,6 +86,31 @@ char          *XrdPosixFile::sfSFX    =  0;
 short          XrdPosixFile::sfSLN    =  0;
 bool           XrdPosixFile::ddPosted = false;
 int            XrdPosixFile::ddNum    =  0;
+
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+  
+namespace
+{
+class pgioCB : public XrdOucCacheIOCB
+{
+public:
+
+void Done(int result)
+         {rc = result; pgSem.Post();}
+
+int  Wait4PGIO()      {pgSem.Wait(); return rc;}
+
+     pgioCB(const char *who) : pgSem(0, who), rc(0) {}
+    ~pgioCB() {}
+
+private:
+
+XrdSysSemaphore pgSem;
+int             rc;
+};
+}
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -409,6 +436,65 @@ const char *XrdPosixFile::Location()
 }
 
 /******************************************************************************/
+/*                                p g R e a d                                 */
+/******************************************************************************/
+
+int XrdPosixFile::pgRead(char                  *buff,
+                         long long              offs,
+                         int                    rlen,
+                         std::vector<uint32_t> &csvec,
+                         uint64_t               opts)
+{
+
+// Make sure the parameters line up on pages (this will be repeated later)
+//
+   if ((offs & XrdSys::PageMask) || (rlen & XrdSys::PageMask)) return -EINVAL;
+
+// Do a sync call using the async interface
+//
+   pgioCB pgrCB("Posix pgRead CB");
+   pgRead(pgrCB, buff, offs, rlen, csvec, opts);
+   return pgrCB.Wait4PGIO();
+}
+  
+/******************************************************************************/
+
+void XrdPosixFile::pgRead(XrdOucCacheIOCB       &iocb,
+                          char                  *buff,
+                          long long              offs,
+                          int                    rlen,
+                          std::vector<uint32_t> &csvec,
+                          uint64_t               opts)
+{
+   XrdCl::XRootDStatus Status;
+   XrdPosixFileRH *rhP;
+
+// Make sure the parameters line up on pages (this will be repeated later)
+//
+   if ((offs & XrdSys::PageMask) || (rlen & XrdSys::PageMask))
+      {iocb.Done(-EINVAL);
+       return;
+      }
+
+// Allocate callback object and set the checksum vector for returning result
+//
+   rhP = XrdPosixFileRH::Alloc(&iocb, this, offs, rlen, XrdPosixFileRH::isReadP);
+   rhP->setCSVec(&csvec, (opts & XrdOucCacheIO::forceCS) != 0);
+
+// Issue read
+//
+   Ref();
+   Status = clFile.PgRead((uint64_t)offs,(uint32_t)rlen,buff,rhP);
+
+// Check status
+//
+   if (!Status.IsOK())
+      {rhP->Sched(XrdPosixMap::Result(Status, false));
+       unRef();
+      }
+}
+
+/******************************************************************************/
 /*                                  R e a d                                   */
 /******************************************************************************/
 
@@ -416,6 +502,15 @@ int XrdPosixFile::Read (char *Buff, long long Offs, int Len)
 {
    XrdCl::XRootDStatus Status;
    uint32_t bytes;
+
+// If automatic pgread is wanted, make sure this read qualifies.
+//
+   if (!XrdPosixGlobals::autoPGRD
+   && !(Offs & XrdSys::PageMask) && !(Len & XrdSys::PageMask))
+      {pgioCB pgrCB("Posix pgRead CB");
+       Read(pgrCB, Buff, Offs, Len);
+       return pgrCB.Wait4PGIO();
+      }
 
 // Issue read and return appropriately.
 //
@@ -432,18 +527,30 @@ void XrdPosixFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
                          int rlen)
 {
    XrdCl::XRootDStatus Status;
-   XrdPosixFileRH *rhp =  XrdPosixFileRH::Alloc(&iocb, this, offs, rlen,
-                                                XrdPosixFileRH::isRead);
+   XrdPosixFileRH *rhP;
+   XrdPosixFileRH::ioType rhT;
+   bool doPgRd;
+
+// If automatic pgread is wanted, make sure this read qualifies.
+//
+   if (!XrdPosixGlobals::autoPGRD) doPgRd = false;
+      else doPgRd = !(offs & XrdSys::PageMask) && !(rlen & XrdSys::PageMask);
+
+// Allocate correct callback object
+//
+   rhT = (doPgRd ? XrdPosixFileRH::isReadP : XrdPosixFileRH::isRead);
+   rhP = XrdPosixFileRH::Alloc(&iocb, this, offs, rlen, rhT);
 
 // Issue read
 //
    Ref();
-   Status = clFile.Read((uint64_t)offs, (uint32_t)rlen, buff, rhp);
+   if (doPgRd) Status = clFile.PgRead((uint64_t)offs,(uint32_t)rlen,buff,rhP);
+      else     Status = clFile.Read  ((uint64_t)offs,(uint32_t)rlen,buff,rhP);
 
 // Check status
 //
    if (!Status.IsOK())
-      {rhp->Sched(XrdPosixMap::Result(Status, false));
+      {rhP->Sched(XrdPosixMap::Result(Status, false));
        unRef();
       }
 }

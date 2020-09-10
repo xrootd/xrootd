@@ -36,11 +36,11 @@
 /*                                p g R e a d                                 */
 /******************************************************************************/
 
-int XrdOucCacheIO::pgRead(char      *buff,
-                          long long  offs,
-                          int        rdlen,
-                          uint32_t  *csvec,
-                          uint64_t   opts)
+int XrdOucCacheIO::pgRead(char                  *buff,
+                          long long              offs,
+                          int                    rdlen,
+                          std::vector<uint32_t> &csvec,
+                          uint64_t               opts)
 {
    int bytes;
 
@@ -56,7 +56,12 @@ int XrdOucCacheIO::pgRead(char      *buff,
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0) XrdOucCRC::Calc32C((void *)buff, bytes, csvec);
+   if (bytes > 0 && (opts & forceCS))
+      {int n = (rdlen >> XrdSys::PageBits) + ((rdlen & XrdSys::PageMask) != 0);
+       csvec.resize(n);
+       csvec.assign(n, 0);
+       XrdOucCRC::Calc32C((void *)buff, bytes, csvec.data());
+      }
 
 // All done
 //

@@ -31,6 +31,8 @@
 /******************************************************************************/
 
 #include <errno.h>
+#include <cstdint>
+#include <vector>
 
 #include "XrdOuc/XrdOucCacheStats.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
@@ -171,19 +173,22 @@ const char  *Path() = 0;
 //! @param  rdlen The number of bytes to read. The amount must be an
 //!               integral number of XrdSys::PageSize bytes.
 //! @param  csvec A vector whose entries which will be filled with the
-//!               corresponding CRC32C checksum for each page; sized to:
-//!               (rdlen/XrdSys::PageSize + (rdlen%XrdSys::PageSize != 0).
-//! @param  opts  Processing options.
+//!               corresponding CRC32C checksum for each page. If a zero length
+//!               vector is returned, checksums are not available.
+//! @param  opts  Processing options:
+//!               forceCS - always return checksums even when not available.
 //!
 //! @return >= 0      The number of bytes placed in buffer.
 //! @return -errno    File could not be read, return value is the reason.
 //-----------------------------------------------------------------------------
 
-virtual int  pgRead(char      *buff,
-                    long long  offs,
-                    int        rdlen,
-                    uint32_t  *csvec,
-                    uint64_t   opts=0);
+static const uint64_t forceCS = 0x0000000000000001ULL;
+
+virtual int  pgRead(char                  *buff,
+                    long long              offs,
+                    int                    rdlen,
+                    std::vector<uint32_t> &csvec,
+                    uint64_t               opts=0);
 
 //-----------------------------------------------------------------------------
 //! Read file pages and checksums using asynchronous I/O (default sync).
@@ -197,18 +202,18 @@ virtual int  pgRead(char      *buff,
 //!               page aligned.
 //! @param  rdlen The number of bytes to read. The amount must be an
 //!               integral number of XrdSys::PageSize bytes.
-//! @param  csvec A vector of which will be filled with the corresponding
-//!               CRC32C checksum for each page; sized to:
-//!               (rdlen/XrdSys::PageSize + (rdlen%XrdSys::PageSize != 0).
-//! @param  opts  Processing options.
+//! @param  csvec A vector which will be filled with the corresponding
+//!               CRC32C checksum for each page.
+//! @param  opts  Processing options:
+//!               forceCS - always return checksums even when not available.
 //-----------------------------------------------------------------------------
 
-virtual void pgRead(XrdOucCacheIOCB &iocb,
-                    char            *buff,
-                    long long        offs,
-                    int              rdlen,
-                    uint32_t        *csvec,
-                    uint64_t         opts=0)
+virtual void pgRead(XrdOucCacheIOCB       &iocb,
+                    char                  *buff,
+                    long long              offs,
+                    int                    rdlen,
+                    std::vector<uint32_t> &csvec,
+                    uint64_t               opts=0)
                    {iocb.Done(pgRead(buff, offs, rdlen, csvec, opts));}
 
 //-----------------------------------------------------------------------------

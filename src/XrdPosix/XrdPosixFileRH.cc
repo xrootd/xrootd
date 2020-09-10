@@ -28,9 +28,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <utility>
+#include <vector>
+
 #include "Xrd/XrdScheduler.hh"
 
 #include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixFile.hh"
@@ -111,6 +115,28 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
             response->Get(cInfo);
             ubRead = (cInfo ? cInfo->length : 0);
             result = ibRead;
+           }
+   else if (typeIO == isReadP)
+           {XrdCl::PageInfo *pInfo = 0;
+            union {uint32_t ubRead; int ibRead;};
+            response->Get(pInfo);
+            if (pInfo)
+               {ubRead = pInfo->length;
+                result = ibRead;
+                if (csVec) 
+                   {if (!csFrc || pInfo->cksums.size() != 0 || result <= 0)
+                       *csVec = std::move(pInfo->cksums);
+                       else {int n = (result >> XrdSys::PageBits)
+                                   + ((result & XrdSys::PageMask) != 0);
+                             csVec->resize(n);
+                             csVec->assign(n, 0);
+                             XrdOucCRC::Calc32C(pInfo->buffer,result,csVec->data());
+                            }
+                   }
+               } else {
+                result = 0;
+                if (csVec) csVec->clear();
+               }
            }
    else if (typeIO == isWrite) theFile->UpdtSize(offset+result);
 

@@ -83,6 +83,7 @@ extern XrdCl::DirListFlags::Flags dlFlag;
 extern bool                       oidsOK;
 extern bool                       p2lSRC;
 extern bool                       p2lSGI;
+extern bool                       autoPGRD;
 };
   
 /******************************************************************************/
@@ -349,6 +350,7 @@ bool XrdPosixConfig::OpenFC(const char *path, int oflag, mode_t mode,
 bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 {
    XrdOucTList *tP;
+   const char *val;
 
 // Set log routing
 //
@@ -399,6 +401,11 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
       {XrdPosixGlobals::ddMaxTries = (parms.cioTries <  2 ?  2 : parms.cioTries);
        XrdPosixGlobals::ddInterval = (parms.cioWait  < 10 ? 10 : parms.cioWait);
       }
+
+// Set auto conversion of read to pgread
+//
+   if (parms.theCache && parms.theEnv && (val = parms.theEnv->Get("psx.CSNet"))
+   &&  *val == '1') XrdPosixGlobals::autoPGRD = true;
 
 // Handle the caching options (library or builin memory).
 // TODO: Make the memory cache a library plugin as well.

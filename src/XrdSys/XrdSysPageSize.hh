@@ -35,5 +35,6 @@ namespace XrdSys
 {
 static const int PageSize = 4096;
 static const int PageMask = 4095;
+static const int PageBits =   12;
 }
 #endif

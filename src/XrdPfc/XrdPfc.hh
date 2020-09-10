@@ -412,6 +412,7 @@ public:
 private:
    bool ConfigParameters(std::string, XrdOucStream&, TmpConfiguration &tmpc);
    bool ConfigXeq(char *, XrdOucStream &);
+   bool xcschk(XrdOucStream &);
    bool xdlib(XrdOucStream &);
    bool xtrace(XrdOucStream &);
 
@@ -444,7 +445,12 @@ private:
    std::list<char*> m_RAM_std_blocks;       //!< A list of blocks of standard size, to be reused.
    int              m_RAM_std_size;
 
+   int         m_csUVKeep;                  //!< unverified checksum cache keep
    bool        m_isClient;                  //!< True if running as client
+   char        m_csChk;                     //!< Checksum check
+   static const int csChk_None  = 0;
+   static const int csChk_Cache = 1;
+   static const int csChk_Net   = 2;
 
    struct WriteQ
    {
