@@ -679,7 +679,7 @@ int ceph_posix_close(int fd) {
                "last async op age %f", 
                fd, fr->name.c_str(), fr->rdcount, fr->wrcount, 
                fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesAsyncWritePending,
-               fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
+               fr->asyncRdCompletionCount, fr->asyncRdStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
                lastAsyncAge);
     deleteFileRef(fd, *fr);
     return 0;
@@ -784,6 +784,7 @@ static void ceph_aio_write_complete(rados_completion_t c, void *arg) {
     XrdSysMutexHelper lock(fr->statsMutex);
     fr->asyncWrCompletionCount++;
     fr->bytesAsyncWritePending -= awa->nbBytes;
+    fr->bytesWritten += awa->nbBytes;
     if (awa->aiop->sfsAio.aio_nbytes)
       fr->maxOffsetWritten = std::max(fr->maxOffsetWritten, awa->aiop->sfsAio.aio_offset + awa->aiop->sfsAio.aio_nbytes - 1);
     ::gettimeofday(&fr->lastAsyncSubmission, nullptr);
