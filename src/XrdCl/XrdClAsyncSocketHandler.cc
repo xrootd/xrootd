@@ -349,8 +349,6 @@ namespace XrdCl
     pHandShakeData->streamName = pStreamName;
 
     st = pTransport->HandShake( pHandShakeData, *pChannelData );
-    ++pHandShakeData->step;
-
     if( !st.IsOK() )
     {
       log->Error( AsyncSockMsg, "[%s] Connection negotiation failed",
@@ -358,6 +356,9 @@ namespace XrdCl
       pStream->OnConnectError( pSubStreamNum, st );
       return;
     }
+
+    if( st.code != suRetry )
+      ++pHandShakeData->step;
 
     //--------------------------------------------------------------------------
     // Transport has given us something to send
@@ -740,10 +741,17 @@ namespace XrdCl
       else
       {
         TaskManager *taskMgr = DefaultEnv::GetPostMaster()->GetTaskManager();
-        WaitTask *task = new WaitTask( this, pHandShakeData->out );
-        pHandShakeData->out = 0;
+        WaitTask *task = new WaitTask( this );
         taskMgr->RegisterTask( task, resendTime );
       }
+      return;
+    }
+    //--------------------------------------------------------------------------
+    // We are re-sending a protocol request
+    //--------------------------------------------------------------------------
+    else if( pHandShakeData->out )
+    {
+      SendHSMsg();
       return;
     }
 
@@ -793,14 +801,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else if( pHandShakeData->out )
     {
-      pHSOutgoing = pHandShakeData->out;
-      pHandShakeData->out = 0;
-      XRootDStatus st;
-      if( !(st = EnableUplink()).IsOK() )
-      {
-        OnFaultWhileHandshaking( st );
-        return;
-      }
+      SendHSMsg();
     }
   }
 
@@ -975,9 +976,10 @@ namespace XrdCl
                                                   *pChannelData ) );
   }
 
-  void AsyncSocketHandler::RetryHSMsg( Message *msg )
+  void AsyncSocketHandler::SendHSMsg()
   {
-    pHSOutgoing = msg;
+    pHSOutgoing = pHandShakeData->out;
+    pHandShakeData->out = 0;
     XRootDStatus st;
     if( !(st = EnableUplink()).IsOK() )
     {

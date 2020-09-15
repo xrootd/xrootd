@@ -44,23 +44,22 @@ namespace XrdCl
       class WaitTask: public XrdCl::Task
       {
         public:
-          WaitTask( XrdCl::AsyncSocketHandler *handler, XrdCl::Message *msg ):
-            pHandler( handler ), pMsg( msg )
+          WaitTask( XrdCl::AsyncSocketHandler *handler ):
+            pHandler( handler )
           {
             std::ostringstream o;
-            o << "WaitTask for: 0x" << msg;
+            o << "WaitTask for: 0x" << handler->pHandShakeData->out;
             SetName( o.str() );
           }
 
           virtual time_t Run( time_t now )
           {
-            pHandler->RetryHSMsg( pMsg );
+            pHandler->SendHSMsg();
             return 0;
           }
 
         private:
           XrdCl::AsyncSocketHandler *pHandler;
-          XrdCl::Message            *pMsg;
       };
 
     public:
@@ -255,7 +254,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Retry hand shake message
       //------------------------------------------------------------------------
-      void RetryHSMsg( Message *msg );
+      void SendHSMsg();
 
       //------------------------------------------------------------------------
       // Extract the value of a wait response

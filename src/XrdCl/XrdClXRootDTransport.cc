@@ -465,6 +465,14 @@ namespace XrdCl
         return st;
       }
 
+      if( st.code == suRetry )
+      {
+        handShakeData->out = GenerateProtocol( handShakeData, info,
+                                          ClientProtocolRequest::kXR_ExpLogin );
+        sInfo.status = XRootDStreamInfo::HandShakeReceived;
+        return Status( stOK, suRetry );
+      }
+
       handShakeData->out = GenerateLogIn( handShakeData, info );
       sInfo.status = XRootDStreamInfo::LoginSent;
       return Status( stOK, suContinue );
@@ -1622,14 +1630,48 @@ namespace XrdCl
     msg->Zero();
 
     ClientInitHandShake   *init  = (ClientInitHandShake *)msg->GetBuffer();
-    ClientProtocolRequest *proto = (ClientProtocolRequest *)msg->GetBuffer(20);
     init->fourth = htonl(4);
     init->fifth  = htonl(2012);
 
-    proto->requestid = htons(kXR_protocol);
-    proto->clientpv  = htonl(kXR_PROTOCOLVERSION);
-    proto->flags     = ClientProtocolRequest::kXR_secreqs |
-                       ClientProtocolRequest::kXR_ableTLS;
+    ClientProtocolRequest *proto = (ClientProtocolRequest *)msg->GetBuffer(20);
+    InitProtocolReq( proto, info, expect );
+
+    return msg;
+  }
+
+  //------------------------------------------------------------------------
+  // Generate the protocol message
+  //------------------------------------------------------------------------
+  Message *XRootDTransport::GenerateProtocol( HandShakeData     *hsData,
+                                              XRootDChannelInfo *info,
+                                              kXR_char           expect )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( XRootDTransportMsg,
+                "[%s] Sending out the kXR_protocol",
+                hsData->streamName.c_str() );
+
+    Message *msg = new Message();
+    msg->Allocate( sizeof(ClientProtocolRequest) );
+    msg->Zero();
+
+    ClientProtocolRequest *proto = (ClientProtocolRequest *)msg->GetBuffer();
+    InitProtocolReq( proto, info, expect );
+
+    return msg;
+  }
+
+  //------------------------------------------------------------------------
+  // Initialize protocol request
+  //------------------------------------------------------------------------
+  void XRootDTransport::InitProtocolReq( ClientProtocolRequest *request,
+                                         XRootDChannelInfo     *info,
+                                         kXR_char               expect )
+  {
+    request->requestid = htons(kXR_protocol);
+    request->clientpv  = htonl(kXR_PROTOCOLVERSION);
+    request->flags     = ClientProtocolRequest::kXR_secreqs |
+                         ClientProtocolRequest::kXR_ableTLS;
 
     bool nodata = false;
     if( expect & ClientProtocolRequest::kXR_ExpBind )
@@ -1640,14 +1682,14 @@ namespace XrdCl
       nodata = bool( value );
     }
 
-    if( info->encrypted && !nodata ) proto->flags |= ClientProtocolRequest::kXR_wantTLS;
-    proto->expect = expect;
+    if( info->encrypted && !nodata )
+      request->flags |= ClientProtocolRequest::kXR_wantTLS;
+    request->expect = expect;
     //--------------------------------------------------------------------------
     // If we are in the curse of establishing a connection in the context of
     // TPC update the expect! (this will be never followed be a bind)
     //--------------------------------------------------------------------------
-    if( info->istpc ) proto->expect = ClientProtocolRequest::kXR_ExpTPC;
-    return msg;
+    if( info->istpc ) request->expect = ClientProtocolRequest::kXR_ExpTPC;
   }
 
   //----------------------------------------------------------------------------
@@ -1756,6 +1798,37 @@ namespace XrdCl
       // to support encryption!
       //------------------------------------------------------------------------
       return Status( stFatal, errTlsError, ECONNREFUSED );
+    }
+
+    //--------------------------------------------------------------------------
+    // Now see if we have to enforce encryption in case the server does not
+    // support PgRead/PgWrite
+    //--------------------------------------------------------------------------
+    int tlsOnNoPgrw = DefaultWantTlsOnNoPgrw;
+    env->GetInt( "WantTlsOnNoPgrw", tlsOnNoPgrw );
+    if( !( info->serverFlags & kXR_suppgrw ) && tlsOnNoPgrw )
+    {
+      //------------------------------------------------------------------------
+      // If user requested encryption just make sure it is not switched off for
+      // data
+      //------------------------------------------------------------------------
+      if( info->encrypted )
+      {
+        log->Debug( XRootDTransportMsg,
+                    "[%s] Server does not support PgRead/PgWrite and"
+                    " WantTlsOnNoPgrw is on; enforcing encryption for data.",
+                    hsData->streamName.c_str() );
+        env->PutInt( "TlsNoData", DefaultTlsNoData );
+      }
+      //------------------------------------------------------------------------
+      // Otherwise, if server is not enforcing data encryption, we will need to
+      // redo the protocol request with kXR_wantTLS set.
+      //------------------------------------------------------------------------
+      else if( !( info->serverFlags & kXR_tlsData ) )
+      {
+        info->encrypted = true;
+        return Status( stOK, suRetry );
+      }
     }
 
     return Status( stOK, suContinue );

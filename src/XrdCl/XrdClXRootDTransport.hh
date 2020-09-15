@@ -280,6 +280,20 @@ namespace XrdCl
                                           kXR_char           expect );
 
       //------------------------------------------------------------------------
+      // Generate the protocol message
+      //------------------------------------------------------------------------
+      Message *GenerateProtocol( HandShakeData     *hsData,
+                                 XRootDChannelInfo *info,
+                                 kXR_char           expect );
+
+      //------------------------------------------------------------------------
+      // Initialize protocol request
+      //------------------------------------------------------------------------
+      void InitProtocolReq( ClientProtocolRequest *request,
+                            XRootDChannelInfo     *info,
+                            kXR_char               expect );
+
+      //------------------------------------------------------------------------
       // Process the server initial handshake response
       //------------------------------------------------------------------------
       Status ProcessServerHS( HandShakeData     *hsData,
