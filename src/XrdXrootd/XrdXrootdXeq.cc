@@ -2011,7 +2011,7 @@ int XrdXrootdProtocol::do_QconfCX(XrdOucTokenizer &qcargs, char *val)
 
 // Display the xrootd configuration
 //
-   if (XrdXrootdCF)
+   if (XrdXrootdCF && isTLS && getenv("XROOTD_QCFOK"))
       return Response.Send((void *)XrdXrootdCF->c_str(), XrdXrootdCF->length());
 
 // Respond with a null
