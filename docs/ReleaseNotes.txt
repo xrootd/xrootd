@@ -32,18 +32,11 @@ Version 5.0.0
   * **[Server]** Add ofs.ctllib directive for FSctl plugin.
   * **[Server]** Provide a way to see the actual server config when running.
   * **[Server]i** Provide fallback when an IPv6 address is missing a ptr record.
-  * **[Server]** Allow redirect differentiation for delegated and undelegated TPC.
   * **[Server]** Allow xrootd.fslib plugin to be generally stacked.
   * **[Server]** Implement a stackable post authentication plug-in (sec.entitylib).
   * **[Server]** Add getfile and putfile SFS interface.
   * **[Server]** Allow plugin stacking for most OFS plugins.
   * **[Server]** Add plug-in interface for performance reporting.
-  * **[Server]** Add xrd.network dyndns option for dynamic DNS handling.
-  * **[Server]** Properly handle dynamic DNS environments.
-  * **[Server]** Add evict option to the prepare request.
-  * **[Server]** Allow better handling for proxy caching clusters.
-  * **[Server]** Allow configurable posc sync level.
-  * **[Server]** Implement framework for a kXR_prepare plug-in.
   * **[Server]** Add Features(), getFile(), and putFile() methods to SFS.
   * **[Server]** Implement simple g-stream monitoring for medium level repotring.
   * **[Server]** Trivialize OFS plugin wrapping (breaks ABI).
