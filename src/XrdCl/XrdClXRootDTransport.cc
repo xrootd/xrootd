@@ -1689,7 +1689,8 @@ namespace XrdCl
     // If we are in the curse of establishing a connection in the context of
     // TPC update the expect! (this will be never followed be a bind)
     //--------------------------------------------------------------------------
-    if( info->istpc ) request->expect = ClientProtocolRequest::kXR_ExpTPC;
+    if( info->istpc )
+      request->expect = ClientProtocolRequest::kXR_ExpTPC;
   }
 
   //----------------------------------------------------------------------------
@@ -1824,7 +1825,8 @@ namespace XrdCl
       // Otherwise, if server is not enforcing data encryption, we will need to
       // redo the protocol request with kXR_wantTLS set.
       //------------------------------------------------------------------------
-      else if( !( info->serverFlags & kXR_tlsData ) )
+      else if( !( info->serverFlags & kXR_tlsData ) &&
+                ( info->serverFlags & kXR_haveTLS ) )
       {
         info->encrypted = true;
         return Status( stOK, suRetry );

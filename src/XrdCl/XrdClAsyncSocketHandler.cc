@@ -725,34 +725,37 @@ namespace XrdCl
     // We are handling a wait response and the transport handler told
     // as to retry the request
     //--------------------------------------------------------------------------
-    if( st.code == suRetry && waitSeconds >= 0 )
+    if( st.code == suRetry )
     {
-      time_t resendTime = ::time( 0 ) + waitSeconds;
-      if( resendTime > pConnectionStarted + pConnectionTimeout )
+      if( waitSeconds >=0 )
       {
-        Log *log = DefaultEnv::GetLog();
-        log->Error( AsyncSockMsg,
-                    "[%s] Wont retry kXR_endsess request because would"
-                    "reach connection timeout.",
-                    pStreamName.c_str() );
+        time_t resendTime = ::time( 0 ) + waitSeconds;
+        if( resendTime > pConnectionStarted + pConnectionTimeout )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Error( AsyncSockMsg,
+                      "[%s] Wont retry kXR_endsess request because would"
+                      "reach connection timeout.",
+                      pStreamName.c_str() );
 
-        OnFaultWhileHandshaking( XRootDStatus( stError, errSocketTimeout ) );
+          OnFaultWhileHandshaking( XRootDStatus( stError, errSocketTimeout ) );
+        }
+        else
+        {
+          TaskManager *taskMgr = DefaultEnv::GetPostMaster()->GetTaskManager();
+          WaitTask *task = new WaitTask( this );
+          taskMgr->RegisterTask( task, resendTime );
+        }
+        return;
       }
-      else
+      //--------------------------------------------------------------------------
+      // We are re-sending a protocol request
+      //--------------------------------------------------------------------------
+      else if( pHandShakeData->out )
       {
-        TaskManager *taskMgr = DefaultEnv::GetPostMaster()->GetTaskManager();
-        WaitTask *task = new WaitTask( this );
-        taskMgr->RegisterTask( task, resendTime );
+        SendHSMsg();
+        return;
       }
-      return;
-    }
-    //--------------------------------------------------------------------------
-    // We are re-sending a protocol request
-    //--------------------------------------------------------------------------
-    else if( pHandShakeData->out )
-    {
-      SendHSMsg();
-      return;
     }
 
     //--------------------------------------------------------------------------
