@@ -3937,7 +3937,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
    if (!(bck = (*bm)->GetBucket(kXRS_x509))) {
       cmsg = "buffer with requested info missing";
       // Is there a message from the client?
-      if (!(bck = (*bm)->GetBucket(kXRS_message))) {
+      if ((bck = (*bm)->GetBucket(kXRS_message))) {
          // Yes: decode it and print it
          String m;
          bck->ToString(m);
