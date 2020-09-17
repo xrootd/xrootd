@@ -704,8 +704,12 @@ namespace XrdCl
         std::ostringstream o;
 
         o << urlComponents[0];
-        if( rsp->body.redirect.port != -1 )
+        if( rsp->body.redirect.port > 0 )
           o << ":" << rsp->body.redirect.port << "/";
+        else if( rsp->body.redirect.port < 0 )
+        {
+          // TODO extract redirect flags
+        }
 
         URL newUrl = URL( o.str() );
         if( !newUrl.IsValid() )
