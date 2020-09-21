@@ -514,10 +514,8 @@ namespace XrdCl
     // If it is a local file, it can be only a metalink redirector
     //--------------------------------------------------------------------------
     if( pUrl.IsLocalFile() && pUrl.IsMetalink() )
-    {
-      pHosts->back().flags    = kXR_isManager | kXR_attrMeta | kXR_attrVirtRdr;
       pHosts->back().protocol = kXR_PROTOCOLVERSION;
-    }
+
     //--------------------------------------------------------------------------
     // We got an answer, check who we were talking to
     //--------------------------------------------------------------------------
