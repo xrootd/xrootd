@@ -708,7 +708,12 @@ namespace XrdCl
           o << ":" << rsp->body.redirect.port << "/";
         else if( rsp->body.redirect.port < 0 )
         {
-          // TODO extract redirect flags
+          //--------------------------------------------------------------------
+          // check if the manager wants to enforce write recovery at himself
+          // (beware we are dealing here with negative flags)
+          //--------------------------------------------------------------------
+          if( ~uint32_t( rsp->body.redirect.port ) & kXR_recoverWrts )
+            pHosts->back().flags |= kXR_recoverWrts;
         }
 
         URL newUrl = URL( o.str() );

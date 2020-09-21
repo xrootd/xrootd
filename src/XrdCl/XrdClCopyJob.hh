@@ -45,8 +45,7 @@ namespace XrdCl
         pResults( jobResults ),
         pJobId( jobId )
       {
-        pProperties->Get( "source", pSource );
-        pProperties->Get( "target", pTarget );
+        Init();
       }
 
       //------------------------------------------------------------------------
@@ -54,6 +53,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual ~CopyJob()
       {
+      }
+
+      //------------------------------------------------------------------------
+      // Initialize members
+      //------------------------------------------------------------------------
+      inline void Init()
+      {
+        pProperties->Get( "source", pSource );
+        pProperties->Get( "target", pTarget );
       }
 
       //------------------------------------------------------------------------

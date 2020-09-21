@@ -654,6 +654,7 @@ namespace XrdCl
     pDataServer( 0 ),
     pLoadBalancer( 0 ),
     pStateRedirect( 0 ),
+    pWrtRecoveryRedir( 0 ),
     pFileHandle( 0 ),
     pOpenMode( 0 ),
     pOpenFlags( 0 ),
@@ -685,6 +686,7 @@ namespace XrdCl
     pDataServer( 0 ),
     pLoadBalancer( 0 ),
     pStateRedirect( 0 ),
+    pWrtRecoveryRedir( 0 ),
     pFileHandle( 0 ),
     pOpenMode( 0 ),
     pOpenFlags( 0 ),
@@ -1719,6 +1721,8 @@ namespace XrdCl
       { value = pDataServer->GetHostId(); return true; }
     else if( name == "LastURL" && pDataServer )
       { value =  pDataServer->GetURL(); return true; }
+    else if( name == "WrtRecoveryRedir" && pWrtRecoveryRedir )
+      { value = pWrtRecoveryRedir->GetHostId(); return true; }
     value = "";
     return false;
   }
@@ -1742,6 +1746,8 @@ namespace XrdCl
       delete pDataServer;
       delete pLoadBalancer;
       pLoadBalancer = 0;
+      delete pWrtRecoveryRedir;
+      pWrtRecoveryRedir = 0;
 
       pDataServer = new URL( hostList->back().url );
       pDataServer->SetParams( pFileUrl->GetParams() );
@@ -1764,23 +1770,33 @@ namespace XrdCl
           pLoadBalancer = new URL( it->url );
           break;
         }
+
+      for( it = hostList->rbegin(); it != hostList->rend(); ++it )
+        if( it->flags & kXR_recoverWrts )
+        {
+          pWrtRecoveryRedir = new URL( it->url );
+          break;
+        }
     }
 
     log->Debug( FileMsg, "[0x%x@%s] Open has returned with status %s",
                 this, pFileUrl->GetURL().c_str(), status->ToStr().c_str() );
 
-    //--------------------------------------------------------------------------
-    // Check if we are using a secure connection
-    //--------------------------------------------------------------------------
-    XrdCl::AnyObject isencobj;
-    XrdCl::XRootDStatus st = XrdCl::DefaultEnv::GetPostMaster()->
-              QueryTransport( *pDataServer, XRootDQuery::IsEncrypted, isencobj );
-    if( st.IsOK() )
+    if( pDataServer && !pDataServer->IsLocalFile() )
     {
-      bool *isenc;
-      isencobj.Get( isenc );
-      pIsChannelEncrypted = *isenc;
-      delete isenc;
+      //------------------------------------------------------------------------
+      // Check if we are using a secure connection
+      //------------------------------------------------------------------------
+      XrdCl::AnyObject isencobj;
+      XrdCl::XRootDStatus st = XrdCl::DefaultEnv::GetPostMaster()->
+                QueryTransport( *pDataServer, XRootDQuery::IsEncrypted, isencobj );
+      if( st.IsOK() )
+      {
+        bool *isenc;
+        isencobj.Get( isenc );
+        pIsChannelEncrypted = *isenc;
+        delete isenc;
+      }
     }
 
     //--------------------------------------------------------------------------

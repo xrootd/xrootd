@@ -670,6 +670,7 @@ namespace XrdCl
       URL                    *pDataServer;
       URL                    *pLoadBalancer;
       URL                    *pStateRedirect;
+      URL                    *pWrtRecoveryRedir;
       uint8_t                *pFileHandle;
       uint16_t                pOpenMode;
       uint16_t                pOpenFlags;

@@ -411,6 +411,24 @@ namespace
         pMakeDir = makedir;
       }
 
+      //------------------------------------------------------------------------
+      //! Get last URL
+      //------------------------------------------------------------------------
+      virtual const std::string& GetLastURL() const
+      {
+        static const std::string empty;
+        return empty;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get write-recovery redirector
+      //------------------------------------------------------------------------
+      virtual const std::string& GetWrtRecoveryRedir() const
+      {
+        static const std::string empty;
+        return empty;
+      }
+
     protected:
       bool pPosc;
       bool pForce;
@@ -1615,7 +1633,12 @@ namespace
                       ch->chunk.length, ch->chunk.offset,
                       pUrl->GetURL().c_str(), ch->status.ToStr().c_str() );
           CleanUpChunks();
-          return ch->status;
+
+          //--------------------------------------------------------------------
+          // Check if we should re-try the transfer from scratch at a different
+          // data server
+          //--------------------------------------------------------------------
+          return CheckIfRetriable( ch->status );
         }
 
         return QueueChunk( ci );
@@ -1681,7 +1704,13 @@ namespace
           pChunks.pop();
           ch->sem->Wait();
           if( !ch->status.IsOK() )
-            st = ch->status;
+          {
+            //--------------------------------------------------------------------
+            // Check if we should re-try the transfer from scratch at a different
+            // data server
+            //--------------------------------------------------------------------
+            st = CheckIfRetriable( ch->status );
+          }
           delete [] (char *)ch->chunk.buffer;
           delete ch;
         }
@@ -1719,6 +1748,22 @@ namespace
         return ::SetXAttr( *pFile, xattrs );
       }
 
+      //------------------------------------------------------------------------
+      //! Get last URL
+      //------------------------------------------------------------------------
+      const std::string& GetLastURL() const
+      {
+        return pLastURL;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get write-recovery redirector
+      //------------------------------------------------------------------------
+      const std::string& GetWrtRecoveryRedir() const
+      {
+        return pWrtRecoveryRedir;
+      }
+
     private:
       XRootDDestination(const XRootDDestination &other);
       XRootDDestination &operator = (const XRootDDestination &other);
@@ -1746,11 +1791,33 @@ namespace
           XrdCl::XRootDStatus     status;
       };
 
+      inline XrdCl::XRootDStatus CheckIfRetriable( XrdCl::XRootDStatus &status )
+      {
+        if( status.IsOK() ) return status;
+
+        //--------------------------------------------------------------------
+        // Check if we should re-try the transfer from scratch at a different
+        // data server
+        //--------------------------------------------------------------------
+        std::string value;
+        if( pFile->GetProperty( "WrtRecoveryRedir", value ) )
+        {
+          pWrtRecoveryRedir = value;
+          if( pFile->GetProperty( "LastURL", value ) ) pLastURL = value;
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errRetry );
+        }
+
+        return status;
+      }
+
       const XrdCl::URL           *pUrl;
       XrdCl::File                *pFile;
       uint8_t                     pParallel;
       std::queue<ChunkHandler *>  pChunks;
       int64_t                     pSize;
+
+      std::string                 pWrtRecoveryRedir;
+      std::string                 pLastURL;
   };
 
   static XrdCl::XRootDStatus& UpdateErrMsg( XrdCl::XRootDStatus &status, const std::string &str )
@@ -1963,7 +2030,16 @@ namespace XrdCl
 
       st = dest->PutChunk( chunkInfo );
       if( !st.IsOK() )
+      {
+        if( st.code == errRetry )
+        {
+          pResults->Set( "LastURL", dest->GetLastURL() );
+          pResults->Set( "WrtRecoveryRedir", dest->GetWrtRecoveryRedir() );
+          return st;
+        }
+
         return UpdateErrMsg( st, "destination" );
+      }
 
       processed += chunkInfo.length;
       if( progress )

@@ -1060,6 +1060,10 @@ struct ServerResponseReqs_Protocol {
 #define kXR_attrSuper   0x00000400
 #define kXR_attrVirtRdr 0x00000800
 
+// Virtual options set on redirect
+//
+#define kXR_recoverWrts 0x00001000
+
 // Things the server supports
 //
 #define kXR_anongpf     0x00800000

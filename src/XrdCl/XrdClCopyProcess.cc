@@ -83,7 +83,49 @@ namespace
         //----------------------------------------------------------------------
         // Do the copy
         //----------------------------------------------------------------------
-        XrdCl::XRootDStatus st = pJob->Run( pProgress );
+        XrdCl::XRootDStatus st;
+        while( true )
+        {
+          st = pJob->Run( pProgress );
+          if( !st.IsOK() && st.code == XrdCl::errRetry )
+          {
+            std::string url;
+            pJob->GetResults()->Get( "LastURL", url );
+            XrdCl::URL lastURL( url );
+            XrdCl::URL::ParamsMap cgi = lastURL.GetParams();
+            auto itr = cgi.find( "tried" );
+            if( itr != cgi.end() )
+            {
+              std::string tried = itr->second;
+              if( tried[tried.size() - 1] != ',' ) tried += ',';
+              tried += lastURL.GetHostName();
+              cgi["tired"] = tried;
+            }
+            else
+              cgi["tried"] = lastURL.GetHostName();
+
+            std::string recoveryRedir;
+            pJob->GetResults()->Get( "WrtRecoveryRedir", recoveryRedir );
+            XrdCl::URL recRedirURL( recoveryRedir );
+
+            std::string target;
+            pJob->GetProperties()->Get( "target", target );
+            XrdCl::URL trgURL( target );
+            trgURL.SetHostName( recRedirURL.GetHostName() );
+            trgURL.SetPort( recRedirURL.GetPort() );
+            trgURL.SetProtocol( recRedirURL.GetProtocol() );
+            trgURL.SetParams( cgi );
+            pJob->GetProperties()->Set( "target", trgURL.GetURL() );
+            pJob->Init();
+
+            // we have a new job, let's try again
+            continue;
+          }
+
+          // we only loop in case of retry error
+          break;
+        }
+
         pJob->GetResults()->Set( "status", st );
 
         //----------------------------------------------------------------------
