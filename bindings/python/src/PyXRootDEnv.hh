@@ -111,7 +111,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* XrdVersion_cpp( PyObject *self, PyObject *args )
   {
-    return Py_BuildValue( "s", XrdVERSION );
+    static std::string verstr( XrdVERSION[0] == 'v' ? XrdVERSION + 1 : XrdVERSION );
+    return Py_BuildValue( "s", verstr.c_str() );
   }
 
 }
