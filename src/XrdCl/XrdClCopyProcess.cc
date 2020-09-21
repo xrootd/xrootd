@@ -35,6 +35,7 @@
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClConstants.hh"
 
 #include <sys/time.h>
 
@@ -52,7 +53,11 @@ namespace
                      uint16_t                    totalJobs,
                      XrdCl::Semaphore           *sem = 0 ):
         pJob(job), pProgress(progress), pCurrentJob(currentJob),
-        pTotalJobs(totalJobs), pSem(sem) {}
+        pTotalJobs(totalJobs), pSem(sem),
+        pRetryCnt( XrdCl::DefaultRetryWrtAtLBLimit )
+      {
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "RetryWrtAtLBLimit", pRetryCnt );
+      }
 
       //------------------------------------------------------------------------
       //! Run the job
@@ -87,7 +92,7 @@ namespace
         while( true )
         {
           st = pJob->Run( pProgress );
-          if( !st.IsOK() && st.code == XrdCl::errRetry )
+          if( !st.IsOK() && st.code == XrdCl::errRetry && pRetryCnt > 0 )
           {
             std::string url;
             pJob->GetResults()->Get( "LastURL", url );
@@ -119,6 +124,7 @@ namespace
             pJob->Init();
 
             // we have a new job, let's try again
+            --pRetryCnt;
             continue;
           }
 
@@ -158,6 +164,7 @@ namespace
       uint16_t                    pCurrentJob;
       uint16_t                    pTotalJobs;
       XrdCl::Semaphore           *pSem;
+      int                         pRetryCnt;
   };
 };
 

@@ -87,6 +87,7 @@ namespace XrdCl
   const int DefaultZipMtlnCksum            = 0;
   const int DefaultIPNoShuffle             = 0;
   const int DefaultWantTlsOnNoPgrw         = 0;
+  const int DefaultRetryWrtAtLBLimit       = 3;
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";
