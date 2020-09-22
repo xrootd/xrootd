@@ -77,6 +77,7 @@ struct CephFileRef : CephFile {
   unsigned asyncWrCompletionCount;
   ::timeval lastAsyncSubmission;
   double longestAsyncWriteTime;
+  double longestCallbackInvocation;
 };
 
 /// small struct for directory listing
@@ -453,6 +454,7 @@ static CephFileRef getCephFileRef(const char *path, XrdOucEnv *env, int flags,
   fr.lastAsyncSubmission.tv_sec = 0;
   fr.lastAsyncSubmission.tv_usec = 0;
   fr.longestAsyncWriteTime = 0.0l;
+  fr.longestCallbackInvocation = 0.0l;
   return fr;
 }
 
@@ -679,11 +681,11 @@ int ceph_posix_close(int fd) {
     logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d, "
                "async write ops %d/%d, async pending write bytes %ld, "
                "async read ops %d/%d, bytes written/max offset %ld/%ld, "
-               "longest async write %f, last async op age %f", 
+               "longest async write %f, longest callback invocation %f, last async op age %f", 
                fd, fr->name.c_str(), fr->rdcount, fr->wrcount, 
                fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesAsyncWritePending,
                fr->asyncRdCompletionCount, fr->asyncRdStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
-               fr->longestAsyncWriteTime, lastAsyncAge);
+               fr->longestAsyncWriteTime, fr->longestCallbackInvocation, lastAsyncAge);
     deleteFileRef(fd, *fr);
     return 0;
   } else {
@@ -795,7 +797,15 @@ static void ceph_aio_write_complete(rados_completion_t c, void *arg) {
     double writeTime = 0.000001 * (now.tv_usec - awa->startTime.tv_usec) + 1.0 * (now.tv_sec - awa->startTime.tv_sec);
     fr->longestAsyncWriteTime = std::max(fr->longestAsyncWriteTime, writeTime);
   }
+  ::timeval before, after;
+  if (fr) ::gettimeofday(&before, nullptr);
   awa->callback(awa->aiop, rc == 0 ? awa->nbBytes : rc);
+  if (fr) {
+    ::gettimeofday(&after, nullptr);
+    double callbackInvocationTime = 0.000001 * (after.tv_usec - before.tv_usec) + 1.0 * (after.tv_sec - before.tv_sec);
+    XrdSysMutexHelper lock(fr->statsMutex);
+    fr->longestCallbackInvocation = std::max(fr->longestCallbackInvocation, callbackInvocationTime);
+  }
   delete(awa);
 }
 
