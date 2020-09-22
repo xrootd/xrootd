@@ -1924,7 +1924,7 @@ namespace XrdCl
     loginReq->pid       = ::getpid();
     loginReq->capver[0] = kXR_asyncap | kXR_ver005;
     loginReq->dlen      = cgiLen;
-    loginReq->ability   = kXR_fullurl | kXR_readrdok | kXR_lclfile;
+    loginReq->ability   = kXR_fullurl | kXR_readrdok | kXR_lclfile | kXR_redirflags;
 
     int multiProtocol = 0;
     env->GetInt( "MultiProtocol", multiProtocol );
