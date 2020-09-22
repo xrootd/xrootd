@@ -650,7 +650,7 @@ void Cache::dec_ref_cnt(File* f, bool high_debug)
                                "\"b_hit\":%lld,\"b_miss\":%lld,\"b_bypass\":%lld}",
                                f->GetLocalPath().c_str(), f->GetFileSize(), f->GetBlockSize(),
                                f->GetNBlocks(), f->GetNDownloadedBlocks(),
-                               f->GetAccessCnt(), (long long) as->AttachTime, (long long) as->DetachTime,
+                               (unsigned long) f->GetAccessCnt(), (long long) as->AttachTime, (long long) as->DetachTime,
                                as->BytesHit, as->BytesMissed, as->BytesBypassed
            );
            bool suc = false;
