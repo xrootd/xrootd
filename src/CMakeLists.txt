@@ -1,11 +1,22 @@
+#-------------------------------------------------------------------------------
+# If this is a build for pip set up the rpath
+# (this is especially important for plugins)
+#-------------------------------------------------------------------------------
+if( PYPI_BUILD )
+  set( CMAKE_INSTALL_RPATH "$ORIGIN" )
+  set( CMAKE_INSTALL_RPATH_USE_LINK_PATH true )
+endif()
 
 #-------------------------------------------------------------------------------
-# Include the subcomponents
+# XRDCL_LIB_ONLY implies XRDCL_ONLY
 #-------------------------------------------------------------------------------
 if( XRDCL_LIB_ONLY )
   set ( XRDCL_ONLY TRUE )
 endif()
 
+#-------------------------------------------------------------------------------
+# Include the subcomponents
+#-------------------------------------------------------------------------------
 include( XrdUtils )
 include( XrdApps )
 include( XrdCrypto )
