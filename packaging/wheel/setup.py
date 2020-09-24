@@ -85,10 +85,10 @@ class CustomInstall(install):
         useropt = ''
         command = ['./install.sh']
         if self.user:
-            prefix = self.install_usersite + '/pyxrootd'
+            prefix = self.install_usersite
             useropt = '--user'
         else:
-            prefix = self.install_platlib + '/pyxrootd'
+            prefix = self.install_platlib
         command.append(prefix)
         command.append( py_version_short )
         command.append( useropt )
