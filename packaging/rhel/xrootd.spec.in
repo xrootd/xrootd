@@ -8,10 +8,26 @@
         %define use_systemd 1
         %define have_macaroons 1
 		%define use_libc_semaphore 1
+
+        %if %{rhel} == 7
+			# we build both python2 and python3 bindings for EPEL7
+			%define python2only 0
+			%define python3only 0
+			%define python2and3 1
+        %else
+			# we only build both python3 bindings for EPEL>7
+			%define python2only 0
+			%define python3only 1
+			%define python2and3 0
+        %endif
     %else
         %define use_systemd 0
         %define have_macaroons 0
  		%define use_libc_semaphore 0
+		# we only build python2 bindings for EPEL<=6
+		%define python2only 1
+		%define python3only 0
+		%define python2and3 0
     %endif
 %else
     # do we have macaroons ?
@@ -32,6 +48,10 @@
 	%else
 	    %define use_libc_semaphore 0
 	%endif
+    # we only build python3 bindings for fedora
+	%define python2only 0
+	%define python3only 1
+	%define python2and3 0
 %endif
 
 
@@ -103,10 +123,14 @@ BuildRequires: libmacaroons-devel
 %endif
 BuildRequires: json-c-devel
 
+%if %{python2only}
 BuildRequires: python2-devel
-%if %{?fedora}%{!?fedora:0} >= 13
-BuildRequires: python3-devel
-%else
+%endif
+%if %{python2and3}
+BuildRequires: python2-devel
+BuildRequires: python%{python3_pkgversion}-devel
+%endif
+%if %{python3only}
 BuildRequires: python%{python3_pkgversion}-devel
 %endif
 
@@ -308,16 +332,33 @@ This package contains the FUSE (file system in user space) xrootd mount
 tool.
 
 #-------------------------------------------------------------------------------
-# python2
+# Python bindings
+#-------------------------------------------------------------------------------
+
+%if %{python2only}
+#-------------------------------------------------------------------------------
+# python2 only (EPEL6)
 #-------------------------------------------------------------------------------
 %package -n python2-%{name}
 Summary:       Python 2 bindings for XRootD
 Group:         Development/Libraries
-%if %{?fedora}%{!?fedora:0} >= 13
-%{?python_provide:%python_provide python2-%{name}}
-%else
 Provides:      python-%{name}
+Provides:      %{name}-python = %{epoch}:%{version}-%{release}
+Obsoletes:     %{name}-python < 1:4.8.0-1
+Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description -n python2-xrootd
+Python 2 bindings for XRootD
 %endif
+
+%if %{python2and3}
+#-------------------------------------------------------------------------------
+# python2 (EPEL7)
+#-------------------------------------------------------------------------------
+%package -n python2-%{name}
+Summary:       Python 2 bindings for XRootD
+Group:         Development/Libraries
+Provides:      python-%{name}
 Provides:      %{name}-python = %{epoch}:%{version}-%{release}
 Obsoletes:     %{name}-python < 1:4.8.0-1
 Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
@@ -325,19 +366,29 @@ Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 %description -n python2-xrootd
 Python 2 bindings for XRootD
 
-%if %{?_with_python3:1}%{!?_with_python3:0}
 #-------------------------------------------------------------------------------
-# python3
+# python3 (EPEL7)
 #-------------------------------------------------------------------------------
-%package -n python3-%{name}
+%package -n python%{python3_pkgversion}-%{name}
 Summary:       Python 3 bindings for XRootD
 Group:         Development/Libraries
-%if %{?fedora}%{!?fedora:0} >= 13
-%{?python_provide:%python_provide python3-%{name}}
-%endif
 Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
-%description -n python3-xrootd
+%description -n python%{python3_pkgversion}-%{name}
+Python 3 bindings for XRootD
+%endif
+
+%if %{python3only}
+#-------------------------------------------------------------------------------
+# python3 only (Fedora and EPEL8)
+#-------------------------------------------------------------------------------
+%package -n python%{python3_pkgversion}-%{name}
+Summary:       Python 3 bindings for XRootD
+Group:         Development/Libraries
+%{?python_provide:%python_provide python%{python3_pkgversion}-%{name}}
+Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description -n python%{python3_pkgversion}-%{name}
 Python 3 bindings for XRootD
 %endif
 
@@ -487,6 +538,9 @@ cmake  \
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
       -DXRDCLHTTP_SUBMODULE=TRUE \
 %endif
+%if %{python3only}
+      -DXRD_PYTHON_REQ_VERSION=%{python3_pkgversion} \
+%endif
       -DUSE_LIBC_SEMAPHORE=%{use_libc_semaphore} ../
 
 make -i VERBOSE=1 %{?_smp_mflags}
@@ -527,7 +581,7 @@ popd
 popd
 %endif
 
-%if %{?_with_python3:1}%{!?_with_python3:0}
+%if %{python2and3}
 # build python3 bindings
 pushd build/bindings/python
 %py3_build
@@ -651,7 +705,7 @@ mkdir -p %{buildroot}%{_datadir}/selinux/packages/%{name}
 install -m 644 -p packaging/common/xrootd.pp \
     %{buildroot}%{_datadir}/selinux/packages/%{name}/%{name}.pp
 
-%if %{?_with_python3:1}%{!?_with_python3:0}
+%if %{python2and3}
 # install python3 bindings
 pushd build/bindings/python
 %py3_install
@@ -940,8 +994,24 @@ fi
 %{_mandir}/man1/xrootdfs.1*
 %dir %{_sysconfdir}/xrootd
 
+%if %{python2only}
 %files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
 %defattr(-,root,root,-)
+%endif
+
+%if %{python2and3}
+%files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
+%defattr(-,root,root,-)
+
+%files -n python%{python3_pkgversion}-%{name}
+%defattr(-,root,root,-)
+%{python3_sitearch}/*
+%endif
+
+%if %{python3only}
+%files -n python%{python3_pkgversion}-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
+%defattr(-,root,root,-)
+%endif
 
 %files voms
 %defattr(-,root,root,-)
@@ -950,12 +1020,6 @@ fi
 %{_libdir}/libXrdHttpVOMS-5.so
 %doc %{_mandir}/man1/libXrdVoms.1.gz
 %doc %{_mandir}/man1/libXrdSecgsiVOMS.1.gz
-
-%if %{?_with_python3:1}%{!?_with_python3:0}
-%files -n python3-%{name}
-%defattr(-,root,root,-)
-%{python3_sitearch}/*
-%endif
 
 %files doc
 %defattr(-,root,root,-)
