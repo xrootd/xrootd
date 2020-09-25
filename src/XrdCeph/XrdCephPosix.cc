@@ -76,6 +76,8 @@ struct CephFileRef : CephFile {
   unsigned asyncWrStartCount;
   unsigned asyncWrCompletionCount;
   ::timeval lastAsyncSubmission;
+  double longestAsyncWriteTime;
+  double longestCallbackInvocation;
 };
 
 /// small struct for directory listing
@@ -87,11 +89,12 @@ struct DirIterator {
 /// small struct for aio API callbacks
 struct AioArgs {
   AioArgs(XrdSfsAio* a, AioCB *b, size_t n, int _fd, ceph::bufferlist *_bl=0) :
-    aiop(a), callback(b), nbBytes(n), fd(_fd), bl(_bl) {}
+    aiop(a), callback(b), nbBytes(n), fd(_fd), bl(_bl) { ::gettimeofday(&startTime, nullptr); }
   XrdSfsAio* aiop;
   AioCB *callback;
   size_t nbBytes;
   int fd;
+  ::timeval startTime;
   ceph::bufferlist *bl;
 };
 
@@ -450,6 +453,8 @@ static CephFileRef getCephFileRef(const char *path, XrdOucEnv *env, int flags,
   fr.asyncWrCompletionCount = 0;
   fr.lastAsyncSubmission.tv_sec = 0;
   fr.lastAsyncSubmission.tv_usec = 0;
+  fr.longestAsyncWriteTime = 0.0l;
+  fr.longestCallbackInvocation = 0.0l;
   return fr;
 }
 
@@ -676,11 +681,11 @@ int ceph_posix_close(int fd) {
     logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d, "
                "async write ops %d/%d, async pending write bytes %ld, "
                "async read ops %d/%d, bytes written/max offset %ld/%ld, "
-               "last async op age %f", 
+               "longest async write %f, longest callback invocation %f, last async op age %f", 
                fd, fr->name.c_str(), fr->rdcount, fr->wrcount, 
                fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesAsyncWritePending,
-               fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
-               lastAsyncAge);
+               fr->asyncRdCompletionCount, fr->asyncRdStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
+               fr->longestAsyncWriteTime, fr->longestCallbackInvocation, lastAsyncAge);
     deleteFileRef(fd, *fr);
     return 0;
   } else {
@@ -784,11 +789,23 @@ static void ceph_aio_write_complete(rados_completion_t c, void *arg) {
     XrdSysMutexHelper lock(fr->statsMutex);
     fr->asyncWrCompletionCount++;
     fr->bytesAsyncWritePending -= awa->nbBytes;
+    fr->bytesWritten += awa->nbBytes;
     if (awa->aiop->sfsAio.aio_nbytes)
       fr->maxOffsetWritten = std::max(fr->maxOffsetWritten, awa->aiop->sfsAio.aio_offset + awa->aiop->sfsAio.aio_nbytes - 1);
-    ::gettimeofday(&fr->lastAsyncSubmission, nullptr);
+    ::timeval now;
+    ::gettimeofday(&now, nullptr);
+    double writeTime = 0.000001 * (now.tv_usec - awa->startTime.tv_usec) + 1.0 * (now.tv_sec - awa->startTime.tv_sec);
+    fr->longestAsyncWriteTime = std::max(fr->longestAsyncWriteTime, writeTime);
   }
+  ::timeval before, after;
+  if (fr) ::gettimeofday(&before, nullptr);
   awa->callback(awa->aiop, rc == 0 ? awa->nbBytes : rc);
+  if (fr) {
+    ::gettimeofday(&after, nullptr);
+    double callbackInvocationTime = 0.000001 * (after.tv_usec - before.tv_usec) + 1.0 * (after.tv_sec - before.tv_sec);
+    XrdSysMutexHelper lock(fr->statsMutex);
+    fr->longestCallbackInvocation = std::max(fr->longestCallbackInvocation, callbackInvocationTime);
+  }
   delete(awa);
 }
 
@@ -828,6 +845,7 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
     completion->release();
     XrdSysMutexHelper lock(fr->statsMutex);
     fr->asyncWrStartCount++;
+    ::gettimeofday(&fr->lastAsyncSubmission, nullptr);
     fr->bytesAsyncWritePending+=count;
     return rc;
   } else {
