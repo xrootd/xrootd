@@ -152,6 +152,7 @@ int XrdCksManOss::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
          calcSize -= ioSize; Offset += ioSize;
          if (calcSize < (size_t)ioSize) ioSize = calcSize;
         }
+   free(buffP);
 
 // Issue error message if we have an error
 //
