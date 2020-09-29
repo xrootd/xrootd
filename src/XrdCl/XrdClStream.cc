@@ -1026,6 +1026,11 @@ namespace XrdCl
         // object that aggregates this Stream.
         //----------------------------------------------------------------------
         DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
+        //----------------------------------------------------------------------
+        // Call the on TTL callback
+        //----------------------------------------------------------------------
+        if( pTtlCb)
+          pTtlCb->Run( 0 );
         return;
       }
     }

@@ -171,6 +171,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetOnDataConnectHandler( std::shared_ptr<Job> &onConnJob );
 
+      //------------------------------------------------------------------------
+      //! Set the TTL callback
+      //------------------------------------------------------------------------
+      void SetTtlCb( std::unique_ptr<Job> cb );
+
     private:
 
       URL                    pUrl;

@@ -371,11 +371,19 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  //! Set the on-connect handler for data streams
+  // Set the on-connect handler for data streams
   //------------------------------------------------------------------------
   void Channel::SetOnDataConnectHandler( std::shared_ptr<Job> &onConnJob )
   {
     pStream->SetOnDataConnectHandler( onConnJob );
+  }
+
+  //------------------------------------------------------------------------
+  // Set the TTL callback
+  //------------------------------------------------------------------------
+  void Channel::SetTtlCb( std::unique_ptr<Job> cb )
+  {
+    pStream->SetTtlCb( std::move( cb ) );
   }
 
   //----------------------------------------------------------------------------
