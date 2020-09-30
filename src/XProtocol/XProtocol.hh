@@ -1053,35 +1053,36 @@ struct ServerResponseReqs_Protocol {
 // The below are defined for protocol version 2.9.7 or higher
 // These are the flag values in the kXR_protool response
 //
-#define kXR_isManager   0x00000002
-#define kXR_isServer    0x00000001
-#define kXR_attrMeta    0x00000100
-#define kXR_attrProxy   0x00000200
-#define kXR_attrSuper   0x00000400
-#define kXR_attrVirtRdr 0x00000800
+#define kXR_isManager     0x00000002
+#define kXR_isServer      0x00000001
+#define kXR_attrMeta      0x00000100
+#define kXR_attrProxy     0x00000200
+#define kXR_attrSuper     0x00000400
+#define kXR_attrVirtRdr   0x00000800
 
 // Virtual options set on redirect
 //
-#define kXR_recoverWrts 0x00001000
+#define kXR_recoverWrts   0x00001000
+#define kXR_collapseRedir 0x00002000
 
 // Things the server supports
 //
-#define kXR_anongpf     0x00800000
-#define kXR_supgpf      0x00400000
-#define kXR_suppgrw     0x00200000
-#define kXR_supposc     0x00100000
+#define kXR_anongpf       0x00800000
+#define kXR_supgpf        0x00400000
+#define kXR_suppgrw       0x00200000
+#define kXR_supposc       0x00100000
 
 // TLS requirements
 //
-#define kXR_haveTLS     0x80000000
-#define kXR_gotoTLS     0x40000000
-#define kXR_tlsAny      0x1f000000
-#define kXR_tlsData     0x01000000
-#define kXR_tlsGPF      0x02000000
-#define kXR_tlsLogin    0x04000000
-#define kXR_tlsSess     0x08000000
-#define kXR_tlsTPC      0x10000000
-#define kXR_tlsGPFA     0x20000000
+#define kXR_haveTLS       0x80000000
+#define kXR_gotoTLS       0x40000000
+#define kXR_tlsAny        0x1f000000
+#define kXR_tlsData       0x01000000
+#define kXR_tlsGPF        0x02000000
+#define kXR_tlsLogin      0x04000000
+#define kXR_tlsSess       0x08000000
+#define kXR_tlsTPC        0x10000000
+#define kXR_tlsGPFA       0x20000000
 
 // Body for the kXR_protocol response... useful
 //

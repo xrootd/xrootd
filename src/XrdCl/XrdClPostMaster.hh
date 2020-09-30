@@ -223,6 +223,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void NotifyConnectHandler( const URL &url );
 
+      //------------------------------------------------------------------------
+      //! Collapse channel URL - replace the URL of the channel
+      //------------------------------------------------------------------------
+      void CollapseRedirect( const URL &oldurl, const URL &newURL );
+
     private:
       Channel *GetChannel( const URL &url );
 

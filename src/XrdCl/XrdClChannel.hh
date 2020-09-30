@@ -61,7 +61,8 @@ namespace XrdCl
                Poller           *poller,
                TransportHandler *transport,
                TaskManager      *taskManager,
-               JobManager       *jobManager );
+               JobManager       *jobManager,
+               const URL        &prefurl = URL() );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -172,9 +173,10 @@ namespace XrdCl
       void SetOnDataConnectHandler( std::shared_ptr<Job> &onConnJob );
 
       //------------------------------------------------------------------------
-      //! Set the TTL callback
+      //! @return : true if this channel can be collapsed using this URL, false
+      //!           otherwise
       //------------------------------------------------------------------------
-      void SetTtlCb( std::unique_ptr<Job> cb );
+      bool CanCollapse( const URL &url );
 
     private:
 

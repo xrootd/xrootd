@@ -392,6 +392,58 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  //! Collapse channel URL - replace the URL of the channel
+  //----------------------------------------------------------------------------
+  void PostMaster::CollapseRedirect( const URL &alias, const URL &url )
+  {
+    XrdSysMutexHelper scopedLock( pImpl->pChannelMapMutex );
+
+    //--------------------------------------------------------------------------
+    // Get the passive channel
+    //--------------------------------------------------------------------------
+    PostMasterImpl::ChannelMap::iterator it =
+        pImpl->pChannelMap.find( alias.GetChannelId() );
+    Channel *passive = 0;
+    if( it != pImpl->pChannelMap.end() )
+      passive = it->second;
+    //--------------------------------------------------------------------------
+    // If the channel does not exist there's nothing to do
+    //--------------------------------------------------------------------------
+    else return;
+
+    //--------------------------------------------------------------------------
+    // Check if this URL is eligible for collapsing
+    //--------------------------------------------------------------------------
+    if( !passive->CanCollapse( url ) ) return;
+
+    //--------------------------------------------------------------------------
+    // Create the active channel
+    //--------------------------------------------------------------------------
+    TransportManager *trManager = DefaultEnv::GetTransportManager();
+    TransportHandler *trHandler = trManager->GetHandler( url.GetProtocol() );
+
+    if( !trHandler )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Error( PostMasterMsg, "Unable to get transport handler for %s "
+                  "protocol", url.GetProtocol().c_str() );
+      return;
+    }
+
+    Log *log = DefaultEnv::GetLog();
+    log->Info( PostMasterMsg, "Lable channel %s with alias %s.",
+               url.GetHostId().c_str(), alias.GetHostId().c_str() );
+
+    Channel *active = new Channel( alias, pImpl->pPoller, trHandler,
+                                   pImpl->pTaskManager, pImpl->pJobManager, url );
+    pImpl->pChannelMap[alias.GetChannelId()] = active;
+
+    //--------------------------------------------------------------------------
+    // The passive channel will be deallocated by TTL
+    //--------------------------------------------------------------------------
+  }
+
+  //----------------------------------------------------------------------------
   // Get the channel
   //----------------------------------------------------------------------------
   Channel *PostMaster::GetChannel( const URL &url )

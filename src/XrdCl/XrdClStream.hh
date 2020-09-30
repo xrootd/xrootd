@@ -62,7 +62,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Stream( const URL *url );
+      Stream( const URL *url, const URL &prefer = URL() );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -265,12 +265,10 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Set the TTL callback
+      //! @return : true is this channel can be collapsed using this URL, false
+      //!           otherwise
       //------------------------------------------------------------------------
-      void SetTtlCb( std::unique_ptr<Job> cb )
-      {
-        pTtlCb = std::move( cb );
-      }
+      bool CanCollapse( const URL &url );
 
     private:
 
@@ -278,6 +276,21 @@ namespace XrdCl
       //! Check if message is a partial response
       //------------------------------------------------------------------------
       static bool IsPartial( Message *msg );
+
+      //------------------------------------------------------------------------
+      //! Check if addresses contains given address
+      //------------------------------------------------------------------------
+      inline static bool HasNetAddr( const XrdNetAddr              &addr,
+                                     const std::vector<XrdNetAddr> &addresses )
+      {
+        auto itr = addresses.begin();
+        for( ; itr != addresses.end() ; ++itr )
+        {
+          if( itr->Same( &addr ) ) return true;
+        }
+
+        return false;
+      }
 
       //------------------------------------------------------------------------
       // Job queuing the incoming messages
@@ -337,6 +350,7 @@ namespace XrdCl
       // Data members
       //------------------------------------------------------------------------
       const URL                     *pUrl;
+      const URL                      pPrefer;
       std::string                    pStreamName;
       TransportHandler              *pTransport;
       Poller                        *pPoller;
@@ -375,11 +389,6 @@ namespace XrdCl
       // Data stream on-connect handler
       //------------------------------------------------------------------------
       std::shared_ptr<Job>           pOnDataConnJob;
-
-      //------------------------------------------------------------------------
-      // On TTL callback
-      //------------------------------------------------------------------------
-      std::unique_ptr<Job>           pTtlCb;
   };
 }
 

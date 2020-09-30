@@ -108,8 +108,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  Stream::Stream( const URL *url ):
+  Stream::Stream( const URL *url, const URL &prefer ):
     pUrl( url ),
+    pPrefer( prefer ),
     pTransport( 0 ),
     pPoller( 0 ),
     pTaskManager( 0 ),
@@ -252,6 +253,33 @@ namespace XrdCl
       st.status        = stFatal;
       pLastFatalError  = st;
       return st;
+    }
+
+    if( pPrefer.IsValid() )
+    {
+      std::vector<XrdNetAddr> addrresses;
+      XRootDStatus st = Utils::GetHostAddresses( addrresses, pPrefer, pAddressType );
+      if( !st.IsOK() )
+      {
+        log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for %s",
+                    pStreamName.c_str(), pPrefer.GetHostName().c_str() );
+      }
+      else
+      {
+        std::vector<XrdNetAddr> tmp;
+        tmp.reserve( pAddresses.size() );
+        // first add all remaining addresses
+        auto itr = pAddresses.begin();
+        for( ; itr != pAddresses.end() ; ++itr )
+        {
+          if( !HasNetAddr( *itr, addrresses ) )
+            tmp.push_back( *itr );
+        }
+        // then copy all 'preferred' addresses
+        std::copy( addrresses.begin(), addrresses.end(), std::back_inserter( tmp ) );
+        // and keep the result
+        pAddresses.swap( tmp );
+      }
     }
 
     Utils::LogHostAddresses( log, PostMasterMsg, pUrl->GetHostId(),
@@ -1026,11 +1054,6 @@ namespace XrdCl
         // object that aggregates this Stream.
         //----------------------------------------------------------------------
         DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
-        //----------------------------------------------------------------------
-        // Call the on TTL callback
-        //----------------------------------------------------------------------
-        if( pTtlCb)
-          pTtlCb->Run( 0 );
         return;
       }
     }
@@ -1092,11 +1115,11 @@ namespace XrdCl
     return std::make_pair( (IncomingMsgHandler*)0, ownership );
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! In case the message is a kXR_status response it needs further attention
   //!
   //! @return : a IncomingMsgHandler in case we need to read out raw data
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   uint16_t Stream::InspectStatusRsp( Message             *msg,
                                      uint16_t             stream,
                                      IncomingMsgHandler *&incHandler )
@@ -1116,5 +1139,50 @@ namespace XrdCl
       return IncomingMsgHandler::Corrupted;
 
     return IncomingMsgHandler::None;
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if channel can be collapsed using given URL
+  //----------------------------------------------------------------------------
+  bool Stream::CanCollapse( const URL &url )
+  {
+    Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // Resolve all the addresses of the host we're supposed to connect to
+    //--------------------------------------------------------------------------
+    std::vector<XrdNetAddr> prefaddrs;
+    XRootDStatus st = Utils::GetHostAddresses( prefaddrs, url, pAddressType );
+    if( !st.IsOK() )
+    {
+      log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for %s."
+                  , pStreamName.c_str(), url.GetHostName().c_str() );
+      return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Resolve all the addresses of the alias
+    //--------------------------------------------------------------------------
+    std::vector<XrdNetAddr> aliasaddrs;
+    st = Utils::GetHostAddresses( aliasaddrs, *pUrl, pAddressType );
+    if( !st.IsOK() )
+    {
+      log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for %s."
+                  , pStreamName.c_str(), pUrl->GetHostName().c_str() );
+      return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Now check if the preferred host is part of the alias
+    //--------------------------------------------------------------------------
+    auto itr = prefaddrs.begin();
+    for( ; itr != prefaddrs.end() ; ++itr )
+    {
+      auto itr2 = aliasaddrs.begin();
+      for( ; itr2 != aliasaddrs.end() ; ++itr2 )
+        if( itr->Same( &*itr2 ) ) return true;
+    }
+
+    return false;
   }
 }

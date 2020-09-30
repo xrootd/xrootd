@@ -238,7 +238,8 @@ namespace XrdCl
                     Poller           *poller,
                     TransportHandler *transport,
                     TaskManager      *taskManager,
-                    JobManager       *jobManager ):
+                    JobManager       *jobManager,
+                    const URL        &prefurl ):
     pUrl( url.GetHostId() ),
     pPoller( poller ),
     pTransport( transport ),
@@ -262,14 +263,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Create the stream
     //--------------------------------------------------------------------------
-      pStream = new Stream( &pUrl );
-      pStream->SetTransport( transport );
-      pStream->SetPoller( poller );
-      pStream->SetIncomingQueue( &pIncoming );
-      pStream->SetTaskManager( taskManager );
-      pStream->SetJobManager( jobManager );
-      pStream->SetChannelData( &pChannelData );
-      pStream->Initialize();
+    pStream = new Stream( &pUrl, prefurl );
+    pStream->SetTransport( transport );
+    pStream->SetPoller( poller );
+    pStream->SetIncomingQueue( &pIncoming );
+    pStream->SetTaskManager( taskManager );
+    pStream->SetJobManager( jobManager );
+    pStream->SetChannelData( &pChannelData );
+    pStream->Initialize();
 
     //--------------------------------------------------------------------------
     // Register the task generating timeout events
@@ -379,11 +380,11 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  // Set the TTL callback
+  // Check if channel can be collapsed using given URL
   //------------------------------------------------------------------------
-  void Channel::SetTtlCb( std::unique_ptr<Job> cb )
+  bool Channel::CanCollapse( const URL &url )
   {
-    pStream->SetTtlCb( std::move( cb ) );
+    return pStream->CanCollapse( url );
   }
 
   //----------------------------------------------------------------------------

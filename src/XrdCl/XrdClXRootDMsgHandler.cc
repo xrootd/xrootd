@@ -712,6 +712,13 @@ namespace XrdCl
           //--------------------------------------------------------------------
           if( ~uint32_t( rsp->body.redirect.port ) & kXR_recoverWrts )
             pHosts->back().flags |= kXR_recoverWrts;
+
+          //--------------------------------------------------------------------
+          // check if the manager wants to collapse the communication channel
+          // (the redirect host is to replace the current host)
+          //--------------------------------------------------------------------
+          if( ~uint32_t( rsp->body.redirect.port ) & kXR_collapseRedir )
+            pPostMaster->CollapseRedirect( pUrl, rsp->body.redirect.host );
         }
 
         URL newUrl = URL( o.str() );
