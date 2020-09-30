@@ -265,7 +265,7 @@ int         Protocol() {return static_cast<int>(protType);}
 //!         Failure: False (addresses are not the same).
 //-----------------------------------------------------------------------------sav-
 
-int         Same(const XrdNetAddrInfo *ipAddr, bool plusPort=false);
+int         Same(const XrdNetAddrInfo *ipAddr, bool plusPort=false) const;
 
 //------------------------------------------------------------------------------
 //! Provide a pointer to our socket address suitable for use in calls to
