@@ -112,7 +112,7 @@ namespace XrdCl
     for( it = pSocketMap.begin(); it != pSocketMap.end(); ++it )
     {
       PollerHelper *helper = (PollerHelper*)it->second;
-             helper->channel->Delete();
+      if( helper->channel ) helper->channel->Delete();
       delete helper->callBack;
       delete helper;
     }
