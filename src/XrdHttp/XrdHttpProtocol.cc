@@ -1167,8 +1167,8 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
     }
 
     if (rlen < 0) {
-      Link->setEtext("link timeout");
-      return 1;
+      Link->setEtext("link timeout or other error");
+      return -1;
     }
 
 
