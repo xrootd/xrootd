@@ -6,6 +6,22 @@ Release Notes
 =============
 
 --------------
+Version 4.12.5
+--------------
+
++ **Major bug fixes**
+  * **[CMake]** Set rpath for pip build.
+  * **[PIP]** Convert egg-info into proper dist-info.
+  * **[XrdCl]** Make sure kXR_attrVirtRdr flag is set properly.
+
++ **Minor bug fixes**
+  * **[PIP]** Generate XrdVersion.hh before packaging xrootd source for pip.
+
++ **Miscellaneous**
+  * **[Python]** Strip the leading v from __version__.
+  * **[CI]** Update release scripts.
+
+--------------
 Version 4.12.4
 --------------
 
