@@ -676,8 +676,12 @@ int ceph_posix_close(int fd) {
     ::timeval now;
     ::gettimeofday(&now, nullptr);
     XrdSysMutexHelper lock(fr->statsMutex);
-    double lastAsyncAge = 1.0 * (now.tv_sec - fr->lastAsyncSubmission.tv_sec) 
-            + 0.000001 * (now.tv_usec - fr->lastAsyncSubmission.tv_usec);
+    double lastAsyncAge = 0.0;
+    // Only compute an age if the starting point was set.
+    if (fr->lastAsyncSubmission.tv_sec && fr->lastAsyncSubmission.tv_usec) {
+      lastAsyncAge = 1.0 * (now.tv_sec - fr->lastAsyncSubmission.tv_sec) 
+              + 0.000001 * (now.tv_usec - fr->lastAsyncSubmission.tv_usec);
+    }
     logwrapper((char*)"ceph_close: closed fd %d for file %s, read ops count %d, write ops count %d, "
                "async write ops %d/%d, async pending write bytes %ld, "
                "async read ops %d/%d, bytes written/max offset %ld/%ld, "
@@ -685,7 +689,7 @@ int ceph_posix_close(int fd) {
                fd, fr->name.c_str(), fr->rdcount, fr->wrcount, 
                fr->asyncWrCompletionCount, fr->asyncWrStartCount, fr->bytesAsyncWritePending,
                fr->asyncRdCompletionCount, fr->asyncRdStartCount, fr->bytesWritten,  fr->maxOffsetWritten,
-               fr->longestAsyncWriteTime, fr->longestCallbackInvocation, lastAsyncAge);
+               fr->longestAsyncWriteTime, fr->longestCallbackInvocation, (lastAsyncAge));
     deleteFileRef(fd, *fr);
     return 0;
   } else {
