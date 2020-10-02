@@ -291,6 +291,34 @@ namespace XrdCl
     return status;
   }
 
+
+  XRootDStatus File::Write( uint64_t          offset,
+                            Buffer          &&buffer,
+                            ResponseHandler  *handler,
+                            uint16_t          timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Write( offset, std::move( buffer ), handler, timeout );
+
+    return pStateHandler->Write( offset, std::move( buffer ), handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Write a data chunk at a given offset - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Write( uint64_t    offset,
+                            Buffer    &&buffer,
+                            uint16_t    timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = Write( offset, std::move( buffer ), &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
+  }
+
   //------------------------------------------------------------------------
   // Write number of pages at a given offset - async
   //------------------------------------------------------------------------

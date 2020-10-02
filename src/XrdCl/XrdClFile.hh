@@ -273,6 +273,36 @@ namespace XrdCl
                           XRD_WARN_UNUSED_RESULT;
 
       //------------------------------------------------------------------------
+      //! Write a data chunk at a given offset - async
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param buffer  r-value reference to Buffer object, in this case XrdCl
+      //!                runtime takes ownership of the buffer
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Write( uint64_t          offset,
+                          Buffer          &&buffer,
+                          ResponseHandler  *handler,
+                          uint16_t          timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write a data chunk at a given offset - sync
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param buffer  r-value reference to Buffer object, in this case XrdCl
+      //!                runtime takes ownership of the buffer
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Write( uint64_t          offset,
+                          Buffer          &&buffer,
+                          uint16_t          timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Write number of pages at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file

@@ -29,14 +29,17 @@
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClLocalFileHandler.hh"
 #include "XrdCl/XrdClOptional.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysPageSize.hh"
+
 #include <list>
 #include <set>
 #include <vector>
 
 #include <sys/uio.h>
+#include <stdint.h>
 
 namespace
 {
@@ -276,7 +279,7 @@ namespace XrdCl
       //! @param fdoff   offset of the data to be written from the file descriptor
       //!                (optional, if not provided will copy data from the file
       //!                descriptor at the current cursor position)
-      //! @param fd      file descriptor
+      //! @param fd      file descriptor open for reading
       //! @param handler handler to be notified when the response arrives
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
@@ -661,6 +664,11 @@ namespace XrdCl
                                  Message           *msg,
                                  ResponseHandler   *handler,
                                  MessageSendParams &sendParams );
+
+      static inline bool IsPageAligned(const void *ptr )
+      {
+        return uintptr_t( ptr ) % XrdSys::PageSize == 0;
+      }
 
       mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;

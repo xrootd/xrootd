@@ -42,6 +42,7 @@
 #include "XrdOuc/XrdOucCRC.hh"
 
 #include "XrdSys/XrdSysPageSize.hh"
+#include "XrdSys/XrdSysKernelBuffer.hh"
 
 #include <sstream>
 #include <memory>
@@ -499,6 +500,7 @@ namespace
       {
         delete pMessage;
         delete pSendParams.chunkList;
+        delete pSendParams.kbuff;
       }
 
       //------------------------------------------------------------------------
@@ -543,6 +545,45 @@ namespace
       XrdCl::ResponseHandler   *pUserHandler;
       XrdCl::Message           *pMessage;
       XrdCl::MessageSendParams  pSendParams;
+  };
+
+  //----------------------------------------------------------------------------
+  // Release-buffer Handler
+  //----------------------------------------------------------------------------
+  class ReleaseBufferHandler: public XrdCl::ResponseHandler
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      ReleaseBufferHandler( XrdCl::Buffer &&buffer, XrdCl::ResponseHandler *handler ) :
+        buffer( std::move( buffer ) ),
+        handler( handler )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
+      {
+        handler->HandleResponseWithHosts( status, response, hostList );
+      }
+
+      //------------------------------------------------------------------------
+      // Get the underlying buffer
+      //------------------------------------------------------------------------
+      XrdCl::Buffer& GetBuffer()
+      {
+        return buffer;
+      }
+
+    private:
+      XrdCl::Buffer buffer;
+      XrdCl::ResponseHandler *handler;
   };
 }
 
@@ -1185,15 +1226,84 @@ namespace XrdCl
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
-  //------------------------------------------------------------------------
-  // Write a data chunk at a given offset - async
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Write a data chunk at a given offset
+  //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Write( uint64_t          offset,
                                         Buffer          &&buffer,
                                         ResponseHandler  *handler,
                                         uint16_t          timeout )
   {
-    return XRootDStatus( stError, errNotImplemented );
+    //--------------------------------------------------------------------------
+    // If the memory is not page (4KB) aligned we cannot use the kernel buffer
+    // so fall back to normal write
+    //--------------------------------------------------------------------------
+    if( !IsPageAligned( buffer.GetBuffer() ) || pIsChannelEncrypted )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Info( FileMsg, "[0x%x@%s] Buffer is not page aligned (4KB), cannot "
+                 "convert it to kernel space buffer.", this, pFileUrl->GetURL().c_str(),
+                 *((uint32_t*)pFileHandle) );
+
+      void     *buff = buffer.GetBuffer();
+      uint32_t  size = buffer.GetSize();
+      ReleaseBufferHandler *wrtHandler =
+          new ReleaseBufferHandler( std::move( buffer ), handler );
+      XRootDStatus st = Write( offset, size, buff, wrtHandler, timeout );
+      if( !st.IsOK() )
+      {
+        buffer = std::move( wrtHandler->GetBuffer() );
+        delete wrtHandler;
+      }
+      return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Transfer the data from user space to kernel space
+    //--------------------------------------------------------------------------
+    uint32_t  length = buffer.GetSize();
+    char     *ubuff  = buffer.Release();
+
+    std::unique_ptr<XrdSys::KernelBuffer> kbuff( new XrdSys::KernelBuffer() );
+    ssize_t ret = XrdSys::Move( ubuff, *kbuff, length );
+    if( ret < 0 )
+      return XRootDStatus( stError, errInternal, XProtocol::mapError( errno ) );
+
+    //--------------------------------------------------------------------------
+    // Create the write request
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientWriteRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid  = kXR_write;
+    req->offset     = offset;
+    req->dlen       = length;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.kbuff           = kbuff.release();
+    params.chunkList       = new ChunkList();
+
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //------------------------------------------------------------------------
@@ -1955,8 +2065,9 @@ namespace XrdCl
 
     //--------------------------------------------------------------------------
     // The message is not recoverable
+    // (message using a kernel buffer is not recoverable by definition)
     //--------------------------------------------------------------------------
-    if( !IsRecoverable( *status ) )
+    if( !IsRecoverable( *status ) || sendParams.kbuff )
     {
       log->Error( FileMsg, "[0x%x@%s] Fatal file state error. Message %s "
                  "returned with %s", this, pFileUrl->GetURL().c_str(),
