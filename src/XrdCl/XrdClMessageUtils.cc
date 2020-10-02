@@ -40,11 +40,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message
   //----------------------------------------------------------------------------
-  XRootDStatus MessageUtils::SendMessage( const URL               &url,
-                                          Message                 *msg,
-                                          ResponseHandler         *handler,
-                                          const MessageSendParams &sendParams,
-                                          LocalFileHandler        *lFileHandler )
+  XRootDStatus MessageUtils::SendMessage( const URL         &url,
+                                          Message           *msg,
+                                          ResponseHandler   *handler,
+                                          MessageSendParams &sendParams,
+                                          LocalFileHandler  *lFileHandler )
   {
     //--------------------------------------------------------------------------
     // Get the stuff needed to send the message
@@ -87,6 +87,7 @@ namespace XrdCl
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
     msgHandler->SetOksofarAsAnswer( sendParams.chunkedResponse );
     msgHandler->SetChunkList( sendParams.chunkList );
+    msgHandler->SetKernelBuffer( sendParams.kbuff );
     msgHandler->SetRedirectCounter( sendParams.redirectLimit );
     msgHandler->SetStateful( sendParams.stateful );
 

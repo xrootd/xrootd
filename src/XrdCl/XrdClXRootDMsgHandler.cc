@@ -1439,27 +1439,64 @@ namespace XrdCl
   Status XRootDMsgHandler::WriteMessageBody( Socket   *socket,
                                              uint32_t &bytesWritten )
   {
-    size_t size = pChunkList->size();
-    for( size_t i = pAsyncChunkIndex ; i < size; ++i )
-    {
-      char     *buffer          = (char*)(*pChunkList)[i].buffer;
-      uint32_t  size            = (*pChunkList)[i].length;
-      size_t    leftToBeWritten = size - pAsyncOffset;
 
-      while( leftToBeWritten )
+
+    if( !pChunkList->empty() )
+    {
+      size_t size = pChunkList->size();
+      for( size_t i = pAsyncChunkIndex ; i < size; ++i )
       {
-        int bytesWritten = 0;
-        Status st = socket->Send( buffer + pAsyncOffset, leftToBeWritten, bytesWritten );
-        if( !st.IsOK() || st.code == suRetry ) return st;
-        pAsyncOffset    += bytesWritten;
-        leftToBeWritten -= bytesWritten;
+        char     *buffer          = (char*)(*pChunkList)[i].buffer;
+        uint32_t  size            = (*pChunkList)[i].length;
+        size_t    leftToBeWritten = size - pAsyncOffset;
+
+        while( leftToBeWritten )
+        {
+          int bytesWritten = 0;
+          Status st = socket->Send( buffer + pAsyncOffset, leftToBeWritten, bytesWritten );
+          if( !st.IsOK() || st.code == suRetry ) return st;
+          pAsyncOffset    += bytesWritten;
+          leftToBeWritten -= bytesWritten;
+        }
+        //----------------------------------------------------------------------
+        // Remember that we have moved to the next chunk, also clear the offset
+        // within the buffer as we are going to move to a new one
+        //----------------------------------------------------------------------
+        ++pAsyncChunkIndex;
+        pAsyncOffset = 0;
       }
+    }
+    else
+    {
+      Log *log = DefaultEnv::GetLog();
+
       //------------------------------------------------------------------------
-      // Remember that we have moved to the next chunk, also clear the offset
-      // within the buffer as we are going to move to a new one
+      // If the socket is encrypted we cannot use a kernel buffer, we have to
+      // convert to user space buffer
       //------------------------------------------------------------------------
-      ++pAsyncChunkIndex;
-      pAsyncOffset = 0;
+      if( socket->IsEncrypted() )
+      {
+        log->Debug( ExDbgMsg, "[%s] Channel is encrypted: cannot use kernel buffer.",
+                    pUrl.GetHostId().c_str() );
+
+        char *ubuff = 0;
+        ssize_t ret = XrdSys::Move( *pKBuff, ubuff );
+        if( ret < 0 ) return Status( stError, errInternal );
+        pChunkList->push_back( ChunkInfo( 0, ret, ubuff ) );
+        return WriteMessageBody( socket, bytesWritten );
+      }
+
+      //------------------------------------------------------------------------
+      // Send the data
+      //------------------------------------------------------------------------
+      while( !pKBuff->Empty() )
+      {
+        Status st = socket->Send( *pKBuff );
+        if( !st.IsOK() || st.code == suRetry ) return st;
+      }
+
+      log->Debug( ExDbgMsg, "[%s] Request %s payload (kernel buffer) transfered to socket.",
+                  pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
     }
 
     return Status();

@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdSys/XrdSysKernelBuffer.hh"
 
 namespace XrdCl
 {
@@ -131,16 +132,17 @@ namespace XrdCl
   {
     MessageSendParams():
       timeout(0), expires(0), followRedirects(true), chunkedResponse(false),
-      stateful(true), hostList(0), chunkList(0), redirectLimit(0) {}
-    uint16_t         timeout;
-    time_t           expires;
-    HostInfo         loadBalancer;
-    bool             followRedirects;
-    bool             chunkedResponse;
-    bool             stateful;
-    HostList        *hostList;
-    ChunkList       *chunkList;
-    uint16_t         redirectLimit;
+      stateful(true), hostList(0), chunkList(0), redirectLimit(0), kbuff(0) {}
+    uint16_t              timeout;
+    time_t                expires;
+    HostInfo              loadBalancer;
+    bool                  followRedirects;
+    bool                  chunkedResponse;
+    bool                  stateful;
+    HostList             *hostList;
+    ChunkList            *chunkList;
+    uint16_t              redirectLimit;
+    XrdSys::KernelBuffer *kbuff;
   };
 
   class MessageUtils
@@ -204,11 +206,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Send message
       //------------------------------------------------------------------------
-      static XRootDStatus SendMessage( const URL               &url,
-                                       Message                 *msg,
-                                       ResponseHandler         *handler,
-                                       const MessageSendParams &sendParams,
-                                       LocalFileHandler        *lFileHandler );
+      static XRootDStatus SendMessage( const URL         &url,
+                                       Message           *msg,
+                                       ResponseHandler   *handler,
+                                       MessageSendParams &sendParams,
+                                       LocalFileHandler  *lFileHandler );
 
       //------------------------------------------------------------------------
       //! Redirect message

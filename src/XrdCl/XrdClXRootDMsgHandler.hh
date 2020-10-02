@@ -35,6 +35,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPageSize.hh"
+#include "XrdSys/XrdSysKernelBuffer.hh"
 
 #include <sys/uio.h>
 #include <arpa/inet.h> // for network unmarshaling stuff
@@ -385,6 +386,14 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Set the kernel buffer
+      //------------------------------------------------------------------------
+      void SetKernelBuffer( XrdSys::KernelBuffer *kbuff )
+      {
+        pKBuff = kbuff;
+      }
+
+      //------------------------------------------------------------------------
       //! Set the redirect counter
       //------------------------------------------------------------------------
       void SetRedirectCounter( uint16_t redirectCounter )
@@ -663,6 +672,7 @@ namespace XrdCl
       bool                            pHasSessionId;
       std::string                     pRedirectUrl;
       ChunkList                      *pChunkList;
+      XrdSys::KernelBuffer           *pKBuff;
       std::vector<ChunkStatus>        pChunkStatus;
       uint16_t                        pRedirectCounter;
       uint16_t                        pNotAuthorizedCounter;
