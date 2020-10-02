@@ -47,6 +47,8 @@ namespace XrdSys
 
       friend ssize_t Write( int, KernelBuffer&, loff_t );
 
+      friend ssize_t Send( int, KernelBuffer& );
+
       friend ssize_t Move( KernelBuffer&, char*& );
 
       friend ssize_t Move( char*&, KernelBuffer&, size_t );
@@ -98,6 +100,14 @@ namespace XrdSys
       ~KernelBuffer()
       {
         if( capacity > 0 ) Free();
+      }
+
+      //------------------------------------------------------------------------
+      //! @return : true is buffer is empty, false otherwise
+      //------------------------------------------------------------------------
+      inline bool Empty() const
+      {
+        return size == 0;
       }
 
     private:
@@ -167,6 +177,7 @@ namespace XrdSys
           length -= ret;
           size += ret;
         }
+        pipes_cursor = pipes.begin();
 
         return size;
       }
@@ -186,11 +197,42 @@ namespace XrdSys
 
         ssize_t result = 0;
 
-        auto itr = pipes.begin();
-        for( ; itr != pipes.end() ; ++itr )
+        auto itr = pipes_cursor;
+        for( ; itr != pipes.end() ; ++itr, ++pipes_cursor )
         {
           std::array<int, 2> &pipe_fd = *itr;
           int ret = splice( pipe_fd[0], NULL, fd, &offset, size, SPLICE_F_MOVE | SPLICE_F_MORE );
+          if( ret == 0 ) break; // we reached the end of the file
+          if( ret < 0 ) return -1;
+          size -= ret;
+          result += ret;
+        }
+
+        Free();
+
+        return result;
+      }
+
+      //-----------------------------------------------------------------------
+      //! Write data from a kernel buffer to a file descriptor
+      //!
+      //! @param fd     : file descriptor
+      //! @param offset : offset in the target file
+      //!
+      //! @return       : size of the data written into the file descriptor or
+      //!                 -1 on error
+      //-----------------------------------------------------------------------
+      inline ssize_t SendToFD( int fd )
+      {
+        if( size == 0 ) return 0;
+
+        ssize_t result = 0;
+
+        auto itr = pipes_cursor;
+        for( ; itr != pipes.end() ; ++itr, ++pipes_cursor )
+        {
+          std::array<int, 2> &pipe_fd = *itr;
+          int ret = splice( pipe_fd[0], NULL, fd, NULL, size, SPLICE_F_MOVE | SPLICE_F_MORE );
           if( ret == 0 ) break; // we reached the end of the file
           if( ret < 0 ) return -1;
           size -= ret;
@@ -220,6 +262,8 @@ namespace XrdSys
       //-----------------------------------------------------------------------
       inline ssize_t ToUser( char *&buffer )
       {
+        if( size == 0 ) return 0;
+
         ssize_t result = 0;
 
         void *void_ptr = 0;
@@ -310,6 +354,7 @@ namespace XrdSys
           buff += ret;
         }
 
+        pipes_cursor = pipes.begin();
         free( buffer );
         buffer = 0;
         return size;
@@ -333,6 +378,7 @@ namespace XrdSys
       size_t capacity; //< the total capacity of all underlying pipes
       size_t size; //< size of the data stored in this kernel buffer
       std::vector<std::array<int,2>> pipes; //< the unerlying pipes
+      std::vector<std::array<int,2>>::iterator pipes_cursor;
   };
 
   //---------------------------------------------------------------------------
@@ -355,6 +401,16 @@ namespace XrdSys
   inline ssize_t Write( int fd, KernelBuffer &buffer, loff_t offset )
   {
     return buffer.WriteToFD( fd, offset );
+  }
+
+  //---------------------------------------------------------------------------
+  //! Utility function for sending data from a kernel buffer into a socket.
+  //!
+  //! @see KernelBuffer::WriteToFD
+  //---------------------------------------------------------------------------
+  inline ssize_t Send( int fd, KernelBuffer &buffer )
+  {
+    return buffer.SendToFD( fd );
   }
 
   //---------------------------------------------------------------------------

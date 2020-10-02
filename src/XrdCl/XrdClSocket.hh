@@ -26,6 +26,7 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdSys/XrdSysKernelBuffer.hh"
 
 
 namespace XrdCl
@@ -163,6 +164,14 @@ namespace XrdCl
       //! @return       : the amount of data actually written
       //------------------------------------------------------------------------
       XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten );
+
+      //------------------------------------------------------------------------
+      //! Write data from a kernel buffer to the socket
+      //!
+      //! @param kbuff : data to be written
+      //! @return      : the amount of data actually written
+      //------------------------------------------------------------------------
+      XRootDStatus Send( XrdSys::KernelBuffer &kbuff );
 
       //----------------------------------------------------------------------------
       //! Read helper for raw socket

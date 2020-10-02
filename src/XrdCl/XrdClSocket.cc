@@ -475,6 +475,24 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //------------------------------------------------------------------------
+  //! Write data from a kernel buffer to the socket
+  //!
+  //! @param kbuff : data to be written
+  //! @return      : the amount of data actually written
+  //------------------------------------------------------------------------
+  XRootDStatus Socket::Send( XrdSys::KernelBuffer &kbuff )
+  {
+    if( pTls ) return XRootDStatus( stError, errNotSupported, 0,
+                                     "Cannot send a kernel-buffer over TLS." );
+
+    ssize_t status = XrdSys::Send( pSocket, kbuff );
+
+    if( status <= 0 )
+      return ClassifyErrno( errno );
+    return XRootDStatus();
+  }
+
   //----------------------------------------------------------------------------
   // Poll the descriptor
   //----------------------------------------------------------------------------
