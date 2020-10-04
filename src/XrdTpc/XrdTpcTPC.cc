@@ -163,7 +163,9 @@ int TPCHandler::RedirectTransfer(const std::string &redirect_resource,
     ss << "Location: http" << (m_desthttps ? "s" : "") << "://" << host << ":" << port << "/" << redirect_resource;
 
     if (!opaque.empty()) {
-      ss << "?" << opaque;
+      char *quoted_opaque = nullptr;
+      ss << "?" << (quoted_opaque = quote(opaque.c_str()));
+      free(quoted_opaque);
     }
 
     rec.status = 307;
