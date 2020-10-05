@@ -306,6 +306,13 @@ int XrdOssSys::StatPF(const char *path, struct stat *buff, int opts)
 //
    if (stat(path, buff)) return (errno ? -errno : -ENOMSG);
 
+// Check of general stat information is to be returned
+//
+   if (opts %  PF_dStat)
+      {buff->st_rdev = 0;
+       return XrdOssOK;
+      }
+
 // Check if device info is to be returned
 //
    if (opts & PF_dInfo) XrdOssCache::DevInfo(*buff);

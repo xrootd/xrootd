@@ -750,6 +750,9 @@ virtual int       StatLS(XrdOucEnv &env, const char *path,
 //!                  PF_dNums - provide number of bdev's in st_rdev and the
 //!                             number of partitions in st_dev. The path
 //!                             argument is ignored. This superceeds PF_dInfo.
+//!                  PF_dStat - provide file state flags in st_rdev as shown
+//!                             below. Path may not be nil. This supercedes
+//!                             PF_dInfo and PF_dNums.
 //!                  PF_isLFN - Do N2N translation on path (default is none).
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
@@ -758,6 +761,13 @@ virtual int       StatLS(XrdOucEnv &env, const char *path,
 static const int  PF_dInfo = 0x00000001;
 static const int  PF_dNums = 0x00000002;
 static const int  PF_isLFN = 0x00000004;
+static const int  PF_dStat = 0x00000008;
+
+// Bits returned in st_rdev when PF_dStat specified in opts. Absence of either
+// PF_csVer and PF_csVun flags means that the file has no checksums present.
+//
+static const int  PF_csVer = 0x00000001; //!<   verified file checksums present
+static const int  PF_csVun = 0x00000002; //!< unverified file checksums present
 
 virtual int       StatPF(const char *path, struct stat *buff, int opts);
 
