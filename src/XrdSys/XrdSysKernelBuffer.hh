@@ -137,6 +137,9 @@ namespace XrdSys
       //-----------------------------------------------------------------------
       inline ssize_t Alloc( size_t size )
       {
+#ifndef F_SETPIPE_SZ
+        return -ENOTSUP;
+#else
         ssize_t ret = 0;
 
         std::array<int, 2> pipe_fd;
@@ -151,6 +154,7 @@ namespace XrdSys
         pipes.emplace_back( pipe_fd );
 
         return ret;
+#endif
       }
 
       //-----------------------------------------------------------------------
