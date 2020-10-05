@@ -670,6 +670,15 @@ namespace XrdCl
         return uintptr_t( ptr ) % XrdSys::PageSize == 0;
       }
 
+      //------------------------------------------------------------------------
+      //! Send a write request with payload being stored in a kernel buffer
+      //------------------------------------------------------------------------
+      XRootDStatus WriteKernelBuffer( uint64_t                               offset,
+                                      uint32_t                               length,
+                                      std::unique_ptr<XrdSys::KernelBuffer>  kbuff,
+                                      ResponseHandler                       *handler,
+                                      uint16_t                               timeout );
+
       mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;
       XRootDStatus            pStatus;

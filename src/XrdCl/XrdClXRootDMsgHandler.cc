@@ -1439,8 +1439,6 @@ namespace XrdCl
   Status XRootDMsgHandler::WriteMessageBody( Socket   *socket,
                                              uint32_t &bytesWritten )
   {
-
-
     if( !pChunkList->empty() )
     {
       size_t size = pChunkList->size();
@@ -1476,7 +1474,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( socket->IsEncrypted() )
       {
-        log->Debug( ExDbgMsg, "[%s] Channel is encrypted: cannot use kernel buffer.",
+        log->Debug( XRootDMsg, "[%s] Channel is encrypted: cannot use kernel buffer.",
                     pUrl.GetHostId().c_str() );
 
         char *ubuff = 0;
@@ -1495,7 +1493,7 @@ namespace XrdCl
         if( !st.IsOK() || st.code == suRetry ) return st;
       }
 
-      log->Debug( ExDbgMsg, "[%s] Request %s payload (kernel buffer) transfered to socket.",
+      log->Debug( XRootDMsg, "[%s] Request %s payload (kernel buffer) transfered to socket.",
                   pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
     }
 

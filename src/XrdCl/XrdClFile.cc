@@ -320,6 +320,40 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Write a data from a given file descriptor at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::Write( uint64_t            offset,
+                            uint32_t            size,
+                            Optional<uint64_t>  fdoff,
+                            int                 fd,
+                            ResponseHandler    *handler,
+                            uint16_t            timeout )
+  {
+    if( pPlugIn )
+      return pPlugIn->Write( offset, size, fdoff, fd, handler, timeout );
+
+    return pStateHandler->Write( offset, size, fdoff, fd, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Write a data from a given file descriptor at a given offset - sync
+  //------------------------------------------------------------------------
+  XRootDStatus File::Write( uint64_t            offset,
+                            uint32_t            size,
+                            Optional<uint64_t>  fdoff,
+                            int                 fd,
+                            uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = Write( offset, size, fdoff, fd, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
+  }
+
+  //------------------------------------------------------------------------
   // Write number of pages at a given offset - async
   //------------------------------------------------------------------------
   XRootDStatus File::PgWrite( uint64_t               offset,

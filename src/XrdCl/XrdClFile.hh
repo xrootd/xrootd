@@ -27,6 +27,7 @@
 
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClOptional.hh"
 #include "XrdOuc/XrdOucCompiler.hh"
 #include <stdint.h>
 #include <string>
@@ -301,6 +302,46 @@ namespace XrdCl
       XRootDStatus Write( uint64_t          offset,
                           Buffer          &&buffer,
                           uint16_t          timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write a data from a given file descriptor at a given offset - async
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    number of bytes to be written
+      //! @param fdoff   offset of the data to be written from the file descriptor
+      //!                (optional, if not provided will copy data from the file
+      //!                descriptor at the current cursor position)
+      //! @param fd      file descriptor open for reading
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Write( uint64_t            offset,
+                          uint32_t            size,
+                          Optional<uint64_t>  fdoff,
+                          int                 fd,
+                          ResponseHandler    *handler,
+                          uint16_t            timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write a data from a given file descriptor at a given offset - sync
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    number of bytes to be written
+      //! @param fdoff   offset of the data to be written from the file descriptor
+      //!                (optional, if not provided will copy data from the file
+      //!                descriptor at the current cursor position)
+      //! @param fd      file descriptor open for reading
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Write( uint64_t            offset,
+                          uint32_t            size,
+                          Optional<uint64_t>  fdoff,
+                          int                 fd,
+                          uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Write number of pages at a given offset - async

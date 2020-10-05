@@ -1270,45 +1270,14 @@ namespace XrdCl
       return XRootDStatus( stError, errInternal, XProtocol::mapError( errno ) );
 
     //--------------------------------------------------------------------------
-    // Create the write request
+    // Now create a write request and enqueue it
     //--------------------------------------------------------------------------
-    XrdSysMutexHelper scopedLock( pMutex );
-
-    if( pFileState != Opened && pFileState != Recovering )
-      return XRootDStatus( stError, errInvalidOp );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
-                "%s", this, pFileUrl->GetURL().c_str(),
-                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
-
-    Message            *msg;
-    ClientWriteRequest *req;
-    MessageUtils::CreateRequest( msg, req );
-
-    req->requestid  = kXR_write;
-    req->offset     = offset;
-    req->dlen       = length;
-    memcpy( req->fhandle, pFileHandle, 4 );
-
-    MessageSendParams params;
-    params.timeout         = timeout;
-    params.followRedirects = false;
-    params.stateful        = true;
-    params.kbuff           = kbuff.release();
-    params.chunkList       = new ChunkList();
-
-    MessageUtils::ProcessSendParams( params );
-
-    XRootDTransport::SetDescription( msg );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
-
-    return SendOrQueue( *pDataServer, msg, stHandler, params );
+    return WriteKernelBuffer( offset, ret, std::move( kbuff ), handler, timeout );
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Write a data from a given file descriptor at a given offset - async
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Write( uint64_t            offset,
                                         uint32_t            size,
                                         Optional<uint64_t>  fdoff,
@@ -1316,7 +1285,19 @@ namespace XrdCl
                                         ResponseHandler    *handler,
                                         uint16_t            timeout )
   {
-    return XRootDStatus( stError, errNotImplemented );
+    //--------------------------------------------------------------------------
+    // Read the data from the file descriptor into a kernel buffer
+    //--------------------------------------------------------------------------
+    std::unique_ptr<XrdSys::KernelBuffer> kbuff( new XrdSys::KernelBuffer() );
+    ssize_t ret = fdoff ? XrdSys::Read( fd, *kbuff, size, *fdoff ) :
+                          XrdSys::Read( fd, *kbuff, size );
+    if( ret < 0 )
+      return XRootDStatus( stError, errInternal, XProtocol::mapError( errno ) );
+
+    //--------------------------------------------------------------------------
+    // Now create a write request and enqueue it
+    //--------------------------------------------------------------------------
+    return WriteKernelBuffer( offset, ret, std::move( kbuff ), handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -2714,5 +2695,51 @@ namespace XrdCl
     // and finally ordinary XRootD requests
     return MessageUtils::SendMessage( url, msg, handler,
                                       sendParams, pLFileHandler );
+  }
+
+  //------------------------------------------------------------------------
+  // Send a write request with payload being stored in a kernel buffer
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::WriteKernelBuffer( uint64_t                               offset,
+                                                    uint32_t                               length,
+                                                    std::unique_ptr<XrdSys::KernelBuffer>  kbuff,
+                                                    ResponseHandler                       *handler,
+                                                    uint16_t                               timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Create the write request
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientWriteRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid  = kXR_write;
+    req->offset     = offset;
+    req->dlen       = length;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.kbuff           = kbuff.release();
+    params.chunkList       = new ChunkList();
+
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 }

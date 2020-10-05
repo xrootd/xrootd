@@ -45,6 +45,8 @@ namespace XrdSys
   {
       friend ssize_t Read( int, KernelBuffer&, uint32_t, loff_t );
 
+      friend ssize_t Read( int, KernelBuffer&, uint32_t );
+
       friend ssize_t Write( int, KernelBuffer&, loff_t );
 
       friend ssize_t Send( int, KernelBuffer& );
@@ -161,7 +163,7 @@ namespace XrdSys
       //! @return       : size of the data read from the file descriptor or -1
       //!                 on error
       //-----------------------------------------------------------------------
-      inline ssize_t ReadFromFD( int fd, uint32_t length, loff_t offset )
+      inline ssize_t ReadFromFD( int fd, uint32_t length, loff_t *offset )
       {
         if( capacity > 0 ) Free();
 
@@ -171,9 +173,10 @@ namespace XrdSys
           if( ret < 0 ) return ret;
           if( size_t( ret ) > length ) ret = length;
           std::array<int, 2> &pipe_fd = pipes.back();
-          ret = splice( fd, &offset, pipe_fd[1], NULL, ret, SPLICE_F_MOVE | SPLICE_F_MORE );
+          ret = splice( fd, offset, pipe_fd[1], NULL, ret, SPLICE_F_MOVE | SPLICE_F_MORE );
           if( ret == 0 ) break; // we reached the end of the file
           if( ret < 0 ) return -1;
+
           length -= ret;
           size += ret;
         }
@@ -191,7 +194,7 @@ namespace XrdSys
       //! @return       : size of the data written into the file descriptor or
       //!                 -1 on error
       //-----------------------------------------------------------------------
-      inline ssize_t WriteToFD( int fd, loff_t offset )
+      inline ssize_t WriteToFD( int fd, loff_t *offset )
       {
         if( size == 0 ) return 0;
 
@@ -201,40 +204,10 @@ namespace XrdSys
         for( ; itr != pipes.end() ; ++itr, ++pipes_cursor )
         {
           std::array<int, 2> &pipe_fd = *itr;
-          int ret = splice( pipe_fd[0], NULL, fd, &offset, size, SPLICE_F_MOVE | SPLICE_F_MORE );
+          int ret = splice( pipe_fd[0], NULL, fd, offset, size, SPLICE_F_MOVE | SPLICE_F_MORE );
           if( ret == 0 ) break; // we reached the end of the file
           if( ret < 0 ) return -1;
-          size -= ret;
-          result += ret;
-        }
 
-        Free();
-
-        return result;
-      }
-
-      //-----------------------------------------------------------------------
-      //! Write data from a kernel buffer to a file descriptor
-      //!
-      //! @param fd     : file descriptor
-      //! @param offset : offset in the target file
-      //!
-      //! @return       : size of the data written into the file descriptor or
-      //!                 -1 on error
-      //-----------------------------------------------------------------------
-      inline ssize_t SendToFD( int fd )
-      {
-        if( size == 0 ) return 0;
-
-        ssize_t result = 0;
-
-        auto itr = pipes_cursor;
-        for( ; itr != pipes.end() ; ++itr, ++pipes_cursor )
-        {
-          std::array<int, 2> &pipe_fd = *itr;
-          int ret = splice( pipe_fd[0], NULL, fd, NULL, size, SPLICE_F_MOVE | SPLICE_F_MORE );
-          if( ret == 0 ) break; // we reached the end of the file
-          if( ret < 0 ) return -1;
           size -= ret;
           result += ret;
         }
@@ -389,7 +362,18 @@ namespace XrdSys
   //---------------------------------------------------------------------------
   inline ssize_t Read( int fd, KernelBuffer &buffer, uint32_t length, loff_t offset )
   {
-    return buffer.ReadFromFD( fd, length, offset );
+    return buffer.ReadFromFD( fd, length, &offset );
+  }
+
+  //---------------------------------------------------------------------------
+  //! Utility function for reading data from a file descriptor into a kernel
+  //! buffer.
+  //!
+  //! @see KernelBuffer::ReadFromFD
+  //---------------------------------------------------------------------------
+  inline ssize_t Read( int fd, KernelBuffer &buffer, uint32_t length )
+  {
+    return buffer.ReadFromFD( fd, length, NULL );
   }
 
   //---------------------------------------------------------------------------
@@ -400,7 +384,7 @@ namespace XrdSys
   //---------------------------------------------------------------------------
   inline ssize_t Write( int fd, KernelBuffer &buffer, loff_t offset )
   {
-    return buffer.WriteToFD( fd, offset );
+    return buffer.WriteToFD( fd, &offset );
   }
 
   //---------------------------------------------------------------------------
@@ -410,7 +394,7 @@ namespace XrdSys
   //---------------------------------------------------------------------------
   inline ssize_t Send( int fd, KernelBuffer &buffer )
   {
-    return buffer.SendToFD( fd );
+    return buffer.WriteToFD( fd, NULL );
   }
 
   //---------------------------------------------------------------------------
