@@ -1238,7 +1238,7 @@ namespace XrdCl
     // If the memory is not page (4KB) aligned we cannot use the kernel buffer
     // so fall back to normal write
     //--------------------------------------------------------------------------
-    if( !IsPageAligned( buffer.GetBuffer() ) || pIsChannelEncrypted )
+    if( !XrdSys::KernelBuffer::IsPageAligned( buffer.GetBuffer() ) || pIsChannelEncrypted )
     {
       Log *log = DefaultEnv::GetLog();
       log->Info( FileMsg, "[0x%x@%s] Buffer is not page aligned (4KB), cannot "

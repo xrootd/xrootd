@@ -665,11 +665,6 @@ namespace XrdCl
                                  ResponseHandler   *handler,
                                  MessageSendParams &sendParams );
 
-      static inline bool IsPageAligned(const void *ptr )
-      {
-        return uintptr_t( ptr ) % XrdSys::PageSize == 0;
-      }
-
       //------------------------------------------------------------------------
       //! Send a write request with payload being stored in a kernel buffer
       //------------------------------------------------------------------------

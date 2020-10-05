@@ -33,6 +33,7 @@
 
 #include <vector>
 #include <array>
+#include <tuple>
 
 namespace XrdSys
 {
@@ -112,6 +113,18 @@ namespace XrdSys
         return size == 0;
       }
 
+      //-----------------------------------------------------------------------
+      //! Check if the user space buffer is page aligned
+      //!
+      //! @param ptr : user space buffer
+      //!
+      //! @return    : true if the buffer is page aligned, false otherwise
+      //-----------------------------------------------------------------------
+      inline static bool IsPageAligned( const void *ptr )
+      {
+        return ( ( uintptr_t ( ptr ) ) % PAGE_SIZE ) == 0 ;
+      }
+
     private:
 
       //-----------------------------------------------------------------------
@@ -122,7 +135,7 @@ namespace XrdSys
         auto itr = pipes.begin();
         for( ; itr != pipes.end() ; ++itr )
         {
-          std::array<int, 2> &p = *itr;
+          std::array<int, 2> &p = std::get<0>( *itr );
           close( p[1] );
           close( p[0] );
         }
@@ -151,7 +164,7 @@ namespace XrdSys
         if( ret < 0 ) return ret;
 
         capacity += ret;
-        pipes.emplace_back( pipe_fd );
+        pipes.emplace_back( pipe_fd, 0 );
 
         return ret;
 #endif
@@ -176,10 +189,12 @@ namespace XrdSys
           ssize_t ret = Alloc( length );
           if( ret < 0 ) return ret;
           if( size_t( ret ) > length ) ret = length;
-          std::array<int, 2> &pipe_fd = pipes.back();
+          std::array<int, 2> &pipe_fd  = std::get<0>( pipes.back() );
+          size_t             &pipedata = std::get<1>( pipes.back() );
           ret = splice( fd, offset, pipe_fd[1], NULL, ret, SPLICE_F_MOVE | SPLICE_F_MORE );
           if( ret == 0 ) break; // we reached the end of the file
           if( ret < 0 ) return -1;
+          pipedata += ret;
 
           length -= ret;
           size += ret;
@@ -205,15 +220,24 @@ namespace XrdSys
         ssize_t result = 0;
 
         auto itr = pipes_cursor;
-        for( ; itr != pipes.end() ; ++itr, ++pipes_cursor )
+        while( itr != pipes.end() )
         {
-          std::array<int, 2> &pipe_fd = *itr;
+          std::array<int, 2> &pipe_fd  = std::get<0>( *itr );
+          size_t             &pipedata = std::get<1>( *itr );
+
           int ret = splice( pipe_fd[0], NULL, fd, offset, size, SPLICE_F_MOVE | SPLICE_F_MORE );
           if( ret == 0 ) break; // we reached the end of the file
           if( ret < 0 ) return -1;
 
-          size -= ret;
-          result += ret;
+          size     -= ret;
+          result   += ret;
+          pipedata -= ret;
+
+
+          if( pipedata > 0 ) continue;
+
+          ++pipes_cursor;
+          ++itr;
         }
 
         Free();
@@ -252,15 +276,16 @@ namespace XrdSys
         }
         char *ptr = reinterpret_cast<char*>( void_ptr );
 
-        auto itr = pipes.begin();
-        for( ; itr != pipes.end() ; ++itr )
+        auto itr = pipes_cursor;
+        while( itr != pipes.end() )
         {
           iovec iov[1];
           size_t len = size > MAX_PIPE_SIZE ? MAX_PIPE_SIZE : size;
           iov->iov_len  = len;
           iov->iov_base = ptr;
 
-          std::array<int, 2> &pipe_fd = *itr;
+          std::array<int, 2> &pipe_fd  = std::get<0>( *itr );
+          size_t             &pipedata = std::get<1>( *itr );
           int ret = vmsplice( pipe_fd[0], iov, 1, 0 );  // vmsplice man NOTE:
                                                         // vmsplice() really supports true splicing only from user memory to a
                                                         // pipe.  In the opposite direction, it actually just copies the data to
@@ -274,9 +299,15 @@ namespace XrdSys
             return ret;
           }
 
-          size   -= ret;
-          ptr    += ret;
-          result += ret;
+          size     -= ret;
+          ptr      += ret;
+          result   += ret;
+          pipedata -= ret;
+
+          if( pipedata > 0 ) continue;
+
+          ++itr;
+          ++pipes_cursor;
         }
 
         Free();
@@ -318,7 +349,8 @@ namespace XrdSys
         {
           ssize_t ret = Alloc( length );
           if( ret < 0 ) return ret;
-          std::array<int, 2> &pipe_fd = pipes.back();
+          std::array<int, 2> &pipe_fd  = std::get<0>( pipes.back() );
+          size_t             &pipedata = std::get<1>( pipes.back() );
 
           iovec iov[1];
           iov->iov_len  = size_t( ret ) < length ? ret : length;
@@ -326,9 +358,10 @@ namespace XrdSys
           ret = vmsplice( pipe_fd[1], iov, 1, SPLICE_F_GIFT );
 
           if( ret < 0 ) return -1;
-          length -= ret;
-          size += ret;
-          buff += ret;
+          length   -= ret;
+          size     += ret;
+          buff     += ret;
+          pipedata += ret;
         }
 
         pipes_cursor = pipes.begin();
@@ -337,25 +370,13 @@ namespace XrdSys
         return size;
       }
 
-      //-----------------------------------------------------------------------
-      //! Check if the user space buffer is page aligned
-      //!
-      //! @param ptr : user space buffer
-      //!
-      //! @return    : true if the buffer is page aligned, false otherwise
-      //-----------------------------------------------------------------------
-      inline static bool IsPageAligned( const void *ptr )
-      {
-        return ( ( ( uintptr_t ) ptr ) % PAGE_SIZE ) == 0 ;
-      }
-
       static const size_t PAGE_SIZE     =    4 * 1024; //< page size
       static const size_t MAX_PIPE_SIZE = 1024 * 1024; //< maximum pipe size
 
       size_t capacity; //< the total capacity of all underlying pipes
       size_t size; //< size of the data stored in this kernel buffer
-      std::vector<std::array<int,2>> pipes; //< the unerlying pipes
-      std::vector<std::array<int,2>>::iterator pipes_cursor;
+      std::vector<std::tuple<std::array<int,2>, size_t>> pipes; //< the unerlying pipes
+      std::vector<std::tuple<std::array<int,2>, size_t>>::iterator pipes_cursor;
   };
 
   //---------------------------------------------------------------------------
