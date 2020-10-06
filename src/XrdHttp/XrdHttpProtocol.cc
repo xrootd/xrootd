@@ -548,6 +548,13 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         return -1;
       }
 
+      // No more space in the buffer
+      if (rc == 2) {
+        TRACE(EMSG, "Header too long > 1MB");
+        SendSimpleResp(400, "Header too long", 0 , 0, 0, false);
+        return -1;
+      }
+
       // If we need more bytes, let's wait for another invokation
       if (BuffUsed() < ResumeBytes) return 1;
 
