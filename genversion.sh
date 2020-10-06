@@ -137,7 +137,9 @@ if test ! -d ${SOURCEPATH}.git; then
     echo "[!] VERSION_INFO file absent. Unable to determine the version. Using \"unknown\"" 1>&2
   elif test x"`grep Format ${SOURCEPATH}VERSION_INFO`" != x; then
     echo "[!] VERSION_INFO file invalid. Unable to determine the version. Using \"unknown\"" 1>&2
-
+  elif test x$USER_VERSION != x; then
+    echo "[I] Using the user supplied version: ${USER_VERSION}" 1>&2
+    VERSION=${USER_VERSION}
   #-----------------------------------------------------------------------------
   # The version file exists and seems to be valid so we know the version
   #----------------------------------------------------------------------------
