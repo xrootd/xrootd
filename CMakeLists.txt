@@ -26,14 +26,18 @@ add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
 #-------------------------------------------------------------------------------
 # Generate the version header
 #-------------------------------------------------------------------------------
+if (USER_VERSION)
+  set(XROOTD_VERSION "${USER_VERSION}")
+else ()
 execute_process(
   COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh --print-only ${CMAKE_SOURCE_DIR}
   OUTPUT_VARIABLE XROOTD_VERSION
   OUTPUT_STRIP_TRAILING_WHITESPACE )
+endif()
 
 add_custom_target(
   XrdVersion.hh
-  ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR} )
+  ${CMAKE_SOURCE_DIR}/genversion.sh --version ${XROOTD_VERSION} ${CMAKE_SOURCE_DIR})
 
 # sigh, yet another ugly hack :(
 macro( add_library _target )
