@@ -61,7 +61,7 @@ private:
     static std::string GetAuthz(XrdHttpExtReq &req);
 
     // Redirect the transfer according to the contents of an XrdOucErrInfo object.
-    int RedirectTransfer(const std::string &redirect_resource, XrdHttpExtReq &req,
+    int RedirectTransfer(CURL *curl, const std::string &redirect_resource, XrdHttpExtReq &req,
         XrdOucErrInfo &error, TPCLogRecord &);
 
     int OpenWaitStall(XrdSfsFile &fh, const std::string &resource, int mode,
