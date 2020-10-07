@@ -68,6 +68,38 @@ static std::string prepareURL(XrdHttpExtReq &req) {
 }
 
 
+//
+// When processing a redirection from the filesystem layer, it is permitted to return
+// some xrootd opaque data.  The quoting rules for xrootd opaque data are significantly
+// more permissive than a URI (basically, only '&' and '=' are disallowed while some
+// URI parsers may dislike characters like '"').  This function takes an opaque string
+// (e.g., foo=1&bar=2&baz=") and makes it safe for all URI parsers.
+std::string encode_xrootd_opaque_to_uri(CURL *curl, const std::string &opaque)
+{
+    std::stringstream parser(opaque);
+    std::string sequence;
+    std::stringstream output;
+    bool first = true;
+    while (getline(parser, sequence, '&')) {
+        if (sequence.empty()) {continue;}
+        size_t equal_pos = sequence.find('=');
+        char *val = NULL;
+        if (equal_pos != std::string::npos)
+            val = curl_easy_escape(curl, sequence.c_str() + equal_pos + 1, sequence.size()  - equal_pos - 1);
+        // Do not emit parameter if value exists and escaping failed.
+        if (!val && equal_pos != std::string::npos) {continue;}
+
+        if (!first) output << "&";
+        first = false;
+        output << sequence.substr(0, equal_pos);
+        if (val) {
+            output << "=" << val;
+            curl_free(val);
+        }
+    }
+    return output.str();
+}
+
 bool TPCHandler::MatchesPath(const char *verb, const char *path) {
     return !strcmp(verb, "COPY") || !strcmp(verb, "OPTIONS");
 }
@@ -137,7 +169,7 @@ std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
     return authz;
 }
 
-int TPCHandler::RedirectTransfer(const std::string &redirect_resource,
+int TPCHandler::RedirectTransfer(CURL *curl, const std::string &redirect_resource,
     XrdHttpExtReq &req, XrdOucErrInfo &error, TPCLogRecord &rec)
 {
     int port;
@@ -163,9 +195,7 @@ int TPCHandler::RedirectTransfer(const std::string &redirect_resource,
     ss << "Location: http" << (m_desthttps ? "s" : "") << "://" << host << ":" << port << "/" << redirect_resource;
 
     if (!opaque.empty()) {
-      char *quoted_opaque = nullptr;
-      ss << "?" << (quoted_opaque = quote(opaque.c_str()));
-      free(quoted_opaque);
+      ss << "?" << encode_xrootd_opaque_to_uri(curl, opaque);
     }
 
     rec.status = 307;
@@ -561,8 +591,9 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     int open_results = OpenWaitStall(*fh, full_url, SFS_O_RDONLY, 0644,
                                      req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_results) {
+        int result = RedirectTransfer(curl, redirect_resource, req, fh->error, rec);
         curl_easy_cleanup(curl);
-        return RedirectTransfer(redirect_resource, req, fh->error, rec);
+        return result;
     } else if (SFS_OK != open_results) {
         curl_easy_cleanup(curl);
         int code;
@@ -654,8 +685,9 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
                                     req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_result) {
+        int result = RedirectTransfer(curl, redirect_resource, req, fh->error, rec);
         curl_easy_cleanup(curl);
-        return RedirectTransfer(redirect_resource, req, fh->error, rec);
+        return result;
     } else if (SFS_OK != open_result) {
         curl_easy_cleanup(curl);
         int code;
