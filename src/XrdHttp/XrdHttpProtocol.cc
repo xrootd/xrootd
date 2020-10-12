@@ -603,6 +603,17 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     if (!CurrentReq.headerok) {
       TRACEI(REQ, " rc:" << rc << "Header not yet complete.");
+      
+      // Here a subtle error condition. IF we failed reading a line AND the buffer
+      // has a reasonable amount of data available THEN we consider the header
+      // as corrupted and shutdown the client
+      // FF: I'd say that 4KB seems to me a reasonable max size for a header line
+      if ((rc <= 0) && (BuffUsed() >= 4096)) {
+        TRACEI(ALL, "Corrupted header detected, or line too long. Disconnecting client.");
+        return -1;
+      }
+        
+        
       if (CurrentReq.reqstate > 0)
         CurrentReq.reqstate--;
       // Waiting for more data
