@@ -109,6 +109,7 @@ XrdOucErrInfo  myEInfo; // Accessible only by reference error
 /******************************************************************************/
 
 class XrdOfsTPC;
+class XrdOucChkPnt;
   
 class XrdOfsFile : public XrdSfsFile
 {
@@ -119,6 +120,9 @@ public:
                                   mode_t               createMode,
                             const XrdSecEntity        *client,
                             const char                *opaque = 0);
+
+        int            checkpoint(XrdSfsFile::cpAct act,
+                                  struct iov *range=0, int n=0);
 
         int            close();
 
@@ -174,12 +178,15 @@ protected:
 const char    *tident;
 XrdOfsHandle  *oh;
 XrdOfsTPC     *myTPC;
+XrdOucChkPnt  *myCKP;
 int            dorawio;
 char           viaDel;
+bool           ckpBad;
 
 private:
 
 void           GenFWEvent();
+int            CreateCKP();
 };
 
 class XrdOfsFileFull : public XrdOfsFile

@@ -132,7 +132,7 @@ int XrdOfs::fsctl(      int               cmd,
 //
    if (opcode == SFS_FSCTL_LOCATE)
       {static const int locMask = (SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|
-                                   SFS_O_HNAME|SFS_O_RAWIO);
+                                   SFS_O_HNAME|SFS_O_RAWIO |SFS_O_DIRLIST);
        struct stat fstat;
        char pbuff[1024], rType[3];
        const char *Resp[2] = {rType, pbuff};

@@ -162,6 +162,8 @@ XrdOssDF           &Select(void) {return *ssi;}   // To allow for mt interfaces
 
 static       int    StartXpr(int Init=0);         // Internal use only!
 
+             void   Suppress(int rrc=-EDOM, int wrc=-EDOM); // Only for R/W!
+
              int    Usage() {return Path.Links;}
 
 inline       void   Lock()   {hMutex.Lock();}

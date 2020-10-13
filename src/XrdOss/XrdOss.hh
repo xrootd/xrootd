@@ -35,6 +35,7 @@
 #include <stdint.h>
 #include <strings.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <string.h>
 
@@ -399,7 +400,12 @@ uint16_t        DFType() {return dfType;}
 //-----------------------------------------------------------------------------
 //! Execute a special operation on the directory or file.
 //!
-//! @param  cmd    - The operation to be performed.
+//! @param  cmd    - The operation to be performed:
+//!                  Fctl_ckpObj - Obtain checkpoint object for proxy file.
+//!                                Argument: None.
+//!                                Response: Pointer to XrdOucChkPnt object.
+//!                  Fctl_utimes - Set atime and mtime (no response).
+//!                                Argument: struct timeval tv[2]
 //! @param  alen   - Length of data pointed to by args.
 //! @param  args   - Data sent with request, zero if alen is zero.
 //! @param  resp   - Where the response is to be set. The caller must call
@@ -407,6 +413,9 @@ uint16_t        DFType() {return dfType;}
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
+
+static const int Fctl_ckpObj = 0;
+static const int Fctl_utimes = 1;
 
 virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0);
 
@@ -574,15 +583,16 @@ virtual uint64_t  Features();
 //-----------------------------------------------------------------------------
 //! Execute a special storage system operation.
 //!
-//! @param  cmd    - The operation to be performed.
+//! @param  cmd    - The operation to be performed:
+//!                  XRDOSS_FSCTLFA - Perform proxy file attribute operation
 //! @param  alen   - Length of data pointed to by args.
 //! @param  args   - Data sent with request, zero if alen is zero.
-//! @param  resp   - Where the response is to be set. The caller must call
+//! @param  resp   - Where the response is to be set, if any.
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int       FSctl(int cms, int alen, const char *args, char **resp=0);
+virtual int       FSctl(int cmd, int alen, const char *args, char **resp=0);
 
 //-----------------------------------------------------------------------------
 //! Initialize the storage system V1 (deprecated).

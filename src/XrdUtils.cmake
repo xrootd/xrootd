@@ -78,6 +78,7 @@ add_library(
   XrdOuc/XrdOucCache.cc         XrdOuc/XrdOucCache.hh
                                 XrdOuc/XrdOucCacheStats.hh
   XrdOuc/XrdOucCallBack.cc      XrdOuc/XrdOucCallBack.hh
+                                XrdOuc/XrdOucChkPnt.hh
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCRC32C.cc        XrdOuc/XrdOucCRC32C.hh
   XrdOuc/XrdOucEnv.cc           XrdOuc/XrdOucEnv.hh

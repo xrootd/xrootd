@@ -145,6 +145,8 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
 
        int   do_Auth();
        int   do_Bind();
+       int   do_ChkPnt();
+       int   do_ChkPntXeq();
        int   do_Chmod();
        int   do_CKsum(int canit);
        int   do_CKsum(char *algT, const char *Path, char *Opaque);
@@ -359,8 +361,6 @@ static int                 as_nosf;      // sendfile is disabled
 static int                 as_syncw;     // writes to be synchronous
 static int                 maxBuffsz;    // Maximum buffer size we can have
 static int                 maxTransz;    // Maximum transfer size we can have
-static const int           maxRvecsz = 1024;   // Maximum read vector size
-static const int           maxWvecsz = 1024;   // Maximum writ vector size
 
 // Statistical area
 //
@@ -411,6 +411,10 @@ bool                       sigNeed;      // Signature target  present
 bool                       sigHere;      // Signature request present
 bool                       sigRead;      // Signature being read
 bool                       sigWarn;      // Once for unneeded signature
+
+// Miscellaneous control area
+//
+char                       miscrsv[4];   // Reserved
 
 // Buffer information, used to drive DoIt(), getData(), and (*Resume)()
 //

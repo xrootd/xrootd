@@ -53,6 +53,8 @@
 #include "XrdNet/XrdNetUtils.hh"
 
 #include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsChkPnt.hh"
+#include "XrdOfs/XrdOfsConfigCP.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
@@ -187,20 +189,6 @@ XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
 // Other options
 //
    DirRdr    = false;
-}
-  
-/******************************************************************************/
-/*                X r d O f s F i l e   C o n s t r u c t o r                 */
-/******************************************************************************/
-
-XrdOfsFile::XrdOfsFile(XrdOucErrInfo &eInfo, const char *user)
-                      : XrdSfsFile(eInfo)
-{
-   oh = XrdOfs::dummyHandle; 
-   dorawio = 0;
-   viaDel  = 0;
-   myTPC   = 0;
-   tident = (user ? user : "");
 }
 
 /******************************************************************************/
@@ -411,6 +399,15 @@ int XrdOfsDirectory::autoStat(struct stat *buf)
 /*                F i l e   O b j e c t   I n t e r f a c e s                 */
 /*                                                                            */
 /******************************************************************************/
+/******************************************************************************/
+/*                X r d O f s F i l e   C o n s t r u c t o r                 */
+/******************************************************************************/
+
+XrdOfsFile::XrdOfsFile(XrdOucErrInfo &eInfo, const char *user)
+                      : XrdSfsFile(eInfo), tident(user ? user : ""),
+                        oh(XrdOfs::dummyHandle), myTPC(0), myCKP(0),
+                        dorawio(0), viaDel(0), ckpBad(false) {}
+
 /******************************************************************************/
 /*                                  o p e n                                   */
 /******************************************************************************/
@@ -793,6 +790,15 @@ int XrdOfsFile::close()  // In
                }
       }
 
+// Handle any oustanding checkpoint
+//
+   if (myCKP)
+      {retc =  myCKP->Restore();
+       if (retc) XrdOfsFS->Emsg(epname,error,retc,"restore chkpnt",hP->Name());
+       myCKP->Finished();
+       myCKP = 0;
+      }
+
 // We need to handle the cunudrum that an event may have to be sent upon
 // the final close. However, that would cause the path name to be destroyed.
 // So, we have two modes of logic where we copy out the pathname if a final
@@ -819,6 +825,136 @@ int XrdOfsFile::close()  // In
 }
 
 /******************************************************************************/
+/*                            c h e c k p o i n t                             */
+/******************************************************************************/
+
+int XrdOfsFile::checkpoint(XrdSfsFile::cpAct act, struct iov *range, int n)
+{
+   EPNAME("chkpnt");
+   const char *ckpName;
+   int rc;
+   bool readok;
+
+// Make sure we are active
+//
+   if (oh->Inactive()) return XrdOfsFS->Emsg(epname, error, EBADF,
+                                        "handle checkpoint", (const char *)0);
+
+// If checkpointing is disabled, the don't accept this request.
+//
+   if (!XrdOfsConfigCP::Enabled) return XrdOfsFS->Emsg(epname, error, ENOTSUP,
+                        "handle disabled checkpoint", (const char *)0);
+
+// If this checkpoint is bad then only a delete, query or restore is allowed.
+//
+   if (ckpBad && (act == XrdSfsFile::cpTrunc || act == XrdSfsFile::cpWrite))
+      return XrdOfsFS->Emsg(epname, error, EIDRM, "extend checkpoint "
+             "(only delete or restore possible) for", oh->Name());
+
+// Handle the request
+//
+   switch(act)
+         {case XrdSfsFile::cpCreate:
+               ckpName = "create checkpoint for";
+               if ((rc = CreateCKP())) return rc;
+               if ((rc = myCKP->Create())) {myCKP->Finished(); myCKP = 0;}
+               break;
+          case XrdSfsFile::cpDelete:
+               ckpName = "delete checkpoint for";
+               if (!myCKP) rc = ENOENT;
+                  else {rc = myCKP->Delete();
+                        myCKP->Finished();
+                        myCKP = 0;
+                        ckpBad = false;
+                       }
+               break;
+          case XrdSfsFile::cpQuery:
+               ckpName = "query checkpoint for";
+               if (!range || n <= 0)
+                  return XrdOfsFS->Emsg(epname, error, EINVAL,
+                                   "query checkpoint limits for", oh->Name());
+               rc = (myCKP ? myCKP->Query(*range) : ENOENT);
+               break;
+          case XrdSfsFile::cpRestore:
+               ckpName = "restore checkpoint for";
+               if (!myCKP) rc = ENOENT;
+                  else {if (!(rc = myCKP->Restore(&readok)))
+                           {myCKP->Finished();
+                            myCKP  = 0;
+                            ckpBad = false;
+                           } else {
+                            if (!(oh->Select().DFType() & XrdOssDF::DF_isProxy))
+                               oh->Suppress((readok ? 0 : -EDOM));
+                            ckpBad = true;
+                           }
+                       }
+               break;
+          case XrdSfsFile::cpTrunc:
+               ckpName = "checkpoint truncate";
+                    if (!range) rc = EINVAL;
+               else if (!myCKP) rc = ENOENT;
+               else if ((rc = myCKP->Truncate(range))) ckpBad = true;
+               break;
+          case XrdSfsFile::cpWrite:
+               ckpName = "checkpoint write";
+                    if (!range || n <= 0) rc = EINVAL;
+               else if (!myCKP)           rc = ENOENT;
+               else if ((rc = myCKP->Write(range, n))) ckpBad = true;
+               break;
+
+          default: return XrdOfsFS->Emsg(epname, error, EINVAL,
+                                  "decode checkpoint request for", oh->Name());
+         };
+
+// Complete as needed
+//
+   if (rc) return XrdOfsFS->Emsg(epname, error, rc, ckpName, oh->Name());
+
+// Trace success and return
+//
+   FTRACE(chkpnt, ckpName);
+   return SFS_OK;
+}
+  
+/******************************************************************************/
+/* Private:                    C r e a t e C K P                              */
+/******************************************************************************/
+
+int            XrdOfsFile::CreateCKP()
+{
+
+// Verify that a checkpoint does not exist
+//
+   if (myCKP) return XrdOfsFS->Emsg("CreateCKP", error, EEXIST,
+                                    "create checkpoint for", oh->Name());
+
+// Verify that this file is open r/w mode
+//
+   if (!(oh->isRW)) return XrdOfsFS->Emsg("CreateCKP", error, ENOTTY,
+                           "create checkpoint for R/O", oh->Name());
+
+// POSC and checkpoints are mutally exclusive
+//
+   if (oh->isRW == XrdOfsHandle::opPC)
+      return XrdOfsFS->Emsg("CreateCKP", error, ENOTTY,
+                            "create checkpoint for POSC file", oh->Name());
+
+// Get a new checkpoint object
+//
+   if (XrdOfsFS->OssIsProxy)
+      {char *resp;
+       int rc = oh->Select().Fctl(XrdOssDF::Fctl_ckpObj, 0, 0, &resp);
+       if (rc) return XrdOfsFS->Emsg("CreateCKP", error, rc,
+                                     "create proxy checkpoint");
+       myCKP = (XrdOucChkPnt *)resp;
+      } else myCKP = new XrdOfsChkPnt(oh->Select(), oh->Name());
+
+// All done
+//
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                  f c t l                                   */
 /******************************************************************************/
   
@@ -836,6 +972,9 @@ int            XrdOfsFile::fctl(const int               cmd,
 // We don't support this
 //
    out_error.setErrInfo(ENOTSUP, "fctl operation not supported");
+
+// Return
+//
    return SFS_ERROR;
 }
 

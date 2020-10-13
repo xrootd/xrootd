@@ -50,6 +50,7 @@
 #include "XrdSfs/XrdSfsFlags.hh"
 
 #include "XrdOfs/XrdOfs.hh"
+#include "XrdOfs/XrdOfsConfigCP.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
@@ -328,12 +329,13 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // If the OSS plugin is really a proxy. If it is, it will export its origin.
 // We also suppress translating lfn to pfn (usually done via osslib +cksio).
 // Note: consulting the ENVAR below is historic and remains for compatibility
+// Otherwise we can configure checkpointing if we are a data server.
 //
    if (ossFeatures & XRDOSS_HASPRXY || getenv("XRDXROOTD_PROXY"))
       {OssIsProxy = 1;
        CksPfn = false;
        FeatureSet |= XrdSfs::hasPRXY;
-      }
+      } else if (!(Options & isManager) && !XrdOfsConfigCP::Init()) NoGo = 1;
 
 // If POSC processing is enabled (as by default) do it. Warning! This must be
 // the last item in the configuration list as we need a working filesystem.
@@ -738,6 +740,10 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("trace",         xtrace);
     TS_Xeq("xattr",         xatr);
     TS_XPI("xattrlib",      theAtrLib);
+
+    // Process miscellaneous directives handled elsemwhere
+    //
+    if (!strcmp("chkpnt", var)) return (XrdOfsConfigCP::Parse(Config) ? 0 : 1);
 
     // Screen out the subcluster directive (we need to track that)
     //
@@ -1699,6 +1705,7 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
     static struct traceopts {const char *opname; int opval;} tropts[] =
        {{"aio",      TRACE_aio},
         {"all",      TRACE_ALL},
+        {"chkpnt",   TRACE_chkpnt},
         {"chmod",    TRACE_chmod},
         {"close",    TRACE_close},
         {"closedir", TRACE_closedir},

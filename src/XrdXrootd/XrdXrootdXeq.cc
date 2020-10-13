@@ -62,6 +62,7 @@
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
+#include "XrdXrootd/XrdXrootdWVInfo.hh"
 #include "XrdXrootd/XrdXrootdXeq.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
@@ -85,20 +86,6 @@ struct XrdXrootdSessID
 
         XrdXrootdSessID() {}
        ~XrdXrootdSessID() {}
-       };
-
-struct XrdXrootdWVInfo
-       {XrdOucIOVec *wrVec;    // Prevents compiler array bounds complaint
-        int          curFH;
-        short        vBeg;
-        short        vPos;
-        short        vEnd;
-        short        vMon;
-        bool         doSync;
-        char         wvMon;
-        bool         ioMon;
-        char         vType;
-        XrdOucIOVec  ioVec[1]; // Dynamically sized
        };
 
 /******************************************************************************/
@@ -346,6 +333,12 @@ int XrdXrootdProtocol::do_Bind()
    return rc;
 }
 
+/******************************************************************************/
+/*                             d o _ C h k P n t                              */
+/*                                                                            */
+/* Resides in XrdXrootdXeqChkPnt.cc                                           */
+/******************************************************************************/
+  
 /******************************************************************************/
 /*                              d o _ c h m o d                               */
 /******************************************************************************/
@@ -1918,7 +1911,7 @@ int XrdXrootdProtocol::do_Qconf()
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_iov_max", val)) 
-           {n = snprintf(bp, bleft, "%d\n", maxRvecsz);
+           {n = snprintf(bp, bleft, "%d\n", XrdProto::maxRvecsz);
             bp += n; bleft -= n;
            }
    else if (!strcmp("role", val))
@@ -2407,7 +2400,7 @@ int XrdXrootdProtocol::do_ReadV()
 // The readv file system code originally added by Brian Bockelman, UNL.
 //
    const int hdrSZ = sizeof(readahead_list);
-   struct XrdOucIOVec     rdVec[maxRvecsz+1];
+   struct XrdOucIOVec     rdVec[XrdProto::maxRvecsz+1];
    struct readahead_list *raVec, respHdr;
    long long totSZ;
    XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ = 0;
@@ -2428,7 +2421,7 @@ int XrdXrootdProtocol::do_ReadV()
 // a limit on it's size. We do this to be able to reuse the data buffer to 
 // prevent cross-cpu memory cache synchronization.
 //
-   if (rdVecNum > maxRvecsz)
+   if (rdVecNum > XrdProto::maxRvecsz)
       return Response.Send(kXR_ArgTooLong, "Read vector is too long");
 
 // So, now we account for the number of readv requests and total segments
@@ -2951,9 +2944,11 @@ int XrdXrootdProtocol::do_Write()
 //
    if (pathID) return do_Offload(pathID, true);
 
-// If we are in async mode, schedule the write to occur asynchronously
+// If we are in async mode or this is not a true write request (e.g. chkpoint)
+// schedule the write to occur asynchronously
 //
-   if (myFile->AsyncMode && !as_syncw)
+//
+   if (myFile->AsyncMode && !as_syncw && Request.header.requestid == kXR_write)
       {if (myStalls > as_maxstalls) myStalls--;
           else if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
                   {if ((retc = aio_Write()) != -EAGAIN)
@@ -3157,7 +3152,7 @@ int XrdXrootdProtocol::do_WriteV()
 // Make sure that we can make a copy of the read vector. So, we impose a limit
 // on it's size.
 //
-   if (wrVecNum > maxWvecsz)
+   if (wrVecNum > XrdProto::maxWvecsz)
       {Response.Send(kXR_ArgTooLong, "Write vector is too long");
        return -1;
       }
@@ -3240,10 +3235,12 @@ int XrdXrootdProtocol::do_WriteV()
    myBuff        = argp->buff;
    myBlast       = 0;
 
-// Now we simply start the write operations
+// Now we simply start the write operations if this is a true writev request.
+// Otherwise rteunr to the caller for additional procesing.
 //
    freeInfo.doit = false;
-   return do_WriteVec();
+   if (Request.header.requestid == kXR_writev) return do_WriteVec();
+   return 0;
 }
 
 /******************************************************************************/

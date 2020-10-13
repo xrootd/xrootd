@@ -400,18 +400,34 @@ virtual int            open(const char                *fileName,
                             const char                *opaque = 0) = 0;
 
 //-----------------------------------------------------------------------------
-//! Create, delete, query, or rollback a file checkpoint.
+//! Create, delete, query, rollback a file checkpoint or perform an action.
 //!
 //! @param  act   - The operation to be performed (see cpAct enum below).
-//! @param  range - Portions of the file to be checkpointed.
-//! @param  n     - Number of elements in range.
+//! @param  range - Use and requirement vary by function:
+//!                 cpCreate  - Create a new checkpoint, one must not exist.
+//!                             Parameters ignored, not applicable.
+//!                 cpDelete  - Delete an existing checkpoint, one must exist.
+//!                             Parameters ignored, not applicable.
+//!                 cpQuery   - Where result is to be returned:
+//!                             range[0].offset - Amount currently in use.
+//!                             range[0].length - Maximum total length
+//!                 cpRestore - Restore data from checkpoint and delete it.
+//!                             Parameters ignored, not applicable.
+//!                 cpTrunc   - Offset target for truncation.
+//!                             range[0].offset - Offset for truncations.
+//!                 cpWrite   - Offset/lengths of the file to be checkpointed.
+//!                             The checkpoint must exist via previous cpCreate.
+//! @param  n     - Number of elements in range. Applies only to cpWrite.
 //!
-//! @return One of SFS_OK or SFS_ERROR.
+//! @return One of SFS_OK or SFS_ERROR only.
 //-----------------------------------------------------------------------------
 
 enum cpAct {cpCreate=0,   //!< Create a checkpoint, one must not be active.
             cpDelete,     //!< Delete an existing checkpoint
-            cpRestore     //!< Restore an active checkpoint and delete it.
+            cpRestore,    //!< Restore an active checkpoint and delete it.
+            cpQuery,      //!< Return checkpoint limits
+            cpTrunc,      //!< Truncate a file within  checkpoint.
+            cpWrite       //!< Add data to an existing checkpoint.
            };
 
 virtual int            checkpoint(cpAct act, struct iov *range=0, int n=0);

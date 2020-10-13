@@ -188,6 +188,31 @@ struct ClientChmodRequest {
 };
 
 /******************************************************************************/
+/*                  k X R _ c h k p o i n t   R e q u e s t                   */
+/******************************************************************************/
+  
+struct ClientChkPointRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];    // For Create, Delete, Query, or Restore
+   kXR_char  reserved[11];
+   kXR_char  opcode;        // One of kXR_ckpxxxx actions
+   kXR_int32 dlen;
+};
+
+// Actions
+//
+static const int kXR_ckpBegin   = 0;  // Begin    checkpoint
+static const int kXR_ckpCommit  = 1;  // Commit   changes
+static const int kXR_ckpQuery   = 2;  // Query    checkpoint limits
+static const int kXR_ckpRollback= 3;  // Rollback changes
+static const int kXR_ckpXeq     = 4;  // Execute trunc, write, or writev
+
+// The minimum size of a checkpoint data limit
+//
+static const int kXR_ckpMinMax  = 104857604;  // 10 MB
+  
+/******************************************************************************/
 /*                     k X R _ c l o s e   R e q u e s t                      */
 /******************************************************************************/
   
@@ -633,6 +658,9 @@ struct read_list {
    kXR_int32 rlen;
    kXR_int64 offset;
 };
+static const int rlItemLen = sizeof(read_list);
+static const int maxRvecln = 16384;
+static const int maxRvecsz = maxRvecln/rlItemLen;
 }
 
 /******************************************************************************/
@@ -780,6 +808,9 @@ struct write_list {
    kXR_int32 wlen;
    kXR_int64 offset;
 };
+static const int wlItemLen = sizeof(write_list);
+static const int maxWvecln = 16384;
+static const int maxWvecsz = maxWvecln/wlItemLen;
 }
 
 /******************************************************************************/
@@ -790,6 +821,7 @@ typedef union {
    struct ClientRequestHdr header;
    struct ClientAuthRequest auth;
    struct ClientBindRequest bind;
+   struct ClientChkPointRequest chkpoint;
    struct ClientChmodRequest chmod;
    struct ClientCloseRequest close;
    struct ClientDirlistRequest dirlist;
@@ -917,6 +949,15 @@ struct ServerResponseBody_Bind {
 };
 
 /******************************************************************************/
+/*                 k X R _ c h k p o i n t   R e s p o n s e                  */
+/******************************************************************************/
+  
+struct ServerResponseBody_ChkPoint { // Only for kXR_ckpQMax
+    kXR_unt32 maxCkpSize;  // Maximum number of bytes including overhead
+    kXR_unt32 useCkpSize;  // The number of bytes already being used
+};
+  
+/******************************************************************************/
 /*                    k X R _ e r r o r   R e s p o n s e                     */
 /******************************************************************************/
 
@@ -952,6 +993,8 @@ enum XErrorCode {
    kXR_TLSRequired,     // 3028
    kXR_noReplicas,      // 3029
    kXR_AuthFailed,      // 3030
+   kXR_Impossible,      // 3031
+   kXR_Conflict,        // 3032
    kXR_ERRFENCE,        // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -1289,6 +1332,8 @@ static int mapError(int rc)
            case EPROTOTYPE:    return kXR_TLSRequired;
            case EADDRNOTAVAIL: return kXR_noReplicas;
            case EAUTH:         return kXR_AuthFailed;
+           case EIDRM:         return kXR_Impossible;
+           case ENOTTY:        return kXR_Conflict;
            default:            return kXR_FSError;
           }
       }
@@ -1327,6 +1372,8 @@ static int toErrno( int xerr )
         case kXR_TLSRequired:   return EPROTOTYPE;
         case kXR_noReplicas:    return EADDRNOTAVAIL;
         case kXR_AuthFailed:    return EAUTH;
+        case kXR_Impossible:    return EIDRM;
+        case kXR_Conflict:      return ENOTTY;
         default:                return ENOMSG;
        }
 }

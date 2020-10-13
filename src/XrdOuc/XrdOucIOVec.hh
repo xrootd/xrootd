@@ -56,4 +56,12 @@ struct XrdOucIOVec2 : public XrdOucIOVec
                     XrdOucIOVec::data   = buff;
                    }
 };
+
+// The following correct an error as 'struct iov' was meant to be 'XrdOucIOVec'
+// but was never defined. However, method signatures remain and we can't change
+// them. So, the 'struct iov' is defined here in a more useable way. It wase
+// layout is identical.
+//
+struct iov : public XrdOucIOVec { };
+
 #endif

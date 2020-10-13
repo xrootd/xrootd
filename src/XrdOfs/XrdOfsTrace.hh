@@ -95,6 +95,7 @@
 #define TRACE_mkdir    0x1000
 #define TRACE_stat     0x2000
 #define TRACE_aio      0x4000
-#define TRACE_debug    0x8000
+#define TRACE_debug    0x008000
+#define TRACE_chkpnt   0x010000
 
 #endif

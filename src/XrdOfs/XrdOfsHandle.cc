@@ -52,32 +52,108 @@ class XrdOfsHanOss : public XrdOssDF
 public:
                 // Directory oriented methods
         int     Opendir(const char *, XrdOucEnv &)           {return -EBADF;}
-        int     Readdir(char *buff, int blen)                {return -EBADF;}
+        int     Readdir(char *buff, int blen)                {return  rRC;  }
 
                 // File oriented methods
-        int     Fstat(struct stat *)                         {return -EBADF;}
-        int     Fsync()                                      {return -EBADF;}
-        int     Fsync(XrdSfsAio *aiop)                       {return -EBADF;}
-        int     Ftruncate(unsigned long long)                {return -EBADF;}
+        int     Fchmod(mode_t mode)                          {return  wRC;  }
+        int     Fstat(struct stat *)                         {return  rRC;  }
+        int     Fsync()                                      {return  wRC;  }
+        int     Fsync(XrdSfsAio *aiop)                       {return  wRC;  }
+        int     Ftruncate(unsigned long long)                {return  wRC;  }
         off_t   getMmap(void **addr)                         {return 0;}
         int     isCompressed(char *cxidp=0)                  {return 0;}
         int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EBADF;}
-        ssize_t Read(off_t, size_t)                 {return (ssize_t)-EBADF;}
-        ssize_t Read(void *, off_t, size_t)         {return (ssize_t)-EBADF;}
-        int     Read(XrdSfsAio *aoip)               {return (ssize_t)-EBADF;}
-        ssize_t ReadRaw(    void *, off_t, size_t)  {return (ssize_t)-EBADF;}
-        ssize_t Write(const void *, off_t, size_t)  {return (ssize_t)-EBADF;}
-        int     Write(XrdSfsAio *aiop)              {return (ssize_t)-EBADF;}
+        ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
+                        uint32_t* csvec, uint64_t opts)      {return  rRC;  }
+        int     pgRead (XrdSfsAio* aioparm, uint64_t opts)   {return  rRC;  }
+        ssize_t pgWrite(void* buffer, off_t offset, size_t wrlen,
+                        uint32_t* csvec, uint64_t opts)      {return  wRC;  }
+        int     pgWrite(XrdSfsAio* aioparm, uint64_t opts)   {return  wRC;  }
+        ssize_t Read(off_t, size_t)                          {return  rRC;  }
+        ssize_t Read(void *, off_t, size_t)                  {return  rRC;  }
+        int     Read(XrdSfsAio *aoip)                        {return  rRC;  }
+        ssize_t ReadV(XrdOucIOVec *readV,int rdvcnt)         {return  rRC;  }
+        ssize_t ReadRaw(    void *, off_t, size_t)           {return  rRC;  }
+        ssize_t Write(const void *, off_t, size_t)           {return  wRC;  }
+        int     Write(XrdSfsAio *aiop)                       {return  wRC;  }
+        ssize_t WriteV(XrdOucIOVec *writeV, int wrvcnt)      {return  wRC;  }
 
                 // Methods common to both
         int     Close(long long *retsz=0)                    {return -EBADF;}
-inline  int     Handle() {return -1;}
 
-                XrdOfsHanOss() {}
+                XrdOfsHanOss(int rrc=-EBADF, int wrc=-EBADF)
+                            : rRC(rrc), wRC(wrc) {}
                ~XrdOfsHanOss() {}
 
+protected:
+int rRC;
+int wRC;
 };
 
+/******************************************************************************/
+/*                       X r d O f s H a n O s s E r r                        */
+/******************************************************************************/
+
+class XrdOfsHanOssErr : public XrdOfsHanOss
+{
+public:
+        int     Readdir(char *buff, int blen)
+                       {return (rRC ? rRC : ossP->Readdir(buff, blen));}
+
+        int     Fstat(struct stat *Stat) {return ossP->Fstat(Stat);}
+
+        ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
+                        uint32_t* csvec, uint64_t opts)
+                       {if (rRC) return rRC;
+                        return ossP->pgRead(buffer,offset,rdlen,csvec,opts);
+                       }
+
+        int     pgRead (XrdSfsAio* aioparm, uint64_t opts)
+                       {if (rRC) return rRC;
+                        return ossP->pgRead(aioparm, opts);
+                       }
+
+        ssize_t Read(off_t offset, size_t rlen)
+                    {if (rRC) return rRC;
+                     return ossP->Read(offset, rlen);
+                    }
+
+        ssize_t Read(void *buff, off_t offset, size_t rlen)
+                    {if (rRC) return rRC;
+                     return ossP->Read(buff, offset, rlen);
+                    }
+
+        int     Read(XrdSfsAio *aiop)
+                    {if (rRC) return rRC;
+                     return ossP->Read(aiop);
+                    }
+
+        ssize_t ReadV(XrdOucIOVec *readV,int rdvcnt)
+                    {if (rRC) return rRC;
+                     return ossP->ReadV(readV, rdvcnt);
+                    }
+
+        ssize_t ReadRaw(void *buff , off_t offset, size_t rlen)
+                    {if (rRC) return rRC;
+                     return ossP->ReadRaw(buff, offset, rlen);
+                    }
+
+        int     Close(long long *retsz=0) {return ossP->Close(retsz);}
+
+                XrdOfsHanOssErr(XrdOssDF *ossp, int rrc=-EBADF, int wrc=-EBADF)
+                               : XrdOfsHanOss(rrc, wrc), ossP(ossp)
+                               {tident = ossp->getTID();
+                                fd     = ossp->getFD();
+                                dfType = ossp->DFType();
+                               }
+
+               ~XrdOfsHanOssErr() {delete ossP;}
+
+protected:
+
+XrdOssDF *ossP;
+};
+  
 /******************************************************************************/
 /*                          X r d O f s H a n X p r                           */
 /******************************************************************************/
@@ -495,6 +571,15 @@ do{xP = XrdOfsHanXpr::Get(); hP = xP->Handle;
 // Keep the compiler happy
 //
    return 0;
+}
+
+/******************************************************************************/
+/* public:                      S u p p r e s s                               */
+/******************************************************************************/
+  
+void XrdOfsHandle::Suppress(int rrc, int wrc)
+{
+   ssi = new XrdOfsHanOssErr(ssi, rrc, wrc);
 }
 
 /******************************************************************************/

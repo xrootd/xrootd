@@ -38,44 +38,49 @@ add_library(
   XrdXrootd/XrdXrootdPio.cc             XrdXrootd/XrdXrootdPio.hh
   XrdXrootd/XrdXrootdPrepare.cc         XrdXrootd/XrdXrootdPrepare.hh
   XrdXrootd/XrdXrootdProtocol.cc        XrdXrootd/XrdXrootdProtocol.hh
+                                        XrdXrootd/XrdXrootdReqID.hh
   XrdXrootd/XrdXrootdResponse.cc        XrdXrootd/XrdXrootdResponse.hh
   XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
   XrdXrootd/XrdXrootdGSReal.cc          XrdXrootd/XrdXrootdGSReal.hh
   XrdXrootd/XrdXrootdGStream.cc         XrdXrootd/XrdXrootdGStream.hh
+                                        XrdXrootd/XrdXrootdTrace.hh
   XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
   XrdXrootd/XrdXrootdTransPend.cc       XrdXrootd/XrdXrootdTransPend.hh
   XrdXrootd/XrdXrootdTransSend.cc       XrdXrootd/XrdXrootdTransSend.hh
+                                        XrdXrootd/XrdXrootdWVInfo.hh
   XrdXrootd/XrdXrootdXeq.cc             XrdXrootd/XrdXrootdXeq.hh
   XrdXrootd/XrdXrootdXeqAio.cc
+  XrdXrootd/XrdXrootdXeqChkPnt.cc
   XrdXrootd/XrdXrootdXeqFAttr.cc
   XrdXrootd/XrdXrootdXeqPgrw.cc
-                                        XrdXrootd/XrdXrootdTrace.hh
                                         XrdXrootd/XrdXrootdXPath.hh
-                                        XrdXrootd/XrdXrootdReqID.hh
 
 
 #-------------------------------------------------------------------------------
 # The Open File System and its dependencies
 #-------------------------------------------------------------------------------
   XrdOfs/XrdOfs.cc              XrdOfs/XrdOfs.hh
-                                XrdOfs/XrdOfsSecurity.hh
-                                XrdOfs/XrdOfsTrace.hh
-  XrdOfs/XrdOfsFS.cc
+  XrdOfs/XrdOfsChkPnt.cc        XrdOfs/XrdOfsChkPnt.hh
   XrdOfs/XrdOfsConfig.cc
+  XrdOfs/XrdOfsConfigCP.cc      XrdOfs/XrdOfsConfigCP.hh
   XrdOfs/XrdOfsConfigPI.cc      XrdOfs/XrdOfsConfigPI.hh
+  XrdOfs/XrdOfsCPFile.cc        XrdOfs/XrdOfsCPFile.hh
   XrdOfs/XrdOfsEvr.cc           XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsEvs.cc           XrdOfs/XrdOfsEvs.hh
   XrdOfs/XrdOfsFAttr.cc
+  XrdOfs/XrdOfsFS.cc
   XrdOfs/XrdOfsFSctl.cc
                                 XrdOfs/XrdOfsFSctl_PI.hh
   XrdOfs/XrdOfsHandle.cc        XrdOfs/XrdOfsHandle.hh
   XrdOfs/XrdOfsPoscq.cc         XrdOfs/XrdOfsPoscq.hh
+                                XrdOfs/XrdOfsSecurity.hh
   XrdOfs/XrdOfsStats.cc         XrdOfs/XrdOfsStats.hh
   XrdOfs/XrdOfsTPC.cc           XrdOfs/XrdOfsTPC.hh
   XrdOfs/XrdOfsTPCAuth.cc       XrdOfs/XrdOfsTPCAuth.hh
   XrdOfs/XrdOfsTPCJob.cc        XrdOfs/XrdOfsTPCJob.hh
   XrdOfs/XrdOfsTPCInfo.cc       XrdOfs/XrdOfsTPCInfo.hh
   XrdOfs/XrdOfsTPCProg.cc       XrdOfs/XrdOfsTPCProg.hh
+                                XrdOfs/XrdOfsTrace.hh
 
   #-----------------------------------------------------------------------------
   # XrdSfs - Standard File System (basic)

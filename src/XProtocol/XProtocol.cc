@@ -98,7 +98,9 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "File attribute not found",   // kXR_AttrNotFound
                     "Operation requires TLS",     // kXR_TLSRequired
                     "No new servers for replica", // kXR_noReplicas
-                    "Authentication failed"       // kXR_AuthFailed
+                    "Authentication failed",      // kXR_AuthFailed
+                    "Request is not possible",    // kXR_Impossible
+                    "Conflicting request"         // kXR_Conflict
                    };
 
 const char *reqNames[kXR_REQFENCE-kXR_auth] =

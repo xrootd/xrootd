@@ -1036,6 +1036,36 @@ int XrdOssFile::Fchmod(mode_t Mode)
 }
   
 /******************************************************************************/
+/*                                  F c t l                                   */
+/******************************************************************************/
+/*
+  Function: Perform control operations on a file.
+
+  Input:    cmd       - The command.
+            alen      - length of arguments.
+            args      - Pointer to arguments.
+            resp      - Pointer to where response should be placed.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+
+int XrdOssFile::Fctl(int cmd, int alen, const char *args, char **resp)
+{
+   const struct timeval *utArgs;
+
+   switch(cmd)
+         {case XrdOssDF::Fctl_utimes:
+               if (alen != sizeof(struct timeval)*2 || !args) return -EINVAL;
+               utArgs = (const struct timeval *)args;
+               if (futimes(fd, utArgs)) return -errno;
+               return XrdOssOK;
+               break;
+          default: break;
+         }
+   return -ENOTSUP;
+}
+  
+/******************************************************************************/
 /*                                 F l u s h                                  */
 /******************************************************************************/
 
