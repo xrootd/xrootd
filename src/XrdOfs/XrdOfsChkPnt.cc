@@ -229,7 +229,7 @@ int XrdOfsChkPnt::Restore(bool *readok)
 //
    struct timeval utArg[2];
    utArg[0].tv_sec  = utArg[1].tv_sec  = rinfo.mTime;
-   utArg[1].tv_usec = utArg[1].tv_usec = 0;
+   utArg[0].tv_usec = utArg[1].tv_usec = 0;
    rc = ossFile.Fctl(XrdOssDF::Fctl_utimes, sizeof(utArg), (const char *)&utArg);
    if (rc && rc != -ENOTSUP) OfsEroute.Emsg("ChkPnt", rc, "set mtime for", lFN);
 
