@@ -714,6 +714,28 @@ bool   XrdOfsConfigPI::Plugin(XrdOss          *&piP)
 bool   XrdOfsConfigPI::PrepAuth() {return prpAuth;}
   
 /******************************************************************************/
+/*                                  P u s h                                   */
+/******************************************************************************/
+
+bool XrdOfsConfigPI::Push(TheLib what, const char *plugP, const char *parmP)
+{
+   struct xxxLP newALP;
+   int  i, xLib = PIX(what);
+
+// Make sure this library is pushable
+//
+   if (!pushOK[xLib]) return false;
+
+// Add this library
+//
+   i = ALP[xLib].size();
+   ALP[xLib].push_back(newALP);
+   ALP[xLib][i].lib = strdup(plugP);
+   if (parmP && *parmP) ALP[xLib][i].parms = strdup(parmP);
+   return true;
+}
+  
+/******************************************************************************/
 /* Private:                       R e p L i b                                 */
 /******************************************************************************/
   

@@ -209,6 +209,18 @@ bool   Plugin(XrdOss          *&piP);    //!< Get Oss plugin
 bool   PrepAuth();
 
 //-----------------------------------------------------------------------------
+//! Push a plugin on top of eixsting plugins to be loaded.
+//!
+//! @param   what    The enum specifying which plugin to push.
+//! @param   plugP   Pointer to the name or path of the shared library
+//! @param   parmP   Pointer to library parameters, if any.
+//!
+//! @return  True upon success, false if plugin is not pushable.
+//-----------------------------------------------------------------------------
+
+bool   Push(TheLib what, const char *plugP, const char *parmP=0);
+
+//-----------------------------------------------------------------------------
 //! Set the checksum read size
 //!
 //! @param   rdsz    The chesum read size buffer.
