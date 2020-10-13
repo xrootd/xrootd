@@ -279,7 +279,6 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
 }
 
 int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state) {
-int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPC::State &state) {
     std::stringstream ss;
     const std::string crlf = "\n";
     ss << "Perf Marker" << crlf;
@@ -293,6 +292,8 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPC::State &state) {
     if (!desc.empty())
         ss << "RemoteConnections: " << desc << crlf;
     ss << "End" << crlf;
+    rec.bytes_transferred = state.BytesTransferred();
+    logTransferEvent(LogMask::Debug, rec, "PERF_MARKER");
 
     return req.ChunkResp(ss.str().c_str(), 0);
 }
@@ -492,6 +493,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
 
     // Generate the final response back to the client.
     std::stringstream ss;
+    bool success = false;
     if (state.GetStatusCode() >= 400) {
         std::string err = state.GetErrorMessage();
         std::stringstream ss2;
