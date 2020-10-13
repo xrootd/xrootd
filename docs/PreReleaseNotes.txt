@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Allow internal application push of plugin library.
   **[Server]** Implement checkpointed file modifications (i.e. kXR_chkpoint).
   **[Server]** Enhance the StatPF() method.
   **[Xache]** Phase 1 of checksum integrity implementation (a.k.a pgread).
