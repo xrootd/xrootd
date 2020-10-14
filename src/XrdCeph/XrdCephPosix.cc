@@ -633,41 +633,57 @@ void ceph_posix_set_logfunc(void (*logfunc) (char *, va_list argp)) {
 
 static int ceph_posix_internal_truncate(const CephFile &file, unsigned long long size);
 
-int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode) {
+/**
+ * * brief ceph_posix_open function opens a file for read or write
+ * * details This function either:
+ * *    Opens a file for reading. If the file doesn't exist, this is an error.
+ * *    Opens a file for writing. If the file already exists, check whether overwrite has been requested. If overwrite
+ * *    hasn't been requested for an existing file, this is an error.
+ * * param env XrdOucEnv* Unused
+ * * param pathname const char* Specify the file to open.
+ * * param flags int Indicates whether reading or writing, and whether to overwrite an existing file.
+ * * param mode mode_t Unused
+ * * return int This is a file descriptor (non-negative) if the operation is successful,
+ * * or an error code (negative value) if the operation fails
+ * */
+
+int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode){
+
   CephFileRef fr = getCephFileRef(pathname, env, flags, mode, 0);
-  int fd = insertFileRef(fr);
-  logwrapper((char*)"ceph_open: fd %d associated to %s", fd, pathname);
-  // in case of O_CREAT and O_EXCL, we should complain if the file exists
-  // in case of O_READ, the file has to exist
-  if (((flags & O_CREAT) && (flags & O_EXCL)) || ((flags&O_ACCMODE) == O_RDONLY)) {
-    libradosstriper::RadosStriper *striper = getRadosStriper(fr);
-    if (0 == striper) {
-      deleteFileRef(fd, fr);
-      return -EINVAL;
+
+  struct stat buf;
+  libradosstriper::RadosStriper *striper = getRadosStriper(fr); //Get a handle to the RADOS striper API
+  int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime)); //Get details about a file
+  bool fileExists = (rc != -ENOENT); //Make clear what condition we are testing
+
+  if ((flags&O_ACCMODE) == O_RDONLY) {  // Access mode is READ
+
+    if (fileExists) {
+      int fd = insertFileRef(fr);
+      logwrapper((char*)"File descriptor %d associated to file %s opened in read mode", fd, pathname);
+      return fd;
+    } else {
+      return -ENOENT;
     }
-    struct stat buf;
-    int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime));
-    if ((flags&O_ACCMODE) == O_RDONLY) {
-      if (rc) {
-        deleteFileRef(fd, fr);
-        return rc;
+
+  } else {                              // Access mode is WRITE
+    if (fileExists) {
+      if (flags & O_TRUNC) {
+        int rc = ceph_posix_unlink(env, pathname);
+        if (rc < 0 && rc != -ENOENT) {
+          return rc;
+        }
+      } else {
+        return -EEXIST;
       }
-    } else if (rc != -ENOENT) {
-      deleteFileRef(fd, fr);
-      if (0 == rc) return -EEXIST;
-      return rc;
     }
+    // At this point, we know either the target file didn't exist, or the ceph_posix_unlink above removed it
+    int fd = insertFileRef(fr);
+    logwrapper((char*)"File descriptor %d associated to file %s opened in write mode", fd, pathname);
+    return fd;
+    
   }
-  // in case of O_TRUNC, we should truncate the file
-  if (flags & O_TRUNC) {
-    int rc = ceph_posix_internal_truncate(fr, 0);
-    // fail only if file exists and cannot be truncated
-    if (rc < 0 && rc != -ENOENT) {
-      deleteFileRef(fd, fr);
-      return rc;
-    }
-  }
-  return fd;
+    
 }
 
 int ceph_posix_close(int fd) {
