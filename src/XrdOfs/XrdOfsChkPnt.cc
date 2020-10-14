@@ -303,7 +303,7 @@ int XrdOfsChkPnt::Truncate(struct iov *&range)
 int XrdOfsChkPnt::Write(struct iov *&range, int rnum)
 {
    cUp cup;
-   int rc, dlen, buffSZ = 0, numVS = 0, totSZ = 0;
+   int rc, dlen = 0, buffSZ = 0, numVS = 0, totSZ = 0;
 
 // Make sure we have a checkpoint active
 //
