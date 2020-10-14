@@ -18,11 +18,12 @@
 
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdNet/XrdNetConnect.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClTls.hh"
+#include "XrdNet/XrdNetConnect.hh"
+#include "XrdSys/XrdSysFD.hh"
 
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -64,7 +65,7 @@ namespace XrdCl
     if( pSocket != -1 )
       return XRootDStatus( stError, errInvalidOp );
 
-    pSocket = ::socket( family, SOCK_STREAM, 0 );
+    pSocket = XrdSysFD_Socket( family, SOCK_STREAM, 0 );
     if( pSocket < 0 )
     {
       pSocket = -1;

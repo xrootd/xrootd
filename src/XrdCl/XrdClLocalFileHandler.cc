@@ -27,6 +27,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysXAttr.hh"
 #include "XrdSys/XrdSysFAttr.hh"
+#include "XrdSys/XrdSysFD.hh"
 
 #include <string>
 #include <memory>
@@ -844,7 +845,7 @@ namespace XrdCl
     //---------------------------------------------------------------------
     if( mode == Access::Mode::None)
       mode = 0600;
-    fd = open( path.c_str(), openflags, mode );
+    fd = XrdSysFD_Open( path.c_str(), openflags, mode );
     if( fd == -1 )
     {
       log->Error( FileMsg, "Open: open failed: %s: %s", path.c_str(),
