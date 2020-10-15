@@ -70,11 +70,7 @@ if( NOT XRDCL_ONLY )
   endif()
 
   if( BUILD_SCITOKENS )
-    set( XROOTD_PLUGIN_VERSION ${PLUGIN_VERSION} )
-    set( XRDSCITOKENS_SUBMODULE TRUE )
     add_subdirectory( XrdSciTokens )
-    add_dependencies( XrdAccSciTokens XrdUtils )
-    add_dependencies( XrdAccSciTokens XrdServer )
   endif()
 
 endif()
