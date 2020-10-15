@@ -13,13 +13,25 @@ Version 4.12.5
   * **[CMake]** Set rpath for pip build.
   * **[PIP]** Convert egg-info into proper dist-info.
   * **[XrdCl]** Make sure kXR_attrVirtRdr flag is set properly.
+  * **[XrdTpc]** URI-quote outgoing opaque data for HTTP-TPC.
+  * **[XrdCl]** Utils::GetHostAddresses: use shuffle insted of random_shuffle.
+  * **[XrdCeph]** Fix the file overwrite bug in ceph_posix_open function.
 
 + **Minor bug fixes**
   * **[PIP]** Generate XrdVersion.hh before packaging xrootd source for pip.
+  * **[XrdHttp]** In http mode fail the read if any error comes from the socket,
+                  including timeout.
+  * **[XrdHttp]** Prevent unterminated/corrupted headers from looping the server.
+  * **[XrdTpc]** Avoid old versions of libcurl that do not support CURLINFO_PRIMARY_PORT
+  * **[XrdTpc]** Fix potential null pointer dereference on Push.
+  * **[XrdTpc]** Per request, use curl's escaping function to match EOS practice.
 
 + **Miscellaneous**
   * **[Python]** Strip the leading v from __version__.
   * **[CI]** Update release scripts.
+  * **[XrdTpc]** Improve HTTP-TPC error messages.
+  * **[XrdTpc]** Include a list of connections in the performance marker.
+  * **[XrdTpc]** Have HTTP-TPC reuse the SFS from the environment.
 
 --------------
 Version 4.12.4
