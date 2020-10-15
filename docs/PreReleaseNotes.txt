@@ -19,3 +19,4 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[CMS]** Ignore stacked plugin specifications as they are not supported.
