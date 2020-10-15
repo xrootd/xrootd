@@ -105,16 +105,17 @@ int XrdPosixAdmin::Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz)
 //
    if (!XrdPosixMap::Result(Xrd.Query(reqCode, reqBuff, rspBuff)))
       {uint32_t rspSz = rspBuff->GetSize();
-       // if the string is null-terminated decrement the size
        char *rspbuff = rspBuff->GetBuffer();
-       if ( !(rspbuff[rspSz - 1]) ) --rspSz;
-       if (bsz >= (int)rspSz + 1)
-          {strncpy((char *)buff, rspbuff, rspSz);
-           ((char*)buff)[rspSz] = 0; // make sure the string is null-terminated
-           delete rspBuff;
-           return static_cast<int>(rspSz + 1);
-          }
-       errno = ERANGE;
+       if (rspbuff && rspSz)
+          {// if the string is null-terminated decrement the size
+           if ( !(rspbuff[rspSz - 1]) ) --rspSz;
+           if (bsz >= (int)rspSz + 1)
+              {strncpy((char *)buff, rspbuff, rspSz);
+               ((char*)buff)[rspSz] = 0; // make sure it is null-terminated
+               delete rspBuff;
+               return static_cast<int>(rspSz + 1);
+              } else errno = ERANGE;
+          } else errno = EFAULT;
       }
 
 // Return error
