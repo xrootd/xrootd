@@ -770,6 +770,14 @@ bool XrdOucUtils::parseLib(XrdSysError &eDest, XrdOucStream &Config,
    if (!(val = Config.GetWord()) || !val[0])
       {eDest.Emsg("Config", libName, "not specified"); return false;}
 
+// We do not support stacking s the caller does not support stacking
+//
+   if (!strcmp("++", val))
+      {eDest.Say("Config warning: stacked plugins are not supported in "
+                 "this context; directive ignored!");
+       return true;
+      }
+
 // Record the path
 //
    if (libPath) free(libPath);
