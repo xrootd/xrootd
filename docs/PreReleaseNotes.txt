@@ -14,6 +14,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[Server]** Avoid SEGV when checksum response is invalid.
   **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
 
 + **Minor bug fixes**
