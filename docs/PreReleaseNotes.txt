@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Implement an internal nano-DNS for k8s setups (mostly for SSI).
   **[Server]** Allow internal application push of plugin library.
   **[Server]** Implement checkpointed file modifications (i.e. kXR_chkpoint).
   **[Server]** Enhance the StatPF() method.
