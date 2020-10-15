@@ -248,7 +248,7 @@ int XrdOfsCPFile::Create(const char *srcFN, struct stat &Stat)
 
 // Eliminate the checkpoint file if we encountered any error
 //
-   if (rc) ftruncate(ckpFD, 0);
+   if (rc) {if (ftruncate(ckpFD, 0) && unlink(ckpFN)) {}}
    return rc;
 }
   
@@ -358,7 +358,7 @@ bool XrdOfsCPFile::Reserve(int dlen, int nseg)
 // Now allocate the space
 //
    if (posix_fallocate(ckpFD, ckpSize, dlen))
-      {ftruncate(ckpFD, ckpSize);
+      {if (ftruncate(ckpFD, ckpSize)) {}
        return false;
       }
 
