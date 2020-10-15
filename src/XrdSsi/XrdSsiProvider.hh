@@ -118,6 +118,9 @@ virtual int    Control(CTL_Cmd cmd, const void *argP, void *&resP)
 //!                  an IPV4 address (i.e. d.d.d.d), or an IPV6 address
 //!                  (i.e. [x:x:x:x:x:x]), and "port" is either a numeric port
 //!                  number or the service name assigned to the port number.
+//!                  You may specify more than one contact by separating each
+//!                  with a comma (e.g. host1:port,host2:port,...). Each host
+//!                  must be equivalent with respect to request processing.
 //!                  This is a null string if the call is being made server-side.
 //!                  Note that only one service object is obtained by a server.
 //! @param  oHold    the maximum number of request objects that should be held
@@ -262,6 +265,11 @@ virtual void   SetCBThreads(int cbNum, int ntNum=0) {(void)cbNum; (void)ntNum;}
                      allow the initial fielding of more interrupts. Care must
                      be taken to not overrun netThreads. The default is 3. The
                      suggested maximum is the number of cores.
+    reqDispatch      Request dispatch algorithm to use when contact has multiple
+                     endpoints. Choose one of:
+                     < 0: Random choice each time.
+                     = 0: Use DNS order.
+                     > 0: Round robbin (the default).
 */
 
 virtual bool SetConfig(XrdSsiErrInfo &eInfo,

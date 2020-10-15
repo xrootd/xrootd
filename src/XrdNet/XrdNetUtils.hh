@@ -30,11 +30,16 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string>
+#include <vector>
+
 #include "XrdOuc/XrdOucEnum.hh"
 
 class XrdOucTList;
 class XrdNetAddr;
 union XrdNetSockAddr;
+
+namespace XrdNetSpace {struct hpSpec;}
   
 class XrdNetUtils
 {
@@ -72,13 +77,9 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 
 
 //------------------------------------------------------------------------------
-//! Return multiple addresses associated with a host or IP address. This form
-//! allows complete control of address handling. See XrdNetAddr::Set() for an
-//! alternate form that returns addresses suitable for use on the local host.
-//! The file descriptor association in each returned XrdNetAddr object is set
-//! to a negative value.
+//! Version 1: Return multiple addresses associated with a host or IP address.
 //!
-//! @param  hSpec    -> convert specification to an address. Valid formats:
+//! @param  hSpec    -> convert specification to addresses. Valid formats:
 //!                     IP.v4:   nnn.nnn.nnn.nnn[:<port>]
 //!                     IP.v6:   [ipv6_addr][:<port>]
 //!                     IP.xx:   name[:port] xx is determined by getaddrinfo()
@@ -100,6 +101,8 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 //!                             IPv6, mapped IPv4, or a mixture.
 //!                  The above may be or'd with one or more of the following:
 //!                  onlyUDP  - only addrs valid for UDP connections else TCP
+//!                  order46  - List IPv4 addresses (mapped or native) first.
+//!                  order64  - List IPv6 addresses first.
 //! @param  pNum     >= 0 uses the value as the port number regardless of what
 //!                       is in hSpec, should it be supplied. However, if is
 //!                       present, it must be a valid port number.
@@ -114,13 +117,13 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 //!
 //! @return Success: 0 with aListN set to the number of elements in aListP.
 //!         Failure: the error message text describing the error and aListP
-//!                  and aListN is set to zero. The message is in persistent
-//!                  storage and cannot be modified.
+//!                  and aListN is set to zero.
 //------------------------------------------------------------------------------
 
 enum AddrOpts {allIPMap=  0, allIPv64=  1, allV4Map=  2,
                onlyIPv6=  3, onlyIPv4=  4, prefIPv6=  8,
-               prefAuto= 16, onlyUDP =128
+               prefAuto= 16, order46 = 32, order64 = 64,
+               onlyUDP =128
               };
 
 static const int PortInSpec = (int)0x80000000;
@@ -129,6 +132,53 @@ static const int NoPortRaw  = (int)0xC0000000;
 static
 const char  *GetAddrs(const char *hSpec, XrdNetAddr *aListP[], int &aListN,
                       AddrOpts    opts=allIPMap, int pNum=PortInSpec);
+
+//------------------------------------------------------------------------------
+//! Version 2: Return multiple addresses associated with a host or IP address.
+//!
+//! @param  hSpec    Reference to address specification (see version 1).
+//! @param  aVec     Reference to the vector to contain addresses.
+//! @param  ordn     Pointer to where the partition ordinal is to be stored.
+//! @param  opts     Options on what to return (see version 1).
+//! @param  pNum     Port number argument (see version 1).
+//!
+//! @return Success: 0 is returned. When ordn is not nil, the number of IPv4
+//!                  entries (for order46) or IPv6 (for order64) entries that
+//!                  appear in the front of the vector. If ordering is not
+//!                  specified, the value is set to the size of the vector.
+//!         Failure: the error message text describing the error and aVec is
+//!                  cleared (i.e. has no elements).
+//------------------------------------------------------------------------------
+
+static
+const char  *GetAddrs(const std::string &hSpec, std::vector<XrdNetAddr> &aVec,
+                      int *ordn=0, AddrOpts opts=allIPMap, int pNum=PortInSpec);
+
+//------------------------------------------------------------------------------
+//! Version 3: Return multiple addresses associated with a list of host or
+//! IP addresses.
+//!
+//! @param  hSVec    vector of address specification (see version 1). Note that
+//!                  this version requires hSVec entries to have a port number.
+//! @param  aVec     Reference to the vector to contain addresses.
+//! @param  ordn     Pointer to where the partition ordinal is to be stored.
+//! @param  opts     Options on what to return (see version 1).
+//! @param  rotNum   The rotation factor to order addresses in the result.
+//! @param  force    When true resolution errors are ignored.
+//!
+//! @return Success: 0 is returned. When ordn is not nil, the number of IPv4
+//!                  entries (for order46) or IPv6 (for order64) entries that
+//!                  appear in the front of the vector. If ordering is not
+//!                  specified, the value is set to the size of the vector.
+//!         Failure: the error message text describing the error and aVec is
+//!                  cleared (i.e. has no elements).
+//------------------------------------------------------------------------------
+
+static
+const char  *GetAddrs(std::vector<std::string> &hSVec,
+                      std::vector<XrdNetAddr>  &aVec,
+                      int *ordn=0, AddrOpts opts=allIPMap,
+                      unsigned int rotNum=0, bool force=false);
 
 //------------------------------------------------------------------------------
 //! Obtain an easily digestable list of hosts. This is the list of up to eight
@@ -341,6 +391,18 @@ static int  ServPort(const char *sName, bool isUDP=false, const char **eText=0);
 static int  SetAuto(AddrOpts aOpts=allIPMap);
 
 //------------------------------------------------------------------------------
+//! Check if whether or not a host name represents more than one unique host.
+//!
+//! @param  hName    the host specification suitable for XrdNetAddr.Set().
+//! @param  eText    When not nil, is where to place error message text.
+//!
+//! @return True is this is a simple single host. False if the name represensts
+//!         more than one single host.
+//------------------------------------------------------------------------------
+
+static bool Singleton(const char  *hSpec, const char **eText=0);
+
+//------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
 
@@ -353,6 +415,13 @@ static int  SetAuto(AddrOpts aOpts=allIPMap);
            ~XrdNetUtils() {}
 private:
 
+static void FillAddr(XrdNetSpace::hpSpec &aBuff, XrdNetAddr *aVec,
+                     int *ordn=0, unsigned int rotNum=0);
+static
+const char *GetAInfo(XrdNetSpace::hpSpec &aBuff);
+static void GetHints(XrdNetSpace::hpSpec &aBuff, AddrOpts opts);
+static
+const char *GetHostPort(XrdNetSpace::hpSpec &aBuff, const char *hSpec, int pNum);
 static int setET(const char **errtxt, int rc);
 static int autoFamily;
 static int autoHints;

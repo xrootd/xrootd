@@ -127,7 +127,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
    XrdOucTList *newMans, *newP, *oldP, *appList = (oldMans ? *oldMans : 0);
    XrdOucTList *sP = siteList;
    const char *eText;
-   char *plus, *atsn;
+   char *plus, *atsn, *iName = 0;
    int nPort, maxIP = 1, snum = 0;
    bool isBad;
 
@@ -149,6 +149,16 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                 siteList = new XrdOucTList(atsn, siteIndex, siteList);
                 snum = siteIndex;
                }
+      }
+
+// Handle scope qualification next
+//
+   if ((iName = index(hPort, '%')))
+      {if (*(iName+1) == '\0')
+          {eDest->Emsg("Config", "instance name missing for", hSpec); return 0;}
+       *iName++ = 0;
+       const char *xName = getenv("XRDNAME");
+       if (!xName || strcmp(xName, iName)) sPort = 0;
       }
 
 // Check if this is a multi request
@@ -179,8 +189,8 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 //
    if (XrdNetAddr::DynDNS())
       {if (sPort)
-          {XrdNetAddr myAddr(0);
-           if (!strcmp(myAddr.Name("???"), hSpec)) *sPort = nPort;
+          {XrdNetAddr myAddr(0), urAddr;
+           if (!urAddr.Set(hSpec, 0) && myAddr.Same(&urAddr)) *sPort = nPort;
           }
        newMans = new XrdOucTList(hSpec, nPort);
       } else {

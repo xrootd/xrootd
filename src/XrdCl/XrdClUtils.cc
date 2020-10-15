@@ -140,9 +140,8 @@ namespace XrdCl
                                   Utils::AddressType      type )
   {
     Log *log = DefaultEnv::GetLog();
-    XrdNetAddr *addrs;
-    int         nAddrs = 0;
     const char *err    = 0;
+    int ordn;
 
     //--------------------------------------------------------------------------
     // Resolve all the addresses
@@ -156,22 +155,6 @@ namespace XrdCl
     else if( type == IPAll ) opts = XrdNetUtils::allIPMap;
     else opts = XrdNetUtils::prefAuto;
 
-    err = XrdNetUtils::GetAddrs( o.str().c_str(), &addrs, nAddrs, opts );
-
-    if( err )
-    {
-      log->Error( UtilityMsg, "Unable to resolve %s: %s", o.str().c_str(),
-                  err );
-      return Status( stError, errInvalidAddr );
-    }
-
-    if( nAddrs == 0 )
-    {
-      log->Error( UtilityMsg, "No addresses for %s were found",
-                  o.str().c_str() );
-      return Status( stError, errInvalidAddr );
-    }
-
     //--------------------------------------------------------------------------
     // Check what are the preferences IPv6 or IPv4
     //--------------------------------------------------------------------------
@@ -184,20 +167,26 @@ namespace XrdCl
     // The preferred IP family goes to the back as it is easier to remove
     // items from the back of the vector
     //--------------------------------------------------------------------------
-    std::vector<XrdNetAddr> result( nAddrs );
-    auto itr  = result.begin();
-    auto ritr = result.end() - 1;
+    opts |= (preferIPv4 ? XrdNetUtils::order64 : XrdNetUtils::order46);
 
-    for( int i = 0; i < nAddrs; ++i )
+    //--------------------------------------------------------------------------
+    // Now get all of the properly partitioned addresses; ordn will hold the
+    // number of non-preferred addresses at the front of the table.
+    //--------------------------------------------------------------------------
+    err = XrdNetUtils::GetAddrs( o.str(), addresses, &ordn, opts );
+
+    if( err )
     {
-      bool isIPv4 = addrs[i].isIPType( XrdNetAddrInfo::IPv4 ) ||
-          ( addrs[i].isIPType( XrdNetAddrInfo::IPv6 ) && addrs[i].isMapped() );
+      log->Error( UtilityMsg, "Unable to resolve %s: %s", o.str().c_str(),
+                  err );
+      return Status( stError, errInvalidAddr );
+    }
 
-      auto store = preferIPv4 ?
-                   ( isIPv4 ? ritr-- : itr++ ) :
-                   ( isIPv4 ? itr++ : ritr-- );
-
-      *store = addrs[i];
+    if( addresses.size() == 0 )
+    {
+      log->Error( UtilityMsg, "No addresses for %s were found",
+                  o.str().c_str() );
+      return Status( stError, errInvalidAddr );
     }
 
     //--------------------------------------------------------------------------
@@ -220,23 +209,20 @@ namespace XrdCl
         }
       } only_once;
 
-      std::random_shuffle( result.begin(), itr );
-      std::random_shuffle( itr, result.end() );
+      std::random_shuffle( addresses.begin(), addresses.begin() + ordn );
+      std::random_shuffle( addresses.begin() + ordn, addresses.end() );
 #else
       static std::default_random_engine rand_engine(
           std::chrono::system_clock::now().time_since_epoch().count() );
 
-      std::shuffle( result.begin(), itr, rand_engine );
-      std::shuffle( itr, result.end(), rand_engine );
+      std::shuffle( addresses.begin(), addresses.begin() + ordn, rand_engine );
+      std::shuffle( addresses.begin() + ordn, addresses.end(), rand_engine );
 #endif
     }
 
     //--------------------------------------------------------------------------
-    // Return result through output parameter
+    // Return status as the result is already in the output parameter
     //--------------------------------------------------------------------------
-    addresses.swap( result );
-    delete [] addrs;
-
     return Status();
   }
 

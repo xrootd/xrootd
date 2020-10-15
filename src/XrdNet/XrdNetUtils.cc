@@ -40,6 +40,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIF.hh"
+#include "XrdNet/XrdNetRegistry.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysE2T.hh"
@@ -151,57 +152,258 @@ int XrdNetUtils::Encode(const XrdNetSockAddr *sadr, char *buff, int blen,
 }
 
 /******************************************************************************/
+/* Private:                    F i l l A d d r s                              */
+/******************************************************************************/
+
+#define OrderXX (XrdNetUtils::order46 | XrdNetUtils::order64)
+
+#define SIN_PORT(x) ((struct sockaddr_in *)(x->ai_addr))->sin_port
+namespace XrdNetSpace
+{
+struct hpSpec
+      {const char *ipAddr;
+       addrinfo    hints;
+       addrinfo   *aiP4;
+       int         aNum4;
+       int         aNum6;
+       addrinfo   *aiP6;
+       int         port;
+       bool        map426;
+       bool        noOrder;
+       bool        order46;
+       bool        onlyUDP;
+       char        ipMap[7];                // ::ffff: (length = 7)
+       char        ipAdr[MAXHOSTNAMELEN+15];
+
+              hpSpec(XrdNetUtils::AddrOpts opts)
+                    : aiP4(0), aNum4(0), aNum6(0), aiP6(0), map426(false),
+                      noOrder((opts & OrderXX) == 0),
+                      order46((opts & XrdNetUtils::order46) != 0),
+                      onlyUDP((opts & XrdNetUtils::onlyUDP) != 0) {}
+
+             ~hpSpec() {if (aiP4) freeaddrinfo(aiP4);
+                        if (aiP6) freeaddrinfo(aiP6);
+                       }
+      };
+}
+using namespace XrdNetSpace;
+
+void XrdNetUtils::FillAddr(XrdNetSpace::hpSpec &aInfo, XrdNetAddr *aVec,
+                           int *ordn, unsigned int rotNum)
+{
+   struct addrinfo *aP, *nP[2];
+   int aN[2];
+
+// Establish ordering
+//
+   if (aInfo.order46)
+      {nP[0] = aInfo.aiP4; aN[0] = aInfo.aNum4;
+       nP[1] = aInfo.aiP6; aN[1] = aInfo.aNum6;
+      } else {
+       nP[0] = aInfo.aiP6; aN[0] = aInfo.aNum6;
+       nP[1] = aInfo.aiP4; aN[1] = aInfo.aNum4;
+      }
+
+   for (int k = 0; k < 2; k++)
+       {int sz = aN[k];
+        if (sz && (aP = nP[k]))
+           {int iBeg = rotNum % sz, iEnd = sz;
+            do {for (int i = iBeg; i < iEnd && aP; i++)
+                    {int pNum = int(SIN_PORT(aP)) & 0x0000ffff;
+                     aVec[i].Set(aP, pNum, aInfo.map426);
+                     aP = aP->ai_next;
+                    }
+                iEnd = iBeg; iBeg = 0;
+               } while(aP);
+            aVec = &aVec[sz];
+           }
+        }
+
+// Supply the ordinal if it is wanted
+//
+   if (ordn)
+      {if (aInfo.noOrder) *ordn = aInfo.aNum4 + aInfo.aNum6;
+          else if (aInfo.order46) *ordn = aInfo.aNum4;
+                  else *ordn = aInfo.aNum6;
+      }
+}
+  
+/******************************************************************************/
 /*                              G e t A d d r s                               */
 /******************************************************************************/
   
 const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
-                                   XrdNetAddr            *aListP[], int &aListN,
-                                   XrdNetUtils::AddrOpts  opts,     int  pNum)
+                                   XrdNetAddr            *aVec[], int &aVsz,
+                                   XrdNetUtils::AddrOpts  opts,   int  pNum)
 {
-   static const char *badHS = "invalid host specification";
-   struct addrinfo hints, *nP, *rP = 0;
-   XrdNetAddr *aVec;
-   struct {char ipMap[7];                // ::ffff: (length = 7)
-           char ipAdr[MAXHOSTNAMELEN+15];
-         } aBuff;
-   const char *ipAddr, *hnBeg, *hnEnd, *pnBeg, *pnEnd;
-   int   n, map426 = 0;
+   const char *eText;
+   hpSpec aInfo(opts);
 
 // Prep the returned fields
 //
-   *aListP = 0;
-    aListN = 0;
+   *aVec = 0;
+    aVsz = 0;
 
-// Copy the host specification
+// Parse the options
 //
-   if (!hSpec) return badHS;
-   strlcpy(aBuff.ipAdr, hSpec, sizeof(aBuff.ipAdr));
+   GetHints(aInfo, opts);
 
-// Parse the host specification
+// Parse the host specification and get addresses
 //
-   if (pNum == NoPortRaw)
-      {hnBeg = aBuff.ipAdr;
-       pNum  = 0;
-      } else {
-       if (!Parse(aBuff.ipAdr, &hnBeg, &hnEnd, &pnBeg, &pnEnd)) return badHS;
-       aBuff.ipAdr[hnEnd-aBuff.ipAdr] = 0;
-       if (pnBeg == hnEnd)
-          {if (pNum == PortInSpec) return "port not specified";
-           if (pNum < 0) pNum = -pNum;
-          } else {
-           const char *eText;
-           aBuff.ipAdr[pnEnd-aBuff.ipAdr] = 0;
-           n = ServPort(pnBeg, opts & onlyUDP, &eText);
-           if (!n) return eText;
-           if (pNum < 0) pNum = n;
-          }
+   if ((eText = GetHostPort(aInfo, hSpec, pNum))
+   ||  (eText = GetAInfo(aInfo))) return eText;
+
+// If we have any addresses, resize the vector with that many netaddr objects
+// and then initialze each one of them.
+//
+   if (aInfo.aNum4 || aInfo.aNum6)
+      {aVsz = aInfo.aNum4 + aInfo.aNum6;
+       *aVec = new XrdNetAddr[aVsz];
+       FillAddr(aInfo, *aVec);
       }
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+
+const char *XrdNetUtils::GetAddrs(const std::string       &hSpec,
+                                  std::vector<XrdNetAddr> &aVec,
+                                  int *ordn, AddrOpts opts, int pNum)
+{
+// If this references a registered name, process it as such.
+//
+   if (*(hSpec.c_str()) == XrdNetRegistry::pfx)
+      return XrdNetRegistry::GetAddrs(hSpec, aVec, ordn, opts, pNum);
+
+// Start up!
+//
+   const char *eText;
+   hpSpec aInfo(opts);
+
+// Clear the result vector
+//
+   aVec.clear();
+   if (ordn) *ordn = 0;
+
+// Parse the options
+//
+   GetHints(aInfo, opts);
+
+// Parse the host specification and get address info
+//
+   if ((eText = GetHostPort(aInfo, hSpec.c_str(), pNum))
+   ||  (eText = GetAInfo(aInfo))) return eText;
+
+// If we have any addresses, resize the vector with that many netaddr objects
+// and then initialze each one of them.
+//
+   if (aInfo.aNum4 || aInfo.aNum6)
+      {aVec.resize(aInfo.aNum4 + aInfo.aNum6);
+       FillAddr(aInfo, aVec.data(), ordn);
+      }
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+
+const char *XrdNetUtils::GetAddrs(std::vector<std::string> &hSVec,
+                                  std::vector<XrdNetAddr>  &aVec, int *ordn,
+                                  AddrOpts opts, unsigned int rotNum,
+                                  bool force)
+{
+   const char *eText;
+   hpSpec aInfo(opts);
+
+// Clear the result vector and make sure we have something to do
+//
+   aVec.clear();
+   if (ordn) *ordn = 0;
+   if (!hSVec.size()) return 0;
+
+// Parse the options
+//
+   GetHints(aInfo, opts);
+
+// Process each specification
+//
+   for (int i = 0; i < (int)hSVec.size(); i++)
+       {if (((eText = GetHostPort(aInfo, hSVec[i].c_str(), PortInSpec))
+        ||   (eText = GetAInfo(aInfo))) && !force) return eText;
+       }
+
+// Size the vector and fill it in
+//
+   if (aInfo.aNum4 || aInfo.aNum6)
+      {aVec.resize(aInfo.aNum4 + aInfo.aNum6);
+       FillAddr(aInfo, aVec.data(), ordn, rotNum);
+      }
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+/* Private:                     G e t A I n f o                               */
+/******************************************************************************/
+  
+const char *XrdNetUtils::GetAInfo(XrdNetSpace::hpSpec &aInfo)
+{
+   struct addrinfo *xP = 0, *rP = 0, *nP;
+   unsigned short pNum = static_cast<unsigned short>(aInfo.port);
+
+// Get all of the addresses
+//
+   int rc = getaddrinfo(aInfo.ipAddr, 0, &aInfo.hints, &rP);
+   if (rc || !rP)
+      {if (rP) freeaddrinfo(rP);
+       return (rc ? gai_strerror(rc) : "host not found");
+      }
+
+// Count the number of entries we will return and chain the entries
+//
+   do {nP = rP->ai_next;
+       if (rP->ai_family == AF_INET6 || rP->ai_family == AF_INET)
+          {SIN_PORT(rP) = pNum;
+           if (aInfo.noOrder || rP->ai_family == AF_INET
+           ||  IN6_IS_ADDR_V4MAPPED(rP->ai_addr))
+              {rP->ai_next = aInfo.aiP4;
+               aInfo.aiP4 = rP;
+               aInfo.aNum4++;
+              } else {
+               rP->ai_next = aInfo.aiP6;
+               aInfo.aiP6 = rP;
+               aInfo.aNum6++;
+              }
+          } else {rP->ai_next = xP; xP = rP;}
+      } while((rP = nP));
+
+// Free any entries that we were not interested in and return
+//
+   if (xP) freeaddrinfo(xP);
+   return 0;
+}
+
+/******************************************************************************/
+/* Private:                     G e t H i n t s                               */
+/******************************************************************************/
+
+void XrdNetUtils::GetHints(XrdNetSpace::hpSpec &aInfo,
+                           XrdNetUtils::AddrOpts opts)
+{
+   struct addrinfo &hints = aInfo.hints;
 
 // Setup the hints
 //
    memset(&hints, 0, sizeof(hints));
-   hints.ai_socktype = (opts & onlyUDP ? SOCK_DGRAM : SOCK_STREAM);
-   opts = opts & ~onlyUDP;
+   hints.ai_socktype = (aInfo.onlyUDP ? SOCK_DGRAM : SOCK_STREAM);
+   opts = opts & ~(onlyUDP | order46 | order64);
    switch(opts)
          {case allIPMap: hints.ai_family = AF_INET6;
                          hints.ai_flags  = AI_V4MAPPED | AI_ALL;
@@ -209,7 +411,7 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
           case allIPv64: hints.ai_family = AF_UNSPEC;
                          break;
           case allV4Map: hints.ai_family = AF_INET;
-                         map426 = 1;
+                         aInfo.map426 = true;
                          break;
           case onlyIPv6: hints.ai_family = AF_INET6;
                          break;
@@ -225,47 +427,56 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
                          hints.ai_flags  = AI_V4MAPPED | AI_ALL;
                          break;
          }
+}
+
+/******************************************************************************/
+/* Private:                  G e t H o s t P o r t                            */
+/******************************************************************************/
+
+const char *XrdNetUtils::GetHostPort(XrdNetSpace::hpSpec &aInfo,
+                                     const char  *hSpec, int pNum)
+{
+   static const char *badHS = "invalid host specification";
+   const char *hnBeg, *hnEnd, *pnBeg, *pnEnd;
+
+// Copy the host specification
+//
+   if (!hSpec) return badHS;
+   strlcpy(aInfo.ipAdr, hSpec, sizeof(aInfo.ipAdr));
+
+// Parse the host specification
+//
+   if (pNum == NoPortRaw)
+      {hnBeg = aInfo.ipAdr;
+       aInfo.port  = 0;
+      } else {
+       if (!Parse(aInfo.ipAdr, &hnBeg, &hnEnd, &pnBeg, &pnEnd)) return badHS;
+       aInfo.ipAdr[hnEnd-aInfo.ipAdr] = 0;
+       if (pnBeg == hnEnd)
+          {if (pNum == PortInSpec) return "port not specified";
+           aInfo.port = abs(pNum);
+          } else {
+           const char *eText;
+           aInfo.ipAdr[pnEnd-aInfo.ipAdr] = 0;
+           int n = ServPort(pnBeg, aInfo.onlyUDP, &eText);
+           if (!n) return eText;
+           if (pNum < 0) aInfo.port = n;
+          }
+      }
 
 // Check if we need to convert an ipv4 address to an ipv6 one
 //
-   if (hints.ai_family == AF_INET6 && aBuff.ipAdr[0] != '['
-   && !XrdNetAddrInfo::isHostName(aBuff.ipAdr))
-      {memcpy(aBuff.ipMap, "::ffff:", 7);
-       ipAddr = aBuff.ipMap;
-      } else ipAddr = hnBeg;
-
-// Get all of the addresses
-//
-   n = getaddrinfo(ipAddr, 0, &hints, &rP);
-   if (n || !rP)
-      {if (rP) freeaddrinfo(rP);
-       return (n ? gai_strerror(n) : "host not found");
-      }
-
-// Count the number of entries we will return and get the addr vector
-//
-   n = 0; nP = rP;
-   do {if (nP->ai_family == AF_INET6 || nP->ai_family == AF_INET) n++;
-       nP = nP->ai_next;
-      } while(nP);
-   if (!n) return 0;
-   aVec = new XrdNetAddr[n];
-   *aListP = aVec; aListN = n;
-
-// Now fill out the addresses
-//
-   n = 0; nP = rP;
-   do {if (nP->ai_family == AF_INET6 || nP->ai_family == AF_INET)
-          {aVec[n].Set(nP, pNum, map426); n++;}
-       nP = nP->ai_next;
-      } while(nP);
+   if (aInfo.hints.ai_family == AF_INET6 && aInfo.ipAdr[0] != '['
+   && !XrdNetAddrInfo::isHostName(aInfo.ipAdr))
+      {memcpy(aInfo.ipMap, "::ffff:", 7);
+       aInfo.ipAddr = aInfo.ipMap;
+      } else aInfo.ipAddr = hnBeg;
 
 // All done
 //
-   if (rP) freeaddrinfo(rP);
    return 0;
 }
-
+  
 /******************************************************************************/
 /*                                 H o s t s                                  */
 /******************************************************************************/
@@ -606,7 +817,7 @@ int XrdNetUtils::ServPort(const char *sName, bool isUDP, const char **eText)
 
 // Return the port number
 //
-   portnum = int(ntohs(((struct sockaddr_in *)(rP->ai_addr))->sin_port));
+   portnum = int(ntohs(SIN_PORT(rP))) & 0x0000ffff;
    freeaddrinfo(rP);
    if (!portnum && eText) *eText = "service has no port";
    return portnum;
@@ -651,4 +862,33 @@ int XrdNetUtils::setET(const char **errtxt, int rc)
     if (rc) *errtxt = XrdSysE2T(rc);
        else *errtxt = "unexpected error";
     return 0;
+}
+
+/******************************************************************************/
+/*                             S i n g l e t o n                              */
+/******************************************************************************/
+
+bool XrdNetUtils::Singleton(const char  *hSpec, const char **eText)
+{
+   XrdOucTList *hList, *hNow;
+   bool isSingle;
+
+// Obtain a list of unique hostnames associated with this host
+//
+   hList = Hosts(hSpec, 1234, 2, 0, eText);
+
+// If this is none or only one then this is a singleton
+//
+   isSingle = !hList || hList->next == 0;
+
+// Free up the list of hosts
+//
+   while((hNow = hList))
+        {hList = hList->next;
+         delete hNow;
+        };
+
+// All done
+//
+   return isSingle;
 }

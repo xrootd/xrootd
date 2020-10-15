@@ -143,6 +143,7 @@ add_library(
   XrdNet/XrdNetConnect.cc       XrdNet/XrdNetConnect.hh
   XrdNet/XrdNetIF.cc            XrdNet/XrdNetIF.hh
   XrdNet/XrdNetMsg.cc           XrdNet/XrdNetMsg.hh
+  XrdNet/XrdNetRegistry.cc      XrdNet/XrdNetRegistry.hh
   XrdNet/XrdNetSecurity.cc      XrdNet/XrdNetSecurity.hh
   XrdNet/XrdNetSocket.cc        XrdNet/XrdNetSocket.hh
   XrdNet/XrdNetUtils.cc         XrdNet/XrdNetUtils.hh

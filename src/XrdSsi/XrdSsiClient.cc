@@ -42,6 +42,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetRegistry.hh"
 
 #include "XrdSsi/XrdSsiAtomics.hh"
 #include "XrdSsi/XrdSsiLogger.hh"
@@ -72,6 +73,7 @@ extern XrdSsiLogger::MCB_t *msgCBCl;
        XrdSysMutex   clMutex;
        XrdScheduler *schedP   = 0;
        XrdCl::Env   *clEnvP   = 0;
+       Atomic(int)   contactN(1);
        short         maxTCB   = 300;
        short         maxCLW   =  30;
        short         maxPEL   =   3;
@@ -79,6 +81,12 @@ extern XrdSsiLogger::MCB_t *msgCBCl;
        bool          dsTTLSet = false;
        bool          reqTOSet = false;
        bool          strTOSet = false;
+
+static const int rDispNone =  0;
+static const int rDispRand = -1;
+static const int rDispRR   =  1;
+
+       char          rDisp    = rDispRR;
 }
 
 using namespace XrdSsi;
@@ -135,9 +143,9 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo     &eInfo,
 {
    static const int maxTMO = 0x7fffffff;
    XrdNetAddr netAddr;
-   const char *eText;
+   std::string eMsg;
+   const char *eText = 0;
    char buff[512];
-   int  n;
 
 // Allocate a scheduler if we do not have one and set default env (1st call)
 //
@@ -150,6 +158,8 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo     &eInfo,
       if (!reqTOSet) clEnvP->PutInt("RequestTimeout", maxTMO);
       if (!strTOSet) clEnvP->PutInt("StreamTimeout",  maxTMO);
       clEnvP->PutInt("ParallelEvtLoop",maxPEL);
+      if (rDisp == rDispNone || rDisp == rDispRR)
+         clEnvP->PutInt("IPNoShuffle", 1);
       initDone = true;
       clMutex.UnLock();
      }
@@ -159,15 +169,31 @@ XrdSsiService *XrdSsiClientProvider::GetService(XrdSsiErrInfo     &eInfo,
    if (contact.empty())
       {eInfo.Set("Contact not specified.", EINVAL); return 0;}
 
-// Validate the given contact
+// If this is a single contact which is really a singleton, don't create
+// a registry entry for it as it's just not needed (we need one to rotate).
 //
-   if ((eText = netAddr.Set(contact.c_str())))
-      {eInfo.Set(eText, EINVAL); return 0;}
+   if (contact.find(',') != std::string::npos
+   ||  !XrdNetUtils::Singleton(contact.c_str()))
+      {int cNum = contactN++;
+       bool rotate = rDisp == rDispRR;
+       snprintf(buff,sizeof(buff),"%ccontact-%d:4901",XrdNetRegistry::pfx,cNum);
+       if (!XrdNetRegistry::Register(buff, contact.c_str(), &eMsg, rotate))
+          eText = (eMsg.size() ? eMsg.c_str() : "reason unknown");
 
-// Construct new binding
+      } else {
+
+       if (!(eText = netAddr.Set(contact.c_str()))
+       &&  !netAddr.Format(buff, sizeof(buff), XrdNetAddrInfo::fmtName))
+          eText = "formatting failed";
+      }
+
+// Check if validation or registration failed
 //
-   if (!(n = netAddr.Format(buff, sizeof(buff), XrdNetAddrInfo::fmtName)))
-      {eInfo.Set("Unable to validate contact.", EINVAL); return 0;}
+   if (eText)
+      {snprintf(buff, sizeof(buff), "Unable to validate contact; %s", eText);
+       eInfo.Set(buff, EINVAL);
+       return 0;
+      }
 
 // Allocate a service object and return it
 //
@@ -225,6 +251,13 @@ bool XrdSsiClientProvider::SetConfig(XrdSsiErrInfo &eInfo,
             if (optvalue > 32767) optvalue = 32767;
             clMutex.Lock();
             maxPEL =  static_cast<short>(optvalue);
+            clMutex.UnLock();
+           }
+   else if (optname == "reqDispatch")
+           {clMutex.Lock();
+            if (optvalue < 0) rDisp = rDispRand;
+               else if (optvalue > 0) rDisp = rDispRR;
+                       else rDisp = rDispNone;
             clMutex.UnLock();
            }
    else {eInfo.Set("invalid option name.", EINVAL); return false;}
