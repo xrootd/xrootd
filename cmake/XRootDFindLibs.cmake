@@ -102,6 +102,13 @@ else()
   set( BUILD_MACAROONS FALSE )
 endif()
 
+find_package( SciTokensCpp )
+if( SCITOKENSCPP_FOUND )
+  set( BUILD_SCITOKENS TRUE )
+else()
+  set( BUILD_SCITOKENS FALSE )
+endif()
+
 if( ENABLE_PYTHON AND (Linux OR APPLE) )
   find_package( PythonInterp ${XRD_PYTHON_REQ_VERSION} )
   find_package( PythonLibs ${XRD_PYTHON_REQ_VERSION} )
