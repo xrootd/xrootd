@@ -182,6 +182,9 @@ namespace XrdSys
       //-----------------------------------------------------------------------
       inline ssize_t ReadFromFD( int fd, uint32_t length, loff_t *offset )
       {
+#ifndef SPLICE_F_MOVE
+        return -ENOTSUP;
+#else
         if( capacity > 0 ) Free();
 
         while( length > 0 )
@@ -202,6 +205,7 @@ namespace XrdSys
         pipes_cursor = pipes.begin();
 
         return size;
+#endif
       }
 
       //-----------------------------------------------------------------------
@@ -215,6 +219,9 @@ namespace XrdSys
       //-----------------------------------------------------------------------
       inline ssize_t WriteToFD( int fd, loff_t *offset )
       {
+#ifndef SPLICE_F_MOVE
+        return -ENOTSUP;
+#else
         if( size == 0 ) return 0;
 
         ssize_t result = 0;
@@ -243,6 +250,7 @@ namespace XrdSys
         Free();
 
         return result;
+#endif
       }
 
       //-----------------------------------------------------------------------
@@ -263,6 +271,9 @@ namespace XrdSys
       //-----------------------------------------------------------------------
       inline ssize_t ToUser( char *&buffer )
       {
+#ifndef SPLICE_F_MOVE
+        return -ENOTSUP;
+#else
         if( size == 0 ) return 0;
 
         ssize_t result = 0;
@@ -314,6 +325,7 @@ namespace XrdSys
 
         buffer = reinterpret_cast<char*>( void_ptr );
         return result;
+#endif
       }
 
       //-----------------------------------------------------------------------
@@ -336,6 +348,9 @@ namespace XrdSys
       //-----------------------------------------------------------------------
       inline ssize_t FromUser( char *&buffer, size_t length )
       {
+#ifndef SPLICE_F_MOVE
+        return -ENOTSUP;
+#else
         if( !IsPageAligned( buffer ) )
         {
           errno = EINVAL;
@@ -377,6 +392,7 @@ namespace XrdSys
       size_t size; //< size of the data stored in this kernel buffer
       std::vector<std::tuple<std::array<int,2>, size_t>> pipes; //< the unerlying pipes
       std::vector<std::tuple<std::array<int,2>, size_t>>::iterator pipes_cursor;
+#endif
   };
 
   //---------------------------------------------------------------------------
