@@ -97,7 +97,7 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        int           Fstat(struct stat &buf);
 
-       const char   *Location();
+       const char   *Location(bool refresh=false);
 
        void          HandleResponse(XrdCl::XRootDStatus *status,
                                     XrdCl::AnyObject    *response);

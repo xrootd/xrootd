@@ -150,11 +150,15 @@ virtual int  Fstat(struct stat &sbuff) {(void)sbuff; return 1;}
 //-----------------------------------------------------------------------------
 //! Get the file's location (i.e. endpoint hostname and port)
 //!
+//! @param  refresh - when true, recomputes the location in case it changed st
+//!                   the location is cached from the previous successful call.
+//!
 //! @return A pointer to the file's location. It remains valid until the file
-//!         is closed. A null string means the file is not open or is unknown.
+//!         is closed or Location() is called with refresh set to true.
+//!         A null string means the file is not open or location is unknown.
 //-----------------------------------------------------------------------------
 virtual
-const char  *Location() {return "";}
+const char  *Location(bool refresh=false) {(void)refresh; return "";}
 
 //------------------------------------------------------------------------------
 //! Get the path associated with this object.

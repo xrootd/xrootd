@@ -415,7 +415,7 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
 /*                              L o c a t i o n                               */
 /******************************************************************************/
   
-const char *XrdPosixFile::Location()
+const char *XrdPosixFile::Location(bool refresh)
 {
 
 // If the file is not open, then we have no location
@@ -424,10 +424,14 @@ const char *XrdPosixFile::Location()
 
 // If we have no location info, get it
 //
-   if (!fLoc)
+   if (!fLoc || refresh)
       {std::string currNode;
        if (clFile.GetProperty(dsProperty, currNode))
-          fLoc = strdup(currNode.c_str());
+          {if (!fLoc || strcmp(fLoc, currNode.c_str()))
+              {if (fLoc) free(fLoc);
+               fLoc = strdup(currNode.c_str());
+              }
+          }
       }
 
 // Return location information
