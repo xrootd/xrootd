@@ -44,11 +44,11 @@ namespace XrdSys
   //---------------------------------------------------------------------------
   class KernelBuffer
   {
-      friend ssize_t Read( int, KernelBuffer&, uint32_t, loff_t );
+      friend ssize_t Read( int, KernelBuffer&, uint32_t, int64_t );
 
       friend ssize_t Read( int, KernelBuffer&, uint32_t );
 
-      friend ssize_t Write( int, KernelBuffer&, loff_t );
+      friend ssize_t Write( int, KernelBuffer&, int64_t );
 
       friend ssize_t Send( int, KernelBuffer& );
 
@@ -180,11 +180,14 @@ namespace XrdSys
       //! @return       : size of the data read from the file descriptor or -1
       //!                 on error
       //-----------------------------------------------------------------------
+#ifndef SPLICE_F_MOVE
+      inline ssize_t ReadFromFD( int fd, uint32_t length, long int *offset )
+      {
+        return -ENOTSUP;
+      }
+#else
       inline ssize_t ReadFromFD( int fd, uint32_t length, loff_t *offset )
       {
-#ifndef SPLICE_F_MOVE
-        return -ENOTSUP;
-#else
         if( capacity > 0 ) Free();
 
         while( length > 0 )
@@ -205,8 +208,8 @@ namespace XrdSys
         pipes_cursor = pipes.begin();
 
         return size;
-#endif
       }
+#endif
 
       //-----------------------------------------------------------------------
       //! Write data from a kernel buffer to a file descriptor
@@ -217,11 +220,14 @@ namespace XrdSys
       //! @return       : size of the data written into the file descriptor or
       //!                 -1 on error
       //-----------------------------------------------------------------------
+#ifndef SPLICE_F_MOVE
+      inline ssize_t WriteToFD( int fd, long int *offset )
+      {
+        return -ENOTSUP;
+      }
+#else
       inline ssize_t WriteToFD( int fd, loff_t *offset )
       {
-#ifndef SPLICE_F_MOVE
-        return -ENOTSUP;
-#else
         if( size == 0 ) return 0;
 
         ssize_t result = 0;
@@ -250,8 +256,8 @@ namespace XrdSys
         Free();
 
         return result;
-#endif
       }
+#endif
 
       //-----------------------------------------------------------------------
       //! Move the buffer to user space:
@@ -401,7 +407,7 @@ namespace XrdSys
   //!
   //! @see KernelBuffer::ReadFromFD
   //---------------------------------------------------------------------------
-  inline ssize_t Read( int fd, KernelBuffer &buffer, uint32_t length, loff_t offset )
+  inline ssize_t Read( int fd, KernelBuffer &buffer, uint32_t length, int64_t offset )
   {
     return buffer.ReadFromFD( fd, length, &offset );
   }
@@ -423,7 +429,7 @@ namespace XrdSys
   //!
   //! @see KernelBuffer::WriteToFD
   //---------------------------------------------------------------------------
-  inline ssize_t Write( int fd, KernelBuffer &buffer, loff_t offset )
+  inline ssize_t Write( int fd, KernelBuffer &buffer, int64_t offset )
   {
     return buffer.WriteToFD( fd, &offset );
   }
