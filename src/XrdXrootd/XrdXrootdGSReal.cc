@@ -30,6 +30,7 @@
 
 #include <malloc.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/uio.h>
 
@@ -72,7 +73,7 @@ XrdXrootdGSReal::XrdXrootdGSReal(const XrdXrootdGSReal::GSParms &gsParms,
    static const int minSZ = 1024;
    static const int dflSZ = 1024*32;
    static const int maxSZ = 1024*64;
-   int flsT, maxL, hdrLen, pgSZ = getpagesize();
+   int flsT, maxL, hdrLen;
 
 // Do common initialization
 //
@@ -89,8 +90,8 @@ XrdXrootdGSReal::XrdXrootdGSReal(const XrdXrootdGSReal::GSParms &gsParms,
 
 // Allocate the UDP buffer
 //
-   if (maxL < pgSZ) udpBuffer = (char *)memalign(maxL, maxL);
-      else udpBuffer = (char *)memalign(pgSZ, maxL);
+   int align = (maxL < getpagesize() ? maxL : getpagesize());
+   if (posix_memalign((void **)&udpBuffer, align, maxL)) {aOK = false; return;}
 
 // Setup the header as needed
 //

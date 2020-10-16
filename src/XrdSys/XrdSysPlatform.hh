@@ -62,7 +62,9 @@
 #include <sys/types.h>
 #endif
 
-#ifdef __solaris__
+// The following provides historical support for Solaris 5.10.x
+//
+#if defined(__solaris__) && defined(__SunOS_5_10)
 #define posix_memalign(memp, algn, sz) \
         ((*memp = memalign(algn, sz)) ? 0 : ENOMEM)
 #define __USE_LEGACY_PROTOTYPES__ 1
@@ -121,9 +123,6 @@ typedef off_t offset_t;
 #define POLLWRNORM  0
 #endif
 #define O_LARGEFILE 0
-#define memalign(pgsz,amt) valloc(amt)
-#define posix_memalign(memp, algn, sz) \
-        ((*memp = memalign(algn, sz)) ? 0 : ENOMEM)
 #define SHMDT_t void *
 #ifndef EDEADLOCK
 #define EDEADLOCK EDEADLK
@@ -133,7 +132,6 @@ typedef off_t offset_t;
 #ifdef __FreeBSD__
 #define	O_LARGEFILE 0
 typedef off_t off64_t;
-#define	memalign(pgsz,amt) valloc(amt)
 #endif
 
 // Only sparc platforms have structure alignment problems w/ optimization

@@ -134,7 +134,7 @@ XrdBuffer *XrdBuffXL::Obtain(int sz)
 
 // Allocate a chunk of aligned memory
 //
-   if (!(memp = static_cast<char *>(memalign(pagsz, buffSz)))) return 0;
+   if (posix_memalign((void **)&memp, pagsz, buffSz)) return 0;
 
 // Wrap the memory with a buffer object
 //

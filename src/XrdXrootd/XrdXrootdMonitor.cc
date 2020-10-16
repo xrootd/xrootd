@@ -339,7 +339,7 @@ XrdXrootdMonitor::XrdXrootdMonitor()
 
 // Allocate a monitor buffer
 //
-   if (!(monBuff = (XrdXrootdMonBuff *)memalign(getpagesize(), monBlen)))
+   if (posix_memalign((void **)&monBuff, getpagesize(), monBlen))
       eDest->Emsg("Monitor", "Unable to allocate monitor buffer.");
       else {nextEnt = 1;
             setTMark(monBuff, 0, localWindow);
@@ -745,8 +745,7 @@ int XrdXrootdMonitor::Init()
 // Allocate as many redirection monitors as requested
 //
    for (i = 0; i < rdrNum; i++)
-       {rdrMon[i].Buff = (XrdXrootdMonBurr *)memalign(getpagesize(),monRlen);
-        if (!rdrMon[i].Buff)
+       {if (posix_memalign((void **)&rdrMon[i].Buff, getpagesize(),monRlen))
            {eDest->Emsg("Monitor", "Unable to allocate monitor rdr buffer.");
             return 0;
            }

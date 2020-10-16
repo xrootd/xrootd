@@ -164,7 +164,7 @@ int XrdSys::IOEvents::PollPort::AllocMem(void **memP, int slots)
 //
    bytes     = slots * sizeof(port_event_t);
    alignment = (bytes < pagsz ? 1024 : pagsz);
-   if (!(*memP = memalign(alignment, bytes))) return ENOMEM;
+   if (posix_memalign(memP, alignment, bytes)) return ENOMEM;
    memset(*memP, 0, bytes);
    return 0;
 }

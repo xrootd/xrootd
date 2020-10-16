@@ -31,6 +31,7 @@
 #include <malloc.h>
 #endif
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <sys/resource.h>
   
@@ -195,7 +196,7 @@ const char *XrdStats::GenStats(int &rsz, int opts) // statsMutex must be locked!
       {blen = InfoStats(0,0) + BuffPool->Stats(0,0) + XrdLink::Stats(0,0)
             + ProcStats(0,0) + XrdSched->Stats(0,0) + XrdPoll::Stats(0,0)
             + XrdProtLoad::Statistics(0,0) + ovrhed + Hlen;
-       buff = (char *)memalign(getpagesize(), blen+256);
+       if (posix_memalign((void **)&buff, getpagesize(), blen+256)) buff = 0;
        if (!(bp = buff)) {rsz = snulsz; return snul;}
       }
    bl = blen;

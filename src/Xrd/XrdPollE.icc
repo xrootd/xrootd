@@ -33,6 +33,7 @@
 #endif
 
 #include <fcntl.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/epoll.h>
@@ -63,7 +64,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 //
    bytes     = maxfd * sizeof(struct epoll_event);
    alignment = (bytes < pagsz ? 1024 : pagsz);
-   if (!(pp = (struct epoll_event *)memalign(alignment, bytes)))
+   if (posix_memalign((void **)&pp, alignment, bytes))
       {Log.Emsg("Poll", ENOMEM, "create poll table");
        close(pfd);
        return 0;

@@ -32,6 +32,7 @@
 #endif
 
 #include <signal.h>
+#include <stdlib.h>
   
 #include "Xrd/XrdLinkCtl.hh"
 #include "Xrd/XrdPollPoll.hh"
@@ -50,7 +51,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 //
    bytes     = maxfd * sizeof(struct pollfd);
    alignment = (bytes < pagsz ? 1024 : pagsz);
-   if (!(pp = (struct pollfd *)memalign(alignment, bytes)))
+   if (posix_memalign((void **)&pp, alignment, bytes))
       {Log.Emsg("Poll", ENOMEM, "create poll table");
        return 0;
       }
