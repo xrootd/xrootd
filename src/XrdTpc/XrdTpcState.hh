@@ -93,6 +93,11 @@ public:
     // not all buffers have been reordered by the underlying stream.
     bool Finalize();
 
+    // Flush the data in memory to disk, even if it may cause unaligned or short
+    // writes.  Typically, only done while shutting down the transfer (note some
+    // backends may be unable to handle unaligned writes unless it's the last write).
+    int Flush();
+
     // Retrieve the description of the remote connection; is of the form:
     //   tcp:129.93.3.4:1234
     //   tcp:[2600:900:6:1301:268a:7ff:fef6:a590]:2345
