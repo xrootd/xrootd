@@ -28,10 +28,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#ifndef __APPLE__
-#include <malloc.h>
-#endif
-
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/types.h>

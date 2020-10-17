@@ -27,9 +27,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#if !defined(__APPLE__) && !defined(__FreeBSD__)
-#include <malloc.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>

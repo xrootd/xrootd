@@ -33,9 +33,6 @@
 #endif
 #include <sys/types.h>
 #include <stdlib.h>
-#if !defined(__APPLE__) && !defined(__FreeBSD__)
-#include <malloc.h>
-#endif
 
 #include "XrdNet/XrdNetBuffer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
