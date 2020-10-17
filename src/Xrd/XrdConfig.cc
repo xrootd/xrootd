@@ -2022,7 +2022,8 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 
 // All done
 //
-   if (!(repOpts & XRD_STATS_ALL)) repOpts = XRD_STATS_ALL & ~XRD_STATS_INFO;
+   if (!(repOpts & XRD_STATS_ALL))
+      repOpts = char(XRD_STATS_ALL & ~XRD_STATS_INFO);
    return 0;
 }
 
