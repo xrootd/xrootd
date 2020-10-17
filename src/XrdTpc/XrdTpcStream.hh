@@ -41,7 +41,7 @@ public:
 
     int Read(off_t offset, char *buffer, size_t size);
 
-    int Write(off_t offset, const char *buffer, size_t size);
+    int Write(off_t offset, const char *buffer, size_t size, bool force);
 
     size_t AvailableBuffers() const {return m_avail_count;}
 
@@ -70,15 +70,28 @@ private:
 
         bool Available() const {return m_offset == -1;}
 
-        int Write(Stream &stream) {
+        int Write(Stream &stream, bool force) {
             if (Available() || !CanWrite(stream)) {return 0;}
-            // Currently, only full writes are accepted.
-            int size_desired = m_size;
-            int retval = stream.Write(m_offset, &m_buffer[0], size_desired);
-            m_size = 0;
-            m_offset = -1;
-            if (retval != size_desired) {
+            // Currently, only full writes are accepted along megabyte boundaries
+            // unless the stream forces a flush (i.e., we are at EOF).
+            size_t size_desired = m_size;
+            if (!force) {
+                size_desired -= (size_desired % (1024*1024));
+                if (!size_desired) {return 0;}
+            }
+            int retval = stream.Write(m_offset, &m_buffer[0], size_desired, force);
+            if (retval < 0 && (static_cast<size_t>(retval) != size_desired)) {
                 return -1;
+            }
+            // If partial data remains, copy it to the beginning of the buffer.
+            // Otherwise, mark the buffer as available.
+            if (size_desired < m_size) {
+                m_offset += size_desired;
+                m_size -= size_desired;
+                memcpy(&m_buffer[0], &m_buffer[size_desired], m_size);
+            } else {
+                m_offset = -1;
+                m_size = 0;
             }
             return retval;
         }

@@ -488,6 +488,8 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     }
     curl_multi_cleanup(multi_handle);
 
+    state.Flush();
+
     rec.bytes_transferred = state.BytesTransferred();
     rec.tpc_status = state.GetStatusCode();
 
@@ -529,6 +531,7 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
     CURLcode res;
     res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
+    state.Flush();
     if (res == CURLE_HTTP_RETURNED_ERROR) {
         m_log.Emsg(log_prefix, "Remote server failed request", curl_easy_strerror(res));
         return req.SendSimpleResp(500, NULL, NULL,
