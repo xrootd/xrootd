@@ -1418,12 +1418,11 @@ int XrdOfs::chksum(      csFunc            Func,   // In
    if (CksPfn && !(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))
       return Emsg(epname, einfo, rc, "checksum", Path);
 
-// If this is a proxy server then we may need to pass a pointer to the env
+// Originally we only passed he env pointer for proxy servers. Due to popular
+// demand, we always pass the env as it points to the SecEntity object.
 //
-   if (OssIsProxy)
-      {if (Func == XrdSfsFileSystem::csGet || Func == XrdSfsFileSystem::csCalc)
-          cksData.envP = &cksEnv;
-      }
+   if (Func == XrdSfsFileSystem::csGet || Func == XrdSfsFileSystem::csCalc)
+      cksData.envP = &cksEnv;
 
 // Now determine what to do
 //

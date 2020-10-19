@@ -43,8 +43,8 @@ static const int ValuSize = 64; // Max value length is 512 bits
 
 char      Name[NameSize];       // Checksum algorithm name
 union    {
-long long fmTime;               // File's mtime when checksum was computed.
-XrdOucEnv*envP;                 // Set for get & calc only if proxy server!
+long long fmTime;               // Out: File's mtime when checksum was computed.
+XrdOucEnv*envP;                 // In:  Set for get & calc, only!
          };
 int       csTime;               // Delta from fmTime when checksum was computed.
 short     Rsvd1;                // Reserved field
