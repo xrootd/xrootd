@@ -13,3 +13,4 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Server]** Pass the environment+secEntity to checksm manager. Fixes #1294
