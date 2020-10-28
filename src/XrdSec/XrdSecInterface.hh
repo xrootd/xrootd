@@ -365,8 +365,8 @@ virtual      ~XrdSecProtocol() {}
 //!         Failure: A null pointer with einfo, if supplied, holding the reason
 //!                  for the failure.
 //!
-//! Notes:   1) Function is called ince in single-thread mode and need not be
-//!             thread-safe.
+//! Notes:   1) Function is called since in single-thread mode and need not be
+//!             thread-safe (server-side only).
 //!          2) If the protocol is TLS based then, in addition to returning a
 //!             "TLS:" prefixed token it should do two more things:
 //!             a) Make sure that the connection is in fact using TLS. Simply
