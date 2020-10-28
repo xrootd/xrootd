@@ -20,6 +20,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Server]** Correct TLS identification test for authentication protocol.
   **[Server]** Pass the environment+secEntity to checksm manager. Fixes #1294
   **[Xcache]** Allow origin location query to be refreshed.
   **[CMS]** Ignore stacked plugin specifications as they are not supported.
