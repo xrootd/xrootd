@@ -268,7 +268,7 @@ XrdSecProtList *XrdSecPManager::Add(XrdOucErrInfo  *eMsg, const char *pid,
 
 // Check if this protocol need TLS
 //
-   if (parg && !strcmp(parg, "TLS:"))
+   if (parg && !strncmp(parg, "TLS:",4))
       {char pBuff[XrdSecPROTOIDSIZE+2];
        *pBuff = ' ';
        strcpy(pBuff+1, pid);  // We know it fits
