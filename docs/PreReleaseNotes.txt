@@ -11,6 +11,7 @@ Prerelease Notes
   **[Server]** Avoid SEGV when checksum response is invalid.
 
 + **Minor bug fixes**
+  **[Server]** Report correct owner/group in extended status.
 
 + **Miscellaneous**
   **[Server]** Correct TLS identification test for authentication protocol.
