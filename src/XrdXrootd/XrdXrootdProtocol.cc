@@ -734,12 +734,12 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
 
 // Tack on owner
 //
-   if (theuid == myUID)
+   if (buf.st_uid == myUID)
       {if (myUNLen >= xxLen) return m;
        strcpy(xxBuff, myUName);
        n = myUNLen;
       } else {
-       if (!(n = XrdOucUtils::UidName(theuid, xxBuff, xxLen, keepT))) return m;
+       if (!(n = XrdOucUtils::UidName(buf.st_uid,xxBuff,xxLen,keepT))) return m;
       }
    xxBuff += n;
    *xxBuff++ = ' ';
@@ -747,12 +747,12 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
 
 // Tack on group
 //
-   if (thegid == myGID)
+   if (buf.st_gid == myGID)
       {if (myGNLen >= xxLen) return m;
        strcpy(xxBuff, myGName);
        n = myUNLen;
       } else {
-       if (!(n = XrdOucUtils::GidName(thegid, xxBuff, xxLen, keepT))) return m;
+       if (!(n = XrdOucUtils::GidName(buf.st_gid,xxBuff,xxLen,keepT))) return m;
       }
    xxBuff += n+1;
 
