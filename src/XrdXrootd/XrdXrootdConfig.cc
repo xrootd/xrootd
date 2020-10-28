@@ -588,7 +588,7 @@ int  XrdXrootdProtocol::CheckTLS(const char *tlsProt)
 // If there are any TLS requirements then TLS must have been configured.
 //
     if (myRole & kXR_tlsAny && !tlsCtx)
-       {eDest.Emsg("config", "Unable to honor TLS requirement; "
+       {eDest.Say("Config failure: unable to honor TLS requirement; "
                              "TLS not configured!");
         return 0;
        }
