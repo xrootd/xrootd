@@ -371,8 +371,12 @@ const char *XrdNetUtils::GetAInfo(XrdNetSpace::hpSpec &aInfo)
    do {nP = rP->ai_next;
        if (rP->ai_family == AF_INET6 || rP->ai_family == AF_INET)
           {SIN_PORT(rP) = pNum;
-           if (aInfo.noOrder || rP->ai_family == AF_INET
-           ||  IN6_IS_ADDR_V4MAPPED(rP->ai_addr))
+           bool v4mapped = false;
+           if (rP->ai_family == AF_INET6)
+              {struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)rP->ai_addr;
+               v4mapped = IN6_IS_ADDR_V4MAPPED(&ipv6->sin6_addr);
+              }
+           if (aInfo.noOrder || rP->ai_family == AF_INET ||  v4mapped)
               {rP->ai_next = aInfo.aiP4;
                aInfo.aiP4 = rP;
                aInfo.aNum4++;
