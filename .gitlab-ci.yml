@@ -211,10 +211,10 @@ build:fedora-31:
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_with_scitokens 1"
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir fc-31/
     - cp packaging/*.src.rpm fc-31
