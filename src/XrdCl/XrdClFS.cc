@@ -965,7 +965,7 @@ XRootDStatus DoStat( FileSystem                      *fs,
   {
     std::cout << "\nMode:   " << info->GetModeAsString() << std::endl;
     std::cout << "Owner:  " << info->GetOwner() << std::endl;
-    std::cout << "Group:  " << info->GetOwner();
+    std::cout << "Group:  " << info->GetGroup();
   }
 
   std::cout << std::endl;
