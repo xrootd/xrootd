@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  **[TLS]** Avoid bad behaviour when authentication fails on a TLS connection.
   **[Server]** Avoid SEGV when checksum response is invalid.
 
 + **Minor bug fixes**
