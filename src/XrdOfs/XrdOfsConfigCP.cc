@@ -149,7 +149,7 @@ bool XrdOfsConfigCP::Init()
 //
    if (autoDis)
       {OfsEroute.Say("Config warning: checkpoints disabled because the "
-                     " checkpoint directory is rooted in '/tmp'!");
+                     "checkpoint directory is rooted in '/tmp'!");
        Enabled = false;
       }
 
