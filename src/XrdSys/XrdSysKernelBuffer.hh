@@ -181,7 +181,7 @@ namespace XrdSys
       //!                 on error
       //-----------------------------------------------------------------------
 #ifndef SPLICE_F_MOVE
-      inline ssize_t ReadFromFD( int fd, uint32_t length, long int *offset )
+      inline ssize_t ReadFromFD( int fd, uint32_t length, int64_t *offset )
       {
         return -ENOTSUP;
       }
@@ -221,7 +221,7 @@ namespace XrdSys
       //!                 -1 on error
       //-----------------------------------------------------------------------
 #ifndef SPLICE_F_MOVE
-      inline ssize_t WriteToFD( int fd, long int *offset )
+      inline ssize_t WriteToFD( int fd, int64_t *offset )
       {
         return -ENOTSUP;
       }
@@ -389,6 +389,7 @@ namespace XrdSys
         free( buffer );
         buffer = 0;
         return size;
+#endif
       }
 
       static const size_t PAGE_SIZE     =    4 * 1024; //< page size
@@ -398,7 +399,6 @@ namespace XrdSys
       size_t size; //< size of the data stored in this kernel buffer
       std::vector<std::tuple<std::array<int,2>, size_t>> pipes; //< the unerlying pipes
       std::vector<std::tuple<std::array<int,2>, size_t>>::iterator pipes_cursor;
-#endif
   };
 
   //---------------------------------------------------------------------------
