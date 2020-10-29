@@ -46,7 +46,7 @@
 struct XrdTlsSocketImpl
 {
     XrdTlsSocketImpl() : tlsctx(0), ssl(0), traceID(""), sFD(-1), hsWait(15),
-                         hsDone(false), fatal(false), isClient(false),
+                         hsDone(false), fatal(0), isClient(false),
                          cOpts(0), cAttr(0), hsNoBlock(false) {}
 
     XrdTlsContext   *tlsctx;    //!< Associated context object
@@ -55,7 +55,7 @@ struct XrdTlsSocketImpl
     int              sFD;       //!< Associated file descriptor (never closed)
     int              hsWait;    //!< Maximum amount of time to wait for handshake
     bool             hsDone;    //!< True if the handshake has completed
-    bool             fatal;     //!< True if fatal error prevents shutdown call
+    char             fatal;     //!< !0   if fatal error prevents shutdown call
     bool             isClient;  //!< True if for client use
     char             cOpts;     //!< Connection options
     char             cAttr;     //!< Connection attributes
@@ -355,7 +355,10 @@ int XrdTlsSocket::Diagnose(const char *what, int sslrc, int tcode)
 
 // Make sure we can shutdown
 //
-   if (eCode == SSL_ERROR_SYSCALL || eCode == SSL_ERROR_SSL) pImpl->fatal = true;
+   if (eCode == SSL_ERROR_SYSCALL)
+      pImpl->fatal = (char)XrdTls::TLS_SYS_Error;
+      else if (eCode == SSL_ERROR_SSL)
+              pImpl->fatal = (char)XrdTls::TLS_SSL_Error;
 
 // Return the errors
 //
@@ -518,6 +521,13 @@ XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
     int ssler;
 
     //------------------------------------------------------------------------
+    // Return an error if this socket received a fatal error as OpenSSL will
+    // SEGV when called after such an error.
+    //------------------------------------------------------------------------
+
+    if (pImpl->fatal) return (XrdTls::RC)pImpl->fatal;
+
+    //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
     // have to explicitly call SSL_connect or SSL_do_handshake.
     //------------------------------------------------------------------------
@@ -561,6 +571,13 @@ XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
 
 int XrdTlsSocket::Pending(bool any)
 {
+
+    //------------------------------------------------------------------------
+    // Return an error if this socket received a fatal error as OpenSSL will
+    // SEGV when called after such an error. So, return something reasonable.
+    //------------------------------------------------------------------------
+
+    if (pImpl->fatal) return 0;
    if (!any) return SSL_pending(pImpl->ssl);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
    return SSL_pending(pImpl->ssl) != 0;
@@ -577,6 +594,13 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
 {
     EPNAME("Read");
     int ssler;
+
+    //------------------------------------------------------------------------
+    // Return an error if this socket received a fatal error as OpenSSL will
+    // SEGV when called after such an error.
+    //------------------------------------------------------------------------
+
+    if (pImpl->fatal) return (XrdTls::RC)pImpl->fatal;
 
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
@@ -641,7 +665,7 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
    const char *how;
    int sdMode, rc;
 
-// Make sure we have an ssl object
+// Make sure we have an ssl object.
 //
    if (pImpl->ssl == 0) return;
 
@@ -691,6 +715,7 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
 //
    SSL_free( pImpl->ssl );
    pImpl->ssl = 0;
+   pImpl->fatal = 0;
 }
 
 /******************************************************************************/
@@ -702,6 +727,13 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
 {
     EPNAME("Write");
     int ssler;
+
+    //------------------------------------------------------------------------
+    // Return an error if this socket received a fatal error as OpenSSL will
+    // SEGV when called after such an error.
+    //------------------------------------------------------------------------
+
+    if (pImpl->fatal) return (XrdTls::RC)pImpl->fatal;
 
     //------------------------------------------------------------------------
     // If necessary, SSL_write() will negotiate a TLS/SSL session, so we don't
@@ -753,6 +785,13 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
 
   bool XrdTlsSocket::NeedHandShake()
   {
+
+    //------------------------------------------------------------------------
+    // Return an error if this socket received a fatal error as OpenSSL will
+    // SEGV when called after such an error. So, return something reasonable.
+    //------------------------------------------------------------------------
+
+    if (pImpl->fatal) return false;
     pImpl->hsDone = bool( SSL_is_init_finished( pImpl->ssl ) );
     return !pImpl->hsDone;
   }

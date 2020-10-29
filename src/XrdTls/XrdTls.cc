@@ -143,10 +143,11 @@ std::string XrdTls::RC2Text(XrdTls::RC rc, bool dbg)
                return std::string("TLS fatal error");
                break;
           case TLS_SYS_Error:
+               if (errno == 0) return std::string("socket error");
                return std::string( XrdSysE2T(errno));
                break;
           case TLS_UNK_Error:
-               return std::string("detected unknown error occured, sorry!");
+               return std::string("unknown error occured, sorry!");
                break;
           case TLS_VER_Error:
                return std::string("x509 certificate verification failed");

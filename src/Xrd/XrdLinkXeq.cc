@@ -1164,12 +1164,12 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
 
          // Read as much data as you can. Note that we will force an error
          // if we get a zero-length read after poll said it was OK. However,
-         // if we never read anything, then we fake it as a time out to
-         // avoid generating a "read link error" as clearly there was a hangup.
+         // if we never read anything, then we simply return -ENOMSG to avoid
+         // generating a "read link error" as clearly there was a hangup.
          //
          retc = tlsIO.Read(Buff, Blen, rlen);
          if (retc != XrdTls::TLS_AOK)
-            {if (!totlen) return 0;
+            {if (!totlen) return -ENOMSG;
              AtomicAdd(BytesIn, totlen);
              return TLS_Error("receive from", retc);
             }
