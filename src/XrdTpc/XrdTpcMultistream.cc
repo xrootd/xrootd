@@ -365,6 +365,8 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         throw std::runtime_error("Internal state error in libcurl");
     }
 
+    state.Flush();
+
     rec.bytes_transferred = state.BytesTransferred();
     rec.tpc_status = state.GetStatusCode();
 

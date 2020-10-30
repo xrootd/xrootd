@@ -47,15 +47,26 @@ Stream::Stat(struct stat* buf)
 }
 
 int
-Stream::Write(off_t offset, const char *buf, size_t size)
+Stream::Write(off_t offset, const char *buf, size_t size, bool force)
 {
+/*
+ *  NOTE: these lines are useful for debuggin the state of the buffer
+ *  management code; too expensive to compile in and have a runtime switch.
+    std::stringstream ss;
+    ss << "Offset=" << offset << ", Size=" << size << ", force=" << force;
+    m_log.Emsg("Stream::Write", ss.str().c_str());
+    DumpBuffers();
+*/
     if (!m_open_for_write) return SFS_ERROR;
     bool buffer_accepted = false;
     int retval = size;
     if (offset < m_offset) {
         return SFS_ERROR;
     }
-    if (offset == m_offset) {
+    // If this is write is appending to the stream and
+    // MB-aligned, then we write it to disk; otherwise, the
+    // data will be buffered.
+    if (offset == m_offset && (force || (size && !(size % (1024*1024))))) {
         retval = m_fh->write(offset, buf, size);
         buffer_accepted = true;
         if (retval != SFS_ERROR) {
@@ -86,8 +97,9 @@ Stream::Write(off_t offset, const char *buf, size_t size)
         for (std::vector<Entry*>::iterator entry_iter = m_buffers.begin();
              entry_iter != m_buffers.end();
              entry_iter++) {
-            // Always try to dump from memory.
-            if ((*entry_iter)->Write(*this) > 0) {
+            // Always try to dump from memory; when size == 0, then we are
+            // going to force a flush even if things are not MB-aligned.
+            if ((*entry_iter)->Write(*this, size == 0) > 0) {
                 buffer_was_written = true;
             }
             if ((*entry_iter)->Available()) { // Empty buffer
