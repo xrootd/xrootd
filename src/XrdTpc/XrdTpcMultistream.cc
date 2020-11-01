@@ -366,6 +366,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     }
 
     state.Flush();
+    state.Finalize();
 
     rec.bytes_transferred = state.BytesTransferred();
     rec.tpc_status = state.GetStatusCode();
