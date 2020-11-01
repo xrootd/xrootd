@@ -472,7 +472,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         }
     } while (msg);
 
-    if (res == -1) { // No transfers returned?!?
+    if (res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
         curl_multi_remove_handle(multi_handle, curl);
         curl_easy_cleanup(curl);
         curl_multi_cleanup(multi_handle);
