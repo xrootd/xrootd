@@ -26,6 +26,7 @@ public:
         m_offset(0),
         m_start_offset(0),
         m_status_code(-1),
+        m_error_code(0),
         m_content_length(-1),
         m_stream(NULL),
         m_curl(NULL),
@@ -42,6 +43,7 @@ public:
         m_offset(0),
         m_start_offset(start_offset),
         m_status_code(-1),
+        m_error_code(0),
         m_content_length(-1),
         m_stream(&stream),
         m_curl(curl),
@@ -59,6 +61,8 @@ public:
     off_t BytesTransferred() const {return m_offset;}
 
     off_t GetContentLength() const {return m_content_length;}
+
+    int GetErrorCode() const {return m_error_code;}
 
     int GetStatusCode() const {return m_status_code;}
 
@@ -126,6 +130,7 @@ private:
     off_t m_offset;  // number of bytes we have received.
     off_t m_start_offset;  // offset where we started in the file.
     int m_status_code;  // status code from HTTP response.
+    int m_error_code; // error code from underlying stream operations.
     off_t m_content_length;  // value of Content-Length header, if we received one.
     Stream *m_stream;  // stream corresponding to this transfer.
     CURL *m_curl;  // libcurl handle

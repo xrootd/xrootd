@@ -512,6 +512,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         }
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
         ss << "failure: " << ss2.str();
+    } else if (state.GetErrorCode()) {
+        std::string err = state.GetErrorMessage();
+        if (err.empty()) {err = "(no error message provided)";}
+        else {std::replace(err.begin(), err.end(), '\n', ' ');}
+        std::stringstream ss2;
+        ss2 << "Error when interacting with local filesystem: " << err;
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss << "failure: " << ss2.str();
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
         ss2 << "HTTP library failure: " << curl_easy_strerror(res);
@@ -539,7 +547,15 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
     curl_easy_cleanup(curl);
     state.Flush();
     state.Finalize();
-    if (res == CURLE_HTTP_RETURNED_ERROR) {
+    if (state.GetErrorCode()) {
+        std::string err = state.GetErrorMessage();
+        if (err.empty()) {err = "(no error message provided)";}
+        else {std::replace(err.begin(), err.end(), '\n', ' ');}
+        std::stringstream ss2;
+        ss2 << "Error when interacting with local filesystem: " << err;
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss << "failure: " << ss2.str();
+    } else if (res == CURLE_HTTP_RETURNED_ERROR) {
         m_log.Emsg(log_prefix, "Remote server failed request", curl_easy_strerror(res));
         return req.SendSimpleResp(500, NULL, NULL,
                                   const_cast<char *>(curl_easy_strerror(res)), 0);
