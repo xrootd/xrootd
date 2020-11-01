@@ -37,7 +37,7 @@ void State::Move(State &other)
     m_curl = other.m_curl;
     m_headers = other.m_headers;
     m_headers_copy = other.m_headers_copy;
-    m_resp_protocol = m_resp_protocol;
+    m_resp_protocol = other.m_resp_protocol;
 
     curl_easy_setopt(m_curl, CURLOPT_HEADERDATA, this);
     if (m_push) {
