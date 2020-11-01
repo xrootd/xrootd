@@ -12,6 +12,7 @@
 
 #include <curl/curl.h>
 
+#include <algorithm>
 #include <sstream>
 #include <stdexcept>
 
@@ -375,9 +376,23 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     std::stringstream ss;
     success = false;
     if (state.GetStatusCode() >= 400) {
-        ss << "failure: Remote side failed with status code " << state.GetStatusCode();
-        rec.status = state.GetStatusCode();
+        std::string err = state.GetErrorMessage();
+        std::stringstream ss2;
+        ss2 << "Remote side failed with status code " << state.GetStatusCode();
+        if (!err.empty()) {
+            std::replace(err.begin(), err.end(), '\n', ' ');
+            ss2 << "; error message: \"" << err << "\"";
+        }
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
+        ss << "failure: " << ss2.str();
+    } else if (state.GetErrorCode()) {
+        std::string err = state.GetErrorMessage();
+        if (err.empty()) {err = "(no error message provided)";}
+        else {std::replace(err.begin(), err.end(), '\n', ' ');}
+        std::stringstream ss2;
+        ss2 << "Error when interacting with local filesystem: " << err;
+        logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss2.str());
+        ss << "failure: " << ss2.str();
     } else if (res != CURLE_OK) {
         std::stringstream ss2;
         ss2 << "Request failed when processing: " << curl_easy_strerror(res);

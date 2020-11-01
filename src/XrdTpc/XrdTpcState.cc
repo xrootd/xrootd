@@ -192,6 +192,7 @@ int State::Write(char *buffer, size_t size) {
     int retval = m_stream->Write(m_start_offset + m_offset, buffer, size, false);
     if (retval == SFS_ERROR) {
         m_error_buf = m_stream->GetErrorMessage();
+        m_error_code = 1;
         return -1;
     }
     m_offset += retval;
@@ -202,6 +203,7 @@ int State::Flush() {
     int retval = m_stream->Write(m_start_offset + m_offset, nullptr, 0, true);
     if (retval == SFS_ERROR) {
         m_error_buf = m_stream->GetErrorMessage();
+        m_error_code = 2;
         return -1;
     }
     m_offset += retval;
@@ -269,7 +271,12 @@ void State::DumpBuffers() const
 
 bool State::Finalize()
 {
-    return m_stream->Finalize();
+    if (!m_stream->Finalize()) {
+        m_error_buf = m_stream->GetErrorMessage();
+        m_error_code = 3;
+        return false;
+    }
+    return true;
 }
 
 std::string State::GetConnectionDescription()
