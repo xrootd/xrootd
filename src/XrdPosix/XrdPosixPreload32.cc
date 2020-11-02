@@ -230,7 +230,7 @@ int     fstat(         int fildes, struct stat *buf)
 {
    static int Init = Xunix.Init(&Init);
 
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
    if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(ver, fildes, buf);
 #else
    if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(     fildes, buf);
@@ -315,7 +315,7 @@ int        lstat(         const char *path, struct stat *buf)
    static int Init = Xunix.Init(&Init);
 
    if (!XrdPosix_isMyPath(path))
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
       return Xunix.Lstat(ver, path, buf);
 #else
       return Xunix.Lstat(     path, buf);

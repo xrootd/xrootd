@@ -375,7 +375,7 @@ int XrdPosix_Fstat(int fildes, struct stat *buf)
 //
    return (Xroot.myFD(fildes)
           ? Xroot.Fstat(fildes, buf)
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
           : Xunix.Fstat64(_STAT_VER, fildes, (struct stat64 *)buf));
 #else
           : Xunix.Fstat64(           fildes, (struct stat64 *)buf));
@@ -387,7 +387,11 @@ int XrdPosix_FstatV(int ver, int fildes, struct stat *buf)
 {
    return (Xroot.myFD(fildes)
           ? Xroot.Fstat(fildes, buf)
+#ifdef _STAT_VER
           : Xunix.Fstat64(ver, fildes, (struct stat64 *)buf));
+#else
+          : Xunix.Fstat64(     fildes, (struct stat64 *)buf));
+#endif
 }
 #endif
 }
@@ -559,7 +563,7 @@ int XrdPosix_Lstat(const char *path, struct stat *buf)
 // Return the results of an open of a Unix file
 //
    return (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
           ? Xunix.Lstat64(_STAT_VER, path, (struct stat64 *)buf)
 #else
           ? Xunix.Lstat64(           path, (struct stat64 *)buf)
@@ -887,7 +891,7 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
 // Return the results of an open of a Unix file
 //
    return (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
           ? Xunix.Stat64(_STAT_VER, path, (struct stat64 *)buf)
 #else
           ? Xunix.Stat64(           path, (struct stat64 *)buf)
