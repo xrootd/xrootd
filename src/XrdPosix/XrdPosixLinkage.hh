@@ -116,7 +116,7 @@
 #define Retv_Fseeko64 int
 #define Args_Fseeko64 FILE *, off64_t, int
 
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
 #define Symb_Fstat UNIX_PFX "__fxstat"
 #define Retv_Fstat int
 #define Args_Fstat int, int, struct stat *
@@ -126,7 +126,7 @@
 #define Args_Fstat int, struct stat *
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
 #define Symb_Fstat64 UNIX_PFX "__fxstat64"
 #define Retv_Fstat64 int
 #define Args_Fstat64 int, int, struct stat64 *
@@ -184,7 +184,7 @@
 #define Retv_Lseek64 off64_t
 #define Args_Lseek64 int, off64_t, int
 
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
 #define Symb_Lstat UNIX_PFX "__lxstat"
 #define Retv_Lstat int
 #define Args_Lstat int, const char *, struct stat *
@@ -194,7 +194,7 @@
 #define Args_Lstat const char *, struct stat *
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
 #define Symb_Lstat64 UNIX_PFX "__lxstat64"
 #define Retv_Lstat64 int
 #define Args_Lstat64 int, const char *, struct stat64 *
@@ -290,7 +290,7 @@
 #define Args_Stat const char *, struct stat *
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
 #define Symb_Stat64 UNIX_PFX "__xstat64"
 #define Retv_Stat64 int
 #define Args_Stat64 int, const char *, struct stat64 *
