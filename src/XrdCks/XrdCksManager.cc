@@ -127,7 +127,7 @@ int XrdCksManager::Calc(const char *Pfn, XrdCksData &Cks, int doSet)
 
 // Use the calculator to get and possibly set the checksum
 //
-   if (!(rc = Calc(Pfn, MTime, csP)))
+   if (!(rc = Calc(Pfn, MTime, csP, Cks.envP)))
       {memcpy(Cks.Value, csP->Final(), csIP->Len);
        Cks.fmTime = static_cast<long long>(MTime);
        Cks.csTime = static_cast<int>(time(0) - MTime);
@@ -147,7 +147,7 @@ int XrdCksManager::Calc(const char *Pfn, XrdCksData &Cks, int doSet)
 
 /******************************************************************************/
   
-int XrdCksManager::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
+int XrdCksManager::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP, XrdOucEnv*)
 {
    class ioFD
         {public:

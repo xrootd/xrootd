@@ -81,7 +81,7 @@ protected:
               Otherwise, it returns -errno. The default implementation uses
               open(), fstat(), mmap(), and unmap() to calculate the results.
 */
-virtual int         Calc(const char *Pfn, time_t &MTime, XrdCksCalc *CksObj);
+virtual int         Calc(const char *Pfn, time_t &MTime, XrdCksCalc *CksObj, XrdOucEnv *envP);
 
 /* ModTime()  returns 0 and places file's modification time in MTime. Otherwise,
               it return -errno. The default implementation uses stat().

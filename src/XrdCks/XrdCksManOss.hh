@@ -61,7 +61,7 @@ virtual int         Ver( const char *Lfn, XrdCksData &Cks);
 virtual            ~XrdCksManOss() {}
 
 protected:
-virtual int         Calc(const char *Lfn, time_t &MTime, XrdCksCalc *CksObj);
+virtual int         Calc(const char *Lfn, time_t &MTime, XrdCksCalc *CksObj, XrdOucEnv *envP);
 virtual int         ModTime(const char *Pfn, time_t &MTime);
 
 private:

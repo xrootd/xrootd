@@ -111,7 +111,7 @@ int XrdCksManOss::Calc(const char *Lfn, XrdCksData &Cks, int doSet)
 
 /******************************************************************************/
   
-int XrdCksManOss::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
+int XrdCksManOss::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP, XrdOucEnv *envP)
 {
    class inFile
         {public:
@@ -127,9 +127,12 @@ int XrdCksManOss::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
    size_t ioSize, calcSize;
    int    rc;
 
+   if (envP) {eDest->Emsg("XrdCksManOss::Calc", "Got envP");}
+   else {eDest->Emsg("XrdCksManOss::Calc", "No envP");}
+
 // Open the input file
 //
-   if ((rc = In.fP->Open(Lfn,O_RDONLY,0,openEnv))) return (rc > 0 ? -rc : rc);
+   if ((rc = In.fP->Open(Lfn,O_RDONLY,0, envP ? *envP : openEnv))) return (rc > 0 ? -rc : rc);
 
 // Get the file characteristics
 //
