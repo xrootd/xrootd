@@ -493,6 +493,12 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     rec.bytes_transferred = state.BytesTransferred();
     rec.tpc_status = state.GetStatusCode();
 
+    // Explicitly finalize the stream (which will close the underlying file
+    // handle) before the response is sent.  In some cases, subsequent HTTP
+    // requests can occur before the filesystem is done closing the handle -
+    // and those requests may occur against partial data.
+    state.Finalize();
+
     // Generate the final response back to the client.
     std::stringstream ss;
     bool success = false;
@@ -504,6 +510,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
             std::replace(err.begin(), err.end(), '\n', ' ');
             ss2 << "; error message: \"" << err << "\"";
         }
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss << "failure: " << ss2.str();
+    } else if (state.GetErrorCode()) {
+        std::string err = state.GetErrorMessage();
+        if (err.empty()) {err = "(no error message provided)";}
+        else {std::replace(err.begin(), err.end(), '\n', ' ');}
+        std::stringstream ss2;
+        ss2 << "Error when interacting with local filesystem: " << err;
         logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
         ss << "failure: " << ss2.str();
     } else if (res != CURLE_OK) {
@@ -532,7 +546,16 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
     res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
     state.Flush();
-    if (res == CURLE_HTTP_RETURNED_ERROR) {
+    state.Finalize();
+    if (state.GetErrorCode()) {
+        std::string err = state.GetErrorMessage();
+        if (err.empty()) {err = "(no error message provided)";}
+        else {std::replace(err.begin(), err.end(), '\n', ' ');}
+        std::stringstream ss2;
+        ss2 << "Error when interacting with local filesystem: " << err;
+        logTransferEvent(LogMask::Error, rec, "TRANSFER_FAIL", ss2.str());
+        ss << "failure: " << ss2.str();
+    } else if (res == CURLE_HTTP_RETURNED_ERROR) {
         m_log.Emsg(log_prefix, "Remote server failed request", curl_easy_strerror(res));
         return req.SendSimpleResp(500, NULL, NULL,
                                   const_cast<char *>(curl_easy_strerror(res)), 0);

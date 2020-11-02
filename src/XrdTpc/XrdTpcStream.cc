@@ -27,14 +27,24 @@ Stream::Finalize()
     if (!m_open_for_write) {
         return false;
     }
+    m_open_for_write = false;
+
     for (std::vector<Entry*>::iterator buffer_iter = m_buffers.begin();
         buffer_iter != m_buffers.end();
         buffer_iter++) {
         delete *buffer_iter;
         *buffer_iter = NULL;
     }
-    m_fh->close();
-    m_open_for_write = false;
+
+    if (m_fh->close() == SFS_ERROR) {
+        std::stringstream ss;
+        const char *msg = m_fh->error.getErrText();
+        if (!msg || (*msg == '\0')) {msg = "(no error message provided)";}
+        ss << "Failure when closing file handle: " << msg << " (code=" << m_fh->error.getErrInfo() << ")";
+        m_error_buf = ss.str();
+        return false;
+    }
+
     // If there are outstanding buffers to reorder, finalization failed
     return m_avail_count == m_buffers.size();
 }
@@ -75,7 +85,7 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
             std::stringstream ss;
             const char *msg = m_fh->error.getErrText();
             if (!msg || (*msg == '\0')) {msg = "(no error message provided)";}
-            ss << m_fh->error.getErrText() << " (code=" << m_fh->error.getErrInfo() << ")";
+            ss << msg << " (code=" << m_fh->error.getErrInfo() << ")";
             m_error_buf = ss.str();
         }
         // If there are no in-use buffers, then we don't need to
@@ -113,7 +123,7 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
     } while ((avail_count != m_buffers.size()) && buffer_was_written);
     m_avail_count = avail_count;
 
-    if (!buffer_accepted) {  // No place for this data in allocated buffers
+    if (!buffer_accepted && size) {  // No place for this data in allocated buffers
         if (!avail_entry) {  // No available buffers to allocate.
             return SFS_ERROR;
         }
