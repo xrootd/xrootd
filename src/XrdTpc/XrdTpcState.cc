@@ -199,7 +199,7 @@ int State::Write(char *buffer, size_t size) {
 }
 
 int State::Flush() {
-    int retval = m_stream->Write(m_start_offset + m_offset, nullptr, 0, true);
+    int retval = m_stream->Write(m_start_offset + m_offset, 0, 0, true);
     if (retval == SFS_ERROR) {
         m_error_buf = m_stream->GetErrorMessage();
         return -1;
