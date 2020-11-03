@@ -178,10 +178,6 @@ int XrdLinkXeq::Close(bool defer)
 {  XrdSysMutexHelper opHelper(LinkInfo.opMutex);
    int csec, fd, rc = 0;
 
-// Cleanup TLS if it is active
-//
-   if (isTLS) tlsIO.Shutdown();
-
 // If a defer close is requested, we can close the descriptor but we must
 // keep the slot number to prevent a new client getting the same fd number.
 // Linux is peculiar in that any in-progress operations will remain in that
@@ -234,6 +230,10 @@ int XrdLinkXeq::Close(bool defer)
 // Add up the statistic for this link
 //
    syncStats(&csec);
+
+// Cleanup TLS if it is active
+//
+   if (isTLS) tlsIO.Shutdown();
 
 // Clean this link up
 //
