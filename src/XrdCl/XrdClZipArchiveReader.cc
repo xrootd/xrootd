@@ -413,12 +413,25 @@ class ZipArchiveReaderImpl
       return XRootDStatus();
     }
 
+    XRootDStatus GetSize( uint64_t &size ) const
+    {
+      if( pBoundFile.empty() )
+        return XRootDStatus( stError, errInvalidOp );
+
+      return GetSize( pBoundFile, size );
+    }
+
     XRootDStatus Bind( const std::string &filename )
     {
       std::map<std::string, size_t>::const_iterator it = pFileToCdfh.find( filename );
       if( it == pFileToCdfh.end() ) return XRootDStatus( stError, errNotFound );
       pBoundFile = filename;
       return XRootDStatus();
+    }
+
+    void Unbind()
+    {
+      pBoundFile = std::string();
     }
 
     bool IsOpen() const
@@ -1004,11 +1017,19 @@ XRootDStatus ZipArchiveReader::Read( const std::string &filename, uint64_t offse
 }
 
 //------------------------------------------------------------------------
-// Bounds the reader to a file inside the archive.
+// Binds the reader to a file inside the archive.
 //------------------------------------------------------------------------
 XRootDStatus ZipArchiveReader::Bind( const std::string &filename )
 {
   return pImpl->Bind( filename );
+}
+
+//------------------------------------------------------------------------
+// Unbinds the reader from a file.
+//------------------------------------------------------------------------
+void ZipArchiveReader::Unbind( )
+{
+  pImpl->Unbind();
 }
 
 //------------------------------------------------------------------------
@@ -1234,6 +1255,11 @@ XRootDStatus ZipArchiveReader::Close( uint16_t timeout )
 XRootDStatus ZipArchiveReader::GetSize( const std::string &filename, uint64_t &size ) const
 {
   return pImpl->GetSize( filename, size );
+}
+
+XRootDStatus ZipArchiveReader::GetSize( uint64_t &size ) const
+{
+  return pImpl->GetSize( size );
 }
 
 bool ZipArchiveReader::IsOpen() const

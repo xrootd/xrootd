@@ -103,9 +103,14 @@ class ZipArchiveReader
     XRootDStatus Read( const std::string &filename, uint64_t offset, uint32_t size, void *buffer, uint32_t &bytesRead, uint16_t timeout = 0 );
 
     //------------------------------------------------------------------------
-    //! Bounds the reader to a file inside the archive.
+    //! Binds the reader to a file inside the archive.
     //------------------------------------------------------------------------
     XRootDStatus Bind( const std::string &filename );
+
+    //------------------------------------------------------------------------
+    //! Unbinds the reader from a file.
+    //------------------------------------------------------------------------
+    void Unbind();
 
     //------------------------------------------------------------------------
     //! Async bound read.
@@ -145,6 +150,13 @@ class ZipArchiveReader
     //! @return         : the size of the file as in CDFH record
     //------------------------------------------------------------------------
     XRootDStatus GetSize( const std::string &filename, uint64_t &size ) const;
+
+    //------------------------------------------------------------------------
+    //! Gets the size of the bound file
+    //!
+    //! @return         : the size of the file as in CDFH record
+    //------------------------------------------------------------------------
+    XRootDStatus GetSize( uint64_t &size ) const;
 
     //------------------------------------------------------------------------
     //! Check if the archive is open
