@@ -87,7 +87,7 @@ add_library(
   XrdClLocalFileHandler.cc       XrdClLocalFileHandler.hh
   XrdClLocalFileTask.cc          XrdClLocalFileTask.hh
   XrdClZipListHandler.cc         XrdClZipListHandler.hh
-  XrdClZipArchive.cc             XrdClZipArchive.hh
+#  XrdClZipArchive.cc             XrdClZipArchive.hh
   
   ${XrdClPipelineSources}
 )
