@@ -178,8 +178,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<bool from>
       OpenImpl( OpenImpl<from> && open ) :
-          FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>,
-              Arg<OpenFlags::Flags>, Arg<Access::Mode>>( std::move( open ) )
+          FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
+            Arg<Access::Mode>, Arg<uint16_t>>( std::move( open ) )
       {
       }
 
@@ -246,7 +246,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class ReadImpl: public FileOperation<ReadImpl, HasHndl, Resp<ChunkInfo>,
-      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>, Arg<uint16_t>>
+      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
   {
     public:
 
@@ -254,7 +254,7 @@ namespace XrdCl
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
       using FileOperation<ReadImpl, HasHndl, Resp<ChunkInfo>, Arg<uint64_t>,
-                          Arg<uint32_t>, Arg<void*>, Arg<uint16_t>>::FileOperation;
+                          Arg<uint32_t>, Arg<void*>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
