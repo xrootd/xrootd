@@ -94,10 +94,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! @return : value of the argument
       //------------------------------------------------------------------------
-      T Get()
+      inline T Get() const
       {
         if( !holder ) throw std::logic_error( "XrdCl::ArgBase::Get(): value not set." );
         return holder->Get();
+      }
+
+      operator T() const
+      {
+        return Get();
       }
 
     protected:

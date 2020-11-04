@@ -53,7 +53,7 @@ namespace XrdCl
       //! @param f    : file on which the operation will be performed
       //! @param args : file operation arguments
       //------------------------------------------------------------------------
-      FileOperation( File *f, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), file(f)
+      FileOperation( File *f, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), file(f), timeout( 0 )
       {
       }
 
@@ -76,7 +76,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<bool from>
       FileOperation( FileOperation<Derived, from, Response, Arguments...> && op ) :
-        ConcreteOperation<Derived, HasHndl, Response, Arguments...>( std::move( op ) ), file( op.file )
+        ConcreteOperation<Derived, HasHndl, Response, Arguments...>( std::move( op ) ), file( op.file ), timeout( op.timeout )
       {
 
       }
@@ -89,12 +89,26 @@ namespace XrdCl
 
       }
 
+      //-----------------------------------------------------------------------
+      //! Set t/o for the file operation
+      //-----------------------------------------------------------------------
+      Derived<HasHndl> Timeout( uint16_t timeout )
+      {
+        this->timeout = timeout;
+        return std::move( *this );
+      }
+
     protected:
 
       //------------------------------------------------------------------------
       //! The file object itself
       //------------------------------------------------------------------------
-      File *file;
+      File     *file;
+
+      //------------------------------------------------------------------------
+      //! The file operation t/o
+      //------------------------------------------------------------------------
+      uint16_t  timeout;
   };
 
   //----------------------------------------------------------------------------
@@ -102,7 +116,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class OpenImpl: public FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>,
-      Arg<OpenFlags::Flags>, Arg<Access::Mode>, Arg<uint16_t>>
+      Arg<OpenFlags::Flags>, Arg<Access::Mode>>
   {
       //------------------------------------------------------------------------
       //! Helper for extending the operator>> capabilities.
@@ -151,10 +165,10 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       OpenImpl( File *f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
-                Arg<Access::Mode> mode = Access::None, Arg<uint16_t> timeout = 0 ) :
+                Arg<Access::Mode> mode = Access::None ) :
           FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
-            Arg<Access::Mode>, Arg<uint16_t>>( f, std::move( url ), std::move( flags ),
-            std::move( mode ), std::move( timeout ) )
+            Arg<Access::Mode>>( f, std::move( url ), std::move( flags ),
+            std::move( mode ) )
       {
       }
 
@@ -162,10 +176,10 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       OpenImpl( File &f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
-                Arg<Access::Mode> mode = Access::None, Arg<uint16_t> timeout = 0 ) :
+                Arg<Access::Mode> mode = Access::None ) :
           FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
-            Arg<Access::Mode>, Arg<uint16_t>>( &f, std::move( url ), std::move( flags ),
-            std::move( mode ), std::move( timeout ) )
+            Arg<Access::Mode>>( &f, std::move( url ), std::move( flags ),
+            std::move( mode ) )
       {
       }
 
@@ -179,7 +193,7 @@ namespace XrdCl
       template<bool from>
       OpenImpl( OpenImpl<from> && open ) :
           FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
-            Arg<Access::Mode>, Arg<uint16_t>>( std::move( open ) )
+            Arg<Access::Mode>>( std::move( open ) )
       {
       }
 
@@ -187,7 +201,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      enum { UrlArg, FlagsArg, ModeArg, TimeoutArg };
+      enum { UrlArg, FlagsArg, ModeArg };
 
       //------------------------------------------------------------------------
       //! Overload of operator>> defined in ConcreteOperation, we're adding
@@ -223,11 +237,10 @@ namespace XrdCl
       {
         try
         {
-          std::string      url     = std::get<UrlArg>( this->args ).Get();
-          OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
-          Access::Mode     mode    = std::get<ModeArg>( this->args ).Get();
-          uint16_t         timeout = std::get<TimeoutArg>( this->args ).Get();
-          return this->file->Open( url, flags, mode, this->handler.get(), timeout );
+          std::string      url     = std::get<UrlArg>( this->args );
+          OpenFlags::Flags flags   = std::get<FlagsArg>( this->args );
+          Access::Mode     mode    = std::get<ModeArg>( this->args );
+          return this->file->Open( url, flags, mode, this->handler.get() );
         }
         catch( const PipelineException& ex )
         {
