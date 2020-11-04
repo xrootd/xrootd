@@ -102,7 +102,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class OpenImpl: public FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>,
-      Arg<OpenFlags::Flags>, Arg<Access::Mode>>
+      Arg<OpenFlags::Flags>, Arg<Access::Mode>, Arg<uint16_t>>
   {
       //------------------------------------------------------------------------
       //! Helper for extending the operator>> capabilities.
@@ -151,9 +151,10 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       OpenImpl( File *f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
-                Arg<Access::Mode> mode = Access::None ) :
+                Arg<Access::Mode> mode = Access::None, Arg<uint16_t> timeout = 0 ) :
           FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
-            Arg<Access::Mode>>( f, std::move( url ), std::move( flags ), std::move( mode ) )
+            Arg<Access::Mode>, Arg<uint16_t>>( f, std::move( url ), std::move( flags ),
+            std::move( mode ), std::move( timeout ) )
       {
       }
 
@@ -161,9 +162,10 @@ namespace XrdCl
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
       OpenImpl( File &f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
-                Arg<Access::Mode> mode = Access::None ) :
+                Arg<Access::Mode> mode = Access::None, Arg<uint16_t> timeout = 0 ) :
           FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
-            Arg<Access::Mode>>( &f, std::move( url ), std::move( flags ), std::move( mode ) )
+            Arg<Access::Mode>, Arg<uint16_t>>( &f, std::move( url ), std::move( flags ),
+            std::move( mode ), std::move( timeout ) )
       {
       }
 
@@ -185,7 +187,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      enum { UrlArg, FlagsArg, ModeArg };
+      enum { UrlArg, FlagsArg, ModeArg, TimeoutArg };
 
       //------------------------------------------------------------------------
       //! Overload of operator>> defined in ConcreteOperation, we're adding
@@ -221,10 +223,11 @@ namespace XrdCl
       {
         try
         {
-          std::string      url   = std::get<UrlArg>( this->args ).Get();
-          OpenFlags::Flags flags = std::get<FlagsArg>( this->args ).Get();
-          Access::Mode     mode  = std::get<ModeArg>( this->args ).Get();
-          return this->file->Open( url, flags, mode, this->handler.get() );
+          std::string      url     = std::get<UrlArg>( this->args ).Get();
+          OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
+          Access::Mode     mode    = std::get<ModeArg>( this->args ).Get();
+          uint16_t         timeout = std::get<TimeoutArg>( this->args ).Get();
+          return this->file->Open( url, flags, mode, this->handler.get(), timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -243,7 +246,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class ReadImpl: public FileOperation<ReadImpl, HasHndl, Resp<ChunkInfo>,
-      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
+      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>, Arg<uint16_t>>
   {
     public:
 
@@ -251,7 +254,7 @@ namespace XrdCl
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
       using FileOperation<ReadImpl, HasHndl, Resp<ChunkInfo>, Arg<uint64_t>,
-                          Arg<uint32_t>, Arg<void*>>::FileOperation;
+                          Arg<uint32_t>, Arg<void*>, Arg<uint16_t>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
