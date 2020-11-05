@@ -935,6 +935,7 @@ int XrdOssSys::ConfigStatLib(XrdSysError &Eroute, XrdOucEnv *envP)
           return 1;
        if (STT_DoARE) envP->PutPtr("XrdOssStatInfo2*", (void *)STT_Fund);
        STT_V2 = 1;
+       return 0;
       }
 
 // If we are here but the -2 was specified on the config then we fail
