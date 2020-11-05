@@ -11,43 +11,51 @@
 #include <stdint.h>
 #include <time.h>
 
-class Timeout
+#include <exception>
+
+namespace XrdCl
 {
-  public:
+  class operation_expired : public std::exception
+  {
+  }
 
-    Timeout(): timeout( 0 ), start( 0 )
-    {
-    }
+  class Timeout
+  {
+    public:
 
-    Timeout( uint16_t timeout ): timeout( timeout ), start( time( 0 ) )
-    {
-    }
+      Timeout(): timeout( 0 ), start( 0 )
+      {
+      }
 
-    Timeout( const Timeout &to ) : timeout( to.timeout ), start( to.start )
-    {
-    }
+      Timeout( uint16_t timeout ): timeout( timeout ), start( time( 0 ) )
+      {
+      }
 
-    Timeout& operator=( const Timeout &to )
-    {
-      timeout = to.timeout;
-      start   = to.timeout;
-      return *this;
-    }
+      Timeout& operator=( const Timeout &to )
+      {
+        timeout = to.timeout;
+        start   = to.timeout;
+        return *this;
+      }
 
-    operator uint16_t() const
-    {
-      if( !timeout ) return 0;
-      time_t elapsed = time( 0 ) - start;
-      if( timeout < elapsed) throw std::exception(); // TODO
-      return timeout - elapsed;
-    }
+      Timeout( const Timeout &to ) : timeout( to.timeout ), start( to.start )
+      {
+      }
 
-  private:
+      operator uint16_t() const
+      {
+        if( !timeout ) return 0;
+        time_t elapsed = time( 0 ) - start;
+        if( timeout < elapsed) throw operation_expired();
+        return timeout - elapsed;
+      }
 
-    uint16_t timeout;
-    time_t   start;
-};
+    private:
 
+      uint16_t timeout;
+      time_t   start;
+  };
 
+}
 
 #endif /* SRC_XRDCL_XRDCLOPERATIONTIMEOUT_HH_ */

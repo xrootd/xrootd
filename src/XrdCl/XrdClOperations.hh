@@ -247,7 +247,15 @@ namespace XrdCl
       {
         static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
         handler->Assign( timeout, std::move( prms ), std::move( final ) );
-        XRootDStatus st = RunImpl( timeout );
+        XRootDStatus st;
+        try
+        {
+          st = RunImpl( timeout );
+        }
+        catch( operation_expired )
+        {
+          st = XRootDStatus( stError, errOperationExpired );
+        }
         if( st.IsOK() ) handler.release();
         else
           ForceHandler( st );
