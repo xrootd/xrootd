@@ -27,6 +27,13 @@ class Timeout
     {
     }
 
+    Timeout& operator=( const Timeout &to )
+    {
+      timeout = to.timeout;
+      start   = to.timeout;
+      return *this;
+    }
+
     operator uint16_t() const
     {
       if( !timeout ) return 0;
