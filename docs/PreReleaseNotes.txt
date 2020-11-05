@@ -8,6 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  **[Server]** Add missing return that breaks loading of the oss.statlib
   **[Server]** Prevent SEGV upon poller error on TLS links doing async I/O.
   **[TLS]** Avoid bad behaviour when authentication fails on a TLS connection.
   **[Server]** Avoid SEGV when checksum response is invalid.
