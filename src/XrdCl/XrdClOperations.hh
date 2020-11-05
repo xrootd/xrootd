@@ -33,7 +33,8 @@
 #include <future>
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
-#include "XrdClArg.hh"
+#include "XrdCl/XrdClArg.hh"
+#include "XrdCl/XrdClOperationTimeout.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
@@ -108,8 +109,9 @@ namespace XrdCl
       //! @param  final        :  a callable that should be called at the end of
       //!                         pipeline
       //------------------------------------------------------------------------
-      void Assign( std::promise<XRootDStatus>               prms,
-                   std::function<void(const XRootDStatus&)> final );
+      void Assign( const Timeout                            &timeout,
+                   std::promise<XRootDStatus>                prms,
+                   std::function<void(const XRootDStatus&)>  final );
 
     private:
 
@@ -136,6 +138,11 @@ namespace XrdCl
       //! Next operation in the pipeline
       //------------------------------------------------------------------------
       std::unique_ptr<Operation<true>> nextOperation;
+
+      //------------------------------------------------------------------------
+      //! Pipeline timeout
+      //------------------------------------------------------------------------
+      Timeout timeout;
 
       //------------------------------------------------------------------------
       //! The promise that there will be a result (traveling along the pipeline)
@@ -168,7 +175,7 @@ namespace XrdCl
       template<bool>
       friend class Operation;
 
-      friend std::future<XRootDStatus> Async( Pipeline );
+      friend std::future<XRootDStatus> Async( Pipeline, uint16_t );
 
       friend class Pipeline;
       friend class PipelineHandler;
@@ -234,12 +241,13 @@ namespace XrdCl
       //! @return       : stOK if operation was scheduled for execution
       //!                 successfully, stError otherwise
       //------------------------------------------------------------------------
-      void Run( std::promise<XRootDStatus>                prms,
+      void Run( Timeout                                   timeout,
+                std::promise<XRootDStatus>                prms,
                 std::function<void(const XRootDStatus&)>  final )
       {
         static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
-        handler->Assign( std::move( prms ), std::move( final ) );
-        XRootDStatus st = RunImpl();
+        handler->Assign( timeout, std::move( prms ), std::move( final ) );
+        XRootDStatus st = RunImpl( timeout );
         if( st.IsOK() ) handler.release();
         else
           ForceHandler( st );
@@ -253,7 +261,7 @@ namespace XrdCl
       //! @return       :  status of the operation
       //! @param bucket : number of the bucket with arguments
       //------------------------------------------------------------------------
-      virtual XRootDStatus RunImpl() = 0;
+      virtual XRootDStatus RunImpl( uint16_t timeout ) = 0;
 
       //------------------------------------------------------------------------
       //! Handle error caused by missing parameter
@@ -303,7 +311,7 @@ namespace XrdCl
   class Pipeline
   {
       template<bool> friend class ParallelOperation;
-      friend std::future<XRootDStatus> Async( Pipeline );
+      friend std::future<XRootDStatus> Async( Pipeline, uint16_t );
 
     public:
 
@@ -410,11 +418,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Schedules the underlying pipeline for execution.
       //!
-      //! @param args   : forwarded arguments
-      //! @param bucket : number of bucket with forwarded params
-      //! @param final  : to be called at the end of the pipeline
+      //! @param timeout : pipeline timeout value
+      //! @param final   : to be called at the end of the pipeline
       //------------------------------------------------------------------------
-      void Run( std::function<void(const XRootDStatus&)> final = nullptr )
+      void Run( Timeout timeout, std::function<void(const XRootDStatus&)> final = nullptr )
       {
         if( ftr.valid() )
           throw std::logic_error( "Pipeline is already running" );
@@ -422,7 +429,7 @@ namespace XrdCl
         // a promise that the pipe will have a result
         std::promise<XRootDStatus> prms;
         ftr = prms.get_future();
-        operation->Run( std::move( prms ), std::move( final ) );
+        operation->Run( timeout, std::move( prms ), std::move( final ) );
       }
 
       //------------------------------------------------------------------------
@@ -441,12 +448,13 @@ namespace XrdCl
   //! Helper function, schedules execution of given pipeline
   //!
   //! @param pipeline : the pipeline to be executed
+  //! @param timeout  : the pipeline timeout
   //!
   //! @return         : future status of the operation
   //----------------------------------------------------------------------------
-  inline std::future<XRootDStatus> Async( Pipeline pipeline )
+  inline std::future<XRootDStatus> Async( Pipeline pipeline, uint16_t timeout = 0 )
   {
-    pipeline.Run();
+    pipeline.Run( timeout );
     return std::move( pipeline.ftr );
   }
 
@@ -458,9 +466,9 @@ namespace XrdCl
   //!
   //! @return         : status of the operation
   //----------------------------------------------------------------------------
-  inline XRootDStatus WaitFor( Pipeline pipeline )
+  inline XRootDStatus WaitFor( Pipeline pipeline, uint16_t timeout = 0 )
   {
-    return Async( std::move( pipeline ) ).get();
+    return Async( std::move( pipeline ), timeout ).get();
   }
 
   //----------------------------------------------------------------------------
@@ -484,7 +492,8 @@ namespace XrdCl
       //!
       //! @param args : operation arguments
       //------------------------------------------------------------------------
-      ConcreteOperation( Args&&... args ) : args( std::tuple<Args...>( std::move( args )... ) )
+      ConcreteOperation( Args&&... args ) : args( std::tuple<Args...>( std::move( args )... ) ),
+                                            timeout( 0 )
       {
         static_assert( !HasHndl, "It is only possible to construct operation without handler" );
       }
@@ -498,9 +507,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       template<bool from>
       ConcreteOperation( ConcreteOperation<Derived, from, HdlrFactory, Args...> && op ) :
-        Operation<HasHndl>( std::move( op ) ), args( std::move( op.args ) )
+        Operation<HasHndl>( std::move( op ) ), args( std::move( op.args ) ), timeout( 0 )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -596,6 +604,15 @@ namespace XrdCl
         this->handler.reset( new PipelineHandler( std::move( this->recovery ) ) );
         Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
         return new Derived<true>( std::move( *me ) );
+      }
+
+      //------------------------------------------------------------------------
+      //! Set operation timeout
+      //------------------------------------------------------------------------
+      Derived<HasHndl> Timeout( uint16_t timeout )
+      {
+        this->timeout = timeout;
+        return std::move( *this );
       }
 
     protected:
@@ -700,8 +717,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The recovery routine for this operation
       //------------------------------------------------------------------------
-      
       rcvry_func recovery;
+
+      //------------------------------------------------------------------------
+      //! Operation timeout
+      //------------------------------------------------------------------------
+      uint16_t timeout;
     };
 }
 

@@ -14,7 +14,12 @@
 class Timeout
 {
   public:
-    Timeout( uint16_t timeout ): timeout( timeout ), start( 0 )
+
+    Timeout(): timeout( 0 ), start( 0 )
+    {
+    }
+
+    Timeout( uint16_t timeout ): timeout( timeout ), start( time( 0 ) )
     {
     }
 
@@ -24,13 +29,14 @@ class Timeout
 
     operator uint16_t() const
     {
-      if( !start ) start = time( 0 );
+      if( !timeout ) return 0;
       time_t elapsed = time( 0 ) - start;
       if( timeout < elapsed) throw std::exception(); // TODO
       return timeout - elapsed;
     }
 
   private:
+
     uint16_t timeout;
     time_t   start;
 };

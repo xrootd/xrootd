@@ -80,7 +80,7 @@ namespace XrdCl
       {
         std::unique_ptr<Operation<true>> op( recovery( st ) );
         op->AddOperation( nextOperation.release() );
-        op->Run( std::move( prms ), std::move( final ) );
+        op->Run( timeout, std::move( prms ), std::move( final ) );
         return;
       }
       catch( const std::exception &ex )
@@ -96,7 +96,7 @@ namespace XrdCl
       return;
     }
 
-    nextOperation->Run( std::move( prms ), std::move( final ) );
+    nextOperation->Run( timeout, std::move( prms ), std::move( final ) );
   }
 
   //----------------------------------------------------------------------------
@@ -120,11 +120,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // OperationHandler::AssignToWorkflow
   //----------------------------------------------------------------------------
-  void PipelineHandler::Assign( std::promise<XRootDStatus>                p,
+  void PipelineHandler::Assign( const Timeout                            &t,
+                                std::promise<XRootDStatus>                p,
                                 std::function<void(const XRootDStatus&)>  f )
   {
-    prms  = std::move( p );
-    final = std::move( f );
+    timeout = t;
+    prms    = std::move( p );
+    final   = std::move( f );
   }
 
 }

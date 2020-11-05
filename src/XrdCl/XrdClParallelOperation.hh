@@ -352,7 +352,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl()
+      XRootDStatus RunImpl( uint16_t pipelineTimeout )
       {
         // make sure we have a valid policy for the parallel operation
         if( !policy ) policy.reset( new AllPolicy() );
@@ -360,11 +360,14 @@ namespace XrdCl
         std::shared_ptr<Ctx> ctx =
             std::make_shared<Ctx>( this->handler.release(), policy.release() );
 
+        uint16_t timeout = pipelineTimeout < this->timeout ?
+                           pipelineTimeout : this->timeout;
+
         try
         {
           for( size_t i = 0; i < pipelines.size(); ++i )
           {
-            pipelines[i].Run( [ctx]( const XRootDStatus &st ){ ctx->Examine( st ); } );
+            pipelines[i].Run( timeout, [ctx]( const XRootDStatus &st ){ ctx->Examine( st ); } );
           }
         }
         catch( const PipelineException& ex )
