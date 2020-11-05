@@ -15,9 +15,7 @@
 
 namespace XrdCl
 {
-  class operation_expired : public std::exception
-  {
-  }
+  class operation_expired : public std::exception {};
 
   class Timeout
   {
