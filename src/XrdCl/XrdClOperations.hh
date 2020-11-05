@@ -252,7 +252,7 @@ namespace XrdCl
         {
           st = RunImpl( timeout );
         }
-        catch( operation_expired )
+        catch( operation_expired& ex )
         {
           st = XRootDStatus( stError, errOperationExpired );
         }
