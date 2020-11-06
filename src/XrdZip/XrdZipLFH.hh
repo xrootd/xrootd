@@ -30,6 +30,8 @@
 
 #include <string>
 #include <memory>
+#include <algorithm>
+#include <iterator>
 
 namespace XrdZip
 {
@@ -80,7 +82,7 @@ namespace XrdZip
       copy_bytes( uncompressedSize, buffer );
       copy_bytes( filenameLength, buffer );
       copy_bytes( extraLength , buffer );
-      copy_bytes( filenameLength, buffer );
+      std::copy( filename.begin(), filename.end(), std::back_inserter( buffer ) );
       extra->Serialize( buffer );
     }
 
