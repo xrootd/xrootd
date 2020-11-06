@@ -451,6 +451,7 @@ private:
    static const int csChk_None  = 0;
    static const int csChk_Cache = 1;
    static const int csChk_Net   = 2;
+   static const int csChk_TLS   = 4;
 
    struct WriteQ
    {

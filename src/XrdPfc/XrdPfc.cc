@@ -194,7 +194,7 @@ Cache::Cache(XrdSysLogger *logger, XrdOucEnv *env) :
    m_RAM_std_size(0),
    m_csUVKeep(-1),
    m_isClient(false),
-   m_csChk(csChk_Net),
+   m_csChk(csChk_Net|csChk_TLS),
    m_in_purge(false),
    m_active_cond(0),
    m_stats_n_purge_cond(0),

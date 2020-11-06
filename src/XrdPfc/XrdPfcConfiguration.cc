@@ -58,11 +58,14 @@ bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalS
 
 /* Function: xcschk
 
-   Purpose:  To parse the directive: cschk [[no]net] [[no]cache] [uvkeep <arg>]
+   Purpose:  To parse the directive: cschk <parms>
+
+             parms:  [[no]net] [[no]tls] [[no]cache] [uvkeep <arg>]
 
              all     Checksum check on cache & net transfers.
              cache   Checksum check on cache only, 'no' turns it off.
              net     Checksum check on net transfers 'no' turns it off.
+             tls     use TLS if server doesn't support checksums 'no' turns it off.
              uvkeep  Maximum amount of time a cached file make be kept if it
                      contains unverified checksums as n[d|h|m|s], where 'n'
                      is a non-negative integer. A value of 0 prohibits disk
@@ -79,7 +82,8 @@ bool Cache::xcschk(XrdOucStream &Config)
    {
       {"off",     csChk_None},
       {"cache",   csChk_Cache},
-      {"net",     csChk_Net}
+      {"net",     csChk_Net},
+      {"tls",     csChk_TLS}
    };
    int i, numopts = sizeof(csopts)/sizeof(struct cschkopts);
    bool isNo;
@@ -116,8 +120,8 @@ bool Cache::xcschk(XrdOucStream &Config)
           val = Config.GetWord();
         }
 
-   if (m_csChk & csChk_Net) m_env->Put("psx.CSNet", "1");
-      else m_env->Put("psx.CSNet", "0");
+   if (!(m_csChk & csChk_Net)) m_env->Put("psx.CSNet", "0");
+      else m_env->Put("psx.CSNet", (m_csChk & csChk_TLS ? "2" : "1"));
 
    return true;
 }
@@ -258,7 +262,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    // If network checksum processing is the default, indicate so.
    //
-   if (m_csChk & csChk_Net) m_env->Put("psx.CSNet", "1");
+   if (m_csChk & csChk_Net)
+      m_env->Put("psx.CSNet", (m_csChk & csChk_TLS ? "2" : "1"));
 
    // Actual parsing of the config file.
    bool retval = true, aOK = true;
@@ -399,7 +404,14 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    if (aOK)
    {
       int  loff = 0;
-      const char *csc[] = {"off", "cache nonet", "nocache net", "cache net"};
+//                         000    001            010
+      const char *csc[] = {"off", "cache nonet", "nocache net notls",
+//                         011
+                           "cache net notls",
+//                         100    101            110
+                           "off", "cache nonet", "nocache net tls",
+//                         111
+                           "cache net tls"};
       char buff[8192], uvk[32];
       if (m_csUVKeep < 0) strcpy(uvk, "lru");
          else sprintf(uvk, "%d", m_csUVKeep);

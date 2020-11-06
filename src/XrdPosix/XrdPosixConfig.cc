@@ -404,8 +404,12 @@ bool XrdPosixConfig::SetConfig(XrdOucPsx &parms)
 
 // Set auto conversion of read to pgread
 //
-   if (parms.theCache && parms.theEnv && (val = parms.theEnv->Get("psx.CSNet"))
-   &&  *val == '1') XrdPosixGlobals::autoPGRD = true;
+   if (parms.theCache && parms.theEnv && (val = parms.theEnv->Get("psx.CSNet")))
+      {if (*val == '1' || *val == '2')
+          {XrdPosixGlobals::autoPGRD = true;
+           if (*val == '2') SetEnv("WantTlsOnNoPgrw", 1);
+          }
+      }
 
 // Handle the caching options (library or builin memory).
 // TODO: Make the memory cache a library plugin as well.
