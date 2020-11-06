@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string>
+#include <sys/param.h>
 #include <sys/stat.h>
 
 #include "XrdOss/XrdOss.hh"
@@ -38,8 +39,16 @@
 #include "XrdOss/XrdOssAt.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssError.hh"
+#include "XrdOss/XrdOssPath.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 
+/******************************************************************************/
+/*                      E x t e r n a l   O b j e c t s                       */
+/******************************************************************************/
+
+extern XrdSysError OssEroute;
+  
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
@@ -188,13 +197,57 @@ int XrdOssAt::Stat(XrdOssDF &atDir, const char *path, struct stat &buf,
   
 int XrdOssAt::Unlink(XrdOssDF  &atDir, const char *path)
 {
+   struct stat Stat;
    int dirFD;
 
 // Standard boilerplate
 //
    BOILER_PLATE(dirFD, atDir);
 
-// Effect the removal
+// This could be a symlink or an actual file but not a directory.
+//
+   if (fstatat(dirFD, path, &Stat, AT_SYMLINK_NOFOLLOW))
+      return (errno == ENOENT ? 0 : -errno);
+   if ((Stat.st_mode & S_IFMT) == S_IFDIR) return -EISDIR;
+
+// If this is not a symlink then we can delete it directly
+//
+   if ((Stat.st_mode & S_IFMT) != S_IFLNK)
+      {if (unlinkat(dirFD, path, 0)) return -errno;
+       if (Stat.st_size)
+          XrdOssCache::Adjust(Stat.st_dev, -Stat.st_size);
+       return 0;
+      }
+
+// Get the target of this link
+//
+   char lnkbuff[MAXPATHLEN+64];
+   int lnklen, retc;
+   if ((lnklen = readlinkat(dirFD, path, lnkbuff, sizeof(lnkbuff)-1)) < 0)
+      return -errno;
+
+// If the underlying file exists, remove it
+//
+   lnkbuff[lnklen] = '\0';
+   if (stat(lnkbuff, &Stat)) Stat.st_size = 0;
+      else if (unlink(lnkbuff) && errno != ENOENT)
+              {retc = -errno;
+               OssEroute.Emsg("Unlink",retc,"unlink symlink target",lnkbuff);
+               return -retc;
+              }
+
+// Adjust the size based on what kind of data cache we are using.
+//
+   if (Stat.st_size)
+      {char *lP = lnkbuff+lnklen-1;
+       if (*lP == XrdOssPath::xChar)
+          {XrdOssPath::Trim2Base(lP);
+           XrdOssCache::Adjust(lnkbuff, -Stat.st_size);
+          }
+          else XrdOssCache::Adjust(Stat.st_dev, -Stat.st_size);
+      }
+
+// Effect the removal of the actual symlink
 //
    if (unlinkat(dirFD, path, 0)) return -errno;
 
