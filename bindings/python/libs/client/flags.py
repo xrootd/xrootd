@@ -91,7 +91,8 @@ PrepareFlags = enum(
   STAGE     = 8,
   WRITEMODE = 16,
   COLOCATE  = 32,
-  FRESH     = 64
+  FRESH     = 64,
+  EVICT     = 1 << 8
 )
 
 HostTypes = enum(

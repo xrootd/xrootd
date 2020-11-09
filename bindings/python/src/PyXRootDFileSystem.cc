@@ -615,7 +615,7 @@ namespace PyXRootD
     PyObject                  *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "Ob|bHO:prepare",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "OK|bHO:prepare",
          (char**) kwlist, &pyfiles, &flags, &priority, &timeout, &callback ) )
       return NULL;
 
