@@ -55,7 +55,7 @@ namespace XrdZip
       nbDisk( 0 ),
       internAttr( 0 ),
       externAttr( mode << 16 ),
-      extra( new ZipExtra( lfh->extra, lfhOffset ) ),
+      extra( new ZipExtra( lfh->extra.get(), lfhOffset ) ),
       filename( lfh->filename )
     {
       if ( lfhOffset >= ovrflw<uint32_t>::value )
@@ -103,25 +103,25 @@ namespace XrdZip
         std::copy( comment.begin(), comment.end(), std::back_inserter( buffer ) );
     }
 
-    uint16_t                  zipVersion;        // ZIP version
-    uint16_t                  minZipVersion;     //< minumum ZIP version
-    uint16_t                  generalBitFlag;    //< flags
-    uint16_t                  compressionMethod; //< compression method
-    dos_timestmp              timestmp;          //< DOS timestamp
-    uint32_t                  ZCRC32;            //< CRC32
-    uint32_t                  compressedSize;    //< compressed size
-    uint32_t                  uncompressedSize;  //< uncompressed size
-    uint16_t                  filenameLength;    //< filename length
-    uint16_t                  extraLength;       //< size of the ZIP64 extra field
-    uint16_t                  commentLength;     //< comment length
-    uint16_t                  nbDisk;            //< number of disks
-    uint16_t                  internAttr;        //< internal attributes
-    uint32_t                  externAttr;        //< external attributes
-    uint32_t                  offset;            //< offset
-    std::string               filename;          //< file name
-    std::uniqe_ptr<ZipExtra>  extra;             //< ZIP64 extra field
-    std::string               comment;           //< user comment
-    uint16_t                  cdfhSize;          // size of the record
+    uint16_t                   zipVersion;        // ZIP version
+    uint16_t                   minZipVersion;     //< minumum ZIP version
+    uint16_t                   generalBitFlag;    //< flags
+    uint16_t                   compressionMethod; //< compression method
+    dos_timestmp               timestmp;          //< DOS timestamp
+    uint32_t                   ZCRC32;            //< CRC32
+    uint32_t                   compressedSize;    //< compressed size
+    uint32_t                   uncompressedSize;  //< uncompressed size
+    uint16_t                   filenameLength;    //< filename length
+    uint16_t                   extraLength;       //< size of the ZIP64 extra field
+    uint16_t                   commentLength;     //< comment length
+    uint16_t                   nbDisk;            //< number of disks
+    uint16_t                   internAttr;        //< internal attributes
+    uint32_t                   externAttr;        //< external attributes
+    uint32_t                   offset;            //< offset
+    std::string                filename;          //< file name
+    std::unique_ptr<ZipExtra>  extra;             //< ZIP64 extra field
+    std::string                comment;           //< user comment
+    uint16_t                   cdfhSize;          // size of the record
 
     //-------------------------------------------------------------------------
     // the Central Directory File Header signature
