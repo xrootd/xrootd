@@ -261,7 +261,7 @@ int fseeko64(FILE *stream, off64_t offset, int whence)
 
 extern "C"
 {
-#if defined __linux__ && __GNUC__ && __GNUC__ >= 2
+#if defined(__linux__) and defined(_STAT_VER) and __GNUC__ and __GNUC__ >= 2
 int  __fxstat64(int ver, int fildes, struct stat64 *buf)
 #else
 int     fstat64(         int fildes, struct stat64 *buf)
@@ -269,7 +269,7 @@ int     fstat64(         int fildes, struct stat64 *buf)
 {
    static int Init = Xunix.Init(&Init);
 
-#ifdef __linux__
+#if defined(__linux__) and defined(_STAT_VER)
    return XrdPosix_FstatV(ver, fildes, (struct stat *)buf);
 #else
    return XrdPosix_Fstat (     fildes, (struct stat *)buf);
