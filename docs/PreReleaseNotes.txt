@@ -15,6 +15,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[TPC]** Do not hold lock when deleting a proxy autorm TPC job that failed.
   **[Server]** Add missing return that breaks loading of the oss.statlib
   **[Server]** Prevent SEGV upon poller error on TLS links doing async I/O.
   **[TLS]** Avoid bad behaviour when authentication fails on a TLS connection.
