@@ -94,9 +94,8 @@ void XrdOfsTPCJob::Del()
 
 // Delete the element if possible
 //
-   if (Refs <= 1) delete this;
-      else Refs--;
-   jobMutex.UnLock();
+   if (Refs <= 1)  {jobMutex.UnLock(); delete this;}
+      else {Refs--; jobMutex.UnLock();}
 }
 
 /******************************************************************************/
