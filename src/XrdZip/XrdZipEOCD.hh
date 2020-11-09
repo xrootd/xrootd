@@ -26,6 +26,8 @@
 #define SRC_XRDZIP_XRDZIPEOCD_HH_
 
 #include "XrdZip/XrdZipUtils.hh"
+#include "XrdZip/XrdZipLFH.hh"
+#include "XrdZip/XrdZipCDFH.hh"
 #include <string>
 
 namespace XrdZip

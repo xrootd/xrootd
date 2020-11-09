@@ -9,6 +9,8 @@
 #define SRC_XRDZIP_XRDZIPZIP64EOCD_HH_
 
 #include "XrdZip/XrdZipUtils.hh"
+#include "XrdZip/XrdZipLFH.hh"
+#include "XrdZip/XrdZipCDFH.hh"
 #include <string>
 
 namespace XrdZip
@@ -42,12 +44,12 @@ namespace XrdZip
     //! Constructor from last LFH + CDFH
     //-------------------------------------------------------------------------
     ZIP64EOCD( EOCD *eocd,
-                LFH  *lfh,
-                CDFH *cdfh,
-                uint16_t prevNbCdRecD = 0,
-                uint16_t prevNbCdRec = 0,
-                uint32_t prevCdSize = 0,
-                uint32_t prevCdOffset = 0 ) :
+               LFH  *lfh,
+               CDFH *cdfh,
+               uint16_t prevNbCdRecD = 0,
+               uint16_t prevNbCdRec = 0,
+               uint32_t prevCdSize = 0,
+               uint32_t prevCdOffset = 0 ) :
                   zipVersion( ( 3 << 8 ) | 63 ),
                   minZipVersion( 45 ),
                   nbDisk( eocd->nbDisk ),
