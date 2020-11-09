@@ -8,14 +8,7 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
-  **[Server]** Add missing return that breaks loading of the oss.statlib
-  **[Server]** Prevent SEGV upon poller error on TLS links doing async I/O.
-  **[TLS]** Avoid bad behaviour when authentication fails on a TLS connection.
-  **[Server]** Avoid SEGV when checksum response is invalid.
 
 + **Minor bug fixes**
-  **[Server]** Report correct owner/group in extended status.
 
 + **Miscellaneous**
-  **[Server]** Correct TLS identification test for authentication protocol.
-  **[Server]** Pass the environment+secEntity to checksm manager. Fixes #1294
