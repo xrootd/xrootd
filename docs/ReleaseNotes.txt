@@ -20,6 +20,7 @@ Version 5.0.3
   **[Server]** Report correct owner/group in extended status.
   **[XrdCl]** Fix group ownership print out in extended stat.
   **[XrdPosix]** Fix _STAT_VER problem on Fedora rawhide.
+  **[HTTP]** Align TPC cadir procesing with HTTP to avoid config issues. Fixes #1323
 
 + **Miscellaneous**
   **[Server]** Correct TLS identification test for authentication protocol.

@@ -10,6 +10,5 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
-  **[HTTP]** Align TPC cadir procesing with HTTP to avoid config issues. Fixes #1323
 
 + **Miscellaneous**
