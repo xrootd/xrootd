@@ -26,6 +26,7 @@
 #define SRC_XRDZIP_XRDZIPUTILS_HH_
 
 #include <time.h>
+#include <string.h>
 
 #include <vector>
 #include <algorithm>
@@ -56,6 +57,16 @@ namespace XrdZip
     const char *begin = reinterpret_cast<const char*>( &value );
     const char *end   = begin + sizeof( INT );
     std::copy( begin, end, std::back_inserter( buffer ) );
+  }
+
+  //---------------------------------------------------------------------------
+  // Copies bytes into an integer type
+  //---------------------------------------------------------------------------
+  template<typename INT>
+  inline static void from_buffer( INT &var, const char *&buffer )
+  {
+    memcpy( &var, buffer, sizeof( INT ) );
+    buffer += sizeof( INT );
   }
 
   //---------------------------------------------------------------------------
