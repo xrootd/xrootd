@@ -15,7 +15,8 @@ using namespace TPC;
 
 bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
 {
-    XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), myEnv, "=====> ");
+    XrdOucEnv cfgEnv;
+    XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), &cfgEnv, "=====> ");
 
     m_log.setMsgMask(LogMask::Info | LogMask::Warning | LogMask::Error);
 
@@ -46,13 +47,6 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
                 m_log.Emsg("Config", "https.desthttps value is invalid", val);
                 return false;
             }
-        } else if (!strcmp("http.cadir", val)) {
-            if (!(val = Config.GetWord())) {
-                Config.Close();
-                m_log.Emsg("Config", "http.cadir value not specified");
-                return false;
-            }
-            m_cadir = val;
         } else if (!strcmp("tpc.trace", val)) {
             if (!ConfigureLogger(Config)) {
                 Config.Close();
@@ -61,6 +55,12 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
         }
     }
     Config.Close();
+
+    if (!(val = myEnv->Get("http.cadir"))) {
+        m_log.Emsg("Config", "cadir value not specified; is TLS enabled?");
+        return false;
+    }
+    m_cadir = val;
 
     void *sfs_raw_ptr;
     if ((sfs_raw_ptr = myEnv->GetPtr("XrdSfsFileSystem*"))) {

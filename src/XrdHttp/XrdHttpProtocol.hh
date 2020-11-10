@@ -172,6 +172,18 @@ private:
   /// Create a new BIO object from an XrdLink.  Returns NULL on failure.
   static BIO *CreateBIO(XrdLink *lp);
   
+  /// The following records the external handlers that need to be loaded. We
+  /// must defer loading these handlers as we need to pass some information
+  /// to the handler and that is only known after we process our config file.
+  struct extHInfo
+        {XrdOucString extHName;  // The instance name (1 to 16 characters)
+         XrdOucString extHPath;  // The shared library path
+         XrdOucString extHParm;  // The parameter (sort of)
+
+         extHInfo(const char *hName, const char *hPath, const char *hParm)
+                 : extHName(hName), extHPath(hPath), extHParm(hParm) {}
+        ~extHInfo() {}
+  };
   /// Functions related to the configuration
   static int Config(const char *fn, XrdOucEnv *myEnv);
   static const char *Configed();
@@ -179,7 +191,7 @@ private:
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
   static int xsecxtractor(XrdOucStream &Config);
-  static int xexthandler(XrdOucStream & Config, const char *ConfigFN, XrdOucEnv *myEnv);
+  static int xexthandler(XrdOucStream & Config, std::vector<extHInfo> &hiVec);
   static int xsslcadir(XrdOucStream &Config);
   static int xsslcipherfilter(XrdOucStream &Config);
   static int xdesthttps(XrdOucStream &Config);
@@ -213,6 +225,9 @@ private:
   static int exthandlercnt;
   
   // Loads the ExtHandler plugin, if available
+  static int LoadExtHandler(std::vector<extHInfo> &hiVec,
+                            const char *cFN, XrdOucEnv &myEnv);
+
   static int LoadExtHandler(XrdSysError *eDest, const char *libName,
                             const char *configFN, const char *libParms,
                             XrdOucEnv *myEnv, const char *instName);

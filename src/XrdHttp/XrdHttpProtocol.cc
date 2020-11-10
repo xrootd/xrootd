@@ -910,16 +910,20 @@ int XrdHttpProtocol::Stats(char *buff, int blen, int do_sync) {
 /******************************************************************************/
 
 #define TS_Xeq(x,m) (!strcmp(x,var)) GoNo = m(Config)
-#define TS_Xeq3(x,m) (!strcmp(x,var)) GoNo = m(Config, ConfigFN, myEnv)
+//#define TS_Xeq3(x,m) (!strcmp(x,var)) GoNo = m(Config, ConfigFN, myEnv)
+#define TS_Xeq3(x,m) (!strcmp(x,var)) GoNo = m(Config, extHIVec)
 
 #define HTTPS_ALERT(x,y,z) httpsspec = true;\
         if (xrdctx && httpsmode == hsmAuto && (z || xrdctx->x509Verify())) \
         eDest.Say("Config http." x " overrides the xrd." y " directive.")
 
 int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
-  XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), myEnv, "=====> ");
+  XrdOucEnv cfgEnv;
+  XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &cfgEnv, "=====> ");
+  std::vector<extHInfo> extHIVec;
   char *var;
   int cfgFD, GoNo, NoGo = 0, ismine;
+
 
   // Initialize our custom BIO type.
   if (!m_bio_type) {
@@ -1108,6 +1112,10 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 //
    if (!NoGo && xrdctx->x509Verify() && !(xrdctx->SetCrlRefresh()))
       eDest.Say("Config warning: CRL refreshing could not be enabled!");
+
+// We can now load all the external handlers
+//
+   if (LoadExtHandler(extHIVec, ConfigFN, *myEnv)) return 1;
 
 // At this point, we can actually initialize security plugins
 //
@@ -2413,8 +2421,8 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream& Config) {
  *  Output: 0 upon success or !0 upon failure.
  */
 
-int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN,
-                                 XrdOucEnv *myEnv) {
+int XrdHttpProtocol::xexthandler(XrdOucStream &Config,
+                                 std::vector<extHInfo> &hiVec) {
   char *val, path[1024], namebuf[1024];
   char *parm;
   
@@ -2422,11 +2430,11 @@ int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN,
   //
   val = Config.GetWord();
   if (!val || !val[0]) {
-    eDest.Emsg("Config", "No instance name specified for an http external handler plugin .");
+    eDest.Emsg("Config", "No instance name specified for an http external handler plugin.");
     return 1;
   }
   if (strlen(val) >= 16) {
-    eDest.Emsg("Config", "Instance name too long for an http external handler plugin .");
+    eDest.Emsg("Config", "Instance name too long for an http external handler plugin.");
     return 1;
   }
   strncpy(namebuf, val, sizeof(namebuf));
@@ -2439,19 +2447,39 @@ int XrdHttpProtocol::xexthandler(XrdOucStream & Config, const char *ConfigFN,
     eDest.Emsg("Config", "No http external handler plugin specified.");
     return 1;
   } 
+  if (strlen(val) >= (int)sizeof(path)) {
+    eDest.Emsg("Config", "Path too long for an http external handler plugin.");
+    return 1;
+  }
+
   strcpy(path, val);
   
   // Everything else is a free string
   //
   parm = Config.GetWord();
-    
-  
-  // Try to load the plugin implementing ext behaviour
-  //
-  if (LoadExtHandler(&eDest, path, ConfigFN, parm, myEnv, namebuf))
-    return 1;
 
-  
+  // Verify whether this is a duplicate (we never supported replacements)
+  //
+  for (int i = 0; i < (int)hiVec.size(); i++)
+      {if (hiVec[i].extHName == namebuf) {
+         eDest.Emsg("Config", "Instance name already present for "
+                              "http external handler plugin",
+                               hiVec[i].extHPath.c_str());
+         return 1;
+      }
+  }
+
+  // Verify that we don't have more already than we are allowed to have
+  //
+  if (hiVec.size() >= MAX_XRDHTTPEXTHANDLERS) {
+    eDest.Emsg("Config", "Cannot load one more exthandler. Max is 4");
+    return 1;
+  }
+
+  // Create an info struct and push it on the list of ext handlers to load
+  //
+  hiVec.push_back(extHInfo(namebuf, path, (parm ? parm : "")));
+
   return 0;
 }
 
@@ -2751,7 +2779,29 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
     return 1;
 }
 
+/******************************************************************************/
+/*                        L o a d E x t H a n d l e r                         */
+/******************************************************************************/
 
+int XrdHttpProtocol::LoadExtHandler(std::vector<extHInfo> &hiVec,
+                                    const char *cFN, XrdOucEnv &myEnv) {
+
+  // Add the pointer to the cadir and the cakey to the environment.
+  //
+  if (sslcadir) myEnv.Put("http.cadir", sslcadir);
+  if (sslcert)  myEnv.Put("http.cert",  sslcert);
+  if (sslkey)   myEnv.Put("http.key"  , sslkey);
+
+  // Load all of the specified external handlers.
+  //
+  for (int i = 0; i < (int)hiVec.size(); i++)
+      if (LoadExtHandler(&eDest, hiVec[i].extHPath.c_str(), cFN,
+                         hiVec[i].extHParm.c_str(), &myEnv,
+                         hiVec[i].extHName.c_str())) return 1;
+
+  return 0;
+}
+  
 // Loads the external handler plugin, if available
 int XrdHttpProtocol::LoadExtHandler(XrdSysError *myeDest, const char *libName,
                                     const char *configFN, const char *libParms,
