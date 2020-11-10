@@ -168,12 +168,14 @@ int XrdCephOss::Create(const char *tident, const char *path, mode_t access_mode,
 
 int XrdCephOss::Init(XrdSysLogger *logger, const char* configFn) { return 0; }
 
+//SCS - lie to posix-assuming clients about directories [fixes brittleness in GFAL2]
 int XrdCephOss::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *envP) {
-  return -ENOTSUP;
+  return 0;
 }
 
+//SCS - lie to posix-assuming clients about directories [fixes brittleness in GFAL2]
 int XrdCephOss::Remdir(const char *path, int Opts, XrdOucEnv *eP) {
-  return -ENOTSUP;
+  return 0;
 }
 
 int XrdCephOss::Rename(const char *from,
