@@ -23,6 +23,7 @@ Prerelease Notes
   **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
 
 + **Minor bug fixes**
+  **[HTTP]** Align TPC cadir procesing with HTTP to avoid config issues. Fixes #1323
   **[Server]** Report correct owner/group in extended status.
 
 + **Miscellaneous**
