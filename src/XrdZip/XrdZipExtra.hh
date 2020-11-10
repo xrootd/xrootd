@@ -26,18 +26,19 @@
 #define SRC_XRDZIP_XRDZIPEXTRA_HH_
 
 #include "XrdZip/XrdZipUtils.hh"
+#include "XrdZip/XrdZipError.hh"
 
 namespace XrdZip
 {
   //---------------------------------------------------------------------------
   // A data structure for the ZIP64 extra field
   //---------------------------------------------------------------------------
-  struct ZipExtra
+  struct Extra
   {
     //-------------------------------------------------------------------------
     //! Constructor from file size
     //-------------------------------------------------------------------------
-    ZipExtra( uint64_t fileSize )
+    Extra( uint64_t fileSize )
     {
       offset = 0;
       nbDisk = 0;
@@ -60,7 +61,7 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Constructor from another extra + offset
     //-------------------------------------------------------------------------
-    ZipExtra( ZipExtra *extra, uint64_t offset )
+    Extra( Extra *extra, uint64_t offset )
     {
       nbDisk = 0;
       uncompressedSize = extra->uncompressedSize;
@@ -78,11 +79,53 @@ namespace XrdZip
     }
 
     //-------------------------------------------------------------------------
+    //! Default constructor
+    //-------------------------------------------------------------------------
+    Extra() : dataSize( 0 ),
+              uncompressedSize( 0 ),
+              compressedSize( 0 ),
+              offset( 0 ),
+              nbDisk( 0 ),
+              totalSize( 0 )
+    {
+    }
+
+    //-------------------------------------------------------------------------
+    //! Constructor from buffer
+    //-------------------------------------------------------------------------
+    bool FromBuffer( const char *&buffer, uint16_t exsize, uint8_t flags )
+    {
+      uint16_t signature = 0;
+      from_buffer( signature, buffer );
+      if( signature != headerID ) return false;
+
+      from_buffer( dataSize, buffer );
+
+      if( dataSize != exsize )
+        throw Error( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError, 0,
+                                          "Wrong size of ZIP64 extension!" ) );
+
+      if( UCMPSIZE & flags )
+        from_buffer( uncompressedSize, buffer );
+
+      if( CPMSIZE & flags )
+        from_buffer( compressedSize, buffer );
+
+      if( OFFSET & flags )
+        from_buffer( offset, buffer );
+
+      if( NBDISK & flags )
+        from_buffer( nbDisk, buffer );
+
+      return true;
+    }
+
+    //-------------------------------------------------------------------------
     //! Serialize the extra field into a buffer
     //-------------------------------------------------------------------------
     void Serialize( buffer_t &buffer )
     {
-      if ( totalSize > 0 )
+      if( totalSize > 0 )
       {
         copy_bytes( headerID, buffer );
         copy_bytes( dataSize, buffer );
@@ -93,10 +136,19 @@ namespace XrdZip
           if ( offset > 0 )
             copy_bytes( offset, buffer );
         }
-        else if ( offset > 0 )
+        else if( offset > 0 )
           copy_bytes( offset, buffer );
       }
     }
+
+    enum Ovrflw
+    {
+      NONE     = 0,
+      UCMPSIZE = 1,
+      CPMSIZE  = 2,
+      OFFSET   = 4,
+      NBDISK   = 8
+    };
 
     //-------------------------------------------------------------------------
     //! The extra field marker

@@ -27,6 +27,7 @@
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipUtils.hh"
+#include "XrdZip/XrdZipError.hh"
 
 #include <string>
 #include <algorithm>
@@ -55,7 +56,7 @@ namespace XrdZip
       nbDisk( 0 ),
       internAttr( 0 ),
       externAttr( mode << 16 ),
-      extra( new ZipExtra( lfh->extra.get(), lfhOffset ) ),
+      extra( new Extra( lfh->extra.get(), lfhOffset ) ),
       filename( lfh->filename )
     {
       if ( lfhOffset >= ovrflw<uint32_t>::value )
@@ -71,6 +72,87 @@ namespace XrdZip
         minZipVersion = 45;
 
       cdfhSize = cdfhBaseSize + filenameLength + extraLength + commentLength;
+    }
+
+    //-------------------------------------------------------------------------
+    // Constructor from buffer
+    //-------------------------------------------------------------------------
+    CDFH( const char *buffer )
+    {
+      zipVersion        = *reinterpret_cast<const uint16_t*>( buffer + 4 );
+      minZipVersion     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
+      generalBitFlag    = *reinterpret_cast<const uint16_t*>( buffer + 8 );
+      compressionMethod = *reinterpret_cast<const uint16_t*>( buffer + 10 );
+      timestmp.time     = *reinterpret_cast<const uint16_t*>( buffer + 12 );
+      timestmp.date     = *reinterpret_cast<const uint16_t*>( buffer + 14 );
+      ZCRC32            = *reinterpret_cast<const uint32_t*>( buffer + 16 );
+      compressedSize    = *reinterpret_cast<const uint32_t*>( buffer + 20 );
+      uncompressedSize  = *reinterpret_cast<const uint32_t*>( buffer + 24 );
+      filenameLength    = *reinterpret_cast<const uint16_t*>( buffer + 28 );
+      extraLength       = *reinterpret_cast<const uint16_t*>( buffer + 30 );
+      commentLength     = *reinterpret_cast<const uint16_t*>( buffer + 32 );
+      nbDisk            = *reinterpret_cast<const uint16_t*>( buffer + 34 );
+      internAttr        = *reinterpret_cast<const uint16_t*>( buffer + 36 );
+      externAttr        = *reinterpret_cast<const uint32_t*>( buffer + 38 );
+      offset            = *reinterpret_cast<const uint32_t*>( buffer + 42 );
+
+      filename.assign( buffer + 46, filenameLength );
+
+      // now parse the 'extra' (may contain the zip64 extension to CDFH)
+      ParseExtra( buffer + 46 + filenameLength, extraLength );
+
+      cdfhSize = cdfhBaseSize + filenameLength + extraLength + commentLength;
+    }
+
+    //-------------------------------------------------------------------------
+    // Parse the extensible data fields
+    //-------------------------------------------------------------------------
+    void ParseExtra( const char *buffer, uint16_t length)
+    {
+      uint8_t ovrflws = Extra::NONE;
+      uint16_t exsize = 0;
+
+      // check if compressed size is overflown
+      if( compressedSize == ovrflw<uint32_t>::value)
+      {
+        ovrflws |= Extra::CPMSIZE;
+        exsize  += sizeof( uint64_t );
+      }
+
+      // check if original size is overflown
+      if( uncompressedSize == ovrflw<uint32_t>::value )
+      {
+        ovrflws |= Extra::UCMPSIZE;
+        exsize  += sizeof( uint64_t );
+      }
+
+      // check if offset is overflown
+      if( offset == ovrflw<uint32_t>::value )
+      {
+        ovrflws |= Extra::OFFSET;
+        exsize  += sizeof( uint64_t );
+      }
+
+      // check if number of disks is overflown
+      if( nbDisk == ovrflw<uint16_t>::value )
+      {
+        ovrflws |= Extra::NBDISK;
+        exsize  += sizeof( uint32_t );
+      }
+
+      // if the expected size of ZIP64 extension is 0 we
+      // can skip parsing of 'extra'
+      if( exsize == 0 ) return;
+
+      extra.reset( new Extra() );
+
+      // Parse the extra part
+      const char *end = buffer + length;
+      while( buffer < end )
+      {
+        if( extra->FromBuffer( buffer, exsize, ovrflws ) )
+          break;
+      }
     }
 
     //-------------------------------------------------------------------------
@@ -97,31 +179,32 @@ namespace XrdZip
       copy_bytes( externAttr, buffer );
       copy_bytes( offset, buffer );
       std::copy( filename.begin(), filename.end(), std::back_inserter( buffer ) );
-      extra->Serialize( buffer );
+      if( extra )
+        extra->Serialize( buffer );
 
       if ( commentLength > 0 )
         std::copy( comment.begin(), comment.end(), std::back_inserter( buffer ) );
     }
 
-    uint16_t                   zipVersion;        // ZIP version
-    uint16_t                   minZipVersion;     //< minumum ZIP version
-    uint16_t                   generalBitFlag;    //< flags
-    uint16_t                   compressionMethod; //< compression method
-    dos_timestmp               timestmp;          //< DOS timestamp
-    uint32_t                   ZCRC32;            //< CRC32
-    uint32_t                   compressedSize;    //< compressed size
-    uint32_t                   uncompressedSize;  //< uncompressed size
-    uint16_t                   filenameLength;    //< filename length
-    uint16_t                   extraLength;       //< size of the ZIP64 extra field
-    uint16_t                   commentLength;     //< comment length
-    uint16_t                   nbDisk;            //< number of disks
-    uint16_t                   internAttr;        //< internal attributes
-    uint32_t                   externAttr;        //< external attributes
-    uint32_t                   offset;            //< offset
-    std::string                filename;          //< file name
-    std::unique_ptr<ZipExtra>  extra;             //< ZIP64 extra field
-    std::string                comment;           //< user comment
-    uint16_t                   cdfhSize;          // size of the record
+    uint16_t                zipVersion;        // ZIP version
+    uint16_t                minZipVersion;     //< minumum ZIP version
+    uint16_t                generalBitFlag;    //< flags
+    uint16_t                compressionMethod; //< compression method
+    dos_timestmp            timestmp;          //< DOS timestamp
+    uint32_t                ZCRC32;            //< CRC32
+    uint32_t                compressedSize;    //< compressed size
+    uint32_t                uncompressedSize;  //< uncompressed size
+    uint16_t                filenameLength;    //< filename length
+    uint16_t                extraLength;       //< size of the ZIP64 extra field
+    uint16_t                commentLength;     //< comment length
+    uint16_t                nbDisk;            //< number of disks
+    uint16_t                internAttr;        //< internal attributes
+    uint32_t                externAttr;        //< external attributes
+    uint32_t                offset;            //< offset
+    std::string             filename;          //< file name
+    std::unique_ptr<Extra>  extra;             //< ZIP64 extra field
+    std::string             comment;           //< user comment
+    uint16_t                cdfhSize;          // size of the record
 
     //-------------------------------------------------------------------------
     // the Central Directory File Header signature

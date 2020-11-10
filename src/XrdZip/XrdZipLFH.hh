@@ -55,7 +55,7 @@ namespace XrdZip
     LFH( std::string filename, uint32_t crc, off_t fileSize, time_t time ) :
       generalBitFlag( 0 ), compressionMethod( 0 ), timestmp( time ), ZCRC32( crc ),
       compressedSize( initSize( fileSize ) ), uncompressedSize( initSize( fileSize ) ),
-      extra( new ZipExtra(fileSize ) ), filename( filename ), filenameLength( filename.size() )
+      extra( new Extra(fileSize ) ), filename( filename ), filenameLength( filename.size() )
     {
       extraLength = extra->totalSize;
       if ( extraLength == 0 )
@@ -86,18 +86,18 @@ namespace XrdZip
       extra->Serialize( buffer );
     }
 
-    uint16_t minZipVersion;          //< minimum ZIP version required to read the file
-    uint16_t generalBitFlag;         //< flags
-    uint16_t compressionMethod;      //< compression method
-    dos_timestmp timestmp;           //< DOS time stamp
-    uint32_t ZCRC32;                 //< crc32 value
-    uint32_t compressedSize;         //< compressed data size
-    uint32_t uncompressedSize;       //< uncompressed data size
-    uint16_t filenameLength;         //< file name length
-    uint16_t extraLength;            //< size of the ZIP64 extra field
-    std::string filename;            //< file name
-    std::unique_ptr<ZipExtra> extra; //< the ZIP64 extra field
-    uint16_t lfhSize;                //< size of the Local File Header
+    uint16_t               minZipVersion;      //< minimum ZIP version required to read the file
+    uint16_t               generalBitFlag;     //< flags
+    uint16_t               compressionMethod;  //< compression method
+    dos_timestmp           timestmp;           //< DOS time stamp
+    uint32_t               ZCRC32;             //< crc32 value
+    uint32_t               compressedSize;     //< compressed data size
+    uint32_t               uncompressedSize;   //< uncompressed data size
+    uint16_t               filenameLength;     //< file name length
+    uint16_t               extraLength;        //< size of the ZIP64 extra field
+    std::string            filename;           //< file name
+    std::unique_ptr<Extra> extra;              //< the ZIP64 extra field
+    uint16_t               lfhSize;            //< size of the Local File Header
 
     //-------------------------------------------------------------------------
     //! Local File Header signature
