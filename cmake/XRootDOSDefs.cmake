@@ -95,6 +95,7 @@ endif()
 #-------------------------------------------------------------------------------
 if( APPLE )
   set( MacOSX TRUE )
+  set( XrdClPipelines TRUE )
   
   if( NOT DEFINED CMAKE_MACOSX_RPATH )
     set( CMAKE_MACOSX_RPATH 1 )
