@@ -310,6 +310,15 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  //! An exception type used to (force) stop a pipeline
+  //----------------------------------------------------------------------------
+  struct StopPipeline
+  {
+    StopPipeline( const XRootDStatus &status ) : status( status ) { }
+    XRootDStatus status;
+  };
+
+  //----------------------------------------------------------------------------
   //! A wrapper around operation pipeline. A Pipeline is a once-use-only
   //! object - once executed by a Workflow engine it is invalidated.
   //!
@@ -408,6 +417,16 @@ namespace XrdCl
       operator bool()
       {
         return bool( operation );
+      }
+
+      //------------------------------------------------------------------------
+      //! Stop the current pipeline
+      //!
+      //! @param status : the final status for the pipeline
+      //------------------------------------------------------------------------
+      inline static void Stop( const XRootDStatus &status )
+      {
+        throw StopPipeline( status );
       }
 
     private:

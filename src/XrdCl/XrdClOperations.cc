@@ -69,8 +69,19 @@ namespace XrdCl
     // We need to copy status as original status object is destroyed in
     // HandleResponse function
     XRootDStatus st( *status );
+    bool stopped = false;
     if( responseHandler )
-      responseHandler->HandleResponseWithHosts( status, response, hostList );
+    {
+      try
+      {
+        responseHandler->HandleResponseWithHosts( status, response, hostList );
+      }
+      catch( const StopPipeline &stop )
+      {
+        st      = stop.status;
+        stopped = true;
+      }
+    }
     else
       dealloc( status, response, hostList );
 
@@ -89,7 +100,7 @@ namespace XrdCl
       }
     }
 
-    if( !st.IsOK() || !nextOperation )
+    if( !st.IsOK() || !nextOperation || stopped )
     {
       if( final ) final( st );
       prms.set_value( st );
