@@ -81,6 +81,13 @@ namespace XrdCl
         st      = stop.status;
         stopped = true;
       }
+      catch( const RepeatOpeation &repeat )
+      {
+        Operation<true> *opr = currentOperation.release();
+        opr->handler.reset( myself.release() );
+        opr->Run( timeout, std::move( prms ), std::move( final ) );
+        return;
+      }
     }
     else
       dealloc( status, response, hostList );
@@ -107,7 +114,8 @@ namespace XrdCl
       return;
     }
 
-    nextOperation->Run( timeout, std::move( prms ), std::move( final ) );
+    Operation<true> *opr = nextOperation.release();
+    opr->Run( timeout, std::move( prms ), std::move( final ) );
   }
 
   //----------------------------------------------------------------------------
@@ -133,11 +141,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void PipelineHandler::Assign( const Timeout                            &t,
                                 std::promise<XRootDStatus>                p,
-                                std::function<void(const XRootDStatus&)>  f )
+                                std::function<void(const XRootDStatus&)>  f,
+                                Operation<true>                          *opr )
   {
     timeout = t;
     prms    = std::move( p );
     final   = std::move( f );
+    currentOperation.reset( opr );
   }
 
 }

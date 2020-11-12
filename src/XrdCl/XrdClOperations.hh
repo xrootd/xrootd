@@ -111,7 +111,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Assign( const Timeout                            &timeout,
                    std::promise<XRootDStatus>                prms,
-                   std::function<void(const XRootDStatus&)>  final );
+                   std::function<void(const XRootDStatus&)>  final,
+                   Operation<true>                          *opr );
 
     private:
 
@@ -133,6 +134,11 @@ namespace XrdCl
       //! The handler of our operation
       //------------------------------------------------------------------------
       std::unique_ptr<ResponseHandler> responseHandler;
+
+      //------------------------------------------------------------------------
+      //! The operation the handler is assigned to
+      //------------------------------------------------------------------------
+      std::unique_ptr<Operation<true>> currentOperation;
 
       //------------------------------------------------------------------------
       //! Next operation in the pipeline
@@ -246,7 +252,7 @@ namespace XrdCl
                 std::function<void(const XRootDStatus&)>  final )
       {
         static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
-        handler->Assign( timeout, std::move( prms ), std::move( final ) );
+        handler->Assign( timeout, std::move( prms ), std::move( final ), this );
         XRootDStatus st;
         try
         {
@@ -317,6 +323,11 @@ namespace XrdCl
     StopPipeline( const XRootDStatus &status ) : status( status ) { }
     XRootDStatus status;
   };
+
+  //----------------------------------------------------------------------------
+  //! An exception type used to repeat an operation
+  //----------------------------------------------------------------------------
+  struct RepeatOpeation { };
 
   //----------------------------------------------------------------------------
   //! A wrapper around operation pipeline. A Pipeline is a once-use-only
@@ -429,6 +440,14 @@ namespace XrdCl
         throw StopPipeline( status );
       }
 
+      //------------------------------------------------------------------------
+      //! Repeat current operation
+      //------------------------------------------------------------------------
+      inline static void Repeat()
+      {
+        throw RepeatOpeation();
+      }
+
     private:
 
       //------------------------------------------------------------------------
@@ -456,7 +475,9 @@ namespace XrdCl
         // a promise that the pipe will have a result
         std::promise<XRootDStatus> prms;
         ftr = prms.get_future();
-        operation->Run( timeout, std::move( prms ), std::move( final ) );
+
+        Operation<true> *opr = operation.release();
+        opr->Run( timeout, std::move( prms ), std::move( final ) );
       }
 
       //------------------------------------------------------------------------
