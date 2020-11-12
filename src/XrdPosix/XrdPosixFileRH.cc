@@ -91,6 +91,7 @@ XrdPosixFileRH *XrdPosixFileRH::Alloc(XrdOucCacheIOCB *cbp,
 //
    newCB->theCB   = cbp;
    newCB->theFile = fp;
+   newCB->csVec   = 0;
    newCB->offset  = offs;
    newCB->result  = xResult;
    newCB->typeIO  = typeIO;
