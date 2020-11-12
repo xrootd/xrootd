@@ -32,14 +32,48 @@
 #include <string>
 #include <algorithm>
 #include <iterator>
+#include <unordered_map>
+#include <memory>
 
 namespace XrdZip
 {
+  //---------------------------------------------------------------------------
+  // Forward declaration for CDFH
+  //---------------------------------------------------------------------------
+  struct CDFH;
+
+  //---------------------------------------------------------------------------
+  // type definition for central directory
+  //---------------------------------------------------------------------------
+  typedef std::unordered_map<std::string, std::unique_ptr<CDFH>> central_directory;
+
   //---------------------------------------------------------------------------
   // A data structure representing the Central Directory File header record
   //---------------------------------------------------------------------------
   struct CDFH
   {
+    inline static central_directory Parse( const char *buffer, uint32_t bufferSize, uint16_t nbCdRecords )
+    {
+      uint32_t offset = 0;
+      central_directory cdRecords;
+
+      for( size_t i = 0; i < nbCdRecords; ++i )
+      {
+        if( bufferSize < cdfhBaseSize ) break;
+        // check the signature
+        uint32_t signature = 0;
+        from_buffer( signature, buffer + offset );
+        if( signature != cdfhSign ) throw bad_data();
+        // parse the record
+        std::unique_ptr<CDFH> cdfh( new CDFH( buffer + offset ) );
+        offset     += cdfh->cdfhSize;
+        bufferSize -= cdfh->cdfhSize;
+        cdRecords[cdfh->filename] = std::move( cdfh );
+      }
+
+      return std::move( cdRecords );
+    }
+
     //-------------------------------------------------------------------------
     // Constructor from Local File Header
     //-------------------------------------------------------------------------
