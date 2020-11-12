@@ -42,7 +42,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     FwdStorage& operator=( const T &value )
     {
-      if( ptr ) throw std::logic_error( "XrdCl::Fwd already contains value." );
       ptr = new( &storage.memory ) T( value );
       return *this;
     }
@@ -61,7 +60,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     FwdStorage& operator=( T && value )
     {
-      if( ptr ) throw std::logic_error( "XrdCl::Fwd already contains value." );
       ptr = new( &storage.memory ) T( std::move( value ) );
       return *this;
     }
