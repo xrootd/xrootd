@@ -141,6 +141,14 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Constructor from value
+      //------------------------------------------------------------------------
+      Fwd( const T &value )
+      {
+        *this->get() = value;
+      }
+
+      //------------------------------------------------------------------------
       //! Assignment operator. Note: the object can be assigned only once.
       //! Reassignment will trigger an exception
       //!
