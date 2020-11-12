@@ -41,8 +41,7 @@ namespace XrdZip
     {
       for( ssize_t offset = size - eocdBaseSize; offset >= 0; --offset )
       {
-        uint32_t signature = 0;
-        from_buffer( signature, buffer + offset );
+        uint32_t signature = to<uint32_t>( buffer + offset );
         if( signature == eocdSign ) return buffer + offset;
       }
       return 0;

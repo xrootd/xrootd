@@ -91,19 +91,35 @@ namespace XrdZip
     }
 
     //-------------------------------------------------------------------------
+    //! Finds the Zip64 extended information extra field
+    //!
+    //! @return : pointer to the buffer holding ZIP64 extra field, nullptr
+    //!           on failure
+    //-------------------------------------------------------------------------
+    inline static const char* Find( const char *buffer, uint16_t length )
+    {
+      const char *end = buffer + length;
+      while( buffer < end )
+      {
+        uint16_t signature = to<uint16_t>( buffer );
+        uint16_t datasize  = to<uint16_t>( buffer + 2 );
+        if( signature == headerID ) return buffer;
+        buffer += 2 * sizeof( uint16_t ) + datasize;
+      }
+      return nullptr;
+    }
+
+    //-------------------------------------------------------------------------
     //! Constructor from buffer
     //-------------------------------------------------------------------------
-    bool FromBuffer( const char *&buffer, uint16_t exsize, uint8_t flags )
+    void FromBuffer( const char *&buffer, uint16_t exsize, uint8_t flags )
     {
       uint16_t signature = 0;
       from_buffer( signature, buffer );
-      if( signature != headerID ) return false;
+      if( signature != headerID ) throw bad_data();
 
       from_buffer( dataSize, buffer );
-
-      if( dataSize != exsize )
-        throw Error( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError, 0,
-                                          "Wrong size of ZIP64 extension!" ) );
+      if( dataSize != exsize ) throw bad_data();
 
       if( UCMPSIZE & flags )
         from_buffer( uncompressedSize, buffer );
@@ -116,8 +132,6 @@ namespace XrdZip
 
       if( NBDISK & flags )
         from_buffer( nbDisk, buffer );
-
-      return true;
     }
 
     //-------------------------------------------------------------------------

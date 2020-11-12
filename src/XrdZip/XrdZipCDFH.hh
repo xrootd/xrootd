@@ -61,8 +61,7 @@ namespace XrdZip
       {
         if( bufferSize < cdfhBaseSize ) break;
         // check the signature
-        uint32_t signature = 0;
-        from_buffer( signature, buffer + offset );
+        uint32_t signature = to<uint32_t>( buffer + offset );
         if( signature != cdfhSign ) throw bad_data();
         // parse the record
         std::unique_ptr<CDFH> cdfh( new CDFH( buffer + offset ) );
@@ -181,12 +180,9 @@ namespace XrdZip
       extra.reset( new Extra() );
 
       // Parse the extra part
-      const char *end = buffer + length;
-      while( buffer < end )
-      {
-        if( extra->FromBuffer( buffer, exsize, ovrflws ) )
-          break;
-      }
+      buffer = Extra::Find( buffer, length );
+      if( buffer )
+        extra->FromBuffer( buffer, exsize, ovrflws );
     }
 
     //-------------------------------------------------------------------------
