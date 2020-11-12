@@ -1491,10 +1491,8 @@ int XrdXrootdProtocol::do_Open()
 
 // Determine if file is compressed
 //
-   if (!compchk) 
-      {resplen = sizeof(myResp.fhandle);
-       memset(&myResp, 0, sizeof(myResp));
-      }
+   memset(&myResp, 0, sizeof(myResp));
+   if (!compchk) resplen = sizeof(myResp.fhandle);
       else {int cpsize;
             fp->getCXinfo((char *)myResp.cptype, cpsize);
             myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
