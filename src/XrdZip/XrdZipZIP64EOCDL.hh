@@ -33,7 +33,7 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Constructor from EOCD and ZIP64 EOCD
     //-------------------------------------------------------------------------
-    ZIP64_EOCDL( EOCD *eocd, ZIP64EOCD *zip64Eocd ):
+    ZIP64_EOCDL( EOCD *eocd, ZIP64_EOCD *zip64Eocd ):
       nbDiskZip64Eocd( 0 ),
       totalNbDisks( 1 )
     {

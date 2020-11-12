@@ -70,6 +70,15 @@ namespace XrdZip
   }
 
   //---------------------------------------------------------------------------
+  // Copies bytes into an integer type
+  //---------------------------------------------------------------------------
+  template<typename INT>
+  inline static void from_buffer( INT &var, const char *&&buffer )
+  {
+    memcpy( &var, buffer, sizeof( INT) );
+  }
+
+  //---------------------------------------------------------------------------
   // Generate a DOS timestamp (time/date)
   //---------------------------------------------------------------------------
   struct dos_timestmp

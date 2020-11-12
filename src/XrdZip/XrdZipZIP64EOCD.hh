@@ -19,12 +19,12 @@ namespace XrdZip
   //! A data structure representing the ZIP64 extension to End of Central
   //! Directory record
   //---------------------------------------------------------------------------
-  struct ZIP64EOCD
+  struct ZIP64_EOCD
   {
     //-------------------------------------------------------------------------
     //! Constructor from a buffer
     //-------------------------------------------------------------------------
-    ZIP64EOCD( const char* buffer ):
+    ZIP64_EOCD( const char* buffer ):
       extensibleDataLength( 0 )
     {
       zip64EocdSize = *reinterpret_cast<const uint64_t*>( buffer + 4 );
@@ -43,7 +43,7 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Constructor from last LFH + CDFH
     //-------------------------------------------------------------------------
-    ZIP64EOCD( EOCD *eocd,
+    ZIP64_EOCD( EOCD *eocd,
                LFH  *lfh,
                CDFH *cdfh,
                uint16_t prevNbCdRecD = 0,

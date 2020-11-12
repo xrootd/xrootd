@@ -21,6 +21,8 @@ namespace XrdZip
 
       XrdCl::XRootDStatus status;
   };
+
+  struct bad_data : public std::exception { };
 }
 
 #endif /* SRC_XRDZIP_XRDZIPERROR_HH_ */
