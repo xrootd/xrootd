@@ -30,7 +30,7 @@
 
 #include<functional>
 #include<future>
-#include <atomic>
+#include <memory>
 
 namespace XrdCl
 {
@@ -62,7 +62,6 @@ namespace XrdCl
         *status = bulk->front().status;
         handler->HandleResponse( status, nullptr );
         delete response;
-        delete this;
       }
 
     private:
@@ -95,7 +94,6 @@ namespace XrdCl
         delete bulk;
         response->Set( rsp );
         handler->HandleResponse( status, response );
-        delete this;
       }
 
     private:
@@ -178,7 +176,6 @@ namespace XrdCl
         fun( *status, *res );
         delete status;
         delete response;
-        delete this;
       }
 
     private:
@@ -217,7 +214,6 @@ namespace XrdCl
         fun( *status );
         delete status;
         delete response;
-        delete this;
       }
 
     private:
@@ -257,7 +253,6 @@ namespace XrdCl
         task( *status, *resp );
         delete status;
         delete response;
-        delete this;
       }
 
     private:
@@ -298,7 +293,6 @@ namespace XrdCl
         task( *status );
         delete status;
         delete response;
-        delete this;
       }
 
     private:
@@ -342,7 +336,6 @@ namespace XrdCl
         if( info != &NullRef<StatInfo>::value ) delete info;
         delete status;
         delete response;
-        delete this;
       }
 
     private:
@@ -487,7 +480,6 @@ namespace XrdCl
 
         delete status;
         delete response;
-        delete this;
       }
   };
 
@@ -523,7 +515,6 @@ namespace XrdCl
 
         delete status;
         delete response;
-        delete this;
       }
   };
 
@@ -543,7 +534,7 @@ namespace XrdCl
       //!
       //! @param handler : the actual operation handler
       //------------------------------------------------------------------------
-      FinalizeHandler( ResponseHandler *handler ) : handler( handler )
+      FinalizeHandler( ResponseHandler *handler ) : handler( handler ), called( false )
       {
 
       }
@@ -553,9 +544,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual ~FinalizeHandler()
       {
-        ResponseHandler* hdlr = handler.exchange( nullptr );
-        if( hdlr )
-          hdlr->HandleResponseWithHosts( new XRootDStatus( stError, errPipelineFailed), nullptr, nullptr );
+        if( !called )
+          handler->HandleResponseWithHosts( new XRootDStatus( stError, errPipelineFailed), nullptr, nullptr );
       }
 
       //------------------------------------------------------------------------
@@ -568,9 +558,8 @@ namespace XrdCl
                                             AnyObject    *response,
                                             HostList     *hostList )
       {
-        ResponseHandler* hdlr = handler.exchange( nullptr );
-        if( hdlr )
-          hdlr->HandleResponseWithHosts( status, response, hostList );
+        handler->HandleResponseWithHosts( status, response, hostList );
+        called = true;
       }
 
     private:
@@ -578,7 +567,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The actual operation handler
       //------------------------------------------------------------------------
-      std::atomic<ResponseHandler*> handler;
+      std::unique_ptr<ResponseHandler> handler;
+
+      //------------------------------------------------------------------------
+      //! true if the handler has been called at least once
+      //------------------------------------------------------------------------
+      bool called;
   };
 
   //----------------------------------------------------------------------------
