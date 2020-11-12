@@ -558,8 +558,8 @@ namespace XrdCl
                                             AnyObject    *response,
                                             HostList     *hostList )
       {
-        handler->HandleResponseWithHosts( status, response, hostList );
         called = true;
+        handler->HandleResponseWithHosts( status, response, hostList );
       }
 
     private:
