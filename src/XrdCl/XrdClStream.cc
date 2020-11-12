@@ -1129,6 +1129,10 @@ namespace XrdCl
 
     uint16_t action = mh.handler->InspectStatusRsp( msg );
     mh.action |= action;
+
+    if( action & IncomingMsgHandler::RemoveHandler )
+      pIncomingQueue->RemoveMessageHandler( mh.handler );
+
     if( action & IncomingMsgHandler::Raw )
     {
       incHandler = mh.handler;
