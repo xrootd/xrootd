@@ -15,6 +15,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[Client]** Use ntohll() for pgread offsets.
   **[POSIX]** Initialize pointer when object reused to prevent memory corruption.
   **[TPC]** Do not hold lock when deleting a proxy autorm TPC job that failed.
   **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
