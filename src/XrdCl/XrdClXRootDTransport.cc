@@ -1082,7 +1082,7 @@ namespace XrdCl
 
       case kXR_pgread:
       {
-        req->pgread.offset = htonl( req->pgread.offset );
+        req->pgread.offset = htonll( req->pgread.offset );
         req->pgread.rlen   = htonl( req->pgread.rlen );
         break;
       }
@@ -1230,7 +1230,7 @@ namespace XrdCl
       case kXR_pgread:
       {
         ServerResponseBody_pgRead *pgrdbdy = (ServerResponseBody_pgRead*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
-        pgrdbdy->offset = ntohl( pgrdbdy->offset );
+        pgrdbdy->offset = ntohll( pgrdbdy->offset );
         break;
       }
     }
