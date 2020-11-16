@@ -119,6 +119,8 @@ XrdXrootdGSReal::XrdXrootdGSReal(const XrdXrootdGSReal::GSParms &gsParms,
    udpBFirst = udpBNext = udpBuffer + hdrLen;
    udpBEnd = udpBuffer + maxL - 1;
 
+   tBeg = tEnd = afTime = 0;
+
 // Initialize remaining variables
 //
    monType = gsParms.Mode;
