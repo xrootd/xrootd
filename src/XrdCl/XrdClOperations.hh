@@ -435,7 +435,7 @@ namespace XrdCl
       //!
       //! @param status : the final status for the pipeline
       //------------------------------------------------------------------------
-      inline static void Stop( const XRootDStatus &status )
+      inline static void Stop( const XRootDStatus &status = XrdCl::XRootDStatus() )
       {
         throw StopPipeline( status );
       }
