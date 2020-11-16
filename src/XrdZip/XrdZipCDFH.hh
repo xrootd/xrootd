@@ -34,6 +34,7 @@
 #include <iterator>
 #include <unordered_map>
 #include <memory>
+#include <tuple>
 
 namespace XrdZip
 {
@@ -43,19 +44,26 @@ namespace XrdZip
   struct CDFH;
 
   //---------------------------------------------------------------------------
-  // type definition for central directory
+  // Vector of Central Directory records
   //---------------------------------------------------------------------------
-  typedef std::unordered_map<std::string, std::unique_ptr<CDFH>> central_directory;
+  typedef std::vector<std::unique_ptr<CDFH>> cdvec_t;
+
+  //---------------------------------------------------------------------------
+  // Map file name to index of CD record
+  //---------------------------------------------------------------------------
+  typedef std::unordered_map<std::string, size_t> cdmap_t;
 
   //---------------------------------------------------------------------------
   // A data structure representing the Central Directory File header record
   //---------------------------------------------------------------------------
   struct CDFH
   {
-    inline static central_directory Parse( const char *buffer, uint32_t bufferSize, uint16_t nbCdRecords )
+    inline static std::tuple<cdvec_t, cdmap_t> Parse( const char *buffer, uint32_t bufferSize, uint16_t nbCdRecords )
     {
       uint32_t offset = 0;
-      central_directory cdRecords;
+      cdvec_t cdvec;
+      cdmap_t cdmap;
+      cdvec.reserve( nbCdRecords );
 
       for( size_t i = 0; i < nbCdRecords; ++i )
       {
@@ -67,10 +75,11 @@ namespace XrdZip
         std::unique_ptr<CDFH> cdfh( new CDFH( buffer + offset ) );
         offset     += cdfh->cdfhSize;
         bufferSize -= cdfh->cdfhSize;
-        cdRecords[cdfh->filename] = std::move( cdfh );
+        cdmap[cdfh->filename] = i;
+        cdvec.push_back( std::move( cdfh ) );
       }
 
-      return std::move( cdRecords );
+      return std::make_tuple( std::move( cdvec ), std::move( cdmap ) );
     }
 
     //-------------------------------------------------------------------------
