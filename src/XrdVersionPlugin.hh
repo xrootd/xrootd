@@ -100,8 +100,8 @@
         XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdPfcGetDecision       )\
         XrdVERSIONPLUGIN_Rule(DoNotChk,  5,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdgetProtocolPort            )\
-        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdHttpGetSecXtractor         )\
-        XrdVERSIONPLUGIN_Rule(Required,  4,  8, XrdHttpGetExtHandler          )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdHttpGetSecXtractor         )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdHttpGetExtHandler          )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdSysLogPInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsAddPrepare              )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdOfsFSctl                   )\
