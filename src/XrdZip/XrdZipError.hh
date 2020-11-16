@@ -8,6 +8,8 @@
 #ifndef SRC_XRDZIP_XRDZIPERROR_HH_
 #define SRC_XRDZIP_XRDZIPERROR_HH_
 
+#include "XrdCl/XrdClXRootDResponses.hh"
+
 namespace XrdZip
 {
   //---------------------------------------------------------------------------

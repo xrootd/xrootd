@@ -25,9 +25,9 @@
 #ifndef SRC_XRDZIP_XRDZIPUTILS_HH_
 #define SRC_XRDZIP_XRDZIPUTILS_HH_
 
-#include <time.h>
 #include <string.h>
 
+#include <ctime>
 #include <vector>
 #include <algorithm>
 #include <iterator>
