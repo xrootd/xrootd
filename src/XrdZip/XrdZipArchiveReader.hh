@@ -23,8 +23,6 @@
 #include <memory>
 #include <unordered_map>
 
-#include <iostream>
-
 namespace XrdZip
 {
 
@@ -66,50 +64,7 @@ namespace XrdZip
         return XrdCl::XRootDStatus();
       }
 
-      XrdCl::XRootDStatus List( XrdCl::ResponseHandler *handler,
-                                uint16_t                timeout = 0 );
-
-      void Print()
-      {
-        auto itr = cdvec.begin();
-        for( ; itr != cdvec.end() ; ++itr )
-        {
-          CDFH* cdfh = itr->get();
-          std::cout << "ZCRC32 = " << cdfh->ZCRC32 << '\n';
-          std::cout << "cdfhBaseSize = " << cdfh->cdfhBaseSize << '\n';
-          std::cout << "cdfhSize = " << cdfh->cdfhSize << '\n';
-          std::cout << "comment = " << cdfh->comment << '\n';
-          std::cout << "commentLength = " << cdfh->commentLength << '\n';
-          std::cout << "compressedSize = " << cdfh->compressedSize << '\n';
-          std::cout << "compressionMethod = " << cdfh->compressionMethod << '\n';
-          std::cout << "externAttr = " << cdfh->externAttr << '\n';
-          std::cout << "extraLength = " << cdfh->extraLength << '\n';
-          std::cout << "filename = " << cdfh->filename << '\n';
-          std::cout << "filenameLength = " << cdfh->filenameLength << '\n';
-          std::cout << "generalBitFlag = " << cdfh->generalBitFlag << '\n';
-          std::cout << "internAttr = " << cdfh->internAttr << '\n';
-          std::cout << "minZipVersion = " << cdfh->minZipVersion << '\n';
-          std::cout << "nbDisk = " << cdfh->nbDisk << '\n';
-          std::cout << "offset = " << cdfh->offset << '\n';
-          std::cout << "timestmp.date = " << cdfh->timestmp.date << '\n';
-          std::cout << "timestmp.time = " << cdfh->timestmp.time << '\n';
-          std::cout << "uncompressedSize = " << cdfh->uncompressedSize << '\n';
-          std::cout << "zipVersion = " << cdfh->zipVersion << '\n';
-
-          if( cdfh->extra )
-          {
-            std::cout << "extra : \n";
-            Extra *extra = cdfh->extra.get();
-            std::cout << "extra->compressedSize = " << extra->compressedSize << '\n';
-            std::cout << "extra->dataSize = " << extra->dataSize << '\n';
-            std::cout << "extra->nbDisk = " << extra->nbDisk << '\n';
-            std::cout << "extra->offset = " << extra->offset << '\n';
-            std::cout << "extra->uncompressedSize = " << extra->uncompressedSize << '\n';
-          }
-
-          std::cout << std::endl;
-        }
-      }
+      XrdCl::XRootDStatus List( XrdCl::DirectoryList *&list );
 
     private:
 

@@ -226,7 +226,7 @@ namespace XrdZip
                                            XrdCl::ResponseHandler *usrHandler,
                                            uint16_t                timeout )
   {
-    if( !archive.IsOpen() )
+    if( openstage != Done || openfn.empty() )
       return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp,
                                   XrdCl::errInvalidOp, "Archive not opened." );
 
@@ -381,10 +381,36 @@ namespace XrdZip
     return XrdCl::XRootDStatus();
   }
 
-  XrdCl::XRootDStatus ArchiveReader::List( XrdCl::ResponseHandler *handler,
-                                           uint16_t                timeout )
+  XrdCl::XRootDStatus ArchiveReader::List( XrdCl::DirectoryList *&list )
   {
+    if( openstage != Done )
+      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp,
+                                  XrdCl::errInvalidOp, "Archive not opened." );
 
+    std::string value;
+    archive.GetProperty( "LastURL", value );
+    XrdCl::URL url( value );
+
+    XrdCl::StatInfo *infoptr = 0;
+    XrdCl::XRootDStatus st = archive.Stat( false, infoptr );
+    std::unique_ptr<XrdCl::StatInfo> info( infoptr );
+
+    list = new XrdCl::DirectoryList();
+    list->SetParentName( url.GetPath() );
+
+    auto itr = cdvec.begin();
+    for( ; itr != cdvec.end() ; ++itr )
+    {
+      CDFH *cdfh = itr->get();
+      XrdCl::StatInfo *entry_info = new XrdCl::StatInfo( *info );
+      uint32_t flags = entry_info->GetFlags();
+      entry_info->SetFlags( flags & ( ~XrdCl::StatInfo::IsWritable ) ); // make sure it is not listed as writable
+      XrdCl::DirectoryList::ListEntry *entry =
+          new XrdCl::DirectoryList::ListEntry( url.GetHostId(), cdfh->filename, entry_info );
+      list->Add( entry );
+    }
+
+    return XrdCl::XRootDStatus();
   }
 
 } /* namespace XrdZip */
