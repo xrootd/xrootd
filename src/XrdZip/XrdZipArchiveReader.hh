@@ -40,7 +40,7 @@ namespace XrdZip
                                        uint16_t                timeout = 0 );
 
       XrdCl::XRootDStatus OpenFile( const std::string       &fn,
-                                    XrdCl::OpenFlags::Flags  flags );
+                                    XrdCl::OpenFlags::Flags  flags = XrdCl::OpenFlags::None );
 
       XrdCl::XRootDStatus Read( uint64_t                offset,
                                 uint32_t                size,
@@ -67,7 +67,7 @@ namespace XrdZip
       }
 
       XrdCl::XRootDStatus List( XrdCl::ResponseHandler *handler,
-                                uint16_t                timeout = 0 ){return XrdCl::XRootDStatus();}
+                                uint16_t                timeout = 0 );
 
       void Print()
       {

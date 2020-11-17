@@ -9,8 +9,6 @@
 #include "XrdZip/XrdZipZIP64EOCDL.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 
-#include <zlib.h>
-
 namespace XrdZip
 {
 
@@ -256,8 +254,8 @@ namespace XrdZip
     uint64_t filesize  = cdfh->compressedSize;
     uint64_t fileoff  = nextRecordOffset - filesize;
     uint64_t offset   = fileoff + relativeOffset;
-    uint64_t sizeTillEnd = relativeOffset > cdfh->compressedSize ?
-                           0 : cdfh->compressedSize - relativeOffset;
+    uint64_t sizeTillEnd = relativeOffset > cdfh->uncompressedSize ?
+                           0 : cdfh->uncompressedSize - relativeOffset;
     if( size > sizeTillEnd ) size = sizeTillEnd;
 
     // if it is a compressed file use ZIP cache to read from the file
@@ -311,7 +309,6 @@ namespace XrdZip
         chunkSize = filesize - rawOffset;
       // allocate the buffer for the compressed data
       buffer.reset( new char[chunkSize] );
-
       XrdCl::Pipeline p = XrdCl::Read( archive, fileoff + rawOffset, chunkSize, buffer.get() ) >>
                             [=, &cache]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
                             {
@@ -320,11 +317,11 @@ namespace XrdZip
                                 if( usrHandler ) usrHandler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
                                 return;
                               }
-
                               st = cache.Input( ch.buffer, ch.length, rawOffset );
                               if( !st.IsOK() )
                               {
                                 if( usrHandler ) usrHandler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                                buffer.reset();
                                 XrdCl::Pipeline::Stop( st );
                               }
 
@@ -337,6 +334,7 @@ namespace XrdZip
                               if( !st.IsOK() )
                               {
                                 if( usrHandler ) usrHandler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                                buffer.reset();
                                 XrdCl::Pipeline::Stop( st );
                               }
 
@@ -346,6 +344,7 @@ namespace XrdZip
                                 XrdCl::ChunkInfo *rsp = new XrdCl::ChunkInfo( relativeOffset, size, usrbuff );
                                 usrHandler->HandleResponse( new XrdCl::XRootDStatus(), PkgRsp( rsp ) );
                               }
+                              buffer.reset();
                             };
       XrdCl::Async( std::move( p ), timeout );
       return XrdCl::XRootDStatus();
@@ -380,6 +379,12 @@ namespace XrdZip
                           };
     XrdCl::Async( std::move( p ), timeout );
     return XrdCl::XRootDStatus();
+  }
+
+  XrdCl::XRootDStatus ArchiveReader::List( XrdCl::ResponseHandler *handler,
+                                           uint16_t                timeout )
+  {
+
   }
 
 } /* namespace XrdZip */
