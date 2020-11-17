@@ -402,9 +402,7 @@ namespace XrdZip
     for( ; itr != cdvec.end() ; ++itr )
     {
       CDFH *cdfh = itr->get();
-      XrdCl::StatInfo *entry_info = new XrdCl::StatInfo( *info );
-      uint32_t flags = entry_info->GetFlags();
-      entry_info->SetFlags( flags & ( ~XrdCl::StatInfo::IsWritable ) ); // make sure it is not listed as writable
+      XrdCl::StatInfo *entry_info = make_stat( *info, cdfh->uncompressedSize );
       XrdCl::DirectoryList::ListEntry *entry =
           new XrdCl::DirectoryList::ListEntry( url.GetHostId(), cdfh->filename, entry_info );
       list->Add( entry );

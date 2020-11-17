@@ -52,8 +52,11 @@ namespace XrdZip
                                  XrdCl::ResponseHandler *handler,
                                  uint16_t                timeout = 0 ){return XrdCl::XRootDStatus();}
 
-      XrdCl::XRootDStatus Stat( XrdCl::ResponseHandler *handler,
-                                uint16_t                timeout = 0 ){return XrdCl::XRootDStatus();}
+      XrdCl::XRootDStatus Stat( XrdCl::StatInfo *&info )
+      {
+        info = make_stat( openfn );
+        return XrdCl::XRootDStatus();
+      }
 
       XrdCl::XRootDStatus CloseArchive( XrdCl::ResponseHandler *handler,
                                         uint16_t                timeout = 0 );
@@ -90,6 +93,26 @@ namespace XrdZip
         if( !handler ) return Free( st, rsp );
         XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, PkgRsp( rsp ), 0 );
         XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+      }
+
+      inline static XrdCl::StatInfo* make_stat( const XrdCl::StatInfo &starch, uint64_t size )
+      {
+        XrdCl::StatInfo *info = new XrdCl::StatInfo( starch );
+        uint32_t flags = info->GetFlags();
+        info->SetFlags( flags & ( ~XrdCl::StatInfo::IsWritable ) ); // make sure it is not listed as writable
+        info->SetSize( size );
+        return info;
+      }
+
+      inline XrdCl::StatInfo* make_stat( const std::string &fn )
+      {
+        XrdCl::StatInfo *infoptr = 0;
+        XrdCl::XRootDStatus st = archive.Stat( false, infoptr );
+        std::unique_ptr<XrdCl::StatInfo> stinfo( infoptr );
+        auto itr = cdmap.find( fn );
+        if( itr == cdmap.end() ) return nullptr;
+        size_t index = itr->second;
+        return make_stat( *stinfo, cdvec[index]->uncompressedSize );
       }
 
       enum OpenStages
