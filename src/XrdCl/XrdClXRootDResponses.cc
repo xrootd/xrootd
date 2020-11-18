@@ -264,6 +264,14 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  //! Set size
+  //------------------------------------------------------------------------
+  void StatInfo::SetSize( uint64_t size )
+  {
+    pImpl->pSize = size;
+  }
+
+  //------------------------------------------------------------------------
   //! Get flags
   //------------------------------------------------------------------------
   uint32_t StatInfo::GetFlags() const
@@ -552,5 +560,84 @@ namespace XrdCl
   {
     std::string dat = data;
     return !dat.compare( 0, dStatPrefix.size(), dStatPrefix );
+  }
+
+  struct PageInfoImpl
+  {
+    PageInfoImpl( uint64_t offset = 0, uint32_t length = 0, void *buffer = 0,
+                  std::vector<uint32_t> &&cksums = std::vector<uint32_t>() ) :
+      offset( offset ),
+      length( length ),
+      buffer( buffer ),
+      cksums( std::move( cksums ) )
+    {
+    }
+
+    PageInfoImpl( PageInfoImpl &&pginf ) : offset( pginf.offset ),
+                                           length( pginf.length ),
+                                           buffer( pginf.buffer ),
+                                           cksums( std::move( pginf.cksums ) )
+    {
+    }
+
+    uint64_t               offset; //> offset in the file
+    uint32_t               length; //> length of the data read
+    void                  *buffer; //> buffer with the read data
+    std::vector<uint32_t>  cksums; //> a vector of crc32c checksums
+  };
+
+  //----------------------------------------------------------------------------
+  // Default constructor
+  //----------------------------------------------------------------------------
+  PageInfo::PageInfo( uint64_t offset, uint32_t length, void *buffer,
+                      std::vector<uint32_t> &&cksums ) :
+    pImpl( new PageInfoImpl( offset, length, buffer, std::move( cksums ) ) )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Move constructor
+  //----------------------------------------------------------------------------
+  PageInfo::PageInfo( PageInfo &&pginf ) : pImpl( std::move( pginf.pImpl ) )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  PageInfo::~PageInfo()
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the offset
+  //----------------------------------------------------------------------------
+  uint64_t PageInfo::GetOffset() const
+  {
+    return pImpl->offset;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the data length
+  //----------------------------------------------------------------------------
+  uint32_t PageInfo::GetLength() const
+  {
+    return pImpl->length;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the buffer
+  //----------------------------------------------------------------------------
+  void* PageInfo::GetBuffer()
+  {
+    return pImpl->buffer;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the buffer
+  //----------------------------------------------------------------------------
+  std::vector<uint32_t>& PageInfo::GetCksums()
+  {
+    return pImpl->cksums;
   }
 }

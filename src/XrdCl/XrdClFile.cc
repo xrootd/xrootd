@@ -252,8 +252,8 @@ namespace XrdCl
     XRootDStatus status = MessageUtils::WaitForResponse( &handler, pageInfo );
     if( status.IsOK() )
     {
-      bytesRead = pageInfo->length;
-      cksums = std::move( pageInfo->cksums );
+      bytesRead = pageInfo->GetLength();
+      cksums = pageInfo->GetCksums();
       delete pageInfo;
     }
     return status;

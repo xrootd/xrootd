@@ -443,6 +443,11 @@ namespace XrdCl
       uint64_t GetSize() const;
 
       //------------------------------------------------------------------------
+      //! Set size
+      //------------------------------------------------------------------------
+      void SetSize( uint64_t size );
+
+      //------------------------------------------------------------------------
       //! Get flags
       //------------------------------------------------------------------------
       uint32_t GetFlags() const;
@@ -898,26 +903,51 @@ namespace XrdCl
     void     *buffer; //! optional buffer pointer
   };
 
+  struct PageInfoImpl;
+
   struct PageInfo
   {
-      PageInfo( uint64_t offset = 0, uint32_t length = 0, void *buffer = 0, std::vector<uint32_t> &&cksums = std::vector<uint32_t>() ) :
-        offset( offset ),
-        length( length ),
-        buffer( buffer ),
-        cksums( std::move( cksums ) )
-      {
-      }
+    //----------------------------------------------------------------------------
+    //! Default constructor
+    //----------------------------------------------------------------------------
+    PageInfo( uint64_t offset = 0, uint32_t length = 0, void *buffer = 0,
+              std::vector<uint32_t> &&cksums = std::vector<uint32_t>() );
 
-      PageInfo( PageInfo &&pginf ) : offset( pginf.offset ), length( pginf.length ),
-                                     buffer( pginf.buffer ), cksums( std::move( pginf.cksums ) )
-      {
+    //----------------------------------------------------------------------------
+    //! Move constructor
+    //----------------------------------------------------------------------------
+    PageInfo( PageInfo &&pginf );
 
-      }
+    //----------------------------------------------------------------------------
+    //! Destructor
+    //----------------------------------------------------------------------------
+    ~PageInfo();
 
-      uint64_t               offset; //> offset in the file
-      uint32_t               length; //> length of the data read
-      void                  *buffer; //> buffer with the read data
-      std::vector<uint32_t>  cksums; //> a vector of crc32c checksums
+    //----------------------------------------------------------------------------
+    //! Get the offset
+    //----------------------------------------------------------------------------
+    uint64_t GetOffset() const;
+
+    //----------------------------------------------------------------------------
+    //! Get the data length
+    //----------------------------------------------------------------------------
+    uint32_t GetLength() const;
+
+    //----------------------------------------------------------------------------
+    //! Get the buffer
+    //----------------------------------------------------------------------------
+    void* GetBuffer();
+
+    //----------------------------------------------------------------------------
+    //! Get the checksums
+    //----------------------------------------------------------------------------
+    std::vector<uint32_t>& GetCksums();
+
+    private:
+      //--------------------------------------------------------------------------
+      //! pointer to implementation
+      //--------------------------------------------------------------------------
+      std::unique_ptr<PageInfoImpl> pImpl;
   };
 
   //----------------------------------------------------------------------------

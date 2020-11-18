@@ -134,9 +134,9 @@ namespace
         PageInfo *pginf = 0;
         response->Get( pginf );
 
-        uint32_t               bytesRead = pginf->length;
-        std::vector<uint32_t> &cksums    = pginf->cksums;
-        char                  *buffer    = reinterpret_cast<char*>( pginf->buffer );
+        uint32_t               bytesRead = pginf->GetLength();
+        std::vector<uint32_t> &cksums    = pginf->GetCksums();
+        char                  *buffer    = reinterpret_cast<char*>( pginf->GetBuffer() );
         size_t                 pgnb      = 0;
 
         while( bytesRead > 0 )
@@ -190,7 +190,7 @@ namespace
         {
           XrdCl::PageInfo *pginf = 0;
           resp->Get( pginf );
-          pginf->cksums[pgnb] = crcval;
+          pginf->GetCksums()[pgnb] = crcval;
         }
       }
 
@@ -245,7 +245,7 @@ namespace
 
         XrdCl::PageInfo *pginf = 0;
         response->Get( pginf );
-        if( pginf->length > (uint32_t)XrdSys::PageSize || pginf->cksums.size() != 1 )
+        if( pginf->GetLength() > (uint32_t)XrdSys::PageSize || pginf->GetCksums().size() != 1 )
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[0x%x@%s] Failed to recover page #%d.",
@@ -257,8 +257,8 @@ namespace
           return;
         }
 
-        uint32_t crcval = XrdOucCRC::Calc32C( pginf->buffer, pginf->length );
-        if( crcval != pginf->cksums.front() )
+        uint32_t crcval = XrdOucCRC::Calc32C( pginf->GetBuffer(), pginf->GetLength() );
+        if( crcval != pginf->GetCksums().front() )
         {
           Log *log = DefaultEnv::GetLog();
           log->Info( FileMsg, "[0x%x@%s] Failed to recover page #%d.",

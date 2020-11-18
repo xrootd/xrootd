@@ -122,16 +122,16 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
             union {uint32_t ubRead; int ibRead;};
             response->Get(pInfo);
             if (pInfo)
-               {ubRead = pInfo->length;
+               {ubRead = pInfo->GetLength();
                 result = ibRead;
                 if (csVec) 
-                   {if (!csFrc || pInfo->cksums.size() != 0 || result <= 0)
-                       *csVec = std::move(pInfo->cksums);
+                   {if (!csFrc || pInfo->GetCksums().size() != 0 || result <= 0)
+                       *csVec = std::move(pInfo->GetCksums() );
                        else {int n = (result >> XrdSys::PageBits)
                                    + ((result & XrdSys::PageMask) != 0);
                              csVec->resize(n);
                              csVec->assign(n, 0);
-                             XrdOucCRC::Calc32C(pInfo->buffer,result,csVec->data());
+                             XrdOucCRC::Calc32C(pInfo->GetBuffer(),result,csVec->data());
                             }
                    }
                } else {
