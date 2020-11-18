@@ -77,7 +77,7 @@ void Display(const char *drctv, XrdVersionPlugin *vP)
 
 // Establish minimum version
 //
-   if (vP->vMinLow > 99) snprintf(buff, sizeof(buff), "%2d.x ", vP->vMajLow);
+   if (vP->vMinLow < 0) snprintf(buff, sizeof(buff), "%2d.x ", vP->vMajLow);
       else snprintf(buff, sizeof(buff), "%2d.%-2d", vP->vMajLow, vP->vMinLow);
 
 // Output the line

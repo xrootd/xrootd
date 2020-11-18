@@ -85,10 +85,12 @@ XrdSysPlugin::cvResult XrdSysPlugin::badVersion(XrdVersionInfo &urInfo,
    const char *path;
    char buff1[512], buff2[128];
 
-   if (minv > 99) minv = 99;
+   if (minv < 0) strcpy(buff2, "y");
+      else sprintf(buff2, "%d", minv);
+
    snprintf(buff1, sizeof(buff1), "version %s is incompatible with %s "
-                                  "(must be %c= %d.%d.x)",
-                                   myInfo->vStr, urInfo.vStr, mmv, majv, minv);
+                                  "(must be %c= %d.%s.x)",
+                                   myInfo->vStr, urInfo.vStr, mmv, majv, buff2);
 
    path = msgSuffix(" in ", buff2, sizeof(buff2));
 
@@ -189,31 +191,29 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 
 // The major version must always be compatible
 //
-   if ((vinP->vMajLow >= 0 && pMajor <  vinP->vMajLow)
-   ||  (vinP->vMajLow <  0 && pMajor != vMajor))
+   if (vinP->vMajLow >= 0 && pMajor <  vinP->vMajLow)
       return badVersion(urInfo, '>', vinP->vMajLow, vinP->vMinLow);
 
-// The major version may not be greater than our versin
+   if (vinP->vMajLow <  0 && pMajor != vMajor)
+      return badVersion(urInfo, '=', vMajor, -1);
+
+// The plugin version may not be greater than our version)
 //
-   if (pMajor > vMajor) return badVersion(urInfo, '<', vMajor, vMinor);
+   if (pMajor > vMajor || (pMajor == vMajor && pMinor > vMinor))
+      return badVersion(urInfo, '<', vMajor, vMinor);
 
 // If we do not need to check minor versions then we are done
 //
-   if (vinP->vMinLow > 99) return cvClean;
-
-// In no case can the plug-in mnor version be greater than our version
-//
-   if (pMajor == vMajor && pMinor > vMinor)
-      return badVersion(urInfo, '<', vMajor, vMinor);
+   if (vinP->vMinLow < 0) return cvClean;
 
 // Verify compatible minor versions
 //
-   if ((vinP->vMinLow >= 0 && pMinor >= vinP->vMinLow)
-   ||  (vinP->vMinLow <  0 && pMinor == vMinor)) return cvClean;
+   if (pMajor == vinP->vMajLow && pMinor < vinP->vMinLow)
+      return badVersion(urInfo, '>', vinP->vMajLow, vinP->vMinLow);
 
-// Incompatible versions
+// Compatible versions
 //
-   return badVersion(urInfo, '>', vinP->vMajLow, vinP->vMinLow);
+   return cvClean;
 }
 
 /******************************************************************************/
@@ -331,7 +331,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
        msgSuffix(" from ", buff, sizeof(buff));
        msgCnt--;
             if (cvRC == cvClean)
-               {const char *wTxt=(urInfo.vNum == XrdVNUMUNK ? "unreleased ":0);
+               {const char *wTxt=(urInfo.vNum == XrdVNUMUNK ? "unreleased ":"");
                 Inform("loaded ", wTxt, urInfo.vStr, buff, libPath);
                }
        else if (cvRC == cvMissing)

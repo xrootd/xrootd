@@ -40,7 +40,7 @@
           char        vSfxLen;  //!< Generic rule suffix length for preceeding
           int         vProcess; //!< version: <0 skip, =0 optional, >0 required
           short       vMajLow;  //!< Lowest compatible major version number
-          short       vMinLow;  //!< Lowest compatible minor (>99 don't check).
+          short       vMinLow;  //!< Lowest compatible minor (< 0 don't check).
          };
 
 /* The rules are defined here because they apply to every class that uses a
@@ -74,9 +74,8 @@
              >=  0: is the lowest valid major version number allowed.
 
    minorVer: The required minor version number, It is check as follows:
-             <   0: minor version numbers must be identical.
+             <   0: Do not check the minor version number, it's immaterial.
              >=  0: the lowest valid minor version for the major number allowed.
-             >  99: Do not check the minor version number, it's immaterial.
 
    piSymbol: The plugin's object creator's unquoted function name. When this
              symbol is looked-up, the defined version rule is applied.
@@ -87,7 +86,7 @@
 */
 #define XrdVERSIONPLUGINRULES \
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, SecEntityPin                  )\
-        XrdVERSIONPLUGIN_Rule(Required,  5,  0, TcpMonPin                     )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  8, TcpMonPin                     )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObject         )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObjAdd         )\
         XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdBwmPolicyObject            )\
