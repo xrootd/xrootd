@@ -2012,8 +2012,6 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
-        size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
-
         //----------------------------------------------------------------------
         // Glue in the cached responses if necessary
         //----------------------------------------------------------------------
@@ -2036,11 +2034,6 @@ namespace XrdCl
             break;
           }
 
-          if( pPartialResps[i]->GetSize() > stlen )
-          {
-            char *databuff = pPartialResps[i]->GetBuffer( stlen );
-            memcpy( cursor, databuff, datalen );
-          }
           currentOffset += datalen;
           cursor        += datalen;
         }
@@ -2048,14 +2041,7 @@ namespace XrdCl
         ServerResponseStatus *rspst = (ServerResponseStatus*)pResponse->GetBuffer();
         size_t datalen = rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
         if( currentOffset + datalen <= chunk.length )
-        {
-          if( pResponse->GetSize() > stlen )
-          {
-            char *databuff = pResponse->GetBuffer( stlen );
-            memcpy( cursor, databuff, rspst->bdy.dlen );
-          }
           currentOffset += rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
-        }
         else
           sizeMismatch = true;
 
