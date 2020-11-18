@@ -253,7 +253,7 @@ namespace XrdCl
     std::string glfnRedirector;
     env->GetString( "GlfnRedirector", glfnRedirector );
     // parse the metalink
-    XrdXmlMetaLink parser( "root:xroot:file:", "xroot:",
+    XrdXmlMetaLink parser( "root:xroot:roots:xroots:file:", "xroot:",
         glfnRedirector.empty() ? 0 : glfnRedirector.c_str() );
     int size = 0;
     XrdOucFileInfo **fileInfos = parser.ConvertAll( metalink.c_str(), size,
