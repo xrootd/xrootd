@@ -15,6 +15,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[Server]** Correct version checking to prevent false negatives.
   **[Client]** Use ntohll() for pgread offsets.
   **[POSIX]** Initialize pointer when object reused to prevent memory corruption.
   **[TPC]** Do not hold lock when deleting a proxy autorm TPC job that failed.
