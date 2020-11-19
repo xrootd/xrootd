@@ -418,7 +418,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class WriteImpl: public FileOperation<WriteImpl, HasHndl, Resp<void>, Arg<uint64_t>,
-      Arg<uint32_t>, Arg<void*>>
+      Arg<uint32_t>, Arg<const void*>>
   {
     public:
 
@@ -426,7 +426,7 @@ namespace XrdCl
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
       using FileOperation<WriteImpl, HasHndl, Resp<void>, Arg<uint64_t>, Arg<uint32_t>,
-                          Arg<void*>>::FileOperation;
+                          Arg<const void*>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
@@ -454,10 +454,10 @@ namespace XrdCl
       {
         try
         {
-          uint64_t  offset = std::get<OffsetArg>( this->args ).Get();
-          uint32_t  size   = std::get<SizeArg>( this->args ).Get();
-          void     *buffer = std::get<BufferArg>( this->args ).Get();
-          uint16_t  timeout = pipelineTimeout < this->timeout ?
+          uint64_t    offset = std::get<OffsetArg>( this->args ).Get();
+          uint32_t    size   = std::get<SizeArg>( this->args ).Get();
+          const void *buffer = std::get<BufferArg>( this->args ).Get();
+          uint16_t    timeout = pipelineTimeout < this->timeout ?
                               pipelineTimeout : this->timeout;
           return this->file->Write( offset, size, buffer, this->handler.get(), timeout );
         }
