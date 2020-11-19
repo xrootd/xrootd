@@ -11,6 +11,7 @@
 #include "XrdZip/XrdZipEOCD.hh"
 #include "XrdZip/XrdZipCDFH.hh"
 #include "XrdZip/XrdZipZIP64EOCD.hh"
+#include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipInflCache.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClOperations.hh"
@@ -34,11 +35,16 @@ namespace XrdZip
       virtual ~ArchiveReader();
 
       XrdCl::XRootDStatus OpenArchive( const std::string       &url,
+                                       XrdCl::OpenFlags::Flags flags,
                                        XrdCl::ResponseHandler *handler,
                                        uint16_t                timeout = 0 );
 
       XrdCl::XRootDStatus OpenFile( const std::string       &fn,
-                                    XrdCl::OpenFlags::Flags  flags = XrdCl::OpenFlags::None );
+                                    XrdCl::OpenFlags::Flags  flags = XrdCl::OpenFlags::None,
+                                    uint64_t                 size  = 0,
+                                    uint32_t                 crc32 = 0,
+                                    XrdCl::ResponseHandler  *handler = nullptr,
+                                    uint16_t                 timeout = 0 );
 
       XrdCl::XRootDStatus Read( uint64_t                offset,
                                 uint32_t                size,
@@ -46,11 +52,10 @@ namespace XrdZip
                                 XrdCl::ResponseHandler *handler,
                                 uint16_t                timeout = 0 );
 
-      XrdCl::XRootDStatus Write( uint64_t                offset,
-                                 uint32_t                size,
+      XrdCl::XRootDStatus Write( uint32_t                size,
                                  const void             *buffer,
                                  XrdCl::ResponseHandler *handler,
-                                 uint16_t                timeout = 0 ){return XrdCl::XRootDStatus();}
+                                 uint16_t                timeout = 0 );
 
       XrdCl::XRootDStatus Stat( XrdCl::StatInfo *&info )
       {
@@ -61,8 +66,10 @@ namespace XrdZip
       XrdCl::XRootDStatus CloseArchive( XrdCl::ResponseHandler *handler,
                                         uint16_t                timeout = 0 );
 
-      inline XrdCl::XRootDStatus CloseFile()
+      inline XrdCl::XRootDStatus CloseFile( XrdCl::ResponseHandler  *handler = nullptr,
+                                            uint16_t                 timeout = 0 )
       {
+        // TODO if this is a write it is more complicated
         openfn.clear();
         return XrdCl::XRootDStatus();
       }
@@ -87,8 +94,15 @@ namespace XrdZip
         delete rsp;
       }
 
+      inline void Schedule( XrdCl::ResponseHandler *handler, XrdCl::XRootDStatus *st )
+      {
+        if( !handler ) return delete st;
+        XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, 0, 0 );
+        XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+      }
+
       template<typename Response>
-      inline static void Schedule( XrdCl::ResponseHandler *handler, XrdCl::XRootDStatus *st, Response *rsp = 0 )
+      inline static void Schedule( XrdCl::ResponseHandler *handler, XrdCl::XRootDStatus *st, Response *rsp )
       {
         if( !handler ) return Free( st, rsp );
         XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, PkgRsp( rsp ), 0 );
@@ -115,6 +129,16 @@ namespace XrdZip
         return make_stat( *stinfo, cdvec[index]->uncompressedSize );
       }
 
+      inline static XrdCl::XRootDStatus* make_status( const XrdCl::XRootDStatus &status )
+      {
+        return new XrdCl::XRootDStatus( status );
+      }
+
+      inline static XrdCl::XRootDStatus* make_status()
+      {
+        return new XrdCl::XRootDStatus();
+      }
+
       enum OpenStages
       {
         None = 0,
@@ -129,6 +153,7 @@ namespace XrdZip
 
       XrdCl::File                 archive;
       uint64_t                    archsize;
+      bool                        newarch;
       std::unique_ptr<char[]>     buffer;
       std::unique_ptr<EOCD>       eocd;
       cdvec_t                     cdvec;
@@ -137,6 +162,9 @@ namespace XrdZip
       OpenStages                  openstage;
       std::string                 openfn;
       inflcache_t                 inflcache;
+
+      XrdCl::OpenFlags::Flags     flags;
+      std::unique_ptr<LFH>        lfh;
   };
 
 } /* namespace XrdZip */

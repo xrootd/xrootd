@@ -12,7 +12,10 @@
 namespace XrdZip
 {
 
-  ArchiveReader::ArchiveReader() : archsize( 0 ), openstage( None )
+  ArchiveReader::ArchiveReader() : archsize( 0 ),
+                                   newarch( false ),
+                                   openstage( None ),
+                                   flags( XrdCl::OpenFlags::None )
   {
   }
 
@@ -21,6 +24,7 @@ namespace XrdZip
   }
 
   XrdCl::XRootDStatus ArchiveReader::OpenArchive( const std::string      &url,
+                                                  XrdCl::OpenFlags::Flags flags,
                                                   XrdCl::ResponseHandler *handler,
                                                   uint16_t                timeout )
   {
@@ -33,15 +37,16 @@ namespace XrdZip
                             ZIP64_EOCDL::zip64EocdlSize;
 
     Pipeline open_archive = // open the archive
-                            XrdCl::Open( archive, url, OpenFlags::Read ) >> // TODO either Read or Update
+                            XrdCl::Open( archive, url, flags ) >>
                               [=]( XRootDStatus &status, StatInfo &info )
                               {
                                  if( !status.IsOK() )
-                                   return handler->HandleResponse( new XrdCl::XRootDStatus( status ), nullptr );
+                                   return handler->HandleResponse( make_status( status ), nullptr );
                                  archsize = info.GetSize();
                                  // if it is an empty file (possibly a new file) there's nothing more to do
                                  if( archsize == 0 )
                                  {
+                                   newarch = true;
                                    openstage = Done;
                                    Pipeline::Stop();
                                  }
@@ -57,7 +62,7 @@ namespace XrdZip
                               [=]( XRootDStatus &status, ChunkInfo &chunk )
                               {
                                 if( !status.IsOK() )
-                                  return handler->HandleResponse( new XrdCl::XRootDStatus( status ), nullptr );;
+                                  return handler->HandleResponse( make_status( status ), nullptr );;
 
                                 const char *buff = reinterpret_cast<char*>( chunk.buffer );
 
@@ -73,7 +78,7 @@ namespace XrdZip
                                       {
                                         XRootDStatus error( stError, errDataError, 0,
                                                             "End-of-central-directory signature not found." );
-                                        handler->HandleResponse( new XrdCl::XRootDStatus( error ), nullptr );;
+                                        handler->HandleResponse( make_status( error ), nullptr );;
                                         Pipeline::Stop( error );
                                       }
                                       eocd.reset( new EOCD( eocdBlock ) );
@@ -138,7 +143,7 @@ namespace XrdZip
                                       {
                                         XrdCl::XRootDStatus error( XrdCl::stError, XrdCl::errDataError, 0,
                                                             "ZIP64 End-of-central-directory signature not found." );
-                                        handler->HandleResponse( new XrdCl::XRootDStatus( error ), nullptr );
+                                        handler->HandleResponse( make_status( error ), nullptr );
                                         Pipeline::Stop( error );
                                       }
                                       zip64eocd.reset( new ZIP64_EOCD( buff ) );
@@ -162,11 +167,11 @@ namespace XrdZip
                                       {
                                         XrdCl::XRootDStatus error( XrdCl::stError, XrdCl::errDataError, 0,
                                                                    "ZIP Central Directory corrupted." );
-                                        handler->HandleResponse( new XrdCl::XRootDStatus( error ), nullptr );
+                                        handler->HandleResponse( make_status( error ), nullptr );
                                         Pipeline::Stop( error );
                                       }
                                       openstage = Done;
-                                      handler->HandleResponse( new XrdCl::XRootDStatus( status ), nullptr );
+                                      handler->HandleResponse( make_status( status ), nullptr );
                                       if( chunk.length != archsize ) buffer.reset();
                                       break;
                                     }
@@ -187,24 +192,57 @@ namespace XrdZip
   }
 
   XrdCl::XRootDStatus ArchiveReader::OpenFile( const std::string       &fn,
-                                               XrdCl::OpenFlags::Flags  flags )
+                                               XrdCl::OpenFlags::Flags  flags,
+                                               uint64_t                 size,
+                                               uint32_t                 crc32,
+                                               XrdCl::ResponseHandler  *handler,
+                                               uint16_t                 timeout )
   {
     if( !openfn.empty() )
       return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp );
 
+    this->flags = flags;
     auto itr = cdmap.find( fn );
     if( itr == cdmap.end() )
     {
       if( flags | XrdCl::OpenFlags::New )
       {
-        // TODO
-        // allocate LFH for the new file
-      }
+        openfn = fn;
+        lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
 
+        uint64_t wrtoff = archsize;
+        uint32_t wrtlen = lfh->lfhSize;
+        buffer_t wrtbuf;
+        wrtbuf.reserve( wrtlen );
+        lfh->Serialize( wrtbuf );
+        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+        if( !newarch )
+        {
+          // TODO set wrtoff to cdoff and shift cdoff
+          // TODO if this is an append: checkpoint the EOCD&co
+        }
+
+        XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, lfh->lfhSize, wrtbuf.data() ) >>
+                              [=]( XrdCl::XRootDStatus &st )
+                              {
+                                if( st.IsOK() )
+                                {
+                                  archsize += wrtlen;
+                                  cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
+                                  cdmap[fn] = cdvec.size() - 1;
+                                }
+                                if( handler )
+                                  handler->HandleResponse( make_status( st ), nullptr );
+                                lfh.reset();
+                              };
+        XrdCl::Async( std::move( p ), timeout );
+        return XrdCl::XRootDStatus();
+      }
       return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
     }
 
     openfn = fn;
+    if( handler ) Schedule( handler, make_status() );
     return XrdCl::XRootDStatus();
   }
 
@@ -250,7 +288,7 @@ namespace XrdZip
     // or the start of the Central-directory.
     uint64_t cdOffset = zip64eocd ? zip64eocd->cdOffset : eocd->cdOffset;
     uint64_t nextRecordOffset = ( cditr->second + 1 < cdvec.size() ) ?
-                                cdvec[cditr->second + 1]->offset : cdOffset;
+                                CDFH::GetOffset( *cdvec[cditr->second + 1] ) : cdOffset;
     uint64_t filesize  = cdfh->compressedSize;
     uint64_t fileoff  = nextRecordOffset - filesize;
     uint64_t offset   = fileoff + relativeOffset;
@@ -288,7 +326,7 @@ namespace XrdZip
         {
           if( usrHandler )
           {
-            XrdCl::XRootDStatus *st = new XrdCl::XRootDStatus();
+            XrdCl::XRootDStatus *st = make_status();
             XrdCl::ChunkInfo    *ch = new XrdCl::ChunkInfo( relativeOffset, size, usrbuff );
             Schedule( usrHandler, st, ch );
           }
@@ -314,13 +352,13 @@ namespace XrdZip
                             {
                               if( !st.IsOK() )
                               {
-                                if( usrHandler ) usrHandler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                                if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
                                 return;
                               }
                               st = cache.Input( ch.buffer, ch.length, rawOffset );
                               if( !st.IsOK() )
                               {
-                                if( usrHandler ) usrHandler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                                if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
                                 buffer.reset();
                                 XrdCl::Pipeline::Stop( st );
                               }
@@ -333,7 +371,7 @@ namespace XrdZip
                               st = cache.Read( bytesRead );
                               if( !st.IsOK() )
                               {
-                                if( usrHandler ) usrHandler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                                if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
                                 buffer.reset();
                                 XrdCl::Pipeline::Stop( st );
                               }
@@ -342,7 +380,7 @@ namespace XrdZip
                               if( usrHandler)
                               {
                                 XrdCl::ChunkInfo *rsp = new XrdCl::ChunkInfo( relativeOffset, size, usrbuff );
-                                usrHandler->HandleResponse( new XrdCl::XRootDStatus(), PkgRsp( rsp ) );
+                                usrHandler->HandleResponse( make_status(), PkgRsp( rsp ) );
                               }
                               buffer.reset();
                             };
@@ -357,7 +395,7 @@ namespace XrdZip
 
       if( usrHandler )
       {
-        XrdCl::XRootDStatus *st = new XrdCl::XRootDStatus();
+        XrdCl::XRootDStatus *st = make_status();
         XrdCl::ChunkInfo    *ch = new XrdCl::ChunkInfo( relativeOffset, size, usrbuff );
         Schedule( usrHandler, st, ch );
       }
@@ -369,7 +407,7 @@ namespace XrdZip
                           {
                             if( usrHandler )
                             {
-                              XrdCl::XRootDStatus *status = new XrdCl::XRootDStatus( st );
+                              XrdCl::XRootDStatus *status = make_status( st );
                               XrdCl::ChunkInfo    *rsp = nullptr;
                               if( st.IsOK() )
                                 rsp = new XrdCl::ChunkInfo( relativeOffset, chunk.length,
@@ -408,6 +446,24 @@ namespace XrdZip
       list->Add( entry );
     }
 
+    return XrdCl::XRootDStatus();
+  }
+
+  XrdCl::XRootDStatus ArchiveReader::Write( uint32_t                size,
+                                            const void             *buffer,
+                                            XrdCl::ResponseHandler *handler,
+                                            uint16_t                timeout )
+  {
+    uint64_t wrtoff = archsize; // we only support appending
+
+    XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, size, buffer ) >>
+                          [=]( XrdCl::XRootDStatus &st )
+                          {
+                            if( st.IsOK() ) archsize += size;
+                            if( handler )
+                              handler->HandleResponse( make_status( st ), nullptr );
+                          };
+    XrdCl::Async( std::move( p ), timeout );
     return XrdCl::XRootDStatus();
   }
 
