@@ -36,7 +36,7 @@
 #include <iostream>
 
 #include "XrdSys/XrdSysE2T.hh"
-#include "XrdXml/tinyxml.h"
+#include "tinyxml.h"
 #include "XrdXml/XrdXmlRdrTiny.hh"
 
 /******************************************************************************/

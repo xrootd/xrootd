@@ -1,14 +1,23 @@
 
 include( XRootDCommon )
 
+if ( TINYXML_FOUND )
+   set( TINYXML_FILES "" )
+   set( TINYXML_LIBRARIES ${TINYXML_LIBRARIES} )
+else()
+   set( TINYXML_FILES
+        XrdXml/tinyxml/tinystr.cpp       XrdXml/tinyxml/tinystr.h
+        XrdXml/tinyxml/tinyxml.cpp       XrdXml/tinyxml/tinyxml.h
+        XrdXml/tinyxml/tinyxmlerror.cpp
+        XrdXml/tinyxml/tinyxmlparser.cpp )
+   set( TINYXML_LIBRARIES "" )
+endif()
+
 if ( LIBXML2_FOUND )
    set( XRDXML2_READER_FILES
         XrdXml/XrdXmlRdrXml2.cc
         XrdXml/XrdXmlRdrXml2.hh )
    set( XRDXML2_LIBRARIES ${LIBXML2_LIBRARIES} )
-   if( CMAKE_VERSION VERSION_LESS "2.8" OR ${Solaris} STREQUAL "TRUE")
-      INCLUDE_DIRECTORIES( ${LIBXML2_INCLUDE_DIR} )
-   endif()
 else()
    set( XRDXML2_READER_FILES "" )
    set( XRDXML2_LIBRARIES "" )
@@ -28,10 +37,7 @@ set( XRD_XML_PRELOAD_SOVERSION 2 )
 add_library(
   XrdXml
   SHARED
-  XrdXml/tinystr.cpp               XrdXml/tinystr.h
-  XrdXml/tinyxml.cpp               XrdXml/tinyxml.h
-  XrdXml/tinyxmlerror.cpp
-  XrdXml/tinyxmlparser.cpp
+  ${TINYXML_FILES}
   XrdXml/XrdXmlMetaLink.cc         XrdXml/XrdXmlMetaLink.hh
   XrdXml/XrdXmlRdrTiny.cc          XrdXml/XrdXmlRdrTiny.hh
   XrdXml/XrdXmlReader.cc           XrdXml/XrdXmlReader.hh
@@ -40,24 +46,26 @@ add_library(
 target_link_libraries(
   XrdXml
   XrdUtils
+  ${TINYXML_LIBRARIES}
   ${XRDXML2_LIBRARIES}
   pthread )
-# INCLUDE_DIRECTORIES /usr/include/libxml2
 
 set_target_properties(
   XrdXml
   PROPERTIES
-  INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/src/XrdXml/.
   VERSION   ${XRD_XML_VERSION}
   SOVERSION ${XRD_XML_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
+if ( TINYXML_FOUND )
+   target_include_directories( XrdXml PRIVATE ${TINYXML_INCLUDE_DIR} )
+else()
+   target_include_directories( XrdXml PRIVATE XrdXml/tinyxml )
+endif()
+
 if ( LIBXML2_FOUND )
-   set_target_properties(
-        XrdXml
-        PROPERTIES
-        INCLUDE_DIRECTORIES ${LIBXML2_INCLUDE_DIR} )
+   target_include_directories( XrdXml PRIVATE ${LIBXML2_INCLUDE_DIR} )
 endif()
 
 #-------------------------------------------------------------------------------

@@ -19,6 +19,8 @@ if( ZLIB_FOUND )
   add_definitions( -DHAVE_LIBZ )
 endif()
 
+find_package( TinyXml )
+
 find_package( LibXml2 )
 if( LIBXML2_FOUND )
   add_definitions( -DHAVE_XML2 )
