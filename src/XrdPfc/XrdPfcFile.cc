@@ -1183,7 +1183,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 
    Block *b = brh->m_block;
 
-   TRACEF(Dump, tpfx << "block=" << (void*)b << ", off=" << b->m_offset/BufferSize() << ", res=" << res);
+   TRACEF(Dump, tpfx << "block=" << b << ", idx=" << b->m_offset/BufferSize() << ", off=" << b->m_offset << ", res=" << res);
 
    // Deregister block from IO's prefetch count, if needed.
    if (b->m_prefetch)
@@ -1225,7 +1225,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
    {
       b->set_downloaded();
       // Increase ref-count for the writer.
-      TRACEF(Dump, tpfx << "inc_ref_count " <<  (int)(b->m_offset/BufferSize()));
+      TRACEF(Dump, tpfx << "inc_ref_count idx=" <<  b->m_offset/BufferSize());
       if ( ! m_in_shutdown)
       {
          inc_ref_count(b);
@@ -1236,9 +1236,9 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
    else
    {
       if (res < 0) {
-         TRACEF(Error, tpfx << "block " << b << ", off=" << b->m_offset/BufferSize() << " error=" << res);
+         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/BufferSize() << ", off=" << b->m_offset << " error=" << res);
       } else {
-         TRACEF(Error, tpfx << "block " << b << ", off=" << b->m_offset/BufferSize() << " incomplete, got " << res << " expected " << b->get_size());
+         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/BufferSize() << ", off=" << b->m_offset << " incomplete, got " << res << " expected " << b->get_size());
 #ifdef __APPLE__
          res = -EIO;
 #else
