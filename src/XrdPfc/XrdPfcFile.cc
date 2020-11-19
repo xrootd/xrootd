@@ -1239,7 +1239,11 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
          TRACEF(Error, tpfx << "block " << b << ", off=" << b->m_offset/BufferSize() << " error=" << res);
       } else {
          TRACEF(Error, tpfx << "block " << b << ", off=" << b->m_offset/BufferSize() << " incomplete, got " << res << " expected " << b->get_size());
+#ifdef __APPLE__
+         res = -EIO;
+#else
          res = -EREMOTEIO;
+#endif
       }
       b->set_error(res);
    }
