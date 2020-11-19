@@ -27,15 +27,11 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
+#include "XrdPfcTypes.hh"
+
 class XrdOssDF;
 class XrdCksCalc;
 class XrdSysTrace;
-
-
-namespace XrdCl
-{
-class Log;
-}
 
 namespace XrdPfc
 {
@@ -48,6 +44,18 @@ class Stats;
 class Info
 {
 public:
+   struct Status {
+      union {
+         struct {
+            int f_cksum_check : 3;   //!< as in enum CkSumCheck_e
+
+            int _free_bits_ : 29;
+         };
+         unsigned int _raw_;
+      };
+      Status() : _raw_(0) {}
+   };
+
    //! Access statistics
    struct AStat
    {
@@ -56,12 +64,13 @@ public:
       int       NumIos;           //!< number of IO objects attached during this access
       int       Duration;         //!< total duration of all IOs attached
       int       NumMerged;        //!< number of times the record has been merged
+      int       Reserved;         //!< reserved / alignment
       long long BytesHit;         //!< read from cache
       long long BytesMissed;      //!< read from remote and cached
       long long BytesBypassed;    //!< read from remote and dropped
 
       AStat() :
-         AttachTime(0), DetachTime(0), NumIos(0), Duration(0), NumMerged(0),
+         AttachTime(0), DetachTime(0), NumIos(0), Duration(0), NumMerged(0), Reserved(0),
          BytesHit(0), BytesMissed(0), BytesBypassed(0)
       {}
 
@@ -70,16 +79,21 @@ public:
 
    struct Store
    {
-      int                m_version;                //!< info version
+      int                m_version;                //!< info file version
+      Status             m_status;                 //!< status information
       long long          m_buffer_size;            //!< buffer / block size
       long long          m_file_size;              //!< size of file in bytes
       unsigned char     *m_buff_synced;            //!< disk written state vector
-      char               m_cksum[16];              //!< cksum of downloaded information
+      uint32_t           m_cksum;                  //!< cksum of downloaded information
       time_t             m_creationTime;           //!< time the info file was created
+      time_t             m_noCkSumTime;            //!< time when first non-cksummed block was detected
       size_t             m_accessCnt;              //!< total access count for the file
       std::vector<AStat> m_astats;                 //!< access records
 
-      Store () : m_version(1), m_buffer_size(-1), m_file_size(0), m_buff_synced(0), m_creationTime(0), m_accessCnt(0) {}
+      Store () :
+         m_version(1), m_buffer_size(-1), m_file_size(0), m_buff_synced(0),
+         m_creationTime(0), m_noCkSumTime(0), m_accessCnt(0)
+      {}
    };
 
 
@@ -129,26 +143,27 @@ public:
 
    //---------------------------------------------------------------------
    //! \brief Reserve buffer for file_size / buffer_size bytes
-   //!
    //! @param n number of file blocks
    //---------------------------------------------------------------------
    void ResizeBits(int n);
 
    //---------------------------------------------------------------------
-   //! \brief Rea load content from cinfo file into this object
-   //!
+   //! \brief Read content of cinfo file into this object
    //! @param fp    file handle
-   //! @param fname optional file name for trace output
-   //!
+   //! @param dname directory name for trace output
+   //! @param fname optional file name for trace output (can be included in dname)
    //! @return true on success
    //---------------------------------------------------------------------
-   bool Read(XrdOssDF* fp, const std::string &fname = "<unknown>");
+   bool Read(XrdOssDF* fp, const char *dname, const char *fname = 0);
 
    //---------------------------------------------------------------------
    //! Write number of blocks and read buffer size
+   //! @param fp    file handle
+   //! @param dname directory name for trace output
+   //! @param fname optional file name for trace output (can be included in dname)
    //! @return true on success
    //---------------------------------------------------------------------
-   bool Write(XrdOssDF* fp, const std::string &fname = "<unknown>");
+   bool Write(XrdOssDF* fp, const char *dname, const char *fname = 0);
 
    //---------------------------------------------------------------------
    //! Compactify access records to the configured maximum.
@@ -203,7 +218,7 @@ public:
    //---------------------------------------------------------------------
    //! Get number of blocks represented in download-state bit-vector.
    //---------------------------------------------------------------------
-   int GetSizeInBits() const;
+   int GetNBlocks() const;
 
    //---------------------------------------------------------------------
    //! Get file size
@@ -271,14 +286,42 @@ public:
    const Store& RefStoredData() const { return m_store; }
 
    //---------------------------------------------------------------------
-   //! Get md5 cksum
+   //! Get file size
    //---------------------------------------------------------------------
-   void GetCksum( unsigned char* buff, char* digest);
+   time_t GetCreationTime() const { return m_store.m_creationTime; }
+
+   //---------------------------------------------------------------------
+   //! Get cksum, MD5 is for backward compatibility with V2 and V3.
+   //---------------------------------------------------------------------
+   uint32_t GetCksum();
+   void     GetCksumMd5(unsigned char* buff, char* digest);
+
+   CkSumCheck_e GetCkSumState()  const { return (CkSumCheck_e) m_store.m_status.f_cksum_check; }
+   const char*  GetCkSumStateAsText() const;
+
+   bool IsCkSumCache() const { return  m_store.m_status.f_cksum_check & CSChk_Cache; }
+   bool IsCkSumNet()   const { return  m_store.m_status.f_cksum_check & CSChk_Net;   }
+   bool IsCkSumAny()   const { return  m_store.m_status.f_cksum_check & CSChk_Both;  }
+   bool IsCkSumBoth()  const { return (m_store.m_status.f_cksum_check & CSChk_Both) == CSChk_Both; }
+
+   void SetCkSumState(CkSumCheck_e css)           { m_store.m_status.f_cksum_check  = css; }
+   void DowngradeCkSumState(CkSumCheck_e css_ref) { m_store.m_status.f_cksum_check &= css_ref; }
+   void ResetCkSumCache();
+   void ResetCkSumNet();
+
+   bool   HasNoCkSumTime() const { return m_store.m_noCkSumTime != 0; }
+   time_t GetNoCkSumTime() const { return m_store.m_noCkSumTime; }
+   time_t GetNoCkSumTimeForUVKeep() const { return m_store.m_noCkSumTime ? m_store.m_noCkSumTime : m_store.m_creationTime; }
+
+#ifdef XRDPFC_CKSUM_TEST
+   static void TestCksumStuff();
+#endif
 
    static const char*   m_traceID;          // has to be m_ (convention in TRACE macros)
    static const char*   s_infoExtension;
-   static const int     s_defaultVersion;
+   static const size_t  s_infoExtensionLen;
    static       size_t  s_maxNumAccess;     // can be set from configuration
+   static const int     s_defaultVersion;
 
    XrdSysTrace* GetTrace() const {return m_trace; }
 
@@ -297,10 +340,11 @@ private:
    inline unsigned char cfiBIT(int n) const { return 1 << n; }
 
    // Reading functions for older cinfo file formats
-   bool ReadV1(XrdOssDF* fp, const std::string &fname);
-   bool ReadV2(XrdOssDF* fp, const std::string &fname);
+   bool ReadV1(XrdOssDF* fp, const char *dname, const char *fname);
+   bool ReadV2(XrdOssDF* fp, const char *dname, const char *fname);
+   bool ReadV3(XrdOssDF* fp, const char *dname, const char *fname);
 
-   XrdCksCalc*   m_cksCalc;
+   XrdCksCalc*   m_cksCalcMd5;
 };
 
 //------------------------------------------------------------------------------
@@ -395,7 +439,7 @@ inline int Info::GetSizeInBytes() const
       return 0;
 }
 
-inline int Info::GetSizeInBits() const
+inline int Info::GetNBlocks() const
 {
    return m_sizeInBits;
 }

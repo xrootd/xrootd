@@ -32,14 +32,12 @@
 using namespace XrdPfc;
 
 //______________________________________________________________________________
-IOEntireFile::IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache & cache) :
-   IO(io, stats, cache),
+IOEntireFile::IOEntireFile(XrdOucCacheIO *io, Cache & cache) :
+   IO(io, cache),
    m_file(0),
    m_localStat(0)
 {
-   XrdCl::URL  url(GetInput()->Path());
-   std::string fname = url.GetPath();
-   m_file = Cache::GetInstance().GetFile(fname, this);
+   m_file = Cache::GetInstance().GetFile(GetFilename(), this);
 }
 
 //______________________________________________________________________________
@@ -47,7 +45,7 @@ IOEntireFile::~IOEntireFile()
 {
    // called from Detach() if no sync is needed or
    // from Cache's sync thread
-   TRACEIO(Debug, "IOEntireFile::~IOEntireFile() " << this);
+   TRACEIO(Debug, "~IOEntireFile() " << this);
 
    delete m_localStat;
 }
@@ -55,9 +53,7 @@ IOEntireFile::~IOEntireFile()
 //______________________________________________________________________________
 int IOEntireFile::Fstat(struct stat &sbuff)
 {
-   XrdCl::URL  url(GetPath());
-   std::string name = url.GetPath();
-   name += Info::s_infoExtension;
+   std::string name = GetFilename() + Info::s_infoExtension;
 
    int res = 0;
    if( ! m_localStat)
@@ -81,7 +77,7 @@ int IOEntireFile::initCachedStat(const char* path)
 {
    // Called indirectly from the constructor.
 
-   static const char* trace_pfx = "IOEntireFile::initCachedStat ";
+   static const char* trace_pfx = "initCachedStat ";
 
    int res = -1;
    struct stat tmpStat;
@@ -129,8 +125,16 @@ int IOEntireFile::initCachedStat(const char* path)
 }
 
 //______________________________________________________________________________
+void IOEntireFile::Update(XrdOucCacheIO &iocp)
+{
+   IO::Update(iocp);
+   m_file->ioUpdated(this);
+}
+
+//______________________________________________________________________________
 bool IOEntireFile::ioActive()
 {
+   RefreshLocation();
    return m_file->ioActive(this);
 }
 
@@ -139,7 +143,7 @@ void IOEntireFile::DetachFinalize()
 {
    // Effectively a destructor.
 
-   TRACE(Info, "IOEntireFile::DetachFinalize() " << this);
+   TRACE(Info, "DetachFinalize() " << this);
 
    m_file->RequestSyncOfDetachStats();
    Cache::GetInstance().ReleaseFile(m_file, this);
@@ -150,7 +154,7 @@ void IOEntireFile::DetachFinalize()
 //______________________________________________________________________________
 int IOEntireFile::Read(char *buff, long long off, int size)
 {
-   TRACEIO(Dump, "IOEntireFile::Read() "<< this << " off: " << off << " size: " << size);
+   TRACEIO(Dump, "Read() "<< this << " off: " << off << " size: " << size);
 
    // protect from reads over the file size
    if (off >= FSize())
@@ -175,11 +179,11 @@ int IOEntireFile::Read(char *buff, long long off, int size)
       // All errors like this should have been already captured by File::Read()
       // and reflected in its retval.
       if (size > 0)
-         TRACEIO(Warning, "IOEntireFile::Read() bytes missed " << size);
+         TRACEIO(Warning, "Read() bytes missed " << size);
    }
    else
    {
-      TRACEIO(Warning, "IOEntireFile::Read() error in File::Read(), exit status=" << retval
+      TRACEIO(Warning, "Read() error in File::Read(), exit status=" << retval
               << ", error=" << XrdSysE2T(-retval));
    }
 
@@ -192,7 +196,6 @@ int IOEntireFile::Read(char *buff, long long off, int size)
  */
 int IOEntireFile::ReadV(const XrdOucIOVec *readV, int n)
 {
-   TRACEIO(Dump, "IO::ReadV(), get " <<  n << " requests" );
+   TRACEIO(Dump, "ReadV(), get " <<  n << " requests" );
    return m_file->ReadV(this, readV, n);
 }
-

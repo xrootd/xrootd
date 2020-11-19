@@ -38,27 +38,27 @@
 
 #define TRACE(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
-      SYSTRACE(XRD_TRACE, 0, m_traceID, 0, TRACE_STR_ ## act  << x)
+      SYSTRACE(XRD_TRACE, 0, m_traceID, 0, TRACE_STR_ ## act << x)
 
 #define TRACE_INT(act, x) \
    if (XRD_TRACE What >= act) \
    {static const char* t_what[]={"","error ","warning ","info ","debug ","dump "};\
-    SYSTRACE(XRD_TRACE, 0, m_traceID, 0, t_what[act] <<x)}
+    SYSTRACE(XRD_TRACE, 0, m_traceID, 0, t_what[act] << x)}
 
 #define TRACE_TEST(act, x) \
-    SYSTRACE(XRD_TRACE, 0, m_traceID, 0, TRACE_STR_ ## act <<x)
+    SYSTRACE(XRD_TRACE, 0, m_traceID, 0, TRACE_STR_ ## act << x)
 
 #define TRACE_PC(act, pre_code, x) \
    if (XRD_TRACE What >= TRACE_ ## act) \
-   {pre_code; SYSTRACE(XRD_TRACE, 0, m_traceID, 0, TRACE_STR_ ## act <<x)}
+   {pre_code; SYSTRACE(XRD_TRACE, 0, m_traceID, 0, TRACE_STR_ ## act << x)}
 
 #define TRACEIO(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) SYSTRACE(XRD_TRACE, 0, m_traceID, 0, \
-       TRACE_STR_ ## act <<x <<" " <<GetPath())
+       TRACE_STR_ ## act << x << " " << GetPath())
 
 #define TRACEF(act, x) \
    if (XRD_TRACE What >= TRACE_ ## act) SYSTRACE(XRD_TRACE, 0, m_traceID, 0, \
-       TRACE_STR_ ## act <<x <<" " <<GetLocalPath())
+       TRACE_STR_ ## act << x << " " << GetLocalPath())
 
 #else
 
@@ -71,4 +71,3 @@
 #endif
 
 #endif
-

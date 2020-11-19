@@ -17,6 +17,7 @@ set( LIB_XRD_BLACKLIST  XrdBlacklistDecision-${PLUGIN_VERSION} )
 add_library(
   ${LIB_XRD_FILECACHE}
   MODULE
+  XrdPfc/XrdPfcTypes.hh
   XrdPfc/XrdPfc.cc              XrdPfc/XrdPfc.hh
   XrdPfc/XrdPfcConfiguration.cc
   XrdPfc/XrdPfcPurge.cc
@@ -69,6 +70,7 @@ set_target_properties(
 add_executable(
   xrdpfc_print
   XrdPfc/XrdPfcPrint.hh  XrdPfc/XrdPfcPrint.cc
+  XrdPfc/XrdPfcTypes.hh
   XrdPfc/XrdPfcInfo.hh   XrdPfc/XrdPfcInfo.cc)
 
 target_link_libraries(

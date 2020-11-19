@@ -36,8 +36,8 @@
 using namespace XrdPfc;
 
 //______________________________________________________________________________
-IOFileBlock::IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &statsGlobal, Cache & cache) :
-  IO(io, statsGlobal, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_info_file(0)
+IOFileBlock::IOFileBlock(XrdOucCacheIO *io, Cache & cache) :
+  IO(io, cache), m_localStat(0), m_info(cache.GetTrace(), false), m_info_file(0)
 {
    m_blocksize = Cache::GetInstance().RefConfiguration().m_hdfsbsize;
    GetBlockSizeFromPath();
@@ -59,9 +59,26 @@ IOFileBlock::~IOFileBlock()
 // I think I need it in ioActive and Read.
 
 //______________________________________________________________________________
+void IOFileBlock::Update(XrdOucCacheIO &iocp)
+{
+   IO::Update(iocp);
+   {
+      XrdSysMutexHelper lock(&m_mutex);
+
+      for (std::map<int, File*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+      {
+         // Need to update all File / block objects.
+         if (it->second) it->second->ioUpdated(this);
+      }
+   }
+}
+
+//______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
    // Called from XrdPosixFile when local connection is closed.
+
+   RefreshLocation();
 
    bool active = false;
    {
@@ -85,7 +102,7 @@ void IOFileBlock::DetachFinalize()
 {
    // Effectively a destructor.
 
-   TRACEIO(Info, "IOFileBlock::DetachFinalize() " << this);
+   TRACEIO(Info, "DetachFinalize() " << this);
 
    CloseInfoFile();
    {
@@ -116,7 +133,7 @@ void IOFileBlock::CloseInfoFile()
          Stats as;
          m_info.WriteIOStatDetach(as);
       }
-      m_info.Write(m_info_file);
+      m_info.Write(m_info_file, GetFilename().c_str());
       m_info_file->Fsync();
       m_info_file->Close();
 
@@ -148,7 +165,7 @@ void IOFileBlock::GetBlockSizeFromPath()
          m_blocksize = atoi(path.substr(pos1).c_str());
       }
 
-      TRACEIO(Debug, "FileBlock::GetBlockSizeFromPath(), blocksize = " <<  m_blocksize );
+      TRACEIO(Debug, "GetBlockSizeFromPath(), blocksize = " <<  m_blocksize );
    }
 }
 
@@ -157,8 +174,7 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
 {
    // NOTE: Can return 0 if opening of a local file fails!
 
-   XrdCl::URL url(GetInput()->Path());
-   std::string fname = url.GetPath();
+   std::string fname = GetFilename();
 
    std::stringstream ss;
    ss << fname;
@@ -168,9 +184,9 @@ File* IOFileBlock::newBlockFile(long long off, int blocksize)
    ss << &offExt[0];
    fname = ss.str();
 
-   TRACEIO(Debug, "FileBlock::FileBlock(), create XrdPfcFile ");
+   TRACEIO(Debug, "FileBlock(), create XrdPfcFile ");
 
-   File* file = Cache::GetInstance().GetFile(fname, this, off, blocksize);
+   File *file = Cache::GetInstance().GetFile(fname, this, off, blocksize);
    return file;
 }
 
@@ -197,9 +213,7 @@ long long IOFileBlock::FSize()
 //______________________________________________________________________________
 int IOFileBlock::initLocalStat()
 {
-   XrdCl::URL url(GetPath());
-   std::string path = url.GetPath();
-   path += ".cinfo";
+   std::string path = GetFilename() + Info::s_infoExtension;
 
    int res = -1;
    struct stat tmpStat;
@@ -211,16 +225,16 @@ int IOFileBlock::initLocalStat()
       m_info_file = m_cache.GetOss()->newFile(m_cache.RefConfiguration().m_username.c_str());
       if (m_info_file->Open(path.c_str(), O_RDWR, 0600, myEnv) == XrdOssOK)
       {
-         if (m_info.Read(m_info_file, path))
+         if (m_info.Read(m_info_file, path.c_str()))
          {
             tmpStat.st_size = m_info.GetFileSize();
-            TRACEIO(Info, "IOFileBlock::initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
+            TRACEIO(Info, "initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
             res = 0;
          }
          else
          {
             // file exist but can't read it
-            TRACEIO(Debug, "IOFileBlock::initCachedStat info file is not complete");
+            TRACEIO(Debug, "initCachedStat info file is not complete");
          }
       }
    }
@@ -231,7 +245,7 @@ int IOFileBlock::initLocalStat()
       if (m_info_file) { delete m_info_file; m_info_file = 0; }
 
       res = GetInput()->Fstat(tmpStat);
-      TRACEIO(Debug, "IOFileBlock::initCachedStat get stat from client res= " << res << "size = " << tmpStat.st_size);
+      TRACEIO(Debug, "initCachedStat get stat from client res= " << res << "size = " << tmpStat.st_size);
       if (res == 0)
       {
          if (m_cache.GetOss()->Create(m_cache.RefConfiguration().m_username.c_str(), path.c_str(), 0600, myEnv, XRDOSS_mkpath) ==  XrdOssOK)
@@ -245,17 +259,17 @@ int IOFileBlock::initLocalStat()
                m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
                m_info.DisableDownloadStatus();
                m_info.SetFileSize(tmpStat.st_size);
-               m_info.Write(m_info_file, path);
+               m_info.Write(m_info_file, path.c_str());
                m_info_file->Fsync();
             }
             else
             {
-               TRACEIO(Error, "IOFileBlock::initCachedStat can't open info file path");
+               TRACEIO(Error, "initCachedStat can't open info file path");
             }
          }
          else
          {
-            TRACEIO(Error, "IOFileBlock::initCachedStat can't create info file path");
+            TRACEIO(Error, "initCachedStat can't create info file path");
          }
       }
    }
@@ -289,7 +303,7 @@ int IOFileBlock::Read(char *buff, long long off, int size)
    int idx_first  = off0 / m_blocksize;
    int idx_last   = (off0 + size - 1) / m_blocksize;
    int bytes_read = 0;
-   TRACEIO(Dump, "IOFileBlock::Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
+   TRACEIO(Dump, "Read() "<< off << "@" << size << " block range ["<< idx_first << ", " << idx_last << "]");
 
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx)
    {
@@ -309,7 +323,7 @@ int IOFileBlock::Read(char *buff, long long off, int size)
          if (blockIdx == lastIOFileBlock )
          {
             pbs = fileSize - blockIdx*m_blocksize;
-            // TRACEIO(Dump, "IOFileBlock::Read() last block, change output file size to " << pbs);
+            // TRACEIO(Dump, "Read() last block, change output file size to " << pbs);
          }
 
          // Note: File* can be 0 and stored as 0 if local open fails!
@@ -338,13 +352,13 @@ int IOFileBlock::Read(char *buff, long long off, int size)
          }
       }
 
-      TRACEIO(Dump, "IOFileBlock::Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
+      TRACEIO(Dump, "Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
       int retvalBlock = (fb != 0) ?
          fb->Read(this, buff, off, readBlockSize) :
          GetInput()->Read(buff, off, readBlockSize);
 
-      TRACEIO(Dump, "IOFileBlock::Read()  Block read returned " << retvalBlock);
+      TRACEIO(Dump, "Read()  Block read returned " << retvalBlock);
       if (retvalBlock == readBlockSize)
       {
          bytes_read += retvalBlock;
@@ -353,12 +367,12 @@ int IOFileBlock::Read(char *buff, long long off, int size)
       }
       else if (retvalBlock >= 0)
       {
-         TRACEIO(Warning, "IOFileBlock::Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
+         TRACEIO(Warning, "Read() incomplete read, missing bytes " << readBlockSize-retvalBlock);
          return -EIO;
       }
       else
       {
-         TRACEIO(Error, "IOFileBlock::Read() read error, retval" << retvalBlock);
+         TRACEIO(Error, "Read() read error, retval" << retvalBlock);
          return retvalBlock;
       }
    }

@@ -70,10 +70,13 @@ public:
    int                 m_errno;         // stores negative errno
    bool                m_downloaded;
    bool                m_prefetch;
+   bool                m_req_cksum_net;
+   vCkSum_t            m_cksum_vec;
 
-   Block(File *f, IO *io, char *buf, long long off, int size, bool m_prefetch) :
+   Block(File *f, IO *io, char *buf, long long off, int size, bool m_prefetch, bool cks_net) :
       m_file(f), m_io(io), m_buff(buf), m_offset(off), m_size(size),
-      m_refcnt(0), m_errno(0), m_downloaded(false), m_prefetch(m_prefetch)
+      m_refcnt(0), m_errno(0), m_downloaded(false), m_prefetch(m_prefetch),
+      m_req_cksum_net(cks_net)
    {}
 
    char*     get_buff()   { return m_buff;   }
@@ -94,6 +97,10 @@ public:
       m_errno = 0;
       m_io    = io;
    }
+
+   bool      req_cksum_net() const { return m_req_cksum_net; }
+   bool      has_cksums()    const { return ! m_cksum_vec.empty(); }
+   vCkSum_t& ref_cksum_vec()       { return m_cksum_vec; }
 };
 
 // ================================================================
@@ -102,10 +109,8 @@ class BlockResponseHandler : public XrdOucCacheIOCB
 {
 public:
    Block *m_block;
-   bool   m_for_prefetch;
 
-   BlockResponseHandler(Block *b, bool prefetch) :
-      m_block(b), m_for_prefetch(prefetch) {}
+   BlockResponseHandler(Block *b) : m_block(b) {}
 
    virtual void Done(int result);
 };
@@ -169,6 +174,11 @@ public:
    bool isOpen() const { return m_is_open; }
 
    //----------------------------------------------------------------------
+   //! \brief Notification from IO that it has been updated (remote open).
+   //----------------------------------------------------------------------
+   void ioUpdated(IO *io);
+
+   //----------------------------------------------------------------------
    //! \brief Initiate close. Return true if still IO active.
    //! Used in XrdPosixXrootd::Close()
    //----------------------------------------------------------------------
@@ -216,10 +226,11 @@ public:
 
    Stats DeltaStatsFromLastCall();
 
+   std::string        GetRemoteLocations()   const;
    const Info::AStat* GetLastAccessStats()   const { return m_cfi.GetLastAccessStats(); }
    size_t             GetAccessCnt()         const { return m_cfi.GetAccessCnt(); }
    int                GetBlockSize()         const { return m_cfi.GetBufferSize(); }
-   int                GetNBlocks()           const { return m_cfi.GetSizeInBits(); }
+   int                GetNBlocks()           const { return m_cfi.GetNBlocks(); }
    int                GetNDownloadedBlocks() const { return m_cfi.GetNDownloadedBlocks(); }
 
    // These three methods are called under Cache's m_active lock
@@ -295,6 +306,9 @@ private:
    Stats         m_stats;              //!< cache statistics for this instance
    Stats         m_last_stats;         //!< copy of cache stats during last purge cycle, used for per directory stat reporting
 
+   std::set<std::string> m_remote_locations; //!< Gathered in AddIO / ioUpdate / ioActive.
+   void insert_remote_location(const std::string &loc);
+
    PrefetchState_e m_prefetch_state;
 
    int   m_prefetch_read_cnt;
@@ -317,8 +331,8 @@ private:
    // Read
    Block* PrepareBlockRequest(int i, IO *io, bool prefetch);
    
-   void   ProcessBlockRequest (Block       *b,    bool prefetch);
-   void   ProcessBlockRequests(BlockList_t& blks, bool prefetch);
+   void   ProcessBlockRequest (Block       *b);
+   void   ProcessBlockRequests(BlockList_t& blks);
 
    int    RequestBlocksDirect(IO *io, DirectResponseHandler *handler, IntList_t& blocks,
                               char* buff, long long req_off, long long req_size);

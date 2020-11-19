@@ -38,7 +38,7 @@ namespace XrdPfc
 class IOFileBlock : public IO
 {
 public:
-   IOFileBlock(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
+   IOFileBlock(XrdOucCacheIO *io, Cache &cache);
 
    ~IOFileBlock();
 
@@ -60,6 +60,8 @@ public:
    virtual int  Fstat(struct stat &sbuff);
 
    virtual long long FSize();
+
+   virtual void Update(XrdOucCacheIO &iocp);
 
 private:
    long long                  m_blocksize;       //!< size of file-block

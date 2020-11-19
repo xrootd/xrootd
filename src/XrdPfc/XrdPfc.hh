@@ -37,11 +37,6 @@ class XrdSysError;
 class XrdSysTrace;
 class XrdXrootdGStream;
 
-namespace XrdCl
-{
-class Log;
-}
-
 namespace XrdPfc
 {
 class File;
@@ -59,42 +54,26 @@ namespace XrdPfc
 //----------------------------------------------------------------------------
 struct Configuration
 {
-   Configuration() :
-      m_hdfsmode(false),
-      m_allow_xrdpfc_command(false),
-      m_data_space("public"),
-      m_meta_space("public"),
-      m_diskTotalSpace(-1),
-      m_diskUsageLWM(-1),
-      m_diskUsageHWM(-1),
-      m_fileUsageBaseline(-1),
-      m_fileUsageNominal(-1),
-      m_fileUsageMax(-1),
-      m_purgeInterval(300),
-      m_purgeColdFilesAge(-1),
-      m_purgeColdFilesPeriod(-1),
-      m_accHistorySize(20),
-      m_dirStatsMaxDepth(-1),
-      m_dirStatsStoreDepth(-1),
-      m_dirStats(false),
-      m_bufferSize(1024*1024),
-      m_RamAbsAvailable(0),
-      m_RamKeepStdBlocks(0),
-      m_wqueue_blocks(16),
-      m_wqueue_threads(4),
-      m_prefetch_max_blocks(10),
-      m_hdfsbsize(128*1024*1024),
-      m_flushCnt(2000)
-   {}
+   Configuration();
 
    bool are_file_usage_limits_set()    const { return m_fileUsageMax > 0; }
-   bool is_age_based_purge_in_effect() const { return m_purgeColdFilesAge > 0; }
+   bool is_age_based_purge_in_effect() const { return m_purgeColdFilesAge > 0 ; }
+   bool is_uvkeep_purge_in_effect()    const { return m_cs_UVKeep >= 0; }
+   bool is_dir_stat_reporting_on()     const { return m_dirStatsMaxDepth >= 0 || ! m_dirStatsDirs.empty() || ! m_dirStatsDirGlobs.empty(); }
    bool is_purge_plugin_set_up()       const { return false; }
 
    void calculate_fractional_usages(long long du, long long fu, double &frac_du, double &frac_fu);
 
-   // This might become more complicated with per-dir purge policy
-   bool are_dirstats_enabled() const { return m_dirStats; }
+   CkSumCheck_e get_cs_Chk() const { return (CkSumCheck_e) m_cs_Chk; }
+
+   bool is_cschk_cache() const { return m_cs_Chk & CSChk_Cache; }
+   bool is_cschk_net()   const { return m_cs_Chk & CSChk_Net;   }
+   bool is_cschk_any()   const { return m_cs_Chk & CSChk_Both;  }
+   bool is_cschk_both()  const { return (m_cs_Chk & CSChk_Both) == CSChk_Both; }
+
+   bool does_cschk_have_missing_bits(CkSumCheck_e cks_on_file) const { return m_cs_Chk & ~cks_on_file; }
+
+   bool should_uvkeep_purge(time_t delta) const { return m_cs_UVKeep >= 0 && delta > m_cs_UVKeep; }
 
    bool m_hdfsmode;                     //!< flag for enabling block-level operation
    bool m_allow_xrdpfc_command;         //!< flag for enabling access to /xrdpfc-command/ functionality.
@@ -111,14 +90,13 @@ struct Configuration
    long long m_fileUsageMax;            //!< cache purge - files usage maximum
    int       m_purgeInterval;           //!< sleep interval between cache purges
    int       m_purgeColdFilesAge;       //!< purge files older than this age
-   int       m_purgeColdFilesPeriod;    //!< peform cold file purge every this many purge cycles
+   int       m_purgeAgeBasedPeriod;     //!< peform cold file / uvkeep purge every this many purge cycles
    int       m_accHistorySize;          //!< max number of entries in access history part of cinfo file
 
    std::set<std::string> m_dirStatsDirs;     //!< directories for which stat reporting was requested
    std::set<std::string> m_dirStatsDirGlobs; //!< directory globs for which stat reporting was requested
    int       m_dirStatsMaxDepth;        //!< maximum depth for statistics write out
    int       m_dirStatsStoreDepth;      //!< depth to which statistics should be collected
-   bool      m_dirStats;                //!< is directory access / usage statistics enabled
 
    long long m_bufferSize;              //!< prefetch buffer size, default 1MB
    long long m_RamAbsAvailable;         //!< available from configuration
@@ -129,6 +107,10 @@ struct Configuration
 
    long long m_hdfsbsize;               //!< used with m_hdfsmode, default 128MB
    long long m_flushCnt;                //!< nuber of unsynced blcoks on disk before flush is called
+
+   time_t    m_cs_UVKeep;               //!< unverified checksum cache keep
+   int       m_cs_Chk;                  //!< Checksum check
+   bool      m_cs_ChkTLS;               //!< Allow TLS
 };
 
 //------------------------------------------------------------------------------
@@ -340,7 +322,9 @@ public:
   //---------------------------------------------------------------------
    //! Singleton access.
    //---------------------------------------------------------------------
-   static Cache &GetInstance();
+   static       Cache         &GetInstance();
+   static const Cache         &TheOne();
+   static const Configuration &Conf();
 
    //---------------------------------------------------------------------
    //! Version check.
@@ -427,8 +411,7 @@ private:
    XrdSysTrace      *m_trace;
    const char       *m_traceID;
 
-   XrdOucCacheStats  m_ouc_stats;       //!<
-   XrdOss           *m_oss;       //!< disk cache file system
+   XrdOss           *m_oss;             //!< disk cache file system
 
    XrdXrootdGStream *m_gstream;
 
@@ -445,13 +428,7 @@ private:
    std::list<char*> m_RAM_std_blocks;       //!< A list of blocks of standard size, to be reused.
    int              m_RAM_std_size;
 
-   int         m_csUVKeep;                  //!< unverified checksum cache keep
    bool        m_isClient;                  //!< True if running as client
-   char        m_csChk;                     //!< Checksum check
-   static const int csChk_None  = 0;
-   static const int csChk_Cache = 1;
-   static const int csChk_Net   = 2;
-   static const int csChk_TLS   = 4;
 
    struct WriteQ
    {

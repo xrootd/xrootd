@@ -80,7 +80,7 @@ using namespace XrdPfc;
 
 int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
 {
-   TRACEF(Dump, "File::ReadV for " << n << " chunks.");
+   TRACEF(Dump, "ReadV for " << n << " chunks.");
 
    if ( ! VReadValidate(readV, n))
    {
@@ -103,7 +103,7 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
    if ( ! m_is_open)
    {
       m_state_cond.UnLock();
-      TRACEF(Error, "File::ReadV file is not open");
+      TRACEF(Error, "ReadV file is not open");
       return io->GetInput()->ReadV(readV, n);
    }
 
@@ -122,7 +122,7 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
    // request blocks that need to be fetched
    if (bytesRead >= 0)
    {
-      ProcessBlockRequests(blks_to_request, false);
+      ProcessBlockRequests(blks_to_request);
    }
 
    // issue a client read
@@ -361,7 +361,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
          {
             if (bi->block->is_failed() && bi->block->get_io() != io)
             {
-               TRACEF(Info, "File::VReadProcessBlocks() requested block " << bi->block << " failed with another io " <<
+               TRACEF(Info, "VReadProcessBlocks() requested block " << bi->block << " failed with another io " <<
                       bi->block->get_io() << " - reissuing request with my io " << io);
 
                bi->block->reset_error_and_set_io(io);
@@ -387,7 +387,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
          }
       }
 
-      ProcessBlockRequests(to_reissue, false);
+      ProcessBlockRequests(to_reissue);
       to_reissue.clear();
 
       std::vector<ReadVChunkListRAM>::iterator bi = finished.begin();
@@ -419,7 +419,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
          else
          {
             bytes_read = bi->block->m_errno;
-            TRACEF(Error, "File::VReadProcessBlocks() io " << io << ", block "<< bi->block <<
+            TRACEF(Error, "VReadProcessBlocks() io " << io << ", block "<< bi->block <<
                    " finished with error " << -bytes_read << " " << XrdSysE2T(-bytes_read));
             break;
          }

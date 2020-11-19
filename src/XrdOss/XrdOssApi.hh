@@ -55,6 +55,7 @@ int     Close(long long *retsz=0);
 int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 int     StatRet(struct stat *buff);
+int     getFD() {return fd;}
 
         // Constructor and destructor
         XrdOssDir(const char *tid, DIR *dP=0)

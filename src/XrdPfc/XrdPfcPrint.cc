@@ -66,40 +66,43 @@ void Print::printFile(const std::string& path)
    XrdSysTrace tr(""); tr.What = 2;
    Info cfi(&tr);
 
-   if ( ! cfi.Read(fh, path))
+   if ( ! cfi.Read(fh, path.c_str()))
    {
       return;
    }
 
    int cntd = 0;
-   for (int i = 0; i < cfi.GetSizeInBits(); ++i)
+   for (int i = 0; i < cfi.GetNBlocks(); ++i)
    {
       if (cfi.TestBitWritten(i)) cntd++;
    }
    const Info::Store& store = cfi.RefStoredData();
-   char   creationBuff[1000];
-   time_t creationTime = store.m_creationTime;
-   strftime(creationBuff, 1000, "%c", localtime(&creationTime));
+   char  timeBuff[128];
+   strftime(timeBuff, 128, "%c", localtime(&store.m_creationTime));
 
-   printf("version %d, created %s\n",  cfi.GetVersion(), creationBuff);
+   printf("version %d, created %s; cksum %s",  cfi.GetVersion(), timeBuff, cfi.GetCkSumStateAsText());
+   if (cfi.HasNoCkSumTime()) {
+      strftime(timeBuff,  128, "%c", localtime(&store.m_noCkSumTime));
+      printf(", no-cksum-time %s\n", timeBuff);
+   } else printf("\n");
 
    printf("file_size %lld kB, buffer_size %lld kB, n_blocks %d, n_downloaded %d, state %scomplete [%.3f%%]\n",
-          cfi.GetFileSize() >> 10, cfi.GetBufferSize() >> 10, cfi.GetSizeInBits(), cntd,
-          (cntd < cfi.GetSizeInBits()) ? "in" : "", 100.0 * cntd / cfi.GetSizeInBits());
+          cfi.GetFileSize() >> 10, cfi.GetBufferSize() >> 10, cfi.GetNBlocks(), cntd,
+          (cntd < cfi.GetNBlocks()) ? "in" : "", 100.0 * cntd / cfi.GetNBlocks());
 
    if (m_verbose)
    {
       int8_t n_db = 0;
-      { int x = cfi.GetSizeInBits(); while (x)
+      { int x = cfi.GetNBlocks(); while (x)
         {
            x /= 10; ++n_db;
         }
       }
       static const char *nums = "0123456789";
-      printf("printing %d blocks:\n", cfi.GetSizeInBits());
+      printf("printing %d blocks:\n", cfi.GetNBlocks());
       printf("%*s  %10d%10d%10d%10d%10d%10d\n", n_db, "", 1, 2, 3, 4, 5, 6);
       printf("%*s %s%s%s%s%s%s0123", n_db, "", nums, nums, nums, nums, nums, nums);
-      for (int i = 0; i < cfi.GetSizeInBits(); ++i)
+      for (int i = 0; i < cfi.GetNBlocks(); ++i)
       {
          if (i % 64 == 0)
             printf("\n%*d ", n_db, i);
