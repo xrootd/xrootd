@@ -413,42 +413,24 @@ namespace XrdCl
     uint16_t action = 0;
     if( reqId == kXR_pgread )
     {
-      size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
-      if( msg->GetSize() == stlen )
-      {
-        //----------------------------------------------------------------------
-        // The message contains only Status header and body but no raw data
-        //----------------------------------------------------------------------
-        pReadRawStarted = false;
-        pAsyncMsgSize   = rspst->bdy.dlen;
-        action |= Raw;
+      //----------------------------------------------------------------------
+      // The message contains only Status header and body but no raw data
+      //----------------------------------------------------------------------
+      pReadRawStarted = false;
+      pAsyncMsgSize   = rspst->bdy.dlen;
+      action |= Raw;
 
-        if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
-        {
-          action |= NoProcess;
+      if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+      {
+        action |= NoProcess;
 #if __cplusplus >= 201103L
-          pTimeoutFence = true;
+        pTimeoutFence = true;
 #else
-          AtomicCAS( pTimeoutFence, pTimeoutFence, true );
+        AtomicCAS( pTimeoutFence, pTimeoutFence, true );
 #endif
-        }
-        else
-          action |= RemoveHandler;
       }
       else
-      {
-        //----------------------------------------------------------------------
-        // The message contains the Status header and body and also the raw data
-        //----------------------------------------------------------------------
-        if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
-        {
-          //--------------------------------------------------------------------
-          // the actual size of the raw data without the crc32c checksums
-          //--------------------------------------------------------------------
-          size_t datalen = rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
-          pReadRawCurrentOffset += datalen;
-        }
-      }
+        action |= RemoveHandler;
     }
 
     return action;
