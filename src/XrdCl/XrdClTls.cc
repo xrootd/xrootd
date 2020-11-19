@@ -132,7 +132,10 @@ namespace XrdCl
   XRootDStatus Tls::Connect( const std::string &thehost, XrdNetAddrInfo *netInfo )
   {
     std::string errmsg;
-    XrdTls::RC error = pTls->Connect( thehost.c_str(), &errmsg );
+    const char *verhost = 0;
+    if( thehost != "localhost" && thehost != "127.0.0.1" && thehost != "[::1]" )
+      verhost = thehost.c_str();
+    XrdTls::RC error = pTls->Connect( verhost, &errmsg );
     XRootDStatus status = ToStatus( error );
     if( !status.IsOK() )
       status.SetErrorMessage( errmsg );
