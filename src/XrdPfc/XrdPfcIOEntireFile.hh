@@ -28,7 +28,6 @@
 
 class XrdSysError;
 class XrdOssDF;
-class XfcStats;
 class XrdOucIOVec;
 
 namespace XrdPfc
@@ -40,7 +39,7 @@ namespace XrdPfc
 class IOEntireFile : public IO
 {
 public:
-   IOEntireFile(XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
+   IOEntireFile(XrdOucCacheIO *io, Cache &cache);
 
    ~IOEntireFile();
 
@@ -73,6 +72,8 @@ public:
    using XrdOucCacheIO::ReadV;
 
    virtual int ReadV(const XrdOucIOVec *readV, int n);
+
+   virtual void Update(XrdOucCacheIO &iocp);
 
    //! \brief Abstract virtual method of XrdPfcIO
    //! Called to check if destruction needs to be done in a separate task.

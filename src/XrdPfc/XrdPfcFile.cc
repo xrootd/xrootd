@@ -77,7 +77,7 @@ File::~File()
 {
    if (m_info_file)
    {
-      TRACEF(Debug, "File::~File() close info ");
+      TRACEF(Debug, "~File() close info ");
       m_info_file->Close();
       delete m_info_file;
       m_info_file = NULL;
@@ -85,13 +85,13 @@ File::~File()
 
    if (m_data_file)
    {
-      TRACEF(Debug, "File::~File() close output  ");
+      TRACEF(Debug, "~File() close output  ");
       m_data_file->Close();
       delete m_data_file;
       m_data_file = NULL;
    }
 
-   TRACEF(Debug, "File::~File() ended, prefetch score = " <<  m_prefetch_score);
+   TRACEF(Debug, "~File() ended, prefetch score = " <<  m_prefetch_score);
 }
 
 //------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ Stats File::DeltaStatsFromLastCall()
 
 void File::BlockRemovedFromWriteQ(Block* b)
 {
-   TRACEF(Dump, "File::BlockRemovedFromWriteQ() block = " << (void*) b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
+   TRACEF(Dump, "BlockRemovedFromWriteQ() block = " << (void*) b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
 
    XrdSysCondVarHelper _lck(m_state_cond);
    dec_ref_count(b);
@@ -163,7 +163,7 @@ void File::BlockRemovedFromWriteQ(Block* b)
 
 void File::BlocksRemovedFromWriteQ(std::list<Block*>& blocks)
 {
-   TRACEF(Dump, "File::BlocksRemovedFromWriteQ() n_blocks = " << blocks.size());
+   TRACEF(Dump, "BlocksRemovedFromWriteQ() n_blocks = " << blocks.size());
 
    XrdSysCondVarHelper _lck(m_state_cond);
 
@@ -175,11 +175,22 @@ void File::BlocksRemovedFromWriteQ(std::list<Block*>& blocks)
 
 //------------------------------------------------------------------------------
 
+void File::ioUpdated(IO *io)
+{
+   std::string loc(io->GetLocation());
+   XrdSysCondVarHelper _lck(m_state_cond);
+   insert_remote_location(loc);
+}
+
+//------------------------------------------------------------------------------
+
 bool File::ioActive(IO *io)
 {
    // Returns true if delay is needed.
 
-   TRACEF(Debug, "File::ioActive start for io " << io);
+   TRACEF(Debug, "ioActive start for io " << io);
+
+   std::string loc(io->GetLocation());
 
    {
       XrdSysCondVarHelper _lck(m_state_cond);
@@ -202,6 +213,8 @@ bool File::ioActive(IO *io)
          TRACEF(Info,
                 "\tio_map.size() "           << m_io_map.size() <<
                 ", block_map.size() "        << m_block_map.size() << ", file");
+
+         insert_remote_location(loc);
 
          // XXX Intermediate check for 4.11 - 5.0 transition.
          // Can be removed for 5.1, including member IODetals::m_ioactive_false_reported.
@@ -272,11 +285,11 @@ bool File::FinalizeSyncBeforeExit()
        m_cfi.WriteIOStatDetach(loc_stats);
        m_detach_time_logged = true;
        m_in_sync            = true;
-       TRACEF(Debug, "File::FinalizeSyncBeforeExit requesting sync to write detach stats");
+       TRACEF(Debug, "FinalizeSyncBeforeExit requesting sync to write detach stats");
        return true;
      }
    }
-   TRACEF(Debug, "File::FinalizeSyncBeforeExit sync not required");
+   TRACEF(Debug, "FinalizeSyncBeforeExit sync not required");
    return false;
 }
 
@@ -286,9 +299,10 @@ void File::AddIO(IO *io)
 {
    // Called from Cache::GetFile() when a new IO asks for the file.
 
-   TRACEF(Debug, "File::AddIO() io = " << (void*)io);
+   TRACEF(Debug, "AddIO() io = " << (void*)io);
 
-   time_t now = time(0);
+   time_t      now = time(0);
+   std::string loc(io->GetLocation());
 
    m_state_cond.Lock();
 
@@ -299,6 +313,8 @@ void File::AddIO(IO *io)
       m_io_map.insert(std::make_pair(io, IODetails(now)));
       m_stats.IoAttach();
 
+      insert_remote_location(loc);
+
       if (m_prefetch_state == kStopped)
       {
          m_prefetch_state = kOn;
@@ -307,7 +323,7 @@ void File::AddIO(IO *io)
    }
    else
    {
-      TRACEF(Error, "File::AddIO() io = " << (void*)io << " already registered.");
+      TRACEF(Error, "AddIO() io = " << (void*)io << " already registered.");
    }
 
    m_state_cond.UnLock();
@@ -319,7 +335,7 @@ void File::RemoveIO(IO *io)
 {
    // Called from Cache::ReleaseFile.
 
-   TRACEF(Debug, "File::RemoveIO() io = " << (void*)io);
+   TRACEF(Debug, "RemoveIO() io = " << (void*)io);
 
    time_t now = time(0);
 
@@ -340,14 +356,14 @@ void File::RemoveIO(IO *io)
 
       if (m_io_map.empty() && m_prefetch_state != kStopped && m_prefetch_state != kComplete)
       {
-         TRACEF(Error, "File::RemoveIO() io = " << (void*)io << " Prefetching is not stopped/complete -- it should be by now.");
+         TRACEF(Error, "RemoveIO() io = " << (void*)io << " Prefetching is not stopped/complete -- it should be by now.");
          m_prefetch_state = kStopped;
          cache()->DeRegisterPrefetchFile(this);
       }
    }
    else
    {
-      TRACEF(Error, "File::RemoveIO() io = " << (void*)io << " is NOT registered.");
+      TRACEF(Error, "RemoveIO() io = " << (void*)io << " is NOT registered.");
    }
 
    m_state_cond.UnLock();
@@ -359,11 +375,13 @@ bool File::Open()
 {
    // Sets errno accordingly.
 
-   TRACEF(Dump, "File::Open() open file for disk cache");
+   static const char *tpfx = "Open() ";
+
+   TRACEF(Dump, tpfx << "open file for disk cache");
 
    if (m_is_open)
    {
-      TRACEF(Error, "File::Open() file is already opened.");
+      TRACEF(Error, tpfx << "file is already opened.");
       return true;
    }
 
@@ -388,7 +406,7 @@ bool File::Open()
 
    if ((res = myOss.Create(myUser, m_filename.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Create failed " << ERRNO_AND_ERRSTR(-res));
+      TRACEF(Error, tpfx << "Create failed " << ERRNO_AND_ERRSTR(-res));
       errno = -res;
       return false;
    }
@@ -396,7 +414,7 @@ bool File::Open()
    m_data_file = myOss.newFile(myUser);
    if ((res = m_data_file->Open(m_filename.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed " << ERRNO_AND_ERRSTR(-res));
+      TRACEF(Error, tpfx << "Open failed " << ERRNO_AND_ERRSTR(-res));
       errno = -res;
       delete m_data_file; m_data_file = 0;
       return false;
@@ -406,7 +424,7 @@ bool File::Open()
    myEnv.Put("oss.cgroup", conf.m_meta_space.c_str());
    if ((res = myOss.Create(myUser, ifn.c_str(), 0600, myEnv, XRDOSS_mkpath)) != XrdOssOK)
    {
-      TRACE(Error, "File::Open() Create failed for info file " << ifn << ERRNO_AND_ERRSTR(-res));
+      TRACE(Error, tpfx << "Create failed for info file " << ifn << ERRNO_AND_ERRSTR(-res));
       errno = -res;
       m_data_file->Close(); delete m_data_file; m_data_file = 0;
       return false;
@@ -415,7 +433,7 @@ bool File::Open()
    m_info_file = myOss.newFile(myUser);
    if ((res = m_info_file->Open(ifn.c_str(), O_RDWR, 0600, myEnv)) != XrdOssOK)
    {
-      TRACEF(Error, "File::Open() Open failed for info file " << ifn  << ERRNO_AND_ERRSTR(-res));
+      TRACEF(Error, tpfx << "Failed for info file " << ifn  << ERRNO_AND_ERRSTR(-res));
       errno = -res;
       delete m_info_file; m_info_file = 0;
       m_data_file->Close(); delete m_data_file;   m_data_file   = 0;
@@ -424,9 +442,9 @@ bool File::Open()
 
    bool initialize_info_file = true;
 
-   if (info_existed && m_cfi.Read(m_info_file, ifn))
+   if (info_existed && m_cfi.Read(m_info_file, ifn.c_str()))
    {
-      TRACEF(Debug, "Open - reading existing info file. (data_existed=" << data_existed  <<
+      TRACEF(Debug, tpfx << "Reading existing info file. (data_existed=" << data_existed  <<
              ", data_size_stat=" << (data_existed ? data_stat.st_size : -1ll) <<
              ", data_size_from_last_block=" << m_cfi.GetExpectedDataFileSize() << ")");
 
@@ -434,21 +452,36 @@ bool File::Open()
       if (data_existed && data_stat.st_size >= m_cfi.GetExpectedDataFileSize())
       {
          initialize_info_file = false;
-      }
-      else
-      {
-         TRACEF(Warning, "Open - basic sanity checks on data file failed, resetting info file.");
+      } else {
+         TRACEF(Warning, tpfx << "Basic sanity checks on data file failed, resetting info file, truncating data file.");
          m_cfi.ResetAllAccessStats();
+         m_data_file->Ftruncate(0);
       }
    }
+
+   if ( ! initialize_info_file && m_cfi.GetCkSumState() != conf.get_cs_Chk())
+   {
+      if (conf.does_cschk_have_missing_bits(m_cfi.GetCkSumState()) &&
+          conf.should_uvkeep_purge(time(0) - m_cfi.GetNoCkSumTimeForUVKeep()))
+      {
+         TRACEF(Info, tpfx << "Cksum state of file insufficient, uvkeep test failed, resetting info file, truncating data file.");
+         initialize_info_file = true;
+         m_cfi.ResetAllAccessStats();
+         m_data_file->Ftruncate(0);
+      } else {
+         // If a file is complete, we don't really need to reset net cksums ... well, maybe next time.
+         m_cfi.DowngradeCkSumState(conf.get_cs_Chk());
+      }
+   }
+
    if (initialize_info_file)
    {
       m_cfi.SetBufferSize(conf.m_bufferSize);
       m_cfi.SetFileSize(m_file_size);
-      m_cfi.Write(m_info_file);
+      m_cfi.SetCkSumState(conf.get_cs_Chk());
+      m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
-      int ss = (m_file_size - 1)/m_cfi.GetBufferSize() + 1;
-      TRACEF(Debug, "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << ss);
+      TRACEF(Debug, tpfx << "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << m_cfi.GetNBlocks());
    }
 
    m_cfi.WriteIOStatAttach();
@@ -506,25 +539,33 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
    // Reference count is 0 so increase it in calling function if you want to
    // catch the block while still in memory.
 
-   const long long BS   = m_cfi.GetBufferSize();
-   const int last_block = m_cfi.GetSizeInBits() - 1;
+   const long long BS    = m_cfi.GetBufferSize();
+   const long long off   = i * BS;
+   const int  last_block = m_cfi.GetNBlocks() - 1;
+   const bool cs_net     = cache()->RefConfiguration().is_cschk_net();
 
-   long long off     = i * BS;
-   long long this_bs = (i == last_block) ? m_file_size - off : BS;
+   int blk_size, req_size;
+   if (i == last_block) {
+      blk_size = req_size = m_file_size - off;
+      if (cs_net && req_size & 0xFFF) req_size = (req_size & ~0xFFF) + 0x1000;
+   } else {
+      blk_size = req_size = BS;
+   }
 
    Block *b   = 0;
-   char  *buf = cache()->RequestRAM(this_bs);
+   char  *buf = cache()->RequestRAM(req_size);
 
    if (buf)
    {
-      b = new (std::nothrow) Block(this, io, buf, off, this_bs, prefetch);
+      b = new (std::nothrow) Block(this, io, buf, off, blk_size, prefetch, cs_net);
 
       if (b)
       {
          m_block_map[i] = b;
 
          // Actual Read request is issued in ProcessBlockRequests().
-         TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << " address " << (void*) b);
+         TRACEF(Dump, "PrepareBlockRequest() idx=" << i << ", block=" << (void*) b << ", prefetch=" <<  prefetch << 
+                      ", offset=" << off << ", size=" << blk_size << ", buffer=" << (void*) buf);
 
          if (m_prefetch_state == kOn && (int) m_block_map.size() >= Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
          {
@@ -534,30 +575,35 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
       }
       else
       {
-         TRACEF(Dump, "File::PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << ", allocation failed.");
+         TRACEF(Dump, "PrepareBlockRequest() " <<  i << " prefetch " <<  prefetch << ", allocation failed.");
       }
    }
 
    return b;
 }
 
-void File::ProcessBlockRequest(Block *b, bool prefetch)
+void File::ProcessBlockRequest(Block *b)
 {
    // This *must not* be called with block_map locked.
 
-  BlockResponseHandler* oucCB = new BlockResponseHandler(b, prefetch);
-  b->get_io()->GetInput()->Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
+   BlockResponseHandler* oucCB = new BlockResponseHandler(b);
+   if (b->req_cksum_net())
+   {
+      int req_size = b->get_size();
+      if (req_size & 0xFFF) req_size = (req_size & ~0xFFF) + 0x1000;
+      b->get_io()->GetInput()->pgRead(*oucCB, b->get_buff(), b->get_offset(), req_size, b->ref_cksum_vec());
+   } else {
+      b->get_io()->GetInput()->  Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
+   }
 }
 
-void File::ProcessBlockRequests(BlockList_t& blks, bool prefetch)
+void File::ProcessBlockRequests(BlockList_t& blks)
 {
    // This *must not* be called with block_map locked.
 
    for (BlockList_i bi = blks.begin(); bi != blks.end(); ++bi)
    {
-      Block *b = *bi;
-      BlockResponseHandler* oucCB = new BlockResponseHandler(b, prefetch);
-      b->get_io()->GetInput()->Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
+      ProcessBlockRequest(*bi);
    }
 }
 
@@ -595,7 +641,7 @@ int File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, IntList_t&
 int File::ReadBlocksFromDisk(std::list<int>& blocks,
                              char* req_buf, long long req_off, long long req_size)
 {
-   TRACEF(Dump, "File::ReadBlocksFromDisk " <<  blocks.size());
+   TRACEF(Dump, "ReadBlocksFromDisk " <<  blocks.size());
    const long long BS = m_cfi.GetBufferSize();
 
    long long total = 0;
@@ -612,17 +658,17 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
       overlap(*ii, BS, req_off, req_size, off, blk_off, size);
 
       long long rs = m_data_file->Read(req_buf + off, *ii * BS + blk_off -m_offset, size);
-      TRACEF(Dump, "File::ReadBlocksFromDisk block idx = " <<  *ii << " size= " << size);
+      TRACEF(Dump, "ReadBlocksFromDisk block idx = " <<  *ii << " size= " << size);
 
       if (rs < 0)
       {
-         TRACEF(Error, "File::ReadBlocksFromDisk neg retval = " <<  rs << " idx = " << *ii );
+         TRACEF(Error, "ReadBlocksFromDisk neg retval = " <<  rs << " idx = " << *ii );
          return rs;
       }
 
       if (rs != size)
       {
-         TRACEF(Error, "File::ReadBlocksFromDisk incomplete size = " <<  rs << " idx = " << *ii);
+         TRACEF(Error, "ReadBlocksFromDisk incomplete size = " <<  rs << " idx = " << *ii);
          return -EIO;
       }
 
@@ -663,7 +709,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
    if ( ! m_is_open)
    {
       m_state_cond.UnLock();
-      TRACEF(Error, "File::Read file is not open");
+      TRACEF(Error, "Read file is not open");
       return io->GetInput()->Read(iUserBuff, iUserOff, iUserSize);
    }
    if (m_in_shutdown)
@@ -674,20 +720,20 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
    for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
    {
-      TRACEF(Dump, "File::Read() idx " << block_idx);
+      TRACEF(Dump, "Read() idx " << block_idx);
       BlockMap_i bi = m_block_map.find(block_idx);
 
       // In RAM or incoming?
       if (bi != m_block_map.end())
       {
          inc_ref_count(bi->second);
-         TRACEF(Dump, "File::Read() " << (void*) iUserBuff << "inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
+         TRACEF(Dump, "Read() " << (void*) iUserBuff << "inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
          blks_to_process.push_front(bi->second);
       }
       // On disk?
       else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
       {
-         TRACEF(Dump, "File::Read() read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
+         TRACEF(Dump, "Read() read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
          blks_on_disk.push_back(block_idx);
       }
       // Then we have to get it ...
@@ -697,7 +743,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          Block *b = PrepareBlockRequest(block_idx, io, false);
          if (b)
          {
-            TRACEF(Dump, "File::Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
+            TRACEF(Dump, "Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
             inc_ref_count(b);
             blks_to_process.push_back(b);
             blks_to_request.push_back(b);
@@ -706,7 +752,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          // Nope ... read this directly without caching.
          else
          {
-            TRACEF(Dump, "File::Read() direct block " << block_idx);
+            TRACEF(Dump, "Read() direct block " << block_idx);
             blks_direct.push_back(block_idx);
          }
       }
@@ -714,7 +760,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
    m_state_cond.UnLock();
 
-   ProcessBlockRequests(blks_to_request, false);
+   ProcessBlockRequests(blks_to_request);
 
    long long bytes_read = 0;
    int       error_cond = 0; // to be set to -errno
@@ -730,14 +776,14 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
       direct_size = RequestBlocksDirect(io, direct_handler, blks_direct, iUserBuff, iUserOff, iUserSize);
 
-      TRACEF(Dump, "File::Read() direct read requests sent out, size = " << direct_size);
+      TRACEF(Dump, "Read() direct read requests sent out, size = " << direct_size);
    }
 
    // Second, read blocks from disk.
    if ( ! blks_on_disk.empty() && bytes_read >= 0)
    {
       int rc = ReadBlocksFromDisk(blks_on_disk, iUserBuff, iUserOff, iUserSize);
-      TRACEF(Dump, "File::Read() " << (void*)iUserBuff <<" from disk finished size = " << rc);
+      TRACEF(Dump, "Read() " << (void*)iUserBuff <<" from disk finished size = " << rc);
       if (rc >= 0)
       {
          bytes_read += rc;
@@ -746,7 +792,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       else
       {
          error_cond = rc;
-         TRACEF(Error, "File::Read() failed read from disk");
+         TRACEF(Error, "Read() failed read from disk");
       }
    }
 
@@ -764,7 +810,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          {
             if ((*bi)->is_failed() && (*bi)->get_io() != io)
             {
-               TRACEF(Info, "File::Read() requested block " << (void*)(*bi) << " failed with another io " <<
+               TRACEF(Info, "Read() requested block " << (void*)(*bi) << " failed with another io " <<
                       (*bi)->get_io() << " - reissuing request with my io " << io);
 
                (*bi)->reset_error_and_set_io(io);
@@ -773,7 +819,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             }
             else if ((*bi)->is_finished())
             {
-               TRACEF(Dump, "File::Read() requested block finished " << (void*)(*bi) << ", is_failed()=" << (*bi)->is_failed());
+               TRACEF(Dump, "Read() requested block finished " << (void*)(*bi) << ", is_failed()=" << (*bi)->is_failed());
                finished.push_back(*bi);
                BlockList_i bj = bi++;
                blks_to_process.erase(bj);
@@ -791,7 +837,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          }
       }
 
-      ProcessBlockRequests(to_reissue, false);
+      ProcessBlockRequests(to_reissue);
       to_reissue.clear();
 
       BlockList_i bi = finished.begin();
@@ -805,7 +851,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
             overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
 
-            TRACEF(Dump, "File::Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/BS << " size " << size_to_copy);
+            TRACEF(Dump, "Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/BS << " size " << size_to_copy);
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
 
@@ -823,7 +869,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             if ( ! error_cond)
             {
                error_cond = (*bi)->m_errno;
-               TRACEF(Error, "File::Read() io " << io << ", block "<< (*bi)->m_offset/BS <<
+               TRACEF(Error, "Read() io " << io << ", block "<< (*bi)->m_offset/BS <<
                       " finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
             }
          }
@@ -838,7 +884,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
    // This can not be skipped as responses write into request memory buffers.
    if (direct_handler != 0)
    {
-      TRACEF(Dump, "File::Read() waiting for direct requests ");
+      TRACEF(Dump, "Read() waiting for direct requests ");
 
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
 
@@ -858,7 +904,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
          if ( ! error_cond)
          {
             error_cond = direct_handler->m_errno;
-            TRACEF(Error, "File::Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
+            TRACEF(Error, "Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
          }
       }
 
@@ -875,7 +921,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
       for (BlockList_i bi = blks_processed.begin(); bi != blks_processed.end(); ++bi)
       {
-         TRACEF(Dump, "File::Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/BufferSize()));
+         TRACEF(Dump, "Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/BufferSize()));
          dec_ref_count(*bi);
       }
 
@@ -900,20 +946,26 @@ void File::WriteBlockToDisk(Block* b)
 {
    // write block buffer into disk file
    long long   offset = b->m_offset - m_offset;
-   long long   size   = (offset + m_cfi.GetBufferSize()) > m_file_size ? (m_file_size - offset) : m_cfi.GetBufferSize();
-   const char *buff   = &b->m_buff[0];
+   long long   size   = b->get_size();
+   ssize_t     retval;
 
-   ssize_t retval = m_data_file->Write(buff, offset, size);
+   if (m_cfi.IsCkSumCache())
+      if (b->has_cksums())
+         retval = m_data_file->pgWrite(b->get_buff(), offset, size, b->ref_cksum_vec().data(), b->ref_cksum_vec().size());
+      else
+         retval = m_data_file->pgWrite(b->get_buff(), offset, size, 0, 0);
+   else
+      retval = m_data_file->Write(b->get_buff(), offset, size);
 
    if (retval < size)
    {
       if (retval < 0)
       {
-         GetLog()->Emsg("File::WriteToDisk()", -retval, "write block to disk", GetLocalPath().c_str());
+         GetLog()->Emsg("WriteToDisk()", -retval, "write block to disk", GetLocalPath().c_str());
       }
       else
       {
-         TRACEF(Error, "File::WriteToDisk() incomplete block write ret=" << retval << " (should be " << size << ")");
+         TRACEF(Error, "WriteToDisk() incomplete block write ret=" << retval << " (should be " << size << ")");
       }
 
       XrdSysCondVarHelper _lck(m_state_cond);
@@ -926,7 +978,7 @@ void File::WriteBlockToDisk(Block* b)
    const int blk_idx =  (b->m_offset - m_offset) / m_cfi.GetBufferSize();
 
    // Set written bit.
-   TRACEF(Dump, "File::WriteToDisk() success set bit for block " <<  b->m_offset << " size=" <<  size);
+   TRACEF(Dump, "WriteToDisk() success set bit for block " <<  b->m_offset << " size=" <<  size);
 
    bool schedule_sync = false;
    {
@@ -935,7 +987,13 @@ void File::WriteBlockToDisk(Block* b)
       m_cfi.SetBitWritten(blk_idx);
 
       if (b->m_prefetch)
+      {
          m_cfi.SetBitPrefetch(blk_idx);
+      }
+      if (b->req_cksum_net() && ! b->has_cksums() && m_cfi.IsCkSumNet())
+      {
+         m_cfi.ResetCkSumNet();
+      }
 
       dec_ref_count(b);
 
@@ -969,7 +1027,7 @@ void File::WriteBlockToDisk(Block* b)
 
 void File::Sync()
 {
-   TRACEF(Dump, "File::Sync()");
+   TRACEF(Dump, "Sync()");
 
    int ret     = m_data_file->Fsync();
    bool errorp = false;
@@ -977,23 +1035,23 @@ void File::Sync()
    {
       Stats loc_stats = m_stats.Clone();
       m_cfi.WriteIOStat(loc_stats);
-      m_cfi.Write(m_info_file);
+      m_cfi.Write(m_info_file,m_filename.c_str());
       int cret = m_info_file->Fsync();
       if (cret != XrdOssOK)
       {
-         TRACEF(Error, "File::Sync cinfo file sync error " << cret);
+         TRACEF(Error, "Sync cinfo file sync error " << cret);
          errorp = true;
       }
    }
    else
    {
-      TRACEF(Error, "File::Sync data file sync error " << ret << ", cinfo file has not been updated");
+      TRACEF(Error, "Sync data file sync error " << ret << ", cinfo file has not been updated");
       errorp = true;
    }
 
    if (errorp)
    {
-      TRACEF(Error, "File::Sync failed, unlinking local files and initiating shutdown of File object");
+      TRACEF(Error, "Sync failed, unlinking local files and initiating shutdown of File object");
 
       // Unlink will also call this->initiate_emergency_shutdown()
       Cache::GetInstance().Unlink(m_filename.c_str());
@@ -1017,7 +1075,7 @@ void File::Sync()
       m_writes_during_sync.clear();
       m_in_sync = false;
    }
-   TRACEF(Dump, "File::Sync "<< written_while_in_sync  << " blocks written during sync");
+   TRACEF(Dump, "Sync "<< written_while_in_sync  << " blocks written during sync");
 }
 
 //------------------------------------------------------------------------------
@@ -1026,7 +1084,7 @@ void File::inc_ref_count(Block* b)
 {
    // Method always called under lock.
    b->m_refcnt++;
-   TRACEF(Dump, "File::inc_ref_count " << b << " refcnt  " << b->m_refcnt);
+   TRACEF(Dump, "inc_ref_count " << b << " refcnt  " << b->m_refcnt);
 }
 
 //------------------------------------------------------------------------------
@@ -1049,12 +1107,12 @@ void File::free_block(Block* b)
 {
    // Method always called under lock.
    int i = b->m_offset / BufferSize();
-   TRACEF(Dump, "File::free_block block " << b << "  idx =  " <<  i);
+   TRACEF(Dump, "free_block block " << b << "  idx =  " <<  i);
    size_t ret = m_block_map.erase(i);
    if (ret != 1)
    {
       // assert might be a better option than a warning
-      TRACEF(Error, "File::free_block did not erase " <<  i  << " from map");
+      TRACEF(Error, "free_block did not erase " <<  i  << " from map");
    }
    else
    {
@@ -1119,14 +1177,16 @@ bool File::select_current_io_or_disable_prefetching(bool skip_current)
 
 void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 {
+   static const char* tpfx = "ProcessBlockResponse ";
+
    XrdSysCondVarHelper _lck(m_state_cond);
 
    Block *b = brh->m_block;
 
-   TRACEF(Dump, "File::ProcessBlockResponse " << (void*)b << "  " << b->m_offset/BufferSize());
+   TRACEF(Dump, tpfx << "block=" << (void*)b << ", off=" << b->m_offset/BufferSize() << ", res=" << res);
 
    // Deregister block from IO's prefetch count, if needed.
-   if (brh->m_for_prefetch)
+   if (b->m_prefetch)
    {
       IoMap_i mi = m_io_map.find(b->get_io());
       if (mi != m_io_map.end())
@@ -1136,7 +1196,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
          // If failed and IO is still prefetching -- disable prefetching on this IO.
          if (res < 0 && mi->second.m_allow_prefetching)
          {
-            TRACEF(Debug, "File::ProcessBlockResponse after failed prefetch on io " << b->get_io() << " disabling prefetching on this io.");
+            TRACEF(Debug, tpfx << "after failed prefetch on io " << b->get_io() << " disabling prefetching on this io.");
             mi->second.m_allow_prefetching = false;
 
             // Check if any IO is still available for prfetching. If not, stop it.
@@ -1144,7 +1204,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
             {
                if ( ! select_current_io_or_disable_prefetching(false) )
                {
-                  TRACEF(Debug, "ProcessBlockResponse stopping prefetching after io " <<  b->get_io() << " marked as bad.");
+                  TRACEF(Debug, tpfx << "stopping prefetching after io " <<  b->get_io() << " marked as bad.");
                }
             }
          }
@@ -1157,15 +1217,15 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
       }
       else
       {
-         TRACEF(Error, "File::ProcessBlockResponse io " << b->get_io() << " not found in IoMap.");
+         TRACEF(Error, tpfx << "io " << b->get_io() << " not found in IoMap.");
       }
    }
 
-   if (res >= 0)
+   if (res == b->get_size())
    {
       b->set_downloaded();
       // Increase ref-count for the writer.
-      TRACEF(Dump, "File::ProcessBlockResponse inc_ref_count " <<  (int)(b->m_offset/BufferSize()));
+      TRACEF(Dump, tpfx << "inc_ref_count " <<  (int)(b->m_offset/BufferSize()));
       if ( ! m_in_shutdown)
       {
          inc_ref_count(b);
@@ -1175,8 +1235,12 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
    }
    else
    {
-      TRACEF(Error, "File::ProcessBlockResponse block " << b << "  " << (int)(b->m_offset/BufferSize()) << " error=" << res);
-
+      if (res < 0) {
+         TRACEF(Error, tpfx << "block " << b << ", off=" << b->m_offset/BufferSize() << " error=" << res);
+      } else {
+         TRACEF(Error, tpfx << "block " << b << ", off=" << b->m_offset/BufferSize() << " incomplete, got " << res << " expected " << b->get_size());
+         res = -EREMOTEIO;
+      }
       b->set_error(res);
    }
 
@@ -1213,7 +1277,7 @@ void File::Prefetch()
 
    BlockList_t blks;
 
-   TRACEF(Dump, "File::Prefetch enter to check download status");
+   TRACEF(Dump, "Prefetch enter to check download status");
    {
       XrdSysCondVarHelper _lck(m_state_cond);
 
@@ -1224,12 +1288,12 @@ void File::Prefetch()
 
       if ( ! select_current_io_or_disable_prefetching(true) )
       {
-         TRACEF(Error, "File::Prefetch no available IO object found, prefetching stopped. This should not happen, i.e., prefetching should be stopped before.");
+         TRACEF(Error, "Prefetch no available IO object found, prefetching stopped. This should not happen, i.e., prefetching should be stopped before.");
          return;
       }
 
       // Select block(s) to fetch.
-      for (int f = 0; f < m_cfi.GetSizeInBits(); ++f)
+      for (int f = 0; f < m_cfi.GetNBlocks(); ++f)
       {
          if ( ! m_cfi.TestBitWritten(f))
          {
@@ -1241,7 +1305,7 @@ void File::Prefetch()
                Block *b = PrepareBlockRequest(f_act, m_current_io->first, true);
                if (b)
                {
-                  TRACEF(Dump, "File::Prefetch take block " << f_act);
+                  TRACEF(Dump, "Prefetch take block " << f_act);
                   blks.push_back(b);
                   // Note: block ref_cnt not increased, it will be when placed into write queue.
                   m_prefetch_read_cnt++;
@@ -1250,7 +1314,7 @@ void File::Prefetch()
                else
                {
                   // This shouldn't happen as prefetching stops when RAM is 70% full.
-                  TRACEF(Warning, "File::Prefetch allocation failed for block " << f_act);
+                  TRACEF(Warning, "Prefetch allocation failed for block " << f_act);
                }
                break;
             }
@@ -1259,7 +1323,7 @@ void File::Prefetch()
 
       if (blks.empty())
       {
-         TRACEF(Debug, "File::Prefetch file is complete, stopping prefetch.");
+         TRACEF(Debug, "Prefetch file is complete, stopping prefetch.");
          m_prefetch_state = kComplete;
          cache()->DeRegisterPrefetchFile(this);
       }
@@ -1271,7 +1335,7 @@ void File::Prefetch()
 
    if ( ! blks.empty())
    {
-      ProcessBlockRequests(blks, true);
+      ProcessBlockRequests(blks);
    }
 }
 
@@ -1291,6 +1355,43 @@ XrdSysError* File::GetLog()
 XrdSysTrace* File::GetTrace()
 {
    return Cache::GetInstance().GetTrace();
+}
+
+void File::insert_remote_location(const std::string &loc)
+{
+   if ( ! loc.empty())
+   {
+      size_t p = loc.find_first_of('@');
+      m_remote_locations.insert(&loc[p != string::npos ? p + 1 : 0]);
+   }
+}
+
+std::string File::GetRemoteLocations() const
+{
+   std::string s;
+   if ( ! m_remote_locations.empty())
+   {
+      size_t      sl = 0;
+      int         nl = 0;
+      for (std::set<std::string>::iterator i = m_remote_locations.begin(); i != m_remote_locations.end(); ++i, ++nl)
+      {
+         sl += i->size();
+      }
+      s.reserve(2 + sl + 2*nl + nl - 1 + 1);
+      s = '[';
+      int j = 1;
+      for (std::set<std::string>::iterator i = m_remote_locations.begin(); i != m_remote_locations.end(); ++i, ++j)
+      {
+         s += '"'; s += *i; s += '"';
+         if (j < nl) s += ',';
+      }
+      s += ']';
+   }
+   else
+   {
+      s = "[]";
+   }
+   return s;
 }
 
 //==============================================================================

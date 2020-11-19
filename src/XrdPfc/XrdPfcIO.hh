@@ -16,7 +16,7 @@ namespace XrdPfc
 class IO : public XrdOucCacheIO
 {
 public:
-   IO (XrdOucCacheIO *io, XrdOucCacheStats &stats, Cache &cache);
+   IO (XrdOucCacheIO *io, Cache &cache);
 
    //! Original data source.
    virtual XrdOucCacheIO *Base() { return m_io; }
@@ -45,24 +45,25 @@ public:
    virtual bool ioActive()       = 0;
    virtual void DetachFinalize() = 0;
 
-   XrdSysTrace* GetTrace() { return m_cache.GetTrace(); }
+   const char*  GetLocation() { return m_io->Location(false); }
+   XrdSysTrace* GetTrace()    { return m_cache.GetTrace(); }
 
    XrdOucCacheIO* GetInput();
 
 protected:
-   XrdOucCacheStats &m_statsGlobal;     //!< reference to Cache statistics
-   Cache            &m_cache;           //!< reference to Cache needed in detach
-
+   Cache       &m_cache;           //!< reference to Cache needed in detach
    const char  *m_traceID;
-   std::string  m_path;
-   const char*  GetPath() { return m_path.c_str(); }
+
+   const char*  GetPath()         { return m_io->Path(); }
+   std::string  GetFilename()     { return XrdCl::URL(GetPath()).GetPath(); }
+   const char*  RefreshLocation() { return m_io->Location(true);  }
 
 private:
    XrdOucCacheIO  *m_io;                //!< original data source
    XrdSysMutex     updMutex;
-   void SetInput(XrdOucCacheIO*);
+
+   void         SetInput(XrdOucCacheIO*);
 };
 }
 
 #endif
-

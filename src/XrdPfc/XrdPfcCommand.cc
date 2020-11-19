@@ -244,7 +244,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
             myInfo.WriteIOStatSingle(file_size, att_time, att_time + access_duration[i]);
          }
 
-         myInfo.Write(myInfoFile);
+         myInfo.Write(myInfoFile, cinfo_path.c_str());
 
          myInfoFile->Close(); delete myInfoFile;
          myFile->Close();     delete myFile;

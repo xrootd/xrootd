@@ -19,10 +19,41 @@ using namespace XrdPfc;
 
 XrdVERSIONINFO(XrdOucGetCache, XrdPfc);
 
+Configuration::Configuration() :
+   m_hdfsmode(false),
+   m_allow_xrdpfc_command(false),
+   m_data_space("public"),
+   m_meta_space("public"),
+   m_diskTotalSpace(-1),
+   m_diskUsageLWM(-1),
+   m_diskUsageHWM(-1),
+   m_fileUsageBaseline(-1),
+   m_fileUsageNominal(-1),
+   m_fileUsageMax(-1),
+   m_purgeInterval(300),
+   m_purgeColdFilesAge(-1),
+   m_purgeAgeBasedPeriod(10),
+   m_accHistorySize(20),
+   m_dirStatsMaxDepth(-1),
+   m_dirStatsStoreDepth(0),
+   m_bufferSize(1024*1024),
+   m_RamAbsAvailable(0),
+   m_RamKeepStdBlocks(0),
+   m_wqueue_blocks(16),
+   m_wqueue_threads(4),
+   m_prefetch_max_blocks(10),
+   m_hdfsbsize(128*1024*1024),
+   m_flushCnt(2000),
+   m_cs_UVKeep(-1),
+   m_cs_Chk(CSChk_Net),
+   m_cs_ChkTLS(false)
+{}
+
+
 bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name)
 {
    char errStr[1024];
-   snprintf(errStr, 1024, "Cache::ConfigParameters() Error parsing parameter %s", name);
+   snprintf(errStr, 1024, "ConfigParameters() Error parsing parameter %s", name);
 
    if (::isalpha(*(str.rbegin())))
    {
@@ -47,7 +78,7 @@ bool Cache::cfg2bytes(const std::string &str, long long &store, long long totalS
 
    if (store < 0 || store > totalSpace)
    {
-     snprintf(errStr, 1024, "Cache::ConfigParameters() Error: parameter %s should be between 0 and total available disk space (%lld) - it is %lld (given as %s)",
+     snprintf(errStr, 1024, "ConfigParameters() Error: parameter %s should be between 0 and total available disk space (%lld) - it is %lld (given as %s)",
               name, totalSpace, store, str.c_str());
      m_log.Emsg(errStr, "");
      return false;
@@ -80,10 +111,10 @@ bool Cache::xcschk(XrdOucStream &Config)
    const char *val, *val2;
    struct cschkopts {const char *opname; int opval;} csopts[] =
    {
-      {"off",     csChk_None},
-      {"cache",   csChk_Cache},
-      {"net",     csChk_Net},
-      {"tls",     csChk_TLS}
+      {"off",     CSChk_None},
+      {"cache",   CSChk_Cache},
+      {"net",     CSChk_Net},
+      {"tls",     CSChk_TLS}
    };
    int i, numopts = sizeof(csopts)/sizeof(struct cschkopts);
    bool isNo;
@@ -92,36 +123,53 @@ bool Cache::xcschk(XrdOucStream &Config)
    {m_log.Emsg("Config", "cschk parameter not specified"); return false; }
 
    while(val)
-        {if ((isNo = strncmp(val, "no", 2) == 0)) val2 = val+2;
-            else val2 = val;
-         for (i = 0; i < numopts; i++)
-            {
-               if (! strcmp(val2, csopts[i].opname))
-               {
-                  if (isNo) m_csChk &= ~csopts[i].opval;
-                     else if (csopts[i].opval) m_csChk |= csopts[i].opval;
-                             else m_csChk = csopts[i].opval;
-                  break;
-               }
-            }
-          if (i >= numopts)
-          {  if (strcmp(val, "uvkeep"))
-             {  m_log.Emsg("Config", "invalid cschk option -", val);
-                return false;
-             }
-             if (! (val = Config.GetWord()))
-             {  m_log.Emsg("Config","cschk uvkeep value not specified");
-                return false;
-             }
-             if (!strcmp(val, "lru")) m_csUVKeep = -1;
-                else if (XrdOuca2x::a2tm(m_log,"uvkeep time",val,&m_csUVKeep,0))
-                        return false;
-          }
-          val = Config.GetWord();
-        }
+   {
+      if ((isNo = strncmp(val, "no", 2) == 0))
+         val2 = val + 2;
+      else
+         val2 = val;
+      for (i = 0; i < numopts; i++)
+      {
+         if (!strcmp(val2, csopts[i].opname))
+         {
+            if (isNo)
+               m_configuration.m_cs_Chk &= ~csopts[i].opval;
+            else if (csopts[i].opval)
+               m_configuration.m_cs_Chk |= csopts[i].opval;
+            else
+               m_configuration.m_cs_Chk  = csopts[i].opval;
+            break;
+         }
+      }
+      if (i >= numopts)
+      {
+         if (strcmp(val, "uvkeep"))
+         {
+            m_log.Emsg("Config", "invalid cschk option -", val);
+            return false;
+         }
+         if (!(val = Config.GetWord()))
+         {
+            m_log.Emsg("Config", "cschk uvkeep value not specified");
+            return false;
+         }
+         if (!strcmp(val, "lru"))
+            m_configuration.m_cs_UVKeep = -1;
+         else
+         {
+            int uvkeep;
+            if (XrdOuca2x::a2tm(m_log, "uvkeep time", val, &uvkeep, 0))
+               return false;
+            m_configuration.m_cs_UVKeep = uvkeep;
+         }
+      }
+      val = Config.GetWord();
+   }
+   // Decompose into separate TLS state, it is only passed on to psx
+   m_configuration.m_cs_ChkTLS =  m_configuration.m_cs_Chk & CSChk_TLS;
+   m_configuration.m_cs_Chk   &= ~CSChk_TLS;
 
-   if (!(m_csChk & csChk_Net)) m_env->Put("psx.CSNet", "0");
-      else m_env->Put("psx.CSNet", (m_csChk & csChk_TLS ? "2" : "1"));
+   m_env->Put("psx.CSNet", m_configuration.is_cschk_net() ? (m_configuration.m_cs_ChkTLS ? "2" : "1") : "0");
 
    return true;
 }
@@ -168,7 +216,7 @@ bool Cache::xdlib(XrdOucStream &Config)
    Decision * d = ep(m_log);
    if (! d)
    {
-      TRACE(Error, "Cache::Config() decisionlib was not able to create a decision object");
+      TRACE(Error, "Config() decisionlib was not able to create a decision object");
       return false;
    }
    if (params[0])
@@ -230,14 +278,14 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    if (! config_filename || ! *config_filename)
    {
-      TRACE(Error, "Cache::Config() configuration file not specified.");
+      TRACE(Error, "Config() configuration file not specified.");
       return false;
    }
 
    int fd;
    if ( (fd = open(config_filename, O_RDONLY, 0)) < 0)
    {
-      TRACE( Error, "Cache::Config() can't open configuration file " << config_filename);
+      TRACE( Error, "Config() can't open configuration file " << config_filename);
       return false;
    }
 
@@ -261,9 +309,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    }
 
    // If network checksum processing is the default, indicate so.
-   //
-   if (m_csChk & csChk_Net)
-      m_env->Put("psx.CSNet", (m_csChk & csChk_TLS ? "2" : "1"));
+   if (m_configuration.is_cschk_net()) m_env->Put("psx.CSNet", m_configuration.m_cs_ChkTLS ? "2" : "1");
 
    // Actual parsing of the config file.
    bool retval = true, aOK = true;
@@ -297,7 +343,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
       if ( ! retval)
       {
-         TRACE(Error, "Cache::Config() error in parsing");
+         TRACE(Error, "Config() error in parsing");
          aOK = false;
       }
    }
@@ -306,14 +352,24 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 
    // Load OSS plugin.
    myEnv.Put("oss.runmode", "pfc");
+   if (m_configuration.is_cschk_cache())
+   {
+      char csi_conf[128];
+      if (snprintf(csi_conf, 128, "space=%s nofill", m_configuration.m_meta_space.c_str()) < 128)
+      {
+         ofsCfg->Push(XrdOfsConfigPI::theOssLib, "libXrdOssCsi", csi_conf);
+      } else {
+         TRACE(Error, "Config() buffer too small for libXrdOssCsi params.");
+         return false;
+      }
+   }
    if (ofsCfg->Load(XrdOfsConfigPI::theOssLib, &myEnv))
    {
       ofsCfg->Plugin(m_oss);
    }
    else
    {
-      TRACE(Error, "Cache::Config() Unable to create an OSS object");
-      m_oss = 0;
+      TRACE(Error, "Config() Unable to create an OSS object");
       return false;
    }
 
@@ -322,12 +378,12 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    {
       if (m_oss->StatVS(&sP, m_configuration.m_data_space.c_str(), 1) < 0)
       {
-         m_log.Emsg("Cache::ConfigParameters()", "error obtaining stat info for data space ", m_configuration.m_data_space.c_str());
+         m_log.Emsg("ConfigParameters()", "error obtaining stat info for data space ", m_configuration.m_data_space.c_str());
          return false;
       }
       if (sP.Total < 10ll << 20)
       {
-         m_log.Emsg("Cache::ConfigParameters()", "available data space is less than 10 MB (can be due to a mistake in oss.localroot directive) for space ",
+         m_log.Emsg("ConfigParameters()", "available data space is less than 10 MB (can be due to a mistake in oss.localroot directive) for space ",
                     m_configuration.m_data_space.c_str());
                     return false;
       }
@@ -339,7 +395,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       {
          if (m_configuration.m_diskUsageLWM >= m_configuration.m_diskUsageHWM) {
             printf("GGGG %lld %lld\n", m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
-            m_log.Emsg("Cache::ConfigParameters()", "pfc.diskusage should have lowWatermark < highWatermark.");
+            m_log.Emsg("ConfigParameters()", "pfc.diskusage should have lowWatermark < highWatermark.");
             aOK = false;
          }
       }
@@ -355,7 +411,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
               m_configuration.m_fileUsageBaseline >= m_configuration.m_fileUsageMax     ||
               m_configuration.m_fileUsageNominal  >= m_configuration.m_fileUsageMax)
           {
-            m_log.Emsg("Cache::ConfigParameters()", "pfc.diskusage files should have baseline < nominal < max.");
+            m_log.Emsg("ConfigParameters()", "pfc.diskusage files should have baseline < nominal < max.");
             aOK = false;
           }
         }
@@ -413,9 +469,11 @@ bool Cache::Config(const char *config_filename, const char *parameters)
 //                         111
                            "cache net tls"};
       char buff[8192], uvk[32];
-      if (m_csUVKeep < 0) strcpy(uvk, "lru");
-         else sprintf(uvk, "%d", m_csUVKeep);
-      float rg =  (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
+      if (m_configuration.m_cs_UVKeep < 0)
+         strcpy(uvk, "lru");
+      else
+         sprintf(uvk, "%ld", m_configuration.m_cs_UVKeep);
+      float rg = (m_configuration.m_RamAbsAvailable) / float(1024*1024*1024);
       loff = snprintf(buff, sizeof(buff), "Config effective %s pfc configuration:\n"
                       "       pfc.cschk %s uvkeep %s\n"
                       "       pfc.blocksize %lld\n"
@@ -429,7 +487,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       "       pfc.flush %lld\n"
                       "       pfc.acchistorysize %d\n",
                       config_filename,
-                      csc[int(m_csChk)], uvk,
+                      csc[int(m_configuration.m_cs_Chk)], uvk,
                       m_configuration.m_bufferSize,
                       m_configuration.m_prefetch_max_blocks,
                       rg,
@@ -444,7 +502,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
                       m_configuration.m_flushCnt,
                       m_configuration.m_accHistorySize);
 
-      if (m_configuration.are_dirstats_enabled())
+      if (m_configuration.is_dir_stat_reporting_on())
       {
          loff += snprintf(buff + loff, sizeof(buff) - loff,
                           "       pfc.dirstats maxdepth %d ((internal: store_depth %d, size_of_dirlist %d, size_of_globlist %d))\n",
@@ -488,6 +546,21 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    m_log.Say("------ Proxy File Cache configuration parsing ", aOK ? "completed" : "failed");
 
    if (ofsCfg) delete ofsCfg;
+
+   // XXXX-CKSUM Testing. To be removed after OssPgi is also merged and valildated.
+   // Building of xrdpfc_print fails when this is enabled.
+#ifdef XRDPFC_CKSUM_TEST
+   {
+      int xxx = m_configuration.m_cs_Chk;
+
+      for (m_configuration.m_cs_Chk = CSChk_None; m_configuration.m_cs_Chk <= CSChk_Both; ++m_configuration.m_cs_Chk)
+      {
+         Info::TestCksumStuff();
+      }
+
+      m_configuration.m_cs_Chk = xxx;
+   }
+#endif
 
    return aOK;
 }
@@ -560,7 +633,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
             {
                return false;
             }
-            if (XrdOuca2x::a2i(m_log, "Error getting purgecoldfiles period", cwg.GetWord(), &m_configuration.m_purgeColdFilesPeriod, 1, 1000))
+            if (XrdOuca2x::a2i(m_log, "Error getting purgecoldfiles period", cwg.GetWord(), &m_configuration.m_purgeAgeBasedPeriod, 1, 1000))
             {
                return false;
             }
@@ -580,14 +653,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else if ( part == "dirstats" )
    {
-      m_configuration.m_dirStats = true;
-
       const char *p = 0;
-      while ((p = cwg.GetWord()))
+      while ((p = cwg.GetWord()) && cwg.HasLast())
       {
          if (strcmp(p, "maxdepth") == 0)
          {
-            if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(), &m_configuration.m_dirStatsMaxDepth, 0, 5))
+            if (XrdOuca2x::a2i(m_log, "Error getting maxdepth value", cwg.GetWord(), &m_configuration.m_dirStatsMaxDepth, 0, 16))
             {
                return false;
             }
@@ -646,7 +717,8 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          }
          else
          {
-            m_log.Emsg("Config", "Error: dirstats stanza contains unknown directive", p);
+            m_log.Emsg("Config", "Error: dirstats stanza contains unknown directive '", p, "'");
+            return false;
          }
       }
    }
@@ -657,6 +729,12 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
       if (XrdOuca2x::a2sz(m_log, "Error reading block-size", cwg.GetWord(), &m_configuration.m_bufferSize, minBSize, maxBSize))
       {
          return false;
+      }
+      if (m_configuration.m_bufferSize & 0xFFF)
+      {
+         m_configuration.m_bufferSize &= ~0x0FFF;
+         m_configuration.m_bufferSize +=  0x1000;
+         m_log.Emsg("Config", "pfc.blocksize must be a multiple of 4 kB. Rounded up.");
       }
    }
    else if ( part == "prefetch" || part == "nramprefetch" )
@@ -745,7 +823,7 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
    }
    else
    {
-      m_log.Emsg("Cache::ConfigParameters() unmatched pfc parameter", part.c_str());
+      m_log.Emsg("ConfigParameters() unmatched pfc parameter", part.c_str());
       return false;
    }
 
