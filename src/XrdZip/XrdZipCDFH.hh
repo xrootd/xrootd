@@ -147,6 +147,16 @@ namespace XrdZip
     }
 
     //-------------------------------------------------------------------------
+    // Choose the right offset value from the CDFH record
+    //-------------------------------------------------------------------------
+    inline static uint64_t GetOffset( const CDFH &cdfh )
+    {
+      if( cdfh.offset != ovrflw<uint32_t>::value )
+        return cdfh.offset;
+      return cdfh.extra->offset;
+    }
+
+    //-------------------------------------------------------------------------
     // Parse the extensible data fields
     //-------------------------------------------------------------------------
     void ParseExtra( const char *buffer, uint16_t length)
