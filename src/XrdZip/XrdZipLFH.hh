@@ -70,7 +70,6 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     void Serialize( buffer_t &buffer )
     {
-      uint16_t size = lfhSize - extraLength;
       copy_bytes( lfhSign, buffer );
       copy_bytes( minZipVersion, buffer );
       copy_bytes( generalBitFlag, buffer );
@@ -102,7 +101,7 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Local File Header signature
     //-------------------------------------------------------------------------
-    static const uint32_t lfhSign = 0x04034b50;
+    static const uint32_t lfhSign     = 0x04034b50;
     static const uint16_t lfhBaseSize = 30;
   };
 }
