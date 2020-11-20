@@ -93,7 +93,7 @@ XrdOfsConfigPI::XrdOfsConfigPI(const char  *cfn,  XrdOucStream     *cfgP,
                  : autPI(0), cksPI(0), cmsPI(0), ctlPI(0), prpPI(0), ossPI(0),
                    sfsPI(sfsP), urVer(verP),
                    Config(cfgP),  Eroute(errP), CksConfig(0), ConfigFN(cfn),
-                   CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(true),
+                   CksAlg(0), CksRdsz(0), ossXAttr(false), ossCksio(0),
                    prpAuth(true), Loaded(false), LoadOK(false), cksLcl(false)
 {
    int rc;
@@ -391,10 +391,12 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
    if (Loaded) return LoadOK;
    Loaded = true;
 
-// Load the osslib first if so wanted
+// Load the osslib first if so wanted. Note that the default osslib always
+// wants osscksio unless it was stealthly overriden.
 //
    if (DO_LOAD(theOssLib))
       {const char *ossLib = LP[PIX(theOssLib)].lib;
+       if (!ossLib && !ossCksio) ossCksio = 1;
        if (!(ossPI = XrdOssGetSS(Eroute->logger(), ConfigFN, ossLib,
                         LP[PIX(theOssLib)].parms, envP, *urVer))) return false;
        if (ossLib && envP && (ossLib = envP->Get("oss.lib")))
@@ -434,7 +436,7 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
                                   "incompatible versions.");
            return false;
           }
-       cksPI = CksConfig->Configure(CksAlg, CksRdsz, (ossCksio ? ossPI : 0));
+       cksPI = CksConfig->Configure(CksAlg,CksRdsz,(ossCksio > 0 ? ossPI : 0));
        if (!cksPI) return false;
       }
 
@@ -478,7 +480,7 @@ XrdOfsConfigPI *XrdOfsConfigPI::New(const char  *cfn,  XrdOucStream   *cfgP,
 /*                                O s s C k s                                 */
 /******************************************************************************/
 
-bool   XrdOfsConfigPI::OssCks() {return ossCksio;}
+bool   XrdOfsConfigPI::OssCks() {return ossCksio > 0;}
   
 /******************************************************************************/
 /*                                 P a r s e                                  */
@@ -579,13 +581,12 @@ bool XrdOfsConfigPI::ParseAtrLib()
 /* Function: ParseOssLib
 
    Purpose:  To parse the directive: osslib [++ | <opts>] <path> [<parms>]
-             <opts>: [+cksio] [+xattr] [<opts>]
+             <opts>: [+cksio] [+mmapio] [+xattr] [<opts>]
 
              +cksio    use the oss plugin for checkum I/O. This is now the
-                       default and is kept (not documented) for backward
-                       compatability.
+                       default for the native oss plugin unless +mmapio set.
              +mmapio   use memory mapping i/o (previously the default). This
-                       is also not documented but here just in case.
+                       is not documented but here just in case.
              +xattr    the library contains the xattr plugin.
              <path>    the path of the oss library to be used.
              <parms>   optional parms to be passed
@@ -604,7 +605,7 @@ bool XrdOfsConfigPI::ParseOssLib()
 
 // Reset to defaults
 //
-    ossCksio = true;
+    ossCksio = 0;
     ossXAttr = false;
     if (LP[oI].opts) {free(LP[oI].opts); LP[oI].opts = 0;}
     *oBuff = 0;
@@ -613,9 +614,9 @@ bool XrdOfsConfigPI::ParseOssLib()
 //
    while(val)
         {     if (!strcmp("+cksio",  val))
-                 {if (!ossCksio) strcat(oBuff, "+cksio  "); ossCksio = true;}
+                 {if (!ossCksio) strcat(oBuff, "+cksio  "); ossCksio =  1;}
          else if (!strcmp("+mmapio", val))
-                 {if ( ossCksio) strcat(oBuff, "+mmapio "); ossCksio = false;}
+                 {if ( ossCksio) strcat(oBuff, "+mmapio "); ossCksio = -1;}
          else if (!strcmp("+xattr",  val))
                  {if (!ossXAttr) strcat(oBuff, "+xattr ");  ossXAttr = true;}
          else break;

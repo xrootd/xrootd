@@ -313,7 +313,7 @@ int           CksRdsz;
 bool          pushOK[maxXXXLib];
 bool          defLib[maxXXXLib];
 bool          ossXAttr;
-bool          ossCksio;
+char          ossCksio;
 bool          prpAuth;
 bool          Loaded;
 bool          LoadOK;
