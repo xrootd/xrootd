@@ -82,6 +82,31 @@ namespace XrdZip
       return std::make_tuple( std::move( cdvec ), std::move( cdmap ) );
     }
 
+    //---------------------------------------------------------------------------
+    // Calculate size of the Central Directory
+    //---------------------------------------------------------------------------
+    inline static size_t CalcSize( const cdvec_t &cdvec )
+    {
+      size_t size = 0;
+      auto itr = cdvec.begin();
+      for( ; itr != cdvec.end() ; ++itr )
+      {
+        CDFH *cdfh = itr->get();
+        size += cdfh->cdfhSize;
+      }
+      return size;
+    }
+
+    inline static void Serialize( const cdvec_t &cdvec, buffer_t &buffer )
+    {
+      auto itr = cdvec.begin();
+      for( ; itr != cdvec.end() ; ++itr )
+      {
+        CDFH *cdfh = itr->get();
+        cdfh->Serialize( buffer );
+      }
+    }
+
     //-------------------------------------------------------------------------
     // Constructor from Local File Header
     //-------------------------------------------------------------------------
