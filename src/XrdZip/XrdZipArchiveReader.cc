@@ -13,7 +13,9 @@ namespace XrdZip
 {
 
   ArchiveReader::ArchiveReader() : archsize( 0 ),
-                                   newarch( false ),
+                                   cdexists( false ),
+                                   updated( false ),
+                                   cdoff( 0 ),
                                    openstage( None ),
                                    flags( XrdCl::OpenFlags::None )
   {
@@ -46,7 +48,7 @@ namespace XrdZip
                                  // if it is an empty file (possibly a new file) there's nothing more to do
                                  if( archsize == 0 )
                                  {
-                                   newarch = true;
+                                   cdexists = false;
                                    openstage = Done;
                                    Pipeline::Stop();
                                  }
@@ -88,7 +90,8 @@ namespace XrdZip
                                       {
                                         // If we managed to download the whole archive we don't need to
                                         // worry about zip64, it is so small that standard EOCD will do
-                                        buff = buff + eocd->cdOffset;
+                                        cdoff = eocd->cdOffset;
+                                        buff = buff + cdoff;
                                         openstage = HaveCdRecords;
                                         continue;
                                       }
@@ -109,6 +112,7 @@ namespace XrdZip
 
                                       // It's not ZIP64, we already know where the CD records are
                                       // we need to read more data
+                                      cdoff  = eocd->cdOffset;
                                       rdoff  = eocd->cdOffset;
                                       rdsize = eocd->cdSize;
                                       buffer.reset( new char[*rdsize] );
@@ -149,6 +153,7 @@ namespace XrdZip
                                       zip64eocd.reset( new ZIP64_EOCD( buff ) );
 
                                       // now we can read the CD records
+                                      cdoff  = zip64eocd->cdOffset;
                                       rdoff  = zip64eocd->cdOffset;
                                       rdsize = zip64eocd->cdSize;
                                       buffer.reset( new char[*rdsize] );
@@ -202,7 +207,7 @@ namespace XrdZip
       return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp );
 
     this->flags = flags;
-    auto itr = cdmap.find( fn );
+    auto  itr   = cdmap.find( fn );
     if( itr == cdmap.end() )
     {
       if( flags | XrdCl::OpenFlags::New )
@@ -210,16 +215,16 @@ namespace XrdZip
         openfn = fn;
         lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
 
-        uint64_t wrtoff = archsize;
+        uint64_t wrtoff = cdoff;
         uint32_t wrtlen = lfh->lfhSize;
         buffer_t wrtbuf;
         wrtbuf.reserve( wrtlen );
         lfh->Serialize( wrtbuf );
         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-        if( !newarch )
+        if( cdexists )
         {
-          // TODO set wrtoff to cdoff and shift cdoff
           // TODO if this is an append: checkpoint the EOCD&co
+          cdexists = false;
         }
 
         XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, lfh->lfhSize, wrtbuf.data() ) >>
@@ -228,12 +233,12 @@ namespace XrdZip
                                 if( st.IsOK() )
                                 {
                                   archsize += wrtlen;
+                                  cdoff    += wrtlen;
                                   cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
                                   cdmap[fn] = cdvec.size() - 1;
                                 }
                                 if( handler )
                                   handler->HandleResponse( make_status( st ), nullptr );
-                                lfh.reset();
                               };
         XrdCl::Async( std::move( p ), timeout );
         return XrdCl::XRootDStatus();
@@ -249,13 +254,60 @@ namespace XrdZip
   XrdCl::XRootDStatus ArchiveReader::CloseArchive( XrdCl::ResponseHandler *handler,
                                                    uint16_t                timeout )
   {
-    buffer.reset();
-    eocd.reset();
-    cdvec.clear();
-    cdmap.clear();
-    zip64eocd.reset();
-    openstage = None;
-    return archive.Close( handler, timeout );
+    if( updated )
+    {
+      uint64_t wrtoff  = cdoff;
+      uint32_t wrtsize = 0;
+      uint32_t cdsize  = CDFH::CalcSize( cdvec );
+      // first create the EOCD record
+      eocd.reset( new EOCD( cdoff, cdvec.size(), cdsize ) );
+      wrtsize += eocd->eocdSize ;
+      wrtsize += eocd->cdSize;
+      // then create zip64eocd & zip64eocdl if necessary
+      std::unique_ptr<ZIP64_EOCD>  zip64eocd;
+      std::unique_ptr<ZIP64_EOCDL> zip64eocdl;
+      if( eocd->useZip64 )
+      {
+        zip64eocd.reset( new ZIP64_EOCD( cdoff, cdvec.size(), cdsize ) );
+        wrtsize += zip64eocd->zip64EocdTotalSize;
+        zip64eocdl.reset( new ZIP64_EOCDL( *eocd, *zip64eocd ) );
+        wrtsize += ZIP64_EOCDL::zip64EocdlSize;
+      }
+
+      // the shared pointer will be copied by the lambda (note [=])
+      std::shared_ptr<buffer_t> wrtbuff( new buffer_t() );
+      wrtbuff->reserve( wrtsize );
+      // Now serialize all records into a buffer
+      CDFH::Serialize( cdvec, *wrtbuff );
+      if( zip64eocd )
+        zip64eocd->Serialize( *wrtbuff );
+      if( zip64eocdl )
+        zip64eocdl->Serialize( *wrtbuff );
+      eocd->Serialize( *wrtbuff );
+
+      XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() )
+                        | XrdCl::Close( archive ) >>
+                            [=]( XrdCl::XRootDStatus &st )
+                            {
+                              if( st.IsOK() ) Clear();
+                              else openstage = Error;
+                              Clear();
+                              if( handler ) handler->HandleResponse( make_status( st ), nullptr );
+                            };
+      XrdCl::Async( std::move( p ), timeout );
+      return XrdCl::XRootDStatus();
+    }
+
+    XrdCl::Pipeline p = XrdCl::Close( archive ) >>
+                          [=]( XrdCl::XRootDStatus &st )
+                          {
+                            if( st.IsOK() ) Clear();
+                            else openstage = Error;
+                            Clear();
+                            if( handler ) handler->HandleResponse( make_status( st ), nullptr );
+                          };
+    XrdCl::Async( std::move( p ), timeout );
+    return XrdCl::XRootDStatus();
   }
 
   XrdCl::XRootDStatus ArchiveReader::Read( uint64_t                relativeOffset,
@@ -454,12 +506,16 @@ namespace XrdZip
                                             XrdCl::ResponseHandler *handler,
                                             uint16_t                timeout )
   {
-    uint64_t wrtoff = archsize; // we only support appending
-
+    uint64_t wrtoff = cdoff; // we only support appending
     XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, size, buffer ) >>
                           [=]( XrdCl::XRootDStatus &st )
                           {
-                            if( st.IsOK() ) archsize += size;
+                            if( st.IsOK() )
+                            {
+                              cdoff    += size;
+                              archsize += size;
+                              updated   = true;
+                            }
                             if( handler )
                               handler->HandleResponse( make_status( st ), nullptr );
                           };

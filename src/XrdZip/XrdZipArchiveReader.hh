@@ -69,8 +69,9 @@ namespace XrdZip
       inline XrdCl::XRootDStatus CloseFile( XrdCl::ResponseHandler  *handler = nullptr,
                                             uint16_t                 timeout = 0 )
       {
-        // TODO if this is a write it is more complicated
         openfn.clear();
+        lfh.reset();
+        if( handler ) Schedule( handler, make_status() );
         return XrdCl::XRootDStatus();
       }
 
@@ -97,16 +98,30 @@ namespace XrdZip
       inline void Schedule( XrdCl::ResponseHandler *handler, XrdCl::XRootDStatus *st )
       {
         if( !handler ) return delete st;
-        XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, 0, 0 );
-        XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+        XrdCl::JobManager *jobMgr = XrdCl::DefaultEnv::GetPostMaster()->GetJobManager();
+        if( jobMgr->IsWorker() )
+          // this is a worker thread so we can simply call the handler
+          handler->HandleResponse( st, nullptr );
+        else
+        {
+          XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, nullptr, nullptr );
+          XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+        }
       }
 
       template<typename Response>
       inline static void Schedule( XrdCl::ResponseHandler *handler, XrdCl::XRootDStatus *st, Response *rsp )
       {
         if( !handler ) return Free( st, rsp );
-        XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, PkgRsp( rsp ), 0 );
-        XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+        XrdCl::JobManager *jobMgr = XrdCl::DefaultEnv::GetPostMaster()->GetJobManager();
+        if( jobMgr->IsWorker() )
+          // this is a worker thread so we can simply call the handler
+          handler->HandleResponse( st, PkgRsp( rsp ) );
+        else
+        {
+          XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, PkgRsp( rsp ), 0 );
+          XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+        }
       }
 
       inline static XrdCl::StatInfo* make_stat( const XrdCl::StatInfo &starch, uint64_t size )
@@ -139,6 +154,16 @@ namespace XrdZip
         return new XrdCl::XRootDStatus();
       }
 
+      inline void Clear()
+      {
+        buffer.reset();
+        eocd.reset();
+        cdvec.clear();
+        cdmap.clear();
+        zip64eocd.reset();
+        openstage = None;
+      }
+
       enum OpenStages
       {
         None = 0,
@@ -146,18 +171,21 @@ namespace XrdZip
         HaveZip64EocdlBlk,
         HaveZip64EocdBlk,
         HaveCdRecords,
-        Done
+        Done,
+        Error
       };
 
       typedef std::unordered_map<std::string, InflCache> inflcache_t;
 
       XrdCl::File                 archive;
       uint64_t                    archsize;
-      bool                        newarch;
+      bool                        cdexists;
+      bool                        updated;
       std::unique_ptr<char[]>     buffer;
       std::unique_ptr<EOCD>       eocd;
       cdvec_t                     cdvec;
       cdmap_t                     cdmap;
+      uint64_t                    cdoff;
       std::unique_ptr<ZIP64_EOCD> zip64eocd;
       OpenStages                  openstage;
       std::string                 openfn;
