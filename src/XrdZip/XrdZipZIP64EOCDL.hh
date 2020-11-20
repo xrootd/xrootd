@@ -33,19 +33,19 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Constructor from EOCD and ZIP64 EOCD
     //-------------------------------------------------------------------------
-    ZIP64_EOCDL( EOCD *eocd, ZIP64_EOCD *zip64Eocd ):
+    ZIP64_EOCDL( const EOCD &eocd, const ZIP64_EOCD &zip64Eocd ):
       nbDiskZip64Eocd( 0 ),
       totalNbDisks( 1 )
     {
-      if ( eocd->cdOffset == ovrflw<uint32_t>::value )
-        zip64EocdOffset = zip64Eocd->cdOffset;
+      if ( eocd.cdOffset == ovrflw<uint32_t>::value )
+        zip64EocdOffset = zip64Eocd.cdOffset;
       else
-        zip64EocdOffset = eocd->cdOffset;
+        zip64EocdOffset = eocd.cdOffset;
 
-      if ( eocd->cdSize == ovrflw<uint32_t>::value )
-        zip64EocdOffset += zip64Eocd->cdSize;
+      if ( eocd.cdSize == ovrflw<uint32_t>::value )
+        zip64EocdOffset += zip64Eocd.cdSize;
       else
-        zip64EocdOffset += eocd->cdSize;
+        zip64EocdOffset += eocd.cdSize;
     }
 
     //-------------------------------------------------------------------------

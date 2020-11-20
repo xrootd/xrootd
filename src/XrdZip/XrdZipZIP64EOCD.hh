@@ -43,40 +43,18 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Constructor from last LFH + CDFH
     //-------------------------------------------------------------------------
-    ZIP64_EOCD( EOCD *eocd,
-               LFH  *lfh,
-               CDFH *cdfh,
-               uint16_t prevNbCdRecD = 0,
-               uint16_t prevNbCdRec = 0,
-               uint32_t prevCdSize = 0,
-               uint32_t prevCdOffset = 0 ) :
+    ZIP64_EOCD( uint64_t cdoff, uint32_t cdcnt, uint32_t cdsize ) :
                   zipVersion( ( 3 << 8 ) | 63 ),
                   minZipVersion( 45 ),
-                  nbDisk( eocd->nbDisk ),
-                  nbDiskCd( eocd->nbDiskCd ),
+                  nbDisk( 0 ),
+                  nbDiskCd( 0 ),
                   extensibleDataLength( 0 )
     {
-      if ( eocd->nbCdRecD == ovrflw<uint16_t>::value )
-        nbCdRecD = prevNbCdRecD + 1;
-      else
-        nbCdRecD = eocd->nbCdRecD;
-      if ( eocd->nbCdRec == ovrflw<uint16_t>::value )
-        nbCdRec = prevNbCdRec + 1;
-      else
-        nbCdRec = eocd->nbCdRec;
-      if ( eocd->cdSize == ovrflw<uint32_t>::value )
-        cdSize = prevCdSize + cdfh->cdfhSize;
-      else
-        cdSize = eocd->cdSize;
-      if ( eocd->cdOffset == ovrflw<uint32_t>::value )
-      {
-        if ( lfh->compressedSize == ovrflw<uint32_t>::value )
-          cdOffset = prevCdOffset + lfh->lfhSize + lfh->extra->compressedSize;
-        else
-          cdOffset = prevCdOffset + lfh->lfhSize + lfh->compressedSize;
-      }
-      else
-        cdOffset = eocd->cdOffset;
+      nbCdRec  = cdcnt;
+      nbCdRecD = cdcnt;
+      cdSize   = cdsize;
+      cdOffset = cdoff;
+
       zip64EocdSize = zip64EocdBaseSize + extensibleDataLength - 12;
       zip64EocdTotalSize = zip64EocdBaseSize + extensibleDataLength;
     }

@@ -68,26 +68,32 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Constructor from last LFH + CDFH
     //-------------------------------------------------------------------------
-    EOCD( LFH *lfh, CDFH *cdfh ):
+    EOCD( uint64_t cdoff, uint32_t cdcnt, uint32_t cdsize ):
       useZip64( false ),
       nbDisk( 0 ),
       nbDiskCd( 0 ),
-      nbCdRecD( 1 ),
-      nbCdRec( 1 ),
       commentLength( 0 )
     {
-      if( lfh->compressedSize == ovrflw<uint32_t>::value ||
-          lfh->lfhSize + lfh->compressedSize >= ovrflw<uint32_t>::value )
+      if( cdcnt >= ovrflw<uint16_t>::value )
       {
-        cdOffset = ovrflw<uint32_t>::value;
-        cdSize   = ovrflw<uint32_t>::value;
-        useZip64 = true;
+        nbCdRecD = ovrflw<uint16_t>::value;
+        nbCdRec  = ovrflw<uint16_t>::value;
       }
       else
       {
-        cdOffset = lfh->lfhSize + lfh->compressedSize;
-        cdSize   = cdfh->cdfhSize;
+        nbCdRecD = cdcnt;
+        nbCdRec  = cdcnt;
       }
+
+      cdSize = cdsize;
+
+      if( cdoff >= ovrflw<uint32_t>::value )
+      {
+        cdOffset = ovrflw<uint32_t>::value;
+        useZip64 = true;
+      }
+      else
+        cdOffset = cdoff;
 
       eocdSize = eocdBaseSize + commentLength;
     }
