@@ -951,7 +951,7 @@ void File::WriteBlockToDisk(Block* b)
 
    if (m_cfi.IsCkSumCache())
       if (b->has_cksums())
-         retval = m_data_file->pgWrite(b->get_buff(), offset, size, b->ref_cksum_vec().data(), b->ref_cksum_vec().size());
+         retval = m_data_file->pgWrite(b->get_buff(), offset, size, b->ref_cksum_vec().data(), 0);
       else
          retval = m_data_file->pgWrite(b->get_buff(), offset, size, 0, 0);
    else
