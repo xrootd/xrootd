@@ -25,5 +25,6 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[cmsd]** Correctly parse osslib when it have options.
   **[Xcache]** Allow origin location query to be refreshed.
   **[CMS]** Ignore stacked plugin specifications as they are not supported.
