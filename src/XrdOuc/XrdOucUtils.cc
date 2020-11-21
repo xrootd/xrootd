@@ -765,18 +765,26 @@ bool XrdOucUtils::parseLib(XrdSysError &eDest, XrdOucStream &Config,
 {
     char *val, parms[2048];
 
-// Get the path
+// Get the next token
 //
-   if (!(val = Config.GetWord()) || !val[0])
-      {eDest.Emsg("Config", libName, "not specified"); return false;}
+   val = Config.GetWord();
 
-// We do not support stacking s the caller does not support stacking
+// We do not support stacking as the caller does not support stacking
 //
-   if (!strcmp("++", val))
+   if (val && !strcmp("++", val))
       {eDest.Say("Config warning: stacked plugins are not supported in "
                  "this context; directive ignored!");
        return true;
       }
+
+// Now skip over any options
+//
+   while(val && *val && *val == '+') val = Config.GetWord();
+
+// Check if we actually have a path
+//
+   if (!val || !val[0])
+      {eDest.Emsg("Config", libName, "not specified"); return false;}
 
 // Record the path
 //
@@ -791,6 +799,7 @@ bool XrdOucUtils::parseLib(XrdSysError &eDest, XrdOucStream &Config,
 
 // Record any parms
 //
+   *parms = 0;
    if (!Config.GetRest(parms, sizeof(parms)))
       {eDest.Emsg("Config", libName, "parameters too long"); return false;}
    if (*parms) *libParm = strdup(parms);
