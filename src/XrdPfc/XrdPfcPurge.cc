@@ -564,7 +564,10 @@ void Cache::copy_out_active_stats_and_update_data_fs_state()
 
       for (ActiveMap_i i = m_active.begin(); i != m_active.end(); ++i)
       {
-         updates.insert(std::make_pair(i->first, i->second->DeltaStatsFromLastCall()));
+         if (i->second != 0)
+         {
+            updates.insert(std::make_pair(i->first, i->second->DeltaStatsFromLastCall()));
+         }
       }
    }
 
