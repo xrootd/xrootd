@@ -357,7 +357,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       char csi_conf[128];
       if (snprintf(csi_conf, 128, "space=%s nofill", m_configuration.m_meta_space.c_str()) < 128)
       {
-         ofsCfg->Push(XrdOfsConfigPI::theOssLib, "libXrdOssCsi", csi_conf);
+         ofsCfg->Push(XrdOfsConfigPI::theOssLib, "libXrdOssCsi.so", csi_conf);
       } else {
          TRACE(Error, "Config() buffer too small for libXrdOssCsi params.");
          return false;
