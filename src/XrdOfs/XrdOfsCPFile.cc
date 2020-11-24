@@ -44,6 +44,7 @@
 #include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysXAttr.hh"
 

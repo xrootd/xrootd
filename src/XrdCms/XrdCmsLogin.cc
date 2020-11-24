@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <netinet/in.h>
+#include <unistd.h>
 
 #include "XProtocol/YProtocol.hh"
 
@@ -210,6 +211,18 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
    char         Work[xNum*12];
    struct iovec Liov[xNum];
    CmsRRHdr     Resp={0, kYR_login, 0, 0};
+   static int   iovmax = -1;
+   if (iovmax == -1) {
+#ifdef _SC_IOV_MAX
+      iovmax = sysconf(_SC_IOV_MAX);
+      if (iovmax == -1)
+#endif
+#ifdef IOV_MAX
+         iovmax = IOV_MAX;
+#else
+         iovmax = 1024;
+#endif
+   }
 
 // Pack the response (ignore the auth token for now)
 //
@@ -225,11 +238,11 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 // Send off the data *break it up to IOV_MAX chunks, mostly for Solaris)
 //
    n = 0; iovcnt++;
-   if (iovcnt <= IOV_MAX) Link->Send(Liov, iovcnt);
+   if (iovcnt <= iovmax) Link->Send(Liov, iovcnt);
       else while(iovcnt > 0)
-                {iovnum = (iovcnt > IOV_MAX ? IOV_MAX : iovcnt);
+                {iovnum = (iovcnt > iovmax ? iovmax : iovcnt);
                  Link->Send(&Liov[n], iovnum);
-                 n += IOV_MAX; iovcnt -= IOV_MAX;
+                 n += iovmax; iovcnt -= iovmax;
                 }
 
 // Return success

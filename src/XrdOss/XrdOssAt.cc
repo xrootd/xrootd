@@ -42,6 +42,7 @@
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                      E x t e r n a l   O b j e c t s                       */

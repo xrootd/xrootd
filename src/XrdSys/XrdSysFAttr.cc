@@ -68,28 +68,23 @@ XrdSysXAttr *XrdSysFAttr::Xat = &dfltXAttr;
   
 #if    defined(__FreeBSD__)
 #include "XrdSys/XrdSysFAttrBsd.icc"
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__GNU__)
 #include "XrdSys/XrdSysFAttrLnx.icc"
 #elif defined(__APPLE__)
 #include "XrdSys/XrdSysFAttrMac.icc"
 #elif defined(__solaris__)
 #include "XrdSys/XrdSysFAttrSun.icc"
 #else
-int XrdSysFAttr::Del(const char *Aname, const char *Path)
+int XrdSysFAttr::Del(const char *Aname, const char *Path, int fd)
                 {return -ENOTSUP;}
-int XrdSysFAttr::Del(const char *Aname, int fd)
+int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
                 {return -ENOTSUP;}
-int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz, const char *Path)
-                {return -ENOTSUP;}
-int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz, int fd)
-                {return -ENOTSUP;}
-int XrdSysFAttr::Set(const char *Aname, const void *Aval, int Avsz,
-                     const char *Path,  int isNew)
+int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
+                     const char *Path, int fd)
                 {return -ENOTSUP;}
 int XrdSysFAttr::Set(const char *Aname, const void *Aval, int Avsz,
-                     int         fd,    int isNew)
+                     const char *Path, int fd, int isNew)
                 {return -ENOTSUP;}
-int XrdSysFAttr::Set(XrdSysError *erp) {return 0;}
 #endif
 
 /******************************************************************************/

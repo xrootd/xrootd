@@ -463,7 +463,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux
     //--------------------------------------------------------------------------
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
     int status = ::send( pSocket, buffer, size, MSG_NOSIGNAL );
 #else
     int status = ::write( pSocket, buffer, size );

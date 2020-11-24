@@ -32,6 +32,7 @@
   
 #include <sys/param.h>
 #include "XrdFrc/XrdFrcRequest.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 class XrdFrcReqFile;
 class XrdOucTList;

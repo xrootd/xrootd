@@ -167,7 +167,7 @@ int XrdSysCondVar::WaitMS(int msec)
 /*                              C o n d W a i t                               */
 /******************************************************************************/
   
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__GNU__)
 
 int XrdSysSemaphore::CondWait()
 {
@@ -188,7 +188,7 @@ int XrdSysSemaphore::CondWait()
 void XrdSysSemaphore::Post()
 {
 // Add one to the semaphore counter. If we the value is > 0 and there is a
-// thread waiting for the sempagore, signal it to get the semaphore.
+// thread waiting for the semaphore, signal it to get the semaphore.
 //
    semVar.Lock();
    semVal++;

@@ -347,7 +347,9 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdSysError *eDest)
 {
    int rc = 0;
    const int one = 1;
+#if defined(__linux__) || defined(__GNU__)
    const int szint = sizeof(int);
+#endif
    const SOCKLEN_t szone = (SOCKLEN_t)sizeof(one);
    static int tcpprotid = XrdNetUtils::ProtoID("tcp");
    static struct linger liopts = {1, XRDNETSOCKET_LINGER};
@@ -371,7 +373,7 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdSysError *eDest)
           {rc = 1;
            if (eDest) eDest->Emsg("setOpts", errno, "set socket KEEPALIVE");
           }
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
            else if (opts & XRDNET_SERVER) // Following are inherited in Linux
       {if (XrdNetSocketCFG::ka_Idle
        &&  setsockopt(xfd,SOL_TCP,TCP_KEEPIDLE,&XrdNetSocketCFG::ka_Idle,szint))

@@ -62,6 +62,12 @@
 #undef _POSIX_ASYNCHRONOUS_IO
 #endif
 
+#ifdef __GNU__
+// Compiler warning:
+// warning: sigwaitinfo is not implemented and will always fail
+#undef HAVE_SIGWTI
+#endif
+
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/

@@ -34,7 +34,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #include <netinet/tcp.h>
 #if !defined(TCP_CORK)
 #undef HAVE_SENDFILE

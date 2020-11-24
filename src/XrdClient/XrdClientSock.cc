@@ -57,10 +57,6 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#endif
-
 #if __cplusplus >= 201103L
 #define XRDCL_SMART_PTR_T std::unique_ptr
 #else
@@ -460,7 +456,8 @@ int XrdClientSock::TryConnect_low(bool isUnix, int altport, int windowsz)
       if( XrdNetSocket::setOpts( sock, XRDNET_KEEPALIVE, 0 ) != 0 )
         Error( "ClientSock::TryConnect_low", "Unable to set the TCP Keep Alive option" );
 
-#if defined(__linux__) && defined( TCP_KEEPIDLE ) && defined( TCP_KEEPINTVL ) && defined( TCP_KEEPCNT )
+#if ( defined(__linux__) || defined(__GNU__) ) && defined( TCP_KEEPIDLE ) && \
+    defined( TCP_KEEPINTVL ) && defined( TCP_KEEPCNT )
 
       int val = EnvGetLong( NAME_TCP_KEEPALIVE_TIME );
       if( setsockopt( sock, SOL_TCP, TCP_KEEPIDLE, (char *)&val, sizeof( val ) ) < 0 )

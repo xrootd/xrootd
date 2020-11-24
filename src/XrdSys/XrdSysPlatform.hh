@@ -32,17 +32,20 @@
 // Include stdlib so that ENDIAN macros are defined properly
 //
 #include <stdlib.h>
+
 #ifdef __linux__
 #include <memory.h>
 #include <string.h>
 #include <sys/types.h>
-#include <asm/param.h>
+#include <sys/param.h>
 #include <byteswap.h>
 #define MAXNAMELEN NAME_MAX
 #endif
+
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #define fdatasync(x) fsync(x)
 #define MAXNAMELEN NAME_MAX
 #ifndef dirent64
@@ -58,8 +61,29 @@
 #endif
 #endif
 #endif
+
 #ifdef __FreeBSD__
 #include <sys/types.h>
+#include <sys/param.h>
+#define MAXNAMELEN NAME_MAX
+#endif
+
+#ifdef __GNU__
+#include <sys/types.h>
+#include <sys/param.h>
+// These are undefined on purpose in GNU/Hurd.
+// The values below are the ones used in Linux.
+// The proper fix is to rewrite the code to not use hardcoded values,
+// but instead allocate memory dynamically at runtime when sizes are known.
+// This is true also for systems where these constants are defined.
+#define MAXNAMELEN 255
+#define MAXPATHLEN 4096
+#define MAXHOSTNAMELEN 64
+#endif
+
+#ifdef WIN32
+#define MAXNAMELEN 256
+#define MAXPATHLEN 1024
 #endif
 
 // The following provides historical support for Solaris 5.10.x
@@ -70,7 +94,7 @@
 #define __USE_LEGACY_PROTOTYPES__ 1
 #endif
 
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__GNU__)
 
 #define S_IAMB      0x1FF   /* access mode bits */
 
@@ -112,7 +136,6 @@ typedef off_t offset_t;
 // For alternative platforms
 //
 #ifdef __APPLE__
-#include <AvailabilityMacros.h>
 #ifndef POLLRDNORM
 #define POLLRDNORM  0
 #endif
@@ -216,8 +239,8 @@ extern "C"
 #      endif
 #   endif
 #endif
-#if defined(__MACH__) && defined(__i386__)
-#   define R__GLIBC
+#if defined(__GNU__)
+#   define XR__GLIBC
 #endif
 #if defined(_AIX) || \
    (defined(XR__SUNGCC3) && !defined(__arch64__))
@@ -257,15 +280,6 @@ extern "C"
 #define net_errno errno
 #endif
 
-#ifdef WIN32
-#define MAXNAMELEN 256
-#define MAXPATHLEN 1024
-#else
-#include <sys/param.h>
-#if defined(__FreeBSD__)
-#define MAXNAMELEN 256
-#endif
-#endif
 // The following gets arround a relative new gcc compiler bug
 //
 #define XRDABS(x) (x < 0 ? -x : x)

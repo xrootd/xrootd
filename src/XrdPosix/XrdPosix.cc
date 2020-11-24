@@ -213,7 +213,7 @@ int XrdPosix_Fdatasync(int fildes)
 /*                    X r d P o s i x _ F g e t x a t t r                     */
 /******************************************************************************/
   
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 extern "C"
 {
 long long XrdPosix_Fgetxattr (int fd, const char *name, void *value, 
@@ -310,7 +310,7 @@ size_t XrdPosix_Fread(void *ptr, size_t size, size_t nitems, FILE *stream)
 //
         if (bytes > 0 && size) rc = bytes/size;
 #ifndef SUNX86
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GNU__)
    else if (bytes < 0) stream->_flags |= _IO_ERR_SEEN;
    else                stream->_flags |= _IO_EOF_SEEN;
 #elif defined(__APPLE__) || defined(__FreeBSD__)
@@ -481,7 +481,7 @@ size_t XrdPosix_Fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream
 //
    if (bytes > 0 && size) rc = bytes/size;
 #ifndef SUNX86
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GNU__)
       else stream->_flags |= _IO_ERR_SEEN;
 #elif defined(__APPLE__) || defined(__FreeBSD__)
       else stream->_flags |= __SERR;
@@ -498,7 +498,7 @@ size_t XrdPosix_Fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream
 /*                     X r d P o s i x _ G e t x a t t r                      */
 /******************************************************************************/
   
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 extern "C"
 {
 long long XrdPosix_Getxattr (const char *path, const char *name, void *value, 
@@ -518,7 +518,7 @@ long long XrdPosix_Getxattr (const char *path, const char *name, void *value,
 /*                    X r d P o s i x _ L g e t x a t t r                     */
 /******************************************************************************/
   
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 extern "C"
 {
 long long XrdPosix_Lgetxattr (const char *path, const char *name, void *value, 

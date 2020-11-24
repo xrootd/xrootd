@@ -43,6 +43,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdFrc;
 using namespace XrdFrm;

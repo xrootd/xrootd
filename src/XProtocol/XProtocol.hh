@@ -1284,9 +1284,7 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 #endif
 
 #ifndef EBADRQC
-#if defined(__APPLE__)
 #define EBADRQC EBADRPC
-#endif
 #endif
 
 #ifndef EAUTH

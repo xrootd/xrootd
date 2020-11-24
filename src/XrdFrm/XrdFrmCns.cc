@@ -42,6 +42,7 @@
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 

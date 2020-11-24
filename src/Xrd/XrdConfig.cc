@@ -88,7 +88,7 @@
 #include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #include <netinet/tcp.h>
 #endif
 #ifdef __APPLE__
@@ -1143,7 +1143,7 @@ int XrdConfig::setFDL()
 
 // The scheduler will have already set the thread limit. We just report it
 //
-#if defined(__linux__) && defined(RLIMIT_NPROC)
+#if ( defined(__linux__) || defined(__GNU__) ) && defined(RLIMIT_NPROC)
 
 // Obtain the actual limit now (Scheduler construction sets this to rlim_max)
 //
@@ -1177,7 +1177,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 // Special handling for Linux sendfile()
 //
-#if defined(__linux__) && defined(TCP_CORK)
+#if ( defined(__linux__) || defined(__GNU__) ) && defined(TCP_CORK)
 {  int sokFD, setON = 1;
    if ((sokFD = socket(PF_INET, SOCK_STREAM, 0)) >= 0)
       {setsockopt(sokFD, XrdNetUtils::ProtoID("tcp"), TCP_NODELAY,

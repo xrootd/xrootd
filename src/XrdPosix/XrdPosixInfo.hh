@@ -32,6 +32,7 @@
 
 #include <stdlib.h>
 #include <sys/param.h>
+#include <XrdSys/XrdSysPlatform.hh>
 
 class XrdPosixCallBack;
 

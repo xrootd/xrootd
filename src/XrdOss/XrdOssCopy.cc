@@ -109,6 +109,8 @@ off_t XrdOssCopy::Copy(const char *inFn, const char *outFn, int outFD)
         {if ((inBuff = (char *)mmap(0, ioSize, PROT_READ, 
 #if defined(__FreeBSD__)
                        MAP_RESERVED0040|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
+#elif defined(__GNU__)
+                       MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
 #else
                        MAP_NORESERVE|MAP_PRIVATE, In.FD, Offset)) == MAP_FAILED)
 #endif

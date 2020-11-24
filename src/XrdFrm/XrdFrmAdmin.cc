@@ -52,6 +52,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysE2T.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdFrc;

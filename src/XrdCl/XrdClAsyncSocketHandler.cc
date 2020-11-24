@@ -119,7 +119,7 @@ namespace XrdCl
         log->Error( AsyncSockMsg, "[%s] Unable to turn on keepalive: %s",
                     st.ToString().c_str() );
 
-#if defined(__linux__) && defined( TCP_KEEPIDLE ) && \
+#if ( defined(__linux__) || defined(__GNU__) ) && defined( TCP_KEEPIDLE ) && \
     defined( TCP_KEEPINTVL ) && defined( TCP_KEEPCNT )
 
       param = DefaultTCPKeepAliveTime;

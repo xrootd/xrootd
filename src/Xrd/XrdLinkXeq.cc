@@ -36,7 +36,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #include <netinet/tcp.h>
 #if !defined(TCP_CORK)
 #undef HAVE_SENDFILE
@@ -79,12 +79,6 @@ extern XrdScheduler   Sched;
 extern XrdTlsContext *tlsCtx;
        XrdTcpMonPin  *TcpMonPin = 0;
 extern int            devNull;
-
-#ifdef IOV_MAX
-       int            maxIOV = IOV_MAX;
-#else
-       int            maxIOV = sysconf(_SC_IOV_MAX);
-#endif
 };
 
 using namespace XrdGlobal;
@@ -554,6 +548,18 @@ int XrdLinkXeq::Send(const char *Buff, int Blen)
 int XrdLinkXeq::Send(const struct iovec *iov, int iocnt, int bytes)
 {
    int retc;
+   static int maxIOV = -1;
+   if (maxIOV == -1) {
+#ifdef _SC_IOV_MAX
+      maxIOV = sysconf(_SC_IOV_MAX);
+      if (maxIOV == -1)
+#endif
+#ifdef IOV_MAX
+         maxIOV = IOV_MAX;
+#else
+         maxIOV = 1024;
+#endif
+   }
 
 // Get a lock and assume we will be successful (statistically we are)
 //
@@ -668,7 +674,7 @@ do{retc = sendfilev(LinkInfo.FD, vecSFP, sfN, &xframt);
    Log.Emsg("Link", retc, "send file to", ID);
    return -1;
 
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__GNU__)
 
    static const int setON = 1, setOFF = 0;
    ssize_t retc = 0, bytesleft;

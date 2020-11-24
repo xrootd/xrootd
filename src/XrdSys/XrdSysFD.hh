@@ -47,7 +47,7 @@
 
 namespace
 {
-#if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
+#if ( defined(__linux__) || defined(__GNU__) ) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
 inline int  XrdSysFD_Accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
                  {return accept4(sockfd, addr, addrlen, SOCK_CLOEXEC);}
 
@@ -124,7 +124,7 @@ inline DIR* XrdSysFD_OpenDir(const char *path)
                   if (fd < 0) return 0;
                   fcntl(fd, F_SETFD, FD_CLOEXEC);
                   DIR *dP = fdopendir(fd);
-                  if (!dP) {int rc = errno, close(fd); errno = rc;}
+                  if (!dP) {int rc = errno; close(fd); errno = rc;}
                   return dP;
                  }
 
