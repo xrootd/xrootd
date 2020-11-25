@@ -287,10 +287,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void ForceHandler( const XRootDStatus &status )
       {
-        handler->HandleResponse( new XRootDStatus( status ), nullptr );
+        std::unique_ptr<ResponseHandler> ptr( std::move( handler ) );
+        ptr->HandleResponse( new XRootDStatus( status ), nullptr );
         // HandleResponse already freed the memory so we have to
         // release the unique pointer
-        handler.release();
+        ptr.release();
       }
 
       //------------------------------------------------------------------------
