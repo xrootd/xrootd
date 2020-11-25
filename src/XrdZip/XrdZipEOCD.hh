@@ -69,10 +69,10 @@ namespace XrdZip
     //! Constructor from last LFH + CDFH
     //-------------------------------------------------------------------------
     EOCD( uint64_t cdoff, uint32_t cdcnt, uint32_t cdsize ):
-      useZip64( false ),
       nbDisk( 0 ),
       nbDiskCd( 0 ),
-      commentLength( 0 )
+      commentLength( 0 ),
+      useZip64( false )
     {
       if( cdcnt >= ovrflw<uint16_t>::value )
       {

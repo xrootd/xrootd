@@ -123,8 +123,8 @@ namespace XrdZip
       nbDisk( 0 ),
       internAttr( 0 ),
       externAttr( mode << 16 ),
-      extra( new Extra( lfh->extra.get(), lfhOffset ) ),
-      filename( lfh->filename )
+      filename( lfh->filename ),
+      extra( new Extra( lfh->extra.get(), lfhOffset ) )
     {
       if ( lfhOffset >= ovrflw<uint32_t>::value )
         offset = ovrflw<uint32_t>::value;
@@ -234,7 +234,6 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     void Serialize( buffer_t &buffer )
     {
-      uint16_t size = cdfhSize - extraLength - commentLength;
       copy_bytes( cdfhSign, buffer );
       copy_bytes( zipVersion, buffer );
       copy_bytes( minZipVersion, buffer );

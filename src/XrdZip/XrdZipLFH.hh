@@ -55,7 +55,7 @@ namespace XrdZip
     LFH( std::string filename, uint32_t crc, off_t fileSize, time_t time ) :
       generalBitFlag( 0 ), compressionMethod( 0 ), timestmp( time ), ZCRC32( crc ),
       compressedSize( initSize( fileSize ) ), uncompressedSize( initSize( fileSize ) ),
-      extra( new Extra(fileSize ) ), filename( filename ), filenameLength( filename.size() )
+      filenameLength( filename.size() ), filename( filename ), extra( new Extra( fileSize ) )
     {
       extraLength = extra->totalSize;
       if ( extraLength == 0 )
