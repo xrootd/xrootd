@@ -545,7 +545,7 @@ namespace XrdCl
       virtual ~FinalizeHandler()
       {
         if( !called )
-          handler->HandleResponseWithHosts( new XRootDStatus( stError, errPipelineFailed), nullptr, nullptr );
+          handler->HandleResponseWithHosts( new XRootDStatus( stError, errPipelineInterrupted ), nullptr, nullptr );
       }
 
       //------------------------------------------------------------------------

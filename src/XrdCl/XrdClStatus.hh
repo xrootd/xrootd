@@ -35,48 +35,48 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Additional info for the stOK status
   //----------------------------------------------------------------------------
-  const uint16_t suDone            = 0;
-  const uint16_t suContinue        = 1;
-  const uint16_t suRetry           = 2;
-  const uint16_t suPartial         = 3;
-  const uint16_t suAlreadyDone     = 4;
+  const uint16_t suDone                  = 0;
+  const uint16_t suContinue              = 1;
+  const uint16_t suRetry                 = 2;
+  const uint16_t suPartial               = 3;
+  const uint16_t suAlreadyDone           = 4;
 
   //----------------------------------------------------------------------------
   // Generic errors
   //----------------------------------------------------------------------------
-  const uint16_t errNone           = 0; //!< No error
-  const uint16_t errRetry          = 1; //!< Try again for whatever reason
-  const uint16_t errUnknown        = 2; //!< Unknown error
-  const uint16_t errInvalidOp      = 3; //!< The operation cannot be performed in the
-                                        //!< given circumstances
-  const uint16_t errFcntl          = 4; //!< failed manipulate file descriptor
-  const uint16_t errPoll           = 5; //!< error while polling descriptors
-  const uint16_t errConfig         = 6; //!< System misconfigured
-  const uint16_t errInternal       = 7; //!< Internal error
-  const uint16_t errUnknownCommand = 8;
-  const uint16_t errInvalidArgs    = 9;
-  const uint16_t errInProgress     = 10;
-  const uint16_t errUninitialized  = 11;
-  const uint16_t errOSError        = 12;
-  const uint16_t errNotSupported   = 13;
-  const uint16_t errDataError      = 14; //!< data is corrupted
-  const uint16_t errNotImplemented = 15; //!< Operation is not implemented
-  const uint16_t errNoMoreReplicas = 16; //!< No more replicas to try
-  const uint16_t errPipelineFailed = 17; //!< Pipeline failed and operation couldn't be executed
+  const uint16_t errNone                 = 0; //!< No error
+  const uint16_t errRetry                = 1; //!< Try again for whatever reason
+  const uint16_t errUnknown              = 2; //!< Unknown error
+  const uint16_t errInvalidOp            = 3; //!< The operation cannot be performed in the
+                                              //!< given circumstances
+  const uint16_t errFcntl                = 4; //!< failed manipulate file descriptor
+  const uint16_t errPoll                 = 5; //!< error while polling descriptors
+  const uint16_t errConfig               = 6; //!< System misconfigured
+  const uint16_t errInternal             = 7; //!< Internal error
+  const uint16_t errUnknownCommand       = 8;
+  const uint16_t errInvalidArgs          = 9;
+  const uint16_t errInProgress           = 10;
+  const uint16_t errUninitialized        = 11;
+  const uint16_t errOSError              = 12;
+  const uint16_t errNotSupported         = 13;
+  const uint16_t errDataError            = 14; //!< data is corrupted
+  const uint16_t errNotImplemented       = 15; //!< Operation is not implemented
+  const uint16_t errNoMoreReplicas       = 16; //!< No more replicas to try
+  const uint16_t errPipelineInterrupted  = 17; //!< Pipeline failed and operation couldn't be executed
 
   //----------------------------------------------------------------------------
   // Socket related errors
   //----------------------------------------------------------------------------
-  const uint16_t errInvalidAddr        = 101;
-  const uint16_t errSocketError        = 102;
-  const uint16_t errSocketTimeout      = 103;
-  const uint16_t errSocketDisconnected = 104;
-  const uint16_t errPollerError        = 105;
-  const uint16_t errSocketOptError     = 106;
-  const uint16_t errStreamDisconnect   = 107;
-  const uint16_t errConnectionError    = 108;
-  const uint16_t errInvalidSession     = 109;
-  const uint16_t errTlsError           = 110;
+  const uint16_t errInvalidAddr          = 101;
+  const uint16_t errSocketError          = 102;
+  const uint16_t errSocketTimeout        = 103;
+  const uint16_t errSocketDisconnected   = 104;
+  const uint16_t errPollerError          = 105;
+  const uint16_t errSocketOptError       = 106;
+  const uint16_t errStreamDisconnect     = 107;
+  const uint16_t errConnectionError      = 108;
+  const uint16_t errInvalidSession       = 109;
+  const uint16_t errTlsError             = 110;
 
   //----------------------------------------------------------------------------
   // Post Master related errors
@@ -92,17 +92,17 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // XRootD related errors
   //----------------------------------------------------------------------------
-  const uint16_t errNoMoreFreeSIDs     = 301;
-  const uint16_t errInvalidRedirectURL = 302;
-  const uint16_t errInvalidResponse    = 303;
-  const uint16_t errNotFound           = 304;
-  const uint16_t errCheckSumError      = 305;
-  const uint16_t errRedirectLimit      = 306;
+  const uint16_t errNoMoreFreeSIDs       = 301;
+  const uint16_t errInvalidRedirectURL   = 302;
+  const uint16_t errInvalidResponse      = 303;
+  const uint16_t errNotFound             = 304;
+  const uint16_t errCheckSumError        = 305;
+  const uint16_t errRedirectLimit        = 306;
 
-  const uint16_t errErrorResponse      = 400;
-  const uint16_t errRedirect           = 401;
+  const uint16_t errErrorResponse        = 400;
+  const uint16_t errRedirect             = 401;
 
-  const uint16_t errResponseNegative   = 500; //!< Query response was negative
+  const uint16_t errResponseNegative     = 500; //!< Query response was negative
 
   //----------------------------------------------------------------------------
   //! Procedure execution status
