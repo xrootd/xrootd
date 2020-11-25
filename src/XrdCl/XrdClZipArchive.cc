@@ -9,6 +9,8 @@
 #include "XrdCl/XrdClZipArchive.hh"
 #include "XrdZip/XrdZipZIP64EOCDL.hh"
 
+#include <sys/stat.h>
+
 namespace XrdCl
 {
 
