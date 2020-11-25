@@ -52,6 +52,7 @@ namespace XrdCl
                                  {
                                    cdexists = false;
                                    openstage = Done;
+                                   handler->HandleResponse( make_status(), nullptr );
                                    Pipeline::Stop();
                                  }
 
@@ -65,11 +66,13 @@ namespace XrdCl
                           | XrdCl::Read( archive, rdoff, rdsize, rdbuff ) >>
                               [=]( XRootDStatus &status, ChunkInfo &chunk )
                               {
+                                // if the pipeline was interrupted just return
+                                if( interrupted( status ) ) return;
+                                // check the status is OK
                                 if( !status.IsOK() )
-                                  return handler->HandleResponse( make_status( status ), nullptr );;
+                                  return handler->HandleResponse( make_status( status ), nullptr );
 
                                 const char *buff = reinterpret_cast<char*>( chunk.buffer );
-
                                 while( true )
                                 {
                                   switch( openstage )
@@ -198,12 +201,12 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  XRootDStatus ZipArchive::OpenFile( const std::string       &fn,
-                                  OpenFlags::Flags  flags,
-                                  uint64_t                 size,
-                                  uint32_t                 crc32,
-                                  ResponseHandler  *handler,
-                                  uint16_t                 timeout )
+  XRootDStatus ZipArchive::OpenFile( const std::string &fn,
+                                     OpenFlags::Flags   flags,
+                                     uint64_t           size,
+                                     uint32_t           crc32,
+                                     ResponseHandler   *handler,
+                                     uint16_t           timeout )
   {
     if( !openfn.empty() )
       return XRootDStatus( stError, errInvalidOp );
@@ -287,13 +290,12 @@ namespace XrdCl
         zip64eocdl->Serialize( *wrtbuff );
       eocd->Serialize( *wrtbuff );
 
-      Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() )
+      Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() ) // TODO if this fails the status wont be passed to user handler
                  | Close( archive ) >>
                      [=]( XRootDStatus &st )
                      {
                        if( st.IsOK() ) Clear();
                        else openstage = Error;
-                       Clear();
                        if( handler ) handler->HandleResponse( make_status( st ), nullptr );
                      };
       Async( std::move( p ), timeout );
@@ -305,7 +307,6 @@ namespace XrdCl
                           {
                             if( st.IsOK() ) Clear();
                             else openstage = Error;
-                            Clear();
                             if( handler ) handler->HandleResponse( make_status( st ), nullptr );
                           };
     Async( std::move( p ), timeout );

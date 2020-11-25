@@ -156,6 +156,12 @@ namespace XrdCl
         return new XRootDStatus();
       }
 
+      inline static bool interrupted( const XRootDStatus &status )
+      {
+        if( !status.IsOK() && status.code == errPipelineInterrupted ) return true;
+        return false;
+      }
+
       inline void Clear()
       {
         buffer.reset();
