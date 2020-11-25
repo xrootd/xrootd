@@ -5,8 +5,8 @@
  *      Author: simonm
  */
 
-#ifndef SRC_XRDZIP_XRDZIPARCHIVEREADER_HH_
-#define SRC_XRDZIP_XRDZIPARCHIVEREADER_HH_
+#ifndef SRC_XRDZIP_XRDZIPARCHIVE_HH_
+#define SRC_XRDZIP_XRDZIPARCHIVE_HH_
 
 #include "XrdZip/XrdZipEOCD.hh"
 #include "XrdZip/XrdZipCDFH.hh"
@@ -27,12 +27,12 @@
 namespace XrdZip
 {
 
-  class ArchiveReader
+  class Archive
   {
     public:
 
-      ArchiveReader();
-      virtual ~ArchiveReader();
+      Archive();
+      virtual ~Archive();
 
       XrdCl::XRootDStatus OpenArchive( const std::string       &url,
                                        XrdCl::OpenFlags::Flags flags,
@@ -197,4 +197,4 @@ namespace XrdZip
 
 } /* namespace XrdZip */
 
-#endif /* SRC_XRDZIP_XRDZIPARCHIVEREADER_HH_ */
+#endif /* SRC_XRDZIP_XRDZIPARCHIVE_HH_ */

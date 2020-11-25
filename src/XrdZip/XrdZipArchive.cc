@@ -5,14 +5,14 @@
  *      Author: simonm
  */
 
-#include "XrdZip/XrdZipArchiveReader.hh"
 #include "XrdZip/XrdZipZIP64EOCDL.hh"
 #include "XrdCl/XrdClFileOperations.hh"
+#include "XrdZip/XrdZipArchive.hh"
 
 namespace XrdZip
 {
 
-  ArchiveReader::ArchiveReader() : archsize( 0 ),
+  Archive::Archive() : archsize( 0 ),
                                    cdexists( false ),
                                    updated( false ),
                                    cdoff( 0 ),
@@ -21,11 +21,11 @@ namespace XrdZip
   {
   }
 
-  ArchiveReader::~ArchiveReader()
+  Archive::~Archive()
   {
   }
 
-  XrdCl::XRootDStatus ArchiveReader::OpenArchive( const std::string      &url,
+  XrdCl::XRootDStatus Archive::OpenArchive( const std::string      &url,
                                                   XrdCl::OpenFlags::Flags flags,
                                                   XrdCl::ResponseHandler *handler,
                                                   uint16_t                timeout )
@@ -196,7 +196,7 @@ namespace XrdZip
     return XRootDStatus();
   }
 
-  XrdCl::XRootDStatus ArchiveReader::OpenFile( const std::string       &fn,
+  XrdCl::XRootDStatus Archive::OpenFile( const std::string       &fn,
                                                XrdCl::OpenFlags::Flags  flags,
                                                uint64_t                 size,
                                                uint32_t                 crc32,
@@ -251,7 +251,7 @@ namespace XrdZip
     return XrdCl::XRootDStatus();
   }
 
-  XrdCl::XRootDStatus ArchiveReader::CloseArchive( XrdCl::ResponseHandler *handler,
+  XrdCl::XRootDStatus Archive::CloseArchive( XrdCl::ResponseHandler *handler,
                                                    uint16_t                timeout )
   {
     if( updated )
@@ -310,7 +310,7 @@ namespace XrdZip
     return XrdCl::XRootDStatus();
   }
 
-  XrdCl::XRootDStatus ArchiveReader::Read( uint64_t                relativeOffset,
+  XrdCl::XRootDStatus Archive::Read( uint64_t                relativeOffset,
                                            uint32_t                size,
                                            void                   *usrbuff,
                                            XrdCl::ResponseHandler *usrHandler,
@@ -471,7 +471,7 @@ namespace XrdZip
     return XrdCl::XRootDStatus();
   }
 
-  XrdCl::XRootDStatus ArchiveReader::List( XrdCl::DirectoryList *&list )
+  XrdCl::XRootDStatus Archive::List( XrdCl::DirectoryList *&list )
   {
     if( openstage != Done )
       return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp,
@@ -501,7 +501,7 @@ namespace XrdZip
     return XrdCl::XRootDStatus();
   }
 
-  XrdCl::XRootDStatus ArchiveReader::Write( uint32_t                size,
+  XrdCl::XRootDStatus Archive::Write( uint32_t                size,
                                             const void             *buffer,
                                             XrdCl::ResponseHandler *handler,
                                             uint16_t                timeout )
