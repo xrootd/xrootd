@@ -333,7 +333,7 @@ void WorkflowTest::MissingParameterTest(){
                   | Read( f, offset, size, buffer ) >> readHandler // by reference
                   | Close( f ) >> [&]( XRootDStatus& st )
                       {
-                        pipebroken = !st.IsOK() && ( st.code == errPipelineFailed );
+                        pipebroken = !st.IsOK() && ( st.code == errPipelineInterrupted );
                       };
 
     XRootDStatus status = WaitFor( std::move( pipe ) );
@@ -388,7 +388,7 @@ void WorkflowTest::OperationFailureTest(){
     }
     catch( PipelineException &ex )
     {
-      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineInterrupted );
     }
 
     try
@@ -397,7 +397,7 @@ void WorkflowTest::OperationFailureTest(){
     }
     catch( PipelineException &ex )
     {
-      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineInterrupted );
     }
 
     try
@@ -406,7 +406,7 @@ void WorkflowTest::OperationFailureTest(){
     }
     catch( PipelineException &ex )
     {
-      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineFailed );
+      CPPUNIT_ASSERT_XRDST_NOTOK( ex.GetError(), errPipelineInterrupted );
     }
 }
 

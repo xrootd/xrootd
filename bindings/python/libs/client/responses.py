@@ -90,25 +90,25 @@ class XRootDStatus(Struct):
   #----------------------------------------------------------------------------
   # Generic errors
   #----------------------------------------------------------------------------
-  errNone           = 0; # No error
-  errRetry          = 1; # Try again for whatever reason
-  errUnknown        = 2; # Unknown error
-  errInvalidOp      = 3; # The operation cannot be performed in the
-                         # given circumstances
-  errFcntl          = 4; # failed manipulate file descriptor
-  errPoll           = 5; # error while polling descriptors
-  errConfig         = 6; # System misconfigured
-  errInternal       = 7; # Internal error
-  errUnknownCommand = 8;
-  errInvalidArgs    = 9;
-  errInProgress     = 10;
-  errUninitialized  = 11;
-  errOSError        = 12;
-  errNotSupported   = 13;
-  errDataError      = 14; # data is corrupted
-  errNotImplemented = 15; # Operation is not implemented
-  errNoMoreReplicas = 16; # No more replicas to try
-  errPipelineFailed = 17; # Pipeline failed and operation couldn't be executed
+  errNone                = 0; # No error
+  errRetry               = 1; # Try again for whatever reason
+  errUnknown             = 2; # Unknown error
+  errInvalidOp           = 3; # The operation cannot be performed in the
+                              # given circumstances
+  errFcntl               = 4; # failed manipulate file descriptor
+  errPoll                = 5; # error while polling descriptors
+  errConfig              = 6; # System misconfigured
+  errInternal            = 7; # Internal error
+  errUnknownCommand      = 8;
+  errInvalidArgs         = 9;
+  errInProgress          = 10;
+  errUninitialized       = 11;
+  errOSError             = 12;
+  errNotSupported        = 13;
+  errDataError           = 14; # data is corrupted
+  errNotImplemented      = 15; # Operation is not implemented
+  errNoMoreReplicas      = 16; # No more replicas to try
+  errPipelineInterrupted = 17; # Pipeline failed and operation couldn't be executed
 
   #----------------------------------------------------------------------------
   # Socket related errors
