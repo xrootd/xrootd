@@ -8,11 +8,6 @@
 #ifndef SRC_XRDZIP_XRDZIPARCHIVE_HH_
 #define SRC_XRDZIP_XRDZIPARCHIVE_HH_
 
-#include "XrdZip/XrdZipEOCD.hh"
-#include "XrdZip/XrdZipCDFH.hh"
-#include "XrdZip/XrdZipZIP64EOCD.hh"
-#include "XrdZip/XrdZipLFH.hh"
-#include "XrdZip/XrdZipInflCache.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClFile.hh"
@@ -20,138 +15,145 @@
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdZip/XrdZipEOCD.hh"
+#include "XrdZip/XrdZipCDFH.hh"
+#include "XrdZip/XrdZipZIP64EOCD.hh"
+#include "XrdZip/XrdZipLFH.hh"
+#include "XrdZip/XrdZipInflCache.hh"
 
 #include <memory>
 #include <unordered_map>
 
-namespace XrdZip
+namespace XrdCl
 {
 
-  class Archive
+  using namespace XrdZip;
+
+  class ZipArchive
   {
     public:
 
-      Archive();
-      virtual ~Archive();
+      ZipArchive();
+      virtual ~ZipArchive();
 
-      XrdCl::XRootDStatus OpenArchive( const std::string       &url,
-                                       XrdCl::OpenFlags::Flags flags,
-                                       XrdCl::ResponseHandler *handler,
+      XRootDStatus OpenArchive( const std::string       &url,
+                                       OpenFlags::Flags flags,
+                                       ResponseHandler *handler,
                                        uint16_t                timeout = 0 );
 
-      XrdCl::XRootDStatus OpenFile( const std::string       &fn,
-                                    XrdCl::OpenFlags::Flags  flags = XrdCl::OpenFlags::None,
+      XRootDStatus OpenFile( const std::string       &fn,
+                                    OpenFlags::Flags  flags = OpenFlags::None,
                                     uint64_t                 size  = 0,
                                     uint32_t                 crc32 = 0,
-                                    XrdCl::ResponseHandler  *handler = nullptr,
+                                    ResponseHandler  *handler = nullptr,
                                     uint16_t                 timeout = 0 );
 
-      XrdCl::XRootDStatus Read( uint64_t                offset,
+      XRootDStatus Read( uint64_t                offset,
                                 uint32_t                size,
                                 void                   *buffer,
-                                XrdCl::ResponseHandler *handler,
+                                ResponseHandler *handler,
                                 uint16_t                timeout = 0 );
 
-      XrdCl::XRootDStatus Write( uint32_t                size,
+      XRootDStatus Write( uint32_t                size,
                                  const void             *buffer,
-                                 XrdCl::ResponseHandler *handler,
+                                 ResponseHandler *handler,
                                  uint16_t                timeout = 0 );
 
-      XrdCl::XRootDStatus Stat( XrdCl::StatInfo *&info )
+      XRootDStatus Stat( StatInfo *&info )
       {
         info = make_stat( openfn );
-        return XrdCl::XRootDStatus();
+        return XRootDStatus();
       }
 
-      XrdCl::XRootDStatus CloseArchive( XrdCl::ResponseHandler *handler,
+      XRootDStatus CloseArchive( ResponseHandler *handler,
                                         uint16_t                timeout = 0 );
 
-      inline XrdCl::XRootDStatus CloseFile( XrdCl::ResponseHandler  *handler = nullptr,
+      inline XRootDStatus CloseFile( ResponseHandler  *handler = nullptr,
                                             uint16_t                 timeout = 0 )
       {
         openfn.clear();
         lfh.reset();
         if( handler ) Schedule( handler, make_status() );
-        return XrdCl::XRootDStatus();
+        return XRootDStatus();
       }
 
-      XrdCl::XRootDStatus List( XrdCl::DirectoryList *&list );
+      XRootDStatus List( DirectoryList *&list );
 
     private:
 
       template<typename Response>
-      inline static XrdCl::AnyObject* PkgRsp( Response *rsp )
+      inline static AnyObject* PkgRsp( Response *rsp )
       {
         if( !rsp ) return nullptr;
-        XrdCl::AnyObject *pkg = new XrdCl::AnyObject();
+        AnyObject *pkg = new AnyObject();
         pkg->Set( rsp );
         return pkg;
       }
 
       template<typename Response>
-      inline static void Free( XrdCl::XRootDStatus *st, Response *rsp )
+      inline static void Free( XRootDStatus *st, Response *rsp )
       {
         delete st;
         delete rsp;
       }
 
-      inline void Schedule( XrdCl::ResponseHandler *handler, XrdCl::XRootDStatus *st )
+      inline void Schedule( ResponseHandler *handler, XRootDStatus *st )
       {
         if( !handler ) return delete st;
-        XrdCl::JobManager *jobMgr = XrdCl::DefaultEnv::GetPostMaster()->GetJobManager();
+        JobManager *jobMgr = DefaultEnv::GetPostMaster()->GetJobManager();
         if( jobMgr->IsWorker() )
           // this is a worker thread so we can simply call the handler
           handler->HandleResponse( st, nullptr );
         else
         {
-          XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, nullptr, nullptr );
-          XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+          ResponseJob *job = new ResponseJob( handler, st, nullptr, nullptr );
+          DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
         }
       }
 
       template<typename Response>
-      inline static void Schedule( XrdCl::ResponseHandler *handler, XrdCl::XRootDStatus *st, Response *rsp )
+      inline static void Schedule( ResponseHandler *handler, XRootDStatus *st, Response *rsp )
       {
         if( !handler ) return Free( st, rsp );
-        XrdCl::JobManager *jobMgr = XrdCl::DefaultEnv::GetPostMaster()->GetJobManager();
+        JobManager *jobMgr = DefaultEnv::GetPostMaster()->GetJobManager();
         if( jobMgr->IsWorker() )
           // this is a worker thread so we can simply call the handler
           handler->HandleResponse( st, PkgRsp( rsp ) );
         else
         {
-          XrdCl::ResponseJob *job = new XrdCl::ResponseJob( handler, st, PkgRsp( rsp ), 0 );
-          XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+          ResponseJob *job = new ResponseJob( handler, st, PkgRsp( rsp ), 0 );
+          DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
         }
       }
 
-      inline static XrdCl::StatInfo* make_stat( const XrdCl::StatInfo &starch, uint64_t size )
+      inline static StatInfo* make_stat( const StatInfo &starch, uint64_t size )
       {
-        XrdCl::StatInfo *info = new XrdCl::StatInfo( starch );
+        StatInfo *info = new StatInfo( starch );
         uint32_t flags = info->GetFlags();
-        info->SetFlags( flags & ( ~XrdCl::StatInfo::IsWritable ) ); // make sure it is not listed as writable
+        info->SetFlags( flags & ( ~StatInfo::IsWritable ) ); // make sure it is not listed as writable
         info->SetSize( size );
         return info;
       }
 
-      inline XrdCl::StatInfo* make_stat( const std::string &fn )
+      inline StatInfo* make_stat( const std::string &fn )
       {
-        XrdCl::StatInfo *infoptr = 0;
-        XrdCl::XRootDStatus st = archive.Stat( false, infoptr );
-        std::unique_ptr<XrdCl::StatInfo> stinfo( infoptr );
+        StatInfo *infoptr = 0;
+        XRootDStatus st = archive.Stat( false, infoptr );
+        std::unique_ptr<StatInfo> stinfo( infoptr );
         auto itr = cdmap.find( fn );
         if( itr == cdmap.end() ) return nullptr;
         size_t index = itr->second;
         return make_stat( *stinfo, cdvec[index]->uncompressedSize );
       }
 
-      inline static XrdCl::XRootDStatus* make_status( const XrdCl::XRootDStatus &status )
+      inline static XRootDStatus* make_status( const XRootDStatus &status )
       {
-        return new XrdCl::XRootDStatus( status );
+        return new XRootDStatus( status );
       }
 
-      inline static XrdCl::XRootDStatus* make_status()
+      inline static XRootDStatus* make_status()
       {
-        return new XrdCl::XRootDStatus();
+        return new XRootDStatus();
       }
 
       inline void Clear()
@@ -175,9 +177,9 @@ namespace XrdZip
         Error
       };
 
-      typedef std::unordered_map<std::string, InflCache> inflcache_t;
+      typedef std::unordered_map<std::string, XrdZip::InflCache> inflcache_t;
 
-      XrdCl::File                 archive;
+      File                        archive;
       uint64_t                    archsize;
       bool                        cdexists;
       bool                        updated;
@@ -191,7 +193,7 @@ namespace XrdZip
       std::string                 openfn;
       inflcache_t                 inflcache;
 
-      XrdCl::OpenFlags::Flags     flags;
+      OpenFlags::Flags     flags;
       std::unique_ptr<LFH>        lfh;
   };
 

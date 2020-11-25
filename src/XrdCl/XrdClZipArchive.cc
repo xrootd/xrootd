@@ -5,33 +5,33 @@
  *      Author: simonm
  */
 
-#include "XrdZip/XrdZipZIP64EOCDL.hh"
 #include "XrdCl/XrdClFileOperations.hh"
-#include "XrdZip/XrdZipArchive.hh"
+#include "XrdCl/XrdClZipArchive.hh"
+#include "XrdZip/XrdZipZIP64EOCDL.hh"
 
-namespace XrdZip
+namespace XrdCl
 {
 
-  Archive::Archive() : archsize( 0 ),
-                                   cdexists( false ),
-                                   updated( false ),
-                                   cdoff( 0 ),
-                                   openstage( None ),
-                                   flags( XrdCl::OpenFlags::None )
+  using namespace XrdZip;
+
+  ZipArchive::ZipArchive() : archsize( 0 ),
+                       cdexists( false ),
+                       updated( false ),
+                       cdoff( 0 ),
+                       openstage( None ),
+                       flags( OpenFlags::None )
   {
   }
 
-  Archive::~Archive()
+  ZipArchive::~ZipArchive()
   {
   }
 
-  XrdCl::XRootDStatus Archive::OpenArchive( const std::string      &url,
-                                                  XrdCl::OpenFlags::Flags flags,
-                                                  XrdCl::ResponseHandler *handler,
-                                                  uint16_t                timeout )
+  XRootDStatus ZipArchive::OpenArchive( const std::string      &url,
+                                     OpenFlags::Flags flags,
+                                     ResponseHandler *handler,
+                                     uint16_t                timeout )
   {
-    using namespace XrdCl;
-
     Fwd<uint32_t> rdsize;
     Fwd<uint64_t> rdoff;
     Fwd<void*>    rdbuff;
@@ -145,7 +145,7 @@ namespace XrdZip
                                       uint32_t signature = to<uint32_t>( buff );
                                       if( signature != ZIP64_EOCD::zip64EocdSign )
                                       {
-                                        XrdCl::XRootDStatus error( XrdCl::stError, XrdCl::errDataError, 0,
+                                        XRootDStatus error( stError, errDataError, 0,
                                                             "ZIP64 End-of-central-directory signature not found." );
                                         handler->HandleResponse( make_status( error ), nullptr );
                                         Pipeline::Stop( error );
@@ -170,7 +170,7 @@ namespace XrdZip
                                       }
                                       catch( const bad_data &ex )
                                       {
-                                        XrdCl::XRootDStatus error( XrdCl::stError, XrdCl::errDataError, 0,
+                                        XRootDStatus error( stError, errDataError, 0,
                                                                    "ZIP Central Directory corrupted." );
                                         handler->HandleResponse( make_status( error ), nullptr );
                                         Pipeline::Stop( error );
@@ -196,21 +196,21 @@ namespace XrdZip
     return XRootDStatus();
   }
 
-  XrdCl::XRootDStatus Archive::OpenFile( const std::string       &fn,
-                                               XrdCl::OpenFlags::Flags  flags,
-                                               uint64_t                 size,
-                                               uint32_t                 crc32,
-                                               XrdCl::ResponseHandler  *handler,
-                                               uint16_t                 timeout )
+  XRootDStatus ZipArchive::OpenFile( const std::string       &fn,
+                                  OpenFlags::Flags  flags,
+                                  uint64_t                 size,
+                                  uint32_t                 crc32,
+                                  ResponseHandler  *handler,
+                                  uint16_t                 timeout )
   {
     if( !openfn.empty() )
-      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp );
 
     this->flags = flags;
     auto  itr   = cdmap.find( fn );
     if( itr == cdmap.end() )
     {
-      if( flags | XrdCl::OpenFlags::New )
+      if( flags | OpenFlags::New )
       {
         openfn = fn;
         lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
@@ -227,32 +227,32 @@ namespace XrdZip
           cdexists = false;
         }
 
-        XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, lfh->lfhSize, wrtbuf.data() ) >>
-                              [=]( XrdCl::XRootDStatus &st )
-                              {
-                                if( st.IsOK() )
-                                {
-                                  archsize += wrtlen;
-                                  cdoff    += wrtlen;
-                                  cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
-                                  cdmap[fn] = cdvec.size() - 1;
-                                }
-                                if( handler )
-                                  handler->HandleResponse( make_status( st ), nullptr );
-                              };
-        XrdCl::Async( std::move( p ), timeout );
-        return XrdCl::XRootDStatus();
+        Pipeline p = XrdCl::Write( archive, wrtoff, lfh->lfhSize, wrtbuf.data() ) >>
+                       [=]( XRootDStatus &st )
+                       {
+                         if( st.IsOK() )
+                         {
+                           archsize += wrtlen;
+                           cdoff    += wrtlen;
+                           cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
+                           cdmap[fn] = cdvec.size() - 1;
+                         }
+                         if( handler )
+                           handler->HandleResponse( make_status( st ), nullptr );
+                       };
+        Async( std::move( p ), timeout );
+        return XRootDStatus();
       }
-      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
+      return XRootDStatus( stError, errNotFound );
     }
 
     openfn = fn;
     if( handler ) Schedule( handler, make_status() );
-    return XrdCl::XRootDStatus();
+    return XRootDStatus();
   }
 
-  XrdCl::XRootDStatus Archive::CloseArchive( XrdCl::ResponseHandler *handler,
-                                                   uint16_t                timeout )
+  XRootDStatus ZipArchive::CloseArchive( ResponseHandler *handler,
+                                      uint16_t         timeout )
   {
     if( updated )
     {
@@ -285,51 +285,51 @@ namespace XrdZip
         zip64eocdl->Serialize( *wrtbuff );
       eocd->Serialize( *wrtbuff );
 
-      XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() )
-                        | XrdCl::Close( archive ) >>
-                            [=]( XrdCl::XRootDStatus &st )
-                            {
-                              if( st.IsOK() ) Clear();
-                              else openstage = Error;
-                              Clear();
-                              if( handler ) handler->HandleResponse( make_status( st ), nullptr );
-                            };
-      XrdCl::Async( std::move( p ), timeout );
-      return XrdCl::XRootDStatus();
+      Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() )
+                 | Close( archive ) >>
+                     [=]( XRootDStatus &st )
+                     {
+                       if( st.IsOK() ) Clear();
+                       else openstage = Error;
+                       Clear();
+                       if( handler ) handler->HandleResponse( make_status( st ), nullptr );
+                     };
+      Async( std::move( p ), timeout );
+      return XRootDStatus();
     }
 
-    XrdCl::Pipeline p = XrdCl::Close( archive ) >>
-                          [=]( XrdCl::XRootDStatus &st )
+    Pipeline p = Close( archive ) >>
+                          [=]( XRootDStatus &st )
                           {
                             if( st.IsOK() ) Clear();
                             else openstage = Error;
                             Clear();
                             if( handler ) handler->HandleResponse( make_status( st ), nullptr );
                           };
-    XrdCl::Async( std::move( p ), timeout );
-    return XrdCl::XRootDStatus();
+    Async( std::move( p ), timeout );
+    return XRootDStatus();
   }
 
-  XrdCl::XRootDStatus Archive::Read( uint64_t                relativeOffset,
-                                           uint32_t                size,
-                                           void                   *usrbuff,
-                                           XrdCl::ResponseHandler *usrHandler,
-                                           uint16_t                timeout )
+  XRootDStatus ZipArchive::Read( uint64_t         relativeOffset,
+                              uint32_t         size,
+                              void            *usrbuff,
+                              ResponseHandler *usrHandler,
+                              uint16_t         timeout )
   {
     if( openstage != Done || openfn.empty() )
-      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp,
-                                  XrdCl::errInvalidOp, "Archive not opened." );
+      return XRootDStatus( stError, errInvalidOp,
+                           errInvalidOp, "Archive not opened." );
 
     auto cditr = cdmap.find( openfn );
     if( cditr == cdmap.end() )
-      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound,
-                                  XrdCl::errNotFound, "File not found." );
+      return XRootDStatus( stError, errNotFound,
+                           errNotFound, "File not found." );
     CDFH *cdfh = cdvec[cditr->second].get();
 
     // check if the file is compressed, for now we only support uncompressed and inflate/deflate compression
     if( cdfh->compressionMethod != 0 && cdfh->compressionMethod != Z_DEFLATED )
-      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported,
-                                  0, "The compression algorithm is not supported!" );
+      return XRootDStatus( stError, errNotSupported,
+                           0, "The compression algorithm is not supported!" );
 
     // Now the problem is that at the beginning of our
     // file there is the Local-file-header, which size
@@ -360,11 +360,11 @@ namespace XrdZip
       // straight away
       if( empty && buffer)
       {
-        XrdCl::XRootDStatus st = cache.Input( buffer.get() + offset, filesize - fileoff, relativeOffset );
+        XRootDStatus st = cache.Input( buffer.get() + offset, filesize - fileoff, relativeOffset );
         if( !st.IsOK() ) return st;
       }
 
-      XrdCl::XRootDStatus st = cache.Output( usrbuff, size, relativeOffset );
+      XRootDStatus st = cache.Output( usrbuff, size, relativeOffset );
 
       // read from cache
       if( !empty || buffer )
@@ -374,15 +374,15 @@ namespace XrdZip
         // propagate errors to the end-user
         if( !st.IsOK() ) return st;
         // we have all the data ...
-        if( st.code == XrdCl::suDone )
+        if( st.code == suDone )
         {
           if( usrHandler )
           {
-            XrdCl::XRootDStatus *st = make_status();
-            XrdCl::ChunkInfo    *ch = new XrdCl::ChunkInfo( relativeOffset, size, usrbuff );
+            XRootDStatus *st = make_status();
+            ChunkInfo    *ch = new ChunkInfo( relativeOffset, size, usrbuff );
             Schedule( usrHandler, st, ch );
           }
-          return XrdCl::XRootDStatus();
+          return XRootDStatus();
         }
       }
 
@@ -399,45 +399,45 @@ namespace XrdZip
         chunkSize = filesize - rawOffset;
       // allocate the buffer for the compressed data
       buffer.reset( new char[chunkSize] );
-      XrdCl::Pipeline p = XrdCl::Read( archive, fileoff + rawOffset, chunkSize, buffer.get() ) >>
-                            [=, &cache]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
-                            {
-                              if( !st.IsOK() )
-                              {
-                                if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
-                                return;
-                              }
-                              st = cache.Input( ch.buffer, ch.length, rawOffset );
-                              if( !st.IsOK() )
-                              {
-                                if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
-                                buffer.reset();
-                                XrdCl::Pipeline::Stop( st );
-                              }
+      Pipeline p = XrdCl::Read( archive, fileoff + rawOffset, chunkSize, buffer.get() ) >>
+                     [=, &cache]( XRootDStatus &st, ChunkInfo &ch )
+                     {
+                       if( !st.IsOK() )
+                       {
+                         if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
+                         return;
+                       }
+                       st = cache.Input( ch.buffer, ch.length, rawOffset );
+                       if( !st.IsOK() )
+                       {
+                         if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
+                         buffer.reset();
+                         Pipeline::Stop( st );
+                       }
 
-                              // at this point we can be sure that all the needed data are in the cache
-                              // (we requested as much data as the user asked for so in the worst case
-                              // we have exactly as much data as the user needs, most likely we have
-                              // more because the data are compressed)
-                              uint32_t bytesRead = 0;
-                              st = cache.Read( bytesRead );
-                              if( !st.IsOK() )
-                              {
-                                if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
-                                buffer.reset();
-                                XrdCl::Pipeline::Stop( st );
-                              }
+                       // at this point we can be sure that all the needed data are in the cache
+                       // (we requested as much data as the user asked for so in the worst case
+                       // we have exactly as much data as the user needs, most likely we have
+                       // more because the data are compressed)
+                       uint32_t bytesRead = 0;
+                       st = cache.Read( bytesRead );
+                       if( !st.IsOK() )
+                       {
+                         if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
+                         buffer.reset();
+                         Pipeline::Stop( st );
+                       }
 
-                              // call the user handler
-                              if( usrHandler)
-                              {
-                                XrdCl::ChunkInfo *rsp = new XrdCl::ChunkInfo( relativeOffset, size, usrbuff );
-                                usrHandler->HandleResponse( make_status(), PkgRsp( rsp ) );
-                              }
-                              buffer.reset();
-                            };
-      XrdCl::Async( std::move( p ), timeout );
-      return XrdCl::XRootDStatus();
+                       // call the user handler
+                       if( usrHandler)
+                       {
+                         ChunkInfo *rsp = new ChunkInfo( relativeOffset, size, usrbuff );
+                         usrHandler->HandleResponse( make_status(), PkgRsp( rsp ) );
+                       }
+                       buffer.reset();
+                     };
+      Async( std::move( p ), timeout );
+      return XRootDStatus();
     }
 
     // check if we have the whole file in our local buffer
@@ -447,80 +447,79 @@ namespace XrdZip
 
       if( usrHandler )
       {
-        XrdCl::XRootDStatus *st = make_status();
-        XrdCl::ChunkInfo    *ch = new XrdCl::ChunkInfo( relativeOffset, size, usrbuff );
+        XRootDStatus *st = make_status();
+        ChunkInfo    *ch = new ChunkInfo( relativeOffset, size, usrbuff );
         Schedule( usrHandler, st, ch );
       }
-      return XrdCl::XRootDStatus();
+      return XRootDStatus();
     }
 
-    XrdCl::Pipeline p = XrdCl::Read( archive, offset, size, usrbuff ) >>
-                          [=]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &chunk )
-                          {
-                            if( usrHandler )
-                            {
-                              XrdCl::XRootDStatus *status = make_status( st );
-                              XrdCl::ChunkInfo    *rsp = nullptr;
-                              if( st.IsOK() )
-                                rsp = new XrdCl::ChunkInfo( relativeOffset, chunk.length,
-                                                            chunk.buffer );
-                              usrHandler->HandleResponse( status, PkgRsp( rsp ) );
-                            }
-                          };
-    XrdCl::Async( std::move( p ), timeout );
-    return XrdCl::XRootDStatus();
+    Pipeline p = XrdCl::Read( archive, offset, size, usrbuff ) >>
+                   [=]( XRootDStatus &st, ChunkInfo &chunk )
+                   {
+                     if( usrHandler )
+                     {
+                       XRootDStatus *status = make_status( st );
+                       ChunkInfo    *rsp = nullptr;
+                       if( st.IsOK() )
+                         rsp = new ChunkInfo( relativeOffset, chunk.length, chunk.buffer );
+                       usrHandler->HandleResponse( status, PkgRsp( rsp ) );
+                     }
+                   };
+    Async( std::move( p ), timeout );
+    return XRootDStatus();
   }
 
-  XrdCl::XRootDStatus Archive::List( XrdCl::DirectoryList *&list )
+  XRootDStatus ZipArchive::List( DirectoryList *&list )
   {
     if( openstage != Done )
-      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp,
-                                  XrdCl::errInvalidOp, "Archive not opened." );
+      return XRootDStatus( stError, errInvalidOp,
+                                  errInvalidOp, "Archive not opened." );
 
     std::string value;
     archive.GetProperty( "LastURL", value );
-    XrdCl::URL url( value );
+    URL url( value );
 
-    XrdCl::StatInfo *infoptr = 0;
-    XrdCl::XRootDStatus st = archive.Stat( false, infoptr );
-    std::unique_ptr<XrdCl::StatInfo> info( infoptr );
+    StatInfo *infoptr = 0;
+    XRootDStatus st = archive.Stat( false, infoptr );
+    std::unique_ptr<StatInfo> info( infoptr );
 
-    list = new XrdCl::DirectoryList();
+    list = new DirectoryList();
     list->SetParentName( url.GetPath() );
 
     auto itr = cdvec.begin();
     for( ; itr != cdvec.end() ; ++itr )
     {
       CDFH *cdfh = itr->get();
-      XrdCl::StatInfo *entry_info = make_stat( *info, cdfh->uncompressedSize );
-      XrdCl::DirectoryList::ListEntry *entry =
-          new XrdCl::DirectoryList::ListEntry( url.GetHostId(), cdfh->filename, entry_info );
+      StatInfo *entry_info = make_stat( *info, cdfh->uncompressedSize );
+      DirectoryList::ListEntry *entry =
+          new DirectoryList::ListEntry( url.GetHostId(), cdfh->filename, entry_info );
       list->Add( entry );
     }
 
-    return XrdCl::XRootDStatus();
+    return XRootDStatus();
   }
 
-  XrdCl::XRootDStatus Archive::Write( uint32_t                size,
-                                            const void             *buffer,
-                                            XrdCl::ResponseHandler *handler,
-                                            uint16_t                timeout )
+  XRootDStatus ZipArchive::Write( uint32_t         size,
+                               const void      *buffer,
+                               ResponseHandler *handler,
+                               uint16_t         timeout )
   {
     uint64_t wrtoff = cdoff; // we only support appending
-    XrdCl::Pipeline p = XrdCl::Write( archive, wrtoff, size, buffer ) >>
-                          [=]( XrdCl::XRootDStatus &st )
-                          {
-                            if( st.IsOK() )
-                            {
-                              cdoff    += size;
-                              archsize += size;
-                              updated   = true;
-                            }
-                            if( handler )
-                              handler->HandleResponse( make_status( st ), nullptr );
-                          };
-    XrdCl::Async( std::move( p ), timeout );
-    return XrdCl::XRootDStatus();
+    Pipeline p = XrdCl::Write( archive, wrtoff, size, buffer ) >>
+                   [=]( XRootDStatus &st )
+                   {
+                     if( st.IsOK() )
+                     {
+                       cdoff    += size;
+                       archsize += size;
+                       updated   = true;
+                     }
+                     if( handler )
+                       handler->HandleResponse( make_status( st ), nullptr );
+                   };
+    Async( std::move( p ), timeout );
+    return XRootDStatus();
   }
 
 } /* namespace XrdZip */
