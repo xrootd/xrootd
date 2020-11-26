@@ -34,7 +34,7 @@ namespace XrdCl
 {
 
   //----------------------------------------------------------------------------
-  //! Base class for all file releated operations
+  //! Base class for all file related operations
   //!
   //! @arg Derived : the class that derives from this template (CRTP)
   //! @arg HasHndl : true if operation has a handler, false otherwise
