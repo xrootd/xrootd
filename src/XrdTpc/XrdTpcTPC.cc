@@ -701,7 +701,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
                 logTransferEvent(LogMask::Info, rec, "INVALID_REQUEST", msg);
                 return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
             }
-            streams = streams == 0 ? 1 : stream_req;
+            streams = stream_req == 0 ? 1 : stream_req;
         }
     }
     rec.streams = streams;
