@@ -222,9 +222,9 @@ namespace XrdCl
 
         uint64_t wrtoff = cdoff;
         uint32_t wrtlen = lfh->lfhSize;
-        buffer_t wrtbuf;
-        wrtbuf.reserve( wrtlen );
-        lfh->Serialize( wrtbuf );
+        std::shared_ptr<buffer_t> wrtbuf( new buffer_t() );
+        wrtbuf->reserve( wrtlen );
+        lfh->Serialize( *wrtbuf );
         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
         if( cdexists )
         {
@@ -232,9 +232,10 @@ namespace XrdCl
           cdexists = false;
         }
 
-        Pipeline p = XrdCl::Write( archive, wrtoff, lfh->lfhSize, wrtbuf.data() ) >>
-                       [=]( XRootDStatus &st )
+        Pipeline p = XrdCl::Write( archive, wrtoff, lfh->lfhSize, wrtbuf->data() ) >>
+                       [=]( XRootDStatus &st ) mutable
                        {
+                         wrtbuf.reset();
                          if( st.IsOK() )
                          {
                            archsize += wrtlen;
@@ -291,8 +292,9 @@ namespace XrdCl
 
       Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() ) // TODO if this fails the status wont be passed to user handler
                  | Close( archive ) >>
-                     [=]( XRootDStatus &st )
+                     [=]( XRootDStatus &st ) mutable
                      {
+                       wrtbuff.reset();
                        if( st.IsOK() ) Clear();
                        else openstage = Error;
                        if( handler ) handler->HandleResponse( make_status( st ), nullptr );
