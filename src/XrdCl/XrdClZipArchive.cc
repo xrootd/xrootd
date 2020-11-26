@@ -208,7 +208,7 @@ namespace XrdCl
                                      ResponseHandler   *handler,
                                      uint16_t           timeout )
   {
-    if( !openfn.empty() )
+    if( !openfn.empty() || openstage != Done )
       return XRootDStatus( stError, errInvalidOp );
 
     this->flags = flags;
@@ -250,7 +250,6 @@ namespace XrdCl
       }
       return XRootDStatus( stError, errNotFound );
     }
-
     openfn = fn;
     if( handler ) Schedule( handler, make_status() );
     return XRootDStatus();
@@ -508,6 +507,10 @@ namespace XrdCl
                                ResponseHandler *handler,
                                uint16_t         timeout )
   {
+    if( openstage != Done || openfn.empty() )
+      return XRootDStatus( stError, errInvalidOp,
+                           errInvalidOp, "Archive not opened." );
+
     uint64_t wrtoff = cdoff; // we only support appending
     Pipeline p = XrdCl::Write( archive, wrtoff, size, buffer ) >>
                    [=]( XRootDStatus &st )
