@@ -8,7 +8,6 @@
 #ifndef SRC_XRDZIP_XRDZIPINFLCACHE_HH_
 #define SRC_XRDZIP_XRDZIPINFLCACHE_HH_
 
-#include "XrdZip/XrdZipError.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include <zlib.h>
 #include <exception>
@@ -16,6 +15,18 @@
 
 namespace XrdZip
 {
+  //---------------------------------------------------------------------------
+  //! An exception for carrying the XRootDStatus of InflCache
+  //---------------------------------------------------------------------------
+  struct Error : public std::exception
+  {
+      Error( const XrdCl::XRootDStatus &status ) : status( status )
+      {
+      }
+
+      XrdCl::XRootDStatus status;
+  };
+
   //---------------------------------------------------------------------------
   //! Utility class for inflating a compressed buffer
   //---------------------------------------------------------------------------

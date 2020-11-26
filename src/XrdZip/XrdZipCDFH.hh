@@ -27,7 +27,6 @@
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipUtils.hh"
-#include "XrdZip/XrdZipError.hh"
 
 #include <string>
 #include <algorithm>

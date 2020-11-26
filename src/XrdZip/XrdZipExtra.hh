@@ -26,7 +26,6 @@
 #define SRC_XRDZIP_XRDZIPEXTRA_HH_
 
 #include "XrdZip/XrdZipUtils.hh"
-#include "XrdZip/XrdZipError.hh"
 
 namespace XrdZip
 {
