@@ -19,7 +19,7 @@
 #include "XrdZip/XrdZipCDFH.hh"
 #include "XrdZip/XrdZipZIP64EOCD.hh"
 #include "XrdZip/XrdZipLFH.hh"
-#include "XrdZip/XrdZipInflCache.hh"
+#include "XrdCl/XrdClZipCache.hh"
 
 #include <memory>
 #include <unordered_map>
@@ -183,7 +183,7 @@ namespace XrdCl
         Error
       };
 
-      typedef std::unordered_map<std::string, XrdZip::InflCache> inflcache_t;
+      typedef std::unordered_map<std::string, ZipCache> zipcache_t;
 
       File                        archive;
       uint64_t                    archsize;
@@ -200,7 +200,7 @@ namespace XrdCl
       std::unique_ptr<ZIP64_EOCD> zip64eocd;
       OpenStages                  openstage;
       std::string                 openfn;
-      inflcache_t                 inflcache;
+      zipcache_t                  zipcache;
 
       OpenFlags::Flags            flags;
       std::unique_ptr<LFH>        lfh;

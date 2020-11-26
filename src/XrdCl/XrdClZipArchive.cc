@@ -374,10 +374,10 @@ namespace XrdCl
     if( cdfh->compressionMethod == Z_DEFLATED )
     {
       // check if respective ZIP cache exists
-      bool empty = inflcache.find( openfn ) == inflcache.end();
+      bool empty = zipcache.find( openfn ) == zipcache.end();
       // if the entry does not exist, it will be created using
       // default constructor
-      InflCache &cache = inflcache[openfn];
+      ZipCache &cache = zipcache[openfn];
       // if we have the whole ZIP archive we can populate the cache
       // straight away
       if( empty && buffer)

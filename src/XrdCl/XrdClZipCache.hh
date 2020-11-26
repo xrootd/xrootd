@@ -13,7 +13,7 @@
 #include <exception>
 #include <string>
 
-namespace XrdZip
+namespace XrdCl
 {
   //---------------------------------------------------------------------------
   //! An exception for carrying the XRootDStatus of InflCache
@@ -30,11 +30,11 @@ namespace XrdZip
   //---------------------------------------------------------------------------
   //! Utility class for inflating a compressed buffer
   //---------------------------------------------------------------------------
-  class InflCache
+  class ZipCache
   {
     public:
 
-      InflCache() : rawOffset( 0 ), rawSize( 0 ), totalRead( 0 )
+      ZipCache() : rawOffset( 0 ), rawSize( 0 ), totalRead( 0 )
       {
         strm.zalloc   = Z_NULL;
         strm.zfree    = Z_NULL;
@@ -49,7 +49,7 @@ namespace XrdZip
         if( !st.IsOK() ) throw Error( st );
       }
 
-      ~InflCache()
+      ~ZipCache()
       {
         inflateEnd( &strm );
       }
