@@ -31,10 +31,10 @@ namespace XrdCl
   {
   }
 
-  XRootDStatus ZipArchive::OpenArchive( const std::string      &url,
-                                     OpenFlags::Flags flags,
-                                     ResponseHandler *handler,
-                                     uint16_t                timeout )
+  XRootDStatus ZipArchive::OpenArchive( const std::string  &url,
+                                        OpenFlags::Flags    flags,
+                                        ResponseHandler    *handler,
+                                        uint16_t            timeout )
   {
     Fwd<uint32_t> rdsize;
     Fwd<uint64_t> rdoff;

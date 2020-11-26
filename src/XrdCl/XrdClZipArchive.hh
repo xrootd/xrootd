@@ -36,28 +36,28 @@ namespace XrdCl
       ZipArchive();
       virtual ~ZipArchive();
 
-      XRootDStatus OpenArchive( const std::string       &url,
-                                       OpenFlags::Flags flags,
-                                       ResponseHandler *handler,
-                                       uint16_t                timeout = 0 );
+      XRootDStatus OpenArchive( const std::string  &url,
+                                OpenFlags::Flags    flags,
+                                ResponseHandler    *handler,
+                                uint16_t            timeout = 0 );
 
-      XRootDStatus OpenFile( const std::string       &fn,
-                                    OpenFlags::Flags  flags = OpenFlags::None,
-                                    uint64_t                 size  = 0,
-                                    uint32_t                 crc32 = 0,
-                                    ResponseHandler  *handler = nullptr,
-                                    uint16_t                 timeout = 0 );
+      XRootDStatus OpenFile( const std::string  &fn,
+                             OpenFlags::Flags    flags = OpenFlags::None,
+                             uint64_t            size  = 0,
+                             uint32_t            crc32 = 0,
+                             ResponseHandler    *handler = nullptr,
+                             uint16_t            timeout = 0 );
 
-      XRootDStatus Read( uint64_t                offset,
-                                uint32_t                size,
-                                void                   *buffer,
-                                ResponseHandler *handler,
-                                uint16_t                timeout = 0 );
+      XRootDStatus Read( uint64_t         offset,
+                         uint32_t         size,
+                         void            *buffer,
+                         ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
 
-      XRootDStatus Write( uint32_t                size,
-                                 const void             *buffer,
-                                 ResponseHandler *handler,
-                                 uint16_t                timeout = 0 );
+      XRootDStatus Write( uint32_t          size,
+                          const void       *buffer,
+                          ResponseHandler  *handler,
+                          uint16_t          timeout = 0 );
 
       XRootDStatus Stat( StatInfo *&info )
       {
@@ -66,10 +66,10 @@ namespace XrdCl
       }
 
       XRootDStatus CloseArchive( ResponseHandler *handler,
-                                        uint16_t                timeout = 0 );
+                                 uint16_t         timeout = 0 );
 
       inline XRootDStatus CloseFile( ResponseHandler  *handler = nullptr,
-                                            uint16_t                 timeout = 0 )
+                                     uint16_t          timeout = 0 )
       {
         openfn.clear();
         lfh.reset();
