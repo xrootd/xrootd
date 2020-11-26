@@ -78,6 +78,65 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ZipArchive *zip;
   };
+
+  //----------------------------------------------------------------------------
+  //! OpenArchive operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class OpenArchiveImpl: public ZipOperation<OpenArchiveImpl, HasHndl, Resp<void>,
+      Arg<std::string>, Arg<OpenFlags::Flags>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<OpenArchiveImpl, HasHndl, Resp<void>, Arg<std::string>,
+                          Arg<OpenFlags::Flags>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { UrlArg, FlagsArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "OpenArchive";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      {
+        try
+        {
+          std::string      url     = std::get<UrlArg>( this->args ).Get();
+          OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
+          uint16_t         timeout = pipelineTimeout < this->timeout ?
+                                     pipelineTimeout : this->timeout;
+          return this->zip->OpenArchive( url, flags, this->handler.get(), timeout );
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+  typedef OpenArchiveImpl<false> OpenArchive;
 }
 
 #endif /* SRC_XRDCL_XRDCLZIPOPERATIONS_HH_ */
