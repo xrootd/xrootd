@@ -20,6 +20,8 @@ namespace XrdCl
                        cdexists( false ),
                        updated( false ),
                        cdoff( 0 ),
+                       orgcdsz( 0 ),
+                       orgcdcnt( 0 ),
                        openstage( None ),
                        flags( OpenFlags::None )
   {
@@ -95,7 +97,9 @@ namespace XrdCl
                                       {
                                         // If we managed to download the whole archive we don't need to
                                         // worry about zip64, it is so small that standard EOCD will do
-                                        cdoff = eocd->cdOffset;
+                                        cdoff     = eocd->cdOffset;
+                                        orgcdsz   = eocd->cdSize;
+                                        orgcdcnt  = eocd->nbCdRec;
                                         buff = buff + cdoff;
                                         openstage = HaveCdRecords;
                                         continue;
@@ -117,11 +121,13 @@ namespace XrdCl
 
                                       // It's not ZIP64, we already know where the CD records are
                                       // we need to read more data
-                                      cdoff  = eocd->cdOffset;
-                                      rdoff  = eocd->cdOffset;
-                                      rdsize = eocd->cdSize;
+                                      cdoff     = eocd->cdOffset;
+                                      orgcdsz   = eocd->cdSize;
+                                      orgcdcnt  = eocd->nbCdRec;
+                                      rdoff     = eocd->cdOffset;
+                                      rdsize    = eocd->cdSize;
                                       buffer.reset( new char[*rdsize] );
-                                      rdbuff = buffer.get();
+                                      rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
                                       Pipeline::Repeat();
                                     }
@@ -158,17 +164,22 @@ namespace XrdCl
                                       zip64eocd.reset( new ZIP64_EOCD( buff ) );
 
                                       // now we can read the CD records
-                                      cdoff  = zip64eocd->cdOffset;
-                                      rdoff  = zip64eocd->cdOffset;
-                                      rdsize = zip64eocd->cdSize;
+                                      cdoff     = zip64eocd->cdOffset;
+                                      orgcdsz   = zip64eocd->cdSize;
+                                      orgcdcnt  = zip64eocd->nbCdRec;
+                                      rdoff     = zip64eocd->cdOffset;
+                                      rdsize    = zip64eocd->cdSize;
                                       buffer.reset( new char[*rdsize] );
-                                      rdbuff = buffer.get();
+                                      rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
                                       Pipeline::Repeat();
                                     }
 
                                     case HaveCdRecords:
                                     {
+                                      // make a copy of the original CDFH records
+                                      orgcdbuf.reserve( orgcdsz );
+                                      std::copy( buff, buff + orgcdsz, std::back_inserter( orgcdbuf ) );
                                       try
                                       {
                                         std::tie( cdvec, cdmap ) = CDFH::Parse( buff, eocd->cdSize, eocd->nbCdRec );
@@ -215,6 +226,8 @@ namespace XrdCl
     auto  itr   = cdmap.find( fn );
     if( itr == cdmap.end() )
     {
+      // the file does not exist in the archive so it only makes sense
+      // if our user is opening for append
       if( flags | OpenFlags::New )
       {
         openfn = fn;
@@ -251,6 +264,11 @@ namespace XrdCl
       }
       return XRootDStatus( stError, errNotFound );
     }
+
+    // the file name exist in the archive but our user wants to append
+    // a file with the same name
+    if( flags | OpenFlags::New ) return XRootDStatus( stError, errInvalidOp );
+
     openfn = fn;
     if( handler ) Schedule( handler, make_status() );
     return XRootDStatus();
@@ -263,7 +281,7 @@ namespace XrdCl
     {
       uint64_t wrtoff  = cdoff;
       uint32_t wrtsize = 0;
-      uint32_t cdsize  = CDFH::CalcSize( cdvec );
+      uint32_t cdsize  = CDFH::CalcSize( cdvec, orgcdsz, orgcdcnt );
       // first create the EOCD record
       eocd.reset( new EOCD( cdoff, cdvec.size(), cdsize ) );
       wrtsize += eocd->eocdSize ;
@@ -283,7 +301,7 @@ namespace XrdCl
       std::shared_ptr<buffer_t> wrtbuff( new buffer_t() );
       wrtbuff->reserve( wrtsize );
       // Now serialize all records into a buffer
-      CDFH::Serialize( cdvec, *wrtbuff );
+      CDFH::Serialize( orgcdcnt, orgcdbuf, cdvec, *wrtbuff );
       if( zip64eocd )
         zip64eocd->Serialize( *wrtbuff );
       if( zip64eocdl )

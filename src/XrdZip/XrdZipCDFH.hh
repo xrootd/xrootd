@@ -85,21 +85,25 @@ namespace XrdZip
     //---------------------------------------------------------------------------
     // Calculate size of the Central Directory
     //---------------------------------------------------------------------------
-    inline static size_t CalcSize( const cdvec_t &cdvec )
+    inline static size_t CalcSize( const cdvec_t &cdvec, uint32_t orgcdsz, uint32_t orgcdcnt )
     {
       size_t size = 0;
-      auto itr = cdvec.begin();
+      auto itr = cdvec.begin() + orgcdcnt;
       for( ; itr != cdvec.end() ; ++itr )
       {
         CDFH *cdfh = itr->get();
         size += cdfh->cdfhSize;
       }
-      return size;
+      return size + orgcdsz;
     }
 
-    inline static void Serialize( const cdvec_t &cdvec, buffer_t &buffer )
+    inline static void Serialize( uint32_t         orgcdcnt,
+                                  const buffer_t  &orgcdbuf,
+                                  const cdvec_t   &cdvec,
+                                  buffer_t        &buffer )
     {
-      auto itr = cdvec.begin();
+      std::copy( orgcdbuf.begin(), orgcdbuf.end(), std::back_inserter( buffer ) );
+      auto itr = cdvec.begin() + orgcdcnt;
       for( ; itr != cdvec.end() ; ++itr )
       {
         CDFH *cdfh = itr->get();
@@ -232,7 +236,7 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! Serialize the object into a buffer
     //-------------------------------------------------------------------------
-    void Serialize( buffer_t &buffer )
+    void Serialize( buffer_t        &buffer )
     {
       copy_bytes( cdfhSign, buffer );
       copy_bytes( zipVersion, buffer );

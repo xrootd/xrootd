@@ -194,12 +194,15 @@ namespace XrdCl
       cdvec_t                     cdvec;
       cdmap_t                     cdmap;
       uint64_t                    cdoff;
+      uint32_t                    orgcdsz;  //> original CD size
+      uint32_t                    orgcdcnt; //> original number CDFH records
+      buffer_t                    orgcdbuf; //> buffer with the original CDFH records
       std::unique_ptr<ZIP64_EOCD> zip64eocd;
       OpenStages                  openstage;
       std::string                 openfn;
       inflcache_t                 inflcache;
 
-      OpenFlags::Flags     flags;
+      OpenFlags::Flags            flags;
       std::unique_ptr<LFH>        lfh;
   };
 
