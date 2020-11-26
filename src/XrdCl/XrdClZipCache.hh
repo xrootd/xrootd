@@ -18,9 +18,9 @@ namespace XrdCl
   //---------------------------------------------------------------------------
   //! An exception for carrying the XRootDStatus of InflCache
   //---------------------------------------------------------------------------
-  struct Error : public std::exception
+  struct ZipError : public std::exception
   {
-      Error( const XrdCl::XRootDStatus &status ) : status( status )
+      ZipError( const XrdCl::XRootDStatus &status ) : status( status )
       {
       }
 
@@ -46,7 +46,7 @@ namespace XrdCl
         // pass negative window bits !!!
         int rc = inflateInit2( &strm, -MAX_WBITS );
         XrdCl::XRootDStatus st = ToXRootDStatus( rc, "inflateInit2" );
-        if( !st.IsOK() ) throw Error( st );
+        if( !st.IsOK() ) throw ZipError( st );
       }
 
       ~ZipCache()
