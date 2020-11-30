@@ -299,7 +299,17 @@ namespace XrdCl
         }
       }
   };
-  typedef ReadImpl<false> Read;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ReadImpl objects
+  //----------------------------------------------------------------------------
+  template<typename FILE>
+  inline ReadImpl<false> Read( FILE &&file, Arg<uint64_t> offset,
+      Arg<uint32_t> size, Arg<void*> buffer )
+  {
+    return ReadImpl<false>( file, std::move( offset ), std::move( size ),
+                            std::move( buffer ) );
+  }
 
   //----------------------------------------------------------------------------
   //! Close operation (@see FileOperation)

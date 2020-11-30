@@ -136,78 +136,24 @@ namespace XrdCl
         }
       }
   };
-  typedef OpenArchiveImpl<false> OpenArchive;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating OpenFileImpl objects
+  //----------------------------------------------------------------------------
+  template<typename ZIP>
+  inline OpenArchiveImpl<false> OpenArchive( ZIP &&zip, Arg<std::string> fn,
+      Arg<OpenFlags::Flags> flags, uint16_t timeout = 0 )
+  {
+    return OpenArchiveImpl<false>( zip, std::move( fn ),
+                                   std::move( flags ) ).Timeout( timeout );
+  }
+
 
   //----------------------------------------------------------------------------
   //! OpenFile operation (@see ZipOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class OpenFileImpl: public ZipOperation<OpenFileImpl, HasHndl, Resp<void>,
-      Arg<std::string>>
-  {
-    public:
-
-      //------------------------------------------------------------------------
-      //! Inherit constructors from FileOperation (@see FileOperation)
-      //------------------------------------------------------------------------
-      using ZipOperation<OpenFileImpl, HasHndl, Resp<void>, Arg<std::string>>::ZipOperation;
-
-      //------------------------------------------------------------------------
-      //! Argument indexes in the args tuple
-      //------------------------------------------------------------------------
-      enum { FnArg, };
-
-      //------------------------------------------------------------------------
-      //! @return : name of the operation (@see Operation)
-      //------------------------------------------------------------------------
-      std::string ToString()
-      {
-        return "OpenFile";
-      }
-
-    protected:
-
-      //------------------------------------------------------------------------
-      //! RunImpl operation (@see Operation)
-      //!
-      //! @param params :  container with parameters forwarded from
-      //!                  previous operation
-      //! @return       :  status of the operation
-      //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
-      {
-        try
-        {
-          std::string fn      = std::get<FnArg>( this->args ).Get();
-          uint16_t    timeout = pipelineTimeout < this->timeout ?
-                                     pipelineTimeout : this->timeout;
-          return this->zip->OpenFile( fn, OpenFlags::None, 0, 0, this->handler.get(), timeout );
-        }
-        catch( const PipelineException& ex )
-        {
-          return ex.GetError();
-        }
-        catch( const std::exception& ex )
-        {
-          return XRootDStatus( stError, ex.what() );
-        }
-      }
-  };
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating OpenFileImpl objects
-  //----------------------------------------------------------------------------
-  template<typename ZIP>
-  inline OpenFileImpl<false> OpenFile( ZIP &zip, Arg<std::string> fn )
-  {
-    return OpenFileImpl<false>( zip, std::move( fn ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! OpenFile operation (@see ZipOperation)
-  //----------------------------------------------------------------------------
-  template<bool HasHndl>
-  class OpenFileImpl2: public ZipOperation<OpenFileImpl2, HasHndl, Resp<void>,
       Arg<std::string>, Arg<OpenFlags::Flags>, Arg<uint64_t>, Arg<uint32_t>>
   {
     public:
@@ -215,7 +161,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      using ZipOperation<OpenFileImpl2, HasHndl, Resp<void>, Arg<std::string>,
+      using ZipOperation<OpenFileImpl, HasHndl, Resp<void>, Arg<std::string>,
           Arg<OpenFlags::Flags>, Arg<uint64_t>, Arg<uint32_t>>::ZipOperation;
 
       //------------------------------------------------------------------------
@@ -264,14 +210,86 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
-  //! Factory for creating OpenFileImpl2 objects
+  //! Factory for creating OpenFileImpl objects
   //----------------------------------------------------------------------------
   template<typename ZIP>
-  inline OpenFileImpl2<false> OpenFile( ZIP &zip, Arg<std::string> fn,
-      Arg<OpenFlags::Flags> flags, Arg<uint64_t> size, Arg<uint32_t> crc32 )
+  inline OpenFileImpl<false> OpenFile( ZIP &&zip, Arg<std::string> fn,
+      Arg<OpenFlags::Flags> flags = OpenFlags::None, Arg<uint64_t> size = 0,
+      Arg<uint32_t> crc32 = 0, uint16_t timeout = 0 )
   {
-    return OpenFileImpl2<false>( zip, std::move( fn ), std::move( flags ),
-        std::move( size ), std::move( crc32 ) );
+    return OpenFileImpl<false>( zip, std::move( fn ), std::move( flags ),
+        std::move( size ), std::move( crc32 ) ).Timeout( timeout );
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Read operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class ArchiveReadImpl: public ZipOperation<ArchiveReadImpl, HasHndl, Resp<ChunkInfo>,
+      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<ArchiveReadImpl, HasHndl, Resp<ChunkInfo>, Arg<uint64_t>,
+          Arg<uint32_t>, Arg<void*>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { OffsetArg, SizeArg, BufferArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ArchiveRead";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      {
+        try
+        {
+          uint64_t  offset  = std::get<OffsetArg>( this->args ).Get();
+          uint32_t  size    = std::get<SizeArg>( this->args ).Get();
+          void     *buffer  = std::get<BufferArg>( this->args ).Get();
+          uint16_t  timeout = pipelineTimeout < this->timeout ?
+                              pipelineTimeout : this->timeout;
+          return this->zip->Read( offset, size, buffer, this->handler.get(), timeout );
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ArchiveReadImpl objects
+  //----------------------------------------------------------------------------
+  template<typename ZIP>
+  inline ArchiveReadImpl<false> Read( ZIP &&zip, Arg<uint64_t> offset,
+                   Arg<uint32_t> size, Arg<void*> buffer, uint16_t timeout = 0 )
+  {
+    return ArchiveReadImpl<false>( zip, std::move( offset ), std::move( size ),
+                                   std::move( buffer ) ).Timeout( timeout );
   }
 
 }

@@ -661,7 +661,8 @@ namespace XrdCl
       Derived<HasHndl> Timeout( uint16_t timeout )
       {
         this->timeout = timeout;
-        return std::move( *this );
+        Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
+        return std::move( *me );
       }
 
     protected:
