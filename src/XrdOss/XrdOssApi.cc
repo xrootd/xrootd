@@ -1070,7 +1070,7 @@ int XrdOssFile::Fctl(int cmd, int alen, const char *args, char **resp)
 /******************************************************************************/
 
 /*
-  Function: Flush file pages from the filesyste cacheÂ.
+  Function: Flush file pages from the filesyste cache.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */

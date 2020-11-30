@@ -899,7 +899,7 @@ bool XrdOfsConfigPI::SetupCtl(XrdOucEnv *envP)
           }
       } else return true;
 
-// Record the object (it will be Ãfully initialized later_
+// Record the object (it will be fully initialized later_
 //
    obj->eDest = Eroute;
    obj->prvPI = 0;
