@@ -7,85 +7,164 @@ Release Notes
 
 
 --------------
+Version 5.1.0
+--------------
+
++ **New Features**
+  * **[XCache]** Make TLS substitution for net cksum selectable.
+  * **[XCache]** Support pgRead and checksums.
+  * **[Server]** Implement an internal nano-DNS for k8s setups (mostly for SSI).
+  * **[Server]** Allow internal application push of plugin library.
+  * **[Server]** Implement checkpointed file modifications (i.e. kXR_chkpoint).
+  * **[Server]** Enhance the StatPF() method.
+  * **[Xache]** Phase 1 of checksum integrity implementation (a.k.a pgread).
+  * **[Monitoring]** Implement extensive g-stream enhancements.
+  * **[XrdCl]** Don't enforce host verification for localhost, closes #1318.
+  * **[XrdCl]** Allow for roots/xroots protocol in metalinks.
+  * **[XrdCl]** Add write API that transfers data from a FD.
+  * **[XrdCl]** Add write API that takes ownership of the buffer.
+  * **[XrdCl]** Implement redirect collapsing.
+  * **[XrdCl]** Add stream TTL callback.
+  * **[XrdCl]** xrdcp: allow write recovery at a redirector.
+  * **[XrdCl]** Allow negative flags in redirect port.
+  * **[XrdCl]** Implement PgRead.
+  * **[XrdCl]** Substitute PgRead with Read if the former is not supported.
+  * **[XrdCl]** Add a switch for disabling IP shuffling.
+  * **[Python]** Expose the Prepare::Evict flag, fixes #1322.
+  * **[XrdZip]** Add general ZIP utilities.
+  * **[XrdSys]** Add kernel buffer utility.
+
++ **Major bug fixes**
+  * **[Server]** Make sure that alignment is a power of two for posix_memalign.
+  * **[Server]** Redo checksum changes to provide backward compatibility.
+  * **[Server]** Correct version checking to prevent false negatives.
+  * **[Server]** Fix esoteric truncation of long dirlist. Fixes #1340
+  * **[Server]** Do no terminate dirlist when a deleted directory is encountered.
+  * **[Server]** When requested fully verify supplied checksums in pgwrite.
+  * **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
+  * **[POSIX]** Initialize pointer when object reused to prevent memory corruption.
+  * **[POSIX]** Correctly initialize serverless cache to avoid SEGV.
+  * **[TPC]** Do not hold lock when deleting a proxy autorm TPC job that failed.
+  * **[XrdHttp]** Prevent unterminated/corrupted headers from looping the server.
+  * **[PIP]** Convert egg-info into proper dist-info.
+  * **[XrdCl]** xrdcp: fix regression in recursive copy.
+  * **[XrdCl]** Use ntohll() for pgread offsets.
+  * **[cmsd]** Correct write lengths to not write null bytes to env file.
+  * **[cmsd]** Correct parsing bug that results in an erroneous warning.
+  * **[SSI]** Prevent a buffer from being recycled twice leading to random errors.
+  * **[SSI]** Avoid race condition between Finished() and Event Dispatch (causes SEGV)
+
++ **Minor bug fixes**
+  * **[XrdCl]** Create file descriptors with XrdSysFD utility.
+  * **[XrdCl]** Make sure kXR_attrVirtRdr flag is set properly.
+  * **[XrdHttp]** URI-quote outgoing opaque data for HTTP-TPC.
+  * **[XrdHttp]** In http mode fail the read if any error comes from the socket,
+                including timeout.
+  * **[CMake]** Set rpath for pip build.
+  * **[Python]** Strip the leading v from __version__.
+  * **[POSIX]** Make sure to always return consistent stat() information.
+  * **[cmsd]** Correct write lengths to not write null bytes to env file.
+  * **[cmsd]** Correct parsing bug that results in an erroneous warning.
+  * **[Server]** Fix esoteric truncation of long dirlist. Fixes #1340
+  * **[Server]** Do no terminate dirlist when a deleted directory is encountered.
+  * **[Server]** When requested fully verify supplied checksums in pgwrite.
+  * **[Server]** Prevent inadvertent double load of fixed protocol.
+
++ **Miscellaneous**
+  * **[Server]** Make sure atleast one export exists in the export list.
+  * **[Server]** Echo the command line into the log.
+  * **[SSI]** Allow server-side debug to be enabled via an envar.
+  * **[Xcache]** Allow origin location query to be refreshed.
+  * **[cmsd]** Ignore stacked plugin specifications as they are not supported.
+  * **[cmsd]** Correctly parse osslib when it have options.
+  * **[cmsd]** Display the name of the named pipe being waited upon.
+  * **[XrdSciTokens]** Add XrdSciTokens submodule.
+  * **[XrdHttp]** Bump the max size for an Http header line to 16K.
+  * **[XrdHttp]** Per request, use curl's escaping function to match EOS practice.
+  * **[XrdHttp]** Make "tlsreuse off" the default.
+  * **[XrdCl]** Force socket error on header integrity check failure.
+  * **[RPM]** Add client-compat and server-compat packages, based on XRootD 4.
+
+--------------
 Version 5.0.3
 --------------
 
-+ **Major bug fixes**
-  **[Server]** Add missing return that breaks loading of the oss.statlib
-  **[Server]** Prevent SEGV upon poller error on TLS links doing async I/O.
-  **[Server]** Avoid SEGV when checksum response is invalid.
-  **[TLS]** Avoid bad behaviour when authentication fails on a TLS connection.
++ * **Major bug fixes**
+  * **[Server]** Add missing return that breaks loading of the oss.statlib
+  * **[Server]** Prevent SEGV upon poller error on TLS links doing async I/O.
+  * **[Server]** Avoid SEGV when checksum response is invalid.
+  * **[TLS]** Avoid bad behaviour when authentication fails on a TLS connection.
 
-+ **Minor bug fixes**
-  **[Server]** Report correct owner/group in extended status.
-  **[XrdCl]** Fix group ownership print out in extended stat.
-  **[XrdPosix]** Fix _STAT_VER problem on Fedora rawhide.
-  **[HTTP]** Align TPC cadir procesing with HTTP to avoid config issues. Fixes #1323
++ * **Minor bug fixes**
+  * **[Server]** Report correct owner/group in extended status.
+  * **[XrdCl]** Fix group ownership print out in extended stat.
+  * **[XrdPosix]** Fix _STAT_VER problem on Fedora rawhide.
+  * **[HTTP]** Align TPC cadir procesing with HTTP to avoid config issues. Fixes #1323
 
-+ **Miscellaneous**
-  **[Server]** Correct TLS identification test for authentication protocol.
-  **[Server]** Pass the environment+secEntity to checksm manager. Fixes #1294
++ * **Miscellaneous**
+  * **[Server]** Correct TLS identification test for authentication protocol.
+  * **[Server]** Pass the environment+secEntity to checksm manager. Fixes #1294
 
 --------------
 Version 5.0.2
 --------------
 
-+ **Major bug fixes**
-  **[Server]** Avoid POSC deletion when file creation fails because it exists.
-  **[HTTP]** Prevent secret key leakage if specified in the config file.
-  **[Python]** Prevent deadlock in Python bindings from XRootD.client.finalize.
++ * **Major bug fixes**
+  * **[Server]** Avoid POSC deletion when file creation fails because it exists.
+  * **[HTTP]** Prevent secret key leakage if specified in the config file.
+  * **[Python]** Prevent deadlock in Python bindings from XRootD.client.finalize.
 
-+ **Minor bug fixes**
-  **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
-  **[XRootD]** Correct flag reset code for esoteric ssq monitor option.
-  **[XrdCl]** Fix memory leak in copy process.
++ * **Minor bug fixes**
+  * **[OFS]** Correct missparsing '+cksio' option to avoid config failure.
+  * **[XRootD]** Correct flag reset code for esoteric ssq monitor option.
+  * **[XrdCl]** Fix memory leak in copy process.
 
-+ **Miscellaneous**
-  **[Server]** Strip out explicit plugin version designation with nasty message.
-  **[Server]** Tighten requirements to display config file.
-  **[HTTP]** Honor the tlsreuse option.
-  **[HTTP]** Avoid issuing confusing messages for improbable configs.
-  **[TLS]** Really kill the session cache when asked.
-  **[Xcache]** Correct regression that killed dca option.
-  **[Utils]** Add SHA3 checksum to utils.
-  **[XrdCl]** Utils::GetHostAddresses: use shuffle insted of random_shuffle.
-  **[XrdCl]** xrdcp: short circuit file exists error.
-  **[Debian]** Add XrdClHttp plugin to xrootd-client-plugins package.
-  **[XrdVom]** Add symlink to libXrdHttpVOMS for backwards compatibility.
++ * **Miscellaneous**
+  * **[Server]** Strip out explicit plugin version designation with nasty message.
+  * **[Server]** Tighten requirements to display config file.
+  * **[HTTP]** Honor the tlsreuse option.
+  * **[HTTP]** Avoid issuing confusing messages for improbable configs.
+  * **[TLS]** Really kill the session cache when asked.
+  * **[Xcache]** Correct regression that killed dca option.
+  * **[Utils]** Add SHA3 checksum to utils.
+  * **[XrdCl]** Utils::GetHostAddresses: use shuffle insted of random_shuffle.
+  * **[XrdCl]** xrdcp: short circuit file exists error.
+  * **[Debian]** Add XrdClHttp plugin to xrootd-client-plugins package.
+  * **[XrdVom]** Add symlink to libXrdHttpVOMS for backwards compatibility.
 
 --------------
 Version 5.0.1
 --------------
 
 + **Major bug fixes**
-  **[CMS]** Use correct adminpath for creating Unix socket. Fixes #1255
-  **[HTTP]** Correctly handle certs relative to refcount to avoid SEGV.
-  **[HTTP]** Escape pathnames in HTTP and XML responses.
-  **[Xcache]** Add missing initializer to avoid malloc() abort.
+  * **[CMS]** Use correct adminpath for creating Unix socket. Fixes #1255
+  * **[HTTP]** Correctly handle certs relative to refcount to avoid SEGV.
+  * **[HTTP]** Escape pathnames in HTTP and XML responses.
+  * **[Xcache]** Add missing initializer to avoid malloc() abort.
 
-+ **Minor bug fixes**
-  **[VOMS]** Correct use of undocumented API that caused hang w/ dbg. Fixes #1245
-  **[GSI]** Use the storage deallocator that matches the allocator.
-  **[TPC]** Fix potential null pointer dereference on Push.
-  **[XrdOuc]** Fix XrdOucUtils::Sanitize not sanitizing the first character in
++ * **Minor bug fixes**
+  * **[VOMS]** Correct use of undocumented API that caused hang w/ dbg. Fixes #1245
+  * **[GSI]** Use the storage deallocator that matches the allocator.
+  * **[TPC]** Fix potential null pointer dereference on Push.
+  * **[XrdOuc]** Fix XrdOucUtils::Sanitize not sanitizing the first character in
                the string.
 
-+ **Miscellaneous**
-  **[SSI]** Forward port LSST request scaler with auto-tuning.
-  **[HTTP]** Enable session cache by default, provide http.tlsreuse directive.
-  **[cmsd]** Reimplement affinity algorithm using verified LSST mechanism.
-  **[CMS]** Allow redirect to local filesystem when using HTTP.
-  **[Mon]** Rationalize UDP packet sequence numbers.
-  **[Server]** Adding fbuff argument to monitoring to restrict maximum size of
++ * **Miscellaneous**
+  * **[SSI]** Forward port LSST request scaler with auto-tuning.
+  * **[HTTP]** Enable session cache by default, provide http.tlsreuse directive.
+  * **[cmsd]** Reimplement affinity algorithm using verified LSST mechanism.
+  * **[CMS]** Allow redirect to local filesystem when using HTTP.
+  * **[Mon]** Rationalize UDP packet sequence numbers.
+  * **[Server]** Adding fbuff argument to monitoring to restrict maximum size of
                fstream packet.
-  **[XrdHttp/XrdVoms]** Pass parameters specified in the http.secxtractor down the
+  * **[XrdHttp/XrdVoms]** Pass parameters specified in the http.secxtractor down the
                         chain.
-  **[XrdCrypto/XrdHttp]** Extract DN from user (proxy, multi-proxy) certificate and
+  * **[XrdCrypto/XrdHttp]** Extract DN from user (proxy, multi-proxy) certificate and
                           properly handle the gridmap-file functionality when accessing
                           through HTTP.
-  **[XrdHttp]** Add "required" parameter to the http.secxtractor and http.gridmap
+  * **[XrdHttp]** Add "required" parameter to the http.secxtractor and http.gridmap
                 configuration directives.
-  **[xrootdfs]** Set XrdSecEntity.uid/gid in xrootdfs.
+  * **[xrootdfs]** Set XrdSecEntity.uid/gid in xrootdfs.
 
 --------------
 Version 5.0.0
