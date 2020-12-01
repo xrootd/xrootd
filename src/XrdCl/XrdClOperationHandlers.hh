@@ -520,12 +520,9 @@ namespace XrdCl
 
 
   //----------------------------------------------------------------------------
-  //! Wrapper class for Pipeline ResponseHandlers.
-  //!
-  //! Makes sure that in case the pipeline has failed before the actual handler
-  //! could be called
+  //! Wrapper class for raw response handler (ResponseHandler).
   //----------------------------------------------------------------------------
-  class FinalizeHandler : public ResponseHandler
+  class RawWrapper : public ResponseHandler
   {
     public:
 
@@ -534,18 +531,8 @@ namespace XrdCl
       //!
       //! @param handler : the actual operation handler
       //------------------------------------------------------------------------
-      FinalizeHandler( ResponseHandler *handler ) : handler( handler ), called( false )
+      RawWrapper( ResponseHandler *handler ) : handler( handler )
       {
-
-      }
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~FinalizeHandler()
-      {
-        if( !called )
-          handler->HandleResponseWithHosts( new XRootDStatus( stError, errPipelineInterrupted ), nullptr, nullptr );
       }
 
       //------------------------------------------------------------------------
@@ -558,34 +545,15 @@ namespace XrdCl
                                             AnyObject    *response,
                                             HostList     *hostList )
       {
-        called = true;
         handler->HandleResponseWithHosts( status, response, hostList );
       }
 
     private:
-
       //------------------------------------------------------------------------
-      //! The actual operation handler
+      //! The actual operation handler (we don't own the pointer)
       //------------------------------------------------------------------------
-      std::unique_ptr<ResponseHandler> handler;
-
-      //------------------------------------------------------------------------
-      //! true if the handler has been called at least once
-      //------------------------------------------------------------------------
-      bool called;
+      ResponseHandler *handler;
   };
-
-  //----------------------------------------------------------------------------
-  //! Utility function for wrapping a ResponseHandler into a FinalizeHandler
-  //!
-  //! @param handler : the actual handler
-  //!
-  //! @return        : a FinalizeHandler
-  //----------------------------------------------------------------------------
-  inline FinalizeHandler* make_finalized( ResponseHandler *handler )
-  {
-    return new FinalizeHandler( handler );
-  }
 
 
   //----------------------------------------------------------------------------
@@ -605,7 +573,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( ResponseHandler *hdlr )
       {
-        return make_finalized( hdlr );
+        return new RawWrapper( hdlr );
       }
 
       //------------------------------------------------------------------------
@@ -616,7 +584,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( ResponseHandler &hdlr )
       {
-        return make_finalized( &hdlr );
+        return new RawWrapper( &hdlr );
       }
 
       //------------------------------------------------------------------------
@@ -627,7 +595,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( std::future<Response> &ftr )
       {
-        return make_finalized( new FutureWrapper<Response>( ftr ) );
+        return new FutureWrapper<Response>( ftr );
       }
   };
 
@@ -649,7 +617,7 @@ namespace XrdCl
       inline static ResponseHandler* Create( std::function<void( XRootDStatus&,
           Response& )> func )
       {
-        return make_finalized( new FunctionWrapper<Response>( func ) );
+        return new FunctionWrapper<Response>( func );
       }
 
       //------------------------------------------------------------------------
@@ -662,7 +630,7 @@ namespace XrdCl
       inline static ResponseHandler* Create( std::packaged_task<Return( XRootDStatus&,
           Response& )> &task )
       {
-        return make_finalized( new TaskWrapper<Response, Return>( std::move( task ) ) );
+        return new TaskWrapper<Response, Return>( std::move( task ) );
       }
 
       //------------------------------------------------------------------------
@@ -687,7 +655,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( std::function<void( XRootDStatus& )> func )
       {
-        return make_finalized( new FunctionWrapper<void>( func ) );
+        return new FunctionWrapper<void>( func );
       }
 
       //------------------------------------------------------------------------
@@ -699,7 +667,7 @@ namespace XrdCl
       template<typename Return>
       inline static ResponseHandler* Create( std::packaged_task<Return( XRootDStatus& )> &task )
       {
-        return make_finalized( new TaskWrapper<void, Return>( std::move( task ) ) );
+        return new TaskWrapper<void, Return>( std::move( task ) );
       }
 
       //------------------------------------------------------------------------
