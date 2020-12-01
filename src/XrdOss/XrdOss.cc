@@ -225,7 +225,7 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
 //
    if (csvec && (opts & Verify))
       {uint32_t valcs;
-       if (!XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs))
+       if (XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs) >= 0)
           return -EDOM;
       }
 
