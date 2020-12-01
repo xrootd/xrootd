@@ -302,7 +302,7 @@ int XrdOfsTPCProg::Xeq()
    char tprBuff[128];
    if (Job->Info.Tpr)
       {snprintf(tprBuff, sizeof(tprBuff), "XRDTPC_TPROT=%s", Job->Info.Tpr);
-       eVec[i++] = sprBuff;
+       eVec[i++] = tprBuff;
       }
 
 // Determine if credentials are being passed, If so, pass where it is.
