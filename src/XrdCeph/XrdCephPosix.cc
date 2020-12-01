@@ -653,7 +653,15 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 
   struct stat buf;
   libradosstriper::RadosStriper *striper = getRadosStriper(fr); //Get a handle to the RADOS striper API
+ 
+  if (NULL == striper) {
+    logwrapper((char*)"Cannot create striper");  
+    return -EINVAL;
+  }
+ 
   int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime)); //Get details about a file
+  
+ 
   bool fileExists = (rc != -ENOENT); //Make clear what condition we are testing
 
   if ((flags&O_ACCMODE) == O_RDONLY) {  // Access mode is READ
