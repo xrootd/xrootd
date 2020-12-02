@@ -292,6 +292,76 @@ namespace XrdCl
                                    std::move( buffer ) ).Timeout( timeout );
   }
 
+
+  //----------------------------------------------------------------------------
+  //! Write operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class ArchiveWriteImpl: public ZipOperation<ArchiveWriteImpl, HasHndl, Resp<void>,
+      Arg<uint32_t>, Arg<const void*>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<ArchiveWriteImpl, HasHndl, Resp<void>, Arg<uint32_t>,
+                         Arg<const void*>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { SizeArg, BufferArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ArchiveWrite";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      {
+        try
+        {
+          uint32_t    size    = std::get<SizeArg>( this->args ).Get();
+          const void *buffer  = std::get<BufferArg>( this->args ).Get();
+          uint16_t    timeout = pipelineTimeout < this->timeout ?
+                                pipelineTimeout : this->timeout;
+          return this->zip->Write( size, buffer, this->handler.get(), timeout );
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ArchiveReadImpl objects
+  //----------------------------------------------------------------------------
+  template<typename ZIP>
+  inline ArchiveWriteImpl<false> Write( ZIP &&zip, Arg<uint32_t> size, Arg<const void*> buffer,
+                                        uint16_t timeout = 0 )
+  {
+    return ArchiveWriteImpl<false>( zip, std::move( size ),
+                                         std::move( buffer ) ).Timeout( timeout );
+  }
+
 }
 
 #endif /* SRC_XRDCL_XRDCLZIPOPERATIONS_HH_ */

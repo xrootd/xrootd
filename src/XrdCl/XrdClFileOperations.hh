@@ -304,11 +304,11 @@ namespace XrdCl
   //! Factory for creating ReadImpl objects
   //----------------------------------------------------------------------------
   template<typename FILE>
-  inline ReadImpl<false> Read( FILE &&file, Arg<uint64_t> offset,
-      Arg<uint32_t> size, Arg<void*> buffer )
+  inline ReadImpl<false> Read( FILE &&file, Arg<uint64_t> offset, Arg<uint32_t> size,
+                               Arg<void*> buffer, uint16_t timeout = 0 )
   {
     return ReadImpl<false>( file, std::move( offset ), std::move( size ),
-                            std::move( buffer ) );
+                            std::move( buffer ) ).Timeout( timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -481,7 +481,17 @@ namespace XrdCl
         }
       }
   };
-  typedef WriteImpl<false> Write;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating WriteImpl objects
+  //----------------------------------------------------------------------------
+  template<typename FILE>
+  inline WriteImpl<false> Write( FILE &&file, Arg<uint64_t> offset, Arg<uint32_t> size,
+                                 Arg<const void*> buffer, uint16_t timeout = 0 )
+  {
+    return WriteImpl<false>( file, std::move( offset ), std::move( size ),
+                             std::move( buffer ) ).Timeout( timeout );
+  }
 
   //----------------------------------------------------------------------------
   //! Sync operation (@see FileOperation)
