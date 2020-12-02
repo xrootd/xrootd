@@ -46,7 +46,7 @@ namespace
     { errDataError,            "Received corrupted data" },
     { errNotImplemented,       "Operation is not implemented" },
     { errNoMoreReplicas,       "No more replicas to try" },
-    { errPipelineFailed,       "Pipeline interrupted" },
+    { errPipelineFailed,       "Pipeline failed" },
     { errInvalidAddr,          "Invalid address"      },
     { errSocketError,          "Socket error"         },
     { errSocketTimeout,        "Socket timeout"       },
