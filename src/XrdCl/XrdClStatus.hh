@@ -62,7 +62,7 @@ namespace XrdCl
   const uint16_t errDataError            = 14; //!< data is corrupted
   const uint16_t errNotImplemented       = 15; //!< Operation is not implemented
   const uint16_t errNoMoreReplicas       = 16; //!< No more replicas to try
-  const uint16_t errPipelineInterrupted  = 17; //!< Pipeline failed and operation couldn't be executed
+  const uint16_t errPipelineFailed       = 17; //!< Pipeline failed and operation couldn't be executed
 
   //----------------------------------------------------------------------------
   // Socket related errors

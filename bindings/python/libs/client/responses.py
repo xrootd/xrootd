@@ -108,7 +108,7 @@ class XRootDStatus(Struct):
   errDataError           = 14; # data is corrupted
   errNotImplemented      = 15; # Operation is not implemented
   errNoMoreReplicas      = 16; # No more replicas to try
-  errPipelineInterrupted = 17; # Pipeline failed and operation couldn't be executed
+  errPipelineError       = 17; # Pipeline failed and operation couldn't be executed
 
   #----------------------------------------------------------------------------
   # Socket related errors

@@ -46,15 +46,15 @@ namespace XrdCl
                             XrdCl::Open( archive, url, flags ) >>
                               [=]( XRootDStatus &status, StatInfo &info )
                               {
-                                 if( !status.IsOK() )
-                                   return handler->HandleResponse( make_status( status ), nullptr );
+                                 // check the status is OK
+                                 if( !status.IsOK() ) return;
+
                                  archsize = info.GetSize();
                                  // if it is an empty file (possibly a new file) there's nothing more to do
                                  if( archsize == 0 )
                                  {
                                    cdexists = false;
                                    openstage = Done;
-                                   handler->HandleResponse( make_status(), nullptr );
                                    Pipeline::Stop();
                                  }
 
@@ -68,11 +68,8 @@ namespace XrdCl
                           | XrdCl::Read( archive, rdoff, rdsize, rdbuff ) >>
                               [=]( XRootDStatus &status, ChunkInfo &chunk )
                               {
-                                // if the pipeline was interrupted just return
-                                if( interrupted( status ) ) return;
                                 // check the status is OK
-                                if( !status.IsOK() )
-                                  return handler->HandleResponse( make_status( status ), nullptr );
+                                if( !status.IsOK() ) return;
 
                                 const char *buff = reinterpret_cast<char*>( chunk.buffer );
                                 while( true )
@@ -87,7 +84,6 @@ namespace XrdCl
                                       {
                                         XRootDStatus error( stError, errDataError, 0,
                                                             "End-of-central-directory signature not found." );
-                                        handler->HandleResponse( make_status( error ), nullptr );;
                                         Pipeline::Stop( error );
                                       }
                                       eocd.reset( new EOCD( eocdBlock ) );
@@ -158,7 +154,6 @@ namespace XrdCl
                                       {
                                         XRootDStatus error( stError, errDataError, 0,
                                                             "ZIP64 End-of-central-directory signature not found." );
-                                        handler->HandleResponse( make_status( error ), nullptr );
                                         Pipeline::Stop( error );
                                       }
                                       zip64eocd.reset( new ZIP64_EOCD( buff ) );
@@ -188,24 +183,24 @@ namespace XrdCl
                                       {
                                         XRootDStatus error( stError, errDataError, 0,
                                                                    "ZIP Central Directory corrupted." );
-                                        handler->HandleResponse( make_status( error ), nullptr );
                                         Pipeline::Stop( error );
                                       }
-                                      openstage = Done;
-                                      handler->HandleResponse( make_status( status ), nullptr );
                                       if( chunk.length != archsize ) buffer.reset();
+                                      openstage = Done;
                                       break;
                                     }
 
-                                    default:
-                                    {
-                                      Pipeline::Stop( XRootDStatus( stError, errInvalidOp ) );
-                                    }
+                                    default: Pipeline::Stop( XRootDStatus( stError, errInvalidOp ) );
                                   }
 
                                   break;
                                 }
-                              };
+                              }
+                          | XrdCl::Final( [handler]( const XRootDStatus &status )
+                              {
+                                if( handler )
+                                  handler->HandleResponse( make_status( status ), nullptr );
+                              } );
 
 
     Async( std::move( open_archive ), timeout );
@@ -308,15 +303,18 @@ namespace XrdCl
         zip64eocdl->Serialize( *wrtbuff );
       eocd->Serialize( *wrtbuff );
 
-      Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() ) // TODO if this fails the status wont be passed to user handler
+      Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() )
                  | Close( archive ) >>
-                     [=]( XRootDStatus &st ) mutable
+                     [=]( XRootDStatus &st )
                      {
-                       wrtbuff.reset();
                        if( st.IsOK() ) Clear();
                        else openstage = Error;
+                     }
+                 | XrdCl::Final( [wrtbuff, handler]( const XRootDStatus &st ) mutable
+                     {
+                       wrtbuff.reset();
                        if( handler ) handler->HandleResponse( make_status( st ), nullptr );
-                     };
+                     } );
       Async( std::move( p ), timeout );
       return XRootDStatus();
     }
@@ -421,21 +419,14 @@ namespace XrdCl
         chunkSize = filesize - rawOffset;
       // allocate the buffer for the compressed data
       buffer.reset( new char[chunkSize] );
+      Fwd<ChunkInfo> chunk;
       Pipeline p = XrdCl::Read( archive, fileoff + rawOffset, chunkSize, buffer.get() ) >>
                      [=, &cache]( XRootDStatus &st, ChunkInfo &ch )
                      {
-                       if( !st.IsOK() )
-                       {
-                         if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
-                         return;
-                       }
+                       if( !st.IsOK() ) return;
+
                        st = cache.Input( ch.buffer, ch.length, rawOffset );
-                       if( !st.IsOK() )
-                       {
-                         if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
-                         buffer.reset();
-                         Pipeline::Stop( st );
-                       }
+                       if( !st.IsOK() ) Pipeline::Stop( st );
 
                        // at this point we can be sure that all the needed data are in the cache
                        // (we requested as much data as the user asked for so in the worst case
@@ -443,21 +434,20 @@ namespace XrdCl
                        // more because the data are compressed)
                        uint32_t bytesRead = 0;
                        st = cache.Read( bytesRead );
-                       if( !st.IsOK() )
-                       {
-                         if( usrHandler ) usrHandler->HandleResponse( make_status( st ), nullptr );
-                         buffer.reset();
-                         Pipeline::Stop( st );
-                       }
+                       if( !st.IsOK() ) Pipeline::Stop( st );
 
-                       // call the user handler
-                       if( usrHandler)
-                       {
-                         ChunkInfo *rsp = new ChunkInfo( relativeOffset, size, usrbuff );
-                         usrHandler->HandleResponse( make_status(), PkgRsp( rsp ) );
-                       }
+                       // forward server response to the final operation
+                       chunk->buffer = usrbuff;
+                       chunk->length = size;
+                       chunk->offset = relativeOffset;
+                     }
+                 | XrdCl::Final( [=]( const XRootDStatus &st ) mutable
+                     {
                        buffer.reset();
-                     };
+                       AnyObject *rsp = nullptr;
+                       if( st.IsOK() ) rsp = PkgRsp( new ChunkInfo( *chunk ) );
+                       if( usrHandler ) usrHandler->HandleResponse( make_status( st ), rsp );
+                     } );
       Async( std::move( p ), timeout );
       return XRootDStatus();
     }
