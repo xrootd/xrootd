@@ -418,9 +418,17 @@ namespace XrdCl
       //!
       //! @param ftr : the future to be linked with this handler
       //------------------------------------------------------------------------
-      FutureWrapperBase( std::future<Response> &ftr )
+      FutureWrapperBase( std::future<Response> &ftr ) : fulfilled( false )
       {
         ftr = prms.get_future();
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~FutureWrapperBase()
+      {
+        if( !fulfilled ) SetException( XRootDStatus( stError, errPipelineFailed ) );
       }
 
     protected:
@@ -430,16 +438,18 @@ namespace XrdCl
       //!
       //! @param err : the error
       //------------------------------------------------------------------------
-      void SetException( const XRootDStatus &err )
+      inline void SetException( const XRootDStatus &err )
       {
         std::exception_ptr ex = std::make_exception_ptr( PipelineException( err ) );
         prms.set_exception( ex );
+        fulfilled = true;
       }
 
       //------------------------------------------------------------------------
       //! promise that corresponds to the future
       //------------------------------------------------------------------------
       std::promise<Response> prms;
+      bool                   fulfilled;
   };
 
   //----------------------------------------------------------------------------
@@ -459,7 +469,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       FutureWrapper( std::future<Response> &ftr ) : FutureWrapperBase<Response>( ftr )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -473,7 +482,10 @@ namespace XrdCl
           if( resp == &NullRef<Response>::value )
             this->SetException( XRootDStatus( stError, errInternal ) );
           else
+          {
             this->prms.set_value( std::move( *resp ) );
+            this->fulfilled = true;
+          }
         }
         else
           this->SetException( *status );
@@ -509,6 +521,7 @@ namespace XrdCl
         if( status->IsOK() )
         {
           prms.set_value();
+          fulfilled = true;
         }
         else
           SetException( *status );
