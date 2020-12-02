@@ -35,6 +35,7 @@
 #include "XrdCl/XrdClOperationHandlers.hh"
 #include "XrdCl/XrdClArg.hh"
 #include "XrdCl/XrdClOperationTimeout.hh"
+#include "XrdCl/XrdClFinalOperation.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
@@ -113,6 +114,11 @@ namespace XrdCl
                    std::promise<XRootDStatus>                prms,
                    std::function<void(const XRootDStatus&)>  final,
                    Operation<true>                          *opr );
+
+      //------------------------------------------------------------------------
+      //! Assign the finalization routine
+      //------------------------------------------------------------------------
+      void Assign( std::function<void(const XRootDStatus&)>  final );
 
     private:
 
@@ -624,6 +630,16 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Adds a final operation to the pipeline
+      //------------------------------------------------------------------------
+      Derived<true> operator|( FinalOperation &&fo )
+      {
+        AllocHandler( *this );
+        this->handler->Assign( fo.final );
+        return this->template Transform<true>();
+      }
+
+      //------------------------------------------------------------------------
       //! Set recovery procedure in case the operation fails
       //------------------------------------------------------------------------
       Derived<HasHndl> Recovery( rcvry_func recovery )
@@ -694,6 +710,24 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // Allocate handler if necessary
+      //------------------------------------------------------------------------
+      inline static
+      void AllocHandler( ConcreteOperation<Derived, true, HdlrFactory, Args...> &me )
+      {
+        // nothing to do
+      }
+
+      //------------------------------------------------------------------------
+      // Allocate handler if necessary
+      //------------------------------------------------------------------------
+      inline static
+      void AllocHandler( ConcreteOperation<Derived, false, HdlrFactory, Args...> &me )
+      {
+        me.handler.reset( new PipelineHandler( std::move( me.recovery ) ) );
+      }
+
+      //------------------------------------------------------------------------
       //! Implements operator| functionality
       //!
       //! @param me  :  reference to myself (*this)
@@ -702,9 +736,10 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<true> PipeImpl( ConcreteOperation<Derived, true, HdlrFactory,
+      Derived<true> PipeImpl( ConcreteOperation<Derived, HasHndl, HdlrFactory,
           Args...> &me, Operation<true> &op )
       {
+        AllocHandler( me ); // if HasHndl is false allocate handler
         me.AddOperation( op.Move() );
         return me.template Transform<true>();
       }
@@ -718,43 +753,10 @@ namespace XrdCl
       //! @return    :  move-copy of myself
       //------------------------------------------------------------------------
       inline static
-      Derived<true> PipeImpl( ConcreteOperation<Derived, true, HdlrFactory,
+      Derived<true> PipeImpl( ConcreteOperation<Derived, HasHndl, HdlrFactory,
           Args...> &me, Operation<false> &op )
       {
-        me.AddOperation( op.ToHandled() );
-        return me.template Transform<true>();
-      }
-
-      //------------------------------------------------------------------------
-      //! Implements operator| functionality
-      //!
-      //! @param me  :  reference to myself (*this)
-      //! @param op  :  reference to the other operation
-      //!
-      //! @return    :  move-copy of myself
-      //------------------------------------------------------------------------
-      inline static
-      Derived<true> PipeImpl( ConcreteOperation<Derived, false, HdlrFactory,
-          Args...> &me, Operation<true> &op )
-      {
-        me.handler.reset( new PipelineHandler( std::move( me.recovery ) ) );
-        me.AddOperation( op.Move() );
-        return me.template Transform<true>();
-      }
-
-      //------------------------------------------------------------------------
-      //! Implements operator| functionality
-      //!
-      //! @param me  :  reference to myself (*this)
-      //! @param op  :  reference to the other operation
-      //!
-      //! @return    :  move-copy of myself
-      //------------------------------------------------------------------------
-      inline static
-      Derived<true> PipeImpl( ConcreteOperation<Derived, false, HdlrFactory,
-          Args...> &me, Operation<false> &op )
-      {
-        me.handler.reset( new PipelineHandler( std::move( me.recovery ) ) );
+        AllocHandler( me ); // if HasHndl is false allocate handler
         me.AddOperation( op.ToHandled() );
         return me.template Transform<true>();
       }

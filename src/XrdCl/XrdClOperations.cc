@@ -146,8 +146,16 @@ namespace XrdCl
   {
     timeout = t;
     prms    = std::move( p );
-    final   = std::move( f );
+    if( !final ) final   = std::move( f );
     currentOperation.reset( opr );
+  }
+
+  //------------------------------------------------------------------------
+  // Assign the finalization routine
+  //------------------------------------------------------------------------
+  void PipelineHandler::Assign( std::function<void(const XRootDStatus&)>  f )
+  {
+    final = std::move( f );
   }
 
 }
