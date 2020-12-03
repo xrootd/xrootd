@@ -226,7 +226,7 @@ namespace XrdCl
   //! Read operation (@see ZipOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
-  class ArchiveReadImpl: public ZipOperation<ArchiveReadImpl, HasHndl, Resp<ChunkInfo>,
+  class ZipReadImpl: public ZipOperation<ZipReadImpl, HasHndl, Resp<ChunkInfo>,
       Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
   {
     public:
@@ -234,7 +234,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      using ZipOperation<ArchiveReadImpl, HasHndl, Resp<ChunkInfo>, Arg<uint64_t>,
+      using ZipOperation<ZipReadImpl, HasHndl, Resp<ChunkInfo>, Arg<uint64_t>,
           Arg<uint32_t>, Arg<void*>>::ZipOperation;
 
       //------------------------------------------------------------------------
@@ -285,11 +285,11 @@ namespace XrdCl
   //! Factory for creating ArchiveReadImpl objects
   //----------------------------------------------------------------------------
   template<typename ZIP>
-  inline ArchiveReadImpl<false> Read( ZIP &&zip, Arg<uint64_t> offset,
-                   Arg<uint32_t> size, Arg<void*> buffer, uint16_t timeout = 0 )
+  inline ZipReadImpl<false> Read( ZIP &&zip, Arg<uint64_t> offset, Arg<uint32_t> size,
+                                  Arg<void*> buffer, uint16_t timeout = 0 )
   {
-    return ArchiveReadImpl<false>( zip, std::move( offset ), std::move( size ),
-                                   std::move( buffer ) ).Timeout( timeout );
+    return ZipReadImpl<false>( zip, std::move( offset ), std::move( size ),
+                               std::move( buffer ) ).Timeout( timeout );
   }
 
 
@@ -297,7 +297,7 @@ namespace XrdCl
   //! Write operation (@see ZipOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
-  class ArchiveWriteImpl: public ZipOperation<ArchiveWriteImpl, HasHndl, Resp<void>,
+  class ZipWriteImpl: public ZipOperation<ZipWriteImpl, HasHndl, Resp<void>,
       Arg<uint32_t>, Arg<const void*>>
   {
     public:
@@ -305,7 +305,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      using ZipOperation<ArchiveWriteImpl, HasHndl, Resp<void>, Arg<uint32_t>,
+      using ZipOperation<ZipWriteImpl, HasHndl, Resp<void>, Arg<uint32_t>,
                          Arg<const void*>>::ZipOperation;
 
       //------------------------------------------------------------------------
@@ -355,11 +355,11 @@ namespace XrdCl
   //! Factory for creating ArchiveReadImpl objects
   //----------------------------------------------------------------------------
   template<typename ZIP>
-  inline ArchiveWriteImpl<false> Write( ZIP &&zip, Arg<uint32_t> size, Arg<const void*> buffer,
-                                        uint16_t timeout = 0 )
+  inline ZipWriteImpl<false> Write( ZIP &&zip, Arg<uint32_t> size, Arg<const void*> buffer,
+                                    uint16_t timeout = 0 )
   {
-    return ArchiveWriteImpl<false>( zip, std::move( size ),
-                                         std::move( buffer ) ).Timeout( timeout );
+    return ZipWriteImpl<false>( zip, std::move( size ),
+                                std::move( buffer ) ).Timeout( timeout );
   }
 
 
@@ -402,12 +402,65 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
-        this->zip->CloseFile();
+        XRootDStatus st = this->zip->CloseFile();
+        if( !st.IsOK() ) return st;
         handler->HandleResponse( new XRootDStatus(), nullptr );
         return XRootDStatus();
       }
   };
   typedef CloseFileImpl<false> CloseFile;
+
+
+  //----------------------------------------------------------------------------
+  //! ZipStat operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class ZipStatImpl: public ZipOperation<ZipStatImpl, HasHndl, Resp<StatInfo>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<ZipStatImpl, HasHndl, Resp<StatInfo>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ZipStat";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        StatInfo *info = nullptr;
+        XRootDStatus st = this->zip->Stat( info );
+        if( !st.IsOK() ) return st;
+        AnyObject *rsp = new AnyObject();
+        rsp->Set( info );
+        handler->HandleResponse( new XRootDStatus(), rsp );
+        return XRootDStatus();
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ZipStatImpl objects
+  //----------------------------------------------------------------------------
+  template<typename ZIP>
+  inline ZipStatImpl<false> Stat( ZIP &&zip )
+  {
+    return ZipStatImpl<false>( zip );
+  }
 
 }
 

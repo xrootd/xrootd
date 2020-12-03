@@ -59,8 +59,11 @@ namespace XrdCl
                           ResponseHandler  *handler,
                           uint16_t          timeout = 0 );
 
-      XRootDStatus Stat( StatInfo *&info )
+      inline XRootDStatus Stat( StatInfo *&info )
       {
+        if( openstage != Done || openfn.empty() )
+          return XRootDStatus( stError, errInvalidOp,
+                               errInvalidOp, "Archive not opened." );
         info = make_stat( openfn );
         return XRootDStatus();
       }
@@ -68,10 +71,14 @@ namespace XrdCl
       XRootDStatus CloseArchive( ResponseHandler *handler,
                                  uint16_t         timeout = 0 );
 
-      inline void CloseFile()
+      inline XRootDStatus CloseFile()
       {
+        if( openstage != Done || openfn.empty() )
+          return XRootDStatus( stError, errInvalidOp,
+                               errInvalidOp, "Archive not opened." );
         openfn.clear();
         lfh.reset();
+        return XRootDStatus();
       }
 
       XRootDStatus List( DirectoryList *&list );
