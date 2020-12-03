@@ -104,7 +104,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToString()
       {
-        return "OpenArchive";
+        return "ZipOpen";
       }
 
     protected:
@@ -174,7 +174,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToString()
       {
-        return "OpenFile";
+        return "ZipOpenFile";
       }
 
     protected:
@@ -247,7 +247,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToString()
       {
-        return "ArchiveRead";
+        return "ZipRead";
       }
 
     protected:
@@ -318,7 +318,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToString()
       {
-        return "ArchiveWrite";
+        return "ZipWrite";
       }
 
     protected:
@@ -381,7 +381,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToString()
       {
-        return "CloseFile";
+        return "ZipCloseFile";
       }
 
     private:
