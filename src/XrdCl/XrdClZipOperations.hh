@@ -515,6 +515,64 @@ namespace XrdCl
   }
 
 
+  //----------------------------------------------------------------------------
+  //! CloseArchive operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class CloseArchiveImpl: public ZipOperation<CloseArchiveImpl, HasHndl, Resp<void>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<CloseArchiveImpl, HasHndl, Resp<void>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ZipClose";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        try
+        {
+          uint16_t timeout = pipelineTimeout < this->timeout ?
+                             pipelineTimeout : this->timeout;
+          return this->zip->CloseArchive( handler, timeout );
+        }
+        catch( const PipelineException& ex )
+        {
+          return ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          return XRootDStatus( stError, ex.what() );
+        }
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating OpenFileImpl objects
+  //----------------------------------------------------------------------------
+  template<typename ZIP>
+  inline CloseArchiveImpl<false> CloseArchive( ZIP &&zip, uint16_t timeout = 0 )
+  {
+    return CloseArchiveImpl<false>( zip ).Timeout( timeout );
+  }
+
 }
 
 #endif /* SRC_XRDCL_XRDCLZIPOPERATIONS_HH_ */
