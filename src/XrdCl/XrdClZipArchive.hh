@@ -68,13 +68,10 @@ namespace XrdCl
       XRootDStatus CloseArchive( ResponseHandler *handler,
                                  uint16_t         timeout = 0 );
 
-      inline XRootDStatus CloseFile( ResponseHandler  *handler = nullptr,
-                                     uint16_t          timeout = 0 )
+      inline void CloseFile()
       {
         openfn.clear();
         lfh.reset();
-        if( handler ) Schedule( handler, make_status() );
-        return XRootDStatus();
       }
 
       XRootDStatus List( DirectoryList *&list );

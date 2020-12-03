@@ -362,6 +362,53 @@ namespace XrdCl
                                          std::move( buffer ) ).Timeout( timeout );
   }
 
+
+  //----------------------------------------------------------------------------
+  //! CloseFile operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class CloseFileImpl: public ZipOperation<CloseFileImpl, HasHndl, Resp<void>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<CloseFileImpl, HasHndl, Resp<void>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "CloseFile";
+      }
+
+    private:
+
+      //------------------------------------------------------------------------
+      // this is not an async operation so we don't need a handler
+      //------------------------------------------------------------------------
+      using ZipOperation<CloseFileImpl, HasHndl, Resp<void>>::operator>>;
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( uint16_t )
+      {
+        this->zip->CloseFile();
+        this->handler.release()->HandleResponse( new XRootDStatus(), nullptr );
+        return XRootDStatus();
+      }
+  };
+  typedef CloseFileImpl<false> CloseFile;
+
 }
 
 #endif /* SRC_XRDCL_XRDCLZIPOPERATIONS_HH_ */
