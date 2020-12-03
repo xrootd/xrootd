@@ -363,20 +363,9 @@ namespace XrdCl
         uint16_t timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;
 
-        try
+        for( size_t i = 0; i < pipelines.size(); ++i )
         {
-          for( size_t i = 0; i < pipelines.size(); ++i )
-          {
-            pipelines[i].Run( timeout, [ctx]( const XRootDStatus &st ){ ctx->Examine( st ); } );
-          }
-        }
-        catch( const PipelineException& ex )
-        {
-          return ex.GetError();
-        }
-        catch( const std::exception& ex )
-        {
-          return XRootDStatus( stError, ex.what() );
+          pipelines[i].Run( timeout, [ctx]( const XRootDStatus &st ){ ctx->Examine( st ); } );
         }
 
         return XRootDStatus();

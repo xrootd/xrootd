@@ -259,16 +259,26 @@ namespace XrdCl
       {
         static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
         handler->Assign( timeout, std::move( prms ), std::move( final ), this );
+
         PipelineHandler *h = handler.release();
         XRootDStatus st;
         try
         {
           st = RunImpl( h, timeout );
         }
-        catch( operation_expired& ex )
+        catch( const operation_expired& ex )
         {
           st = XRootDStatus( stError, errOperationExpired );
         }
+        catch( const PipelineException& ex ) // probably not needed
+        {
+          st = ex.GetError();
+        }
+        catch( const std::exception& ex )
+        {
+          st = XRootDStatus( stError, errInternal, 0, ex.what() );
+        }
+
         if( !st.IsOK() )
           h->HandleResponse( new XRootDStatus( st ), nullptr );
       }
