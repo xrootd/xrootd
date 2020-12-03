@@ -462,6 +462,59 @@ namespace XrdCl
     return ZipStatImpl<false>( zip );
   }
 
+
+  //----------------------------------------------------------------------------
+  //! ZipList operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class ZipListImpl: public ZipOperation<ZipListImpl, HasHndl, Resp<DirectoryList>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<ZipListImpl, HasHndl, Resp<DirectoryList>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ZipStat";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        DirectoryList *list = nullptr;
+        XRootDStatus st = this->zip->List( list );
+        if( !st.IsOK() ) return st;
+        AnyObject *rsp = new AnyObject();
+        rsp->Set( list );
+        handler->HandleResponse( new XRootDStatus(), rsp );
+        return XRootDStatus();
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ZipStatImpl objects
+  //----------------------------------------------------------------------------
+  template<typename ZIP>
+  inline ZipListImpl<false> List( ZIP &&zip )
+  {
+    return ZipListImpl<false>( zip );
+  }
+
+
 }
 
 #endif /* SRC_XRDCL_XRDCLZIPOPERATIONS_HH_ */
