@@ -352,13 +352,13 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         // make sure we have a valid policy for the parallel operation
         if( !policy ) policy.reset( new AllPolicy() );
 
         std::shared_ptr<Ctx> ctx =
-            std::make_shared<Ctx>( this->handler.release(), policy.release() );
+            std::make_shared<Ctx>( handler, policy.release() );
 
         uint16_t timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;

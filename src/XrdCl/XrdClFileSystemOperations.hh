@@ -133,7 +133,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -141,7 +141,7 @@ namespace XrdCl
           OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
           uint16_t         timeout = pipelineTimeout < this->timeout ?
                                      pipelineTimeout : this->timeout;
-          return this->filesystem->Locate( path, flags, this->handler.get(), timeout );
+          return this->filesystem->Locate( path, flags, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -192,7 +192,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -200,7 +200,7 @@ namespace XrdCl
           OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
           uint16_t         timeout = pipelineTimeout < this->timeout ?
                                      pipelineTimeout : this->timeout;
-          return this->filesystem->DeepLocate( path, flags, this->handler.get(), timeout );
+          return this->filesystem->DeepLocate( path, flags, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -251,7 +251,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -259,7 +259,7 @@ namespace XrdCl
           std::string dest    = std::get<DestArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->Mv( source, dest, this->handler.get(), timeout );
+          return this->filesystem->Mv( source, dest, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -310,7 +310,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -318,7 +318,7 @@ namespace XrdCl
           const Buffer    buffer( std::get<BufferArg>( this->args ).Get() );
           uint16_t        timeout = pipelineTimeout < this->timeout ?
                                     pipelineTimeout : this->timeout;
-          return this->filesystem->Query( queryCode, buffer, this->handler.get(), timeout );
+          return this->filesystem->Query( queryCode, buffer, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -369,7 +369,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -377,7 +377,7 @@ namespace XrdCl
           uint64_t    size    = std::get<SizeArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->Truncate( path, size, this->handler.get(), timeout );
+          return this->filesystem->Truncate( path, size, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -435,14 +435,14 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
           std::string path    = std::get<PathArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->Rm( path, this->handler.get(), timeout );
+          return this->filesystem->Rm( path, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -493,7 +493,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -502,7 +502,7 @@ namespace XrdCl
           Access::Mode      mode    = std::get<ModeArg>( this->args ).Get();
           uint16_t          timeout = pipelineTimeout < this->timeout ?
                                       pipelineTimeout : this->timeout;
-          return this->filesystem->MkDir( path, flags, mode, this->handler.get(), timeout );
+          return this->filesystem->MkDir( path, flags, mode, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -552,14 +552,14 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
           std::string path    = std::get<PathArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->RmDir( path, this->handler.get(), timeout );
+          return this->filesystem->RmDir( path, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -610,7 +610,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -618,7 +618,7 @@ namespace XrdCl
           Access::Mode mode    = std::get<ModeArg>( this->args ).Get();
           uint16_t     timeout = pipelineTimeout < this->timeout ?
                                  pipelineTimeout : this->timeout;
-          return this->filesystem->ChMod( path, mode, this->handler.get(), timeout );
+          return this->filesystem->ChMod( path, mode, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -662,11 +662,11 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         uint16_t timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;
-        return this->filesystem->Ping( this->handler.get(), timeout );
+        return this->filesystem->Ping( handler, timeout );
       }
   };
   typedef PingImpl<false> Ping;
@@ -708,14 +708,14 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
           std::string path    = std::get<PathArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->Stat( path, this->handler.get(), timeout );
+          return this->filesystem->Stat( path, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -775,14 +775,14 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
           std::string path    = std::get<PathArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->StatVFS( path, this->handler.get(), timeout );
+          return this->filesystem->StatVFS( path, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -827,11 +827,11 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         uint16_t timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;
-        return this->filesystem->Protocol( this->handler.get(), timeout );
+        return this->filesystem->Protocol( handler, timeout );
       }
   };
   typedef ProtocolImpl<false> Protocol;
@@ -873,7 +873,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -881,7 +881,7 @@ namespace XrdCl
           DirListFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
           uint16_t            timeout = pipelineTimeout < this->timeout ?
                                         pipelineTimeout : this->timeout;
-          return this->filesystem->DirList( path, flags, this->handler.get(), timeout );
+          return this->filesystem->DirList( path, flags, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -932,14 +932,14 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
           std::string info    = std::get<InfoArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->SendInfo( info, this->handler.get(), timeout );
+          return this->filesystem->SendInfo( info, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -990,7 +990,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -1000,7 +1000,7 @@ namespace XrdCl
           uint16_t                 timeout  = pipelineTimeout < this->timeout ?
                                               pipelineTimeout : this->timeout;
           return this->filesystem->Prepare( fileList, flags, priority,
-              this->handler.get(), timeout );
+              handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -1051,7 +1051,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -1062,7 +1062,7 @@ namespace XrdCl
           std::vector<xattr_t> attrs;
           attrs.push_back( xattr_t( std::move( name ), std::move( value ) ) );
           // wrap the PipelineHandler so the response gets unpacked properly
-          UnpackXAttrStatus *handler = new UnpackXAttrStatus( this->handler.get() );
+          UnpackXAttrStatus *handler = new UnpackXAttrStatus( handler );
           uint16_t           timeout = pipelineTimeout < this->timeout ?
                                        pipelineTimeout : this->timeout;
           XRootDStatus st = this->filesystem->SetXAttr( path, attrs, handler, timeout );
@@ -1138,7 +1138,7 @@ namespace XrdCl
       //!
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -1146,7 +1146,7 @@ namespace XrdCl
           std::vector<xattr_t> attrs   = std::get<AttrsArg>( this->args ).Get();
           uint16_t             timeout = pipelineTimeout < this->timeout ?
                                          pipelineTimeout : this->timeout;
-          return this->filesystem->SetXAttr( path, attrs, this->handler.get(), timeout );
+          return this->filesystem->SetXAttr( path, attrs, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -1214,7 +1214,7 @@ namespace XrdCl
       //!
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -1224,7 +1224,7 @@ namespace XrdCl
           std::vector<std::string> attrs;
           attrs.push_back( std::move( name ) );
           // wrap the PipelineHandler so the response gets unpacked properly
-          UnpackXAttr *handler = new UnpackXAttr( this->handler.get() );
+          UnpackXAttr *handler = new UnpackXAttr( handler );
           uint16_t     timeout = pipelineTimeout < this->timeout ?
                                  pipelineTimeout : this->timeout;
           XRootDStatus st = this->filesystem->GetXAttr( path, attrs, handler, timeout );
@@ -1298,7 +1298,7 @@ namespace XrdCl
       //!
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -1306,7 +1306,7 @@ namespace XrdCl
           std::vector<std::string> attrs   = std::get<NamesArg>( this->args ).Get();
           uint16_t                 timeout = pipelineTimeout < this->timeout ?
                                              pipelineTimeout : this->timeout;
-          return this->filesystem->GetXAttr( path, attrs, this->handler.get(), timeout );
+          return this->filesystem->GetXAttr( path, attrs, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -1376,7 +1376,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -1386,7 +1386,7 @@ namespace XrdCl
           std::vector<std::string> attrs;
           attrs.push_back( std::move( name ) );
           // wrap the PipelineHandler so the response gets unpacked properly
-          UnpackXAttrStatus *handler = new UnpackXAttrStatus( this->handler.get() );
+          UnpackXAttrStatus *handler = new UnpackXAttrStatus( handler );
           uint16_t           timeout = pipelineTimeout < this->timeout ?
                                        pipelineTimeout : this->timeout;
           XRootDStatus st = this->filesystem->DelXAttr( path, attrs, handler, timeout );
@@ -1462,7 +1462,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
@@ -1470,7 +1470,7 @@ namespace XrdCl
           std::vector<std::string> attrs   = std::get<NamesArg>( this->args ).Get();
           uint16_t                 timeout = pipelineTimeout < this->timeout ?
                                              pipelineTimeout : this->timeout;
-          return this->filesystem->DelXAttr( path, attrs, this->handler.get(), timeout );
+          return this->filesystem->DelXAttr( path, attrs, handler, timeout );
         }
         catch( const PipelineException& ex )
         {
@@ -1540,14 +1540,14 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( uint16_t pipelineTimeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
       {
         try
         {
           std::string path    = std::get<PathArg>( this->args ).Get();
           uint16_t    timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->filesystem->ListXAttr( path, this->handler.get(), timeout );
+          return this->filesystem->ListXAttr( path, handler, timeout );
         }
         catch( const PipelineException& ex )
         {

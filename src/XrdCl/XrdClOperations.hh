@@ -259,18 +259,18 @@ namespace XrdCl
       {
         static_assert(HasHndl, "Only an operation that has a handler can be assigned to workflow");
         handler->Assign( timeout, std::move( prms ), std::move( final ), this );
+        PipelineHandler *h = handler.release();
         XRootDStatus st;
         try
         {
-          st = RunImpl( timeout );
+          st = RunImpl( h, timeout );
         }
         catch( operation_expired& ex )
         {
           st = XRootDStatus( stError, errOperationExpired );
         }
-        if( st.IsOK() ) handler.release();
-        else
-          ForceHandler( st );
+        if( !st.IsOK() )
+          h->HandleResponse( new XRootDStatus( st ), nullptr );
       }
 
       //------------------------------------------------------------------------
@@ -281,24 +281,7 @@ namespace XrdCl
       //! @return       :  status of the operation
       //! @param bucket : number of the bucket with arguments
       //------------------------------------------------------------------------
-      virtual XRootDStatus RunImpl( uint16_t timeout ) = 0;
-
-      //------------------------------------------------------------------------
-      //! Handle error caused by missing parameter
-      //!
-      //! @param err : error object
-      //!
-      //! @return    : default operation status (actual status containing
-      //!              error information is passed to the handler)
-      //------------------------------------------------------------------------
-      void ForceHandler( const XRootDStatus &status )
-      {
-        std::unique_ptr<ResponseHandler> ptr( std::move( handler ) );
-        ptr->HandleResponse( new XRootDStatus( status ), nullptr );
-        // HandleResponse already freed the memory so we have to
-        // release the unique pointer
-        ptr.release();
-      }
+      virtual XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout ) = 0;
 
       //------------------------------------------------------------------------
       //! Add next operation in the pipeline
