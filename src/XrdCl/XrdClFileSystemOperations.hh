@@ -1062,11 +1062,11 @@ namespace XrdCl
           std::vector<xattr_t> attrs;
           attrs.push_back( xattr_t( std::move( name ), std::move( value ) ) );
           // wrap the PipelineHandler so the response gets unpacked properly
-          UnpackXAttrStatus *handler = new UnpackXAttrStatus( handler );
-          uint16_t           timeout = pipelineTimeout < this->timeout ?
-                                       pipelineTimeout : this->timeout;
-          XRootDStatus st = this->filesystem->SetXAttr( path, attrs, handler, timeout );
-          if( !st.IsOK() ) delete handler;
+          UnpackXAttrStatus *h = new UnpackXAttrStatus( handler );
+          uint16_t     timeout = pipelineTimeout < this->timeout ?
+                                 pipelineTimeout : this->timeout;
+          XRootDStatus st = this->filesystem->SetXAttr( path, attrs, h, timeout );
+          if( !st.IsOK() ) delete h;
           return st;
         }
         catch( const PipelineException& ex )
@@ -1224,11 +1224,11 @@ namespace XrdCl
           std::vector<std::string> attrs;
           attrs.push_back( std::move( name ) );
           // wrap the PipelineHandler so the response gets unpacked properly
-          UnpackXAttr *handler = new UnpackXAttr( handler );
-          uint16_t     timeout = pipelineTimeout < this->timeout ?
-                                 pipelineTimeout : this->timeout;
-          XRootDStatus st = this->filesystem->GetXAttr( path, attrs, handler, timeout );
-          if( !st.IsOK() ) delete handler;
+          UnpackXAttr   *h = new UnpackXAttr( handler );
+          uint16_t timeout = pipelineTimeout < this->timeout ?
+                             pipelineTimeout : this->timeout;
+          XRootDStatus st = this->filesystem->GetXAttr( path, attrs, h, timeout );
+          if( !st.IsOK() ) delete h;
           return st;
         }
         catch( const PipelineException& ex )
@@ -1386,11 +1386,11 @@ namespace XrdCl
           std::vector<std::string> attrs;
           attrs.push_back( std::move( name ) );
           // wrap the PipelineHandler so the response gets unpacked properly
-          UnpackXAttrStatus *handler = new UnpackXAttrStatus( handler );
-          uint16_t           timeout = pipelineTimeout < this->timeout ?
-                                       pipelineTimeout : this->timeout;
-          XRootDStatus st = this->filesystem->DelXAttr( path, attrs, handler, timeout );
-          if( !st.IsOK() ) delete handler;
+          UnpackXAttrStatus *h = new UnpackXAttrStatus( handler );
+          uint16_t     timeout = pipelineTimeout < this->timeout ?
+                                 pipelineTimeout : this->timeout;
+          XRootDStatus st = this->filesystem->DelXAttr( path, attrs, h, timeout );
+          if( !st.IsOK() ) delete h;
           return st;
         }
         catch( const PipelineException& ex )
