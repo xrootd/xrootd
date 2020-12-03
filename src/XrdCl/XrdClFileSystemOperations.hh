@@ -369,7 +369,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -435,7 +435,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -493,7 +493,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -552,7 +552,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -610,7 +610,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -662,7 +662,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         uint16_t timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;
@@ -708,7 +708,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -775,7 +775,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -827,7 +827,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         uint16_t timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;
@@ -873,7 +873,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -932,7 +932,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -990,7 +990,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -1051,7 +1051,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -1138,7 +1138,7 @@ namespace XrdCl
       //!
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -1214,7 +1214,7 @@ namespace XrdCl
       //!
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -1298,7 +1298,7 @@ namespace XrdCl
       //!
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -1376,7 +1376,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -1462,7 +1462,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
@@ -1540,7 +1540,7 @@ namespace XrdCl
       //!                  previous operation
       //! @return       :  status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout )
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         try
         {
