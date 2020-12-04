@@ -26,9 +26,7 @@
 
 2.1 Build system
 
-  xrootd-ceph uses CMake to handle the build process. It should build fine 
-  with cmake 2.6, however, on some platforms, this version of cmake has problems
-  handling the perl libraries, therefore version 2.8 or newer is recommended.
+  xrootd-ceph uses CMake to handle the build process. Please use CMake version 3 or greater (e.g. cmake3).
 
 2.2 Build steps
 
@@ -37,15 +35,20 @@
     mkdir build
     cd build
 
+  * Ensure that the correct plugin version number is set in cmake/XRootDDefaults.cmake: 
+ 
+    if( NOT XRDCEPH_SUBMODULE )
+      define_default( PLUGIN_VERSION  5 )
+    endif()
+
   * Generate the build system files using cmake, ie:
 
-    cmake /path/to/the/xrootd/source -DCMAKE_INSTALL_PREFIX=/opt/xrootd \
-                                     -DENABLE_PERL=FALSE
+    cmake /path/to/the/xrootd-ceph/source -DCMAKE_INSTALL_PREFIX=/opt/xrootd
 
   * Build the source:
 
     make
 
-  * Install the source:
+  * Install the shared libraries:
 
     make install
