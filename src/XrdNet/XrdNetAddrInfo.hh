@@ -263,7 +263,19 @@ int         Protocol() {return static_cast<int>(protType);}
 //!
 //! @return Success: True  (addresses are     the same).
 //!         Failure: False (addresses are not the same).
-//-----------------------------------------------------------------------------sav-
+//!
+//! Note: implemented in terms of const version
+//------------------------------------------------------------------------------
+
+inline
+int         Same(const XrdNetAddrInfo *ipAddr, bool plusPort=false)
+{
+  return const_cast<const XrdNetAddrInfo*>( this )->Same( ipAddr, plusPort );
+}
+
+//------------------------------------------------------------------------------
+//! And a const version
+//------------------------------------------------------------------------------
 
 int         Same(const XrdNetAddrInfo *ipAddr, bool plusPort=false) const;
 
