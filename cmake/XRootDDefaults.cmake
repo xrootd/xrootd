@@ -22,4 +22,5 @@ option( XRDCL_ONLY       "Build only the client and necessary dependencies"     
 option( XRDCL_LIB_ONLY   "Build only the client libraries and necessary dependencies"     FALSE )
 option( PYPI_BUILD       "The project is being built for PyPI release"                    FALSE )
 option( ENABLE_VOMS      "Enable VOMS plug-in if possible."                               TRUE )
+option( ENABLE_XRDEC     "Enable erasure coding component."                               FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 2.4 )

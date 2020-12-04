@@ -40,6 +40,10 @@ if( XRDCLHTTP_SUBMODULE )
   add_subdirectory( XrdClHttp )
 endif()
 
+if( ENABLE_XRDEC )
+  add_subdirectory( XrdEc )
+endif()
+
 if( NOT XRDCL_ONLY )
   include( XrdServer )
   include( XrdDaemons )
