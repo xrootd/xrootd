@@ -342,9 +342,9 @@ public:
    void Purge();
 
    //---------------------------------------------------------------------
-   //! Remove file from cache unless it is currently open.
+   //! Remove cinfo and data files from cache.
    //---------------------------------------------------------------------
-   int  UnlinkUnlessOpen(const std::string& f_name);
+   int  UnlinkFile(const std::string& f_name, bool fail_if_open);
 
    //---------------------------------------------------------------------
    //! Add downloaded block in write queue.
@@ -401,8 +401,6 @@ private:
    bool xtrace(XrdOucStream &);
 
    bool cfg2bytes(const std::string &str, long long &store, long long totalSpace, const char *name);
-
-   int  UnlinkCommon(const std::string& f_name, bool fail_if_open);
 
    static Cache     *m_instance;        //!< this object
 

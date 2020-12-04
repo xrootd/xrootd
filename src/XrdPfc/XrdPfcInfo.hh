@@ -79,20 +79,17 @@ public:
 
    struct Store
    {
-      int                m_version;                //!< info file version
-      Status             m_status;                 //!< status information
       long long          m_buffer_size;            //!< buffer / block size
       long long          m_file_size;              //!< size of file in bytes
-      unsigned char     *m_buff_synced;            //!< disk written state vector
-      uint32_t           m_cksum;                  //!< cksum of downloaded information
       time_t             m_creationTime;           //!< time the info file was created
       time_t             m_noCkSumTime;            //!< time when first non-cksummed block was detected
       size_t             m_accessCnt;              //!< total access count for the file
-      std::vector<AStat> m_astats;                 //!< access records
+      Status             m_status;                 //!< status information
+      int                m_astatSize;              //!< size of AStat vector
 
       Store () :
-         m_version(1), m_buffer_size(-1), m_file_size(0), m_buff_synced(0),
-         m_creationTime(0), m_noCkSumTime(0), m_accessCnt(0)
+         m_buffer_size(0), m_file_size(0), m_creationTime(0), m_noCkSumTime(0),
+         m_accessCnt(0),   m_astatSize(0)
       {}
    };
 
@@ -139,13 +136,12 @@ public:
 
    void SetBufferSize(long long);
    
-   void SetFileSize(long long);
+   void SetFileSizeAndCreationTime(long long);
 
    //---------------------------------------------------------------------
-   //! \brief Reserve buffer for file_size / buffer_size bytes
-   //! @param n number of file blocks
+   //! \brief Reserve bit vectors for file_size / buffer_size bytes.
    //---------------------------------------------------------------------
-   void ResizeBits(int n);
+   void ResizeBits();
 
    //---------------------------------------------------------------------
    //! \brief Read content of cinfo file into this object
@@ -169,11 +165,6 @@ public:
    //! Compactify access records to the configured maximum.
    //---------------------------------------------------------------------
    void CompactifyAccessRecords();
-
-   //---------------------------------------------------------------------
-   //! Disable allocating, writing, and reading of download status
-   //---------------------------------------------------------------------
-   void DisableDownloadStatus();
 
    //---------------------------------------------------------------------
    //! Reset IO Stats
@@ -213,7 +204,7 @@ public:
    //---------------------------------------------------------------------
    //! Get size of download-state bit-vector in bytes.
    //---------------------------------------------------------------------
-   int GetSizeInBytes() const;
+   int GetBitvecSizeInBytes() const;
 
    //---------------------------------------------------------------------
    //! Get number of blocks represented in download-state bit-vector.
@@ -278,12 +269,13 @@ public:
    //---------------------------------------------------------------------
    //! Get version
    //---------------------------------------------------------------------
-   int GetVersion() { return m_store.m_version; }
+   int GetVersion() { return m_version; }
 
    //---------------------------------------------------------------------
    //! Get stored data
    //---------------------------------------------------------------------
-   const Store& RefStoredData() const { return m_store; }
+   const Store&              RefStoredData() const { return m_store;  }
+   const std::vector<AStat>& RefAStats()     const { return m_astats; }
 
    //---------------------------------------------------------------------
    //! Get file size
@@ -293,8 +285,9 @@ public:
    //---------------------------------------------------------------------
    //! Get cksum, MD5 is for backward compatibility with V2 and V3.
    //---------------------------------------------------------------------
-   uint32_t GetCksum();
-   void     GetCksumMd5(unsigned char* buff, char* digest);
+   uint32_t CalcCksumStore();
+   uint32_t CalcCksumSyncedAndAStats();
+   void     CalcCksumMd5(unsigned char* buff, char* digest);
 
    CkSumCheck_e GetCkSumState()  const { return (CkSumCheck_e) m_store.m_status.f_cksum_check; }
    const char*  GetCkSumStateAsText() const;
@@ -329,20 +322,22 @@ protected:
    XrdSysTrace*   m_trace;
 
    Store          m_store;
-   bool           m_hasPrefetchBuffer;       //!< constains current prefetch score
+   unsigned char *m_buff_synced;             //!< disk written state vector
    unsigned char *m_buff_written;            //!< download state vector
    unsigned char *m_buff_prefetch;           //!< prefetch statistics
+   std::vector<AStat>  m_astats;             //!< access records
 
-   int  m_sizeInBits;                        //!< cached
+   int  m_version;
+   int  m_bitvecSizeInBits;                  //!< cached
    bool m_complete;                          //!< cached
+   bool m_hasPrefetchBuffer;                 //!< constains current prefetch score
 
 private:
    inline unsigned char cfiBIT(int n) const { return 1 << n; }
 
    // Reading functions for older cinfo file formats
-   bool ReadV1(XrdOssDF* fp, const char *dname, const char *fname);
-   bool ReadV2(XrdOssDF* fp, const char *dname, const char *fname);
-   bool ReadV3(XrdOssDF* fp, const char *dname, const char *fname);
+   bool ReadV2(XrdOssDF* fp, off_t off, const char *dname, const char *fname);
+   bool ReadV3(XrdOssDF* fp, off_t off, const char *dname, const char *fname);
 
    XrdCksCalc*   m_cksCalcMd5;
 };
@@ -352,7 +347,7 @@ private:
 inline bool Info::TestBitWritten(int i) const
 {
    const int cn = i/8;
-   assert(cn < GetSizeInBytes());
+   assert(cn < GetBitvecSizeInBytes());
 
    const int off = i - cn*8;
    return (m_buff_written[cn] & cfiBIT(off)) != 0;
@@ -361,7 +356,7 @@ inline bool Info::TestBitWritten(int i) const
 inline void Info::SetBitWritten(int i)
 {
    const int cn = i/8;
-   assert(cn < GetSizeInBytes());
+   assert(cn < GetBitvecSizeInBytes());
 
    const int off = i - cn*8;
    m_buff_written[cn] |= cfiBIT(off);
@@ -372,7 +367,7 @@ inline void Info::SetBitPrefetch(int i)
    if (!m_buff_prefetch) return;
       
    const int cn = i/8;
-   assert(cn < GetSizeInBytes());
+   assert(cn < GetBitvecSizeInBytes());
 
    const int off = i - cn*8;
    m_buff_prefetch[cn] |= cfiBIT(off);
@@ -383,7 +378,7 @@ inline bool Info::TestBitPrefetch(int i) const
    if (!m_buff_prefetch) return false;
 
    const int cn = i/8;
-   assert(cn < GetSizeInBytes());
+   assert(cn < GetBitvecSizeInBytes());
 
    const int off = i - cn*8;
    return (m_buff_prefetch[cn] & cfiBIT(off)) != 0;
@@ -392,10 +387,10 @@ inline bool Info::TestBitPrefetch(int i) const
 inline void Info::SetBitSynced(int i)
 {
    const int cn = i/8;
-   assert(cn < GetSizeInBytes());
+   assert(cn < GetBitvecSizeInBytes());
 
    const int off = i - cn*8;
-   m_store.m_buff_synced[cn] |= cfiBIT(off);
+   m_buff_synced[cn] |= cfiBIT(off);
 }
 
 //------------------------------------------------------------------------------
@@ -403,7 +398,7 @@ inline void Info::SetBitSynced(int i)
 inline int Info::GetNDownloadedBlocks() const
 {
    int cntd = 0;
-   for (int i = 0; i < m_sizeInBits; ++i)
+   for (int i = 0; i < m_bitvecSizeInBits; ++i)
       if (TestBitWritten(i)) cntd++;
 
    return cntd;
@@ -416,7 +411,7 @@ inline long long Info::GetNDownloadedBytes() const
 
 inline int Info::GetLastDownloadedBlock() const
 {
-   for (int i = m_sizeInBits - 1; i >= 0; --i)
+   for (int i = m_bitvecSizeInBits - 1; i >= 0; --i)
       if (TestBitWritten(i)) return i;
 
    return -1;
@@ -425,23 +420,23 @@ inline int Info::GetLastDownloadedBlock() const
 inline long long Info::GetExpectedDataFileSize() const
 {
    int last_block = GetLastDownloadedBlock();
-   if (last_block == m_sizeInBits - 1)
+   if (last_block == m_bitvecSizeInBits - 1)
       return m_store.m_file_size;
    else
       return (last_block + 1) * m_store.m_buffer_size;
 }
 
-inline int Info::GetSizeInBytes() const
+inline int Info::GetBitvecSizeInBytes() const
 {
-   if (m_sizeInBits)
-      return ((m_sizeInBits - 1)/8 + 1);
+   if (m_bitvecSizeInBits)
+      return ((m_bitvecSizeInBits - 1)/8 + 1);
    else
       return 0;
 }
 
 inline int Info::GetNBlocks() const
 {
-   return m_sizeInBits;
+   return m_bitvecSizeInBits;
 }
 
 inline long long Info::GetFileSize() const
@@ -457,7 +452,7 @@ inline bool Info::IsComplete() const
 inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
 {
    // TODO rewrite to use full byte comparisons outside of edges ?
-   // Also, it is always called with fisrtsdx = 0, lastIdx = m_sizeInBits.
+   // Also, it seems to be always called with firstIdx = 0, lastIdx = m_bitvecSizeInBits.
    for (int i = firstIdx; i < lastIdx; ++i)
       if (! TestBitWritten(i)) return true;
 
@@ -466,7 +461,7 @@ inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
 
 inline void Info::UpdateDownloadCompleteStatus()
 {
-   m_complete = ! IsAnythingEmptyInRng(0, m_sizeInBits);
+   m_complete = ! IsAnythingEmptyInRng(0, m_bitvecSizeInBits);
 }
 
 inline long long Info::GetBufferSize() const

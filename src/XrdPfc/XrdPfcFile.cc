@@ -111,8 +111,9 @@ File* File::FileOpen(const std::string &path, long long offset, long long fileSi
 
 void File::initiate_emergency_shutdown()
 {
-   // Called from Cache::UnlinkCommon() when the file is currently open.
-   // CacheUnlink is also called on FSync error.
+   // Called from Cache::Unlink() when the file is currently open.
+   // Cache::Unlink is also called on FSync error and when wrong number of bytes
+   // is received from a remote read.
    //
    // From this point onward the file will not be written to, cinfo file will
    // not be updated, and all new read requests will return -ENOENT.
@@ -477,7 +478,7 @@ bool File::Open()
    if (initialize_info_file)
    {
       m_cfi.SetBufferSize(conf.m_bufferSize);
-      m_cfi.SetFileSize(m_file_size);
+      m_cfi.SetFileSizeAndCreationTime(m_file_size);
       m_cfi.SetCkSumState(conf.get_cs_Chk());
       m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
@@ -1054,7 +1055,7 @@ void File::Sync()
       TRACEF(Error, "Sync failed, unlinking local files and initiating shutdown of File object");
 
       // Unlink will also call this->initiate_emergency_shutdown()
-      Cache::GetInstance().Unlink(m_filename.c_str());
+      Cache::GetInstance().UnlinkFile(m_filename, false);
 
       XrdSysCondVarHelper _lck(&m_state_cond);
 
@@ -1179,11 +1180,19 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 {
    static const char* tpfx = "ProcessBlockResponse ";
 
-   XrdSysCondVarHelper _lck(m_state_cond);
-
    Block *b = brh->m_block;
 
    TRACEF(Dump, tpfx << "block=" << b << ", idx=" << b->m_offset/BufferSize() << ", off=" << b->m_offset << ", res=" << res);
+
+   if (res >= 0 && res != b->get_size())
+   {
+      // Incorrect number of bytes received, apparently size of the file on the remote
+      // is different than what the cache expects it to be.
+      TRACEF(Error, tpfx << "Wrong number of bytes received, assuming remote/local file size mismatch, unlinking local files and initiating shutdown of File object");
+      Cache::GetInstance().UnlinkFile(m_filename, false);
+   }
+
+   XrdSysCondVarHelper _lck(m_state_cond);
 
    // Deregister block from IO's prefetch count, if needed.
    if (b->m_prefetch)

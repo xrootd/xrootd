@@ -257,8 +257,8 @@ int IOFileBlock::initLocalStat()
                // The info file is used to get file size on defer open
                // don't initalize buffer, it does not hold useful information in this case
                m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
-               m_info.DisableDownloadStatus();
-               m_info.SetFileSize(tmpStat.st_size);
+               // m_info.DisableDownloadStatus(); -- this stopped working a while back.
+               m_info.SetFileSizeAndCreationTime(tmpStat.st_size);
                m_info.Write(m_info_file, path.c_str());
                m_info_file->Fsync();
             }

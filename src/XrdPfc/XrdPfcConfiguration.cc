@@ -785,12 +785,11 @@ bool Cache::ConfigParameters(std::string part, XrdOucStream& config, TmpConfigur
          return false;
       }
    }
-   else if ( part == "hdfsmode" || part == "filefragmentmode" )
+   else if ( part == "hdfsmode" )
    {
-      if (part == "filefragmentmode")
-      {
-         m_log.Emsg("Config", "pfc.filefragmentmode is deprecated, please use pfc.hdfsmode instead. Replacing the directive internally.");
-      }
+      m_log.Emsg("Config", "pfc.hdfsmode is currently unsupported.");
+      return false;
+
       m_configuration.m_hdfsmode = true;
 
       const char* params = cwg.GetWord();
