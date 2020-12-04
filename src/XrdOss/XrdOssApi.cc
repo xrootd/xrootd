@@ -579,13 +579,17 @@ int XrdOssDir::Readdir(char *buff, int blen)
 //
    if (lclfd)
       {errno = 0;
-       if ((rp = readdir(lclfd)))
-          {strlcpy(buff, rp->d_name, blen);
+       while((rp = readdir(lclfd)))
+            {strlcpy(buff, rp->d_name, blen);
 #ifdef HAVE_FSTATAT
-           if (Stat && fstatat(fd, rp->d_name, Stat, 0)) return -errno;
+             if (Stat && fstatat(fd, rp->d_name, Stat, 0))
+                {if (errno != ENOENT) return -errno;
+                 errno = 0;
+                 continue;
+                }
 #endif
-           return XrdOssOK;
-          }
+             return XrdOssOK;
+            }
        *buff = '\0'; ateof = true;
        return -errno;
       }

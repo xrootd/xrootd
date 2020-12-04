@@ -645,7 +645,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 {
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    struct stat Stat;
-   static const int statSz = 80;
+   static const int statSz = 160;
    int bleft, rc = 0, dlen, cnt = 0;
    char *buff, *dLoc;
    const char *dname;
@@ -685,6 +685,8 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                 if (dLoc)
                    {strcpy(dLoc, dname);
                     rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                    if (rc == SFS_ERROR && myError.getErrInfo() == ENOENT)
+                       {dname = 0; continue;}
                     if (rc != SFS_OK)
                        return fsError(rc, XROOTD_MON_STAT, myError,
                                           argp->buff, opaque);

@@ -100,6 +100,8 @@ virtual int     Readdir(char *buff, int blen) {return -ENOTDIR;}
 //! @return 0 upon success or -ENOTSUP if not supported.
 //!
 //! @note This is a one-time call as stat structure is reused for each Readdir.
+//! @note When StatRet() is in effect, directory entries that have been
+//!       deleted from the target directory are quietly skipped.
 //-----------------------------------------------------------------------------
 
 virtual int     StatRet(struct stat *) {return -ENOTSUP;}

@@ -267,7 +267,7 @@ virtual int         open(const char              *path,
 //!         ".." are not returned. If a null pointer is returned then if this
 //!         is due to an error, error.code should contain errno. Otherwise,
 //!         error.code should contain zero to indicate that no more entries
-//!         exist (i.e. end of list).
+//!         exist (i.e. end of list). See autoStat() for additional caveats.
 //-----------------------------------------------------------------------------
 
 virtual const char *nextEntry() = 0;
@@ -294,6 +294,9 @@ virtual const char *FName() = 0;
 //!
 //! @return If supported, SFS_OK should be returned. If not supported, then
 //!         SFS_ERROR should be returned with error.code set to ENOTSUP.
+//!
+//! @note: When autoStat() is in effect, directory entries that have been
+//!        deleted from the target directory are quietly skipped.
 //-----------------------------------------------------------------------------
 
 virtual int         autoStat(struct stat *buf);
