@@ -1010,16 +1010,10 @@ int Cache::Unlink(const char *curl)
 
    // printf("Unlink url=%s\n\t    fname=%s\n", curl, f_name.c_str());
 
-   return UnlinkCommon(f_name, false);
+   return UnlinkFile(f_name, false);
 }
 
-
-int Cache::UnlinkUnlessOpen(const std::string& f_name)
-{
-   return UnlinkCommon(f_name, true);
-}
-
-int Cache::UnlinkCommon(const std::string& f_name, bool fail_if_open)
+int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
 {
    ActiveMap_i  it;
    File        *file = 0;

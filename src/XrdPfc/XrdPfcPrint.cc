@@ -63,7 +63,7 @@ void Print::printFile(const std::string& path)
    XrdOssDF* fh = m_oss->newFile(m_ossUser);
    fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
 
-   XrdSysTrace tr(""); tr.What = 2;
+   XrdSysTrace tr("XrdPfcPrint"); tr.What = 2;
    Info cfi(&tr);
 
    if ( ! cfi.Read(fh, path.c_str()))
@@ -117,7 +117,8 @@ void Print::printFile(const std::string& path)
           "Record", "Attach", "Detach", "Duration", "N_ios", "N_mrg", "B_hit[kB]", "B_miss[kB]", "B_bypass[kB]");
 
    int idx = 1;
-   for (std::vector<Info::AStat>::const_iterator it = store.m_astats.begin(); it != store.m_astats.end(); ++it)
+   const std::vector<Info::AStat> &astats = cfi.RefAStats();
+   for (std::vector<Info::AStat>::const_iterator it = astats.begin(); it != astats.end(); ++it)
    {
       const int MM = 128;
       char s[MM];

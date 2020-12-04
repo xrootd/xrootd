@@ -234,7 +234,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
          Info myInfo(m_trace, false);
          myInfo.SetBufferSize(block_size);
-         myInfo.SetFileSize(file_size);
+         myInfo.SetFileSizeAndCreationTime(file_size);
          myInfo.SetAllBitsSynced();
 
          for (int i = 0; i < at_count; ++i)
@@ -312,7 +312,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
 
       TRACE(Debug, err_prefix << "file argument '" << f_name << "'.");
 
-      int ret = UnlinkCommon(f_name, true);
+      int ret = UnlinkFile(f_name, true);
 
       TRACE(Info, err_prefix << "returned with status " << ret);
    }

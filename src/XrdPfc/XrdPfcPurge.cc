@@ -446,7 +446,7 @@ public:
 
    void TraverseNamespace(XrdOssDF *iOssDF)
    {
-      static const char *trc_pfx   = "FPurgeState::TraverseNamespace ";
+      static const char *trc_pfx = "FPurgeState::TraverseNamespace ";
 
       char          fname[256];
       struct stat   fstat;
@@ -456,8 +456,19 @@ public:
 
       iOssDF->StatRet(&fstat);
 
-      while (iOssDF->Readdir(fname, 256) >= 0)
+      while (true)
       {
+         int rc = iOssDF->Readdir(fname, 256);
+
+         if (rc == -ENOENT) {
+            TRACE_PURGE("  Skipping ENOENT dir entry [" << fname << "].");
+            continue;
+         }
+         if (rc != XrdOssOK) {
+            TRACE(Error, trc_pfx << "Readdir error at " << m_current_path  << ", err " << XrdSysE2T(-rc) << ".");
+            break;
+         }
+
          TRACE_PURGE("  Readdir [" << fname << "]");
 
          if (fname[0] == 0) {
@@ -476,9 +487,9 @@ public:
          {
             if (m_oss_at.Opendir(*iOssDF, fname, env, dfh) == XrdOssOK)
             {
-               cd_down(fname);
+               cd_down(fname);           TRACE_PURGE("  cd_down -> [" << m_current_path << "].");
                TraverseNamespace(dfh);
-               cd_up();
+               cd_up();                  TRACE_PURGE("  cd_up   -> [" << m_current_path << "].");
             }
             else
                TRACE(Warning, trc_pfx << "could not opendir [" << m_current_path << fname << "], " << XrdSysE2T(errno));
