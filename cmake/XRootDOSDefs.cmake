@@ -56,22 +56,6 @@ if( CMAKE_COMPILER_IS_GNUCXX )
   if( GCC_VERSION VERSION_GREATER 4.8.0 )
   	set( XrdClPipelines TRUE )
   endif()
-
-  # gcc 6.0 is more pedantic
-  if( GCC_VERSION VERSION_GREATER 6.0 OR GCC_VERSION VERSION_EQUAL 6.0 )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=misleading-indentation" )
-  endif()
-  
-  # gcc 9.0 is even more pedantic
-  if( GCC_VERSION VERSION_GREATER 9.0 OR GCC_VERSION VERSION_EQUAL 9.0 )
-      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=address-of-packed-member" )
-      #-------------------------------------------------------------------------
-      # Althought new compilers are obliged to do copy elision on return 
-      # statement old ones are not, so we turn off the warning. 
-      #-------------------------------------------------------------------------
-      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=pessimizing-move" )
-  endif()
-
 endif()
 
 #-------------------------------------------------------------------------------
