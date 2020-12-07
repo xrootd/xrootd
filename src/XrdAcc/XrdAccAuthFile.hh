@@ -34,6 +34,7 @@
 #include <netdb.h>
 #include <sys/param.h>
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAuthDB.hh"
@@ -75,6 +76,6 @@ time_t            modtime;
 XrdSysMutex       DBcontext;
 
 char recname_buff[MAXHOSTNAMELEN+1];   // Max record name by default
-char path_buff[PATH_MAX+2];          // Max path   name
+char path_buff[MAXPATHLEN+2];          // Max path   name
 };
 #endif

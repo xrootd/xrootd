@@ -100,7 +100,7 @@ extern int        XrdPosix_Fdatasync(int fildes);
 
 extern int        XrdPosix_Fflush(FILE *stream);
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 extern long long  XrdPosix_Fgetxattr (int fd, const char *name,
                                       void *value, unsigned long long size);
 #endif
@@ -129,7 +129,7 @@ extern int        XrdPosix_Ftruncate(int fildes, long long offset);
 
 extern size_t     XrdPosix_Fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream);
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 extern long long  XrdPosix_Getxattr (const char *path, const char *name, 
                                      void *value, unsigned long long size);
 

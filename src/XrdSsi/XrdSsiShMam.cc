@@ -154,7 +154,7 @@ pthread_rwlock_t *mtxP;
   
 namespace
 {
-#if defined(__linux__) && defined(O_CLOEXEC)
+#if ( defined(__linux__) || defined(__GNU__) ) && defined(O_CLOEXEC) && defined(F_DUPFD_CLOEXEC)
 inline int  ShMam_Dup(int oldfd)
                      {return fcntl(oldfd, F_DUPFD_CLOEXEC, 0);}
 

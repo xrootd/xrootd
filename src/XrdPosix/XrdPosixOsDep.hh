@@ -72,4 +72,8 @@
 #define	ELIBACC EFTYPE
 #endif
 
+#ifdef __GNU__
+#define ELIBACC EFTYPE
+#endif
+
 #endif

@@ -44,6 +44,9 @@
 #if defined(__linux__) || defined(__APPLE__)
 #define TidType long long
 #define TidFmt  "%lld"
+#elif defined(__GNU__)
+#define TidType pthread_t // int
+#define TidFmt  "%d"
 #else
 #define TidType pthread_t
 #define TidFmt  "%p"

@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"

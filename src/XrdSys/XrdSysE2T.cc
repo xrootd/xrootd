@@ -34,6 +34,12 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
+#ifdef __GNU__
+#define ERRNOBASE 0x40000000
+#else
+#define ERRNOBASE 0
+#endif
+
 namespace
 {
 static const int           errSlots = 144;
@@ -49,7 +55,7 @@ int initErrTable()
 // Premap all known error codes.
 //
    for(int i = 1; i <errSlots; i++)
-      {eTxt = strerror(i);
+      {eTxt = strerror(ERRNOBASE + i);
        if (eTxt)
           { eTxt = strdup(eTxt);
            *eTxt = tolower(*eTxt);
@@ -62,7 +68,7 @@ int initErrTable()
 //
    for (int i = 1; i < lastGood; i++)
        {if (!Errno2String[i])
-           {snprintf(eBuff, sizeof(eBuff), "unknown error %d", i);
+           {snprintf(eBuff, sizeof(eBuff), "unknown error %d", ERRNOBASE + i);
             Errno2String[i] = strdup(eBuff);
            }
        }
@@ -86,13 +92,15 @@ const char *XrdSysE2T(int errcode)
 
 // Check if we can return this immediately
 //
-   if (errcode >= 0 && errcode <= maxErrno) return Errno2String[errcode];
+   if (errcode == 0) return Errno2String[0];
+   if (errcode > ERRNOBASE && errcode <= ERRNOBASE + maxErrno)
+      return Errno2String[errcode - ERRNOBASE];
 
 // If this is a negative value, then return a generic message
 //
    if (errcode < 0) return "negative error";
 
-// Out errrno registration wasn't sufficient, so check if it's already
+// Our errno registration wasn't sufficient, so check if it's already
 // registered and if not, register it.
 //
    e2sMutex.Lock();

@@ -46,7 +46,7 @@ char  *Name;   //!< Variable name
 char  *Value;  //!< Variable value
 int    VLen;   //!< Variable value length (aligned)
 short  NLen;   //!< Length of name  not including null byte
-short  faRC;   //!< Action return code for this element
+int    faRC;   //!< Action return code for this element
 
        XrdSfsFAInfo() : Value(0), VLen(0), NLen(0), faRC(0) {}
       ~XrdSfsFAInfo() {}

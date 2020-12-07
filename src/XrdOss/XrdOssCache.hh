@@ -48,7 +48,7 @@
 #define FS_BLKSZ f_frsize
 #define FS_FFREE f_favail
 #endif
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #include <sys/vfs.h>
 #define FS_Stat(a,b) statfs(a,b)
 #define STATFS_t struct statfs

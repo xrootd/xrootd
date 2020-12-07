@@ -949,7 +949,7 @@ struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
    dp32 = (struct dirent *)dp64;
    if (dp32->d_name  != dp64->d_name)
       {dp32->d_ino    = dp64->d_ino;
-#if !defined(__APPLE__) && !defined(__FreeBSD__)
+#if !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__GNU__)
        dp32->d_off     = dp64->d_off;
 #endif
 #ifndef __solaris__
@@ -998,7 +998,7 @@ int XrdPosixXrootd::Readdir_r(DIR *dirp,   struct dirent    *entry,
       {*result = 0; return rc;}
 
    entry->d_ino    = dp64->d_ino;
-#if !defined(__APPLE__) && !defined(__FreeBSD__)
+#if !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__GNU__)
    entry->d_off    = dp64->d_off;
 #endif
 #ifndef __solaris__
@@ -1196,10 +1196,10 @@ int XrdPosixXrootd::Statfs(const char *path, struct statfs *buf)
 #else
    buf->f_frsize  = myVfs.f_frsize;
 #endif
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__GNU__)
    buf->f_bavail  = myVfs.f_bavail;
 #endif
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GNU__)
    buf->f_namelen = myVfs.f_namemax;
 #elif defined(__FreeBSD__)
    buf->f_namemax = myVfs.f_namemax;

@@ -242,6 +242,7 @@ namespace XrdCl
       // Enable the cancelation and go to sleep
       //------------------------------------------------------------------------
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
+      pthread_testcancel();
       XrdSysTimer::Wait( pResolution*1000 );
     }
   }

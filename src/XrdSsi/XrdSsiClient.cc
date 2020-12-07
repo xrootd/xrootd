@@ -275,7 +275,7 @@ void XrdSsiClientProvider::SetLogger()
 
 // Get a file descriptor mirroring standard error
 //
-#if defined(__linux__) && defined(O_CLOEXEC)
+#if ( defined(__linux__) || defined(__GNU__) ) && defined(F_DUPFD_CLOEXEC)
    eFD = fcntl(STDERR_FILENO, F_DUPFD_CLOEXEC, 0);
 #else
    eFD = dup(STDERR_FILENO);

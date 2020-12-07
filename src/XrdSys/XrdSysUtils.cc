@@ -71,7 +71,7 @@ const char *XrdSysUtils::ExecName()
 
 // Get the exec name based on platform
 //
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
   {char epBuff[2048];
    int  epLen;
    if ((epLen = readlink("/proc/self/exe", epBuff, sizeof(epBuff)-1)) > 0)

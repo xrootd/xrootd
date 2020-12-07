@@ -4,7 +4,8 @@
 
 include( CheckCXXSourceRuns )
 
-set( Linux    FALSE )
+set( LINUX    FALSE )
+set( Hurd     FALSE )
 set( MacOSX   FALSE )
 set( Solaris  FALSE )
 
@@ -77,9 +78,17 @@ endif()
 # Linux
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
-  set( Linux TRUE )
+  set( LINUX TRUE )
   include( GNUInstallDirs )
-  add_definitions( -D__linux__=1 )
+  set( EXTRA_LIBS rt )
+endif()
+
+#-------------------------------------------------------------------------------
+# GNU/Hurd
+#-------------------------------------------------------------------------------
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "GNU" )
+  set( Hurd TRUE )
+  include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()
 
@@ -97,7 +106,6 @@ if( APPLE )
   # this is here because of Apple deprecating openssl and krb5
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )
 
-  add_definitions( -D__macos__=1 )
   add_definitions( -DLT_MODULE_EXT=".dylib" )
   set( CMAKE_INSTALL_LIBDIR "lib" )
   set( CMAKE_INSTALL_BINDIR "bin" )

@@ -239,7 +239,7 @@ const char *XrdDigDirectory::nextEntry()
 
 // Read the next directory entry
 //
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 do{errno = 0;
    rp = readdir(dh);
    if (!rp)
