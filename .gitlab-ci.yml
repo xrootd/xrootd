@@ -120,6 +120,7 @@ build:slc6:
     - tags
     - schedules
     - web
+  allow_failure: true
 
 build:fedora-rawhide:
   stage: build:rpm
@@ -388,6 +389,7 @@ release:slc6-x86_64:
     - web
   except:
     - branches
+  allow_failure: true
 
 release:deb_ubuntu_bionic:
   image: ubuntu:bionic
@@ -554,6 +556,7 @@ weekly:slc6:
     - schedules
   except:
     - tags
+  allow_failure: true
     
 xrootd_docker_get:
   stage: build:dockerimage:prepare
