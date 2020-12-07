@@ -47,13 +47,16 @@ virtual void HandleResponse(XrdCl::XRootDStatus *status,
                             XrdCl::AnyObject *response)
                            {AddEvent(status, response);}
 
-virtual bool XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject **resp) = 0;
+virtual int  XeqEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject **resp) = 0;
+
+virtual void XeqEvFin() = 0;
 
              XrdSsiEvent() : XrdJob(tident),  lastEvent(0),
                              running(false),  isClear(true)
                              {*tident = 0;}
 
             ~XrdSsiEvent() {if (!isClear) ClrEvent(&thisEvent);}
+
 protected:
 
 char   tident[24]; //"c %u#%u" with %u max 10 digits

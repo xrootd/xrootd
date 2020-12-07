@@ -76,10 +76,12 @@ XrdSsiMutex     *MutexP() {return &sessMutex;}
 
         void     UnLock() {sessMutex.UnLock();}
 
-        void     Unprovision();
+        bool     Unprovision();
 
-        bool     XeqEvent(XrdCl::XRootDStatus *status,
+        int      XeqEvent(XrdCl::XRootDStatus *status,
                           XrdCl::AnyObject   **respP);
+
+        void     XeqEvFin() {}
 
                  XrdSsiSessReal(XrdSsiServReal *servP,
                                 const char     *sName,

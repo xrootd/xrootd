@@ -159,6 +159,8 @@ inline void   Lock(XrdSsiMutex *mutex)
 
 inline void   Lock(XrdSsiMutex &mutex) {Lock(&mutex);}
 
+inline void   Reset() {mtx = 0;}
+
 inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
 
             XrdSsiMutexMon(XrdSsiMutex *mutex=0)

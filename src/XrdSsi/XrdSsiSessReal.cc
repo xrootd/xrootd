@@ -367,9 +367,9 @@ void XrdSsiSessReal::TaskFinished(XrdSsiTaskReal *tP)
 //
 
 
-// if we can shutdown, then unprovision which will drive a shutdown. Note
+// If we can shutdown, then unprovision which will drive a shutdown. Note
 // that Unprovision() returns without the sessMutex, otherwise we must
-// unlock it before we return.
+// unlock it before we return. A shutdown invalidates this object!
 //
    if (!inOpen)
       {if (!isHeld && !attBase) Unprovision();
@@ -403,8 +403,9 @@ void XrdSsiSessReal::UnHold(bool cleanup)
 /******************************************************************************/
 
 // Called with sessMutex locked and returns with it unlocked
+// Returns false if a shutdown occurred (i.e. session object no longer valid)
   
-void XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
+bool XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
 {
    EPNAME("Unprovision");
    XrdCl::XRootDStatus uStat;
@@ -417,21 +418,23 @@ void XrdSsiSessReal::Unprovision() // Called with sessMutex locked!
 // shutdown right away. Otherwise, try to close if successful the event
 // handler will do the shutdown, Otherwise, we do a Futterwacken dance.
 //
-   if (!epFile.IsOpen()) Shutdown(uStat, false);
+   if (!epFile.IsOpen()) {Shutdown(uStat, false); return false;}
       else {uStat = epFile.Close((XrdCl::ResponseHandler *)this);
-            if (!uStat.IsOK()) Shutdown(uStat, true);
+            if (!uStat.IsOK()) {Shutdown(uStat, true); return false;}
                else sessMutex.UnLock();
            }
+   return true;
 }
 
 /******************************************************************************/
 /*                              X e q E v e n t                               */
 /******************************************************************************/
   
-bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
+int  XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
                               XrdCl::AnyObject   **respP)
 {
-// Lock out mutex. Note that events like shutdown unlock the mutex
+// Lock out mutex. Note that events like shutdown unlock the mutex. The only
+// events handled here are open() and close().
 //
    sessMutex.Lock();
    XrdSsiTaskReal *ztP, *ntP, *tP = attBase;
@@ -441,7 +444,7 @@ bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
 //
    if (!inOpen)
       {Shutdown(*status, true); // sessMutex gets unlocked!
-       return false;
+       return -1; // This object no longer valid!
       }
 
 // We are no longer in open. However, if open encounetered an error then this
@@ -456,13 +459,13 @@ bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
    if (!tP)
       {if (isHeld)
           {sessMutex.UnLock();
-           return false;
+           return 1;
           }
        if (!status->IsOK()) Shutdown(*status, false);
-          else {if (!isHeld) Unprovision();
+          else {if (!isHeld) return (Unprovision() ? 1 : -1);
                    else sessMutex.UnLock();
                }
-       return false;
+       return 1; // Flush events and continue
       }
 
 // We are here because the open finally completed. If the open failed, then
@@ -475,7 +478,7 @@ bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
        do {tP->SchedError(&eInfo); tP = tP->attList.next;}
           while(tP != attBase);
        sessMutex.UnLock();
-       return false;
+       return 1;
       }
 
 // Obtain the endpoint name
@@ -498,5 +501,5 @@ bool XrdSsiSessReal::XeqEvent(XrdCl::XRootDStatus *status,
 // We are done, field the next event
 //
    sessMutex.UnLock();
-   return true;
+   return 0;
 }

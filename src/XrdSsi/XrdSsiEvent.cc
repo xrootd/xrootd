@@ -60,7 +60,7 @@ void XrdSsiEvent::AddEvent(XrdCl::XRootDStatus *st, XrdCl::AnyObject *resp)
 
 // Indicate there is pending event here
 //
-   DEBUG("Add event; isClear=" <<isClear <<" running=" <<running);
+   DEBUG("New event: isClear=" <<isClear <<" running=" <<running);
    isClear = false;
 
 // If the base object has no status then we need to set it and schedule
@@ -147,11 +147,16 @@ void XrdSsiEvent::ClrEvent(XrdSsiEvent::EventData *fdP)
   
 void XrdSsiEvent::DoIt()
 {
-   EventData myEvent, *edP = &myEvent;
+   EPNAME("RunEvent");
+   EventData *edP, myEvent;
+   int rc;
 
 // Process all of the events in our list. This is a tricky proposition because
-// the event executor may delete us when false is returned. To prevent double
-// frees and the like, we move out the event and work off a local copy.
+// the event executor may delete us upon return. Hence we do not directly use
+// any data members of this class, only copies. The return rc tells what to do.
+// rc > 0: terminate event processing and conclude in a normal fashion.
+// rc = 0: reflect next event.
+// rc < 0: immediately return as this object has become invalid.
 //
    evMutex.Lock();
 do{thisEvent.Move2(myEvent);
@@ -159,14 +164,29 @@ do{thisEvent.Move2(myEvent);
    isClear   = true;
    evMutex.UnLock();
    edP = &myEvent;
-   while(edP && XeqEvent(edP->status, &edP->response)) {edP = edP->next;}
+
+   do {if ((rc = XeqEvent(edP->status, &edP->response)) != 0) break;
+       edP = edP->next;
+      } while(edP);
+
    ClrEvent(&myEvent);
-   if (edP) return;
+
+   if (rc)
+      {DEBUG("XeqEvent requested " <<(rc < 0 ? "halt" : "flush"));
+       if (rc > 0) break;
+       return;
+      }
+
    evMutex.Lock();
   } while(thisEvent.status);
 
-// We are done, indicate we are no longer running
+// Indicate we are no longer running
 //
    running = false;
    evMutex.UnLock();
+
+// The last thing we need to do is to tell the event handler that we are done
+// as it may decide to delete this object if no more events will occur.
+//
+   XeqEvFin();
 }

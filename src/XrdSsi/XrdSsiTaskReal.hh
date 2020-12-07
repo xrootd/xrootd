@@ -88,7 +88,9 @@ void   SetTaskID(uint32_t tid, uint32_t sid)
                  snprintf(tident, sizeof(tident), "T %u#%u", sid, tid);
                 }
 
-bool   XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
+int    XeqEvent(XrdCl::XRootDStatus *status, XrdCl::AnyObject **respP);
+
+void   XeqEvFin();
 
        XrdSsiTaskReal(XrdSsiSessReal *sP)
                      : XrdSsiStream(XrdSsiStream::isPassive),
@@ -108,7 +110,6 @@ private:
 bool              Ask4Resp();
 respType          GetResp(XrdCl::AnyObject **respP, char *&dbuf, int &dlen);
 bool              RespErr(XrdCl::XRootDStatus *status);
-bool              XeqEnd(bool getLock);
 
 XrdSsiErrInfo     errInfo;
 XrdSsiSessReal   *sessP;
