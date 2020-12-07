@@ -174,6 +174,13 @@ Requires: libasan
 BuildRequires: scitokens-cpp-devel
 %endif
 
+%if %{?_with_isal:1}%{!?_with_isal:0}
+BuildRequires: autoconf
+BuildRequires: automake
+BuildRequires: libtool
+BuildRequires: yasm
+%endif
+
 Requires:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-selinux = %{epoch}:%{version}-%{release}
 
@@ -553,6 +560,9 @@ cmake  \
 %endif
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
       -DXRDCLHTTP_SUBMODULE=TRUE \
+%endif
+%if %{?_with_isal:1}%{!?_with_isal:0}
+      -DENABLE_XRDEC=TRUE
 %endif
 %if %{python3only}
       -DXRD_PYTHON_REQ_VERSION=%{python3_pkgversion} \
