@@ -669,7 +669,7 @@ publish:rhel:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in centos-8 cc-7 slc-6 fc-rawhide fc-30 fc-29 fc-31; do 
+    - "for platform in centos-8 cc-7 fc-rawhide fc-30 fc-29 fc-31; do 
          repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
          path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
@@ -720,7 +720,7 @@ publish:rhel:release:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - tarball=cc-7-x86_64/xrootd-*.tar.gz
-    - "for platform in centos-8-x86_64 cc-7-x86_64 slc-6-x86_64; do 
+    - "for platform in centos-8-x86_64 cc-7-x86_64; do 
          path=$prefix/release/$platform/$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path/{source,tarball};
          sudo -u stci -H cp $platform/*.rpm $path;
