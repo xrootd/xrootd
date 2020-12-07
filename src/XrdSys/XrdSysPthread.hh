@@ -175,9 +175,10 @@ inline int TimedLock( int wait_ms )
 {
   struct timespec wait, cur, dur;
   get_apple_realtime(wait);
-  wait.tv_nsec += wait_ms * 100000;
-  wait.tv_sec += (wait.tv_nsec / 100000000);
-  wait.tv_nsec = wait.tv_nsec % 100000000;
+  wait.tv_sec += (wait_ms / 1000);
+  wait.tv_nsec += (wait_ms % 1000) * 1000000;
+  wait.tv_sec += (wait.tv_nsec / 1000000000);
+  wait.tv_nsec = wait.tv_nsec % 1000000000;
 
   int rc;
   while( ( rc = pthread_mutex_trylock( &cs ) ) == EBUSY )
@@ -210,9 +211,10 @@ inline int TimedLock( int wait_ms )
 inline int TimedLock(int wait_ms)
        {struct timespec wait;
         clock_gettime(CLOCK_REALTIME, &wait);
-        wait.tv_nsec += wait_ms * 100000;
-        wait.tv_sec += (wait.tv_nsec / 100000000);
-        wait.tv_nsec = wait.tv_nsec % 100000000;
+        wait.tv_sec += (wait_ms / 1000);
+        wait.tv_nsec += (wait_ms % 1000) * 1000000;
+        wait.tv_sec += (wait.tv_nsec / 1000000000);
+        wait.tv_nsec = wait.tv_nsec % 1000000000;
         return !pthread_mutex_timedlock(&cs, &wait);
        }
 #endif
