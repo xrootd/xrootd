@@ -100,7 +100,11 @@ compiler_define_if_found( HAVE_ET_COM_ERR_H HAVE_ET_COM_ERR_H )
 #-------------------------------------------------------------------------------
 # Check for the atomics
 #-------------------------------------------------------------------------------
-check_cxx_source_runs(
+if (CMAKE_CROSSCOMPILING)
+  message(WARNING "Cannot detect atomics support when cross-compiling, assuming atmoics are available")
+  set(HAVE_ATOMICS ON)
+else()
+  check_cxx_source_runs(
 "
   int main()
   {
@@ -120,7 +124,9 @@ check_cxx_source_runs(
     return 0;
   }
 "
-HAVE_ATOMICS )
+  HAVE_ATOMICS )
+endif()
+
 option(EnableAtomicsIfPresent "EnableAtomicsIfPresent" ON)
 if ( EnableAtomicsIfPresent )
   compiler_define_if_found( HAVE_ATOMICS HAVE_ATOMICS )
