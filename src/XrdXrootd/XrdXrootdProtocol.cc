@@ -750,7 +750,7 @@ int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff, int xxLen,
    if (buf.st_gid == myGID)
       {if (myGNLen >= xxLen) return m;
        strcpy(xxBuff, myGName);
-       n = myUNLen;
+       n = myGNLen;
       } else {
        if (!(n = XrdOucUtils::GidName(buf.st_gid,xxBuff,xxLen,keepT))) return m;
       }
