@@ -40,7 +40,7 @@ if( XRDCLHTTP_SUBMODULE )
   add_subdirectory( XrdClHttp )
 endif()
 
-if( ENABLE_XRDEC )
+if( BUILD_XRDEC )
   add_subdirectory( XrdEc )
 endif()
 
