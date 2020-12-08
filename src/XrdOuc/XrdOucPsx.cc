@@ -703,7 +703,7 @@ bool XrdOucPsx::ParseSet(XrdSysError *Eroute, XrdOucStream &Config)
 {
     char  kword[256], *val;
     int   kval, noGo;
-    static struct {const char *Sopt; const char *Copt; int isT;} Sopts[]  =
+    static struct sopts {const char *Sopt; const char *Copt; int isT;} Sopts[] =
        {
          {"ConnectTimeout",        "ConnectionWindow",1},    // Default  120
          {"ConnectionRetry",       "ConnectionRetry",1},     // Default    5
@@ -732,7 +732,7 @@ bool XrdOucPsx::ParseSet(XrdSysError *Eroute, XrdOucStream &Config)
          {"TransactionTimeout",    "",1},
          {"WorkerThreads",         "WorkerThreads",0}        // Set To    64
        };
-    int i, numopts = sizeof(Sopts)/( sizeof(const char *) );
+    int i, numopts = sizeof(Sopts)/sizeof(struct sopts);
 
     if (!(val = Config.GetWord()))
        {Eroute->Emsg("Config", "setopt keyword not specified"); return false;}
