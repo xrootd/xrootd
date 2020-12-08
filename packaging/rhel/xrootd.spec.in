@@ -562,7 +562,7 @@ cmake  \
       -DXRDCLHTTP_SUBMODULE=TRUE \
 %endif
 %if %{?_with_isal:1}%{!?_with_isal:0}
-      -DENABLE_XRDEC=TRUE
+      -DENABLE_XRDEC=TRUE \
 %endif
 %if %{python3only}
       -DXRD_PYTHON_REQ_VERSION=%{python3_pkgversion} \
