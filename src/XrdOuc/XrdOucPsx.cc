@@ -732,7 +732,7 @@ bool XrdOucPsx::ParseSet(XrdSysError *Eroute, XrdOucStream &Config)
          {"TransactionTimeout",    "",1},
          {"WorkerThreads",         "WorkerThreads",0}        // Set To    64
        };
-    int i, numopts = sizeof(Sopts)/sizeof(const char *);
+    int i, numopts = sizeof(Sopts)/( sizeof(const char *) );
 
     if (!(val = Config.GetWord()))
        {Eroute->Emsg("Config", "setopt keyword not specified"); return false;}
