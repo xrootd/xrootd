@@ -1548,6 +1548,7 @@ namespace XrdCl
     uint32_t size = 0;
     for( int i = 0; i < iovcnt; ++i )
     {
+      if( iov[i].iov_len == 0 ) continue;
       size += iov[i].iov_len;
       list->push_back( ChunkInfo( 0, iov[i].iov_len,
                        (char*)iov[i].iov_base ) );

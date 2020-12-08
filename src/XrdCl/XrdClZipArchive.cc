@@ -210,9 +210,7 @@ namespace XrdCl
   XRootDStatus ZipArchive::OpenFile( const std::string &fn,
                                      OpenFlags::Flags   flags,
                                      uint64_t           size,
-                                     uint32_t           crc32,
-                                     ResponseHandler   *handler,
-                                     uint16_t           timeout )
+                                     uint32_t           crc32 )
   {
     if( !openfn.empty() || openstage != Done )
       return XRootDStatus( stError, errInvalidOp );
@@ -227,34 +225,6 @@ namespace XrdCl
       {
         openfn = fn;
         lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
-
-        uint64_t wrtoff = cdoff;
-        uint32_t wrtlen = lfh->lfhSize;
-        std::shared_ptr<buffer_t> wrtbuf( new buffer_t() );
-        wrtbuf->reserve( wrtlen );
-        lfh->Serialize( *wrtbuf );
-        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-        if( cdexists )
-        {
-          // TODO if this is an append: checkpoint the EOCD&co
-          cdexists = false;
-        }
-
-        Pipeline p = XrdCl::Write( archive, wrtoff, lfh->lfhSize, wrtbuf->data() ) >>
-                       [=]( XRootDStatus &st ) mutable
-                       {
-                         wrtbuf.reset();
-                         if( st.IsOK() )
-                         {
-                           archsize += wrtlen;
-                           cdoff    += wrtlen;
-                           cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
-                           cdmap[fn] = cdvec.size() - 1;
-                         }
-                         if( handler )
-                           handler->HandleResponse( make_status( st ), nullptr );
-                       };
-        Async( std::move( p ), timeout );
         return XRootDStatus();
       }
       return XRootDStatus( stError, errNotFound );
@@ -265,7 +235,6 @@ namespace XrdCl
     if( flags | OpenFlags::New ) return XRootDStatus( stError, errInvalidOp );
 
     openfn = fn;
-    if( handler ) Schedule( handler, make_status() );
     return XRootDStatus();
   }
 
@@ -513,27 +482,72 @@ namespace XrdCl
   }
 
   XRootDStatus ZipArchive::Write( uint32_t         size,
-                               const void      *buffer,
-                               ResponseHandler *handler,
-                               uint16_t         timeout )
+                                  const void      *buffer,
+                                  ResponseHandler *handler,
+                                  uint16_t         timeout )
   {
     if( openstage != Done || openfn.empty() )
       return XRootDStatus( stError, errInvalidOp,
                            errInvalidOp, "Archive not opened." );
 
+    if( cdexists )
+    {
+      // TODO if this is an append: checkpoint the EOCD&co
+      cdexists = false;
+    }
+
+    static const int iovcnt = 2;
+    iovec iov[iovcnt];
+
+    //-------------------------------------------------------------------------
+    // If there is a LFH we need to write it first ahead of the write-buffer
+    // itself.
+    //-------------------------------------------------------------------------
+    std::shared_ptr<buffer_t> lfhbuf;
+    if( lfh )
+    {
+      uint32_t lfhlen = lfh->lfhSize;
+      lfhbuf.reset( new buffer_t() );
+      lfhbuf->reserve( lfhlen );
+      lfh->Serialize( *lfhbuf );
+      iov[0].iov_base = lfhbuf->data();
+      iov[0].iov_len  = lfhlen;
+    }
+    //-------------------------------------------------------------------------
+    // If there is no LFH just make the first chunk empty.
+    //-------------------------------------------------------------------------
+    else
+    {
+      iov[0].iov_base = nullptr;
+      iov[0].iov_len  = 0;
+    }
+
+    //-------------------------------------------------------------------------
+    // In the second chunk write the user data
+    //-------------------------------------------------------------------------
+    iov[1].iov_base = const_cast<void*>( buffer );
+    iov[1].iov_len  = size;
+
     uint64_t wrtoff = cdoff; // we only support appending
-    Pipeline p = XrdCl::Write( archive, wrtoff, size, buffer ) >>
-                   [=]( XRootDStatus &st )
+    uint32_t wrtlen = iov[0].iov_len + iov[1].iov_len;
+    Pipeline p = XrdCl::WriteV( archive, wrtoff, iov, iovcnt ) >>
+                   [=]( XRootDStatus &st ) mutable
                    {
                      if( st.IsOK() )
                      {
-                       cdoff    += size;
-                       archsize += size;
                        updated   = true;
+                       archsize += wrtlen;
+                       cdoff    += wrtlen;
+                       mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+                       cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
+                       cdmap[openfn] = cdvec.size() - 1;
                      }
+                     lfh.reset();
+                     lfhbuf.reset();
                      if( handler )
                        handler->HandleResponse( make_status( st ), nullptr );
                    };
+
     Async( std::move( p ), timeout );
     return XRootDStatus();
   }

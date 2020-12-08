@@ -44,9 +44,7 @@ namespace XrdCl
       XRootDStatus OpenFile( const std::string  &fn,
                              OpenFlags::Flags    flags = OpenFlags::None,
                              uint64_t            size  = 0,
-                             uint32_t            crc32 = 0,
-                             ResponseHandler    *handler = nullptr,
-                             uint16_t            timeout = 0 );
+                             uint32_t            crc32 = 0 );
 
       XRootDStatus Read( uint64_t         offset,
                          uint32_t         size,

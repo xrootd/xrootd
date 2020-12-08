@@ -127,7 +127,7 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
-  //! Factory for creating OpenFileImpl objects
+  //! Factory for creating OpenArchiveImpl objects
   //----------------------------------------------------------------------------
   template<typename ZIP>
   inline OpenArchiveImpl<false> OpenArchive( ZIP &&zip, Arg<std::string> fn,
@@ -177,13 +177,16 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
-          std::string      fn      = std::get<FnArg>( this->args ).Get();
-          OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
-          uint64_t         size    = std::get<SizeArg>( this->args ).Get();
-          uint32_t         crc32   = std::get<Crc32Arg>( this->args ).Get();
-          uint16_t         timeout = pipelineTimeout < this->timeout ?
-                                     pipelineTimeout : this->timeout;
-          return this->zip->OpenFile( fn, flags, size, crc32, handler, timeout );
+        std::string      fn      = std::get<FnArg>( this->args ).Get();
+        OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
+        uint64_t         size    = std::get<SizeArg>( this->args ).Get();
+        uint32_t         crc32   = std::get<Crc32Arg>( this->args ).Get();
+        uint16_t         timeout = pipelineTimeout < this->timeout ?
+                                   pipelineTimeout : this->timeout;
+        XRootDStatus st = this->zip->OpenFile( fn, flags, size, crc32 );
+        if( !st.IsOK() ) return st;
+        handler->HandleResponse( new XRootDStatus(), nullptr );
+        return XRootDStatus();
       }
   };
 
@@ -510,7 +513,7 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
-  //! Factory for creating OpenFileImpl objects
+  //! Factory for creating CloseFileImpl objects
   //----------------------------------------------------------------------------
   template<typename ZIP>
   inline CloseArchiveImpl<false> CloseArchive( ZIP &&zip, uint16_t timeout = 0 )
