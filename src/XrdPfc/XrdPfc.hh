@@ -194,7 +194,7 @@ struct PathTokenizer : private SplitParser
 
       m_dirs.reserve(max_depth);
 
-      char *t;
+      char *t = 0;
       for (int i = 0; i < max_depth; ++i)
       {
          t = get_token();
