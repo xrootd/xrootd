@@ -27,6 +27,7 @@
 #define __XRD_CL_OPERATION_HANDLERS_HH__
 
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClCtx.hh"
 
 #include<functional>
 #include<future>
@@ -316,7 +317,7 @@ namespace XrdCl
       //
       //! @param func : function, functor or lambda
       //------------------------------------------------------------------------
-      ExOpenFuncWrapper( File &f,
+      ExOpenFuncWrapper( const Ctx<File> &f,
           std::function<void( XRootDStatus&, StatInfo& )> handleFunction ) :
           f( f ), fun( handleFunction )
       {
@@ -329,7 +330,7 @@ namespace XrdCl
       {
         StatInfo *info = nullptr;
         if( status->IsOK() )
-          XRootDStatus st = f.Stat( false, info );
+          XRootDStatus st = f->Stat( false, info );
         else
           info = &NullRef<StatInfo>::value;
         fun( *status, *info );
@@ -339,7 +340,7 @@ namespace XrdCl
       }
 
     private:
-      File &f;
+      Ctx<File> f;
       //------------------------------------------------------------------------
       //! user defined function, functor or lambda
       //------------------------------------------------------------------------

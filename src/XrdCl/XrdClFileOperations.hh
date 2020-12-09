@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
+#include "XrdCl/XrdClCtx.hh"
 
 namespace XrdCl
 {
@@ -53,17 +54,7 @@ namespace XrdCl
       //! @param f    : file on which the operation will be performed
       //! @param args : file operation arguments
       //------------------------------------------------------------------------
-      FileOperation( File *f, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), file(f)
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param f    : file on which the operation will be performed
-      //! @param args : file operation arguments
-      //------------------------------------------------------------------------
-      FileOperation( File &f, Arguments... args): FileOperation( &f, std::move( args )... )
+      FileOperation( Ctx<File> f, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), file( std::move( f ) )
       {
       }
 
@@ -94,7 +85,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The file object itself
       //------------------------------------------------------------------------
-      File     *file;
+      Ctx<File> file;
   };
 
   //----------------------------------------------------------------------------
@@ -118,7 +109,7 @@ namespace XrdCl
           //!
           //! @param file : the underlying XrdCl::File object
           //--------------------------------------------------------------------
-          ExResp( XrdCl::File &file ): file( file )
+          ExResp( const Ctx<File> &file ): file( file )
           {
           }
 
@@ -142,7 +133,7 @@ namespace XrdCl
           //--------------------------------------------------------------------
           //! The underlying XrdCl::File object
           //--------------------------------------------------------------------
-          XrdCl::File &file;
+          Ctx<File> file;
       };
 
     public:
@@ -150,21 +141,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor (@see FileOperation)
       //------------------------------------------------------------------------
-      OpenImpl( File *f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
+      OpenImpl( Ctx<File> f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
                 Arg<Access::Mode> mode = Access::None ) :
           FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
-            Arg<Access::Mode>>( f, std::move( url ), std::move( flags ),
-            std::move( mode ) )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor (@see FileOperation)
-      //------------------------------------------------------------------------
-      OpenImpl( File &f, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
-                Arg<Access::Mode> mode = Access::None ) :
-          FileOperation<OpenImpl, HasHndl, Resp<void>, Arg<std::string>, Arg<OpenFlags::Flags>,
-            Arg<Access::Mode>>( &f, std::move( url ), std::move( flags ),
+            Arg<Access::Mode>>( std::move( f ), std::move( url ), std::move( flags ),
             std::move( mode ) )
       {
       }
@@ -281,11 +261,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating ReadImpl objects
   //----------------------------------------------------------------------------
-  template<typename FILE>
-  inline ReadImpl<false> Read( FILE &&file, Arg<uint64_t> offset, Arg<uint32_t> size,
+  inline ReadImpl<false> Read( Ctx<File> file, Arg<uint64_t> offset, Arg<uint32_t> size,
                                Arg<void*> buffer, uint16_t timeout = 0 )
   {
-    return ReadImpl<false>( file, std::move( offset ), std::move( size ),
+    return ReadImpl<false>( std::move( file ), std::move( offset ), std::move( size ),
                             std::move( buffer ) ).Timeout( timeout );
   }
 
@@ -376,18 +355,9 @@ namespace XrdCl
   //! Factory for creating StatImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline StatImpl<false> Stat( File *file, Arg<bool> force )
+  inline StatImpl<false> Stat( Ctx<File> file, Arg<bool> force, uint16_t timeout )
   {
-    return StatImpl<false>( file, std::move( force ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating StatImpl objects (as there is another Stat in
-  //! FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline StatImpl<false> Stat( File &file, Arg<bool> force )
-  {
-    return StatImpl<false>( file, std::move( force ) );
+    return StatImpl<false>( std::move( file ), std::move( force ) ).Timeout( timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -441,11 +411,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating WriteImpl objects
   //----------------------------------------------------------------------------
-  template<typename FILE>
-  inline WriteImpl<false> Write( FILE &&file, Arg<uint64_t> offset, Arg<uint32_t> size,
+  inline WriteImpl<false> Write( Ctx<File> file, Arg<uint64_t> offset, Arg<uint32_t> size,
                                  Arg<const void*> buffer, uint16_t timeout = 0 )
   {
-    return WriteImpl<false>( file, std::move( offset ), std::move( size ),
+    return WriteImpl<false>( std::move( file ), std::move( offset ), std::move( size ),
                              std::move( buffer ) ).Timeout( timeout );
   }
 
@@ -536,18 +505,9 @@ namespace XrdCl
   //! Factory for creating TruncateImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline TruncateImpl<false> Truncate( File *file, Arg<uint64_t> size )
+  inline TruncateImpl<false> Truncate( Ctx<File> file, Arg<uint64_t> size )
   {
-    return TruncateImpl<false>( file, std::move( size ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating TruncateImpl objects (as there is another Stat in
-  //! FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline TruncateImpl<false> Truncate( File &file, Arg<uint64_t> size )
-  {
-    return TruncateImpl<false>( file, std::move( size ) );
+    return TruncateImpl<false>( std::move( file ), std::move( size ) );
   }
 
   //----------------------------------------------------------------------------
@@ -835,18 +795,9 @@ namespace XrdCl
   //! Factory for creating SetXAttrImpl objects (as there is another SetXAttr in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline SetXAttrImpl<false> SetXAttr( File *file, Arg<std::string> name, Arg<std::string> value )
+  inline SetXAttrImpl<false> SetXAttr( Ctx<File> file, Arg<std::string> name, Arg<std::string> value )
   {
-    return SetXAttrImpl<false>( file, std::move( name ), std::move( value ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating SetXAttrImpl objects (as there is another SetXAttr in
-  //! FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline SetXAttrImpl<false> SetXAttr( File &file, Arg<std::string> name, Arg<std::string> value )
-  {
-    return SetXAttrImpl<false>( file, std::move( name ), std::move( value ) );
+    return SetXAttrImpl<false>( std::move( file ), std::move( name ), std::move( value ) );
   }
 
   //----------------------------------------------------------------------------
@@ -900,18 +851,9 @@ namespace XrdCl
   //! Factory for creating SetXAttrBulkImpl objects (as there is another SetXAttr
   //! in FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline SetXAttrBulkImpl<false> SetXAttr( File *file, Arg<std::vector<xattr_t>> attrs )
+  inline SetXAttrBulkImpl<false> SetXAttr( Ctx<File> file, Arg<std::vector<xattr_t>> attrs )
   {
-    return SetXAttrBulkImpl<false>( file, std::move( attrs ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating SetXAttrBulkImpl objects (as there is another SetXAttr
-  //! in FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline SetXAttrBulkImpl<false> SetXAttr( File &file, Arg<std::vector<xattr_t>> attrs )
-  {
-    return SetXAttrBulkImpl<false>( file, std::move( attrs ) );
+    return SetXAttrBulkImpl<false>( std::move( file ), std::move( attrs ) );
   }
 
   //----------------------------------------------------------------------------
@@ -971,18 +913,9 @@ namespace XrdCl
   //! Factory for creating GetXAttrImpl objects (as there is another GetXAttr in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline GetXAttrImpl<false> GetXAttr( File *file, Arg<std::string> name )
+  inline GetXAttrImpl<false> GetXAttr( Ctx<File> file, Arg<std::string> name )
   {
-    return GetXAttrImpl<false>( file, std::move( name ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating GetXAttrImpl objects (as there is another GetXAttr in
-  //! FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline GetXAttrImpl<false> GetXAttr( File &file, Arg<std::string> name )
-  {
-    return GetXAttrImpl<false>( file, std::move( name ) );
+    return GetXAttrImpl<false>( std::move( file ), std::move( name ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1036,18 +969,9 @@ namespace XrdCl
   //! Factory for creating GetXAttrBulkImpl objects (as there is another GetXAttr in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline GetXAttrBulkImpl<false> GetXAttr( File *file, Arg<std::vector<std::string>> attrs )
+  inline GetXAttrBulkImpl<false> GetXAttr( Ctx<File> file, Arg<std::vector<std::string>> attrs )
   {
-    return GetXAttrBulkImpl<false>( file, std::move( attrs ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating GetXAttrBulkImpl objects (as there is another GetXAttr in
-  //! FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline GetXAttrBulkImpl<false> GetXAttr( File &file, Arg<std::vector<std::string>> attrs )
-  {
-    return GetXAttrBulkImpl<false>( file, std::move( attrs ) );
+    return GetXAttrBulkImpl<false>( std::move( file ), std::move( attrs ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1106,18 +1030,9 @@ namespace XrdCl
   //! Factory for creating DelXAttrImpl objects (as there is another DelXAttr in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline DelXAttrImpl<false> DelXAttr( File *file, Arg<std::string> name )
+  inline DelXAttrImpl<false> DelXAttr( Ctx<File> file, Arg<std::string> name )
   {
-    return DelXAttrImpl<false>( file, std::move( name ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating DelXAttrImpl objects (as there is another DelXAttr in
-  //! FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline DelXAttrImpl<false> DelXAttr( File &file, Arg<std::string> name )
-  {
-    return DelXAttrImpl<false>( file, std::move( name ) );
+    return DelXAttrImpl<false>( std::move( file ), std::move( name ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1171,18 +1086,9 @@ namespace XrdCl
   //! Factory for creating DelXAttrBulkImpl objects (as there is another DelXAttr
   //! in FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline DelXAttrBulkImpl<false> DelXAttr( File *file, Arg<std::vector<std::string>> attrs )
+  inline DelXAttrBulkImpl<false> DelXAttr( Ctx<File> file, Arg<std::vector<std::string>> attrs )
   {
-    return DelXAttrBulkImpl<false>( file, std::move( attrs ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating DelXAttrBulkImpl objects (as there is another DelXAttr
-  //! in FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline DelXAttrBulkImpl<false> DelXAttr( File &file, Arg<std::vector<std::string>> attrs )
-  {
-    return DelXAttrBulkImpl<false>( file, std::move( attrs ) );
+    return DelXAttrBulkImpl<false>( std::move( file ), std::move( attrs ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1229,18 +1135,9 @@ namespace XrdCl
   //! Factory for creating ListXAttrImpl objects (as there is another ListXAttr
   //! in FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline ListXAttrImpl<false> ListXAttr( File *file )
+  inline ListXAttrImpl<false> ListXAttr( Ctx<File> file )
   {
-    return ListXAttrImpl<false>( file );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating ListXAttrImpl objects (as there is another ListXAttr
-  //! in FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline ListXAttrImpl<false> ListXAttr( File &file )
-  {
-    return ListXAttrImpl<false>( file );
+    return ListXAttrImpl<false>( std::move( file ) );
   }
 }
 
