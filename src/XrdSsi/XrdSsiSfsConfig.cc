@@ -173,7 +173,8 @@ bool XrdSsiSfsConfig::Configure(const char *cFN, XrdOucEnv *envP)
 
 // Preset all variables with common defaults
 //
-   if (getenv("XRDDEBUG")) Trace.What = TRACESSI_ALL | TRACESSI_Debug;
+   if (getenv("XRDDEBUG") || getenv("XRDSSIDEBUG"))
+      Trace.What = TRACESSI_ALL | TRACESSI_Debug;
 
 // If there is no config file, return with an error.
 //
