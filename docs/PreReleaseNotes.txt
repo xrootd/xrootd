@@ -30,6 +30,7 @@ Prerelease Notes
   **[Server]** When requested fully verify supplied checksums in pgwrite.
 
 + **Miscellaneous**
+  **[SSI]** Allow server-side debug to be enabled via an envar.
   **[cmsd]** Correctly parse osslib when it have options.
   **[Xcache]** Allow origin location query to be refreshed.
   **[CMS]** Ignore stacked plugin specifications as they are not supported.
