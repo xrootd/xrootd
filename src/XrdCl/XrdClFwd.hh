@@ -138,7 +138,7 @@ namespace XrdCl
     //! Allocates memory for the underlying value object without callying
     //! its constructor.
     //------------------------------------------------------------------------
-    Fwd() : std::shared_ptr<FwdStorage<T>>( new FwdStorage<T>() )
+    Fwd() : std::shared_ptr<FwdStorage<T>>( std::make_shared<FwdStorage<T>>() )
     {
     }
 
