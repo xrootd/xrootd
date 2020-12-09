@@ -794,7 +794,7 @@ void XrdSsiFileReq::Recycle()
 // and sfs buffer, put it on the defered release queue.
 //
         if (oucBuff) {oucBuff->Recycle(); oucBuff = 0;}
-   else if (sfsBref) {XrdSfsXio::Reclaim(sfsBref);}
+   else if (sfsBref) {XrdSfsXio::Reclaim(sfsBref); sfsBref = 0;}
    reqSize = 0;
 
 // Add to queue unless we have too many of these. If we add it back to the
@@ -828,7 +828,7 @@ void XrdSsiFileReq::RelRequestBuffer()
 // Release buffers
 //
         if (oucBuff) {oucBuff->Recycle(); oucBuff = 0;}
-   else if (sfsBref) {XrdSfsXio::Reclaim(sfsBref);}
+   else if (sfsBref) {XrdSfsXio::Reclaim(sfsBref); sfsBref = 0;}
    reqSize = 0;
 }
 
