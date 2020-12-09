@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClZipArchive.hh"
 #include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
+#include "XrdCl/XrdClCtx.hh"
 
 namespace XrdCl
 {
@@ -35,17 +36,7 @@ namespace XrdCl
       //! @param f    : file on which the operation will be performed
       //! @param args : file operation arguments
       //------------------------------------------------------------------------
-      ZipOperation( ZipArchive *zip, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), zip( zip )
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param f    : file on which the operation will be performed
-      //! @param args : file operation arguments
-      //------------------------------------------------------------------------
-      ZipOperation( ZipArchive &zip, Arguments... args): ZipOperation( &zip, std::move( args )... )
+      ZipOperation( Ctx<ZipArchive> zip, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), zip( std::move( zip ) )
       {
       }
 
@@ -76,7 +67,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The file object itself
       //------------------------------------------------------------------------
-      ZipArchive *zip;
+      Ctx<ZipArchive> zip;
   };
 
   //----------------------------------------------------------------------------
@@ -129,17 +120,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating OpenArchiveImpl objects
   //----------------------------------------------------------------------------
-  inline OpenArchiveImpl<false> OpenArchive( ZipArchive &zip, Arg<std::string> fn,
+  inline OpenArchiveImpl<false> OpenArchive( Ctx<ZipArchive> zip, Arg<std::string> fn,
       Arg<OpenFlags::Flags> flags, uint16_t timeout = 0 )
   {
-    return OpenArchiveImpl<false>( zip, std::move( fn ),
-                                   std::move( flags ) ).Timeout( timeout );
-  }
-
-  inline OpenArchiveImpl<false> OpenArchive( ZipArchive *zip, Arg<std::string> fn,
-      Arg<OpenFlags::Flags> flags, uint16_t timeout = 0 )
-  {
-    return OpenArchiveImpl<false>( zip, std::move( fn ),
+    return OpenArchiveImpl<false>( std::move( zip ), std::move( fn ),
                                    std::move( flags ) ).Timeout( timeout );
   }
 
@@ -197,19 +181,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating OpenFileImpl objects
   //----------------------------------------------------------------------------
-  inline OpenFileImpl<false> OpenFile( ZipArchive &zip, Arg<std::string> fn,
+  inline OpenFileImpl<false> OpenFile( Ctx<ZipArchive> zip, Arg<std::string> fn,
       Arg<OpenFlags::Flags> flags = OpenFlags::None, Arg<uint64_t> size = 0,
       Arg<uint32_t> crc32 = 0, uint16_t timeout = 0 )
   {
-    return OpenFileImpl<false>( zip, std::move( fn ), std::move( flags ),
-        std::move( size ), std::move( crc32 ) ).Timeout( timeout );
-  }
-
-  inline OpenFileImpl<false> OpenFile( ZipArchive *zip, Arg<std::string> fn,
-      Arg<OpenFlags::Flags> flags = OpenFlags::None, Arg<uint64_t> size = 0,
-      Arg<uint32_t> crc32 = 0, uint16_t timeout = 0 )
-  {
-    return OpenFileImpl<false>( zip, std::move( fn ), std::move( flags ),
+    return OpenFileImpl<false>( std::move( zip ), std::move( fn ), std::move( flags ),
         std::move( size ), std::move( crc32 ) ).Timeout( timeout );
   }
 
@@ -265,17 +241,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating ArchiveReadImpl objects
   //----------------------------------------------------------------------------
-  inline ZipReadImpl<false> Read( ZipArchive &zip, Arg<uint64_t> offset, Arg<uint32_t> size,
+  inline ZipReadImpl<false> Read( Ctx<ZipArchive> zip, Arg<uint64_t> offset, Arg<uint32_t> size,
                                   Arg<void*> buffer, uint16_t timeout = 0 )
   {
-    return ZipReadImpl<false>( zip, std::move( offset ), std::move( size ),
-                               std::move( buffer ) ).Timeout( timeout );
-  }
-
-  inline ZipReadImpl<false> Read( ZipArchive *zip, Arg<uint64_t> offset, Arg<uint32_t> size,
-                                  Arg<void*> buffer, uint16_t timeout = 0 )
-  {
-    return ZipReadImpl<false>( zip, std::move( offset ), std::move( size ),
+    return ZipReadImpl<false>( std::move( zip ), std::move( offset ), std::move( size ),
                                std::move( buffer ) ).Timeout( timeout );
   }
 
@@ -330,17 +299,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating ArchiveReadImpl objects
   //----------------------------------------------------------------------------
-  inline ZipWriteImpl<false> Write( ZipArchive &zip, Arg<uint32_t> size, Arg<const void*> buffer,
+  inline ZipWriteImpl<false> Write( Ctx<ZipArchive> zip, Arg<uint32_t> size, Arg<const void*> buffer,
                                     uint16_t timeout = 0 )
   {
-    return ZipWriteImpl<false>( zip, std::move( size ),
-                                std::move( buffer ) ).Timeout( timeout );
-  }
-
-  inline ZipWriteImpl<false> Write( ZipArchive *zip, Arg<uint32_t> size, Arg<const void*> buffer,
-                                    uint16_t timeout = 0 )
-  {
-    return ZipWriteImpl<false>( zip, std::move( size ),
+    return ZipWriteImpl<false>( std::move( zip ), std::move( size ),
                                 std::move( buffer ) ).Timeout( timeout );
   }
 
@@ -438,14 +400,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating ZipStatImpl objects
   //----------------------------------------------------------------------------
-  inline ZipStatImpl<false> Stat( ZipArchive &zip )
+  inline ZipStatImpl<false> Stat( Ctx<ZipArchive> zip )
   {
-    return ZipStatImpl<false>( zip );
-  }
-
-  inline ZipStatImpl<false> Stat( ZipArchive *zip )
-  {
-    return ZipStatImpl<false>( zip );
+    return ZipStatImpl<false>( std::move( zip ) );
   }
 
 
@@ -494,14 +451,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating ZipStatImpl objects
   //----------------------------------------------------------------------------
-  inline ZipListImpl<false> List( ZipArchive &zip )
+  inline ZipListImpl<false> List( Ctx<ZipArchive> zip )
   {
-    return ZipListImpl<false>( zip );
-  }
-
-  inline ZipListImpl<false> List( ZipArchive *zip )
-  {
-    return ZipListImpl<false>( zip );
+    return ZipListImpl<false>( std::move( zip ) );
   }
 
 
@@ -546,10 +498,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Factory for creating CloseFileImpl objects
   //----------------------------------------------------------------------------
-  template<typename ZIP>
-  inline CloseArchiveImpl<false> CloseArchive( ZIP &&zip, uint16_t timeout = 0 )
+  inline CloseArchiveImpl<false> CloseArchive( Ctx<ZipArchive> zip, uint16_t timeout = 0 )
   {
-    return CloseArchiveImpl<false>( zip ).Timeout( timeout );
+    return CloseArchiveImpl<false>( std::move( zip ) ).Timeout( timeout );
   }
 
 }
