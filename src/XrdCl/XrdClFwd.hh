@@ -112,95 +112,105 @@ namespace XrdCl
   //! @arg T : type of forwarded value
   //----------------------------------------------------------------------------
   template<typename T>
-  class Fwd : protected std::shared_ptr<FwdStorage<T>>
+  struct Fwd : protected std::shared_ptr<FwdStorage<T>>
   {
-    public:
+    //------------------------------------------------------------------------
+    //! Default constructor.
+    //!
+    //! Allocates memory for the underlying value object without callying
+    //! its constructor.
+    //------------------------------------------------------------------------
+    Fwd() : std::shared_ptr<FwdStorage<T>>( new FwdStorage<T>() )
+    {
+    }
 
-      //------------------------------------------------------------------------
-      //! Default constructor.
-      //!
-      //! Allocates memory for the underlying value object without callying
-      //! its constructor.
-      //------------------------------------------------------------------------
-      Fwd() : std::shared_ptr<FwdStorage<T>>( new FwdStorage<T>() )
-      {
-      }
+    //------------------------------------------------------------------------
+    //! Copy constructor.
+    //------------------------------------------------------------------------
+    Fwd( const Fwd &fwd ) : std::shared_ptr<FwdStorage<T>>( fwd )
+    {
+    }
 
-      //------------------------------------------------------------------------
-      //! Copy constructor.
-      //------------------------------------------------------------------------
-      Fwd( const Fwd &fwd ) : std::shared_ptr<FwdStorage<T>>( fwd )
-      {
-      }
+    //------------------------------------------------------------------------
+    //! Move constructor.
+    //------------------------------------------------------------------------
+    Fwd( Fwd && fwd ) : std::shared_ptr<FwdStorage<T>>( std::move( fwd ) )
+    {
+    }
 
-      //------------------------------------------------------------------------
-      //! Move constructor.
-      //------------------------------------------------------------------------
-      Fwd( Fwd && fwd ) : std::shared_ptr<FwdStorage<T>>( std::move( fwd ) )
-      {
-      }
+    //------------------------------------------------------------------------
+    //! Initialize from shared_ptr
+    //------------------------------------------------------------------------
+    Fwd( std::shared_ptr<FwdStorage<T>> && ptr ) : std::shared_ptr<FwdStorage<T>>( std::move( ptr ) )
+    {
+    }
 
-      //------------------------------------------------------------------------
-      //! Constructor from value
-      //------------------------------------------------------------------------
-      Fwd( const T &value )
-      {
-        *this->get() = value;
-      }
+    //------------------------------------------------------------------------
+    //! Constructor from value
+    //------------------------------------------------------------------------
+    Fwd( const T &value )
+    {
+      *this->get() = value;
+    }
 
-      //------------------------------------------------------------------------
-      //! Assignment operator. Note: the object can be assigned only once.
-      //! Reassignment will trigger an exception
-      //!
-      //! @param value : forwarded value
-      //! @throws      : std::logic_error
-      //------------------------------------------------------------------------
-      const Fwd& operator=( const T &value ) const
-      {
-        *this->get() = value;
-        return *this;
-      }
+    //------------------------------------------------------------------------
+    //! Assignment operator. Note: the object can be assigned only once.
+    //! Reassignment will trigger an exception
+    //!
+    //! @param value : forwarded value
+    //! @throws      : std::logic_error
+    //------------------------------------------------------------------------
+    const Fwd& operator=( const T &value ) const
+    {
+      *this->get() = value;
+      return *this;
+    }
 
-      //------------------------------------------------------------------------
-      //! Move assignment operator. Note: the object can be assigned only once.
-      //! Reassignment will trigger an exception
-      //!
-      //! @param value : forwarded value
-      //! @throws      : std::logic_error
-      //------------------------------------------------------------------------
-      const Fwd& operator=( T && value ) const
-      {
-        *this->get() = std::move( value );
-        return *this;
-      }
+    //------------------------------------------------------------------------
+    //! Move assignment operator. Note: the object can be assigned only once.
+    //! Reassignment will trigger an exception
+    //!
+    //! @param value : forwarded value
+    //! @throws      : std::logic_error
+    //------------------------------------------------------------------------
+    const Fwd& operator=( T && value ) const
+    {
+      *this->get() = std::move( value );
+      return *this;
+    }
 
-      //------------------------------------------------------------------------
-      //! Dereferencing operator. Note if Fwd has not been assigned with
-      //! a value this will trigger an exception
-      //!
-      //! @return : reference to the underlying value
-      //! @throws : std::logic_error
-      //------------------------------------------------------------------------
-      T& operator*() const
-      {
-        if( !bool( this->get()->ptr ) ) throw std::logic_error( "XrdCl::Fwd contains no value!" );
-        return *this->get()->ptr;
-      }
+    //------------------------------------------------------------------------
+    //! Dereferencing operator. Note if Fwd has not been assigned with
+    //! a value this will trigger an exception
+    //!
+    //! @return : reference to the underlying value
+    //! @throws : std::logic_error
+    //------------------------------------------------------------------------
+    T& operator*() const
+    {
+      if( !bool( this->get()->ptr ) ) throw std::logic_error( "XrdCl::Fwd contains no value!" );
+      return *this->get()->ptr;
+    }
 
-      //------------------------------------------------------------------------
-      //! Dereferencing member operator. Note if Fwd has not been assigned with
-      //! a value this will trigger an exception
-      //!
-      //! @return : pointer to the underlying value
-      //! @throws : std::logic_error
-      //------------------------------------------------------------------------
-      T* operator->() const
-      {
-        if( !bool( this->get()->ptr ) ) throw std::logic_error( "XrdCl::Fwd contains no value!" );
-        return this->get()->ptr;
-      }
-
+    //------------------------------------------------------------------------
+    //! Dereferencing member operator. Note if Fwd has not been assigned with
+    //! a value this will trigger an exception
+    //!
+    //! @return : pointer to the underlying value
+    //! @throws : std::logic_error
+    //------------------------------------------------------------------------
+    T* operator->() const
+    {
+      if( !bool( this->get()->ptr ) ) throw std::logic_error( "XrdCl::Fwd contains no value!" );
+      return this->get()->ptr;
+    }
   };
+
+  template<typename T, typename... Args>
+  inline std::shared_ptr<FwdStorage<T>> make_fwd( Args&&... args )
+  {
+    return std::make_shared<FwdStorage<T>>( std::forward<Args>( args )... );
+  }
 }
 
 
