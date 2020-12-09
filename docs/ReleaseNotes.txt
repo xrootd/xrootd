@@ -6,6 +6,19 @@ Release Notes
 =============
 
 --------------
+Version 4.12.6
+--------------
+
++ **Major bug fixes**
+  * **[XrdTpc]** Close file handle before final HTTP response.
+
++ **Minor bug fixes**
+  * **[XrdTpc]** Fix minor bugs discovered by compiler warnings.
+
++ **Miscellaneous**
+  * **[XrdTpc]** Add support for buffering even when single-stream TPC.
+
+--------------
 Version 4.12.5
 --------------
 
