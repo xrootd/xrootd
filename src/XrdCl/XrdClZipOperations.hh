@@ -181,8 +181,6 @@ namespace XrdCl
         OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
         uint64_t         size    = std::get<SizeArg>( this->args ).Get();
         uint32_t         crc32   = std::get<Crc32Arg>( this->args ).Get();
-        uint16_t         timeout = pipelineTimeout < this->timeout ?
-                                   pipelineTimeout : this->timeout;
         XRootDStatus st = this->zip->OpenFile( fn, flags, size, crc32 );
         if( !st.IsOK() ) return st;
         handler->HandleResponse( new XRootDStatus(), nullptr );
