@@ -712,7 +712,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
        if (!bRef)
           {if (errno) Log.Emsg(epname,"Xio.Claim() failed;",XrdSysE2T(errno));}
           else {if (!NewRequest(reqID, 0, bRef, reqPass))
-                   return XrdSsiUtils::Emsg(epname,ENOMEM,"write",gigID,*eInfo);
+                   return XrdSsiUtils::Emsg(epname,ENOMEM,"write xio",gigID,*eInfo);
                 return blen;
                }
       }
@@ -720,7 +720,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
 // The full request is not present, so get a buffer to piece it together
 //
    if (!(oucBuff = BuffPool->Alloc(reqSize)))
-      return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
+      return XrdSsiUtils::Emsg(epname, ENOMEM, "write alloc", gigID, *eInfo);
 
 // Setup to buffer this
 //
@@ -730,7 +730,7 @@ XrdSfsXferSize XrdSsiFileSess::write(XrdSfsFileOffset  offset,    // In
       {oucBuff->SetLen(reqSize);
 
        if (!NewRequest(reqID, oucBuff, 0, reqPass))
-          return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
+          return XrdSsiUtils::Emsg(epname, ENOMEM, "write sfs", gigID, *eInfo);
        oucBuff = 0;
       } else oucBuff->SetLen(blen, blen);
    return blen;
