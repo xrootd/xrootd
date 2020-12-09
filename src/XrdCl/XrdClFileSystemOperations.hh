@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
+#include "XrdCl/XrdClCtx.hh"
 
 namespace XrdCl
 {
@@ -53,18 +54,8 @@ namespace XrdCl
       //! @param fs   : file system on which the operation will be performed
       //! @param args : file operation arguments
       //------------------------------------------------------------------------
-      FileSystemOperation( FileSystem *fs, Args... args): ConcreteOperation<Derived,
-          false, Response, Args...>( std::move( args )... ), filesystem(fs)
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Constructor
-      //!
-      //! @param fs   : file system on which the operation will be performed
-      //! @param args : file operation arguments
-      //------------------------------------------------------------------------
-      FileSystemOperation( FileSystem &fs, Args... args): FileSystemOperation( &fs, std::move( args )... )
+      FileSystemOperation( Ctx<FileSystem> fs, Args... args): ConcreteOperation<Derived,
+          false, Response, Args...>( std::move( args )... ), filesystem( std::move( fs ) )
       {
       }
 
@@ -93,7 +84,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The file system object itself.
       //------------------------------------------------------------------------
-      FileSystem *filesystem;
+      Ctx<FileSystem> filesystem;
   };
 
   //----------------------------------------------------------------------------
@@ -335,15 +326,11 @@ namespace XrdCl
       }
   };
 
-  inline TruncateFsImpl<false> Truncate( FileSystem *fs, Arg<std::string> path, Arg<uint64_t> size )
+  inline TruncateFsImpl<false> Truncate( Ctx<FileSystem> fs, Arg<std::string> path, Arg<uint64_t> size )
   {
-    return TruncateFsImpl<false>( fs, std::move( path ), std::move( size ) );
+    return TruncateFsImpl<false>( std::move( fs ), std::move( path ), std::move( size ) );
   }
 
-  inline TruncateFsImpl<false> Truncate( FileSystem &fs, Arg<std::string> path, Arg<uint64_t> size )
-  {
-    return TruncateFsImpl<false>( fs, std::move( path ), std::move( size ) );
-  }
 
   //----------------------------------------------------------------------------
   //! Rm operation (@see FileSystemOperation)
@@ -618,14 +605,9 @@ namespace XrdCl
       }
   };
 
-  inline StatFsImpl<false> Stat( FileSystem *fs, Arg<std::string> path )
+  inline StatFsImpl<false> Stat( Ctx<FileSystem> fs, Arg<std::string> path )
   {
-    return StatFsImpl<false>( fs, std::move( path ) );
-  }
-
-  inline StatFsImpl<false> Stat( FileSystem &fs, Arg<std::string> path )
-  {
-    return StatFsImpl<false>( fs, std::move( path ) );
+    return StatFsImpl<false>( std::move( fs ), std::move( path ) );
   }
 
   //----------------------------------------------------------------------------
@@ -919,21 +901,10 @@ namespace XrdCl
   //! Factory for creating SetXAttrFsImpl objects (as there is another SetXAttr
   //! in File there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline SetXAttrFsImpl<false> SetXAttr( FileSystem *fs, Arg<std::string> path,
+  inline SetXAttrFsImpl<false> SetXAttr( Ctx<FileSystem> fs, Arg<std::string> path,
       Arg<std::string> name, Arg<std::string> value )
   {
-    return SetXAttrFsImpl<false>( fs, std::move( path ), std::move( name ),
-                                  std::move( value ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating SetXAttrFsImpl objects (as there is another SetXAttr
-  //! in File there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline SetXAttrFsImpl<false> SetXAttr( FileSystem &fs, Arg<std::string> path,
-      Arg<std::string> name, Arg<std::string> value )
-  {
-    return SetXAttrFsImpl<false>( fs, std::move( path ), std::move( name ),
+    return SetXAttrFsImpl<false>( std::move( fs ), std::move( path ), std::move( name ),
                                   std::move( value ) );
   }
 
@@ -987,20 +958,10 @@ namespace XrdCl
   //! Factory for creating SetXAttrFsBulkImpl objects (as there is another SetXAttr
   //! in FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline SetXAttrFsBulkImpl<false> SetXAttr( FileSystem *fs, Arg<std::string> path,
+  inline SetXAttrFsBulkImpl<false> SetXAttr( Ctx<FileSystem> fs, Arg<std::string> path,
       Arg<std::vector<xattr_t>> attrs )
   {
-    return SetXAttrFsBulkImpl<false>( fs, std::move( path ), std::move( attrs ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating SetXAttrFsBulkImpl objects (as there is another SetXAttr
-  //! in FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline SetXAttrFsBulkImpl<false> SetXAttr( FileSystem &fs, Arg<std::string> path,
-      Arg<std::vector<xattr_t>> attrs )
-  {
-    return SetXAttrFsBulkImpl<false>( fs, std::move( path ), std::move( attrs ) );
+    return SetXAttrFsBulkImpl<false>( std::move( fs ), std::move( path ), std::move( attrs ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1059,20 +1020,10 @@ namespace XrdCl
   //! Factory for creating GetXAttrFsImpl objects (as there is another GetXAttr
   //! in File there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline GetXAttrFsImpl<false> GetXAttr( FileSystem *fs, Arg<std::string> path,
+  inline GetXAttrFsImpl<false> GetXAttr( Ctx<FileSystem> fs, Arg<std::string> path,
       Arg<std::string> name )
   {
-    return GetXAttrFsImpl<false>( fs, std::move( path ), std::move( name ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating GetXAttrFsImpl objects (as there is another GetXAttr
-  //! in File there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline GetXAttrFsImpl<false> GetXAttr( FileSystem &fs, Arg<std::string> path,
-      Arg<std::string> name )
-  {
-    return GetXAttrFsImpl<false>( fs, std::move( path ), std::move( name ) );
+    return GetXAttrFsImpl<false>( std::move( fs ), std::move( path ), std::move( name ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1125,20 +1076,10 @@ namespace XrdCl
   //! Factory for creating GetXAttrFsBulkImpl objects (as there is another GetXAttr in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline GetXAttrFsBulkImpl<false> GetXAttr( FileSystem *fs, Arg<std::string> path,
+  inline GetXAttrFsBulkImpl<false> GetXAttr( Ctx<FileSystem> fs, Arg<std::string> path,
                                              Arg<std::vector<std::string>> attrs )
   {
-    return GetXAttrFsBulkImpl<false>( fs, std::move( path ), std::move( attrs ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating GetXAttrFsBulkImpl objects (as there is another GetXAttr in
-  //! FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline GetXAttrFsBulkImpl<false> GetXAttr( FileSystem &fs, Arg<std::string> path,
-                                             Arg<std::vector<std::string>> attrs )
-  {
-    return GetXAttrFsBulkImpl<false>( fs, std::move( path ), std::move( attrs ) );
+    return GetXAttrFsBulkImpl<false>( std::move( fs ), std::move( path ), std::move( attrs ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1199,20 +1140,10 @@ namespace XrdCl
   //! Factory for creating DelXAttrFsImpl objects (as there is another DelXAttr
   //! in File there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline DelXAttrFsImpl<false> DelXAttr( FileSystem *fs, Arg<std::string> path,
+  inline DelXAttrFsImpl<false> DelXAttr( Ctx<FileSystem> fs, Arg<std::string> path,
                                           Arg<std::string> name )
   {
-    return DelXAttrFsImpl<false>( fs, std::move( path ), std::move( name ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating DelXAttrFsImpl objects (as there is another DelXAttr
-  //! in File there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline DelXAttrFsImpl<false> DelXAttr( FileSystem &fs, Arg<std::string> path,
-                                         Arg<std::string> name )
-  {
-    return DelXAttrFsImpl<false>( fs, std::move( path ), std::move( name ) );
+    return DelXAttrFsImpl<false>( std::move( fs ), std::move( path ), std::move( name ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1267,20 +1198,10 @@ namespace XrdCl
   //! Factory for creating DelXAttrFsBulkImpl objects (as there is another DelXAttr
   //! in FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline DelXAttrFsBulkImpl<false> DelXAttr( FileSystem *fs, Arg<std::string> path,
+  inline DelXAttrFsBulkImpl<false> DelXAttr( Ctx<FileSystem> fs, Arg<std::string> path,
       Arg<std::vector<std::string>> attrs )
   {
-    return DelXAttrFsBulkImpl<false>( fs, std::move( path ), std::move( attrs ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating DelXAttrFsBulkImpl objects (as there is another DelXAttr
-  //! in FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline DelXAttrFsBulkImpl<false> DelXAttr( FileSystem &fs, Arg<std::string> path,
-      Arg<std::vector<std::string>> attrs )
-  {
-    return DelXAttrFsBulkImpl<false>( fs, std::move( path ), std::move( attrs ) );
+    return DelXAttrFsBulkImpl<false>( std::move( fs ), std::move( path ), std::move( attrs ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1333,18 +1254,9 @@ namespace XrdCl
   //! Factory for creating ListXAttrFsImpl objects (as there is another ListXAttr
   //! in FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline ListXAttrFsImpl<false> ListXAttr( FileSystem *fs, Arg<std::string> path )
+  inline ListXAttrFsImpl<false> ListXAttr( Ctx<FileSystem> fs, Arg<std::string> path )
   {
-    return ListXAttrFsImpl<false>( fs, std::move( path ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating ListXAttrFsImpl objects (as there is another ListXAttr
-  //! in FileSystem there would be a clash of typenames).
-  //----------------------------------------------------------------------------
-  inline ListXAttrFsImpl<false> ListXAttr( FileSystem &fs, Arg<std::string> path )
-  {
-    return ListXAttrFsImpl<false>( fs, std::move( path ) );
+    return ListXAttrFsImpl<false>( std::move( fs ), std::move( path ) );
   }
 }
 
