@@ -36,10 +36,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // OperationHandler Constructor.
   //----------------------------------------------------------------------------
-  PipelineHandler::PipelineHandler( ResponseHandler  *handler,
-                                    rcvry_func      &&recovery ) :
-      responseHandler( handler ),
-      recovery( std::move( recovery ) )
+  PipelineHandler::PipelineHandler( ResponseHandler  *handler ) :
+      responseHandler( handler )
   {
   }
 
@@ -88,24 +86,16 @@ namespace XrdCl
         opr->Run( timeout, std::move( prms ), std::move( final ) );
         return;
       }
+      catch( ReplaceOperation &replace )
+      {
+        Operation<true> *opr = replace.opr.release();
+        opr->handler.reset( myself.release() );
+        opr->Run( timeout, std::move( prms ), std::move( final ) );
+        return;
+      }
     }
     else
       dealloc( status, response, hostList );
-
-    if( !st.IsOK() && recovery )
-    {
-      try
-      {
-        std::unique_ptr<Operation<true>> op( recovery( st ) );
-        op->AddOperation( nextOperation.release() );
-        op->Run( timeout, std::move( prms ), std::move( final ) );
-        return;
-      }
-      catch( const std::exception &ex )
-      {
-        // just proceed as if there would be no recovery routine at all
-      }
-    }
 
     if( !st.IsOK() || !nextOperation )
     {

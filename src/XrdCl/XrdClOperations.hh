@@ -67,13 +67,12 @@ namespace XrdCl
       //! @param handler  : the handler of our operation
       //! @param recovery : the recovery procedure for our operation
       //------------------------------------------------------------------------
-      PipelineHandler( ResponseHandler   *handler,
-                       rcvry_func       &&recovery );
+      PipelineHandler( ResponseHandler   *handler );
 
       //------------------------------------------------------------------------
       //! Default Constructor.
       //------------------------------------------------------------------------
-      PipelineHandler( rcvry_func &&recovery ) : recovery( std::move( recovery ) )
+      PipelineHandler()
       {
       }
 
@@ -166,11 +165,6 @@ namespace XrdCl
       //! pipeline (traveling along the pipeline)
       //------------------------------------------------------------------------
       std::function<void(const XRootDStatus&)> final;
-
-      //------------------------------------------------------------------------
-      //! The recovery routine for the respective operation
-      //------------------------------------------------------------------------
-      rcvry_func recovery;
   };
 
   //----------------------------------------------------------------------------
@@ -330,6 +324,18 @@ namespace XrdCl
   struct RepeatOpeation { };
 
   //----------------------------------------------------------------------------
+  //! An exception type used to repeat an operation
+  //----------------------------------------------------------------------------
+  struct ReplaceOperation
+  {
+    ReplaceOperation( Operation<false> &&opr ) : opr( opr.ToHandled() )
+    {
+    }
+
+    std::unique_ptr<Operation<true>> opr;
+  };
+
+  //----------------------------------------------------------------------------
   //! A wrapper around operation pipeline. A Pipeline is a once-use-only
   //! object - once executed by a Workflow engine it is invalidated.
   //!
@@ -446,6 +452,14 @@ namespace XrdCl
       inline static void Repeat()
       {
         throw RepeatOpeation();
+      }
+
+      //------------------------------------------------------------------------
+      //! Replace current operation
+      //------------------------------------------------------------------------
+      inline static void Replace( Operation<false> &&opr )
+      {
+        throw ReplaceOperation( std::move( opr ) );
       }
 
     private:
@@ -633,15 +647,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Set recovery procedure in case the operation fails
-      //------------------------------------------------------------------------
-      Derived<HasHndl> Recovery( rcvry_func recovery )
-      {
-        this->recovery = std::move( recovery );
-        return Transform<HasHndl>();
-      }
-
-      //------------------------------------------------------------------------
       //! Move current object into newly allocated instance
       //!
       //! @return : the new instance
@@ -659,7 +664,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       inline Operation<true>* ToHandled()
       {
-        this->handler.reset( new PipelineHandler( std::move( this->recovery ) ) );
+        this->handler.reset( new PipelineHandler() );
         Derived<HasHndl> *me = static_cast<Derived<HasHndl>*>( this );
         return new Derived<true>( std::move( *me ) );
       }
@@ -698,7 +703,7 @@ namespace XrdCl
       inline Derived<true> StreamImpl( ResponseHandler *handler )
       {
         static_assert( !HasHndl, "Operator >> is available only for operation without handler" );
-        this->handler.reset( new PipelineHandler( handler, std::move( this->recovery ) ) );
+        this->handler.reset( new PipelineHandler( handler ) );
         return Transform<true>();
       }
 
@@ -717,7 +722,7 @@ namespace XrdCl
       inline static
       void AllocHandler( ConcreteOperation<Derived, false, HdlrFactory, Args...> &me )
       {
-        me.handler.reset( new PipelineHandler( std::move( me.recovery ) ) );
+        me.handler.reset( new PipelineHandler() );
       }
 
       //------------------------------------------------------------------------
@@ -758,11 +763,6 @@ namespace XrdCl
       //! Operation arguments
       //------------------------------------------------------------------------
       std::tuple<Args...> args;
-
-      //------------------------------------------------------------------------
-      //! The recovery routine for this operation
-      //------------------------------------------------------------------------
-      rcvry_func recovery;
 
       //------------------------------------------------------------------------
       //! Operation timeout
