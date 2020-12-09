@@ -355,7 +355,7 @@ namespace XrdCl
   //! Factory for creating StatImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline StatImpl<false> Stat( Ctx<File> file, Arg<bool> force, uint16_t timeout )
+  inline StatImpl<false> Stat( Ctx<File> file, Arg<bool> force, uint16_t timeout = 0 )
   {
     return StatImpl<false>( std::move( file ), std::move( force ) ).Timeout( timeout );
   }
