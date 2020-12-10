@@ -63,7 +63,7 @@ int    ID() {return tskID;}
 inline
 void   Init(XrdSsiRequest *rP, unsigned short tmo=0)
            {rqstP = rP, tStat = isPend; tmOut = tmo; wPost = 0;
-            mhPend = false; defer = false;
+            mhPend = false; defer = 0;
             attList.next = attList.prev = this;
             if (mdResp) {delete mdResp; mdResp = 0;}
            }
@@ -95,7 +95,7 @@ void   XeqEvFin();
        XrdSsiTaskReal(XrdSsiSessReal *sP)
                      : XrdSsiStream(XrdSsiStream::isPassive),
                        sessP(sP), mdResp(0), wPost(0), tskID(0),
-                       mhPend(false), defer(false)
+                       defer(0), mhPend(false)
                     {}
 
       ~XrdSsiTaskReal() {if (mdResp) delete mdResp;}
@@ -120,8 +120,8 @@ char             *dataBuff;
 int               dataRlen;
 TaskStat          tStat;
 uint32_t          tskID;
+int               defer;  // Number of oustanding defer requests
 unsigned short    tmOut;
 bool              mhPend;
-bool              defer;
 };
 #endif

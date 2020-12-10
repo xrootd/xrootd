@@ -173,8 +173,9 @@ do{thisEvent.Move2(myEvent);
 
    if (rc)
       {DEBUG("XeqEvent requested " <<(rc < 0 ? "halt" : "flush"));
-       if (rc > 0) break;
-       return;
+       if (rc < 0) return;
+       evMutex.Lock();
+       break;
       }
 
    evMutex.Lock();

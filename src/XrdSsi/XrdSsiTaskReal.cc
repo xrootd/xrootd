@@ -375,44 +375,54 @@ void XrdSsiTaskReal::SchedError(XrdSsiErrInfo *eInfo)
 //
    if (eInfo) errInfo = *eInfo;
 
-// Schedule the error to avoid lock clashes (make sure Finished calls defered)
+// Schedule the error to avoid lock clashes. Make sure Finished calls defered.
+// The target (SendError) will decrease the defer refcount (ugly but true).
 //
-   defer = true;
+   defer++;
    XrdSsi::schedP->Schedule((XrdJob *)(new SchedEmsg(this)));
 }
 
 /******************************************************************************/
 /*                             S e n d E r r o r                              */
 /******************************************************************************/
-  
-void XrdSsiTaskReal::SendError()
+
+void XrdSsiTaskReal::SendError() // Called with defer > 0!
 {
+   EPNAME("SendError");
+
 // Lock the associated session
 //
    sessP->Lock();
+   DEBUG("Status="<<statName[tStat]<<" defer=" <<defer<<" mhPend="<<mhPend);
 
 // If there was no call to finished then we need to send an error response
 // which may precipitate a finished call now or later. Defer should be set
-// but we set here just in case. It will always be reset.
+// with anticipation that we will decrease it after the callback.
 //
    if (tStat != isDead)
       {int eNum;
        const char *eTxt = errInfo.Get(eNum).c_str();
-       defer = true;
        sessP->UnLock();
        SetErrResponse(eTxt, eNum);
        sessP->Lock();
-       defer = false;
+       defer--;
        if (tStat != isDead)
           {sessP->UnLock();
            return;
           }
       }
 
-// It is now safe to finish this up
+// If it is safe to do so, finish up everything here
 //
-   sessP->UnLock();
-   sessP->TaskFinished(this);
+
+   if (mhPend || defer)
+      {DEBUG("Defering TaskFinished."<<" defer=" <<defer<<" mhPend="<<mhPend);
+       sessP->UnLock();
+      } else {
+       DEBUG("Calling TaskFinished");
+       sessP->UnLock();
+       sessP->TaskFinished(this);
+      }
 }
   
 /******************************************************************************/
@@ -445,9 +455,9 @@ bool XrdSsiTaskReal::SendRequest(const char *node)
 
 // Get the request information. Make sure to defer Finish() calls.
 //
-   defer = true;
+   defer++;
    reqBuff = XrdSsiRRAgent::Request(this)->GetRequest(reqBlen);
-   defer = false;
+   defer--;
 
 // It's possible that GetRequest() called finished so process that here.
 //
@@ -609,12 +619,12 @@ int  XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
 // may precipitate a Finish() call not to mention some other thread doing so.
 //
    XrdSsiMutexMon monMtx(sessP->MutexP());
-   defer  = true;
+   defer++;
    mhPend = false;
 
 // Do some debugging
 //
-   DEBUG(" aOK="<<aOK<<" status="<<statName[tStat]);
+   DEBUG("aOK="<<aOK<<" status="<<statName[tStat]<<" defer=" <<defer);
 
 // Affect proper response
 //
@@ -721,15 +731,17 @@ void XrdSsiTaskReal::XeqEvFin()
 // Obtain a lock and remove defer flag (protected by the lock)
 //
    sessP->Lock();
-   defer = false;
+   defer--;
+   DEBUG("Status="<<statName[tStat]<<" defer=" <<defer<<" mhPend="<<mhPend);
+
 
 // Check if finished has been called while we were defered or if this is an
 // orphaned task due to a session stop request.
 //
    if (tStat == isDead)
       {if (sessP != &voidSession)
-          {if (mhPend) {DEBUG("Defering TaskFinished; mhPend=True");}
-              else {DEBUG("Calling TaskFinished; mhPend=False");
+          {if (mhPend || defer) {DEBUG("Defering TaskFinished.");}
+              else {DEBUG("Calling TaskFinished");
                     sessP->UnLock();
                     sessP->TaskFinished(this);
                    }
