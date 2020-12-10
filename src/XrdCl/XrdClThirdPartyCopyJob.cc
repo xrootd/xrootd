@@ -230,9 +230,7 @@ namespace XrdCl
               !( vrCheckSum = redirector->GetCheckSum( checkSumType ) ).empty() )
             sourceCheckSum = vrCheckSum;
           else
-            st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType,
-                                           tpcSource.GetHostId(),
-                                           tpcSource.GetPath() );
+            st = Utils::GetRemoteCheckSum( sourceCheckSum, checkSumType, tpcSource );
         }
         gettimeofday( &oEnd, 0 );
         if( !st.IsOK() )
@@ -249,9 +247,7 @@ namespace XrdCl
       if( checkSumMode == "end2end" || checkSumMode == "target" )
       {
         gettimeofday( &tStart, 0 );
-        st = Utils::GetRemoteCheckSum( targetCheckSum, checkSumType,
-                                       realTarget.GetHostId(),
-                                       realTarget.GetPath() );
+        st = Utils::GetRemoteCheckSum( targetCheckSum, checkSumType, realTarget );
 
         gettimeofday( &tEnd, 0 );
         if( !st.IsOK() )

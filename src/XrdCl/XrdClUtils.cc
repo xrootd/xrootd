@@ -276,15 +276,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus Utils::GetRemoteCheckSum( std::string       &checkSum,
                                          const std::string &checkSumType,
-                                         const std::string &server,
-                                         const std::string &path )
+                                         const URL         &url )
   {
-    FileSystem   *fs = new FileSystem( URL( server ) );
+    FileSystem   *fs = new FileSystem( url );
     // add the 'cks.type' cgi tag in order to
     // select the proper checksum type in case
     // the server supports more than one checksum
-    size_t pos = path.find( '?' );
-    std::string cksPath = path + ( pos == std::string::npos ? '?' : '&' ) + "cks.type=" + checkSumType;
+    size_t pos = url.GetPath().find( '?' );
+    std::string cksPath = url.GetPath() + ( pos == std::string::npos ? '?' : '&' ) + "cks.type=" + checkSumType;
     Buffer        arg; arg.FromString( cksPath );
     Buffer       *cksResponse = 0;
     XRootDStatus  st;
@@ -318,7 +317,7 @@ namespace XrdCl
     checkSum += NormalizeChecksum( elems[0], elems[1] );
 
     log->Dump( UtilityMsg, "Checksum for %s checksum: %s",
-               path.c_str(), checkSum.c_str() );
+               url.GetPath().c_str(), checkSum.c_str() );
 
     return XRootDStatus();
   }

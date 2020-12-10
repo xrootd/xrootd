@@ -767,8 +767,7 @@ namespace
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
-        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, XrdCl::URL( lastUrl ).GetPath() );
+        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, XrdCl::URL( lastUrl ) );
       }
 
     private:
@@ -1213,8 +1212,7 @@ namespace
 
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
-        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, dataServer,
-                                                XrdCl::URL( lastUrl ).GetPath() );
+        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, XrdCl::URL( lastUrl ) );
       }
 
       //------------------------------------------------------------------------
@@ -1357,7 +1355,7 @@ namespace
         {
           XrdCl::URL url( *itr );
           XrdCl::XRootDStatus st = XrdCl::Utils::GetRemoteCheckSum( checkSum,
-                              checkSumType, url.GetHostId(), url.GetPath() );
+                              checkSumType, url );
           if( st.IsOK() ) return st;
         }
 
@@ -1735,9 +1733,9 @@ namespace
           return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
         }
 
-        std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
+        std::string lastUrl; pFile->GetProperty( "LastURL", lastUrl );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                dataServer, pUrl->GetPath() );
+                                                XrdCl::URL( lastUrl ) );
       }
 
       //------------------------------------------------------------------------

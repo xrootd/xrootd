@@ -134,8 +134,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static XRootDStatus GetRemoteCheckSum( std::string       &checkSum,
                                              const std::string &checkSumType,
-                                             const std::string &server,
-                                             const std::string &path );
+                                             const URL         &url );
 
       //------------------------------------------------------------------------
       //! Get a checksum from local file
