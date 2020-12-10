@@ -15,6 +15,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[Server]** Make sure that alignment is a power of two for posix_memalign.
   **[SSI]** Prevent a buffer from being recycled twice leading to random errors.
   **[SSI]** Avoid race condition between Finished() and Event Dispatch (causes SEGV)
   **[Server]** Redo checksum changes to provide backward compatibility.
