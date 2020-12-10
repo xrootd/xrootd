@@ -87,9 +87,14 @@ XrdXrootdGSReal::XrdXrootdGSReal(const XrdXrootdGSReal::GSParms &gsParms,
                       else maxL = gsParms.maxL;
    maxL &= ~7; // Doubleword lengths
 
-// Allocate the UDP buffer
+// Allocate the UDP buffer. Try to keep the data within a single page.
 //
-   int align = (maxL < getpagesize() ? maxL : getpagesize());
+   int align;
+   if (maxL >= getpagesize())         align = getpagesize();
+      else if (maxL >= 2048)          align = 2048;
+              else if (maxL >= 1024)  align = 1024;
+                      else            align = sizeof(void*);
+
    if (posix_memalign((void **)&udpBuffer, align, maxL)) {aOK = false; return;}
 
 // Setup the header as needed
