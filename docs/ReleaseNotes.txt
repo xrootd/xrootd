@@ -44,6 +44,7 @@ Version 5.1.0
                  and EOCD records.
   * **[CMake]** Add suitable RUNPATH to build-tree library.
   * **[CMake]** Add 'plugins' phony target.
+  * **[XrdSciTokens]** Add scitokens plugin.
 
 + **Major bug fixes**
   * **[Server]** Make sure that alignment is a power of two for posix_memalign.
