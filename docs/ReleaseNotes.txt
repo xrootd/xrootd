@@ -45,6 +45,7 @@ Version 5.1.0
                  and EOCD records.
   * **[CMake]** Add suitable RUNPATH to build-tree library.
   * **[CMake]** Add 'plugins' phony target.
+  * **[XrdSciTokens]** Add scitokens plugin.
 
 + **Major bug fixes**
   * **[Server]** Make sure that alignment is a power of two for posix_memalign.
@@ -53,6 +54,9 @@ Version 5.1.0
   * **[Server]** When requested fully verify supplied checksums in pgwrite.
   * **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
   * **[TLS]** Provide thread-safety when required to do so.
+  * **[XrdTpc]** Fix error handling on stream write errors.
+  * **[XrdTpc]** Avoid using invalid object in multi-stream.
+  * **[XrdTpc]** Do not call Write() on flush.
   * **[POSIX]** Avoid returning null pointer upon failure to avoid SEGV.
   * **[POSIX]** Initialize pointer when object reused to prevent memory corruption.
   * **[POSIX]** Correctly initialize serverless cache to avoid SEGV.
