@@ -45,6 +45,8 @@ Version 5.1.0
                  and EOCD records.
   * **[CMake]** Add suitable RUNPATH to build-tree library.
   * **[CMake]** Add 'plugins' phony target.
+  * **[XrdSciTokens]** Add scitokens plugin.
+  * **[XrdEc]** Introduce Intel ISAL based erasure coding library.
 
 + **Major bug fixes**
   * **[Server]** Make sure that alignment is a power of two for posix_memalign.
@@ -56,20 +58,30 @@ Version 5.1.0
   * **[POSIX]** Avoid returning null pointer upon failure to avoid SEGV.
   * **[POSIX]** Initialize pointer when object reused to prevent memory corruption.
   * **[POSIX]** Correctly initialize serverless cache to avoid SEGV.
-  * **[TPC]** Do not hold lock when deleting a proxy autorm TPC job that failed.
+  * **[XrdTpc]** Fix error handling on stream write errors.
+  * **[XrdTpc]** Do not call Write() on flush.
+  * **[XrdTpc]** Avoid using invalid object in multi-stream.
+  * **[XrdTpc]** Always check and fail on error.
+  * **[XrdTpc]** Catch all negative return values not just SFS_ERROR.
+  * **[XrdTps]** Do not hold lock when deleting a proxy autorm TPC job that failed.
   * **[XrdHttp]** Prevent unterminated/corrupted headers from looping the server.
+  * **[XrdHttp]** Fix empty PUT.
   * **[PIP]** Convert egg-info into proper dist-info.
   * **[XrdCl]** xrdcp: fix regression in recursive copy.
   * **[XrdCl]** Use ntohll() for pgread offsets.
   * **[XrdCl]** Correctly propagate TLS error message.
   * **[SSI]** Prevent a buffer from being recycled twice leading to random errors.
   * **[SSI]** Avoid race condition between Finished() and Event Dispatch (causes SEGV)
+  * **[XrdCl]** xrdfs xattr: fix segv if server does not support xattr.
+  * **[XrdCl]** Make sure xrdcp does not segv on multi-chunk read from compressed ZIP.
 
 + **Minor bug fixes**
   * **[XrdCl]** Create file descriptors with XrdSysFD utility.
   * **[XrdCl]** Make sure kXR_attrVirtRdr flag is set properly.
   * **[XrdCl]** Make sure error message does not include a null-character.
   * **[XrdCl]** Fix 'xrdfs ls -l' output parsing.
+  * **[XrdTpc]** Fix the return value of `Stream::Write`
+  * **[XrdTpc]** Always populate error buffer with messages.
   * **[XrdHttp]** URI-quote outgoing opaque data for HTTP-TPC.
   * **[XrdHttp]** In http mode fail the read if any error comes from the socket,
                 including timeout.
@@ -86,6 +98,7 @@ Version 5.1.0
   * **[PIP]** Fix WHEEL file (new line char).
   * **[PIP]** Make sure pip list displays correct xrootd version.
   * **[PIP]** Include the PKG-INFO in the root dir.
+  * **[PIP]** Make sure the right version is set in metadata.
 
 + **Miscellaneous**
   * **[Server]** Make sure atleast one export exists in the export list.
@@ -99,6 +112,9 @@ Version 5.1.0
   * **[XrdHttp]** Bump the max size for an Http header line to 16K.
   * **[XrdHttp]** Per request, use curl's escaping function to match EOS practice.
   * **[XrdHttp]** Make "tlsreuse off" the default.
+  * **[XrdTpc]** Factor out recursive writes.
+  * **[XrdTpc]** Do not allow partial buffer writes.
+  * **[XrdTpc]** Adjust buffer size based on number of streams.
   * **[XrdCl]** Force socket error on header integrity check failure.
   * **[RPM]** Add client-compat and server-compat packages, based on XRootD 4.
   * **[XrdCns]** Retire the component. 
