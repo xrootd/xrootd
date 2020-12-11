@@ -32,6 +32,7 @@ Prerelease Notes
   **[Server]** When requested fully verify supplied checksums in pgwrite.
 
 + **Miscellaneous**
+  **[Server]** Echo the command line into the log.
   **[SSI]** Allow server-side debug to be enabled via an envar.
   **[cmsd]** Correctly parse osslib when it have options.
   **[Xcache]** Allow origin location query to be refreshed.
