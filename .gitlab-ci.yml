@@ -313,7 +313,7 @@ release:centos8-x86_64:
     - dnf config-manager --set-enabled powertools
     - dnf install -y cppunit-devel
     - mkdir centos-8-x86_64
-    - git archive --prefix=xrootd-${CI_COMMIT_TAG#"v"}/ --format=tar tags/$CI_COMMIT_TAG | gzip -9fn > xrootd-${CI_COMMIT_TAG#"v"}.tar.gz
+    - ./gen-tarball.sh $CI_COMMIT_TAG
     - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz centos-8-x86_64
     - cd packaging/
     - git checkout tags/${CI_COMMIT_TAG}
@@ -342,7 +342,7 @@ release:cc7-x86_64:
   script:
     - yum install --nogpg -y gcc-c++ rpm-build which git python-srpm-macros
     - mkdir cc-7-x86_64
-    - git archive --prefix=xrootd-${CI_COMMIT_TAG#"v"}/ --format=tar tags/$CI_COMMIT_TAG | gzip -9fn > xrootd-${CI_COMMIT_TAG#"v"}.tar.gz
+    - ./gen-tarball.sh $CI_COMMIT_TAG
     - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cc-7-x86_64
     - cd packaging/
     - git checkout tags/${CI_COMMIT_TAG}
