@@ -33,6 +33,7 @@ Version 5.1.0
   * **[Python]** Expose the Prepare::Evict flag, fixes #1322.
   * **[XrdZip]** Add general ZIP utilities.
   * **[XrdSys]** Add kernel buffer utility.
+  * **[XrdSciTokens]** Add scitokens plugin.
 
 + **Major bug fixes**
   * **[Server]** Redo checksum changes to provide backward compatibility.
