@@ -32,6 +32,7 @@ Prerelease Notes
   **[Server]** When requested fully verify supplied checksums in pgwrite.
 
 + **Miscellaneous**
+  **[cmsd]** Display the name of the named pipe being waited upon.
   **[Server]** Echo the command line into the log.
   **[SSI]** Allow server-side debug to be enabled via an envar.
   **[cmsd]** Correctly parse osslib when it have options.
