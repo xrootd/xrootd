@@ -10,7 +10,7 @@ if( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
 endif()
 
 if( NOT XRDCEPH_SUBMODULE )
-  define_default( PLUGIN_VERSION  4 )
+  define_default( PLUGIN_VERSION  5 )
 endif()
 
 define_default( ENABLE_TESTS    FALSE )
