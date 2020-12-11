@@ -129,6 +129,11 @@ static int setWindow(int fd, int  Windowsz, XrdSysError *eDest=0);
 
 static int getWindow(int fd, int &Windowsz, XrdSysError *eDest=0);
 
+// Return the name of the socket into the provided buffer. Returns 0
+// upon success or errno upon failure.
+//
+int         SockName(char *buff, int blen);
+
 // Return socket file descriptor number (useful when attaching to a stream).
 //
 inline int  SockNum() {return SockFD;}

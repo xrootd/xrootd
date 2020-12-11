@@ -427,6 +427,23 @@ int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdSysError *eDest)
 }
 
 /******************************************************************************/
+/*                              S o c k N a m e                               */
+/******************************************************************************/
+
+int XrdNetSocket::SockName(char *buff, int blen)
+{
+
+// Make sure we have something here
+//
+   if (SockFD < 0) {*buff = 0; return ENOTSOCK;}
+
+// Format the name
+//
+   if (!SockInfo.Format(buff, blen)) return EINVAL;
+   return 0;
+}
+  
+/******************************************************************************/
 /*                            s o c k e t P a t h                             */
 /******************************************************************************/
 

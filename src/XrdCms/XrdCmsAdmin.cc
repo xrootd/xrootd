@@ -463,7 +463,10 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 //
    if (Config.doWait)
       {if (Config.adsPort) BegAds();
-          else Say.Emsg(epname, "Waiting for primary server to login.");
+          {char dest[512];
+           AdminSock->SockName(dest, sizeof(dest));
+           Say.Emsg(epname, "Waiting for primary server to login via", dest);
+          }
       }
        else if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
 
