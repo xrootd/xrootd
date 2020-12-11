@@ -306,6 +306,12 @@ int XrdConfig::Configure(int argc, char **argv)
    int   myArgc = 1, urArgc = argc, i;
    bool noV6, ipV4 = false, ipV6 = false, rootChk = true, optbg = false;
 
+// Reconstruct the command line so we can put it in the log
+//
+   XrdOucString CmdLine(argv[0]);
+   for (int k = 1; k < argc; k++)
+       {CmdLine += ' '; CmdLine += argv[k];}
+
 // Obtain the program name we will be using
 //
     retc = strlen(argv[0]);
@@ -562,6 +568,7 @@ int XrdConfig::Configure(int argc, char **argv)
        LogInfo.iName  = myInsName;
        LogInfo.cfgFn  = ConfigFN;
        if (!XrdOucLogging::configLog(Log, LogInfo)) _exit(16);
+       Log.logger()->AddMsg(CmdLine.c_str());
        Log.logger()->AddMsg(XrdBANNER);
       }
 
@@ -586,6 +593,7 @@ int XrdConfig::Configure(int argc, char **argv)
    retc = strlen(buff);
    XrdSysUtils::FmtUname(buff+retc, sizeof(buff)-retc);
    Log.Say(0, buff);
+   Log.Say(0, CmdLine.c_str());
    Log.Say(XrdBANNER);
 
 // Verify that we have a real name. We've had problems with people setting up
