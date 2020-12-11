@@ -14,6 +14,7 @@ Version 4.12.6
 
 + **Minor bug fixes**
   * **[XrdTpc]** Fix minor bugs discovered by compiler warnings.
+  * **[XrdTpc]** Fix case where 0 streams is requested.
 
 + **Miscellaneous**
   * **[XrdTpc]** Add support for buffering even when single-stream TPC.
