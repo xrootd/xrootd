@@ -185,8 +185,8 @@ private:
 /*                               d e f i n e s                                */
 /******************************************************************************/
 
-#define TS_Lib(x, y, z) if (!strcmp(x, var) \
-     && !XrdOucUtils::parseLib(*eDest, CFile, x, y, z)) return 1;
+#define TS_Lib(x, y, z) if (!strcmp(x, var)) \
+     return (XrdOucUtils::parseLib(*eDest, CFile, x, y, z) ? 0 : 1);
 
 #define TS_String(x,m) if (!strcmp(x,var)) {free(m); m = strdup(val); return 0;}
 
