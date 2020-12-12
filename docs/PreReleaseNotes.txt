@@ -26,6 +26,7 @@ Prerelease Notes
   **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
 
 + **Minor bug fixes**
+  **[cmsd]** Correct write lengths to not write null bytes to env file.
   **[cmsd]** Correct parsing bug that results in an erroneous warning.
   **[Server]** Fix esoteric truncation of long dirlist. Fixes #1340
   **[Server]** Do no terminate dirlist when a deleted directory is encountered.
