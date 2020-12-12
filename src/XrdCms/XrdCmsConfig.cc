@@ -997,12 +997,12 @@ int XrdCmsConfig::Manifest()
     if ((xfd = open(envFN, O_WRONLY|O_APPEND)) < 0) xop = "open";
        else {bool bad = false;
              if (LocalRoot)
-                bad =  write(xfd,(void *)"&pfx=",6)  < 0
+                bad =  write(xfd,(void *)"&pfx=",5)  < 0
                     || write(xfd,(void *)LocalRoot,strlen(LocalRoot)) < 0;
              if (!bad && AdminPath)
-                bad =  write(xfd,(void *)"&ap=", 5)  < 0
+                bad =  write(xfd,(void *)"&ap=", 4)  < 0
                     || write(xfd,(void *)AdminPath,strlen(AdminPath)) < 0;
-             if (!bad) bad =  write(xfd,(void *)"&cn=", 5)            < 0
+             if (!bad) bad =  write(xfd,(void *)"&cn=", 4)            < 0
                            || write(xfd,(void *)clID, strlen(clID))   < 0;
              if (bad) xop = "append to";
              close(xfd);
