@@ -267,17 +267,7 @@ int         Protocol() {return static_cast<int>(protType);}
 //! Note: implemented in terms of const version
 //------------------------------------------------------------------------------
 
-inline
-int         Same(const XrdNetAddrInfo *ipAddr, bool plusPort=false)
-{
-  return const_cast<const XrdNetAddrInfo*>( this )->Same( ipAddr, plusPort );
-}
-
-//------------------------------------------------------------------------------
-//! And a const version
-//------------------------------------------------------------------------------
-
-int         Same(const XrdNetAddrInfo *ipAddr, bool plusPort=false) const;
+int         Same(const XrdNetAddrInfo *ipAddr, bool plusPort=false);
 
 //------------------------------------------------------------------------------
 //! Provide a pointer to our socket address suitable for use in calls to

@@ -417,8 +417,8 @@ int XrdNetAddrInfo::Resolve()
 #define MY_FAMILY IP.Addr.sa_family
 
 #define UR_FAMILY ipAddr->IP.Addr.sa_family
-  
-int XrdNetAddrInfo::Same(const XrdNetAddrInfo *ipAddr, bool plusPort) const
+
+int XrdNetAddrInfo::Same(const XrdNetAddrInfo *ipAddr, bool plusPort)
 {
    static const int ipv4ASZ = sizeof(IP.v4.sin_addr);
 

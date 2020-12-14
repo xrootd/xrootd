@@ -281,7 +281,7 @@ namespace XrdCl
       //! Check if addresses contains given address
       //------------------------------------------------------------------------
       inline static bool HasNetAddr( const XrdNetAddr              &addr,
-                                     const std::vector<XrdNetAddr> &addresses )
+                                           std::vector<XrdNetAddr> &addresses )
       {
         auto itr = addresses.begin();
         for( ; itr != addresses.end() ; ++itr )
