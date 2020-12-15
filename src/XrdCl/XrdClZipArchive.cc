@@ -125,7 +125,7 @@ namespace XrdCl
                                       buffer.reset( new char[*rdsize] );
                                       rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
-                                      Pipeline::Repeat();
+                                      Pipeline::Repeat(); break; // the break is really not needed ...
                                     }
 
                                     case HaveZip64EocdlBlk:
@@ -167,7 +167,7 @@ namespace XrdCl
                                       buffer.reset( new char[*rdsize] );
                                       rdbuff    = buffer.get();
                                       openstage = HaveCdRecords;
-                                      Pipeline::Repeat();
+                                      Pipeline::Repeat(); break; // the break is really not needed ...
                                     }
 
                                     case HaveCdRecords:
