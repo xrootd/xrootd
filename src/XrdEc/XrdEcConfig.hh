@@ -43,7 +43,9 @@ namespace XrdEc
         auto itr = redundancies.find( key );
         if( itr == redundancies.end() )
         {
-          auto p = redundancies.emplace( key, objcfg );
+          auto p = redundancies.emplace( std::piecewise_construct,
+                                         std::forward_as_tuple(key), 
+                                         std::forward_as_tuple(objcfg) );
           return p.first->second;
         }
         else
