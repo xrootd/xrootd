@@ -294,6 +294,12 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute,
        if (STT_Lib && !NoGo) NoGo |= ConfigStatLib(Eroute, envP);
       }
 
+// If the export list is empty, add at least "/tmp" to it otherwise we will
+// fail to correctly track space.
+//
+   if (RPList.First() == 0)
+      RPList.Insert(new XrdOucPList("/tmp", (unsigned long long)0));
+
 // Establish usage tracking and quotas, if need be. Note that if we are not
 // a true data server, those services will be initialized but then disabled.
 //
