@@ -188,13 +188,18 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
    myMutex.UnLock();
 
 // Initialize environment as a client or a server (it differs somewhat).
+// Note that we create a permanent Env since some plugins rely on it. We
+// leave the logger handling to OucPsx as we do not want to enable messages
+// because this is likely a client application that doesn't understand noise.
 //
    if (!XrdPosixGlobals::theLogger && (cfn=getenv("XRDPOSIX_CONFIG")) && *cfn)
       {bool hush;
        if (*cfn == '+') {hush = false; cfn++;}
           else hush = (getenv("XRDPOSIX_DEBUG") == 0);
        if (*cfn)
-          {XrdOucPsx psxConfig(&XrdVERSIONINFOVAR(XrdPosix), cfn);
+          {XrdOucEnv *psxEnv = new XrdOucEnv;
+           psxEnv->Put("psx.Client", "1");
+           XrdOucPsx psxConfig(&XrdVERSIONINFOVAR(XrdPosix), cfn, 0, psxEnv);
            if (!psxConfig.ClientConfig("posix.", hush)
            ||  !XrdPosixConfig::SetConfig(psxConfig))
               {std::cerr <<"Posix: Unable to instantiate specified "
