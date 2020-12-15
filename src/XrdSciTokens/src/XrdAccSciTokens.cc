@@ -986,7 +986,7 @@ XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *lp,
         if (accSciTokens->GetConfigFile() == cfn) {
             return accSciTokens;
         } else {
-            xrootdLog.Emsg("XrdAccAuthorizeObjectAdd", "SciTokens configuration is different now from the scitokens configuration when initialized");
+            xrootdLog.Emsg("XrdAccAuthorizeObjAdd", "SciTokens configuration is different now from the scitokens configuration when initialized");
             return nullptr;
         }
     }
@@ -1002,7 +1002,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
                                        const char   *cfn,
                                        const char   *parm)
 {
-    return XrdAccAuthorizeObjectAdd(lp, cfn, parm, 0);
+    return XrdAccAuthorizeObjAdd(lp, cfn, parm, 0);
 }
 
 
