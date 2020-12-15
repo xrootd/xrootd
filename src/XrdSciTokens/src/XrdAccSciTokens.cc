@@ -966,7 +966,7 @@ std::string      cfgSciTokens;
 
 extern "C" {
 
-XrdAccAuthorize *XrdAccAuthorizeObjectAdd(XrdSysLogger *lp,
+XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *lp,
                                           const char   *cfn,
                                           const char   *parm,
                                        XrdAccAuthorize *accP)
