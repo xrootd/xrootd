@@ -17,13 +17,13 @@ namespace XrdCl
   using namespace XrdZip;
 
   ZipArchive::ZipArchive() : archsize( 0 ),
-                       cdexists( false ),
-                       updated( false ),
-                       cdoff( 0 ),
-                       orgcdsz( 0 ),
-                       orgcdcnt( 0 ),
-                       openstage( None ),
-                       flags( OpenFlags::None )
+                             cdexists( false ),
+                             updated( false ),
+                             cdoff( 0 ),
+                             orgcdsz( 0 ),
+                             orgcdcnt( 0 ),
+                             openstage( None ),
+                             flags( OpenFlags::None )
   {
   }
 
@@ -212,7 +212,7 @@ namespace XrdCl
                                      uint64_t           size,
                                      uint32_t           crc32 )
   {
-    if( !openfn.empty() || openstage != Done )
+    if( !openfn.empty() || openstage != Done || !archive.IsOpen() )
       return XRootDStatus( stError, errInvalidOp );
 
     this->flags = flags;
