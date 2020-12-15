@@ -63,3 +63,40 @@ ExternalProject_add(
 
 link_directories( ${ISAL_LIBDIR} )
 include_directories( ${ISAL_INCDIR} )
+
+
+#-------------------------------------------------------------------------------
+# The XrdEc shared library
+#-------------------------------------------------------------------------------
+
+set( XRD_EC_VERSION   1.0.0 )
+set( XRD_EC_SOVERSION 1 )
+
+add_library(
+  XrdEc
+  SHARED
+  XrdEcConfig.hh
+  XrdEcObjCfg.hh
+  XrdEcRedundancyProvider.hh   XrdEcRedundancyProvider.cc 
+  XrdEcUtilities.hh            XrdEcUtilities.cc
+  XrdEcScheduleHandler.hh      XrdEcScheduleHandler.cc
+  XrdEcWrtBuff.hh
+  XrdEcThreadPool.hh
+  XrdEcStrmWriter.hh
+)
+
+target_link_libraries(
+  XrdEc
+  XrdCl
+  isal
+)
+
+set_target_properties(
+  XrdEc
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
+  VERSION   ${XRD_EC_VERSION}
+  SOVERSION ${XRD_EC_SOVERSION} )
+  
+add_dependencies( XrdEc isa-l )
