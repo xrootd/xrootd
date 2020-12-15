@@ -134,46 +134,46 @@ struct TmpConfiguration
 
 struct SplitParser
 {
-   char       *str;
-   const char *delim;
-   char       *state;
-   bool        first;
+   char       *f_str;
+   const char *f_delim;
+   char       *f_state;
+   bool        f_first;
 
    SplitParser(const std::string &s, const char *d) :
-      str(strdup(s.c_str())), delim(d), state(0), first(true)
+      f_str(strdup(s.c_str())), f_delim(d), f_state(0), f_first(true)
    {}
-   ~SplitParser() { free(str); }
+   ~SplitParser() { free(f_str); }
 
    char* get_token()
    {
-      if (first) { first = false; return strtok_r(str, delim, &state); }
-      else       { return strtok_r(0, delim, &state); }
+      if (f_first) { f_first = false; return strtok_r(f_str, f_delim, &f_state); }
+      else         { return strtok_r(0, f_delim, &f_state); }
    }
 
    char* get_reminder_with_delim()
    {
-      if (first) { return str; }
-      else       { *(state - 1) = delim[0]; return state - 1; }
+      if (f_first) { return f_str; }
+      else         { *(f_state - 1) = f_delim[0]; return f_state - 1; }
    }
 
    char *get_reminder()
    {
-      return first ? str : state;
+      return f_first ? f_str : f_state;
    }
 
    int fill_argv(std::vector<char*> &argv)
    {
-      if (!first) return 0;
-      int dcnt = 0; { char *p = str; while (*p) { if (*(p++) == delim[0]) ++dcnt; } }
+      if (!f_first) return 0;
+      int dcnt = 0; { char *p = f_str; while (*p) { if (*(p++) == f_delim[0]) ++dcnt; } }
       argv.reserve(dcnt + 1);
       int argc = 0;
-      char *i = strtok_r(str, delim, &state);
+      char *i = strtok_r(f_str, f_delim, &f_state);
       while (i)
       {
          ++argc;
          argv.push_back(i);
          // printf("  arg %d : '%s'\n", argc, i);
-         i = strtok_r(0, delim, &state);
+         i = strtok_r(0, f_delim, &f_state);
       }
       return argc;
    }
@@ -187,10 +187,11 @@ struct PathTokenizer : private SplitParser
 
    PathTokenizer(const std::string &path, int max_depth, bool parse_as_lfn) :
       SplitParser(path, "/"),
-      m_reminder (0)
+      m_reminder (0),
+      m_n_dirs   (0)
    {
-      // If parse_as_lfn is true store final token into reminder, regardless of maxdepth.
-      // This assumes the last token is a file name (and full path if lfn, including the file name).
+      // If parse_as_lfn is true store final token into m_reminder, regardless of maxdepth.
+      // This assumes the last token is a file name (and full path is lfn, including the file name).
 
       m_dirs.reserve(max_depth);
 
@@ -201,7 +202,7 @@ struct PathTokenizer : private SplitParser
          if (t == 0) break;
          m_dirs.emplace_back(t);
       }
-      if (parse_as_lfn && (t == 0 || * get_reminder() == 0))
+      if (parse_as_lfn && *get_reminder() == 0 && ! m_dirs.empty())
       {
          m_reminder = m_dirs.back();
          m_dirs.pop_back();
