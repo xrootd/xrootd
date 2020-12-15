@@ -41,13 +41,13 @@ namespace XrdEc
       };
 
       template <typename FUNC, typename TUPL, int ... INDICES>
-      inline static auto tuple_call_impl( FUNC &func, TUPL &args, sequence<INDICES...> )
+      inline static auto tuple_call_impl( FUNC &func, TUPL &args, sequence<INDICES...> ) -> decltype( func( std::move( std::get<INDICES>( args ) )... ) )
       {
           return func( std::move( std::get<INDICES>( args ) )... );
       }
 
       template <typename FUNC, typename ... ARGs>
-      inline static auto tuple_call( FUNC &func, std::tuple<ARGs...> &tup )
+      inline static auto tuple_call( FUNC &func, std::tuple<ARGs...> &tup ) ->decltype( tuple_call_impl( func, tup, typename seq_gen<sizeof...(ARGs)>::type{} ) )
       {
           return tuple_call_impl( func, tup, typename seq_gen<sizeof...(ARGs)>::type{} );
       }
@@ -108,7 +108,8 @@ namespace XrdEc
       }
 
       template<typename FUNC, typename ... ARGs>
-      inline auto Execute( FUNC func, ARGs... args )
+      inline std::future<typename std::result_of<FUNC(ARGs...)>::type>
+      Execute( FUNC func, ARGs... args )
       {
         using RET = typename std::result_of<FUNC(ARGs...)>::type;
         AnyJob<FUNC, RET, ARGs...> *job = new AnyJob<FUNC, RET, ARGs...>( func, std::move( args )... );

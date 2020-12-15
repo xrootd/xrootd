@@ -8,235 +8,317 @@
 #ifndef SRC_XRDEC_XRDECSTRMWRITER_HH_
 #define SRC_XRDEC_XRDECSTRMWRITER_HH_
 
-#include "XrdEc/XrdEcObjInterfaces.hh"
 #include "XrdEc/XrdEcWrtBuff.hh"
+#include "XrdEc/XrdEcThreadPool.hh"
+
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClParallelOperation.hh"
+#include "XrdCl/XrdClZipArchive.hh"
 
-#include <future>
-#include <atomic>
 #include <random>
 #include <chrono>
+#include <future>
+#include <atomic>
+#include <memory>
+#include <vector>
+#include <thread>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
+#include <iterator>
+
 
 namespace XrdEc
 {
-
-  class StrmWriter : public ObjOperation
+  //---------------------------------------------------------------------------
+  // A class implementing synchronous queue
+  //---------------------------------------------------------------------------
+  template<typename Element>
+  struct sync_queue
   {
+    //-------------------------------------------------------------------------
+    // An internal exception used for interrupting the `dequeue` method
+    //-------------------------------------------------------------------------
+    struct wait_interrupted{ };
+
+    //-------------------------------------------------------------------------
+    // Default constructor
+    //-------------------------------------------------------------------------
+    sync_queue() : interrupted( false )
+    {
+    }
+
+    //-------------------------------------------------------------------------
+    // Enqueue new element into the queue
+    //-------------------------------------------------------------------------
+    inline void enqueue( Element && element )
+    {
+      std::unique_lock<std::mutex> lck( mtx );
+      elements.push( std::move( element ) );
+      cv.notify_all();
+    }
+
+    //-------------------------------------------------------------------------
+    // Dequeue an element from the front of the queue
+    // Note: if the queue is empty blocks until a new element is enqueued
+    //-------------------------------------------------------------------------
+    inline Element dequeue()
+    {
+      std::unique_lock<std::mutex> lck( mtx );
+      while( elements.empty() )
+      {
+        cv.wait( lck );
+        if( interrupted ) throw wait_interrupted();
+      }
+      Element element = std::move( elements.front() );
+      elements.pop();
+      return std::move( element );
+    }
+
+    //-------------------------------------------------------------------------
+    // Dequeue an element from the front of the queue
+    // Note: if the queue is empty returns false, true otherwise
+    //-------------------------------------------------------------------------
+    inline bool dequeue( Element &e )
+    {
+      std::unique_lock<std::mutex> lck( mtx );
+      if( elements.empty() ) return false;
+      e = std::move( elements.front() );
+      elements.pop();
+      return true;
+    }
+
+    //-------------------------------------------------------------------------
+    // Interrupt all waiting `dequeue` routines
+    //-------------------------------------------------------------------------
+    inline void interrupt()
+    {
+      interrupted = true;
+      cv.notify_all();
+    }
+
+    private:
+      std::queue<Element>     elements;    //< the queue itself
+      std::mutex              mtx;         //< mutex guarding the queue
+      std::condition_variable cv;
+      std::atomic<bool>       interrupted; //< a flag, true if all `dequeue` routines
+                                           //< should be interrupted
+  };
+
+  //---------------------------------------------------------------------------
+  // The Stream Writer objects, responsible for writing erasure coded data
+  // into selected placement group.
+  //---------------------------------------------------------------------------
+  class StrmWriter
+  {
+    //-------------------------------------------------------------------------
+    // Type for queue of buffers to be written
+    //-------------------------------------------------------------------------
+    typedef sync_queue<std::future<WrtBuff*>> buff_queue;
+
     public:
 
-      StrmWriter( const ObjCfg &objcfg ) : dirs( std::make_shared<std::vector<CentralDirectory>>() ),
-                                           ObjOperation( objcfg ),
-                                           wrt_callback( new WrtCallback() ),
-                                           random_engine( std::chrono::system_clock::now().time_since_epoch().count() )
+      //-----------------------------------------------------------------------
+      // Constructor
+      //-----------------------------------------------------------------------
+      StrmWriter( const ObjCfg &objcfg ) : objcfg( objcfg ), writer_stop( false ), writer_thread( writer_routine, this ), next_blknb( 0 )
       {
-        size_t size = objcfg.plgr.size();
-        offsets.reset( new std::atomic<uint32_t>[size] );
-        std::fill( offsets.get(), offsets.get() + size, 0 );
-        dirs->reserve( size );
-        for( size_t i = 0; i < size; ++i )
-          dirs->emplace_back( &objcfg );
       }
 
       virtual ~StrmWriter()
       {
+        writer_stop = true;
+        buffers.interrupt();
+        writer_thread.join();
       }
 
       void Open( XrdCl::ResponseHandler *handler )
       {
-        const size_t size = objcfg->plgr.size();
+        const size_t size = objcfg.plgr.size();
 
         std::vector<XrdCl::Pipeline> opens;
         opens.reserve( size );
-        // initialize all file objects
-        files->reserve( size );
+        // initialize all zip archive objects
         for( size_t i = 0; i < size; ++i )
-          files->emplace_back();
+          archives.emplace_back( std::make_shared<XrdCl::ZipArchive>() );
 
         for( size_t i = 0; i < size; ++i )
         {
-          std::string url = objcfg->plgr[i] + objcfg->obj + ".zip";
-          auto &file = (*files)[i];
-          opens.emplace_back( XrdCl::Open( file, url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write ) >> [files]( XrdCl::XRootDStatus& ){ } );
+          std::string url = objcfg.plgr[i] + objcfg.obj + ".zip";
+          XrdCl::Ctx<XrdCl::ZipArchive> zip( *archives[i] );
+          opens.emplace_back( XrdCl::OpenArchive( zip, url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write ) );
         }
 
-        XrdCl::Async( XrdCl::Parallel( opens ).AtLeast( objcfg->nbchunks ) >> handler );
+        XrdCl::Async( XrdCl::Parallel( opens ).AtLeast( objcfg.nbchunks ) >> handler );
       }
 
-      void Write( uint64_t offset, uint32_t size, const void *buffer, XrdCl::ResponseHandler *handler )
+      void Write( uint32_t size, const void *buff, XrdCl::ResponseHandler *handler )
       {
-        const XrdCl::XRootDStatus &wrt_status = wrt_callback->GetWrtStatus();
-        if( !wrt_status.IsOK() )
-        {
-          ScheduleHandler( handler, wrt_status );
-          return;
-        }
-
-        const char* buff = reinterpret_cast<const char*>( buffer );
-
+        const char* buffer = reinterpret_cast<const char*>( buff );
         uint32_t wrtsize = size;
         while( wrtsize > 0 )
         {
-          if( !wrtbuff ) wrtbuff.reset( new WrtBuff( *objcfg, offset ) );
-          uint64_t written = wrtbuff->Write( offset, wrtsize, buff, handler );
-          offset  += written;
-          buff    += written;
+          if( !wrtbuff ) wrtbuff.reset( new WrtBuff( objcfg ) );
+          uint64_t written = wrtbuff->Write( wrtsize, buffer );
+          buffer  += written;
           wrtsize -= written;
-          if( wrtbuff->Complete() ) WriteBlock(); //< run this in separate thread
+          if( wrtbuff->Complete() ) EnqueueBuff( std::move( wrtbuff ) );
         }
+
+        // TODO call handler ???
       }
 
       void Close( XrdCl::ResponseHandler *handler )
       {
-        const XrdCl::XRootDStatus &wrt_status = wrt_callback->GetWrtStatus();
-        if( !wrt_status.IsOK() )
-        {
-          ScheduleHandler( handler, wrt_status );
-          return;
-        }
-
-        // make sure we flush the buffer before closing
-        if( wrtbuff && !wrtbuff->Empty() ) WriteBlock(); //< run this in separate thread
-
-        wrt_callback->Flash( [this,handler]( const XrdCl::XRootDStatus &status )
-            {
-              const size_t size = objcfg->plgr.size();
-              std::vector<XrdCl::Pipeline> closes;
-              closes.reserve( size );
-
-              for( size_t i = 0; i < size; ++i )
-              {
-                (*dirs)[i].CreateEOCD();
-                if( !(*dirs)[i].Empty() )
-                {
-                  uint32_t offset = offsets[i];
-                  auto &file = (*files)[i];
-                  closes.emplace_back( XrdCl::Write( file, offset, (*dirs)[i].cd_buffer.GetCursor(), (*dirs)[i].cd_buffer.GetBuffer() ) | XrdCl::Close( file ) >> [files]( XrdCl::XRootDStatus& ){ } );
-                }
-              }
-
-              // now create the metadata files
-              auto metactx = std::make_shared<MetaDataCtx>( objcfg.get(), *dirs );
-              std::vector<XrdCl::Pipeline> put_metadata;
-
-              for( size_t i = 0; i < size; ++i )
-              {
-                auto file = std::make_shared<XrdCl::File>();
-                std::string url = objcfg->plgr[i] + objcfg->obj + ".mt." + objcfg->mtindex + ".zip";
-
-                XrdCl::Pipeline put = XrdCl::Open( *file, url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write )
-                                    | XrdCl::WriteV( *file, 0, metactx->iov, metactx->iovcnt ) >> [metactx]( XrdCl::XRootDStatus& ){ }
-                                    | XrdCl::Close( *file ) >> [file]( XrdCl::XRootDStatus& ){ };
-
-                put_metadata.emplace_back( std::move( put ) );
-              }
-
-              XrdCl::Async( XrdCl::Parallel( XrdCl::Parallel( closes ), XrdCl::Parallel( put_metadata ) ) >> handler );
-            } );
-        wrt_callback.reset();
+        // TODO
       }
 
     private:
 
+      inline void EnqueueBuff( std::unique_ptr<WrtBuff> wrtbuff )
+      {
+        // the routine to be called in the thread-pool
+        // - does erasure coding
+        // - calculates crc32cs
+        static auto prepare_buff = []( WrtBuff *wrtbuff )
+        {
+          std::unique_ptr<WrtBuff> ptr( wrtbuff );
+          ptr->Encode();
+          return ptr.release();
+        };
+        buffers.enqueue( ThreadPool::Instance().Execute( prepare_buff, wrtbuff.release() ) );
+      }
+
+      inline std::unique_ptr<WrtBuff> DequeueBuff()
+      {
+        std::future<WrtBuff*> ftr = buffers.dequeue();
+        std::unique_ptr<WrtBuff> result( ftr.get() );
+        return std::move( result );
+      }
+
+      static void writer_routine( StrmWriter *me )
+      {
+        try
+        {
+          while( !me->writer_stop )
+          {
+            std::unique_ptr<WrtBuff> wrtbuff( me->DequeueBuff() );
+            if( !wrtbuff ) continue;
+            me->WriteBuff( std::move( wrtbuff ) );
+          }
+        }
+        catch( const buff_queue::wait_interrupted& ){ }
+      }
+
       struct spare_files
       {
         std::mutex mtx;
-        std::vector<size_t> spareid;
+        std::vector<std::shared_ptr<XrdCl::File>> files;
       };
 
-      struct WrtCtx
+      void WriteBuff( std::unique_ptr<WrtBuff> buff )
       {
-        WrtCtx( uint32_t checksum, const std::string &fn, const void *buffer, uint32_t bufflen ) : lfh( bufflen, checksum, fn.size() ), fn( fn), buffer( buffer ), bufflen( bufflen ), total_size( 0 )
+        //---------------------------------------------------------------------
+        // Our buffer with the data block, will be shared between all pipelines
+        // writing to different servers.
+        //---------------------------------------------------------------------
+        std::shared_ptr<WrtBuff> wrtbuff( std::move( buff ) );
+
+        //---------------------------------------------------------------------
+        // Shuffle the servers so every block has a different placement
+        //---------------------------------------------------------------------
+        static std::default_random_engine random_engine( std::chrono::system_clock::now().time_since_epoch().count() );
+        std::shared_ptr<sync_queue<size_t>> servers = std::make_shared<sync_queue<size_t>>();
+        std::vector<size_t> zipid( archives.size() );
+        std::iota( zipid.begin(), zipid.end(), 0 );
+        std::shuffle( zipid.begin(), zipid.end(), random_engine );
+        auto itr = zipid.begin();
+        for( ; itr != zipid.end() ; ++itr ) servers->enqueue( std::move( *itr ) );
+
+        //---------------------------------------------------------------------
+        // Create the write pipelines for updating stripes
+        //---------------------------------------------------------------------
+        const size_t nbchunks = objcfg.nbchunks;
+        std::vector<XrdCl::Pipeline> writes;
+        writes.reserve( nbchunks );
+        size_t blknb = next_blknb++;
+        for( size_t strpnb = 0; strpnb < nbchunks; ++strpnb )
         {
-          iov[0].iov_base = lfh.get_buff();
-          iov[0].iov_len  = LFH::size;
-          total_size     += LFH::size;
+          std::string fn       = objcfg.obj + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
+          uint32_t    crc32c   = wrtbuff->GetCrc32c( strpnb );
+          uint64_t    strpsize = wrtbuff->GetStrpSize( strpnb );
+          char*       strpbuff = wrtbuff->GetStrpBuff( strpnb );
 
-          iov[1].iov_base = (void*)fn.c_str();
-          iov[1].iov_len  = fn.size();
-          total_size     += fn.size();
+          //-------------------------------------------------------------------
+          // Find a server where we can append the next data chunk
+          //-------------------------------------------------------------------
+          XrdCl::Ctx<XrdCl::ZipArchive> zip;
+          XrdCl::XRootDStatus st;
+          do
+          {
+            size_t srvid;
+            if( !servers->dequeue( srvid ) )
+            {
+              // TODO we run out of stripes, report error (remember this is happening in a separate thread)
+            }
+            zip = *archives[srvid];
+            st = zip->OpenFile( fn, XrdCl::OpenFlags::New, strpsize, crc32c );
+          }
+          while( !st.IsOK() );
 
-          iov[2].iov_base = (void*)buffer;
-          iov[2].iov_len  = bufflen;
-          total_size     += bufflen;
+          //-------------------------------------------------------------------
+          // Create the Write request
+          //-------------------------------------------------------------------
+          XrdCl::Pipeline p = XrdCl::Write( zip, strpsize, strpbuff ) >>
+                              [=]( XrdCl::XRootDStatus &st ) mutable
+                              {
+                                //---------------------------------------------
+                                // Try to recover from error
+                                //---------------------------------------------
+                                if( !st.IsOK() )
+                                {
+                                  //-------------------------------------------
+                                  // First clean up the ZipArchive object
+                                  //-------------------------------------------
+                                  zip->CloseFile();
+                                  //-------------------------------------------
+                                  // Then select another server
+                                  //-------------------------------------------
+                                  XrdCl::XRootDStatus status;
+                                  do
+                                  {
+                                    size_t srvid;
+                                    if( !servers->dequeue( srvid ) ) return; // if there are no more servers we simply fail
+                                    zip = *archives[srvid];
+                                    st = zip->OpenFile( fn, XrdCl::OpenFlags::New, strpsize, crc32c );
+                                  } while( !status.IsOK() );
+                                  //-------------------------------------------
+                                  // Retry this operation at different server
+                                  //-------------------------------------------
+                                  XrdCl::Pipeline::Repeat();
+                                }
+                              }
+                            | XrdCl::Final(
+                              [wrtbuff, zip]( const XrdCl::XRootDStatus& )
+                              {
+                                zip->CloseFile();
+                              } );
+          writes.emplace_back( std::move( p ) );
         }
 
-        LFH               lfh;
-        std::string       fn;
-        const void       *buffer;
-        uint32_t          bufflen;
-        static const int  iovcnt = 3;
-        iovec             iov[iovcnt];
-        uint32_t          total_size;
-      };
-
-      struct WrtCallback
-      {
-          ~WrtCallback()
-          {
-            if( flash )
-              flash( wrt_status );
-          }
-
-          void Run( const XrdCl::XRootDStatus &st = XrdCl::XRootDStatus() )
-          {
-            std::unique_lock<std::mutex> lck( mtx );
-            if( wrt_status.IsOK() && !st.IsOK() ) wrt_status = st;
-          }
-
-          void Flash( std::function<void( const XrdCl::XRootDStatus&)> && c )
-          {
-            std::unique_lock<std::mutex> lck( mtx );
-            flash = std::move( c );
-          }
-
-          const XrdCl::XRootDStatus& GetWrtStatus()
-          {
-            std::unique_lock<std::mutex> lck( mtx );
-            return wrt_status;
-          }
-
-
-        private:
-
-          std::mutex                                        mtx;
-          XrdCl::XRootDStatus                               wrt_status;
-          std::function<void( const XrdCl::XRootDStatus& )> flash;
-      };
-
-      inline static XrdCl::rcvry_func WrtRecovery( std::shared_ptr<spare_files>              &spares,
-                                                   uint32_t                                   offset,
-                                                   std::shared_ptr<WrtCtx>                   &wrtctx,
-                                                   std::shared_ptr<std::vector<XrdCl::File>> &files )
-      {
-        return [spares, offset, wrtctx]( const XrdCl::XRootDStatus &st ) mutable
-          {
-            std::unique_lock<std::mutex> lck( spares->mtx );
-            if( spares->spareid.empty() ) throw std::exception();
-            XrdCl::File &file = (*files)[spares->spareid.back()];
-            spares->spareid.pop_back();
-            XrdCl::rcvry_func WrtRcvry = spares->spareid.empty() ? nullptr : WrtRecovery( spares, offset, wrtctx, files );
-            return XrdCl::WriteV( *file, offset, wrtctx->iov, wrtctx->iovcnt ).Recovery( WrtRcvry ).ToHandled();
-          };
+        XrdCl::Async( XrdCl::Parallel( writes ) ); // TODO we have to report error in case of a failure
       }
 
+      const ObjCfg                                    &objcfg;
+      std::unique_ptr<WrtBuff>                         wrtbuff;
+      std::vector<std::shared_ptr<XrdCl::ZipArchive>>  archives;
 
-      inline std::function<void(XrdCl::XRootDStatus&)> AddCDEntry()
-      {
+      // queue of buffer being prepared (erasure encoded and checksummed) for write
+      buff_queue                                       buffers;
 
-      }
-
-      void WriteBlock();
-
-
-      std::unique_ptr<std::atomic<uint32_t>[]>       offsets;
-      std::unique_ptr<WrtBuff>                       wrtbuff;
-      std::shared_ptr<std::vector<CentralDirectory>> dirs;
-      std::shared_ptr<WrtCallback>                   wrt_callback;
-
-      std::default_random_engine                     random_engine;
-
-      std::mutex                                     gs_mtx;
+      std::atomic<bool>                                writer_stop;
+      std::thread                                      writer_thread;
+      size_t                                           next_blknb;
   };
 
 }

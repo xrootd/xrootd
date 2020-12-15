@@ -12,16 +12,19 @@
 #include "XrdEc/XrdEcScheduleHandler.hh"
 #include "XrdEc/XrdEcObjCfg.hh"
 #include "XrdEc/XrdEcConfig.hh"
+#include "XrdEc/XrdEcThreadPool.hh"
 
 #include "XrdCl/XrdClBuffer.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+
+#include "XrdOuc/XrdOucCRC32C.hh"
 
 #include <utility>
 #include <vector>
 #include <functional>
 #include <condition_variable>
 #include <mutex>
-#include <iostream>
+#include <future>
 
 namespace XrdEc
 {
@@ -89,21 +92,17 @@ namespace XrdEc
       std::queue<XrdCl::Buffer>  pool;
   };
 
-  enum WrtMode { New, Overwrite };
-
   class WrtBuff
   {
     public:
 
-      WrtBuff( const ObjCfg &objcfg, uint64_t offset) : objcfg( objcfg ), wrtbuff( BufferPool::Instance().Create( objcfg ) )
+      WrtBuff( const ObjCfg &objcfg ) : objcfg( objcfg ), wrtbuff( BufferPool::Instance().Create( objcfg ) )
       {
-        this->offset = offset - ( offset % objcfg.datasize );
         stripes.reserve( objcfg.nbchunks );
         memset( wrtbuff.GetBuffer(), 0, wrtbuff.GetSize() );
       }
 
       WrtBuff( WrtBuff && wrtbuff ) : objcfg( wrtbuff.objcfg ),
-                                      offset( wrtbuff.offset ),
                                       wrtbuff( std::move( wrtbuff.wrtbuff ) ),
                                       stripes( std::move( wrtbuff.stripes ) )
       {
@@ -114,17 +113,13 @@ namespace XrdEc
         BufferPool::Instance().Recycle( std::move( wrtbuff ) );
       }
 
-      uint32_t Write( uint64_t offset, uint32_t size, const char *buffer, XrdCl::ResponseHandler *handler )
+      uint32_t Write( uint32_t size, const char *buffer )
       {
-        if( this->offset + wrtbuff.GetCursor() != offset ) throw std::exception();
-
         uint64_t bytesAccepted = size;
         if( wrtbuff.GetCursor() + bytesAccepted > objcfg.datasize )
           bytesAccepted = objcfg.datasize - wrtbuff.GetCursor();
         memcpy( wrtbuff.GetBufferAtCursor(), buffer, bytesAccepted );
         wrtbuff.AdvanceCursor( bytesAccepted );
-
-        if( bytesAccepted == size ) ScheduleHandler( handler );
 
         return bytesAccepted;
       }
@@ -145,7 +140,7 @@ namespace XrdEc
         return;
       }
 
-      char* GetChunk( uint8_t strpnb )
+      inline char* GetStrpBuff( uint8_t strpnb )
       {
         return stripes[strpnb].buffer;
       }
@@ -176,46 +171,50 @@ namespace XrdEc
         return GetStrpSize( 0 );
       }
 
-      uint64_t GetBlkNb()
-      {
-        return offset / objcfg.datasize;
-      }
-
       inline uint32_t GetBlkSize()
       {
         return wrtbuff.GetCursor();
       }
 
-      bool Complete()
+      inline bool Complete()
       {
         return wrtbuff.GetCursor() == objcfg.datasize;
       }
 
-      bool Empty()
+      inline bool Empty()
       {
         return ( wrtbuff.GetSize() == 0 || wrtbuff.GetCursor() == 0 );
       }
 
       inline void Encode()
       {
+        // first calculate the parity
         uint8_t i ;
         for( i = 0; i < objcfg.nbchunks; ++i )
           stripes.emplace_back( wrtbuff.GetBuffer( i * objcfg.chunksize ), i < objcfg.nbdata );
         Config &cfg = Config::Instance();
         cfg.GetRedundancy( objcfg ).compute( stripes );
+
+        // then calculate the checksums
+        cksums.reserve( objcfg.nbchunks );
+        for( uint8_t strpnb = 0; strpnb < objcfg.nbchunks; ++strpnb )
+        {
+          std::future<uint32_t> ftr = ThreadPool::Instance().Execute( crc32c, 0, stripes[strpnb].buffer, objcfg.chunksize );
+          cksums.emplace_back( std::move( ftr ) );
+        }
       }
 
-      uint64_t GetOffset()
+      inline uint32_t GetCrc32c( size_t strpnb )
       {
-        return offset;
+        return cksums[strpnb].get();
       }
 
     private:
 
-      ObjCfg         objcfg;
-      uint64_t       offset;
-      XrdCl::Buffer  wrtbuff;
-      stripes_t      stripes;
+      ObjCfg                             objcfg;
+      XrdCl::Buffer                      wrtbuff;
+      stripes_t                          stripes;
+      std::vector<std::future<uint32_t>> cksums;
   };
 
 
