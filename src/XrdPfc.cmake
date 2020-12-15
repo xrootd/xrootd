@@ -77,7 +77,8 @@ target_link_libraries(
   xrdpfc_print
   XrdServer
   XrdCl
-  XrdUtils )
+  XrdUtils
+  ${UUID_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # Install
