@@ -26,12 +26,12 @@ namespace XrdEc
 {
   struct stripe_t
   {
-    stripe_t( char *buffer, bool valid ) : buffer( buffer ), valid( valid )
-    {
-    }
+      stripe_t( char *buffer, bool valid ) : buffer( buffer ), valid( valid )
+      {
+      }
 
-    char *buffer;
-    bool  valid;
+      char *buffer;
+      bool  valid;
   };
 
   typedef std::vector<stripe_t> stripes_t;
