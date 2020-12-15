@@ -901,7 +901,6 @@ private:
 
         if (issuers.empty()) {
             m_log.Emsg("Reconfig", "No issuers configured.");
-            return false;
         }
 
         pthread_rwlock_wrlock(&m_config_lock);
