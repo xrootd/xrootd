@@ -30,6 +30,8 @@
 #include "XrdCl/XrdClOperationHandlers.hh"
 
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 
 namespace XrdCl
 {
@@ -103,6 +105,10 @@ namespace XrdCl
         auto end   = std::make_move_iterator( container.end() );
         std::copy( begin, end, std::back_inserter( pipelines ) );
         container.clear(); // there's junk inside so we clear it
+      }
+
+      ~ParallelOperation()
+      {
       }
 
       //------------------------------------------------------------------------
@@ -284,6 +290,31 @@ namespace XrdCl
       };
 
       //------------------------------------------------------------------------
+      //! A wait barrier helper class
+      //------------------------------------------------------------------------
+      struct barrier_t
+      {
+        barrier_t() : on( true ) { }
+
+        void wait()
+        {
+          std::unique_lock<std::mutex> lck( mtx );
+          if( on ) cv.wait( lck );
+        }
+
+        void lift()
+        {
+          on = false;
+          cv.notify_all();
+        }
+
+        private:
+          std::condition_variable cv;
+          std::mutex              mtx;
+          bool                    on;
+      };
+
+      //------------------------------------------------------------------------
       //! Helper class for handling the PipelineHandler of the
       //! ParallelOperation (RAII).
       //!
@@ -331,7 +362,10 @@ namespace XrdCl
         {
             PipelineHandler* hdlr = handler.exchange( nullptr );
             if( hdlr )
+            {
+              barrier.wait();
               hdlr->HandleResponse( new XRootDStatus( st ), nullptr );
+            }
         }
 
         //----------------------------------------------------------------------
@@ -343,6 +377,12 @@ namespace XrdCl
         //! Policy defining when the user handler should be called
         //----------------------------------------------------------------------
         std::unique_ptr<PolicyExecutor> policy;
+
+        //----------------------------------------------------------------------
+        //! wait barrier that assures handler is called only after RunImpl
+        //! started all pipelines
+        //----------------------------------------------------------------------
+        barrier_t barrier;
       };
 
       //------------------------------------------------------------------------
@@ -364,10 +404,9 @@ namespace XrdCl
                            pipelineTimeout : this->timeout;
 
         for( size_t i = 0; i < pipelines.size(); ++i )
-        {
           pipelines[i].Run( timeout, [ctx]( const XRootDStatus &st ){ ctx->Examine( st ); } );
-        }
 
+        ctx->barrier.lift();
         return XRootDStatus();
       }
 
