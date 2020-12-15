@@ -24,6 +24,7 @@
 // The status-quo to retrieve the default object is to copy/paste the
 // linker definition and invoke directly.
 XrdVERSIONINFO(XrdAccAuthorizeObject, XrdAccSciTokens);
+XrdVERSIONINFO(XrdAccAuthorizeObjAdd, XrdAccSciTokens);
 
 namespace {
 
