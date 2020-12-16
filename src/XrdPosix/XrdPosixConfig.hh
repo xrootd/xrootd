@@ -41,6 +41,8 @@ class XrdPosixInfo;
 class XrdSecsssCon;
 class XrdSysLogger;
 
+struct stat;
+
 class XrdPosixConfig
 {
 public:
@@ -49,6 +51,8 @@ static
 XrdSecsssCon  *conTracker(bool debug=false);
 
 static void    EnvInfo(XrdOucEnv &theEnv);
+
+static void    initStat(struct stat *buf);
 
 static bool    SetConfig(XrdOucPsx &parms);
 
@@ -68,6 +72,7 @@ private:
 static bool initCCM(XrdOucPsx &parms);
 static void initEnv(char *eData);
 static void initEnv(XrdOucEnv &, const char *, long long &);
+static void initXdev(dev_t &st_dev, dev_t &st_rdev);
 static void SetDebug(int val);
 static void SetIPV4(bool userv4);
 };

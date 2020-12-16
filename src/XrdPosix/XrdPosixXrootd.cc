@@ -370,7 +370,7 @@ int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 
 // First initialize the stat buffer
 //
-   initStat(buf);
+   XrdPosixConfig::initStat(buf);
 
 // Check if we can get the stat information from the cache.
 //
@@ -1136,11 +1136,6 @@ void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
 int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 {
    XrdPosixAdmin admin(path);
-   size_t stSize;
-   dev_t  stRdev;
-   ino_t  stId;
-   time_t stMtime;
-   mode_t stFlags;
 
 // Make sure the admin is OK
 //
@@ -1148,7 +1143,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Initialize the stat buffer
 //
-   initStat(buf);
+   XrdPosixConfig::initStat(buf);
 
 // Check if we can get the stat informatation from the cache
 //
@@ -1162,16 +1157,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Issue the stat and verify that all went well
 //
-   if (!admin.Stat(&stFlags, &stMtime, &stSize, &stId, &stRdev)) return -1;
-
-// Return what little we can
-//
-   buf->st_size   = stSize;
-   buf->st_blocks = stSize/512+1;
-   buf->st_atime  = buf->st_mtime = buf->st_ctime = stMtime;
-   buf->st_ino    = stId;
-   buf->st_rdev   = stRdev;
-   buf->st_mode   = stFlags;
+   if (!admin.Stat(*buf)) return -1;
    return 0;
 }
 
@@ -1477,52 +1463,4 @@ int XrdPosixXrootd::Fault(XrdPosixFile *fp, int ecode)
    fp->UnLock();
    errno = ecode;
    return -1;
-}
-
-/******************************************************************************/
-/*                              i n i t S t a t                               */
-/******************************************************************************/
-
-void XrdPosixXrootd::initStat(struct stat *buf)
-{
-   static int initStat = 0;
-   static dev_t st_rdev;
-   static dev_t st_dev;
-   static uid_t myUID = getuid();
-   static gid_t myGID = getgid();
-
-// Initialize the xdev fields. This cannot be done in the constructor because
-// we may not yet have resolved the C-library symbols.
-//
-   if (!initStat) {initStat = 1; initXdev(st_dev, st_rdev);}
-   memset(buf, 0, sizeof(struct stat));
-
-// Preset common fields
-//
-   buf->st_blksize= 64*1024;
-   buf->st_dev    = st_dev;
-   buf->st_rdev   = st_rdev;
-   buf->st_nlink  = 1;
-   buf->st_uid    = myUID;
-   buf->st_gid    = myGID;
-}
-  
-/******************************************************************************/
-/*                              i n i t X d e v                               */
-/******************************************************************************/
-  
-void XrdPosixXrootd::initXdev(dev_t &st_dev, dev_t &st_rdev)
-{
-   static dev_t tDev, trDev;
-   static bool aOK = false;
-   struct stat buf;
-
-// Get the device id for /tmp used by stat()
-//
-   if (aOK) {st_dev = tDev; st_rdev = trDev;}
-      else if (stat("/tmp", &buf)) {st_dev = 0; st_rdev = 0;}
-              else {st_dev  = tDev  = buf.st_dev;
-                    st_rdev = trDev = buf.st_rdev;
-                    aOK = true;
-                   }
 }

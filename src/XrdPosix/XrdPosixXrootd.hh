@@ -370,8 +370,6 @@ static bool    myFD(int fd);
 private:
 
 static int  Fault(XrdPosixFile *fp, int ecode);
-static void initStat(struct stat *buf);
-static void initXdev(dev_t &st_dev, dev_t &st_rdev);
 
 static int  Open(const char *path, int oflag, mode_t mode,
                  XrdPosixCallBack *cbP, XrdPosixInfo *infoP);

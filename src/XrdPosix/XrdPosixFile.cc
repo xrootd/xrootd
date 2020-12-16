@@ -39,6 +39,7 @@
 
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
+#include "XrdPosix/XrdPosixConfig.hh"
 #include "XrdPosix/XrdPosixFile.hh"
 #include "XrdPosix/XrdPosixFileRH.hh"
 #include "XrdPosix/XrdPosixPrepIO.hh"
@@ -119,8 +120,8 @@ int             rc;
 XrdPosixFile::XrdPosixFile(bool &aOK, const char *path, XrdPosixCallBack *cbP,
                            int Opts)
              : XCio((XrdOucCacheIO *)this), PrepIO(0),
-               mySize(0), myMtime(0), myInode(0), myMode(0),
-               theCB(cbP), fLoc(0), cOpt(0),
+               mySize(0), myAtime(0), myCtime(0), myMtime(0), myRdev(0),
+               myInode(0), myMode(0), theCB(cbP), fLoc(0), cOpt(0),
                isStream(Opts & isStrm ? 1 : 0)
 {
 // Handle path generation. This is trickt as we may have two namespaces. One
@@ -372,9 +373,12 @@ int XrdPosixFile::Fstat(struct stat &buf)
 
 // Return what little we can
 //
+   XrdPosixConfig::initStat(&buf);
    buf.st_size   = theSize;
-   buf.st_atime  = buf.st_mtime = buf.st_ctime = myMtime;
-   buf.st_blocks = buf.st_size/512+1;
+   buf.st_atime  = myAtime;
+   buf.st_ctime  = myCtime;
+   buf.st_mtime  = myMtime;
+   buf.st_blocks = buf.st_size/512 + buf.st_size%512;
    buf.st_ino    = myInode;
    buf.st_rdev   = myRdev;
    buf.st_mode   = myMode;
@@ -646,12 +650,23 @@ bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
        return false;
       }
 
-// Copy over the relevant fields
+// Copy over the relevant fields, the stat structure must have been
+// properly pre-initialized.
 //
    myMode  = XrdPosixMap::Flags2Mode(&myRdev, sInfo->GetFlags());
    myMtime = static_cast<time_t>(sInfo->GetModTime());
    mySize  = static_cast<size_t>(sInfo->GetSize());
    myInode = static_cast<ino_t>(strtoll(sInfo->GetId().c_str(), 0, 10));
+
+// If this is an extended stat then we can get some more info
+//
+   if (sInfo->ExtendedFormat())
+      {myCtime = static_cast<time_t>(sInfo->GetChangeTime());
+       myAtime = static_cast<time_t>(sInfo->GetAccessTime());
+      } else {
+       myCtime = myMtime;
+       myAtime = time(0);
+      }
 
 // Delete our status information and return final result
 //

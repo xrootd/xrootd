@@ -161,6 +161,8 @@ static void          DelayedDestroy(XrdPosixFile *fp);
                            int wlen);
 
        size_t        mySize;
+       time_t        myAtime;
+       time_t        myCtime;
        time_t        myMtime;
        dev_t         myRdev;
        ino_t         myInode;

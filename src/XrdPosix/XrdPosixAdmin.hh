@@ -40,6 +40,8 @@
 /******************************************************************************/
 /*                         X r d P o s i x A d m i n                          */
 /******************************************************************************/
+
+struct stat;
   
 class XrdPosixAdmin
 {
@@ -56,8 +58,9 @@ XrdCl::URL    *FanOut(int &num);
 
 int            Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz);
 
-bool           Stat(mode_t *flags=0, time_t *mtime=0,
-                    size_t *size=0,  ino_t  *id=0, dev_t *rdv=0);
+bool           Stat(mode_t *flags=0, time_t *mtime=0);
+
+bool           Stat(struct stat &Stat);
 
       XrdPosixAdmin(const char *path)
                       : Url((std::string)path), Xrd(Url) {}

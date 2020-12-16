@@ -29,6 +29,9 @@
 /******************************************************************************/
 
 #include <errno.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdPosix/XrdPosixAdmin.hh"
@@ -128,12 +131,10 @@ int XrdPosixAdmin::Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz)
 /*                                  S t a t                                   */
 /******************************************************************************/
   
-bool XrdPosixAdmin::Stat(mode_t *flags, time_t *mtime,
-                         size_t *size,  ino_t  *id, dev_t *rdv)
+bool XrdPosixAdmin::Stat(mode_t *flags, time_t *mtime)
 {
    XrdCl::XRootDStatus xStatus;
    XrdCl::StatInfo    *sInfo = 0;
-   int rc = 0;
 
 // Make sure admin is ok
 //
@@ -142,15 +143,61 @@ bool XrdPosixAdmin::Stat(mode_t *flags, time_t *mtime,
 // Issue the stat and verify that all went well
 //
    xStatus = Xrd.Stat(Url.GetPathWithParams(), sInfo);
-   if (!xStatus.IsOK()) rc = XrdPosixMap::Result(xStatus);
-      else {if (flags) *flags = XrdPosixMap::Flags2Mode(rdv, sInfo->GetFlags());
-            if (mtime) *mtime = static_cast<time_t>(sInfo->GetModTime());
-            if (size)  *size  = static_cast<size_t>(sInfo->GetSize());
-            if (id)    *id    = static_cast<ino_t>(strtoll(sInfo->GetId().c_str(), 0, 10));
-           }
+   if (!xStatus.IsOK())
+      {XrdPosixMap::Result(xStatus);
+       delete sInfo;
+       return false;
+      }
+
+// Return wanted data
+//
+   if (flags) *flags = XrdPosixMap::Flags2Mode(0, sInfo->GetFlags());
+   if (mtime) *mtime = static_cast<time_t>(sInfo->GetModTime());
 
 // Delete our status information and return final result
 //
    delete sInfo;
-   return rc == 0;
+   return true;
+}
+
+/******************************************************************************/
+  
+bool XrdPosixAdmin::Stat(struct stat &Stat)
+{
+   XrdCl::XRootDStatus xStatus;
+   XrdCl::StatInfo    *sInfo = 0;
+
+// Make sure admin is ok
+//
+   if (!isOK()) return false;
+
+// Issue the stat and verify that all went well
+//
+   xStatus = Xrd.Stat(Url.GetPathWithParams(), sInfo);
+   if (!xStatus.IsOK())
+      {XrdPosixMap::Result(xStatus);
+       delete sInfo;
+       return false;
+      }
+
+// Return the data
+//
+   Stat.st_size   = static_cast<size_t>(sInfo->GetSize());
+   Stat.st_blocks = Stat.st_size/512 + Stat.st_size%512;
+   Stat.st_ino    = static_cast<ino_t>(strtoll(sInfo->GetId().c_str(), 0, 10));
+   Stat.st_mode   = XrdPosixMap::Flags2Mode(&Stat.st_rdev, sInfo->GetFlags());
+   Stat.st_mtime  = static_cast<time_t>(sInfo->GetModTime());
+
+   if (sInfo->ExtendedFormat())
+      {Stat.st_ctime = static_cast<time_t>(sInfo->GetChangeTime());
+       Stat.st_atime = static_cast<time_t>(sInfo->GetAccessTime());
+      } else {
+       Stat.st_ctime = Stat.st_mtime;
+       Stat.st_atime = time(0);
+      }
+
+// Delete our status information and return final result
+//
+   delete sInfo;
+   return true;
 }
