@@ -13,13 +13,15 @@ set( XRD_CL_SOVERSION 3 )
 #-------------------------------------------------------------------------------
 if( XrdClPipelines )
   set( XrdClPipelineSources
-       XrdClOperations.cc          XrdClOperations.hh
-       							   XrdClOperationHandlers.hh
-       							   XrdClArg.hh
-       							   XrdClFwd.hh
-								   XrdClParallelOperation.hh
-								   XrdClFileOperations.hh
-								   XrdClFileSystemOperations.hh
+       XrdClOperations.cc            XrdClOperations.hh
+       XrdClOperationHandlers.hh
+       XrdClArg.hh
+       XrdClFwd.hh
+       XrdClParallelOperation.hh
+       XrdClFileOperations.hh
+       XrdClFileSystemOperations.hh
+       XrdClZipArchive.cc            XrdClZipArchive.hh
+       XrdClZipOperations.hh
   )
 endif()
 
@@ -87,7 +89,6 @@ add_library(
   XrdClLocalFileHandler.cc       XrdClLocalFileHandler.hh
   XrdClLocalFileTask.cc          XrdClLocalFileTask.hh
   XrdClZipListHandler.cc         XrdClZipListHandler.hh
-  XrdClZipArchive.cc             XrdClZipArchive.hh
   
   ${XrdClPipelineSources}
 )
