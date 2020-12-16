@@ -64,8 +64,8 @@ BuildRequires: cmake
 BuildRequires: cppunit-devel
 %endif
 
-BuildRequires: librados-devel = 2:14.2.11
-BuildRequires: libradosstriper-devel = 2:14.2.11
+BuildRequires: librados-devel = 2:14.2.15
+BuildRequires: libradosstriper-devel = 2:14.2.15
 
 %if %{?_with_clang:1}%{!?_with_clang:0}
 BuildRequires: clang
@@ -144,8 +144,8 @@ rm -rf $RPM_BUILD_ROOT
 #-------------------------------------------------------------------------------
 %files
 %defattr(-,root,root,-)
-%{_libdir}/libXrdCeph-4.so
-%{_libdir}/libXrdCephXattr-4.so
+%{_libdir}/libXrdCeph-5.so
+%{_libdir}/libXrdCephXattr-5.so
 %{_libdir}/libXrdCephPosix.so*
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
@@ -158,6 +158,9 @@ rm -rf $RPM_BUILD_ROOT
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Wed Dec 16 2020 George Patargias <george.patargias@stfc.ac.uk>
+- updated version for librados-devel and libradosstriper-devel to 14.2.15 following the recent upgrade on external Echo gateways
+- fixed version in xrootd-ceph shared libraries
 * Mon Mar 02 2020 Michal Simon <michal.simon@cern.ch>
 - fixed RPM dependencies
 * Thu Mar 08 2018 Michal Simon <michal.simon@cern.ch>
