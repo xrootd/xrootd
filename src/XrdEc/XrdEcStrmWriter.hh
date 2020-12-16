@@ -89,6 +89,15 @@ namespace XrdEc
     }
 
     //-------------------------------------------------------------------------
+    // Checks if the queue is empty
+    //-------------------------------------------------------------------------
+    bool empty()
+    {
+      std::unique_lock<std::mutex> lck( mtx );
+      return elements.empty();
+    }
+
+    //-------------------------------------------------------------------------
     // Interrupt all waiting `dequeue` routines
     //-------------------------------------------------------------------------
     inline void interrupt()
@@ -121,13 +130,17 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       // Constructor
       //-----------------------------------------------------------------------
-      StrmWriter( const ObjCfg &objcfg ) : objcfg( objcfg ), writer_stop( false ), writer_thread( writer_routine, this ), next_blknb( 0 )
+      StrmWriter( const ObjCfg &objcfg ) : objcfg( objcfg ),
+                                           writer_thread_stop( false ),
+                                           writer_thread( writer_routine, this ),
+                                           next_blknb( 0 ),
+                                           global_status( this )
       {
       }
 
       virtual ~StrmWriter()
       {
-        writer_stop = true;
+        writer_thread_stop = true;
         buffers.interrupt();
         writer_thread.join();
       }
@@ -154,6 +167,18 @@ namespace XrdEc
 
       void Write( uint32_t size, const void *buff, XrdCl::ResponseHandler *handler )
       {
+        //---------------------------------------------------------------------
+        // First, check the global status, if we are in an error state just
+        // fail the request.
+        //---------------------------------------------------------------------
+        XrdCl::XRootDStatus gst = global_status.get();
+        if( !gst.IsOK() ) return ScheduleHandler( handler, gst );
+
+        //---------------------------------------------------------------------
+        // Update the number of bytes left to be written
+        //---------------------------------------------------------------------
+        global_status.issue_write( size );
+
         const char* buffer = reinterpret_cast<const char*>( buff );
         uint32_t wrtsize = size;
         while( wrtsize > 0 )
@@ -165,15 +190,104 @@ namespace XrdEc
           if( wrtbuff->Complete() ) EnqueueBuff( std::move( wrtbuff ) );
         }
 
-        // TODO call handler ???
+        //---------------------------------------------------------------------
+        // We can tell the user it's done as we have the date cached in the
+        // buffer
+        //---------------------------------------------------------------------
+        ScheduleHandler( handler );
       }
 
       void Close( XrdCl::ResponseHandler *handler )
       {
-        // TODO
+        //---------------------------------------------------------------------
+        // Let the global status handle the close
+        //---------------------------------------------------------------------
+        global_status.issue_close( handler );
       }
 
     private:
+
+      //-----------------------------------------------------------------------
+      // Global status of the StrmWriter
+      //-----------------------------------------------------------------------
+      struct global_status_t
+      {
+        //---------------------------------------------------------------------
+        // Constructor
+        //---------------------------------------------------------------------
+        global_status_t( StrmWriter *writer ) : writer( writer ),
+                                                bytesleft( 0 ),
+                                                stopped_writing( false ),
+                                                closeHandler( 0 )
+        {
+        }
+
+        //---------------------------------------------------------------------
+        // Report status of write operation
+        //---------------------------------------------------------------------
+        void report_wrt( const XrdCl::XRootDStatus &st, uint64_t wrtsize )
+        {
+          std::unique_lock<std::mutex> lck( mtx );
+          //-------------------------------------------------------------------
+          // Update the global status
+          //-------------------------------------------------------------------
+          bytesleft -= wrtsize;
+          if( !st.IsOK() ) status = st;
+
+          //-------------------------------------------------------------------
+          // check if we are done, and if yes call the close implementation
+          //-------------------------------------------------------------------
+          if( bytesleft == 0 && stopped_writing )
+          {
+            lck.unlock();
+            writer->CloseImpl( closeHandler );
+          }
+        }
+
+        //---------------------------------------------------------------------
+        // Indicate that the user issued close
+        //---------------------------------------------------------------------
+        void issue_close( XrdCl::ResponseHandler *handler )
+        {
+          std::unique_lock<std::mutex> lck( mtx );
+          //-------------------------------------------------------------------
+          // There will be no more new write requests
+          //-------------------------------------------------------------------
+          stopped_writing = true;
+          //-------------------------------------------------------------------
+          // If there are no outstanding writes, we can simply call the close
+          // routine
+          //-------------------------------------------------------------------
+          if( bytesleft == 0 ) return writer->CloseImpl( handler );
+          //-------------------------------------------------------------------
+          // Otherwise we save the handler for later
+          //-------------------------------------------------------------------
+          closeHandler = handler;
+        }
+
+        //---------------------------------------------------------------------
+        // get the global status value
+        //---------------------------------------------------------------------
+        inline const XrdCl::XRootDStatus& get() const
+        {
+          std::unique_lock<std::mutex> lck( mtx );
+          return status;
+        }
+
+        inline void issue_write( uint64_t wrtsize )
+        {
+          std::unique_lock<std::mutex> lck( mtx );
+          bytesleft += wrtsize;
+        }
+
+        private:
+          mutable std::mutex      mtx;
+          StrmWriter             *writer;          //> pointer to the StrmWriter
+          uint64_t                bytesleft;       //> bytes left to be written
+          bool                    stopped_writing; //> true, if user called close
+          XrdCl::XRootDStatus     status;          //> the global status
+          XrdCl::ResponseHandler *closeHandler;    //> user close handler
+      };
 
       inline void EnqueueBuff( std::unique_ptr<WrtBuff> wrtbuff )
       {
@@ -200,7 +314,7 @@ namespace XrdEc
       {
         try
         {
-          while( !me->writer_stop )
+          while( !me->writer_thread_stop )
           {
             std::unique_ptr<WrtBuff> wrtbuff( me->DequeueBuff() );
             if( !wrtbuff ) continue;
@@ -259,8 +373,12 @@ namespace XrdEc
             size_t srvid;
             if( !servers->dequeue( srvid ) )
             {
-              // TODO we run out of stripes, report error (remember this is happening in a separate thread)
+              XrdCl::XRootDStatus err( XrdCl::stError, XrdCl::errNoMoreReplicas,
+                                       0, "No more data servers to try." );
+              global_status.report_wrt( err, strpsize );
+              return;
             }
+
             zip = *archives[srvid];
             st = zip->OpenFile( fn, XrdCl::OpenFlags::New, strpsize, crc32c );
           }
@@ -299,14 +417,31 @@ namespace XrdEc
                                 }
                               }
                             | XrdCl::Final(
-                              [wrtbuff, zip]( const XrdCl::XRootDStatus& )
+                              [=]( const XrdCl::XRootDStatus &st ) mutable
                               {
                                 zip->CloseFile();
+                                wrtbuff.reset();
+                                global_status.report_wrt( st, strpsize );
                               } );
           writes.emplace_back( std::move( p ) );
         }
 
-        XrdCl::Async( XrdCl::Parallel( writes ) ); // TODO we have to report error in case of a failure
+        XrdCl::Async( XrdCl::Parallel( writes ) );
+      }
+
+      void CloseImpl( XrdCl::ResponseHandler *handler )
+      {
+        const size_t size = objcfg.plgr.size();
+
+        std::vector<XrdCl::Pipeline> closes;
+        closes.reserve( size );
+
+        for( size_t i = 0; i < size; ++i )
+        {
+          closes.emplace_back( XrdCl::CloseArchive( *archives[i] ) );
+        }
+
+        XrdCl::Async( XrdCl::Parallel( closes ).AtLeast( objcfg.nbchunks ) >> handler );
       }
 
       const ObjCfg                                    &objcfg;
@@ -316,9 +451,11 @@ namespace XrdEc
       // queue of buffer being prepared (erasure encoded and checksummed) for write
       buff_queue                                       buffers;
 
-      std::atomic<bool>                                writer_stop;
+      std::atomic<bool>                                writer_thread_stop;
       std::thread                                      writer_thread;
       size_t                                           next_blknb;
+
+      global_status_t                                  global_status;
   };
 
 }
