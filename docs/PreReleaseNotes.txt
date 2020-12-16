@@ -27,6 +27,7 @@ Prerelease Notes
   **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
 
 + **Minor bug fixes**
+  **[POSIX]** Make sure to always return consistent stat() information.
   **[cmsd]** Correct write lengths to not write null bytes to env file.
   **[cmsd]** Correct parsing bug that results in an erroneous warning.
   **[Server]** Fix esoteric truncation of long dirlist. Fixes #1340
