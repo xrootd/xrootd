@@ -27,7 +27,6 @@
 #include <mutex>
 #include <iterator>
 
-
 namespace XrdEc
 {
   //---------------------------------------------------------------------------
@@ -324,12 +323,6 @@ namespace XrdEc
         catch( const buff_queue::wait_interrupted& ){ }
       }
 
-      struct spare_files
-      {
-        std::mutex mtx;
-        std::vector<std::shared_ptr<XrdCl::File>> files;
-      };
-
       void WriteBuff( std::unique_ptr<WrtBuff> buff )
       {
         //---------------------------------------------------------------------
@@ -355,13 +348,15 @@ namespace XrdEc
         const size_t nbchunks = objcfg.nbchunks;
         std::vector<XrdCl::Pipeline> writes;
         writes.reserve( nbchunks );
-        size_t blknb = next_blknb++;
+        size_t   blknb = next_blknb++;
+        uint64_t blksize = 0;
         for( size_t strpnb = 0; strpnb < nbchunks; ++strpnb )
         {
           std::string fn       = objcfg.obj + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
           uint32_t    crc32c   = wrtbuff->GetCrc32c( strpnb );
           uint64_t    strpsize = wrtbuff->GetStrpSize( strpnb );
           char*       strpbuff = wrtbuff->GetStrpBuff( strpnb );
+          if( strpnb < objcfg.nbdata ) blksize += strpsize;
 
           //-------------------------------------------------------------------
           // Find a server where we can append the next data chunk
@@ -421,12 +416,11 @@ namespace XrdEc
                               {
                                 zip->CloseFile();
                                 wrtbuff.reset();
-                                global_status.report_wrt( st, strpsize );
                               } );
           writes.emplace_back( std::move( p ) );
         }
 
-        XrdCl::Async( XrdCl::Parallel( writes ) );
+        XrdCl::Async( XrdCl::Parallel( writes ) >> [=]( XrdCl::XRootDStatus &st ){ global_status.report_wrt( st, blksize ); } );
       }
 
       void CloseImpl( XrdCl::ResponseHandler *handler )

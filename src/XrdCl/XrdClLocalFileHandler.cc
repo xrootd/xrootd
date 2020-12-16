@@ -32,7 +32,6 @@
 #include <string>
 #include <memory>
 #include <stdexcept>
-#include <iostream>
 
 #include <fcntl.h>
 #include <stdio.h>
