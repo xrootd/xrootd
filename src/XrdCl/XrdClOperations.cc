@@ -137,6 +137,11 @@ namespace XrdCl
     timeout = t;
     prms    = std::move( p );
     if( !final ) final   = std::move( f );
+    else if( f )
+    {
+      auto f1 = std::move( final );
+      final = [f1, f]( const XRootDStatus &st ){ f1( st ); f( st ); };
+    }
     currentOperation.reset( opr );
   }
 
