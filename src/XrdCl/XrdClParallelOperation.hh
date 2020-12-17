@@ -28,6 +28,9 @@
 
 #include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClOperationHandlers.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClJobManager.hh"
 
 #include <atomic>
 #include <condition_variable>
@@ -386,6 +389,44 @@ namespace XrdCl
       };
 
       //------------------------------------------------------------------------
+      //! The thread-pool job for schedule Ctx::Examine
+      //------------------------------------------------------------------------
+      struct PipelineEnd : public Job
+      {
+        //----------------------------------------------------------------------
+        // Constructor
+        //----------------------------------------------------------------------
+        PipelineEnd( std::shared_ptr<Ctx>      &ctx,
+                     const XrdCl::XRootDStatus &st ) : ctx( ctx ), st( st )
+        {
+        }
+
+        //----------------------------------------------------------------------
+        // Run Ctx::Examine in the thread-pool
+        //----------------------------------------------------------------------
+        void Run( void* )
+        {
+          ctx->Examine( st );
+          delete this;
+        }
+
+        private:
+          std::shared_ptr<Ctx> ctx; //< ParallelOperaion context
+          XrdCl::XRootDStatus  st;  //< final status of the ParallelOperation
+      };
+
+      //------------------------------------------------------------------------
+      //! Schedule Ctx::Examine to be executed in the client thread-pool
+      //------------------------------------------------------------------------
+      inline static
+      void Schedule( std::shared_ptr<Ctx> &ctx, const XrdCl::XRootDStatus &st)
+      {
+        XrdCl::JobManager *mgr = XrdCl::DefaultEnv::GetPostMaster()->GetJobManager();
+        PipelineEnd *end = new PipelineEnd( ctx, st );
+        mgr->QueueJob( end, nullptr );
+      }
+
+      //------------------------------------------------------------------------
       //! Run operation
       //!
       //! @param params :  container with parameters forwarded from
@@ -404,7 +445,8 @@ namespace XrdCl
                            pipelineTimeout : this->timeout;
 
         for( size_t i = 0; i < pipelines.size(); ++i )
-          pipelines[i].Run( timeout, [ctx]( const XRootDStatus &st ){ ctx->Examine( st ); } );
+          pipelines[i].Run( timeout,
+              [ctx]( const XRootDStatus &st ) mutable { Schedule( ctx, st ); } );
 
         ctx->barrier.lift();
         return XRootDStatus();
