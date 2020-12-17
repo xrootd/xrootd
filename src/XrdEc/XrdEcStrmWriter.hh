@@ -204,6 +204,12 @@ namespace XrdEc
       void Close( XrdCl::ResponseHandler *handler )
       {
         //---------------------------------------------------------------------
+        // First, check the global status, if we are in an error state just
+        // fail the request.
+        //---------------------------------------------------------------------
+        XrdCl::XRootDStatus gst = global_status.get();
+        if( !gst.IsOK() ) return ScheduleHandler( handler, gst );
+        //---------------------------------------------------------------------
         // Take care of the left-over data ...
         //---------------------------------------------------------------------
         if( wrtbuff && !wrtbuff->Empty() ) EnqueueBuff( std::move( wrtbuff ) );
