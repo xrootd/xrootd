@@ -161,7 +161,12 @@ namespace XrdEc
           opens.emplace_back( XrdCl::OpenArchive( zip, url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write ) );
         }
 
-        XrdCl::Async( XrdCl::Parallel( opens ).AtLeast( objcfg.nbchunks ) >> handler );
+        XrdCl::Async( XrdCl::Parallel( opens ).AtLeast( objcfg.nbchunks ) >>
+                      [=]( XrdCl::XRootDStatus &st )
+                      {
+                        if( !st.IsOK() ) global_status.report_open( st );
+                        handler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                      } );
       }
 
       void Write( uint32_t size, const void *buff, XrdCl::ResponseHandler *handler )
@@ -245,6 +250,14 @@ namespace XrdEc
             lck.unlock();
             writer->CloseImpl( closeHandler );
           }
+        }
+
+        //---------------------------------------------------------------------
+        // Report status of open operation
+        //---------------------------------------------------------------------
+        inline void report_open( const XrdCl::XRootDStatus &st )
+        {
+          report_wrt( st, 0 );
         }
 
         //---------------------------------------------------------------------
