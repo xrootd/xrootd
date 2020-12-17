@@ -236,14 +236,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct SomePolicy : PolicyExecutor
       {
-        SomePolicy( size_t size, size_t threshold ) : cnt( size ), succeeded( 0 ), threshold( threshold )
+        SomePolicy( size_t size, size_t threshold ) : failed( 0 ), succeeded( 0 ),
+                                                      threshold( threshold ), size( size )
         {
         }
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
-          // decrement the counter
-          size_t nb = cnt.fetch_sub( 1 );
           if( status.IsOK() )
           {
             size_t s = succeeded.fetch_add( 1 );
@@ -251,16 +250,18 @@ namespace XrdCl
             // we are not yet there
             return false;
           }
+          size_t f = failed.fetch_add( 1 );
           // did we dropped bellow the threshold
-          if( nb == threshold ) return true;
+          if( f == size - threshold ) return true;
           // we still have a chance there will be enough of successful operations
           return false;
         }
 
         private:
-          std::atomic<size_t> cnt;
+          std::atomic<size_t> failed;
           std::atomic<size_t> succeeded;
           const size_t        threshold;
+          const size_t        size;
       };
 
       //------------------------------------------------------------------------
@@ -272,24 +273,24 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct AtLeastPolicy : PolicyExecutor
       {
-        AtLeastPolicy( size_t size, size_t threshold ) : cnt( size ), threshold( threshold )
+        AtLeastPolicy( size_t size, size_t threshold ) : failed_cnt( 0 ),
+                                                         failed_threshold( size - threshold )
         {
         }
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
-          // decrement the counter
-          size_t nb = cnt.fetch_sub( 1 );
           // although we might have the minimum to succeed we wait for the rest
           if( status.IsOK() ) return false;
-          if( nb == threshold ) return true; // we dropped bellow the threshold
+          size_t nb = failed_cnt.fetch_add( 1 );
+          if( nb == failed_threshold ) return true; // we dropped bellow the threshold
           // we still have a chance there will be enough of successful operations
           return false;
         }
 
         private:
-          std::atomic<size_t> cnt;
-          const size_t        threshold;
+          std::atomic<size_t> failed_cnt;
+          const size_t        failed_threshold;
       };
 
       //------------------------------------------------------------------------
