@@ -21,6 +21,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClEnv.hh"
+#include "XrdVersion.hh"
 
 class XrdOucPinLoader;
 struct EnvInitializer;
@@ -52,6 +53,14 @@ namespace XrdCl
       DefaultEnv();
 
     public:
+
+      //------------------------------------------------------------------------
+      //! Get client version
+      //------------------------------------------------------------------------
+      inline static std::string GetVersion()
+      {
+        return XrdVERSION;
+      }
 
       //------------------------------------------------------------------------
       //! Get default client environment
