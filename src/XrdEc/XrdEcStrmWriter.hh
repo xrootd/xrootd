@@ -15,6 +15,11 @@
 #include "XrdCl/XrdClParallelOperation.hh"
 #include "XrdCl/XrdClZipArchive.hh"
 
+#include "XrdZip/XrdZipLFH.hh"
+#include "XrdZip/XrdZipCDFH.hh"
+#include "XrdZip/XrdZipEOCD.hh"
+#include "XrdZip/XrdZipUtils.hh"
+
 #include <random>
 #include <chrono>
 #include <future>
@@ -152,12 +157,12 @@ namespace XrdEc
         opens.reserve( size );
         // initialize all zip archive objects
         for( size_t i = 0; i < size; ++i )
-          archives.emplace_back( std::make_shared<XrdCl::ZipArchive>() );
+          dataarchs.emplace_back( std::make_shared<XrdCl::ZipArchive>() );
 
         for( size_t i = 0; i < size; ++i )
         {
           std::string url = objcfg.plgr[i] + objcfg.obj + ".zip";
-          XrdCl::Ctx<XrdCl::ZipArchive> zip( *archives[i] );
+          XrdCl::Ctx<XrdCl::ZipArchive> zip( *dataarchs[i] );
           opens.emplace_back( XrdCl::OpenArchive( zip, url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write ) );
         }
 
@@ -359,7 +364,7 @@ namespace XrdEc
         //---------------------------------------------------------------------
         static std::default_random_engine random_engine( std::chrono::system_clock::now().time_since_epoch().count() );
         std::shared_ptr<sync_queue<size_t>> servers = std::make_shared<sync_queue<size_t>>();
-        std::vector<size_t> zipid( archives.size() );
+        std::vector<size_t> zipid( dataarchs.size() );
         std::iota( zipid.begin(), zipid.end(), 0 );
         std::shuffle( zipid.begin(), zipid.end(), random_engine );
         auto itr = zipid.begin();
@@ -397,7 +402,7 @@ namespace XrdEc
               return;
             }
 
-            zip = *archives[srvid];
+            zip = *dataarchs[srvid];
             st = zip->OpenFile( fn, XrdCl::OpenFlags::New, strpsize, crc32c );
           }
           while( !st.IsOK() );
@@ -425,7 +430,7 @@ namespace XrdEc
                                   {
                                     size_t srvid;
                                     if( !servers->dequeue( srvid ) ) return; // if there are no more servers we simply fail
-                                    zip = *archives[srvid];
+                                    zip = *dataarchs[srvid];
                                     st = zip->OpenFile( fn, XrdCl::OpenFlags::New, strpsize, crc32c );
                                   } while( !status.IsOK() );
                                   //-------------------------------------------
@@ -446,24 +451,108 @@ namespace XrdEc
         XrdCl::Async( XrdCl::Parallel( writes ) >> [=]( XrdCl::XRootDStatus &st ){ global_status.report_wrt( st, blksize ); } );
       }
 
+      XrdZip::buffer_t GetMetadataBuffer()
+      {
+        using namespace XrdZip;
+
+        const size_t cdcnt = objcfg.plgr.size();
+        std::vector<buffer_t> buffs; buffs.reserve( cdcnt ); // buffers with raw data
+        std::vector<LFH> lfhs; lfhs.reserve( cdcnt );        // LFH records
+        std::vector<CDFH> cdfhs; cdfhs.reserve( cdcnt );     // CDFH records
+
+        //---------------------------------------------------------------------
+        // prepare data structures (LFH and CDFH records)
+        //---------------------------------------------------------------------
+        uint64_t offset = 0;
+        uint64_t cdsize = 0;
+        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+        for( size_t i = 0; i < cdcnt; ++i )
+        {
+          std::string fn = objcfg.plgr[i] + objcfg.obj + ".zip";    // file name (URL of the data archive)
+          buffer_t buff( dataarchs[i]->GetCD() );                   // raw data buffer (central directory of the data archive)
+          uint32_t cksum = crc32c( 0, buff.data(), buff.size() );   // crc32c of the buffer
+          lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );   // LFH record for the buffer
+          LFH &lfh = lfhs.back();
+          cdfhs.emplace_back( &lfh, mode, offset );                 // CDFH record for the buffer
+          offset += LFH::lfhBaseSize + fn.size() + buff.size();     // shift the offset
+          cdsize += cdfhs.back().cdfhSize;                          // update central directory size
+          buffs.emplace_back( std::move( buff ) );                  // keep the buffer for later
+        }
+
+        uint64_t zipsize = offset + cdsize + EOCD::eocdBaseSize;
+        buffer_t zipbuff; zipbuff.reserve( zipsize );
+
+        //---------------------------------------------------------------------
+        // write into the final buffer LFH records + raw data
+        //---------------------------------------------------------------------
+        for( size_t i = 0; i < cdcnt; ++i )
+        {
+          lfhs[i].Serialize( zipbuff );
+          std::copy( buffs[i].begin(), buffs[i].end(), std::back_inserter( zipbuff ) );
+        }
+        //---------------------------------------------------------------------
+        // write into the final buffer CDFH records
+        //---------------------------------------------------------------------
+        for( size_t i = 0; i < cdcnt; ++i )
+          cdfhs[i].Serialize( zipbuff );
+        //---------------------------------------------------------------------
+        // prepare and write into the final buffer the EOCD record
+        //---------------------------------------------------------------------
+        EOCD eocd( offset, cdcnt, cdsize );
+        eocd.Serialize( zipbuff );
+
+        return zipbuff;
+      }
+
       void CloseImpl( XrdCl::ResponseHandler *handler )
       {
         const size_t size = objcfg.plgr.size();
-
+        //---------------------------------------------------------------------
+        // prepare the metadata (the Central Directory of each data ZIP)
+        //---------------------------------------------------------------------
+        auto zipbuff = std::make_shared<XrdZip::buffer_t>( GetMetadataBuffer() );
+        //---------------------------------------------------------------------
+        // prepare the pipelines ...
+        //---------------------------------------------------------------------
         std::vector<XrdCl::Pipeline> closes;
+        std::vector<XrdCl::Pipeline> save_metadata;
         closes.reserve( size );
-
         for( size_t i = 0; i < size; ++i )
         {
-          closes.emplace_back( XrdCl::CloseArchive( *archives[i] ) );
+          //-------------------------------------------------------------------
+          // close ZIP archives with data
+          //-------------------------------------------------------------------
+          closes.emplace_back( XrdCl::CloseArchive( *dataarchs[i] ) );
+          //-------------------------------------------------------------------
+          // replicate the metadata
+          //-------------------------------------------------------------------
+          std::string url = objcfg.plgr[i] + objcfg.obj + ".metadata.zip";
+          metadataarchs.emplace_back( std::make_shared<XrdCl::File>() );
+          XrdCl::Pipeline p = XrdCl::Open( *metadataarchs[i], url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write )
+                            | XrdCl::Write( *metadataarchs[i], 0, zipbuff->size(), zipbuff->data() )
+                            | XrdCl::Close( *metadataarchs[i] )
+                            | XrdCl::Final( [zipbuff]( const XrdCl::XRootDStatus& ){ } );
+
+          save_metadata.emplace_back( std::move( p ) );
         }
 
-        XrdCl::Async( XrdCl::Parallel( closes ).AtLeast( objcfg.nbchunks ) >> handler );
+        //---------------------------------------------------------------------
+        // compose closes & save_metadata:
+        //  - closes must be successful at least for #data + #parity
+        //  - save_metadata must be successful at least for #parity + 1
+        //---------------------------------------------------------------------
+        XrdCl::Pipeline p = XrdCl::Parallel(
+            XrdCl::Parallel( closes ).AtLeast( objcfg.nbchunks ),
+            XrdCl::Parallel( save_metadata ).AtLeast( objcfg.nbparity + 1 )
+          ) >> handler;
+        XrdCl::Async( std::move( p ) );
       }
 
       const ObjCfg                                    &objcfg;
       std::unique_ptr<WrtBuff>                         wrtbuff;
-      std::vector<std::shared_ptr<XrdCl::ZipArchive>>  archives;
+      std::vector<std::shared_ptr<XrdCl::ZipArchive>>  dataarchs;
+      std::vector<std::shared_ptr<XrdCl::File>>        metadataarchs;
+      std::vector<XrdZip::buffer_t>                    cdbuffs;
 
       // queue of buffer being prepared (erasure encoded and checksummed) for write
       buff_queue                                       buffers;
