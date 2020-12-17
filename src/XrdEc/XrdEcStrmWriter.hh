@@ -199,6 +199,10 @@ namespace XrdEc
       void Close( XrdCl::ResponseHandler *handler )
       {
         //---------------------------------------------------------------------
+        // Take care of the left-over data ...
+        //---------------------------------------------------------------------
+        if( wrtbuff && !wrtbuff->Empty() ) EnqueueBuff( std::move( wrtbuff ) );
+        //---------------------------------------------------------------------
         // Let the global status handle the close
         //---------------------------------------------------------------------
         global_status.issue_close( handler );
