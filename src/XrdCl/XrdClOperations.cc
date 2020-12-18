@@ -30,6 +30,47 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 
+namespace
+{
+  //----------------------------------------------------------------------------
+  //! An exception type used to (force) stop a pipeline
+  //----------------------------------------------------------------------------
+  struct StopPipeline
+  {
+    StopPipeline( const XrdCl::XRootDStatus &status ) : status( status ) { }
+    XrdCl::XRootDStatus status;
+  };
+
+  //----------------------------------------------------------------------------
+  //! An exception type used to repeat an operation
+  //----------------------------------------------------------------------------
+  struct RepeatOpeation { };
+
+  //----------------------------------------------------------------------------
+  //! An exception type used to replace an operation
+  //----------------------------------------------------------------------------
+  struct ReplaceOperation
+  {
+    ReplaceOperation( XrdCl::Operation<false> &&opr ) : opr( opr.ToHandled() )
+    {
+    }
+
+    std::unique_ptr<XrdCl::Operation<true>> opr;
+  };
+
+  //----------------------------------------------------------------------------
+  //! An exception type used to replace whole pipeline
+  //----------------------------------------------------------------------------
+  struct ReplacePipeline
+  {
+    ReplacePipeline( XrdCl::Pipeline p ) : pipeline( std::move( p ) )
+    {
+    }
+
+    XrdCl::Pipeline pipeline;
+  };
+}
+
 namespace XrdCl
 {
 
@@ -93,6 +134,13 @@ namespace XrdCl
         opr->Run( timeout, std::move( prms ), std::move( final ) );
         return;
       }
+      catch( ReplacePipeline &replace )
+      {
+        Pipeline p = std::move( replace.pipeline );
+        Operation<true> *opr = p.operation.release();
+        opr->Run( timeout, std::move( prms ), std::move( final ) );
+        return;
+      }
     }
     else
       dealloc( status, response, hostList );
@@ -153,5 +201,37 @@ namespace XrdCl
     final = std::move( f );
   }
 
+
+  //------------------------------------------------------------------------
+  // Stop the current pipeline
+  //------------------------------------------------------------------------
+  void Pipeline::Stop( const XRootDStatus &status )
+  {
+    throw StopPipeline( status );
+  }
+
+  //------------------------------------------------------------------------
+  // Repeat current operation
+  //------------------------------------------------------------------------
+  void Pipeline::Repeat()
+  {
+    throw RepeatOpeation();
+  }
+
+  //------------------------------------------------------------------------
+  // Replace current operation
+  //------------------------------------------------------------------------
+  void Pipeline::Replace( Operation<false> &&opr )
+  {
+    throw ReplaceOperation( std::move( opr ) );
+  }
+
+  //------------------------------------------------------------------------
+  // Replace with pipeline
+  //------------------------------------------------------------------------
+  void Pipeline::Replace( Pipeline p )
+  {
+    throw ReplacePipeline( std::move( p ) );
+  }
 }
 

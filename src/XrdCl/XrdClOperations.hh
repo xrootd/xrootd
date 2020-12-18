@@ -310,32 +310,6 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
-  //! An exception type used to (force) stop a pipeline
-  //----------------------------------------------------------------------------
-  struct StopPipeline
-  {
-    StopPipeline( const XRootDStatus &status ) : status( status ) { }
-    XRootDStatus status;
-  };
-
-  //----------------------------------------------------------------------------
-  //! An exception type used to repeat an operation
-  //----------------------------------------------------------------------------
-  struct RepeatOpeation { };
-
-  //----------------------------------------------------------------------------
-  //! An exception type used to repeat an operation
-  //----------------------------------------------------------------------------
-  struct ReplaceOperation
-  {
-    ReplaceOperation( Operation<false> &&opr ) : opr( opr.ToHandled() )
-    {
-    }
-
-    std::unique_ptr<Operation<true>> opr;
-  };
-
-  //----------------------------------------------------------------------------
   //! A wrapper around operation pipeline. A Pipeline is a once-use-only
   //! object - once executed by a Workflow engine it is invalidated.
   //!
@@ -346,6 +320,7 @@ namespace XrdCl
   {
       template<bool> friend class ParallelOperation;
       friend std::future<XRootDStatus> Async( Pipeline, uint16_t );
+      friend class PipelineHandler;
 
     public:
 
@@ -441,26 +416,22 @@ namespace XrdCl
       //!
       //! @param status : the final status for the pipeline
       //------------------------------------------------------------------------
-      inline static void Stop( const XRootDStatus &status = XrdCl::XRootDStatus() )
-      {
-        throw StopPipeline( status );
-      }
+      static void Stop( const XRootDStatus &status = XrdCl::XRootDStatus() );
 
       //------------------------------------------------------------------------
       //! Repeat current operation
       //------------------------------------------------------------------------
-      inline static void Repeat()
-      {
-        throw RepeatOpeation();
-      }
+      static void Repeat();
 
       //------------------------------------------------------------------------
       //! Replace current operation
       //------------------------------------------------------------------------
-      inline static void Replace( Operation<false> &&opr )
-      {
-        throw ReplaceOperation( std::move( opr ) );
-      }
+      static void Replace( Operation<false> &&opr );
+
+      //------------------------------------------------------------------------
+      //! Replace with pipeline
+      //------------------------------------------------------------------------
+      static void Replace( Pipeline p );
 
     private:
 
