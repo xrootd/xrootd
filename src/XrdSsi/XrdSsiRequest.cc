@@ -35,6 +35,10 @@
 #include "XrdSsi/XrdSsiResponder.hh"
 #include "XrdSsi/XrdSsiRequest.hh"
 #include "XrdSsi/XrdSsiStream.hh"
+
+#ifndef ENODATA
+#define ENODATA ENOATTR
+#endif
   
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */

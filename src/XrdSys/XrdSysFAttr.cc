@@ -68,7 +68,7 @@ XrdSysXAttr *XrdSysFAttr::Xat = &dfltXAttr;
   
 #if    defined(__FreeBSD__)
 #include "XrdSys/XrdSysFAttrBsd.icc"
-#elif defined(__linux__) || defined(__GNU__)
+#elif defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 #include "XrdSys/XrdSysFAttrLnx.icc"
 #elif defined(__APPLE__)
 #include "XrdSys/XrdSysFAttrMac.icc"

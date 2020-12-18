@@ -85,7 +85,7 @@ namespace {bool isLite = (getenv("XRD_POSIX_PRELOAD_LITE") != 0);}
 // making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
 #if !defined(__LP64__) && !defined(_LP64)
-#if !defined(__APPLE__) && !defined(SUNX86) && !defined(__FreeBSD__) && !defined(__GNU__)
+#if !defined(__APPLE__) && !defined(SUNX86) && !defined(__FreeBSD__) && !defined(__GNU__) && !(defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -390,7 +390,7 @@ struct dirent* readdir(DIR *dirp)
    else
        if (!(dp64 = XrdPosix_Readdir64(dirp))) return 0;
 
-#if !defined(__APPLE__) && !defined(_LP64) && !defined(__LP64__) && !defined(__GNU__)
+#if !defined(__APPLE__) && !defined(_LP64) && !defined(__LP64__) && !defined(__GNU__) && !(defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    if (XrdPosix_CopyDirent((struct dirent *)dp64, dp64)) return 0;
 #endif
 
@@ -409,7 +409,7 @@ extern "C"
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
    static int Init = Xunix.Init(&Init);
-#if defined(__APPLE__) || defined(__LP64__) || defined(_LP64) || defined(__GNU__)
+#if defined(__APPLE__) || defined(__LP64__) || defined(_LP64) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    return XrdPosix_Readdir_r(dirp, entry, result);
 #else
    char buff[sizeof(struct dirent64) + 2048];
@@ -509,7 +509,11 @@ int        statfs(         const char *path, struct statfs *buf)
    buf->f_files   = buf64.f_files;
    buf->f_ffree   = buf64.f_ffree;
    buf->f_fsid    = buf64.f_fsid;
+#if defined(__FreeBSD_kernel__) && defined(__GLIBC__)
+   buf->f_namemax = buf64.f_namemax;
+#else
    buf->f_namelen = buf64.f_namelen;
+#endif
    return 0;
 }
 }

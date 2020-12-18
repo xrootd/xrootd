@@ -5,6 +5,7 @@
 include( CheckCXXSourceRuns )
 
 set( LINUX    FALSE )
+set( KFREEBSD FALSE )
 set( Hurd     FALSE )
 set( MacOSX   FALSE )
 set( Solaris  FALSE )
@@ -63,6 +64,15 @@ endif()
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
   set( LINUX TRUE )
+  include( GNUInstallDirs )
+  set( EXTRA_LIBS rt )
+endif()
+
+#-------------------------------------------------------------------------------
+# GNU/kFreeBSD
+#-------------------------------------------------------------------------------
+if( ${CMAKE_SYSTEM_NAME} STREQUAL "kFreeBSD" )
+  set( KFREEBSD TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
 endif()

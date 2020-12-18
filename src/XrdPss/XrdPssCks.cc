@@ -40,6 +40,10 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdPss/XrdPssUrlInfo.hh"
 
+#ifndef ENODATA
+#define ENODATA ENOATTR
+#endif
+
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/

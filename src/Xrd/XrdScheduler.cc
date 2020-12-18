@@ -107,7 +107,7 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
 
 // Make sure we are using the maximum number of threads allowed (Linux only)
 //
-#if ( defined(__linux__) || defined(__GNU__) ) && defined(RLIMIT_NPROC)
+#if ( defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) ) && defined(RLIMIT_NPROC)
 
    struct rlimit rlim;
 

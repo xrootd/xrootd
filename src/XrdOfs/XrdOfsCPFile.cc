@@ -48,6 +48,10 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysXAttr.hh"
 
+#ifndef ENODATA
+#define ENODATA ENOATTR
+#endif
+
 /******************************************************************************/
 /*                     E x t e r n a l   L i n k a g e s                      */
 /******************************************************************************/

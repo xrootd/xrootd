@@ -197,7 +197,7 @@ const char *XrdSfsNativeDirectory::nextEntry()
 
 // Read the next directory entry
 //
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    errno = 0;
    rp = readdir(dh);
    if (!rp)
