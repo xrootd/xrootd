@@ -255,6 +255,7 @@ namespace XrdCl
   DefaultEnv::DefaultEnv()
   {
     Log *log = GetLog();
+    log->Debug( UtilityMsg, "Initializing xrootd client version: %s", XrdVERSION );
 
     //--------------------------------------------------------------------------
     // Declate the variables to be processed
