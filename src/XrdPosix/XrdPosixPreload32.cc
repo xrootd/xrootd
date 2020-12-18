@@ -85,19 +85,29 @@ namespace {bool isLite = (getenv("XRD_POSIX_PRELOAD_LITE") != 0);}
 // making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
 #if !defined(__LP64__) && !defined(_LP64)
-#if !defined(__APPLE__) && !defined(SUNX86) && !defined(__FreeBSD__) && !defined(__GNU__) && !(defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+#if !defined(__APPLE__) && !defined(SUNX86) && !defined(__FreeBSD__) && !(defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
   int isdiff = (dent->d_name-(char *)dent) != (dent64->d_name-(char *)dent64);
 
+#if defined(__GNU__)
+  if (isdiff  &&  (dent64->d_ino & LLMask))
+#else
   if (isdiff  && ((dent64->d_ino & LLMask) || (dent64->d_off & LLMask)))
+#endif
      {errno = EOVERFLOW; return EOVERFLOW;}
 
   if (isdiff || (void *)dent != (void *)dent64)
      {dent->d_ino    = dent64->d_ino;
+#if !defined(__GNU__)
       dent->d_off    = dent64->d_off;
+#endif
       dent->d_reclen = dent64->d_reclen;
+      dent->d_type   = dent64->d_type;
+#if defined(__GNU__)
+      dent->d_namlen = dent64->d_namlen;
+#endif
       strcpy(dent->d_name, dent64->d_name);
      }
   return 0;
@@ -390,7 +400,7 @@ struct dirent* readdir(DIR *dirp)
    else
        if (!(dp64 = XrdPosix_Readdir64(dirp))) return 0;
 
-#if !defined(__APPLE__) && !defined(_LP64) && !defined(__LP64__) && !defined(__GNU__) && !(defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+#if !defined(__APPLE__) && !defined(_LP64) && !defined(__LP64__) && !(defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    if (XrdPosix_CopyDirent((struct dirent *)dp64, dp64)) return 0;
 #endif
 
@@ -409,7 +419,7 @@ extern "C"
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
    static int Init = Xunix.Init(&Init);
-#if defined(__APPLE__) || defined(__LP64__) || defined(_LP64) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
+#if defined(__APPLE__) || defined(__LP64__) || defined(_LP64) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    return XrdPosix_Readdir_r(dirp, entry, result);
 #else
    char buff[sizeof(struct dirent64) + 2048];
