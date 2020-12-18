@@ -417,7 +417,8 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'p': if ((clPort = yport(&Log, "tcp", optarg)) < 0) Usage(1);
                  break;
-       case 'P': dfltProt = optarg;
+       case 'P': if (dfltProt) free(dfltProt);
+                 dfltProt = strdup(optarg);
                  break;
        case 'R': if (!(getUG(optarg, myUid, myGid))) Usage(1);
                  rootChk = false;
@@ -1865,8 +1866,8 @@ int XrdConfig::yport(XrdSysError *eDest, const char *ptype, const char *val)
 int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 {
     XrdConfigProt *cpp;
-    char *val, *parms, *lib, proname[64], buff[1024];
-    int vlen, bleft = sizeof(buff), portnum = -1;
+    char *val, *parms, *lib, proname[64], buff[2048];
+    int portnum = -1;
     bool dotls = false;
 
     do {if (!(val = Config.GetWord()))
@@ -1884,24 +1885,28 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
     if (strcmp("*", val)) lib = strdup(val);
        else lib = 0;
 
-    parms = buff;
-    while((val = Config.GetWord()))
-         {vlen = strlen(val); bleft -= (vlen+1);
-          if (bleft <= 0)
-             {eDest->Emsg("Config", "Too many parms for protocol", proname);
-              return 1;
-             }
-          *parms = ' '; parms++; strcpy(parms, val); parms += vlen;
-         }
-    if (parms != buff) parms = strdup(buff+1);
-       else parms = 0;
-
     if ((val = index(proname, ':')))
        {if ((portnum = yport(&Log, "tcp", val+1)) < 0) return 1;
            else *val = '\0';
        } else {
         if (dotls && !PortTLS) PortTLS = -1;
        }
+
+// If no library was specified then this is a default protocol. We must make sure
+// sure it is consistent with whatever default we have.
+//
+   if (!lib && Firstcp && strcmp(proname, Firstcp->proname))
+      {eDest->Say("Config warning: the fixed protocol is '", Firstcp->proname,
+                  "' not '", proname, "'; protocol directive ignored!");
+       return 0;
+      }
+
+    *buff = 0;
+    if (!Config.GetRest(buff, sizeof(buff)))
+       {eDest->Emsg("Config", "Too many parms for protocol", proname);
+        return 1;
+       }
+    parms = (*buff ? strdup(buff) : 0);
 
     if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
@@ -1915,13 +1920,12 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
               }
           } while((cpp = cpp->Next));
 
-//  if (lib)
-       {cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum, dotls);
-        if (Lastcp) Lastcp->Next = cpp;
-           else    Firstcp = cpp;
-        Lastcp = cpp;
-       }
-
+    cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum, dotls);
+    if (!lib) {cpp->Next = Firstcp; Firstcp = cpp;}
+       else   {if (Lastcp) Lastcp->Next = cpp;
+                  else     Firstcp = cpp;
+               Lastcp = cpp;
+              }
     return 0;
 }
 
