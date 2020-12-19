@@ -66,6 +66,31 @@ namespace XrdZip
     }
 
     //-------------------------------------------------------------------------
+    //! Constructor from buffer
+    //-------------------------------------------------------------------------
+    LFH( const char *buffer )
+    {
+      // parse LFH filds
+      from_buffer( minZipVersion, buffer );
+      from_buffer( generalBitFlag, buffer );
+      from_buffer( compressionMethod, buffer );
+      from_buffer( timestmp, buffer );
+      from_buffer( ZCRC32, buffer );
+      from_buffer( compressedSize, buffer );
+      from_buffer( uncompressedSize, buffer );
+      from_buffer( filenameLength, buffer );
+      from_buffer( extraLength, buffer );
+      // parse the filename
+      filename.assign( buffer, filenameLength );
+      buffer += filenameLength;
+      // parse the extra record
+      if( extraLength > 0 )
+        ParseExtra( buffer, extraLength );
+
+      lfhSize = lfhBaseSize + filenameLength + extraLength;
+    }
+
+    //-------------------------------------------------------------------------
     //! Serialize the object into a buffer
     //-------------------------------------------------------------------------
     void Serialize( buffer_t &buffer )
@@ -83,6 +108,40 @@ namespace XrdZip
       copy_bytes( extraLength , buffer );
       std::copy( filename.begin(), filename.end(), std::back_inserter( buffer ) );
       extra->Serialize( buffer );
+    }
+
+    //-------------------------------------------------------------------------
+    // Parse the extensible data fields
+    //-------------------------------------------------------------------------
+    void ParseExtra( const char *buffer, uint16_t length)
+    {
+      uint8_t ovrflws = Extra::NONE;
+      uint16_t exsize = 0;
+
+      // check if compressed size is overflown
+      if( compressedSize == ovrflw<uint32_t>::value)
+      {
+        ovrflws |= Extra::CPMSIZE;
+        exsize  += sizeof( uint64_t );
+      }
+
+      // check if original size is overflown
+      if( uncompressedSize == ovrflw<uint32_t>::value )
+      {
+        ovrflws |= Extra::UCMPSIZE;
+        exsize  += sizeof( uint64_t );
+      }
+
+      // if the expected size of ZIP64 extension is 0 we
+      // can skip parsing of 'extra'
+      if( exsize == 0 ) return;
+
+      extra.reset( new Extra() );
+
+      // Parse the extra part
+      buffer = Extra::Find( buffer, length );
+      if( buffer )
+        extra->FromBuffer( buffer, exsize, ovrflws );
     }
 
     uint16_t               minZipVersion;      //< minimum ZIP version required to read the file
