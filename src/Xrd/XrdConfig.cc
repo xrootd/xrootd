@@ -1896,8 +1896,12 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 // sure it is consistent with whatever default we have.
 //
    if (!lib && Firstcp && strcmp(proname, Firstcp->proname))
-      {eDest->Say("Config warning: the fixed protocol is '", Firstcp->proname,
-                  "' not '", proname, "'; protocol directive ignored!");
+      {char eBuff[100];
+       snprintf(eBuff, sizeof(eBuff), "the %s protocol is '%s' not '%s';",
+                (Firstcp->libpath ? "assigned" : "builtin"),
+                 Firstcp->proname, proname);
+       eDest->Say("Config warning: ", eBuff, "the following protocol directive "
+                   "should be corrected or can be safely removed!");
        return 0;
       }
 
