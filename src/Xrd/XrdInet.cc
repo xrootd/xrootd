@@ -114,8 +114,8 @@ XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
       {eDest->Emsg("Accept", ENOMEM, "allocate new link for", myAddr.Name(unk));
        close(myAddr.SockFD());
       } else {
-       TRACE(NET, "Accepted connection from " <<myAddr.SockFD()
-                  <<'@' <<myAddr.Name(unk));
+       TRACE(NET, "Accepted connection on port " <<Portnum <<" from "
+                  <<myAddr.SockFD() <<'@' <<myAddr.Name(unk));
       }
 
 // All done
