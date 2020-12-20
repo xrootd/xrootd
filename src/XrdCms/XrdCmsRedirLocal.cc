@@ -67,7 +67,7 @@ void XrdCmsRedirLocal::loadConfig(const char *filename) {
     // which only allows read calls to be redirected to local
     if (strcmp(word, "xrdcmsredirlocal.readonlyredirect") == 0){
       std::string readWord = std::string(Config.GetWord(true));//to lower case
-      if (readWord.find("true") != string::npos){
+      if (readWord.find("true") != std::string::npos){
         readOnlyredirect = true;
       }
       else {
@@ -78,7 +78,7 @@ void XrdCmsRedirLocal::loadConfig(const char *filename) {
     // which allows http(s) calls to be redirected to local
     else if (strcmp(word, "xrdcmsredirlocal.httpredirect") == 0){
       std::string readWord = std::string(Config.GetWord(true));//to lower case
-      if(readWord.find("true") != string::npos){
+      if(readWord.find("true") != std::string::npos){
         httpRedirect = true;
       }
       else {
@@ -113,7 +113,7 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                         XrdOucEnv *EnvInfo) {
   int rcode = 0;
   if (nativeCmsFinder) {
-    string dialect = EnvInfo->secEnv()->addrInfo->Dialect();
+    std::string dialect = EnvInfo->secEnv()->addrInfo->Dialect();
     // get regular target host
     rcode = nativeCmsFinder->Locate(Resp, path, flags, EnvInfo);
 
@@ -167,16 +167,16 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
     int maxPathLength = 4096;
     char *buff = new char[maxPathLength];
     // prepend oss.localroot
-    const char *ppath = ("file://" + string(theSS->Lfn2Pfn(path, buff, maxPathLength, rc))).c_str();
+    std::string ppath = "file://" + std::string(theSS->Lfn2Pfn(path, buff, maxPathLength, rc));
     if (strncmp(dialect.c_str(), "http", 4) == 0)
     {
       // set info which will be sent to client
       // eliminate the resource name so it is not doubled in XrdHttpReq::Redir.
-      Resp.setErrInfo(-1, string(ppath).substr(0, string(ppath).find(path)).c_str());
+      Resp.setErrInfo(-1, ppath.substr(0, ppath.find(path)).c_str());
     }
     else{
       // set info which will be sent to client
-      Resp.setErrInfo(-1, ppath);
+      Resp.setErrInfo(-1, ppath.c_str());
     }
     delete[] buff;
     return SFS_REDIRECT;
