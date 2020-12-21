@@ -70,6 +70,10 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     LFH( const char *buffer )
     {
+      // check if the buffer contains a LFH record
+      uint32_t signature = 0;
+      from_buffer( signature, buffer );
+      if( signature != lfhSign ) throw bad_data();
       // parse LFH filds
       from_buffer( minZipVersion, buffer );
       from_buffer( generalBitFlag, buffer );
