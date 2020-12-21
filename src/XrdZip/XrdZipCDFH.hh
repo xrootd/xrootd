@@ -53,10 +53,22 @@ namespace XrdZip
   typedef std::unordered_map<std::string, size_t> cdmap_t;
 
   //---------------------------------------------------------------------------
+  // Map of Central Directory records
+  //---------------------------------------------------------------------------
+  typedef std::unordered_map<std::string, std::unique_ptr<CDFH>> cdrecs_t;
+
+  //---------------------------------------------------------------------------
   // A data structure representing the Central Directory File header record
   //---------------------------------------------------------------------------
   struct CDFH
   {
+    //-------------------------------------------------------------------------
+    // Parse central directory
+    // @param buffer      : buffer containing the CD records
+    // @param bufferSize  : size of the buffer
+    // @param nbCdRecords : nb of CD records
+    // @return            : vector of CD records / file name to index mapping
+    //-------------------------------------------------------------------------
     inline static std::tuple<cdvec_t, cdmap_t> Parse( const char *buffer, uint32_t bufferSize, uint16_t nbCdRecords )
     {
       uint32_t offset = 0;
@@ -79,6 +91,30 @@ namespace XrdZip
       }
 
       return std::make_tuple( std::move( cdvec ), std::move( cdmap ) );
+    }
+
+    //-------------------------------------------------------------------------
+    // Parse central directory
+    // @param buffer      : buffer containing the CD records
+    // @param bufferSize  : size of the buffer
+    // @return            : vector of CD records / file name to index mapping
+    //-------------------------------------------------------------------------
+    inline static void Parse( const char *buffer, uint32_t bufferSize, cdrecs_t &cdrecs )
+    {
+      uint32_t offset = 0;
+      while( bufferSize > 0 )
+      {
+        if( bufferSize < cdfhBaseSize ) throw bad_data();
+        // check the signature
+        uint32_t signature = to<uint32_t>( buffer + offset );
+        if( signature != cdfhSign ) throw bad_data();
+        // parse the record
+        std::unique_ptr<CDFH> cdfh( new CDFH( buffer + offset ) );
+        if( bufferSize < cdfh->cdfhSize ) throw bad_data();
+        offset     += cdfh->cdfhSize;
+        bufferSize -= cdfh->cdfhSize;
+        cdrecs[cdfh->filename] = std::move( cdfh );
+      }
     }
 
     //---------------------------------------------------------------------------
