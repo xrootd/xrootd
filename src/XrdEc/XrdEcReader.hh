@@ -19,7 +19,10 @@
 #include "XrdOuc/XrdOucCRC32C.hh"
 
 #include <string>
-#include <iostream>
+#include <tuple>
+#include <unordered_map>
+#include <algorithm>
+#include <iterator>
 
 namespace XrdEc
 {
@@ -107,7 +110,6 @@ namespace XrdEc
 
       bool ParseMetadata( XrdCl::ChunkInfo &ch )
       {
-        std::cout << __func__ << std::endl;
         const size_t mincnt = objcfg.nbdata + objcfg.nbparity;
         const size_t maxcnt = objcfg.plgr.size();
 
@@ -130,23 +132,26 @@ namespace XrdEc
           // verify the checksum
           uint32_t crc32val = crc32c( 0, buffer, lfh.uncompressedSize );
           if( crc32val != lfh.ZCRC32 ) return false;
+          XrdZip::cdrecs_t cdrecs;
           XrdZip::CDFH::Parse( buffer, lfh.uncompressedSize, cdrecs );
+          std::transform( cdrecs.begin(), cdrecs.end(),
+                          std::inserter( metadata, metadata.end() ),
+                          [&]( std::pair<const std::string, std::unique_ptr<XrdZip::CDFH>> &p )
+                          {
+                            return std::make_pair( p.first, std::make_tuple( lfh.filename, std::move( p.second ) ) );
+                          } );
           buffer += lfh.uncompressedSize;
           length -= lfh.uncompressedSize;
-        }
-
-        auto itr = cdrecs.begin();
-        for( ; itr != cdrecs.end() ; ++itr )
-        {
-          std::cout << itr->first << " : " << itr->second.get()->filename << std::endl;
         }
 
         return true;
       }
 
+      typedef std::unordered_map<std::string, std::tuple<std::string, std::unique_ptr<XrdZip::CDFH>>> metadata_t;
+
       ObjCfg &objcfg;
       std::vector<std::shared_ptr<XrdCl::File>>  dataarchs;
-      XrdZip::cdrecs_t cdrecs;
+      metadata_t metadata;
   };
 
 } /* namespace XrdEc */
