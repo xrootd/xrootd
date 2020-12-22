@@ -1896,13 +1896,24 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 // sure it is consistent with whatever default we have.
 //
    if (!lib && Firstcp && strcmp(proname, Firstcp->proname))
-      {char eBuff[100];
+      {const char *eTxt;
+       char eBuff[104], fBuff[256];
+       XrdOucString protx(Firstcp->proname);
+       bool doRet = true;
+       protx += 'd';
+       if (protx == proname)
+          {snprintf(fBuff, sizeof(fBuff), "assuming you meant '%s' but please "
+                    "correct the following directive!", Firstcp->proname);
+           eTxt = fBuff;
+           doRet = false;
+          } else eTxt = "the following protocol directive should be corrected!";
+
        snprintf(eBuff, sizeof(eBuff), "the %s protocol is '%s' not '%s';",
                 (Firstcp->libpath ? "assigned" : "builtin"),
                  Firstcp->proname, proname);
-       eDest->Say("Config warning: ", eBuff, "the following protocol directive "
-                   "should be corrected or can be safely removed!");
-       return 0;
+       if (doRet) {eDest->Emsg("Config", eBuff, eTxt); return 1;}
+       eDest->Say("Config warning: ", eBuff, " ", eTxt);
+       snprintf(proname, sizeof(proname), "%s", Firstcp->proname);
       }
 
     *buff = 0;
