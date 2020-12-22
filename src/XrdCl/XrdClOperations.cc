@@ -69,6 +69,11 @@ namespace
 
     XrdCl::Pipeline pipeline;
   };
+
+  //----------------------------------------------------------------------------
+  //! An exception type used to ignore a failed operation
+  //----------------------------------------------------------------------------
+  struct IgnoreError { };
 }
 
 namespace XrdCl
@@ -140,6 +145,10 @@ namespace XrdCl
         Operation<true> *opr = p.operation.release();
         opr->Run( timeout, std::move( prms ), std::move( final ) );
         return;
+      }
+      catch( const IgnoreError &ignore )
+      {
+        st = XRootDStatus();
       }
     }
     else
@@ -232,6 +241,14 @@ namespace XrdCl
   void Pipeline::Replace( Pipeline p )
   {
     throw ReplacePipeline( std::move( p ) );
+  }
+
+  //------------------------------------------------------------------------
+  // Ignore error and proceed with the pipeline
+  //------------------------------------------------------------------------
+  void Pipeline::Ignore()
+  {
+    throw IgnoreError();
   }
 }
 
