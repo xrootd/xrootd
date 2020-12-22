@@ -92,11 +92,11 @@ function checkSanity()
     chown $XROOTD_USER:$XROOTD_GROUP -R /var/spool/xrootd
   fi
 
-  mkdir -p /var/run/xrootd
-  chown $XROOTD_USER:$XROOTD_GROUP -R /var/run/xrootd
-  checkDirectory /var/run/xrootd $XROOTD_USER $XROOTD_GROUP
+  mkdir -p /run/xrootd
+  chown $XROOTD_USER:$XROOTD_GROUP -R /run/xrootd
+  checkDirectory /run/xrootd $XROOTD_USER $XROOTD_GROUP
   if test $? -ne 0; then
-    chown $XROOTD_USER:$XROOTD_GROUP -R /var/run/xrootd
+    chown $XROOTD_USER:$XROOTD_GROUP -R /run/xrootd
   fi
 }
 
@@ -111,7 +111,7 @@ function startDaemon()
   XROOTD_USER=$3
   XROOTD_GROUP=$4
   INSTANCE=$5
-  PIDFILE="/var/run/xrootd/$DAEMON-$INSTANCE.pid"
+  PIDFILE="/run/xrootd/$DAEMON-$INSTANCE.pid"
 
   # check sanity of the installation
   checkSanity $XROOTD_USER $XROOTD_GROUP
@@ -140,7 +140,7 @@ function startDaemon()
 function stopDaemon()
 {
   echo -n "Shutting down xrootd ($1, $5): "
-  PIDFILE="/var/run/xrootd/$1-$5.pid"
+  PIDFILE="/run/xrootd/$1-$5.pid"
 
   if test -r "$PIDFILE"; then
     PID=`cat "$PIDFILE"`
@@ -164,7 +164,7 @@ function stopDaemon()
 #-------------------------------------------------------------------------------
 function statusOfTheDaemon()
 {
-  PIDFILE="/var/run/xrootd/$1-$5.pid"
+  PIDFILE="/run/xrootd/$1-$5.pid"
   echo -n "[$5] "
 
   if test -r "$PIDFILE"; then

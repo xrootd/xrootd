@@ -31,8 +31,8 @@ popd
 rpmbuild --define '_topdir /tmp/rpmbuild' -ba /tmp/rpmbuild/SPECS/xrootd-scitokens.spec
 
 # After building the RPM, try to install it
-# Fix the lock file error on EL7.  /var/lock is a symlink to /var/run/lock
-mkdir -p /var/run/lock
+# Fix the lock file error on EL7.  /var/lock is a symlink to /run/lock
+mkdir -p /run/lock
 
 RPM_LOCATION=/tmp/rpmbuild/RPMS/x86_64
 

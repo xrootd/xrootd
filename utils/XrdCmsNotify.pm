@@ -167,9 +167,9 @@ sub getConfig {my($iname) = @_;
 # Construct possible pid paths
 #
   if ($iname eq '')
-     {$pp1 = '/tmp/cmsd.pid'; $pp2 = '/var/run/cmsd/cmsd.pid';}
+     {$pp1 = '/tmp/cmsd.pid'; $pp2 = '/run/cmsd/cmsd.pid';}
      else
-     {$pp1 = "/tmp/$iname/cmsd.pid"; $pp2 = "/var/run/cmsd/$iname/cmsd.pid";}
+     {$pp1 = "/tmp/$iname/cmsd.pid"; $pp2 = "/run/cmsd/$iname/cmsd.pid";}
 
 # We will look for the pid file in one of two locations
 #

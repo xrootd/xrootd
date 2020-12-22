@@ -6,7 +6,7 @@ Requires=network-online.target
 After=network-online.target
 
 [Service]
-ExecStart=/usr/bin/cmsd -l /var/log/xrootd/cmsd.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /var/run/xrootd/cmsd-%i.pid -n %i
+ExecStart=/usr/bin/cmsd -l /var/log/xrootd/cmsd.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /run/xrootd/cmsd-%i.pid -n %i
 User=xrootd
 Group=xrootd
 Type=simple
