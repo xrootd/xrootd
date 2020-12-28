@@ -70,11 +70,23 @@ namespace XrdCl
                              uint64_t            size  = 0,
                              uint32_t            crc32 = 0 );
 
+      inline
       XRootDStatus Read( uint64_t         offset,
                          uint32_t         size,
                          void            *buffer,
                          ResponseHandler *handler,
-                         uint16_t         timeout = 0 );
+                         uint16_t         timeout = 0 )
+      {
+        if( openfn.empty() ) return XRootDStatus( stError, errInvalidOp );
+        return ReadFrom( openfn, offset, size, buffer, handler, timeout );
+      }
+
+      XRootDStatus ReadFrom( const std::string &fn,
+                             uint64_t           offset,
+                             uint32_t           size,
+                             void              *buffer,
+                             ResponseHandler   *handler,
+                             uint16_t           timeout = 0 );
 
       XRootDStatus Write( uint32_t          size,
                           const void       *buffer,

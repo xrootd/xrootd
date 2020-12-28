@@ -316,17 +316,17 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  XRootDStatus ZipArchive::Read( uint64_t         relativeOffset,
-                              uint32_t         size,
-                              void            *usrbuff,
-                              ResponseHandler *usrHandler,
-                              uint16_t         timeout )
+  XRootDStatus ZipArchive::ReadFrom( const std::string &fn,
+                                     uint64_t           relativeOffset,
+                                     uint32_t           size,
+                                     void              *usrbuff,
+                                     ResponseHandler   *usrHandler,
+                                     uint16_t           timeout )
   {
-    if( openstage != Done || openfn.empty() )
-      return XRootDStatus( stError, errInvalidOp,
-                           errInvalidOp, "Archive not opened." );
+    if( openstage != Done || !archive.IsOpen() )
+      return XRootDStatus( stError, errInvalidOp );
 
-    auto cditr = cdmap.find( openfn );
+    auto cditr = cdmap.find( fn );
     if( cditr == cdmap.end() )
       return XRootDStatus( stError, errNotFound,
                            errNotFound, "File not found." );
@@ -358,10 +358,10 @@ namespace XrdCl
     if( cdfh->compressionMethod == Z_DEFLATED )
     {
       // check if respective ZIP cache exists
-      bool empty = zipcache.find( openfn ) == zipcache.end();
+      bool empty = zipcache.find( fn ) == zipcache.end();
       // if the entry does not exist, it will be created using
       // default constructor
-      ZipCache &cache = zipcache[openfn];
+      ZipCache &cache = zipcache[fn];
       // if we have the whole ZIP archive we can populate the cache
       // straight away
       if( empty && buffer)
