@@ -23,12 +23,104 @@
 #include <unordered_map>
 #include <algorithm>
 #include <iterator>
+#include <list>
 
 namespace XrdEc
 {
 
   class Reader
   {
+    //-------------------------------------------------------------------------
+    // Buffer for a single chunk of data
+    //-------------------------------------------------------------------------
+    typedef std::vector<char> buffer_t;
+    //-------------------------------------------------------------------------
+    // Read callback, to be called with status and number of bytes read
+    //-------------------------------------------------------------------------
+    typedef std::function<void( const XrdCl::XRootDStatus&, buffer_t&& )> callback_t;
+
+    struct CacheEntry
+    {
+      CacheEntry( ObjCfg &objcfg ) : objcfg( objcfg ), evict( false ), blknb( 0 ), strpnb( 0 ), state( Empty )
+      {
+      }
+
+      void Read( size_t                                             offset,
+                 size_t                                             size,
+                 char                                              *usrbuff,
+                 std::function<void( const XrdCl::XRootDStatus& )>  callback )
+      {
+        std::unique_lock<std::mutex> lck( mtx );
+        if( state != Valid )
+        {
+          callbacks.emplace_back( offset, size, usrbuff, std::move( callback ) );
+          return;
+        }
+        // if there was an error, forward it to the callback
+        if( !status.IsOK() )
+        {
+          lck.unlock();
+          callback( status );
+          return;
+        }
+        // otherwise copy the data into user buffer
+        memcpy( usrbuff, buffer.data() + offset, size );
+        lck.unlock();
+        callback( status );
+      }
+
+      void Load( size_t blknb, size_t strpnb )
+      {
+        std::unique_lock<std::mutex> lck( mtx );
+        if( state != Empty ) return;
+        this->blknb  = blknb;
+        this->strpnb = strpnb;
+        // TODO load the data from remote endpoint and verify integrity
+        //      if necessary run recovery
+
+      }
+
+      enum state_t { Empty = 0, Loading, Valid };
+
+
+      typedef std::function<void( const XrdCl::XRootDStatus& )> callback_t;
+      typedef std::tuple<size_t, size_t, char*, callback_t>     args_t;
+
+      ObjCfg             &objcfg;
+      buffer_t            buffer;
+      bool                evict;
+      size_t              blknb;
+      size_t              strpnb;
+      state_t             state;
+      XrdCl::XRootDStatus status;
+      std::list<args_t>   callbacks;
+      std::mutex          mtx;
+    };
+
+
+    struct ReadCache
+    {
+      ReadCache( ObjCfg &objcfg ): objcfg( objcfg ) { }
+
+//      CacheEntry& Get( size_t blknb, size_t strpnb )
+//      {
+//        auto itr = cache.find( blknb );
+//        if( itr == cache.end() )
+//        {
+//          itr = cache.emplace( blknb ).first;
+//          itr->second.resize( objcfg.nbchunks, objcfg );
+//        }
+//        std::vector<CacheEntry> &block = itr->second;
+//        block[strpnb].Load( blknb, strpnb );
+//        return block[strpnb];
+//      }
+
+      typedef std::unordered_map<size_t, std::vector<CacheEntry>> cache_t;
+
+      ObjCfg  &objcfg;
+      cache_t  cache;
+    };
+
     public:
       Reader( ObjCfg &objcfg ) : objcfg( objcfg )
       {
@@ -43,18 +135,47 @@ namespace XrdEc
         const size_t size = objcfg.plgr.size();
         std::vector<XrdCl::Pipeline> opens; opens.reserve( size );
         for( size_t i = 0; i < size; ++i )
-        { // create the file object
-          dataarchs.emplace_back( std::make_shared<XrdCl::File>() );
-          // open the archive
+        {
+          // generate the URL
           std::string url = objcfg.plgr[i] + objcfg.obj + ".zip";
-          opens.emplace_back( XrdCl::Open( *dataarchs[i], url, XrdCl::OpenFlags::Read ) );
+          // create the file object
+          dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>() );
+          // open the archive
+          opens.emplace_back( XrdCl::OpenOnly( *dataarchs[url], url ) );
         }
         // in parallel open the data files and read the metadata
-        XrdCl::Pipeline p = XrdCl::Parallel( ReadMetadata( 0 ), XrdCl::Parallel( opens ) ) >> handler;
+        XrdCl::Pipeline p = XrdCl::Parallel( ReadMetadata( 0 ), XrdCl::Parallel( opens ) ) >>
+                              [=]( XrdCl::XRootDStatus &st )
+                              { // set the central directories in ZIP archives
+                                auto itr = dataarchs.begin();
+                                for( ; itr != dataarchs.end() ; ++itr )
+                                {
+                                  const std::string &url    = itr->first;
+                                  auto              &zipptr = itr->second;
+                                  if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
+                                    zipptr->SetCD( std::move( metadata[url] ) );
+                                }
+                                metadata.clear();
+                                // call user handler
+                                if( handler )
+                                  handler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                              };
         XrdCl::Async( std::move( p ) );
       }
 
+      void Read( uint64_t offset, uint32_t length, void *buffer, XrdCl::ResponseHandler *handler )
+      {
+        // TODO
+      }
+
     private:
+
+      void Read( size_t blknb, size_t strpnb, callback_t cb )
+      {
+        std::shared_ptr<buffer_t> buffptr = std::make_shared<buffer_t>();
+        std::string fn; // TODO generate file name
+
+      }
 
       XrdCl::Pipeline ReadMetadata( size_t index )
       {
@@ -132,14 +253,12 @@ namespace XrdEc
           // verify the checksum
           uint32_t crc32val = crc32c( 0, buffer, lfh.uncompressedSize );
           if( crc32val != lfh.ZCRC32 ) return false;
-          XrdZip::cdrecs_t cdrecs;
-          XrdZip::CDFH::Parse( buffer, lfh.uncompressedSize, cdrecs );
-          std::transform( cdrecs.begin(), cdrecs.end(),
-                          std::inserter( metadata, metadata.end() ),
-                          [&]( std::pair<const std::string, std::unique_ptr<XrdZip::CDFH>> &p )
-                          {
-                            return std::make_pair( p.first, std::make_tuple( lfh.filename, std::move( p.second ) ) );
-                          } );
+          // parse the central directory
+          metadata.emplace( lfh.filename, XrdZip::CDFH::Parse( buffer, lfh.uncompressedSize ) );
+          XrdZip::cdmap_t &cdmap = std::get<1>( metadata[lfh.filename] );
+          auto itr = cdmap.begin();
+          for( ; itr != cdmap.end() ; ++itr )
+            urlmap.emplace( itr->first, lfh.filename );
           buffer += lfh.uncompressedSize;
           length -= lfh.uncompressedSize;
         }
@@ -147,11 +266,14 @@ namespace XrdEc
         return true;
       }
 
-      typedef std::unordered_map<std::string, std::tuple<std::string, std::unique_ptr<XrdZip::CDFH>>> metadata_t;
+      typedef std::unordered_map<std::string, std::shared_ptr<XrdCl::ZipArchive>> dataarchs_t;
+      typedef std::unordered_map<std::string, std::tuple<XrdZip::cdvec_t, XrdZip::cdmap_t>> metadata_t;
+      typedef std::unordered_map<std::string, std::string> urlmap_t;
 
-      ObjCfg &objcfg;
-      std::vector<std::shared_ptr<XrdCl::File>>  dataarchs;
-      metadata_t metadata;
+      ObjCfg      &objcfg;
+      dataarchs_t  dataarchs; //> map URL to ZipArchive object
+      metadata_t   metadata;  //> map URL to CD metadata
+      urlmap_t     urlmap;    //> map blknb/strpnb (data chunk) to URL
   };
 
 } /* namespace XrdEc */

@@ -44,7 +44,7 @@
 //-----------------------------------------------------------------------------
 // Forward declaration needed for friendship
 //-----------------------------------------------------------------------------
-namespace XrdEc{ class StrmWriter; };
+namespace XrdEc{ class StrmWriter; class Reader; };
 
 namespace XrdCl
 {
@@ -54,6 +54,7 @@ namespace XrdCl
   class ZipArchive
   {
     friend class XrdEc::StrmWriter;
+    friend class XrdEc::Reader;
 
     public:
 
@@ -61,7 +62,6 @@ namespace XrdCl
       virtual ~ZipArchive();
 
       XRootDStatus OpenOnly( const std::string  &url,
-                             OpenFlags::Flags    flags,
                              ResponseHandler    *handler,
                              uint16_t            timeout = 0 );
 
@@ -123,6 +123,15 @@ namespace XrdCl
       XRootDStatus List( DirectoryList *&list );
 
     private:
+
+
+      inline void SetCD( std::tuple<cdvec_t, cdmap_t> &&tpl )
+      {
+        this->cdvec = std::move( std::get<0>( tpl ) );
+        this->cdmap = std::move( std::get<1>( tpl ) );
+        openstage   = Done;
+        cdexists    = true;
+      }
 
       inline buffer_t GetCD()
       {

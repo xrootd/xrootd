@@ -99,22 +99,27 @@ namespace XrdZip
     // @param bufferSize  : size of the buffer
     // @return            : vector of CD records / file name to index mapping
     //-------------------------------------------------------------------------
-    inline static void Parse( const char *buffer, uint32_t bufferSize, cdrecs_t &cdrecs )
+    inline static std::tuple<cdvec_t, cdmap_t> Parse( const char *buffer, uint32_t bufferSize )
     {
-      uint32_t offset = 0;
+      cdvec_t cdvec;
+      cdmap_t cdmap;
+      size_t i = 0;
       while( bufferSize > 0 )
       {
         if( bufferSize < cdfhBaseSize ) throw bad_data();
         // check the signature
-        uint32_t signature = to<uint32_t>( buffer + offset );
+        uint32_t signature = to<uint32_t>( buffer );
         if( signature != cdfhSign ) throw bad_data();
         // parse the record
-        std::unique_ptr<CDFH> cdfh( new CDFH( buffer + offset ) );
+        std::unique_ptr<CDFH> cdfh( new CDFH( buffer ) );
         if( bufferSize < cdfh->cdfhSize ) throw bad_data();
-        offset     += cdfh->cdfhSize;
+        buffer     += cdfh->cdfhSize;
         bufferSize -= cdfh->cdfhSize;
-        cdrecs[cdfh->filename] = std::move( cdfh );
+        cdmap[cdfh->filename] = i++;
+        cdvec.push_back( std::move( cdfh ) );
       }
+
+      return std::make_tuple( std::move( cdvec ), std::move( cdmap ) );
     }
 
     //---------------------------------------------------------------------------

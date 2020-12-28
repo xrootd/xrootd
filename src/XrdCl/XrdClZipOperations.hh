@@ -133,20 +133,19 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class OpenOnlyImpl: public ZipOperation<OpenOnlyImpl, HasHndl, Resp<void>,
-      Arg<std::string>, Arg<OpenFlags::Flags>>
+      Arg<std::string>>
   {
     public:
 
       //------------------------------------------------------------------------
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
-      using ZipOperation<OpenOnlyImpl, HasHndl, Resp<void>, Arg<std::string>,
-                          Arg<OpenFlags::Flags>>::ZipOperation;
+      using ZipOperation<OpenOnlyImpl, HasHndl, Resp<void>, Arg<std::string>>::ZipOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      enum { UrlArg, FlagsArg };
+      enum { UrlArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -168,10 +167,9 @@ namespace XrdCl
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         std::string      url     = std::get<UrlArg>( this->args ).Get();
-        OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
         uint16_t         timeout = pipelineTimeout < this->timeout ?
                                    pipelineTimeout : this->timeout;
-        return this->zip->OpenOnly( url, flags, handler, timeout );
+        return this->zip->OpenOnly( url, handler, timeout );
       }
   };
 
@@ -179,10 +177,9 @@ namespace XrdCl
   //! Factory for creating OpenArchiveImpl objects
   //----------------------------------------------------------------------------
   inline OpenOnlyImpl<false> OpenOnly( Ctx<ZipArchive> zip, Arg<std::string> fn,
-      Arg<OpenFlags::Flags> flags, uint16_t timeout = 0 )
+                                       uint16_t timeout = 0 )
   {
-    return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ),
-                                   std::move( flags ) ).Timeout( timeout );
+    return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ) ).Timeout( timeout );
   }
 
 
