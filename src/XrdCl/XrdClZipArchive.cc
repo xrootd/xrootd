@@ -48,6 +48,25 @@ namespace XrdCl
   {
   }
 
+  XRootDStatus ZipArchive::OpenOnly( const std::string  &url,
+                                     OpenFlags::Flags    flags,
+                                     ResponseHandler    *handler,
+                                     uint16_t            timeout )
+  {
+    Pipeline open_only = XrdCl::Open( archive, url, flags ) >>
+                           [=]( XRootDStatus &status, StatInfo &info )
+                           {
+                             // check the status is OK
+                             if( !status.IsOK() ) return;
+
+                             archsize  = info.GetSize();
+                             openstage = NotParsed;
+                           };
+
+    Async( std::move( open_only ), timeout );
+    return XRootDStatus();
+  }
+
   XRootDStatus ZipArchive::OpenArchive( const std::string  &url,
                                         OpenFlags::Flags    flags,
                                         ResponseHandler    *handler,
@@ -218,7 +237,6 @@ namespace XrdCl
                                 if( handler )
                                   handler->HandleResponse( make_status( status ), nullptr );
                               } );
-
 
     Async( std::move( open_archive ), timeout );
     return XRootDStatus();

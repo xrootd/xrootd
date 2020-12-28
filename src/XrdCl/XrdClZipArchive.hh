@@ -60,6 +60,11 @@ namespace XrdCl
       ZipArchive();
       virtual ~ZipArchive();
 
+      XRootDStatus OpenOnly( const std::string  &url,
+                             OpenFlags::Flags    flags,
+                             ResponseHandler    *handler,
+                             uint16_t            timeout = 0 );
+
       XRootDStatus OpenArchive( const std::string  &url,
                                 OpenFlags::Flags    flags,
                                 ResponseHandler    *handler,
@@ -221,7 +226,8 @@ namespace XrdCl
         HaveZip64EocdBlk,
         HaveCdRecords,
         Done,
-        Error
+        Error,
+        NotParsed
       };
 
       typedef std::unordered_map<std::string, ZipCache> zipcache_t;

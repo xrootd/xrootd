@@ -129,6 +129,64 @@ namespace XrdCl
 
 
   //----------------------------------------------------------------------------
+  //! OpenOnly operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class OpenOnlyImpl: public ZipOperation<OpenOnlyImpl, HasHndl, Resp<void>,
+      Arg<std::string>, Arg<OpenFlags::Flags>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<OpenOnlyImpl, HasHndl, Resp<void>, Arg<std::string>,
+                          Arg<OpenFlags::Flags>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { UrlArg, FlagsArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "OpenOnly";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        std::string      url     = std::get<UrlArg>( this->args ).Get();
+        OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
+        uint16_t         timeout = pipelineTimeout < this->timeout ?
+                                   pipelineTimeout : this->timeout;
+        return this->zip->OpenOnly( url, flags, handler, timeout );
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating OpenArchiveImpl objects
+  //----------------------------------------------------------------------------
+  inline OpenOnlyImpl<false> OpenOnly( Ctx<ZipArchive> zip, Arg<std::string> fn,
+      Arg<OpenFlags::Flags> flags, uint16_t timeout = 0 )
+  {
+    return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ),
+                                   std::move( flags ) ).Timeout( timeout );
+  }
+
+
+  //----------------------------------------------------------------------------
   //! OpenFile operation (@see ZipOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
