@@ -229,9 +229,29 @@ namespace XrdEc
 
       void Read( size_t blknb, size_t strpnb, callback_t cb )
       {
-        std::shared_ptr<buffer_t> buffptr = std::make_shared<buffer_t>();
-        std::string fn; // TODO generate file name
-
+        // generate the file name (blknb/strpnb)
+        std::string fn = objcfg.obj + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
+        // if the block/stripe does not exist it means we are reading passed the end of the file
+        auto itr = urlmap.find( fn );
+        if( itr == urlmap.end() ) return cb( XrdCl::XRootDStatus(), buffer_t() );
+        // get the URL of the ZIP archive with the respective data
+        const std::string &url = itr->second;
+        // get the ZipArchive object
+        auto &zipptr = dataarchs[url];
+        // check the size of the data to be read
+        XrdCl::StatInfo *info = nullptr;
+        auto st = zipptr->Stat( fn, info );
+        if( !st.IsOK() ) return cb( st, buffer_t() );
+        uint32_t rdsize = info->GetSize();
+        delete info;
+        // create a buffer for the data
+        auto rdbuff = std::make_shared<buffer_t>( rdsize, 0 );
+        // issue the read request
+        XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, rdsize, rdbuff->data() ) >>
+                        [cb, rdbuff]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
+                        {
+                          cb( st, std::move( *rdbuff ) );
+                        } );
       }
 
       XrdCl::Pipeline ReadMetadata( size_t index )

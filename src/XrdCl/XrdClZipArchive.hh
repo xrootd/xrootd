@@ -94,13 +94,24 @@ namespace XrdCl
                           ResponseHandler  *handler,
                           uint16_t          timeout = 0 );
 
+      inline XRootDStatus Stat( const std::string &fn, StatInfo *&info )
+      { // make sure archive has been opened and CD has been parsed
+        if( openstage != Done )
+          return XRootDStatus( stError, errInvalidOp );
+        // make sure the file is part of the archive
+        auto cditr = cdmap.find( fn );
+        if( cditr == cdmap.end() )
+          return XRootDStatus( stError, errNotFound );
+        // create the result
+        info = make_stat( fn );
+        return XRootDStatus();
+      }
+
       inline XRootDStatus Stat( StatInfo *&info )
       {
-        if( openstage != Done || openfn.empty() )
-          return XRootDStatus( stError, errInvalidOp,
-                               errInvalidOp, "Archive not opened." );
-        info = make_stat( openfn );
-        return XRootDStatus();
+        if( openfn.empty() )
+          return XRootDStatus( stError, errInvalidOp );
+        return Stat( openfn, info );
       }
 
       XRootDStatus CloseArchive( ResponseHandler *handler,
