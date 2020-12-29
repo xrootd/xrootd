@@ -85,7 +85,7 @@ using namespace XrdGlobal;
    if (hastls)
       {myProt[j++] = -1;
        for (int i = 0; i < ProtoCnt; i++)
-           {if (myPort == ProtPort[i]) myProt[j++] = i;}
+           {if (myPort == ProtPort[i] && ProtoTLS[i]) myProt[j++] = i;}
       }
 
 // Put in an end marker
