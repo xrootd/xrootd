@@ -61,10 +61,6 @@ namespace XrdCl
       ZipArchive();
       virtual ~ZipArchive();
 
-      XRootDStatus OpenOnly( const std::string  &url,
-                             ResponseHandler    *handler,
-                             uint16_t            timeout = 0 );
-
       XRootDStatus OpenArchive( const std::string  &url,
                                 OpenFlags::Flags    flags,
                                 ResponseHandler    *handler,
@@ -124,6 +120,9 @@ namespace XrdCl
 
     private:
 
+      XRootDStatus OpenOnly( const std::string  &url,
+                             ResponseHandler    *handler,
+                             uint16_t            timeout = 0 );
 
       inline void SetCD( std::tuple<cdvec_t, cdmap_t> &&tpl )
       {

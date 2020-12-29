@@ -129,61 +129,6 @@ namespace XrdCl
 
 
   //----------------------------------------------------------------------------
-  //! OpenOnly operation (@see ZipOperation)
-  //----------------------------------------------------------------------------
-  template<bool HasHndl>
-  class OpenOnlyImpl: public ZipOperation<OpenOnlyImpl, HasHndl, Resp<void>,
-      Arg<std::string>>
-  {
-    public:
-
-      //------------------------------------------------------------------------
-      //! Inherit constructors from FileOperation (@see FileOperation)
-      //------------------------------------------------------------------------
-      using ZipOperation<OpenOnlyImpl, HasHndl, Resp<void>, Arg<std::string>>::ZipOperation;
-
-      //------------------------------------------------------------------------
-      //! Argument indexes in the args tuple
-      //------------------------------------------------------------------------
-      enum { UrlArg };
-
-      //------------------------------------------------------------------------
-      //! @return : name of the operation (@see Operation)
-      //------------------------------------------------------------------------
-      std::string ToString()
-      {
-        return "OpenOnly";
-      }
-
-    protected:
-
-      //------------------------------------------------------------------------
-      //! RunImpl operation (@see Operation)
-      //!
-      //! @param params :  container with parameters forwarded from
-      //!                  previous operation
-      //! @return       :  status of the operation
-      //------------------------------------------------------------------------
-      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
-      {
-        std::string      url     = std::get<UrlArg>( this->args ).Get();
-        uint16_t         timeout = pipelineTimeout < this->timeout ?
-                                   pipelineTimeout : this->timeout;
-        return this->zip->OpenOnly( url, handler, timeout );
-      }
-  };
-
-  //----------------------------------------------------------------------------
-  //! Factory for creating OpenArchiveImpl objects
-  //----------------------------------------------------------------------------
-  inline OpenOnlyImpl<false> OpenOnly( Ctx<ZipArchive> zip, Arg<std::string> fn,
-                                       uint16_t timeout = 0 )
-  {
-    return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ) ).Timeout( timeout );
-  }
-
-
-  //----------------------------------------------------------------------------
   //! OpenFile operation (@see ZipOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
@@ -301,6 +246,65 @@ namespace XrdCl
   {
     return ZipReadImpl<false>( std::move( zip ), std::move( offset ), std::move( size ),
                                std::move( buffer ) ).Timeout( timeout );
+  }
+  //----------------------------------------------------------------------------
+  //! Read operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class ZipReadFromImpl: public ZipOperation<ZipReadFromImpl, HasHndl, Resp<ChunkInfo>,
+      Arg<std::string>, Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<ZipReadFromImpl, HasHndl, Resp<ChunkInfo>, Arg<std::string>,
+          Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { FileNameArg, OffsetArg, SizeArg, BufferArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ZipReadFrom";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        std::string  fn = std::get<FileNameArg>( this->args ).Get();
+        uint64_t     offset  = std::get<OffsetArg>( this->args ).Get();
+        uint32_t     size    = std::get<SizeArg>( this->args ).Get();
+        void        *buffer  = std::get<BufferArg>( this->args ).Get();
+        uint16_t     timeout = pipelineTimeout < this->timeout ?
+                            pipelineTimeout : this->timeout;
+        return this->zip->ReadFrom( fn, offset, size, buffer, handler, timeout );
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ArchiveReadImpl objects
+  //----------------------------------------------------------------------------
+  inline ZipReadFromImpl<false> ReadFrom( Ctx<ZipArchive> zip, Arg<std::string> fn,
+                                  Arg<uint64_t> offset, Arg<uint32_t> size,
+                                  Arg<void*> buffer, uint16_t timeout = 0 )
+  {
+    return ZipReadFromImpl<false>( std::move( zip ), std::move( fn ), std::move( offset ),
+                                   std::move( size ), std::move( buffer ) ).Timeout( timeout );
   }
 
 

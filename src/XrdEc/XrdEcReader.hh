@@ -30,6 +30,63 @@ namespace XrdEc
 
   class Reader
   {
+    //----------------------------------------------------------------------------
+    //! OpenOnly operation (@see ZipOperation) - a private ZIP operation
+    //----------------------------------------------------------------------------
+    template<bool HasHndl>
+    class OpenOnlyImpl: public XrdCl::ZipOperation<OpenOnlyImpl, HasHndl,
+        XrdCl::Resp<void>, XrdCl::Arg<std::string>>
+    {
+      public:
+
+        //------------------------------------------------------------------------
+        //! Inherit constructors from FileOperation (@see FileOperation)
+        //------------------------------------------------------------------------
+        using XrdCl::ZipOperation<OpenOnlyImpl, HasHndl, XrdCl::Resp<void>,
+            XrdCl::Arg<std::string>>::ZipOperation;
+
+        //------------------------------------------------------------------------
+        //! Argument indexes in the args tuple
+        //------------------------------------------------------------------------
+        enum { UrlArg };
+
+        //------------------------------------------------------------------------
+        //! @return : name of the operation (@see Operation)
+        //------------------------------------------------------------------------
+        std::string ToString()
+        {
+          return "OpenOnly";
+        }
+
+      protected:
+
+        //------------------------------------------------------------------------
+        //! RunImpl operation (@see Operation)
+        //!
+        //! @param params :  container with parameters forwarded from
+        //!                  previous operation
+        //! @return       :  status of the operation
+        //------------------------------------------------------------------------
+        XrdCl::XRootDStatus RunImpl( XrdCl::PipelineHandler *handler,
+                                     uint16_t                pipelineTimeout )
+        {
+          std::string      url     = std::get<UrlArg>( this->args ).Get();
+          uint16_t         timeout = pipelineTimeout < this->timeout ?
+                                     pipelineTimeout : this->timeout;
+          return this->zip->OpenOnly( url, handler, timeout );
+        }
+    };
+
+    //----------------------------------------------------------------------------
+    //! Factory for creating OpenArchiveImpl objects
+    //----------------------------------------------------------------------------
+    inline OpenOnlyImpl<false> OpenOnly( XrdCl::Ctx<XrdCl::ZipArchive> zip,
+                                         XrdCl::Arg<std::string>       fn,
+                                         uint16_t                      timeout = 0 )
+    {
+      return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ) ).Timeout( timeout );
+    }
+
     //-------------------------------------------------------------------------
     // Buffer for a single chunk of data
     //-------------------------------------------------------------------------
@@ -141,7 +198,7 @@ namespace XrdEc
           // create the file object
           dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>() );
           // open the archive
-          opens.emplace_back( XrdCl::OpenOnly( *dataarchs[url], url ) );
+          opens.emplace_back( OpenOnly( *dataarchs[url], url ) );
         }
         // in parallel open the data files and read the metadata
         XrdCl::Pipeline p = XrdCl::Parallel( ReadMetadata( 0 ), XrdCl::Parallel( opens ) ) >>
