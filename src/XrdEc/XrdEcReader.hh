@@ -299,8 +299,11 @@ namespace XrdEc
                  [=]( const XrdCl::XRootDStatus& )
                  {
                    // deallocate the buffer if necessary
-                   char* buffer = reinterpret_cast<char*>( *rdbuff );
-                   delete[] buffer;
+                   if( rdbuff.Valid() )
+                   {
+                     char* buffer = reinterpret_cast<char*>( *rdbuff );
+                     delete[] buffer;
+                   }
                    // close the file if necessary (we don't really care about the result)
                    if( file->IsOpen() ) file->Close( nullptr );
                  } );

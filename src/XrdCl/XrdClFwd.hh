@@ -220,6 +220,14 @@ namespace XrdCl
       if( !bool( this->get()->ptr ) ) throw std::logic_error( "XrdCl::Fwd contains no value!" );
       return this->get()->ptr;
     }
+
+    //------------------------------------------------------------------------
+    //! Check if it contains a valid value
+    //------------------------------------------------------------------------
+    bool Valid() const
+    {
+      return bool( this->get()->ptr );
+    }
   };
 
   //--------------------------------------------------------------------------
