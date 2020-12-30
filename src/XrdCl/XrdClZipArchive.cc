@@ -275,41 +275,47 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  buffer_t ZipArchive::GetMetadata()
+  {
+    uint32_t size = 0;
+    uint32_t cdsize  = CDFH::CalcSize( cdvec, orgcdsz, orgcdcnt );
+    // first create the EOCD record
+    eocd.reset( new EOCD( cdoff, cdvec.size(), cdsize ) );
+    size += eocd->eocdSize ;
+    size += eocd->cdSize;
+    // then create zip64eocd & zip64eocdl if necessary
+    std::unique_ptr<ZIP64_EOCD>  zip64eocd;
+    std::unique_ptr<ZIP64_EOCDL> zip64eocdl;
+    if( eocd->useZip64 )
+    {
+      zip64eocd.reset( new ZIP64_EOCD( cdoff, cdvec.size(), cdsize ) );
+      size += zip64eocd->zip64EocdTotalSize;
+      zip64eocdl.reset( new ZIP64_EOCDL( *eocd, *zip64eocd ) );
+      size += ZIP64_EOCDL::zip64EocdlSize;
+    }
+
+    // Now serialize all records into a buffer
+    buffer_t metadata;
+    metadata.reserve( size );
+    CDFH::Serialize( orgcdcnt, orgcdbuf, cdvec, metadata );
+    if( zip64eocd )
+      zip64eocd->Serialize( metadata );
+    if( zip64eocdl )
+      zip64eocdl->Serialize( metadata );
+    eocd->Serialize( metadata );
+
+    return metadata;
+  }
+
   XRootDStatus ZipArchive::CloseArchive( ResponseHandler *handler,
                                       uint16_t         timeout )
   {
     if( updated )
     {
       uint64_t wrtoff  = cdoff;
-      uint32_t wrtsize = 0;
-      uint32_t cdsize  = CDFH::CalcSize( cdvec, orgcdsz, orgcdcnt );
-      // first create the EOCD record
-      eocd.reset( new EOCD( cdoff, cdvec.size(), cdsize ) );
-      wrtsize += eocd->eocdSize ;
-      wrtsize += eocd->cdSize;
-      // then create zip64eocd & zip64eocdl if necessary
-      std::unique_ptr<ZIP64_EOCD>  zip64eocd;
-      std::unique_ptr<ZIP64_EOCDL> zip64eocdl;
-      if( eocd->useZip64 )
-      {
-        zip64eocd.reset( new ZIP64_EOCD( cdoff, cdvec.size(), cdsize ) );
-        wrtsize += zip64eocd->zip64EocdTotalSize;
-        zip64eocdl.reset( new ZIP64_EOCDL( *eocd, *zip64eocd ) );
-        wrtsize += ZIP64_EOCDL::zip64EocdlSize;
-      }
+      auto wrtbuff = std::make_shared<buffer_t>( GetMetadata() );
 
-      // the shared pointer will be copied by the lambda (note [=])
-      std::shared_ptr<buffer_t> wrtbuff( new buffer_t() );
-      wrtbuff->reserve( wrtsize );
-      // Now serialize all records into a buffer
-      CDFH::Serialize( orgcdcnt, orgcdbuf, cdvec, *wrtbuff );
-      if( zip64eocd )
-        zip64eocd->Serialize( *wrtbuff );
-      if( zip64eocdl )
-        zip64eocdl->Serialize( *wrtbuff );
-      eocd->Serialize( *wrtbuff );
-
-      Pipeline p = XrdCl::Write( archive, wrtoff, wrtsize, wrtbuff->data() )
+      Pipeline p = XrdCl::Write( archive, wrtoff, wrtbuff->size(), wrtbuff->data() )
                  | Close( archive ) >>
                      [=]( XRootDStatus &st )
                      {

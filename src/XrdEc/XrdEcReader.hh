@@ -210,7 +210,12 @@ namespace XrdEc
                                   const std::string &url    = itr->first;
                                   auto              &zipptr = itr->second;
                                   if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
-                                    zipptr->SetCD( std::move( metadata[url] ) );
+                                  {
+                                    zipptr->cdvec = std::move( std::get<0>( metadata[url] ) );
+                                    zipptr->cdmap = std::move( std::get<1>( metadata[url] ) );
+                                    zipptr->openstage   = XrdCl::ZipArchive::Done;
+                                    zipptr->cdexists    = true;
+                                  }
                                 }
                                 metadata.clear();
                                 // call user handler

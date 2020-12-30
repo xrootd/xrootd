@@ -135,22 +135,7 @@ namespace XrdCl
                              ResponseHandler    *handler,
                              uint16_t            timeout = 0 );
 
-      inline void SetCD( std::tuple<cdvec_t, cdmap_t> &&tpl )
-      {
-        this->cdvec = std::move( std::get<0>( tpl ) );
-        this->cdmap = std::move( std::get<1>( tpl ) );
-        openstage   = Done;
-        cdexists    = true;
-      }
-
-      inline buffer_t GetCD()
-      {
-        uint32_t cdsize  = CDFH::CalcSize( cdvec, orgcdsz, orgcdcnt );
-        buffer_t cdbuff;
-        cdbuff.reserve( cdsize );
-        CDFH::Serialize( orgcdcnt, orgcdbuf, cdvec, cdbuff );
-        return cdbuff;
-      }
+      buffer_t GetMetadata();
 
       template<typename Response>
       inline static AnyObject* PkgRsp( Response *rsp )
