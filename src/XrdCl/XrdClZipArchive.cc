@@ -53,12 +53,16 @@ namespace XrdCl
                                      uint16_t            timeout )
   {
     Pipeline open_only = XrdCl::Open( archive, url, OpenFlags::Read ) >>
-                           [=]( XRootDStatus &status, StatInfo &info )
+                           [=]( XRootDStatus &st, StatInfo &info )
                            {
                              // check the status is OK
-                             if( !status.IsOK() ) return;
-                             archsize  = info.GetSize();
-                             openstage = NotParsed;
+                             if( st.IsOK() )
+                             {
+                               archsize  = info.GetSize();
+                               openstage = NotParsed;
+                             }
+                             if( handler )
+                               handler->HandleResponse( make_status( st ), nullptr );
                            };
 
     Async( std::move( open_only ), timeout );
