@@ -39,8 +39,8 @@
 //!
 //! The Bridge object allows other protocols to gain access to the xrootd
 //! protocol stack. Almost any kind of request/response protocol can use this
-//! class to convert its request to an xrootd protocol request and rewrite the
-//! xrootd protocol response to adhere to its protocol specification. Callers
+//! class to convert its request to an xroot protocol request and rewrite the
+//! xroot protocol response to adhere to its protocol specification. Callers
 //! of these methods must be thread-safe and must not rely on thread-local
 //! storage as bridge requests and responses may or may not be executed using
 //! the initiating thread. Also, see the Result object class below.
@@ -113,7 +113,7 @@ Bridge       *Login(Result       *rsltP, //!< The result callback object
 //!
 //! The Run() method allows you to inject an xrootd-style request into the
 //! stack. It must use the same format as a real xrootd client would use across
-//! the network. The xrootd protocol reference describes these requests. The
+//! the network. The xroot protocol reference describes these requests. The
 //! Run() method handles the request as if it came through the network with
 //! some notable exceptions (see the xdataP and xdataL arguments).
 //!
@@ -282,10 +282,10 @@ virtual      ~Context() {}
 /******************************************************************************/
 
 //-----------------------------------------------------------------------------
-//! Handle xrootd protocol execution results.
+//! Handle xroot protocol execution results.
 //!
 //! The Result object is an abstract class that defines the interface used
-//! by the xrootd protocol stack to effect a client response using whatever
+//! by the xroot protocol stack to effect a client response using whatever
 //! alternate protocol is needed. You must define an implementation and pass it
 //! as an argument to the Login() Bridge method.
 //-----------------------------------------------------------------------------

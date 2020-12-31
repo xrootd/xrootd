@@ -147,7 +147,7 @@ char                  XrdXrootdProtocol::tlsNot   = 0;
   
 XrdObjectQ<XrdXrootdProtocol>
             XrdXrootdProtocol::ProtStack("ProtStack",
-                                       "xrootd protocol anchor");
+                                       "xroot protocol anchor");
 
 /******************************************************************************/
 /*                       P r o t o c o l   L o a d e r                        */
@@ -170,22 +170,21 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 
 // Put up the banner
 //
-   pi->eDest->Say("Copr.  2012 Stanford University, xrootd protocol "
+   pi->eDest->Say("Copr.  2012 Stanford University, xroot protocol "
                    kXR_PROTOCOLVSTRING, " version ", XrdVERSION);
-   pi->eDest->Say("++++++ xrootd protocol initialization started.");
+   pi->eDest->Say("++++++ xroot protocol initialization started.");
 
 // Return the protocol object to be used if static init succeeds
 //
    if (XrdXrootdProtocol::Configure(parms, pi))
       pp = (XrdProtocol *)new XrdXrootdProtocol();
       else txt = "failed.";
-    pi->eDest->Say("------ xrootd protocol initialization ", txt);
+    pi->eDest->Say("------ xroot protocol initialization ", txt);
    return pp;
 }
 }
 
 /******************************************************************************/
-/*                                                                            */
 /*           P r o t o c o l   P o r t   D e t e r m i n a t i o n            */
 /*                    X r d g e t P r o t o c o l P o r t                     */
 /******************************************************************************/
@@ -224,7 +223,7 @@ XrdSfsXioImpl SfsXioImpl(&XrdXrootdProtocol::Buffer,
 /******************************************************************************/
 
 XrdXrootdProtocol::XrdXrootdProtocol() 
-                    : XrdProtocol("xrootd protocol handler"),
+                    : XrdProtocol("xroot protocol handler"),
                       XrdSfsXio(SfsXioImpl),
                       ProtLink(this), Entity(0), AppName(0)
 {

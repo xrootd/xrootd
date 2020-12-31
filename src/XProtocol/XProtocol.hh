@@ -16,7 +16,7 @@
 /* Free Software Foundation, either version 3 of the License, or (at your     */
 /* option) any later version.                                                 */
 /*                                                                            */
-/* The XRootD protocol definition, documented in this file, is distributed    */
+/* The XRoot protocol definition, documented in this file, is distributed     */
 /* under a modified BSD license and may be freely used to reimplement it.     */
 /* Any references to "source" in this license refers to this file or any      */
 /* other file that specifically contains the following license.               */
@@ -1297,7 +1297,7 @@ class XProtocol
 {
 public:
 
-// mapError() is the occicial mapping from errno to xrootd protocol error.
+// mapError() is the official mapping from errno to xroot protocol error.
 //
 static int mapError(int rc)
       {if (rc < 0) rc = -rc;
