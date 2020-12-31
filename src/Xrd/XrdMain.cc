@@ -193,12 +193,12 @@ int main(int argc, char *argv[])
 // thread for each network except the first. The main thread will handle
 // that network as some implementations require a main active thread.
 //
-   for (i = 1; i <= XrdProtLoad::ProtoMax; i++)
+   for (i = 1; i < (int)Main.Config.NetTCP.size(); i++)
        if (Main.Config.NetTCP[i])
           {XrdMain *Parms = new XrdMain(Main.Config.NetTCP[i]);
            sprintf(buff, "Port %d handler", Parms->thePort);
-           if (Parms->theNet == Main.Config.NetTCP[XrdProtLoad::ProtoMax])
-               Parms->thePort = -(Parms->thePort);
+//???      if (Parms->theNet == Main.Config.NetTCP[XrdProtLoad::ProtoMax])
+//             Parms->thePort = -(Parms->thePort);
            if ((retc = XrdSysThread::Run(&tid, mainAccept, (void *)Parms,
                                          XRDSYSTHREAD_BIND, strdup(buff))))
               {Main.Config.ProtInfo.eDest->Emsg("main", retc, "create", buff);

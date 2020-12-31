@@ -29,6 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <vector>
+
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
 
@@ -50,14 +52,15 @@ int         ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest=0);
          XrdConfig();
         ~XrdConfig() {}
 
-XrdProtocol_Config  ProtInfo;
-XrdInet            *NetADM;
-XrdInet            *NetTCP[XrdProtLoad::ProtoMax+1];
+XrdProtocol_Config    ProtInfo;
+XrdInet              *NetADM;
+std::vector<XrdInet*> NetTCP;
 
 private:
 
 int   ASocket(const char *path, const char *fname, mode_t mode);
 int   ConfigProc(void);
+XrdInet *getNet(int port, bool isTLS);
 int   getUG(char *parm, uid_t &theUid, gid_t &theGid);
 void  Manifest(const char *pidfn);
 bool  PidFile(const char *clpFN, bool optbg);
@@ -116,7 +119,6 @@ int                 TLS_Opts;
 int                 PortTCP;      // TCP Port to listen on
 int                 PortUDP;      // UDP Port to listen on (currently unsupported)
 int                 PortTLS;      // TCP port to listen on for TLS connections
-int                 NetTCPlep;
 
 int                 AdminMode;
 int                 HomeMode;

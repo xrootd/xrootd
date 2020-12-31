@@ -45,6 +45,8 @@ static int    Load(const char *lname, const char *pname, char *parms,
 static int    Port(const char *lname, const char *pname, char *parms,
                    XrdProtocol_Config *pi);
 
+static void   Port(int protIdx, int port, bool isTLS);
+
 XrdProtocol  *Match(XrdLink *) {return 0;}
 
 int           Process(XrdLink *lp);
@@ -59,6 +61,7 @@ static int    Statistics(char *buff, int blen, int do_sync=0);
              ~XrdProtLoad();
 
 static const int ProtoMax = 8;
+static const int PortoMax = 8;
 
 private:
 
@@ -69,8 +72,6 @@ static int          getProtocolPort(const char *lname, const char *pname,
 
 static char          *ProtName[ProtoMax];   // ->Supported protocol names
 static XrdProtocol   *Protocol[ProtoMax];   // ->Supported protocol objects
-static int            ProtPort[ProtoMax];   // ->Supported protocol ports
-static bool           ProtoTLS[ProtoMax];   // ->Supported protocol objects TLS
 static int            ProtoCnt;             // Number in table (at least 1)
 
        int            myPort;

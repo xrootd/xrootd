@@ -27,6 +27,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <vector>
+
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
 
@@ -42,13 +44,23 @@
 
 XrdProtocol *XrdProtLoad::Protocol[ProtoMax] = {0};
 char        *XrdProtLoad::ProtName[ProtoMax] = {0};
-int          XrdProtLoad::ProtPort[ProtoMax] = {0};
-bool         XrdProtLoad::ProtoTLS[ProtoMax] = {false};
 
 int          XrdProtLoad::ProtoCnt = 0;
 
 namespace
 {
+struct portMap
+      {int   port;
+       short protIdx;
+       bool  protTLS;
+
+             portMap(int pnum, int pidx, bool istls)
+                     : port(pnum), protIdx(pidx), protTLS(istls) {}
+            ~portMap() {}
+      };
+
+std::vector<portMap> portVec;
+
 char            *liblist[XrdProtLoad::ProtoMax];
 XrdOucPinLoader *libhndl[XrdProtLoad::ProtoMax];
 const char      *TraceID = "ProtLoad";
@@ -73,10 +85,10 @@ using namespace XrdGlobal;
 
 // Extract out the protocols associated with this port
 //
-   for (int i = 0; i < ProtoCnt; i++)
-       {if (myPort == ProtPort[i])
-           {if (ProtoTLS[i]) hastls = true;
-               else myProt[j++] = i;
+   for (int i = 0; i < (int)portVec.size(); i++)
+       {if (myPort == portVec[i].port)
+           {if (portVec[i].protTLS) hastls = true;
+               else myProt[j++] = portVec[i].protIdx;
            }
        }
 
@@ -84,8 +96,10 @@ using namespace XrdGlobal;
 //
    if (hastls)
       {myProt[j++] = -1;
-       for (int i = 0; i < ProtoCnt; i++)
-           {if (myPort == ProtPort[i] && ProtoTLS[i]) myProt[j++] = i;}
+       for (int i = 0; i < (int)portVec.size(); i++)
+           {if (myPort == portVec[i].port && portVec[i].protTLS)
+                myProt[j++] =  portVec[i].protIdx;
+           }
       }
 
 // Put in an end marker
@@ -126,11 +140,13 @@ int XrdProtLoad::Load(const char *lname, const char *pname,
 // Add protocol to our table of protocols.
 //
    ProtName[ProtoCnt] = strdup(pname);
-   ProtPort[ProtoCnt] = port;
    Protocol[ProtoCnt] = xp;
-   ProtoTLS[ProtoCnt] = istls;
    ProtoCnt++;
-   return 1;
+
+// Map the port to this protocol
+//
+   Port(ProtoCnt, port, istls);
+   return ProtoCnt;
 }
   
 /******************************************************************************/
@@ -157,6 +173,22 @@ int XrdProtLoad::Port(const char *lname, const char *pname,
    return port;
 }
   
+/******************************************************************************/
+
+void XrdProtLoad::Port(int protIdx, int port, bool isTLS)
+{
+    if (protIdx > 0 && protIdx <= ProtoCnt && port > 0)
+       {portMap pMap(port, protIdx-1, isTLS);
+        portVec.push_back(pMap);
+        TRACE(DEBUG, "enabling " <<(isTLS ? "tls port " :  "port ") <<port
+                     <<" for protocol " <<ProtName[protIdx-1]);
+       } else {
+        char buff[256];
+        snprintf(buff, sizeof(buff), "prot=%d port=%d;", protIdx, port);
+        Log.Emsg("Protocol", "Invalid Port() parms:", buff, "port not mapped!");
+       }
+}
+
 /******************************************************************************/
 /*                               P r o c e s s                                */
 /******************************************************************************/

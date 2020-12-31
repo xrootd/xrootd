@@ -95,7 +95,7 @@ char           **argv;         // Argument array (prescreened)
 char             DebugON;      // True if started with -d option
 char             rsvd3[7];
 int              hailWait;     // Max milliseconds to wait for data after accept
-int              tlsPort;      // Default TLS port
+int              tlsPort;      // Default TLS port (0 if not specified)
 XrdTlsContext   *tlsCtx;       // Stable -> TLS Context (0 if not initialized)
 XrdOucString    *totalCF;      // Stable -> total config after full init
 

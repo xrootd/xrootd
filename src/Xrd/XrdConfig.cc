@@ -168,13 +168,44 @@ XrdConfigProt  *Next;
 char           *proname;
 char           *libpath;
 char           *parms;
-int             port;
-bool            dotls;
+
+int             numP;
+union {int      port;
+       int      portVec[XrdProtLoad::PortoMax];
+      };
+union {bool     dotls;
+       bool     tlsVec[XrdProtLoad::PortoMax];
+      };
+
+bool            AddPort(int pnum, bool isTLS)
+                       {for (int i = 0; i < numP; i++)
+                            if (pnum == portVec[i])
+                               {tlsVec[i] = isTLS; return true;}
+                        if (numP >= (XrdProtLoad::PortoMax)) return false;
+                        portVec[numP] = pnum; tlsVec[numP] = isTLS;
+                        numP++;
+                        return true;
+                       }
+
+void             Reset(char *ln, char *pp, int np=-1, bool to=false)
+                      {if (libpath) free(libpath);
+                       libpath = ln;
+                       if (parms)   free(parms);
+                       parms = pp;
+                       memset(portVec, 0, sizeof(portVec));
+                       port = np;
+                       memset(tlsVec, 0, sizeof(tlsVec));
+                       dotls = to;
+                       numP = 1;
+                      }
 
                 XrdConfigProt(char *pn, char *ln, char *pp, int np=-1,
                               bool to=false)
-                    : Next(0), proname(pn), libpath(ln), parms(pp), port(np),
-                      dotls(to) {}
+                    : Next(0), proname(pn), libpath(ln), parms(pp), numP(1)
+                    {memset(portVec, 0, sizeof(portVec)); port = np;
+                     memset(tlsVec, 0, sizeof(tlsVec)); dotls = to;
+                    }
+
                ~XrdConfigProt()
                     {free(proname);
                      if (libpath) free(libpath);
@@ -212,7 +243,7 @@ XrdConfig::XrdConfig()
 //
    PortTCP  = -1;
    PortUDP  = -1;
-   PortTLS  = 0;
+   PortTLS  = -1;
    ConfigFN = 0;
    tmoInfo  = 0;
    myInsName= 0;
@@ -238,11 +269,9 @@ XrdConfig::XrdConfig()
    tlsOpts    = 9ULL | XrdTlsContext::servr | XrdTlsContext::logVF;
    tlsNoVer   = false;
    tlsNoCAD   = true;
-   NetTCPlep  = -1;
    NetADM     = 0;
    coreV      = 1;
    Specs      = 0;
-   memset(NetTCP, 0, sizeof(NetTCP));
 
    Firstcp = Lastcp = 0;
 
@@ -660,7 +689,7 @@ int XrdConfig::Configure(int argc, char **argv)
       }
 
 // If there is TLS port verify that it can be used. We ignore this if we
-// will fal anyway so as to not issue confusing messages.
+// will fail anyway so as to not issue confusing messages.
 //
    if (!NoGo)
       {if (PortTLS > 0 && !XrdGlobal::tlsCtx)
@@ -668,7 +697,7 @@ int XrdConfig::Configure(int argc, char **argv)
            PortTLS = -1;
           } else {
            ProtInfo.tlsCtx  = XrdGlobal::tlsCtx;
-           ProtInfo.tlsPort = PortTLS;
+           ProtInfo.tlsPort = (PortTLS > 0 ? PortTLS : 0);
          }
       }
 
@@ -878,6 +907,44 @@ int XrdConfig::ConfigProc()
    return NoGo;
 }
 
+/******************************************************************************/
+/*                                g e t N e t                                 */
+/******************************************************************************/
+
+XrdInet *XrdConfig::getNet(int port, bool isTLS)
+{
+   int the_Opts, the_Blen;
+
+// Try to find an existing network for this port
+//
+   for (int i = 0; i < (int)NetTCP.size(); i++)
+       if (port == NetTCP[i]->Port()) return NetTCP[i];
+
+// Create a new network for this port
+//
+   XrdInet *newNet = new XrdInet(&Log, Police);
+   NetTCP.push_back(newNet);
+
+// Set options
+//
+   if (isTLS)
+      {the_Opts = TLS_Opts; the_Blen = TLS_Blen;
+      } else {
+       the_Opts = Net_Opts; the_Blen = Net_Blen;
+      }
+   if (the_Opts || the_Blen) newNet->setDefaults(the_Opts, the_Blen);
+
+// Set the domain if we have one
+//
+   if (myDomain) newNet->setDomain(myDomain);
+
+// Attempt to bind to this socket.
+//
+   if (newNet->BindSD(port, "tcp") == 0) return newNet;
+   delete newNet;
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                 g e t U G                                  */
 /******************************************************************************/
@@ -1178,7 +1245,7 @@ int XrdConfig::setFDL()
 int XrdConfig::Setup(char *dfltp, char *libProt)
 {
    XrdConfigProt *cp;
-   int i, xport, wsz, arbNet, the_Opts, the_Blen;
+   int xport, protNum;
 
 // Establish the FD limit
 //
@@ -1222,32 +1289,26 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
           else PortTCP = -1;
       }
 
-// If there is a TLS port then add the default protocol using tls
-//
-   if (PortTLS > 0)
-      {char pBuff[80];
-       snprintf(pBuff, sizeof(pBuff), "%ss", dfltp);
-       cp = new XrdConfigProt(strdup(pBuff), libProt, 0, PortTLS, true);
-       cp->Next = Firstcp;
-       Firstcp = cp;
-      }
-
 // We now go through all of the protocols and get each respective port number.
 //
    cp = Firstcp;
    while(cp)
-        {if (cp->dotls)
-            {if (!tlsCtx)
-                {Log.Emsg("Config", "protocol", cp->proname,
-                          "requires TLS but TLS is not configured!");
-                 return 1;
+        {if (!tlsCtx)
+            for (int i = 0; i < cp->numP; i++)
+                {if (cp->tlsVec[i])
+                    {Log.Emsg("Config", "protocol", cp->proname,
+                              "configured with a TLS-only port "
+                              "but TLS is not configured!");
+                     return 1;
+                    }
                 }
-             xport = PortTLS;
-            } else xport = PortTCP;
+         xport = (cp->dotls ? PortTLS : PortTCP);
          ProtInfo.Port = (cp->port < 0 ? xport : cp->port);
          XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
-         if ((cp->port = XrdProtLoad::Port(cp->libpath, cp->proname,
-                                           cp->parms, &ProtInfo)) < 0) return 1;
+         cp->port = XrdProtLoad::Port(cp->libpath,cp->proname,cp->parms,&ProtInfo);
+         if (cp->port < 0) return 1;
+         for (int i = 1; i < cp->numP; i++)
+             if (cp->port == cp->portVec[i]) cp->portVec[i] = -1;
          cp = cp->Next;
         }
 
@@ -1258,46 +1319,54 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
                                  ProtInfo.myName, Firstcp->port,
                                  ProtInfo.myInst, ProtInfo.myProg, mySitName);
 
+// If the base protocol is xroot, then save the base port number so we can
+// extend the port to the http protocol should it have been loaded. That way
+// redirects via xroot will also work for http.
+//
+   xport = (strcmp("xroot", Firstcp->proname) ? 0 : Firstcp->port);
+
 // Load the protocols. For each new protocol port number, create a new
 // network object to handle the port dependent communications part. All
 // port issues will have been resolved at this point.
 //
-   arbNet = XrdProtLoad::ProtoMax;
+   XrdInet *arbNet = 0, *theNet;
    while((cp = Firstcp))
-        {if (!(cp->port)) i = arbNet;
-            else for (i = 0; i < XrdProtLoad::ProtoMax && NetTCP[i]; i++)
-                     {if (cp->port == NetTCP[i]->Port()) break;}
-         if (i >= XrdProtLoad::ProtoMax || !NetTCP[i])
-            {NetTCP[++NetTCPlep] = new XrdInet(&Log, Police);
-             if (cp->dotls)
-                {the_Opts = TLS_Opts; the_Blen = TLS_Blen;
-                } else {
-                 the_Opts = Net_Opts; the_Blen = Net_Blen;
-                }
-             if (the_Opts || the_Blen)
-                NetTCP[NetTCPlep]->setDefaults(the_Opts, the_Blen);
-             if (myDomain) NetTCP[NetTCPlep]->setDomain(myDomain);
-             if (NetTCP[NetTCPlep]->BindSD(cp->port, "tcp")) return 1;
-             ProtInfo.Port   = NetTCP[NetTCPlep]->Port();
-             ProtInfo.NetTCP = NetTCP[NetTCPlep];
-             wsz             = NetTCP[NetTCPlep]->WSize();
-             ProtInfo.WSize  = (wsz < the_Blen || !the_Blen ? wsz : the_Blen);
-             TRACE(NET, cp->proname <<" port " <<ProtInfo.Port <<" wsz="
-                        <<ProtInfo.WSize <<" (" <<wsz <<')');
-             if (!(cp->port)) arbNet = NetTCPlep;
-             if (!NetTCPlep) XrdNetTCP = NetTCP[0];
-             XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
-            }
-         if (!XrdProtLoad::Load(cp->libpath,cp->proname,cp->parms,
-                               &ProtInfo, cp->dotls)) return 1;
-         Firstcp = cp->Next; delete cp;
-        }
+         {for (int i = 0; i < cp->numP; i++)
+             {if (cp->portVec[i] < 0) continue;
+              if (!(cp->portVec[i]) && arbNet) theNet = arbNet;
+                 else {theNet = getNet(cp->portVec[i], cp->tlsVec[i]);
+                       if (!theNet) return 1;
+                       if (!(cp->portVec[i])) arbNet = theNet;
+                      }
+
+              ProtInfo.Port   = theNet->Port();
+              ProtInfo.NetTCP = theNet;
+              ProtInfo.WSize  = theNet->WSize();
+              TRACE(NET, cp->proname <<':' <<ProtInfo.Port <<" wsz="
+                         <<ProtInfo.WSize);
+
+              if (i) XrdProtLoad::Port(protNum, ProtInfo.Port, cp->tlsVec[i]);
+                 else {XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
+                       protNum = XrdProtLoad::Load(cp->libpath, cp->proname,
+                                                   cp->parms, &ProtInfo,
+                                                   cp->dotls);
+                       if (!protNum) return 1;
+                      }
+             }
+          if (!strcmp("http", cp->proname) && xport)
+             {for (int i = 0; i < cp->numP; i++)
+                  {if (cp->portVec[i] == xport) {xport = 0; break;}}
+              if (xport) XrdProtLoad::Port(protNum, xport, false);
+             }
+          Firstcp = cp->Next; delete cp;
+         }
 
 // Leave the env port number to be the first used port number. This may
-// or may not be the same as the default port number.
+// or may not be the same as the default port number. This corresponds to
+// the default network object.
 //
-   ProtInfo.Port = NetTCP[0]->Port();
-   PortTCP = ProtInfo.Port;
+   XrdNetTCP = NetTCP[0];
+   PortTCP = ProtInfo.Port = XrdNetTCP->Port();
    XrdOucEnv::Export("XRDPORT", PortTCP);
 
 // Now check if we have to setup automatic reporting
@@ -1690,7 +1759,6 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         {if (V_blen >= 0) TLS_Blen = V_blen;
          if (V_keep >= 0) TLS_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
          TLS_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0) | XRDNET_USETLS;
-         if (!PortTLS) PortTLS = -1;
         } else {
          if (V_blen >= 0) Net_Blen = V_blen;
          if (V_keep >= 0) Net_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
@@ -1852,8 +1920,9 @@ int XrdConfig::yport(XrdSysError *eDest, const char *ptype, const char *val)
 
 /* Function: xprot
 
-   Purpose:  To parse the directive: protocol [tls] <name>[:<port>] <loc> [<parm>]
+   Purpose:  To parse the directive: protocol [tls] <name>[:<port>] <args>
 
+             <args> {+port | <loc> [<parm>]}
              tls    The protocol requires tls.
              <name> The name of the protocol (e.g., rootd)
              <port> Port binding for the protocol, if not the default.
@@ -1880,17 +1949,30 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
        {eDest->Emsg("Config", "protocol name is too long"); return 1;}
     strcpy(proname, val);
 
-    if (!(val = Config.GetWord()))
-       {eDest->Emsg("Config", "protocol library not specified"); return 1;}
-    if (strcmp("*", val)) lib = strdup(val);
-       else lib = 0;
-
     if ((val = index(proname, ':')))
        {if ((portnum = yport(&Log, "tcp", val+1)) < 0) return 1;
            else *val = '\0';
-       } else {
-        if (dotls && !PortTLS) PortTLS = -1;
        }
+
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("Config", "protocol library not specified"); return 1;}
+    if (!strcmp("*", val)) lib = 0;
+       else if (*val == '+')
+               {if (strcmp(val, "+port"))
+                   {eDest->Emsg("Config","invalid library specification -",val);
+                    return 1;
+                   }
+                if ((cpp = Firstcp))
+                   do {if (!strcmp(proname, cpp->proname))
+                          {if (cpp->AddPort(portnum, dotls)) return 0;
+                           eDest->Emsg("Config", "port add limit exceeded!");
+                           return 1;
+                          }
+                      } while((cpp = cpp->Next));
+                eDest->Emsg("Config","protocol",proname,"not previously defined!");
+                return 1;
+               }
+               else lib = strdup(val);
 
 // If no library was specified then this is a default protocol. We must make sure
 // sure it is consistent with whatever default we have.
@@ -1925,18 +2007,15 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 
     if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
-              {if (cpp->libpath) free(cpp->libpath);
-               if (cpp->parms)   free(cpp->parms);
-               cpp->libpath = lib;
-               cpp->parms   = parms;
-               cpp->port    = portnum;
-               cpp->dotls   = dotls;
+              {cpp->Reset(lib, parms, portnum, dotls);
                return 0;
               }
           } while((cpp = cpp->Next));
 
     cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum, dotls);
-    if (!lib) {cpp->Next = Firstcp; Firstcp = cpp;}
+    if (!lib) {cpp->Next = Firstcp; Firstcp = cpp;
+               if (!Lastcp) Lastcp = cpp;
+              }
        else   {if (Lastcp) Lastcp->Next = cpp;
                   else     Firstcp = cpp;
                Lastcp = cpp;
