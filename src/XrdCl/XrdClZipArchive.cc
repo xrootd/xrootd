@@ -215,7 +215,10 @@ namespace XrdCl
                                       std::copy( buff, buff + orgcdsz, std::back_inserter( orgcdbuf ) );
                                       try
                                       {
-                                        std::tie( cdvec, cdmap ) = CDFH::Parse( buff, eocd->cdSize, eocd->nbCdRec );
+                                        if( zip64eocd )
+                                          std::tie( cdvec, cdmap ) = CDFH::Parse( buff, zip64eocd->cdSize, zip64eocd->nbCdRec );
+                                        else
+                                          std::tie( cdvec, cdmap ) = CDFH::Parse( buff, eocd->cdSize, eocd->nbCdRec );
                                       }
                                       catch( const bad_data &ex )
                                       {
@@ -313,6 +316,7 @@ namespace XrdCl
 
     const char *buff = buffer.data();
     size_t      size = buffer.size();
+
     // parse Central Directory records
     std::tie(cdvec, cdmap ) = CDFH::Parse( buff, size );
     // make a copy of the original CDFH records
