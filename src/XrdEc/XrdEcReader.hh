@@ -305,7 +305,8 @@ namespace XrdEc
                      delete[] buffer;
                    }
                    // close the file if necessary (we don't really care about the result)
-                   if( file->IsOpen() ) file->Close( nullptr );
+                   if( file->IsOpen() )
+                     XrdCl::Async( XrdCl::Close( *file ) >> [file]( XrdCl::XRootDStatus& ){ } );
                  } );
       }
 

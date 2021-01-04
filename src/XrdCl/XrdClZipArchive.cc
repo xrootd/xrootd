@@ -287,7 +287,6 @@ namespace XrdCl
     size += eocd->eocdSize ;
     size += eocd->cdSize;
     // then create zip64eocd & zip64eocdl if necessary
-    std::unique_ptr<ZIP64_EOCD>  zip64eocd;
     std::unique_ptr<ZIP64_EOCDL> zip64eocdl;
     if( eocd->useZip64 )
     {

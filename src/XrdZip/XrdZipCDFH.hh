@@ -106,10 +106,11 @@ namespace XrdZip
       size_t i = 0;
       while( bufferSize > 0 )
       {
-        if( bufferSize < cdfhBaseSize ) throw bad_data();
+        if( bufferSize < sizeof( uint32_t ) ) throw bad_data();
         // check the signature
         uint32_t signature = to<uint32_t>( buffer );
-        if( signature != cdfhSign ) throw bad_data();
+        if( signature != cdfhSign )
+          return std::make_tuple( std::move( cdvec ), std::move( cdmap ) );
         // parse the record
         std::unique_ptr<CDFH> cdfh( new CDFH( buffer ) );
         if( bufferSize < cdfh->cdfhSize ) throw bad_data();
