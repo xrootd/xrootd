@@ -135,7 +135,9 @@ namespace XrdCl
                              ResponseHandler    *handler,
                              uint16_t            timeout = 0 );
 
-      buffer_t GetMetadata();
+      buffer_t GetCD();
+
+      void SetCD( const buffer_t &buffer );
 
       template<typename Response>
       inline static AnyObject* PkgRsp( Response *rsp )

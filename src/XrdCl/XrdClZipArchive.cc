@@ -275,7 +275,7 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  buffer_t ZipArchive::GetMetadata()
+  buffer_t ZipArchive::GetCD()
   {
     uint32_t size = 0;
     uint32_t cdsize  = CDFH::CalcSize( cdvec, orgcdsz, orgcdcnt );
@@ -307,13 +307,44 @@ namespace XrdCl
     return metadata;
   }
 
+  void ZipArchive::SetCD( const buffer_t &buffer )
+  {
+    if( openstage != NotParsed ) return;
+
+    const char *buff = buffer.data();
+    size_t      size = buffer.size();
+    // parse Central Directory records
+    std::tie(cdvec, cdmap ) = CDFH::Parse( buff, size );
+    // make a copy of the original CDFH records
+    orgcdsz  = buff - buffer.data();
+    orgcdcnt = cdvec.size();
+    orgcdbuf.reserve( orgcdsz );
+    std::copy( buffer.data(), buff, std::back_inserter( orgcdbuf ) );
+    // parse ZIP64EOCD record if exists
+    uint32_t signature = to<uint32_t>( buff );
+    if( signature == ZIP64_EOCD::zip64EocdSign )
+    {
+      zip64eocd.reset( new ZIP64_EOCD( buff ) );
+      buff += zip64eocd->zip64EocdTotalSize;
+      // now shift the buffer by EOCDL size if necessary
+      signature = to<uint32_t>( buff );
+      if( signature == ZIP64_EOCDL::zip64EocdlSign )
+        buff += ZIP64_EOCDL::zip64EocdlSize;
+    }
+    // parse EOCD record
+    eocd.reset( new EOCD( buff ) );
+    // update the state of the ZipArchive object
+    openstage = XrdCl::ZipArchive::Done;
+    cdexists  = true;
+  }
+
   XRootDStatus ZipArchive::CloseArchive( ResponseHandler *handler,
                                       uint16_t         timeout )
   {
     if( updated )
     {
       uint64_t wrtoff  = cdoff;
-      auto wrtbuff = std::make_shared<buffer_t>( GetMetadata() );
+      auto wrtbuff = std::make_shared<buffer_t>( GetCD() );
 
       Pipeline p = XrdCl::Write( archive, wrtoff, wrtbuff->size(), wrtbuff->data() )
                  | Close( archive ) >>

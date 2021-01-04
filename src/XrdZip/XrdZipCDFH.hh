@@ -99,7 +99,7 @@ namespace XrdZip
     // @param bufferSize  : size of the buffer
     // @return            : vector of CD records / file name to index mapping
     //-------------------------------------------------------------------------
-    inline static std::tuple<cdvec_t, cdmap_t> Parse( const char *buffer, uint32_t bufferSize )
+    inline static std::tuple<cdvec_t, cdmap_t> Parse( const char *&buffer, uint32_t bufferSize )
     {
       cdvec_t cdvec;
       cdmap_t cdmap;

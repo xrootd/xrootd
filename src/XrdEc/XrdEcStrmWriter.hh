@@ -469,7 +469,7 @@ namespace XrdEc
         for( size_t i = 0; i < cdcnt; ++i )
         {
           std::string fn = objcfg.plgr[i] + objcfg.obj + ".zip";    // file name (URL of the data archive)
-          buffer_t buff( dataarchs[i]->GetMetadata() );             // raw data buffer (central directory of the data archive)
+          buffer_t buff( dataarchs[i]->GetCD() );                   // raw data buffer (central directory of the data archive)
           uint32_t cksum = crc32c( 0, buff.data(), buff.size() );   // crc32c of the buffer
           lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );   // LFH record for the buffer
           LFH &lfh = lfhs.back();

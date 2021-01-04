@@ -210,12 +210,7 @@ namespace XrdEc
                                   const std::string &url    = itr->first;
                                   auto              &zipptr = itr->second;
                                   if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
-                                  {
-                                    zipptr->cdvec = std::move( std::get<0>( metadata[url] ) );
-                                    zipptr->cdmap = std::move( std::get<1>( metadata[url] ) );
-                                    zipptr->openstage   = XrdCl::ZipArchive::Done;
-                                    zipptr->cdexists    = true;
-                                  }
+                                    zipptr->SetCD( metadata[url] );
                                 }
                                 metadata.clear();
                                 // call user handler
@@ -319,7 +314,7 @@ namespace XrdEc
         const size_t mincnt = objcfg.nbdata + objcfg.nbparity;
         const size_t maxcnt = objcfg.plgr.size();
 
-        char    *buffer = reinterpret_cast<char*>( ch.buffer );
+        char   *buffer = reinterpret_cast<char*>( ch.buffer );
         size_t  length = ch.length;
 
         for( size_t i = 0; i < maxcnt; ++i )
@@ -338,12 +333,8 @@ namespace XrdEc
           // verify the checksum
           uint32_t crc32val = crc32c( 0, buffer, lfh.uncompressedSize );
           if( crc32val != lfh.ZCRC32 ) return false;
-          // parse the central directory
-          metadata.emplace( lfh.filename, XrdZip::CDFH::Parse( buffer, lfh.uncompressedSize ) );
-          XrdZip::cdmap_t &cdmap = std::get<1>( metadata[lfh.filename] );
-          auto itr = cdmap.begin();
-          for( ; itr != cdmap.end() ; ++itr )
-            urlmap.emplace( itr->first, lfh.filename );
+          // keep the metadata
+          metadata.emplace( lfh.filename, buffer_t( buffer, buffer + lfh.uncompressedSize ) );
           buffer += lfh.uncompressedSize;
           length -= lfh.uncompressedSize;
         }
@@ -352,7 +343,7 @@ namespace XrdEc
       }
 
       typedef std::unordered_map<std::string, std::shared_ptr<XrdCl::ZipArchive>> dataarchs_t;
-      typedef std::unordered_map<std::string, std::tuple<XrdZip::cdvec_t, XrdZip::cdmap_t>> metadata_t;
+      typedef std::unordered_map<std::string, buffer_t> metadata_t;
       typedef std::unordered_map<std::string, std::string> urlmap_t;
 
       ObjCfg      &objcfg;
