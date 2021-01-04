@@ -1245,7 +1245,7 @@ int XrdConfig::setFDL()
 int XrdConfig::Setup(char *dfltp, char *libProt)
 {
    XrdConfigProt *cp;
-   int xport, protNum;
+   int xport, protNum = 0;
 
 // Establish the FD limit
 //
