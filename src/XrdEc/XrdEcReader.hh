@@ -211,6 +211,9 @@ namespace XrdEc
                                   auto              &zipptr = itr->second;
                                   if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
                                     zipptr->SetCD( metadata[url] );
+                                  auto itr = zipptr->cdmap.begin();
+                                  for( ; itr != zipptr->cdmap.end() ; ++itr )
+                                    urlmap.emplace( itr->first, url );
                                 }
                                 metadata.clear();
                                 // call user handler
