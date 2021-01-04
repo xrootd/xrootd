@@ -4,6 +4,7 @@ include( XRootDCommon )
 # Modules
 #-------------------------------------------------------------------------------
 set( LIB_XRD_CRYPTOSSL     XrdCryptossl-${PLUGIN_VERSION} )
+add_dependencies(plugins ${LIB_XRD_CRYPTOSSL})
 
 #-------------------------------------------------------------------------------
 # Shared library version

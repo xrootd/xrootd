@@ -8,6 +8,10 @@ set( LIB_XRD_SEC_GSI          XrdSecgsi-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_GMAPDN   XrdSecgsiGMAPDN-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_AUTHZVO  XrdSecgsiAUTHZVO-${PLUGIN_VERSION} )
 
+add_dependencies(plugins ${LIB_XRD_SEC_GSI}
+  ${LIB_XRD_SEC_GSI_GMAPDN}
+  ${LIB_XRD_SEC_GSI_AUTHZVO})
+
 #-------------------------------------------------------------------------------
 # The XrdSecgsi library
 #-------------------------------------------------------------------------------
