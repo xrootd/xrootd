@@ -48,7 +48,7 @@
 #define FS_BLKSZ f_frsize
 #define FS_FFREE f_favail
 #endif
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 #include <sys/vfs.h>
 #define FS_Stat(a,b) statfs(a,b)
 #define STATFS_t struct statfs

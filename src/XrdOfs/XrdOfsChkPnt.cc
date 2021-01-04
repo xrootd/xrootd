@@ -44,6 +44,10 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#ifndef ENODATA
+#define ENODATA ENOATTR
+#endif
+
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/

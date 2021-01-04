@@ -55,10 +55,10 @@
 #include <libgen.h>
 #include <syslog.h>
 #include <signal.h>
+#if defined(__linux__)
 #include <sys/prctl.h>
-#if !defined(__solaris__)
-#include <sys/xattr.h>
 #endif
+#include <sys/xattr.h>
 
 #include "XrdFfs/XrdFfsPosix.hh"
 #include "XrdFfs/XrdFfsMisc.hh"
@@ -120,7 +120,9 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
             syslog( LOG_ERR, "ERROR: Unable to set gid to %d", pw.pw_gid );
         if( setuid((uid_t)pw.pw_uid) != 0 )
             syslog( LOG_ERR, "ERROR: Unable to set uid to %d", pw.pw_uid );
+#if defined(__linux__)
         prctl(PR_SET_DUMPABLE, 1); // enable core dump after setuid/setgid
+#endif
     }
     free(pwbuf);
 

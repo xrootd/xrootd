@@ -67,6 +67,14 @@
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
 #include "XrdVersion.hh"
+
+#ifndef ENODATA
+#define ENODATA ENOATTR
+#endif
+
+#ifndef ETIME
+#define ETIME ETIMEDOUT
+#endif
   
 /******************************************************************************/
 /*                               G l o b a l s                                */

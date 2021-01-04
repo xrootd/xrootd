@@ -835,7 +835,7 @@ ssize_t XrdOssFile::Read(off_t offset, size_t blen)
 
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-#if defined(__linux__)
+#if defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
      posix_fadvise(fd, offset, blen, POSIX_FADV_WILLNEED);
 #endif
 
@@ -901,7 +901,7 @@ ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, int n)
 
 // For platforms that support fadvise, pre-advise what we will be reading
 //
-#if defined(__linux__) && defined(HAVE_ATOMICS)
+#if (defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))) && defined(HAVE_ATOMICS)
    EPNAME("ReadV");
    long long begOff, endOff, begLst = -1, endLst = -1;
    int nPR = n;
@@ -935,7 +935,7 @@ ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, int n)
         if (rdsz < 0 || rdsz != readV[i].size)
            {totBytes =  (rdsz < 0 ? -errno : -ESPIPE); break;}
         totBytes += rdsz;
-#if defined(__linux__) && defined(HAVE_ATOMICS)
+#if (defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))) && defined(HAVE_ATOMICS)
         if (nPR < n && readV[nPR].size > 0)
            {begOff = XrdOssSS->prPMask &  readV[nPR].offset;
             endOff = XrdOssSS->prPBits | (readV[nPR].offset+readV[nPR].size);
@@ -953,7 +953,7 @@ ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, int n)
 
 // All done, return bytes read.
 //
-#if defined(__linux__) && defined(HAVE_ATOMICS)
+#if (defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))) && defined(HAVE_ATOMICS)
    if (XrdOssSS->prDepth) AtomicDec((XrdOssSS->prActive));
 #endif
    return totBytes;
@@ -1083,7 +1083,7 @@ void XrdOssFile::Flush()
 {
 // This actually only works in Linux so we punt otherwise
 //
-#if defined(__linux__)
+#if defined(__linux__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
    if (fd>= 0)
       {fdatasync(fd);
        posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);

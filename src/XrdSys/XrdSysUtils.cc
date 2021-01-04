@@ -71,7 +71,7 @@ const char *XrdSysUtils::ExecName()
 
 // Get the exec name based on platform
 //
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
   {char epBuff[2048];
    int  epLen;
    if ((epLen = readlink("/proc/self/exe", epBuff, sizeof(epBuff)-1)) > 0)
@@ -130,7 +130,7 @@ int XrdSysUtils::FmtUname(char *buff, int blen)
 //
 #if   defined(__linux__)
    return snprintf(buff, blen, "%s %s",       uInfo.sysname, uInfo.release);
-#elif defined(__APPLE__) || defined(__FreeBSD__)
+#elif defined(__APPLE__) || defined(__FreeBSD__) || (defined(__FreeBSD__) || defined(__GLIBC__))
    return snprintf(buff, blen, "%s %s %s",    uInfo.sysname, uInfo.release,
                                uInfo.machine);
 #else

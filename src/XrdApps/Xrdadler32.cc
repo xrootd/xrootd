@@ -43,7 +43,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
   #include <sys/xattr.h>
 #endif
 #include <zlib.h>
@@ -71,7 +71,7 @@ void fSetXattrAdler32(const char *path, int fd, const char* attr, char *value)
 
 // Remove any old attribute at this point
 //
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
     fremovexattr(fd, attr);
 #elif defined(__solaris__)
     int attrfd;
@@ -90,7 +90,7 @@ int fGetXattrAdler32(int fd, const char* attr, char *value)
     if (fstat(fd, &st)) return 0;
     sprintf(mtime, "%ld", st.st_mtime);
 
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
     rc = fgetxattr(fd, attr, attr_val, 25);
 #elif defined(__solaris__)
     int attrfd;

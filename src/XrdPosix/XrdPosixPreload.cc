@@ -351,7 +351,7 @@ size_t fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream)
 /*                             f g e t x a t t r                              */
 /******************************************************************************/
   
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
 ssize_t fgetxattr (int fd, const char *name, void *value, size_t size)
@@ -367,7 +367,7 @@ ssize_t fgetxattr (int fd, const char *name, void *value, size_t size)
 /*                              g e t x a t t r                               */
 /******************************************************************************/
   
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
 ssize_t getxattr (const char *path, const char *name, void *value, size_t size)
@@ -383,7 +383,7 @@ ssize_t getxattr (const char *path, const char *name, void *value, size_t size)
 /*                             l g e t x a t t r                              */
 /******************************************************************************/
   
-#if defined(__linux__) || defined(__GNU__)
+#if defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 extern "C"
 {
 ssize_t lgetxattr (const char *path, const char *name, void *value, size_t size)

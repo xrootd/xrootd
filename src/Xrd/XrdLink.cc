@@ -69,6 +69,10 @@
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdSys/XrdSysError.hh"
+
+#ifndef ETIME
+#define ETIME ETIMEDOUT
+#endif
   
 /******************************************************************************/
 /*                               G l o b a l s                                */

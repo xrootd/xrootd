@@ -44,6 +44,10 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
+
+#ifndef ENODATA
+#define ENODATA ENOATTR
+#endif
   
 /******************************************************************************/
 /*                    S t a t i c   D e f i n i t i o n s                     */

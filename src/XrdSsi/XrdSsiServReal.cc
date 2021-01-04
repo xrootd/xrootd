@@ -38,6 +38,10 @@
 #include "XrdSsi/XrdSsiSessReal.hh"
 #include "XrdSsi/XrdSsiTrace.hh"
 #include "XrdSsi/XrdSsiUtils.hh"
+
+#ifndef ENOSR
+#define ENOSR ENOSPC
+#endif
   
 /******************************************************************************/
 /*                     S t a t i c s   &   G l o b a l s                      */

@@ -45,7 +45,7 @@
 
 #ifdef HAVE_SENDFILE
 
-#ifndef __APPLE__
+#if defined(__solaris__) || defined(__linux__) || defined(__GNU__)
 #include <sys/sendfile.h>
 #endif
 
@@ -608,12 +608,12 @@ int XrdLinkXeq::Send(const struct iovec *iov, int iocnt, int bytes)
 
 int XrdLinkXeq::Send(const sfVec *sfP, int sfN)
 {
-#if !defined(HAVE_SENDFILE) || defined(__APPLE__)
+#if !defined(HAVE_SENDFILE)
+
    return -1;
 
-#else
+#elif defined(__solaris__)
 
-#ifdef __solaris__
     sendfilevec_t vecSF[XrdOucSFVec::sfMax], *vecSFP = vecSF;
     size_t xframt, totamt, bytes = 0;
     ssize_t retc;
@@ -729,7 +729,11 @@ do{retc = sendfilev(LinkInfo.FD, vecSFP, sfN, &xframt);
    AtomicAdd(BytesOut, xfrbytes);
    wrMutex.UnLock();
    return xfrbytes;
-#endif
+
+#else
+
+   return -1;
+
 #endif
 }
 

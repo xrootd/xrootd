@@ -122,7 +122,7 @@ namespace XrdSys
       //-----------------------------------------------------------------------
       inline static bool IsPageAligned( const void *ptr )
       {
-        return ( ( uintptr_t ( ptr ) ) % PAGE_SIZE ) == 0 ;
+        return ( ( uintptr_t ( ptr ) ) % PAGE_SZ ) == 0 ;
       }
 
     private:
@@ -285,7 +285,7 @@ namespace XrdSys
         ssize_t result = 0;
 
         void *void_ptr = 0;
-        int ret = posix_memalign( &void_ptr, PAGE_SIZE, size );
+        int ret = posix_memalign( &void_ptr, PAGE_SZ, size );
         if( ret )
         {
           errno = ret;
@@ -392,7 +392,7 @@ namespace XrdSys
 #endif
       }
 
-      static const size_t PAGE_SIZE     =    4 * 1024; //< page size
+      static const size_t PAGE_SZ       =    4 * 1024; //< page size
       static const size_t MAX_PIPE_SIZE = 1024 * 1024; //< maximum pipe size
 
       size_t capacity; //< the total capacity of all underlying pipes

@@ -62,7 +62,7 @@
 #endif
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 #include <sys/types.h>
 #include <sys/param.h>
 #define MAXNAMELEN NAME_MAX
@@ -94,13 +94,9 @@
 #define __USE_LEGACY_PROTOTYPES__ 1
 #endif
 
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__GNU__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__))
 
 #define S_IAMB      0x1FF   /* access mode bits */
-
-#if !defined(__FreeBSD__)
-#define F_DUP2FD F_DUPFD
-#endif
 
 #define STATFS      statfs
 #define STATFS_BUFF struct statfs
@@ -247,6 +243,7 @@ extern "C"
 #   define SOCKLEN_t size_t
 #elif defined(XR__GLIBC) || \
    defined(__FreeBSD__) || \
+   (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) || \
    (defined(XR__SUNGCC3) && defined(__arch64__)) || defined(__APPLE__) || \
    (defined(__sun) && defined(_SOCKLEN_T))
 #   ifndef SOCKLEN_t

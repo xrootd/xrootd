@@ -1219,7 +1219,7 @@ int XrdConfig::setFDL()
 
 // The scheduler will have already set the thread limit. We just report it
 //
-#if ( defined(__linux__) || defined(__GNU__) ) && defined(RLIMIT_NPROC)
+#if ( defined(__linux__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) ) && defined(RLIMIT_NPROC)
 
 // Obtain the actual limit now (Scheduler construction sets this to rlim_max)
 //
