@@ -125,14 +125,14 @@ namespace XrdEc
       // @param offset   : relative offset within the stripe
       // @param size     : number of bytes to be read from the stripe
       // @param usrbuff  : user buffer for the data
-      // @param callback : use callback to be notified when the read operation
+      // @param usrcb    : user callback to be notified when the read operation
       //                   has been resolved
       //-----------------------------------------------------------------------
       void read( size_t      strpid,
                  uint64_t    offset,
                  uint32_t    size,
                  char       *usrbuff,
-                 callback_t  callback )
+                 callback_t  usrcb )
       {
         std::unique_lock<std::mutex> lck( mtx );
 
@@ -185,7 +185,12 @@ namespace XrdEc
         //---------------------------------------------------------------------
         if( state[strpid] == Loading )
         {
-          pending[strpid].emplace_back( offset, size, usrbuff, callback );
+          auto cb = [=]( const XrdCl::XRootDStatus &st, uint32_t nbrd )
+          {
+            if( st.IsOK() ) state[strpid] = Valid;
+            usrcb( st, nbrd );
+          };
+          pending[strpid].emplace_back( offset, size, usrbuff, cb );
           return;
         }
         //---------------------------------------------------------------------
@@ -196,14 +201,14 @@ namespace XrdEc
           if( offset + size > stripes[strpid].size() )
             size = stripes[strpid].size() - offset;
           memcpy( usrbuff, stripes[strpid].data() + offset, size );
-          callback( XrdCl::XRootDStatus(), size );
+          usrcb( XrdCl::XRootDStatus(), size );
           return;
         }
         //---------------------------------------------------------------------
         // In principle we should never end up here, nevertheless if this
         // happens it is clearly an error ...
         //---------------------------------------------------------------------
-        callback( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp ), 0 );
+        usrcb( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp ), 0 );
       }
 
       typedef std::tuple<uint64_t, uint32_t, char*, callback_t> args_t;
@@ -266,8 +271,9 @@ namespace XrdEc
       void Read( uint64_t offset, uint32_t length, void *buffer, XrdCl::ResponseHandler *handler )
       {
         char *usrbuff = reinterpret_cast<char*>( buffer );
-        typedef std::tuple<uint64_t, uint32_t, void*, uint32_t, XrdCl::ResponseHandler*, std::mutex> rdctx_t;
+        typedef std::tuple<uint64_t, uint32_t, void*, uint32_t, XrdCl::ResponseHandler*> rdctx_t;
         auto rdctx = std::make_shared<rdctx_t>( offset, 0, buffer, length, handler );
+        auto rdmtx = std::make_shared<std::mutex>();
 
         while( length > 0 )
         {
@@ -285,9 +291,9 @@ namespace XrdEc
           // Prepare the callback for reading from single stripe
           //-------------------------------------------------------------------
           auto blk = block;
-          auto callback = [blk, rdctx, rdsize]( const XrdCl::XRootDStatus &st, uint32_t nbrd )
+          auto callback = [blk, rdctx, rdsize, rdmtx]( const XrdCl::XRootDStatus &st, uint32_t nbrd )
           {
-            std::unique_lock<std::mutex> lck( std::get<5>( *rdctx ) );
+            std::unique_lock<std::mutex> lck( *rdmtx );
             //-----------------------------------------------------------------
             // Handle failure ...
             //-----------------------------------------------------------------
