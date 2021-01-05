@@ -359,7 +359,45 @@ namespace XrdEc
         buffer.resize( rdsize );
         // issue the read request
         XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, buffer.size(), buffer.data() ) >>
-                      [cb]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch ) { /*TODO verify integrity!!!*/ cb( st, ch.length ); } );
+                        [zipptr, fn, cb]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
+                        {
+                          //---------------------------------------------------
+                          // If read failed there's nothing to do, just pass the
+                          // status to user callback
+                          //---------------------------------------------------
+                          if( !st.IsOK() )
+                          {
+                            cb( st, 0 );
+                            return;
+                          }
+                          //---------------------------------------------------
+                          // Get the checksum for the read data
+                          //---------------------------------------------------
+                          uint32_t orgcksum = 0;
+                          auto s = zipptr->GetCRC32( fn, orgcksum );
+                          //---------------------------------------------------
+                          // If we cannot extract the checksum assume the data
+                          // are corrupted
+                          //---------------------------------------------------
+                          if( !st.IsOK() )
+                          {
+                            cb( st, 0 );
+                            return;
+                          }
+                          //---------------------------------------------------
+                          // Verify data integrity
+                          //---------------------------------------------------
+                          uint32_t cksum = crc32c( 0, ch.buffer, ch.length );
+                          if( orgcksum != cksum )
+                          {
+                            cb( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError ), 0 );
+                            return;
+                          }
+                          //---------------------------------------------------
+                          // All is good, we can call now the user callback
+                          //---------------------------------------------------
+                          cb( XrdCl::XRootDStatus(), ch.length );
+                        } );
       }
 
       XrdCl::Pipeline ReadMetadata( size_t index )
