@@ -114,6 +114,17 @@ namespace XrdCl
         return Stat( openfn, info );
       }
 
+      inline XRootDStatus GetCRC32( const std::string &fn, uint32_t &cksum )
+      { // make sure archive has been opened and CD has been parsed
+        if( openstage != Done )
+          return XRootDStatus( stError, errInvalidOp );
+        // make sure the file is part of the archive
+        auto cditr = cdmap.find( fn );
+        if( cditr == cdmap.end() )
+          return XRootDStatus( stError, errNotFound );
+        return cdvec[cditr->second]->ZCRC32;
+      }
+
       XRootDStatus CloseArchive( ResponseHandler *handler,
                                  uint16_t         timeout = 0 );
 
