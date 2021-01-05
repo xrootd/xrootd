@@ -122,7 +122,8 @@ namespace XrdCl
         auto cditr = cdmap.find( fn );
         if( cditr == cdmap.end() )
           return XRootDStatus( stError, errNotFound );
-        return cdvec[cditr->second]->ZCRC32;
+        cksum = cdvec[cditr->second]->ZCRC32;
+        return XRootDStatus();
       }
 
       XRootDStatus CloseArchive( ResponseHandler *handler,
