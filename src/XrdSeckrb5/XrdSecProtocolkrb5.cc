@@ -247,7 +247,8 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
 // Initialize the context and get the cache default.
 //
    if ((rc = krb5_init_context(&krb_client_context)))
-      {Fatal(error, ENOPROTOOPT, "Kerberos initialization failed", Service, rc);
+      {krbClientContext.UnLock();
+       Fatal(error, ENOPROTOOPT, "Kerberos initialization failed", Service, rc);
        return (XrdSecCredentials *)0;
       }
 
@@ -256,7 +257,8 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
 // Set the name of the default credentials cache for the Kerberos context
 //
    if ((rc = krb5_cc_set_default_name(krb_client_context, kccn)))
-      {Fatal(error, ENOPROTOOPT, "Kerberos default credentials cache setting failed", Service, rc);
+      {krbClientContext.UnLock();
+       Fatal(error, ENOPROTOOPT, "Kerberos default credentials cache setting failed", Service, rc);
        return (XrdSecCredentials *)0;
       }
 
@@ -265,7 +267,8 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
 // Obtain the default cache location
 //
    if ((rc = krb5_cc_default(krb_client_context, &krb_client_ccache)))
-      {Fatal(error, ENOPROTOOPT, "Unable to locate cred cache", Service, rc);
+      {krbClientContext.UnLock();
+       Fatal(error, ENOPROTOOPT, "Unable to locate cred cache", Service, rc);
        return (XrdSecCredentials *)0;
       }
 
