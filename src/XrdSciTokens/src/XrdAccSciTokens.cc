@@ -281,8 +281,8 @@ class XrdAccSciTokens : public XrdAccAuthorize, public XrdSciTokensHelper
     };
 
 public:
-    XrdAccSciTokens(XrdSysLogger *lp, const char *parms, std::unique_ptr<XrdAccAuthorize> chain) :
-        m_chain(std::move(chain)),
+    XrdAccSciTokens(XrdSysLogger *lp, const char *parms, XrdAccAuthorize* chain) :
+        m_chain(chain),
         m_parms(parms ? parms : ""),
         m_next_clean(monotonic_time() + m_expiry_secs),
         m_log(lp, "scitokens_")
@@ -471,8 +471,7 @@ public:
                                              XrdAccAuthorize *accP)
     {
         try {
-            std::unique_ptr<XrdAccAuthorize> chain(accP);
-            accSciTokens = new XrdAccSciTokens(lp, parm, std::move(chain)); // The last arg not needed!
+            accSciTokens = new XrdAccSciTokens(lp, parm, accP); // The last arg not needed!
             return (XrdSciTokensHelper*)accSciTokens;
         } catch (std::exception &) {
             return nullptr;
@@ -950,7 +949,7 @@ private:
     std::vector<std::string> m_audiences;
     std::vector<const char *> m_audiences_array;
     std::map<std::string, std::shared_ptr<XrdAccRules>> m_map;
-    std::unique_ptr<XrdAccAuthorize> m_chain;
+    XrdAccAuthorize* m_chain;
     const std::string m_parms;
     std::vector<const char*> m_valid_issuers_array;
     std::unordered_map<std::string, IssuerConfig> m_issuers;
@@ -969,6 +968,7 @@ extern "C" {
 XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *lp,
                                           const char   *cfn,
                                           const char   *parm,
+                                       XrdOucEnv    * /*not used*/,
                                        XrdAccAuthorize *accP)
 {
     // Record the parent authorization plugin. There is no need to use
@@ -1003,7 +1003,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
                                        const char   *cfn,
                                        const char   *parm)
 {
-    return XrdAccAuthorizeObjAdd(lp, cfn, parm, 0);
+    return XrdAccAuthorizeObjAdd(lp, cfn, parm, 0, 0);
 }
 
 
