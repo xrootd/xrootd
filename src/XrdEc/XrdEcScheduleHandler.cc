@@ -35,7 +35,7 @@ namespace XrdEc
       XrdCl::AnyObject       *pResponse;
   };
 
-  void ScheduleHandler( uint64_t offset, uint32_t size, char *buffer, XrdCl::ResponseHandler *handler )
+  void ScheduleHandler( uint64_t offset, uint32_t size, void *buffer, XrdCl::ResponseHandler *handler )
   {
     if( !handler ) return;
 
