@@ -199,30 +199,31 @@ namespace XrdEc
       bool error_correction()
       {
         //---------------------------------------------------------------------
-        // Check if we can do the recovery at all (if too many stripes are
-        // missing it wont be possible)
+        // Do the accounting for our stripes
         //---------------------------------------------------------------------
-        size_t missingcnt = std::accumulate( state.begin(), state.end(), 0,
-                                             []( size_t cnt, state_t st )
-                                             {
-                                               if( st == Missing ) return cnt + 1;
-                                               return cnt;
-                                             } );
-        if( missingcnt > objcfg.nbparity ) return false;
+        size_t missingcnt = 0, validcnt = 0, loadingcnt = 0, recoveringcnt = 0;
+        std::for_each( state.begin(), state.end(), [&]( state_t &s )
+          {
+            switch( s )
+            {
+              case Missing:    ++missingcnt;    break;
+              case Valid:      ++validcnt;      break;
+              case Loading:    ++loadingcnt;    break;
+              case Recovering: ++recoveringcnt; break;
+            }
+          } );
         //---------------------------------------------------------------------
         // If there are no missing stripes all is good ...
         //---------------------------------------------------------------------
-        if( missingcnt == 0 ) return true;
-
+        if( missingcnt + recoveringcnt == 0 ) return true;
+        //---------------------------------------------------------------------
+        // Check if we can do the recovery at all (if too many stripes are
+        // missing it wont be possible)
+        //---------------------------------------------------------------------
+        if( missingcnt + recoveringcnt > objcfg.nbparity ) return false;
         //---------------------------------------------------------------------
         // Check if we can do the recovery right away
         //---------------------------------------------------------------------
-        size_t validcnt = std::accumulate( state.begin(), state.end(), 0,
-                                           []( size_t cnt, state_t st )
-                                           {
-                                             if( st == Valid ) return cnt + 1;
-                                             return cnt;
-                                           } );
         if( validcnt >= objcfg.nbdata )
         {
           Config &cfg = Config::Instance();
@@ -242,18 +243,11 @@ namespace XrdEc
           std::for_each( state.begin(), state.end(), []( state_t &s ){ s = Valid; } );
           return true;
         }
-
         //---------------------------------------------------------------------
         // Try loading the data and only then attempt recovery
         //---------------------------------------------------------------------
-        size_t loadingcnt = std::accumulate( state.begin(), state.end(), 0,
-                                             []( size_t cnt, state_t st )
-                                             {
-                                               if( st == Loading ) return cnt + 1;
-                                               return cnt;
-                                             } );
         size_t i = 0;
-        while( loadingcnt + validcnt < objcfg.nbdata )
+        while( loadingcnt + validcnt < objcfg.nbdata && i < objcfg.nbchunks )
         {
           size_t strpid = i++;
           if( state[strpid] != Empty ) continue;
