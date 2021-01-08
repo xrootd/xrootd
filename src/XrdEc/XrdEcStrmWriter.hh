@@ -132,7 +132,7 @@ namespace XrdEc
     public:
 
       //-----------------------------------------------------------------------
-      // Constructor
+      //! Constructor
       //-----------------------------------------------------------------------
       StrmWriter( const ObjCfg &objcfg ) : objcfg( objcfg ),
                                            writer_thread_stop( false ),
@@ -142,6 +142,9 @@ namespace XrdEc
       {
       }
 
+      //-----------------------------------------------------------------------
+      //! Destructor
+      //-----------------------------------------------------------------------
       virtual ~StrmWriter()
       {
         writer_thread_stop = true;
@@ -161,7 +164,7 @@ namespace XrdEc
 
         for( size_t i = 0; i < size; ++i )
         {
-          std::string url = objcfg.plgr[i] + objcfg.obj + ".zip";
+          std::string url = objcfg.GetDataUrl( i );
           XrdCl::Ctx<XrdCl::ZipArchive> zip( *dataarchs[i] );
           opens.emplace_back( XrdCl::OpenArchive( zip, url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write ) );
         }
@@ -380,7 +383,7 @@ namespace XrdEc
         uint64_t blksize = 0;
         for( size_t strpnb = 0; strpnb < nbchunks; ++strpnb )
         {
-          std::string fn       = objcfg.obj + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
+          std::string fn       = objcfg.GetFileName( blknb, strpnb );
           uint32_t    crc32c   = wrtbuff->GetCrc32c( strpnb );
           uint64_t    strpsize = wrtbuff->GetStrpSize( strpnb );
           char*       strpbuff = wrtbuff->GetStrpBuff( strpnb );
@@ -468,7 +471,7 @@ namespace XrdEc
         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
         for( size_t i = 0; i < cdcnt; ++i )
         {
-          std::string fn = objcfg.plgr[i] + objcfg.obj + ".zip";    // file name (URL of the data archive)
+          std::string fn = objcfg.GetDataUrl( i );                  // file name (URL of the data archive)
           buffer_t buff( dataarchs[i]->GetCD() );                   // raw data buffer (central directory of the data archive)
           uint32_t cksum = crc32c( 0, buff.data(), buff.size() );   // crc32c of the buffer
           lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );   // LFH record for the buffer
@@ -526,7 +529,7 @@ namespace XrdEc
           //-------------------------------------------------------------------
           // replicate the metadata
           //-------------------------------------------------------------------
-          std::string url = objcfg.plgr[i] + objcfg.obj + ".metadata.zip";
+          std::string url = objcfg.GetMetadataUrl( i );
           metadataarchs.emplace_back( std::make_shared<XrdCl::File>() );
           XrdCl::Pipeline p = XrdCl::Open( *metadataarchs[i], url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write )
                             | XrdCl::Write( *metadataarchs[i], 0, zipbuff->size(), zipbuff->data() )

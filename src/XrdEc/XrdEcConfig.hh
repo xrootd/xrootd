@@ -52,19 +52,11 @@ namespace XrdEc
           return itr->second;
       }
 
-      uint8_t            maxrelocate;
-      std::string        ckstype;
-      uint8_t            repairthreads;
-      std::string        headnode;
-
     private:
 
       std::unordered_map<std::string, RedundancyProvider> redundancies;
 
-      Config() : maxrelocate( 10 ),
-                 ckstype( "crc32" ),
-                 repairthreads( 4 ),
-                 headnode( "eospps.cern.ch" )
+      Config()
       {
       }
 

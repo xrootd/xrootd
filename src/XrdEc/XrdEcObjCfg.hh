@@ -22,7 +22,6 @@ namespace XrdEc
 
       ObjCfg( const std::string &obj, const std::string &mtindex, uint8_t nbdata, uint8_t nbparity, uint64_t chunksize ) :
         obj( obj ),
-        mtindex( mtindex ),
         nbchunks( nbdata + nbparity ),
         nbparity( nbparity ),
         nbdata( nbdata ),
@@ -35,7 +34,6 @@ namespace XrdEc
       }
 
       ObjCfg( const ObjCfg &objcfg ) : obj( objcfg.obj ),
-                                       mtindex( objcfg.mtindex ),
                                        nbchunks( objcfg.nbchunks ),
                                        nbparity( objcfg.nbparity ),
                                        nbdata( objcfg.nbdata ),
@@ -47,8 +45,22 @@ namespace XrdEc
       {
       }
 
+      inline std::string GetDataUrl( size_t i ) const
+      {
+        return plgr[i] + obj + ".data.zip";
+      }
+
+      inline std::string GetMetadataUrl( size_t i ) const
+      {
+        return plgr[i] + obj + ".metadata.zip";
+      }
+
+      inline std::string GetFileName( size_t blknb, size_t strpnb ) const
+      {
+        return obj + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
+      }
+
       const std::string obj;
-      const std::string mtindex;    // index of the metadata file
       const uint8_t     nbchunks;   // number of chunks in block
       const uint8_t     nbparity;   // number of chunks in parity
       const uint8_t     nbdata;     // number of chunks in data

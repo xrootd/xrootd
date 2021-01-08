@@ -383,7 +383,7 @@ namespace XrdEc
         for( size_t i = 0; i < size; ++i )
         {
           // generate the URL
-          std::string url = objcfg.plgr[i] + objcfg.obj + ".zip";
+          std::string url = objcfg.GetDataUrl( i );
           // create the file object
           dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>() );
           // open the archive
@@ -473,7 +473,7 @@ namespace XrdEc
       void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb )
       {
         // generate the file name (blknb/strpnb)
-        std::string fn = objcfg.obj + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
+        std::string fn = objcfg.GetFileName( blknb, strpnb );
         // if the block/stripe does not exist it means we are reading passed the end of the file
         auto itr = urlmap.find( fn );
         if( itr == urlmap.end() ) return cb( XrdCl::XRootDStatus(), 0 );
@@ -538,7 +538,7 @@ namespace XrdEc
         // create the File object
         auto file = std::make_shared<XrdCl::File>();
         // prepare the URL for Open operation
-        std::string url = objcfg.plgr[index] + objcfg.obj + ".metadata.zip";
+        std::string url = objcfg.GetMetadataUrl( index );
         // arguments for the Read operation
         XrdCl::Fwd<uint32_t> rdsize;
         XrdCl::Fwd<void*>    rdbuff;
