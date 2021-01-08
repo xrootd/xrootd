@@ -51,26 +51,67 @@ namespace XrdCl
 
   using namespace XrdZip;
 
+  //---------------------------------------------------------------------------
+  // ZipArchive provides following functionalities:
+  // - parsing of existing ZIP archive
+  // - reading data from existing ZIP archive
+  // - appending data to existing ZIP archive
+  // - querying stat info and checksum for given file in ZIP archive
+  //---------------------------------------------------------------------------
   class ZipArchive
   {
     friend class XrdEc::StrmWriter;
     friend class XrdEc::Reader;
 
     public:
-
+      //-----------------------------------------------------------------------
+      //! Constructor
+      //-----------------------------------------------------------------------
       ZipArchive();
+
+      //-----------------------------------------------------------------------
+      //! Destructor
+      //-----------------------------------------------------------------------
       virtual ~ZipArchive();
 
+      //-----------------------------------------------------------------------
+      //! Open ZIP Archive (and parse the Central Directory)
+      //!
+      //! @param url     : the URL of the ZIP archive
+      //! @param flags   : open flags to be used when openning the file
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
       XRootDStatus OpenArchive( const std::string  &url,
                                 OpenFlags::Flags    flags,
                                 ResponseHandler    *handler,
                                 uint16_t            timeout = 0 );
 
+      //-----------------------------------------------------------------------
+      //! Open a file within the ZIP Archive
+      //!
+      //! @param fn    : file name to be opened
+      //! @param flags : open flags (either 'Read' or 'New | Write')
+      //! @param size  : file size (to be included in the LFH)
+      //! @param crc32 : file crc32 (to be included in the LFH)
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
       XRootDStatus OpenFile( const std::string  &fn,
                              OpenFlags::Flags    flags = OpenFlags::None,
                              uint64_t            size  = 0,
                              uint32_t            crc32 = 0 );
 
+      //-----------------------------------------------------------------------
+      //! Read data from an open file
+      //!
+      //! @param offset  : offset within the file to read at
+      //! @param size    : number of bytes to be read
+      //! @param buffer  : the buffer for the data
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
       inline
       XRootDStatus Read( uint64_t         offset,
                          uint32_t         size,
@@ -82,6 +123,17 @@ namespace XrdCl
         return ReadFrom( openfn, offset, size, buffer, handler, timeout );
       }
 
+      //-----------------------------------------------------------------------
+      //! Read data from a given file
+      //!
+      //! @param fn      : the name of the file from which we are going to read
+      //! @param offset  : offset within the file to read at
+      //! @param size    : number of bytes to be read
+      //! @param buffer  : the buffer for the data
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
       XRootDStatus ReadFrom( const std::string &fn,
                              uint64_t           offset,
                              uint32_t           size,
@@ -89,11 +141,27 @@ namespace XrdCl
                              ResponseHandler   *handler,
                              uint16_t           timeout = 0 );
 
+      //-----------------------------------------------------------------------
+      //! Append data to a new file
+      //!
+      //! @param size    : number of bytes to be appended
+      //! @param buffer  : the buffer with the data to be appended
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
       XRootDStatus Write( uint32_t          size,
                           const void       *buffer,
                           ResponseHandler  *handler,
                           uint16_t          timeout = 0 );
 
+      //-----------------------------------------------------------------------
+      //! Get stat info for given file
+      //!
+      //! @param fn   : the name of the file
+      //! @param info : output parameter
+      //! @return     : the status of the operation
+      //-----------------------------------------------------------------------
       inline XRootDStatus Stat( const std::string &fn, StatInfo *&info )
       { // make sure archive has been opened and CD has been parsed
         if( openstage != Done )
@@ -107,6 +175,12 @@ namespace XrdCl
         return XRootDStatus();
       }
 
+      //-----------------------------------------------------------------------
+      //! Get stat info for an open file
+      //!
+      //! @param info : output parameter
+      //! @return     : the status of the operation
+      //-----------------------------------------------------------------------
       inline XRootDStatus Stat( StatInfo *&info )
       {
         if( openfn.empty() )
@@ -114,6 +188,13 @@ namespace XrdCl
         return Stat( openfn, info );
       }
 
+      //-----------------------------------------------------------------------
+      //! Get crc32 for a given file
+      //!
+      //! @param fn    : file name
+      //! @param cksum : output parameter
+      //! @return      : the status of the operation
+      //-----------------------------------------------------------------------
       inline XRootDStatus GetCRC32( const std::string &fn, uint32_t &cksum )
       { // make sure archive has been opened and CD has been parsed
         if( openstage != Done )
@@ -126,9 +207,20 @@ namespace XrdCl
         return XRootDStatus();
       }
 
+      //-----------------------------------------------------------------------
+      //! Create the central directory at the end of ZIP archive and close it
+      //
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
       XRootDStatus CloseArchive( ResponseHandler *handler,
                                  uint16_t         timeout = 0 );
 
+      //-----------------------------------------------------------------------
+      //! Close an open file within the ZIP archive
+      //! @return : the status of the operation
+      //-----------------------------------------------------------------------
       inline XRootDStatus CloseFile()
       {
         if( openstage != Done || openfn.empty() )
@@ -139,18 +231,47 @@ namespace XrdCl
         return XRootDStatus();
       }
 
+      //-----------------------------------------------------------------------
+      //! List files in the ZIP archive
+      //! @return : the status of the operation
+      //-----------------------------------------------------------------------
       XRootDStatus List( DirectoryList *&list );
 
     private:
 
+      //-----------------------------------------------------------------------
+      //! Open the ZIP archive in read-only mode without parsing the central
+      //! directory.
+      //!
+      //! @param url     : url of the ZIP archive
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : operation status
+      //-----------------------------------------------------------------------
       XRootDStatus OpenOnly( const std::string  &url,
                              ResponseHandler    *handler,
                              uint16_t            timeout = 0 );
 
+      //-----------------------------------------------------------------------
+      //! Get a buffer with central directory of the ZIP archive
+      //!
+      //! @return : buffer with central directory
+      //-----------------------------------------------------------------------
       buffer_t GetCD();
 
+      //-----------------------------------------------------------------------
+      //! Set central directory for the ZIP archive
+      //!
+      //! @param buffer : a buffer with the central directory to be set
+      //-----------------------------------------------------------------------
       void SetCD( const buffer_t &buffer );
 
+      //-----------------------------------------------------------------------
+      //! Package a response into AnyObject (erase the type)
+      //!
+      //! @param rsp : the response to be packaged
+      //! @return    : AnyObject with the response
+      //-----------------------------------------------------------------------
       template<typename Response>
       inline static AnyObject* PkgRsp( Response *rsp )
       {
@@ -160,6 +281,9 @@ namespace XrdCl
         return pkg;
       }
 
+      //-----------------------------------------------------------------------
+      //! Free status and response
+      //-----------------------------------------------------------------------
       template<typename Response>
       inline static void Free( XRootDStatus *st, Response *rsp )
       {
@@ -167,22 +291,16 @@ namespace XrdCl
         delete rsp;
       }
 
-      inline void Schedule( ResponseHandler *handler, XRootDStatus *st )
-      {
-        if( !handler ) return delete st;
-        JobManager *jobMgr = DefaultEnv::GetPostMaster()->GetJobManager();
-        if( jobMgr->IsWorker() )
-          // this is a worker thread so we can simply call the handler
-          handler->HandleResponse( st, nullptr );
-        else
-        {
-          ResponseJob *job = new ResponseJob( handler, st, nullptr, nullptr );
-          DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
-        }
-      }
-
+      //-----------------------------------------------------------------------
+      //! Schedule a user callback to be executed in the thread-pool with given
+      //! status and response.
+      //!
+      //! @param handler : user callback to be scheduled
+      //! @param st      : status to be passed to the callback
+      //! @param rsp     : response to be passed to the callback
+      //-----------------------------------------------------------------------
       template<typename Response>
-      inline static void Schedule( ResponseHandler *handler, XRootDStatus *st, Response *rsp )
+      inline static void Schedule( ResponseHandler *handler, XRootDStatus *st, Response *rsp = nullptr )
       {
         if( !handler ) return Free( st, rsp );
         JobManager *jobMgr = DefaultEnv::GetPostMaster()->GetJobManager();
@@ -196,6 +314,13 @@ namespace XrdCl
         }
       }
 
+      //-----------------------------------------------------------------------
+      //! Create a StatInfo object from ZIP archive stat info and the file size.
+      //!
+      //! @param starch : ZIP archive stat info
+      //! @param size   : file size
+      //! @return       : StatInfo object
+      //-----------------------------------------------------------------------
       inline static StatInfo* make_stat( const StatInfo &starch, uint64_t size )
       {
         StatInfo *info = new StatInfo( starch );
@@ -205,6 +330,12 @@ namespace XrdCl
         return info;
       }
 
+      //-----------------------------------------------------------------------
+      //! Create a StatInfo object for a given file within the ZIP archive.
+      //!
+      //! @param fn : file name
+      //! @return   : StatInfo object for the given file
+      //-----------------------------------------------------------------------
       inline StatInfo* make_stat( const std::string &fn )
       {
         StatInfo *infoptr = 0;
@@ -216,16 +347,17 @@ namespace XrdCl
         return make_stat( *stinfo, cdvec[index]->uncompressedSize );
       }
 
-      inline static XRootDStatus* make_status( const XRootDStatus &status )
+      //-----------------------------------------------------------------------
+      //! Allocate new XRootDStatus object
+      //-----------------------------------------------------------------------
+      inline static XRootDStatus* make_status( const XRootDStatus &status = XRootDStatus() )
       {
         return new XRootDStatus( status );
       }
 
-      inline static XRootDStatus* make_status()
-      {
-        return new XRootDStatus();
-      }
-
+      //-----------------------------------------------------------------------
+      //! Clear internal ZipArchive objects
+      //-----------------------------------------------------------------------
       inline void Clear()
       {
         buffer.reset();
@@ -236,39 +368,43 @@ namespace XrdCl
         openstage = None;
       }
 
+      //-----------------------------------------------------------------------
+      //! Stages of opening and parsing a ZIP archive
+      //-----------------------------------------------------------------------
       enum OpenStages
       {
-        None = 0,
-        HaveEocdBlk,
-        HaveZip64EocdlBlk,
-        HaveZip64EocdBlk,
-        HaveCdRecords,
-        Done,
-        Error,
-        NotParsed
+        None = 0,          //< opening/parsing not started
+        HaveEocdBlk,       //< we have the End of Central Directory record
+        HaveZip64EocdlBlk, //< we have the ZIP64 End of Central Directory locator record
+        HaveZip64EocdBlk,  //< we have the ZIP64 End of Central Directory record
+        HaveCdRecords,     //< we have Central Directory records
+        Done,              //< we are done parsing the Central Directory
+        Error,             //< opening/parsing failed
+        NotParsed          //< the ZIP archive has been opened but Central Directory is not parsed
       };
 
+      //-----------------------------------------------------------------------
+      //! Type that maps file name to its cache
+      //-----------------------------------------------------------------------
       typedef std::unordered_map<std::string, ZipCache> zipcache_t;
 
-      File                        archive;
-      uint64_t                    archsize;
-      bool                        cdexists;
-      bool                        updated;
-      std::unique_ptr<char[]>     buffer;
-      std::unique_ptr<EOCD>       eocd;
-      cdvec_t                     cdvec;
-      cdmap_t                     cdmap;
-      uint64_t                    cdoff;
-      uint32_t                    orgcdsz;  //> original CD size
-      uint32_t                    orgcdcnt; //> original number CDFH records
-      buffer_t                    orgcdbuf; //> buffer with the original CDFH records
-      std::unique_ptr<ZIP64_EOCD> zip64eocd;
-      OpenStages                  openstage;
-      std::string                 openfn;
-      zipcache_t                  zipcache;
-
-      OpenFlags::Flags            flags;
-      std::unique_ptr<LFH>        lfh;
+      File                        archive;   //> File object for handling the ZIP archive
+      uint64_t                    archsize;  //> size of the ZIP archive
+      bool                        cdexists;  //> true if Central Directory exists, false otherwise
+      bool                        updated;   //> true if the ZIP archive has been updated, false otherwise
+      std::unique_ptr<char[]>     buffer;    //> buffer for keeping the data to be parsed
+      std::unique_ptr<EOCD>       eocd;      //> End of Central Directory record
+      cdvec_t                     cdvec;     //> vector of Central Directory File Headers
+      cdmap_t                     cdmap;     //> mapping of file name to CDFH index
+      uint64_t                    cdoff;     //> Central Directory offset
+      uint32_t                    orgcdsz;   //> original CD size
+      uint32_t                    orgcdcnt;  //> original number CDFH records
+      buffer_t                    orgcdbuf;  //> buffer with the original CDFH records
+      std::unique_ptr<ZIP64_EOCD> zip64eocd; //> ZIP64 End of Central Directory record
+      OpenStages                  openstage; //> stage of opening / parsing a ZIP archive
+      std::string                 openfn;    //> file name of opened file
+      zipcache_t                  zipcache;  //> cache for inflating compressed data
+      std::unique_ptr<LFH>        lfh;       //> Local File Header record for the newly appended file
   };
 
 } /* namespace XrdZip */

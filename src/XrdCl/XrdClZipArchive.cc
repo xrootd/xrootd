@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 // Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Michal Simon <michal.simon@cern.ch>
-//------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // This file is part of the XRootD software suite.
 //
 // XRootD is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 // In applying this licence, CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
-//------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClZipArchive.hh"
@@ -33,21 +33,30 @@ namespace XrdCl
 
   using namespace XrdZip;
 
+  //---------------------------------------------------------------------------
+  // Constructor
+  //---------------------------------------------------------------------------
   ZipArchive::ZipArchive() : archsize( 0 ),
                              cdexists( false ),
                              updated( false ),
                              cdoff( 0 ),
                              orgcdsz( 0 ),
                              orgcdcnt( 0 ),
-                             openstage( None ),
-                             flags( OpenFlags::None )
+                             openstage( None )
   {
   }
 
+  //---------------------------------------------------------------------------
+  // Destructor
+  //---------------------------------------------------------------------------
   ZipArchive::~ZipArchive()
   {
   }
 
+  //---------------------------------------------------------------------------
+  // Open the ZIP archive in read-only mode without parsing the central
+  // directory.
+  //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::OpenOnly( const std::string  &url,
                                      ResponseHandler    *handler,
                                      uint16_t            timeout )
@@ -69,14 +78,17 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //---------------------------------------------------------------------------
+  // Open ZIP Archive (and parse the Central Directory)
+  //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::OpenArchive( const std::string  &url,
                                         OpenFlags::Flags    flags,
                                         ResponseHandler    *handler,
                                         uint16_t            timeout )
   {
-    Fwd<uint32_t> rdsize;
-    Fwd<uint64_t> rdoff;
-    Fwd<void*>    rdbuff;
+    Fwd<uint32_t> rdsize; // number of bytes to be read
+    Fwd<uint64_t> rdoff;  // offset for the read request
+    Fwd<void*>    rdbuff; // buffer for data to be read
     uint32_t      maxrdsz = EOCD::maxCommentLength + EOCD::eocdBaseSize +
                             ZIP64_EOCDL::zip64EocdlSize;
 
@@ -95,7 +107,7 @@ namespace XrdCl
                                    openstage = Done;
                                    Pipeline::Stop();
                                  }
-
+                                 // prepare the arguments for the subsequent read
                                  rdsize = ( archsize <= maxrdsz ? archsize : maxrdsz );
                                  rdoff  = archsize - *rdsize;
                                  buffer.reset( new char[*rdsize] );
@@ -171,7 +183,7 @@ namespace XrdCl
                                       std::unique_ptr<ZIP64_EOCDL> eocdl( new ZIP64_EOCDL( buff ) );
                                       if( chunk.offset > eocdl->zip64EocdOffset )
                                       {
-                                        // we need to read more data
+                                        // we need to read more data, adjust the read arguments
                                         rdsize = archsize - eocdl->zip64EocdOffset;
                                         rdoff  = eocdl->zip64EocdOffset;
                                         buffer.reset( new char[*rdsize] );
@@ -196,7 +208,7 @@ namespace XrdCl
                                       }
                                       zip64eocd.reset( new ZIP64_EOCD( buff ) );
 
-                                      // now we can read the CD records
+                                      // now we can read the CD records, adjust the read arguments
                                       cdoff     = zip64eocd->cdOffset;
                                       orgcdsz   = zip64eocd->cdSize;
                                       orgcdcnt  = zip64eocd->nbCdRec;
@@ -238,7 +250,7 @@ namespace XrdCl
                                 }
                               }
                           | XrdCl::Final( [handler]( const XRootDStatus &status )
-                              {
+                              { // finalize the pipeline by calling the user callback
                                 if( handler )
                                   handler->HandleResponse( make_status( status ), nullptr );
                               } );
@@ -247,6 +259,9 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //---------------------------------------------------------------------------
+  // Open a file within the ZIP Archive
+  //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::OpenFile( const std::string &fn,
                                      OpenFlags::Flags   flags,
                                      uint64_t           size,
@@ -255,7 +270,6 @@ namespace XrdCl
     if( !openfn.empty() || openstage != Done || !archive.IsOpen() )
       return XRootDStatus( stError, errInvalidOp );
 
-    this->flags = flags;
     auto  itr   = cdmap.find( fn );
     if( itr == cdmap.end() )
     {
@@ -278,6 +292,9 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //---------------------------------------------------------------------------
+  // Get a buffer with central directory of the ZIP archive
+  //---------------------------------------------------------------------------
   buffer_t ZipArchive::GetCD()
   {
     uint32_t size = 0;
@@ -309,6 +326,9 @@ namespace XrdCl
     return metadata;
   }
 
+  //---------------------------------------------------------------------------
+  // Set central directory for the ZIP archive
+  //---------------------------------------------------------------------------
   void ZipArchive::SetCD( const buffer_t &buffer )
   {
     if( openstage != NotParsed ) return;
@@ -341,9 +361,16 @@ namespace XrdCl
     cdexists  = true;
   }
 
+  //---------------------------------------------------------------------------
+  // Create the central directory at the end of ZIP archive and close it
+  //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::CloseArchive( ResponseHandler *handler,
-                                      uint16_t         timeout )
+                                         uint16_t         timeout )
   {
+    //-------------------------------------------------------------------------
+    // If the file was updated, we need to write the Central Directory before
+    // closing the file.
+    //-------------------------------------------------------------------------
     if( updated )
     {
       uint64_t wrtoff  = cdoff;
@@ -365,6 +392,9 @@ namespace XrdCl
       return XRootDStatus();
     }
 
+    //-------------------------------------------------------------------------
+    // Otherwise, just close the ZIP archive
+    //-------------------------------------------------------------------------
     Pipeline p = Close( archive ) >>
                           [=]( XRootDStatus &st )
                           {
@@ -376,6 +406,9 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //---------------------------------------------------------------------------
+  // Read data from a given file
+  //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::ReadFrom( const std::string &fn,
                                      uint64_t           relativeOffset,
                                      uint32_t           size,
@@ -528,6 +561,9 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //---------------------------------------------------------------------------
+  // List files in the ZIP archive
+  //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::List( DirectoryList *&list )
   {
     if( openstage != Done )
@@ -558,6 +594,9 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //---------------------------------------------------------------------------
+  // Append data to a new file
+  //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::Write( uint32_t         size,
                                   const void      *buffer,
                                   ResponseHandler *handler,
