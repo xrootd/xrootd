@@ -12,6 +12,7 @@
 #include "XrdZip/XrdZipEOCD.hh"
 #include "XrdZip/XrdZipZIP64EOCD.hh"
 #include <string>
+#include <sstream>
 
 namespace XrdZip
 {
@@ -59,6 +60,17 @@ namespace XrdZip
       copy_bytes( totalNbDisks,    buffer );
     }
 
+    //-------------------------------------------------------------------------
+    //! Convert the EOCDL into a string for logging purposes
+    //-------------------------------------------------------------------------
+    std::string ToString()
+    {
+      std::stringstream ss;
+      ss << "{nbDiskZip64Eocd=" << nbDiskZip64Eocd;
+      ss << ";zip64EocdOffset=" << zip64EocdOffset;
+      ss << ";totalNbDisks="    << totalNbDisks << "}";
+      return ss.str();
+    }
 
     uint32_t nbDiskZip64Eocd; //< number of the disk with the start of the zip64 end of central directory
     uint64_t zip64EocdOffset; //< relative offset of the zip64 end of central directory record

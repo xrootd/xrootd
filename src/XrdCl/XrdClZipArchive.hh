@@ -392,7 +392,7 @@ namespace XrdCl
       uint64_t                    archsize;  //> size of the ZIP archive
       bool                        cdexists;  //> true if Central Directory exists, false otherwise
       bool                        updated;   //> true if the ZIP archive has been updated, false otherwise
-      std::unique_ptr<char[]>     buffer;    //> buffer for keeping the data to be parsed
+      std::unique_ptr<char[]>     buffer;    //> buffer for keeping the data to be parsed or raw data
       std::unique_ptr<EOCD>       eocd;      //> End of Central Directory record
       cdvec_t                     cdvec;     //> vector of Central Directory File Headers
       cdmap_t                     cdmap;     //> mapping of file name to CDFH index

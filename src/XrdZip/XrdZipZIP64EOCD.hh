@@ -12,6 +12,7 @@
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"
 #include <string>
+#include <sstream>
 
 namespace XrdZip
 {
@@ -76,6 +77,26 @@ namespace XrdZip
       copy_bytes( cdOffset,      buffer );
 
       std::copy( extensibleData.begin(), extensibleData.end(), std::back_inserter( buffer ) );
+    }
+
+    //-------------------------------------------------------------------------
+    //! Convert the ZIP64EOCD into a string for logging purposes
+    //-------------------------------------------------------------------------
+    std::string ToString()
+    {
+      std::stringstream ss;
+      ss << "{zip64EocdSize="       << zip64EocdSize;
+      ss << ";zipVersion="          << zipVersion;
+      ss << ";minZipVersion="       << minZipVersion;
+      ss << ";nbDisk="              << nbDisk;
+      ss << ";nbDiskCd="            << nbDiskCd;
+      ss << ";nbCdRecD="            << nbCdRecD;
+      ss << ";nbCdRec="             << nbCdRec;
+      ss << ";cdSize="              << cdSize;
+      ss << ";cdOffset="            << cdOffset;
+      ss << ";extensibleData="      << extensibleData;
+      ss << ";extensibleDataLength" << extensibleDataLength << "}";
+      return ss.str();
     }
 
     uint64_t    zip64EocdSize;        //< size of zip64 end of central directory record

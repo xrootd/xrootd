@@ -29,6 +29,7 @@
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"
 #include <string>
+#include <sstream>
 
 namespace XrdZip
 {
@@ -113,6 +114,23 @@ namespace XrdZip
       copy_bytes( commentLength, buffer );
 
       std::copy( comment.begin(), comment.end(), std::back_inserter( buffer ) );
+    }
+
+    //-------------------------------------------------------------------------
+    //! Convert the EOCD into a string for logging purposes
+    //-------------------------------------------------------------------------
+    std::string ToString()
+    {
+      std::stringstream ss;
+      ss << "{nbDisk="        << nbDisk;
+      ss << ";nbDiskCd="      << nbDiskCd;
+      ss << ";nbCdRecD="      << nbCdRecD;
+      ss << ";nbCdRec="       << nbCdRec;
+      ss << ";cdSize"         << cdSize;
+      ss << ";cdOffset="      << cdOffset;
+      ss << ";commentLength=" << commentLength;
+      ss << ";comment="       << comment << '}';
+      return ss.str();
     }
 
     uint16_t    nbDisk;        //< number of this disk

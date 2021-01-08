@@ -835,6 +835,7 @@ namespace XrdCl
     log->SetTopicName( PlugInMgrMsg,       "PlugInMgr" );
     log->SetTopicName( ExDbgMsg,           "ExDbgMsg" );
     log->SetTopicName( TlsMsg,             "TlsMsg" );
+    log->SetTopicName( ZipMsg,             "ZipMsg" );
   }
 
 }
