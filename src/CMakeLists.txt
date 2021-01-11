@@ -23,6 +23,7 @@ include( XrdCrypto )
 include( XrdSec )
 include( XrdXml )
 include( XrdHeaders )
+#include( XrdSecztn )
 
 if( BUILD_CRYPTO )
   include( XrdSecgsi )
@@ -52,7 +53,6 @@ if( NOT XRDCL_ONLY )
   include( XrdFfs )
   include( XrdPlugins )
   include( XrdSsi )
-#  include( XrdCns ) TODO: this is using the old client, needs refactoring or needs to be removed!
 
   include( XrdPfc )
 
@@ -74,7 +74,7 @@ if( NOT XRDCL_ONLY )
   endif()
 
   if( BUILD_SCITOKENS )
-    add_subdirectory( XrdSciTokens )
+    include( XrdSciTokens )
   endif()
 
 endif()

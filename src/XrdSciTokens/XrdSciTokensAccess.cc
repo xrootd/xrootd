@@ -19,7 +19,7 @@
 #include "picojson.h"
 
 #include "scitokens/scitokens.h"
-#include "XrdSciTokensHelper.hh"
+#include "XrdSciTokens/XrdSciTokensHelper.hh"
 
 // The status-quo to retrieve the default object is to copy/paste the
 // linker definition and invoke directly.
