@@ -79,6 +79,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Close();
       virtual void Write( const std::string &message );
+
     private:
       int pFileDes;
   };
@@ -221,6 +222,17 @@ namespace XrdCl
       //! Map a topic number to a string
       //------------------------------------------------------------------------
       void SetTopicName( uint64_t topic, std::string name );
+
+
+      //------------------------------------------------------------------------
+      //! Register new topic
+      //------------------------------------------------------------------------
+      inline uint64_t RegisterTopic( const std::string &topic )
+      {
+        uint64_t tpcnb = pTopicMap.rbegin()->first << 1;
+        SetTopicName( tpcnb, topic );
+        return tpcnb;
+      }
 
       //------------------------------------------------------------------------
       //! Get the log level
