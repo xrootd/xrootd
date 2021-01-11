@@ -83,6 +83,7 @@ add_library(
   XrdEcWrtBuff.hh
   XrdEcThreadPool.hh
   XrdEcStrmWriter.hh
+  XrdEcReader.hh               XrdEcReader.cc
 )
 
 target_link_libraries(
