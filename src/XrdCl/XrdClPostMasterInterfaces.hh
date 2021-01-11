@@ -351,7 +351,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetHeader( Message *message, Socket *socket ) = 0;
+      virtual XRootDStatus GetHeader( Message *message, Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Read the message body from the socket, the socket is non-blocking,
@@ -363,7 +363,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetBody( Message *message, Socket *socket ) = 0;
+      virtual XRootDStatus GetBody( Message *message, Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Initialize channel

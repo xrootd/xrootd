@@ -320,14 +320,14 @@ namespace XrdCl
       case XrdTls::TLS_WantRead:  return XRootDStatus( stOK, suRetry, 0, msg );
 
       case XrdTls::TLS_UNK_Error:
-      case XrdTls::TLS_SYS_Error: return XRootDStatus( stError, errTlsError, errno, msg );
+      case XrdTls::TLS_SYS_Error: return XRootDStatus( stError, errTlsError, 0, msg );
 
       case XrdTls::TLS_VER_Error:
       case XrdTls::TLS_SSL_Error:
-      case XrdTls::TLS_HNV_Error: return XRootDStatus( stFatal, errTlsError, errno, msg );
+      case XrdTls::TLS_HNV_Error: return XRootDStatus( stFatal, errTlsError, 0, msg );
 
       default:
-        return XRootDStatus( stError, errTlsError, rc, msg );
+        return XRootDStatus( stError, errTlsError, 0, msg );
     }
   }
 

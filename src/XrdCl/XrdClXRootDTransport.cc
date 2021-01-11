@@ -281,7 +281,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read message header from socket
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetHeader( Message *message, Socket *socket )
+  XRootDStatus XRootDTransport::GetHeader( Message *message, Socket *socket )
   {
     //--------------------------------------------------------------------------
     // A new message - allocate the space needed for the header
@@ -298,7 +298,7 @@ namespace XrdCl
       while( leftToBeRead )
       {
         int bytesRead = 0;
-        Status status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
+        XRootDStatus status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
 
         if( !status.IsOK() || status.code == suRetry )
           return status;
@@ -313,15 +313,15 @@ namespace XrdCl
       log->Dump( XRootDTransportMsg, "[msg: 0x%x] Expecting %d bytes of message "
                  "body", message, bodySize );
 
-      return Status( stOK, suDone );
+      return XRootDStatus( stOK, suDone );
     }
-    return Status( stError, errInternal );
+    return XRootDStatus( stError, errInternal );
   }
 
   //----------------------------------------------------------------------------
   // Read message body from socket
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetBody( Message *message, Socket *socket )
+  XRootDStatus XRootDTransport::GetBody( Message *message, Socket *socket )
   {
     //--------------------------------------------------------------------------
     // Retrieve the body
@@ -351,7 +351,7 @@ namespace XrdCl
     while( leftToBeRead )
     {
       int bytesRead = 0;
-      Status status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
+      XRootDStatus status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
 
       if( !status.IsOK() || status.code == suRetry )
         return status;
@@ -359,7 +359,7 @@ namespace XrdCl
       leftToBeRead -= bytesRead;
       message->AdvanceCursor( bytesRead );
     }
-    return Status( stOK, suDone );
+    return XRootDStatus( stOK, suDone );
   }
 
   //----------------------------------------------------------------------------
