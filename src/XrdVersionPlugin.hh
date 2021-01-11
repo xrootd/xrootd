@@ -173,7 +173,8 @@
    to an unversioned name is not allowed). This is enforced by XrdOucVerName.
 */
 #define XrdVERSIONPLUGINSTRICT       \
-        {"libXrdBlacklistDecision.so", \
+        {"libXrdAccSciTokens.so",    \
+         "libXrdBlacklistDecision.so", \
          "libXrdBwm.so",             \
          "libXrdCksCalczcrc32.so",   \
          "libXrdClProxyPlugin.so",   \
