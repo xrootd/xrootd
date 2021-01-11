@@ -12,6 +12,7 @@
 #include "XrdEc/XrdEcScheduleHandler.hh"
 
 #include "XrdCl/XrdClFileOperations.hh"
+#include "XrdCl/XrdClZipArchive.hh"
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"
@@ -32,18 +33,20 @@ namespace XrdEc
   struct block_t;
 
   //---------------------------------------------------------------------------
+  // Buffer for a single chunk of data
+  //---------------------------------------------------------------------------
+  typedef std::vector<char> buffer_t;
+  //---------------------------------------------------------------------------
+  // Read callback, to be called with status and number of bytes read
+  //---------------------------------------------------------------------------
+  typedef std::function<void( const XrdCl::XRootDStatus&, uint32_t )> callback_t;
+
+  //---------------------------------------------------------------------------
   // Reader object for reading erasure coded and striped data
   //---------------------------------------------------------------------------
   class Reader
   {
-    //-------------------------------------------------------------------------
-    // Buffer for a single chunk of data
-    //-------------------------------------------------------------------------
-    typedef std::vector<char> buffer_t;
-    //-------------------------------------------------------------------------
-    // Read callback, to be called with status and number of bytes read
-    //-------------------------------------------------------------------------
-    typedef std::function<void( const XrdCl::XRootDStatus&, uint32_t )> callback_t;
+    friend struct block_t;
 
     public:
       //-----------------------------------------------------------------------

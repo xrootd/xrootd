@@ -44,7 +44,7 @@
 //-----------------------------------------------------------------------------
 // Forward declaration needed for friendship
 //-----------------------------------------------------------------------------
-namespace XrdEc{ class StrmWriter; class Reader; };
+namespace XrdEc{ class StrmWriter; class Reader; template<bool> class OpenOnlyImpl; };
 
 namespace XrdCl
 {
@@ -62,6 +62,8 @@ namespace XrdCl
   {
     friend class XrdEc::StrmWriter;
     friend class XrdEc::Reader;
+    template<bool>
+    friend class XrdEc::OpenOnlyImpl;
 
     public:
       //-----------------------------------------------------------------------
