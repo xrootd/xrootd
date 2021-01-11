@@ -1,28 +1,23 @@
-
+/******************************************************************************/
+/*                                                                            */
+/*                 X r d S c i T o k e n s H e l p e r . h h                  */
+/*                                                                            */
+/******************************************************************************/
+  
 #include <string>
 #include <vector>
+
+//-----------------------------------------------------------------------------
+//! This class defines the XrdAccSciTokens API to perform token validation as
+//! well as getting the list of valid issuers. It requires that the SciTokens
+//! authorization plugin be loaded and initialized. Upon successful loading
+//! and initialization the symbol "SciTokensHelper" will contain the address
+//! of an instance of this class.
+//-----------------------------------------------------------------------------
 
 class XrdSciTokensHelper
 {
 public:
-
-//-----------------------------------------------------------------------------
-//! Initialize SciTokens plugin via authentication plugin path.
-//!
-//! @param   lp    - Pointer to the error logging object.
-//! @param   cfn   - Pointer to the configuration file used by xrootd.
-//! @param   parm  - Pointer to the plugin library parameters.
-//! @param   accP  - Pointer to the authorization object, but should be null 
-//!                  when initialized with this function.
-//!
-//! @result  Pointer to an instance of this object upon success, nil otherwise.
-//-----------------------------------------------------------------------------
-
-static XrdSciTokensHelper *InitViaZTN(XrdSysLogger *lp,
-                                      const char   *cfn,
-                                      const char   *parm,
-                                      XrdAccAuthorize *accP = 0
-                                      );
 
 //-----------------------------------------------------------------------------
 //! Get the list of valid issuers.
