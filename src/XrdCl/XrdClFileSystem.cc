@@ -1651,6 +1651,9 @@ namespace XrdCl
     if( ( flags & DirListFlags::Stat ) || ( flags & DirListFlags::Recursive ) )
       req->options[0] = kXR_dstat;
 
+    if( ( flags & DirListFlags::Cksm ) )
+      req->options[0] = kXR_dstat | kXR_dcksm;
+
     if( flags & DirListFlags::Recursive )
       handler = new RecursiveDirListHandler( *pImpl->pUrl, url.GetPath(), flags, handler, timeout );
 

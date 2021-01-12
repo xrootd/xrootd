@@ -210,10 +210,10 @@ XRootDStatus DoCD( FileSystem                      *fs,
 //------------------------------------------------------------------------------
 // Helper function to calculate number of digits in a number
 //------------------------------------------------------------------------------
-int nbDigits( uint64_t nb )
+uint32_t nbDigits( uint64_t nb )
 {
   if( nb == 0 ) return 1;
-  return int( log10( double(nb) ) + 1);
+  return uint32_t( log10( double(nb) ) + 1);
 }
 
 //------------------------------------------------------------------------------
@@ -230,6 +230,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
   uint32_t    argc     = args.size();
   bool        stats    = false;
   bool        showUrls = false;
+  bool        hascks   = false;
   std::string path;
   DirListFlags::Flags flags = DirListFlags::Locate | DirListFlags::Merge;
 
@@ -261,6 +262,13 @@ XRootDStatus DoLS( FileSystem                      *fs,
     {
       // check if file is a ZIP archive if yes list content
       flags |= DirListFlags::Zip;
+    }
+    else if( args[i] == "-C" )
+    {
+      // query checksum for each entry in the directory
+      hascks = true;
+      stats  = true;
+      flags |= DirListFlags::Cksm;
     }
     else
       path = args[i];
@@ -302,7 +310,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
     std::cerr << "incomplete." << std::endl;
   }
 
-  uint32_t ownerwidth = 0, groupwidth = 0, sizewidth = 0;
+  uint32_t ownerwidth = 0, groupwidth = 0, sizewidth = 0, ckswidth = 0;
   DirectoryList::Iterator it;
   for( it = list->Begin(); it != list->End() && stats; ++it )
   {
@@ -313,6 +321,8 @@ XRootDStatus DoLS( FileSystem                      *fs,
       groupwidth = info->GetGroup().size();
     if( sizewidth < nbDigits( info->GetSize() ) )
       sizewidth = nbDigits( info->GetSize() );
+    if( ckswidth < info->GetChecksum().size() )
+      ckswidth = info->GetChecksum().size();
   }
 
   //----------------------------------------------------------------------------
@@ -340,6 +350,8 @@ XRootDStatus DoLS( FileSystem                      *fs,
           std::cout << " " << std::setw( ownerwidth ) << info->GetOwner();
           std::cout << " " << std::setw( groupwidth ) << info->GetGroup();
           std::cout << " " << std::setw( sizewidth ) << info->GetSize();
+          if( info->HasChecksum() )
+            std::cout << " " << std::setw( sizewidth ) << info->GetChecksum();
           std::cout << " " << info->GetModTimeAsString() << " ";
         }
         else
@@ -1776,13 +1788,14 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Modify permissions. Permission string example:\n"             );
   printf( "     rwxr-x--x\n\n"                                                );
 
-  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [dirname]\n"                        );
+  printf( "   ls [-l] [-u] [-R] [-D] [-Z] [-C] [dirname]\n"                   );
   printf( "     Get directory listing.\n"                                     );
   printf( "     -l stat every entry and pring long listing\n"                 );
   printf( "     -u print paths as URLs\n"                                     );
   printf( "     -R list subdirectories recursively\n"                         );
   printf( "     -D show duplicate entries"                                    );
-  printf( "     -Z if a ZIP archive list its content\n\n"                     );
+  printf( "     -Z if a ZIP archive list its content\n"                       );
+  printf( "     -C checksum every entry\n\n"                                  );
 
   printf( "   locate [-n] [-r] [-d] [-m] [-i] [-p] <path>\n"                  );
   printf( "     Get the locations of the path.\n"                             );

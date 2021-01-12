@@ -161,7 +161,8 @@ namespace XrdCl
       Recursive = 4,  //!< Do a recursive listing
       Merge     = 8,  //!< Merge duplicates
       Chunked   = 16, //!< Serve chunked results for better performance
-      Zip       = 32  //!< List content of ZIP files
+      Zip       = 32, //!< List content of ZIP files
+      Cksm      = 64  //!< Get checksum for every entry
     };
   };
   XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )

@@ -109,9 +109,9 @@ namespace XrdCl
   struct StatInfoImpl
   {
       StatInfoImpl() : pSize( 0 ), pFlags( 0 ), pModifyTime( 0 ),
-                       pChangeTime( 0 ), pAccessTime( 0 ), pExtended( false )
+                       pChangeTime( 0 ), pAccessTime( 0 ),
+                       pExtended( false ), pHasCksum( false )
       {
-
       }
 
       StatInfoImpl( const StatInfoImpl & pimpl ) : pId( pimpl.pId ),
@@ -123,7 +123,8 @@ namespace XrdCl
                                                    pMode( pimpl.pMode ),
                                                    pOwner( pimpl.pOwner ),
                                                    pGroup( pimpl.pGroup ),
-                                                   pExtended( pimpl.pExtended )
+                                                   pExtended( pimpl.pExtended ),
+                                                   pHasCksum( pimpl.pHasCksum )
       {
       }
 
@@ -165,7 +166,7 @@ namespace XrdCl
           return false;
         }
 
-        if( chunks.size() == 9 )
+        if( chunks.size() >= 9 )
         {
           pChangeTime = ::strtoll( chunks[4].c_str(), &result, 0 );
           if( *result != 0 )
@@ -191,6 +192,16 @@ namespace XrdCl
           pExtended = true;
         }
 
+        // after the extended stat information, we might have the checksum
+        if( chunks.size() >= 10 )
+        {
+          if( ( chunks[9] == "[" ) && ( chunks[11] == "]" ) )
+          {
+            pHasCksum = true;
+            pCksum     = chunks[10];
+          }
+        }
+
         return true;
       }
 
@@ -205,6 +216,8 @@ namespace XrdCl
       std::string pGroup;
 
       bool        pExtended;
+      bool        pHasCksum;
+      std::string pCksum;
   };
 
   //----------------------------------------------------------------------------
@@ -391,11 +404,27 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  //! Get checksum
+  //------------------------------------------------------------------------
+  const std::string& StatInfo::GetChecksum() const
+  {
+    return pImpl->pCksum;
+  }
+
+  //------------------------------------------------------------------------
   //! Parse server response and fill up the object
   //------------------------------------------------------------------------
   bool StatInfo::ExtendedFormat() const
   {
     return pImpl->pExtended;
+  }
+
+  //------------------------------------------------------------------------
+  //! Has checksum
+  //------------------------------------------------------------------------
+  bool StatInfo::HasChecksum() const
+  {
+    return pImpl->pHasCksum;
   }
 
   //----------------------------------------------------------------------------
