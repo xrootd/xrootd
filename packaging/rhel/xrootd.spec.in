@@ -1081,6 +1081,7 @@ fi
 %{_libdir}/libXrdClTests.so
 %{_libdir}/libXrdClTestsHelper.so
 %{_libdir}/libXrdClTestMonitor*.so
+%{_libdir}/libXrdEcTests.so
 
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
 %{_libdir}/libXrdCephTests*.so
