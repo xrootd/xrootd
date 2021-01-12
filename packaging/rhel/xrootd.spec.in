@@ -1076,7 +1076,7 @@ fi
 %if %{?_with_tests:1}%{!?_with_tests:0}
 %files tests
 %defattr(-,root,root,-)
-%{_bindir}/text-runner
+%{_bindir}/test-runner
 %{_bindir}/xrdshmap
 %{_libdir}/libXrdClTests.so
 %{_libdir}/libXrdClTestsHelper.so
