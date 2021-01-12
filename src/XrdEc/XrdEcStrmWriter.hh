@@ -13,7 +13,7 @@
 
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClParallelOperation.hh"
-#include "XrdCl/XrdClZipArchive.hh"
+#include "XrdCl/XrdClZipOperations.hh"
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"
@@ -31,6 +31,8 @@
 #include <condition_variable>
 #include <mutex>
 #include <iterator>
+
+#include <sys/stat.h>
 
 namespace XrdEc
 {

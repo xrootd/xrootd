@@ -17,7 +17,7 @@ target_link_libraries(
   XrdUtils)
 
 add_executable(test-runner TextRunner.cc PathProcessor.hh)
-target_link_libraries(text-runner ${CMAKE_DL_LIBS} ${CPPUNIT_LIBRARIES} pthread)
+target_link_libraries(test-runner ${CMAKE_DL_LIBS} ${CPPUNIT_LIBRARIES} pthread)
 
 #-------------------------------------------------------------------------------
 # Install

@@ -64,7 +64,6 @@ ExternalProject_add(
 link_directories( ${ISAL_LIBDIR} )
 include_directories( ${ISAL_INCDIR} )
 
-
 #-------------------------------------------------------------------------------
 # The XrdEc shared library
 #-------------------------------------------------------------------------------

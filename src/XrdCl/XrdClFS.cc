@@ -350,7 +350,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
           std::cout << " " << std::setw( ownerwidth ) << info->GetOwner();
           std::cout << " " << std::setw( groupwidth ) << info->GetGroup();
           std::cout << " " << std::setw( sizewidth ) << info->GetSize();
-          if( info->HasChecksum() )
+          if( hascks && info->HasChecksum() )
             std::cout << " " << std::setw( sizewidth ) << info->GetChecksum();
           std::cout << " " << info->GetModTimeAsString() << " ";
         }
