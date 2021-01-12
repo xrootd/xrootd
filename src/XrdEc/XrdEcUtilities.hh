@@ -1,9 +1,26 @@
-/*
- * XrdEcUtilities.hh
- *
- *  Created on: Jan 9, 2019
- *      Author: simonm
- */
+//------------------------------------------------------------------------------
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
+// Author: Michal Simon <michal.simon@cern.ch>
+//------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
+// XRootD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// XRootD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
+//------------------------------------------------------------------------------
 
 #ifndef SRC_XRDEC_XRDECUTILITIES_HH_
 #define SRC_XRDEC_XRDECUTILITIES_HH_
@@ -24,39 +41,34 @@
 
 namespace XrdEc
 {
+  //---------------------------------------------------------------------------
+  //! A buffer with stripe data and info on validity
+  //---------------------------------------------------------------------------
   struct stripe_t
   {
-      stripe_t( char *buffer, bool valid ) : buffer( buffer ), valid( valid )
-      {
-      }
+    //-------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param buffer : buffer with stripe data
+    //! @param valid  : true if data are valid, false otherwise
+    //-------------------------------------------------------------------------
+    stripe_t( char *buffer, bool valid ) : buffer( buffer ), valid( valid )
+    {
+    }
 
-      char *buffer;
-      bool  valid;
+    char *buffer; //< buffer with stripe data
+    bool  valid;  //< true if data are valid, otherwise false
   };
 
+  //---------------------------------------------------------------------------
+  //! All stripes in a block
+  //---------------------------------------------------------------------------
   typedef std::vector<stripe_t> stripes_t;
-
-  enum LocationStatus
-  {
-    rw,
-    ro,
-    drain,
-    off,
-  };
-
-  LocationStatus ToLocationStatus( const std::string &str );
-
-  typedef std::tuple<std::string,  LocationStatus> location_t;
-  typedef std::vector<location_t>  placement_group;
-  typedef std::vector<std::string> placement_t;
-
-  std::string CalcChecksum( const char *buffer, uint64_t size );
-
 
   //----------------------------------------------------------------------------
   //! a buffer type
   //----------------------------------------------------------------------------
-  typedef std::vector<char>  buffer_t;
+  typedef std::vector<char> buffer_t;
 
   //----------------------------------------------------------------------------
   //! Generic I/O exception, wraps up XrdCl::XRootDStatus (@see XRootDStatus)
@@ -96,7 +108,6 @@ namespace XrdEc
       //------------------------------------------------------------------------
       virtual ~IOError()
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -133,42 +144,23 @@ namespace XrdEc
       std::string msg;
   };
 
-  //----------------------------------------------------------------------------
-  //! Creates a sufix for a data chunk file
+  //---------------------------------------------------------------------------
+  //! A utility function for scheduling read operation handler
   //!
-  //! @param blkid   : block ID
-  //! @param chunkid : chunk ID
+  //! @param offset  : offset of the read
+  //! @param size    : number of bytes read
+  //! @param buffer  : buffer with the data read
+  //! @param handler : user callback
+  //---------------------------------------------------------------------------
+  void ScheduleHandler( uint64_t offset, uint32_t size, void *buffer, XrdCl::ResponseHandler *handler );
+
+  //---------------------------------------------------------------------------
+  //! A utility function for scheduling an operation handler
   //!
-  //! @return        : sufix for a data chunk file
-  //----------------------------------------------------------------------------
-  inline std::string Sufix( uint64_t blkid, uint64_t chunkid )
-  {
-    return '.' + std::to_string( blkid ) + '.' + std::to_string( chunkid );
-  }
-
-  //------------------------------------------------------------------------
-  //! Find a new location (host) for given chunk. TODO (update)
-  //!
-  //! @param chunkid   : ID of the chunk to be relocated
-  //! @param relocate  : true if the chunk should be relocated even if
-  //                     a placement for it already exists, false otherwise
-  //------------------------------------------------------------------------
-  XrdCl::OpenFlags::Flags Place( const ObjCfg                &objcfg,
-                                 uint8_t                      chunkid,
-                                 placement_t                 &placement,
-                                 std::default_random_engine  &generator,
-                                 const placement_group       &plgr,
-                                 bool                         relocate );
-
-  placement_t GeneratePlacement( const ObjCfg          &objcfg,
-                                 const std::string     &objname,
-                                 const placement_group &plgr,
-                                 bool                   write     );
-
-  placement_t GetSpares( const placement_group &plgr,
-                         const placement_t     &placement,
-                         bool                   write );
-
+  //! @param handler : user callback
+  //! @param st      : operation status
+  //---------------------------------------------------------------------------
+  void ScheduleHandler( XrdCl::ResponseHandler *handler, const XrdCl::XRootDStatus &st = XrdCl::XRootDStatus() );
 }
 
 #endif /* SRC_XRDEC_XRDECUTILITIES_HH_ */

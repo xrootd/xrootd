@@ -1,124 +1,91 @@
-/*
- * XrdEcUtilities.cc
- *
- *  Created on: Jan 10, 2019
- *      Author: simonm
- */
-
-
+//------------------------------------------------------------------------------
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
+// Author: Michal Simon <michal.simon@cern.ch>
+//------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
+// XRootD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// XRootD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
+//------------------------------------------------------------------------------
 
 #include "XrdEc/XrdEcUtilities.hh"
-#include "XrdCl/XrdClCheckSumManager.hh"
-#include "XrdCl/XrdClUtils.hh"
-#include "XrdOuc/XrdOucCRC32C.hh"
-
-#include <sstream>
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 namespace XrdEc
 {
-  std::string CalcChecksum( const char *buffer, uint64_t size )
+  //---------------------------------------------------------------------------
+  // A job for scheduling the user callback
+  //---------------------------------------------------------------------------
+  class ResponseJob : public XrdCl::Job
   {
-    uint32_t cksum = crc32c( 0, buffer, size );
-    std::stringstream ss;
-    ss << std::hex << cksum;
-    return "crc32c:" + ss.str();
-  }
-
-  LocationStatus ToLocationStatus( const std::string &str )
-  {
-    if( str == "rw" ) return rw;
-    if( str == "ro" ) return ro;
-    if( str == "drain" ) return drain;
-    if( str == "off" ) return off;
-    throw std::exception(); // TODO
-  }
-
-  //------------------------------------------------------------------------
-  // Find a new location (host) for given chunk.
-  //------------------------------------------------------------------------
-  XrdCl::OpenFlags::Flags Place( const ObjCfg                &objcfg,
-                                 uint8_t                      chunkid,
-                                 placement_t                 &placement,
-                                 std::default_random_engine  &generator,
-                                 const placement_group       &plgr,
-                                 bool                         relocate )
-  {
-    static std::uniform_int_distribution<uint32_t>  distribution( 0, plgr.size() - 1 );
-
-    bool exists = !placement.empty() && !placement[chunkid].empty();
-
-    XrdCl::OpenFlags::Flags flags = XrdCl::OpenFlags::Write |
-        ( exists ? XrdCl::OpenFlags::Delete : XrdCl::OpenFlags::New );
-
-    if( !relocate && exists ) return flags;
-
-    if( placement.empty() ) placement.resize( objcfg.nbchunks, "" );
-
-    std::string host;
-    LocationStatus lst;
-    do
-    {
-      auto &tpl = plgr[distribution( generator )];
-      host = std::get<0>( tpl );
-      lst  = std::get<1>( tpl );
-    }
-    while( std::count( placement.begin(), placement.end(), host ) && lst == rw );
-
-    placement[chunkid] = host;
-
-    return flags;
-  }
-
-  placement_t GeneratePlacement( const ObjCfg           &objcfg,
-                                 const std::string      &blkname,
-                                 const placement_group  &plgr,
-                                 bool                    write   )
-  {
-    static std::hash<std::string>  strhash;
-    std::default_random_engine generator( strhash( blkname ) );
-    std::uniform_int_distribution<uint32_t>  distribution( 0, plgr.size() - 1 );
-
-    placement_t placement;
-    size_t      off = 0;
-
-    while( placement.size() < objcfg.nbchunks )
-    {
-      // check if the host is available
-      auto &tpl = plgr[distribution( generator )];
-      auto lst = std::get<1>( tpl );
-      if( lst == LocationStatus::off ||
-          ( write && lst != LocationStatus::rw ) )
+    public:
+      //-----------------------------------------------------------------------
+      // Constructor
+      //-----------------------------------------------------------------------
+      ResponseJob( XrdCl::ResponseHandler *handler,
+                   XrdCl::XRootDStatus    *status,
+                   XrdCl::AnyObject       *response ):
+        pHandler( handler ), pStatus( status ), pResponse( response )
       {
-        ++off;
-        if( plgr.size() - off < objcfg.nbchunks ) throw std::exception(); // TODO
-        continue;
       }
-      // check if the host is already in our placement
-      auto &host = std::get<0>( tpl );
-      if( std::count( placement.begin(), placement.end(), host ) ) continue;
-      // add new location
-      placement.push_back( host );
-    }
 
-    return std::move( placement );
-  }
+      virtual void Run( void *arg )
+      {
+        pHandler->HandleResponse( pStatus, pResponse );
+        delete this;
+      }
 
-  placement_t GetSpares( const placement_group &plgr,
-                         const placement_t     &placement,
-                         bool                   write )
+    private:
+
+      XrdCl::ResponseHandler *pHandler;  //< user callback
+      XrdCl::XRootDStatus    *pStatus;   //< operation status
+      XrdCl::AnyObject       *pResponse; //< user response
+  };
+
+  //---------------------------------------------------------------------------
+  // A utility function for scheduling read operation handler
+  //---------------------------------------------------------------------------
+  void ScheduleHandler( uint64_t offset, uint32_t size, void *buffer, XrdCl::ResponseHandler *handler )
   {
-    placement_t spares;
-    spares.reserve( plgr.size() - placement.size() );
+    if( !handler ) return;
 
-    for( auto &tpl : plgr )
-    {
-      auto &host = std::get<0>( tpl );
-      if( std::count( placement.begin(), placement.end(), host ) ) continue;
-      auto lst = std::get<1>( tpl );
-      if( lst == LocationStatus::off || ( write && lst != LocationStatus::rw ) ) continue;
-      spares.emplace_back( host );
-    }
+    XrdCl::ChunkInfo *chunk = new XrdCl::ChunkInfo();
+    chunk->offset = offset;
+    chunk->length = size;
+    chunk->buffer = buffer;
 
-    return std::move( spares );
+    XrdCl::AnyObject *resp = new XrdCl::AnyObject();
+    resp->Set( chunk );
+
+    ResponseJob *job = new ResponseJob( handler, new XrdCl::XRootDStatus(), resp );
+    XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
   }
+
+  //---------------------------------------------------------------------------
+  // A utility function for scheduling an operation handler
+  //---------------------------------------------------------------------------
+  void ScheduleHandler( XrdCl::ResponseHandler *handler, const XrdCl::XRootDStatus &st )
+  {
+    if( !handler ) return;
+
+    ResponseJob *job = new ResponseJob( handler, new XrdCl::XRootDStatus( st ), 0 );
+    XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+  }
+
 }

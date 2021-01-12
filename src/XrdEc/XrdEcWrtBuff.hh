@@ -28,7 +28,6 @@
 #include "XrdEc/XrdEcUtilities.hh"
 #include "XrdEc/XrdEcObjCfg.hh"
 #include "XrdEc/XrdEcConfig.hh"
-#include "XrdEc/XrdEcScheduleHandler.hh"
 #include "XrdEc/XrdEcThreadPool.hh"
 
 #include "XrdCl/XrdClBuffer.hh"

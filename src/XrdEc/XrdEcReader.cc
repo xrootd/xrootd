@@ -26,7 +26,6 @@
 #include "XrdEc/XrdEcUtilities.hh"
 #include "XrdEc/XrdEcConfig.hh"
 #include "XrdEc/XrdEcObjCfg.hh"
-#include "XrdEc/XrdEcScheduleHandler.hh"
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"

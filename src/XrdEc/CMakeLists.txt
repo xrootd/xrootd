@@ -79,7 +79,6 @@ add_library(
   XrdEcObjCfg.hh
   XrdEcRedundancyProvider.hh   XrdEcRedundancyProvider.cc 
   XrdEcUtilities.hh            XrdEcUtilities.cc
-  XrdEcScheduleHandler.hh      XrdEcScheduleHandler.cc
   XrdEcWrtBuff.hh
   XrdEcThreadPool.hh
   XrdEcStrmWriter.hh
