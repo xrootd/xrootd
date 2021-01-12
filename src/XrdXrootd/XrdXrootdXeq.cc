@@ -36,6 +36,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdCks/XrdCksData.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -412,17 +413,12 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 // Check if multiple checksums are supported and if so, pre-process
 //
    if (JobCKCGI && opaque && *opaque)
-      {XrdOucEnv jobEnv(opaque);
-       char *cksT;
-       if ((cksT = jobEnv.Get("cks.type")))
-          {XrdOucTList *tP = JobCKTLST;
-           while(tP && strcasecmp(tP->text, cksT)) tP = tP->next;
-           if (!tP)
-              {char ebuf[1024];
-               snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);
-               return Response.Send(kXR_ServerError, ebuf);
-              }
-           algT = tP->text;
+      {char cksT[64];
+       algT = getCksType(opaque, cksT, sizeof(cksT));
+       if (!algT)
+          {char ebuf[1024];
+           snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);
+           return Response.Send(kXR_ServerError, ebuf);
           }
       }
 
@@ -604,7 +600,7 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // Check if the caller wants stat information as well
 //
-   if (Request.dirlist.options[0] & kXR_dstat)
+   if (Request.dirlist.options[0] & (kXR_dstat | kXR_dcksm))
       return do_DirStat(dp, ebuff, opaque);
 
 // Start retreiving each entry and place in a local buffer with a trailing new
@@ -653,21 +649,39 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 {
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    struct stat Stat;
-   static const int statSz = 160;
-   int bleft, rc = 0, dlen, cnt = 0;
-   char *buff, *dLoc;
-   const char *dname;
+   char *buff, *dLoc, *algT = 0;
+   const char *csData, *dname;
+   int bleft, rc = 0, dlen, cnt = 0, statSz = 160;
+   bool manStat;
    struct {char ebuff[8192]; char epad[512];} XB;
 
-// Construct the path to the directory as we will be asking for stat calls
-// if the interface does not support autostat.
+// Preprocess checksum request. If we don't support checksums or if the
+// requested checksum type is not supported, ignore it.
 //
-   if (dp->autoStat(&Stat) == SFS_OK) dLoc = 0;
-      else {strcpy(pbuff, argp->buff);
-            dlen = strlen(pbuff);
-            if (pbuff[dlen-1] != '/') {pbuff[dlen] = '/'; dlen++;}
-            dLoc = pbuff+dlen;
-           }
+   if ((Request.dirlist.options[0] & kXR_dcksm) && JobLCL)
+      {char cksT[64];
+       algT = getCksType(opaque, cksT, sizeof(cksT));
+       if (!algT)
+          {char ebuf[1024];
+           snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);
+           return Response.Send(kXR_ServerError, ebuf);
+          }
+       statSz += XrdCksData::NameSize + (XrdCksData::ValuSize*2) + 8;
+      }
+
+// We always return stat information, see if we can use autostat
+//
+   manStat = (dp->autoStat(&Stat) != SFS_OK);
+
+// Construct the path to the directory as we will be asking for stat calls
+// if the interface does not support autostat or returning checksums.
+//
+   if (manStat || algT)
+      {strcpy(pbuff, argp->buff);
+       dlen = strlen(pbuff);
+       if (pbuff[dlen-1] != '/') {pbuff[dlen] = '/'; dlen++;}
+       dLoc = pbuff+dlen;
+      } else dLoc = 0;
 
 // The initial leadin is a "dot" entry to indicate to the client that we
 // support the dstat option (older servers will not do that). It's up to the
@@ -689,18 +703,29 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
            {dlen = strlen(dname);
             if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
                {if ((bleft -= (dlen+1)) < 0 || bleft < statSz) break;
-                strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
-                if (dLoc)
-                   {strcpy(dLoc, dname);
-                    rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                if (dLoc) strcpy(dLoc, dname);
+                if (manStat)
+                   {rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
                     if (rc == SFS_ERROR && myError.getErrInfo() == ENOENT)
                        {dname = 0; continue;}
                     if (rc != SFS_OK)
                        return fsError(rc, XROOTD_MON_STAT, myError,
                                           argp->buff, opaque);
                    }
+                strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
                 dlen = StatGen(Stat, buff, sizeof(XB.epad));
-                bleft -= dlen; buff += (dlen-1); *buff = '\n'; buff++;
+                bleft -= dlen; buff += (dlen-1);
+                if (algT)
+                   {int ec = osFS->chksum(XrdSfsFileSystem::csGet, algT,
+                                          pbuff, myError, CRED, opaque);
+                    csData = myError.getErrText();
+                    if (ec != SFS_OK || !(*csData) || *csData == '!')
+                       csData = "none";
+                    int n = snprintf(buff,sizeof(XB.epad)," [ %s:%s ]",
+                                     algT, csData);
+                    buff += n; bleft -= n;
+                   }
+                *buff = '\n'; buff++;
                }
             dname = 0;
            }
@@ -3691,6 +3716,31 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
    return 1;
 }
 
+/******************************************************************************/
+/* Private:                   g e t C k s T y p e                             */
+/******************************************************************************/
+
+char *XrdXrootdProtocol::getCksType(char *opaque, char *cspec, int cslen)
+{
+   char *cksT;
+
+// Get match for user specified checksum type, if any. Otherwise return default.
+//
+   if (opaque && *opaque)
+      {XrdOucEnv jobEnv(opaque);
+       if ((cksT = jobEnv.Get("cks.type")))
+          {XrdOucTList *tP = JobCKTLST;
+           while(tP && strcasecmp(tP->text, cksT)) tP = tP->next;
+           if (!tP && cspec) snprintf(cspec, cslen, "%s", cksT);
+           return (tP ? tP->text : 0);
+          }
+      }
+
+// Return default
+//
+   return JobCKT;
+}
+  
 /******************************************************************************/
 /* Private:                     l o g L o g i n                               */
 /******************************************************************************/

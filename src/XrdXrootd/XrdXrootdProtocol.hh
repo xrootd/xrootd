@@ -213,6 +213,7 @@ static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   fsOvrld(char opc, const char *Path, char *Cgi);
        int   fsRedirNoEnt(const char *eMsg, char *Cgi, int popt);
        int   getBuff(const int isRead, int Quantum);
+       char *getCksType(char *opaque, char *cspec=0, int cslen=0);
        int   getData(const char *dtype, char *buff, int blen);
        int   getPathID(bool isRead);
        bool  logLogin(bool xauth=false);
