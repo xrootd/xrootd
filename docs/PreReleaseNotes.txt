@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Allow optional return of checksum in dirlist response.
   **[Server]** Allow additional ports to be associated with a protocol.
   **[Xcache]** Make TLS substitution for net cksum selectable.
   **[Server]** Implement an internal nano-DNS for k8s setups (mostly for SSI).
