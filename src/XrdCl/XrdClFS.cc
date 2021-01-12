@@ -212,6 +212,7 @@ XRootDStatus DoCD( FileSystem                      *fs,
 //------------------------------------------------------------------------------
 int nbDigits( uint64_t nb )
 {
+  if( nb == 0 ) return 1;
   return int( log10( double(nb) ) + 1);
 }
 
@@ -301,10 +302,22 @@ XRootDStatus DoLS( FileSystem                      *fs,
     std::cerr << "incomplete." << std::endl;
   }
 
+  uint32_t ownerwidth = 0, groupwidth = 0, sizewidth = 0;
+  DirectoryList::Iterator it;
+  for( it = list->Begin(); it != list->End() && stats; ++it )
+  {
+    StatInfo *info = (*it)->GetStatInfo();
+    if( ownerwidth < info->GetOwner().size() )
+      ownerwidth = info->GetOwner().size();
+    if( groupwidth < info->GetGroup().size() )
+      groupwidth = info->GetGroup().size();
+    if( sizewidth < nbDigits( info->GetSize() ) )
+      sizewidth = nbDigits( info->GetSize() );
+  }
+
   //----------------------------------------------------------------------------
   // Print the results
   //----------------------------------------------------------------------------
-  DirectoryList::Iterator it;
   for( it = list->Begin(); it != list->End(); ++it )
   {
     if( stats )
@@ -324,14 +337,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
             std::cout << "-";
           std::cout << info->GetModeAsOctString();
 
-          std::cout << " " << info->GetOwner();
-          std::cout << " " << info->GetGroup();
-
-          uint64_t size = info->GetSize();
-          int width = nbDigits( size ) + 2;
-          if( width < 12 ) width = 12;
-
-          std::cout << std::setw( width ) << info->GetSize();
+          std::cout << " " << std::setw( ownerwidth ) << info->GetOwner();
+          std::cout << " " << std::setw( groupwidth ) << info->GetGroup();
+          std::cout << " " << std::setw( sizewidth ) << info->GetSize();
           std::cout << " " << info->GetModTimeAsString() << " ";
         }
         else
