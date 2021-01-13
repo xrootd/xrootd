@@ -89,6 +89,11 @@ namespace XrdEc
                  void                   *buffer,
                  XrdCl::ResponseHandler *handler );
 
+      //-----------------------------------------------------------------------
+      //! Close the data object
+      //-----------------------------------------------------------------------
+      void Close( XrdCl::ResponseHandler *handler );
+
     private:
 
       //-----------------------------------------------------------------------

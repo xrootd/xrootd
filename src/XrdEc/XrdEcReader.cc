@@ -479,6 +479,30 @@ namespace XrdEc
     }
   }
 
+  //-----------------------------------------------------------------------
+  // Close the data object
+  //-----------------------------------------------------------------------
+  void Reader::Close( XrdCl::ResponseHandler *handler )
+  {
+    //---------------------------------------------------------------------
+    // prepare the pipelines ...
+    //---------------------------------------------------------------------
+    std::vector<XrdCl::Pipeline> closes;
+    closes.reserve( dataarchs.size() );
+    auto itr = dataarchs.begin();
+    for( ; itr != dataarchs.end() ; ++itr )
+    {
+      XrdCl::ZipArchive &zip = *itr->second;
+      if( zip.IsOpen() )
+        closes.emplace_back( XrdCl::CloseArchive( zip ) );
+    }
+
+    // if there is nothing to close just schedule the handler
+    if( closes.empty() ) ScheduleHandler( handler );
+    // otherwise close the archives
+    else XrdCl::Async( XrdCl::Parallel( closes ) >> handler );
+  }
+
   //-------------------------------------------------------------------------
   // on-definition is not allowed here beforeiven stripes from given block
   //-------------------------------------------------------------------------
