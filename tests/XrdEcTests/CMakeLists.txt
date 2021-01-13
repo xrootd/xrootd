@@ -4,8 +4,7 @@ include_directories( ${CPPUNIT_INCLUDE_DIRS} ../common )
 
 add_library(
   XrdEcTests MODULE
-  StrmWriterTest.cc
-  ReaderTest.cc
+  MicroTest.cc
 )
 
 target_link_libraries(
