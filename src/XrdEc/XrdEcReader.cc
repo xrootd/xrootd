@@ -26,6 +26,7 @@
 #include "XrdEc/XrdEcUtilities.hh"
 #include "XrdEc/XrdEcConfig.hh"
 #include "XrdEc/XrdEcObjCfg.hh"
+#include "XrdEc/XrdEcThreadPool.hh"
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"
@@ -512,7 +513,11 @@ namespace XrdEc
     std::string fn = objcfg.GetFileName( blknb, strpnb );
     // if the block/stripe does not exist it means we are reading passed the end of the file
     auto itr = urlmap.find( fn );
-    if( itr == urlmap.end() ) return cb( XrdCl::XRootDStatus(), 0 );
+    if( itr == urlmap.end() )
+    {
+      ThreadPool::Instance().Execute( cb, XrdCl::XRootDStatus(), 0 );
+      return;
+    }
     // get the URL of the ZIP archive with the respective data
     const std::string &url = itr->second;
     // get the ZipArchive object
@@ -520,7 +525,11 @@ namespace XrdEc
     // check the size of the data to be read
     XrdCl::StatInfo *info = nullptr;
     auto st = zipptr->Stat( fn, info );
-    if( !st.IsOK() ) return cb( st, 0 );
+    if( !st.IsOK() )
+    {
+      ThreadPool::Instance().Execute( cb, st, 0 );
+      return;
+    }
     uint32_t rdsize = info->GetSize();
     delete info;
     // create a buffer for the data
