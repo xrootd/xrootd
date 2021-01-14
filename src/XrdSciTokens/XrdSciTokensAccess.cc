@@ -2,6 +2,7 @@
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdVersion.hh"
 
@@ -354,13 +355,13 @@ public:
         // We always populate the issuer and the groups, if present.
 
         // Access may be authorized; populate XrdSecEntity
-        auto mutable_entity = const_cast<XrdSecEntity*>(Entity);
-        free(mutable_entity->vorg); mutable_entity->vorg = nullptr;
-        free(mutable_entity->grps); mutable_entity->grps = nullptr;
-        free(mutable_entity->role); mutable_entity->role = nullptr;
+        XrdSecEntity new_secentity;
+        new_secentity.vorg = nullptr;
+        new_secentity.grps = nullptr;
+        new_secentity.role = nullptr;
         const auto &issuer = access_rules->get_issuer();
         if (!issuer.empty()) {
-            mutable_entity->vorg = strdup(issuer.c_str());
+            new_secentity.vorg = strdup(issuer.c_str());
         }
         if (access_rules->groups().size()) {
             std::stringstream ss;
@@ -368,10 +369,10 @@ public:
                 ss << grp << " ";
             }
             const auto &groups_str = ss.str();
-            mutable_entity->grps = static_cast<char*>(malloc(groups_str.size()));
-            if (mutable_entity->grps) {
-                memcpy(mutable_entity->grps, groups_str.c_str(), groups_str.size());
-                mutable_entity->grps[groups_str.size()] = '\0';
+            new_secentity.grps = static_cast<char*>(malloc(groups_str.size()));
+            if (new_secentity.grps) {
+                memcpy(new_secentity.grps, groups_str.c_str(), groups_str.size());
+                new_secentity.grps[groups_str.size()] = '\0';
             }
         }
 
@@ -384,7 +385,13 @@ public:
         scope_success = access_rules->apply(oper, path);
 
         if (!scope_success && !mapping_success) {
-            return  OnMissing(Entity, path, oper, env);
+            auto returned_accs = OnMissing(&new_secentity, path, oper, env);
+            // Clean up the new_secentity
+            if (new_secentity.vorg != nullptr) free(new_secentity.vorg);
+            if (new_secentity.grps != nullptr) free(new_secentity.grps);
+            if (new_secentity.role != nullptr) free(new_secentity.role);
+
+            return returned_accs;
         }
 
         // Default user only applies to scope-based mappings.
@@ -393,12 +400,19 @@ public:
         }
 
         if (mapping_success) {
-            free(mutable_entity->name);
-            mutable_entity->name = strdup(username.c_str());
+            // Set scitokens.name in the extra attribute
+            Entity->eaAPI->Add("scitokens.name", username, true);
         }
 
         // When the scope authorized this access, allow immediately.  Otherwise, chain
-        return scope_success ? AddPriv(oper, XrdAccPriv_None) : OnMissing(Entity, path, oper, env);
+        XrdAccPrivs returned_op = scope_success ? AddPriv(oper, XrdAccPriv_None) : OnMissing(&new_secentity, path, oper, env);
+
+        // Cleanup the new_secentry
+        if (new_secentity.vorg != nullptr) free(new_secentity.vorg);
+        if (new_secentity.grps != nullptr) free(new_secentity.grps);
+        if (new_secentity.role != nullptr) free(new_secentity.role);
+
+        return returned_op;
     }
 
     virtual  Issuers IssuerList() override
