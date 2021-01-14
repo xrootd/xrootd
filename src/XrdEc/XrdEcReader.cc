@@ -345,7 +345,11 @@ namespace XrdEc
           uint64_t  offset  = std::get<0>( args );
           uint32_t  size    = std::get<1>( args );
           char     *usrbuff = std::get<2>( args );
-          if( offset + size > stripe.size() )
+          // are we reading past the end of file?
+          if( offset > stripe.size() )
+            size = 0;
+          // are partially reading past the end of the file?
+          else if( offset + size > stripe.size() )
             size = stripe.size() - offset;
           memcpy( usrbuff, stripe.data() + offset, size );
           nbrd = size;
