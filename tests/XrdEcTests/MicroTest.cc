@@ -34,8 +34,11 @@
 
 #include <string>
 #include <memory>
+#include <limits>
 
 #include <unistd.h>
+#include <stdio.h>
+#include <ftw.h>
 #include <sys/stat.h>
 
 //------------------------------------------------------------------------------
@@ -49,10 +52,36 @@ class MicroTest: public CppUnit::TestCase
     CPPUNIT_TEST_SUITE_END();
     void Init();
     void AlignedWriteTest();
-    void Verify();
+    void Verify()
+    {
+      AlignedReadVerify();
+      PastEndReadVerify();
+      SmallChunkReadVerify();
+      BigChunkReadVerify();
+    }
     void CleanUp();
 
-    void AlignedReadVerify();
+    void ReadVerify( uint32_t rdsize, uint64_t maxrd = std::numeric_limits<uint64_t>::max() );
+
+    inline void AlignedReadVerify()
+    {
+      ReadVerify( chsize, rawdata.size() );
+    }
+
+    inline void PastEndReadVerify()
+    {
+      ReadVerify( chsize );
+    }
+
+    inline void SmallChunkReadVerify()
+    {
+      ReadVerify( 5 );
+    }
+
+    inline void BigChunkReadVerify()
+    {
+      ReadVerify( 23 );
+    }
 
   private:
 
@@ -63,6 +92,7 @@ class MicroTest: public CppUnit::TestCase
       std::copy( begin, end, std::back_inserter( rawdata ) );
     }
 
+    std::string datadir;
     std::unique_ptr<XrdEc::ObjCfg> objcfg;
 
     static const size_t nbdata   = 4;
@@ -85,7 +115,7 @@ void MicroTest::Init()
   CPPUNIT_ASSERT( cwdptr );
   std::string cwd = cwdptr;
   // create the data directory
-  std::string datadir = cwd + "/data";
+  datadir = cwd + "/data";
   CPPUNIT_ASSERT( mkdir( datadir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH ) == 0 );
   // create a directory for each stripe
   size_t nbstrps = objcfg->nbdata + 2 * objcfg->nbparity;
@@ -99,22 +129,22 @@ void MicroTest::Init()
   }
 }
 
-void MicroTest::AlignedReadVerify()
+void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
 {
   XrdEc::Reader reader( *objcfg );
   // open the data object
   XrdCl::SyncResponseHandler handler1;
   reader.Open( &handler1 );
-  handler1.WaitForResponse();
+  handler1.WaitForResponse(); 
   XrdCl::XRootDStatus *status = handler1.GetStatus();
   CPPUNIT_ASSERT_XRDST( *status );
   delete status;
-
+  
   uint64_t  rdoff  = 0;
-  uint32_t  rdsize = objcfg->chunksize;
-  char     *rdbuff = new char[objcfg->chunksize];
-
-  for( size_t i = 0; i < nbiters; ++i )
+  char     *rdbuff = new char[rdsize]; 
+  uint32_t  bytesrd = 0;
+  uint64_t  total_bytesrd = 0;
+  do
   {
     XrdCl::SyncResponseHandler h;
     reader.Read( rdoff, rdsize, rdbuff, &h );
@@ -125,19 +155,23 @@ void MicroTest::AlignedReadVerify()
     auto rsp = h.GetResponse();
     XrdCl::ChunkInfo *ch = nullptr;
     rsp->Get( ch );
-    std::string result( reinterpret_cast<char*>( ch->buffer ), ch->length );
+    bytesrd = ch->length;
+    std::string result( reinterpret_cast<char*>( ch->buffer ), bytesrd );
     // get the expected result
     size_t rawoff = rdoff;
     size_t rawsz  = rdsize;
     if( rawoff + rawsz > rawdata.size() ) rawsz = rawdata.size() - rawoff;
-    std::string expected( rawdata.data() + rdoff, rdsize );
+    std::string expected( rawdata.data() + rawoff, rawsz );
     // make sure the expected and actual results are the same
     CPPUNIT_ASSERT( result == expected );
     delete status;
     delete rsp;
-    rdoff += chsize;
+    rdoff += bytesrd;
+    total_bytesrd += bytesrd;
   }
-
+  while( bytesrd == rdsize && total_bytesrd < maxrd );
+  delete[] rdbuff;
+ 
   // close the data object
   XrdCl::SyncResponseHandler handler2;
   reader.Close( &handler2 );
@@ -147,17 +181,22 @@ void MicroTest::AlignedReadVerify()
   delete status;
 }
 
-void MicroTest::Verify()
+int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
-  AlignedReadVerify();
+  int rc = remove( fpath );
+  CPPUNIT_ASSERT( rc == 0 );
+  return rc;
 }
 
 void MicroTest::CleanUp()
 {
+  // delete the data directory
+  nftw( datadir.c_str(), unlink_cb, 64, FTW_DEPTH | FTW_PHYS );
 }
 
 void MicroTest::AlignedWriteTest()
 {
+  // create the data and stripe directories
   Init();
 
   char buffer[objcfg->chunksize];
@@ -183,6 +222,8 @@ void MicroTest::AlignedWriteTest()
   CPPUNIT_ASSERT_XRDST( *status );
   delete status;
 
+  // verify that we wrote the data correctly
   Verify();
+  // clean up the data directory
   CleanUp();
 }
