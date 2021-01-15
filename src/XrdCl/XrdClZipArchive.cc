@@ -491,6 +491,7 @@ namespace XrdCl
     if( cditr == cdmap.end() )
       return XRootDStatus( stError, errNotFound,
                            errNotFound, "File not found." );
+
     CDFH *cdfh = cdvec[cditr->second].get();
 
     // check if the file is compressed, for now we only support uncompressed and inflate/deflate compression
@@ -696,7 +697,6 @@ namespace XrdCl
     // itself.
     //-------------------------------------------------------------------------
     std::shared_ptr<buffer_t> lfhbuf;
-    std::shared_ptr<LFH>      lfhrec;
     if( lfh )
     {
       uint32_t lfhlen = lfh->lfhSize;
@@ -705,7 +705,6 @@ namespace XrdCl
       lfh->Serialize( *lfhbuf );
       iov[0].iov_base = lfhbuf->data();
       iov[0].iov_len  = lfhlen;
-      lfhrec = std::move( lfh );
       log->Dump( ZipMsg, "[0x%x] Will write LFH.", this );
     }
     //-------------------------------------------------------------------------
@@ -727,26 +726,22 @@ namespace XrdCl
     Pipeline p = XrdCl::WriteV( archive, wrtoff, iov, iovcnt ) >>
                    [=]( XRootDStatus &st ) mutable
                    {
-                     if( st.IsOK() )
-                     {
-                       updated   = true;
-                       archsize += wrtlen;
-                       cdoff    += wrtlen;
-                       //------------------------------------------------------
-                       // If we have written the LFH, add respective CDFH record
-                       //------------------------------------------------------
-                       if( lfhrec )
-                       {
-                         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-                         cdvec.emplace_back( new CDFH( lfhrec.get(), mode, wrtoff ) );
-                         cdmap[openfn] = cdvec.size() - 1;
-                       }
-                     }
-                     lfhrec.reset();
+                     if( st.IsOK() ) updated   = true;
                      lfhbuf.reset();
                      if( handler )
                        handler->HandleResponse( make_status( st ), nullptr );
                    };
+    archsize += wrtlen;
+    cdoff    += wrtlen;
+    //-------------------------------------------------------------------------
+    // If we have written the LFH, add respective CDFH record
+    //-------------------------------------------------------------------------
+    if( lfh )
+    {
+      mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+      cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
+      cdmap[openfn] = cdvec.size() - 1;
+    }
     Async( std::move( p ), timeout );
     return XRootDStatus();
   }
