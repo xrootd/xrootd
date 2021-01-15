@@ -414,27 +414,31 @@ namespace XrdEc
           //-------------------------------------------------------------------
           // Create the Write request
           //-------------------------------------------------------------------
-          XrdCl::Pipeline p = XrdCl::Write( zip, strpsize, strpbuff ) >>       // TODO replace Write with WriteTo
-                              [=]( XrdCl::XRootDStatus &st ) mutable
-                              {
-                                //---------------------------------------------
-                                // Try to recover from error
-                                //---------------------------------------------
-                                if( !st.IsOK() )
-                                {
-                                  //-------------------------------------------
-                                  // Select another server
-                                  //-------------------------------------------
-                                  size_t srvid;
-                                  if( !servers->dequeue( srvid ) ) return; // if there are no more servers we simply fail
-                                  zip = *dataarchs[srvid];
-                                  //-------------------------------------------
-                                  // Retry this operation at different server
-                                  //-------------------------------------------
-                                  XrdCl::Pipeline::Repeat();
-                                }
-                              }
-                            | XrdCl::Final( [wrtbuff]( const XrdCl::XRootDStatus &st ){ } );
+          XrdCl::Pipeline p = XrdCl::AppendFile( zip, fn, crc32c, strpsize, strpbuff ) >>
+                               [=]( XrdCl::XRootDStatus &st ) mutable
+                               {
+                                 //---------------------------------------------
+                                 // Try to recover from error
+                                 //---------------------------------------------
+                                 if( !st.IsOK() )
+                                 {
+                                   //-------------------------------------------
+                                   // Select another server
+                                   //-------------------------------------------
+                                   size_t srvid;
+                                   if( !servers->dequeue( srvid ) ) return; // if there are no more servers we simply fail
+                                   zip = *dataarchs[srvid];
+                                   //-------------------------------------------
+                                   // Retry this operation at different server
+                                   //-------------------------------------------
+                                   XrdCl::Pipeline::Repeat();
+                                 }
+                                 //---------------------------------------------
+                                 // Make sure the buffer is only deallocated
+                                 // after the handler is called
+                                 //---------------------------------------------
+                                 wrtbuff.reset();
+                               };
           writes.emplace_back( std::move( p ) );
         }
 
