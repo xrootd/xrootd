@@ -58,10 +58,15 @@ class MicroTest: public CppUnit::TestCase
       PastEndReadVerify();
       SmallChunkReadVerify();
       BigChunkReadVerify();
+
+      for( size_t i = 0; i < 10; ++i )
+        RandomReadVerify();
     }
     void CleanUp();
 
     void ReadVerify( uint32_t rdsize, uint64_t maxrd = std::numeric_limits<uint64_t>::max() );
+
+    void RandomReadVerify();
 
     inline void AlignedReadVerify()
     {
@@ -135,7 +140,7 @@ void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
   // open the data object
   XrdCl::SyncResponseHandler handler1;
   reader.Open( &handler1 );
-  handler1.WaitForResponse(); 
+  handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
   CPPUNIT_ASSERT_XRDST( *status );
   delete status;
@@ -172,6 +177,58 @@ void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
   while( bytesrd == rdsize && total_bytesrd < maxrd );
   delete[] rdbuff;
  
+  // close the data object
+  XrdCl::SyncResponseHandler handler2;
+  reader.Close( &handler2 );
+  handler2.WaitForResponse();
+  status = handler2.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+}
+
+void MicroTest::RandomReadVerify()
+{
+  size_t filesize = rawdata.size();
+  static std::default_random_engine random_engine( std::chrono::system_clock::now().time_since_epoch().count() );
+  std::uniform_int_distribution<uint32_t> offdistr( 0, filesize );
+  uint64_t rdoff = offdistr( random_engine );
+  std::uniform_int_distribution<uint32_t> lendistr( rdoff, filesize + 32 );
+  uint32_t rdlen = lendistr( random_engine );
+
+  XrdEc::Reader reader( *objcfg );
+  // open the data object
+  XrdCl::SyncResponseHandler handler1;
+  reader.Open( &handler1 );
+  handler1.WaitForResponse();
+  XrdCl::XRootDStatus *status = handler1.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+
+  // read the data
+  char *rdbuff = new char[rdlen];
+  XrdCl::SyncResponseHandler h;
+  reader.Read( rdoff, rdlen, rdbuff, &h );
+  h.WaitForResponse();
+  status = h.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  // get the actual result
+  auto rsp = h.GetResponse();
+  XrdCl::ChunkInfo *ch = nullptr;
+  rsp->Get( ch );
+  uint32_t bytesrd = ch->length;
+  std::string result( reinterpret_cast<char*>( ch->buffer ), bytesrd );
+  // get the expected result
+  size_t rawoff = rdoff;
+  size_t rawlen  = rdlen;
+  if( rawoff > rawdata.size() ) rawlen = 0;
+  else if( rawoff + rawlen > rawdata.size() ) rawlen = rawdata.size() - rawoff;
+  std::string expected( rawdata.data() + rawoff, rawlen );
+  // make sure the expected and actual results are the same
+  CPPUNIT_ASSERT( result == expected );
+  delete status;
+  delete rsp;
+  delete[] rdbuff;
+
   // close the data object
   XrdCl::SyncResponseHandler handler2;
   reader.Close( &handler2 );
