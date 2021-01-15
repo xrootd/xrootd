@@ -148,7 +148,8 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       WrtBuff( WrtBuff && wrtbuff ) : objcfg( wrtbuff.objcfg ),
                                       wrtbuff( std::move( wrtbuff.wrtbuff ) ),
-                                      stripes( std::move( wrtbuff.stripes ) )
+                                      stripes( std::move( wrtbuff.stripes ) ),
+                                      cksums( std::move( wrtbuff.cksums ) )
       {
       }
       //-----------------------------------------------------------------------
