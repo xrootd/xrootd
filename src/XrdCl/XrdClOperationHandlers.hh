@@ -173,10 +173,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
+        std::unique_ptr<XRootDStatus> delst( status );
+        std::unique_ptr<AnyObject> delrsp( response );
         Response *res = GetResponse<Response>( status, response );
         fun( *status, *res );
-        delete status;
-        delete response;
       }
 
     private:
@@ -212,9 +212,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
+        std::unique_ptr<XRootDStatus> delst( status );
+        std::unique_ptr<AnyObject> delrsp( response );
         fun( *status );
-        delete status;
-        delete response;
       }
 
     private:
@@ -250,10 +250,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
+        std::unique_ptr<XRootDStatus> delst( status );
+        std::unique_ptr<AnyObject> delrsp( response );
         Response *resp = GetResponse<Response>( status, response );
         task( *status, *resp );
-        delete status;
-        delete response;
       }
 
     private:
@@ -291,9 +291,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
+        std::unique_ptr<XRootDStatus> delst( status );
+        std::unique_ptr<AnyObject> delrsp( response );
         task( *status );
-        delete status;
-        delete response;
       }
 
     private:
@@ -328,15 +328,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
+        delete response;
+        std::unique_ptr<XRootDStatus> delst( status );
+        std::unique_ptr<StatInfo> delrsp;
         StatInfo *info = nullptr;
         if( status->IsOK() )
+        {
           XRootDStatus st = f->Stat( false, info );
+          delrsp.reset( info );
+        }
         else
           info = &NullRef<StatInfo>::value;
         fun( *status, *info );
-        if( info != &NullRef<StatInfo>::value ) delete info;
-        delete status;
-        delete response;
       }
 
     private:
@@ -477,6 +480,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
+        std::unique_ptr<XRootDStatus> delst( status );
+        std::unique_ptr<AnyObject> delrsp( response );
         if( status->IsOK() )
         {
           Response *resp = GetResponse<Response>( response );
@@ -490,9 +495,6 @@ namespace XrdCl
         }
         else
           this->SetException( *status );
-
-        delete status;
-        delete response;
       }
   };
 
@@ -511,7 +513,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       FutureWrapper( std::future<void> &ftr ) : FutureWrapperBase<void>( ftr )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -519,6 +520,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
+        std::unique_ptr<XRootDStatus> delst( status );
+        std::unique_ptr<AnyObject> delrsp( response );
         if( status->IsOK() )
         {
           prms.set_value();
@@ -526,9 +529,6 @@ namespace XrdCl
         }
         else
           SetException( *status );
-
-        delete status;
-        delete response;
       }
   };
 
