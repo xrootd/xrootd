@@ -680,10 +680,6 @@ namespace XrdCl
                                       ResponseHandler       *handler,
                                       uint16_t               timeout )
   {
-    if( openstage != Done || openfn.empty() )
-      return XRootDStatus( stError, errInvalidOp,
-                           errInvalidOp, "Archive not opened." );
-
     Log *log = DefaultEnv::GetLog();
 
     if( cdexists )
@@ -700,6 +696,7 @@ namespace XrdCl
     // itself.
     //-------------------------------------------------------------------------
     std::shared_ptr<buffer_t> lfhbuf;
+    std::shared_ptr<LFH>      lfhrec;
     if( lfh )
     {
       uint32_t lfhlen = lfh->lfhSize;
@@ -708,6 +705,7 @@ namespace XrdCl
       lfh->Serialize( *lfhbuf );
       iov[0].iov_base = lfhbuf->data();
       iov[0].iov_len  = lfhlen;
+      lfhrec = std::move( lfh );
       log->Dump( ZipMsg, "[0x%x] Will write LFH.", this );
     }
     //-------------------------------------------------------------------------
@@ -718,7 +716,6 @@ namespace XrdCl
       iov[0].iov_base = nullptr;
       iov[0].iov_len  = 0;
     }
-
     //-------------------------------------------------------------------------
     // In the second chunk write the user data
     //-------------------------------------------------------------------------
@@ -738,19 +735,18 @@ namespace XrdCl
                        //------------------------------------------------------
                        // If we have written the LFH, add respective CDFH record
                        //------------------------------------------------------
-                       if( lfhbuf )
+                       if( lfhrec )
                        {
                          mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-                         cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
+                         cdvec.emplace_back( new CDFH( lfhrec.get(), mode, wrtoff ) );
                          cdmap[openfn] = cdvec.size() - 1;
                        }
                      }
-                     lfh.reset();
+                     lfhrec.reset();
                      lfhbuf.reset();
                      if( handler )
                        handler->HandleResponse( make_status( st ), nullptr );
                    };
-
     Async( std::move( p ), timeout );
     return XRootDStatus();
   }
