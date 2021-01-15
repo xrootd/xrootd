@@ -761,7 +761,7 @@ namespace XrdCl
   XRootDStatus ZipArchive::AppendFile( const std::string &fn,
                                        uint32_t           crc32,
                                        uint32_t           size,
-                                       void              *buffer,
+                                       const void        *buffer,
                                        ResponseHandler   *handler,
                                        uint16_t           timeout )
   {

@@ -367,6 +367,67 @@ namespace XrdCl
 
 
   //----------------------------------------------------------------------------
+  //! AppendFile operation (@see ZipOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class AppendFileImpl: public ZipOperation<AppendFileImpl, HasHndl, Resp<void>,
+      Arg<std::string>, Arg<uint32_t>, Arg<uint32_t>, Arg<const void*>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using ZipOperation<AppendFileImpl, HasHndl, Resp<void>, Arg<std::string>,
+          Arg<uint32_t>, Arg<uint32_t>, Arg<const void*>>::ZipOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { FnArg, CrcArg, SizeArg, BufferArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "AppendFile";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        std::string  fn      = std::get<FnArg>( this->args ).Get();
+        uint32_t     crc32   = std::get<CrcArg>( this->args ).Get();
+        uint32_t     size    = std::get<SizeArg>( this->args ).Get();
+        const void  *buffer  = std::get<BufferArg>( this->args ).Get();
+        uint16_t     timeout = pipelineTimeout < this->timeout ?
+                              pipelineTimeout : this->timeout;
+        return this->zip->AppendFile( fn, crc32, size, buffer, handler, timeout );
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ArchiveReadImpl objects
+  //----------------------------------------------------------------------------
+  inline AppendFileImpl<false> AppendFile( Ctx<ZipArchive> zip, Arg<std::string> fn,
+                                           Arg<uint32_t> crc32, Arg<uint32_t> size,
+                                           Arg<const void*> buffer, uint16_t timeout = 0 )
+  {
+    return AppendFileImpl<false>( std::move( zip ), std::move( fn ), std::move( crc32 ),
+                                  std::move( size ), std::move( buffer ) ).Timeout( timeout );
+  }
+
+
+  //----------------------------------------------------------------------------
   //! CloseFile operation (@see ZipOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
