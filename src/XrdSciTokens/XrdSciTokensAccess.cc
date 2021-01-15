@@ -436,7 +436,8 @@ public:
 
     }
 
-    virtual bool Validate(const char *token, std::string &emsg)
+    virtual bool Validate(const char *token, std::string &emsg,
+                          XrdSecEntity *Entity)
     {
         // Just check if the token is valid, no scope checking
 

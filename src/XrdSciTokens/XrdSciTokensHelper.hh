@@ -15,6 +15,8 @@
 //! of an instance of this class.
 //-----------------------------------------------------------------------------
 
+class XrdSecEntity;
+
 class XrdSciTokensHelper
 {
 public:
@@ -41,11 +43,17 @@ virtual  Issuers IssuerList() = 0;
 //!
 //! @param   token - Pointer to the token to validate.
 //! @param   emsg  - Reference to a string to hold the reason for rejection
+//! @param   entP  - Pointer to the SecEntity object and when not nil requests
+//!                  that it be filled with any identifying information in
+//!                  the token. The caller assumes that all supplied fields
+//!                  may be released by calling free().
 //!
 //! @result  Return true if the token is valid; false otherwise with emsg set.
 //-----------------------------------------------------------------------------
 
-virtual  bool    Validate(const char *token, std::string &emsg) = 0;
+virtual  bool    Validate(const char   *token,
+                          std::string  &emsg,
+                          XrdSecEntity *entP=0) = 0;
 
 //-----------------------------------------------------------------------------
 //! Constructor and Destructor.
