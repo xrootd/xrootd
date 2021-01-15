@@ -23,7 +23,6 @@ include( XrdCrypto )
 include( XrdSec )
 include( XrdXml )
 include( XrdHeaders )
-#include( XrdSecztn )
 
 if( BUILD_CRYPTO )
   include( XrdSecgsi )
@@ -75,6 +74,7 @@ if( NOT XRDCL_ONLY )
 
   if( BUILD_SCITOKENS )
     include( XrdSciTokens )
+    include( XrdSecztn )
   endif()
 
 endif()
