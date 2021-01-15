@@ -152,10 +152,35 @@ namespace XrdCl
       //! @param timeout : operation timeout
       //! @return        : the status of the operation
       //-----------------------------------------------------------------------
-      XRootDStatus Write( uint32_t          size,
-                          const void       *buffer,
-                          ResponseHandler  *handler,
-                          uint16_t          timeout = 0 );
+      inline XRootDStatus Write( uint32_t          size,
+                                 const void       *buffer,
+                                 ResponseHandler  *handler,
+                                 uint16_t          timeout = 0 )
+      {
+        if( openstage != Done || openfn.empty() )
+          return XRootDStatus( stError, errInvalidOp,
+                               errInvalidOp, "Archive not opened." );
+
+        return WriteImpl( size, buffer, handler, timeout );
+      }
+
+      //-----------------------------------------------------------------------
+      //! Create a new file in the ZIP archive and append the data
+      //!
+      //! @param fn      : the name of the new file to be created
+      //! @param crc32   : the crc32 of the file
+      //! @param size    : the size of the file
+      //! @param buffer  : the buffer with the data
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
+      XRootDStatus AppendFile( const std::string &fn,
+                               uint32_t           crc32,
+                               uint32_t           size,
+                               void              *buffer,
+                               ResponseHandler   *handler,
+                               uint16_t           timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Get stat info for given file
@@ -248,6 +273,21 @@ namespace XrdCl
       }
 
     private:
+
+      //-----------------------------------------------------------------------
+      //! Append data to a new file, implementation
+      //!
+      //! @param lfh     : the Local File Header record
+      //! @param size    : number of bytes to be appended
+      //! @param buffer  : the buffer with the data to be appended
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
+      XRootDStatus WriteImpl( uint32_t               size,
+                              const void            *buffer,
+                              ResponseHandler       *handler,
+                              uint16_t               timeout );
 
       //-----------------------------------------------------------------------
       //! Open the ZIP archive in read-only mode without parsing the central

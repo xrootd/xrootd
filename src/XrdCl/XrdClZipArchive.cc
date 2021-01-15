@@ -672,13 +672,13 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  //---------------------------------------------------------------------------
-  // Append data to a new file
-  //---------------------------------------------------------------------------
-  XRootDStatus ZipArchive::Write( uint32_t         size,
-                                  const void      *buffer,
-                                  ResponseHandler *handler,
-                                  uint16_t         timeout )
+  //-----------------------------------------------------------------------
+  // Append data to a new file, implementation
+  //-----------------------------------------------------------------------
+  XRootDStatus ZipArchive::WriteImpl( uint32_t               size,
+                                      const void            *buffer,
+                                      ResponseHandler       *handler,
+                                      uint16_t               timeout )
   {
     if( openstage != Done || openfn.empty() )
       return XRootDStatus( stError, errInvalidOp,
@@ -703,7 +703,7 @@ namespace XrdCl
     if( lfh )
     {
       uint32_t lfhlen = lfh->lfhSize;
-      lfhbuf.reset( new buffer_t() );
+      lfhbuf = std::make_shared<buffer_t>();
       lfhbuf->reserve( lfhlen );
       lfh->Serialize( *lfhbuf );
       iov[0].iov_base = lfhbuf->data();
@@ -735,9 +735,15 @@ namespace XrdCl
                        updated   = true;
                        archsize += wrtlen;
                        cdoff    += wrtlen;
-                       mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-                       cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
-                       cdmap[openfn] = cdvec.size() - 1;
+                       //------------------------------------------------------
+                       // If we have written the LFH, add respective CDFH record
+                       //------------------------------------------------------
+                       if( lfhbuf )
+                       {
+                         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+                         cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
+                         cdmap[openfn] = cdvec.size() - 1;
+                       }
                      }
                      lfh.reset();
                      lfhbuf.reset();
@@ -747,6 +753,37 @@ namespace XrdCl
 
     Async( std::move( p ), timeout );
     return XRootDStatus();
+  }
+
+  //-----------------------------------------------------------------------
+  // Create a new file in the ZIP archive and append the data
+  //-----------------------------------------------------------------------
+  XRootDStatus ZipArchive::AppendFile( const std::string &fn,
+                                       uint32_t           crc32,
+                                       uint32_t           size,
+                                       void              *buffer,
+                                       ResponseHandler   *handler,
+                                       uint16_t           timeout )
+  {
+    Log  *log = DefaultEnv::GetLog();
+    auto  itr   = cdmap.find( fn );
+    // check if the file already exists in the archive
+    if( itr != cdmap.end() )
+    {
+      log->Dump( ZipMsg, "[0x%x] Open failed: file exists %s, cannot append.",
+                         this, fn.c_str() );
+      return XRootDStatus( stError, errInvalidOp );
+    }
+
+    log->Dump( ZipMsg, "[0x%x] Appending file: %s.", this, fn.c_str() );
+    //-------------------------------------------------------------------------
+    // Create Local File Header record
+    //-------------------------------------------------------------------------
+    lfh.reset( new LFH( fn, crc32, size, time( 0 ) ) );
+    //-------------------------------------------------------------------------
+    // And write it all
+    //-------------------------------------------------------------------------
+    return WriteImpl( size, buffer, handler, timeout );
   }
 
 } /* namespace XrdZip */
