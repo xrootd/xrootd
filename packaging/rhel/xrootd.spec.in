@@ -912,7 +912,9 @@ fi
 %{_libdir}/libXrdSecpwd-5.so
 %{_libdir}/libXrdSecsss-5.so
 %{_libdir}/libXrdSecunix-5.so
+%if %{?_with_scitokens:1}%{!?_with_scitokens:0}
 %{_libdir}/libXrdSecztn-5.so
+%endif
 %{_libdir}/libXrdUtils.so.3*
 %{_libdir}/libXrdXml.so.3*
 
