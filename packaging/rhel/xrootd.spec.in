@@ -912,6 +912,7 @@ fi
 %{_libdir}/libXrdSecpwd-5.so
 %{_libdir}/libXrdSecsss-5.so
 %{_libdir}/libXrdSecunix-5.so
+%{_libdir}/libXrdSecztn-5.so
 %{_libdir}/libXrdUtils.so.3*
 %{_libdir}/libXrdXml.so.3*
 
