@@ -13,6 +13,15 @@ if(NOT (CMAKE_VERSION VERSION_LESS "3.1"))
   cmake_policy(SET CMP0054 OLD)
 endif()
 
+
+#-------------------------------------------------------------------------------
+# A 'plugins' phony target to simplify building build-tree binaries.
+# Plugins are responsible for adding themselves to this target, where
+# appropriate.
+#-------------------------------------------------------------------------------
+ADD_CUSTOM_TARGET(plugins)
+
+
 include( XRootDUtils )
 CheckBuildDirectory()
 

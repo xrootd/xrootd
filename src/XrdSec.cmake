@@ -10,6 +10,12 @@ set( LIB_XRD_SEC_PWD    XrdSecpwd-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_SSS    XrdSecsss-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_UNIX   XrdSecunix-${PLUGIN_VERSION} )
 
+add_dependencies(plugins ${LIB_XRD_SEC}
+  ${LIB_XRD_SEC_PROT}
+  ${LIB_XRD_SEC_PWD}
+  ${LIB_XRD_SEC_SSS}
+  ${LIB_XRD_SEC_UNIX})
+
 #-------------------------------------------------------------------------------
 # The XrdSec module
 #-------------------------------------------------------------------------------
