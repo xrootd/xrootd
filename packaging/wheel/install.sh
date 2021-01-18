@@ -45,7 +45,17 @@ rm -r xrootdbuild
 
 # convert the egg-info into a proper dist-info
 egginfo_path=$(ls $1/xrootd-*.egg-info)
-distinfo_path="${egginfo_path%.*}.dist-info"
+core="${egginfo_path%.*}"
+core="${egginfo_path#$1/}"
+sufix="${core#xrootd-*.*.*_-}"
+core="${core%_-*}"
+if [[ "$core" == "$sufix" ]]
+then
+    distinfo_path="${egginfo_path%.*}.dist-info"
+else
+    distinfo_path="$1/$core-$sufix"
+fi
+echo $distinfo_path >> /tmp/out.txt
 mkdir $distinfo_path
 mv $egginfo_path $distinfo_path/METADATA
 echo -e "Wheel-Version: 1.0\nGenerator: bdist_wheel (0.35.1)\nRoot-Is-Purelib: true\nTag: py2-none-any\nTag: py3-none-any" > $distinfo_path/WHEEL
