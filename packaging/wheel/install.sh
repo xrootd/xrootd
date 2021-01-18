@@ -48,7 +48,7 @@ egginfo_path=$(ls $1/xrootd-*.egg-info)
 distinfo_path="${egginfo_path%.*}.dist-info"
 mkdir $distinfo_path
 mv $egginfo_path $distinfo_path/METADATA
-echo "Wheel-Version: 1.0\nGenerator: bdist_wheel (0.35.1)\nRoot-Is-Purelib: true\nTag: py2-none-any\nTag: py3-none-any" > $distinfo_path/WHEEL
+echo -e "Wheel-Version: 1.0\nGenerator: bdist_wheel (0.35.1)\nRoot-Is-Purelib: true\nTag: py2-none-any\nTag: py3-none-any" > $distinfo_path/WHEEL
 touch $distinfo_path/RECORD
 distinfo_name=${distinfo_path#"$1"}
 find $1/pyxrootd/      -type f -exec sha256sum {} \; | awk '{printf$2 ",sha256=" $1 "," ; system("stat --printf=\"%s\" "$2) ; print '\n'; }' >> $distinfo_path/RECORD
