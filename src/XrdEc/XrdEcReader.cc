@@ -407,7 +407,7 @@ namespace XrdEc
       opens.emplace_back( OpenOnly( *dataarchs[url], url ) );
     }
     // in parallel open the data files and read the metadata
-    XrdCl::Pipeline p = XrdCl::Parallel( ReadMetadata( 0 ), XrdCl::Parallel( opens ) ) >>
+    XrdCl::Pipeline p = XrdCl::Parallel( ReadMetadata( 0 ), XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) ) >>
                           [=]( XrdCl::XRootDStatus &st )
                           { // set the central directories in ZIP archives
                             auto itr = dataarchs.begin();
