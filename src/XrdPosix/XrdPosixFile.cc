@@ -435,7 +435,7 @@ const char *XrdPosixFile::Location(bool refresh)
               {if (fLoc) free(fLoc);
                fLoc = strdup(currNode.c_str());
               }
-          }
+          } else return "";
       }
 
 // Return location information
