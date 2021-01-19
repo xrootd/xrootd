@@ -42,6 +42,7 @@
 #include <iterator>
 #include <numeric>
 #include <tuple>
+#include <iostream>
 
 namespace XrdEc
 {
@@ -232,7 +233,12 @@ namespace XrdEc
       // Check if we can do the recovery at all (if too many stripes are
       // missing it wont be possible)
       //---------------------------------------------------------------------
-      if( missingcnt + recoveringcnt > self->objcfg.nbparity ) return false;
+      if( missingcnt + recoveringcnt > self->objcfg.nbparity )
+      {
+        std::for_each( self->state.begin(), self->state.end(),
+                       []( state_t &s ){ if( s == Recovering ) s = Missing; } );
+        return false;
+      }
       //---------------------------------------------------------------------
       // Check if we can do the recovery right away
       //---------------------------------------------------------------------
@@ -246,6 +252,8 @@ namespace XrdEc
         }
         catch( const IOError &ex )
         {
+          std::for_each( self->state.begin(), self->state.end(),
+                         []( state_t &s ){ if( s == Recovering ) s = Missing; } );
           return false;
         }
         //-------------------------------------------------------------------
