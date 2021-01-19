@@ -528,7 +528,9 @@ namespace XrdEc
     auto itr = urlmap.find( fn );
     if( itr == urlmap.end() )
     {
-      ThreadPool::Instance().Execute( cb, XrdCl::XRootDStatus(), 0 );
+      auto st = !missing.count( fn ) ? XrdCl::XRootDStatus() :
+                XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
+      ThreadPool::Instance().Execute( cb, st, 0 );
       return;
     }
     // get the URL of the ZIP archive with the respective data
@@ -690,10 +692,12 @@ namespace XrdEc
   //-----------------------------------------------------------------------
   void Reader::AddMissing( const buffer_t &cdbuff )
   {
+    const char *buff = cdbuff.data();
+    size_t      size = cdbuff.size();
     // parse Central Directory records
     XrdZip::cdvec_t cdvec;
     XrdZip::cdmap_t cdmap;
-    std::tie(cdvec, cdmap ) = CDFH::Parse( cdbuff.data(), cdbuff.size() );
+    std::tie(cdvec, cdmap ) = XrdZip::CDFH::Parse( buff, size );
     auto itr = cdvec.begin();
     for( ; itr != cdvec.end() ; ++itr )
     {
