@@ -335,10 +335,9 @@ namespace XrdEc
     //-------------------------------------------------------------------------
     // Execute the pending read requests
     //-------------------------------------------------------------------------
-    inline static
-    void carryout( pending_t                 &pending,
-                   const buffer_t            &stripe,
-                   const XrdCl::XRootDStatus &st = XrdCl::XRootDStatus() )
+    inline void carryout( pending_t                 &pending,
+                          const buffer_t            &stripe,
+                          const XrdCl::XRootDStatus &st = XrdCl::XRootDStatus() )
     {
       //-----------------------------------------------------------------------
       // Iterate over all pending read operations for given stripe
@@ -380,7 +379,7 @@ namespace XrdEc
     //-------------------------------------------------------------------------
     // Execute pending read requests for missing stripes
     //-------------------------------------------------------------------------
-    inline static void fail_missing()
+    inline void fail_missing()
     {
       size_t size = objcfg.nbchunks;
       for( size_t i = 0; i < size; ++i )
