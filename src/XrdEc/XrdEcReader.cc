@@ -417,6 +417,8 @@ namespace XrdEc
                               auto              &zipptr = itr->second;
                               if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
                                 zipptr->SetCD( metadata[url] );
+                              else
+                                AddMissing( metadata[url] );
                               auto itr = zipptr->cdmap.begin();
                               for( ; itr != zipptr->cdmap.end() ; ++itr )
                                 urlmap.emplace( itr->first, url );
@@ -681,6 +683,23 @@ namespace XrdEc
     }
 
     return true;
+  }
+
+  //-----------------------------------------------------------------------
+  // Add all the entries from given Central Directory to missing
+  //-----------------------------------------------------------------------
+  void Reader::AddMissing( const buffer_t &cdbuff )
+  {
+    // parse Central Directory records
+    XrdZip::cdvec_t cdvec;
+    XrdZip::cdmap_t cdmap;
+    std::tie(cdvec, cdmap ) = CDFH::Parse( cdbuff.data(), cdbuff.size() );
+    auto itr = cdvec.begin();
+    for( ; itr != cdvec.end() ; ++itr )
+    {
+      XrdZip::CDFH &cdfh = **itr;
+      missing.insert( cdfh.filename );
+    }
   }
 
 } /* namespace XrdEc */

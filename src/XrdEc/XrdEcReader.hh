@@ -30,6 +30,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace XrdEc
 {
@@ -120,14 +121,23 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       bool ParseMetadata( XrdCl::ChunkInfo &ch );
 
+      //-----------------------------------------------------------------------
+      //! Add all the entries from given Central Directory to missing
+      //!
+      //! @param cdbuff : buffer containing central directory
+      //-----------------------------------------------------------------------
+      void AddMissing( const buffer_t &cdbuff );
+
       typedef std::unordered_map<std::string, std::shared_ptr<XrdCl::ZipArchive>> dataarchs_t;
       typedef std::unordered_map<std::string, buffer_t> metadata_t;
       typedef std::unordered_map<std::string, std::string> urlmap_t;
+      typedef std::unordered_set<std::string> missing_t;
 
       ObjCfg                   &objcfg;
       dataarchs_t               dataarchs; //> map URL to ZipArchive object
       metadata_t                metadata;  //> map URL to CD metadata
       urlmap_t                  urlmap;    //> map blknb/strpnb (data chunk) to URL
+      missing_t                 missing;   //> set of missing stripes
       std::shared_ptr<block_t>  block;     //> cache for the block we are reading from
   };
 
