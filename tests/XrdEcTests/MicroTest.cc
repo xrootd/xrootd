@@ -32,6 +32,8 @@
 
 #include "XrdCl/XrdClMessageUtils.hh"
 
+#include "XrdZip/XrdZipCDFH.hh"
+
 #include <string>
 #include <memory>
 #include <limits>
@@ -40,6 +42,9 @@
 #include <stdio.h>
 #include <ftw.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
+using namespace XrdEc;
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -54,6 +59,14 @@ class MicroTest: public CppUnit::TestCase
     void AlignedWriteTest();
     void Verify()
     {
+      ReadVerifyAll();
+      CorruptedReadVerify();
+    }
+
+    void CleanUp();
+
+    inline void ReadVerifyAll()
+    {
       AlignedReadVerify();
       PastEndReadVerify();
       SmallChunkReadVerify();
@@ -62,11 +75,12 @@ class MicroTest: public CppUnit::TestCase
       for( size_t i = 0; i < 10; ++i )
         RandomReadVerify();
     }
-    void CleanUp();
 
     void ReadVerify( uint32_t rdsize, uint64_t maxrd = std::numeric_limits<uint64_t>::max() );
 
     void RandomReadVerify();
+
+    void Corrupted1stBlkReadVerify();
 
     inline void AlignedReadVerify()
     {
@@ -88,6 +102,13 @@ class MicroTest: public CppUnit::TestCase
       ReadVerify( 23 );
     }
 
+    void CorruptedReadVerify();
+
+    void CorruptChunk( size_t blknb, size_t strpnb );
+
+    void UrlNotReachable( size_t index );
+    void UrlReachable( size_t index );
+
   private:
 
     void copy_rawdata( char *buffer, size_t size )
@@ -98,12 +119,14 @@ class MicroTest: public CppUnit::TestCase
     }
 
     std::string datadir;
-    std::unique_ptr<XrdEc::ObjCfg> objcfg;
+    std::unique_ptr<ObjCfg> objcfg;
 
     static const size_t nbdata   = 4;
     static const size_t nbparity = 2;
     static const size_t chsize   = 16;
     static const size_t nbiters  = 16;
+
+    static const size_t lfhsize  = 30;
 
     std::vector<char> rawdata;
 };
@@ -113,7 +136,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( MicroTest );
 
 void MicroTest::Init()
 {
-  objcfg.reset( new XrdEc::ObjCfg( "test.txt", "0", nbdata, nbparity, chsize ) );
+  objcfg.reset( new ObjCfg( "test.txt", "0", nbdata, nbparity, chsize ) );
 
   char cwdbuff[1024];
   char *cwdptr = getcwd( cwdbuff, sizeof( cwdbuff ) );
@@ -134,9 +157,87 @@ void MicroTest::Init()
   }
 }
 
+void MicroTest::CorruptChunk( size_t blknb, size_t strpnb )
+{
+  Reader reader( *objcfg );
+  // open the data object
+  XrdCl::SyncResponseHandler handler1;
+  reader.Open( &handler1 );
+  handler1.WaitForResponse();
+  XrdCl::XRootDStatus *status = handler1.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+
+  // get the CD buffer
+  std::string fn     = objcfg->GetFileName( blknb, strpnb );
+  std::string url    = reader.urlmap[fn];
+  buffer_t    cdbuff = reader.dataarchs[url]->GetCD();
+
+  // close the data object
+  XrdCl::SyncResponseHandler handler2;
+  reader.Close( &handler2 );
+  handler2.WaitForResponse();
+  status = handler2.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+
+  // parse the CD buffer
+  const char *buff   = cdbuff.data();
+  size_t      size   = cdbuff.size();
+  XrdZip::cdvec_t cdvec;
+  XrdZip::cdmap_t cdmap;
+  std::tie(cdvec, cdmap ) = XrdZip::CDFH::Parse( buff, size );
+
+  // now corrupt the chunk (put wrong checksum)
+  XrdZip::CDFH &cdfh = *cdvec[cdmap[fn]];
+  uint64_t offset = cdfh.offset + lfhsize + fn.size(); // offset of the data
+  XrdCl::File f;
+  XrdCl::XRootDStatus status2 = f.Open( url, XrdCl::OpenFlags::Write );
+  CPPUNIT_ASSERT_XRDST( status2 );
+  std::string str = "XXXXXXXX";
+  status2 = f.Write( offset, str.size(), str.c_str() );
+  CPPUNIT_ASSERT_XRDST( status2 );
+  status2 = f.Close();
+  CPPUNIT_ASSERT_XRDST( status2 );
+}
+
+void MicroTest::UrlNotReachable( size_t index )
+{
+  XrdCl::URL url( objcfg->plgr[index] );
+  CPPUNIT_ASSERT( chmod( url.GetPath().c_str(), 0 ) == 0 );
+}
+
+void MicroTest::UrlReachable( size_t index )
+{
+  XrdCl::URL url( objcfg->plgr[index] );
+  mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH |
+                S_IXUSR | S_IXGRP | S_IXOTH;
+  CPPUNIT_ASSERT( chmod( url.GetPath().c_str(), mode ) == 0 );
+}
+
+void MicroTest::CorruptedReadVerify()
+{
+  std::cout << __func__ << std::endl;
+  UrlNotReachable( 0 );
+  ReadVerifyAll();
+  UrlNotReachable( 1 );
+  ReadVerifyAll();
+  UrlReachable( 0 );
+  UrlReachable( 1 );
+
+  CorruptChunk( 0, 0 );
+  ReadVerifyAll();
+
+  CorruptChunk( 0, 1 );
+  ReadVerifyAll();
+
+  CorruptChunk( 0, 2 );
+  Corrupted1stBlkReadVerify();
+}
+
 void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
 {
-  XrdEc::Reader reader( *objcfg );
+  Reader reader( *objcfg );
   // open the data object
   XrdCl::SyncResponseHandler handler1;
   reader.Open( &handler1 );
@@ -168,6 +269,12 @@ void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
     if( rawoff + rawsz > rawdata.size() ) rawsz = rawdata.size() - rawoff;
     std::string expected( rawdata.data() + rawoff, rawsz );
     // make sure the expected and actual results are the same
+    if( result != expected )
+    {
+      std::cout << "result = " << result << std::endl;
+      std::cout << "result.size() = " << result.size() << std::endl;
+      std::cout << "expected = " << expected << std::endl;
+    }
     CPPUNIT_ASSERT( result == expected );
     delete status;
     delete rsp;
@@ -195,7 +302,7 @@ void MicroTest::RandomReadVerify()
   std::uniform_int_distribution<uint32_t> lendistr( rdoff, filesize + 32 );
   uint32_t rdlen = lendistr( random_engine );
 
-  XrdEc::Reader reader( *objcfg );
+  Reader reader( *objcfg );
   // open the data object
   XrdCl::SyncResponseHandler handler1;
   reader.Open( &handler1 );
@@ -238,6 +345,40 @@ void MicroTest::RandomReadVerify()
   delete status;
 }
 
+void MicroTest::Corrupted1stBlkReadVerify()
+{
+  uint64_t rdoff = 0;
+  uint32_t rdlen = objcfg->datasize;
+
+  Reader reader( *objcfg );
+  // open the data object
+  XrdCl::SyncResponseHandler handler1;
+  reader.Open( &handler1 );
+  handler1.WaitForResponse();
+  XrdCl::XRootDStatus *status = handler1.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+
+  // read the data
+  char *rdbuff = new char[rdlen];
+  XrdCl::SyncResponseHandler h;
+  reader.Read( rdoff, rdlen, rdbuff, &h );
+  h.WaitForResponse();
+  status = h.GetStatus();
+  CPPUNIT_ASSERT( status->status == XrdCl::stError &&
+                 status->code == XrdCl::errDataError );
+  delete status;
+  delete[] rdbuff;
+
+  // close the data object
+  XrdCl::SyncResponseHandler handler2;
+  reader.Close( &handler2 );
+  handler2.WaitForResponse();
+  status = handler2.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+}
+
 int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
   int rc = remove( fpath );
@@ -257,7 +398,7 @@ void MicroTest::AlignedWriteTest()
   Init();
 
   char buffer[objcfg->chunksize];
-  XrdEc::StrmWriter writer( *objcfg );
+  StrmWriter writer( *objcfg );
   // open the data object
   XrdCl::SyncResponseHandler handler1;
   writer.Open( &handler1 );

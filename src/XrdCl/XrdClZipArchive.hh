@@ -45,6 +45,7 @@
 // Forward declaration needed for friendship
 //-----------------------------------------------------------------------------
 namespace XrdEc{ class StrmWriter; class Reader; template<bool> class OpenOnlyImpl; };
+class MicroTest;
 
 namespace XrdCl
 {
@@ -64,6 +65,7 @@ namespace XrdCl
     friend class XrdEc::Reader;
     template<bool>
     friend class XrdEc::OpenOnlyImpl;
+    friend class ::MicroTest;
 
     public:
       //-----------------------------------------------------------------------
