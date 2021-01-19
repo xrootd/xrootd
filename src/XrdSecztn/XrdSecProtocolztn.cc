@@ -476,10 +476,6 @@ XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
        return 0;
       }
 
-// Make sure the file is not accessible to anyone but the owner
-//
-   if (Stat.st_mode & (S_IRWXG | S_IRWXO)) return readFail(erp, path, EPERM);
-
 // Make sure token is not too big
 //
    if (Stat.st_size > maxTSize) return readFail(erp, path, EMSGSIZE);
@@ -505,6 +501,10 @@ XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
       {isbad = false;
        return 0;
       }
+
+// Make sure the file is not accessible to anyone but the owner
+//
+   if (Stat.st_mode & (S_IRWXG | S_IRWXO)) return readFail(erp, path, EPERM);
 
 // Return response
 //
@@ -712,7 +712,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
                   MaxTokSize = strtol(val, &endP, 10);
                   if (*endP == 'k' || *endP == 'K')
                      {MaxTokSize *= 1024; endP++;}
-                  if (MaxTokSize <= 0 || *endP)
+                  if (MaxTokSize <= 0 || MaxTokSize > 524288 || *endP)
                      {Fatal(erp, "-maxsz argument is invalid", EINVAL);
                       return 0;
                      }
