@@ -27,9 +27,6 @@
 #include <memory>
 #include <vector>
 #include <thread>
-#include <queue>
-#include <condition_variable>
-#include <mutex>
 #include <iterator>
 
 #include <sys/stat.h>
@@ -37,92 +34,8 @@
 namespace XrdEc
 {
   //---------------------------------------------------------------------------
-  // A class implementing synchronous queue
-  //---------------------------------------------------------------------------
-  template<typename Element>
-  struct sync_queue
-  {
-    //-------------------------------------------------------------------------
-    // An internal exception used for interrupting the `dequeue` method
-    //-------------------------------------------------------------------------
-    struct wait_interrupted{ };
-
-    //-------------------------------------------------------------------------
-    // Default constructor
-    //-------------------------------------------------------------------------
-    sync_queue() : interrupted( false )
-    {
-    }
-
-    //-------------------------------------------------------------------------
-    // Enqueue new element into the queue
-    //-------------------------------------------------------------------------
-    inline void enqueue( Element && element )
-    {
-      std::unique_lock<std::mutex> lck( mtx );
-      elements.push( std::move( element ) );
-      cv.notify_all();
-    }
-
-    //-------------------------------------------------------------------------
-    // Dequeue an element from the front of the queue
-    // Note: if the queue is empty blocks until a new element is enqueued
-    //-------------------------------------------------------------------------
-    inline Element dequeue()
-    {
-      std::unique_lock<std::mutex> lck( mtx );
-      while( elements.empty() )
-      {
-        cv.wait( lck );
-        if( interrupted ) throw wait_interrupted();
-      }
-      Element element = std::move( elements.front() );
-      elements.pop();
-      return std::move( element );
-    }
-
-    //-------------------------------------------------------------------------
-    // Dequeue an element from the front of the queue
-    // Note: if the queue is empty returns false, true otherwise
-    //-------------------------------------------------------------------------
-    inline bool dequeue( Element &e )
-    {
-      std::unique_lock<std::mutex> lck( mtx );
-      if( elements.empty() ) return false;
-      e = std::move( elements.front() );
-      elements.pop();
-      return true;
-    }
-
-    //-------------------------------------------------------------------------
-    // Checks if the queue is empty
-    //-------------------------------------------------------------------------
-    bool empty()
-    {
-      std::unique_lock<std::mutex> lck( mtx );
-      return elements.empty();
-    }
-
-    //-------------------------------------------------------------------------
-    // Interrupt all waiting `dequeue` routines
-    //-------------------------------------------------------------------------
-    inline void interrupt()
-    {
-      interrupted = true;
-      cv.notify_all();
-    }
-
-    private:
-      std::queue<Element>     elements;    //< the queue itself
-      std::mutex              mtx;         //< mutex guarding the queue
-      std::condition_variable cv;
-      std::atomic<bool>       interrupted; //< a flag, true if all `dequeue` routines
-                                           //< should be interrupted
-  };
-
-  //---------------------------------------------------------------------------
-  // The Stream Writer objects, responsible for writing erasure coded data
-  // into selected placement group.
+  //! The Stream Writer objects, responsible for writing erasure coded data
+  //! into selected placement group.
   //---------------------------------------------------------------------------
   class StrmWriter
   {
