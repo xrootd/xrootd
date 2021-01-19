@@ -80,7 +80,7 @@ add_library(
   XrdEcUtilities.hh            XrdEcUtilities.cc
   XrdEcWrtBuff.hh
   XrdEcThreadPool.hh
-  XrdEcStrmWriter.hh
+  XrdEcStrmWriter.hh           XrdEcStrmWriter.cc
   XrdEcReader.hh               XrdEcReader.cc
 )
 
