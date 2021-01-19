@@ -299,11 +299,16 @@ namespace XrdEc
                //------------------------------------------------------------
                bool recoverable = error_correction( self );
                //------------------------------------------------------------
-               // Carry out the pending read requests if we got the data or
-               // if there was an error and we cannot recover
+               // Carry out the pending read requests if we got the data
                //------------------------------------------------------------
-               if( st.IsOK() || !recoverable )
+               if( st.IsOK() )
                  self->carryout( self->pending[strpid], self->stripes[strpid], st );
+               //------------------------------------------------------------
+               // Carry out the pending read requests if there was an error
+               // and we cannot recover
+               //------------------------------------------------------------
+               if( !recoverable )
+                 self->fail_missing();
              };
     }
 
@@ -327,26 +332,26 @@ namespace XrdEc
       return ret;
     }
 
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Execute the pending read requests
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     inline static
     void carryout( pending_t                 &pending,
                    const buffer_t            &stripe,
                    const XrdCl::XRootDStatus &st = XrdCl::XRootDStatus() )
     {
-      //---------------------------------------------------------------------
+      //-----------------------------------------------------------------------
       // Iterate over all pending read operations for given stripe
-      //---------------------------------------------------------------------
+      //-----------------------------------------------------------------------
       auto itr = pending.begin();
       for( ; itr != pending.end() ; ++itr )
       {
         auto       &args     = *itr;
         callback_t &callback = std::get<3>( args );
         uint32_t    nbrd  = 0; // number of bytes read
-        //-------------------------------------------------------------------
+        //---------------------------------------------------------------------
         // If the read was successful, copy the data to user buffer
-        //-------------------------------------------------------------------
+        //---------------------------------------------------------------------
         if( st.IsOK() )
         {
           uint64_t  offset  = std::get<0>( args );
@@ -361,15 +366,29 @@ namespace XrdEc
           memcpy( usrbuff, stripe.data() + offset, size );
           nbrd = size;
         }
-        //-------------------------------------------------------------------
+        //---------------------------------------------------------------------
         // Call the user callback
-        //-------------------------------------------------------------------
+        //---------------------------------------------------------------------
         callback( st, nbrd );
       }
-      //---------------------------------------------------------------------
+      //-----------------------------------------------------------------------
       // Now we can clear the pending reads
-      //---------------------------------------------------------------------
+      //-----------------------------------------------------------------------
       pending.clear();
+    }
+
+    //-------------------------------------------------------------------------
+    // Execute pending read requests for missing stripes
+    //-------------------------------------------------------------------------
+    inline static void fail_missing()
+    {
+      size_t size = objcfg.nbchunks;
+      for( size_t i = 0; i < size; ++i )
+      {
+        if( state[i] != Missing ) continue;
+        carryout( pending[i], stripes[i],
+                  XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError ) );
+      }
     }
 
     Reader                 &reader;
