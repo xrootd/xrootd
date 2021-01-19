@@ -444,6 +444,7 @@ public:
         // Deserialize the token
         SciToken scitoken;
         char *err_msg;
+        if (!strncmp(token, "Bearer%20", 9)) token += 9;
         pthread_rwlock_rdlock(&m_config_lock);
         auto retval = scitoken_deserialize(token, &scitoken, &m_valid_issuers_array[0], &err_msg);
         pthread_rwlock_unlock(&m_config_lock);
