@@ -18,6 +18,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[POSIX]** Avoid returning null pointer upon failure to avoid SEGV.
   **[POSIX]** Correctly initialize serverless cache to avoid SEGV.
   **[Server]** Make sure that alignment is a power of two for posix_memalign.
   **[SSI]** Prevent a buffer from being recycled twice leading to random errors.
