@@ -531,9 +531,9 @@ namespace XrdEc
     auto itr = dataarchs.begin();
     for( ; itr != dataarchs.end() ; ++itr )
     {
-      XrdCl::ZipArchive &zip = *itr->second;
-      if( zip.IsOpen() )
-        closes.emplace_back( XrdCl::CloseArchive( zip ) );
+      auto &zipptr = itr->second;
+      if( zipptr->IsOpen() )
+        closes.emplace_back( XrdCl::CloseArchive( *zipptr ) >> [zipptr]( XrdCl::XRootDStatus& ){ } );
     }
 
     // if there is nothing to close just schedule the handler
