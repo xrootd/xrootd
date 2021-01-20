@@ -54,9 +54,26 @@ class MicroTest: public CppUnit::TestCase
   public:
     CPPUNIT_TEST_SUITE( MicroTest );
       CPPUNIT_TEST( AlignedWriteTest );
+      CPPUNIT_TEST( SmallWriteTest );
+      CPPUNIT_TEST( BigWriteTest );
     CPPUNIT_TEST_SUITE_END();
+
     void Init();
+
     void AlignedWriteTest();
+
+    void VarlenWriteTest( uint32_t wrtlen );
+
+    inline void SmallWriteTest()
+    {
+      VarlenWriteTest( 7 );
+    }
+
+    void BigWriteTest()
+    {
+      VarlenWriteTest( 77 );
+    }
+
     void Verify()
     {
       ReadVerifyAll();
@@ -137,6 +154,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( MicroTest );
 void MicroTest::Init()
 {
   objcfg.reset( new ObjCfg( "test.txt", "0", nbdata, nbparity, chsize ) );
+  rawdata.clear();
 
   char cwdbuff[1024];
   char *cwdptr = getcwd( cwdbuff, sizeof( cwdbuff ) );
@@ -425,3 +443,42 @@ void MicroTest::AlignedWriteTest()
   // clean up the data directory
   CleanUp();
 }
+
+void MicroTest::VarlenWriteTest( uint32_t wrtlen )
+{
+  // create the data and stripe directories
+  Init();
+  // open the data object
+  StrmWriter writer( *objcfg );
+  XrdCl::SyncResponseHandler handler1;
+  writer.Open( &handler1 );
+  handler1.WaitForResponse();
+  XrdCl::XRootDStatus *status = handler1.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+  // write the data
+  char     wrtbuff[wrtlen];
+  size_t   bytesleft = nbiters * objcfg->chunksize;
+  size_t   i = 0;
+  while( bytesleft > 0 )
+  {
+    if( wrtlen > bytesleft ) wrtlen = bytesleft;
+    memset( wrtbuff, 'A' + i, wrtlen );
+    writer.Write( wrtlen, wrtbuff, nullptr );
+    copy_rawdata( wrtbuff, wrtlen );
+    bytesleft -= wrtlen;
+    ++i;
+  }
+  XrdCl::SyncResponseHandler handler2;
+  writer.Close( &handler2 );
+  handler2.WaitForResponse();
+  status = handler2.GetStatus();
+  CPPUNIT_ASSERT_XRDST( *status );
+  delete status;
+
+  // verify that we wrote the data correctly
+  Verify();
+  // clean up the data directory
+  CleanUp();
+}
+
