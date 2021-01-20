@@ -172,7 +172,6 @@ namespace XrdEc
                                //----------------------------------------------
                                // Select another server
                                //----------------------------------------------
-                               size_t srvid;
                                if( !servers->dequeue( srvid ) ) return; // if there are no more servers we simply fail
                                zip = *dataarchs[srvid];
                                //----------------------------------------------
@@ -253,6 +252,13 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   void StrmWriter::CloseImpl( XrdCl::ResponseHandler *handler )
   {
+    //-------------------------------------------------------------------------
+    // First, check the global status, if we are in an error state just
+    // fail the request.
+    //-------------------------------------------------------------------------
+    XrdCl::XRootDStatus gst = global_status.get();
+    if( !gst.IsOK() ) return ScheduleHandler( handler, gst );
+
     const size_t size = objcfg.plgr.size();
     //-------------------------------------------------------------------------
     // prepare the metadata (the Central Directory of each data ZIP)
