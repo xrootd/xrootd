@@ -27,6 +27,7 @@
 #define __XRD_CL_OPERATION_PARAMS_HH__
 
 #include "XrdCl/XrdClFwd.hh"
+#include "XrdCl/XrdClOptional.hh"
 
 #include <string>
 #include <sstream>
@@ -94,7 +95,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! @return : value of the argument
       //------------------------------------------------------------------------
-      inline T Get() const
+      inline T& Get() const
       {
         if( !holder ) throw std::logic_error( "XrdCl::ArgBase::Get(): value not set." );
         return holder->Get();
@@ -122,7 +123,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         //! @return : the value
         //----------------------------------------------------------------------
-        virtual T Get() = 0;
+        virtual T& Get() = 0;
       };
 
       //------------------------------------------------------------------------
@@ -142,9 +143,9 @@ namespace XrdCl
           //--------------------------------------------------------------------
           //! @return : the value
           //--------------------------------------------------------------------
-          T Get()
+          T& Get()
           {
-            return std::move( value );
+            return value;
           }
 
         private:
@@ -171,9 +172,11 @@ namespace XrdCl
           //--------------------------------------------------------------------
           //! @return : the value
           //--------------------------------------------------------------------
-          T Get()
+          T& Get()
           {
-            return ftr.get();
+            if( val ) return *val;
+            val = ftr.get();
+            return *val;
           }
 
         private:
@@ -181,6 +184,7 @@ namespace XrdCl
           //! the future value
           //--------------------------------------------------------------------
           std::future<T> ftr;
+          Optional<T>    val;
       };
 
       //------------------------------------------------------------------------
@@ -200,9 +204,9 @@ namespace XrdCl
           //--------------------------------------------------------------------
           //! @return : the value
           //--------------------------------------------------------------------
-          T Get()
+          T& Get()
           {
-            return std::move( *fwd );
+            return *fwd;
           }
 
         private:
