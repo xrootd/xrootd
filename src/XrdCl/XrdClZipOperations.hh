@@ -109,9 +109,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
-        std::string      url     = std::get<UrlArg>( this->args ).Get();
-        OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
-        uint16_t         timeout = pipelineTimeout < this->timeout ?
+        std::string      &url     = std::get<UrlArg>( this->args ).Get();
+        OpenFlags::Flags  flags   = std::get<FlagsArg>( this->args ).Get();
+        uint16_t          timeout = pipelineTimeout < this->timeout ?
                                    pipelineTimeout : this->timeout;
         return this->zip->OpenArchive( url, flags, handler, timeout );
       }
@@ -167,10 +167,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
-        std::string      fn      = std::get<FnArg>( this->args ).Get();
-        OpenFlags::Flags flags   = std::get<FlagsArg>( this->args ).Get();
-        uint64_t         size    = std::get<SizeArg>( this->args ).Get();
-        uint32_t         crc32   = std::get<Crc32Arg>( this->args ).Get();
+        std::string      &fn      = std::get<FnArg>( this->args ).Get();
+        OpenFlags::Flags  flags   = std::get<FlagsArg>( this->args ).Get();
+        uint64_t          size    = std::get<SizeArg>( this->args ).Get();
+        uint32_t          crc32   = std::get<Crc32Arg>( this->args ).Get();
         XRootDStatus st = this->zip->OpenFile( fn, flags, size, crc32 );
         if( !st.IsOK() ) return st;
         handler->HandleResponse( new XRootDStatus(), nullptr );
@@ -286,7 +286,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
-        std::string  fn = std::get<FileNameArg>( this->args ).Get();
+        std::string &fn = std::get<FileNameArg>( this->args ).Get();
         uint64_t     offset  = std::get<OffsetArg>( this->args ).Get();
         uint32_t     size    = std::get<SizeArg>( this->args ).Get();
         void        *buffer  = std::get<BufferArg>( this->args ).Get();
@@ -405,7 +405,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
-        std::string  fn      = std::get<FnArg>( this->args ).Get();
+        std::string &fn      = std::get<FnArg>( this->args ).Get();
         uint32_t     crc32   = std::get<CrcArg>( this->args ).Get();
         uint32_t     size    = std::get<SizeArg>( this->args ).Get();
         const void  *buffer  = std::get<BufferArg>( this->args ).Get();
