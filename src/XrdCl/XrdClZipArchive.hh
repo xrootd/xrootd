@@ -274,6 +274,14 @@ namespace XrdCl
         return openstage == Done;
       }
 
+      //-----------------------------------------------------------------------
+      //! Set property on the underlying File object
+      //-----------------------------------------------------------------------
+      inline bool SetProperty( const std::string &name, const std::string &value )
+      {
+        return archive.SetProperty( name, value );
+      }
+
     private:
 
       //-----------------------------------------------------------------------

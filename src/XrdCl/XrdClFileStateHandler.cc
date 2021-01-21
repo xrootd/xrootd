@@ -712,6 +712,7 @@ namespace XrdCl
     pFollowRedirects( true ),
     pUseVirtRedirector( true ),
     pIsChannelEncrypted( false ),
+    pAllowBundledClose( false ),
     pReOpenHandler( 0 )
   {
     pFileHandle = new uint8_t[4];

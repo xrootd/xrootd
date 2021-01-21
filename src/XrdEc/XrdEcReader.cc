@@ -552,7 +552,11 @@ namespace XrdEc
     {
       auto &zipptr = itr->second;
       if( zipptr->IsOpen() )
-        closes.emplace_back( XrdCl::CloseArchive( *zipptr ) >> [zipptr]( XrdCl::XRootDStatus& ){ } );
+      {
+        zipptr->SetProperty( "BundledClose", "true");
+        closes.emplace_back( XrdCl::CloseArchive( *zipptr ) >>
+                             [zipptr]( XrdCl::XRootDStatus& ){ } );
+      }
     }
 
     // if there is nothing to close just schedule the handler
