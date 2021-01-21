@@ -680,8 +680,14 @@ namespace XrdEc
                  return;
                }
              }
+         | XrdCl::Close( *file ) >>
+             []( XrdCl::XRootDStatus &st )
+             {
+               if( !st.IsOK() )
+                 XrdCl::Pipeline::Ignore(); // ignore errors, we don't really care
+             }
          | XrdCl::Final(
-             [=]( const XrdCl::XRootDStatus& )
+             [rdbuff, file]( const XrdCl::XRootDStatus& )
              {
                // deallocate the buffer if necessary
                if( rdbuff.Valid() )
@@ -689,9 +695,6 @@ namespace XrdEc
                  char* buffer = reinterpret_cast<char*>( *rdbuff );
                  delete[] buffer;
                }
-               // close the file if necessary (we don't really care about the result)
-               if( file->IsOpen() )
-                 XrdCl::Async( XrdCl::Close( *file ) >> [file]( XrdCl::XRootDStatus& ){ } );
              } );
   }
 
