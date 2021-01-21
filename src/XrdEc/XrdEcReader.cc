@@ -465,8 +465,13 @@ namespace XrdEc
                      XrdCl::ResponseHandler *handler )
   {
     char *usrbuff = reinterpret_cast<char*>( buffer );
-    typedef std::tuple<uint64_t, uint32_t, void*, uint32_t, XrdCl::ResponseHandler*> rdctx_t;
-    auto rdctx = std::make_shared<rdctx_t>( offset, 0, buffer, length, handler );
+    typedef std::tuple<uint64_t, uint32_t,
+                       void*, uint32_t,
+                       XrdCl::ResponseHandler*,
+                       XrdCl::XRootDStatus> rdctx_t;
+    auto rdctx = std::make_shared<rdctx_t>( offset, 0, buffer,
+                                            length, handler,
+                                            XrdCl::XRootDStatus() );
     auto rdmtx = std::make_shared<std::mutex>();
 
     while( length > 0 )
@@ -488,22 +493,36 @@ namespace XrdEc
       auto callback = [blk, rdctx, rdsize, rdmtx]( const XrdCl::XRootDStatus &st, uint32_t nbrd )
       {
         std::unique_lock<std::mutex> lck( *rdmtx );
-        //-----------------------------------------------------------------
+        //---------------------------------------------------------------------
+        // update number of bytes left to be read (bytes requested not actually
+        // read)
+        //---------------------------------------------------------------------
+        std::get<3>( *rdctx ) -= rdsize;
+        //---------------------------------------------------------------------
         // Handle failure ...
-        //-----------------------------------------------------------------
+        //---------------------------------------------------------------------
         if( !st.IsOK() )
-        {
-          ScheduleHandler( std::get<4>( *rdctx ), XrdCl::XRootDStatus( st ) );
-          return;
-        }
-        //-----------------------------------------------------------------
+          std::get<5>( *rdctx ) = st; // the error
+        //---------------------------------------------------------------------
         // Handle success ...
-        //-----------------------------------------------------------------
-        std::get<1>( *rdctx ) += nbrd;   // number of bytes read
-        std::get<3>( *rdctx ) -= rdsize; // number of bytes requested
+        //---------------------------------------------------------------------
+        else
+          std::get<1>( *rdctx ) += nbrd; // number of bytes read
+        //---------------------------------------------------------------------
+        // Are we done?
+        //---------------------------------------------------------------------
         if( std::get<3>( *rdctx ) == 0 )
-          ScheduleHandler( std::get<0>( *rdctx ), std::get<1>( *rdctx ),
-                           std::get<2>( *rdctx ), std::get<4>( *rdctx ) );
+        {
+          //-------------------------------------------------------------------
+          // Check if the read operation was successful ...
+          //-------------------------------------------------------------------
+          XrdCl::XRootDStatus &status = std::get<5>( *rdctx );
+          if( !status.IsOK() )
+            ScheduleHandler( std::get<4>( *rdctx ), status );
+          else
+            ScheduleHandler( std::get<0>( *rdctx ), std::get<1>( *rdctx ),
+                             std::get<2>( *rdctx ), std::get<4>( *rdctx ) );
+        }
       };
       //-------------------------------------------------------------------
       // Read data from a stripe
