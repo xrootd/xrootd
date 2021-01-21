@@ -56,11 +56,53 @@ class MicroTest: public CppUnit::TestCase
       CPPUNIT_TEST( AlignedWriteTest );
       CPPUNIT_TEST( SmallWriteTest );
       CPPUNIT_TEST( BigWriteTest );
+      CPPUNIT_TEST( AlignedWrite1MissingTest );
+      CPPUNIT_TEST( AlignedWrite2MissingTest );
     CPPUNIT_TEST_SUITE_END();
 
     void Init();
 
-    void AlignedWriteTest();
+    inline void AlignedWriteTest()
+    {
+      // create the data and stripe directories
+      Init();
+      // run the test
+      AlignedWriteRaw();
+      // verify that we wrote the data correctly
+      Verify();
+      // clean up the data directory
+      CleanUp();
+    }
+
+    inline void AlignedWrite1MissingTest()
+    {
+      // initialize directories
+      Init();
+      UrlNotReachable( 2 );
+      // run the test
+      AlignedWriteRaw();
+      // verify that we wrote the data correctly
+      Verify();
+      // clean up
+      UrlReachable( 2 );
+      CleanUp();
+    }
+
+    inline void AlignedWrite2MissingTest()
+    {
+      // initialize directories
+      Init();
+      UrlNotReachable( 2 );
+      UrlNotReachable( 3 );
+      // run the test
+      AlignedWriteRaw();
+      // verify that we wrote the data correctly
+      Verify();
+      // clean up
+      UrlReachable( 2 );
+      UrlReachable( 3 );
+      CleanUp();
+    }
 
     void VarlenWriteTest( uint32_t wrtlen );
 
@@ -127,6 +169,8 @@ class MicroTest: public CppUnit::TestCase
     void UrlReachable( size_t index );
 
   private:
+
+    void AlignedWriteRaw();
 
     void copy_rawdata( char *buffer, size_t size )
     {
@@ -235,7 +279,6 @@ void MicroTest::UrlReachable( size_t index )
 
 void MicroTest::CorruptedReadVerify()
 {
-  std::cout << __func__ << std::endl;
   UrlNotReachable( 0 );
   ReadVerifyAll();
   UrlNotReachable( 1 );
@@ -287,12 +330,6 @@ void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
     if( rawoff + rawsz > rawdata.size() ) rawsz = rawdata.size() - rawoff;
     std::string expected( rawdata.data() + rawoff, rawsz );
     // make sure the expected and actual results are the same
-    if( result != expected )
-    {
-      std::cout << "result = " << result << std::endl;
-      std::cout << "result.size() = " << result.size() << std::endl;
-      std::cout << "expected = " << expected << std::endl;
-    }
     CPPUNIT_ASSERT( result == expected );
     delete status;
     delete rsp;
@@ -410,11 +447,8 @@ void MicroTest::CleanUp()
   nftw( datadir.c_str(), unlink_cb, 64, FTW_DEPTH | FTW_PHYS );
 }
 
-void MicroTest::AlignedWriteTest()
+void MicroTest::AlignedWriteRaw()
 {
-  // create the data and stripe directories
-  Init();
-
   char buffer[objcfg->chunksize];
   StrmWriter writer( *objcfg );
   // open the data object
@@ -422,7 +456,7 @@ void MicroTest::AlignedWriteTest()
   writer.Open( &handler1 );
   handler1.WaitForResponse();
   XrdCl::XRootDStatus *status = handler1.GetStatus();
-  CPPUNIT_ASSERT_XRDST( *status ); 
+  CPPUNIT_ASSERT_XRDST( *status );
   delete status;
   // write to the data object
   for( size_t i = 0; i < nbiters; ++i )
@@ -437,11 +471,6 @@ void MicroTest::AlignedWriteTest()
   status = handler2.GetStatus();
   CPPUNIT_ASSERT_XRDST( *status );
   delete status;
-
-  // verify that we wrote the data correctly
-  Verify();
-  // clean up the data directory
-  CleanUp();
 }
 
 void MicroTest::VarlenWriteTest( uint32_t wrtlen )
