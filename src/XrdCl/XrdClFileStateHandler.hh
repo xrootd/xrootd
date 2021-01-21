@@ -694,6 +694,7 @@ namespace XrdCl
       bool                    pFollowRedirects;
       bool                    pUseVirtRedirector;
       bool                    pIsChannelEncrypted;
+      bool                    pAllowBundledClose;
 
       //------------------------------------------------------------------------
       // Monitoring variables

@@ -528,7 +528,14 @@ namespace
         //----------------------------------------------------------------------
         responsePtr.release();
         pStateHandler->OnStateResponse( status, pMessage, response, hostList );
-        pUserHandler->HandleResponseWithHosts( status, response, hostList );
+        if( pUserHandler )
+          pUserHandler->HandleResponseWithHosts( status, response, hostList );
+        else
+        {
+          delete status,
+          delete response;
+          delete hostList;
+        }
         delete this;
       }
 
@@ -736,6 +743,7 @@ namespace XrdCl
     pDoRecoverWrite( true ),
     pFollowRedirects( true ),
     pUseVirtRedirector( useVirtRedirector ),
+    pAllowBundledClose( false ),
     pReOpenHandler( 0 )
   {
     pFileHandle = new uint8_t[4];
@@ -926,7 +934,10 @@ namespace XrdCl
       return XRootDStatus( stError, errInProgress );
 
     if( pFileState == OpenInProgress || pFileState == Closed ||
-        pFileState == Recovering || !pInTheFly.empty() )
+        pFileState == Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    if( !pAllowBundledClose && !pInTheFly.empty() )
       return XRootDStatus( stError, errInvalidOp );
 
     pFileState = CloseInProgress;
@@ -1779,6 +1790,12 @@ namespace XrdCl
     {
       if( value == "true" ) pFollowRedirects = true;
       else pFollowRedirects = false;
+      return true;
+    }
+    else if( name == "BundledClose" )
+    {
+      if( value == "true" ) pAllowBundledClose = true;
+      else pAllowBundledClose = false;
       return true;
     }
     return false;

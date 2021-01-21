@@ -452,22 +452,23 @@ namespace XrdCl
     // Otherwise, just close the ZIP archive
     //-------------------------------------------------------------------------
     Pipeline p = Close( archive ) >>
-                          [=]( XRootDStatus &st )
-                          {
-                            if( st.IsOK() )
-                            {
-                              Clear();
-                              log->Dump( ZipMsg, "[0x%x] Successfully closed "
-                                                 "ZIP archive.", this );
-                            }
-                            else
-                            {
-                              openstage = Error;
-                              log->Error( ZipMsg, "[0x%x] Failed to close ZIP archive: %s",
-                                                  this, st.ToString().c_str() );
-                            }
-                            if( handler ) handler->HandleResponse( make_status( st ), nullptr );
-                          };
+                   [=]( XRootDStatus &st )
+                   {
+                     if( st.IsOK() )
+                     {
+                       Clear();
+                       log->Dump( ZipMsg, "[0x%x] Successfully closed "
+                                          "ZIP archive.", this );
+                     }
+                     else
+                     {
+                       openstage = Error;
+                       log->Error( ZipMsg, "[0x%x] Failed to close ZIP archive:"
+                                           " %s", this, st.ToString().c_str() );
+                     }
+                     if( handler )
+                       handler->HandleResponse( make_status( st ), nullptr );
+                   };
     Async( std::move( p ), timeout );
     return XRootDStatus();
   }

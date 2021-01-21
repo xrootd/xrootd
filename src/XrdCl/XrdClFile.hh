@@ -721,6 +721,7 @@ namespace XrdCl
       //! ReadRecovery     [true/false] - enable/disable read recovery
       //! WriteRecovery    [true/false] - enable/disable write recovery
       //! FollowRedirects  [true/false] - enable/disable following redirections
+      //! BundledClose     [true/false] - enable/disable bundled close
       //------------------------------------------------------------------------
       bool SetProperty( const std::string &name, const std::string &value );
 
