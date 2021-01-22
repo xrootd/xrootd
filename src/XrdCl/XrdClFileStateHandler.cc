@@ -151,7 +151,7 @@ namespace
                         this, stateHandler->pFileUrl->GetURL().c_str(), pgnb );
 
             uint64_t offset = orgOffset + pgnb * XrdSys::PageSize;
-            XRootDStatus st = stateHandler->PgReadRetry( offset, pgsize, pgnb, buffer, this, 0 );
+            XRootDStatus st = stateHandler->PgReadRetry( offset, XrdSys::PageSize, pgnb, buffer, this, 0 );
             if( !st.IsOK())
             {
               *status = st; // the reason for this failure
