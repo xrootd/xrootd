@@ -81,6 +81,7 @@ extern XrdSsiLogger::MCB_t *msgCBCl;
        bool          dsTTLSet = false;
        bool          reqTOSet = false;
        bool          strTOSet = false;
+       bool          hiResTime= false;
 
 static const int rDispNone =  0;
 static const int rDispRand = -1;
@@ -237,6 +238,7 @@ bool XrdSsiClientProvider::SetConfig(XrdSsiErrInfo &eInfo,
             maxTCB = static_cast<short>(optvalue);
             clMutex.UnLock();
            }
+   else if (optname == "hiResTime") hiResTime = true;
    else if (optname == "netThreads")
            {if (optvalue < 1)
                {eInfo.Set("invalid netThreads value.", EINVAL); return false;}
@@ -285,6 +287,7 @@ void XrdSsiClientProvider::SetLogger()
 // Now we need to get a logger object. We make this a real dumb one.
 //
    Logger = new XrdSysLogger(eFD, 0);
+   if (hiResTime || getenv("XRDSSI_HIRESLOG")) Logger->setHiRes();
    Log.logger(Logger);
    Trace.SetLogger(Logger);
    if (getenv("XRDSSIDEBUG") != 0) Trace.What = TRACESSI_Debug;

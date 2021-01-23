@@ -252,12 +252,16 @@ virtual void   SetCBThreads(int cbNum, int ntNum=0) {(void)cbNum; (void)ntNum;}
 //-----------------------------------------------------------------------------
 
 /*! The following table list the currently supported keynames and what the
-    value actually does. These options only apply to the client.
+    value actually does. These options only apply to the client. The options
+    must be set before calling GetService().
 
     cbThreads        The maximum number of threads to be used for callbacks and
                      sets the maximum number of active callbacks (default 300).
                      set a value between 1 and 32767. Note: the nproc ulimit
                      is final arbiter of the actual number of threads to use.
+    hiResTime        enables the use of a high resolution timer in log message
+                     timestamps. The optvalue is immaterial as this simply sets
+                     feature on and once set on cannot be set off.
     netThreads       The maximum number of threads to be used to handle network
                      traffic. The minimum is 3, the default is 10% of cbThreads
                      but no more than 100.
