@@ -87,6 +87,9 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
             if (!msg || (*msg == '\0')) {msg = "(no error message provided)";}
             ss << msg << " (code=" << m_fh->error.getErrInfo() << ")";
             m_error_buf = ss.str();
+            // Write failed; we don't care if there's any more buffer we
+            // can dump to disk later.
+            return retval;
         }
         // If there are no in-use buffers, then we don't need to
         // do any accounting.
@@ -109,9 +112,11 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
              entry_iter++) {
             // Always try to dump from memory; when size == 0, then we are
             // going to force a flush even if things are not MB-aligned.
-            if ((*entry_iter)->Write(*this, size == 0) > 0) {
-                buffer_was_written = true;
+            int retval2 = (*entry_iter)->Write(*this, size == 0);
+            if (retval2 == SFS_ERROR) {
+                return retval2;
             }
+            buffer_was_written |= retval2 > 0;
             if ((*entry_iter)->Available()) { // Empty buffer
                 if (!avail_entry) {avail_entry = *entry_iter;}
                 avail_count ++;
