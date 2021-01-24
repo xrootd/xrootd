@@ -200,6 +200,10 @@ int State::Write(char *buffer, size_t size) {
 }
 
 int State::Flush() {
+    if (m_push) {
+        return 0;
+    }
+
     int retval = m_stream->Write(m_start_offset + m_offset, 0, 0, true);
     if (retval == SFS_ERROR) {
         m_error_buf = m_stream->GetErrorMessage();
