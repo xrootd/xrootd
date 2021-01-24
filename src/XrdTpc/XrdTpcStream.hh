@@ -80,7 +80,7 @@ private:
                 if (!size_desired) {return 0;}
             }
             int retval = stream.Write(m_offset, &m_buffer[0], size_desired, force);
-            if (retval < 0 && (static_cast<size_t>(retval) != size_desired)) {
+            if ((retval == -1) || (static_cast<size_t>(retval) != size_desired)) {
                 return -1;
             }
             // If partial data remains, copy it to the beginning of the buffer.
