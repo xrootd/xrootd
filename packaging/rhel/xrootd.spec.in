@@ -946,6 +946,9 @@ fi
 %{_libdir}/libXrdPosixPreload.so.2*
 %{_libdir}/libXrdSsiLib.so.2*
 %{_libdir}/libXrdSsiShMap.so.2*
+%if %{?_with_isal:1}%{!?_with_isal:0}
+%{_libdir}/libXrdEc.so.1*
+%endif
 %{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
 %config(noreplace) %{_sysconfdir}/xrootd/client.conf
 # This lib may be used for LD_PRELOAD so the .so link needs to be included
@@ -1001,6 +1004,9 @@ fi
 %{_includedir}/xrootd/private
 %{_libdir}/libXrdSsiLib.so
 %{_libdir}/libXrdSsiShMap.so
+%if %{?_with_isal:1}%{!?_with_isal:0}
+%{_libdir}/libXrdEc.so
+%endif
 
 %files client
 %defattr(-,root,root,-)

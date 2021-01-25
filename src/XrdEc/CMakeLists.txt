@@ -101,6 +101,14 @@ set_target_properties(
 add_dependencies( XrdEc isa-l )
 
 #------------------------------------------------------------------------------
+# Install XrdEc library
+#------------------------------------------------------------------------------
+install(
+  TARGETS XrdEc
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+#------------------------------------------------------------------------------
 # Install private header files
 #------------------------------------------------------------------------------
 install(
