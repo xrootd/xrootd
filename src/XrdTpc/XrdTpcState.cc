@@ -188,8 +188,8 @@ size_t State::WriteCB(void *buffer, size_t size, size_t nitems, void *userdata) 
     return obj->Write(static_cast<char*>(buffer), size*nitems);
 }
 
-int State::Write(char *buffer, size_t size) {
-    int retval = m_stream->Write(m_start_offset + m_offset, buffer, size, false);
+ssize_t State::Write(char *buffer, size_t size) {
+    ssize_t retval = m_stream->Write(m_start_offset + m_offset, buffer, size, false);
     if (retval == SFS_ERROR) {
         m_error_buf = m_stream->GetErrorMessage();
         m_error_code = 1;
@@ -200,7 +200,7 @@ int State::Write(char *buffer, size_t size) {
 }
 
 int State::Flush() {
-    int retval = m_stream->Write(m_start_offset + m_offset, 0, 0, true);
+    ssize_t retval = m_stream->Write(m_start_offset + m_offset, 0, 0, true);
     if (retval == SFS_ERROR) {
         m_error_buf = m_stream->GetErrorMessage();
         m_error_code = 2;

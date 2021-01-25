@@ -41,7 +41,17 @@ public:
 
     int Read(off_t offset, char *buffer, size_t size);
 
-    int Write(off_t offset, const char *buffer, size_t size, bool force);
+    // Writes a buffer of a given size to an offset.
+    // This will often keep the buffer in memory in to present the underlying
+    // filesystem with a single stream of data (required for HDFS); further,
+    // it will also buffer to align the writes on a 1MB boundary (required
+    // for some RADOS configurations).  When force is set to true, it will
+    // skip the buffering and always write (this should only be done at the
+    // end of a stream!).
+    //
+    // Returns the number of bytes written; on error, returns -1 and sets
+    // the error code and error message for the stream
+    ssize_t Write(off_t offset, const char *buffer, size_t size, bool force);
 
     size_t AvailableBuffers() const {return m_avail_count;}
 

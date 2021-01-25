@@ -120,7 +120,7 @@ private:
                            void *userdata);
     int Header(const std::string &header);
     static size_t WriteCB(void *buffer, size_t size, size_t nitems, void *userdata);
-    int Write(char *buffer, size_t size);
+    ssize_t Write(char *buffer, size_t size);
     static size_t ReadCB(void *buffer, size_t size, size_t nitems, void *userdata);
     int Read(char *buffer, size_t size);
 
