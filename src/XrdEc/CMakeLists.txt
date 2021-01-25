@@ -40,12 +40,6 @@ set( ISAL_HEADERS
 	 ${ISAL_BUILDDIR}/include/types.h
 )
 
-set( ISAL_LIBS 
-     ${ISAL_BUILDDIR}/.libs/libisal.so 
-     ${ISAL_BUILDDIR}/.libs/libisal.so.2 
-     ${ISAL_BUILDDIR}/.libs/libisal.so.2.0.30
-)
-
 ExternalProject_add(
         isa-l
         SOURCE_DIR          ${ISAL_BUILDDIR}
@@ -55,10 +49,19 @@ ExternalProject_add(
         CONFIGURE_COMMAND   ./autogen.sh COMMAND ./configure
         BUILD_COMMAND       make ${MAKEOPTIONS}
         INSTALL_COMMAND     mkdir -p  ${ISAL_INCDIR}/isa-l
+        COMMAND             rm -rf ${ISAL_LIBDIR}
         COMMAND             mkdir -p  ${ISAL_LIBDIR}
-        COMMAND             cp ${ISAL_HEADERS}           ${ISAL_INCDIR}/isa-l
-        COMMAND             cp ${ISAL_BUILDDIR}/isa-l.h  ${ISAL_INCDIR}/isa-l
-        COMMAND             cp ${ISAL_LIBS}              ${ISAL_LIBDIR}
+        COMMAND             cp    ${ISAL_HEADERS}                            ${ISAL_INCDIR}/isa-l
+        COMMAND             cp    ${ISAL_BUILDDIR}/isa-l.h                   ${ISAL_INCDIR}/isa-l
+        COMMAND             cp    ${ISAL_BUILDDIR}/.libs/libisal.so.2.0.30   ${ISAL_LIBDIR}/libxrdisal.so.2.0.30
+        COMMAND             ln -s ${ISAL_LIBDIR}/libxrdisal.so.2.0.30        ${ISAL_LIBDIR}/libxrdisal.so.2
+        COMMAND             ln -s ${ISAL_LIBDIR}/libxrdisal.so.2.0.30        ${ISAL_LIBDIR}/libxrdisal.so
+)
+
+set( ISAL_LIBS
+     ${ISAL_BUILDDIR}/.libs/libxrdisal.so
+     ${ISAL_BUILDDIR}/.libs/libxrdisal.so.2
+     ${ISAL_BUILDDIR}/.libs/libxrdisal.so.2.0.30
 )
 
 link_directories( ${ISAL_LIBDIR} )
@@ -87,7 +90,7 @@ add_library(
 target_link_libraries(
   XrdEc
   XrdCl
-  isal
+  xrdisal
 )
 
 set_target_properties(
