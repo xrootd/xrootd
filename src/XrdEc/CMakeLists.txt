@@ -40,25 +40,19 @@ set( ISAL_HEADERS
 	 ${ISAL_BUILDDIR}/include/types.h
 )
 
-set( ISAL_LIBS 
-     ${ISAL_BUILDDIR}/.libs/libisal.so 
-     ${ISAL_BUILDDIR}/.libs/libisal.so.2 
-     ${ISAL_BUILDDIR}/.libs/libisal.so.2.0.30
-)
-
 ExternalProject_add(
         isa-l
         SOURCE_DIR          ${ISAL_BUILDDIR}
         BUILD_IN_SOURCE     1
         GIT_REPOSITORY      https://github.com/01org/isa-l.git
         GIT_TAG             ${ISAL_VERSION}
-        CONFIGURE_COMMAND   ./autogen.sh COMMAND ./configure
+        CONFIGURE_COMMAND   ./autogen.sh COMMAND ./configure --with-pic
         BUILD_COMMAND       make ${MAKEOPTIONS}
         INSTALL_COMMAND     mkdir -p  ${ISAL_INCDIR}/isa-l
         COMMAND             mkdir -p  ${ISAL_LIBDIR}
-        COMMAND             cp ${ISAL_HEADERS}           ${ISAL_INCDIR}/isa-l
-        COMMAND             cp ${ISAL_BUILDDIR}/isa-l.h  ${ISAL_INCDIR}/isa-l
-        COMMAND             cp ${ISAL_LIBS}              ${ISAL_LIBDIR}
+        COMMAND             cp ${ISAL_HEADERS}                  ${ISAL_INCDIR}/isa-l
+        COMMAND             cp ${ISAL_BUILDDIR}/isa-l.h         ${ISAL_INCDIR}/isa-l
+        COMMAND             cp ${ISAL_BUILDDIR}/.libs/libisal.a ${ISAL_LIBDIR}/
 )
 
 link_directories( ${ISAL_LIBDIR} )
@@ -99,3 +93,27 @@ set_target_properties(
   SOVERSION ${XRD_EC_SOVERSION} )
   
 add_dependencies( XrdEc isa-l )
+
+#------------------------------------------------------------------------------
+# Install XrdEc library
+#------------------------------------------------------------------------------
+install(
+  TARGETS XrdEc
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+#------------------------------------------------------------------------------
+# Install private header files
+#------------------------------------------------------------------------------
+install(
+  FILES
+    XrdEcReader.hh
+    XrdEcObjCfg.hh
+    XrdEcStrmWriter.hh
+    XrdEcWrtBuff.hh
+    XrdEcThreadPool.hh
+    XrdEcUtilities.hh
+    XrdEcObjCfg.hh
+    XrdEcConfig.hh
+    XrdEcRedundancyProvider.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc )

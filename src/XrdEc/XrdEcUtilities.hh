@@ -30,10 +30,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 
-#include "XrdCl/XrdClDefaultEnv.hh"
-#include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdCks/XrdCksCalc.hh"
 
 #include <exception>
 #include <memory>

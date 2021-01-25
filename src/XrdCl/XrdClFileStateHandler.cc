@@ -1109,7 +1109,7 @@ namespace XrdCl
 
     if( !issupported )
     {
-      DefaultEnv::GetLog()->Info( FileMsg, "[0x%x@%s] PgRead not supported; substituting with Read.",
+      DefaultEnv::GetLog()->Debug( FileMsg, "[0x%x@%s] PgRead not supported; substituting with Read.",
                                   this, pFileUrl->GetURL().c_str() );
       ResponseHandler *substitHandler = new PgReadSubstitutionHandler( this, handler );
       st = Read( offset, size, buffer, substitHandler, timeout );

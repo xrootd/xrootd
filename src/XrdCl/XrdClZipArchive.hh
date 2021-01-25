@@ -25,8 +25,6 @@
 #ifndef SRC_XRDZIP_XRDZIPARCHIVE_HH_
 #define SRC_XRDZIP_XRDZIPARCHIVE_HH_
 
-#include "XrdCl/XrdClXRootDResponses.hh"
-#include "XrdCl/XrdClOperations.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClResponseJob.hh"
 #include "XrdCl/XrdClJobManager.hh"
