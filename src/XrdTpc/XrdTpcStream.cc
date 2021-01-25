@@ -56,7 +56,7 @@ Stream::Stat(struct stat* buf)
     return m_fh->stat(buf);
 }
 
-int
+ssize_t
 Stream::Write(off_t offset, const char *buf, size_t size, bool force)
 {
 /*
