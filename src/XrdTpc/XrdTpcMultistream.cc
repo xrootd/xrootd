@@ -34,7 +34,10 @@ public:
     MultiCurlHandler(std::vector<State*> &states, XrdSysError &log) :
         m_handle(curl_multi_init()),
         m_states(states),
-        m_log(log)
+        m_log(log),
+        m_bytes_transferred(0),
+        m_error_code(0),
+        m_status_code(0)
     {
         if (m_handle == NULL) {
             throw CurlHandlerSetupError("Failed to initialize a libcurl multi-handle");
@@ -81,6 +84,17 @@ public:
              state_iter != m_states.end();
              state_iter++) {
             if (curl == (*state_iter)->GetHandle()) {
+                m_bytes_transferred += (*state_iter)->BytesTransferred();
+                int error_code = (*state_iter)->GetErrorCode();
+                if (error_code && !m_error_code) {
+                    m_error_code = error_code;
+                    m_error_message = (*state_iter)->GetErrorMessage();
+                }
+                int status_code = (*state_iter)->GetStatusCode();
+                if (status_code >= 400 && !m_status_code) {
+                    m_status_code = status_code;
+                    m_error_message = (*state_iter)->GetErrorMessage();
+                }
                 (*state_iter)->ResetAfterRequest();
                 break;
             }
@@ -117,6 +131,34 @@ public:
              current_offset += xfer_size;
         } while (true);
         return current_offset;
+    }
+
+    int Flush() {
+        int last_error = 0;
+        for (std::vector<State*>::iterator state_it = m_states.begin();
+             state_it != m_states.end();
+             state_it++)
+        {
+            int error = (*state_it)->Flush();
+            if (error) {last_error = error;}
+        }
+        return last_error;
+    }
+
+    off_t BytesTransferred() const {
+        return m_bytes_transferred;
+    }
+
+    int GetStatusCode() const {
+        return m_status_code;
+    }
+
+    int GetErrorCode() const {
+        return m_error_code;
+    }
+
+    std::string GetErrorMessage() const {
+        return m_error_message;
     }
 
 private:
@@ -204,6 +246,10 @@ private:
     std::vector<CURL *> m_active_handles;
     std::vector<State*> &m_states;
     XrdSysError         &m_log;
+    off_t                m_bytes_transferred;
+    int                  m_error_code;
+    int                  m_status_code;
+    std::string          m_error_message;
 };
 }
 
@@ -366,27 +412,26 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         throw std::runtime_error("Internal state error in libcurl");
     }
 
-    state.Flush();
-    state.Finalize();
+    mch.Flush();
 
-    rec.bytes_transferred = state.BytesTransferred();
-    rec.tpc_status = state.GetStatusCode();
+    rec.bytes_transferred = mch.BytesTransferred();
+    rec.tpc_status = mch.GetStatusCode();
 
     // Generate the final response back to the client.
     std::stringstream ss;
     success = false;
-    if (state.GetStatusCode() >= 400) {
-        std::string err = state.GetErrorMessage();
+    if (mch.GetStatusCode() >= 400) {
+        std::string err = mch.GetErrorMessage();
         std::stringstream ss2;
-        ss2 << "Remote side failed with status code " << state.GetStatusCode();
+        ss2 << "Remote side failed with status code " << mch.GetStatusCode();
         if (!err.empty()) {
             std::replace(err.begin(), err.end(), '\n', ' ');
             ss2 << "; error message: \"" << err << "\"";
         }
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_FAIL", ss.str());
         ss << "failure: " << ss2.str();
-    } else if (state.GetErrorCode()) {
-        std::string err = state.GetErrorMessage();
+    } else if (mch.GetErrorCode()) {
+        std::string err = mch.GetErrorMessage();
         if (err.empty()) {err = "(no error message provided)";}
         else {std::replace(err.begin(), err.end(), '\n', ' ');}
         std::stringstream ss2;
