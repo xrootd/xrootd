@@ -183,17 +183,24 @@ install(
   
 install(
   FILES
+    # Additional client headers
     XrdClMessage.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
     XrdClTransportManager.hh
+    XrdClResponseJob.hh
+    XrdClZipArchive.hh
+    XrdClZipCache.hh
     XrdClOperations.hh
     XrdClOperationHandlers.hh
+    # Declarative operations
     XrdClArg.hh
+    XrdClCtx.hh
     XrdClFwd.hh
     XrdClParallelOperation.hh
     XrdClFileOperations.hh
     XrdClFileSystemOperations.hh
+    XrdClZipOperations.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
 if( NOT XRDCL_LIB_ONLY )

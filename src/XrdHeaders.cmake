@@ -129,6 +129,13 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
   XrdOuc/XrdOucN2NLoader.hh
+  XrdZip/XrdZipCDFH.hh
+  XrdZip/XrdZipEOCD.hh
+  XrdZip/XrdZipExtra.hh
+  XrdZip/XrdZipLFH.hh
+  XrdZip/XrdZipUtils.hh
+  XrdZip/XrdZipZIP64EOCD.hh
+  XrdZip/XrdZipZIP64EOCDL.hh
 )
 
 if( NOT XRDCL_ONLY )
