@@ -59,9 +59,9 @@ ExternalProject_add(
 )
 
 set( ISAL_LIBS
-     ${ISAL_BUILDDIR}/.libs/libxrdisal.so
-     ${ISAL_BUILDDIR}/.libs/libxrdisal.so.2
-     ${ISAL_BUILDDIR}/.libs/libxrdisal.so.2.0.30
+     ${ISAL_LIBDIR}/libxrdisal.so
+     ${ISAL_LIBDIR}/libxrdisal.so.2
+     ${ISAL_LIBDIR}/libxrdisal.so.2.0.30
 )
 
 link_directories( ${ISAL_LIBDIR} )
@@ -110,6 +110,14 @@ install(
   TARGETS XrdEc
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+#------------------------------------------------------------------------------
+# Install the ISAL library
+#------------------------------------------------------------------------------  
+install(
+  FILES
+  ${ISAL_LIBS}
+  DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 #------------------------------------------------------------------------------
 # Install private header files
