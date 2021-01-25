@@ -99,3 +99,19 @@ set_target_properties(
   SOVERSION ${XRD_EC_SOVERSION} )
   
 add_dependencies( XrdEc isa-l )
+
+#------------------------------------------------------------------------------
+# Install private header files
+#------------------------------------------------------------------------------
+install(
+  FILES
+    XrdEcReader.hh
+    XrdEcObjCfg.hh
+    XrdEcStrmWriter.hh
+    XrdEcWrtBuff.hh
+    XrdEcThreadPool.hh
+    XrdEcUtilities.hh
+    XrdEcObjCfg.hh
+    XrdEcConfig.hh
+    XrdEcRedundancyProvider.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdEc )
