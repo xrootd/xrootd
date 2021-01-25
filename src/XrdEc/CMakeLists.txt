@@ -46,22 +46,13 @@ ExternalProject_add(
         BUILD_IN_SOURCE     1
         GIT_REPOSITORY      https://github.com/01org/isa-l.git
         GIT_TAG             ${ISAL_VERSION}
-        CONFIGURE_COMMAND   ./autogen.sh COMMAND ./configure
+        CONFIGURE_COMMAND   ./autogen.sh COMMAND ./configure --with-pic
         BUILD_COMMAND       make ${MAKEOPTIONS}
         INSTALL_COMMAND     mkdir -p  ${ISAL_INCDIR}/isa-l
-        COMMAND             rm -rf ${ISAL_LIBDIR}
         COMMAND             mkdir -p  ${ISAL_LIBDIR}
-        COMMAND             cp    ${ISAL_HEADERS}                            ${ISAL_INCDIR}/isa-l
-        COMMAND             cp    ${ISAL_BUILDDIR}/isa-l.h                   ${ISAL_INCDIR}/isa-l
-        COMMAND             cp    ${ISAL_BUILDDIR}/.libs/libisal.so.2.0.30   ${ISAL_LIBDIR}/libxrdisal.so.2.0.30
-        COMMAND             ln -s ${ISAL_LIBDIR}/libxrdisal.so.2.0.30        ${ISAL_LIBDIR}/libxrdisal.so.2
-        COMMAND             ln -s ${ISAL_LIBDIR}/libxrdisal.so.2.0.30        ${ISAL_LIBDIR}/libxrdisal.so
-)
-
-set( ISAL_LIBS
-     ${ISAL_LIBDIR}/libxrdisal.so
-     ${ISAL_LIBDIR}/libxrdisal.so.2
-     ${ISAL_LIBDIR}/libxrdisal.so.2.0.30
+        COMMAND             cp ${ISAL_HEADERS}                  ${ISAL_INCDIR}/isa-l
+        COMMAND             cp ${ISAL_BUILDDIR}/isa-l.h         ${ISAL_INCDIR}/isa-l
+        COMMAND             cp ${ISAL_BUILDDIR}/.libs/libisal.a ${ISAL_LIBDIR}/
 )
 
 link_directories( ${ISAL_LIBDIR} )
@@ -90,7 +81,7 @@ add_library(
 target_link_libraries(
   XrdEc
   XrdCl
-  xrdisal
+  isal
 )
 
 set_target_properties(
@@ -110,14 +101,6 @@ install(
   TARGETS XrdEc
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-#------------------------------------------------------------------------------
-# Install the ISAL library
-#------------------------------------------------------------------------------  
-install(
-  FILES
-  ${ISAL_LIBS}
-  DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 #------------------------------------------------------------------------------
 # Install private header files

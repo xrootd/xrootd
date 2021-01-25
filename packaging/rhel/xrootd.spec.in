@@ -948,7 +948,6 @@ fi
 %{_libdir}/libXrdSsiShMap.so.2*
 %if %{?_with_isal:1}%{!?_with_isal:0}
 %{_libdir}/libXrdEc.so.1*
-%{_libdir}/libxrdisal.so.2*
 %endif
 %{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
 %config(noreplace) %{_sysconfdir}/xrootd/client.conf
@@ -1007,7 +1006,6 @@ fi
 %{_libdir}/libXrdSsiShMap.so
 %if %{?_with_isal:1}%{!?_with_isal:0}
 %{_libdir}/libXrdEc.so
-%{_libdir}/libxrdisal.so
 %endif
 
 %files client
