@@ -26,7 +26,9 @@
 #define SRC_XRDEC_XRDECREADER_HH_
 
 #include "XrdEc/XrdEcObjCfg.hh"
+
 #include "XrdCl/XrdClZipArchive.hh"
+#include "XrdCl/XrdClOperations.hh"
 
 #include <string>
 #include <unordered_map>

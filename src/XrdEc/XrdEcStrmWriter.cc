@@ -27,6 +27,11 @@
 
 #include "XrdOuc/XrdOucCRC32C.hh"
 
+#include "XrdZip/XrdZipLFH.hh"
+#include "XrdZip/XrdZipCDFH.hh"
+#include "XrdZip/XrdZipEOCD.hh"
+#include "XrdZip/XrdZipUtils.hh"
+
 #include <numeric>
 #include <algorithm>
 #include <future>

@@ -32,11 +32,6 @@
 #include "XrdCl/XrdClParallelOperation.hh"
 #include "XrdCl/XrdClZipOperations.hh"
 
-#include "XrdZip/XrdZipLFH.hh"
-#include "XrdZip/XrdZipCDFH.hh"
-#include "XrdZip/XrdZipEOCD.hh"
-#include "XrdZip/XrdZipUtils.hh"
-
 #include <random>
 #include <chrono>
 #include <future>
@@ -261,7 +256,7 @@ namespace XrdEc
       //!
       //! @return : the buffer with metadata
       //-----------------------------------------------------------------------
-      XrdZip::buffer_t GetMetadataBuffer();
+      std::vector<char> GetMetadataBuffer();
 
       //-----------------------------------------------------------------------
       //! Close the data object (implementation)
@@ -274,7 +269,7 @@ namespace XrdEc
       std::unique_ptr<WrtBuff>                         wrtbuff;            //< current write buffer
       std::vector<std::shared_ptr<XrdCl::ZipArchive>>  dataarchs;          //< ZIP archives with data
       std::vector<std::shared_ptr<XrdCl::File>>        metadataarchs;      //< ZIP archives with metadata
-      std::vector<XrdZip::buffer_t>                    cdbuffs;            //< buffers with CDs
+      std::vector<std::vector<char>>                   cdbuffs;            //< buffers with CDs
       buff_queue                                       buffers;            //< queue of buffer for writing
                                                                            //< (waiting to be erasure coded)
       std::atomic<bool>                                writer_thread_stop; //< true if the writer thread should be stopped,
