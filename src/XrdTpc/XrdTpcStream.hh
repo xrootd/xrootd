@@ -89,8 +89,10 @@ private:
                 size_desired -= (size_desired % (1024*1024));
                 if (!size_desired) {return 0;}
             }
-            int retval = stream.Write(m_offset, &m_buffer[0], size_desired, force);
-            if ((retval == -1) || (static_cast<size_t>(retval) != size_desired)) {
+            ssize_t retval = stream.Write(m_offset, &m_buffer[0], size_desired, force);
+            // Currently the only valid negative value is SFS_ERROR (-1); checking for
+            // all negative values to future-proof the code.
+            if ((retval < 0) || (static_cast<size_t>(retval) != size_desired)) {
                 return -1;
             }
             // If partial data remains, copy it to the beginning of the buffer.
