@@ -95,6 +95,7 @@ XrdPosixFileRH *XrdPosixFileRH::Alloc(XrdOucCacheIOCB *cbp,
    newCB->offset  = offs;
    newCB->result  = xResult;
    newCB->typeIO  = typeIO;
+   newCB->csFrc   = false;
    return newCB;
 }
 
@@ -133,10 +134,11 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
                              csVec->assign(n, 0);
                              XrdOucCRC::Calc32C(pInfo->GetBuffer(),result,csVec->data());
                             }
+                    csVec = 0;
                    }
                } else {
                 result = 0;
-                if (csVec) csVec->clear();
+                if (csVec) {csVec->clear(); csVec = 0;}
                }
            }
    else if (typeIO == isWrite) theFile->UpdtSize(offset+result);
