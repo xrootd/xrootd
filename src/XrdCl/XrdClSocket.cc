@@ -42,7 +42,7 @@
 namespace XrdCl
 {
   Socket::Socket( int socket, SocketStatus status ):
-    pSocket(socket), pStatus( status ), pServerAddr( 0 ),
+    pSocket(socket), pStatus( status ),
     pProtocolFamily( AF_INET ),
     pChannelID( 0 ),
     pCorked( false )
@@ -215,7 +215,7 @@ namespace XrdCl
     if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
       return XRootDStatus( stError, errInvalidOp );
 
-    pServerAddr = addr;
+    pServerAddr.reset( new XrdNetAddr( addr ) );;
 
     //--------------------------------------------------------------------------
     // Make sure TLS is off when the physical connection is newly established
@@ -225,8 +225,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Connect
     //--------------------------------------------------------------------------
-    int status = XrdNetConnect::Connect( pSocket, pServerAddr.SockAddr(),
-                                         pServerAddr.SockSize(), timeout );
+    int status = XrdNetConnect::Connect( pSocket, pServerAddr->SockAddr(),
+                                         pServerAddr->SockSize(), timeout );
     if( status != 0 )
     {
       XRootDStatus st( stError );
@@ -778,12 +778,13 @@ namespace XrdCl
   // Enable encryption
   //------------------------------------------------------------------------
   XRootDStatus Socket::TlsHandShake( AsyncSocketHandler *socketHandler,
-                                   const std::string  &thehost )
+                                     const std::string  &thehost )
   {
     try
     {
+      if( !pServerAddr ) return XRootDStatus( stError, errInvalidOp );
       if( !pTls ) pTls.reset( new Tls( this, socketHandler ) );
-      return pTls->Connect( thehost, &pServerAddr );
+      return pTls->Connect( thehost, pServerAddr.get() );
     }
     catch( std::exception& ex )
     {

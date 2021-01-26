@@ -212,9 +212,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get the server address
       //------------------------------------------------------------------------
-      const XrdNetAddr &GetServerAddress() const
+      const XrdNetAddr* GetServerAddress() const
       {
-        return pServerAddr;
+        return pServerAddr.get();
       }
 
       //------------------------------------------------------------------------
@@ -302,17 +302,17 @@ namespace XrdCl
       XRootDStatus Poll( bool readyForReading, bool readyForWriting,
                          int32_t timeout );
 
-      int                   pSocket;
-      SocketStatus          pStatus;
-      XrdNetAddr            pServerAddr;
-      mutable std::string   pSockName;     // mutable because it's for caching
-      mutable std::string   pPeerName;
-      mutable std::string   pName;
-      int                   pProtocolFamily;
-      AnyObject            *pChannelID;
-      bool                  pCorked;
+      int                          pSocket;
+      SocketStatus                 pStatus;
+      std::unique_ptr<XrdNetAddr>  pServerAddr;
+      mutable std::string          pSockName;     // mutable because it's for caching
+      mutable std::string          pPeerName;
+      mutable std::string          pName;
+      int                          pProtocolFamily;
+      AnyObject                   *pChannelID;
+      bool                         pCorked;
 
-      std::unique_ptr<Tls>  pTls;
+      std::unique_ptr<Tls>         pTls;
   };
 }
 

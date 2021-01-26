@@ -344,7 +344,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     pHandShakeData = new HandShakeData( pStream->GetURL(),
                                         pSubStreamNum );
-    pHandShakeData->serverAddr = &pSocket->GetServerAddress();
+    pHandShakeData->serverAddr = pSocket->GetServerAddress();
     pHandShakeData->clientName = pSocket->GetSockName();
     pHandShakeData->streamName = pStreamName;
 
