@@ -40,7 +40,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor - creates async TLS layer for given socker file descriptor
       //------------------------------------------------------------------------
-      Tls( Socket *socket, AsyncSocketHandler *socketHandler );
+      Tls( XrdTlsContext &tlsContext, Socket *socket, AsyncSocketHandler *socketHandler );
 
       //------------------------------------------------------------------------
       //! Destructor
