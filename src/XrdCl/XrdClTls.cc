@@ -85,6 +85,17 @@ namespace
         return XrdTls::dbgOFF;
       }
   };
+
+  //------------------------------------------------------------------------
+  // Helper function for setting the CA directory in TLS context
+  //------------------------------------------------------------------------
+  static const char* GetCaDir()
+  {
+    static const char *envval = getenv("X509_CERT_DIR");
+    static const std::string cadir = envval ? envval :
+                                     "/etc/grid-security/certificates";
+    return cadir.c_str();
+  }
 }
 
 namespace XrdCl
@@ -92,15 +103,24 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Constructor
   //------------------------------------------------------------------------
-  Tls::Tls( XrdTlsContext      &tlsContext,
-            Socket             *socket,
-            AsyncSocketHandler *socketHandler ) : pSocket( socket ),
-                                                  pTlsHSRevert( None ),
-                                                  pSocketHandler( socketHandler )
+  Tls::Tls( Socket *socket, AsyncSocketHandler *socketHandler ) : pSocket( socket ), pTlsHSRevert( None ), pSocketHandler( socketHandler )
   {
     //----------------------------------------------------------------------
     // Set the message callback for TLS layer
     //----------------------------------------------------------------------
+    SetTlsMsgCB::Once();
+    //----------------------------------------------------------------------
+    // we only need one instance of TLS
+    //----------------------------------------------------------------------
+    std::string emsg;
+    static XrdTlsContext tlsContext( 0, 0, GetCaDir(), 0, 0, &emsg );
+
+    //----------------------------------------------------------------------
+    // If the context is not valid throw an exception! We throw generic
+    // exception as this will be translated to TlsError anyway.
+    //----------------------------------------------------------------------
+    if( !tlsContext.isOK() ) throw std::runtime_error( emsg );
+
     pTls.reset(
         new XrdTlsSocket( tlsContext, pSocket->GetFD(), XrdTlsSocket::TLS_RNB_WNB,
                           XrdTlsSocket::TLS_HS_NOBLK, true ) );

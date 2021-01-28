@@ -780,9 +780,20 @@ namespace XrdCl
   XRootDStatus Socket::TlsHandShake( AsyncSocketHandler *socketHandler,
                                      const std::string  &thehost )
   {
-    if( !pServerAddr ) return XRootDStatus( stError, errInvalidOp );
-    if( !pTls ) XRootDStatus( stFatal, errTlsError, 0, "TLS context missing." );
-    return pTls->Connect( thehost, pServerAddr.get() );
+    try
+    {
+      if( !pServerAddr ) return XRootDStatus( stError, errInvalidOp );
+      if( !pTls ) pTls.reset( new Tls( this, socketHandler ) );
+      return pTls->Connect( thehost, pServerAddr.get() );
+    }
+    catch( std::exception& ex )
+    {
+      // the exception has been thrown when we tried to create
+      // the TLS context
+      return XRootDStatus( stFatal, errTlsError, 0, ex.what() );
+    }
+
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
@@ -794,24 +805,6 @@ namespace XrdCl
     return bool( pTls.get() );
   }
 
-  //------------------------------------------------------------------------
-  // Create the TLS context for the Socket object
-  //------------------------------------------------------------------------
-  XRootDStatus Socket::CreateTLS( XrdTlsContext       &tlsContext,
-                                  AsyncSocketHandler  *socketHandler)
-  {
-    try
-    {
-      pTls.reset( new Tls( tlsContext, this, socketHandler ) );
-    }
-    catch( std::exception &ex )
-    {
-      // the exception has been thrown when we tried to create
-      // the TLS context
-      return XRootDStatus( stFatal, errTlsError, 0, ex.what() );
-    }
-    return XRootDStatus();
-  }
 }
 
 

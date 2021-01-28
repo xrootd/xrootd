@@ -28,13 +28,12 @@
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysKernelBuffer.hh"
 
-class XrdTlsContext;
 
 namespace XrdCl
 {
   class AnyObject;
-  class AsyncSocketHandler;
   class Tls;
+  class AsyncSocketHandler;
 
   //----------------------------------------------------------------------------
   //! A network socket
@@ -286,12 +285,6 @@ namespace XrdCl
       //           false otherwise
       //------------------------------------------------------------------------
       bool IsEncrypted();
-
-      //------------------------------------------------------------------------
-      // Create the TLS context for the Socket object
-      //------------------------------------------------------------------------
-      XRootDStatus CreateTLS( XrdTlsContext       &tlsContext,
-                              AsyncSocketHandler  *socketHandler);
 
     protected:
       //------------------------------------------------------------------------

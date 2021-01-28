@@ -25,93 +25,7 @@
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClOptimizers.hh"
 #include "XrdSys/XrdSysE2T.hh"
-#include "XrdTls/XrdTlsContext.hh"
-
 #include <netinet/tcp.h>
-
-#include <unordered_map>
-#include <thread>
-
-namespace
-{
-  //---------------------------------------------------------------------------
-  // Multitone providing an unique instance of XrdTlsContext for every
-  // event-loop thread.
-  //---------------------------------------------------------------------------
-  struct TlsContextProvider
-  {
-    //-------------------------------------------------------------------------
-    // Singleton access
-    //-------------------------------------------------------------------------
-    static TlsContextProvider& Instance()
-    {
-      static TlsContextProvider instance;
-      return instance;
-    }
-
-    //-------------------------------------------------------------------------
-    // Get the TLS context unique to the calling thread
-    //-------------------------------------------------------------------------
-    XrdTlsContext& Get()
-    {
-      std::unique_lock<std::mutex> lck( mtx );
-      //-----------------------------------------------------------------------
-      // Each event-loop thread has its own SSL context
-      //-----------------------------------------------------------------------
-      std::thread::id this_id = std::this_thread::get_id();
-      auto itr = instances.find( this_id );
-      if( itr == instances.end() )
-      {
-        std::string emsg;
-        auto p = instances.emplace( std::piecewise_construct, std::forward_as_tuple( this_id ),
-                                    std::forward_as_tuple( nullptr, nullptr, GetCaDir(), nullptr, 0, &emsg ) );
-        itr = p.first;
-        //---------------------------------------------------------------------
-        // If the context is not valid throw an exception! We throw generic
-        // exception as this will be translated to TlsError anyway.
-        //---------------------------------------------------------------------
-        if( !itr->second.isOK() ) throw std::runtime_error( emsg );
-      }
-      return itr->second;
-    }
-
-    private:
-
-      //-----------------------------------------------------------------------
-      // Default constructor
-      //-----------------------------------------------------------------------
-      TlsContextProvider(){ }
-
-      //-----------------------------------------------------------------------
-      // Copy and move constructors, deleted!
-      //-----------------------------------------------------------------------
-      TlsContextProvider( const TlsContextProvider& ) = delete;
-      TlsContextProvider( TlsContextProvider&& ) = delete;
-
-      //-----------------------------------------------------------------------
-      // Copy and move assignment operator, deleted!
-      //-----------------------------------------------------------------------
-      TlsContextProvider& operator=( const TlsContextProvider& ) = delete;
-      TlsContextProvider& operator=( TlsContextProvider&& ) = delete;
-
-      //------------------------------------------------------------------------
-      // Helper function for setting the CA directory in TLS context
-      //------------------------------------------------------------------------
-      static const char* GetCaDir()
-      {
-        static const char *envval = getenv("X509_CERT_DIR");
-        static const std::string cadir = envval ? envval :
-                                         "/etc/grid-security/certificates";
-        return cadir.c_str();
-      }
-
-      //------------------------------------------------------------------------
-      // TLS contexts for every event-loop thread
-      //------------------------------------------------------------------------
-      std::unordered_map<std::thread::id, XrdTlsContext> instances;
-      std::mutex mtx;
-  };
-}
 
 namespace XrdCl
 {
@@ -850,17 +764,7 @@ namespace XrdCl
     if( !pSocket->IsEncrypted() &&
          pTransport->NeedEncryption( pHandShakeData, *pChannelData ) )
     {
-      //------------------------------------------------------------------------
-      //
-      //------------------------------------------------------------------------
-      XRootDStatus st = pSocket->CreateTLS( TlsContextProvider::Instance().Get(),
-                                            this );
-      if( !st.IsOK() )
-      {
-        OnFaultWhileHandshaking( st );
-        return;
-      }
-      st = DoTlsHandShake();
+      XRootDStatus st = DoTlsHandShake();
       if( !st.IsOK() || st.code == suRetry ) return;
     }
 
