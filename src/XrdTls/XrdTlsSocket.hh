@@ -70,10 +70,13 @@ enum HS_Mode
 //!                    read/write calls should be handled.
 //! @param  isClient - When true  initialize for client use.
 //!                    Otherwise, initialize for server use.
+//! @param  serial   - When true, only allows one thread to use the socket
+//!                    at a time to prevent SSL errors (default). When false
+//!                    does not add this protection, assuming caller does so.
 //------------------------------------------------------------------------
 
-  XrdTlsSocket( XrdTlsContext &ctx, int sfd, RW_Mode rwm,
-                                             HS_Mode hsm, bool isClient );
+  XrdTlsSocket( XrdTlsContext &ctx, int sfd, RW_Mode rwm, HS_Mode hsm,
+                bool isClient, bool serial=true );
 
 //------------------------------------------------------------------------
 //! Constructor - reserves space for a TLS I/O wrapper. Use the Init()
@@ -147,6 +150,9 @@ XrdTlsPeerCerts *getCerts(bool ver=true);
 //!                    read/write calls should be handled.
 //! @param  isClient - When true  initialize for client use.
 //!                    Otherwise, initialize for server use.
+//! @param  serial   - When true, only allows one thread to use the socket
+//!                    at a time to prevent SSL errors (default). When false
+//!                    does not add this protection, assuming caller does so.
 //! @param  tid      - Trace identifier to appear in messages. The value must
 //!                    have the same lifetime as this object.
 //!
@@ -157,7 +163,7 @@ XrdTlsPeerCerts *getCerts(bool ver=true);
 //------------------------------------------------------------------------
 
   const char *Init( XrdTlsContext &ctx, int sfd, RW_Mode rwm, HS_Mode hsm,
-                    bool isClient, const char *tid="" );
+                    bool isClient, bool serial=true, const char *tid="" );
 
 //------------------------------------------------------------------------
 //! Peek at the TLS connection data. If necessary, a handshake will be done.
@@ -251,6 +257,7 @@ private:
 void AcceptEMsg(std::string *eWhy, const char *reason);
 int  Diagnose(const char *what, int sslrc, int tcode);
 std::string Err2Text(int sslerr);
+bool NeedHS();
 bool Wait4OK(bool wantRead);
 
 XrdTlsSocketImpl *pImpl;

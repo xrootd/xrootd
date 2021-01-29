@@ -913,7 +913,7 @@ bool XrdLinkXeq::setTLS(bool enable, XrdTlsContext *ctx)
 // We want to initialize TLS, do so now.
 //
    if (!ctx) ctx = tlsCtx;
-   eNote = tlsIO.Init(*ctx, PollInfo.FD, rwMode, hsMode, false, ID);
+   eNote = tlsIO.Init(*ctx, PollInfo.FD, rwMode, hsMode, false, false, ID);
 
 // Check for errors
 //
