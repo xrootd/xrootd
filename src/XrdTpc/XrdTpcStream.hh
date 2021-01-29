@@ -41,7 +41,17 @@ public:
 
     int Read(off_t offset, char *buffer, size_t size);
 
-    int Write(off_t offset, const char *buffer, size_t size, bool force);
+    // Writes a buffer of a given size to an offset.
+    // This will often keep the buffer in memory in to present the underlying
+    // filesystem with a single stream of data (required for HDFS); further,
+    // it will also buffer to align the writes on a 1MB boundary (required
+    // for some RADOS configurations).  When force is set to true, it will
+    // skip the buffering and always write (this should only be done at the
+    // end of a stream!).
+    //
+    // Returns the number of bytes written; on error, returns -1 and sets
+    // the error code and error message for the stream
+    ssize_t Write(off_t offset, const char *buffer, size_t size, bool force);
 
     size_t AvailableBuffers() const {return m_avail_count;}
 
@@ -79,8 +89,10 @@ private:
                 size_desired -= (size_desired % (1024*1024));
                 if (!size_desired) {return 0;}
             }
-            int retval = stream.Write(m_offset, &m_buffer[0], size_desired, force);
-            if (retval < 0 && (static_cast<size_t>(retval) != size_desired)) {
+            ssize_t retval = stream.Write(m_offset, &m_buffer[0], size_desired, force);
+            // Currently the only valid negative value is SFS_ERROR (-1); checking for
+            // all negative values to future-proof the code.
+            if ((retval < 0) || (static_cast<size_t>(retval) != size_desired)) {
                 return -1;
             }
             // If partial data remains, copy it to the beginning of the buffer.
