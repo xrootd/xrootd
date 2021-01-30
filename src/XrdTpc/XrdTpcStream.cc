@@ -68,7 +68,7 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
     DumpBuffers();
 */
     if (!m_open_for_write) return SFS_ERROR;
-    bool buffer_accepted = false;
+    size_t bytes_accepted = 0;
     int retval = size;
     if (offset < m_offset) {
         return SFS_ERROR;
@@ -77,18 +77,11 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
     // MB-aligned, then we write it to disk; otherwise, the
     // data will be buffered.
     if (offset == m_offset && (force || (size && !(size % (1024*1024))))) {
-        retval = m_fh->write(offset, buf, size);
-        buffer_accepted = true;
-        if (retval != SFS_ERROR) {
-            m_offset += retval;
-        } else {
-            std::stringstream ss;
-            const char *msg = m_fh->error.getErrText();
-            if (!msg || (*msg == '\0')) {msg = "(no error message provided)";}
-            ss << msg << " (code=" << m_fh->error.getErrInfo() << ")";
-            m_error_buf = ss.str();
-            // Write failed; we don't care if there's any more buffer we
-            // can dump to disk later.
+        retval = WriteImpl(offset, buf, size);
+        bytes_accepted = retval;
+            // On failure, we don't care about flushing buffers from memory --
+            // the stream is now invalid.
+        if (retval < 0) {
             return retval;
         }
         // If there are no in-use buffers, then we don't need to
@@ -121,18 +114,29 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
                 if (!avail_entry) {avail_entry = *entry_iter;}
                 avail_count ++;
             }
-            else if (!buffer_accepted && (*entry_iter)->Accept(offset, buf, size)) {
-                buffer_accepted = true;
+            else if (bytes_accepted != size && size) {
+                size_t new_accept = (*entry_iter)->Accept(offset + bytes_accepted, buf, size - bytes_accepted);
+                    // Partial accept; buffer should be writable which means we should free it up
+                    // for next iteration
+                if (new_accept && new_accept != size - bytes_accepted) {
+                    int retval3 = (*entry_iter)->Write(*this, false);
+                    if (retval3 == SFS_ERROR) {
+                        if (!m_error_buf.size()) {m_error_buf = "Unknown filesystem write failure.";}
+                        return SFS_ERROR;
+                    }
+                    buffer_was_written = true;
+                }
+                bytes_accepted += new_accept;
             }
         }
     } while ((avail_count != m_buffers.size()) && buffer_was_written);
     m_avail_count = avail_count;
 
-    if (!buffer_accepted && size) {  // No place for this data in allocated buffers
+    if (bytes_accepted != size && size) {  // No place for this data in allocated buffers
         if (!avail_entry) {  // No available buffers to allocate.
             return SFS_ERROR;
         }
-        if (!avail_entry->Accept(offset, buf, size)) {  // Empty buffer cannot accept?!?
+        if (avail_entry->Accept(offset + bytes_accepted, buf, size - bytes_accepted) != size - bytes_accepted) {  // Empty buffer cannot accept?!?
             return SFS_ERROR;
         }
         m_avail_count --;
@@ -147,6 +151,24 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
         }
     }
 
+    return retval;
+}
+
+
+ssize_t Stream::WriteImpl(off_t offset, const char *buf, size_t size)
+{
+    ssize_t retval;
+    if (size == 0) {return 0;}
+    retval = m_fh->write(offset, buf, size);
+    if (retval != SFS_ERROR) {
+        m_offset += retval;
+    } else {
+        std::stringstream ss;
+        const char *msg = m_fh->error.getErrText();
+        if (!msg || (*msg == '\0')) {msg = "(no error message provided)";}
+        ss << msg << " (code=" << m_fh->error.getErrInfo() << ")";
+        m_error_buf = ss.str();
+    }
     return retval;
 }
 
