@@ -1659,7 +1659,7 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
 
       std::vector<XAttrStatus> result;
       XRootDStatus status = fs->SetXAttr( path, attrs, result );
-      XAttrStatus xst = result.front();
+      XAttrStatus xst = status.IsOK() ? result.front() : XAttrStatus( key, status );
 
       if( !xst.status.IsOK() )
         status = xst.status;
@@ -1685,7 +1685,7 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
 
       std::vector<XAttr> result;
       XRootDStatus status = fs->GetXAttr( path, attrs, result );
-      XAttr xattr = result.front();
+      XAttr xattr = status.IsOK() ? result.front() : XAttr( key, status );
 
       if( !xattr.status.IsOK() )
         status = xattr.status;
@@ -1717,7 +1717,7 @@ XRootDStatus DoXAttr( FileSystem                      *fs,
 
       std::vector<XAttrStatus> result ;
       XRootDStatus status = fs->DelXAttr( path, attrs, result );
-      XAttrStatus xst = result.front();
+      XAttrStatus xst = status.IsOK() ? result.front() : XAttrStatus( key, status );
 
       if( !xst.status.IsOK() )
         status = xst.status;
