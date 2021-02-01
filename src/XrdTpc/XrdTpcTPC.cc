@@ -26,6 +26,7 @@ using namespace TPC;
 uint64_t TPCHandler::m_monid{0};
 int TPCHandler::m_marker_period = 5;
 size_t TPCHandler::m_block_size = 16*1024*1024;
+size_t TPCHandler::m_small_block_size = 1*1024*1024;
 XrdSysMutex TPCHandler::m_monid_mutex;
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
@@ -356,6 +357,8 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
 
+    //curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 128*1024);
+
     CURLMcode mres;
     mres = curl_multi_add_handle(multi_handle, curl);
     if (mres) {
@@ -592,6 +595,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", msg);
         return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
+
     auto query_header = req.headers.find("xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
@@ -733,7 +737,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
     }
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
-    Stream stream(std::move(fh), streams * m_pipelining_multiplier, m_block_size, m_log);
+    Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
     State state(0, stream, curl, false);
     state.CopyHeaders(req);
 

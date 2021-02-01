@@ -82,39 +82,34 @@ private:
 
         int Write(Stream &stream, bool force) {
             if (Available() || !CanWrite(stream)) {return 0;}
-            // Currently, only full writes are accepted along megabyte boundaries
-            // unless the stream forces a flush (i.e., we are at EOF).
-            size_t size_desired = m_size;
-            if (!force) {
-                size_desired -= (size_desired % (1024*1024));
-                if (!size_desired) {return 0;}
+            // Only full buffer writes are accepted unless the stream forces a flush
+            // (i.e., we are at EOF) because the multistream code uses buffer occupancy
+            // to determine how many streams are currently in-flight.  If we do an early
+            // write, then the buffer will be empty and the multistream code may decide
+            // to start another request (which we don't have the capacity to serve!).
+            if (!force && (m_size != m_capacity)) {
+                return 0;
             }
-            ssize_t retval = stream.Write(m_offset, &m_buffer[0], size_desired, force);
+            ssize_t retval = stream.WriteImpl(m_offset, &m_buffer[0], m_size);
             // Currently the only valid negative value is SFS_ERROR (-1); checking for
             // all negative values to future-proof the code.
-            if ((retval < 0) || (static_cast<size_t>(retval) != size_desired)) {
+            if ((retval < 0) || (static_cast<size_t>(retval) != m_size)) {
                 return -1;
             }
-            // If partial data remains, copy it to the beginning of the buffer.
-            // Otherwise, mark the buffer as available.
-            if (size_desired < m_size) {
-                m_offset += size_desired;
-                m_size -= size_desired;
-                memcpy(&m_buffer[0], &m_buffer[size_desired], m_size);
-            } else {
-                m_offset = -1;
-                m_size = 0;
-            }
+            m_offset = -1;
+            m_size = 0;
             return retval;
         }
 
-        bool Accept(off_t offset, const char *buf, size_t size) {
+        size_t Accept(off_t offset, const char *buf, size_t size) {
             // Validate acceptance criteria.
             if ((m_offset != -1) && (offset != m_offset + static_cast<ssize_t>(m_size))) {
-                return false;
+                return 0;
             }
-            if (size > m_capacity - m_size) {
-                return false;
+            size_t to_accept = m_capacity - m_size;
+            if (to_accept == 0) {return 0;}
+            if (size > to_accept) {
+                size = to_accept;
             }
 
             // Inflate the underlying buffer if needed.
@@ -129,7 +124,7 @@ private:
             if (m_offset == -1) {
                 m_offset = offset;
             }
-            return true;
+            return size;
         }
 
         void ShrinkIfUnused() {
@@ -162,6 +157,8 @@ private:
         size_t m_size;  // Number of bytes held in buffer.
         std::vector<char> m_buffer;
     };
+
+    ssize_t WriteImpl(off_t offset, const char *buffer, size_t size);
 
     bool m_open_for_write;
     size_t m_avail_count;

@@ -109,6 +109,7 @@ private:
 
     static int m_marker_period;
     static size_t m_block_size;
+    static size_t m_small_block_size;
     bool m_desthttps;
     std::string m_cadir;
     static XrdSysMutex m_monid_mutex;
