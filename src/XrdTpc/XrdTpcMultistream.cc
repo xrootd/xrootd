@@ -157,8 +157,16 @@ public:
         return m_error_code;
     }
 
+    void SetErrorCode(int error_code) {
+        m_error_code = error_code;
+    }
+
     std::string GetErrorMessage() const {
         return m_error_message;
+    }
+
+    void SetErrorMessage(const std::string &error_msg) {
+        m_error_message = error_msg;
     }
 
 private:
@@ -304,16 +312,32 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     // Transfer loop: use curl to actually run the transfer, but periodically
     // interrupt things to send back performance updates to the client.
     time_t last_marker = 0;
+    // Track the time since the transfer last made progress
+    off_t last_advance_bytes = 0;
+    time_t last_advance_time = time(NULL);
+    time_t transfer_start = last_advance_time;
     CURLcode res = static_cast<CURLcode>(-1);
     CURLMcode mres;
     do {
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
+            if (current_offset > last_advance_bytes) {
+                last_advance_bytes = current_offset;
+                last_advance_time = now;
+            }
             if (SendPerfMarker(req, rec, handles, current_offset)) {
                 logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
                     "Failed to send a perf marker to the TPC client");
                 return -1;
+            }
+            int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
+            if (now > last_advance_time + timeout) {
+                mch.SetErrorCode(10);
+                std::stringstream ss;
+                ss << "Transfer failed because no bytes have been received in " << timeout << " seconds.";
+                mch.SetErrorMessage(ss.str());
+                break;
             }
             last_marker = now;
         }
@@ -406,7 +430,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         }
     } while (msg);
 
-    if (res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
+    if (!state.GetErrorCode() && res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
         logTransferEvent(LogMask::Error, rec, "MULTISTREAM_ERROR",
             "Internal state error in libcurl");
         throw std::runtime_error("Internal state error in libcurl");

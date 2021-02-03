@@ -142,6 +142,8 @@ TPCHandler::~TPCHandler() {
 
 TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_desthttps(false),
+        m_timeout(60),
+        m_first_timeout(120),
         m_log(log->logger(), "TPC_"),
         m_sfs(NULL)
 {
@@ -389,11 +391,20 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     // interrupt things to send back performance updates to the client.
     int running_handles = 1;
     time_t last_marker = 0;
+    // Track how long it's been since the last time we recorded more bytes being transferred.
+    off_t last_advance_bytes = 0;
+    time_t last_advance_time = time(NULL);
+    time_t transfer_start = last_advance_time;
     CURLcode res = static_cast<CURLcode>(-1);
     do {
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
         if (now >= next_marker) {
+            off_t bytes_xfer = state.BytesTransferred();
+            if (bytes_xfer > last_advance_bytes) {
+                last_advance_bytes = bytes_xfer;
+                last_advance_time = now;
+            }
             if (SendPerfMarker(req, rec, state)) {
                 curl_multi_remove_handle(multi_handle, curl);
                 curl_easy_cleanup(curl);
@@ -401,6 +412,14 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
                 logTransferEvent(LogMask::Error, rec, "PERFMARKER_FAIL",
                     "Failed to send a perf marker to the TPC client");
                 return -1;
+            }
+            int timeout = (transfer_start == last_advance_time) ? m_first_timeout : m_timeout;
+            if (now > last_advance_time + timeout) {
+                state.SetErrorCode(10);
+                std::stringstream ss;
+                ss << "Transfer failed because no bytes have been received in " << timeout << " seconds.";
+                state.SetErrorMessage(ss.str());
+                break;
             }
             last_marker = now;
         }
@@ -475,7 +494,7 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         }
     } while (msg);
 
-    if (res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
+    if (!state.GetErrorCode() && res == static_cast<CURLcode>(-1)) { // No transfers returned?!?
         curl_multi_remove_handle(multi_handle, curl);
         curl_easy_cleanup(curl);
         curl_multi_cleanup(multi_handle);

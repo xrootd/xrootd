@@ -111,6 +111,9 @@ private:
     static size_t m_block_size;
     static size_t m_small_block_size;
     bool m_desthttps;
+    int m_timeout; // the 'timeout interval'; if no bytes have been received during this time period, abort the transfer.
+    int m_first_timeout; // the 'first timeout interval'; the amount of time we're willing to wait to get the first byte.
+                         // Unless explicitly specified, this is 2x the timeout interval.
     std::string m_cadir;
     static XrdSysMutex m_monid_mutex;
     static uint64_t m_monid;

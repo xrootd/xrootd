@@ -64,9 +64,13 @@ public:
 
     int GetErrorCode() const {return m_error_code;}
 
+    void SetErrorCode(int error_code) {m_error_code = error_code;}
+
     int GetStatusCode() const {return m_status_code;}
 
     std::string GetErrorMessage() const {return m_error_buf;}
+
+    void SetErrorMessage(const std::string &error_msg) {m_error_buf = error_msg;}
 
     void ResetAfterRequest();
 
