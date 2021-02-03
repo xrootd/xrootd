@@ -135,11 +135,7 @@ class CustomWheelGen(bdist_wheel):
     def run(self):
         pass
 
-
-version = get_version()
-if version.startswith('unknown'):
-    version = get_version_from_file()
-
+version = get_version_from_file()
 setup_requires=[ 'pkgconfig' ]
 
 setup( 
