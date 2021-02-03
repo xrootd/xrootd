@@ -317,7 +317,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     time_t last_advance_time = time(NULL);
     time_t transfer_start = last_advance_time;
     CURLcode res = static_cast<CURLcode>(-1);
-    CURLMcode mres;
+    CURLMcode mres = CURLM_OK;
     do {
         time_t now = time(NULL);
         time_t next_marker = last_marker + m_marker_period;
