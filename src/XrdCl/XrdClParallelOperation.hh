@@ -464,7 +464,7 @@ namespace XrdCl
   //! Factory function for creating parallel operation from a vector
   //----------------------------------------------------------------------------
   template<class Container>
-  inline ParallelOperation<false> Parallel( Container &container )
+  inline ParallelOperation<false> Parallel( Container &&container )
   {
     return ParallelOperation<false>( container );
   }
