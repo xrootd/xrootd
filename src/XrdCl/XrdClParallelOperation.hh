@@ -446,8 +446,11 @@ namespace XrdCl
                            pipelineTimeout : this->timeout;
 
         for( size_t i = 0; i < pipelines.size(); ++i )
+        {
+          if( !pipelines[i] ) continue;
           pipelines[i].Run( timeout,
               [ctx]( const XRootDStatus &st ) mutable { Schedule( ctx, st ); } );
+        }
 
         ctx->barrier.lift();
         return XRootDStatus();
