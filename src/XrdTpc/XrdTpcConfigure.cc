@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 
+#include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucPinPath.hh"
@@ -51,6 +52,17 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
             if (!ConfigureLogger(Config)) {
                 Config.Close();
                 return false;
+            }
+        } else if (!strcmp("tpc.timeout", val)) {
+            if (!(val = Config.GetWord())) {
+                m_log.Emsg("Config","tpc.timeout value not specified.");  return false;
+            }
+            if (XrdOuca2x::a2tm(m_log, "timeout value", val, &m_timeout, 0)) return false;
+                // First byte timeout can be set separately from the continuous timeout.
+            if ((val = Config.GetWord())) {
+                if (XrdOuca2x::a2tm(m_log, "first byte timeout value", val, &m_first_timeout, 0)) return false;
+            } else {
+                m_first_timeout = 2*m_timeout;
             }
         }
     }
