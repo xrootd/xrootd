@@ -2949,12 +2949,12 @@ int XrdXrootdProtocol::do_Write()
               n2hll(Request.write.offset, myOffset);
    pathID   = static_cast<int>(Request.write.pathid);
 
-// Find the file object
+// Find the file object. We will drain socket data on the control path only!
 //                                                                             .
    if (!FTab || !(myFile = FTab->Get(fh.handle)))
-      {if (argp && !pathID) return do_WriteNone();
+      {if (argp && !pathID) {myFile = 0; return do_WriteNone();}
        Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
-       return Link->setEtext("write protcol violation");
+       return Link->setEtext("write protocol violation");
       }
 
 // Trace and verify that length is not negative
@@ -3115,11 +3115,11 @@ int XrdXrootdProtocol::do_WriteSpan()
    myIOLen  = Request.header.dlen;
               n2hll(Request.write.offset, myOffset);
 
-// Find the file object
+// Find the file object. We will only drain socket data on the control path.
 //                                                                             .
    if (!FTab || !(myFile = FTab->Get(fh.handle)))
       {if (argp && !Request.write.pathid)
-          {myIOLen -= myBlast; return do_WriteNone();}
+          {myIOLen -= myBlast; myFile = 0; return do_WriteNone();}
        Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
        return Link->setEtext("write protcol violation");
       }
