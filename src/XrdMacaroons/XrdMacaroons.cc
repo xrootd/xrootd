@@ -52,7 +52,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
                                        const char   *config,
                                        const char   *parms)
 {
-    XrdAccAuthorize *chain_authz;
+    XrdAccAuthorize *chain_authz = NULL;
 
     if (parms && parms[0]) {
         XrdOucString parms_str(parms);
@@ -93,7 +93,15 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
             delete err;
             return NULL;
         }
+
         chain_authz = (*ep)(log, config, chained_parms);
+
+        if (chain_authz == NULL) {
+          err->Emsg("Config", "Unable to chain second authlib after macaroons "
+                    "which returned NULL");
+          delete err;
+          return NULL;
+        }
     }
     else
     {
@@ -103,7 +111,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
     {
         return new Macaroons::Authz(log, config, chain_authz);
     }
-    catch (std::runtime_error &e)
+    catch (const std::runtime_error &e)
     {
         XrdSysError err(log, "macaroons");
         err.Emsg("Config", "Configuration of Macaroon authorization handler failed", e.what());
