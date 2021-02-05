@@ -6,6 +6,26 @@ Release Notes
 =============
 
 --------------
+Version 4.12.7
+--------------
+
++ **Major bug fixes**
+  * **[XrdHttp]** Fix empty PUT.
+  * **[XrdTpc]** Do not call Write() on flush.
+  * **[XrdTpc]** Avoid using invalid object in multi-stream.
+  * **[XrdTpc]** Always check and fail on error.
+  * **[XrdTpc]** Catch all negative return values not just SFS_ERROR.
+
++ **Minor bug fixes**
+  * **[XrdTpc]** Fix the return value of `Stream::Write`
+  * **[XrdTpc]** Always populate error buffer with messages.
+
++ **Miscellaneous**
+  * **[XrdTpc]** Factor out recursive writes.
+  * **[XrdTpc]** Do not allow partial buffer writes.
+  * **[XrdTpc]** Adjust buffer size based on number of streams.
+
+--------------
 Version 4.12.6
 --------------
 
@@ -26,7 +46,16 @@ Version 4.12.5
 + **Major bug fixes**
   * **[CMake]** Set rpath for pip build.
   * **[PIP]** Convert egg-info into proper dist-info.
-  * **[XrdCl]** Make sure kXR_attrVirtRdr flag is set properly.
+  *jor bug fixes**
+  * **[XrdTpc]** Close file handle before final HTTP response.
+
++ **Minor bug fixes**
+  * **[XrdTpc]** Fix minor bugs discovered by compiler warnings.
+  * **[XrdTpc]** Fix case where 0 streams is requested.
+
++ **Miscellaneous**
+  * **[XrdTpc]** Add support for buffering even when single-stream TPC.
+ **[XrdCl]** Make sure kXR_attrVirtRdr flag is set properly.
   * **[XrdTpc]** URI-quote outgoing opaque data for HTTP-TPC.
   * **[XrdCl]** Utils::GetHostAddresses: use shuffle insted of random_shuffle.
   * **[XrdCeph]** Fix the file overwrite bug in ceph_posix_open function.
