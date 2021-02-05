@@ -107,7 +107,7 @@ namespace XrdCl
 
     Pipeline open_archive = // open the archive
                             XrdCl::Open( archive, url, flags ) >>
-                              [=]( XRootDStatus &status, StatInfo &info )
+                              [=]( XRootDStatus &status, StatInfo &info ) mutable
                               {
                                  // check the status is OK
                                  if( !status.IsOK() ) return;
@@ -132,7 +132,7 @@ namespace XrdCl
                                }
                             // read the Central Directory (in several stages if necessary)
                           | XrdCl::Read( archive, rdoff, rdsize, rdbuff ) >>
-                              [=]( XRootDStatus &status, ChunkInfo &chunk )
+                              [=]( XRootDStatus &status, ChunkInfo &chunk ) mutable
                               {
                                 // check the status is OK
                                 if( !status.IsOK() ) return;

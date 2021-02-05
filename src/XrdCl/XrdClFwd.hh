@@ -166,9 +166,17 @@ namespace XrdCl
     //------------------------------------------------------------------------
     //! Constructor from value
     //------------------------------------------------------------------------
-    Fwd( const T &value )
+    explicit Fwd( const T &value )
     {
       *this->get() = value;
+    }
+
+    //------------------------------------------------------------------------
+    //! Move construct from value
+    //------------------------------------------------------------------------
+    explicit Fwd( T &&value )
+    {
+      *this->get() = std::move( value );
     }
 
     //------------------------------------------------------------------------
@@ -177,7 +185,7 @@ namespace XrdCl
     //! @param value : forwarded value
     //! @throws      : std::logic_error
     //------------------------------------------------------------------------
-    const Fwd& operator=( const T &value ) const
+    Fwd& operator=( const T &value )
     {
       *this->get() = value;
       return *this;
@@ -189,7 +197,7 @@ namespace XrdCl
     //! @param value : forwarded value
     //! @throws      : std::logic_error
     //------------------------------------------------------------------------
-    const Fwd& operator=( T && value ) const
+    Fwd& operator=( T && value )
     {
       *this->get() = std::move( value );
       return *this;

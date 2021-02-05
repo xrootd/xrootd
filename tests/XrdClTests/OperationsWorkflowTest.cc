@@ -198,7 +198,7 @@ void WorkflowTest::ReadingWorkflowTest(){
     uint64_t offset = 0;
 
     auto &&pipe = Open( f, fileUrl, flags ) >> openHandler // by reference
-                | Stat( f, true) >> [size, buffer]( XRootDStatus &status, StatInfo &stat )
+                | Stat( f, true) >> [size, buffer]( XRootDStatus &status, StatInfo &stat ) mutable
                     {
                       CPPUNIT_ASSERT_XRDST( status );
                       CPPUNIT_ASSERT( stat.GetSize() == 1048576000 );
@@ -262,7 +262,7 @@ void WorkflowTest::WritingWorkflowTest(){
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
-    Pipeline pipe = Open( f, fileUrl, flags ) >> [iov, iovcnt, texts]( XRootDStatus &status )
+    Pipeline pipe = Open( f, fileUrl, flags ) >> [iov, iovcnt, texts]( XRootDStatus &status ) mutable
                       {
                         CPPUNIT_ASSERT_XRDST( status );
                         iovec *vec = new iovec[3];
@@ -277,7 +277,7 @@ void WorkflowTest::WritingWorkflowTest(){
                       }
                   | WriteV( f, 0, iov, iovcnt )
                   | Sync( f )
-                  | Stat( f, true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info )
+                  | Stat( f, true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info ) mutable
                       {
                         CPPUNIT_ASSERT_XRDST( status );
                         CPPUNIT_ASSERT( createdFileSize == info.GetSize() );
@@ -518,7 +518,7 @@ void WorkflowTest::ParallelTest(){
     Fwd<std::string> url1, url2;
 
     bool lockHandlerExecuted = false;
-    auto lockOpenHandler = [&,url1, url2]( XRootDStatus &status )
+    auto lockOpenHandler = [&,url1, url2]( XRootDStatus &status ) mutable
         {
           url1 = GetFileUrl( "cb4aacf1-6f28-42f2-b68a-90a73460f424.dat" );
           url2 = GetFileUrl( dataFileName );
@@ -667,7 +667,7 @@ void WorkflowTest::MixedWorkflowTest(){
       auto &&operation = Open( file[i], url[i], flags )
                        | Write( file[i], 0, length[i], text[i] )
                        | Sync( file[i] )
-                       | Stat( file[i], true ) >> [size, buffer, i]( XRootDStatus &status, StatInfo &info )
+                       | Stat( file[i], true ) >> [size, buffer, i]( XRootDStatus &status, StatInfo &info ) mutable
                            {
                              CPPUNIT_ASSERT_XRDST( status );
                              size[i] = info.GetSize();

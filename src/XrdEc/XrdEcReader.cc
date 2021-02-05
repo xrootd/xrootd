@@ -655,7 +655,7 @@ namespace XrdEc
     XrdCl::Fwd<void*>    rdbuff;
 
     return XrdCl::Open( *file, url, XrdCl::OpenFlags::Read ) >>
-             [=]( XrdCl::XRootDStatus &st, XrdCl::StatInfo &info )
+             [=]( XrdCl::XRootDStatus &st, XrdCl::StatInfo &info ) mutable
              {
                if( !st.IsOK() )
                {
