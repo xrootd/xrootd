@@ -173,8 +173,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       auto itr = pool.begin();
       for( ; itr != pool.end() ; ++itr )
-        if( itr->second == mgr ) break;
-      pool.erase( itr );
+        if( itr->second == mgr )
+        {
+          pool.erase( itr );
+          break;
+        }
 
       lck2.UnLock();
       delete mgr;
