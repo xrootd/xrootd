@@ -21,6 +21,21 @@ enum LogMask {
     All = 0xff
 };
 
+// 'Normalize' the macaroon path.  This only takes care of double slashes
+// but, as is common in XRootD, it doesn't treat these as a hierarchy.
+// For example, these result in the same path:
+//
+//   /foo/bar -> /foo/bar
+//   //foo////bar -> /foo/bar
+//
+// These are all distinct:
+//
+//   /foo/bar  -> /foo/bar
+//   /foo/bar/ -> /foo/bar/
+//   /foo/baz//../bar -> /foo/baz/../bar
+//
+std::string NormalizeSlashes(const std::string &);
+
 class Handler : public XrdHttpExtHandler {
 public:
     Handler(XrdSysError *log, const char *config, XrdOucEnv *myEnv,

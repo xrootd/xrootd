@@ -52,6 +52,27 @@ char *unquote(const char *str) {
 }
 
 
+std::string Macaroons::NormalizeSlashes(const std::string &input)
+{
+    std::string output;
+      // In most cases, the output should be "about as large"
+      // as the input
+    output.reserve(input.size());
+    char prior_chr = '\0';
+    size_t output_idx = 0;
+    for (size_t idx = 0; idx < input.size(); idx++) {
+        char chr = input[idx];
+        if (prior_chr == '/' && chr == '/') {
+            output_idx++;
+            continue;
+        }
+        output += input[output_idx];
+        prior_chr = chr;
+        output_idx++;
+    }
+    return output;
+}
+
 static
 ssize_t determine_validity(const std::string& input)
 {
@@ -119,7 +140,7 @@ Handler::GenerateID(const std::string &resource,
 
     std::stringstream ss;
     ss << "ID=" << result << ", ";
-    ss << "resource=" << resource << ", ";
+    ss << "resource=" << NormalizeSlashes(resource) << ", ";
     if (entity.prot[0] != '\0') {ss << "protocol=" << entity.prot << ", ";}
     if (entity.name) {ss << "name=" << entity.name << ", ";}
     if (entity.host) {ss << "host=" << entity.host << ", ";}
@@ -513,6 +534,10 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
         }
     }
 
+    // Note we don't call `NormalizeSlashes` here; for backward compatibility reasons, we ensure the
+    // token issued is identical to what was working with prior versions of XRootD.  This allows for a
+    // mix of old/new versions in a single cluster to interoperate.  In a few years, it might be reasonable
+    // to invoke it here as well.
     std::string path_caveat = "path:" + resource;
     struct macaroon *mac_with_path = macaroon_add_first_party_caveat(mac_with_activities,
                                                  reinterpret_cast<const unsigned char*>(path_caveat.c_str()),
