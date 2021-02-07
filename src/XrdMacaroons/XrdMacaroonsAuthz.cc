@@ -240,7 +240,7 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, ssize_t max_duration, XrdSysError &log)
       : m_max_duration(max_duration),
         m_log(log),
-        m_path(req_path),
+        m_path(NormalizeSlashes(req_path)),
         m_oper(req_oper),
         m_now(time(NULL))
 {
@@ -377,8 +377,9 @@ AuthzCheck::verify_activity(const unsigned char * pred, size_t pred_sz)
 int
 AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
 {
-    std::string pred_str(reinterpret_cast<const char *>(pred), pred_sz);
-    if (strncmp("path:", pred_str.c_str(), 5)) {return 1;}
+    std::string pred_str_raw(reinterpret_cast<const char *>(pred), pred_sz);
+    if (strncmp("path:", pred_str_raw.c_str(), 5)) {return 1;}
+    std::string pred_str = NormalizeSlashes(pred_str_raw.substr(5));
     m_log.Log(LogMask::Debug, "AuthzCheck", "running verify path", pred_str.c_str());
 
     if ((m_path.find("/./") != std::string::npos) ||
@@ -387,10 +388,8 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
         m_log.Log(LogMask::Info, "AuthzCheck", "invalid requested path", m_path.c_str());
         return 1;
     }
-    size_t compare_chars = pred_str.size() - 5;
-    if (pred_str[compare_chars + 5 - 1] == '/') {compare_chars--;}
 
-    int result = strncmp(pred_str.c_str() + 5, m_path.c_str(), compare_chars);
+    int result = strncmp(pred_str.c_str(), m_path.c_str(), pred_str.size());
     if (!result)
     {
         m_log.Log(LogMask::Debug, "AuthzCheck", "path request verified for", m_path.c_str());
@@ -399,7 +398,7 @@ AuthzCheck::verify_path(const unsigned char * pred, size_t pred_sz)
     // to READ_METADATA for /foo.
     else if (m_oper == AOP_Stat)
     {
-        result = strncmp(m_path.c_str(), pred_str.c_str() + 5, m_path.size());
+        result = strncmp(m_path.c_str(), pred_str.c_str(), m_path.size());
         if (!result) {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request verified for", m_path.c_str());}
         else {m_log.Log(LogMask::Debug, "AuthzCheck", "READ_METADATA path request NOT allowed", m_path.c_str());}
     }
