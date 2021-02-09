@@ -968,7 +968,7 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
     }
 
     // if we don't have the data we need to issue a remote read
-    if( !buffer )
+    if( !pBuffer )
     {
       if( relativeOffset > cdfh->pCompressedSize ) return XRootDStatus(); // there's nothing to do,
                                                                          // we already have all the data locally
@@ -977,8 +977,8 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
         rdsize = cdfh->pCompressedSize - relativeOffset;
 
       // now read the data ...
-      ZipCache::ReadHandler rdhandler( relativeOffset, rdsize, cache );
-      auto &rdbuff = rdhandler.buffer;
+      auto rdhandler = new ZipCache::ReadHandler( relativeOffset, rdsize, cache );
+      auto &rdbuff = rdhandler->buffer;
       Pipeline p = XrdCl::Read( pArchive, offset, rdbuff.size(), rdbuff.data() ) >> rdhandler;
       Async( std::move( p ), timeout );
     }
