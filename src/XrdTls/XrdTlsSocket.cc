@@ -48,7 +48,7 @@ struct XrdTlsSocketImpl
 {
     XrdTlsSocketImpl() : tlsctx(0), ssl(0), traceID(""), sFD(-1), hsWait(15),
                          hsDone(false), fatal(0), isClient(false),
-                         cOpts(0), cAttr(0), hsNoBlock(false) {}
+                         cOpts(0), cAttr(0), hsNoBlock(false), isSerial(true) {}
 
     XrdSysMutex      sslMutex;  //!< Mutex to serialize calls
     XrdTlsContext   *tlsctx;    //!< Associated context object
