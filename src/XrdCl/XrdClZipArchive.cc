@@ -526,82 +526,56 @@ namespace XrdCl
       // if the entry does not exist, it will be created using
       // default constructor
       ZipCache &cache = zipcache[fn];
+
+      if( relativeOffset > cdfh->uncompressedSize )
+      {
+        // we are reading past the end of file,
+        // we can serve the request right away!
+        ChunkInfo *ch = new ChunkInfo( relativeOffset, 0, usrbuff );
+        AnyObject *rsp = new AnyObject();
+        rsp->Set( ch );
+        usrHandler->HandleResponse( new XRootDStatus(), rsp );
+        return XRootDStatus();
+      }
+
+      uint32_t sizereq = size;
+      if( relativeOffset + size > cdfh->uncompressedSize )
+        sizereq = cdfh->uncompressedSize - relativeOffset;
+      cache.QueueReq( relativeOffset, sizereq, usrbuff, usrHandler );
+
       // if we have the whole ZIP archive we can populate the cache
       // straight away
       if( empty && buffer)
       {
-        XRootDStatus st = cache.Input( buffer.get() + offset, filesize - fileoff, relativeOffset );
-        if( !st.IsOK() ) return st;
+        auto begin = buffer.get();
+        auto end   = begin + filesize ;
+        buffer_t buff( begin, end );
+        cache.QueueRsp( XRootDStatus(), 0, std::move( buff ) );
+        return XRootDStatus();
       }
 
-      XRootDStatus st = cache.Output( usrbuff, size, relativeOffset );
-
-      // read from cache
-      if( !empty || buffer )
+      // if we don't have the data we need to issue a remote read
+      if( !buffer )
       {
-        uint32_t bytesRead = 0;
-        st = cache.Read( bytesRead );
-        // propagate errors to the end-user
-        if( !st.IsOK() ) return st;
-        log->Dump( ZipMsg, "[0x%x] Read %d bytes from ZipCache.", this, bytesRead );
-        // we have all the data ...
-        if( st.code == suDone )
-        {
-          if( usrHandler )
-          {
-            XRootDStatus *st = make_status();
-            ChunkInfo    *ch = new ChunkInfo( relativeOffset, size, usrbuff );
-            Schedule( usrHandler, st, ch );
-          }
-          return XRootDStatus();
-        }
+        if( relativeOffset > cdfh->compressedSize ) return XRootDStatus(); // there's nothing to do,
+                                                                           // we already have all the data locally
+        uint32_t rdsize = size;
+        if( relativeOffset + size > cdfh->compressedSize )
+          rdsize = cdfh->compressedSize - relativeOffset;
+
+        // now read the data ...
+        auto rdbuff = std::make_shared<ZipCache::buffer_t>( rdsize );
+        Pipeline p = XrdCl::Read( archive, offset, rdbuff->size(), rdbuff->data() ) >>
+                       [relativeOffset, rdbuff, &cache, this]( XRootDStatus &st, ChunkInfo &ch )
+                       {
+                         Log *log = DefaultEnv::GetLog();
+                         log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at offset %d.",
+                                            this, ch.length, ch.offset );
+                         cache.QueueRsp( st, relativeOffset, std::move( *rdbuff ) );
+                       };
+        Async( std::move( p ), timeout );
       }
 
-      // the raw offset of the next chunk within the file
-      uint64_t rawOffset = cache.NextChunkOffset();
-      // if this is the first time we are setting an input chunk
-      // use the user-specified offset
-      if( !rawOffset )
-        rawOffset = relativeOffset;
-      // size of the next chunk of raw (compressed) data
-      uint32_t chunkSize = size;
-      // make sure we are not reading passed the end of the file
-      if( rawOffset + chunkSize > filesize )
-        chunkSize = filesize - rawOffset;
-      // allocate the buffer for the compressed data
-      buffer.reset( new char[chunkSize] );
-      Fwd<ChunkInfo> chunk;
-      Pipeline p = XrdCl::Read( archive, fileoff + rawOffset, chunkSize, buffer.get() ) >>
-                     [=, &cache]( XRootDStatus &st, ChunkInfo &ch )
-                     {
-                       if( !st.IsOK() ) return;
-                       log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at offset %d.",
-                                          this, ch.length, ch.offset );
-
-                       st = cache.Input( ch.buffer, ch.length, rawOffset );
-                       if( !st.IsOK() ) Pipeline::Stop( st );
-
-                       // at this point we can be sure that all the needed data are in the cache
-                       // (we requested as much data as the user asked for so in the worst case
-                       // we have exactly as much data as the user needs, most likely we have
-                       // more because the data are compressed)
-                       uint32_t bytesRead = 0;
-                       st = cache.Read( bytesRead );
-                       if( !st.IsOK() ) Pipeline::Stop( st );
-
-                       // forward server response to the final operation
-                       chunk->buffer = usrbuff;
-                       chunk->length = size;
-                       chunk->offset = relativeOffset;
-                     }
-                 | XrdCl::Final( [=]( const XRootDStatus &st ) mutable
-                     {
-                       buffer.reset();
-                       AnyObject *rsp = nullptr;
-                       if( st.IsOK() ) rsp = PkgRsp( new ChunkInfo( *chunk ) );
-                       if( usrHandler ) usrHandler->HandleResponse( make_status( st ), rsp );
-                     } );
-      Async( std::move( p ), timeout );
       return XRootDStatus();
     }
 

@@ -1,9 +1,26 @@
-/*
- * XrdZipInfltCache.hh
- *
- *  Created on: 10 Nov 2020
- *      Author: simonm
- */
+//------------------------------------------------------------------------------
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
+// Author: Michal Simon <michal.simon@cern.ch>
+//------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
+// XRootD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// XRootD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
+//------------------------------------------------------------------------------
 
 #ifndef SRC_XRDZIP_XRDZIPINFLCACHE_HH_
 #define SRC_XRDZIP_XRDZIPINFLCACHE_HH_
@@ -12,6 +29,10 @@
 #include <zlib.h>
 #include <exception>
 #include <string>
+#include <vector>
+#include <mutex>
+#include <queue>
+#include <tuple>
 
 namespace XrdCl
 {
@@ -34,13 +55,53 @@ namespace XrdCl
   {
     public:
 
-      ZipCache() : rawOffset( 0 ), rawSize( 0 ), totalRead( 0 )
+      typedef std::vector<char> buffer_t;
+
+    private:
+
+      typedef std::tuple<uint64_t, uint32_t, void*, ResponseHandler*> read_args_t;
+      typedef std::tuple<XRootDStatus, uint64_t, buffer_t> read_resp_t;
+
+      struct greater_read_resp_t
       {
-        strm.zalloc   = Z_NULL;
-        strm.zfree    = Z_NULL;
-        strm.opaque   = Z_NULL;
-        strm.avail_in = 0;
-        strm.next_in  = Z_NULL;
+        inline bool operator() ( const read_resp_t &lhs, const read_resp_t &rhs ) const
+        {
+          return std::get<1>( lhs ) > std::get<1>( rhs );
+        }
+      };
+
+      typedef std::priority_queue<read_resp_t, std::vector<read_resp_t>, greater_read_resp_t> resp_queue_t;
+
+    public:
+
+      struct ReadHandler : public ResponseHandler // TODO once we drop ZipArchiveReader this class can be removed
+      {
+        ReadHandler( uint64_t offset, uint32_t length, ZipCache &self ) : offset( offset ), buffer( length ), self( self )
+        {
+        }
+
+        void HandleResponse( XRootDStatus *status, AnyObject *response )
+        {
+          self.QueueRsp( *status, offset, std::move( buffer ) );
+          delete status;
+          delete response;
+          delete this;
+        }
+
+        uint64_t  offset;
+        buffer_t  buffer;
+        ZipCache &self;
+      };
+
+      ZipCache() : inabsoff( 0 )
+      {
+        strm.zalloc    = Z_NULL;
+        strm.zfree     = Z_NULL;
+        strm.opaque    = Z_NULL;
+        strm.avail_in  = 0;
+        strm.next_in   = Z_NULL;
+        strm.avail_out = 0;
+        strm.next_out  = Z_NULL;
 
         // make sure zlib doesn't look for gzip headers, in order to do so
         // pass negative window bits !!!
@@ -54,54 +115,107 @@ namespace XrdCl
         inflateEnd( &strm );
       }
 
-      XrdCl::XRootDStatus Input( void *inbuff, size_t insize, uint64_t rawoff )
+      inline void QueueReq( uint64_t offset, uint32_t length, void *buffer, ResponseHandler *handler )
       {
-        // we only support streaming for compressed files
-        if( rawoff != rawOffset + rawSize )
-          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal );
-
-        strm.avail_in = insize;
-        strm.next_in  = (Bytef*)inbuff;
-        rawOffset     = rawoff;
-        rawSize       = insize;
-
-        return XrdCl::XRootDStatus();
+        std::unique_lock<std::mutex> lck( mtx );
+        rdreqs.emplace( offset, length, buffer, handler );
+        Decompress();
       }
 
-      XrdCl::XRootDStatus Output( void *outbuff, size_t outsize, uint64_t offset )
+      inline void QueueRsp( const XRootDStatus &st, uint64_t offset, buffer_t &&buffer )
       {
-        // we only support streaming for compressed files
-        if( offset != totalRead )
-          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal );
-
-        strm.avail_out = outsize;
-        strm.next_out  = (Bytef*)outbuff;
-
-        return XrdCl::XRootDStatus();
-      }
-
-      XrdCl::XRootDStatus Read( uint32_t &bytesRead )
-      {
-        // the available space in output buffer before inflating
-        uInt avail_before = strm.avail_out;
-
-        int rc = inflate( &strm, Z_SYNC_FLUSH );
-        XrdCl::XRootDStatus st = ToXRootDStatus( rc, "inflate" );
-        if( !st.IsOK() ) return st;
-
-        bytesRead = avail_before - strm.avail_out;
-        totalRead += bytesRead;
-        if( strm.avail_out ) return XrdCl::XRootDStatus( XrdCl::stOK, XrdCl::suPartial );
-
-        return XrdCl::XRootDStatus();
-      }
-
-      uint64_t NextChunkOffset()
-      {
-        return rawOffset + rawSize;
+        std::unique_lock<std::mutex> lck( mtx );
+        rdrsps.emplace( st, offset, std::move( buffer ) );
+        Decompress();
       }
 
     private:
+
+      inline bool HasInput() const
+      {
+        return strm.avail_in != 0;
+      }
+
+      inline bool HasOutput() const
+      {
+        return strm.avail_out != 0;
+      }
+
+      inline void Input( const read_resp_t &rdrsp )
+      {
+        const buffer_t &buffer = std::get<2>( rdrsp );
+        strm.avail_in = buffer.size();
+        strm.next_in  = (Bytef*)buffer.data();
+      }
+
+      inline void Output( const read_args_t &rdreq )
+      {
+        strm.avail_out = std::get<1>( rdreq );
+        strm.next_out  = (Bytef*)std::get<2>( rdreq );
+      }
+
+      inline bool Consecutive( const read_resp_t &resp ) const
+      {
+        return ( std::get<1>( resp ) == inabsoff );
+      }
+
+      void Decompress()
+      {
+        while( HasInput() || HasOutput() || !rdreqs.empty() || !rdrsps.empty() )
+        {
+          if( !HasOutput() && !rdreqs.empty() )
+            Output( rdreqs.front() );
+
+          if( !HasInput() && !rdrsps.empty() && Consecutive( rdrsps.top() ) ) // the response might come out of order so we need to check the offset
+            Input( rdrsps.top() );
+
+          if( !HasInput() || !HasOutput() ) return;
+
+          // check the response status
+          XRootDStatus st = std::get<0>( rdrsps.top() );
+          if( !st.IsOK() ) return CallHandler( st );
+
+          // the available space in output buffer before inflating
+          uInt avail_before = strm.avail_in;
+          // decompress the data
+          int rc = inflate( &strm, Z_SYNC_FLUSH );
+          st = ToXRootDStatus( rc, "inflate" );
+          if( !st.IsOK() ) return CallHandler( st ); // report error to user handler
+          // update the absolute input offset by the number of bytes we consumed
+          inabsoff += avail_before - strm.avail_in;
+
+          if( !strm.avail_out ) // the output buffer is empty meaning a request has been fulfilled
+            CallHandler( XRootDStatus() );
+
+          // the input buffer is empty meaning a response has been consumed
+          // (we need to check if there are any elements in the responses
+          // queue as the input buffer might have been set directly by the user)
+          if( !strm.avail_in && !rdrsps.empty() )
+            rdrsps.pop();
+        }
+      }
+
+      static inline AnyObject* PkgRsp( ChunkInfo *chunk )
+      {
+        if( !chunk ) return nullptr;
+        AnyObject *rsp = new AnyObject();
+        rsp->Set( chunk );
+        return rsp;
+      }
+
+      inline void CallHandler( const XRootDStatus &st )
+      {
+        read_args_t args = std::move( rdreqs.front() );
+        rdreqs.pop();
+
+        ChunkInfo *chunk = nullptr;
+        if( st.IsOK() ) chunk = new ChunkInfo( std::get<0>( args ),
+                                                   std::get<1>( args ),
+                                                   std::get<2>( args ) );
+
+        ResponseHandler *handler = std::get<3>( args );
+        handler->HandleResponse( new XRootDStatus( st ), PkgRsp( chunk ) );
+      }
 
       XrdCl::XRootDStatus ToXRootDStatus( int rc, const std::string &func )
       {
@@ -121,10 +235,12 @@ namespace XrdCl
         }
       }
 
-      uint64_t  rawOffset; // offset of the raw data chunk in the compressed file (not archive)
-      uint32_t  rawSize;   // size of the raw data chunk
-      uint64_t  totalRead; // total number of bytes read so far
       z_stream  strm;      // the zlib stream we will use for reading
+
+      std::mutex              mtx;
+      uint64_t                inabsoff; //< the absolute offset in the input file (compressed), ensures the user is actually streaming the data
+      std::queue<read_args_t> rdreqs;   //< pending read requests  (we only allow read requests to be submitted in order)
+      resp_queue_t            rdrsps;   //< pending read responses (due to multiple-streams the read response may come out of order)
   };
 
 }
