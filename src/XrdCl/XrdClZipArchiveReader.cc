@@ -30,6 +30,9 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClZipCache.hh"
+#include "XrdCl/XrdClOperations.hh"
+#include "XrdCl/XrdClFileOperations.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -43,113 +46,6 @@
 
 namespace XrdCl
 {
-
-struct ZipCacheError
-{
-    ZipCacheError( const XRootDStatus &status ) : status( status )
-    {
-    }
-
-    XRootDStatus status;
-};
-
-class ZipCache
-{
-  public:
-
-    ZipCache() : rawOffset( 0 ), rawSize( 0 ), totalRead( 0 )
-    {
-      strm.zalloc   = Z_NULL;
-      strm.zfree    = Z_NULL;
-      strm.opaque   = Z_NULL;
-      strm.avail_in = 0;
-      strm.next_in  = Z_NULL;
-
-      // make sure zlib doesn't look for gzip headers, in order to do so
-      // pass negative window bits !!!
-      int rc = inflateInit2( &strm, -MAX_WBITS );
-      XRootDStatus st = ToXRootDStatus( rc, "inflateInit2" );
-      if( !st.IsOK() ) throw ZipCacheError( st );
-    }
-
-    ~ZipCache()
-    {
-      inflateEnd( &strm );
-    }
-
-    XRootDStatus Input( void *inbuff, size_t insize, uint64_t rawoff )
-    {
-      // we only support streaming for compressed files
-      if( rawoff != rawOffset + rawSize )
-        return XRootDStatus( stError, errInternal );
-
-      strm.avail_in = insize;
-      strm.next_in  = (Bytef*)inbuff;
-      rawOffset     = rawoff;
-      rawSize       = insize;
-
-      return XRootDStatus();
-    }
-
-    XRootDStatus Output( void *outbuff, size_t outsize, uint64_t offset )
-    {
-      // we only support streaming for compressed files
-      if( offset != totalRead )
-        return XRootDStatus( stError, errInternal );
-
-      strm.avail_out = outsize;
-      strm.next_out  = (Bytef*)outbuff;
-
-      return XRootDStatus();
-    }
-
-    XRootDStatus Read( uint32_t &bytesRead )
-    {
-      // the available space in output buffer before inflating
-      uInt avail_before = strm.avail_out;
-
-      int rc = inflate( &strm, Z_SYNC_FLUSH );
-      XRootDStatus st = ToXRootDStatus( rc, "inflate" );
-      if( !st.IsOK() ) return st;
-
-      bytesRead = avail_before - strm.avail_out;
-      totalRead += bytesRead;
-      if( strm.avail_out ) return XRootDStatus( stOK, suPartial );
-
-      return XRootDStatus();
-    }
-
-    uint64_t NextChunkOffset()
-    {
-      return rawOffset + rawSize;
-    }
-
-  private:
-
-    XRootDStatus ToXRootDStatus( int rc, const std::string &func )
-    {
-      std::string msg = "[zlib] " + func + " : ";
-
-      switch( rc )
-      {
-        case Z_STREAM_END    :
-        case Z_OK            : return XRootDStatus();
-        case Z_BUF_ERROR     : return XRootDStatus( stOK, suContinue );
-        case Z_MEM_ERROR     : return XRootDStatus( stError, errInternal,    Z_MEM_ERROR,     msg + "not enough memory." );
-        case Z_VERSION_ERROR : return XRootDStatus( stError, errInternal,    Z_VERSION_ERROR, msg + "version mismatch." );
-        case Z_STREAM_ERROR  : return XRootDStatus( stError, errInvalidArgs, Z_STREAM_ERROR,  msg + "invalid argument." );
-        case Z_NEED_DICT     : return XRootDStatus( stError, errDataError,   Z_NEED_DICT,     msg + "need dict.");
-        case Z_DATA_ERROR    : return XRootDStatus( stError, errDataError,   Z_DATA_ERROR,    msg + "corrupted data." );
-        default              : return XRootDStatus( stError, errUnknown );
-      }
-    }
-
-    uint64_t  rawOffset; // offset of the raw data chunk in the compressed file (not archive)
-    uint32_t  rawSize;   // size of the raw data chunk
-    uint64_t  totalRead; // total number of bytes read so far
-    z_stream  strm;      // the zlib stream we will use for reading
-};
-
 
 template<typename RESP>
 struct ZipHandlerException
@@ -794,70 +690,6 @@ class ZipReadHandler : public ZipHandlerBase<ChunkInfo>
     uint64_t pRelativeOffset;
 };
 
-
-class ZipReadCompressedHandler : public ZipHandlerBase<ChunkInfo>
-{
-  public:
-
-    ZipReadCompressedHandler( ZipCache             &cache,
-                              uint64_t              relativeOffet,
-                              uint64_t              rawOffset,
-                              void                 *userBuffer,
-                              uint32_t              userSize,
-                              ZipArchiveReaderImpl *impl,
-                              ResponseHandler      *userHandler ) : ZipHandlerBase<ChunkInfo>( impl, userHandler ),
-                                                                    pCache( cache ),
-                                                                    pUserOffset( relativeOffet ),
-                                                                    pRawOffset( rawOffset ),
-                                                                    pUserBuffer( userBuffer ),
-                                                                    pUserSize( userSize )
-    {
-
-    }
-
-    virtual void HandleResponseImpl( XRootDStatus *status, ChunkInfo *response )
-    {
-      XRootDStatus st = pCache.Input( response->buffer, response->length, pRawOffset );
-      if( !st.IsOK() )
-      {
-        DeleteArgs( status, response );
-        if( pUserHandler ) pUserHandler->HandleResponse( new XRootDStatus( st ), 0 );
-        return;
-      }
-
-      // at this point we can be sure that all the needed data are in the cache
-      // (we requested as much data as the user asked for so in the worst case
-      // we have exactly as much data as the user needs, most likely we have
-      // more because the data are compressed)
-      uint32_t bytesRead = 0;
-      st = pCache.Read( bytesRead );
-      if( !st.IsOK() )
-      {
-        DeleteArgs( status, response );
-        if( pUserHandler ) pUserHandler->HandleResponse( new XRootDStatus( st ), 0 );
-        return;
-      }
-
-      // prepare the response for the end-user
-      response->buffer = pUserBuffer;
-      response->length = pUserSize;
-      response->offset = pUserOffset;
-
-      if( pUserHandler ) pUserHandler->HandleResponse( status, PkgResp( response ) );
-      else
-        DeleteArgs( status, response );
-    }
-
-  private:
-
-    ZipCache &pCache;
-    uint64_t  pUserOffset;
-    uint64_t  pRawOffset;
-    void     *pUserBuffer;
-    uint32_t  pUserSize;
-};
-
-
 ZipArchiveReader::ZipArchiveReader( File &archive ) : pImpl( new ZipArchiveReaderImpl( archive ) )
 {
 
@@ -1103,54 +935,52 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   if( cdfh->pCompressionMethod == Z_DEFLATED )
   {
     // check if respective ZIP cache exists
-    bool recent = pCompressed.find( filename ) == pCompressed.end();
+    bool empty = pCompressed.find( filename ) == pCompressed.end();
     // if the entry does not exist, it will be created using
     // default constructor
     ZipCache &cache = pCompressed[filename];
+
+    if( relativeOffset > cdfh->pUncompressedSize )
+    {
+      // we are reading past the end of file,
+      // we can serve the request right away!
+      ChunkInfo *ch = new ChunkInfo( relativeOffset, 0, buffer );
+      AnyObject *rsp = new AnyObject();
+      rsp->Set( ch );
+      userHandler->HandleResponse( new XRootDStatus(), rsp );
+      return XRootDStatus();
+    }
+
+    uint32_t sizereq = size;
+    if( relativeOffset + size > cdfh->pUncompressedSize )
+      sizereq = cdfh->pUncompressedSize - relativeOffset;
+    cache.QueueReq( relativeOffset, sizereq, buffer, userHandler );
+
     // if we have the whole ZIP archive we can populate the cache
     // straight away
-    if( recent && pBuffer)
+    if( empty && pBuffer )
     {
-      XRootDStatus st = cache.Input( pBuffer.get() + offset, filesize - fileoff, relativeOffset );
-      if( !st.IsOK() ) return st;
+      auto begin = pBuffer.get();
+      auto end   = begin + filesize ;
+      std::vector<char> buff( begin, end );
+      cache.QueueRsp( XRootDStatus(), 0, std::move( buff ) );
+      return XRootDStatus();
     }
 
-    XRootDStatus st = cache.Output( buffer, size, relativeOffset );
-
-    uint32_t bytesRead = 0;
-    st = cache.Read( bytesRead );
-
-    // propagate errors to the end-user
-    if( !st.IsOK() ) return st;
-
-    if( st.code == suPartial )
+    // if we don't have the data we need to issue a remote read
+    if( !buffer )
     {
-      // the raw offset of the next chunk within the file
-      uint64_t rawOffset = cache.NextChunkOffset();
-      // if this is the first time we are setting an input chunk
-      // use the user-specified offset
-      if( !rawOffset )
-        rawOffset = relativeOffset;
-      // size of the next chunk of raw (compressed) data
-      uint32_t chunkSize = size;
-      // make sure we are not reading passed the end of the file
-      if( rawOffset + chunkSize > filesize )
-        chunkSize = filesize - rawOffset;
-      // allocate the buffer for the compressed data
-      pBuffer.reset( new char[chunkSize] );
-      ZipReadCompressedHandler *handler = new ZipReadCompressedHandler( cache, relativeOffset, rawOffset, buffer, size, this, userHandler );
-      st = pArchive.Read( fileoff + rawOffset, chunkSize, pBuffer.get(), handler, timeout );
-      if( !st.IsOK() ) delete handler;
-      return st;
-    }
+      if( relativeOffset > cdfh->pCompressedSize ) return XRootDStatus(); // there's nothing to do,
+                                                                         // we already have all the data locally
+      uint32_t rdsize = size;
+      if( relativeOffset + size > cdfh->pCompressedSize )
+        rdsize = cdfh->pCompressedSize - relativeOffset;
 
-    if( userHandler )
-    {
-      XRootDStatus *st   = new XRootDStatus();
-      AnyObject    *resp = new AnyObject();
-      ChunkInfo    *info = new ChunkInfo( relativeOffset, size, buffer );
-      resp->Set( info );
-      userHandler->HandleResponse( st, resp );
+      // now read the data ...
+      ZipCache::ReadHandler rdhandler( relativeOffset, rdsize, cache );
+      auto &rdbuff = rdhandler.buffer;
+      Pipeline p = XrdCl::Read( pArchive, offset, rdbuff.size(), rdbuff.data() ) >> rdhandler;
+      Async( std::move( p ), timeout );
     }
 
     return XRootDStatus();
