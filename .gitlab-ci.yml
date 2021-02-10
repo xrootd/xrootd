@@ -426,9 +426,9 @@ release:pypi:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install --nogpg -y git python-pip which
-    - pip install --upgrade pip
-    - pip install setuptools wheel --upgrade
+    - yum install --nogpg -y git python3-pip which
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install setuptools wheel --upgrade
     - cp packaging/wheel/* .
     - ./publish.sh
   artifacts:
