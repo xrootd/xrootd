@@ -209,7 +209,7 @@ public:
                          : XrdSecProtocol("ztn"), sthP(sthp), tokName(""),
                            maxTSize(MaxTokSize), cont(false), rtGet(false)
                          {Entity.host = strdup(hname);
-                          Entity.name = (char *)"anon";
+                          Entity.name = strdup("anon");
                           Entity.addrInfo = &endPoint;
                          }
 
