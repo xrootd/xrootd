@@ -234,6 +234,12 @@ int XrdHttpReq::parseLine(char *line, int len) {
     // Trim left
     while ( (!isgraph(*val) || (!*val)) && (val < line+len)) val++;
 
+    // We memorize the headers also as a string                                                                                                                                              
+    // because external plugins may need to process it differently                                                                                                                          
+    std::string ss = val;
+    trim(ss);
+    allheaders[key] = ss;
+	  
     // Here we are supposed to initialize whatever flag or variable that is needed
     // by looking at the first token of the line
     // The token is key
@@ -287,11 +293,7 @@ int XrdHttpReq::parseLine(char *line, int len) {
       }
     }
 
-    // We memorize the heaers also as a string
-    // because external plugins may need to process it differently
-    std::string ss = val;
-    trim(ss);
-    allheaders[key] = ss;
+
     line[pos] = ':';
   }
 
