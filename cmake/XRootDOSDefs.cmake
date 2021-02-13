@@ -26,6 +26,14 @@ add_definitions( -DUSE_LIBC_SEMAPHORE=${USE_LIBC_SEMAPHORE} )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -DOPENSSL_NO_FILENAMES" )
 
 #-------------------------------------------------------------------------------
+# Enable XrdCl::Pipelines for clang compiler
+# Note: once we move to c++14 globaly we can remove this
+#-------------------------------------------------------------------------------
+if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
+  set( XrdClPipelines TRUE )
+endif()
+
+#-------------------------------------------------------------------------------
 # GCC
 #-------------------------------------------------------------------------------
 if( CMAKE_COMPILER_IS_GNUCXX )
