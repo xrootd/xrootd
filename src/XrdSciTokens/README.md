@@ -1,32 +1,36 @@
-SciTokens Authorization Support for Xrootd
+SciTokens Authorization Support for XRootD
 ==========================================
 
-This ACC (authorization) plugin for the Xrootd framework utilizes the [SciTokens
+This ACC (authorization) plugin for the XRootD framework utilizes the [SciTokens
 library](https://www.scitokens.org) to validate and extract authorization claims from
 a SciToken passed during a transfer.
 
-Configured appropriately, this allows the Xrootd server admin to delegate authorization
+Configured appropriately, this allows the XRootD server admin to delegate authorization
 decisions for a subset of the namespace to an external issuer.  For example, this would
 allow LIGO to decide the read/write authorizations for pieces of the LIGO namespace.
 
-Loading the plugin in Xrootd
-----------------------------
+Loading the plugin in the xrootd daemon
+---------------------------------------
 
-To load the plugin, add the following lines to your Xrootd configuration file:
+To load the plugin, using the default authorization scheme as a fallback,
+add the following lines to your XRootD configuration file:
 
 ```
 ofs.authorize
-ofs.authlib libXrdAccSciTokens.so
+ofs.authlib ++ libXrdAccSciTokens.so
 
-# Pass the bearer token to the Xrootd authorization framework.
+# Pass the bearer token to the XRootD authorization framework.
 http.header2cgi Authorization authz
 ```
+Note that you will need to configure the default authorization scheme as well.
+If SciTokens is the *only* authorization scheme allowed then you can
+omit the "++" and all requests are required to present a valid bearer token.
 
-Restart the Xrootd service.  The SciTokens plugin in the `ofs.authlib` line additionally can take a
+Restart the xrootd daemon.  The SciTokens plugin in the `ofs.authlib` line additionally can take a
 parameter to specify the configuration file:
 
 ```
-ofs.authlib libXrdAccSciTokens.so config=/path/to/config/file
+ofs.authlib [++] libXrdAccSciTokens.so config=/path/to/config/file
 ```
 
 If not given, it defaults to `/etc/xrootd/scitokens.cfg`.  Restart the service for new settings to take effect.
@@ -35,7 +39,7 @@ SciTokens Configuration File
 ----------------------------
 
 The SciTokens configuration file (default: `/etc/xrootd/scitokens.cfg`) specifies the recognized
-issuers and maps them to the Xrootd namespace.  It uses the popular INI-format.  Here is an example
+issuers and maps them to the XRootD namespace.  It uses the popular INI-format.  Here is an example
 entry:
 
 ```
@@ -81,7 +85,7 @@ are:
       namespace contains directories that should not be managed by the issuer.
    - `map_subject` (optional): Defaults to `false`; if set to `true`, any contents of the `sub` claim will be copied
       into the Xrootd username.  When combined with the [xrootd-multiuser](https://github.com/bbockelm/xrootd-multiuser)
-      plugin, this will allow the Xrootd daemon to write out files utilizing the Unix username specified by the VO
+      plugin, this will allow the xrootd daemon to write out files utilizing the Unix username specified by the VO
       in the token.  Except in narrow use cases, the default of `false` is sufficient.
    - `default_user` (optional): If set, then all authorized operations will be done under the provided username when
       interacting with the filesystem.  This is useful in the case where the administrator desires that all files owned
