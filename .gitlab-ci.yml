@@ -595,8 +595,6 @@ xrootd_dockerimage:
 
 xrootd_docker_test:
   stage: test
-  tags:
-    - shell-with-kubernetes
   script:
     - docker pull gitlab-registry.cern.ch/dss/xrootd
     - cd xrootd-docker
@@ -643,8 +641,6 @@ pyxrootd_dockerimage:
     
 pyxrootd_docker_test:
   stage: test
-  tags:
-    - shell-with-kubernetes
   script:
     - docker pull gitlab-registry.cern.ch/dss/xrootd:pylatest
     - sudo docker run -dit --privileged -e "container=docker" --name pyxrootd-container -h pyxrootd-container gitlab-registry.cern.ch/dss/xrootd:pylatest /sbin/init
