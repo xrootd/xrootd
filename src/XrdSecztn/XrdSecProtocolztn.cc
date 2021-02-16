@@ -780,7 +780,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
                      {Fatal(erp, "-expiry argument missing", EINVAL);
                       return 0;
                      }
-                       if (strcmp(val, "none"))     expiry =  0;
+                       if (strcmp(val, "ignore"))   expiry =  0;
                   else if (strcmp(val, "optional")) expiry = -1;
                   else if (strcmp(val, "required")) expiry =  1;
                   else {Fatal(erp, "-expiry argument invalid", EINVAL);
