@@ -9,7 +9,8 @@ set( LIB_XRD_SEC_ZTN XrdSecztn-${PLUGIN_VERSION} )
 add_library(
   ${LIB_XRD_SEC_ZTN}
   MODULE
-  XrdSecztn/XrdSecProtocolztn.cc )
+  XrdSecztn/XrdSecProtocolztn.cc
+  XrdSecztn/XrdSecztn.cc )
 
 target_link_libraries(
   ${LIB_XRD_SEC_ZTN}

@@ -436,7 +436,7 @@ public:
 
     }
 
-    virtual bool Validate(const char *token, std::string &emsg,
+    virtual bool Validate(const char *token, std::string &emsg, long long *expT,
                           XrdSecEntity *Entity)
     {
         // Just check if the token is valid, no scope checking
@@ -455,6 +455,25 @@ public:
             free(err_msg);
             return false;
         }
+
+        // If an entity was passed then we will fill it in with the subject
+        // name, should it exist. Note that we are gauranteed that all the
+        // settable entity fields are null so no need to worry setting them.
+        //
+        if (Entity)
+           {char *value = nullptr;
+            if (!scitoken_get_claim_string(scitoken, "sub", &value, &err_msg))
+               Entity->name = strdup(value);
+           }
+
+        // Return the expiration time of this token if so wanted.
+        //
+        if (expT && scitoken_get_expiration(scitoken, expT, &err_msg)) {
+            emsg = err_msg;
+            free(err_msg);
+            return false;
+        }
+
 
         // Delete the scitokens
         scitoken_destroy(scitoken);

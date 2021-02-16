@@ -41,6 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <vector>
 #include <arpa/inet.h>
 #include <sys/stat.h>
@@ -86,6 +87,26 @@ XrdSecCredentials *Fatal(XrdOucErrInfo *erp, const char *eMsg, int rc,
            }
    return 0;
 }
+
+/******************************************************************************/
+/*                        m o n o t o n i c _ t i m e                         */
+/******************************************************************************/
+  
+inline uint64_t monotonic_time() {
+  struct timespec tp;
+#ifdef CLOCK_MONOTONIC_COARSE
+  clock_gettime(CLOCK_MONOTONIC_COARSE, &tp);
+#else
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+#endif
+  return tp.tv_sec + (tp.tv_nsec >= 500000000);
+}
+
+/******************************************************************************/
+/*                    G l o b a l   S t a t i c   D a t a                     */
+/******************************************************************************/
+  
+int expiry = 1;
 }
 
 /******************************************************************************/
@@ -177,7 +198,16 @@ static const uint64_t useFirst = 0x0000000000000100ULL;
 static const uint64_t useLast  = 0x0000000000000200ULL;
 static const uint64_t srvRTOK  = 0x0000000000000800ULL;
 }
+
+/******************************************************************************/
+/*                     E x t e r n a l   L i n k a g e s                      */
+/******************************************************************************/
   
+namespace XrdSecztn
+{
+extern bool isJWT(const char *);
+}
+
 /******************************************************************************/
 /*               X r d S e c P r o t o c o l z t n   C l a s s                */
 /******************************************************************************/
@@ -207,26 +237,33 @@ public:
         XrdSecProtocolztn(const char *hname, XrdNetAddrInfo &endPoint,
                           XrdSciTokensHelper *sthp)
                          : XrdSecProtocol("ztn"), sthP(sthp), tokName(""),
-                           maxTSize(MaxTokSize), cont(false), rtGet(false)
+                           maxTSize(MaxTokSize), cont(false),
+                           rtGet(false), verJWT(false)
                          {Entity.host = strdup(hname);
-                          Entity.name = (char *)"anon";
+                          Entity.name = strdup("anon");
                           Entity.addrInfo = &endPoint;
                          }
 
        ~XrdSecProtocolztn() {if (Entity.host) free(Entity.host);
                              if (Entity.name) free(Entity.name);
                             } // via Delete()
+
+static const int ztnVersion = 0;
+
 private:
+
 
 struct TokenHdr
       {char     id[4];
+       char     ver;
        char     opr;
-       char     num;
 
        static const char SndAI = 'S';
        static const char IsTkn = 'T';
 
-       void     Fill(char opc, int n=1) {strcpy(id, "ztn"); opr = opc; num = n;}
+       void     Fill(char opc) {strcpy(id, "ztn"); ver = ztnVersion;
+                                opr = opc;
+                               }
       };
 
 struct TokenResp
@@ -252,6 +289,7 @@ uint64_t            ztnInfo;
 int                 maxTSize;
 bool                cont;
 bool                rtGet;
+bool                verJWT;
 };
 
 /******************************************************************************/
@@ -265,7 +303,7 @@ XrdSecProtocolztn::XrdSecProtocolztn(const char *parms, XrdOucErrInfo *erp,
                                      bool       &aOK)
                                     : XrdSecProtocol("ztn"), sthP(0),
                                       tokName(""), ztnInfo(0), maxTSize(0),
-                                      cont(false), rtGet(false)
+                                      cont(false), rtGet(false), verJWT(false)
 {
    char *endP;
 
@@ -382,7 +420,9 @@ XrdSecCredentials *XrdSecProtocolztn::getCredentials(XrdSecParameters *parms,
 // Check if we need to use server supplied envars first
 //
    if (ztnInfo & useFirst)
-      {resp = findToken(error, srvrLoc, isbad);
+      {verJWT = true;
+       resp = findToken(error, srvrLoc, isbad);
+       verJWT = false;
        if (resp || isbad) return resp;
       }
 
@@ -396,7 +436,9 @@ XrdSecCredentials *XrdSecProtocolztn::getCredentials(XrdSecParameters *parms,
 // Check if we need to use server supplied envars first
 //
    if (!(ztnInfo & useFirst) && (ztnInfo & useLast))
-      {resp = findToken(error, srvrLoc, isbad);
+      {verJWT = true;
+       resp = findToken(error, srvrLoc, isbad);
+       verJWT = false;
        if (resp || isbad) return resp;
       }
 
@@ -405,7 +447,7 @@ XrdSecCredentials *XrdSecProtocolztn::getCredentials(XrdSecParameters *parms,
 //
    if (rtGet)
       {TokenHdr *tHdr = (TokenHdr *)malloc(sizeof(TokenHdr));
-       tHdr->Fill(TokenHdr::SndAI, 0);
+       tHdr->Fill(TokenHdr::SndAI);
        cont = true;
        return new XrdSecCredentials((char *)tHdr, sizeof(TokenHdr));
       }
@@ -525,6 +567,10 @@ XrdSecCredentials *XrdSecProtocolztn::retToken(XrdOucErrInfo *erp,
 //
    if (tsz >= maxTSize) return Fatal(erp, "Token is too big", EMSGSIZE);
 
+// Verify that this is actually a JWT if so wanted
+//
+   if (verJWT && !XrdSecztn::isJWT(tkn)) return 0;
+
 // Get sufficient storage to assemble the full response
 //
    tResp = (TokenResp *)malloc(rspLen);
@@ -626,7 +672,7 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
 // Make sure the response is consistent
 //
    int tLen = ntohs(tResp->len);
-   if (tResp->hdr.num != 1 || tLen < 1
+   if (tResp->hdr.ver != ztnVersion || tLen < 1
    ||  (int(sizeof(TokenResp) + tLen)) > cred->size
    || !(tResp->tkn[0]) || *(tResp->tkn+(tLen-1)))
       {Fatal(erp, "'ztn' token response malformed", EINVAL, false);
@@ -636,9 +682,20 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
 // Validate the token
 //
    std::string msgRC;
+   long long   eTime;
    if (Entity.name) {free(Entity.name); Entity.name = 0;}
-   if (sthP->Validate(tResp->tkn, msgRC, &Entity))
-      {if (!Entity.name) Entity.name = strdup("anon");
+   if (sthP->Validate(tResp->tkn, msgRC, (expiry ? &eTime : 0), &Entity))
+      {if (expiry)
+          {if (eTime < 0 && expiry > 0)
+              {Fatal(erp, "'ztn' token expiry missing", EINVAL, false);
+               return -1;
+              }
+           if ((monotonic_time() - eTime) <= 0)
+              {Fatal(erp, "'ztn' token expired", EINVAL, false);
+               return -1;
+              }
+      }
+       if (!Entity.name) Entity.name = strdup("anon");
        return 0;
       }
 
@@ -694,13 +751,14 @@ char  *XrdSecProtocolztnInit(const char     mode,
    XrdOucString    cfgParms(parms);
    XrdOucTokenizer cfg(const_cast<char *>(cfgParms.c_str()));
    char *endP, *val;
-   uint64_t opts = 0;
+   uint64_t opts = XrdSecProtocolztn::ztnVersion;
 
 // Setup to parse parameters
 //
    cfg.GetLine();
 
-// Parse the parameters: -maxsz <num> -rt -tokenlib <pipath>
+// Parse the parameters: -expiry {none|optional|required} -maxsz <num> -rt
+//                       -tokenlib <libpath>
 //                       -use [first|last|only] {<speclist> | none}
 //
    while((val = cfg.GetToken()))
@@ -717,6 +775,19 @@ char  *XrdSecProtocolztnInit(const char     mode,
                       return 0;
                      }
                  }
+         else if (!strcmp(val, "-expiry"))
+                 {if (!(val = cfg.GetToken()))
+                     {Fatal(erp, "-expiry argument missing", EINVAL);
+                      return 0;
+                     }
+                       if (strcmp(val, "none"))     expiry =  0;
+                  else if (strcmp(val, "optional")) expiry = -1;
+                  else if (strcmp(val, "required")) expiry =  1;
+                  else {Fatal(erp, "-expiry argument invalid", EINVAL);
+                        return 0;
+                       }
+                 }
+
          else if (!strcmp(val, "-rt")) opts |= srvRTOK;
 
          else if (!strcmp(val, "-tokenlib"))
@@ -729,7 +800,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
 
          else if (!strcmp(val, "-use"))
                  {if (!(val = cfg.GetToken()))
-                     {Fatal(erp, "-envar argument missing", EINVAL);
+                     {Fatal(erp, "use envar argument missing", EINVAL);
                       return 0;
                      }
                   opts &= ~(useFirst | useLast);
@@ -740,7 +811,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
                   if (opts & (useFirst | useLast) && !(val = cfg.GetToken()))
                      {Fatal(erp, "-use argument missing", EINVAL);
                       return 0;
-                     }
+                     } else opts |= useLast;
 
                   useVec.clear();
                   if (strcmp(val, "none") && !vecVars(val, useVec))

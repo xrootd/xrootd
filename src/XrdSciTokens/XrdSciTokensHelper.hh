@@ -43,6 +43,8 @@ virtual  Issuers IssuerList() = 0;
 //!
 //! @param   token - Pointer to the token to validate.
 //! @param   emsg  - Reference to a string to hold the reason for rejection
+//! @param   expT  - Pointer to where the expiry value is to be placed. If
+//!                  nill, the value is not returned.
 //! @param   entP  - Pointer to the SecEntity object and when not nil requests
 //!                  that it be filled with any identifying information in
 //!                  the token. The caller assumes that all supplied fields
@@ -53,6 +55,7 @@ virtual  Issuers IssuerList() = 0;
 
 virtual  bool    Validate(const char   *token,
                           std::string  &emsg,
+                          long long    *expT=0,
                           XrdSecEntity *entP=0) = 0;
 
 //-----------------------------------------------------------------------------
