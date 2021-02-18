@@ -419,6 +419,9 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
                 std::stringstream ss;
                 ss << "Transfer failed because no bytes have been received in " << timeout << " seconds.";
                 state.SetErrorMessage(ss.str());
+                curl_multi_remove_handle(multi_handle, curl);
+                curl_easy_cleanup(curl);
+                curl_multi_cleanup(multi_handle);
                 break;
             }
             last_marker = now;
