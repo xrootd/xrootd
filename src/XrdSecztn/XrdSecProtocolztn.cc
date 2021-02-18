@@ -142,46 +142,6 @@ bool getLinkage(XrdOucErrInfo *erp, const char *piName)
    return false;
   }
 }
-  
-/******************************************************************************/
-/*                               v e c V a r s                                */
-/******************************************************************************/
-  
-namespace
-{
-bool vecVars(const char *vSpec, std::vector<XrdOucString> &Vec)
-{
-   XrdOucString Val;
-   char *comma, *varP;
-   int n;
-
-// Make sure we have somthing here and it has no embedded spaces
-//
-   if (!(n = strlen(vSpec)) || index(vSpec, ' ')) return false;
-
-// Copy envar list as we need to modify it
-//
-   varP = (char *)alloca(n+1);
-   strcpy(varP, vSpec);
-
-// Copy out the envar list
-//
-   do {comma = index(varP, ',');
-       if (comma) *comma = 0;
-       if (*varP)
-          {if (*varP != '/' || index(varP, '%') == rindex(varP, '%'))
-              {Val = varP;
-               Vec.push_back(Val);
-              }
-          }
-       varP = comma + 1;
-      } while(comma);
-
-// All done
-//
-   return Vec.size() != 0;
-}
-}
 
 /******************************************************************************/
 /*                     L o c a l   D e f i n i t i o n s                      */
@@ -281,8 +241,6 @@ XrdSecCredentials *retToken(XrdOucErrInfo *erp, const char *tkn, int tsz);
 int                SendAI(XrdOucErrInfo *erp, XrdSecParameters **parms);
 const char        *Strip(const char *bTok, int &sz);
 
-std::vector<XrdOucString> srvrLoc;
-
 XrdSciTokensHelper *sthP;
 const char         *tokName;
 uint64_t            ztnInfo;
@@ -318,7 +276,7 @@ XrdSecProtocolztn::XrdSecProtocolztn(const char *parms, XrdOucErrInfo *erp,
        return;
       }
 
-// Server supplied parms: <opts+ver>:<maxtsz>:[<envar>[,<envar>[,...]]]
+// Server supplied parms: <opts+ver>:<maxtsz>:
 
 // The first parameter is the options and version number.
 //
@@ -337,11 +295,6 @@ XrdSecProtocolztn::XrdSecProtocolztn(const char *parms, XrdOucErrInfo *erp,
        return;
       }
    endP++;
-
-// Check if we have an envar list. If none ignore search settings as we do
-// not yet support -rt (i.e. realtime token generation).
-//
-   if (!(*endP) || !vecVars(endP, srvrLoc)) ztnInfo &= ~(useFirst | useLast);
 
 // All done here
 //
@@ -417,30 +370,10 @@ XrdSecCredentials *XrdSecProtocolztn::getCredentials(XrdSecParameters *parms,
 //
    if (cont) return getToken(error, parms);
 
-// Check if we need to use server supplied envars first
+// Handle the default search
 //
-   if (ztnInfo & useFirst)
-      {verJWT = true;
-       resp = findToken(error, srvrLoc, isbad);
-       verJWT = false;
-       if (resp || isbad) return resp;
-      }
-
-// Handle the default search if allowed
-//
-   if (!((ztnInfo & useFirst) && (ztnInfo & useLast)))
-      {resp = findToken(error, dfltVec, isbad);
-       if (resp || isbad) return resp;
-      }
-
-// Check if we need to use server supplied envars first
-//
-   if (!(ztnInfo & useFirst) && (ztnInfo & useLast))
-      {verJWT = true;
-       resp = findToken(error, srvrLoc, isbad);
-       verJWT = false;
-       if (resp || isbad) return resp;
-      }
+   resp = findToken(error, dfltVec, isbad);
+   if (resp || isbad) return resp;
 
 // We do not have a envar value then ask the server for a list of
 // token issuers so we can get one, if allowed. Otherwise, it's an error.
@@ -701,7 +634,7 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
 
 // Validation failed, generate message and return failure
 //
-   msgRC.insert(0, "ztn validation failed; ");
+// msgRC.insert(0, "ztn validation failed; ");
    Fatal(erp, msgRC.c_str(), EAUTH, false);
    return -1;
 }
@@ -731,6 +664,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
 {
    static char nilstr = 0;
    XrdOucString accPlugin("libXrdAccSciTokens.so");
+   uint64_t opts = XrdSecProtocolztn::ztnVersion;
 
 // This only makes sense for server initialization
 //
@@ -741,7 +675,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
    if (!parms || !(*parms))
       {char buff[256];
        if (!getLinkage(erp, accPlugin.c_str())) return 0;
-       snprintf(buff, sizeof(buff), "TLS:0:%d:", MaxTokSize);
+       snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxTokSize);
        return strdup(buff);
       }
 
@@ -751,15 +685,13 @@ char  *XrdSecProtocolztnInit(const char     mode,
    XrdOucString    cfgParms(parms);
    XrdOucTokenizer cfg(const_cast<char *>(cfgParms.c_str()));
    char *endP, *val;
-   uint64_t opts = XrdSecProtocolztn::ztnVersion;
 
 // Setup to parse parameters
 //
    cfg.GetLine();
 
-// Parse the parameters: -expiry {none|optional|required} -maxsz <num> -rt
+// Parse the parameters: -expiry {none|optional|required} -maxsz <num>
 //                       -tokenlib <libpath>
-//                       -use [first|last|only] {<speclist> | none}
 //
    while((val = cfg.GetToken()))
         {     if (!strcmp(val, "-maxsz"))
@@ -788,8 +720,6 @@ char  *XrdSecProtocolztnInit(const char     mode,
                        }
                  }
 
-         else if (!strcmp(val, "-rt")) opts |= srvRTOK;
-
          else if (!strcmp(val, "-tokenlib"))
                  {if (!(val = cfg.GetToken()))
                      {Fatal(erp, "-acclib plugin path missing", EINVAL);
@@ -798,48 +728,11 @@ char  *XrdSecProtocolztnInit(const char     mode,
                   accPlugin = val;
                  }
 
-         else if (!strcmp(val, "-use"))
-                 {if (!(val = cfg.GetToken()))
-                     {Fatal(erp, "use envar argument missing", EINVAL);
-                      return 0;
-                     }
-                  opts &= ~(useFirst | useLast);
-                       if (!strcmp(val, "first")) opts |=  useFirst;
-                  else if (!strcmp(val, "last"))  opts |=  useLast;
-                  else if (!strcmp(val, "only"))  opts |= (useFirst | useLast);
-
-                  if (opts & (useFirst | useLast) && !(val = cfg.GetToken()))
-                     {Fatal(erp, "-use argument missing", EINVAL);
-                      return 0;
-                     } else opts |= useLast;
-
-                  useVec.clear();
-                  if (strcmp(val, "none") && !vecVars(val, useVec))
-                     {Fatal(erp, "-use argument list malformed", EINVAL);
-                      return 0;
-                     }
-                 }
-
          else {XrdOucString eTxt("Invalid parameter - "); eTxt += val;
                Fatal(erp, eTxt.c_str(), EINVAL);
                return 0;
               }
         }
-
-// If there are no envars to use then realtime fetch must be enabled
-//
-   if (useVec.size() == 0 && (opts & useFirst) && (opts & useLast)
-   &&  !(opts & srvRTOK))
-      {Fatal(erp, "'-envar only none' without '-rt' disallowed.", EINVAL);
-       return 0;
-      }
-
-// We currently do not support -rt so complain is specified
-//
-   if (opts & srvRTOK)
-      {Fatal(erp, "'-rt' option currently unsupported", ENOTSUP);
-       return 0;
-      }
 
 // We rely on the token authorization plugin to validate tokens. Load it to
 // get the validation object pointer. This will be filled in later but we
@@ -851,12 +744,7 @@ char  *XrdSecProtocolztnInit(const char     mode,
 //
    char buff[256];
    snprintf(buff, sizeof(buff), "TLS:%" PRIu64 ":%d:", opts, MaxTokSize);
-   cfgParms = buff;
-   for (int i = 0; i < (int)useVec.size(); i++)
-       {cfgParms += useVec[i];
-        if (i+1 < (int)useVec.size()) cfgParms += ',';
-       }
-   return strdup(cfgParms.c_str());
+   return strdup(buff);
 }
 }
 
