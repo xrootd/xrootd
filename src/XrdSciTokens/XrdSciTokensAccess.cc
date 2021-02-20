@@ -401,7 +401,7 @@ public:
 
         if (mapping_success) {
             // Set scitokens.name in the extra attribute
-            Entity->eaAPI->Add("scitokens.name", username, true);
+            Entity->eaAPI->Add("request.name", username, true);
         }
 
         // When the scope authorized this access, allow immediately.  Otherwise, chain
