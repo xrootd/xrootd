@@ -8,6 +8,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 
 #include "XrdMacaroonsHandler.hh"
 #include "XrdMacaroonsAuthz.hh"
@@ -226,10 +227,9 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 
     // Copy the name, if present into the macaroon, into the credential object.
     if (Entity && check_helper.GetSecName().size()) {
-        m_log.Log(LogMask::Debug, "Access", "Setting the security name to", check_helper.GetSecName().c_str());
-        XrdSecEntity &myEntity = *const_cast<XrdSecEntity *>(Entity);
-        if (myEntity.name) {free(myEntity.name);}
-        myEntity.name = strdup(check_helper.GetSecName().c_str());
+        const std::string &username = check_helper.GetSecName();
+        m_log.Log(LogMask::Debug, "Access", "Setting the request name to", username.c_str());
+        Entity->eaAPI->Add("request.name", username);
     }
 
     // We passed verification - give the correct privilege.
