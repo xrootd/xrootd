@@ -272,13 +272,13 @@ XrdXrootdAioReq *XrdXrootdAioReq::Alloc(XrdXrootdProtocol *prot,
 
 // Get appropriate number of aio objects
 //
-   i = (maxAioPR < cntaio ? maxAioPR : cntaio);
-   while(i && (aiop = XrdXrootdAio::Alloc(arp, myQuantum)))
-        {aiop->Next = arp->aioFree; arp->aioFree = aiop; i--;}
+   cntaio = (maxAioPR < cntaio ? maxAioPR : cntaio);
+   for (i = 0; i < cntaio && (aiop = XrdXrootdAio::Alloc(arp, myQuantum)); i++)
+       {aiop->Next = arp->aioFree; arp->aioFree = aiop;}
 
 // Make sure we have at least the minimum number of aio objects
 //
-   if (i && (maxAioPR - i) < 2 && cntaio > 1)
+   if (i == 0 || (cntaio > 1 && i < 2))
       {arp->Recycle(0); return (XrdXrootdAioReq *)0;}
 
 // Complete the request information
