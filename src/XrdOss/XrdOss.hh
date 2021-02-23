@@ -544,6 +544,7 @@ virtual void      Connect(XrdOucEnv &env);
 //-----------------------------------------------------------------------------
 //! Create file.
 //!
+//! @param  tid    - Pointer to the trace identifier.
 //! @param  path   - Pointer to the path of the file to create.
 //! @param  mode   - The new file mode setting.
 //! @param  env    - Reference to environmental information.
