@@ -100,6 +100,7 @@ if( NOT XRDCL_ONLY )
     XrdOss/XrdOssVS.hh
     XrdOss/XrdOssDefaultSS.hh
     XrdOss/XrdOssStatInfo.hh
+    XrdOss/XrdOssWrapper.hh
     XrdPosix/XrdPosix.hh
     XrdPosix/XrdPosixCache.hh
     XrdPosix/XrdPosixCallBack.hh

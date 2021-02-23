@@ -113,7 +113,6 @@ add_library(
   XrdOss/XrdOss.cc             XrdOss/XrdOss.hh
   XrdOss/XrdOssAt.cc           XrdOss/XrdOssAt.hh
   XrdOss/XrdOssAio.cc
-                               XrdOss/XrdOssTrace.hh
                                XrdOss/XrdOssError.hh
                                XrdOss/XrdOssDefaultSS.hh
   XrdOss/XrdOssApi.cc          XrdOss/XrdOssApi.hh
@@ -131,9 +130,10 @@ add_library(
   XrdOss/XrdOssSpace.cc        XrdOss/XrdOssSpace.hh
   XrdOss/XrdOssStage.cc        XrdOss/XrdOssStage.hh
   XrdOss/XrdOssStat.cc         XrdOss/XrdOssStatInfo.hh
+                               XrdOss/XrdOssTrace.hh
   XrdOss/XrdOssUnlink.cc
+                               XrdOss/XrdOssWrapper.hh
                                XrdOss/XrdOssVS.hh
-                               XrdOss/XrdOssError.hh
 
   #-----------------------------------------------------------------------------
   # XrdAcc - Authorization
