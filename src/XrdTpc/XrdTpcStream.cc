@@ -120,7 +120,7 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
                 avail_count ++;
             }
             else if (bytes_accepted != size && size) {
-                size_t new_accept = (*entry_iter)->Accept(offset + bytes_accepted, buf, size - bytes_accepted);
+                size_t new_accept = (*entry_iter)->Accept(offset + bytes_accepted, buf + bytes_accepted, size - bytes_accepted);
                     // Partial accept; buffer should be writable which means we should free it up
                     // for next iteration
                 if (new_accept && new_accept != size - bytes_accepted) {
@@ -143,7 +143,7 @@ Stream::Write(off_t offset, const char *buf, size_t size, bool force)
             m_error_buf = "No empty buffers available to place unordered data.";
             return SFS_ERROR;
         }
-        if (avail_entry->Accept(offset + bytes_accepted, buf, size - bytes_accepted) != size - bytes_accepted) {  // Empty buffer cannot accept?!?
+        if (avail_entry->Accept(offset + bytes_accepted, buf + bytes_accepted, size - bytes_accepted) != size - bytes_accepted) {  // Empty buffer cannot accept?!?
             m_error_buf = "Empty re-ordering buffer was unable to to accept data; internal logic error.";
             return SFS_ERROR;
         }
