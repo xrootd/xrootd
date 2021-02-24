@@ -158,7 +158,8 @@ int XrdXrootdProtocol::aio_Write()
 // 1) Obtain an aio object. If none available, a redrive will be scheduled for
 //    the protocol and we return -EINPROGRESS which will keep the link disabled. 
 
-// 2) Read the data from the link into the buffer using getData().
+// 2) Prepare the aio object. Read the data from the link into the buffer using
+//    getData().
 
 // 3) If the link is slow, return a 1 which will re-enable the link and
 //    redrive the protocol when data is available. We will resume in 
@@ -190,6 +191,8 @@ int XrdXrootdProtocol::aio_WriteAll()
 
 /*2*/     Quantum = (aiop->buffp->bsize > myIOLen ? myIOLen
                                                   : aiop->buffp->bsize);
+          aiop->sfsAio.aio_nbytes = Quantum;
+          aiop->sfsAio.aio_offset = myOffset;
           if ((rc = getData("aiodata", aiop->buffp->buff, Quantum)))
 /*3*/       {if (rc > 0)
                 {Resume = &XrdXrootdProtocol::aio_WriteCont;
@@ -201,9 +204,7 @@ int XrdXrootdProtocol::aio_WriteAll()
 /*4*/        myAioReq->Recycle(-1, aiop);
              break;
             }
-/*5*/    aiop->sfsAio.aio_nbytes = Quantum;
-         aiop->sfsAio.aio_offset = myOffset;
-         myIOLen  -= Quantum; myOffset += Quantum;
+/*5*/    myIOLen  -= Quantum; myOffset += Quantum;
          if ((rc = myAioReq->Write(aiop))) return aio_Error("write", rc);
          }
 
