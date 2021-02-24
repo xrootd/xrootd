@@ -6,6 +6,15 @@ Release Notes
 =============
 
 --------------
+Version 4.12.8
+--------------
+
++ **Major bug fixes**
+  * **[XrdTpc]** Buffer starting at the right offset.
+  * **[XrdHttp]** Store a new header in the headers map before mangling
+                  it, fixes #1399
+
+--------------
 Version 4.12.7
 --------------
 
