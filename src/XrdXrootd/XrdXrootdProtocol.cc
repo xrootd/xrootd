@@ -34,6 +34,7 @@
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecProtect.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
@@ -876,16 +877,24 @@ int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
 {
    int rc, ecode;
 
-// The arguments must have <name> <cstype> <path> <tident> (i.e. argc >= 4)
+// The arguments must have <name> <cstype> <path> <tident> [name] (argc >= 4)
 //
    if (argc < 4)
       {Stream->PutLine("Internal error; not enough checksum args!");
        return 8;
       }
 
+// Construct the error information
+//
+   XrdOucEnv     myEnv;
+   XrdOucErrInfo myInfo(argv[3], &myEnv);
+
+// Add username, if present
+//
+   if (argc > 4 && *argv[4]) myEnv.Put("request.name", argv[4]);
+
 // Issue the checksum calculation (that's all we do here).
 //
-   XrdOucErrInfo myInfo(argv[3]);
    rc = osFS->chksum(XrdSfsFileSystem::csCalc, argv[1], argv[2], myInfo);
 
 // Return result regardless of what it is

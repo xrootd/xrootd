@@ -29,6 +29,7 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <string>
 #include <sys/time.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -386,7 +387,7 @@ int XrdXrootdProtocol::do_Chmod()
 int XrdXrootdProtocol::do_CKsum(int canit)
 {
    char *opaque;
-   char *algT = JobCKT, *args[5];
+   char *algT = JobCKT, *args[6];
    int rc;
 
 // Check for static routing
@@ -432,13 +433,20 @@ int XrdXrootdProtocol::do_CKsum(int canit)
       return Response.Send(kXR_ServerError, "Logic error computing checksum.");
 
 // Check if multiple checksums are supported and construct right argument list
+// We make a concession to a wrongly placed setfsuid/gid plugin. Fortunately,
+// it only needs to know user's name but that can come from another plugin.
 //
+   std::string keyval; // Contents will be copied prior to return!
    if (JobCKCGI > 1 || JobLCL)
       {args[0] = algT;
        args[1] = algT;
        args[2] = argp->buff;
        args[3] = const_cast<char *>(Client->tident);
-       args[4] = 0;
+       if (Client->eaAPI->Get(std::string("request.name"), keyval))
+          args[4] = const_cast<char *>(keyval.c_str());
+          else if (Client->name) args[4] = Client->name;
+                  else args[4] = 0;
+       args[5] = 0;
       } else {
        args[0] = algT;
        args[1] = argp->buff;

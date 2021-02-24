@@ -85,12 +85,13 @@ struct {XrdLink     *Link;
 
        XrdOucStream       jobStream;  // -> Stream for job I/O
        XrdXrootdJob      *theJob;     // -> Job description
-       char              *theArgs[5]; // -> Program arguments (see XrdOucProg)
+       char              *theArgs[6]; // -> Program arguments (see XrdOucProg)
        char              *theResult;  // -> The result
        int                JobNum;     //    Job Number
        int                JobRC;      //    Job kXR_ type return code
        char               JobMark;
        char               doRedrive;
+static const int          argvnum = sizeof(theArgs)/sizeof(theArgs[0]);
 };
   
 /******************************************************************************/
@@ -119,8 +120,8 @@ XrdXrootdJob2Do::XrdXrootdJob2Do(XrdXrootdJob      *job,
                                 : XrdJob(job->JobName)
 {
    int i;
-   for (i = 0; i < 5 && args[i]; i++) theArgs[i] = strdup(args[i]);
-   for (     ; i < 5; i++)            theArgs[i] = (char *)0;
+   for (i = 0; i < argvnum && args[i]; i++) theArgs[i] = strdup(args[i]);
+   for (     ; i < argvnum; i++)            theArgs[i] = (char *)0;
    theJob     = job;
    JobRC      = 0;
    JobNum     = jnum;
@@ -143,7 +144,7 @@ XrdXrootdJob2Do::~XrdXrootdJob2Do()
    for (i = 0; i < numClients; i++) 
        if (!Client[i].isSync) {sendResult(0, 1); break;}
 
-   for (i = 0; i < 5; i++) 
+   for (i = 0; i < argvnum; i++)
        if (theArgs[i]) free(theArgs[i]);
 }
 
