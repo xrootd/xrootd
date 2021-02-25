@@ -105,6 +105,7 @@ int XrdPosixMap::mapCode(int rc)
         case XrdCl::errNotFound:           return EIDRM;
         case XrdCl::errCheckSumError:      return EILSEQ;
         case XrdCl::errRedirectLimit:      return ELOOP;
+        case XrdCl::errTlsError:           return ENETRESET;
         default:                           break;
        }
    return ENOMSG;
