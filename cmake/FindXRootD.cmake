@@ -7,7 +7,7 @@
 
 if( XRDCEPH_SUBMODULE )
   set( XROOTD_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src )
-  set( XROOTD_LIBRARIES    ${CMAKE_BINARY_DIR}/src/libXrdUtils.so )
+  set( XROOTD_LIBRARIES    XrdUtils )
 else()
   find_path( XROOTD_INCLUDE_DIRS XrdSfs/XrdSfsAio.hh
     HINTS
