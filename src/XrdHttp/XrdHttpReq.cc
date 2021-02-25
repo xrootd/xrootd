@@ -1360,7 +1360,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         // We want to be invoked again after this request is finished
         // Only if there is data to fetch from the socket or there will
         // never be more data
-        if (prot->BuffUsed() > 0 || length == 0)
+        if (prot->BuffUsed() > 0 || (length == 0 && !sendcontinue))
           return 0;
 
         return 1;
