@@ -7,6 +7,21 @@ Release Notes
 
 
 --------------
+Version 5.1.1
+--------------
+
++ **Major bug fixes**
+  * **[Server]** Make sure each aio request has the minimum number of aio
+                 objects available.
+  * **[Server]** Make sure stalled aio get written with the right offset
+                 and length.
+  * **[XrdTpc]** XrdTpc: Buffer starting at the right offset.
+  * **[XrdHttp]** Fix chunked transfer with 100-continue. 
+
++ **Minor bug fixes**
+  * **[Server]** Pass username to background checksum computation.
+
+--------------
 Version 5.1.0
 --------------
 
