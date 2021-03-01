@@ -394,7 +394,6 @@ bool Cache::Config(const char *config_filename, const char *parameters)
           cfg2bytes(tmpc.m_diskUsageHWM, m_configuration.m_diskUsageHWM, sP.Total, "highWatermark"))
       {
          if (m_configuration.m_diskUsageLWM >= m_configuration.m_diskUsageHWM) {
-            printf("GGGG %lld %lld\n", m_configuration.m_diskUsageLWM, m_configuration.m_diskUsageHWM);
             m_log.Emsg("ConfigParameters()", "pfc.diskusage should have lowWatermark < highWatermark.");
             aOK = false;
          }
