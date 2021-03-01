@@ -199,7 +199,7 @@ const char *XrdSsiDir::FName()
 
 // Check if this directory is actually open
 //
-   if (!dirP) return dirP->FName();
+   if (dirP) return dirP->FName();
    XrdSsiUtils::Emsg(epname, EBADF, epname, "???", error);
    return "";
 }
