@@ -11,8 +11,9 @@ Version 4.12.8
 
 + **Major bug fixes**
   * **[XrdTpc]** Buffer starting at the right offset.
-  * **[XrdHttp]** Store a new header in the headers map before mangling
-                  it, fixes #1399
+  * **[XrdHttp]** Store a new header in the headers map before
+                  mangling it, fixes #1399
+  * **[XrdHttp]** Fix chunked transfer with 100-continue.
 
 --------------
 Version 4.12.7
