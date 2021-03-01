@@ -93,35 +93,6 @@ build:cc7:
     - schedules
     - web
     
-build:slc6:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
-  script:
-    - yum install --nogpg -y gcc-c++ rpm-build which tar git python-srpm-macros
-    - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1"
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir slc-6
-    - cp packaging/*.src.rpm slc-6
-    - cp packaging/RPMS/* slc-6
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - slc-6/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-  allow_failure: true
-
 build:fedora-rawhide:
   stage: build:rpm
   image: fedora:rawhide
@@ -364,33 +335,6 @@ release:cc7-x86_64:
   except:
     - branches
 
-release:slc6-x86_64:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
-  script:
-    - yum install --nogpg -y gcc-c++ rpm-build which git tar python-srpm-macros
-    - mkdir slc-6-x86_64
-    - cd packaging/
-    - git checkout tags/${CI_COMMIT_TAG}
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" -D "dist .el6"
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el6"  *.src.rpm
-    - cd ..
-    - cp packaging/RPMS/*.rpm slc-6-x86_64
-    - cp packaging/*src.rpm   slc-6-x86_64
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - slc-6-x86_64/
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
-  allow_failure: true
-
 release:deb_ubuntu_bionic:
   image: ubuntu:bionic
   <<: *deb_ubuntu_build_def
@@ -525,38 +469,6 @@ weekly:cc7:
   except:
     - tags
 
-weekly:slc6:
-  stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/slc6-base
-  script:
-    - yum install --nogpg -y gcc-c++ rpm-build which tar git cppunit-devel python-srpm-macros
-    - xrootd_version=$(git tag | grep '^v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
-    - xrootd_version=${xrootd_version:1}
-    - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
-    - a=( ${xrootd_version//./ } )
-    - ((a[2]++)) || true
-    - experimental_version="${a[0]}.${a[1]}.${a[2]}-0.experimental."${CI_PIPELINE_ID}.$short_hash
-    - cd packaging/
-    - ./makesrpm.sh --version $experimental_version --define "_with_python3 1"
-    - yum-builddep --nogpgcheck -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir epel-6/
-    - cp packaging/*.src.rpm epel-6
-    - cp packaging/RPMS/* epel-6
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - epel-6/
-  tags:
-    - docker_node
-  only:
-    - schedules
-  except:
-    - tags
-  allow_failure: true
-    
 xrootd_docker_get:
   stage: build:dockerimage:prepare
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
@@ -779,7 +691,6 @@ publish:weekly:
     - docker_node
   dependencies:
     - weekly:cc7
-    - weekly:slc6
     - weekly:centos8
   only:
     - schedules
@@ -811,22 +722,6 @@ publish:koji:cc7:
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - path=/eos/project/s/storage-ci/www/xrootd/release/cc-7-x86_64/$CI_COMMIT_TAG/source/
     - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos7 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
-  tags:
-    - docker_node
-  only:
-    - web
-  except:
-    - branches
-  when: manual
-
-publish:koji:slc6:
-  stage: post:publish
-  image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
-  script:
-    - yum install --nogpg -y sssd-client
-    - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - path=/eos/project/s/storage-ci/www/xrootd/release/slc-6-x86_64/$CI_COMMIT_TAG/source/
-    - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos6 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
   only:
