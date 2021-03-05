@@ -408,7 +408,7 @@ void InitTLS() // This is strictly a one-time call!
 /*                                 F a t a l                                  */
 /******************************************************************************/
   
-void Fatal(std::string *eMsg, const char *msg)
+void Fatal(std::string *eMsg, const char *msg, bool sslmsg=false)
 {
 // If there is an outboard error string object, return the message there.
 //
@@ -417,7 +417,7 @@ void Fatal(std::string *eMsg, const char *msg)
 // Now route the message to the message callback function. We always flush the
 // ssl error queue, even if not an ssl error, to prevent suprises.
 //
-   XrdTlsGlobal::msgCB("TLS_Context:", msg, true);
+   XrdTlsGlobal::msgCB("TLS_Context:", msg, sslmsg);
 }
 
 /******************************************************************************/
