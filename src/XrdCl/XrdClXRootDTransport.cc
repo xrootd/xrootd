@@ -334,7 +334,7 @@ namespace XrdCl
     else
     {
       size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
-      if( message->GetSize() < stlen )
+      if( message->GetCursor() < stlen )
         bodySize = rsphdr->dlen;
       else
       {
