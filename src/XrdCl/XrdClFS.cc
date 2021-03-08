@@ -216,6 +216,55 @@ uint32_t nbDigits( uint64_t nb )
   return uint32_t( log10( double(nb) ) + 1);
 }
 
+
+void PrintDirListStatInfo( StatInfo *info, bool hascks = false, uint32_t ownerwidth = 0, uint32_t groupwidth = 0, uint32_t sizewidth = 0 )
+{
+  if( info->ExtendedFormat() )
+  {
+    if( info->TestFlags( StatInfo::IsDir ) )
+      std::cout << "d";
+    else
+      std::cout << "-";
+    std::cout << info->GetModeAsOctString();
+
+    std::cout << " " << std::setw( ownerwidth ) << info->GetOwner();
+    std::cout << " " << std::setw( groupwidth ) << info->GetGroup();
+    std::cout << " " << std::setw( sizewidth ) << info->GetSize();
+    if( hascks && info->HasChecksum() )
+      std::cout << " " << std::setw( sizewidth ) << info->GetChecksum();
+    std::cout << " " << info->GetModTimeAsString() << " ";
+  }
+  else
+  {
+    if( info->TestFlags( StatInfo::IsDir ) )
+      std::cout << "d";
+    else
+      std::cout << "-";
+
+    if( info->TestFlags( StatInfo::IsReadable ) )
+      std::cout << "r";
+    else
+      std::cout << "-";
+
+    if( info->TestFlags( StatInfo::IsWritable ) )
+      std::cout << "w";
+    else
+      std::cout << "-";
+
+    if( info->TestFlags( StatInfo::XBitSet ) )
+      std::cout << "x";
+    else
+      std::cout << "-";
+
+    std::cout << " " << info->GetModTimeAsString();
+
+    uint64_t size = info->GetSize();
+    int width = nbDigits( size ) + 2;
+    if( width < 12 ) width = 12;
+    std::cout << std::setw( width ) << info->GetSize() << " ";
+  }
+}
+
 //------------------------------------------------------------------------------
 // List a directory
 //------------------------------------------------------------------------------
@@ -291,13 +340,42 @@ XRootDStatus DoLS( FileSystem                      *fs,
     }
   }
 
-  log->Debug( AppMsg, "Attempting to list: %s", newPath.c_str() );
+  //----------------------------------------------------------------------------
+  // Stat the entry so we know if it is a file or a directory
+  //----------------------------------------------------------------------------
+  log->Debug( AppMsg, "Attempting to stat: %s", newPath.c_str() );
+
+  StatInfo *info = 0;
+  XRootDStatus st = fs->Stat( newPath, info );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to stat the path: %s", st.ToStr().c_str() );
+    return st;
+  }
+
+  if( !info->TestFlags( StatInfo::IsDir ) )
+  {
+    if( stats )
+      PrintDirListStatInfo( info );
+
+    if( showUrls )
+    {
+      std::string url;
+      fs->GetProperty( "LastURL", url );
+      std::cout << url;
+    }
+    std::cout << newPath << std::endl;
+    return XRootDStatus();
+  }
+
 
   //----------------------------------------------------------------------------
   // Ask for the list
   //----------------------------------------------------------------------------
+  log->Debug( AppMsg, "Attempting to list: %s", newPath.c_str() );
+
   DirectoryList *list;
-  XRootDStatus st = fs->DirList( newPath, flags, list );
+  st = fs->DirList( newPath, flags, list );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable to list the path: %s", st.ToStr().c_str() );
@@ -334,56 +412,9 @@ XRootDStatus DoLS( FileSystem                      *fs,
     {
       StatInfo *info = (*it)->GetStatInfo();
       if( !info )
-      {
         std::cout << "---- 0000-00-00 00:00:00            ? ";
-      }
       else
-      {
-        if( info->ExtendedFormat() )
-        {
-          if( info->TestFlags( StatInfo::IsDir ) )
-            std::cout << "d";
-          else
-            std::cout << "-";
-          std::cout << info->GetModeAsOctString();
-
-          std::cout << " " << std::setw( ownerwidth ) << info->GetOwner();
-          std::cout << " " << std::setw( groupwidth ) << info->GetGroup();
-          std::cout << " " << std::setw( sizewidth ) << info->GetSize();
-          if( hascks && info->HasChecksum() )
-            std::cout << " " << std::setw( sizewidth ) << info->GetChecksum();
-          std::cout << " " << info->GetModTimeAsString() << " ";
-        }
-        else
-        {
-          if( info->TestFlags( StatInfo::IsDir ) )
-            std::cout << "d";
-          else
-            std::cout << "-";
-
-          if( info->TestFlags( StatInfo::IsReadable ) )
-            std::cout << "r";
-          else
-            std::cout << "-";
-
-          if( info->TestFlags( StatInfo::IsWritable ) )
-            std::cout << "w";
-          else
-            std::cout << "-";
-
-          if( info->TestFlags( StatInfo::XBitSet ) )
-            std::cout << "x";
-          else
-            std::cout << "-";
-
-          std::cout << " " << info->GetModTimeAsString();
-
-          uint64_t size = info->GetSize();
-          int width = nbDigits( size ) + 2;
-          if( width < 12 ) width = 12;
-          std::cout << std::setw( width ) << info->GetSize() << " ";
-        }
-      }
+        PrintDirListStatInfo( info, hascks, ownerwidth, groupwidth, sizewidth );
     }
     if( showUrls )
       std::cout << "root://" << (*it)->GetHostAddress() << "/";
