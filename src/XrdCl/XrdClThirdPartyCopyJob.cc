@@ -492,8 +492,11 @@ namespace XrdCl
     params = realTarget.GetParams();
     MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
 
-    std::ostringstream o; o << sourceSize;
-    params["oss.asize"] = o.str();
+    if( !tpcLiteOnly ) // we only append oss.asize if it source file size is actually known
+    {
+      std::ostringstream o; o << sourceSize;
+      params["oss.asize"] = o.str();
+    }
     params["tpc.stage"] = "copy";
 
     // forward source cgi info to the destination in case we are going to do delegation
