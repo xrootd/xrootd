@@ -369,7 +369,8 @@ namespace XrdCl
     // Do the facultative step at source only if the protocol is root/xroot,
     // otherwise don't bother
     //--------------------------------------------------------------------------
-    if( sourceURL.GetProtocol() == "root" || sourceURL.GetProtocol() == "xroot" )
+    if( sourceURL.GetProtocol() == "root"  || sourceURL.GetProtocol() == "xroot" ||
+        sourceURL.GetProtocol() == "roots" || sourceURL.GetProtocol() == "xroots" )
     {
       params = sourceURL.GetParams();
       params["tpc.stage"] = "placement";
