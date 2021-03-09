@@ -427,7 +427,8 @@ namespace XrdEc
       // generate the URL
       std::string url = objcfg.GetDataUrl( i );
       // create the file object
-      dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>() );
+      dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>(
+          Config::Instance().enable_plugins ) );
       // open the archive
       opens.emplace_back( OpenOnly( *dataarchs[url], url ) );
     }
@@ -647,7 +648,7 @@ namespace XrdEc
   {
     const size_t size = objcfg.plgr.size();
     // create the File object
-    auto file = std::make_shared<XrdCl::File>();
+    auto file = std::make_shared<XrdCl::File>( Config::Instance().enable_plugins );
     // prepare the URL for Open operation
     std::string url = objcfg.GetMetadataUrl( index );
     // arguments for the Read operation

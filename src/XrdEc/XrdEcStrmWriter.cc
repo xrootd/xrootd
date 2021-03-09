@@ -49,7 +49,8 @@ namespace XrdEc
     opens.reserve( size );
     // initialize all zip archive objects
     for( size_t i = 0; i < size; ++i )
-      dataarchs.emplace_back( std::make_shared<XrdCl::ZipArchive>() );
+      dataarchs.emplace_back( std::make_shared<XrdCl::ZipArchive>(
+          Config::Instance().enable_plugins ) );
 
     for( size_t i = 0; i < size; ++i )
     {
@@ -303,7 +304,8 @@ namespace XrdEc
       // replicate the metadata
       //-----------------------------------------------------------------------
       std::string url = objcfg.GetMetadataUrl( i );
-      metadataarchs.emplace_back( std::make_shared<XrdCl::File>() );
+      metadataarchs.emplace_back( std::make_shared<XrdCl::File>(
+          Config::Instance().enable_plugins ) );
       XrdCl::Pipeline p = XrdCl::Open( *metadataarchs[i], url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write )
                         | XrdCl::Write( *metadataarchs[i], 0, zipbuff->size(), zipbuff->data() )
                         | XrdCl::Close( *metadataarchs[i] )

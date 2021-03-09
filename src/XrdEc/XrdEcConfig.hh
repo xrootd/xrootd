@@ -73,6 +73,8 @@ namespace XrdEc
           return itr->second;
       }
 
+      bool enable_plugins;
+
     private:
 
       std::unordered_map<std::string, RedundancyProvider> redundancies;
@@ -80,7 +82,7 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       //! Constructor
       //-----------------------------------------------------------------------
-      Config()
+      Config() : enable_plugins( true )
       {
       }
 
