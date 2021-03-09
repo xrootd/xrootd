@@ -39,13 +39,14 @@ namespace XrdCl
   //---------------------------------------------------------------------------
   // Constructor
   //---------------------------------------------------------------------------
-  ZipArchive::ZipArchive() : archsize( 0 ),
-                             cdexists( false ),
-                             updated( false ),
-                             cdoff( 0 ),
-                             orgcdsz( 0 ),
-                             orgcdcnt( 0 ),
-                             openstage( None )
+  ZipArchive::ZipArchive( bool enablePlugIns) : archive( enablePlugIns ),
+                                                archsize( 0 ),
+                                                cdexists( false ),
+                                                updated( false ),
+                                                cdoff( 0 ),
+                                                orgcdsz( 0 ),
+                                                orgcdcnt( 0 ),
+                                                openstage( None )
   {
   }
 
