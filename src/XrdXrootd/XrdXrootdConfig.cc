@@ -535,7 +535,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
            NoGo = 1;
           } else {
            static const char *sessID = "xroots";
-           tlsCtx->SessionCache(tlsCache, sessID, sizeof(sessID));
+           tlsCtx->SessionCache(tlsCache, sessID, 6);
           }
       }
 

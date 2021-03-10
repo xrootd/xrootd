@@ -937,9 +937,9 @@ int XrdTlsContext::SessionCache(int opts, const char *id, int idlen)
 // Set the id is so wanted
 //
    if (id && idlen > 0)
-      {unsigned const char *idU = (unsigned const char *)id;
-       unsigned int         idL = (unsigned int)idlen;
-       if (!SSL_CTX_set_session_id_context(pImpl->ctx,idU,idL)) opts |= scIdErr;
+      {if (!SSL_CTX_set_session_id_context(pImpl->ctx,
+                                          (unsigned const char *)id,
+                                          (unsigned int)idlen)) opts |= scIdErr;
       }
 
 // If a flush interval was specified and it is different from what we have
