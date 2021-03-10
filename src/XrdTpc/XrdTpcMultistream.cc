@@ -263,7 +263,7 @@ private:
 
 
 int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
-    size_t streams, std::vector<State*> handles, TPCLogRecord &rec)
+    size_t streams, std::vector<State*> &handles, TPCLogRecord &rec)
 {
     int result;
     bool success;
@@ -358,8 +358,8 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
             msg = curl_multi_info_read(multi_handle, &msgq);
             if (msg && (msg->msg == CURLMSG_DONE)) {
                 CURL *easy_handle = msg->easy_handle;
-                mch.FinishCurlXfer(easy_handle);
                 res = msg->data.result;
+                mch.FinishCurlXfer(easy_handle);
                 // If any requests fail, cut off the entire transfer.
                 if (res != CURLE_OK) {
                     break;
