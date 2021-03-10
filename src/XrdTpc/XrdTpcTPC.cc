@@ -610,14 +610,14 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PUSH_START", "Starting a push request");
     CURL *curl = curl_easy_init();
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     if (!curl) {
         char msg[] = "Failed to initialize internal transfer resources";
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "PUSH_FAIL", msg);
         return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
-
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+ 
     auto query_header = req.headers.find("xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
@@ -686,13 +686,13 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PULL_START", "Starting a push request");
     CURL *curl = curl_easy_init();
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     if (!curl) {
             char msg[] = "Failed to initialize internal transfer resources";
             rec.status = 500;
             logTransferEvent(LogMask::Error, rec, "PULL_FAIL", msg);
             return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {
             curl_easy_cleanup(curl);
