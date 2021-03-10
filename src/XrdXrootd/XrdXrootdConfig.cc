@@ -534,7 +534,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
           {eDest.Say("Config failure: unable to setup TLS for protocol!");
            NoGo = 1;
           } else {
-           const char *sessID = "xroots";
+           static const char *sessID = "xroots";
            tlsCtx->SessionCache(tlsCache, sessID, sizeof(sessID));
           }
       }
