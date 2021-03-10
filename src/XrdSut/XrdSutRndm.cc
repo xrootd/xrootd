@@ -217,7 +217,7 @@ char *XrdSutRndm::GetBuffer(int len, int opt)
          if (filter) {
             j = i / 32;
             l = i - j * 32;
-            keep = (XrdSutCharMsk[opt][j] & (1 << l));
+            keep = (XrdSutCharMsk[opt][j%4] & (1 << l));
          }
          if (keep) {
             buf[k] = i;
