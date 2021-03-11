@@ -141,6 +141,19 @@ namespace XrdCl
       const std::type_info *pTypeInfo;
       bool                  pOwn;
   };
+
+  //----------------------------------------------------------------------------
+  //! Helper function for extracting an object from AnyObject
+  //! @param any : an instance of AnyObject
+  //! @return    : the underlying value of type T
+  //----------------------------------------------------------------------------
+  template<typename T>
+  inline T& To( AnyObject &any )
+  {
+    T* object;
+    any.Get( object );
+    return *object;
+  }
 }
 
 #endif // __XRD_CL_ANY_OBJECT_HH__
