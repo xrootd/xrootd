@@ -701,4 +701,26 @@ namespace XrdCl
 
     return new FuncHandler( func );
   }
+
+  ResponseHandler* ResponseHandler::Wrap( std::function<void(XRootDStatus*, AnyObject*)> func )
+  {
+    struct FuncHandler : public ResponseHandler
+    {
+      FuncHandler( std::function<void(XRootDStatus*, AnyObject*)> func ) : func( std::move( func ) )
+      {
+      }
+
+      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      {
+        // call the user completion handler
+        func( status, response );
+        // deallocate the wrapper
+        delete this;
+      }
+
+      std::function<void(XRootDStatus*, AnyObject*)> func;
+    };
+
+    return new FuncHandler( func );
+  }
 }

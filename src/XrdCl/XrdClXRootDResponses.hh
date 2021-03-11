@@ -1077,6 +1077,14 @@ namespace XrdCl
       //! @return     : ResponseHandler wrapper with the user callback
       //------------------------------------------------------------------------
       static ResponseHandler* Wrap( std::function<void(XRootDStatus&, AnyObject&)> func );
+
+      //------------------------------------------------------------------------
+      //! Factory function for generating handler objects from lambdas
+      //!
+      //! @param func : the callback, must not throw
+      //! @return     : ResponseHandler wrapper with the user callback
+      //------------------------------------------------------------------------
+      static ResponseHandler* Wrap( std::function<void(XRootDStatus*, AnyObject*)> func );
   };
 }
 
