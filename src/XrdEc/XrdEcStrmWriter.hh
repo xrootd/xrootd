@@ -124,7 +124,7 @@ namespace XrdEc
         //---------------------------------------------------------------------
         void report_wrt( const XrdCl::XRootDStatus &st, uint64_t wrtsize )
         {
-          std::unique_lock<std::mutex> lck( mtx );
+          std::unique_lock<std::recursive_mutex> lck( mtx );
           //-------------------------------------------------------------------
           // Update the global status
           //-------------------------------------------------------------------
@@ -154,7 +154,7 @@ namespace XrdEc
         //---------------------------------------------------------------------
         void issue_close( XrdCl::ResponseHandler *handler )
         {
-          std::unique_lock<std::mutex> lck( mtx );
+          std::unique_lock<std::recursive_mutex> lck( mtx );
           //-------------------------------------------------------------------
           // There will be no more new write requests
           //-------------------------------------------------------------------
@@ -175,23 +175,23 @@ namespace XrdEc
         //---------------------------------------------------------------------
         inline const XrdCl::XRootDStatus& get() const
         {
-          std::unique_lock<std::mutex> lck( mtx );
+          std::unique_lock<std::recursive_mutex> lck( mtx );
           return status;
         }
 
         inline void issue_write( uint64_t wrtsize )
         {
-          std::unique_lock<std::mutex> lck( mtx );
+          std::unique_lock<std::recursive_mutex> lck( mtx );
           bytesleft += wrtsize;
         }
 
         private:
-          mutable std::mutex      mtx;
-          StrmWriter             *writer;          //> pointer to the StrmWriter
-          uint64_t                bytesleft;       //> bytes left to be written
-          bool                    stopped_writing; //> true, if user called close
-          XrdCl::XRootDStatus     status;          //> the global status
-          XrdCl::ResponseHandler *closeHandler;    //> user close handler
+          mutable std::recursive_mutex  mtx;
+          StrmWriter                   *writer;          //> pointer to the StrmWriter
+          uint64_t                      bytesleft;       //> bytes left to be written
+          bool                          stopped_writing; //> true, if user called close
+          XrdCl::XRootDStatus           status;          //> the global status
+          XrdCl::ResponseHandler       *closeHandler;    //> user close handler
       };
 
       //-----------------------------------------------------------------------
