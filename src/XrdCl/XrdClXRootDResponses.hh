@@ -30,6 +30,7 @@
 #include <ctime>
 #include <tuple>
 #include <memory>
+#include <functional>
 
 namespace XrdCl
 {
@@ -1068,6 +1069,14 @@ namespace XrdCl
       {
         (void)status; (void)response;
       }
+
+      //------------------------------------------------------------------------
+      //! Factory function for generating handler objects from lambdas
+      //!
+      //! @param func : the callback, must not throw
+      //! @return     : ResponseHandler wrapper with the user callback
+      //------------------------------------------------------------------------
+      static ResponseHandler* Wrap( std::function<void(XRootDStatus&, AnyObject&)> func );
   };
 }
 

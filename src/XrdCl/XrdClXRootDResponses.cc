@@ -669,4 +669,36 @@ namespace XrdCl
   {
     return pImpl->cksums;
   }
+
+  //------------------------------------------------------------------------
+  // Factory function for generating handler objects from lambdas
+  //------------------------------------------------------------------------
+  ResponseHandler* ResponseHandler::Wrap( std::function<void(XRootDStatus&, AnyObject&)> func )
+  {
+    struct FuncHandler : public ResponseHandler
+    {
+      FuncHandler( std::function<void(XRootDStatus&, AnyObject&)> func ) : func( std::move( func ) )
+      {
+      }
+
+      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      {
+        // make sure the arguments will be released
+        std::unique_ptr<XRootDStatus> stptr( status );
+        std::unique_ptr<AnyObject> rspptr( response );
+        // if there is no response provide a null reference placeholder
+        static AnyObject nullref;
+        if( response == nullptr )
+          response = &nullref;
+        // call the user completion handler
+        func( *status, *response );
+        // deallocate the wrapper
+        delete this;
+      }
+
+      std::function<void(XRootDStatus&, AnyObject&)> func;
+    };
+
+    return new FuncHandler( func );
+  }
 }
