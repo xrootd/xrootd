@@ -19,6 +19,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[ZTN]** Fix fatal flaws in SciToken strip method; avoid token rejection.
   **[TLS]** Provide thread-safety when required to do so.
   **[POSIX]** Avoid returning null pointer upon failure to avoid SEGV.
   **[POSIX]** Correctly initialize serverless cache to avoid SEGV.
