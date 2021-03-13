@@ -454,7 +454,7 @@ XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
 // Make sure token is not too big
 //
    if (Stat.st_size > maxTSize) return readFail(erp, path, EMSGSIZE);
-   buff = (char *)alloca(Stat.st_size);
+   buff = (char *)alloca(Stat.st_size+1);
 
 // Open the token file
 //
@@ -470,6 +470,10 @@ XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
       }
    close(tokFD);
 
+// Make sure the token ends with a null byte
+//
+   buff[Stat.st_size] = 0;
+
 // Strip the token
 //
    if (!(bTok = Strip(buff, sz)))
@@ -483,7 +487,7 @@ XrdSecCredentials *XrdSecProtocolztn::readToken(XrdOucErrInfo *erp,
 
 // Return response
 //
-   return retToken(erp, buff, Stat.st_size);
+   return retToken(erp, bTok, sz);
 }
   
 /******************************************************************************/
