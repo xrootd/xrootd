@@ -68,10 +68,17 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     }
     Config.Close();
 
+    // Internal override: allow xrdtpc to use a different ca dir from the one prepared by the xrootd
+    // framework.  meant for exceptional situations where the site might need a specially-prepared set
+    // of cas only for tpc (such as trying out various workarounds for libnss).  Explicitly disables
+    // the NSS hack below.
+    auto env_cadir = getenv("XRDTPC_CADIR");
+    if (env_cadir) m_cadir = env_cadir;
+
     const char *cadir = nullptr, *cafile = nullptr;
-    if ((cadir = myEnv->Get("http.cadir"))) {
+    if ((cadir = env_cadir ? env_cadir : myEnv->Get("http.cadir"))) {
         m_cadir = cadir;
-        if (XrdTpcNSSSupport::NeedsNSSHack()) {
+        if (!env_cadir && XrdTpcNSSSupport::NeedsNSSHack()) {
             m_nss_hack.reset(new XrdTpcNSSSupport(&m_log, m_cadir));
         }
     }
