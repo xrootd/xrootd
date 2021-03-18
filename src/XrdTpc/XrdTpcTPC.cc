@@ -108,7 +108,10 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
         m_nss_hack.get() ? m_nss_hack->ConfigureCurl(curl) : nullptr
     );
     if (!ca_guard && !m_cadir.empty()) {
-            curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
+        curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
+    }
+    if (!m_cafile.empty()) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, m_cafile.c_str());
     }
     return ca_guard;
 }

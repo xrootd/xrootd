@@ -68,13 +68,19 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     }
     Config.Close();
 
-    if (!(val = myEnv->Get("http.cadir"))) {
-        m_log.Emsg("Config", "cadir value not specified; is TLS enabled?");
-        return false;
+    const char *cadir = nullptr, *cafile = nullptr;
+    if ((cadir = myEnv->Get("http.cadir"))) {
+        m_cadir = cadir;
+        if (XrdTpcNSSSupport::NeedsNSSHack()) {
+            m_nss_hack.reset(new XrdTpcNSSSupport(&m_log, m_cadir));
+        }
     }
-    m_cadir = val;
-    if (XrdTpcNSSSupport::NeedsNSSHack()) {
-        m_nss_hack.reset(new XrdTpcNSSSupport(&m_log, m_cadir));
+    if ((cafile = myEnv->Get("http.cafile"))) {
+        m_cafile = cafile;
+    }
+    if (!cadir && !cafile) {
+        m_log.Emsg("Config", "neither xrd.tls cadir nor certfile value specified; is TLS enabled?");
+        return false;
     }
 
     void *sfs_raw_ptr;

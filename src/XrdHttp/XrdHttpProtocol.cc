@@ -2799,6 +2799,7 @@ int XrdHttpProtocol::LoadExtHandler(std::vector<extHInfo> &hiVec,
   // Add the pointer to the cadir and the cakey to the environment.
   //
   if (sslcadir) myEnv.Put("http.cadir", sslcadir);
+  if (sslcafile) myEnv.Put("http.cafile", sslcafile);
   if (sslcert)  myEnv.Put("http.cert",  sslcert);
   if (sslkey)   myEnv.Put("http.key"  , sslkey);
 
