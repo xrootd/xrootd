@@ -30,6 +30,7 @@
 /******************************************************************************/
 
 #include <string.h>
+#include <set>
 #include <vector>
 
 #include "XProtocol/XPtypes.hh"
@@ -93,6 +94,7 @@ bool             noMore;
 class XrdSfsFile;
 class XrdXrootdFileLock;
 class XrdXrootdMonitor;
+class XrdXrootdPgwFob;
 
 class XrdXrootdFile
 {
@@ -111,6 +113,7 @@ bool               sfEnabled;    // 1 -> file is sendfile enabled
 union {int         fdNum;        // File descriptor number if regular file
        int         fHandle;      // The file handle upon close()
       };
+XrdXrootdPgwFob   *pgwFob;       // Pgw freight pointer
 XrdXrootdFileHP   *fhProc;       // File handle processor (set at close time)
 const char        *ID;           // File user
 

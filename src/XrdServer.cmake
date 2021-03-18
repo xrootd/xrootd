@@ -35,6 +35,8 @@ add_library(
   XrdXrootd/XrdXrootdMonFMap.cc         XrdXrootd/XrdXrootdMonFMap.hh
   XrdXrootd/XrdXrootdMonitor.cc         XrdXrootd/XrdXrootdMonitor.hh
 
+  XrdXrootd/XrdXrootdPgwCtl.cc          XrdXrootd/XrdXrootdPgwCtl.hh
+  XrdXrootd/XrdXrootdPgwFob.cc          XrdXrootd/XrdXrootdPgwFob.hh
   XrdXrootd/XrdXrootdPio.cc             XrdXrootd/XrdXrootdPio.hh
   XrdXrootd/XrdXrootdPrepare.cc         XrdXrootd/XrdXrootdPrepare.hh
   XrdXrootd/XrdXrootdProtocol.cc        XrdXrootd/XrdXrootdProtocol.hh

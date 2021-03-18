@@ -91,6 +91,7 @@ int           Peek(char *buff, int blen, int timeout=-1);
 
 int           Recv(char *buff, int blen);
 int           Recv(char *buff, int blen, int timeout);
+int           Recv(const struct iovec *iov, int iocnt, int timeout);
 
 int           RecvAll(char *buff, int blen, int timeout=-1);
 
@@ -123,7 +124,9 @@ int           TLS_Peek(char *Buff, int Blen, int timeout);
 
 int           TLS_Recv(char *Buff, int Blen);
 
-int           TLS_Recv(char *Buff, int Blen, int timeout);
+int           TLS_Recv(char *Buff, int Blen, int timeout, bool havelock=false);
+
+int           TLS_Recv(const struct iovec *iov, int iocnt, int timeout);
 
 int           TLS_RecvAll(char *Buff, int Blen, int timeout);
 
@@ -143,6 +146,7 @@ XrdPollInfo   PollInfo;
 
 protected:
 
+int    RecvIOV(const struct iovec *iov, int iocnt);
 void   Reset();
 int    sendData(const char *Buff, int Blen);
 int    SendIOV(const struct iovec *iov, int iocnt, int bytes);

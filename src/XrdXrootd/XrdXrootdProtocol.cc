@@ -57,6 +57,11 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
+namespace XrdXrootd
+{
+XrdSysError           eLog(0, "Xrootd");
+}
+
 XrdOucTrace          *XrdXrootdTrace;
 
 XrdXrootdXPath        XrdXrootdProtocol::RPList;
@@ -70,7 +75,7 @@ XrdSecProtector      *XrdXrootdProtocol::DHS      = 0;
 XrdTlsContext        *XrdXrootdProtocol::tlsCtx   = 0;
 XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
-XrdSysError           XrdXrootdProtocol::eDest(0, "Xrootd");
+XrdSysError          &XrdXrootdProtocol::eDest = XrdXrootd::eLog;
 XrdXrootdStats       *XrdXrootdProtocol::SI;
 XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;
 char                 *XrdXrootdProtocol::JobCKT   = 0;
@@ -383,7 +388,7 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
 // Read any argument data at this point, except when the request is a write.
 // The argument may have to be segmented and we're not prepared to do that here.
 //
-   if (reqID != kXR_write && Request.header.dlen)
+   if (reqID != kXR_write && reqID != kXR_pgwrite && Request.header.dlen)
       {if (!argp || Request.header.dlen+1 > argp->bsize)
           {if (argp) BPool->Release(argp);
            if (!(argp = BPool->Obtain(Request.header.dlen+1)))
@@ -1000,6 +1005,90 @@ int XrdXrootdProtocol::getData(const char *dtype, char *buff, int blen)
    return 0;
 }
 
+/******************************************************************************/
+  
+int XrdXrootdProtocol::getData(int (XrdXrootdProtocol::*CallBack)(),
+                               const char *dtype, struct iovec *iov, int iovn)
+{
+
+// Setup the control information to direct the vector read
+//
+   gdCtl.lenPart = 0;        // Start off fresh
+   gdCtl.iovNow  = 0;        // at the first element
+   gdCtl.iovNum  = iovn;     // Number of original elements
+   gdCtl.iovVec  = iov;      // The actual vector
+   gdCtl.CallBk  = CallBack; // Method to callback upon success
+   gdCtl.iovType = dtype;    // Name of the data being read for tracing
+
+// Effect the read
+//
+   return getDataIovCont();
+}
+
+/******************************************************************************/
+/*                         g e t D a t I o v C o n t                          */
+/******************************************************************************/
+
+int XrdXrootdProtocol::getDataIovCont()
+{
+   struct iovec old_iov, *ioV = &gdCtl.iovVec[gdCtl.iovNow];
+   int i, rlen, iovN = gdCtl.iovNum - gdCtl.iovNow;
+
+
+// Check if we have a fragment to fill out in an iovec element. If we do, we
+// save it's contents and adjust to to receive unread data. We will restore it.
+//
+   if (gdCtl.lenPart)
+      {old_iov = ioV[0];
+       ioV[0].iov_base  = ((char *)ioV[0].iov_base) + gdCtl.lenPart;
+       ioV[0].iov_len  -= gdCtl.lenPart;
+      } else old_iov.iov_base = 0;
+
+// Read as much data as we can.
+//
+   rlen = Link->Recv(ioV, iovN, readWait);
+   if (rlen  < 0)
+      {if (old_iov.iov_base) ioV[0] = old_iov;
+       if (rlen != -ENOMSG) return Link->setEtext("link read error");
+          else return -1;
+      }
+
+// Compute where we finished in the iovec.
+//
+   for (i = 0; i < iovN && (int)ioV[i].iov_len <= rlen; i++)
+       rlen -= ioV[i].iov_len;
+
+// Before proceeding, restore any changes we made to the iovec
+//
+   if (old_iov.iov_base) ioV[0] = old_iov;
+
+// If the vector is complete then effect the callback unless this was the
+// initial call, we simply return to prevent recursive continuations.
+//
+   if (i >= iovN)
+      {if (!rlen) 
+          {if (gdCtl.iovNow) return (*this.*gdCtl.CallBk)();
+           return 0;
+          }
+       return Link->setEtext("link iov read length error");
+      }
+
+// Record where we stopped and setup to resume here when more data arrives. We
+// must set myBlen to zero to avoid calling the other GetData() method. We want
+// to resume and perform the GetData() function here.
+//
+   gdCtl.lenPart = rlen;
+   gdCtl.iovNow  = gdCtl.iovNow + i;
+   Resume = &XrdXrootdProtocol::getDataIovCont;
+   myBlen = 0;
+
+// Return indicating we need more data
+//
+   TRACEP(REQ, gdCtl.iovType<<" read timeout; "<<iovN-i<<" of "
+             <<gdCtl.iovNum <<" iov elements left");
+   return 1;
+}
+  
 /******************************************************************************/
 /*                             g e t P a t h I D                              */
 /******************************************************************************/

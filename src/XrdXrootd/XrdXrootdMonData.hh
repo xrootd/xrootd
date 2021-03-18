@@ -177,6 +177,7 @@ enum  recTval {isClose = 0,   // Record for close
 enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
                hasSSQ  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
+               hasCSE  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
                hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
                hasRW   =0x02, // If recFlag == isOpen  file opened r/w
                hasSID  =0x01  // if recFlag == isTime sID is present (new rec)
@@ -229,6 +230,18 @@ XrdXrootdMonFileLFN ufn;      //  Present ONLY if recFlag & hasLFN is TRUE
 
 // The following data is collected on a per file basis
 //
+struct XrdXrootdMonStatPRW    //  8 Bytes
+{
+long long           rBytes;   // Bytes read  from file so far using pgread()
+int                 rCount;   // Number of operations
+int                 rRetry;   // Number of pgread  retries (pages)
+long long           wBytes;   // Bytes written to file so far using pgwrite()
+int                 wCount;   // Number of operations
+int                 wRetry;   // Number of pgwrite retries (corrections)
+int                 wcsErr;   // Number of pgwrite checksum errors
+int                 wcsUnc;   // Number of pgwrite uncorrected checksums
+};
+
 struct XrdXrootdMonStatOPS    // 48 Bytes
 {
 int                 read;     // Number of read()  calls

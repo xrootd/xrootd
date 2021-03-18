@@ -72,6 +72,22 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
+namespace
+{
+int getIovMax()
+{
+int maxiov;
+#ifdef _SC_IOV_MAX
+    if ((maxiov = sysconf(_SC_IOV_MAX)) > 0) return maxiov;
+#endif
+#ifdef IOV_MAX
+    return IOV_MAX;
+#else
+    return 1024;
+#endif
+}
+};
+
 namespace XrdGlobal
 {
 extern XrdSysError    Log;
@@ -79,6 +95,7 @@ extern XrdScheduler   Sched;
 extern XrdTlsContext *tlsCtx;
        XrdTcpMonPin  *TcpMonPin = 0;
 extern int            devNull;
+       int            maxIOV = getIovMax();
 };
 
 using namespace XrdGlobal;
@@ -441,6 +458,64 @@ int XrdLinkXeq::Recv(char *Buff, int Blen, int timeout)
    return int(totlen);
 }
 
+/******************************************************************************/
+  
+int XrdLinkXeq::Recv(const struct iovec *iov, int iocnt, int timeout)
+{
+   XrdSysMutexHelper theMutex;
+   struct pollfd polltab = {PollInfo.FD, POLLIN|POLLRDNORM, 0};
+   int retc, rlen;
+
+// Lock the read mutex if we need to, the helper will unlock it upon exit
+//
+   if (LockReads) theMutex.Lock(&rdMutex);
+
+// Wait up to timeout milliseconds for data to arrive
+//
+   isIdle = 0;
+   do {retc = poll(&polltab,1,timeout);} while(retc < 0 && errno == EINTR);
+   if (retc != 1)
+      {if (retc == 0)
+          {tardyCnt++;
+           return 0;
+          }
+       return (LinkInfo.FD >= 0 ? Log.Emsg("Link",-errno,"poll",ID) : -1);
+      }
+
+// Verify it is safe to read now
+//
+   if (!(polltab.revents & (POLLIN|POLLRDNORM)))
+      {Log.Emsg("Link", XrdPoll::Poll2Text(polltab.revents), "polling", ID);
+       return -1;
+      }
+
+// If the iocnt is within limits then just go ahead and read once.
+//
+   if (iocnt <= maxIOV)
+      {rlen = RecvIOV(iov, iocnt);
+       if (rlen > 0) {AtomicAdd(BytesIn, rlen);}
+       return rlen;
+      }
+
+// We will have to break this up into allowable segments and we need to add up
+// the bytes in each segment so that we know when to stop reading.
+//
+   int seglen, segcnt = maxIOV, totlen = 0;
+   do {seglen = 0;
+       for (int i = 0; i < segcnt; i++) seglen += iov[i].iov_len;
+       if ((rlen = RecvIOV(iov, segcnt)) < 0) return rlen;
+       totlen += rlen;
+       if (rlen < seglen) break;
+       iov   += segcnt;
+       iocnt -= segcnt;
+       if (iocnt <= maxIOV) segcnt = iocnt;
+      } while(iocnt > 0);
+
+// All done
+//
+   AtomicAdd(BytesIn, totlen);
+   return totlen;
+}
 
 /******************************************************************************/
 /*                               R e c v A l l                                */
@@ -482,6 +557,28 @@ int XrdLinkXeq::RecvAll(char *Buff, int Blen, int timeout)
    else if (rlen > 0) Log.Emsg("RecvAll", "Premature end from", ID);
    else if (LinkInfo.FD >= 0) Log.Emsg("Link", errno, "recieve from", ID);
    return -1;
+}
+  
+/******************************************************************************/
+/* Protected:                    R e c v I O V                                */
+/******************************************************************************/
+  
+int XrdLinkXeq::RecvIOV(const struct iovec *iov, int iocnt)
+{
+   ssize_t retc = 0;
+
+// Read the data in. On some version of Unix (e.g., Linux) a readv() may
+// end at any time without reading all the bytes when directed to a socket.
+// We always return the number bytes read (or an error). The caller needs to
+// restart the read at the appropriate place in the iovec when more data arrives.
+//
+   do {retc = readv(LinkInfo.FD, iov, iocnt);}
+      while(retc < 0 && errno == EINTR);
+
+// Check how we completed
+//
+   if (retc < 0) Log.Emsg("Link", errno, "receive from", ID);
+   return retc;
 }
 
 /******************************************************************************/
@@ -1146,7 +1243,7 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen)
 
 /******************************************************************************/
 
-int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
+int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout, bool havelock)
 {
    XrdSysMutexHelper theMutex;
    XrdTls::RC retc;
@@ -1154,7 +1251,7 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
 
 // Lock the read mutex if we need to, the helper will unlock it upon exit
 //
-   if (LockReads) theMutex.Lock(&rdMutex);
+   if (LockReads && !havelock) theMutex.Lock(&rdMutex);
 
 // Wait up to timeout milliseconds for data to arrive
 //
@@ -1188,6 +1285,34 @@ int XrdLinkXeq::TLS_Recv(char *Buff, int Blen, int timeout)
         }
 
    AtomicAdd(BytesIn, totlen);
+   return totlen;
+}
+
+/******************************************************************************/
+
+int XrdLinkXeq::TLS_Recv(const struct iovec *iov, int iocnt, int timeout)
+{
+   XrdSysMutexHelper theMutex;
+   char *Buff;
+   int Blen, rlen, totlen = 0;
+
+// Lock the read mutex if we need to, the helper will unlock it upon exit
+//
+   if (LockReads) theMutex.Lock(&rdMutex);
+
+// Individually process each element until we can't read any more
+//
+   isIdle = 0;
+   for (int i = 0; i < iocnt; i++)
+       {Buff = (char *)iov[i].iov_base;
+        Blen =         iov[i].iov_len;
+        rlen = TLS_Recv(Buff, Blen, timeout, true);
+        if (rlen <= 0) break;
+        totlen += rlen;
+        if (rlen < Blen) break;
+       }
+
+   if (totlen) {AtomicAdd(BytesIn, totlen);}
    return totlen;
 }
 

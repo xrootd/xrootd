@@ -96,6 +96,7 @@ add_library(
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh
   XrdOuc/XrdOucNList.cc         XrdOuc/XrdOucNList.hh
   XrdOuc/XrdOucNSWalk.cc        XrdOuc/XrdOucNSWalk.hh
+  XrdOuc/XrdOucPgrwUtils.cc     XrdOuc/XrdOucPgrwUtils.hh
                                 XrdOuc/XrdOucPinKing.hh
   XrdOuc/XrdOucPinLoader.cc     XrdOuc/XrdOucPinLoader.hh
                                 XrdOuc/XrdOucPinObject.hh

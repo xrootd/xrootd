@@ -87,6 +87,7 @@ class XrdXrootdFileLock;
 class XrdXrootdFileTable;
 class XrdXrootdJob;
 class XrdXrootdMonitor;
+class XrdXrootdPgwCtl;
 class XrdXrootdPio;
 class XrdXrootdStats;
 class XrdXrootdWVInfo;
@@ -134,6 +135,8 @@ XrdSfsXioHandle      Swap(const char *buff, XrdSfsXioHandle h=0); // XrdSfsXio
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
 
+static const int     maxStreams = 16;
+
 private:
 
 // Note that Route[] structure (below) must have RD_Num elements!
@@ -163,10 +166,13 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Offload(int pathID, bool isWrite, bool ispgio=false);
        int   do_OffloadIO();
        int   do_Open();
+       bool  do_PgClose(XrdXrootdFile *fP, int &rc);
        int   do_PgRead();
        int   do_PgRIO();
        int   do_PgWrite();
        int   do_PgWIO();
+       bool  do_PgWIORetry(int &rc);
+       bool  do_PgWIOSetup(XrdXrootdPgwCtl *pgwCtl);
        int   do_Ping();
        int   do_Prepare(bool isQuery=false);
        int   do_Protocol();
@@ -193,6 +199,9 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_WriteAll();
        int   do_WriteCont();
        int   do_WriteNone();
+       int   do_WriteNone(int pathid, XErrorCode  ec=kXR_noErrorYet,
+                                      const char *emsg=0);
+       int   do_WriteNoneMsg();
        int   do_WriteV();
        int   do_WriteVec();
 
@@ -215,6 +224,9 @@ static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   getBuff(const int isRead, int Quantum);
        char *getCksType(char *opaque, char *cspec=0, int cslen=0);
        int   getData(const char *dtype, char *buff, int blen);
+       int   getData(int (XrdXrootdProtocol::*CallBack)(),
+                     const char *dtype, struct iovec *iov, int iovn);
+       int   getDataIovCont();
        int   getPathID(bool isRead);
        bool  logLogin(bool xauth=false);
 static int   mapMode(int mode);
@@ -284,7 +296,7 @@ static XrdTlsContext        *tlsCtx;    // Protection     Server TLS available
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
-static XrdSysError           eDest;     // Error message handler
+static XrdSysError          &eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;
 static int                   RQLxist;   // Something is present in RQList
@@ -423,6 +435,17 @@ XrdXrootdAioReq           *myAioReq;
 char                      *myBuff;
 int                        myBlen;
 int                        myBlast;
+
+struct GetDataCtl
+{
+int                        lenPart;
+short                      iovNow;
+short                      iovNum;
+struct iovec              *iovVec;
+const  char               *iovType;
+int   (XrdXrootdProtocol::*CallBk)();
+}                          gdCtl;
+
 int                       (XrdXrootdProtocol::*Resume)();
 XrdXrootdFile             *myFile;
 XrdXrootdWVInfo           *wvInfo;
@@ -444,7 +467,6 @@ static int                 hcMax;
 
 // This area is used for parallel streams
 //
-static const int           maxStreams = 16;
 XrdSysMutex                streamMutex;
 XrdSysSemaphore           *reTry;
 XrdXrootdProtocol         *Stream[maxStreams];
@@ -461,7 +483,7 @@ XrdXrootdPio              *pioFree;
 long long                  bytes2recv;   // For write() to   FS
 long long                  bytes2send;   // For read()  from FS
 
-short                      PathID;
+short                      PathID;       // Path for this protocol object
 unsigned short             myFlags;
 bool                       doPgIO;
 bool                       doWrite;

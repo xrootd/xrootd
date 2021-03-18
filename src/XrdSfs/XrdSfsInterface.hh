@@ -512,19 +512,23 @@ virtual int            getMmap(void **Addr, off_t &Size) = 0;
 static const uint64_t
 Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
 static const uint64_t
-NetOrder     = 0x4000000000000000ULL; //!< all: bytes in/out in net byte order
+NetOrder     = 0x4000000000000000ULL; //!< pgR: output csvec in net byte order
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.
 //!
-//! @param  offset  - The offset where the read is to start. It must be
-//!                   page aligned.
+//! @param  offset  - The offset where the read is to start. It may be
+//!                   unaligned with certain caveats relative to csvec.
 //! @param  buffer  - pointer to buffer where the bytes are to be placed.
 //! @param  rdlen   - The number of bytes to read. The amount must be an
 //!                   integral number of XrdSfsPage::Size bytes.
 //! @param  csvec   - A vector of entries to be filled with the cooresponding
-//!                   CRC32C checksum for each page. It must be size to
-//!                   rdlen/XrdSys::PageSize + (rdlen%XrdSys::PageSize != 0)
+//!                   CRC32C checksum for each page. However, if the offset is
+//!                   unaligned, then csvec[0] contains the crc for the page
+//!                   fragment that brings it to alignment for csvec[1].
+//!                   It must be sized to hold all aligned XrdSys::Pagesize
+//!                   crc's plus additional ones for leading and ending page
+//!                   fragments, if any.
 //! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes that placed in buffer.
@@ -552,15 +556,19 @@ virtual int            pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
 //-----------------------------------------------------------------------------
 //! Write file pages into a file with corresponding checksums.
 //!
-//! @param  offset  - The offset where the write is to start. It must be
-//!                   page aligned.
+//! @param  offset  - The offset where the write is to start. It may be
+//!                   unaligned with certain caveats relative to csvec.
 //! @param  buffer  - pointer to buffer containing the bytes to write.
 //! @param  wrlen   - The number of bytes to write. If amount is not an
 //!                   integral number of XrdSys::PageSize bytes, then this must
 //!                   be the last write to the file at or above the offset.
 //! @param  csvec   - A vector which contains the corresponding CRC32 checksum
-//!                   for each page. It must be size to
-//!                   wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0)
+//!                   for each page or page fragment. If offset is unaligned
+//!                   then csvec[0] is the crc of the leading fragment to
+//!                   align the subsequent full page who's crc is in csvec[1].
+//!                   It must be sized to hold all aligned XrdSys::Pagesize
+//!                   crc's plus additional ones for leading and ending page
+//!                   fragments, if any.
 //! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes written.

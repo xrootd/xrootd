@@ -341,24 +341,23 @@ int XrdXrootdResponse::Send(ServerResponseStatus &srs, int iLen)
 int XrdXrootdResponse::Send(ServerResponseStatus &srs, int iLen,
                             void *data, int dlen)
 {
-   struct iovec srsIOV[2];
+   int rc;
 
-// Fill out the data structure
+// Send off the appropriate response
 //
-   int rspLen = srsComplete(srs, iLen, dlen);
+    if (!dlen) rc = Link->Send((char *)&srs, srsComplete(srs, iLen));
+       else {struct iovec srsIOV[2];
+             srsIOV[0].iov_base = &srs;
+             srsIOV[0].iov_len  = srsComplete(srs, iLen, dlen);
+             srsIOV[1].iov_base = (caddr_t)data;
+             srsIOV[1].iov_len  = dlen;
+             rc = Link->Send(srsIOV, 2, srsIOV[0].iov_len + dlen);
+            }
 
-// Construct an iovec for the send
-
-    srsIOV[0].iov_base = &srs;
-    srsIOV[0].iov_len  = rspLen;
-    srsIOV[1].iov_base = (caddr_t)data;
-    srsIOV[1].iov_len  = dlen;
-
-// Send this off
+// Finish up
 //
-   if (Link->Send(srsIOV, 2, rspLen + dlen) < 0)
-       return Link->setEtext("send failure");
-    return 0;
+   if (rc < 0) return Link->setEtext("send failure");
+   return 0;
 }
 
 /******************************************************************************/

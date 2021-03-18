@@ -42,6 +42,7 @@
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
+#include "XrdXrootd/XrdXrootdPgwFob.hh"
 #define  TRACELINK this
 #include "XrdXrootd/XrdXrootdTrace.hh"
  
@@ -81,8 +82,8 @@ static const unsigned long  heldMask = ~1UL;
 XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
                              char mode, bool async, struct stat *sP)
                             : XrdSfsp(fp), mmAddr(0), FileKey(strdup(path)),
-                              FileMode(mode), AsyncMode(async), fhProc(0),
-                              ID(id)
+                              FileMode(mode), AsyncMode(async), pgwFob(0),
+                              fhProc(0), ID(id)
 {
     static XrdSysMutex seqMutex;
     struct stat buf;
@@ -119,7 +120,6 @@ XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
 }
   
 /******************************************************************************/
-/*                                                                            */
 /*                                  I n i t                                   */
 /******************************************************************************/
   
@@ -146,7 +146,9 @@ XrdXrootdFile::~XrdXrootdFile()
 
    if (fhProc) fhProc->Avail(fHandle);
 
-   if (FileKey) free(FileKey);
+   if (pgwFob) delete pgwFob;
+
+   if (FileKey) free(FileKey); // Must be the last thing deleted!
 }
 
 /******************************************************************************/

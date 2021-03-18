@@ -43,6 +43,9 @@
 #define TRACE_SCHED     0x0100
 #define TRACE_STALL     0x0200
 #define TRACE_AUTH      0x0400
+#define TRACE_PGRD      0x0800
+#define TRACE_PGWR      0x1000
+#define TRACE_PGCS      0x2000
  
 #ifndef NODEBUG
 

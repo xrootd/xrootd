@@ -122,7 +122,6 @@ static int  Ver32C(const void*     data,  size_t    count,
 //!                vector must be sized (count/PageSize+(count%PageSize != 0)).
 //! @param  valok  Pointer to a vector of the same size as csval to hold
 //!                the results of the comparison (true matches, o/w false).
-//! @param  pgsz   The length in bytes of each page.
 //!
 //! @return True if all the checksums match with each element of valok set to
 //!         true. Otherwise, false is returned and false is set in valok for

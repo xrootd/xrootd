@@ -523,6 +523,15 @@ int XrdXrootdProtocol::do_Close()
 //
    Link->Serialize();
 
+// If the file has a fob then it was subject to pgwrite and if there uncorrected
+// checksum errors do a forced close. This will trigger POSC or Restore.
+//
+   if (fp->pgwFob && !do_PgClose(fp, rc))
+      {FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle, true);
+       numFiles--;
+       return rc;
+      }
+
 // Setup the callback to allow close() to return SFS_STARTED so we can defer
 // the response to the close request as it may be a lengthy operation. In
 // this case the argument is the actual file pointer and the link reference
@@ -2960,9 +2969,8 @@ int XrdXrootdProtocol::do_Write()
 // Find the file object. We will drain socket data on the control path only!
 //                                                                             .
    if (!FTab || !(myFile = FTab->Get(fh.handle)))
-      {if (argp && !pathID) {myFile = 0; return do_WriteNone();}
-       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
-       return Link->setEtext("write protocol violation");
+      {myFile = 0;
+       return do_WriteNone(pathID);
       }
 
 // Trace and verify that length is not negative
@@ -2994,7 +3002,7 @@ int XrdXrootdProtocol::do_Write()
           else if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
                   {if ((retc = aio_Write()) != -EAGAIN)
                       {if (retc != -EIO) return retc;
-                       myEInfo[0] = SFS_ERROR;
+                       myEInfo[0] = SFS_ERROR; myEInfo[1] = 0;
                        myFile->XrdSfsp->error.setErrInfo(retc, "I/O error");
                        return do_WriteNone();
                       }
@@ -3038,7 +3046,7 @@ int XrdXrootdProtocol::do_WriteAll()
              return rc;
             }
          if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, Quantum)) < 0)
-            {myIOLen  = myIOLen-Quantum; myEInfo[0] = rc;
+            {myIOLen  = myIOLen-Quantum; myEInfo[0] = rc; myEInfo[1] = 0;
              return do_WriteNone();
             }
          myOffset += Quantum; myIOLen -= Quantum;
@@ -3066,7 +3074,7 @@ int XrdXrootdProtocol::do_WriteCont()
 // Write data that was finaly finished comming in
 //
    if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, myBlast)) < 0)
-      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc;
+      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc; myEInfo[1] = 0;
        return do_WriteNone();
       }
     myOffset += myBlast; myIOLen -= myBlast;
@@ -3083,13 +3091,25 @@ int XrdXrootdProtocol::do_WriteCont()
   
 int XrdXrootdProtocol::do_WriteNone()
 {
-   int rlen, blen = (myIOLen > argp->bsize ? argp->bsize : myIOLen);
+   char *buff, dbuff[4096];
+   int rlen, blen;
+
+// Determine which buffer we will use
+//
+   if (argp && argp->bsize > (int)sizeof(dbuff))
+      {buff = argp->buff;
+       blen = argp->bsize;
+      } else {
+       buff = dbuff;
+       blen = sizeof(dbuff);
+      }
+    if (myIOLen < blen) blen = myIOLen;
 
 // Discard any data being transmitted
 //
    TRACEP(REQ, "discarding " <<myIOLen <<" bytes");
    while(myIOLen > 0)
-        {rlen = Link->Recv(argp->buff, blen, readWait);
+        {rlen = Link->Recv(buff, blen, readWait);
          if (rlen  < 0) return Link->setEtext("link read error");
          myIOLen -= rlen;
          if (rlen < blen) 
@@ -3100,11 +3120,57 @@ int XrdXrootdProtocol::do_WriteNone()
          if (myIOLen < blen) blen = myIOLen;
         }
 
+// Send final message
+//
+   return do_WriteNoneMsg();
+}
+
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_WriteNone(int pathID, XErrorCode ec,
+                                    const char *emsg)
+{
+// We can't recover when the data is arriving on a foriegn bound path as there
+// no way to properly drain the socket. So, we terminate the connection.
+//
+   if (pathID != PathID)
+      {if (ec && emsg) Response.Send(ec, emsg);
+          else do_WriteNoneMsg();
+       return  Link->setEtext("write protocol violation");
+      }
+
+// Set error code if present
+//
+   if (ec != kXR_noErrorYet)
+      {myEInfo[1] = ec;
+       if (myFile)
+          {if (!emsg) emsg = XProtocol::errName(ec);
+           myFile->XrdSfsp->error.setErrInfo(0, emsg);
+          }
+      }
+
+// Otherwise, continue to darin the socket
+//
+   return do_WriteNone();
+}
+
+/******************************************************************************/
+/*                       d o _ W r i t e N o n e M s g                        */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_WriteNoneMsg()
+{
 // Send our the error message and return
 //
    if (!myFile) return
       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
+
+   if (myEInfo[1])
+      return Response.Send((XErrorCode)myEInfo[1],
+                           myFile->XrdSfsp->error.getErrText());
+
    if (myEInfo[0]) return fsError(myEInfo[0], 0, myFile->XrdSfsp->error, 0, 0);
+
    return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
 }
   
@@ -3126,10 +3192,9 @@ int XrdXrootdProtocol::do_WriteSpan()
 // Find the file object. We will only drain socket data on the control path.
 //                                                                             .
    if (!FTab || !(myFile = FTab->Get(fh.handle)))
-      {if (argp && !Request.write.pathid)
-          {myIOLen -= myBlast; myFile = 0; return do_WriteNone();}
-       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
-       return Link->setEtext("write protcol violation");
+      {myIOLen -= myBlast;
+       myFile = 0;
+       return do_WriteNone(Request.write.pathid);
       }
 
 // If we are monitoring, insert a write entry
@@ -3145,7 +3210,7 @@ int XrdXrootdProtocol::do_WriteSpan()
 // Write data that was already read
 //
    if ((rc = myFile->XrdSfsp->write(myOffset, myBuff, myBlast)) < 0)
-      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc;
+      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc; myEInfo[1] = 0;
        return do_WriteNone();
       }
     myOffset += myBlast; myIOLen -= myBlast;

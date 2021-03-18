@@ -43,6 +43,7 @@ char                xfrXeq;   // Transfer has occurred
 long long           fSize;    // Size of file when opened
 XrdXrootdMonStatXFR xfr;
 XrdXrootdMonStatOPS ops;
+XrdXrootdMonStatPRW prw;
 struct {double      read;     // sum(read_size[i] **2) i = 1 to Ops.read
         double      readv;    // sum(readv_size[i]**2) i = 1 to Ops.readv
         double      rsegs;    // sum(readv_segs[i]**2) i = 1 to Ops.readv
@@ -55,10 +56,35 @@ enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSsq = 3};
                 {FileID = 0; MonEnt = -1; monLvl = xfrXeq = 0;
                  memset(&xfr, 0, sizeof(xfr));
                  memset(&ops, 0, sizeof(ops));
+                 memset(&prw, 0, sizeof(prw));
                  ops.rsMin = 0x7fff;
                  ops.rdMin = ops.rvMin = ops.wrMin = 0x7fffffff;
                  ssq.read  = ssq.readv = ssq.write = ssq.rsegs = 0.0;
                 };
+
+inline void pgrOps(int rsz, bool isRetry=false)
+                  {if (monLvl)
+                      {prw.rBytes += rsz;
+                       prw.rCount++;
+                       if(isRetry) prw.rRetry++;
+                      }
+                   }
+
+inline void pgwOps(int wsz, bool isRetry=false)
+                  {if (monLvl)
+                      {prw.wBytes += wsz;
+                       prw.wCount++;
+                       if(isRetry) prw.wRetry++;
+                      }
+                   }
+
+inline void pgUpdt(int wErrs, int wFixd, int wUnc)
+                  {if (monLvl)
+                      {prw.wcsErr = wErrs;
+                       prw.wRetry = wFixd;
+                       prw.wcsUnc = wUnc;
+                      }
+                  }
 
 inline void rdOps(int rsz)
                  {if (monLvl)

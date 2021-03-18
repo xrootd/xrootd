@@ -190,7 +190,11 @@ int XrdXrootdProtocol::do_ChkPntXeq()
 // Obtain the filehandle that we should check
 //
    switch(reqID)
-         {case kXR_truncate:
+         {case kXR_pgwrite:
+               xeqOp = "pgwrite";
+               fh.Set(Request.pgwrite.fhandle);
+               break;
+          case kXR_truncate:
                xeqOp = "trunc";
                fh.Set(Request.truncate.fhandle);
                break;
@@ -231,7 +235,15 @@ int XrdXrootdProtocol::do_ChkPntXeq()
 // Now perform the action
 //
    switch(reqID)
-         {case kXR_truncate:
+         {case kXR_pgwrite:
+               ckpVec.size = Request.header.dlen;
+                             n2hll(Request.pgwrite.offset, ckpVec.offset);
+               ckpVec.info = 0;
+               ckpVec.data = 0;
+               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpWrite,&ckpVec,1);
+               if (!rc) return do_PgWrite();
+               break;
+          case kXR_truncate:
                n2hll(Request.write.offset, ckpVec.offset);
                ckpVec.info = 0;
                ckpVec.data = 0;
@@ -272,9 +284,13 @@ int XrdXrootdProtocol::do_ChkPntXeq()
            eDest.Emsg("Xeq", eBuff);
            myFile->XrdSfsp->error.setErrInfo(ENODEV, "logic error");
           }
+       if (reqID == kXR_pgwrite)
+          {myEInfo[0] = SFS_ERROR; myEInfo[0] = 0;
+           return do_WriteNone(static_cast<int>(Request.pgwrite.pathid));
+          }
        if (reqID == kXR_write)
-          {myEInfo[0] = SFS_ERROR;
-           return do_WriteNone();
+          {myEInfo[0] = SFS_ERROR; myEInfo[0] = 0;
+           return do_WriteNone(static_cast<int>(Request.write.pathid));
           }
        rc = fsError(SFS_ERROR, 0, myFile->XrdSfsp->error, 0, 0);
        return (reqID != kXR_truncate ? -1 : rc);

@@ -301,6 +301,22 @@ int             Recv(char *buff, int blen);
 int             Recv(char *buff, int blen, int timeout);
 
 //-----------------------------------------------------------------------------
+//! Read data on a link.  Note that this call either reads all the data wanted
+//! or no data if the passed timeout occurs before any data is present.
+//!
+//! @param  iov     pointer to the message vector.
+//! @param  iocnt   number of iov elements in the vector.
+//! @param  bytes   the sum of the sizes in the vector.
+//!
+//! @return >=0     number of bytes read.
+//!         < 0     an error occurred or when -ETIMEDOUT is returned, no data
+//!                 arrived within the timeout period. -ENOMSG is returned
+//!                 when poll indicated data was present but 0 bytes were read.
+//-----------------------------------------------------------------------------
+
+int             Recv(const struct iovec *iov, int iocnt, int timeout);
+
+//-----------------------------------------------------------------------------
 //! Read data from a link. Note that this call reads as much data as it can
 //! or until the passed timeout has occurred.
 //!
@@ -311,7 +327,8 @@ int             Recv(char *buff, int blen, int timeout);
 //!
 //! @return >=0     buffer holds data equal to the returned value.
 //!         < 0     an error occurred or when -ETIMEDOUT is returned, no data
-//!                 arrived within the timeout period.
+//!                 arrived within the timeout period. -ENOMSG is returned
+//!                 when poll indicated data was present but 0 bytes were read.
 //-----------------------------------------------------------------------------
 
 int             RecvAll(char *buff, int blen, int timeout=-1);

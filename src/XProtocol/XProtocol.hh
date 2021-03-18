@@ -473,8 +473,11 @@ struct ClientOpenRequest {
 //
 namespace XrdProto  // Always use this namespace for new additions
 {
-static const int kXR_pgPageSZ = 4096;
+static const int kXR_pgPageSZ = 4096;     // Length of a page
+static const int kXR_pgPageBL = 12;       // log2(page length)
 static const int kXR_pgUnitSZ = kXR_pgPageSZ + sizeof(kXR_unt32);
+static const int kXR_pgMaxEpr = 128;      // Max checksum errs per request
+static const int kXR_pgMaxEos = 256;      // Max checksum errs outstanding
 
 // kXR_pgread/write options
 //
@@ -996,6 +999,7 @@ enum XErrorCode {
    kXR_AuthFailed,      // 3030
    kXR_Impossible,      // 3031
    kXR_Conflict,        // 3032
+   kXR_TooManyErrs,     // 3033
    kXR_ERRFENCE,        // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -1039,7 +1043,17 @@ struct ServerResponseBody_pgRead {
   
 struct ServerResponseBody_pgWrite {
    kXR_int64 offset;                // info[]: File offset of data written
-// kXR_int64 bof[(resplen-16)/8-1]; // List of offsets of pages in error
+};
+
+
+// The following structure is appended to ServerResponseBody_pgWrite if one or
+// more checksum errors occured and need to be retransmitted.
+//
+struct ServerResponseBody_pgWrCSE {
+   kXR_unt32 cseCRC;                // crc32c of all following bits
+   kXR_int16 dlFirst;               // Data length at first offset in list
+   kXR_int16 dlLast;                // Data length at last  offset in list
+// kXR_int64 bof[(dlen-8)/8];       // List of offsets of pages in error
 };
 
 /******************************************************************************/
@@ -1253,7 +1267,7 @@ struct ServerResponseV2
   {
     ServerResponseBody_pgRead   pgread;
     ServerResponseBody_pgWrite  pgwrite;
-  } body;
+  } info;
 };
 
 struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
@@ -1333,6 +1347,7 @@ static int mapError(int rc)
            case EAUTH:         return kXR_AuthFailed;
            case EIDRM:         return kXR_Impossible;
            case ENOTTY:        return kXR_Conflict;
+           case ETOOMANYREFS:  return kXR_TooManyErrs;
            default:            return kXR_FSError;
           }
       }
@@ -1373,6 +1388,7 @@ static int toErrno( int xerr )
         case kXR_AuthFailed:    return EAUTH;
         case kXR_Impossible:    return EIDRM;
         case kXR_Conflict:      return ENOTTY;
+        case kXR_TooManyErrs:   return ETOOMANYREFS;
         default:                return ENOMSG;
        }
 }

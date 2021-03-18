@@ -296,6 +296,16 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
 }
 
 /******************************************************************************/
+
+int XrdLink::Recv(const struct iovec *iov, int iocnt, int timeout)
+{
+// Execute the send
+//
+   if (isTLS) return linkXQ.TLS_Recv(iov, iocnt, timeout);
+   else       return linkXQ.Recv    (iov, iocnt, timeout);
+}
+
+/******************************************************************************/
 /*                               R e c v A l l                                */
 /******************************************************************************/
   
