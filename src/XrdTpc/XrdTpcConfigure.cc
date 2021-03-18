@@ -73,6 +73,9 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
         return false;
     }
     m_cadir = val;
+    if (XrdTpcNSSSupport::NeedsNSSHack()) {
+        m_nss_hack.reset(new XrdTpcNSSSupport(&m_log, m_cadir));
+    }
 
     void *sfs_raw_ptr;
     if ((sfs_raw_ptr = myEnv->GetPtr("XrdSfsFileSystem*"))) {

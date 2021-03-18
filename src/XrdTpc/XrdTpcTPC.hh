@@ -8,6 +8,8 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdHttp/XrdHttpUtils.hh"
 
+#include "XrdTpc/XrdTpcNSSSupport.hh"
+
 class XrdOucErrInfo;
 class XrdOucStream;
 class XrdSfsFile;
@@ -16,6 +18,7 @@ typedef void CURL;
 
 namespace TPC {
 class State;
+class XrdTpcNSSSupport;
 
 enum LogMask {
     Debug   = 0x01,
@@ -59,6 +62,10 @@ private:
     int ProcessOptionsReq(XrdHttpExtReq &req);
 
     static std::string GetAuthz(XrdHttpExtReq &req);
+
+    // Configure curl handle's CA settings.  The returned object MUST BE KEPT IN SCOPE
+    // for as long as the curl handle is used.
+    std::shared_ptr<XrdTpcNSSSupport::TempCAGuard> ConfigureCurlCA(CURL *curl);
 
     // Redirect the transfer according to the contents of an XrdOucErrInfo object.
     int RedirectTransfer(CURL *curl, const std::string &redirect_resource, XrdHttpExtReq &req,
@@ -119,6 +126,7 @@ private:
     static uint64_t m_monid;
     XrdSysError m_log;
     XrdSfsFileSystem *m_sfs;
+    std::shared_ptr<XrdTpcNSSSupport> m_nss_hack;
 
     // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
     // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental
