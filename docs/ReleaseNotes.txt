@@ -7,6 +7,27 @@ Release Notes
 
 
 --------------
+Version 5.1.1
+--------------
+
++ **Major bug fixes**
+  * **[Server]** Make sure each aio request has the minimum number of aio
+                 objects available.
+  * **[Server]** Make sure stalled aio get written with the right offset
+                 and length.
+  * **[XrdTpc]** XrdTpc: Buffer starting at the right offset.
+  * **[XrdHttp]** Fix chunked transfer with 100-continue. 
+  * **[XrdCl]** Avoid partially reading status message data too early.
+  * **[XrdCl]** Enable TPC placement step for roots/xroots transfers.
+
++ **Minor bug fixes**
+  * **[Server]** Pass username to background checksum computation.
+  * **[XrdCl]** In TPC set oss.asize only if known.
+
++ **Miscellaneous**
+  * **[XrdCl]** Allow file listing with the same semantic as in shell. 
+
+--------------
 Version 5.1.0
 --------------
 
