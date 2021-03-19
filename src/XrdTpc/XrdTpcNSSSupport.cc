@@ -236,7 +236,7 @@ XrdTpcNSSSupport::Maintenance()
         return false;
     }
 
-    m_next_update = time(NULL) + 900;
+    m_next_update.store(time(NULL) + 900, std::memory_order_relaxed);
     m_ca_file.reset(new_file.release());
     return true;
 }
@@ -245,7 +245,7 @@ XrdTpcNSSSupport::Maintenance()
 bool
 XrdTpcNSSSupport::NeedsMaintenance()
 {
-    return time(NULL) > m_next_update;
+    return time(NULL) > m_next_update.load(std::memory_order_relaxed);
 }
 
 

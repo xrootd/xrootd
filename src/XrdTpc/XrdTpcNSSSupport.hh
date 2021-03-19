@@ -26,6 +26,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <atomic>
 #include <string>
 #include <memory>
 
@@ -102,7 +103,7 @@ public:
 private:
     bool NeedsMaintenance();
 
-    time_t m_next_update{0};
+    std::atomic<time_t> m_next_update{0};
     XrdSysError &m_log;
     const std::string m_ca_dir;
     std::shared_ptr<TempCAGuard> m_ca_file;
