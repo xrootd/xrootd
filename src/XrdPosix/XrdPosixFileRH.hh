@@ -74,6 +74,8 @@ private:
                                 result(0),typeIO(nonIO), csFrc(false) {}
 virtual     ~XrdPosixFileRH() {}
 
+void    Fill_csVec(void *buff, uint64_t offs, uint32_t dlen);
+
 static  XrdSysMutex      myMutex;
 static  XrdPosixFileRH  *freeRH;
 static  int              numFree;
