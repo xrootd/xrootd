@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClMessage.hh"
 #include "XrdNet/XrdNetAddr.hh"
 
 #include <algorithm>
@@ -656,8 +657,15 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Check if this client can support given EC redirect
   //------------------------------------------------------------------------
-  bool Utils::CheckEC( const URL &url )
+  bool Utils::CheckEC( const Message *req, const URL &url )
   {
+    // make sure that if we will be writing it is a new file
+    ClientRequest *request = (ClientRequest*)req->GetBuffer();
+    uint16_t options = ntohs( request->open.options );
+    bool open_wrt = ( options & kXR_open_updt ) || ( options & kXR_open_wrto );
+    bool open_new = ( options & kXR_new );
+    if( open_wrt && !open_new ) return false;
+
     const URL::ParamsMap &params = url.GetParams();
     // make sure all the xrdec. tokens are present and the values are sane
     URL::ParamsMap::const_iterator itr = params.find( "xrdec.nbdta" );
