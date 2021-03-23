@@ -1128,6 +1128,7 @@ struct ServerResponseReqs_Protocol {
 //
 #define kXR_recoverWrts   0x00001000
 #define kXR_collapseRedir 0x00002000
+#define kXR_ecRedir       0x00004000
 
 // Things the server supports
 //
