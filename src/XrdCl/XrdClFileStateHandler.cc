@@ -37,7 +37,8 @@
 #include "XrdCl/XrdClResponseJob.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClUglyHacks.hh"
-#include "XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClEcHandler.hh"
 
 #include "XrdOuc/XrdOucCRC.hh"
 
@@ -400,6 +401,20 @@ namespace
         OpenInfo *openInfo = 0;
         if( status->IsOK() )
           response->Get( openInfo );
+        else
+          //------------------------------------------------------------------------
+          // Handle EC redirect
+          //------------------------------------------------------------------------
+          if( status->code == errRedirect )
+          {
+            std::string url = status->GetErrorMessage();
+            pStateHandler->pEcHandler.reset( GetEcHandler( url ) );
+            if( pStateHandler->pEcHandler )
+            {
+              pStateHandler->pEcHandler->Open( pStateHandler->pOpenFlags, this, 0/*TODO figure out right value for the timeout*/ );
+              return;
+            }
+          }
 
         //----------------------------------------------------------------------
         // Notify the state handler and the client and say bye bye

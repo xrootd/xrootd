@@ -46,12 +46,14 @@ namespace
   class PgReadHandler;
   class PgReadRetryHandler;
   class PgReadSubstitutionHandler;
+  class OpenHandler;
 }
 
 namespace XrdCl
 {
   class ResponseHandlerHolder;
   class Message;
+  class EcHandler;
 
   //----------------------------------------------------------------------------
   //! PgRead flags
@@ -78,6 +80,7 @@ namespace XrdCl
       friend class ::PgReadHandler;
       friend class ::PgReadRetryHandler;
       friend class ::PgReadSubstitutionHandler;
+      friend class ::OpenHandler;
 
     public:
       //------------------------------------------------------------------------
@@ -738,6 +741,11 @@ namespace XrdCl
       // Responsible for file:// operations on the local filesystem
       //------------------------------------------------------------------------
       LocalFileHandler      *pLFileHandler;
+
+      //------------------------------------------------------------------------
+      // Responsible for Writing/Reading erasure-coded files
+      //------------------------------------------------------------------------
+      std::unique_ptr<EcHandler> pEcHandler;
   };
 }
 
