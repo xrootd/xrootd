@@ -653,6 +653,53 @@ namespace XrdCl
   }
 
 
+  //------------------------------------------------------------------------
+  //! Check if this client can support given EC redirect
+  //------------------------------------------------------------------------
+  bool Utils::CheckEC( const URL &url )
+  {
+    const URL::ParamsMap &params = url.GetParams();
+    // make sure all the xrdec. tokens are present and the values are sane
+    URL::ParamsMap::const_iterator itr = params.find( "xrdec.nbdta" );
+    if( itr == params.end() ) return false;
+    size_t nbdta = std::stoul( itr->second );
+
+    itr = params.find( "xrdec.nbprt" );
+    if( itr == params.end() ) return false;
+    size_t nbprt = std::stoul( itr->second );
+
+    itr = params.find( "xrdec.blksz" );
+    if( itr == params.end() ) return false;
+
+    itr = params.find( "xrdec.plgr" );
+    if( itr == params.end() ) return false;
+    std::vector<std::string> plgr;
+    splitString( plgr, itr->second, "," );
+    if( plgr.size() < nbdta + nbprt ) return false;
+
+    itr = params.find( "xrdec.objid" );
+    if( itr == params.end() ) return false;
+
+    itr = params.find( "xrdec.format" );
+    if( itr == params.end() ) return false;
+    size_t format = std::stoul( itr->second );
+    if( format != 1 ) return false; // TODO use constant
+
+    itr = params.find( "xrdec.cgi" );
+    if( itr == params.end() ) return false;
+    std::vector<std::string> cgi;
+    splitString( cgi, itr->second, "," );
+    if( plgr.size() != cgi.size() ) return false;
+
+    itr = params.find( "xrdec.cosc" );
+    if( itr == params.end() ) return false;
+    std::string cosc = itr->second;
+    if( cosc != "true" && cosc != "false" ) return false;
+
+    return true;
+  }
+
+
   //----------------------------------------------------------------------------
   //! Automatically infer the right checksum type
   //----------------------------------------------------------------------------

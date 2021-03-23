@@ -702,6 +702,12 @@ namespace XrdCl
           //--------------------------------------------------------------------
           if( ~uint32_t( rsp->body.redirect.port ) & kXR_collapseRedir )
             pPostMaster->CollapseRedirect( pUrl, rsp->body.redirect.host );
+
+          if( ~uint32_t( rsp->body.redirect.port ) & kXR_ecRedir )
+          {
+            if( Utils::CheckEC( rsp->body.redirect.host ) )
+              pRedirectAsAnswer = true;
+          }
         }
 
         URL newUrl = URL( o.str() );

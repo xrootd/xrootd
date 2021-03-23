@@ -221,6 +221,11 @@ namespace XrdCl
       static std::string InferChecksumType( const XrdCl::URL &source,
                                             const XrdCl::URL &destination,
                                             bool              zip = false );
+
+      //------------------------------------------------------------------------
+      //! Check if this client can support given EC redirect
+      //------------------------------------------------------------------------
+      static bool CheckEC( const URL &url );
   };
 
   //----------------------------------------------------------------------------
