@@ -20,7 +20,7 @@ namespace XrdEc
   {
       ObjCfg() = delete;
 
-      ObjCfg( const std::string &obj, const std::string &mtindex, uint8_t nbdata, uint8_t nbparity, uint64_t chunksize ) :
+      ObjCfg( const std::string &obj, uint8_t nbdata, uint8_t nbparity, uint64_t chunksize ) :
         obj( obj ),
         nbchunks( nbdata + nbparity ),
         nbparity( nbparity ),
@@ -70,6 +70,7 @@ namespace XrdEc
       const uint64_t    blksize;    // the whole block size (data + parity) in MB
 
       std::vector<std::string> plgr;
+      std::vector<std::string> cgi;
   };
 }
 
