@@ -26,6 +26,21 @@ if( XrdClPipelines )
 endif()
 
 #-------------------------------------------------------------------------------
+# XrdEc sources
+#-------------------------------------------------------------------------------
+if( BUILD_XRDEC )
+  link_directories( ${ISAL_LIBDIR} )
+  include_directories( ${ISAL_INCDIR} )
+  set( XrdEcSources
+       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcRedundancyProvider.cc
+       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcUtilities.cc
+       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcStrmWriter.cc
+       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcReader.cc
+  )
+  set( ISAL_LIB isal )
+endif()
+
+#-------------------------------------------------------------------------------
 # The XrdCl lib
 #-------------------------------------------------------------------------------
 add_library(
@@ -91,6 +106,8 @@ add_library(
   XrdClZipListHandler.cc         XrdClZipListHandler.hh
   
   ${XrdClPipelineSources}
+
+  ${XrdEcSources}
 )
 
 target_link_libraries(
@@ -102,7 +119,8 @@ target_link_libraries(
   z
   ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS}
-  ${OPENSSL_LIBRARIES})
+  ${OPENSSL_LIBRARIES}
+  ${ISAL_LIB})
 
 set_target_properties(
   XrdCl
@@ -111,6 +129,10 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES ""
   VERSION   ${XRD_CL_VERSION}
   SOVERSION ${XRD_CL_SOVERSION} )
+
+if( BUILD_XRDEC )
+  add_dependencies( XrdCl isa-l )
+endif()
 
 #-------------------------------------------------------------------------------
 # xrdfs
