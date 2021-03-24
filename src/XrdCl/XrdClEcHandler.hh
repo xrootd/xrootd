@@ -75,9 +75,12 @@ namespace XrdCl
               writer.reset();
               if( st->IsOK() && cosc )
               {
-                std::string commit =  "xrdec.objid=" + objcfg->obj
+                std::string commit =  redir.GetPath()
+                                   + "?xrdec.objid=" + objcfg->obj
                                    + "&xrdec.close=true&xrdec.size=" + std::to_string( curroff );
-                fs.SendInfo( commit, handler );
+                Buffer arg; arg.FromString( commit );
+                auto st = fs.Query( QueryCode::OpaqueFile, arg, handler );
+                if( !st.IsOK() ) handler->HandleResponse( new XRootDStatus( st ), nullptr );
                 return;
               }
               handler->HandleResponse( st, rsp );
@@ -90,13 +93,6 @@ namespace XrdCl
           reader->Close( XrdCl::ResponseHandler::Wrap( [this, handler]( XrdCl::XRootDStatus *st, XrdCl::AnyObject *rsp )
             {
               reader.reset();
-              if( st->IsOK() && cosc )
-              {
-                std::string commit =  "xrdec.objid=" + objcfg->obj
-                                   + "&xrdec.close=true";
-                fs.SendInfo( commit, handler );
-                return;
-              }
               handler->HandleResponse( st, rsp );
             } ) );
           return XrdCl::XRootDStatus();
