@@ -47,14 +47,14 @@ namespace XrdEc
 
       inline std::string GetDataUrl( size_t i ) const
       {
-        std::string url = plgr[i] + obj;
+        std::string url = plgr[i] + '/' + obj;
         if( !dtacgi.empty() ) url += '?' + dtacgi[i];
         return url;
       }
 
       inline std::string GetMetadataUrl( size_t i ) const
       {
-        std::string url = plgr[i] + obj + ".mt";
+        std::string url = plgr[i] + '/' + obj + ".mt";
         if( !mdtacgi.empty() ) url += '?' + mdtacgi[i];
         return url;
       }
