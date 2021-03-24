@@ -47,12 +47,16 @@ namespace XrdEc
 
       inline std::string GetDataUrl( size_t i ) const
       {
-        return plgr[i] + obj + ".data.zip";
+        std::string url = plgr[i] + obj + ".data.zip";
+        if( !dtacgi.empty() ) url += '?' + dtacgi[i];
+        return url;
       }
 
       inline std::string GetMetadataUrl( size_t i ) const
       {
-        return plgr[i] + obj + ".metadata.zip";
+        std::string url = plgr[i] + obj + ".metadata.zip";
+        if( !mdtacgi.empty() ) url += '?' + mdtacgi[i];
+        return url;
       }
 
       inline std::string GetFileName( size_t blknb, size_t strpnb ) const
@@ -70,7 +74,8 @@ namespace XrdEc
       const uint64_t    blksize;    // the whole block size (data + parity) in MB
 
       std::vector<std::string> plgr;
-      std::vector<std::string> cgi;
+      std::vector<std::string> dtacgi;
+      std::vector<std::string> mdtacgi;
   };
 }
 
