@@ -184,11 +184,21 @@ namespace XrdCl
     size_t format = std::stoul( itr->second );
     if( format != 1 ) return nullptr; // TODO use constant
 
-    itr = params.find( "xrdec.cgi" );
-    if( itr == params.end() ) return nullptr;
-    std::vector<std::string> cgi;
-    Utils::splitString( cgi, itr->second, "," );
-    if( plgr.size() != cgi.size() ) return nullptr;
+    std::vector<std::string> dtacgi;
+    itr = params.find( "xrdec.dtacgi" );
+    if( itr != params.end() )
+    {
+      Utils::splitString( dtacgi, itr->second, "," );
+      if( plgr.size() != dtacgi.size() ) return nullptr;
+    }
+
+    std::vector<std::string> mdtacgi;
+    itr = params.find( "xrdec.mdtacgi" );
+    if( itr != params.end() ) 
+    {
+      Utils::splitString( mdtacgi, itr->second, "," );
+      if( plgr.size() != mdtacgi.size() ) return nullptr;
+    }
 
     itr = params.find( "xrdec.cosc" );
     if( itr == params.end() ) return nullptr;
@@ -197,8 +207,9 @@ namespace XrdCl
     bool cosc = cosc_str == "true";
 
     XrdEc::ObjCfg *objcfg = new XrdEc::ObjCfg( objid, nbdta, nbprt, blksz / nbdta );
-    objcfg->plgr = std::move( plgr );
-    objcfg->cgi  = std::move( cgi );
+    objcfg->plgr    = std::move( plgr );
+    objcfg->dtacgi  = std::move( dtacgi );
+    objcfg->mdtacgi = std::move( mdtacgi );
 
     return new EcHandler( headnode, objcfg, cosc );
   }

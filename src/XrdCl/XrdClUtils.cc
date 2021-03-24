@@ -693,11 +693,21 @@ namespace XrdCl
     size_t format = std::stoul( itr->second );
     if( format != 1 ) return false; // TODO use constant
 
-    itr = params.find( "xrdec.cgi" );
-    if( itr == params.end() ) return false;
-    std::vector<std::string> cgi;
-    splitString( cgi, itr->second, "," );
-    if( plgr.size() != cgi.size() ) return false;
+    itr = params.find( "xrdec.dtacgi" );
+    if( itr != params.end() )
+    {
+      std::vector<std::string> dtacgi;
+      splitString( dtacgi, itr->second, "," );
+      if( plgr.size() != dtacgi.size() ) return false;
+    }
+
+    itr = params.find( "xrdec.mdtacgi" );
+    if( itr != params.end() )
+    {
+      std::vector<std::string> mdtacgi;
+      splitString( mdtacgi, itr->second, "," );
+      if( plgr.size() != mdtacgi.size() ) return false;
+    }
 
     itr = params.find( "xrdec.cosc" );
     if( itr == params.end() ) return false;
