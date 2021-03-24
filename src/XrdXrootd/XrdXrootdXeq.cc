@@ -3545,7 +3545,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 //
    if (rc == SFS_REDIRECT)
       {SI->redirCnt++;
-       if (ecode < 0 && ecode != -1) ecode = (ecode ? -ecode : Port);
+//       if (ecode < 0 && ecode != -1) ecode = (ecode ? -ecode : Port);
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
        if (TRACING(TRACE_REDIR))
