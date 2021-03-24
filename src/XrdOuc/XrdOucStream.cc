@@ -1072,7 +1072,7 @@ bool XrdOucStream::docont(const char *path, XrdOucTList *tlP)
 // A continue directive in the context of a continuation is illegal
 //
    if ((myInfo && myInfo->fcList) || (flags & XrdOucStream_CONT) != 0)
-      return Echo(EINVAL, "'continue' is a continuation is not allowed.");
+      return Echo(EINVAL, "'continue' in a continuation is not allowed.");
 
 // Check if this file must exist (we also take care of empty paths)
 //
@@ -1093,7 +1093,7 @@ bool XrdOucStream::docont(const char *path, XrdOucTList *tlP)
       }
 
 // For directory continuation, there is much more to do (this can only happen
-// once). Note that we used to allow a limited number of chained fle
+// once). Note that we used to allow a limited number of chained file
 // continuations. No more, but we are still setup to easily do so.
 //
    if ((Stat.st_mode & S_IFMT) == S_IFDIR)
@@ -1193,6 +1193,7 @@ bool XrdOucStream::docontF(const char *path, bool noentok)
 //
    if (Eroute) Eroute->Say("Config continuing with file ", path, " ...");
    bleft = 0;
+   close(cFD);
    return true;
 }
   
