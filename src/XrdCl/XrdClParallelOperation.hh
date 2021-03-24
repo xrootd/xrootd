@@ -64,6 +64,8 @@ namespace XrdCl
     }
 
     virtual bool Examine( const XrdCl::XRootDStatus &status ) = 0;
+
+    virtual XRootDStatus Result() = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -194,10 +196,19 @@ namespace XrdCl
       {
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          // keep the status in case this is the final result
+          res = status;
           if( status.IsOK() ) return false;
           // we require all request to succeed
           return true;
         }
+
+        XRootDStatus Result()
+        {
+          return res;
+        }
+
+        XRootDStatus res;
       };
 
       //------------------------------------------------------------------------
@@ -214,6 +225,8 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          // keep the status in case this is the final result
+          res = status;
           // decrement the counter
           size_t nb = cnt.fetch_sub( 1 );
           // we require just one operation to be successful
@@ -224,8 +237,14 @@ namespace XrdCl
           return false;
         }
 
+        XRootDStatus Result()
+        {
+          return res;
+        }
+
         private:
           std::atomic<size_t> cnt;
+          XRootDStatus        res;
       };
 
       //------------------------------------------------------------------------
@@ -243,6 +262,8 @@ namespace XrdCl
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          // keep the status in case this is the final result
+          res = status;
           if( status.IsOK() )
           {
             size_t s = succeeded.fetch_add( 1 );
@@ -257,11 +278,17 @@ namespace XrdCl
           return false;
         }
 
+        XRootDStatus Result()
+        {
+          return res;
+        }
+
         private:
           std::atomic<size_t> failed;
           std::atomic<size_t> succeeded;
           const size_t        threshold;
           const size_t        size;
+          XRootDStatus        res;
       };
 
       //------------------------------------------------------------------------
@@ -273,24 +300,36 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct AtLeastPolicy : PolicyExecutor
       {
-        AtLeastPolicy( size_t size, size_t threshold ) : failed_cnt( 0 ),
+        AtLeastPolicy( size_t size, size_t threshold ) : pending_cnt( size ),
+                                                         failed_cnt( 0 ),
                                                          failed_threshold( size - threshold )
         {
         }
 
         bool Examine( const XrdCl::XRootDStatus &status )
         {
+          // update number of pending operations
+          size_t pending = pending_cnt.fetch_sub( 1 ) - 1;
           // although we might have the minimum to succeed we wait for the rest
           if( status.IsOK() ) return false;
           size_t nb = failed_cnt.fetch_add( 1 );
-          if( nb == failed_threshold ) return true; // we dropped bellow the threshold
-          // we still have a chance there will be enough of successful operations
+          if( nb == failed_threshold ) res = status; // we dropped bellow the threshold
+          // all done ...
+          if( pending == 0 ) return true;
+          // we still have to wait for some pending operations
           return false;
         }
 
+        XRootDStatus Result()
+        {
+          return res;
+        }
+
         private:
+          std::atomic<size_t> pending_cnt;
           std::atomic<size_t> failed_cnt;
           const size_t        failed_threshold;
+          XRootDStatus        res;
       };
 
       //------------------------------------------------------------------------
@@ -353,7 +392,7 @@ namespace XrdCl
         inline void Examine( const XRootDStatus &st )
         {
           if( policy->Examine( st ) )
-            Handle( st );
+            Handle( policy->Result() );
         }
 
         //----------------------------------------------------------------------
