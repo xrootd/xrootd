@@ -402,16 +402,17 @@ namespace
         if( status->IsOK() )
           response->Get( openInfo );
         else
-          //------------------------------------------------------------------------
+          //--------------------------------------------------------------------
           // Handle EC redirect
-          //------------------------------------------------------------------------
+          //--------------------------------------------------------------------
           if( status->code == errRedirect )
           {
-            std::string url = status->GetErrorMessage();
-            pStateHandler->pEcHandler.reset( GetEcHandler( url ) );
-            if( pStateHandler->pEcHandler )
+            std::string ecurl = status->GetErrorMessage();
+            EcHandler *ecHandler = GetEcHandler( hostList->front().url, ecurl );
+            if( ecHandler )
             {
-              pStateHandler->pEcHandler->Open( pStateHandler->pOpenFlags, this, 0/*TODO figure out right value for the timeout*/ );
+              pStateHandler->pPlugin = ecHandler; // set the plugin for the File object
+              ecHandler->Open( pStateHandler->pOpenFlags, pUserHandler, 0/*TODO figure out right value for the timeout*/ );
               return;
             }
           }
@@ -711,7 +712,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  FileStateHandler::FileStateHandler():
+  FileStateHandler::FileStateHandler( FilePlugIn *& plugin ):
     pFileState( Closed ),
     pStatInfo( 0 ),
     pFileUrl( 0 ),
@@ -729,7 +730,8 @@ namespace XrdCl
     pUseVirtRedirector( true ),
     pIsChannelEncrypted( false ),
     pAllowBundledClose( false ),
-    pReOpenHandler( 0 )
+    pReOpenHandler( 0 ),
+    pPlugin( plugin )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
@@ -744,7 +746,7 @@ namespace XrdCl
   //! @param useVirtRedirector if true Metalink files will be treated
   //!                          as a VirtualRedirectors
   //------------------------------------------------------------------------
-  FileStateHandler::FileStateHandler( bool useVirtRedirector ):
+  FileStateHandler::FileStateHandler( bool useVirtRedirector, FilePlugIn *& plugin ):
     pFileState( Closed ),
     pStatInfo( 0 ),
     pFileUrl( 0 ),
@@ -761,7 +763,8 @@ namespace XrdCl
     pFollowRedirects( true ),
     pUseVirtRedirector( useVirtRedirector ),
     pAllowBundledClose( false ),
-    pReOpenHandler( 0 )
+    pReOpenHandler( 0 ),
+    pPlugin( plugin )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();

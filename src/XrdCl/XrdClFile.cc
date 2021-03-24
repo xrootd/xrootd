@@ -42,7 +42,7 @@ namespace XrdCl
     pPlugIn(0),
     pEnablePlugIns( enablePlugIns )
   {
-    pStateHandler = new FileStateHandler();
+    pStateHandler = new FileStateHandler( pPlugIn );
   }
 
   //----------------------------------------------------------------------------
@@ -52,7 +52,7 @@ namespace XrdCl
     pPlugIn(0),
     pEnablePlugIns( enablePlugIns )
   {
-    pStateHandler = new FileStateHandler( virtRedirect == EnableVirtRedirect );
+    pStateHandler = new FileStateHandler( virtRedirect == EnableVirtRedirect, pPlugIn );
   }
 
   //------------------------------------------------------------------------

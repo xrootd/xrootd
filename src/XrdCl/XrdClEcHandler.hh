@@ -8,6 +8,7 @@
 #ifndef SRC_XRDCL_XRDCLECHANDLER_HH_
 #define SRC_XRDCL_XRDCLECHANDLER_HH_
 
+#include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdCl/XrdClUtils.hh"
 
 #include "XrdEc/XrdEcReader.hh"
@@ -17,7 +18,7 @@
 
 namespace XrdCl
 {
-  class EcHandler
+  class EcHandler : public FilePlugIn
   {
     public:
       EcHandler( const URL &redir, XrdEc::ObjCfg *objcfg, bool cosc ) : redir( redir ),
@@ -152,9 +153,9 @@ namespace XrdCl
       bool                               cosc;
   };
 
-  EcHandler* GetEcHandler( const URL &url )
+  EcHandler* GetEcHandler( const URL &headnode, const URL &redirurl )
   {
-    const URL::ParamsMap &params = url.GetParams();
+    const URL::ParamsMap &params = redirurl.GetParams();
     // make sure all the xrdec. tokens are present and the values are sane
     URL::ParamsMap::const_iterator itr = params.find( "xrdec.nbdta" );
     if( itr == params.end() ) return nullptr;
@@ -199,7 +200,7 @@ namespace XrdCl
     objcfg->plgr = std::move( plgr );
     objcfg->cgi  = std::move( cgi );
 
-    return new EcHandler( url, objcfg, cosc );
+    return new EcHandler( headnode, objcfg, cosc );
   }
 
 } /* namespace XrdCl */

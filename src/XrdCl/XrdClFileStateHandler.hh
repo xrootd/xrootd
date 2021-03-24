@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClLocalFileHandler.hh"
 #include "XrdCl/XrdClOptional.hh"
+#include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPageSize.hh"
 
@@ -99,7 +100,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      FileStateHandler();
+      FileStateHandler( FilePlugIn *& plugin );
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -107,7 +108,7 @@ namespace XrdCl
       //! @param useVirtRedirector if true Metalink files will be treated
       //!                          as a VirtualRedirectors
       //------------------------------------------------------------------------
-      FileStateHandler( bool useVirtRedirector );
+      FileStateHandler( bool useVirtRedirector, FilePlugIn *& plugin );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -745,7 +746,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Responsible for Writing/Reading erasure-coded files
       //------------------------------------------------------------------------
-      std::unique_ptr<EcHandler> pEcHandler;
+      FilePlugIn           *&pPlugin;
   };
 }
 
