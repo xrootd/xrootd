@@ -264,10 +264,14 @@ namespace XrdEc
         cfg.GetRedundancy( objcfg ).compute( stripes );
         // then calculate the checksums
         cksums.reserve( objcfg.nbchunks );
+        size_t bytesleft = wrtbuff.GetCursor();
         for( uint8_t strpnb = 0; strpnb < objcfg.nbchunks; ++strpnb )
         {
-          std::future<uint32_t> ftr = ThreadPool::Instance().Execute( crc32c, 0, stripes[strpnb].buffer, objcfg.chunksize );
+          size_t chunksize = objcfg.chunksize;
+          if( chunksize > bytesleft ) chunksize = bytesleft;
+          std::future<uint32_t> ftr = ThreadPool::Instance().Execute( crc32c, 0, stripes[strpnb].buffer, chunksize );
           cksums.emplace_back( std::move( ftr ) );
+          bytesleft -= chunksize;
         }
       }
       //-----------------------------------------------------------------------
