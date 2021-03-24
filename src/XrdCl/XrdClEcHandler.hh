@@ -73,7 +73,13 @@ namespace XrdCl
           writer->Close( XrdCl::ResponseHandler::Wrap( [this, handler]( XrdCl::XRootDStatus *st, XrdCl::AnyObject *rsp )
             {
               writer.reset();
-              // TODO commit the write if cosc == true
+              if( st->IsOK() && cosc )
+              {
+                std::string commit =  "xrdec.objid=" + objcfg->obj
+                                   + "&xrdec.close=true&xrdec.size=" + std::to_string( curroff );
+                fs.SendInfo( commit, handler );
+                return;
+              }
               handler->HandleResponse( st, rsp );
             } ) );
           return XrdCl::XRootDStatus();
@@ -84,6 +90,13 @@ namespace XrdCl
           reader->Close( XrdCl::ResponseHandler::Wrap( [this, handler]( XrdCl::XRootDStatus *st, XrdCl::AnyObject *rsp )
             {
               reader.reset();
+              if( st->IsOK() && cosc )
+              {
+                std::string commit =  "xrdec.objid=" + objcfg->obj
+                                   + "&xrdec.close=true";
+                fs.SendInfo( commit, handler );
+                return;
+              }
               handler->HandleResponse( st, rsp );
             } ) );
           return XrdCl::XRootDStatus();
