@@ -203,20 +203,21 @@ XrdTpcNSSSupport::Maintenance()
         return false;
     }
 
-    std::unique_ptr<DIR, decltype(&closedir)> dirp(fdopendir(fddir), &closedir);
+    DIR *dirp = fdopendir(fddir);
     if (!dirp) {
         m_log.Emsg("XrdTpc", "Failed to allocate a directory pointer");
         return false;
     }
 
     struct dirent *result;
-    while ((result = readdir(dirp.get()))) {
+    while ((result = readdir(dirp))) {
         //m_log.Emsg("Will parse file for CA certificates", result->d_name);
         if (result->d_type != DT_REG && result->d_type != DT_LNK) {continue;}
         if (result->d_name[0] == '.') {continue;}
         int fd = openat(fddir, result->d_name, O_RDONLY);
         if (fd < 0) {
             m_log.Emsg("XrdTpc", "Failed to open certificate file", result->d_name, strerror(errno));
+            closedir(dirp);
             return false;
         }
         file_smart_ptr fp(fdopen(fd, "r"), &fclose);
@@ -227,8 +228,10 @@ XrdTpcNSSSupport::Maintenance()
     }
     if (errno) {
         m_log.Emsg("XrdTpc", "Failure during readdir", strerror(errno));
+        closedir(dirp);
         return false;
     }
+    closedir(dirp);
 
     m_next_update.store(time(NULL) + 900, std::memory_order_relaxed);
     m_ca_file.reset(new_file.release());
