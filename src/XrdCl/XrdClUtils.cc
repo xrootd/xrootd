@@ -659,6 +659,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   bool Utils::CheckEC( const Message *req, const URL &url )
   {
+#ifdef WITH_XRDEC
     // make sure that if we will be writing it is a new file
     ClientRequest *request = (ClientRequest*)req->GetBuffer();
     uint16_t options = ntohs( request->open.options );
@@ -715,6 +716,9 @@ namespace XrdCl
     if( cosc != "true" && cosc != "false" ) return false;
 
     return true;
+#else
+    return false;
+#endif
   }
 
 

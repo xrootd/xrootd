@@ -38,6 +38,7 @@ if( BUILD_XRDEC )
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcReader.cc
   )
   set( ISAL_LIB isal )
+  add_compile_definitions( WITH_XRDEC )
 endif()
 
 #-------------------------------------------------------------------------------
