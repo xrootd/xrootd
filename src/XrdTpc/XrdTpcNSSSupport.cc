@@ -37,6 +37,7 @@
 #include <curl/curl.h>
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
@@ -197,7 +198,7 @@ XrdTpcNSSSupport::Maintenance()
     }
     CASet builder(new_file->getFD(), m_log, m_x509_to_file_func, m_file_to_x509_func);
 
-    int fddir = open(m_ca_dir.c_str(), O_DIRECTORY);
+    int fddir = XrdSysFD_Open(m_ca_dir.c_str(), O_DIRECTORY);
     if (fddir < 0) {
         m_log.Emsg("XrdTpc", "Failed to open the CA directory", m_ca_dir.c_str());
         return false;
@@ -214,7 +215,7 @@ XrdTpcNSSSupport::Maintenance()
         //m_log.Emsg("Will parse file for CA certificates", result->d_name);
         if (result->d_type != DT_REG && result->d_type != DT_LNK) {continue;}
         if (result->d_name[0] == '.') {continue;}
-        int fd = openat(fddir, result->d_name, O_RDONLY);
+        int fd = XrdSysFD_Openat(fddir, result->d_name, O_RDONLY);
         if (fd < 0) {
             m_log.Emsg("XrdTpc", "Failed to open certificate file", result->d_name, strerror(errno));
             closedir(dirp);
