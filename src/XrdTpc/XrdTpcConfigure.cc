@@ -80,6 +80,10 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
         m_cadir = cadir;
         if (!env_cadir && XrdTpcNSSSupport::NeedsNSSHack()) {
             m_nss_hack.reset(new XrdTpcNSSSupport(&m_log, m_cadir));
+            if (!m_nss_hack->IsValid()) {
+                m_log.Emsg("Config", "Workaround for libnss is required but failed to initialize.");
+                return false;
+            }
         }
     }
     if ((cafile = myEnv->Get("http.cafile"))) {

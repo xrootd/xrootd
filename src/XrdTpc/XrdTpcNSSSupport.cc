@@ -166,6 +166,7 @@ XrdTpcNSSSupport::XrdTpcNSSSupport(XrdSysError *err, std::string ca_dir)
     if (!(m_x509_to_file_func = m_plugin.Resolve("XrdCryptosslX509ToFile")) ||
         !(m_file_to_x509_func = m_plugin.Resolve("XrdCryptosslX509ParseFile")))
     {
+        m_log.Emsg("XrdTpcNSSSupport", "Failed to resolve needed functions from XrdCryptossl");
         return;
     }
 
