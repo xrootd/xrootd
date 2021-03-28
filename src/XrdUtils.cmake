@@ -83,6 +83,8 @@ add_library(
   XrdCrypto/XrdCryptosslX509Req.cc XrdCrypto/XrdCryptosslX509Req.hh
   XrdCrypto/XrdCryptoX509Req.cc    XrdCrypto/XrdCryptoX509Req.hh
   XrdCrypto/XrdCryptoAux.cc        XrdCrypto/XrdCryptoAux.hh
+  XrdCrypto/XrdCryptosslX509Crl.cc XrdCrypto/XrdCryptosslX509Crl.hh
+  XrdCrypto/XrdCryptoX509Crl.cc    XrdCrypto/XrdCryptoX509Crl.hh
   XrdCrypto/XrdCryptoTrace.hh
 
   #-----------------------------------------------------------------------------
