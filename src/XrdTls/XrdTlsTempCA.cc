@@ -41,6 +41,7 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslX509Crl.hh"
 #include "XrdVersion.hh"
 
 #include "XrdTlsTempCA.hh"
@@ -120,6 +121,77 @@ CASet::processFile(file_smart_ptr &fp, const std::string &fname)
     return true;
 }
 
+
+class CRLSet {
+public:
+    CRLSet(int output_fd, XrdSysError &err)
+    : m_log(err),
+      m_output_fd(output_fd)
+    {}
+
+    /**
+     * Given an open file descriptor pointing to
+     * a file potentially containing a CRL, process it
+     * for PEM-formatted entries.  If a new, unique CRL
+     * is found, then it is written into the current
+     * tempfile.
+     *
+     * The fname argument is used solely for debugging.
+     *
+     * Returns true on success.
+     */
+    bool processFile(file_smart_ptr &fd, const std::string &fname);
+
+private:
+    XrdSysError &m_log;
+
+        // Grid CA directories tend to keep everything in triplicate;
+        // we keep a unique hash of all known CRLs so we write out each
+        // one only once.
+    std::unordered_set<std::string> m_known_crls;
+    const int m_output_fd;
+};
+
+
+bool
+CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
+{
+    // Note we purposely leak the outputfp here; we are just borrowing the handle.
+    FILE *outputfp = fdopen(m_output_fd, "w");
+    if (!outputfp) {
+        m_log.Emsg("CAset", "Failed to reopen file for output", fname.c_str());
+        return false;
+    }
+
+    // Assume we can safely ignore a failure to parse; we load every file in
+    // the directory and that will naturally include a number of non-CRL files.
+    for (std::unique_ptr<XrdCryptosslX509Crl> xrd_crl(new XrdCryptosslX509Crl(fp.get(), fname.c_str()));
+         xrd_crl->IsValid();
+         xrd_crl = std::unique_ptr<XrdCryptosslX509Crl>(new XrdCryptosslX509Crl(fp.get(), fname.c_str())))
+    {
+        auto hash_ptr = xrd_crl->IssuerHash(1);
+        if (!hash_ptr) {
+            continue;
+        }
+        auto iter = m_known_crls.find(hash_ptr);
+        if (iter != m_known_crls.end()) {
+            //m_log.Emsg("CRLset", "Skipping known CRL with hash", fname.c_str(), hash_ptr);
+            continue;
+        }
+        //m_log.Emsg("CRLset", "New CRL with hash", fname.c_str(), hash_ptr);
+        m_known_crls.insert(hash_ptr);
+
+        if (!xrd_crl->ToFile(outputfp)) {
+            m_log.Emsg("CRLset", "Failed to write out CRL", fname.c_str());
+            fflush(outputfp);
+            return false;
+        }
+    }
+    fflush(outputfp);
+
+    return true;
+}
+
 }
 
 
@@ -128,26 +200,36 @@ using namespace XrdTls;
 
 std::unique_ptr<XrdTlsTempCA::TempCAGuard>
 XrdTlsTempCA::TempCAGuard::create(XrdSysError &err) {
-    char fname[] = "/tmp/xrootd_ca_file.XXXXXX.pem";
-    int fd = mkstemps(fname, 4);
-    if (fd < 0) {
+    char ca_fname[] = "/tmp/xrootd_ca_file.XXXXXX.pem";
+    int ca_fd = mkstemps(ca_fname, 4);
+    if (ca_fd < 0) {
         err.Emsg("TempCA", "Failed to create temp file:", strerror(errno));
         return std::unique_ptr<TempCAGuard>();
     }
-    return std::unique_ptr<TempCAGuard>(new TempCAGuard(fd, fname));
+    char crl_fname[] = "/tmp/xrootd_crl_file.XXXXXX.pem";
+    int crl_fd = mkstemps(crl_fname, 4);
+    if (crl_fd < 0) {
+        err.Emsg("TempCA", "Failed to create temp file:", strerror(errno));
+        return std::unique_ptr<TempCAGuard>();
+    }
+    return std::unique_ptr<TempCAGuard>(new TempCAGuard(ca_fd, crl_fd, ca_fname, crl_fname));
 }
 
 
 XrdTlsTempCA::TempCAGuard::~TempCAGuard() {
-    if (m_fd >= 0) {
-        unlink(m_fname.c_str());
-        close(m_fd);
+    if (m_ca_fd >= 0) {
+        unlink(m_ca_fname.c_str());
+        close(m_ca_fd);
+    }
+    if (m_crl_fd >= 0) {
+        unlink(m_crl_fname.c_str());
+        close(m_crl_fd);
     }
 }
 
 
-XrdTlsTempCA::TempCAGuard::TempCAGuard(int fd, const std::string &fname)
-    : m_fd(fd), m_fname(fname)
+XrdTlsTempCA::TempCAGuard::TempCAGuard(int ca_fd, int crl_fd, const std::string &ca_fname, const std::string &crl_fname)
+    : m_ca_fd(ca_fd), m_crl_fd(crl_fd), m_ca_fname(ca_fname), m_crl_fname(crl_fname)
     {}
 
 
@@ -162,14 +244,15 @@ XrdTlsTempCA::XrdTlsTempCA(XrdSysError *err, std::string ca_dir)
 bool
 XrdTlsTempCA::Maintenance()
 {
-    m_log.Emsg("TempCA", "Reloading the list of CAs in directory");
+    m_log.Emsg("TempCA", "Reloading the list of CAs and CRLs in directory");
 
     std::unique_ptr<TempCAGuard> new_file(TempCAGuard::create(m_log));
     if (!new_file) {
-        m_log.Emsg("TempCA", "Failed to create a new temp CA file");
+        m_log.Emsg("TempCA", "Failed to create a new temp CA / CRL file");
         return false;
     }
-    CASet builder(new_file->getFD(), m_log);
+    CASet ca_builder(new_file->getCAFD(), m_log);
+    CRLSet crl_builder(new_file->getCRLFD(), m_log);
 
     int fddir = XrdSysFD_Open(m_ca_dir.c_str(), O_DIRECTORY);
     if (fddir < 0) {
@@ -196,8 +279,12 @@ XrdTlsTempCA::Maintenance()
         }
         file_smart_ptr fp(fdopen(fd, "r"), &fclose);
 
-        if (!builder.processFile(fp, result->d_name)) {
-            m_log.Emsg("Maintenance", "Failed to process file", result->d_name);
+        if (!ca_builder.processFile(fp, result->d_name)) {
+            m_log.Emsg("Maintenance", "Failed to process file for CAs", result->d_name);
+        }
+        rewind(fp.get());
+        if (!crl_builder.processFile(fp, result->d_name)) {
+            m_log.Emsg("Maintenance", "Failed to process file for CRLs", result->d_name);
         }
     }
     if (errno) {

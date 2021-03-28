@@ -108,7 +108,8 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
         m_ca_file.get() ? m_ca_file->getHandle() : nullptr
     );
     if (ca_guard) {
-        curl_easy_setopt(curl, CURLOPT_CAINFO, ca_guard->getFilename().c_str());
+        curl_easy_setopt(curl, CURLOPT_CAINFO, ca_guard->getCAFilename().c_str());
+        curl_easy_setopt(curl, CURLOPT_CRLFILE, ca_guard->getCRLFilename().c_str());
     }
     else if (!m_cadir.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());

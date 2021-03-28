@@ -69,18 +69,23 @@ public:
     public:
         static std::unique_ptr<TempCAGuard> create(XrdSysError &);
 
-    int getFD() const {return m_fd;}
-    std::string getFilename() const {return m_fname;}
+    int getCAFD() const {return m_ca_fd;}
+    std::string getCAFilename() const {return m_ca_fname;}
+
+    int getCRLFD() const {return m_crl_fd;}
+    std::string getCRLFilename() const {return m_crl_fname;}
 
     TempCAGuard(const TempCAGuard &) = delete;
 
     ~TempCAGuard();
 
     private:
-        TempCAGuard(int fd, const std::string &fname);
+        TempCAGuard(int ca_fd, int crl_fd, const std::string &ca_fname, const std::string &crl_fname);
 
-        int m_fd;
-        std::string m_fname;
+        int m_ca_fd{-1};
+        int m_crl_fd{-1};
+        std::string m_ca_fname;
+        std::string m_crl_fname;
     };
 
 
