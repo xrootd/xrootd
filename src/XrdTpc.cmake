@@ -38,7 +38,6 @@ if( BUILD_TPC )
     MODULE
     XrdTpc/XrdTpcConfigure.cc
     XrdTpc/XrdTpcMultistream.cc
-    XrdTpc/XrdTpcNSSSupport.cc    XrdTpc/XrdTpcNSSSupport.hh
     XrdTpc/XrdTpcCurlMulti.cc     XrdTpc/XrdTpcCurlMulti.hh
     XrdTpc/XrdTpcState.cc         XrdTpc/XrdTpcState.hh
     XrdTpc/XrdTpcStream.cc        XrdTpc/XrdTpcStream.hh
