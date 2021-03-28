@@ -78,9 +78,9 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     const char *cadir = nullptr, *cafile = nullptr;
     if ((cadir = env_cadir ? env_cadir : myEnv->Get("http.cadir"))) {
         m_cadir = cadir;
-        if (!env_cadir && XrdTpcNSSSupport::NeedsNSSHack()) {
-            m_nss_hack.reset(new XrdTpcNSSSupport(&m_log, m_cadir));
-            if (!m_nss_hack->IsValid()) {
+        if (!env_cadir) {
+            m_ca_file.reset(new XrdTls::XrdTlsTempCA(&m_log, m_cadir));
+            if (!m_ca_file->IsValid()) {
                 m_log.Emsg("Config", "Workaround for libnss is required but failed to initialize.");
                 return false;
             }

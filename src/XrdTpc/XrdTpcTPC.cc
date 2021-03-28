@@ -101,13 +101,16 @@ std::string encode_xrootd_opaque_to_uri(CURL *curl, const std::string &opaque)
     return output.str();
 }
 
-std::shared_ptr<XrdTpcNSSSupport::TempCAGuard>
+std::shared_ptr<XrdTls::XrdTlsTempCA::TempCAGuard>
 TPCHandler::ConfigureCurlCA(CURL *curl)
 {
-    std::shared_ptr<XrdTpcNSSSupport::TempCAGuard> ca_guard(
-        m_nss_hack.get() ? m_nss_hack->ConfigureCurl(curl) : nullptr
+    std::shared_ptr<XrdTls::XrdTlsTempCA::TempCAGuard> ca_guard(
+        m_ca_file.get() ? m_ca_file->getHandle() : nullptr
     );
-    if (!ca_guard && !m_cadir.empty()) {
+    if (ca_guard) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, ca_guard->getFilename().c_str());
+    }
+    else if (!m_cadir.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
     }
     if (!m_cafile.empty()) {

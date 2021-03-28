@@ -67,6 +67,7 @@ add_library(
   XrdTls/XrdTlsNotaryUtils.icc  XrdTls/XrdTlsNotaryUtils.hh
   XrdTls/XrdTlsPeerCerts.cc     XrdTls/XrdTlsPeerCerts.hh
   XrdTls/XrdTlsSocket.cc        XrdTls/XrdTlsSocket.hh
+  XrdTls/XrdTlsTempCA.cc        XrdTls/XrdTlsTempCA.hh
 
   #-----------------------------------------------------------------------------
   # XrdOuc
