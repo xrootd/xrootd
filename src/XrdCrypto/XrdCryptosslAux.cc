@@ -298,7 +298,7 @@ XrdSutBucket *XrdCryptosslX509ExportChain(XrdCryptoX509Chain *chain,
 }
 
 //____________________________________________________________________________
-int XrdCryptosslX509ToFile(XrdCryptoX509 *x509, FILE *file)
+int XrdCryptosslX509ToFile(XrdCryptoX509 *x509, FILE *file, const char *fname)
 {
    // Dump a single X509 certificate to a file in PEM format.
    EPNAME("X509ChainToFile");
@@ -310,7 +310,7 @@ int XrdCryptosslX509ToFile(XrdCryptoX509 *x509, FILE *file)
    }
 
    if (PEM_write_X509(file, (X509 *)x509->Opaque()) != 1) {
-      DEBUG("error while writing certificate");
+      DEBUG("error while writing certificate " << fname);
       return -1;
    }
 
@@ -465,14 +465,15 @@ int XrdCryptosslX509ParseFile(const char *fname,
       return 0;
    }
 
-   auto retval = XrdCryptosslX509ParseFile(fcer, chain);
+   auto retval = XrdCryptosslX509ParseFile(fcer, chain, fname);
    fclose(fcer);
    return retval;
 }
 
 //____________________________________________________________________________
 int XrdCryptosslX509ParseFile(FILE *fcer,
-                              XrdCryptoX509Chain *chain)
+                              XrdCryptoX509Chain *chain,
+                              const char *fname)
 {
    // Parse content of file 'fname' and add X509 certificates to
    // chain (which must be initialized by the caller).
@@ -516,9 +517,9 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
       rewind(fcer);
       RSA  *rsap = 0;
       if (!PEM_read_RSAPrivateKey(fcer, &rsap, 0, 0)) {
-         DEBUG("no RSA private key found in file");
+         DEBUG("no RSA private key found in file " << fname);
       } else {
-         DEBUG("found a RSA private key in file");
+         DEBUG("found a RSA private key in file " << fname);
          // We need to complete the key: we save it temporarly
          // to a bio and check all the private keys of the
          // loaded certificates 

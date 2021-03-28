@@ -82,7 +82,7 @@ private:
     const int m_output_fd;
 
     decltype(&XrdCryptosslX509ToFile) m_x509_to_file_func;
-    int (*m_file_to_x509_func)(FILE *file, XrdCryptoX509Chain *c);
+    int (*m_file_to_x509_func)(FILE *file, XrdCryptoX509Chain *c, const char *fname);
 };
 
 
@@ -92,7 +92,7 @@ CASet::processFile(file_smart_ptr &fp, const std::string &fname)
     XrdCryptoX509Chain chain;
     // Not checking return value here; function returns `0` on error and
     // if no certificate is found.
-    (*m_file_to_x509_func)(fp.get(), &chain);
+    (*m_file_to_x509_func)(fp.get(), &chain, fname.c_str());
 
     auto ca = chain.Begin();
     // Note we purposely leak the outputfp here; we are just borrowing the handle.
@@ -115,7 +115,7 @@ CASet::processFile(file_smart_ptr &fp, const std::string &fname)
         //m_log.Emsg("CAset", "New CA with hash", fname.c_str(), hash_ptr);
         m_known_cas.insert(hash_ptr);
 
-        if ((*m_x509_to_file_func)(ca, outputfp)) {
+        if ((*m_x509_to_file_func)(ca, outputfp, fname.c_str())) {
             m_log.Emsg("CAset", "Failed to write out CA", fname.c_str());
             return false;
         }
