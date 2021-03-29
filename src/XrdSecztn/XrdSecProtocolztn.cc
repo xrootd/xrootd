@@ -217,12 +217,13 @@ struct TokenHdr
       {char     id[4];
        char     ver;
        char     opr;
+       char     rsvd[2]; // Reserved bytes (note struct is 8 bytes long)
 
        static const char SndAI = 'S';
        static const char IsTkn = 'T';
 
        void     Fill(char opc) {strcpy(id, "ztn"); ver = ztnVersion;
-                                opr = opc;
+                                opr = opc; rsvd[0] = rsvd[1] = 0;
                                }
       };
 
