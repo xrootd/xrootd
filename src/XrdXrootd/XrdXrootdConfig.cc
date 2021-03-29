@@ -131,6 +131,17 @@ extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem
                           XrdOucEnv        *EnvInfo);
 
 /******************************************************************************/
+/*                        G l o b a l   S t a t i c s                         */
+/******************************************************************************/
+
+namespace XrdXrootd
+{
+extern XrdBuffManager       *BPool;
+extern XrdScheduler         *Sched;
+extern XrdXrootdStats       *SI;
+}
+  
+/******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
 /******************************************************************************/
 
@@ -175,8 +186,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    eDest.logger(pi->eDest->logger());
    XrdXrootdTrace = new XrdOucTrace(&eDest);
    SI           = new XrdXrootdStats(pi->Stats);
-   Sched        = pi->Sched;
-   BPool        = pi->BPool;
+   XrdXrootd::SI= SI;
+   Sched        = pi->Sched; XrdXrootd::Sched = pi->Sched;
+   BPool        = pi->BPool; XrdXrootd::BPool = pi->BPool;
    hailWait     = pi->hailWait;
    readWait     = pi->readWait;
    Port         = pi->Port;

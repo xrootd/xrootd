@@ -60,10 +60,17 @@
 namespace XrdXrootd
 {
 XrdSysError           eLog(0, "Xrootd");
+XrdBuffManager       *BPool;
+XrdScheduler         *Sched;
+XrdXrootdStats       *SI;
 }
 
 XrdOucTrace          *XrdXrootdTrace;
 
+/******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+  
 XrdXrootdXPath        XrdXrootdProtocol::RPList;
 XrdXrootdXPath        XrdXrootdProtocol::RQList;
 XrdXrootdXPath        XrdXrootdProtocol::XPList;
