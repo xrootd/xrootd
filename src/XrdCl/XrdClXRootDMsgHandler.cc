@@ -2055,26 +2055,18 @@ namespace XrdCl
         }
 
         AnyObject *obj = new AnyObject();
-        if( pChunkList->size() > 1 )
+        VectorReadInfo *vrInfo = new VectorReadInfo();
+        vrInfo->SetSize( currentOffset );
+        auto itr = pChunkList->begin();
+        for( ; itr != pChunkList->end() ; ++itr )
         {
-          VectorReadInfo *vrInfo = new VectorReadInfo();
-          vrInfo->SetSize( currentOffset );
-          auto itr = pChunkList->begin();
-          for( ; itr != pChunkList->end() ; ++itr )
-          {
-            uint32_t length = itr->length;
-            if( itr->offset > currentOffset ) length = 0;
-            else if( itr->offset + itr->length > currentOffset )
-              length = currentOffset - itr->offset;
-            vrInfo->GetChunks().emplace_back( itr->offset, length, itr->buffer );
-          }
-          obj->Set( vrInfo );
+          uint32_t length = itr->length;
+          if( itr->offset > currentOffset ) length = 0;
+          else if( itr->offset + itr->length > currentOffset )
+            length = currentOffset - itr->offset;
+          vrInfo->GetChunks().emplace_back( itr->offset, length, itr->buffer );
         }
-        else
-        {
-          ChunkInfo *retChunk = new ChunkInfo( pChunkList->front() );
-          obj->Set( retChunk );
-        }
+        obj->Set( vrInfo );
         response = obj;
         return Status();
       }

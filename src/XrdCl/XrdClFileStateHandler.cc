@@ -53,6 +53,49 @@
 
 namespace
 {
+  class ReadRePkgHandler : public XrdCl::ResponseHandler
+  {
+  public:
+
+    ReadRePkgHandler( XrdCl::ResponseHandler *rdHandler) : rdHandler( rdHandler )
+    {
+    }
+
+    ~ReadRePkgHandler()
+    {
+      delete rdHandler;
+    }
+
+    //------------------------------------------------------------------------
+    // Handle the response
+    //------------------------------------------------------------------------
+    void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                  XrdCl::AnyObject    *response,
+                                  XrdCl::HostList     *hostList )
+    {
+      if( !status->IsOK() )
+      {
+        rdHandler->HandleResponseWithHosts( status, response, hostList );
+        rdHandler = nullptr;
+        delete this;
+        return;
+      }
+
+      // repackage the response into a ChunkInfo object
+      XrdCl::VectorReadInfo *info = 0;
+      response->Get( info );
+      XrdCl::ChunkInfo *ch =  new XrdCl::ChunkInfo( info->GetChunks().front() );
+      delete response;
+      response = new XrdCl::AnyObject();
+      response->Set( ch );
+      rdHandler->HandleResponseWithHosts( status, response, hostList );
+      rdHandler = nullptr;
+      delete this;
+    }
+
+    XrdCl::ResponseHandler *rdHandler;
+  };
+
   //----------------------------------------------------------------------------
   // Helper callback for handling PgRead responses
   //----------------------------------------------------------------------------
@@ -1078,9 +1121,10 @@ namespace XrdCl
     params.stateful        = true;
     params.chunkList       = list;
     MessageUtils::ProcessSendParams( params );
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    StatefulHandler  *stHandler = new StatefulHandler( this, handler, msg, params );
+    ReadRePkgHandler *rdHandler = new ReadRePkgHandler( stHandler );
 
-    return SendOrQueue( *pDataServer, msg, stHandler, params );
+    return SendOrQueue( *pDataServer, msg, rdHandler, params );
   }
 
   //------------------------------------------------------------------------
