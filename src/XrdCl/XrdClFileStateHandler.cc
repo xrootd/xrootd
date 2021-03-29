@@ -1587,6 +1587,18 @@ namespace XrdCl
     return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
+  //------------------------------------------------------------------------
+  // Read data into scattered buffers in one operation - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::ReadV( uint64_t         offset,
+                                        struct iovec    *iov,
+                                        int              iovcnt,
+                                        ResponseHandler *handler,
+                                        uint16_t         timeout )
+  {
+    return XRootDStatus( stError, errNotSupported );
+  }
+
   //----------------------------------------------------------------------------
   // Performs a custom operation on an open file, server implementation
   // dependent - async

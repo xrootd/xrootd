@@ -493,10 +493,10 @@ namespace XrdCl
   // Write scattered buffers in one operation - async
   //------------------------------------------------------------------------
   XRootDStatus File::WriteV( uint64_t            offset,
-                                  const struct iovec *iov,
-                                  int                 iovcnt,
-                                  ResponseHandler    *handler,
-                                  uint16_t            timeout )
+                             const struct iovec *iov,
+                             int                 iovcnt,
+                             ResponseHandler    *handler,
+                             uint16_t            timeout )
   {
     // TODO check pPlugIn
 
@@ -507,9 +507,9 @@ namespace XrdCl
   // Write scattered buffers in one operation - sync
   //------------------------------------------------------------------------
   XRootDStatus File::WriteV( uint64_t            offset,
-                                  const struct iovec *iov,
-                                  int                 iovcnt,
-                                  uint16_t            timeout )
+                             const struct iovec *iov,
+                             int                 iovcnt,
+                             uint16_t            timeout )
   {
     SyncResponseHandler handler;
     XRootDStatus st = WriteV( offset, iov, iovcnt, &handler, timeout );
@@ -520,6 +520,57 @@ namespace XrdCl
     return status;
   }
 
+  //------------------------------------------------------------------------
+  //! Read data into scattered buffers in one operation - async
+  //!
+  //! @param offset    offset from the beginning of the file
+  //! @param iov       list of the buffers to be written
+  //! @param iovcnt    number of buffers
+  //! @param handler   handler to be notified when the response arrives
+  //! @param timeout   timeout value, if 0 then the environment default
+  //!                  will be used
+  //! @return          status of the operation
+  //------------------------------------------------------------------------
+  XRootDStatus File::ReadV( uint64_t         offset,
+                            struct iovec    *iov,
+                            int              iovcnt,
+                            ResponseHandler *handler,
+                            uint16_t         timeout )
+  {
+    return pStateHandler->ReadV( offset, iov, iovcnt, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  //! Read data into scattered buffers in one operation - sync
+  //!
+  //! @param offset    offset from the beginning of the file
+  //! @param iov       list of the buffers to be written
+  //! @param iovcnt    number of buffers
+  //! @param handler   handler to be notified when the response arrives
+  //! @param timeout   timeout value, if 0 then the environment default
+  //!                  will be used
+  //! @return          status of the operation
+  //------------------------------------------------------------------------
+  XRootDStatus File::ReadV( uint64_t      offset,
+                            struct iovec *iov,
+                            int           iovcnt,
+                            uint32_t     &bytesRead,
+                            uint16_t      timeout )
+  {
+    SyncResponseHandler handler;
+    XRootDStatus st = ReadV( offset, iov, iovcnt, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    IOVecInfo *iovInfo = 0;
+    XRootDStatus status = MessageUtils::WaitForResponse( &handler, iovInfo );
+    if( status.IsOK() )
+    {
+      bytesRead = iovInfo->bytescnt;
+      delete iovInfo;
+    }
+    return status;
+  }
 
   //----------------------------------------------------------------------------
   // Performs a custom operation on an open file, server implementation

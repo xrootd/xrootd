@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XProtocol/XProtocol.hh"
+
 #include <string>
 #include <vector>
 #include <list>
@@ -31,6 +32,8 @@
 #include <tuple>
 #include <memory>
 #include <functional>
+
+#include <sys/uio.h>
 
 namespace XrdCl
 {
@@ -912,6 +915,17 @@ namespace XrdCl
     uint64_t  offset; //! offset in the file
     uint32_t  length; //! length of the chunk
     void     *buffer; //! optional buffer pointer
+  };
+
+  //----------------------------------------------------------------------------
+  //! Describe a data chunk for readv
+  //----------------------------------------------------------------------------
+  struct IOVecInfo
+  {
+    uint64_t      offset;   //! offset in the file
+    struct iovec *iov;      //! I/O vector
+    int           iovcnt;   //! I/O vector length
+    uint32_t      bytescnt; //! number of bytes in the buffers
   };
 
   struct PageInfoImpl;
