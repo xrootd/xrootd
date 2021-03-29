@@ -470,7 +470,7 @@ namespace XrdCl
                             uint16_t         timeout )
   {
     if( pPlugIn )
-      return XRootDStatus( stError, errNotSupported );
+      return pPlugIn->VectorWrite( chunks, handler, timeout );
 
     return pStateHandler->VectorWrite( chunks, handler, timeout );
   }
@@ -498,7 +498,8 @@ namespace XrdCl
                              ResponseHandler    *handler,
                              uint16_t            timeout )
   {
-    // TODO check pPlugIn
+    if( pPlugIn )
+      return pPlugIn->WriteV( offset, iov, iovcnt, handler, timeout );
 
     return pStateHandler->WriteV( offset, iov, iovcnt, handler, timeout );
   }
