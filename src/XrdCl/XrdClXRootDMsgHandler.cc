@@ -970,10 +970,7 @@ namespace XrdCl
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
     if( reqId == kXR_read )
-    {
-      if( pChunkList->size() > 1 ) return ReadRawReadIOVec( msg, socket, bytesRead );
       return ReadRawRead( msg, socket, bytesRead );
-    }
 
     if( reqId == kXR_readv )
       return ReadRawReadV( msg, socket, bytesRead );
@@ -984,57 +981,10 @@ namespace XrdCl
     return ReadRawOther( msg, socket, bytesRead );
   }
 
-  //----------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   // Handle a kXR_read in raw mode
-  //----------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   Status XRootDMsgHandler::ReadRawRead( Message  *msg,
-                                        Socket   *socket,
-                                        uint32_t &bytesRead )
-  {
-    Log *log = DefaultEnv::GetLog();
-
-    //--------------------------------------------------------------------------
-    // We need to check if we have and overflow, before we start reading
-    // anything
-    //--------------------------------------------------------------------------
-    if( !pReadRawStarted )
-    {
-      ChunkInfo chunk  = pChunkList->front();
-      pAsyncOffset     = 0;
-      pAsyncReadSize   = pAsyncMsgSize;
-      pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
-      if( pReadRawCurrentOffset + pAsyncMsgSize > chunk.length )
-      {
-        log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
-                    ": expected: %d, got %d bytes",
-                   pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-                   chunk.length, pReadRawCurrentOffset + pAsyncMsgSize );
-
-        pChunkStatus.front().sizeError = true;
-        pOtherRawStarted               = false;
-      }
-      else
-        pReadRawCurrentOffset += pAsyncMsgSize;
-      pReadRawStarted = true;
-    }
-
-    //--------------------------------------------------------------------------
-    // If we have an overflow we discard all the incoming data. We do this
-    // instead of just quitting in order to keep the stream sane.
-    //--------------------------------------------------------------------------
-    if( pChunkStatus.front().sizeError )
-      return ReadRawOther( msg, socket, bytesRead );
-
-    //--------------------------------------------------------------------------
-    // Read the data
-    //--------------------------------------------------------------------------
-    return ReadAsync( socket, bytesRead );
-  }
-
-  //------------------------------------------------------------------------
-  // Handle a kXR_read in raw mode into an iovec
-  //------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadRawReadIOVec( Message  *msg,
                                              Socket   *socket,
                                              uint32_t &bytesRead )
   {
