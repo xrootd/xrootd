@@ -426,6 +426,13 @@ namespace XrdCl
                           uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
+      //! Handle a kXR_read in raw mode into an iovec
+      //------------------------------------------------------------------------
+      Status ReadRawReadIOVec( Message  *msg,
+                               Socket   *socket,
+                               uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
       //! Handle a kXR_pgread in raw mode
       //------------------------------------------------------------------------
       Status ReadRawPgRead( Message  *msg,

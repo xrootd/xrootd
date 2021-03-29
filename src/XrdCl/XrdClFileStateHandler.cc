@@ -46,6 +46,7 @@
 
 #include <sstream>
 #include <memory>
+#include <numeric>
 #include <sys/time.h>
 #include <uuid/uuid.h>
 #include <mutex>
@@ -1596,7 +1597,49 @@ namespace XrdCl
                                         ResponseHandler *handler,
                                         uint16_t         timeout )
   {
-    return XRootDStatus( stError, errNotSupported );
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a read command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message           *msg;
+    ClientReadRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    // calculate the total read size
+    size_t size = std::accumulate( iov, iov + iovcnt, 0, []( size_t acc, iovec &rhs )
+                                                         {
+                                                           return acc + rhs.iov_len;
+                                                         } );
+    req->requestid  = kXR_read;
+    req->offset     = offset;
+    req->rlen       = size;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    ChunkList *list = new ChunkList();
+    list->reserve( iovcnt );
+    uint64_t choff = offset;
+    for( int i = 0; i < iovcnt; ++i )
+    {
+      list->emplace_back( choff, iov[i].iov_len, iov[i].iov_base );
+      choff += iov[i].iov_len;
+    }
+
+    XRootDTransport::SetDescription( msg );
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+    MessageUtils::ProcessSendParams( params );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------
