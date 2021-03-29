@@ -917,17 +917,6 @@ namespace XrdCl
     void     *buffer; //! optional buffer pointer
   };
 
-  //----------------------------------------------------------------------------
-  //! Describe a data chunk for readv
-  //----------------------------------------------------------------------------
-  struct IOVecInfo
-  {
-    uint64_t      offset;   //! offset in the file
-    struct iovec *iov;      //! I/O vector
-    int           iovcnt;   //! I/O vector length
-    uint32_t      bytescnt; //! number of bytes in the buffers
-  };
-
   struct PageInfoImpl;
 
   struct PageInfo

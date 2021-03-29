@@ -659,6 +659,32 @@ namespace XrdCl
         return nbpages;
       }
 
+      inline void Copy( uint32_t offchlst, char *buffer, size_t length )
+      {
+        auto itr = pChunkList->begin();
+        while( length > 0 )
+        {
+          // first find the right buffer
+          char   *dstbuf = nullptr;
+          size_t  cplen = 0;
+          for( ; itr != pChunkList->end() ; ++itr )
+          {
+            if( offchlst < itr->offset ||
+                offchlst >= itr->offset + itr->length )
+              continue;
+            size_t dstoff = offchlst - itr->offset;
+            dstbuf = reinterpret_cast<char*>( itr->buffer ) + dstoff;
+            cplen = itr->length - cplen;
+            break;
+          }
+          // now do the copy
+          if( cplen > length ) cplen = length;
+          memcpy( dstbuf, buffer, cplen );
+          buffer += cplen;
+          length -= cplen;
+        }
+      }
+
       Message                        *pRequest;
       Message                        *pResponse;
       std::vector<Message *>          pPartialResps;

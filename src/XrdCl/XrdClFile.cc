@@ -563,12 +563,12 @@ namespace XrdCl
     if( !st.IsOK() )
       return st;
 
-    IOVecInfo *iovInfo = 0;
-    XRootDStatus status = MessageUtils::WaitForResponse( &handler, iovInfo );
+    VectorReadInfo *vrInfo = 0;
+    XRootDStatus status = MessageUtils::WaitForResponse( &handler, vrInfo );
     if( status.IsOK() )
     {
-      bytesRead = iovInfo->bytescnt;
-      delete iovInfo;
+      bytesRead = vrInfo->GetSize();
+      delete vrInfo;
     }
     return status;
   }

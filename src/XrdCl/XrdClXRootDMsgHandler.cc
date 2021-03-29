@@ -46,6 +46,7 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include <memory>
 #include <sstream>
+#include <numeric>
 
 namespace
 {
@@ -2004,33 +2005,38 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
+        // calculate the total read size
+        size_t size = std::accumulate( pChunkList->begin(), pChunkList->end(), 0,
+                                       []( size_t acc, ChunkInfo &ch )
+                                       {
+                                         return acc + ch.length;
+                                       } );
+
         //----------------------------------------------------------------------
         // Glue in the cached responses if necessary
         //----------------------------------------------------------------------
-        ChunkInfo  chunk         = pChunkList->front();
         bool       sizeMismatch  = false;
         uint32_t   currentOffset = 0;
-        char      *cursor        = (char*)chunk.buffer;
+
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
           ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
 
-          if( currentOffset + part->hdr.dlen > chunk.length )
+          if( currentOffset + part->hdr.dlen > size )
           {
             sizeMismatch = true;
             break;
           }
 
           if( pPartialResps[i]->GetSize() > 8 )
-            memcpy( cursor, part->body.buffer.data, part->hdr.dlen );
+            Copy( currentOffset, part->body.buffer.data, part->hdr.dlen );
           currentOffset += part->hdr.dlen;
-          cursor        += part->hdr.dlen;
         }
 
-        if( currentOffset + rsp->hdr.dlen <= chunk.length )
+        if( currentOffset + rsp->hdr.dlen <= size )
         {
           if( pResponse->GetSize() > 8 )
-            memcpy( cursor, rsp->body.buffer.data, rsp->hdr.dlen );
+            Copy( currentOffset, rsp->body.buffer.data, rsp->hdr.dlen );
           currentOffset += rsp->hdr.dlen;
         }
         else
@@ -2048,10 +2054,27 @@ namespace XrdCl
           return Status( stError, errInvalidResponse );
         }
 
-        AnyObject *obj      = new AnyObject();
-        ChunkInfo *retChunk = new ChunkInfo( chunk.offset, currentOffset,
-                                             chunk.buffer );
-        obj->Set( retChunk );
+        AnyObject *obj = new AnyObject();
+        if( pChunkList->size() > 1 )
+        {
+          VectorReadInfo *vrInfo = new VectorReadInfo();
+          vrInfo->SetSize( currentOffset );
+          auto itr = pChunkList->begin();
+          for( ; itr != pChunkList->end() ; ++itr )
+          {
+            uint32_t length = itr->length;
+            if( itr->offset > currentOffset ) length = 0;
+            else if( itr->offset + itr->length > currentOffset )
+              length = currentOffset - itr->offset;
+            vrInfo->GetChunks().emplace_back( itr->offset, length, itr->buffer );
+          }
+          obj->Set( vrInfo );
+        }
+        else
+        {
+          ChunkInfo *retChunk = new ChunkInfo( pChunkList->front() );
+          obj->Set( retChunk );
+        }
         response = obj;
         return Status();
       }
