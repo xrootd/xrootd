@@ -101,10 +101,10 @@ std::string encode_xrootd_opaque_to_uri(CURL *curl, const std::string &opaque)
     return output.str();
 }
 
-std::shared_ptr<XrdTls::XrdTlsTempCA::TempCAGuard>
+std::shared_ptr<XrdTlsTempCA::TempCAGuard>
 TPCHandler::ConfigureCurlCA(CURL *curl)
 {
-    std::shared_ptr<XrdTls::XrdTlsTempCA::TempCAGuard> ca_guard(
+    std::shared_ptr<XrdTlsTempCA::TempCAGuard> ca_guard(
         m_ca_file.get() ? m_ca_file->getHandle() : nullptr
     );
     if (ca_guard) {

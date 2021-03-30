@@ -33,8 +33,6 @@
 // Forward dec'ls.
 class XrdSysError;
 
-namespace XrdTls {
-
 /**
  * This class provides manages a "CA file" that is a concatenation of all the
  * CAs in a given CA directory.  This is useful in TLS contexts where, instead
@@ -109,5 +107,3 @@ private:
     const std::string m_ca_dir;
     std::shared_ptr<TempCAGuard> m_ca_file;
 };
-
-}

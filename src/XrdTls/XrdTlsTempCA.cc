@@ -195,9 +195,6 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 }
 
 
-using namespace XrdTls;
-
-
 std::unique_ptr<XrdTlsTempCA::TempCAGuard>
 XrdTlsTempCA::TempCAGuard::create(XrdSysError &err) {
     char ca_fname[] = "/tmp/xrootd_ca_file.XXXXXX.pem";
