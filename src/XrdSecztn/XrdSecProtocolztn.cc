@@ -574,6 +574,7 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
                                     XrdSecParameters **parms,
                                     XrdOucErrInfo     *erp)
 {
+   static const int pfxLen = sizeof(TokenHdr) + sizeof(uint16_t);
    TokenResp *tResp;
 
 // Check if we have any credentials or if no credentials really needed.
@@ -609,11 +610,19 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
 
 // Make sure the response is consistent
 //
+   const char *isBad = 0;
    int tLen = ntohs(tResp->len);
-   if (tResp->hdr.ver != ztnVersion || tLen < 1
-   ||  (int(sizeof(TokenResp) + tLen)) > cred->size
-   || !(tResp->tkn[0]) || *(tResp->tkn+(tLen-1)))
-      {Fatal(erp, "'ztn' token response malformed", EINVAL, false);
+
+        if (tResp->hdr.ver != ztnVersion) isBad = "version mismatch";
+   else if (tLen < 1)                     isBad = "token length < 1";
+   else if (pfxLen + tLen > cred->size)   isBad = "respdata > credsize";
+   else if (!(tResp->tkn[0]))             isBad = "null token";
+   else if (*(tResp->tkn+(tLen-1)))       isBad = "missing null byte";
+
+   if (isBad)
+      {char eText[80];
+       snprintf(eText, sizeof(eText), "'ztn' token malformed; %s", isBad);
+       Fatal(erp, eText, EINVAL, false);
        return -1;
       }
 
