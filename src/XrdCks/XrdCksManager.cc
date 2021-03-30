@@ -41,6 +41,7 @@
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksCalcadler32.hh"
 #include "XrdCks/XrdCksCalccrc32.hh"
+#include "XrdCks/XrdCksCalccrc32C.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdCks/XrdCksLoader.hh"
 #include "XrdCks/XrdCksManager.hh"
@@ -76,8 +77,9 @@ XrdCksManager::XrdCksManager(XrdSysError *erP, int rdsz, XrdVersionInfo &vInfo,
 //
    strcpy(csTab[0].Name, "adler32");
    strcpy(csTab[1].Name, "crc32");
-   strcpy(csTab[2].Name, "md5");
-   csLast = 2;
+   strcpy(csTab[2].Name, "crc32c");
+   strcpy(csTab[3].Name, "md5");
+   csLast = 3;
 
 // Compute the i/o size
 //
@@ -295,6 +297,8 @@ int XrdCksManager::Init(const char *ConfigFN, const char *DfltCalc)
                          csTab[i].Obj = new XrdCksCalcadler32;
                  else if (!strcmp("crc32",   csTab[i].Name))
                          csTab[i].Obj = new XrdCksCalccrc32;
+                 else if (!strcmp("crc32c",   csTab[i].Name))
+                         csTab[i].Obj = new XrdCksCalccrc32C;
                  else if (!strcmp("md5",     csTab[i].Name))
                          csTab[i].Obj = new XrdCksCalcmd5;
                  else {eDest->Emsg("Config", "Invalid native checksum -",
@@ -589,7 +593,7 @@ int XrdCksManager::Set(const char *Pfn, XrdCksData &Cks, int myTime)
    XrdOucXAttr<XrdCksXAttr> xCS;
    csInfo *csIP = &csTab[0];
 
-// Verify the incomming checksum for correctness
+// Verify the incoming checksum for correctness
 //
    if (csLast < 0 || (*Cks.Name && !(csIP = Find(Cks.Name)))) return -ENOTSUP;
    if (Cks.Length != csIP->Len)  return -EDOM;

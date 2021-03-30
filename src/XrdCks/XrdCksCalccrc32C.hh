@@ -1,5 +1,5 @@
-#ifndef __XRDCKSCALCCRC32_HH__
-#define __XRDCKSCALCCRC32_HH__
+#ifndef __XRDCKSCALCCRC32C_HH__
+#define __XRDCKSCALCCRC32C_HH__
 /******************************************************************************/
 /*                                                                            */
 /*                    X r d C k s C a l c c r c 3 2 . h h                     */
@@ -51,7 +51,7 @@ public:
         return (char *)&TheResult;
     }
     void Init() { C32CResult = CRC32C_XINIT; }
-    XrdCksCalc *New() {return (XrdCksCalc *)new XrdCksCalccrc32C;}
+    XrdCksCalc *New() { return (XrdCksCalc *)new XrdCksCalccrc32C; }
     void Update(const char *Buff, int BLen);
     const char *Type(int &csSz);
     XrdCksCalccrc32C() { Init(); }
