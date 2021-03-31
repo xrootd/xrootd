@@ -309,7 +309,7 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     //! @return : true if ZIP64 extension is present, false otherwise
     //-------------------------------------------------------------------------
-    bool IsZIP64()
+    inline bool IsZIP64() const
     {
       return extra.get();
     }

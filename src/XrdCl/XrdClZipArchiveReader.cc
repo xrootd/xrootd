@@ -127,6 +127,7 @@ struct CDFH
     {
       pZipVersion        = *reinterpret_cast<const uint16_t*>( buffer + 4 );
       pMinZipVersion     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
+      pGeneralBitFlag    = *reinterpret_cast<const uint16_t*>( buffer + 8 );
       pCompressionMethod = *reinterpret_cast<const uint16_t*>( buffer + 10 );
       pZCRC32             = *reinterpret_cast<const uint32_t*>( buffer + 16 );
       pCompressedSize    = *reinterpret_cast<const uint32_t*>( buffer + 20 );
@@ -224,14 +225,6 @@ struct CDFH
         }
         buffer += blksize;
       }
-    }
-
-    //-------------------------------------------------------------------------
-    //! @return : true if ZIP64 extension is present, false otherwise
-    //-------------------------------------------------------------------------
-    bool IsZIP64()
-    {
-      return isZIP64;
     }
 
     //-------------------------------------------------------------------------
@@ -949,7 +942,7 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   uint64_t nextRecordOffset = ( cditr->second + 1 < pCdRecords.size() ) ? pCdRecords[cditr->second + 1]->pOffset : cdOffset;
   uint64_t filesize  = cdfh->pCompressedSize;
   uint16_t descsize = cdfh->HasDataDescriptor() ?
-                      XrdZip::DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
+                      XrdZip::DataDescriptor::GetSize( cdfh->isZIP64 ) : 0;
   uint64_t fileoff  = nextRecordOffset - filesize - descsize;
   uint64_t offset   = fileoff + relativeOffset;
   uint64_t sizeTillEnd = cdfh->pUncompressedSize - relativeOffset;

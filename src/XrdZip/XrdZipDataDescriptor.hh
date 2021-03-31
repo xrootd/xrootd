@@ -27,6 +27,9 @@
 
 namespace XrdZip
 {
+  //---------------------------------------------------------------------------
+  // A data structure representing the Data Descriptor record
+  //---------------------------------------------------------------------------
   struct DataDescriptor
   {
     static uint8_t GetSize( bool zip64 )
@@ -35,7 +38,7 @@ namespace XrdZip
       return sizeof( sign ) + 3 * sizeof( uint32_t );
     }
 
-    static const uint16_t flag = 0x4;
+    static const uint16_t flag = 1 << 3; //< bit 3 is set
     static const uint32_t sign = 0x08074b50;
   };
 }
