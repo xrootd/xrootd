@@ -38,6 +38,8 @@
 
 #include "XrdCks/XrdCksData.hh"
 
+#include "XrdZip/XrdZipDataDescriptor.hh"
+
 #include <string>
 #include <map>
 #include <memory>
@@ -121,7 +123,7 @@ struct ZIP64_EOCD
 
 struct CDFH
 {
-    CDFH( const char *buffer )
+    CDFH( const char *buffer ) : isZIP64( false )
     {
       pZipVersion        = *reinterpret_cast<const uint16_t*>( buffer + 4 );
       pMinZipVersion     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
@@ -200,6 +202,7 @@ struct CDFH
         // is it ZIP64 extension
         if( signature == ZIP64_EXTENSION_SIGN )
         {
+          isZIP64 = true;
           if( blksize != exsize )
             throw ZipHandlerException<AnyObject>( new XRootDStatus( stError, errDataError, 0, "Wrong size of ZIP64 extension!" ), 0 );
 
@@ -223,8 +226,25 @@ struct CDFH
       }
     }
 
+    //-------------------------------------------------------------------------
+    //! @return : true if ZIP64 extension is present, false otherwise
+    //-------------------------------------------------------------------------
+    bool IsZIP64()
+    {
+      return isZIP64;
+    }
+
+    //-------------------------------------------------------------------------
+    //! @return : true if the data descriptor flag is on, false otherwise
+    //-------------------------------------------------------------------------
+    bool HasDataDescriptor()
+    {
+      return pGeneralBitFlag & XrdZip::DataDescriptor::flag;
+    }
+
     uint16_t    pZipVersion;
     uint16_t    pMinZipVersion;
+    uint16_t    pGeneralBitFlag;    //< flags
     uint16_t    pCompressionMethod;
     uint32_t    pZCRC32;
     uint64_t    pCompressedSize;
@@ -233,6 +253,8 @@ struct CDFH
     uint64_t    pOffset;
     std::string pFilename;
     uint16_t    pCdfhSize;
+
+    bool        isZIP64;
 
     static const uint16_t kCdfhBaseSize = 46;
     static const uint32_t kCdfhSign     = 0x02014b50;
@@ -926,7 +948,9 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
   uint64_t cdOffset = pZip64Eocd ? pZip64Eocd->pCdOffset : pEocd->pCdOffset;
   uint64_t nextRecordOffset = ( cditr->second + 1 < pCdRecords.size() ) ? pCdRecords[cditr->second + 1]->pOffset : cdOffset;
   uint64_t filesize  = cdfh->pCompressedSize;
-  uint64_t fileoff  = nextRecordOffset - filesize;
+  uint16_t descsize = cdfh->HasDataDescriptor() ?
+                      XrdZip::DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
+  uint64_t fileoff  = nextRecordOffset - filesize - descsize;
   uint64_t offset   = fileoff + relativeOffset;
   uint64_t sizeTillEnd = cdfh->pUncompressedSize - relativeOffset;
   if( size > sizeTillEnd ) size = sizeTillEnd;

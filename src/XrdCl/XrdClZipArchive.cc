@@ -511,8 +511,10 @@ namespace XrdCl
     uint64_t cdOffset = zip64eocd ? zip64eocd->cdOffset : eocd->cdOffset;
     uint64_t nextRecordOffset = ( cditr->second + 1 < cdvec.size() ) ?
                                 CDFH::GetOffset( *cdvec[cditr->second + 1] ) : cdOffset;
-    uint64_t filesize  = cdfh->compressedSize;
-    uint64_t fileoff  = nextRecordOffset - filesize;
+    uint64_t filesize = cdfh->compressedSize;
+    uint16_t descsize = cdfh->HasDataDescriptor() ?
+                        DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
+    uint64_t fileoff  = nextRecordOffset - filesize - descsize;
     uint64_t offset   = fileoff + relativeOffset;
     uint64_t sizeTillEnd = relativeOffset > cdfh->uncompressedSize ?
                            0 : cdfh->uncompressedSize - relativeOffset;

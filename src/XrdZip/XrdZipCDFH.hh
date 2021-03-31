@@ -27,6 +27,7 @@
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipUtils.hh"
+#include "XrdZip/XrdZipDataDescriptor.hh"
 
 #include <string>
 #include <algorithm>
@@ -266,12 +267,13 @@ namespace XrdZip
       // can skip parsing of 'extra'
       if( exsize == 0 ) return;
 
-      extra.reset( new Extra() );
-
       // Parse the extra part
       buffer = Extra::Find( buffer, length );
       if( buffer )
+      {
+        extra.reset( new Extra() );
         extra->FromBuffer( buffer, exsize, ovrflws );
+      }
     }
 
     //-------------------------------------------------------------------------
@@ -302,6 +304,22 @@ namespace XrdZip
 
       if ( commentLength > 0 )
         std::copy( comment.begin(), comment.end(), std::back_inserter( buffer ) );
+    }
+
+    //-------------------------------------------------------------------------
+    //! @return : true if ZIP64 extension is present, false otherwise
+    //-------------------------------------------------------------------------
+    bool IsZIP64()
+    {
+      return extra.get();
+    }
+
+    //-------------------------------------------------------------------------
+    //! @return : true if the data descriptor flag is on, false otherwise
+    //-------------------------------------------------------------------------
+    bool HasDataDescriptor()
+    {
+      return generalBitFlag & DataDescriptor::flag;
     }
 
     uint16_t                zipVersion;        // ZIP version
