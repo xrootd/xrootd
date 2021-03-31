@@ -205,6 +205,7 @@ namespace XrdCl
 
       inline void CallHandler( const XRootDStatus &st )
       {
+        if( rdreqs.empty() ) return;
         read_args_t args = std::move( rdreqs.front() );
         rdreqs.pop();
 
