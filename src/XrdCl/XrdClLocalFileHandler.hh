@@ -98,6 +98,23 @@ namespace XrdCl
           ResponseHandler *handler, uint16_t timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Read data into scattered buffers in one operation - async
+      //!
+      //! @param offset    offset from the beginning of the file
+      //! @param iov       list of the buffers to be written
+      //! @param iovcnt    number of buffers
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ReadV( uint64_t         offset,
+                          struct iovec    *iov,
+                          int              iovcnt,
+                          ResponseHandler *handler,
+                          uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file

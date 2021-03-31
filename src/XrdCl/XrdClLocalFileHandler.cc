@@ -165,11 +165,12 @@ namespace
 
           if( me->opcode == Opcode::Read )
           {
-            ChunkInfo *chunk = new ChunkInfo( me->cb->aio_offset,
-                                              rc,
-                                              const_cast<void*>( me->cb->aio_buf ) );
+            VectorReadInfo *info = new VectorReadInfo();
+            info->SetSize( rc );
+            info->GetChunks().emplace_back( me->cb->aio_offset, rc,
+                                            const_cast<void*>( me->cb->aio_buf ) );
             resp = new AnyObject();
-            resp->Set( chunk );
+            resp->Set( info );
           }
 
           QueueTask( new XRootDStatus(), resp, me->hosts, me->handler );
@@ -358,6 +359,49 @@ namespace XrdCl
 
     return XRootDStatus();
 #endif
+  }
+
+
+  //------------------------------------------------------------------------
+  // ReadV
+  //------------------------------------------------------------------------
+  XRootDStatus LocalFileHandler::ReadV( uint64_t         offset,
+                                        struct iovec    *iov,
+                                        int              iovcnt,
+                                        ResponseHandler *handler,
+                                        uint16_t         timeout )
+  {
+    Log *log = DefaultEnv::GetLog();
+#if defined(__APPLE__)
+    ssize_t ret = lseek( fd, offset, SEEK_SET );
+    if( ret >= 0 )
+      ret = readv( fd, iov, iovcnt );
+#else
+    ssize_t ret = preadv( fd, iov, iovcnt, offset );
+#endif
+    if( ret == -1 )
+    {
+      log->Error( FileMsg, "ReadV: failed %s", XrdSysE2T( errno ) );
+      XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
+                                              XProtocol::mapError( errno ),
+                                              XrdSysE2T( errno ) );
+      return QueueTask( error, 0, handler );
+    }
+    VectorReadInfo *info = new VectorReadInfo();
+    info->SetSize( ret );
+    uint64_t choff = offset;
+    uint32_t left  = ret;
+    for( int i = 0; i < iovcnt; ++i )
+    {
+      uint32_t chlen = iov[i].iov_len;
+      if( chlen > left ) chlen = left;
+      info->GetChunks().emplace_back( choff, chlen, iov[i].iov_base);
+      left  -= chlen;
+      choff += chlen;
+    }
+    AnyObject *resp = new AnyObject();
+    resp->Set( info );
+    return QueueTask( new XRootDStatus(), resp, handler );
   }
 
   //------------------------------------------------------------------------
@@ -1010,9 +1054,20 @@ namespace XrdCl
 
       case kXR_read:
       {
-        return Read( req->read.offset, req->read.rlen,
-                     sendParams.chunkList->front().buffer,
-                     handler, sendParams.timeout );
+        if( sendParams.chunkList->size() > 1 )
+          return Read( req->read.offset, req->read.rlen,
+                       sendParams.chunkList->front().buffer,
+                       handler, sendParams.timeout );
+
+        auto &chunkList = *sendParams.chunkList;
+        struct iovec iov[chunkList.size()];
+        for( size_t i = 0; i < chunkList.size() ; ++i )
+        {
+          iov[i].iov_base = chunkList[i].buffer;
+          iov[i].iov_len  = chunkList[i].length;
+        }
+        return ReadV( chunkList.front().offset, iov, chunkList.size(),
+                      handler, sendParams.timeout );
       }
 
       case kXR_write:
