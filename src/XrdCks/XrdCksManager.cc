@@ -282,7 +282,7 @@ int XrdCksManager::Init(const char *ConfigFN, const char *DfltCalc)
        if (i) {csInfo Temp = csTab[i]; csTab[i] = csTab[0]; csTab[0] = Temp;}
       }
 
-// See if there are any chacksums to configure
+// See if there are any checksums to configure
 //
    if (csLast < 0)
       {eDest->Emsg("Config", "No checksums defined; cannot configure!");
@@ -400,7 +400,7 @@ XrdCksManager::csInfo *XrdCksManager::Find(const char *Name)
        return 0;
       }
 
-// Attempte to dynamically load this object
+// Attempt to dynamically load this object
 //
 {  char buff[2048];
    *buff = 0;

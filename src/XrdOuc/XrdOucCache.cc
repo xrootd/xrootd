@@ -44,6 +44,12 @@ int XrdOucCacheIO::pgRead(char                  *buff,
 {
    int bytes;
 
+// Make sure the offset is on a 4K boundary and the size is a multiple of
+// 4k as well (we use simple and for this).
+//
+   if ((offs & XrdSys::PageMask)
+   || (rdlen & XrdSys::PageMask)) return -EINVAL;
+
 // Read the data into the buffer
 //
    bytes = Read(buff, offs, rdlen);
