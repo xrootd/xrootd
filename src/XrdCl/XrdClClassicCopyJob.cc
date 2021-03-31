@@ -2137,6 +2137,22 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // Make sure the checksums are both lower case
+      //------------------------------------------------------------------------
+      auto sanitize_cksum = []( char c )
+                            {
+                              std::locale loc;
+                              if( std::isalpha( c ) ) return std::tolower( c, loc );
+                              return c;
+                            };
+
+      std::transform( sourceCheckSum.begin(), sourceCheckSum.end(),
+                      sourceCheckSum.begin(), sanitize_cksum );
+
+      std::transform( targetCheckSum.begin(), targetCheckSum.end(),
+                      targetCheckSum.begin(), sanitize_cksum );
+
+      //------------------------------------------------------------------------
       // Compare and inform monitoring
       //------------------------------------------------------------------------
       if( !sourceCheckSum.empty() && !targetCheckSum.empty() )
