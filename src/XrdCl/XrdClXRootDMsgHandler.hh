@@ -147,6 +147,7 @@ namespace XrdCl
         pNotAuthorizedCounter( 0 ),
 
         pAsyncOffset( 0 ),
+        pAsyncChunkOffset( 0 ),
         pAsyncChunkIndex( 0 ),
         pAsyncReadSize( 0 ),
         pAsyncReadBuffer( 0 ),
@@ -704,6 +705,7 @@ namespace XrdCl
       uint16_t                        pNotAuthorizedCounter;
 
       uint32_t                        pAsyncOffset;
+      uint32_t                        pAsyncChunkOffset;
       uint32_t                        pAsyncChunkIndex;
       uint32_t                        pAsyncReadSize;
       char*                           pAsyncReadBuffer;

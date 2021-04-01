@@ -1001,17 +1001,18 @@ namespace XrdCl
       {
         ChunkInfo chunk  = (*pChunkList)[pAsyncChunkIndex];
         pAsyncOffset     = 0;
-        pAsyncReadBuffer = reinterpret_cast<char*>( chunk.buffer );
-        pAsyncReadSize   = chunk.length;
+        pAsyncReadBuffer = reinterpret_cast<char*>( chunk.buffer ) + pAsyncChunkOffset;
+        pAsyncReadSize   = chunk.length - pAsyncChunkOffset;
         if( pAsyncReadSize > bytesleft )
           pAsyncReadSize = bytesleft;
         bool lastchunk = pChunkList->size() == pAsyncChunkIndex + 1;
-        if( lastchunk && pAsyncMsgSize - pReadRawCurrentOffset > chunk.length )
+        if( lastchunk && bytesleft > chunk.length )
         {
           log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
                       ": expected: %d, got %d bytes",
-                     pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-                     pReadRawCurrentOffset + chunk.length, pAsyncMsgSize );
+                      pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
+                      pReadRawCurrentOffset + chunk.length,
+                      pReadRawCurrentOffset + bytesleft );
 
           pChunkStatus[pAsyncChunkIndex].sizeError = true;
           pOtherRawStarted               = false;
@@ -1030,15 +1031,19 @@ namespace XrdCl
       // Read the data
       //--------------------------------------------------------------------------
       XRootDStatus st = ReadAsync( socket, bytesRead );
+      pAsyncChunkOffset += bytesRead;
       if( !st.IsOK() || st.code == suRetry ) return st;
 
       //--------------------------------------------------------------------------
       // Update read state
       //--------------------------------------------------------------------------
-      if( pAsyncOffset == (*pChunkList)[pAsyncChunkIndex].length ) // the chunk is full
+      ChunkInfo chunk  = (*pChunkList)[pAsyncChunkIndex];
+      char *end = reinterpret_cast<char*>( chunk.buffer ) + chunk.length;
+      if( pAsyncReadBuffer == end ) // the chunk is full
       {
         ++pAsyncChunkIndex; // move to next buffer
         pReadRawStarted = false; // indicated we need a new buffer
+        pAsyncChunkOffset = 0; // we will be using a new chunk
       }
       pReadRawCurrentOffset += pAsyncReadSize; // update the total number of bytes read
       bytesleft -= pAsyncReadSize; // update number of bytes left to be read
