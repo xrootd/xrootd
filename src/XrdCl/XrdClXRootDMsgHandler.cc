@@ -1035,7 +1035,7 @@ namespace XrdCl
       //--------------------------------------------------------------------------
       // Update read state
       //--------------------------------------------------------------------------
-      if( pAsyncOffset == pAsyncReadSize ) // the chunk is full
+      if( pAsyncOffset == (*pChunkList)[pAsyncChunkIndex].length ) // the chunk is full
       {
         ++pAsyncChunkIndex; // move to next buffer
         pReadRawStarted = false; // indicated we need a new buffer
@@ -1044,6 +1044,7 @@ namespace XrdCl
       bytesleft -= pAsyncReadSize; // update number of bytes left to be read
     }
 
+    pReadRawCurrentOffset = 0;
     return XRootDStatus();
   }
 
