@@ -2007,14 +2007,14 @@ namespace XrdCl
         AnyObject *obj = new AnyObject();
         VectorReadInfo *vrInfo = new VectorReadInfo();
         vrInfo->SetSize( currentOffset );
+        uint32_t bytesleft = currentOffset;
         auto itr = pChunkList->begin();
         for( ; itr != pChunkList->end() ; ++itr )
         {
           uint32_t length = itr->length;
-          if( itr->offset > currentOffset ) length = 0;
-          else if( itr->offset + itr->length > currentOffset )
-            length = currentOffset - itr->offset;
+          if( length > bytesleft ) length = bytesleft;
           vrInfo->GetChunks().emplace_back( itr->offset, length, itr->buffer );
+          bytesleft -= length;
         }
         obj->Set( vrInfo );
         response = obj;
