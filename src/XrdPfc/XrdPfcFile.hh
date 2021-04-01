@@ -264,13 +264,11 @@ private:
       time_t m_attach_time;
       int    m_active_prefetches;
       bool   m_allow_prefetching;
-      bool   m_ioactive_false_reported;
 
       IODetails(time_t at) :
          m_attach_time             (at),
          m_active_prefetches       (0),
-         m_allow_prefetching       (true),
-         m_ioactive_false_reported (false)
+         m_allow_prefetching       (true)
       {}
    };
 
