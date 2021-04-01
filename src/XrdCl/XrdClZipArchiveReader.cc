@@ -945,6 +945,7 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
                       XrdZip::DataDescriptor::GetSize( cdfh->isZIP64 ) : 0;
   uint64_t fileoff  = nextRecordOffset - filesize - descsize;
   uint64_t offset   = fileoff + relativeOffset;
+
   uint64_t sizeTillEnd = cdfh->pUncompressedSize - relativeOffset;
   if( size > sizeTillEnd ) size = sizeTillEnd;
 
@@ -990,6 +991,19 @@ XRootDStatus ZipArchiveReaderImpl::Read( const std::string &filename, uint64_t r
       if( relativeOffset > cdfh->pCompressedSize ) return XRootDStatus(); // there's nothing to do,
                                                                          // we already have all the data locally
       uint32_t rdsize = size;
+      // check if this is the last read (we reached the end of
+      // file from user perspective)
+      if( relativeOffset + size >= cdfh->pUncompressedSize )
+      {
+        // if yes, make sure we readout all the compressed data
+        // Note: In a patological case the compressed size may
+        //       be greater than the uncompressed size
+        rdsize = cdfh->pCompressedSize > relativeOffset ?
+                 cdfh->pCompressedSize - relativeOffset :
+                 0;
+      }
+      // make sure we are not reading past the end of
+      // compressed data
       if( relativeOffset + size > cdfh->pCompressedSize )
         rdsize = cdfh->pCompressedSize - relativeOffset;
 

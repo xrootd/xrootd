@@ -563,8 +563,22 @@ namespace XrdCl
         if( relativeOffset > cdfh->compressedSize ) return XRootDStatus(); // there's nothing to do,
                                                                            // we already have all the data locally
         uint32_t rdsize = size;
+        // check if this is the last read (we reached the end of
+        // file from user perspective)
+        if( relativeOffset + size >= cdfh->uncompressedSize )
+        {
+          // if yes, make sure we readout all the compressed data
+          // Note: In a patological case the compressed size may
+          //       be greater than the uncompressed size
+          rdsize = cdfh->compressedSize > relativeOffset ?
+                   cdfh->compressedSize - relativeOffset :
+                   0;
+        }
+        // make sure we are not reading past the end of
+        // compressed data
         if( relativeOffset + size > cdfh->compressedSize )
           rdsize = cdfh->compressedSize - relativeOffset;
+
 
         // now read the data ...
         auto rdbuff = std::make_shared<ZipCache::buffer_t>( rdsize );
