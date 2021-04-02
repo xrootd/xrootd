@@ -348,8 +348,10 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
                              long long& bytes_hit,
                              long long& bytes_missed)
 {
-   int bytes_read = 0;
-   while ( ! blocks_to_process.empty() && bytes_read >= 0)
+   long long bytes_read = 0;
+   int       error_cond = 0; // to be set to -errno
+
+   while ( ! blocks_to_process.empty())
    {
       std::vector<ReadVChunkListRAM> finished;
       BlockList_t                    to_reissue;
@@ -418,10 +420,14 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
          }
          else
          {
-            bytes_read = bi->block->m_errno;
-            TRACEF(Error, "VReadProcessBlocks() io " << io << ", block "<< bi->block <<
-                   " finished with error " << -bytes_read << " " << XrdSysE2T(-bytes_read));
-            break;
+            // It has failed ... report only the first error.
+            if ( ! error_cond)
+            {
+               error_cond = bi->block->m_errno;
+               TRACEF(Error, "VReadProcessBlocks() io " << io << ", block "<< bi->block <<
+                     " finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
+               break;
+            }
          }
 
          ++bi;
@@ -432,7 +438,7 @@ int File::VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int n,
       finished.clear();
    }
 
-   TRACEF(Dump, "VReadProcessBlocks total read  " <<  bytes_read);
+   TRACEF(Dump, "VReadProcessBlocks status " << error_cond << ", total read " <<  bytes_read);
 
-   return bytes_read;
+   return error_cond ? error_cond : bytes_read;
 }

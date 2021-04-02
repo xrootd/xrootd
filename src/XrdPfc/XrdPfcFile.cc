@@ -209,17 +209,12 @@ bool File::ioActive(IO *io)
          TRACE(Info, "ioActive for io " << io <<
                 ", active_prefetches "       << mi->second.m_active_prefetches <<
                 ", allow_prefetching "       << mi->second.m_allow_prefetching <<
-                ", ioactive_false_reported " << mi->second.m_ioactive_false_reported <<
                 ", ios_in_detach "           << m_ios_in_detach);
          TRACEF(Info,
                 "\tio_map.size() "           << m_io_map.size() <<
                 ", block_map.size() "        << m_block_map.size() << ", file");
 
          insert_remote_location(loc);
-
-         // XXX Intermediate check for 4.11 - 5.0 transition.
-         // Can be removed for 5.1, including member IODetals::m_ioactive_false_reported.
-         assert( ! mi->second.m_ioactive_false_reported && "ioActive already returned false");
 
          mi->second.m_allow_prefetching = false;
 
@@ -249,7 +244,6 @@ bool File::ioActive(IO *io)
          if ( ! io_active_result)
          {
             ++m_ios_in_detach;
-            mi->second.m_ioactive_false_reported = true;
          }
 
          TRACEF(Info, "ioActive for io " << io << " returning " << io_active_result << ", file");
@@ -1093,12 +1087,11 @@ void File::inc_ref_count(Block* b)
 void File::dec_ref_count(Block* b)
 {
    // Method always called under lock.
+   assert(b->is_finished());
    b->m_refcnt--;
    assert(b->m_refcnt >= 0);
 
-   // File::Read() can decrease ref count before waiting for the block in case
-   // of an error. Prefetch starts with refcnt 0.
-   if (b->m_refcnt == 0 && b->is_finished())
+   if (b->m_refcnt == 0)
    {
       free_block(b);
    }
