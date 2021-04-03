@@ -37,31 +37,23 @@
 
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucCRC32C.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 
 class XrdCksCalccrc32C : public XrdCksCalc
 {
 public:
-    char *Final()
-    {
-        TheResult = C32CResult;
-#ifndef Xrd_Big_Endian
-        TheResult = htonl(TheResult);
-#endif
-        return (char *)&TheResult;
-    }
-    void Init()
-    {
-        C32CResult = CRC32C_XINIT;
-    }
-    XrdCksCalc *New() { return (XrdCksCalc *)new XrdCksCalccrc32C; }
+    char *Final();
+    
+    void Init();
+    
+    XrdCksCalc *New(); 
     void Update(const char *Buff, int BLen);
     const char *Type(int &csSz);
-    XrdCksCalccrc32C() { Init(); }
-    virtual ~XrdCksCalccrc32C() {}
+    XrdCksCalccrc32C(); 
+    virtual ~XrdCksCalccrc32C(); 
 
 private:
-    static const unsigned int CRC32C_XINIT = 0;
+    static const unsigned int C32C_XINIT = 0;
     unsigned int C32CResult;
     unsigned int TheResult;
 };
