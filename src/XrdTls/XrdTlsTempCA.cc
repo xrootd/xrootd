@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <sys/poll.h>
 
 #include <unordered_set>
 #include <memory>
@@ -49,7 +50,15 @@
 namespace {
     
 typedef std::unique_ptr<FILE, decltype(&fclose)> file_smart_ptr;
- 
+
+
+static uint64_t monotonic_time_s() {
+  struct timespec tp;
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  return tp.tv_sec + (tp.tv_nsec >= 500000000);
+}
+
+
 class CASet {
 public:
     CASet(int output_fd, XrdSysError &err)
@@ -234,7 +243,48 @@ XrdTlsTempCA::XrdTlsTempCA(XrdSysError *err, std::string ca_dir)
     : m_log(*err),
       m_ca_dir(ca_dir)
 {
-    Maintenance();
+    // Setup communication pipes; we write one byte to the child to tell it to shutdown;
+    // it'll write one byte back to acknowledge before our destructor exits.
+    int pipes[2];
+    if (-1 == XrdSysFD_Pipe(pipes)) {
+        m_log.Emsg("XrdTlsTempCA", "Failed to create communication pipes", strerror(errno));
+        return;
+    }
+    m_maintenance_pipe_r = pipes[0];
+    m_maintenance_pipe_w = pipes[1];
+    if (-1 == XrdSysFD_Pipe(pipes)) {
+        m_log.Emsg("XrdTlsTempCA", "Failed to create communication pipes", strerror(errno));
+        return;
+    }
+    m_maintenance_thread_pipe_r = pipes[0];
+    m_maintenance_thread_pipe_w = pipes[1];
+    if (!Maintenance()) {return;}
+
+    pthread_t tid;
+    auto rc = XrdSysThread::Run(&tid, XrdTlsTempCA::MaintenanceThread,
+                                static_cast<void*>(this), 0, "CA/CRL refresh");
+    if (rc) {
+        m_log.Emsg("XrdTlsTempCA", "Failed to launch CA monitoring thread");
+        m_ca_file.reset();
+    }
+}
+
+
+XrdTlsTempCA::~XrdTlsTempCA()
+{
+    char indicator[1];
+    if (m_maintenance_pipe_w >= 0) {
+        indicator[0] = '1';
+        int rval;
+        do {rval = write(m_maintenance_pipe_w, indicator, 1);} while (rval != -1 || errno == EINTR);
+        if (m_maintenance_thread_pipe_r >= 0) {
+            do {rval = read(m_maintenance_thread_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
+            close(m_maintenance_thread_pipe_r);
+            close(m_maintenance_thread_pipe_w);
+        }
+        close(m_maintenance_pipe_r);
+        close(m_maintenance_pipe_w);
+    }
 }
 
 
@@ -291,25 +341,46 @@ XrdTlsTempCA::Maintenance()
     }
     closedir(dirp);
 
-    m_next_update.store(time(NULL) + 900, std::memory_order_relaxed);
     m_ca_file.reset(new_file.release());
     return true;
 }
 
 
-bool
-XrdTlsTempCA::NeedsMaintenance()
+void *XrdTlsTempCA::MaintenanceThread(void *myself_raw)
 {
-    return time(NULL) > m_next_update.load(std::memory_order_relaxed);
-}
+   auto myself = static_cast<XrdTlsTempCA *>(myself_raw);
 
+   auto now = monotonic_time_s();
+   auto next_update = now + m_update_interval;
+   while (true) {
+       now = monotonic_time_s();
+       auto remaining = next_update - now;
+       struct pollfd fds;
+       fds.fd = myself->m_maintenance_pipe_r;
+       fds.events = POLLIN;
+       auto rval = poll(&fds, 1, remaining*1000);
+       if (rval == -1) {
+           if (rval == EINTR) continue;
+           else break;
+       } else if (rval == 0) { // timeout!  Let's run maintenance.
+           if (myself->Maintenance()) {
+               next_update = monotonic_time_s() + m_update_interval;
+           } else {
+               next_update = monotonic_time_s() + m_update_interval_failure;
+           }
+       } else { // FD ready; let's shutdown
+           if (fds.revents & POLLIN) {
+               char indicator[1];
+               do {rval = read(myself->m_maintenance_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
+           }
+       }
+   }
+   if (errno) {
+       myself->m_log.Emsg("Maintenance", "Failed to poll for events from parent object");
+   }
+   char indicator = '1';
+   int rval;
+   do {rval = write(myself->m_maintenance_thread_pipe_w, &indicator, 1);} while (rval != -1 || errno == EINTR);
 
-std::shared_ptr<XrdTlsTempCA::TempCAGuard>
-XrdTlsTempCA::getHandle()
-{
-    if (NeedsMaintenance()) {
-        Maintenance();
-    }
-
-    return m_ca_file;
+   return nullptr;
 }

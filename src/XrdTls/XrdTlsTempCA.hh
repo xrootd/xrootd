@@ -26,7 +26,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <atomic>
 #include <string>
 #include <memory>
 
@@ -46,6 +45,7 @@ public:
     class TempCAGuard;
 
     XrdTlsTempCA(XrdSysError *log, std::string ca_dir);
+    ~XrdTlsTempCA();
 
     /**
      * Return a handle to the current CA file.  The shared_ptr
@@ -53,7 +53,7 @@ public:
      * goes out of scope, the corresponding temporary file may
      * be garbage collected.
      */
-    std::shared_ptr<TempCAGuard> getHandle();
+    std::shared_ptr<TempCAGuard> getHandle() {return m_ca_file;}
 
     /**
      * Returns true if object is valid.
@@ -97,13 +97,24 @@ private:
     bool Maintenance();
 
     /**
-     * Returns true if we need to run the CA maintenance
-     * routine.
+     * Thread managing the invocation of the CA maintenance routines
      */
-    bool NeedsMaintenance();
+    static void *MaintenanceThread(void *myself_raw);
 
-    std::atomic<time_t> m_next_update{0};
+    /**
+     * Read and write ends of a pipe to communicate between the parent
+     * object and the maintenance thread.
+     */
+    int m_maintenance_pipe_r{-1};
+    int m_maintenance_pipe_w{-1};
+    int m_maintenance_thread_pipe_r{-1};
+    int m_maintenance_thread_pipe_w{-1};
     XrdSysError &m_log;
     const std::string m_ca_dir;
     std::shared_ptr<TempCAGuard> m_ca_file;
+
+        // After success, how long to wait until the next CA reload.
+    static constexpr unsigned m_update_interval = 900;
+        // After failure, how long to wait until the next CA reload.
+    static constexpr unsigned m_update_interval_failure = 10;
 };
