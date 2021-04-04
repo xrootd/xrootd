@@ -370,19 +370,20 @@ namespace
 
         using namespace XrdCl;
 
-        ChunkInfo *chunk = 0;
-        rdresp->Get( chunk );
+        VectorReadInfo *info = 0;
+        rdresp->Get( info );
+        ChunkInfo chunk = info->GetChunks().front();
 
         std::vector<uint32_t> cksums;
         if( stateHandler->pIsChannelEncrypted )
         {
-          size_t nbpages = chunk->length / XrdSys::PageSize;
-          if( chunk->length % XrdSys::PageSize )
+          size_t nbpages = chunk.length / XrdSys::PageSize;
+          if( chunk.length % XrdSys::PageSize )
             ++nbpages;
           cksums.reserve( nbpages );
 
-          size_t  size = chunk->length;
-          char   *buffer = reinterpret_cast<char*>( chunk->buffer );
+          size_t  size = chunk.length;
+          char   *buffer = reinterpret_cast<char*>( chunk.buffer );
 
           for( size_t pg = 0; pg < nbpages; ++pg )
           {
@@ -395,8 +396,8 @@ namespace
           }
         }
 
-        PageInfo *pages = new PageInfo( chunk->offset, chunk->length,
-                                        chunk->buffer, std::move( cksums ) );
+        PageInfo *pages = new PageInfo( chunk.offset, chunk.length,
+                                        chunk.buffer, std::move( cksums ) );
         delete rdresp;
         AnyObject *response = new AnyObject();
         response->Set( pages );
