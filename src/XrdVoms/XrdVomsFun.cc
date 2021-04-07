@@ -438,6 +438,7 @@ int XrdVomsFun::VOMSInit(const char *cfg)
    //         dbg                    To force verbose mode
    //
    EPNAME("Init");
+   vomsdata vomsInit; // This forces libssl initialization at load time
 
    XrdOucString oos(cfg);
 
