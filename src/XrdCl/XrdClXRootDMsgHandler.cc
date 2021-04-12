@@ -2011,18 +2011,35 @@ namespace XrdCl
         }
 
         AnyObject *obj = new AnyObject();
-        VectorReadInfo *vrInfo = new VectorReadInfo();
-        vrInfo->SetSize( currentOffset );
-        uint32_t bytesleft = currentOffset;
-        auto itr = pChunkList->begin();
-        for( ; itr != pChunkList->end() ; ++itr )
+        //----------------------------------------------------------------------
+        // If this is a virtual readv we need to package the response into
+        // a VectorReadInfo object.
+        //----------------------------------------------------------------------
+        if( pRequest->GetVirtReqID() == kXR_virtReadv )
         {
-          uint32_t length = itr->length;
-          if( length > bytesleft ) length = bytesleft;
-          vrInfo->GetChunks().emplace_back( itr->offset, length, itr->buffer );
-          bytesleft -= length;
+
+          VectorReadInfo *vrInfo = new VectorReadInfo();
+          vrInfo->SetSize( currentOffset );
+          uint32_t bytesleft = currentOffset;
+          auto itr = pChunkList->begin();
+          for( ; itr != pChunkList->end() ; ++itr )
+          {
+            uint32_t length = itr->length;
+            if( length > bytesleft ) length = bytesleft;
+            vrInfo->GetChunks().emplace_back( itr->offset, length, itr->buffer );
+            bytesleft -= length;
+          }
+          obj->Set( vrInfo );
         }
-        obj->Set( vrInfo );
+        //----------------------------------------------------------------------
+        // Otherwise, we package the response into a standard ChunkInfo.
+        //----------------------------------------------------------------------
+        else
+        {
+          ChunkInfo *retChunk = new ChunkInfo( pChunkList->front() );
+          obj->Set( retChunk );
+        }
+
         response = obj;
         return Status();
       }
