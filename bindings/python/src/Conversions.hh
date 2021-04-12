@@ -270,6 +270,8 @@ namespace PyXRootD
 
           PyObject *buffer = PyBytes_FromStringAndSize( (const char *) chunk.buffer,
                                                         chunk.length );
+          delete[] (char*) chunk.buffer;
+
           PyList_SET_ITEM( pychunks, i,
               Py_BuildValue( "{sOsOsO}",
                   "offset", Py_BuildValue( "k", chunk.offset ),
