@@ -143,6 +143,12 @@ enum XRequestTypes {
    kXR_REQFENCE // Always last valid request code +1
 };
 
+// Virtual client request codes
+//
+enum XVirtRequestTypes {
+   kXR_virtReadv = 2000
+};
+
 // All client requests use a header with the following format
 //
 struct ClientRequestHdr {
