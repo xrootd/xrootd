@@ -1054,20 +1054,22 @@ namespace XrdCl
 
       case kXR_read:
       {
-        if( sendParams.chunkList->size() > 1 )
-          return Read( req->read.offset, req->read.rlen,
-                       sendParams.chunkList->front().buffer,
-                       handler, sendParams.timeout );
-
-        auto &chunkList = *sendParams.chunkList;
-        struct iovec iov[chunkList.size()];
-        for( size_t i = 0; i < chunkList.size() ; ++i )
+        if( msg->GetVirtReqID() == kXR_virtReadv )
         {
-          iov[i].iov_base = chunkList[i].buffer;
-          iov[i].iov_len  = chunkList[i].length;
+          auto &chunkList = *sendParams.chunkList;
+          struct iovec iov[chunkList.size()];
+          for( size_t i = 0; i < chunkList.size() ; ++i )
+          {
+            iov[i].iov_base = chunkList[i].buffer;
+            iov[i].iov_len  = chunkList[i].length;
+          }
+          return ReadV( chunkList.front().offset, iov, chunkList.size(),
+                        handler, sendParams.timeout );
         }
-        return ReadV( chunkList.front().offset, iov, chunkList.size(),
-                      handler, sendParams.timeout );
+
+        return Read( req->read.offset, req->read.rlen,
+                     sendParams.chunkList->front().buffer,
+                     handler, sendParams.timeout );
       }
 
       case kXR_write:
