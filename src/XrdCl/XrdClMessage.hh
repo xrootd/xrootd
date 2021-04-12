@@ -33,7 +33,7 @@ namespace XrdCl
       //! Constructor
       //------------------------------------------------------------------------
       Message( uint32_t size = 0 ):
-        Buffer( size ), pIsMarshalled( false ), pSessionId(0)
+        Buffer( size ), pIsMarshalled( false ), pSessionId(0), pVirtReqID( 0 )
       {
         if( size )
           Zero();
@@ -92,10 +92,27 @@ namespace XrdCl
         return pSessionId;
       }
 
+      //------------------------------------------------------------------------
+      //! Set virtual request ID for the message
+      //------------------------------------------------------------------------
+      void SetVirtReqID( uint16_t virtReqID )
+      {
+        pVirtReqID = virtReqID;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get virtual request ID for the message
+      //------------------------------------------------------------------------
+      uint16_t GetVirtReqID()
+      {
+        return pVirtReqID;
+      }
+
     private:
       bool         pIsMarshalled;
       uint64_t     pSessionId;
       std::string  pDescription;
+      uint16_t     pVirtReqID;
   };
 }
 
