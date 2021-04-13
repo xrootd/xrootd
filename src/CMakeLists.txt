@@ -55,6 +55,10 @@ if( NOT XRDCL_ONLY )
 
   include( XrdPfc )
 
+  if( CMAKE_COMPILER_IS_GNUCXX )
+    include( XrdOssCsi )
+  endif()
+
   if( BUILD_HTTP )
     include( XrdHttp )
     include( XrdTpc )
