@@ -101,15 +101,14 @@ std::string encode_xrootd_opaque_to_uri(CURL *curl, const std::string &opaque)
     return output.str();
 }
 
-std::shared_ptr<XrdTlsTempCA::TempCAGuard>
+void
 TPCHandler::ConfigureCurlCA(CURL *curl)
 {
-    std::shared_ptr<XrdTlsTempCA::TempCAGuard> ca_guard(
-        m_ca_file.get() ? m_ca_file->getHandle() : nullptr
-    );
-    if (ca_guard) {
-        curl_easy_setopt(curl, CURLOPT_CAINFO, ca_guard->getCAFilename().c_str());
-        curl_easy_setopt(curl, CURLOPT_CRLFILE, ca_guard->getCRLFilename().c_str());
+    auto ca_filename = m_ca_file ? m_ca_file->CAFilename() : "";
+    auto crl_filename = m_ca_file ? m_ca_file->CRLFilename() : "";
+    if (!ca_filename.empty() && !crl_filename.empty()) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, ca_filename.c_str());
+        curl_easy_setopt(curl, CURLOPT_CRLFILE, crl_filename.c_str());
     }
     else if (!m_cadir.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
@@ -117,8 +116,8 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
     if (!m_cafile.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, m_cafile.c_str());
     }
-    return ca_guard;
 }
+
 
 bool TPCHandler::MatchesPath(const char *verb, const char *path) {
     return !strcmp(verb, "COPY") || !strcmp(verb, "OPTIONS");
@@ -680,7 +679,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         fh->close();
         return resp_result;
     }
-    auto ca_guard = ConfigureCurlCA(curl);
+    ConfigureCurlCA(curl);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
 
     Stream stream(std::move(fh), 0, 0, m_log);
@@ -772,7 +771,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         fh->close();
         return resp_result;
     }
-    auto ca_guard = ConfigureCurlCA(curl);
+    ConfigureCurlCA(curl);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
     Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
     State state(0, stream, curl, false);

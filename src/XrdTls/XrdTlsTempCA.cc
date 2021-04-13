@@ -47,6 +47,9 @@
 
 #include "XrdTlsTempCA.hh"
 
+#include <sstream>
+#include <vector>
+
 namespace {
     
 typedef std::unique_ptr<FILE, decltype(&fclose)> file_smart_ptr;
@@ -205,20 +208,36 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 
 
 std::unique_ptr<XrdTlsTempCA::TempCAGuard>
-XrdTlsTempCA::TempCAGuard::create(XrdSysError &err) {
-    char ca_fname[] = "/tmp/xrootd_ca_file.XXXXXX.pem";
-    int ca_fd = mkstemps(ca_fname, 4);
+XrdTlsTempCA::TempCAGuard::create(XrdSysError &err, const std::string &ca_tmp_dir) {
+
+    if (-1 == mkdir(ca_tmp_dir.c_str(), S_IRWXU) && errno != EEXIST) {
+        err.Emsg("TempCA", "Unable to create CA temp directory", ca_tmp_dir.c_str(), strerror(errno));
+    }
+
+    std::stringstream ss;
+    ss << ca_tmp_dir << "/ca_file.XXXXXX.pem";
+    std::vector<char> ca_fname;
+    ca_fname.resize(ss.str().size() + 1);
+    memcpy(ca_fname.data(), ss.str().c_str(), ss.str().size());
+
+    int ca_fd = mkstemps(ca_fname.data(), 4);
     if (ca_fd < 0) {
         err.Emsg("TempCA", "Failed to create temp file:", strerror(errno));
         return std::unique_ptr<TempCAGuard>();
     }
-    char crl_fname[] = "/tmp/xrootd_crl_file.XXXXXX.pem";
-    int crl_fd = mkstemps(crl_fname, 4);
+
+    std::stringstream ss2;
+    ss2 << ca_tmp_dir << "/crl_file.XXXXXX.pem";
+    std::vector<char> crl_fname;
+    crl_fname.resize(ss2.str().size() + 1);
+    memcpy(crl_fname.data(), ss2.str().c_str(), ss2.str().size());
+
+    int crl_fd = mkstemps(crl_fname.data(), 4);
     if (crl_fd < 0) {
         err.Emsg("TempCA", "Failed to create temp file:", strerror(errno));
         return std::unique_ptr<TempCAGuard>();
     }
-    return std::unique_ptr<TempCAGuard>(new TempCAGuard(ca_fd, crl_fd, ca_fname, crl_fname));
+    return std::unique_ptr<TempCAGuard>(new TempCAGuard(ca_fd, crl_fd, ca_tmp_dir, ca_fname.data(), crl_fname.data()));
 }
 
 
@@ -234,8 +253,32 @@ XrdTlsTempCA::TempCAGuard::~TempCAGuard() {
 }
 
 
-XrdTlsTempCA::TempCAGuard::TempCAGuard(int ca_fd, int crl_fd, const std::string &ca_fname, const std::string &crl_fname)
-    : m_ca_fd(ca_fd), m_crl_fd(crl_fd), m_ca_fname(ca_fname), m_crl_fname(crl_fname)
+bool
+XrdTlsTempCA::TempCAGuard::commit() {
+    if (m_ca_fd < 0 || m_ca_tmp_dir.empty()) {return false;}
+    close(m_ca_fd);
+    m_ca_fd = -1;
+    std::string ca_fname = m_ca_tmp_dir + "/ca_file.pem";
+    if (-1 == rename(m_ca_fname.c_str(), ca_fname.c_str())) {
+        return false;
+    }
+    m_ca_fname = ca_fname;
+
+    if (m_crl_fd < 0 || m_ca_tmp_dir.empty()) {return false;}
+    close(m_crl_fd);
+    m_crl_fd = -1;
+    std::string crl_fname = m_ca_tmp_dir + "/crl_file.pem";
+    if (-1 == rename(m_crl_fname.c_str(), crl_fname.c_str())) {
+        return false;
+    }
+    m_crl_fname = crl_fname;
+
+    return true;
+}
+
+
+XrdTlsTempCA::TempCAGuard::TempCAGuard(int ca_fd, int crl_fd, const std::string &ca_tmp_dir, const std::string &ca_fname, const std::string &crl_fname)
+    : m_ca_fd(ca_fd), m_crl_fd(crl_fd), m_ca_tmp_dir(ca_tmp_dir), m_ca_fname(ca_fname), m_crl_fname(crl_fname)
     {}
 
 
@@ -266,6 +309,7 @@ XrdTlsTempCA::XrdTlsTempCA(XrdSysError *err, std::string ca_dir)
     if (rc) {
         m_log.Emsg("XrdTlsTempCA", "Failed to launch CA monitoring thread");
         m_ca_file.reset();
+        m_crl_file.reset();
     }
 }
 
@@ -293,7 +337,14 @@ XrdTlsTempCA::Maintenance()
 {
     m_log.Emsg("TempCA", "Reloading the list of CAs and CRLs in directory");
 
-    std::unique_ptr<TempCAGuard> new_file(TempCAGuard::create(m_log));
+    auto adminpath = getenv("XRDADMINPATH");
+    if (!adminpath) {
+        m_log.Emsg("TempCA", "Admin path is not set!");
+        return false;
+    }
+    std::string ca_tmp_dir = std::string(adminpath) + "/.xrdtls";
+
+    std::unique_ptr<TempCAGuard> new_file(TempCAGuard::create(m_log, ca_tmp_dir));
     if (!new_file) {
         m_log.Emsg("TempCA", "Failed to create a new temp CA / CRL file");
         return false;
@@ -314,6 +365,7 @@ XrdTlsTempCA::Maintenance()
     }
 
     struct dirent *result;
+    errno = 0;
     while ((result = readdir(dirp))) {
         //m_log.Emsg("Will parse file for CA certificates", result->d_name);
         if (result->d_type != DT_REG && result->d_type != DT_LNK) {continue;}
@@ -333,6 +385,7 @@ XrdTlsTempCA::Maintenance()
         if (!crl_builder.processFile(fp, result->d_name)) {
             m_log.Emsg("Maintenance", "Failed to process file for CRLs", result->d_name);
         }
+        errno = 0;
     }
     if (errno) {
         m_log.Emsg("Maintenance", "Failure during readdir", strerror(errno));
@@ -341,7 +394,14 @@ XrdTlsTempCA::Maintenance()
     }
     closedir(dirp);
 
-    m_ca_file.reset(new_file.release());
+    if (!new_file->commit()) {
+        m_log.Emsg("Mainteance", "Failed to finalize new CA / CRL files");
+        return false;
+    }
+    //m_log.Emsg("Maintenance", "Successfully created CA and CRL files", new_file->getCAFilename().c_str(),
+    //    new_file->getCRLFilename().c_str());
+    m_ca_file.reset(new std::string(new_file->getCAFilename()));
+    m_crl_file.reset(new std::string(new_file->getCRLFilename()));
     return true;
 }
 

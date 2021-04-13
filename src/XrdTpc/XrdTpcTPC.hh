@@ -62,9 +62,9 @@ private:
 
     static std::string GetAuthz(XrdHttpExtReq &req);
 
-    // Configure curl handle's CA settings.  The returned object MUST BE KEPT IN SCOPE
-    // for as long as the curl handle is used.
-    std::shared_ptr<XrdTlsTempCA::TempCAGuard> ConfigureCurlCA(CURL *curl);
+    // Configure curl handle's CA settings.  The CA files present here should
+    // be valid for the lifetime of the process.
+    void ConfigureCurlCA(CURL *curl);
 
     // Redirect the transfer according to the contents of an XrdOucErrInfo object.
     int RedirectTransfer(CURL *curl, const std::string &redirect_resource, XrdHttpExtReq &req,

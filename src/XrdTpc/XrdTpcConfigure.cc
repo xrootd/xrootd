@@ -81,7 +81,7 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
         if (!env_cadir) {
             m_ca_file.reset(new XrdTlsTempCA(&m_log, m_cadir));
             if (!m_ca_file->IsValid()) {
-                m_log.Emsg("Config", "Workaround for libnss is required but failed to initialize.");
+                m_log.Emsg("Config", "CAs / CRL generation for libcurl failed.");
                 return false;
             }
         }

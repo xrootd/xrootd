@@ -48,24 +48,26 @@ public:
     ~XrdTlsTempCA();
 
     /**
-     * Return a handle to the current CA file.  The shared_ptr
-     * *must* be kept alive while the CA file is in use; if it
-     * goes out of scope, the corresponding temporary file may
-     * be garbage collected.
-     */
-    std::shared_ptr<TempCAGuard> getHandle() {return m_ca_file;}
-
-    /**
      * Returns true if object is valid.
      */
-    bool IsValid() const {return m_ca_file.get();}
+    bool IsValid() const {return m_ca_file.get() && m_crl_file.get();}
+
+    /**
+     * Returns the current location of the CA temp file.
+     */
+    std::string CAFilename() const {auto file_ref = m_ca_file; return file_ref ? *file_ref : "";}
+
+    /**
+     * Returns the current location of the CA temp file.
+     */
+    std::string CRLFilename() const {auto file_ref = m_crl_file; return file_ref ? *file_ref : "";}
 
     /**
      * Manages the temporary file associated with the curl handle
      */
     class TempCAGuard {
     public:
-        static std::unique_ptr<TempCAGuard> create(XrdSysError &);
+        static std::unique_ptr<TempCAGuard> create(XrdSysError &, const std::string &ca_tmp_dir);
 
     int getCAFD() const {return m_ca_fd;}
     std::string getCAFilename() const {return m_ca_fname;}
@@ -73,15 +75,21 @@ public:
     int getCRLFD() const {return m_crl_fd;}
     std::string getCRLFilename() const {return m_crl_fname;}
 
+    /**
+     * Move temporary file to the permanent location.
+     */
+    bool commit();
+
     TempCAGuard(const TempCAGuard &) = delete;
 
     ~TempCAGuard();
 
     private:
-        TempCAGuard(int ca_fd, int crl_fd, const std::string &ca_fname, const std::string &crl_fname);
+        TempCAGuard(int ca_fd, int crl_fd, const std::string &ca_tmp_dir, const std::string &ca_fname, const std::string &crl_fname);
 
         int m_ca_fd{-1};
         int m_crl_fd{-1};
+        std::string m_ca_tmp_dir;
         std::string m_ca_fname;
         std::string m_crl_fname;
     };
@@ -111,7 +119,8 @@ private:
     int m_maintenance_thread_pipe_w{-1};
     XrdSysError &m_log;
     const std::string m_ca_dir;
-    std::shared_ptr<TempCAGuard> m_ca_file;
+    std::shared_ptr<std::string> m_ca_file;
+    std::shared_ptr<std::string> m_crl_file;
 
         // After success, how long to wait until the next CA reload.
     static constexpr unsigned m_update_interval = 900;
