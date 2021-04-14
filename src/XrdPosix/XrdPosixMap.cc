@@ -79,7 +79,11 @@ mode_t XrdPosixMap::Flags2Mode(dev_t *rdv, uint32_t flags)
 /******************************************************************************/
 /* Private:                      m a p C o d e                                */
 /******************************************************************************/
-  
+
+#ifndef ECHRNG
+#define ECHRNG 44
+#endif
+
 int XrdPosixMap::mapCode(int rc)
 {
     switch(rc)
