@@ -298,6 +298,26 @@ XrdSutBucket *XrdCryptosslX509ExportChain(XrdCryptoX509Chain *chain,
 }
 
 //____________________________________________________________________________
+int XrdCryptosslX509ToFile(XrdCryptoX509 *x509, FILE *file, const char *fname)
+{
+   // Dump a single X509 certificate to a file in PEM format.
+   EPNAME("X509ChainToFile");
+
+   // Check inputs
+   if (!x509 || !file) {
+      DEBUG("Invalid inputs");
+      return -1;
+   }
+
+   if (PEM_write_X509(file, (X509 *)x509->Opaque()) != 1) {
+      DEBUG("error while writing certificate " << fname);
+      return -1;
+   }
+
+   return 0;
+}
+
+//____________________________________________________________________________
 int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *ch, const char *fn)
 {
    // Dump non-CA content of chain 'c' into file 'fn'
@@ -434,24 +454,7 @@ int XrdCryptosslX509ParseStack(XrdTlsPeerCerts* pc, XrdCryptoX509Chain *chain)
 int XrdCryptosslX509ParseFile(const char *fname,
                               XrdCryptoX509Chain *chain)
 {
-   // Parse content of file 'fname' and add X509 certificates to
-   // chain (which must be initialized by the caller).
-   // If a private key matching the public key of one of the certificates
-   // is found in the file, the certificate key is completed.
    EPNAME("X509ParseFile");
-   int nci = 0;
-
-   // Make sure we got a file to import
-   if (!fname) {
-      DEBUG("file name undefined: can do nothing");
-      return nci;
-   }
-
-   // Make sure we got a chain where to add the certificates
-   if (!chain) {
-      DEBUG("chain undefined: can do nothing");
-      return nci;
-   }
 
    //
    // Open file and read the content:
@@ -459,6 +462,35 @@ int XrdCryptosslX509ParseFile(const char *fname,
    FILE *fcer = fopen(fname, "r");
    if (!fcer) {
       DEBUG("unable to open file (errno: "<<errno<<")");
+      return 0;
+   }
+
+   auto retval = XrdCryptosslX509ParseFile(fcer, chain, fname);
+   fclose(fcer);
+   return retval;
+}
+
+//____________________________________________________________________________
+int XrdCryptosslX509ParseFile(FILE *fcer,
+                              XrdCryptoX509Chain *chain,
+                              const char *fname)
+{
+   // Parse content of file 'fname' and add X509 certificates to
+   // chain (which must be initialized by the caller).
+   // If a private key matching the public key of one of the certificates
+   // is found in the file, the certificate key is completed.
+   EPNAME("X509ParseFile");
+   int nci = 0;
+
+   // Make sure we got a valid file
+   if (!fcer) {
+      DEBUG("FILE object undefined: can do nothing");
+      return nci;
+   }
+
+   // Make sure we got a chain where to add the certificates
+   if (!chain) {
+      DEBUG("chain undefined: can do nothing");
       return nci;
    }
 
@@ -485,9 +517,9 @@ int XrdCryptosslX509ParseFile(const char *fname,
       rewind(fcer);
       RSA  *rsap = 0;
       if (!PEM_read_RSAPrivateKey(fcer, &rsap, 0, 0)) {
-         DEBUG("no RSA private key found in file "<<fname);
+         DEBUG("no RSA private key found in file " << fname);
       } else {
-         DEBUG("found a RSA private key in file "<<fname);
+         DEBUG("found a RSA private key in file " << fname);
          // We need to complete the key: we save it temporarly
          // to a bio and check all the private keys of the
          // loaded certificates 
@@ -537,9 +569,6 @@ int XrdCryptosslX509ParseFile(const char *fname,
          BIO_free(bkey);
       }
    }
-
-   // We can close the file now
-   fclose(fcer);
 
    // We are done
    return nci;

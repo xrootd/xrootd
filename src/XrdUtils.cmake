@@ -67,6 +67,25 @@ add_library(
   XrdTls/XrdTlsNotaryUtils.icc  XrdTls/XrdTlsNotaryUtils.hh
   XrdTls/XrdTlsPeerCerts.cc     XrdTls/XrdTlsPeerCerts.hh
   XrdTls/XrdTlsSocket.cc        XrdTls/XrdTlsSocket.hh
+  XrdTls/XrdTlsTempCA.cc        XrdTls/XrdTlsTempCA.hh
+
+  #-----------------------------------------------------------------------------
+  # XrdCrypto: linking against a few functions that are useful for XrdTls; avoids
+  # linking against all of libXrdCryptossl in XrdUtils
+  #-----------------------------------------------------------------------------
+  XrdCrypto/XrdCryptosslAux.cc     XrdCrypto/XrdCryptosslAux.hh
+  XrdCrypto/XrdCryptosslX509.cc    XrdCrypto/XrdCryptosslX509.hh
+  XrdCrypto/XrdCryptoX509.cc       XrdCrypto/XrdCryptoX509.hh
+  XrdCrypto/XrdCryptoX509Chain.cc  XrdCrypto/XrdCryptoX509Chain.hh
+  XrdCrypto/XrdCryptosslRSA.cc     XrdCrypto/XrdCryptosslRSA.hh
+  XrdCrypto/XrdCryptoRSA.cc        XrdCrypto/XrdCryptoRSA.hh
+  XrdCrypto/XrdCryptosslgsiAux.hh  XrdCrypto/XrdCryptosslgsiAux.cc
+  XrdCrypto/XrdCryptosslX509Req.cc XrdCrypto/XrdCryptosslX509Req.hh
+  XrdCrypto/XrdCryptoX509Req.cc    XrdCrypto/XrdCryptoX509Req.hh
+  XrdCrypto/XrdCryptoAux.cc        XrdCrypto/XrdCryptoAux.hh
+  XrdCrypto/XrdCryptosslX509Crl.cc XrdCrypto/XrdCryptosslX509Crl.hh
+  XrdCrypto/XrdCryptoX509Crl.cc    XrdCrypto/XrdCryptoX509Crl.hh
+  XrdCrypto/XrdCryptoTrace.hh
 
   #-----------------------------------------------------------------------------
   # XrdOuc

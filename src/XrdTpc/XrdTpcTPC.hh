@@ -8,6 +8,8 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdHttp/XrdHttpUtils.hh"
 
+#include "XrdTls/XrdTlsTempCA.hh"
+
 class XrdOucErrInfo;
 class XrdOucStream;
 class XrdSfsFile;
@@ -59,6 +61,10 @@ private:
     int ProcessOptionsReq(XrdHttpExtReq &req);
 
     static std::string GetAuthz(XrdHttpExtReq &req);
+
+    // Configure curl handle's CA settings.  The CA files present here should
+    // be valid for the lifetime of the process.
+    void ConfigureCurlCA(CURL *curl);
 
     // Redirect the transfer according to the contents of an XrdOucErrInfo object.
     int RedirectTransfer(CURL *curl, const std::string &redirect_resource, XrdHttpExtReq &req,
@@ -114,11 +120,13 @@ private:
     int m_timeout; // the 'timeout interval'; if no bytes have been received during this time period, abort the transfer.
     int m_first_timeout; // the 'first timeout interval'; the amount of time we're willing to wait to get the first byte.
                          // Unless explicitly specified, this is 2x the timeout interval.
-    std::string m_cadir;
+    std::string m_cadir;  // The directory to use for CAs.
+    std::string m_cafile; // The file to use for CAs in libcurl
     static XrdSysMutex m_monid_mutex;
     static uint64_t m_monid;
     XrdSysError m_log;
     XrdSfsFileSystem *m_sfs;
+    std::shared_ptr<XrdTlsTempCA> m_ca_file;
 
     // 16 blocks in flight at 16 MB each, meaning that there will be up to 256MB
     // in flight; this is equal to the bandwidth delay product of a 200ms transcontinental

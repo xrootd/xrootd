@@ -59,15 +59,6 @@ XrdCryptosslX509Crl::XrdCryptosslX509Crl(const char *cf, int opt)
    // Constructor certificate from file 'cf'.
    EPNAME("X509Crl::XrdCryptosslX509Crl_file");
 
-   // Init private members
-   crl = 0;         // The crl object
-   lastupdate = -1;  // begin-validity time in secs since Epoch
-   nextupdate = -1;   // end-validity time in secs since Epoch
-   issuer = "";     // issuer;
-   issuerhash = "";  // hash of issuer;
-   srcfile = "";    // source file;
-   nrevoked = 0;    // number of revoked certificates
-
    // Make sure file name is defined;
    if (opt == 0) {
       if (Init(cf) != 0) {
@@ -83,6 +74,18 @@ XrdCryptosslX509Crl::XrdCryptosslX509Crl(const char *cf, int opt)
 }
 
 //_____________________________________________________________________________
+XrdCryptosslX509Crl::XrdCryptosslX509Crl(FILE *fc, const char *cf)
+{
+   // Constructe CRL from a FILE handle `fc` with (assumed) filename `cf`.
+   EPNAME("X509Crl::XrdCryptosslX509Crl_file");
+
+   if (Init(fc, cf)) {
+      DEBUG("could not initialize the CRL from " << cf);
+      return;
+   }
+}
+
+//_____________________________________________________________________________
 XrdCryptosslX509Crl::XrdCryptosslX509Crl(XrdCryptoX509 *cacert)
                  : XrdCryptoX509Crl()
 {
@@ -91,15 +94,6 @@ XrdCryptosslX509Crl::XrdCryptosslX509Crl(XrdCryptoX509 *cacert)
    // CA certificate extension 'crlDistributionPoints', downloads the file and
    // loads it in the cache
    EPNAME("X509Crl::XrdCryptosslX509Crl_CA");
-
-   // Init private members
-   crl = 0;         // The crl object
-   lastupdate = -1;  // begin-validity time in secs since Epoch
-   nextupdate = -1;   // end-validity time in secs since Epoch
-   issuer = "";     // issuer;
-   issuerhash = "";  // hash of issuer;
-   srcfile = "";    // source file;
-   nrevoked = 0;    // number of revoked certificates
 
    // The CA certificate must be defined
    if (!cacert || cacert->type != XrdCryptoX509::kCA) {
@@ -161,8 +155,8 @@ XrdCryptosslX509Crl::~XrdCryptosslX509Crl()
 //_____________________________________________________________________________
 int XrdCryptosslX509Crl::Init(const char *cf)
 {
-   // Constructor certificate from file 'cf'.
-   // Return 0 on success, -1 on failure
+   // Load a CRL from an open file handle; for debugging purposes,
+   // we assume it's loaded from file named `cf`.
    EPNAME("X509Crl::Init");
 
    // Make sure file name is defined;
@@ -187,15 +181,30 @@ int XrdCryptosslX509Crl::Init(const char *cf)
       DEBUG("cannot open file "<<cf<<" (errno: "<<errno<<")");
       return -1;
    }
+
+   auto rval = Init(fc, cf);
+
+   //
+   // Close the file
+   fclose(fc);
+
+   return rval;
+}
+
+
+//_____________________________________________________________________________
+int XrdCryptosslX509Crl::Init(FILE *fc, const char *cf)
+{
+   // Constructor certificate from file 'cf'.
+   // Return 0 on success, -1 on failure
+   EPNAME("X509Crl::Init");
+
    //
    // Read the content:
    if (!PEM_read_X509_CRL(fc, &crl, 0, 0)) {
       DEBUG("Unable to load CRL from file");
       return -1;
    }
-   //
-   // Close the file
-   fclose(fc);
 
    //
    // Notify
@@ -308,6 +317,29 @@ int XrdCryptosslX509Crl::InitFromURI(const char *uri, const char *hash)
    //
    // Done
    return 0;
+}
+
+//_____________________________________________________________________________
+bool XrdCryptosslX509Crl::ToFile(FILE *fh)
+{
+   // Write the CRL's contents to a file in the PEM format.
+   EPNAME("ToFile");
+
+   if (!crl) {
+      DEBUG("CRL object invalid; cannot write to a file");
+      return false;
+   }
+
+   if (PEM_write_X509_CRL(fh, crl) == 0) {
+      DEBUG("Unable to write CRL to file");
+      return false;
+   }
+
+   //
+   // Notify
+   DEBUG("CRL successfully written to file");
+
+   return true;
 }
 
 //_____________________________________________________________________________

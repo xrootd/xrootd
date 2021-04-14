@@ -68,11 +68,31 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     }
     Config.Close();
 
-    if (!(val = myEnv->Get("http.cadir"))) {
-        m_log.Emsg("Config", "cadir value not specified; is TLS enabled?");
+    // Internal override: allow xrdtpc to use a different ca dir from the one prepared by the xrootd
+    // framework.  meant for exceptional situations where the site might need a specially-prepared set
+    // of cas only for tpc (such as trying out various workarounds for libnss).  Explicitly disables
+    // the NSS hack below.
+    auto env_cadir = getenv("XRDTPC_CADIR");
+    if (env_cadir) m_cadir = env_cadir;
+
+    const char *cadir = nullptr, *cafile = nullptr;
+    if ((cadir = env_cadir ? env_cadir : myEnv->Get("http.cadir"))) {
+        m_cadir = cadir;
+        if (!env_cadir) {
+            m_ca_file.reset(new XrdTlsTempCA(&m_log, m_cadir));
+            if (!m_ca_file->IsValid()) {
+                m_log.Emsg("Config", "CAs / CRL generation for libcurl failed.");
+                return false;
+            }
+        }
+    }
+    if ((cafile = myEnv->Get("http.cafile"))) {
+        m_cafile = cafile;
+    }
+    if (!cadir && !cafile) {
+        m_log.Emsg("Config", "neither xrd.tls cadir nor certfile value specified; is TLS enabled?");
         return false;
     }
-    m_cadir = val;
 
     void *sfs_raw_ptr;
     if ((sfs_raw_ptr = myEnv->GetPtr("XrdSfsFileSystem*"))) {

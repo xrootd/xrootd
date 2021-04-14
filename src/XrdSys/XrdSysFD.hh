@@ -151,6 +151,10 @@ inline int  XrdSysFD_Socketpair(int domain, int type, int protocol, int sfd[2])
                  }
 #endif
 
+// openat is part of POSIX.1-2008; in Linux, BSD, and Solaris
+inline int  XrdSysFD_Openat(int dirfd, const char *pathname, int flags)
+                 {return openat(dirfd, pathname, flags | O_CLOEXEC);}
+
 inline bool XrdSysFD_Yield(int fd)
                   {int fdFlags = fcntl(fd, F_GETFD);
                    if (fdFlags < 0) return false;

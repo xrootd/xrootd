@@ -51,6 +51,7 @@ class XrdCryptosslX509Crl : public XrdCryptoX509Crl {
 public:
 
    XrdCryptosslX509Crl(const char *crlf, int opt = 0);
+   XrdCryptosslX509Crl(FILE *, const char *crlf);
    XrdCryptosslX509Crl(XrdCryptoX509 *cacert);
    virtual ~XrdCryptosslX509Crl();
 
@@ -79,22 +80,26 @@ public:
    // Verify signature
    bool Verify(XrdCryptoX509 *ref);
 
-private:
-   X509_CRL    *crl;       // The CRL object
-   time_t       lastupdate; // time of last update
-   time_t       nextupdate; // time of next update
-   XrdOucString issuer;     // issuer name;
-   XrdOucString issuerhash; // hash of issuer name (default algorithm);
-   XrdOucString issueroldhash; // hash of issuer name (md5 algorithm);
-   XrdOucString srcfile;    // source file name, if any;
-   XrdOucString crluri;     // URI from where to get the CRL file, if any;
+   // Dump CRL object to a file.
+   bool ToFile(FILE *fh);
 
-   int          nrevoked;   // Number of certificates revoked
-   XrdSutCache  cache;      // cached infor about revoked certificates
+private:
+   X509_CRL    *crl{nullptr};   // The CRL object
+   time_t       lastupdate{-1}; // time of last update
+   time_t       nextupdate{-1}; // time of next update
+   XrdOucString issuer;         // issuer name;
+   XrdOucString issuerhash;     // hash of issuer name (default algorithm);
+   XrdOucString issueroldhash;  // hash of issuer name (md5 algorithm);
+   XrdOucString srcfile;        // source file name, if any;
+   XrdOucString crluri;         // URI from where to get the CRL file, if any;
+
+   int          nrevoked{0};    // Number of certificates revoked
+   XrdSutCache  cache;          // cached infor about revoked certificates
 
    int GetFileType(const char *crlfn); //Determine file type
    int LoadCache();         // Load the cache
    int Init(const char *crlf); // Init from file
+   int Init(FILE *fc, const char *crlf); // Init from file handle
    int InitFromURI(const char *uri, const char *hash); // Init from URI
 };
 
