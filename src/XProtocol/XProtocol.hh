@@ -364,6 +364,12 @@ enum XLoginAbility {
    kXR_redirflags = 128
 };
 
+// this iss a bitmask
+enum XLoginAbility2 {
+   kXR_empty   = 0,
+   kXR_ecredir = 1
+};
+
 // this is a bitmask (note that XLoginVersion resides in lower bits)
 enum XLoginCapVer {
    kXR_lcvnone = 0,
@@ -387,9 +393,9 @@ struct ClientLoginRequest {
    kXR_unt16 requestid;
    kXR_int32 pid;
    kXR_char username[8];
-   kXR_char reserved;
-   kXR_char ability;       // See XLoginAbility enum flags
-   kXR_char capver[1];     // See XLoginCapVer  enum flags
+   kXR_char ability2;      // See XLoginAbility2 enum flags
+   kXR_char ability;       // See XLoginAbility  enum flags
+   kXR_char capver[1];     // See XLoginCapVer   enum flags
    kXR_char reserved2;
    kXR_int32  dlen;
 };
