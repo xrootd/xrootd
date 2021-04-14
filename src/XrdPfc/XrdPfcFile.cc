@@ -552,7 +552,7 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
 
    if (buf)
    {
-      b = new (std::nothrow) Block(this, io, buf, off, blk_size, prefetch, cs_net);
+      b = new (std::nothrow) Block(this, io, buf, off, blk_size, req_size, prefetch, cs_net);
 
       if (b)
       {
@@ -584,9 +584,7 @@ void File::ProcessBlockRequest(Block *b)
    BlockResponseHandler* oucCB = new BlockResponseHandler(b);
    if (b->req_cksum_net())
    {
-      int req_size = b->get_size();
-      if (req_size & 0xFFF) req_size = (req_size & ~0xFFF) + 0x1000;
-      b->get_io()->GetInput()->pgRead(*oucCB, b->get_buff(), b->get_offset(), req_size, b->ref_cksum_vec());
+      b->get_io()->GetInput()->pgRead(*oucCB, b->get_buff(), b->get_offset(), b->get_req_size(), b->ref_cksum_vec());
    } else {
       b->get_io()->GetInput()->  Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
    }
@@ -1110,7 +1108,7 @@ void File::free_block(Block* b)
    }
    else
    {
-      cache()->ReleaseRAM(b->m_buff, b->m_size);
+      cache()->ReleaseRAM(b->m_buff, b->m_req_size);
       delete b;
    }
 
@@ -1179,10 +1177,19 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 
    if (res >= 0 && res != b->get_size())
    {
+      // XXXX pgRead sets res to 4k-rounded result for the last block XXXX
+      if (b->m_offset + b->get_size() == m_file_size && res == b->get_req_size())
+      {
+         TRACEF(Info, tpfx << "Assuming pgRead last-block roundof bug");
+         res = b->get_size();
+      }
+      else
+      {
       // Incorrect number of bytes received, apparently size of the file on the remote
       // is different than what the cache expects it to be.
       TRACEF(Error, tpfx << "Wrong number of bytes received, assuming remote/local file size mismatch, unlinking local files and initiating shutdown of File object");
       Cache::GetInstance().UnlinkFile(m_filename, false);
+      }
    }
 
    XrdSysCondVarHelper _lck(m_state_cond);
@@ -1212,7 +1219,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
          }
 
          // If failed with no subscribers -- remove the block now.
-         if (res < 0 && b->m_refcnt == 0)
+         if (b->m_refcnt == 0 && (res < 0 || m_in_shutdown))
          {
             free_block(b);
          }

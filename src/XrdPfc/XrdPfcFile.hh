@@ -66,6 +66,7 @@ public:
    char               *m_buff;
    long long           m_offset;
    int                 m_size;
+   int                 m_req_size;
    int                 m_refcnt;
    int                 m_errno;         // stores negative errno
    bool                m_downloaded;
@@ -73,15 +74,16 @@ public:
    bool                m_req_cksum_net;
    vCkSum_t            m_cksum_vec;
 
-   Block(File *f, IO *io, char *buf, long long off, int size, bool m_prefetch, bool cks_net) :
-      m_file(f), m_io(io), m_buff(buf), m_offset(off), m_size(size),
+   Block(File *f, IO *io, char *buf, long long off, int size, int rsize, bool m_prefetch, bool cks_net) :
+      m_file(f), m_io(io), m_buff(buf), m_offset(off), m_size(size), m_req_size(rsize),
       m_refcnt(0), m_errno(0), m_downloaded(false), m_prefetch(m_prefetch),
       m_req_cksum_net(cks_net)
    {}
 
-   char*     get_buff()   { return m_buff;   }
-   int       get_size()   { return m_size;   }
-   long long get_offset() { return m_offset; }
+   char*     get_buff()     { return m_buff;     }
+   int       get_size()     { return m_size;     }
+   int       get_req_size() { return m_req_size; }
+   long long get_offset()   { return m_offset;   }
 
    IO*  get_io() const { return m_io; }
 
