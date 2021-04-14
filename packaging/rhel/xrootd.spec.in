@@ -200,6 +200,10 @@ Requires(preun):	initscripts
 Requires(postun):	initscripts
 %endif
 
+%if %{?rhel}%{!?rhel:0} == 7
+BuildRequires: devtoolset-7
+%endif
+
 %description
 The Extended root file server consists of a file server called xrootd
 and a cluster management server called cmsd.
@@ -529,6 +533,11 @@ This package contains compatibility binaries for xrootd 4 servers.
 %setup -c -n xrootd
 
 %build
+
+%if %{?rhel}%{!?rhel:0} == 7
+. /opt/rh/devtoolset-7/enable
+%endif
+
 cd xrootd
 
 %if %{?_with_clang:1}%{!?_with_clang:0}
