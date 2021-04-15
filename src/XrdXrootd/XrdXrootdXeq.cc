@@ -975,6 +975,10 @@ int XrdXrootdProtocol::do_Login()
           clientPV |= XrdOucEI::uReadR;
        if (Request.login.ability & kXR_hasipv64)
           clientPV |= XrdOucEI::uIPv64;
+       if (Request.login.ability & kXR_redirflags)
+          clientPV |= XrdOucEI::uRedirFlgs;
+       if (Request.login.ability2 & kXR_ecredir )
+          clientPV |= XrdOucEI::uEcRedir;
       }
 
 // Mark the client as IPv4 if they came in as IPv4 or mapped IPv4 we can only
@@ -3545,6 +3549,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 //
    if (rc == SFS_REDIRECT)
       {SI->redirCnt++;
+      // TODO
 //       if (ecode < 0 && ecode != -1) ecode = (ecode ? -ecode : Port);
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
