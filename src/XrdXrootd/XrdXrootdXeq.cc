@@ -3549,8 +3549,10 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 //
    if (rc == SFS_REDIRECT)
       {SI->redirCnt++;
-      // TODO
-//       if (ecode < 0 && ecode != -1) ecode = (ecode ? -ecode : Port);
+       // if the plugin set some redirect flags but the client does not
+       // support them, clear the flags (set -1)
+       if( ecode < -1 && !( clientPV & XrdOucEI::uRedirFlgs ) )
+           ecode = -1;
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
        if (TRACING(TRACE_REDIR))
