@@ -2048,6 +2048,7 @@ namespace XrdCl
         else
         {
           ChunkInfo *retChunk = new ChunkInfo( pChunkList->front() );
+          retChunk->length = currentOffset;
           obj->Set( retChunk );
         }
 
