@@ -404,11 +404,11 @@ namespace
         OpenInfo *openInfo = 0;
         if( status->IsOK() )
           response->Get( openInfo );
+#ifdef WITH_XRDEC
         else
           //--------------------------------------------------------------------
           // Handle EC redirect
           //--------------------------------------------------------------------
-#ifdef WITH_XRDEC
           if( status->code == errRedirect )
           {
             std::string ecurl = status->GetErrorMessage();
