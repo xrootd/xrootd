@@ -35,6 +35,26 @@
 
 namespace XrdCl
 {
+  struct ConnErrJob : public Job
+  {
+    ConnErrJob( const URL &url, const XRootDStatus &status,
+                std::function<void( const URL&, const XRootDStatus& )> handler) : url( url ),
+                                                                                  status( status ),
+                                                                                  handler( handler )
+    {
+    }
+
+    void Run( void *arg )
+    {
+      handler( url, status );
+      delete this;
+    }
+
+    URL url;
+    XRootDStatus status;
+    std::function<void( const URL&, const XRootDStatus& )> handler;
+  };
+
   struct PostMasterImpl
   {
     PostMasterImpl() : pPoller( 0 ), pInitialized( false )
@@ -65,6 +85,7 @@ namespace XrdCl
 
     XrdSysMutex           pMtx;
     std::unique_ptr<Job>  pOnConnJob;
+    std::function<void( const URL&, const XRootDStatus& )> pOnConnErrCB;
 
     XrdSysRWLock          pDisconnectLock;
   };
@@ -379,7 +400,16 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  //! Notify the global on-connect handler
+  // Set the global connection error handler
+  //------------------------------------------------------------------------
+  void PostMaster::SetConnectionErrorHandler( std::function<void( const URL&, const XRootDStatus& )> handler )
+  {
+    XrdSysMutexHelper lck( pImpl->pMtx );
+    pImpl->pOnConnErrCB = std::move( handler );
+  }
+
+  //------------------------------------------------------------------------
+  // Notify the global on-connect handler
   //------------------------------------------------------------------------
   void PostMaster::NotifyConnectHandler( const URL &url )
   {
@@ -388,6 +418,19 @@ namespace XrdCl
     {
       URL *ptr = new URL( url );
       pImpl->pJobManager->QueueJob( pImpl->pOnConnJob.get(), ptr );
+    }
+  }
+
+  //------------------------------------------------------------------------
+  // Notify the global error connection handler
+  //------------------------------------------------------------------------
+  void PostMaster::NotifyConnErrHandler( const URL &url, const XRootDStatus &status )
+  {
+    XrdSysMutexHelper lck( pImpl->pMtx );
+    if( pImpl->pOnConnErrCB )
+    {
+      ConnErrJob *job = new ConnErrJob( url, status, pImpl->pOnConnErrCB );
+      pImpl->pJobManager->QueueJob( job, nullptr );
     }
   }
 

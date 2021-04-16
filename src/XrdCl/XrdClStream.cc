@@ -705,6 +705,11 @@ namespace XrdCl
     time_t now = ::time(0);
 
     //--------------------------------------------------------------------------
+    // For every connection error call the global connection error handler
+    //--------------------------------------------------------------------------
+    XrdCl::DefaultEnv::GetPostMaster()->NotifyConnErrHandler( *pUrl, status );
+
+    //--------------------------------------------------------------------------
     // If we connected subStream == 0 and cannot connect >0 then we just give
     // up and move the outgoing messages to another queue
     //--------------------------------------------------------------------------

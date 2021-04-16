@@ -214,14 +214,24 @@ namespace XrdCl
                                     std::shared_ptr<Job>  onConnJob );
 
       //------------------------------------------------------------------------
-      //! Set the global on-connect handler for control streams
+      //! Set the global connection error handler
       //------------------------------------------------------------------------
       void SetOnConnectHandler( std::unique_ptr<Job> onConnJob );
+
+      //------------------------------------------------------------------------
+      //! Set the global on-error on-connect handler for control streams
+      //------------------------------------------------------------------------
+      void SetConnectionErrorHandler( std::function<void( const URL&, const XRootDStatus& )> handler );
 
       //------------------------------------------------------------------------
       //! Notify the global on-connect handler
       //------------------------------------------------------------------------
       void NotifyConnectHandler( const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Notify the global error connection handler
+      //------------------------------------------------------------------------
+      void NotifyConnErrHandler( const URL &url, const XRootDStatus &status );
 
       //------------------------------------------------------------------------
       //! Collapse channel URL - replace the URL of the channel
