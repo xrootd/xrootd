@@ -459,7 +459,7 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
 
    File *file = 0;
 
-   if (filesize > 0)
+   if (filesize >= 0)
    {
       file = File::FileOpen(path, off, filesize);
    }

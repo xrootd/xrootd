@@ -1177,19 +1177,10 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 
    if (res >= 0 && res != b->get_size())
    {
-      // XXXX pgRead sets res to 4k-rounded result for the last block XXXX
-      if (b->m_offset + b->get_size() == m_file_size && res == b->get_req_size())
-      {
-         TRACEF(Info, tpfx << "Assuming pgRead last-block roundof bug");
-         res = b->get_size();
-      }
-      else
-      {
       // Incorrect number of bytes received, apparently size of the file on the remote
       // is different than what the cache expects it to be.
       TRACEF(Error, tpfx << "Wrong number of bytes received, assuming remote/local file size mismatch, unlinking local files and initiating shutdown of File object");
       Cache::GetInstance().UnlinkFile(m_filename, false);
-      }
    }
 
    XrdSysCondVarHelper _lck(m_state_cond);
