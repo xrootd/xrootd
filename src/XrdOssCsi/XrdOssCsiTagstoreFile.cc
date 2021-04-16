@@ -71,7 +71,7 @@ int XrdOssCsiTagstoreFile::Open(const char *path, const off_t dsize, const int O
 
    uint32_t magic;
 
-   const int mread = XrdOssCsiTagstoreFile::fullread(*fd_, header_, 0, 20);
+   const ssize_t mread = XrdOssCsiTagstoreFile::fullread(*fd_, header_, 0, 20);
    bool mok = false;
    if (mread >= 0)
    {
