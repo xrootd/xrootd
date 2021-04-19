@@ -606,62 +606,68 @@ namespace XrdCl
       }
     }
 
-    //--------------------------------------------------------------------------
-    // We need to call a raw message handler to get the data from the socket
-    //--------------------------------------------------------------------------
-    if( pIncHandler.first )
+    bool repeat;
+    do
     {
-      uint32_t bytesRead = 0;
-      st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket,
-                                               bytesRead );
-      if( !st.IsOK() )
+      repeat = false;
+      //--------------------------------------------------------------------------
+      // We need to call a raw message handler to get the data from the socket
+      //--------------------------------------------------------------------------
+      if( pIncHandler.first )
       {
-        OnFault( st );
-        return;
-      }
-      pIncMsgSize += bytesRead;
+        uint32_t bytesRead = 0;
+        st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket,
+                                                 bytesRead );
+        if( !st.IsOK() )
+        {
+          OnFault( st );
+          return;
+        }
+        pIncMsgSize += bytesRead;
 
-      if( st.code == suRetry )
-        return;
+        if( st.code == suRetry )
+          return;
+      }
+      //--------------------------------------------------------------------------
+      // No raw handler, so we read the message to the buffer
+      //--------------------------------------------------------------------------
+      else
+      {
+        st = pTransport->GetBody( pIncoming, pSocket );
+        if( !st.IsOK() )
+        {
+          OnFault( st );
+          return;
+        }
+
+        if( st.code == suRetry )
+          return;
+
+        pIncMsgSize = pIncoming->GetSize();
+      }
+
+      //--------------------------------------------------------------------------
+      // Now check if there are some additional raw data to be read
+      //--------------------------------------------------------------------------
+      if( !pIncHandler.first )
+      {
+        uint16_t action = pStream->InspectStatusRsp( pIncoming, pSubStreamNum,
+                                                     pIncHandler.first );
+
+        if( action & IncomingMsgHandler::Corrupted )
+        {
+          OnHeaderCorruption();
+          return;
+        }
+
+        if( action & IncomingMsgHandler::Raw )
+        {
+          pIncHandler.second = true;
+          repeat = true;
+        }
+      }
     }
-    //--------------------------------------------------------------------------
-    // No raw handler, so we read the message to the buffer
-    //--------------------------------------------------------------------------
-    else
-    {
-      st = pTransport->GetBody( pIncoming, pSocket );
-      if( !st.IsOK() )
-      {
-        OnFault( st );
-        return;
-      }
-
-      if( st.code == suRetry )
-        return;
-
-      pIncMsgSize = pIncoming->GetSize();
-    }
-
-    //--------------------------------------------------------------------------
-    // Now check if there are some additional raw data to be read
-    //--------------------------------------------------------------------------
-    if( !pIncHandler.first )
-    {
-      uint16_t action = pStream->InspectStatusRsp( pIncoming, pSubStreamNum,
-                                                   pIncHandler.first );
-
-      if( action & IncomingMsgHandler::Corrupted )
-      {
-        OnHeaderCorruption();
-        return;
-      }
-
-      if( action & IncomingMsgHandler::Raw )
-      {
-        pIncHandler.second = true;
-        return;
-      }
-    }
+    while( repeat );
 
     //--------------------------------------------------------------------------
     // Report the incoming message
