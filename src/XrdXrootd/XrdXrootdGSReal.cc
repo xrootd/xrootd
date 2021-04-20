@@ -204,7 +204,7 @@ void XrdXrootdGSReal::Expel(int dlen) // gMutex is held
       } else {
        if (hInfo.pseq)
           {char tBuff[32];
-           if (pSeq > 999) pSeq = 0;
+           if (pSeq >= 999) pSeq = 0;
               else pSeq++;
            snprintf(tBuff, sizeof(tBuff), "%3d%10u%10u", pSeq,
                            (unsigned int)tBeg, (unsigned int)tEnd);
@@ -267,7 +267,7 @@ uint32_t XrdXrootdGSReal::GetDictID(const char *text, bool isPath)
 // Generate a new packet sequence number
 //
    gMutex.Lock();
-   if (pSeq > 999) pSeq = 0;
+   if (pSeq >= 999) pSeq = 0;
       else pSeq++;
    psq = pSeq;
    gMutex.UnLock();
