@@ -261,6 +261,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Socket::Close()
   {
+    if( pTls ) pTls->Shutdown();
+
     if( pSocket != -1 )
     {
       close( pSocket );

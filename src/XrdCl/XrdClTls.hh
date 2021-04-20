@@ -67,6 +67,11 @@ namespace XrdCl
       XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten );
 
       //------------------------------------------------------------------------
+      //! Shutdown the TLS/SSL connection
+      //------------------------------------------------------------------------
+      void Shutdown();
+
+      //------------------------------------------------------------------------
       //! Map:
       //!     * in case the TLS layer requested reads on writes map
       //!       ReadyToWrite to ReadyToRead

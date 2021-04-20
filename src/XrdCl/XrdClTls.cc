@@ -307,6 +307,14 @@ namespace XrdCl
     return status;
   }
 
+  //------------------------------------------------------------------------
+  // Shutdown the TLS/SSL connection
+  //------------------------------------------------------------------------
+  void Tls::Shutdown()
+  {
+    pTls->Shutdown();
+  }
+
   XRootDStatus Tls::ToStatus( XrdTls::RC rc )
   {
     std::string msg = XrdTls::RC2Text( rc, true );
