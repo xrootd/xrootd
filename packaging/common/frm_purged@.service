@@ -11,7 +11,7 @@ User=xrootd
 Group=xrootd
 Type=simple
 Restart=on-abort
-RestartSec=0
+RestartSec=10
 KillMode=control-group
 LimitNOFILE=65536
 
