@@ -464,7 +464,7 @@ void XrdXrootdGSReal::Ident()
 // Generate a new packet sequence number
 //
    gMutex.Lock();
-   if (pSeq > 999) pSeq = 0;
+   if (pSeq >= 999) pSeq = 0;
       else pSeq++;
    psq = pSeq;
    gMutex.UnLock();
