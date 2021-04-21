@@ -2608,7 +2608,7 @@ namespace XrdCl
     if( pLoadBalancer.url.IsValid() &&
         pLoadBalancer.url.GetLocation() != pUrl.GetLocation() )
     {
-      UpdateTriedCGI();
+      UpdateTriedCGI( kXR_ServerError );
       HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRetry ) );
       return;
     }
@@ -2620,6 +2620,7 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
+        UpdateTriedCGI( kXR_ServerError );
         HandleError( RetryAtServer( pUrl, RedirectEntry::EntryRetry ) );
         return;
       }
