@@ -994,13 +994,17 @@ namespace XrdCl
 
     if( !st.IsOK() )
     {
-      delete closeHandler;
-      if( st.code == errInvalidSession && IsReadOnly() )
+      // an invalid-session error means the connection to the server has been
+      // closed, which in turn means that the server closed the file already
+      if( st.code == errInvalidSession )
       {
-        pFileState = Closed;
-        return st;
+        ResponseJob *job = new ResponseJob( closeHandler, new XRootDStatus(),
+                                            nullptr, nullptr );
+        DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+        return XRootDStatus();
       }
 
+      delete closeHandler;
       pStatus    = st;
       pFileState = Error;
       return st;
