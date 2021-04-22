@@ -98,7 +98,7 @@ class CustomInstall(install):
         zlib_dev     = pkgconfig.exists( 'zlib' )
         openssl_dev  = pkgconfig.exists( 'openssl' )
         uuid_dev     = pkgconfig.exists( 'uuid' )
-        if is_rhel7:
+        if is_rhel7():
           devtoolset7 = has_devtoolset()
           need_devtoolset = "true"
         else:
