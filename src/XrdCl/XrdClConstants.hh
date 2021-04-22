@@ -52,7 +52,7 @@ namespace XrdCl
   const int DefaultStreamTimeout           = 60;
   const int DefaultTimeoutResolution       = 15;
   const int DefaultStreamErrorWindow       = 1800;
-  const int DefaultRunForkHandler          = 0;
+  const int DefaultRunForkHandler          = 1;
   const int DefaultRedirectLimit           = 16;
   const int DefaultWorkerThreads           = 3;
   const int DefaultCPChunkSize             = 8388608;
