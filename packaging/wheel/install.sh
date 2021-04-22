@@ -12,7 +12,7 @@ cd xrootdbuild
 #    (for the python bindings we don't want to install the binaries)
 CMAKE_ARGS="-DPYPI_BUILD=TRUE -DXRDCL_LIB_ONLY=TRUE -DENABLE_PYTHON=TRUE -DCMAKE_INSTALL_PREFIX=$1/pyxrootd -DXRD_PYTHON_REQ_VERSION=$2 -DCMAKE_INSTALL_BINDIR=$startdir/xrootdbuild/bin"
 
-if [ "$4" -e "true" ]; then
+if [ "$5" = "true" ]; then
   source /opt/rh/devtoolset-7/enable
 fi
 
