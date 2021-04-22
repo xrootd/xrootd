@@ -100,10 +100,10 @@ CASet::processFile(file_smart_ptr &fp, const std::string &fname)
     XrdCryptosslX509ParseFile(fp.get(), &chain, fname.c_str());
 
     auto ca = chain.Begin();
-    // Note we purposely leak the outputfp here; we are just borrowing the handle.
-    FILE *outputfp = fdopen(m_output_fd, "w");
-    if (!outputfp) {
+    file_smart_ptr outputfp(fdopen(XrdSysFD_Dup(m_output_fd), "w"), &fclose);
+    if (!outputfp.get()) {
         m_log.Emsg("CAset", "Failed to reopen file for output", fname.c_str());
+        chain.Cleanup();
         return false;
     }
     while (ca) {
@@ -120,13 +120,15 @@ CASet::processFile(file_smart_ptr &fp, const std::string &fname)
         //m_log.Emsg("CAset", "New CA with hash", fname.c_str(), hash_ptr);
         m_known_cas.insert(hash_ptr);
 
-        if (XrdCryptosslX509ToFile(ca, outputfp, fname.c_str())) {
+        if (XrdCryptosslX509ToFile(ca, outputfp.get(), fname.c_str())) {
             m_log.Emsg("CAset", "Failed to write out CA", fname.c_str());
+            chain.Cleanup();
             return false;
         }
         ca = chain.Next();
     }
-    fflush(outputfp);
+    fflush(outputfp.get());
+    chain.Cleanup();
 
     return true;
 }
@@ -166,9 +168,8 @@ private:
 bool
 CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 {
-    // Note we purposely leak the outputfp here; we are just borrowing the handle.
-    FILE *outputfp = fdopen(m_output_fd, "w");
-    if (!outputfp) {
+    file_smart_ptr outputfp(fdopen(dup(m_output_fd), "w"), &fclose);
+    if (!outputfp.get()) {
         m_log.Emsg("CAset", "Failed to reopen file for output", fname.c_str());
         return false;
     }
@@ -191,13 +192,13 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
         //m_log.Emsg("CRLset", "New CRL with hash", fname.c_str(), hash_ptr);
         m_known_crls.insert(hash_ptr);
 
-        if (!xrd_crl->ToFile(outputfp)) {
+        if (!xrd_crl->ToFile(outputfp.get())) {
             m_log.Emsg("CRLset", "Failed to write out CRL", fname.c_str());
-            fflush(outputfp);
+            fflush(outputfp.get());
             return false;
         }
     }
-    fflush(outputfp);
+    fflush(outputfp.get());
 
     return true;
 }
