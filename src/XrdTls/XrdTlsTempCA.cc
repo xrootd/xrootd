@@ -35,8 +35,6 @@
 #include <unordered_set>
 #include <memory>
 
-#include <curl/curl.h>
-
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlugin.hh"
