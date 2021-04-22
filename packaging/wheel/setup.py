@@ -139,6 +139,7 @@ class CustomInstall(install):
         command.append( useropt )
         command.append( cmake_path )
         command.append( need_devtoolset )
+        command.append( sys.executable )
         rc = subprocess.call(command)
         if rc:
           raise Exception( 'Install step failed!' )
