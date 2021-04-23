@@ -463,13 +463,13 @@ ssize_t XrdOssCsiFile::WriteV(XrdOucIOVec *writeV, int n)
       }
    }
    // standard OSS gives -ESPIPE in case of partial write of an element
-   int ret = successor_->WriteV(writeV, n);
-   if (ret<0)
+   ssize_t wret = successor_->WriteV(writeV, n);
+   if (wret<0)
    {
       rg.ReleaseAll();
       resyncSizes();
    }
-   return ret;
+   return wret;
 }
 
 ssize_t XrdOssCsiFile::pgRead(void *buffer, off_t offset, size_t rdlen, uint32_t *csvec, uint64_t opts)

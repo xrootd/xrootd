@@ -229,7 +229,7 @@ int XrdOssCsiPages::VerifyRange(XrdOssDF *const fd, const void *buff, const off_
    // if the tag file is missing we don't verify anything
    if (hasMissingTags_)
    {
-      return blen;
+      return 0;
    }
 
    const Sizes_t sizes = rg.getTrackinglens();
@@ -254,7 +254,7 @@ int XrdOssCsiPages::VerifyRange(XrdOssDF *const fd, const void *buff, const off_
       return -EDOM;
    }
 
-   ssize_t vret;
+   int vret;
    if ((offset % XrdSys::PageSize) != 0 || (offset+blen != static_cast<size_t>(trackinglen) && (blen % XrdSys::PageSize) != 0))
    {
       vret = VerifyRangeUnaligned(fd, buff, offset, blen, sizes);
@@ -642,7 +642,7 @@ int XrdOssCsiPages::FetchRange(
       {
          pgDoCalc(buff, offset, blen, csvec);
       }
-      return blen;
+      return 0;
    }
 
    const Sizes_t sizes = rg.getTrackinglens();
@@ -671,10 +671,10 @@ int XrdOssCsiPages::FetchRange(
    {
       // if the crc values are not wanted nor checks against data, then
       // there's nothing more to do here
-      return blen;
+      return 0;
    }
 
-   ssize_t fret;
+   int fret;
    if ((offset % XrdSys::PageSize) != 0 || (offset+blen != static_cast<size_t>(trackinglen) && (blen % XrdSys::PageSize) != 0))
    {
      fret = FetchRangeUnaligned(fd, buff, offset, blen, sizes, csvec, opts);
@@ -708,7 +708,7 @@ int XrdOssCsiPages::StoreRange(XrdOssDF *const fd, const void *buff, const off_t
       {
          pgDoCalc(buff, offset, blen, csvec);
       }
-      return blen;
+      return 0;
    }
 
    const Sizes_t sizes = rg.getTrackinglens();
