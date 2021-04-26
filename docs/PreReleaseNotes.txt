@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Add ability to wrap the checksum manager plugin.
   **[SSI]** Allow client-side to request high resolution timestamps.
   **[Server]** New ztn security plugin to provide a SciTokens sentinel.
   **[Server]** Allow optional return of checksum in dirlist response.
