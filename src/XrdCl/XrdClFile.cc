@@ -759,6 +759,13 @@ namespace XrdCl
     return st;
   }
 
+  //------------------------------------------------------------------------
+  // Try different data server
+  //------------------------------------------------------------------------
+  XRootDStatus File::TryOtherServer( uint16_t timeout )
+  {
+    return pStateHandler->TryOtherServer( timeout );
+  }
 
   //----------------------------------------------------------------------------
   // Check if the file is open

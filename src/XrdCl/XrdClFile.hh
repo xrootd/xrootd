@@ -744,6 +744,16 @@ namespace XrdCl
                               uint16_t             timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Try different data server
+      //!
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus TryOtherServer( uint16_t timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Check if the file is open
       //------------------------------------------------------------------------
       bool IsOpen() const;

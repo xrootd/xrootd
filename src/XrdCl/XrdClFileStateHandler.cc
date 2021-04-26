@@ -2362,6 +2362,25 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Try other data server
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::TryOtherServer( uint16_t timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened || !pLoadBalancer )
+      return XRootDStatus( stError, errInvalidOp );
+
+    pFileState = Recovering;
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Reopen file at next data server.",
+                this, pFileUrl->GetURL().c_str() );
+
+    return ReOpenFileAtServer( *pLoadBalancer, timeout );
+  }
+
+  //------------------------------------------------------------------------
   // Generic implementation of xattr operation
   //------------------------------------------------------------------------
   template<typename T>
