@@ -66,7 +66,7 @@ namespace PyXRootD
       = { "source", "target", "sourcelimit", "force", "posc", "coerce",
           "mkdir", "thirdparty", "checksummode", "checksumtype",
           "checksumpreset", "dynamicsource", "chunksize", "parallelchunks", "inittimeout",
-          "tpctimeout", "rmBadCksum", NULL };
+          "tpctimeout", "rmBadCksum", "cptimeout", NULL };
 
     const char  *source;
     const char  *target;
@@ -99,12 +99,16 @@ namespace PyXRootD
     env->GetInt( "CPTPCTimeout", val );
     uint16_t tpcTimeout = val;
 
+    val = XrdCl::DefaultCPTimeout;
+    env->GetInt( "CPTimeout", val );
+    uint16_t cpTimeout = val;
+
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHb:add_job",
          (char**) kwlist, &source, &target, &sourceLimit, &force, &posc,
          &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
          &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks,
-         &initTimeout, &tpcTimeout, &rmBadCksum ) )
+         &initTimeout, &tpcTimeout, &rmBadCksum, &cpTimeout ) )
       return NULL;
 
     XrdCl::PropertyList properties;
@@ -126,6 +130,7 @@ namespace PyXRootD
     properties.Set( "initTimeout",    initTimeout    );
     properties.Set( "tpcTimeout",     tpcTimeout     );
     properties.Set( "rmOnBadCksum",   rmBadCksum     );
+    properties.Set( "cpTimeout",      cpTimeout      );
 
     if( sourceLimit > 1 )
     {

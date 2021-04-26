@@ -61,6 +61,7 @@ namespace XrdCl
   const int DefaultLoadBalancerTTL         = 1200;
   const int DefaultCPInitTimeout           = 600;
   const int DefaultCPTPCTimeout            = 1800;
+  const int DefaultCPTimeout               = 0;
   const int DefaultTCPKeepAlive            = 0;
   const int DefaultTCPKeepAliveTime        = 7200;
   const int DefaultTCPKeepAliveInterval    = 75;

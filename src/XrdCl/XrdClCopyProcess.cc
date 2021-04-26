@@ -300,6 +300,13 @@ namespace XrdCl
       p.Set( "tpcTimeout", val );
     }
 
+    if( !p.HasProperty( "cpTimeout" ) )
+    {
+      int val = DefaultCPTimeout;
+      env->GetInt( "CPTimeout", val );
+      p.Set( "cpTimeout", val );
+    }
+
     if( !p.HasProperty( "dynamicSource" ) )
       p.Set( "dynamicSource", false );
 

@@ -60,6 +60,24 @@
 namespace
 {
   //----------------------------------------------------------------------------
+  //! Helper timer class
+  //----------------------------------------------------------------------------
+  class timer_sec_t
+  {
+    public:
+      timer_sec_t() : start( clock_t::now() ){ }
+      void reset(){ start = clock_t::now(); }
+      uint16_t elapsed() const
+      {
+        return std::chrono::duration_cast<sec_t>( clock_t::now() - start ).count();
+      }
+    private:
+      typedef std::chrono::high_resolution_clock clock_t;
+      typedef std::chrono::duration<uint16_t> sec_t;
+      std::chrono::time_point<clock_t> start;
+  };
+
+  //----------------------------------------------------------------------------
   //! Check sum helper for stdio
   //----------------------------------------------------------------------------
   class CheckSumHelper
@@ -1894,6 +1912,7 @@ namespace XrdCl
                 rmOnBadCksum, continue_;
     int32_t     nbXcpSources;
     long long   xRate;
+    uint16_t    cpTimeout;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
     pProperties->Get( "checkSumType",    checkSumType );
@@ -1912,6 +1931,7 @@ namespace XrdCl
     pProperties->Get( "xrate",           xRate );
     pProperties->Get( "rmOnBadCksum",    rmOnBadCksum );
     pProperties->Get( "continue",        continue_ );
+    pProperties->Get( "cpTimeout",       cpTimeout );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
@@ -1922,6 +1942,12 @@ namespace XrdCl
     if( force && continue_ )
       return XRootDStatus( stError, errInvalidArgs, EINVAL,
                            "Invalid argument combination: continue + force." );
+
+    //--------------------------------------------------------------------------
+    // Start the cp t/o timer if necessary
+    //--------------------------------------------------------------------------
+    std::unique_ptr<timer_sec_t> cptimer;
+    if( cpTimeout ) cptimer.reset( new timer_sec_t() );
 
     //--------------------------------------------------------------------------
     // Remove on bad checksum implies that POSC semantics has to be enabled
@@ -1939,6 +1965,9 @@ namespace XrdCl
       else
         log->Info( UtilityMsg, "Using inferred checksum type: %s.", checkSumType.c_str() );
     }
+
+    if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
+      return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
@@ -1961,6 +1990,9 @@ namespace XrdCl
     XRootDStatus st = src->Initialize();
     if( !st.IsOK() ) return UpdateErrMsg( st, "source" );
     uint64_t size = src->GetSize() >= 0 ? src->GetSize() : 0;
+
+    if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
+      return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
     std::unique_ptr<Destination> dest;
     URL newDestUrl( GetTarget() );
@@ -1991,6 +2023,9 @@ namespace XrdCl
     st = dest->Initialize();
     if( !st.IsOK() ) return UpdateErrMsg( st, "destination" );
 
+    if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
+      return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+
     //--------------------------------------------------------------------------
     // Copy the chunks
     //--------------------------------------------------------------------------
@@ -2013,7 +2048,10 @@ namespace XrdCl
       if( st.IsOK() && st.code == suDone )
         break;
 
-      if( xRate )
+      if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
+        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+
+      if( xRate ) // TODO cp timeout & xrate threshold
       {
         auto   elapsed     = ( time_nsec() - start ).count();
         double transferred = processed;
@@ -2093,6 +2131,9 @@ namespace XrdCl
       std::string sourceCheckSum;
       std::string targetCheckSum;
 
+      if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
+        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+
       //------------------------------------------------------------------------
       // Get the check sum at source
       //------------------------------------------------------------------------
@@ -2121,6 +2162,9 @@ namespace XrdCl
         pResults->Set( "sourceCheckSum", sourceCheckSum );
       }
 
+      if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
+        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+
       //------------------------------------------------------------------------
       // Get the check sum at destination
       //------------------------------------------------------------------------
@@ -2135,6 +2179,9 @@ namespace XrdCl
         gettimeofday( &tEnd, 0 );
         pResults->Set( "targetCheckSum", targetCheckSum );
       }
+
+      if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
+        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
       //------------------------------------------------------------------------
       // Make sure the checksums are both lower case
