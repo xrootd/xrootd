@@ -1558,14 +1558,12 @@ int XrdOfs::chksum(      csFunc            Func,   // In
       return Emsg(epname, einfo, rc, "checksum", Path);
 
 // Originally we only passed he env pointer for proxy servers. Due to popular
-// demand, we always pass the env as it points to the SecEntity object.
+// demand, we always pass the env as it points to the SecEntity object unless
+// we don't have it then we pass the caller's environment.
 //
    if (Func == XrdSfsFileSystem::csGet || Func == XrdSfsFileSystem::csCalc)
-      {if (!client && einfo.getEnv())
-          {char *uName = einfo.getEnv()->Get("username");
-           if (uName) cksEnv.Put("username", uName);
-          }
-       cksData.envP = &cksEnv;
+      {if (client) cksData.envP = &cksEnv;
+          else cksData.envP = (einfo.getEnv() ? einfo.getEnv() : &cksEnv);
       }
 
 // Now determine what to do

@@ -436,7 +436,8 @@ bool XrdOfsConfigPI::Load(int loadLib, XrdOucEnv *envP)
                                   "incompatible versions.");
            return false;
           }
-       cksPI = CksConfig->Configure(CksAlg,CksRdsz,(ossCksio > 0 ? ossPI : 0));
+       cksPI = CksConfig->Configure(CksAlg, CksRdsz,
+                                    (ossCksio > 0 ? ossPI : 0), envP);
        if (!cksPI) return false;
       }
 

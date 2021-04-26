@@ -42,6 +42,7 @@
 #include "XrdCks/XrdCksConfig.hh"
 #include "XrdCks/XrdCksManager.hh"
 #include "XrdCks/XrdCksManOss.hh"
+#include "XrdCks/XrdCksWrapper.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -56,7 +57,8 @@
 XrdCksConfig::XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
                            XrdVersionInfo &vInfo)
                           : eDest(Eroute), cfgFN(cFN), CksLib(0), CksParm(0),
-                            CksList(0), CksLast(0), myVersion(vInfo)
+                            CksList(0), CksLast(0), LibList(0), LibLast(0),
+                            myVersion(vInfo)
 {
    static XrdVERSIONINFODEF(myVer, XrdCks, XrdVNUMBER, XrdVERSION);
 
@@ -68,10 +70,51 @@ XrdCksConfig::XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
 }
 
 /******************************************************************************/
+/*                                a d d C k s                                 */
+/******************************************************************************/
+
+XrdCks *XrdCksConfig::addCks(XrdCks *pCks, XrdOucEnv *envP)
+{
+   XrdOucPinLoader *myLib;
+   XrdCks          *(*ep)(XRDCKSADD2PARMS);
+   const char      *theParm;
+   XrdOucTList     *tP = LibList;
+
+// Create a plugin object (we will throw this away without deletion because
+// the library must stay open but we never want to reference it again).
+//
+   while(tP)
+        {if (!(myLib = new XrdOucPinLoader(eDest,&myVersion,"ckslib",tP->text)))
+            return 0;
+
+         // Now get the entry point of the object creator
+         //
+         ep = (XrdCks *(*)(XRDCKSADD2PARMS))(myLib->Resolve("XrdCksAdd2"));
+         if (!ep) {myLib->Unload(true); return 0;}
+
+         // Get the Object now
+         //
+         delete myLib;
+         theParm = (tP->val ? (tP->text) + tP->val : 0);
+         pCks = ep(*pCks, eDest, cfgFN, theParm, envP);
+         if (!pCks) return 0;
+
+         // Move on to the next stacked plugin
+         //
+         tP = tP->next;
+        }
+
+// All done
+//
+   return pCks;
+}
+
+/******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-XrdCks *XrdCksConfig::Configure(const char *dfltCalc, int rdsz, XrdOss *ossP)
+XrdCks *XrdCksConfig::Configure(const char *dfltCalc, int rdsz,
+                                XrdOss *ossP, XrdOucEnv *envP)
 {
    XrdCks *myCks = getCks(ossP, rdsz);
    XrdOucTList *tP = CksList;
@@ -79,6 +122,11 @@ XrdCks *XrdCksConfig::Configure(const char *dfltCalc, int rdsz, XrdOss *ossP)
 
 // Check if we have a cks object
 //
+   if (!myCks) return 0;
+
+// Stack all pugins
+//
+   myCks = addCks(myCks, envP);
    if (!myCks) return 0;
 
 // Configure the object
@@ -96,7 +144,7 @@ XrdCks *XrdCksConfig::Configure(const char *dfltCalc, int rdsz, XrdOss *ossP)
 }
 
 /******************************************************************************/
-/*                                g e t C k s                                 */
+/* Private:                       g e t C k s                                 */
 /******************************************************************************/
 
 XrdCks *XrdCksConfig::getCks(XrdOss *ossP, int rdsz)
@@ -104,7 +152,7 @@ XrdCks *XrdCksConfig::getCks(XrdOss *ossP, int rdsz)
    XrdOucPinLoader *myLib;
    XrdCks          *(*ep)(XRDCKSINITPARMS);
 
-// Authorization comes from the library or we use the default
+// Cks manager comes from the library or we use the default
 //
    if (!CksLib)
       {if (ossP) return (XrdCks *)new XrdCksManOss (ossP,eDest,rdsz,myVersion);
@@ -127,7 +175,7 @@ XrdCks *XrdCksConfig::getCks(XrdOss *ossP, int rdsz)
    delete myLib;
    return ep(eDest, cfgFN, CksParm);
 }
-  
+
 /******************************************************************************/
 /*                               M a n a g e r                                */
 /******************************************************************************/
@@ -209,12 +257,25 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config, int &libType)
        return Manager(buff+2, parms);
       } else libType = 0;
 
-// Add this digest to the list of digests
+// Create a new TList object either for a digest or stackable library
 //
-   *bP++ = ' '; strcpy(bP, parms);
-   tP = new XrdOucTList(buff);
-   if (CksLast) CksLast->next = tP;
-      else      CksList = tP;
-   CksLast = tP;
+   n = (strncmp(buff, "++ ", 3) ? 0 : 3);
+   *bP = ' '; strcpy(bP+1, parms);
+   tP = new XrdOucTList(buff + n);
+
+// Add this digest to the list of digests or stackable library list
+//
+   if (n)
+      {n = (bP - buff) - n;
+       tP->text[n] = 0;
+       tP->val = (*parms ? n+1 : 0);
+       if (LibLast) LibLast->next = tP;
+          else      LibList = tP;
+       LibLast = tP;
+      } else {
+       if (CksLast) CksLast->next = tP;
+          else      CksList = tP;
+       CksLast = tP;
+      }
    return 0;
 }

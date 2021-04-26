@@ -90,6 +90,7 @@ if( NOT XRDCL_ONLY )
     XrdCks/XrdCksCalc.hh
     XrdCks/XrdCksData.hh
     XrdCks/XrdCksManager.hh
+    XrdCks/XrdCksWrapper.hh
     XrdCms/XrdCmsClient.hh
     XrdCms/XrdCmsPerfMon.hh
     XrdCms/XrdCmsVnId.hh

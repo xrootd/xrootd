@@ -90,6 +90,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObject         )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdAccAuthorizeObjAdd         )\
         XrdVERSIONPLUGIN_Rule(Optional,  5,  0, XrdBwmPolicyObject            )\
+        XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCksAdd2                    )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCksCalcInit                )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCksInit                    )\
         XrdVERSIONPLUGIN_Rule(Required,  5,  0, XrdCmsGetClient               )\
