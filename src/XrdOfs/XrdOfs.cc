@@ -1561,7 +1561,12 @@ int XrdOfs::chksum(      csFunc            Func,   // In
 // demand, we always pass the env as it points to the SecEntity object.
 //
    if (Func == XrdSfsFileSystem::csGet || Func == XrdSfsFileSystem::csCalc)
-      cksData.envP = &cksEnv;
+      {if (!client && einfo.getEnv())
+          {char *uName = einfo.getEnv()->Get("username");
+           if (uName) cksEnv.Put("username", uName);
+          }
+       cksData.envP = &cksEnv;
+      }
 
 // Now determine what to do
 //
