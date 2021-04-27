@@ -196,6 +196,10 @@ int XrdPssSys::Configure(const char *cfn)
 //
    XrdPosixConfig::SetEnv("ParallelEvtLoop", 3);
 
+// Turn off the fork handler as we always exec after forking.
+//
+   XrdPosixConfig::SetEnv("RunForkHandler", 0);
+
 // Process the configuration file
 //
    if ((NoGo = ConfigProc(cfn))) return NoGo;
