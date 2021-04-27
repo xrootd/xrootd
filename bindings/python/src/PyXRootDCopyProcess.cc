@@ -66,7 +66,7 @@ namespace PyXRootD
       = { "source", "target", "sourcelimit", "force", "posc", "coerce",
           "mkdir", "thirdparty", "checksummode", "checksumtype",
           "checksumpreset", "dynamicsource", "chunksize", "parallelchunks", "inittimeout",
-          "tpctimeout", "rmBadCksum", "cptimeout", NULL };
+          "tpctimeout", "rmBadCksum", "cptimeout", "xratethreshold", "xrate", NULL };
 
     const char  *source;
     const char  *target;
