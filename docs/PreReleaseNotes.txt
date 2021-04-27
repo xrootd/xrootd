@@ -20,6 +20,7 @@ Prerelease Notes
   **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
+  **[Server]** Avoid network usage rac condition during config leading to a SEGV.
   **[Server]** Fix backward compatibility issue for xrd.protocol. Fixes #1444
   **[Server]** Bypass voms MT initialization issues.
   **[ZTN]** Fix fatal flaws in SciToken strip method; avoid token rejection.
