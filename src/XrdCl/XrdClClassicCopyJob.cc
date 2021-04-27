@@ -68,7 +68,7 @@ namespace
     public:
       mytimer_t() : start( clock_t::now() ){ }
       void reset(){ start = clock_t::now(); }
-      uint16_t elapsed() const
+      uint64_t elapsed() const
       {
         return std::chrono::duration_cast<unit_t>( clock_t::now() - start ).count();
       }
@@ -78,7 +78,7 @@ namespace
       std::chrono::time_point<clock_t> start;
   };
 
-  using timer_sec_t = mytimer_t<std::milli>;
+  using timer_sec_t  = mytimer_t<>;
   using timer_nsec_t = mytimer_t<std::nano>;
 
   //----------------------------------------------------------------------------
@@ -2065,7 +2065,9 @@ namespace XrdCl
     ChunkInfo chunkInfo;
     uint64_t  total_processed = 0;
     uint64_t  processed = 0;
-    auto      start     = time_nsec();
+    auto      start = time_nsec();
+    uint16_t  threshold_interval = parallelChunks;
+    bool      threshold_draining = false;
     timer_nsec_t threshold_timer;
     while( 1 )
     {
@@ -2106,17 +2108,30 @@ namespace XrdCl
         // (we are too slow)
         //----------------------------------------------------------------------
         if( elapsed && // make sure elapsed time is greater than 0
-            transferred < expected )
+            transferred < expected &&
+            threshold_interval == 0 ) // we check every # parallelChunks
         {
-          log->Warning( UtilityMsg, "Transfer rate dropped below requested threshold,"
-                                    " trying different source!" );
-          XRootDStatus st = src->TryOtherServer();
-          if( !st.IsOK() ) return XRootDStatus( stError, errThresholdExceeded, 0,
-                                                "The transfer rate dropped below "
-                                                "requested threshold!" );
-          processed = 0;
-          threshold_timer.reset();
+          if( !threshold_draining )
+          {
+            log->Warning( UtilityMsg, "Transfer rate dropped below requested ehreshold,"
+                                      " trying different source!" );
+            XRootDStatus st = src->TryOtherServer();
+            if( !st.IsOK() ) return XRootDStatus( stError, errThresholdExceeded, 0,
+                                                  "The transfer rate dropped below "
+                                                  "requested threshold!" );
+            threshold_draining = true; // before the next measurement we need to drain
+                                       // all the chunks that will come from the old server
+          }
+          else // now that all the chunks from the old server have
+          {    // been received we can start another measurement
+            processed = 0;
+            threshold_timer.reset();
+            threshold_interval = parallelChunks;
+            threshold_draining = false;
+          }
         }
+
+        threshold_interval = threshold_interval > 0 ? threshold_interval - 1 : parallelChunks;
       }
 
       st = dest->PutChunk( chunkInfo );
