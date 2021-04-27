@@ -1327,7 +1327,9 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 
 // Load the protocols. For each new protocol port number, create a new
 // network object to handle the port dependent communications part. All
-// port issues will have been resolved at this point.
+// port issues will have been resolved at this point. Note that we need
+// to set default network object from the first protocol before loading
+// any protocol in case one of them starts using the default network.
 //
    XrdInet *arbNet = 0, *theNet;
    while((cp = Firstcp))
@@ -1338,7 +1340,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
                        if (!theNet) return 1;
                        if (!(cp->portVec[i])) arbNet = theNet;
                       }
-
+              if (i == 0) XrdNetTCP = theNet; // Avoid race condition!!!
               ProtInfo.Port   = theNet->Port();
               ProtInfo.NetTCP = theNet;
               ProtInfo.WSize  = theNet->WSize();
@@ -1365,7 +1367,6 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
 // or may not be the same as the default port number. This corresponds to
 // the default network object.
 //
-   XrdNetTCP = NetTCP[0];
    PortTCP = ProtInfo.Port = XrdNetTCP->Port();
    XrdOucEnv::Export("XRDPORT", PortTCP);
 
