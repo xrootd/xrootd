@@ -165,12 +165,10 @@ namespace
 
           if( me->opcode == Opcode::Read )
           {
-            VectorReadInfo *info = new VectorReadInfo();
-            info->SetSize( rc );
-            info->GetChunks().emplace_back( me->cb->aio_offset, rc,
-                                            const_cast<void*>( me->cb->aio_buf ) );
+            ChunkInfo *chunk = new ChunkInfo( me->cb->aio_offset, rc,
+                                              const_cast<void*>( me->cb->aio_buf ) );
             resp = new AnyObject();
-            resp->Set( info );
+            resp->Set( chunk );
           }
 
           QueueTask( new XRootDStatus(), resp, me->hosts, me->handler );
