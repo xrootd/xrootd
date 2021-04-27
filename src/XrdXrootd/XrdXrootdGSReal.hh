@@ -131,6 +131,8 @@ char                  *idntHdr0;
 char                  *idntHdr1;
 int                    idntHsz1;
 int                    pSeq;
+int                    pSeqID;     // For ident records
+int                    pSeqDID;    // For dict  records
 XrdSysRecMutex         gMutex;
 XrdNetMsg             *udpDest;
 XrdXrootdMonGS        *binHdr;

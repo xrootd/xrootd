@@ -67,7 +67,8 @@ XrdXrootdGSReal::XrdXrootdGSReal(const XrdXrootdGSReal::GSParms &gsParms,
                                   Hello(gsParms.Opt & XrdXrootdGSReal::optNoID
                                     || gsParms.Hdr == XrdXrootdGSReal::hdrNone
                                      ? 0 : gsParms.dest, gsParms.Fmt),
-                                  pSeq(0), binHdr(0), isCGI(false)
+                                  pSeq(0), pSeqID(0), pSeqDID(0), binHdr(0),
+                                  isCGI(false)
 {
    static const int minSZ = 1024;
    static const int dflSZ = 1024*32;
@@ -267,9 +268,9 @@ uint32_t XrdXrootdGSReal::GetDictID(const char *text, bool isPath)
 // Generate a new packet sequence number
 //
    gMutex.Lock();
-   if (pSeq >= 999) pSeq = 0;
-      else pSeq++;
-   psq = pSeq;
+   if (pSeqDID >= 999) pSeqDID = 0;
+      else pSeqDID++;
+   psq = pSeqDID;
    gMutex.UnLock();
 
 // Generate the packet
@@ -464,9 +465,9 @@ void XrdXrootdGSReal::Ident()
 // Generate a new packet sequence number
 //
    gMutex.Lock();
-   if (pSeq >= 999) pSeq = 0;
-      else pSeq++;
-   psq = pSeq;
+   if (pSeqID >= 999) pSeqID = 0;
+      else pSeqID++;
+   psq = pSeqID;
    gMutex.UnLock();
 
 // Create header and iovec to send the header
