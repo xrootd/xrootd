@@ -57,37 +57,38 @@ struct defVar
                      : Next(0), vName(vn), intVal(vl) {}
       };
 
-       defVar      *intDefs;       // -> -DI settings
-       defVar      *strDefs;       // -> -DS settings
-       const char  *dstOpq;        // -> -OD setting (dest opaque)
-       const char  *srcOpq;        // -> -OS setting (src  opaque)
-       const char  *Pgm;           // -> Program name
-        long long   xRate;         // -xrate value in bytes/sec   (0 if not set)
-             int    Parallel;      // Number of simultaneous copy ops (1 to 4)
-             char  *pHost;         // -> SOCKS4 proxy hname       (0 if none)
-             int    pPort;         //    SOCKS4 proxy port
-        long long   OpSpec;        // Bit mask of set options     (see Doxxxx)
-             int    Dlvl;          // Debug level                 (0 to 3)
-             int    nSrcs;         // Number of sources wanted    (dflt 1)
-             int    nStrm;         // Number of streams wanted    (dflt 1)
-             int    Retry;         // Max times to retry connects (<0->use dflt)
-             int    Verbose;       // True if --verbose specified
-             int    CksLen;        // Binary length of checksum, if any
+       defVar      *intDefs;         // -> -DI settings
+       defVar      *strDefs;         // -> -DS settings
+       const char  *dstOpq;          // -> -OD setting (dest opaque)
+       const char  *srcOpq;          // -> -OS setting (src  opaque)
+       const char  *Pgm;             // -> Program name
+        long long   xRate;           // -> xrate value in bytes/sec   (0 if not set)
+        long long   xRateThreashold; // -> xrate threshold value in bytes/sec (0 if not set)
+             int    Parallel;       // Number of simultaneous copy ops (1 to 4)
+             char  *pHost;          // -> SOCKS4 proxy hname       (0 if none)
+             int    pPort;          //    SOCKS4 proxy port
+        long long   OpSpec;         // Bit mask of set options     (see Doxxxx)
+             int    Dlvl;           // Debug level                 (0 to 3)
+             int    nSrcs;          // Number of sources wanted    (dflt 1)
+             int    nStrm;          // Number of streams wanted    (dflt 1)
+             int    Retry;          // Max times to retry connects (<0->use dflt)
+             int    Verbose;        // True if --verbose specified
+             int    CksLen;         // Binary length of checksum, if any
 
-             int    numFiles;      // Number of source files
-       long long    totBytes;      // Total number of bytes for local files
+             int    numFiles;       // Number of source files
+       long long    totBytes;       // Total number of bytes for local files
 
-XrdCksData          CksData;       // Checksum information
-XrdCks             *CksMan;        // -> Checksum manager
-XrdCksCalc         *CksObj;        // -> Cks computation object   (0 if no cks)
-const char         *CksVal;        // -> Cks argument (0 if none)
+XrdCksData          CksData;        // Checksum information
+XrdCks             *CksMan;         // -> Checksum manager
+XrdCksCalc         *CksObj;         // -> Cks computation object   (0 if no cks)
+const char         *CksVal;         // -> Cks argument (0 if none)
 
-XrdCpFile          *srcFile;       // List of source files
-XrdCpFile          *dstFile;       // The destination for the copy
+XrdCpFile          *srcFile;        // List of source files
+XrdCpFile          *dstFile;        // The destination for the copy
 
-char               *zipFile;       // The file name if the URL points to a ZIP archive
+char               *zipFile;        // The file name if the URL points to a ZIP archive
 
-static XrdSysError *Log;           // -> Error message object
+static XrdSysError *Log;            // -> Error message object
 
 static const uint64_t    OpCksum        =  'C';  // -adler -MD5 legacy -> DoCksrc
 static const uint64_t    DoCksrc        =  0x0000000000000001LL; // --cksum <type>:source
@@ -186,6 +187,9 @@ static const uint64_t    DoRmOnBadCksum = 0x0000000080000000LL; // --rm-bad-cksu
 
 static const uint64_t    OpContinue     = 0x10;
 static const uint64_t    DoContinue     = 0x0000000100000000LL; // --continue
+
+static const uint64_t    OpXrateThreashold = 0x11;
+static const uint64_t    DoXrateThreashold = 0x0000000200000000LL; // --xrate-threashold
 
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available

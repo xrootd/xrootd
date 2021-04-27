@@ -67,6 +67,7 @@ namespace
     { errQueryNotSupported,    "Query not supported"  },
     { errOperationExpired,     "Operation expired"    },
     { errOperationInterrupted, "Operation interrupted" },
+    { errThresholdExceeded,    "Threshold exceeded"   },
     { errNoMoreFreeSIDs,       "No more free SIDs"    },
     { errInvalidRedirectURL,   "Invalid redirect URL" },
     { errInvalidResponse,      "Invalid response"     },

@@ -826,34 +826,35 @@ int main( int argc, char **argv )
     }
     AppendCGI( target, config.dstOpq );
 
-    properties.Set( "source",         source         );
-    properties.Set( "target",         target         );
-    properties.Set( "force",          force          );
-    properties.Set( "posc",           posc           );
-    properties.Set( "coerce",         coerce         );
-    properties.Set( "makeDir",        makedir        );
-    properties.Set( "dynamicSource",  dynSrc         );
-    properties.Set( "thirdParty",     thirdParty     );
-    properties.Set( "checkSumMode",   checkSumMode   );
-    properties.Set( "checkSumType",   checkSumType   );
-    properties.Set( "checkSumPreset", checkSumPreset );
-    properties.Set( "chunkSize",      chunkSize      );
-    properties.Set( "parallelChunks", parallelChunks );
-    properties.Set( "zipArchive",     zip            );
-    properties.Set( "xcp",            xcp            );
-    properties.Set( "xcpBlockSize",   blockSize      );
-    properties.Set( "delegate",       delegate       );
-    properties.Set( "targetIsDir",    targetIsDir    );
-    properties.Set( "preserveXAttr",  preserveXAttr  );
-    properties.Set( "xrate",          config.xRate   );
-    properties.Set( "rmOnBadCksum",   rmOnBadCksum   );
-    properties.Set( "continue",       continue_      );
+    properties.Set( "source",          source                 );
+    properties.Set( "target",          target                 );
+    properties.Set( "force",           force                  );
+    properties.Set( "posc",            posc                   );
+    properties.Set( "coerce",          coerce                 );
+    properties.Set( "makeDir",         makedir                );
+    properties.Set( "dynamicSource",   dynSrc                 );
+    properties.Set( "thirdParty",      thirdParty             );
+    properties.Set( "checkSumMode",    checkSumMode           );
+    properties.Set( "checkSumType",    checkSumType           );
+    properties.Set( "checkSumPreset",  checkSumPreset         );
+    properties.Set( "chunkSize",       chunkSize              );
+    properties.Set( "parallelChunks",  parallelChunks         );
+    properties.Set( "zipArchive",      zip                    );
+    properties.Set( "xcp",             xcp                    );
+    properties.Set( "xcpBlockSize",    blockSize              );
+    properties.Set( "delegate",        delegate               );
+    properties.Set( "targetIsDir",     targetIsDir            );
+    properties.Set( "preserveXAttr",   preserveXAttr          );
+    properties.Set( "xrate",           config.xRate           );
+    properties.Set( "xrateThreashold", config.xRateThreashold );
+    properties.Set( "rmOnBadCksum",    rmOnBadCksum           );
+    properties.Set( "continue",        continue_              );
 
     if( zip )
-      properties.Set( "zipSource",    zipFile        );
+      properties.Set( "zipSource",     zipFile                );
 
     if( xcp )
-      properties.Set( "nbXcpSources", nbSources      );
+      properties.Set( "nbXcpSources",  nbSources              );
 
 
     XRootDStatus st = process.AddJob( properties, results );

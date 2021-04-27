@@ -319,6 +319,14 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs ) = 0;
 
+      //------------------------------------------------------------------------
+      //! Try different server
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus TryOtherServer()
+      {
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotImplemented );
+      }
+
     protected:
 
       CheckSumHelper    *pCkSumHelper;
@@ -631,6 +639,15 @@ namespace
     };
 
     public:
+
+      //------------------------------------------------------------------------
+      //! Try different server
+      //------------------------------------------------------------------------
+      XrdCl::XRootDStatus TryOtherServer()
+      {
+        return pFile->TryOtherServer();
+      }
+
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
@@ -866,10 +883,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
 
-        if( !reader->IsOpen() )
-          return XRootDStatus( stError, errUninitialized );
-
-        //- ---------------------------------------------------------------------
+        //----------------------------------------------------------------------
         // Fill the queue
         //----------------------------------------------------------------------
         std::unique_lock<std::mutex> lck( pDataConnCB->mtx );
@@ -1080,6 +1094,15 @@ namespace
   class XRootDSourceDynamic: public Source
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Try different server
+      //------------------------------------------------------------------------
+      XrdCl::XRootDStatus TryOtherServer()
+      {
+        return pFile->TryOtherServer();
+      }
+
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
@@ -1158,9 +1181,6 @@ namespace
         // Sanity check
         //----------------------------------------------------------------------
         using namespace XrdCl;
-
-        if( !pFile->IsOpen() )
-          return XRootDStatus( stError, errUninitialized );
 
         if( pDone )
           return XRootDStatus( stOK, suDone );
@@ -1912,6 +1932,7 @@ namespace XrdCl
                 rmOnBadCksum, continue_;
     int32_t     nbXcpSources;
     long long   xRate;
+    long long   xRateThreashold;
     uint16_t    cpTimeout;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
@@ -1929,6 +1950,7 @@ namespace XrdCl
     pProperties->Get( "xcpBlockSize",    blockSize );
     pProperties->Get( "preserveXAttr",   preserveXAttr );
     pProperties->Get( "xrate",           xRate );
+    pProperties->Get( "xrateThreashold", xRateThreashold );
     pProperties->Get( "rmOnBadCksum",    rmOnBadCksum );
     pProperties->Get( "continue",        continue_ );
     pProperties->Get( "cpTimeout",       cpTimeout );
@@ -2051,12 +2073,32 @@ namespace XrdCl
       if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
         return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
-      if( xRate ) // TODO cp timeout & xrate threshold
+      if( xRate || xRateThreashold )
       {
         auto   elapsed     = ( time_nsec() - start ).count();
-        double transferred = processed;
+        double transferred = processed + chunkInfo.length;
         double expected    = double( xRate ) / to_nsec( 1 ) * elapsed;
-        if( elapsed /* make sure elapsed time is greater than 0 */ &&
+        double threshold   = double( xRateThreashold ) / to_nsec( 1 ) * elapsed;
+        //----------------------------------------------------------------------
+        // check if our transfer rate is not bellow the threshold
+        // (we are too slow)
+        //----------------------------------------------------------------------
+        if( xRateThreashold && elapsed && // make sure elapsed time is greater than 0
+            transferred < threshold )
+        {
+          log->Warning( UtilityMsg, "Transfer rate dropped below requested threshold,"
+                                    " trying different source!" );
+          std::cout << "calling TryOtherServer" << std::endl;
+          XRootDStatus st = src->TryOtherServer();
+          if( !st.IsOK() ) return XRootDStatus( stError, errThresholdExceeded, 0,
+                                                "The transfer rate dropped below "
+                                                "requested threshold!" );
+        }
+        //----------------------------------------------------------------------
+        // check if our transfer rate didn't exceeded the limit
+        // (we are too fast)
+        //----------------------------------------------------------------------
+        if( xRate && elapsed && // make sure elapsed time is greater than 0
             transferred > expected )
         {
           auto nsec = ( transferred / xRate * to_nsec( 1 ) ) - elapsed;

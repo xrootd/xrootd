@@ -117,6 +117,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "zip-mtln-cksum", 0, 0, XrdCpConfig::OpZipMtlnCksum},
       {OPT_TYPE "rm-bad-cksum",   0, 0, XrdCpConfig::OpRmOnBadCksum},
       {OPT_TYPE "continue",       0, 0, XrdCpConfig::OpContinue},
+      {OPT_TYPE "xrate-threshold",1, 0, XrdCpConfig::OpXrateThreashold},
       {0,                         0, 0, 0}
      };
 
@@ -138,6 +139,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    pHost    = 0;
    pPort    = 0;
    xRate    = 0;
+   xRateThreashold = 0;
    Parallel = 1;
    OpSpec   = 0;
    Dlvl     = 0;
@@ -302,6 +304,9 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpXrate:         OpSpec |= DoXrate;
                                 if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
                                 break;
+          case OpXrateThreashold: OpSpec |= DoXrateThreashold;
+                                  if (!a2z(optarg, &xRateThreashold, 10*1024LL, -1)) Usage(22);
+                                  break;
           case OpParallel:      OpSpec |= DoParallel;
                                 if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
                                 break;
@@ -911,7 +916,8 @@ void XrdCpConfig::Usage(int rc)
    "         [--streams <n>] [--tlsnodata] [--tlsmetalink]\n"
    "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
    "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n"
-   "         [--zip-mtln-cksum] [--rm-bad-cksum] [--continue]\n";
+   "         [--zip-mtln-cksum] [--rm-bad-cksum] [--continue]\n"
+   "         [--xrate-threshold <rate>]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root[s]://<host>[:<port>]/]<path> | -";
@@ -923,57 +929,61 @@ void XrdCpConfig::Usage(int rc)
    "<dest>:  [[x]root[s]://<host>[:<port>]/]<path> | -";
 
    static const char *Detail = "\n"
-   "-C | --cksum <args>   verifies the checksum at the destination as provided\n"
-   "                      by the source server or locally computed. The args are\n"
-   "                      {adler32 | crc32 | md5 | zcrc32 | auto}[:{<value>|print|source}]\n"
-   "                      If 'auto' is chosen as the checksum type, xrdcp will try to\n"
-   "                      automatically infer the right checksum type based on source/\n"
-   "                      destination configuration, source file type (metalink, ZIP), and \n"
-   "                      available checksum plug-ins.\n"
-   "                      If the hex value of the checksum is given, it is used.\n"
-   "                      Otherwise, the server's checksum is used for remote files\n"
-   "                      and computed for local files. Specifying print merely\n"
-   "                      prints the checksum but does not verify it.\n"
-   "-d | --debug <lvl>    sets the debug level: 0 off, 1 low, 2 medium, 3 high\n"
-   "-Z | --dynamic-src    file size may change during the copy\n"
-   "-F | --coerce         coerces the copy by ignoring file locking semantics\n"
-   "-f | --force          replaces any existing output file\n"
-   "-h | --help           prints this information\n"
-   "-H | --license        prints license terms and conditions\n"
-   "-I | --infiles        specifies the file that contains a list of input files\n"
-   "-N | --nopbar         does not print the progress bar\n"
-   "     --notlsok        if server is too old to support TLS encryption fallback\n" 
-   "                      to unencrypted communication\n"
-   "-P | --posc           enables persist on successful close semantics\n"
-   "-D | --proxy          uses the specified SOCKS4 proxy connection\n"
-   "-r | --recursive      recursively copies all source files\n"
-   "     --rm-bad-cksum   remove the target file if checksum verification failed\n"
-   "                      (enables also POSC semantics)\n"
-   "-t | --retry <n>      maximum number of times to retry rejected connections\n"
-   "     --server         runs in a server environment with added operations\n"
-   "-s | --silent         produces no output other than error messages\n"
-   "-y | --sources <n>    uses up to the number of sources specified in parallel\n"
-   "-S | --streams <n>    copies using the specified number of TCP connections\n"
-   "-E | --tlsnodata      in case of [x]roots protocol, encrypt only the control\n" 
-   "                      stream and leave the data streams unencrypted\n"
-   "     --tlsmetalink    convert [x]root to [x]roots protocol in metalinks\n"
-   "-T | --tpc            uses third party copy mode between the src and dest.\n"
-   "                      Both the src and dest must allow tpc mode. Argument\n"
-   "                      'first' tries tpc and if it fails, does a normal copy;\n"
-   "                      while 'only' fails the copy unless tpc succeeds.\n"
-   "-v | --verbose        produces more information about the copy\n"
-   "-V | --version        prints the version number\n"
-   "-X | --xrate <rate>   limits the transfer to the specified rate. You can\n"
-   "                      suffix the value with 'k', 'm', or 'g'\n"
-   "     --parallel <n>   number of copy jobs to be run simultaneously\n\n"
-   "-z | --zip <file>     treat the source as a ZIP archive containing given file\n"
-   "-A | --allow-http     allow HTTP as source or destination protocol. Requires\n"
-   "                      the XrdClHttp client plugin\n"
-   "     --xattr          preserve extended attributes\n"
-   "     --zip-mtln-cksum use the checksum available in a metalink file even if\n"
-   "                      a file is being extracted from a ZIP archive\n"
-   "     --continue       continue copying a file from the point where the previous\n"
-   "                      copy was interrupted\n"
+   "-C | --cksum <args>           verifies the checksum at the destination as provided\n"
+   "                              by the source server or locally computed. The args are\n"
+   "                              {adler32 | crc32 | md5 | zcrc32 | auto}[:{<value>|print|source}]\n"
+   "                              If 'auto' is chosen as the checksum type, xrdcp will try to\n"
+   "                              automatically infer the right checksum type based on source/\n"
+   "                              destination configuration, source file type (metalink, ZIP), and \n"
+   "                              available checksum plug-ins.\n"
+   "                              If the hex value of the checksum is given, it is used.\n"
+   "                              Otherwise, the server's checksum is used for remote files\n"
+   "                              and computed for local files. Specifying print merely\n"
+   "                              prints the checksum but does not verify it.\n"
+   "-d | --debug <lvl>            sets the debug level: 0 off, 1 low, 2 medium, 3 high\n"
+   "-Z | --dynamic-src            file size may change during the copy\n"
+   "-F | --coerce                 coerces the copy by ignoring file locking semantics\n"
+   "-f | --force                  replaces any existing output file\n"
+   "-h | --help                   prints this information\n"
+   "-H | --license                prints license terms and conditions\n"
+   "-I | --infiles                specifies the file that contains a list of input files\n"
+   "-N | --nopbar                 does not print the progress bar\n"
+   "     --notlsok                if server is too old to support TLS encryption fallback\n"
+   "                              to unencrypted communication\n"
+   "-P | --posc                   enables persist on successful close semantics\n"
+   "-D | --proxy                  uses the specified SOCKS4 proxy connection\n"
+   "-r | --recursive              recursively copies all source files\n"
+   "     --rm-bad-cksum           remove the target file if checksum verification failed\n"
+   "                              (enables also POSC semantics)\n"
+   "-t | --retry <n>              maximum number of times to retry rejected connections\n"
+   "     --server                 runs in a server environment with added operations\n"
+   "-s | --silent                 produces no output other than error messages\n"
+   "-y | --sources <n>            uses up to the number of sources specified in parallel\n"
+   "-S | --streams <n>            copies using the specified number of TCP connections\n"
+   "-E | --tlsnodata              in case of [x]roots protocol, encrypt only the control\n"
+   "                              stream and leave the data streams unencrypted\n"
+   "     --tlsmetalink            convert [x]root to [x]roots protocol in metalinks\n"
+   "-T | --tpc                    uses third party copy mode between the src and dest.\n"
+   "                              Both the src and dest must allow tpc mode. Argument\n"
+   "                              'first' tries tpc and if it fails, does a normal copy;\n"
+   "                              while 'only' fails the copy unless tpc succeeds.\n"
+   "-v | --verbose                produces more information about the copy\n"
+   "-V | --version                prints the version number\n"
+   "-X | --xrate <rate>           limits the transfer to the specified rate. You can\n"
+   "                              suffix the value with 'k', 'm', or 'g'\n"
+   "     --xrate-threshold <rate> If the transfer rate drops bellow given threshold force\n"
+   "                              the client to use different source or if no more sources\n"
+   "                              are available fail the transfer. You can suffix the value\n"
+   "                              with 'k', 'm', or 'g'\n"
+   "     --parallel <n>           number of copy jobs to be run simultaneously\n\n"
+   "-z | --zip <file>             treat the source as a ZIP archive containing given file\n"
+   "-A | --allow-http             allow HTTP as source or destination protocol. Requires\n"
+   "                              the XrdClHttp client plugin\n"
+   "     --xattr                  preserve extended attributes\n"
+   "     --zip-mtln-cksum         use the checksum available in a metalink file even if\n"
+   "                              a file is being extracted from a ZIP archive\n"
+   "     --continue               continue copying a file from the point where the previous\n"
+   "                              copy was interrupted\n"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

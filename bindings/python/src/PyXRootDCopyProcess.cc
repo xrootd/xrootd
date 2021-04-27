@@ -81,6 +81,8 @@ namespace PyXRootD
     const char  *checkSumPreset    = "";
     bool         dynamicSource     = false;
     bool         rmBadCksum        = false;
+    long long    xRateThreashold   = 0;
+    long long    xRate             = 0;
 
 
     int val = XrdCl::DefaultCPChunkSize;
@@ -103,34 +105,35 @@ namespace PyXRootD
     env->GetInt( "CPTimeout", val );
     uint16_t cpTimeout = val;
 
-
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHb:add_job",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHbHLL:add_job",
          (char**) kwlist, &source, &target, &sourceLimit, &force, &posc,
          &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
          &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks,
-         &initTimeout, &tpcTimeout, &rmBadCksum, &cpTimeout ) )
+         &initTimeout, &tpcTimeout, &rmBadCksum, &cpTimeout, &xRateThreashold, &xRate ) )
       return NULL;
 
     XrdCl::PropertyList properties;
     self->results->push_back(XrdCl::PropertyList());
 
-    properties.Set( "source",         source         );
-    properties.Set( "target",         target         );
-    properties.Set( "force",          force          );
-    properties.Set( "posc",           posc           );
-    properties.Set( "coerce",         coerce         );
-    properties.Set( "makeDir",        mkdir          );
-    properties.Set( "dynamicSource",  dynamicSource  );
-    properties.Set( "thirdParty",     thirdParty     );
-    properties.Set( "checkSumMode",   checkSumMode   );
-    properties.Set( "checkSumType",   checkSumType   );
-    properties.Set( "checkSumPreset", checkSumPreset );
-    properties.Set( "chunkSize",      chunkSize      );
-    properties.Set( "parallelChunks", parallelChunks );
-    properties.Set( "initTimeout",    initTimeout    );
-    properties.Set( "tpcTimeout",     tpcTimeout     );
-    properties.Set( "rmOnBadCksum",   rmBadCksum     );
-    properties.Set( "cpTimeout",      cpTimeout      );
+    properties.Set( "source",          source          );
+    properties.Set( "target",          target          );
+    properties.Set( "force",           force           );
+    properties.Set( "posc",            posc            );
+    properties.Set( "coerce",          coerce          );
+    properties.Set( "makeDir",         mkdir           );
+    properties.Set( "dynamicSource",   dynamicSource   );
+    properties.Set( "thirdParty",      thirdParty      );
+    properties.Set( "checkSumMode",    checkSumMode    );
+    properties.Set( "checkSumType",    checkSumType    );
+    properties.Set( "checkSumPreset",  checkSumPreset  );
+    properties.Set( "chunkSize",       chunkSize       );
+    properties.Set( "parallelChunks",  parallelChunks  );
+    properties.Set( "initTimeout",     initTimeout     );
+    properties.Set( "tpcTimeout",      tpcTimeout      );
+    properties.Set( "rmOnBadCksum",    rmBadCksum      );
+    properties.Set( "cpTimeout",       cpTimeout       );
+    properties.Set( "xrateThreashold", xRateThreashold );
+    properties.Set( "xrate",           xRate           );
 
     if( sourceLimit > 1 )
     {

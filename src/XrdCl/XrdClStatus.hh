@@ -88,6 +88,7 @@ namespace XrdCl
   const uint16_t errQueryNotSupported    = 205;
   const uint16_t errOperationExpired     = 206;
   const uint16_t errOperationInterrupted = 207;
+  const uint16_t errThresholdExceeded    = 208;
 
   //----------------------------------------------------------------------------
   // XRootD related errors

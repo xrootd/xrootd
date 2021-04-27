@@ -313,6 +313,9 @@ namespace XrdCl
     if( !p.HasProperty( "xrate" ) )
       p.Set( "xrate", 0 );
 
+    if( !p.HasProperty( "xrateThreashold" ) )
+      p.Set( "xrateThreashold", 0 );
+
     //--------------------------------------------------------------------------
     // Insert the properties
     //--------------------------------------------------------------------------
