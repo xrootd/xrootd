@@ -49,6 +49,7 @@ Prerelease Notes
   **[Server]** When requested fully verify supplied checksums in pgwrite.
 
 + **Miscellaneous**
+  **[gStream]** Use different sequence number for different packet types.
   **[Proxy]** Turn off the fork handler to undo the new default (i.e. is on).
   **[Server]** Add forgotten multi-user plugin checksum support.
   **[Server]** Make sure atleast one export exists in the export list.
