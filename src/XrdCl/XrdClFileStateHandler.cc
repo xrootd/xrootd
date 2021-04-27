@@ -1021,6 +1021,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1076,6 +1078,8 @@ namespace XrdCl
                                        uint16_t         timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
@@ -1178,6 +1182,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1230,6 +1236,8 @@ namespace XrdCl
                                         uint16_t         timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
@@ -1347,6 +1355,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1382,6 +1392,8 @@ namespace XrdCl
                                            uint16_t         timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
@@ -1423,6 +1435,8 @@ namespace XrdCl
     // Sanity check
     //--------------------------------------------------------------------------
     XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
@@ -1497,6 +1511,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1570,6 +1586,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1625,6 +1643,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1679,6 +1699,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1717,6 +1739,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1754,6 +1778,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1776,6 +1802,8 @@ namespace XrdCl
                                            uint16_t                        timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
@@ -1800,6 +1828,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
+    if( pFileState == Error ) return pStatus;
+
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
@@ -1821,6 +1851,8 @@ namespace XrdCl
                                             uint16_t          timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
@@ -2376,6 +2408,22 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Debug( FileMsg, "[0x%x@%s] Reopen file at next data server.",
                 this, pFileUrl->GetURL().c_str() );
+
+    // merge CGI
+    auto lbcgi = pLoadBalancer->GetParams();
+    auto dtcgi = pDataServer->GetParams();
+    MessageUtils::MergeCGI( lbcgi, dtcgi, false );
+    // update tried CGI
+    auto itr = lbcgi.find( "tried" );
+    if( itr == lbcgi.end() )
+      lbcgi["tried"] = pDataServer->GetHostName();
+    else
+    {
+     std::string tried = itr->second;
+     tried += "," + pDataServer->GetHostName();
+     lbcgi["tried"] = tried;
+    }
+    pLoadBalancer->SetParams( lbcgi );
 
     return ReOpenFileAtServer( *pLoadBalancer, timeout );
   }
