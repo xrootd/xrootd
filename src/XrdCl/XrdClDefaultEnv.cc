@@ -341,6 +341,24 @@ namespace XrdCl
     else
       log->Debug( UtilityMsg, "Unable to find user home directory." );
 
+    char *conffile = getenv( "XRD_CLCONFFILE" );
+    if( conffile )
+    {
+      st = Utils::ProcessConfig( userConfig, conffile );
+      if( !st.IsOK() )
+        log->Debug( UtilityMsg, "Unable to process %s file: %s",
+                    conffile, st.ToString().c_str() );
+    }
+
+    char *confdir = getenv( "XRD_CLCONFDIR" );
+    if( confdir )
+    {
+      st = Utils::ProcessConfigDir( userConfig, confdir );
+      if( !st.IsOK() )
+        log->Debug( UtilityMsg, "Unable to process %s file: %s",
+                    confdir, st.ToString().c_str() );
+    }
+
     std::map<std::string, std::string>::iterator it;
 
     for( it = config.begin(); it != config.end(); ++it )
