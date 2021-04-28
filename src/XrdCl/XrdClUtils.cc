@@ -559,6 +559,46 @@ namespace XrdCl
     return Status();
   }
 
+  //------------------------------------------------------------------------
+  //! Process a config directory and return key-value pairs
+  //------------------------------------------------------------------------
+  Status Utils::ProcessConfigDir( std::map<std::string, std::string> &config,
+                                  const std::string                  &dir )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( UtilityMsg, "Processing configuration files in %s...",
+                dir.c_str());
+
+    std::vector<std::string> entries;
+    Status st = Utils::GetDirectoryEntries( entries, dir );
+    if( !st.IsOK() )
+    {
+      log->Debug( UtilityMsg, "Unable to process directory %s: %s",
+                  dir.c_str(), st.ToString().c_str() );
+      return st;
+    }
+
+    static const std::string suffix   = ".conf";
+    for( auto &entry : entries )
+    {
+      std::string confFile = dir + "/" + entry;
+
+      if( confFile.length() <= suffix.length() )
+        continue;
+      if( !std::equal( suffix.rbegin(), suffix.rend(), confFile.rbegin() ) )
+        continue;
+
+      st = ProcessConfig( config, confFile );
+      if( !st.IsOK() )
+      {
+        log->Debug( UtilityMsg, "Unable to process configuration file %s: %s",
+                    confFile.c_str(), st.ToString().c_str() );
+      }
+    }
+
+    return Status();
+  }
+
   //----------------------------------------------------------------------------
   // Trim a string
   //----------------------------------------------------------------------------

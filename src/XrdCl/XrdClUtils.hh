@@ -183,6 +183,12 @@ namespace XrdCl
                                    const std::string                  &file );
 
       //------------------------------------------------------------------------
+      //! Process a config directory and return key-value pairs
+      //------------------------------------------------------------------------
+      static Status ProcessConfigDir( std::map<std::string, std::string> &config,
+                                      const std::string                  &dir );
+
+      //------------------------------------------------------------------------
       //! Trim a string
       //------------------------------------------------------------------------
       static void Trim( std::string &str );
