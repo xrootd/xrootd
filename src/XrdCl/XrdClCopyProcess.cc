@@ -313,8 +313,12 @@ namespace XrdCl
     if( !p.HasProperty( "xrate" ) )
       p.Set( "xrate", 0 );
 
-    if( !p.HasProperty( "xrateThreashold" ) )
-      p.Set( "xrateThreashold", 0 );
+    if( !p.HasProperty( "xrateThreashold" ) || p.Get<long long>( "xrateThreashold" ) == 0 )
+    {
+      int val = DefaultXRateThreshold;
+      env->GetInt( "XRateThreshold", val );
+      p.Set( "xrateThreashold", val );
+    }
 
     //--------------------------------------------------------------------------
     // Insert the properties

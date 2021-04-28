@@ -302,6 +302,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "IPNoShuffle",             DefaultIPNoShuffle             );
     REGISTER_VAR_INT( varsInt, "WantTlsOnNoPgrw",         DefaultWantTlsOnNoPgrw         );
     REGISTER_VAR_INT( varsInt, "RetryWrtAtLBLimit",       DefaultRetryWrtAtLBLimit       );
+    REGISTER_VAR_INT( varsInt, "XRateThreshold",          DefaultXRateThreshold          );
 
     REGISTER_VAR_STR( varsStr, "ClientMonitor",           DefaultClientMonitor           );
     REGISTER_VAR_STR( varsStr, "ClientMonitorParam",      DefaultClientMonitorParam      );

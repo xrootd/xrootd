@@ -1936,7 +1936,7 @@ namespace XrdCl
                 rmOnBadCksum, continue_;
     int32_t     nbXcpSources;
     long long   xRate;
-    long long   xRateThreashold;
+    long long   xRateThreshold;
     uint16_t    cpTimeout;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
@@ -1954,7 +1954,7 @@ namespace XrdCl
     pProperties->Get( "xcpBlockSize",    blockSize );
     pProperties->Get( "preserveXAttr",   preserveXAttr );
     pProperties->Get( "xrate",           xRate );
-    pProperties->Get( "xrateThreashold", xRateThreashold );
+    pProperties->Get( "xrateThreashold", xRateThreshold );
     pProperties->Get( "rmOnBadCksum",    rmOnBadCksum );
     pProperties->Get( "continue",        continue_ );
     pProperties->Get( "cpTimeout",       cpTimeout );
@@ -2098,11 +2098,11 @@ namespace XrdCl
         }
       }
 
-      if( xRateThreashold )
+      if( xRateThreshold )
       {
         auto   elapsed     = threshold_timer.elapsed();
         double transferred = processed + chunkInfo.length;
-        double expected    = double( xRateThreashold ) / to_nsec( 1 ) * elapsed;
+        double expected    = double( xRateThreshold ) / to_nsec( 1 ) * elapsed;
         //----------------------------------------------------------------------
         // check if our transfer rate dropped below the threshold
         // (we are too slow)
