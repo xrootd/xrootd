@@ -1367,7 +1367,7 @@ XRootDStatus DoCat( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc != 2 && argc != 4 )
+  if( argc < 2 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -1381,7 +1381,7 @@ XRootDStatus DoCat( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidAddr );
   }
 
-  std::string remote;
+  std::vector<std::string> remotes;
   std::string local;
 
   for( uint32_t i = 1; i < args.size(); ++i )
@@ -1400,44 +1400,59 @@ XRootDStatus DoCat( FileSystem                      *fs,
       }
     }
     else
-      remote = args[i];
+      remotes.emplace_back( args[i] );
   }
 
-  std::string remoteFile;
-  if( !BuildPath( remoteFile, env, remote ).IsOK() )
+  if( !local.empty() && remotes.size() > 1 )
   {
-    log->Error( AppMsg, "Invalid path." );
+    log->Error( AppMsg, "If '-o' is used only can be used with only one remote file." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  URL remoteUrl( server );
-  remoteUrl.SetPath( remoteFile );
+  std::vector<URL> remoteUrls;
+  remoteUrls.reserve( remotes.size() );
+  for( auto &remote : remotes )
+  {
+    std::string remoteFile;
+    if( !BuildPath( remoteFile, env, remote ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+
+    remoteUrls.emplace_back( server );
+    remoteUrls.back().SetPath( remoteFile );
+  }
 
   //----------------------------------------------------------------------------
   // Fetch the data
   //----------------------------------------------------------------------------
   CopyProgressHandler *handler = 0; ProgressDisplay d;
-  CopyProcess process; PropertyList props; PropertyList results;
+  CopyProcess process;
+  std::vector<PropertyList> props( remoteUrls.size() ), results( remoteUrls.size() );
 
-  props.Set( "source", remoteUrl.GetURL() );
-  if( !local.empty() )
+  for( size_t i = 0; i < remoteUrls.size(); ++i )
   {
-    props.Set( "target", std::string( "file://" ) + local );
-    handler = &d;
+    props[i].Set( "source", remoteUrls[i].GetURL() );
+    if( !local.empty() )
+    {
+      props[i].Set( "target", std::string( "file://" ) + local );
+      handler = &d;
+    }
+    else
+      props[i].Set( "target", "stdio://-" );
+
+    props[i].Set( "dynamicSource", true );
+
+    XRootDStatus st = process.AddJob( props[i], &results[i] );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Job adding failed: %s.", st.ToStr().c_str() );
+      return st;
+    }
   }
-  else
-    props.Set( "target", "stdio://-" );
 
-  props.Set( "dynamicSource", true );
-
-  XRootDStatus st = process.AddJob( props, &results );
-  if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Job adding failed: %s.", st.ToStr().c_str() );
-    return st;
-  }
-
-  st = process.Prepare();
+  XRootDStatus st = process.Prepare();
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Copy preparation failed: %s.", st.ToStr().c_str() );
@@ -1914,8 +1929,8 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -a abort stage request\n"                                   );
   printf( "     -e evict the file from disk cache\n\n"                      );
 
-  printf( "   cat [-o local file] file\n"                                   );
-  printf( "     Print contents of a file to stdout.\n"                      );
+  printf( "   cat [-o local file] files\n"                                  );
+  printf( "     Print contents of one or more files to stdout.\n"           );
   printf( "     -o print to the specified local file\n\n"                   );
 
   printf( "   tail [-c bytes] [-f] file\n"                                  );
