@@ -991,6 +991,7 @@ namespace
       //------------------------------------------------------------------------
       ~XRootDSourceZip()
       {
+        CleanUpChunks();
         XrdCl::XRootDStatus status = pZipArchive->Close();
         delete pZipArchive;
       }
