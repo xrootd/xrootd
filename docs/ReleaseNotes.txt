@@ -5,6 +5,109 @@ XRootD
 Release Notes
 =============
 
+--------------
+Version 5.2.0
+--------------
+
++ **New Features**
+  **[Server]** Add ability to wrap the checksum manager plugin.
+  **[SSI]** Allow client-side to request high resolution timestamps.
+  **[Server]** New ztn security plugin to provide a SciTokens sentinel.
+  **[Server]** Allow optional return of checksum in dirlist response.
+  **[Server]** Allow additional ports to be associated with a protocol.
+  **[Xcache]** Make TLS substitution for net cksum selectable.
+  **[Server]** Implement an internal nano-DNS for k8s setups (mostly for SSI).
+  **[Server]** Allow internal application push of plugin library.
+  **[Server]** Implement checkpointed file modifications (i.e. kXR_chkpoint).
+  **[Server]** Enhance the StatPF() method.
+  **[Xache]** Phase 1 of checksum integrity implementation (a.k.a pgread).
+  **[Monitoring]** Implement extensive g-stream enhancements.
+  **[XrdCl]** Add factory method (ResponseHandler::Wrap) for creating handlers
+              from lambdas.
+  **[XrdCl]** Implement ReadV.
+  **[XrdCl]** Implement default erasure coding (EC) plug-in.
+  **[XrdCl]** Implement EC-redirect allowing the server to request using the
+              default EC plugin for given file.
+  **[XrdCl]** Allow callbacks on client connection failure.
+  **[XrdCl]** Add triedrc=srverr on connection t/o.
+  **[XrdCl]** Implement cp timeout.
+  **[XrdCl]** xrdcp: implement xrate threshold.
+  **[XrdCl]** Add File::TryOtherServer API.
+  **[XrdCl]** xrdfs: cat multiple files at once, closes #1243.
+  **[XrdCl]** Support custom config file location via envar.
+  **[XrdEc]** Allow user to specify CGI for data/metadata URLs.
+  **[XrdOssCsi]** Add osscsi plugin to store page crc32c checksums.
+  **[XrdTls]** Provide a temp CA file generator that concatenats all the
+               CAs in a given CA directory.
+  **[XrdTpc]** Add support for certfile directive for TPC handler.
+
++ **Major bug fixes**
+  **[Server]** Avoid network usage rac condition during config leading to a SEGV.
+  **[Server]** Fix backward compatibility issue for xrd.protocol. Fixes #1444
+  **[Server]** Bypass voms MT initialization issues.
+  **[ZTN]** Fix fatal flaws in SciToken strip method; avoid token rejection.
+  **[TLS]** Provide thread-safety when required to do so.
+  **[POSIX]** Avoid returning null pointer upon failure to avoid SEGV.
+  **[POSIX]** Correctly initialize serverless cache to avoid SEGV.
+  **[Server]** Make sure that alignment is a power of two for posix_memalign.
+  **[SSI]** Prevent a buffer from being recycled twice leading to random errors.
+  **[SSI]** Avoid race condition between Finished() and Event Dispatch (causes SEGV)
+  **[Server]** Redo checksum changes to provide backward compatibility.
+  **[Server]** Correct version checking to prevent false negatives.
+  **[XrdCl]** Use ntohll() for pgread offsets.
+  **[XrdCl]** Make checksum comparison case insensitive.
+  **[XrdCl]** Make sure ZipCache doesn't segv.
+  **[XrdCl]** Account for the ZIP data descriptor.
+  **[XrdCl]** ZIP: handle correctly patological case where compressed size is
+              greater than uncompressed.
+  **[XrdCl]** Make sure TLS session is shutdown before socket is closed.
+  **[XrdCl]** xrdcp: clean up chunks in-fly before destroying ZipArchive object.
+  **[POSIX]** Initialize pointer when object reused to prevent memory corruption.
+  **[TPC]** Do not hold lock when deleting a proxy autorm TPC job that failed.
+  **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
+  **[XrdEc]** Use correct buffer size when calculating crc32c.
+  **[Python]** Delete chunk buffer for VectorReadInfo after copying into python
+               string.
+  **[XrdTpc]** Overhaul curl's usage of CAs.
+
++ **Minor bug fixes**
+  **[Server]** Make sure to close config file continuations.
+  **[Server]** Fix possible storage opverlay when dealing with TLS protocols.
+  **[Server]** Prevent inadvertent double load of fixed protocol.
+  **[POSIX]** Make sure to always return consistent stat() information.
+  **[cmsd]** Correct write lengths to not write null bytes to env file.
+  **[cmsd]** Correct parsing bug that results in an erroneous warning.
+  **[Server]** Fix esoteric truncation of long dirlist. Fixes #1340
+  **[Server]** Do no terminate dirlist when a deleted directory is encountered.
+  **[Server]** When requested fully verify supplied checksums in pgwrite.
+  **[Server]** Allow negative flags in redirect response.
+  **[Server]** Clear redirect flags if client does not support them.
+  **[XrdCl]** Parallel: make sure AtLeast waits for all operations
+              (failed/succeeded).
+  **[XrdCl]** Treat session-error as success in case of File::Close.
+  **[XrdCl]** Allow to process user plugin config if user has no password entry.
+  **[XProtocol]** Add kXR_virtReadv code for the File::ReadV call.
+  **[XProtocol]** Add kXR_ecRedir redirect flag.
+  **[XProtocol]** Extend the set of abilities presented to the servet on login.
+
++ **Miscellaneous**
+  **[gStream]** Use different sequence number for different packet types.
+  **[Proxy]** Turn off the fork handler to undo the new default (i.e. is on).
+  **[Server]** Add forgotten multi-user plugin checksum support.
+  **[Server]** Make sure atleast one export exists in the export list.
+  **[cmsd]** Display the name of the named pipe being waited upon.
+  **[Server]** Echo the command line into the log.
+  **[SSI]** Allow server-side debug to be enabled via an envar.
+  **[cmsd]** Correctly parse osslib when it have options.
+  **[Xcache]** Allow origin location query to be refreshed.
+  **[CMS]** Ignore stacked plugin specifications as they are not supported.
+  **[CMake/RPM]** Enable c++14. Note: on CC7 devtoolset-7 is required in
+                  order to build XRootD (including PIP install).
+  **[Docs]** Remove deprecated man pages.
+  **[Systemd]** Set RestartSec=10 by default, closes #1410.
+  **[PIP]** Use sys.executable as the interpreter in install.sh
+  **[PIP]** Enable devtoolset on pip install on RHEL7.
+  **[XrdCl]** Enable fork-handler by default.
 
 --------------
 Version 5.1.1
