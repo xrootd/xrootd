@@ -6,56 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
-  **[Server]** Add ability to wrap the checksum manager plugin.
-  **[SSI]** Allow client-side to request high resolution timestamps.
-  **[Server]** New ztn security plugin to provide a SciTokens sentinel.
-  **[Server]** Allow optional return of checksum in dirlist response.
-  **[Server]** Allow additional ports to be associated with a protocol.
-  **[Xcache]** Make TLS substitution for net cksum selectable.
-  **[Server]** Implement an internal nano-DNS for k8s setups (mostly for SSI).
-  **[Server]** Allow internal application push of plugin library.
-  **[Server]** Implement checkpointed file modifications (i.e. kXR_chkpoint).
-  **[Server]** Enhance the StatPF() method.
-  **[Xache]** Phase 1 of checksum integrity implementation (a.k.a pgread).
-  **[Monitoring]** Implement extensive g-stream enhancements.
 
 + **Major bug fixes**
-  **[Server]** Avoid network usage rac condition during config leading to a SEGV.
-  **[Server]** Fix backward compatibility issue for xrd.protocol. Fixes #1444
-  **[Server]** Bypass voms MT initialization issues.
-  **[ZTN]** Fix fatal flaws in SciToken strip method; avoid token rejection.
-  **[TLS]** Provide thread-safety when required to do so.
-  **[POSIX]** Avoid returning null pointer upon failure to avoid SEGV.
-  **[POSIX]** Correctly initialize serverless cache to avoid SEGV.
-  **[Server]** Make sure that alignment is a power of two for posix_memalign.
-  **[SSI]** Prevent a buffer from being recycled twice leading to random errors.
-  **[SSI]** Avoid race condition between Finished() and Event Dispatch (causes SEGV)
-  **[Server]** Redo checksum changes to provide backward compatibility.
-  **[Server]** Correct version checking to prevent false negatives.
-  **[Client]** Use ntohll() for pgread offsets.
-  **[POSIX]** Initialize pointer when object reused to prevent memory corruption.
-  **[TPC]** Do not hold lock when deleting a proxy autorm TPC job that failed.
-  **[Server]** Fix memory leak of 64MB per checksum request. Fixes #1291
 
 + **Minor bug fixes**
-  **[Server]** Make sure to close config file continuations.
-  **[Server]** Fix possible storage opverlay when dealing with TLS protocols.
-  **[Server]** Prevent inadvertent double load of fixed protocol.
-  **[POSIX]** Make sure to always return consistent stat() information.
-  **[cmsd]** Correct write lengths to not write null bytes to env file.
-  **[cmsd]** Correct parsing bug that results in an erroneous warning.
-  **[Server]** Fix esoteric truncation of long dirlist. Fixes #1340
-  **[Server]** Do no terminate dirlist when a deleted directory is encountered.
-  **[Server]** When requested fully verify supplied checksums in pgwrite.
 
 + **Miscellaneous**
-  **[gStream]** Use different sequence number for different packet types.
-  **[Proxy]** Turn off the fork handler to undo the new default (i.e. is on).
-  **[Server]** Add forgotten multi-user plugin checksum support.
-  **[Server]** Make sure atleast one export exists in the export list.
-  **[cmsd]** Display the name of the named pipe being waited upon.
-  **[Server]** Echo the command line into the log.
-  **[SSI]** Allow server-side debug to be enabled via an envar.
-  **[cmsd]** Correctly parse osslib when it have options.
-  **[Xcache]** Allow origin location query to be refreshed.
-  **[CMS]** Ignore stacked plugin specifications as they are not supported.
