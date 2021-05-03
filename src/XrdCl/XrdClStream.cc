@@ -181,9 +181,7 @@ namespace XrdCl
       return XRootDStatus( stError, errUninitialized );
 
     AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller, pTransport,
-                                                    pChannelData, 0 );
-    s->SetStream( this );
-
+                                                    pChannelData, 0, this );
     pSubStreams.push_back( new SubStreamData() );
     pSubStreams[0]->socket = s;
     return XRootDStatus();
@@ -623,9 +621,8 @@ namespace XrdCl
       {
         for( uint16_t i = 1; i < numSub; ++i )
         {
-          AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller,
-                                                   pTransport, pChannelData, i );
-          s->SetStream( this );
+          AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller, pTransport,
+                                                           pChannelData, i, this );
           pSubStreams.push_back( new SubStreamData() );
           pSubStreams[i]->socket = s;
         }

@@ -70,7 +70,8 @@ namespace XrdCl
                           Poller           *poller,
                           TransportHandler *transport,
                           AnyObject        *channelData,
-                          uint16_t          subStreamNum );
+                          uint16_t          subStreamNum,
+                          Stream           *strm );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -102,11 +103,6 @@ namespace XrdCl
       //! Close the connection
       //------------------------------------------------------------------------
       XRootDStatus Close();
-
-      //------------------------------------------------------------------------
-      //! Set a stream object to be notified about the status of the operations
-      //------------------------------------------------------------------------
-      void SetStream( Stream *stream );
 
       //------------------------------------------------------------------------
       //! Handle a socket event
@@ -150,6 +146,11 @@ namespace XrdCl
       }
 
     protected:
+
+      //------------------------------------------------------------------------
+      //! Convert Stream object and sub-stream number to stream name
+      //------------------------------------------------------------------------
+      static std::string ToStreamName( Stream *stream, uint16_t strmnb );
 
       //------------------------------------------------------------------------
       // Connect returned

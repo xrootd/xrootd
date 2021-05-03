@@ -36,12 +36,14 @@ namespace XrdCl
                                           Poller           *poller,
                                           TransportHandler *transport,
                                           AnyObject        *channelData,
-                                          uint16_t          subStreamNum ):
+                                          uint16_t          subStreamNum,
+                                          Stream           *strm ):
     pPoller( poller ),
     pTransport( transport ),
     pChannelData( channelData ),
     pSubStreamNum( subStreamNum ),
-    pStream( 0 ),
+    pStream( strm ),
+    pStreamName( ToStreamName( strm, subStreamNum ) ),
     pSocket( 0 ),
     pIncoming( 0 ),
     pHSIncoming( 0 ),
@@ -208,16 +210,12 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  //----------------------------------------------------------------------------
-  // Set a stream object to be notified about the status of the operations
-  //----------------------------------------------------------------------------
-  void AsyncSocketHandler::SetStream( Stream *stream )
+  std::string AsyncSocketHandler::ToStreamName( Stream *stream, uint16_t strmnb )
   {
-    pStream    = stream;
     std::ostringstream o;
-    o << pStream->GetURL()->GetHostId();
-    o << "." << pSubStreamNum;
-    pStreamName = o.str();
+    o << stream->GetURL()->GetHostId();
+    o << "." << strmnb;
+    return o.str();
   }
 
   //----------------------------------------------------------------------------
