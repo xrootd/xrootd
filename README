@@ -20,6 +20,13 @@
 
 2. B U I L D   I N S T R U C T I O N S
 
+2.0 Build dependecies
+
+  XRootD requires at minimum following packages (RHEL distro):
+
+  * gcc-c++, cmake(3), krb5-devel, libuuid-devel, libxml2-devel, openssl-devel, systemd-devel, zlib-devel
+  * devtoolset-7 (only RHEL7)
+
 2.1 Build system
 
   XRootD uses CMake to handle the build process. It should build fine with
@@ -54,6 +61,8 @@ handling the perl libraries, therefore version 2.8 or newer is recommended.
   * CMAKE_CXX_COMPILER   - path to the c++ compiler that should be used
 
 2.3 Build steps
+
+  * on REHL7 only: scl enable devtoolset-7 /bin/bash
 
   * Create an empty build directory:
 
