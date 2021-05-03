@@ -746,6 +746,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         nfo = CurrentReq.opaque->Get("xrdhttphost");
         if (nfo) {
           TRACEI(DEBUG, " Setting host: " << nfo);
+          if (SecEntity.host) free(SecEntity.host);
           SecEntity.host = unquote(nfo);
           TRACEI(REQ, " Setting host: " << SecEntity.host);
         }
