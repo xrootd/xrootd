@@ -1469,11 +1469,12 @@ namespace XrdCl
 
         while( leftToBeWritten )
         {
-          int bytesWritten = 0;
-          Status st = socket->Send( buffer + pAsyncOffset, leftToBeWritten, bytesWritten );
+          int btswrt = 0;
+          Status st = socket->Send( buffer + pAsyncOffset, leftToBeWritten, btswrt );
           if( !st.IsOK() || st.code == suRetry ) return st;
-          pAsyncOffset    += bytesWritten;
-          leftToBeWritten -= bytesWritten;
+          pAsyncOffset    += btswrt;
+          leftToBeWritten -= btswrt;
+          bytesWritten    += btswrt;
         }
         //----------------------------------------------------------------------
         // Remember that we have moved to the next chunk, also clear the offset
@@ -1508,7 +1509,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       while( !pKBuff->Empty() )
       {
-        Status st = socket->Send( *pKBuff );
+        int btswrt = 0;
+        Status st = socket->Send( *pKBuff, btswrt );
+        bytesWritten += btswrt;
         if( !st.IsOK() || st.code == suRetry ) return st;
       }
 

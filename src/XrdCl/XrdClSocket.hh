@@ -171,7 +171,7 @@ namespace XrdCl
       //! @param kbuff : data to be written
       //! @return      : the amount of data actually written
       //------------------------------------------------------------------------
-      XRootDStatus Send( XrdSys::KernelBuffer &kbuff );
+      XRootDStatus Send( XrdSys::KernelBuffer &kbuff, int &bytesWritten );
 
       //----------------------------------------------------------------------------
       //! Read helper for raw socket

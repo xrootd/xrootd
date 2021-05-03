@@ -492,6 +492,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     Message  *msg             = toWrite;
     size_t    leftToBeWritten = msg->GetSize()-msg->GetCursor();
+    if( !leftToBeWritten ) return XRootDStatus();
 
     while( leftToBeWritten )
     {
@@ -525,6 +526,7 @@ namespace XrdCl
   XRootDStatus AsyncSocketHandler::WriteMessageAndRaw( Message *toWrite, Message *&sign )
   {
     XRootDStatus st;
+    Log *log = DefaultEnv::GetLog();
 
     if( sign )
     {
@@ -542,6 +544,8 @@ namespace XrdCl
       uint32_t bytesWritten = 0;
       st = pOutHandler->WriteMessageBody( pSocket, bytesWritten );
       pOutMsgSize += bytesWritten;
+      log->Dump( AsyncSockMsg, "[%s] Wrote %d bytes of message (0x%x) body.",
+                 pStreamName.c_str(), bytesWritten, toWrite );
       if( !st.IsOK() || st.code == suRetry )
         return st;
     }
