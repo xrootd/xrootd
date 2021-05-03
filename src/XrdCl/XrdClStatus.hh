@@ -40,6 +40,7 @@ namespace XrdCl
   const uint16_t suRetry                 = 2;
   const uint16_t suPartial               = 3;
   const uint16_t suAlreadyDone           = 4;
+  const uint16_t suNotStarted            = 5;
 
   //----------------------------------------------------------------------------
   // Generic errors

@@ -1471,10 +1471,10 @@ namespace XrdCl
         {
           int btswrt = 0;
           Status st = socket->Send( buffer + pAsyncOffset, leftToBeWritten, btswrt );
+          bytesWritten += btswrt;
           if( !st.IsOK() || st.code == suRetry ) return st;
           pAsyncOffset    += btswrt;
           leftToBeWritten -= btswrt;
-          bytesWritten    += btswrt;
         }
         //----------------------------------------------------------------------
         // Remember that we have moved to the next chunk, also clear the offset

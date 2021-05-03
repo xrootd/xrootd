@@ -44,12 +44,11 @@ namespace XrdCl
     pSubStreamNum( subStreamNum ),
     pStream( strm ),
     pStreamName( ToStreamName( strm, subStreamNum ) ),
-    pSocket( 0 ),
+    pSocket( new Socket() ),
     pIncoming( 0 ),
     pHSIncoming( 0 ),
     pOutgoing( 0 ),
     pSignature( 0 ),
-    pHSOutgoing( 0 ),
     pHandShakeData( 0 ),
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
@@ -68,7 +67,6 @@ namespace XrdCl
     env->GetInt( "TimeoutResolution", timeoutResolution );
     pTimeoutResolution = timeoutResolution;
 
-    pSocket = new Socket();
     pSocket->SetChannelID( pChannelData );
     pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
     pLastActivity = time(0);
@@ -326,6 +324,7 @@ namespace XrdCl
       return;
     }
     pSocket->SetStatus( Socket::Connected );
+    hswriter.reset( new MsgWriter( *pSocket, pStreamName ) );
 
     //--------------------------------------------------------------------------
     // Cork the socket
@@ -363,8 +362,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pHandShakeData->out )
     {
-      pHSOutgoing = pHandShakeData->out;
-      pHandShakeData->out = 0;
+      hswriter->Reset( pHandShakeData->out );
+      pHandShakeData->out = nullptr;
     }
 
     //--------------------------------------------------------------------------
@@ -447,23 +446,21 @@ namespace XrdCl
   void AsyncSocketHandler::OnWriteWhileHandshaking()
   {
     XRootDStatus st;
-    if( !pHSOutgoing )
+    if( !hswriter->HasMsg() )
     {
       if( !(st = DisableUplink()).IsOK() )
         OnFaultWhileHandshaking( st );
       return;
     }
 
-    if( !(st = WriteCurrentMessage( pHSOutgoing )).IsOK() )
+    if( !( st = hswriter->Write() ).IsOK() )
     {
       OnFaultWhileHandshaking( st );
       return;
     }
 
     if( st.code == suRetry ) return;
-
-    delete pHSOutgoing;
-    pHSOutgoing = 0;
+    hswriter->Reset();
 
     st = pSocket->Flash();
     if( !st.IsOK() )
@@ -880,9 +877,8 @@ namespace XrdCl
     log->Error( AsyncSockMsg, "[%s] Socket error while handshaking: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
     delete pHSIncoming;
-    delete pHSOutgoing;
     pHSIncoming = 0;
-    pHSOutgoing = 0;
+    hswriter->Reset();
 
     pStream->OnConnectError( pSubStreamNum, st );
   }
@@ -989,8 +985,8 @@ namespace XrdCl
 
   void AsyncSocketHandler::SendHSMsg()
   {
-    pHSOutgoing = pHandShakeData->out;
-    pHandShakeData->out = 0;
+    hswriter->Reset( pHandShakeData->out );
+    pHandShakeData->out = nullptr;
     XRootDStatus st;
     if( !(st = EnableUplink()).IsOK() )
     {

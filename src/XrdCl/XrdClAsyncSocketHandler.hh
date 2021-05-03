@@ -26,6 +26,7 @@
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClAsyncWriter.hh"
 
 namespace XrdCl
 {
@@ -280,7 +281,6 @@ namespace XrdCl
       Message                       *pHSIncoming;
       Message                       *pOutgoing;
       Message                       *pSignature;
-      Message                       *pHSOutgoing;
       XrdNetAddr                     pSockAddr;
       HandShakeData                 *pHandShakeData;
       bool                           pHandShakeDone;
@@ -297,6 +297,7 @@ namespace XrdCl
       time_t                         pLastActivity;
       URL                            pUrl;
       bool                           pTlsHandShakeOngoing;
+      std::unique_ptr<MsgWriter>     hswriter;
   };
 }
 
