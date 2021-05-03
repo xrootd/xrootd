@@ -152,6 +152,7 @@ namespace
       masks["JobMgrMsg"]          = XrdCl::JobMgrMsg;
       masks["PlugInMgrMsg"]       = XrdCl::PlugInMgrMsg;
       masks["ExDbgMsg"]           = XrdCl::ExDbgMsg;
+      masks["TlsMsg"]             = XrdCl::TlsMsg;
     }
 
     //--------------------------------------------------------------------------
