@@ -58,12 +58,10 @@ public:
              it != m_active_handles.end();
              it++) {
             curl_multi_remove_handle(m_handle, *it);
-            curl_easy_cleanup(*it);
         }
         for (std::vector<CURL *>::const_iterator it = m_avail_handles.begin();
              it != m_avail_handles.end();
              it++) {
-            curl_easy_cleanup(*it);
         }
         curl_multi_cleanup(m_handle);
     }

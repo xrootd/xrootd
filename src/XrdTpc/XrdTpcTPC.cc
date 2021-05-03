@@ -272,14 +272,12 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
         ss << "Remote server failed request: " << curl_easy_strerror(res);
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
-        curl_easy_cleanup(curl);
         return req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(curl_easy_strerror(res)), 0);
     } else if (state.GetStatusCode() >= 400) {
         std::stringstream ss;
         ss << "Remote side failed with status code " << state.GetStatusCode();
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
-        curl_easy_cleanup(curl);
         return req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(ss.str().c_str()), 0);
     } else if (res) {
         std::stringstream ss;
@@ -287,7 +285,6 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
         char msg[] = "Unknown internal transfer failure";
-        curl_easy_cleanup(curl);
         return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
     std::stringstream ss;
