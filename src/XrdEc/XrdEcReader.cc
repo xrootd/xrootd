@@ -50,7 +50,8 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   template<bool HasHndl>
   class OpenOnlyImpl: public XrdCl::ZipOperation<OpenOnlyImpl, HasHndl,
-      XrdCl::Resp<void>, XrdCl::Arg<std::string>>
+      XrdCl::Resp<void>, XrdCl::Arg<std::string>, XrdCl::Arg<bool>>
+
   {
     public:
 
@@ -58,12 +59,12 @@ namespace XrdEc
       // Inherit constructors from FileOperation (@see FileOperation)
       //-----------------------------------------------------------------------
       using XrdCl::ZipOperation<OpenOnlyImpl, HasHndl, XrdCl::Resp<void>,
-          XrdCl::Arg<std::string>>::ZipOperation;
+          XrdCl::Arg<std::string>, XrdCl::Arg<bool>>::ZipOperation;
 
       //-----------------------------------------------------------------------
       // Argument indexes in the args tuple
       //-----------------------------------------------------------------------
-      enum { UrlArg };
+      enum { UrlArg, UpdtArg };
 
       //-----------------------------------------------------------------------
       // @return : name of the operation (@see Operation)
@@ -86,9 +87,10 @@ namespace XrdEc
                                    uint16_t                pipelineTimeout )
       {
         std::string      url     = std::get<UrlArg>( this->args ).Get();
+        bool             updt    = std::get<UpdtArg>( this->args ).Get();
         uint16_t         timeout = pipelineTimeout < this->timeout ?
                                    pipelineTimeout : this->timeout;
-        return this->zip->OpenOnly( url, handler, timeout );
+        return this->zip->OpenOnly( url, updt, handler, timeout );
       }
   };
 
@@ -97,9 +99,11 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   inline OpenOnlyImpl<false> OpenOnly( XrdCl::Ctx<XrdCl::ZipArchive> zip,
                                        XrdCl::Arg<std::string>       fn,
+                                       XrdCl::Arg<bool>              updt,
                                        uint16_t                      timeout = 0 )
   {
-    return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ) ).Timeout( timeout );
+    return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ),
+                                std::move( updt ) ).Timeout( timeout );
   }
 
   //-------------------------------------------------------------------------
@@ -430,7 +434,7 @@ namespace XrdEc
       dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>(
           Config::Instance().enable_plugins ) );
       // open the archive
-      opens.emplace_back( OpenOnly( *dataarchs[url], url ) );
+      opens.emplace_back( OpenOnly( *dataarchs[url], url, false ) );
     }
     // in parallel open the data files and read the metadata
     XrdCl::Pipeline p = XrdCl::Parallel( ReadMetadata( 0 ), XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) ).AtLeast( 2 ) >>
