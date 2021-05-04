@@ -63,9 +63,11 @@ namespace XrdCl
   //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::OpenOnly( const std::string  &url,
                                      ResponseHandler    *handler,
-                                     uint16_t            timeout )
+                                     uint16_t            timeout,
+                                     bool                update )
   {
-    Pipeline open_only = XrdCl::Open( archive, url, OpenFlags::Read ) >>
+    OpenFlags::Flags flags = update ? OpenFlags::Update : OpenFlags::Read;
+    Pipeline open_only = XrdCl::Open( archive, url, flags ) >>
                            [=]( XRootDStatus &st, StatInfo &info )
                            {
                              Log *log = DefaultEnv::GetLog();

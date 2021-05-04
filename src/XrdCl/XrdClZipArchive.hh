@@ -308,7 +308,8 @@ namespace XrdCl
       //-----------------------------------------------------------------------
       XRootDStatus OpenOnly( const std::string  &url,
                              ResponseHandler    *handler,
-                             uint16_t            timeout = 0 );
+                             uint16_t            timeout = 0,
+                             bool                update  = false );
 
       //-----------------------------------------------------------------------
       //! Get a buffer with central directory of the ZIP archive
