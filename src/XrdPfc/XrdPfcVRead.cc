@@ -35,7 +35,7 @@ struct ReadVChunkListRAM
 // RAM
 struct ReadVBlockListRAM
 {
-   std::vector<XrdPfc::ReadVChunkListRAM> bv;
+   std::vector<ReadVChunkListRAM> bv;
 
    bool AddEntry(Block* block, int chunkIdx, bool ireq)
    {
@@ -68,7 +68,7 @@ struct ReadVBlockListDisk
             return;
          }
       }
-      bv.push_back(XrdPfc::ReadVChunkListDisk(blockIdx));
+      bv.push_back(ReadVChunkListDisk(blockIdx));
       bv.back().arr.push_back(chunkIdx);
    }
 };
@@ -89,7 +89,8 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
 
    Stats loc_stats;
 
-   int bytesRead = 0;
+   int bytes_read = 0;
+   int error_cond = 0; // to be set to -errno
 
    BlockList_t                    blks_to_request;
    ReadVBlockListRAM              blocks_to_process;
@@ -119,56 +120,41 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
 
    // ----------------------------------------------------------------
 
-   // request blocks that need to be fetched
-   if (bytesRead >= 0)
+   // Request blocks that need to be fetched.
+   ProcessBlockRequests(blks_to_request);
+
+   // Issue direct / bypass requests if any.
+   if ( ! chunkVec.empty())
    {
-      ProcessBlockRequests(blks_to_request);
+      direct_handler = new DirectResponseHandler(1);
+      io->GetInput()->ReadV(*direct_handler, &chunkVec[0], chunkVec.size());
    }
 
-   // issue a client read
-   if (bytesRead >= 0)
-   {
-      if ( ! chunkVec.empty())
-      {
-         direct_handler = new DirectResponseHandler(1);
-         io->GetInput()->ReadV(*direct_handler, &chunkVec[0], chunkVec.size());
-      }
-   }
-
-   // disk read
-   if (bytesRead >= 0)
+   // Read data from disk.
    {
       int dr = VReadFromDisk(readV, n, blocks_on_disk);
-      if (dr < 0)
+      if (dr >= 0)
       {
-         bytesRead = dr;
-      }
-      else
-      {
-         bytesRead += dr;
+         bytes_read += dr;
          loc_stats.m_BytesHit += dr;
       }
+      else error_cond = dr;
    }
 
-   // read from cached blocks
-   if (bytesRead >= 0)
+   // Fill response buffer with data from blocks in RAM.
    {
       long long b_hit = 0, b_missed = 0;
       int br = VReadProcessBlocks(io, readV, n, blocks_to_process.bv, blks_processed, b_hit, b_missed);
-      if (br < 0)
+      if (br >= 0)
       {
-         bytesRead = br;
-      }
-      else
-      {
-         bytesRead += br;
+         bytes_read += br;
          loc_stats.m_BytesHit    += b_hit;
          loc_stats.m_BytesMissed += b_missed;
       }
+      else if ( ! error_cond) error_cond = br;
    }
 
    // Wait for direct requests to arrive.
-   // We have to wait on those as they will write to request memory buffers.
    if (direct_handler != 0)
    {
       XrdSysCondVarHelper _lck(direct_handler->m_cond);
@@ -178,47 +164,36 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
          direct_handler->m_cond.Wait();
       }
 
-      if (bytesRead >= 0)
+      if (direct_handler->m_errno == 0)
       {
-         if (direct_handler->m_errno == 0)
+         for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
          {
-            for (std::vector<XrdOucIOVec>::iterator i = chunkVec.begin(); i != chunkVec.end(); ++i)
-            {
-               bytesRead += i->size;
-               loc_stats.m_BytesBypassed += i->size;
-            }
-         }
-         else
-         {
-            bytesRead = direct_handler->m_errno;
+            bytes_read += i->size;
+            loc_stats.m_BytesBypassed += i->size;
          }
       }
+      else if ( ! error_cond) error_cond = direct_handler->m_errno;
+
+      delete direct_handler;
    }
 
-   {
+   { // Release processed blocks.
       XrdSysCondVarHelper _lck(m_state_cond);
 
-      // Decrease ref count on the remaining blocks.
-      // This happens when read process aborts due to encountered errors.
-      // [ See better implementation of the whole process in File::Read(). ]
-      for (std::vector<ReadVChunkListRAM>::iterator i = blocks_to_process.bv.begin(); i != blocks_to_process.bv.end(); ++i)
-         dec_ref_count(i->block);
-
       for (std::vector<ReadVChunkListRAM>::iterator i = blks_processed.begin(); i != blks_processed.end(); ++i)
+      {
          dec_ref_count(i->block);
+      }
    }
+   assert (blocks_to_process.bv.empty());
 
-   // remove objects on heap
-   delete direct_handler;
-   for (std::vector<ReadVChunkListRAM>::iterator i = blocks_to_process.bv.begin(); i != blocks_to_process.bv.end(); ++i)
-      delete i->arr;
    for (std::vector<ReadVChunkListRAM>::iterator i = blks_processed.begin(); i != blks_processed.end(); ++i)
       delete i->arr;
 
    m_stats.AddReadStats(loc_stats);
 
-   TRACEF(Dump, "VRead exit, total = " << bytesRead);
-   return bytesRead;
+   TRACEF(Dump, "VRead exit, error_cond=" << error_cond << ", bytes_read=" << bytes_read);
+   return error_cond ? error_cond : bytes_read;
 }
 
 //------------------------------------------------------------------------------
@@ -244,7 +219,7 @@ void File::VReadPreProcess(IO *io, const XrdOucIOVec *readV, int n,
                            ReadVBlockListDisk       &blocks_on_disk,
                            std::vector<XrdOucIOVec> &chunkVec)
 {
-   // Must be called under downloadCond lock.
+   // Must be called under m_state_cond lock.
 
    for (int iov_idx = 0; iov_idx < n; iov_idx++)
    {
