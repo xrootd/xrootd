@@ -61,6 +61,7 @@ namespace XrdEc
         key += '-';
         key += std::to_string( uint8_t( objcfg.datasize ) );
 
+        std::unique_lock<std::mutex> lck( mtx );
         auto itr = redundancies.find( key );
         if( itr == redundancies.end() )
         {
@@ -78,6 +79,7 @@ namespace XrdEc
     private:
 
       std::unordered_map<std::string, RedundancyProvider> redundancies;
+      std::mutex mtx;
 
       //-----------------------------------------------------------------------
       //! Constructor
