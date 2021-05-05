@@ -59,6 +59,46 @@
 
 namespace
 {
+  struct Result
+  {
+    Result( XrdCl::XRootDStatus &status, const std::string &str )
+    {
+      std::string msg = status.GetErrorMessage();
+      msg += " (" + str + ")";
+      status.SetErrorMessage( msg );
+      GlobalStatus() = status;
+    }
+
+    template<typename ... Args>
+    Result( Args&&... args )
+    {
+      GlobalStatus() = XrdCl::XRootDStatus( std::forward<Args>(args)... );
+    }
+
+    inline operator XrdCl::XRootDStatus&()
+    {
+      return GlobalStatus();
+    }
+
+    inline static const XrdCl::XRootDStatus& Get()
+    {
+      return GlobalStatus();
+    }
+
+    Result( Result&& ) = delete;
+    Result( const Result& ) = delete;
+    Result& operator=( Result&& ) = delete;
+    Result& operator=( Result& ) = delete;
+
+    private:
+
+      inline static XrdCl::XRootDStatus& GlobalStatus()
+      {
+        static XrdCl::XRootDStatus status;
+        return status;
+      };
+  };
+
   //----------------------------------------------------------------------------
   //! Helper timer class
   //----------------------------------------------------------------------------
@@ -1568,7 +1608,7 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks,
+      XRootDDestination( const XrdCl::URL &url, uint8_t parallelChunks,
                          const std::string &ckSumType ):
         Destination( ckSumType ),
         pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ),
@@ -1583,6 +1623,22 @@ namespace
       {
         CleanUpChunks();
         delete pFile;
+
+        //----------------------------------------------------------------------
+        // If the copy failed and user requested posc and we are dealing with
+        // a local destination, remove the file
+        //----------------------------------------------------------------------
+        if( pUrl.IsLocalFile() && pPosc && !Result::Get().IsOK() )
+        {
+          XrdCl::FileSystem fs( pUrl );
+          XrdCl::XRootDStatus st = fs.Rm( pUrl.GetPath() );
+          if( !st.IsOK() )
+          {
+            XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+            log->Error( XrdCl::UtilityMsg, "Failed to remove local destination"
+                        " on failure: %s", st.ToString().c_str() );
+          }
+        }
       }
 
       //------------------------------------------------------------------------
@@ -1593,7 +1649,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         log->Debug( UtilityMsg, "Opening %s for writing",
-                                pUrl->GetURL().c_str() );
+                                pUrl.GetURL().c_str() );
 
         std::string value;
         DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
@@ -1616,7 +1672,7 @@ namespace
 
         Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
 
-        XrdCl::XRootDStatus st = pFile->Open( pUrl->GetURL(), flags, mode );
+        XrdCl::XRootDStatus st = pFile->Open( pUrl.GetURL(), flags, mode );
         if( !st.IsOK() )
           return st;
 
@@ -1627,7 +1683,7 @@ namespace
         pSize = info->GetSize();
         delete info;
 
-        if( pUrl->IsLocalFile() && pCkSumHelper && !pContinue )
+        if( pUrl.IsLocalFile() && pCkSumHelper && !pContinue )
           return pCkSumHelper->Initialize();
 
         return XRootDStatus();
@@ -1672,7 +1728,7 @@ namespace
           Log *log = DefaultEnv::GetLog();
           log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
                       ch->chunk.length, ch->chunk.offset,
-                      pUrl->GetURL().c_str(), ch->status.ToStr().c_str() );
+                      pUrl.GetURL().c_str(), ch->status.ToStr().c_str() );
           CleanUpChunks();
 
           //--------------------------------------------------------------------
@@ -1715,7 +1771,7 @@ namespace
       {
         // we are writing chunks in order so we can calc the checksum
         // in case of local files
-        if( pUrl->IsLocalFile() && pCkSumHelper && !pContinue )
+        if( pUrl.IsLocalFile() && pCkSumHelper && !pContinue )
           pCkSumHelper->Update( ci.buffer, ci.length );
 
         ChunkHandler *ch = new ChunkHandler(ci);
@@ -1764,11 +1820,11 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
-        if( pUrl->IsLocalFile() )
+        if( pUrl.IsLocalFile() )
         {
           if( pContinue )
             // in case of --continue option we have to calculate the checksum from scratch
-            return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
+            return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl.GetPath() );
 
           if( pCkSumHelper )
             return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
@@ -1851,7 +1907,7 @@ namespace
         return status;
       }
 
-      const XrdCl::URL           *pUrl;
+      const XrdCl::URL            pUrl;
       XrdCl::File                *pFile;
       uint8_t                     pParallel;
       std::queue<ChunkHandler *>  pChunks;
@@ -1860,14 +1916,6 @@ namespace
       std::string                 pWrtRecoveryRedir;
       std::string                 pLastURL;
   };
-
-  static XrdCl::XRootDStatus& UpdateErrMsg( XrdCl::XRootDStatus &status, const std::string &str )
-  {
-    std::string msg = status.GetErrorMessage();
-    msg += " (" + str + ")";
-    status.SetErrorMessage( msg );
-    return status;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -1967,8 +2015,8 @@ namespace XrdCl
       pProperties->Get( "nbXcpSources",  nbXcpSources );
 
     if( force && continue_ )
-      return XRootDStatus( stError, errInvalidArgs, EINVAL,
-                           "Invalid argument combination: continue + force." );
+      return Result( stError, errInvalidArgs, EINVAL,
+                     "Invalid argument combination: continue + force." );
 
     //--------------------------------------------------------------------------
     // Start the cp t/o timer if necessary
@@ -1988,13 +2036,13 @@ namespace XrdCl
     {
       checkSumType = Utils::InferChecksumType( GetSource(), GetTarget(), zip );
       if( checkSumType.empty() )
-        return XRootDStatus( stError, errCheckSumError, ENOTSUP, "Could not infer checksum type." );
+        return Result( stError, errCheckSumError, ENOTSUP, "Could not infer checksum type." );
       else
         log->Info( UtilityMsg, "Using inferred checksum type: %s.", checkSumType.c_str() );
     }
 
     if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
-      return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+      return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
@@ -2015,11 +2063,11 @@ namespace XrdCl
     }
 
     XRootDStatus st = src->Initialize();
-    if( !st.IsOK() ) return UpdateErrMsg( st, "source" );
+    if( !st.IsOK() ) return Result( st, "source" );
     uint64_t size = src->GetSize() >= 0 ? src->GetSize() : 0;
 
     if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
-      return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+      return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
     std::unique_ptr<Destination> dest;
     URL newDestUrl( GetTarget() );
@@ -2039,7 +2087,7 @@ namespace XrdCl
         newDestUrl.SetParams( params );
  //     makeDir = true; // Backward compatability for xroot destinations!!!
       }
-      dest.reset( new XRootDDestination( &newDestUrl, parallelChunks, checkSumType ) );
+      dest.reset( new XRootDDestination( newDestUrl, parallelChunks, checkSumType ) );
     }
 
     dest->SetForce( force );
@@ -2048,10 +2096,10 @@ namespace XrdCl
     dest->SetMakeDir( makeDir );
     dest->SetContinue( continue_ );
     st = dest->Initialize();
-    if( !st.IsOK() ) return UpdateErrMsg( st, "destination" );
+    if( !st.IsOK() ) return Result( st, "destination" );
 
     if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
-      return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+      return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
     //--------------------------------------------------------------------------
     // Copy the chunks
@@ -2060,7 +2108,7 @@ namespace XrdCl
     {
       size -= dest->GetSize();
       XrdCl::XRootDStatus st = src->StartAt( dest->GetSize() );
-      if( !st.IsOK() ) return st;
+      if( !st.IsOK() ) return Result( st );
     }
 
     ChunkInfo chunkInfo;
@@ -2074,13 +2122,13 @@ namespace XrdCl
     {
       st = src->GetChunk( chunkInfo );
       if( !st.IsOK() )
-        return UpdateErrMsg( st, "source" );
+        return Result( st, "source" );
 
       if( st.IsOK() && st.code == suDone )
         break;
 
       if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
-        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+        return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
       if( xRate )
       {
@@ -2117,9 +2165,9 @@ namespace XrdCl
             log->Warning( UtilityMsg, "Transfer rate dropped below requested ehreshold,"
                                       " trying different source!" );
             XRootDStatus st = src->TryOtherServer();
-            if( !st.IsOK() ) return XRootDStatus( stError, errThresholdExceeded, 0,
-                                                  "The transfer rate dropped below "
-                                                  "requested threshold!" );
+            if( !st.IsOK() ) return Result( stError, errThresholdExceeded, 0,
+                                            "The transfer rate dropped below "
+                                            "requested threshold!" );
             threshold_draining = true; // before the next measurement we need to drain
                                        // all the chunks that will come from the old server
           }
@@ -2142,10 +2190,10 @@ namespace XrdCl
         {
           pResults->Set( "LastURL", dest->GetLastURL() );
           pResults->Set( "WrtRecoveryRedir", dest->GetWrtRecoveryRedir() );
-          return st;
+          return Result( st );
         }
 
-        return UpdateErrMsg( st, "destination" );
+        return Result( st, "destination" );
       }
 
       total_processed += chunkInfo.length;
@@ -2154,13 +2202,13 @@ namespace XrdCl
       {
         progress->JobProgress( pJobId, total_processed, size );
         if( progress->ShouldCancel( pJobId ) )
-          return XRootDStatus( stError, errOperationInterrupted, kXR_Cancelled, "The copy-job has been cancelled!" );
+          return Result( stError, errOperationInterrupted, kXR_Cancelled, "The copy-job has been cancelled!" );
       }
     }
 
     st = dest->Flush();
     if( !st.IsOK() )
-      return UpdateErrMsg( st, "destination" );
+      return Result( st, "destination" );
 
     //--------------------------------------------------------------------------
     // Copy extended attributes
@@ -2169,9 +2217,9 @@ namespace XrdCl
     {
       std::vector<xattr_t> xattrs;
       st = src->GetXAttr( xattrs );
-      if( !st.IsOK() ) return UpdateErrMsg( st, "source" );
+      if( !st.IsOK() ) return Result( st, "source" );
       st = dest->SetXAttr( xattrs );
-      if( !st.IsOK() ) return UpdateErrMsg( st, "destination" );
+      if( !st.IsOK() ) return Result( st, "destination" );
     }
 
     //--------------------------------------------------------------------------
@@ -2182,7 +2230,7 @@ namespace XrdCl
     {
       log->Error( UtilityMsg, "The declared source size is %ld bytes, but "
                   "received %ld bytes.", size, total_processed );
-      return XRootDStatus( stError, errDataError );
+      return Result( stError, errDataError );
     }
     pResults->Set( "size", total_processed );
 
@@ -2191,7 +2239,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     st = dest->Finalize();
     if( !st.IsOK() )
-      return UpdateErrMsg( st, "destination" );
+      return Result( st, "destination" );
 
     //--------------------------------------------------------------------------
     // Verify the checksums if needed
@@ -2204,7 +2252,7 @@ namespace XrdCl
       std::string targetCheckSum;
 
       if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
-        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+        return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
       //------------------------------------------------------------------------
       // Get the check sum at source
@@ -2229,13 +2277,13 @@ namespace XrdCl
         gettimeofday( &oEnd, 0 );
 
         if( !st.IsOK() )
-          return UpdateErrMsg( st, "source" );
+          return Result( st, "source" );
 
         pResults->Set( "sourceCheckSum", sourceCheckSum );
       }
 
       if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
-        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+        return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
       //------------------------------------------------------------------------
       // Get the check sum at destination
@@ -2247,13 +2295,13 @@ namespace XrdCl
         gettimeofday( &tStart, 0 );
         st = dest->GetCheckSum( targetCheckSum, checkSumType );
         if( !st.IsOK() )
-          return UpdateErrMsg( st, "destination" );
+          return Result( st, "destination" );
         gettimeofday( &tEnd, 0 );
         pResults->Set( "targetCheckSum", targetCheckSum );
       }
 
       if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
-        return XRootDStatus( stError, errOperationExpired, 0, "CPTimeout exceeded." );
+        return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
 
       //------------------------------------------------------------------------
       // Make sure the checksums are both lower case
@@ -2309,13 +2357,13 @@ namespace XrdCl
           if( !st.IsOK() )
             log->Error( UtilityMsg, "Failed to finalize the destination: %s", st.ToString().c_str() );
 
-          return XRootDStatus( stError, errCheckSumError, 0 );
+          return Result( stError, errCheckSumError, 0 );
         }
 
         log->Info( UtilityMsg, "Checksum verification: succeeded." );
       }
     }
 
-    return XRootDStatus();
+    return Result();
   }
 }
