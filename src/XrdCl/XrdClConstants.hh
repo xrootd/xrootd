@@ -20,6 +20,8 @@
 #define __XRD_CL_CONSTANTS_HH__
 
 #include <stdint.h>
+#include <unordered_map>
+#include <string>
 
 namespace XrdCl
 {
@@ -103,6 +105,70 @@ namespace XrdCl
   const char * const DefaultOpenRecovery       = "true";
   const char * const DefaultGlfnRedirector     = "";
   const char * const DefaultTlsDbgLvl          = "OFF";
+  const char * const DefaultClConfDir          = "";
+  const char * const DefaultClConfFile         = "";
+
+  static std::unordered_map<std::string, int> theDefaultInts
+    {
+      { "SubStreamsPerChannel",    DefaultSubStreamsPerChannel },
+      { "ConnectionWindow",        DefaultConnectionWindow },
+      { "ConnectionRetry",         DefaultConnectionRetry },
+      { "RequestTimeout",          DefaultRequestTimeout },
+      { "StreamTimeout",           DefaultStreamTimeout },
+      { "TimeoutResolution",       DefaultTimeoutResolution },
+      { "StreamErrorWindow",       DefaultStreamErrorWindow },
+      { "RunForkHandler",          DefaultRunForkHandler },
+      { "RedirectLimit",           DefaultRedirectLimit },
+      { "WorkerThreads",           DefaultWorkerThreads },
+      { "CPChunkSize",             DefaultCPChunkSize },
+      { "CPParallelChunks",        DefaultCPParallelChunks },
+      { "DataServerTTL",           DefaultDataServerTTL },
+      { "LoadBalancerTTL",         DefaultLoadBalancerTTL },
+      { "CPInitTimeout",           DefaultCPInitTimeout },
+      { "CPTPCTimeout",            DefaultCPTPCTimeout },
+      { "CPTimeout",               DefaultCPTimeout },
+      { "TCPKeepAlive",            DefaultTCPKeepAlive },
+      { "TCPKeepAliveTime",        DefaultTCPKeepAliveTime },
+      { "TCPKeepAliveInterval",    DefaultTCPKeepAliveInterval },
+      { "TCPKeepAliveProbes",      DefaultTCPKeepAliveProbes },
+      { "MultiProtocol",           DefaultMultiProtocol },
+      { "ParallelEvtLoop",         DefaultParallelEvtLoop },
+      { "MetalinkProcessing",      DefaultMetalinkProcessing },
+      { "LocalMetalinkFile",       DefaultLocalMetalinkFile },
+      { "XRateThreshold",          DefaultXRateThreshold },
+      { "XCpBlockSize",            DefaultXCpBlockSize },
+      { "NoDelay",                 DefaultNoDelay },
+      { "AioSignal",               DefaultAioSignal },
+      { "PreferIPv4",              DefaultPreferIPv4 },
+      { "MaxMetalinkWait",         DefaultMaxMetalinkWait },
+      { "PreserveLocateTried",     DefaultPreserveLocateTried },
+      { "NotAuthorizedRetryLimit", DefaultNotAuthorizedRetryLimit },
+      { "PreserveXAttrs",          DefaultPreserveXAttrs },
+      { "NoTlsOK",                 DefaultNoTlsOK },
+      { "TlsNoData",               DefaultTlsNoData },
+      { "TlsMetalink",             DefaultTlsMetalink },
+      { "ZipMtlnCksum",            DefaultZipMtlnCksum },
+      { "IPNoShuffle",             DefaultIPNoShuffle },
+      { "WantTlsOnNoPgrw",         DefaultWantTlsOnNoPgrw },
+      { "RetryWrtAtLBLimit",       DefaultRetryWrtAtLBLimit }
+    };
+
+  static std::unordered_map<std::string, std::string> theDefaultStrs
+    {
+      { "PollerPreference",   DefaultPollerPreference },
+      { "NetworkStack",       DefaultNetworkStack },
+      { "ClientMonitor",      DefaultClientMonitor },
+      { "ClientMonitorParam", DefaultClientMonitorParam },
+      { "PlugInConfDir",      DefaultPlugInConfDir },
+      { "PlugIn",             DefaultPlugIn },
+      { "ReadRecovery",       DefaultReadRecovery },
+      { "WriteRecovery",      DefaultWriteRecovery },
+      { "OpenRecovery",       DefaultOpenRecovery },
+      { "GlfnRedirector",     DefaultGlfnRedirector },
+      { "TlsDbgLvl",          DefaultTlsDbgLvl },
+      { "ClConfDir",          DefaultClConfDir },
+      { "DefaultClConfFile",  DefaultClConfFile }
+    };
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

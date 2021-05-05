@@ -50,3 +50,9 @@ def EnvGetInt( key ):
         If key does not exist in the environment returns None.
      """
      return client.EnvGetInt_cpp( key )
+
+def EnvGetDefault( key ):
+     """ Get the default value for the given key.
+         If key does not exist in the environment returns None.
+     """
+     return client.EnvGetDefault_cpp( key )

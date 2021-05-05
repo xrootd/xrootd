@@ -107,6 +107,29 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
+  //! Gets default parameter value for given key
+  //----------------------------------------------------------------------------
+  PyObject* EnvGetDefault_cpp( PyObject *self, PyObject *args )
+  {
+    char *key = 0;
+    // parse arguments
+    if( !PyArg_ParseTuple( args, "s", &key) )
+    {
+      return NULL;
+    }
+
+    std::string value;
+    if( XrdCl::DefaultEnv::GetEnv()->GetDefaultStringValue( key, value ) )
+      return Py_BuildValue( "s", value.c_str() );
+
+    int val;
+    if( XrdCl::DefaultEnv::GetEnv()->GetDefaultIntValue( key, val ) )
+      return Py_BuildValue( "s", std::to_string( val ).c_str() );
+
+    return Py_RETURN_NONE;
+  }
+
+  //----------------------------------------------------------------------------
   //! @return : client version, e.g.: v4.10.0
   //----------------------------------------------------------------------------
   PyObject* XrdVersion_cpp( PyObject *self, PyObject *args )

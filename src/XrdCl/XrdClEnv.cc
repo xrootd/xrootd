@@ -183,6 +183,28 @@ namespace XrdCl
     return true;
   }
 
+  //------------------------------------------------------------------------
+  // Get default integer value for the given key
+  //------------------------------------------------------------------------
+  bool Env::GetDefaultIntValue( const std::string &key, int &value )
+  {
+    auto itr = theDefaultInts.find( key );
+    if( itr == theDefaultInts.end() ) return false;
+    value = itr->second;
+    return true;
+  }
+
+  //------------------------------------------------------------------------
+  // Get default string value for the given key
+  //------------------------------------------------------------------------
+  bool Env::GetDefaultStringValue( const std::string &key, std::string &value )
+  {
+    auto itr = theDefaultStrs.find( key );
+    if( itr == theDefaultStrs.end() ) return false;
+    value = itr->second;
+    return true;
+  }
+
   //----------------------------------------------------------------------------
   // Get a string from the environment
   //----------------------------------------------------------------------------

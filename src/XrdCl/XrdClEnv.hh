@@ -88,6 +88,26 @@ namespace XrdCl
       bool ImportString( const std::string &key, const std::string &shellKey );
 
       //------------------------------------------------------------------------
+      //! Get default integer value for the given key
+      //! @param key   : the key
+      //! @param value : output parameter, default value corresponding to
+      //!                the key
+      //! @return      : true if a default integer value for the given key
+      //!                exists, false otherwise
+      //------------------------------------------------------------------------
+      bool GetDefaultIntValue( const std::string &key, int &value );
+
+      //------------------------------------------------------------------------
+      //! Get default string value for the given key
+      //! @param key   : the key
+      //! @param value : output parameter, default value corresponding to
+      //!                the key
+      //! @return      : true if a default string value for the given key
+      //!                exists, false otherwise
+      //------------------------------------------------------------------------
+      bool GetDefaultStringValue( const std::string &key, std::string &value );
+
+      //------------------------------------------------------------------------
       // Lock the environment for writing
       //------------------------------------------------------------------------
       void WriteLock()
