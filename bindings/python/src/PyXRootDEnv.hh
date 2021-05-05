@@ -126,7 +126,7 @@ namespace PyXRootD
     if( XrdCl::DefaultEnv::GetEnv()->GetDefaultIntValue( key, val ) )
       return Py_BuildValue( "s", std::to_string( val ).c_str() );
 
-    return Py_RETURN_NONE;
+    Py_RETURN_NONE;
   }
 
   //----------------------------------------------------------------------------
