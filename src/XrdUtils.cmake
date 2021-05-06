@@ -41,7 +41,6 @@ add_library(
                                 XrdSys/XrdSysIOEventsPollKQ.icc
                                 XrdSys/XrdSysIOEventsPollPoll.icc
                                 XrdSys/XrdSysIOEventsPollPort.icc
-                                XrdSys/XrdSysLinuxSemaphore.hh
                                 XrdSys/XrdSysLogPI.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
   XrdSys/XrdSysLogging.cc       XrdSys/XrdSysLogging.hh

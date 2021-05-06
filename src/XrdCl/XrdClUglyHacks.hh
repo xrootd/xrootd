@@ -25,17 +25,11 @@
 #ifndef __XRD_CL_UGLY_HACKS_HH__
 #define __XRD_CL_UGLY_HACKS_HH__
 
-#include "XrdSys/XrdSysLinuxSemaphore.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
 {
-#if defined(__linux__) && defined(HAVE_ATOMICS) && !USE_LIBC_SEMAPHORE
-  typedef XrdSys::LinuxSemaphore Semaphore;
-#else
   typedef XrdSysSemaphore Semaphore;
-#endif
-
 }
 
 #endif // __XRD_CL_UGLY_HACKS_HH__

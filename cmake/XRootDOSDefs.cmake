@@ -55,12 +55,6 @@ if( CMAKE_COMPILER_IS_GNUCXX )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-strict-aliasing" )
   endif()
 
-  # for 4.9.3 or greater the 'omit-frame-pointer' 
-  # interfears  with custom semaphore implementation
-  if( (GCC_VERSION VERSION_GREATER 4.9.2) AND (USE_LIBC_SEMAPHORE EQUAL 0) )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer" )
-  endif()
-  
   if( GCC_VERSION VERSION_GREATER 4.8.0 )
   	set( XrdClPipelines TRUE )
   endif()
