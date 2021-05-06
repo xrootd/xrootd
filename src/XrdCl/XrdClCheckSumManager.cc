@@ -21,7 +21,6 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksLoader.hh"
 #include "XrdCks/XrdCksCalc.hh"

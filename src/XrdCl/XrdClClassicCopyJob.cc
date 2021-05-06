@@ -31,7 +31,6 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCks/XrdCksCalc.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClZipArchiveReader.hh"
 #include "XrdCl/XrdClPostMaster.hh"
@@ -969,7 +968,7 @@ namespace
       class ChunkHandler: public XrdCl::ResponseHandler
       {
         public:
-          ChunkHandler(): sem( new XrdCl::Semaphore(0) ) {}
+          ChunkHandler(): sem( new XrdSysSemaphore(0) ) {}
           virtual ~ChunkHandler() { delete sem; }
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    *response )
@@ -987,7 +986,7 @@ namespace
             sem->Post();
           }
 
-        XrdCl::Semaphore    *sem;
+        XrdSysSemaphore     *sem;
         XrdCl::ChunkInfo     chunk;
         XrdCl::XRootDStatus  status;
       };
@@ -1872,7 +1871,7 @@ namespace
       {
         public:
           ChunkHandler( XrdCl::ChunkInfo ci ):
-            sem( new XrdCl::Semaphore(0) ),
+            sem( new XrdSysSemaphore(0) ),
             chunk(ci) {}
           virtual ~ChunkHandler() { delete sem; }
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
@@ -1883,7 +1882,7 @@ namespace
             sem->Post();
           }
 
-          XrdCl::Semaphore       *sem;
+          XrdSysSemaphore        *sem;
           XrdCl::ChunkInfo        chunk;
           XrdCl::XRootDStatus     status;
       };

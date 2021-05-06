@@ -28,7 +28,6 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 
@@ -48,7 +47,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       FilterHandler( XrdCl::MessageFilter *filter ):
-        pSem( new XrdCl::Semaphore(0) ), pFilter( filter ), pMsg( 0 )
+        pSem( new XrdSysSemaphore(0) ), pFilter( filter ), pMsg( 0 )
       {
       }
 
@@ -129,7 +128,7 @@ namespace
       FilterHandler(const FilterHandler &other);
       FilterHandler &operator = (const FilterHandler &other);
 
-      XrdCl::Semaphore     *pSem;
+      XrdSysSemaphore     *pSem;
       XrdCl::MessageFilter *pFilter;
       XrdCl::Message       *pMsg;
       XrdCl::XRootDStatus   pStatus;
@@ -145,7 +144,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       StatusHandler( XrdCl::Message *msg ):
-        pSem( new XrdCl::Semaphore(0) ),
+        pSem( new XrdSysSemaphore(0) ),
         pMsg( msg ) {}
 
       //------------------------------------------------------------------------
@@ -180,7 +179,7 @@ namespace
       StatusHandler(const StatusHandler &other);
       StatusHandler &operator = (const StatusHandler &other);
 
-      XrdCl::Semaphore    *pSem;
+      XrdSysSemaphore    *pSem;
       XrdCl::XRootDStatus  pStatus;
       XrdCl::Message      *pMsg;
   };

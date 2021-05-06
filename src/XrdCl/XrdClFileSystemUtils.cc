@@ -25,7 +25,6 @@
 #include "XrdCl/XrdClFileSystemUtils.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClURL.hh"
 
 #include <vector>

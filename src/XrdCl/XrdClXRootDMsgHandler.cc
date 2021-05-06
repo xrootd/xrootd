@@ -29,7 +29,6 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClJobManager.hh"

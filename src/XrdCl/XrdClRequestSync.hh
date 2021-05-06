@@ -26,7 +26,6 @@
 #define __XRD_CL_REQUEST_SYNC_HH__
 
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 
 namespace XrdCl
 {
@@ -43,8 +42,8 @@ namespace XrdCl
       //! @param reqQuota number of requests to be run in parallel
       //------------------------------------------------------------------------
       RequestSync( uint32_t reqTotal, uint32_t reqQuota ):
-        pQuotaSem( new Semaphore( reqQuota ) ),
-        pTotalSem( new Semaphore( 0 ) ),
+        pQuotaSem( new XrdSysSemaphore( reqQuota ) ),
+        pTotalSem( new XrdSysSemaphore( 0 ) ),
         pRequestsLeft( reqTotal ),
         pFailureCounter( 0 )
       {
@@ -104,8 +103,8 @@ namespace XrdCl
       RequestSync &operator = (const RequestSync &other);
 
       XrdSysMutex      pMutex;
-      Semaphore       *pQuotaSem;
-      Semaphore       *pTotalSem;
+      XrdSysSemaphore *pQuotaSem;
+      XrdSysSemaphore *pTotalSem;
       uint32_t         pRequestsLeft;
       uint32_t         pFailureCounter;
   };

@@ -29,7 +29,6 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClDlgEnv.hh"
 #include "XrdOuc/XrdOucTPC.hh"
@@ -58,7 +57,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       TPCStatusHandler():
-        pSem( new XrdCl::Semaphore(0) ), pStatus(0)
+        pSem( new XrdSysSemaphore(0) ), pStatus(0)
       {
       }
 
@@ -85,7 +84,7 @@ namespace
       //------------------------------------------------------------------------
       // Get Mutex
       //------------------------------------------------------------------------
-      XrdCl::Semaphore *GetSemaphore()
+      XrdSysSemaphore *GetXrdSysSemaphore()
       {
         return pSem;
       }
@@ -102,7 +101,7 @@ namespace
       TPCStatusHandler(const TPCStatusHandler &other);
       TPCStatusHandler &operator = (const TPCStatusHandler &other);
 
-      XrdCl::Semaphore    *pSem;
+      XrdSysSemaphore     *pSem;
       XrdCl::XRootDStatus *pStatus;
   };
 
@@ -701,7 +700,7 @@ namespace XrdCl
     // Do the copy and follow progress
     //--------------------------------------------------------------------------
     TPCStatusHandler  statusHandler;
-    Semaphore        *sem  = statusHandler.GetSemaphore();
+    XrdSysSemaphore        *sem  = statusHandler.GetXrdSysSemaphore();
     StatInfo         *info   = 0;
 
     uint16_t tpcTimeout = 0;
@@ -820,7 +819,7 @@ namespace XrdCl
     // Do the copy and follow progress
     //--------------------------------------------------------------------------
     TPCStatusHandler  statusHandler;
-    Semaphore        *sem  = statusHandler.GetSemaphore();
+    XrdSysSemaphore  *sem  = statusHandler.GetXrdSysSemaphore();
     StatInfo         *info   = 0;
 
     uint16_t tpcTimeout = 0;

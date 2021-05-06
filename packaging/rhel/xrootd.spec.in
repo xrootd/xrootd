@@ -577,7 +577,6 @@ cmake  \
       -DXRD_PYTHON_REQ_VERSION=%{python3_pkgversion} \
 %endif
       -DUSER_VERSION=v%{version} \
-      -DUSE_LIBC_SEMAPHORE=%{use_libc_semaphore} ../
 
 make -i VERBOSE=1 %{?_smp_mflags}
 popd

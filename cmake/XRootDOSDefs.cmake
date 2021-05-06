@@ -15,11 +15,6 @@ set( XrdClPipelines FALSE )
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 set( LIBRARY_PATH_PREFIX "lib" )
 
-if( NOT DEFINED USE_LIBC_SEMAPHORE )
-    set(USE_LIBC_SEMAPHORE 1)
-endif()
-add_definitions( -DUSE_LIBC_SEMAPHORE=${USE_LIBC_SEMAPHORE} )
-
 #-------------------------------------------------------------------------------
 # Enable c++14
 #-------------------------------------------------------------------------------

@@ -36,7 +36,6 @@
 #include "XrdCl/XrdClFileTimer.hh"
 #include "XrdCl/XrdClResponseJob.hh"
 #include "XrdCl/XrdClJobManager.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 
 #ifdef WITH_XRDEC

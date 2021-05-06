@@ -28,8 +28,8 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClMessage.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdSys/XrdSysKernelBuffer.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
 {

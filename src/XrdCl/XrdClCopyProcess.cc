@@ -33,7 +33,6 @@
 #include "XrdCl/XrdClCopyJob.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClJobManager.hh"
-#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClConstants.hh"
 
@@ -51,7 +50,7 @@ namespace
                      XrdCl::CopyProgressHandler *progress,
                      uint16_t                    currentJob,
                      uint16_t                    totalJobs,
-                     XrdCl::Semaphore           *sem = 0 ):
+                     XrdSysSemaphore           *sem = 0 ):
         pJob(job), pProgress(progress), pCurrentJob(currentJob),
         pTotalJobs(totalJobs), pSem(sem),
         pRetryCnt( XrdCl::DefaultRetryWrtAtLBLimit )
@@ -163,7 +162,7 @@ namespace
       XrdCl::CopyProgressHandler *pProgress;
       uint16_t                    pCurrentJob;
       uint16_t                    pTotalJobs;
-      XrdCl::Semaphore           *pSem;
+      XrdSysSemaphore           *pSem;
       int                         pRetryCnt;
   };
 };
@@ -526,7 +525,7 @@ namespace XrdCl
         return XRootDStatus( stError, errOSError, 0,
                              "Unable to start job manager" );
 
-      Semaphore *sem = new Semaphore(0);
+      XrdSysSemaphore *sem = new XrdSysSemaphore(0);
       std::vector<QueuedCopyJob*> queued;
       for( it = pImpl->pJobs.begin(); it != pImpl->pJobs.end(); ++it )
       {
