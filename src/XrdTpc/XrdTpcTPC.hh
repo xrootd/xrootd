@@ -27,6 +27,13 @@ enum LogMask {
     All     = 0xff
 };
 
+
+struct CurlDeleter {
+    void operator()(CURL *curl);
+};
+using ManagedCurlHandle = std::unique_ptr<CURL, CurlDeleter>;
+
+
 class TPCHandler : public XrdHttpExtHandler {
 public:
     TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv);

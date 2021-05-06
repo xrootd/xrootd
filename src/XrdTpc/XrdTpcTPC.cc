@@ -32,6 +32,12 @@ XrdSysMutex TPCHandler::m_monid_mutex;
 XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
 
 
+void CurlDeleter::operator()(CURL *curl)
+{
+    if (curl) curl_easy_cleanup(curl);
+}
+
+
 // We need to utilize the full URL (including the query string), not just the
 // resource name.  The query portion is hidden in the `xrd-http-query` header;
 // we take this out and combine it with the resource name.
@@ -615,8 +621,8 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PUSH_START", "Starting a push request");
 
-    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curlPtr(curl_easy_init(), &curl_easy_cleanup);
-    CURL *curl = curlPtr.get();
+    ManagedCurlHandle curlPtr(curl_easy_init());
+    auto curl = curlPtr.get();
     if (!curl) {
         char msg[] = "Failed to initialize internal transfer resources";
         rec.status = 500;
@@ -688,8 +694,8 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PULL_START", "Starting a push request");
 
-    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curlPtr(curl_easy_init(), &curl_easy_cleanup);
-    CURL *curl = curlPtr.get();
+    ManagedCurlHandle curlPtr(curl_easy_init());
+    auto curl = curlPtr.get();
     if (!curl) {
             char msg[] = "Failed to initialize internal transfer resources";
             rec.status = 500;

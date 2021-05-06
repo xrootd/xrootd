@@ -275,8 +275,10 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     handles.reserve(concurrency);
     handles.push_back(new State());
     handles[0]->Move(state);
+    std::vector<ManagedCurlHandle> curl_handles;
     for (size_t idx = 1; idx < concurrency; idx++) {
         handles.push_back(handles[0]->Duplicate());
+        curl_handles.emplace_back(handles.back()->GetHandle());
     }
 
     // Create the multi-handle and add in the current transfer to it.
