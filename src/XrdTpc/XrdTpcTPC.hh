@@ -102,6 +102,7 @@ private:
                            size_t streams, TPCLogRecord &rec);
     int RunCurlWithStreamsImpl(XrdHttpExtReq &req, TPC::State &state,
                            size_t streams, std::vector<TPC::State*> &streams_handles,
+                           std::vector<ManagedCurlHandle> &curl_handles,
                            TPCLogRecord &rec);
 #else
     int RunCurlBasic(CURL *curl, XrdHttpExtReq &req, TPC::State &state,

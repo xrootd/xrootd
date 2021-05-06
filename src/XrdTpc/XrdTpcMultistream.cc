@@ -257,7 +257,8 @@ private:
 
 
 int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
-    size_t streams, std::vector<State*> &handles, TPCLogRecord &rec)
+    size_t streams, std::vector<State*> &handles,
+    std::vector<ManagedCurlHandle> &curl_handles, TPCLogRecord &rec)
 {
     int result;
     bool success;
@@ -275,7 +276,6 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     handles.reserve(concurrency);
     handles.push_back(new State());
     handles[0]->Move(state);
-    std::vector<ManagedCurlHandle> curl_handles;
     for (size_t idx = 1; idx < concurrency; idx++) {
         handles.push_back(handles[0]->Duplicate());
         curl_handles.emplace_back(handles.back()->GetHandle());
@@ -492,9 +492,10 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
 int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
     size_t streams, TPCLogRecord &rec)
 {
+    std::vector<ManagedCurlHandle> curl_handles;
     std::vector<State*> handles;
     try {
-        int retval = RunCurlWithStreamsImpl(req, state, streams, handles, rec);
+        int retval = RunCurlWithStreamsImpl(req, state, streams, handles, curl_handles, rec);
         for (std::vector<State*>::iterator state_iter = handles.begin();
              state_iter != handles.end();
              state_iter++) {
