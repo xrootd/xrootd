@@ -44,8 +44,9 @@
 
 #include "XrdOuc/XrdOucCRC.hh"
 
-#include "XrdSys/XrdSysPageSize.hh"
 #include "XrdSys/XrdSysKernelBuffer.hh"
+#include "XrdSys/XrdSysPageSize.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include <sstream>
 #include <memory>

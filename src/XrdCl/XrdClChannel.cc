@@ -128,7 +128,7 @@ namespace
       FilterHandler(const FilterHandler &other);
       FilterHandler &operator = (const FilterHandler &other);
 
-      XrdSysSemaphore     *pSem;
+      XrdSysSemaphore      *pSem;
       XrdCl::MessageFilter *pFilter;
       XrdCl::Message       *pMsg;
       XrdCl::XRootDStatus   pStatus;
@@ -179,7 +179,7 @@ namespace
       StatusHandler(const StatusHandler &other);
       StatusHandler &operator = (const StatusHandler &other);
 
-      XrdSysSemaphore    *pSem;
+      XrdSysSemaphore     *pSem;
       XrdCl::XRootDStatus  pStatus;
       XrdCl::Message      *pMsg;
   };

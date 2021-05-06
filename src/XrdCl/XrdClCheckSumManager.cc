@@ -28,6 +28,7 @@
 #include "XrdCks/XrdCksCalccrc32.hh"
 #include "XrdCks/XrdCksCalcadler32.hh"
 #include "XrdSys/XrdSysE2T.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdVersion.hh"
 
 #include <sys/types.h>

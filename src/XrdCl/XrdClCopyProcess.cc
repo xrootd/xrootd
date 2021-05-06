@@ -35,6 +35,7 @@
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include <sys/time.h>
 
@@ -50,7 +51,7 @@ namespace
                      XrdCl::CopyProgressHandler *progress,
                      uint16_t                    currentJob,
                      uint16_t                    totalJobs,
-                     XrdSysSemaphore           *sem = 0 ):
+                     XrdSysSemaphore            *sem = 0 ):
         pJob(job), pProgress(progress), pCurrentJob(currentJob),
         pTotalJobs(totalJobs), pSem(sem),
         pRetryCnt( XrdCl::DefaultRetryWrtAtLBLimit )
@@ -162,7 +163,7 @@ namespace
       XrdCl::CopyProgressHandler *pProgress;
       uint16_t                    pCurrentJob;
       uint16_t                    pTotalJobs;
-      XrdSysSemaphore           *pSem;
+      XrdSysSemaphore            *pSem;
       int                         pRetryCnt;
   };
 };

@@ -99,7 +99,7 @@ namespace XrdCl
     protected:
       std::queue<Item>  pQueue;
       XrdSysMutex       pMutex;
-      XrdSysSemaphore        *pSem;
+      XrdSysSemaphore  *pSem;
   };
 }
 

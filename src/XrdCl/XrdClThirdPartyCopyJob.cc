@@ -32,6 +32,7 @@
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClDlgEnv.hh"
 #include "XrdOuc/XrdOucTPC.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 #include <iostream>
@@ -700,7 +701,7 @@ namespace XrdCl
     // Do the copy and follow progress
     //--------------------------------------------------------------------------
     TPCStatusHandler  statusHandler;
-    XrdSysSemaphore        *sem  = statusHandler.GetXrdSysSemaphore();
+    XrdSysSemaphore  *sem  = statusHandler.GetXrdSysSemaphore();
     StatInfo         *info   = 0;
 
     uint16_t tpcTimeout = 0;
