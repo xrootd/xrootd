@@ -615,8 +615,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PUSH_START", "Starting a push request");
 
-    auto curl_deleter = [](CURL *curl) { curl_easy_cleanup(curl); };
-    std::unique_ptr<CURL, decltype(curl_deleter)> curlPtr(curl_easy_init(), curl_deleter);
+    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curlPtr(curl_easy_init(), &curl_easy_cleanup);
     CURL *curl = curlPtr.get();
     if (!curl) {
         char msg[] = "Failed to initialize internal transfer resources";
@@ -689,8 +688,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PULL_START", "Starting a push request");
 
-    auto curl_deleter = [](CURL *curl) { curl_easy_cleanup(curl); };
-    std::unique_ptr<CURL, decltype(curl_deleter)> curlPtr(curl_easy_init(), curl_deleter);
+    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curlPtr(curl_easy_init(), &curl_easy_cleanup);
     CURL *curl = curlPtr.get();
     if (!curl) {
             char msg[] = "Failed to initialize internal transfer resources";
