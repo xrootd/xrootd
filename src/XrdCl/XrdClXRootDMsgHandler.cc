@@ -43,6 +43,7 @@
 
 #include "XrdSys/XrdSysPlatform.hh" // same as above
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 #include <sstream>
 #include <numeric>

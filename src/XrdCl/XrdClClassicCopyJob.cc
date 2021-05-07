@@ -38,6 +38,7 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdClXCpCtx.hh"
 #include "XrdSys/XrdSysE2T.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include <memory>
 #include <mutex>

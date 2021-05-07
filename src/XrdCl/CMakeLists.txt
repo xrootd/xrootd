@@ -90,7 +90,6 @@ add_library(
   XrdClJobManager.cc             XrdClJobManager.hh
                                  XrdClResponseJob.hh
   XrdClFileTimer.cc              XrdClFileTimer.hh
-                                 XrdClUglyHacks.hh
                                  XrdClPlugInInterface.hh
   XrdClPlugInManager.cc          XrdClPlugInManager.hh
                                  XrdClPropertyList.hh

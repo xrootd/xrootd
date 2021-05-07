@@ -3,11 +3,8 @@
 #-------------------------------------------------------------------------------
 %if %{?rhel:1}%{!?rhel:0}
     # starting with rhel 7 we have systemd and macaroons,
-    # also glibc semaphores are fixed
-    %if %{rhel} >= 7
         %define use_systemd 1
         %define have_macaroons 1
-		%define use_libc_semaphore 1
 
         %if %{rhel} == 7
 			# we build both python2 and python3 bindings for EPEL7
@@ -20,15 +17,6 @@
 			%define python3only 1
 			%define python2and3 0
         %endif
-    %else
-        %define use_systemd 0
-        %define have_macaroons 0
- 		%define use_libc_semaphore 0
-		# we only build python2 bindings for EPEL<=6
-		%define python2only 1
-		%define python3only 0
-		%define python2and3 0
-    %endif
 %else
     # do we have macaroons ?
     %if %{?fedora}%{!?fedora:0} >= 28
@@ -42,12 +30,6 @@
     %else
         %define use_systemd 0
     %endif
-	# can we use glibc semaphores ?
-	%if %{?fedora}%{!?fedora:0} >= 22
-	    %define use_libc_semaphore 1
-	%else
-	    %define use_libc_semaphore 0
-	%endif
     # we only build python3 bindings for fedora
 	%define python2only 0
 	%define python3only 1
@@ -609,7 +591,7 @@ cmake  \
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
       -DXRDCLHTTP_SUBMODULE=TRUE \
 %endif
-      -DUSE_LIBC_SEMAPHORE=%{use_libc_semaphore} ../
+      ../
 
 make -i VERBOSE=1 %{?_smp_mflags}
 popd
