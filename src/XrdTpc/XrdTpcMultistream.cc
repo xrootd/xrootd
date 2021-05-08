@@ -58,12 +58,6 @@ public:
              it != m_active_handles.end();
              it++) {
             curl_multi_remove_handle(m_handle, *it);
-            curl_easy_cleanup(*it);
-        }
-        for (std::vector<CURL *>::const_iterator it = m_avail_handles.begin();
-             it != m_avail_handles.end();
-             it++) {
-            curl_easy_cleanup(*it);
         }
         curl_multi_cleanup(m_handle);
     }
@@ -263,7 +257,8 @@ private:
 
 
 int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
-    size_t streams, std::vector<State*> &handles, TPCLogRecord &rec)
+    size_t streams, std::vector<State*> &handles,
+    std::vector<ManagedCurlHandle> &curl_handles, TPCLogRecord &rec)
 {
     int result;
     bool success;
@@ -283,6 +278,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
     handles[0]->Move(state);
     for (size_t idx = 1; idx < concurrency; idx++) {
         handles.push_back(handles[0]->Duplicate());
+        curl_handles.emplace_back(handles.back()->GetHandle());
     }
 
     // Create the multi-handle and add in the current transfer to it.
@@ -496,9 +492,10 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
 int TPCHandler::RunCurlWithStreams(XrdHttpExtReq &req, State &state,
     size_t streams, TPCLogRecord &rec)
 {
+    std::vector<ManagedCurlHandle> curl_handles;
     std::vector<State*> handles;
     try {
-        int retval = RunCurlWithStreamsImpl(req, state, streams, handles, rec);
+        int retval = RunCurlWithStreamsImpl(req, state, streams, handles, curl_handles, rec);
         for (std::vector<State*>::iterator state_iter = handles.begin();
              state_iter != handles.end();
              state_iter++) {

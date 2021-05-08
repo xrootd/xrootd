@@ -3,6 +3,7 @@
  *
  * Helper class for managing the state of a single TPC request.
  */
+#pragma once
 
 #include <memory>
 #include <vector>

@@ -27,6 +27,13 @@ enum LogMask {
     All     = 0xff
 };
 
+
+struct CurlDeleter {
+    void operator()(CURL *curl);
+};
+using ManagedCurlHandle = std::unique_ptr<CURL, CurlDeleter>;
+
+
 class TPCHandler : public XrdHttpExtHandler {
 public:
     TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv);
@@ -95,6 +102,7 @@ private:
                            size_t streams, TPCLogRecord &rec);
     int RunCurlWithStreamsImpl(XrdHttpExtReq &req, TPC::State &state,
                            size_t streams, std::vector<TPC::State*> &streams_handles,
+                           std::vector<ManagedCurlHandle> &curl_handles,
                            TPCLogRecord &rec);
 #else
     int RunCurlBasic(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
