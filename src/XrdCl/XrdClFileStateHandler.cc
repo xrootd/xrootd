@@ -875,7 +875,7 @@ namespace XrdCl
       log->Error( FileMsg, "[0x%x@%s] Trying to open invalid url: %s",
                   this, pFileUrl->GetPath().c_str(), url.c_str() );
       pStatus    = XRootDStatus( stError, errInvalidArgs );
-      pFileState = Error;
+      pFileState = Closed;
       return pStatus;
     }
 
@@ -934,7 +934,7 @@ namespace XrdCl
     {
       delete openHandler;
       pStatus    = st;
-      pFileState = Error;
+      pFileState = Closed;
       return st;
     }
     return st;
@@ -957,8 +957,10 @@ namespace XrdCl
     if( pFileState == CloseInProgress )
       return XRootDStatus( stError, errInProgress );
 
-    if( pFileState == OpenInProgress || pFileState == Closed ||
-        pFileState == Recovering )
+    if( pFileState == Closed )
+      return XRootDStatus( stOK, suAlreadyDone );
+
+    if( pFileState == OpenInProgress || pFileState == Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
     if( !pAllowBundledClose && !pInTheFly.empty() )
