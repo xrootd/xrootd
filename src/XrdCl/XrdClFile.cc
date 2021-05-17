@@ -144,7 +144,7 @@ namespace XrdCl
   {
     SyncResponseHandler handler;
     XRootDStatus st = Close( &handler, timeout );
-    if( !st.IsOK() )
+    if( !st.IsOK() || st.code == suAlreadyDone )
       return st;
 
     return MessageUtils::WaitForStatus( &handler );
