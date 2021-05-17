@@ -998,8 +998,11 @@ namespace XrdCl
     {
       // an invalid-session error means the connection to the server has been
       // closed, which in turn means that the server closed the file already
-      if( st.code == errInvalidSession )
+      if( st.code == errInvalidSession  || st.code == errSocketDisconnected ||
+          st.code == errConnectionError || st.code == errSocketOptError     ||
+          st.code == errPollerError     || st.code == errSocketError           )
       {
+        pFileState = Closed;
         ResponseJob *job = new ResponseJob( closeHandler, new XRootDStatus(),
                                             nullptr, nullptr );
         DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
