@@ -18,7 +18,8 @@ set( LIBRARY_PATH_PREFIX "lib" )
 #-------------------------------------------------------------------------------
 # Enable c++14
 #-------------------------------------------------------------------------------
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -DOPENSSL_NO_FILENAMES" )
+set(CMAKE_CXX_STANDARD 14)
+
 
 #-------------------------------------------------------------------------------
 # Enable XrdCl::Pipelines for clang compiler
