@@ -61,43 +61,46 @@ namespace
 {
   struct Result
   {
-    Result( XrdCl::XRootDStatus &status, const std::string &str )
-    {
-      std::string msg = status.GetErrorMessage();
-      msg += " (" + str + ")";
-      status.SetErrorMessage( msg );
-      GlobalStatus() = status;
-    }
-
     template<typename ... Args>
-    Result( Args&&... args )
+    inline Result( Args&&... args )
     {
-      GlobalStatus() = XrdCl::XRootDStatus( std::forward<Args>(args)... );
+      Get() = XrdCl::XRootDStatus( std::forward<Args>(args)... );
     }
 
     inline operator XrdCl::XRootDStatus&()
     {
-      return GlobalStatus();
+      return Get();
     }
 
-    inline static const XrdCl::XRootDStatus& Get()
+    inline static XrdCl::XRootDStatus& Get()
     {
-      return GlobalStatus();
+      static XrdCl::XRootDStatus status;
+      return status;
     }
 
     Result( Result&& ) = delete;
     Result( const Result& ) = delete;
     Result& operator=( Result&& ) = delete;
     Result& operator=( Result& ) = delete;
-
-    private:
-
-      inline static XrdCl::XRootDStatus& GlobalStatus()
-      {
-        static XrdCl::XRootDStatus status;
-        return status;
-      };
   };
+
+  inline XrdCl::XRootDStatus& SourceError( XrdCl::XRootDStatus &status )
+  {
+    std::string msg = status.GetErrorMessage();
+    msg += " (source)";
+    status.SetErrorMessage( msg );
+    Result::Get() = status;
+    return status;
+  }
+
+  inline XrdCl::XRootDStatus& DestinationError( XrdCl::XRootDStatus &status )
+  {
+    std::string msg = status.GetErrorMessage();
+    msg += " (destination)";
+    status.SetErrorMessage( msg );
+    Result::Get() = status;
+    return status;
+  }
 
   //----------------------------------------------------------------------------
   //! Helper timer class
@@ -2063,7 +2066,7 @@ namespace XrdCl
     }
 
     XRootDStatus st = src->Initialize();
-    if( !st.IsOK() ) return Result( st, "source" );
+    if( !st.IsOK() ) return SourceError( st );
     uint64_t size = src->GetSize() >= 0 ? src->GetSize() : 0;
 
     if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
@@ -2096,7 +2099,7 @@ namespace XrdCl
     dest->SetMakeDir( makeDir );
     dest->SetContinue( continue_ );
     st = dest->Initialize();
-    if( !st.IsOK() ) return Result( st, "destination" );
+    if( !st.IsOK() ) return DestinationError( st );
 
     if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
       return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
@@ -2122,7 +2125,7 @@ namespace XrdCl
     {
       st = src->GetChunk( chunkInfo );
       if( !st.IsOK() )
-        return Result( st, "source" );
+        return SourceError( st);
 
       if( st.IsOK() && st.code == suDone )
         break;
@@ -2193,7 +2196,7 @@ namespace XrdCl
           return Result( st );
         }
 
-        return Result( st, "destination" );
+        return DestinationError( st );
       }
 
       total_processed += chunkInfo.length;
@@ -2208,7 +2211,7 @@ namespace XrdCl
 
     st = dest->Flush();
     if( !st.IsOK() )
-      return Result( st, "destination" );
+      return DestinationError( st );
 
     //--------------------------------------------------------------------------
     // Copy extended attributes
@@ -2217,9 +2220,9 @@ namespace XrdCl
     {
       std::vector<xattr_t> xattrs;
       st = src->GetXAttr( xattrs );
-      if( !st.IsOK() ) return Result( st, "source" );
+      if( !st.IsOK() ) return SourceError( st );
       st = dest->SetXAttr( xattrs );
-      if( !st.IsOK() ) return Result( st, "destination" );
+      if( !st.IsOK() ) return DestinationError( st );
     }
 
     //--------------------------------------------------------------------------
@@ -2239,7 +2242,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     st = dest->Finalize();
     if( !st.IsOK() )
-      return Result( st, "destination" );
+      return DestinationError( st );
 
     //--------------------------------------------------------------------------
     // Verify the checksums if needed
@@ -2277,7 +2280,7 @@ namespace XrdCl
         gettimeofday( &oEnd, 0 );
 
         if( !st.IsOK() )
-          return Result( st, "source" );
+          return SourceError( st );
 
         pResults->Set( "sourceCheckSum", sourceCheckSum );
       }
@@ -2295,7 +2298,7 @@ namespace XrdCl
         gettimeofday( &tStart, 0 );
         st = dest->GetCheckSum( targetCheckSum, checkSumType );
         if( !st.IsOK() )
-          return Result( st, "destination" );
+          return DestinationError( st );
         gettimeofday( &tEnd, 0 );
         pResults->Set( "targetCheckSum", targetCheckSum );
       }
