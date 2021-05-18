@@ -446,7 +446,7 @@ namespace XrdCl
   void AsyncSocketHandler::OnWriteWhileHandshaking()
   {
     XRootDStatus st;
-    if( !hswriter->HasMsg() )
+    if( !hswriter || !hswriter->HasMsg() )
     {
       if( !(st = DisableUplink()).IsOK() )
         OnFaultWhileHandshaking( st );
@@ -878,7 +878,7 @@ namespace XrdCl
                 pStreamName.c_str(), st.ToString().c_str() );
     delete pHSIncoming;
     pHSIncoming = 0;
-    hswriter->Reset();
+    if( hswriter ) hswriter->Reset();
 
     pStream->OnConnectError( pSubStreamNum, st );
   }
@@ -985,6 +985,12 @@ namespace XrdCl
 
   void AsyncSocketHandler::SendHSMsg()
   {
+    if( !hswriter )
+    {
+      OnFaultWhileHandshaking( XRootDStatus( stError, errInternal, 0,
+                                             "HS writer object missing!" ) );
+      return;
+    }
     hswriter->Reset( pHandShakeData->out );
     pHandShakeData->out = nullptr;
     XRootDStatus st;
