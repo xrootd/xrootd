@@ -831,12 +831,12 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
   
 int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 {
-   struct sockaddr_un unix;
+   struct sockaddr_un unixvar;
    int  plen = strlen(path), flen = strlen(fname);
 
 // Make sure we can fit everything in our buffer
 //
-   if ((plen + flen + 3) > (int)sizeof(unix.sun_path))
+   if ((plen + flen + 3) > (int)sizeof(unixvar.sun_path))
       {Log.Emsg("Config", "admin path", path, "too long");
        return 1;
       }
