@@ -903,7 +903,6 @@ fi
 %{_libdir}/libXrdSecpwd-5.so
 %{_libdir}/libXrdSecsss-5.so
 %{_libdir}/libXrdSecunix-5.so
-%{_libdir}/libXrdOssCsi-5.so
 %if %{?_with_scitokens:1}%{!?_with_scitokens:0}
 %{_libdir}/libXrdSecztn-5.so
 %endif
@@ -971,6 +970,7 @@ fi
 %{_libdir}/libXrdMacaroons-5.so
 %endif
 %{_libdir}/libXrdN2No2p-5.so
+%{_libdir}/libXrdOssCsi-5.so
 %{_libdir}/libXrdOssSIgpfsT-5.so
 %{_libdir}/libXrdServer.so.3*
 %{_libdir}/libXrdSsi-5.so
