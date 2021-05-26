@@ -208,6 +208,7 @@ namespace XrdCl
       authProtocol(0),
       authParams(0),
       authEnv(0),
+      finstcnt(0),
       openFiles(0),
       waitBarrier(0),
       protection(0),
@@ -694,9 +695,9 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( info->mutex );
     uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
     log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
-               "TTL: %d, allocated SIDs: %d, open files: %d",
+               "TTL: %d, allocated SIDs: %d, open files: %d, bound file objects: %d",
                info->streamName.c_str(), inactiveTime, ttl, allocatedSIDs,
-               info->openFiles );
+               info->openFiles, info->finstcnt );
 
     if( info->openFiles != 0 && info->finstcnt != 0 )
       return false;
