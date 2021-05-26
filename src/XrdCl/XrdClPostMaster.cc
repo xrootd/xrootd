@@ -486,6 +486,19 @@ namespace XrdCl
     //--------------------------------------------------------------------------
   }
 
+  //------------------------------------------------------------------------
+  // Decrement file object instance count bound to this channel
+  //------------------------------------------------------------------------
+  void PostMaster::DecFileInstCnt( const URL &url )
+  {
+    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
+    Channel *channel = GetChannel( url );
+
+    if( !channel ) return;
+
+    return channel->DecFileInstCnt();
+  }
+
   //----------------------------------------------------------------------------
   // Get the channel
   //----------------------------------------------------------------------------

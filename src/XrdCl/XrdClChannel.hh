@@ -178,6 +178,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       bool CanCollapse( const URL &url );
 
+      //------------------------------------------------------------------------
+      //! Decrement file object instance count bound to this channel
+      //------------------------------------------------------------------------
+      void DecFileInstCnt();
+
     private:
 
       URL                    pUrl;

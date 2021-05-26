@@ -386,6 +386,14 @@ namespace XrdCl
     return pStream->CanCollapse( url );
   }
 
+  //------------------------------------------------------------------------
+  // Decrement file object instance count bound to this channel
+  //------------------------------------------------------------------------
+  void Channel::DecFileInstCnt()
+  {
+    pTransport->DecFileInstCnt( pChannelData );
+  }
+
   //----------------------------------------------------------------------------
   // Query the transport handler
   //----------------------------------------------------------------------------

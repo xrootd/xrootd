@@ -782,6 +782,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
+    if( pSessionId ) // if the file object was bound to a physical connection
+      DefaultEnv::GetPostMaster()->DecFileInstCnt( *pDataServer );
+
     if( pReOpenHandler )
       pReOpenHandler->Destroy();
 

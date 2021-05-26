@@ -238,6 +238,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void CollapseRedirect( const URL &oldurl, const URL &newURL );
 
+      //------------------------------------------------------------------------
+      //! Decrement file object instance count bound to this channel
+      //------------------------------------------------------------------------
+      void DecFileInstCnt( const URL &url );
+
     private:
       Channel *GetChannel( const URL &url );
 

@@ -251,6 +251,7 @@ namespace XrdCl
     std::string                  authProtocolName;
     std::set<uint16_t>           sentOpens;
     std::set<uint16_t>           sentCloses;
+    uint32_t                     finstcnt; // file instance count
     uint32_t                     openFiles;
     time_t                       waitBarrier;
     XrdSecProtect               *protection;
@@ -697,7 +698,7 @@ namespace XrdCl
                info->streamName.c_str(), inactiveTime, ttl, allocatedSIDs,
                info->openFiles );
 
-    if( info->openFiles )
+    if( info->openFiles != 0 && info->finstcnt != 0 )
       return false;
 
     if( !allocatedSIDs && inactiveTime > ttl )
@@ -1443,7 +1444,10 @@ namespace XrdCl
         return NoAction;
       info->sentOpens.erase( sidIt );
       if( rsp->hdr.status == kXR_ok )
+      {
         ++info->openFiles;
+        ++info->finstcnt; // another file File object instance has been bound with this connection
+      }
       return NoAction;
     }
 
@@ -1529,6 +1533,17 @@ namespace XrdCl
     }
 
     return Status();
+  }
+
+  //------------------------------------------------------------------------
+  //! Decrement file object instance count bound to this channel
+  //------------------------------------------------------------------------
+  void XRootDTransport::DecFileInstCnt( AnyObject &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    if( info->finstcnt > 0 )
+      --info->finstcnt;
   }
 
   //----------------------------------------------------------------------------

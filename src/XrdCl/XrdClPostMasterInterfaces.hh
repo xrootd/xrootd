@@ -473,6 +473,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual Status GetSignature( Message *toSign, Message *&sign,
                                    AnyObject &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Decrement file object instance count bound to this channel
+      //------------------------------------------------------------------------
+      virtual void DecFileInstCnt( AnyObject &channelData ) = 0;
   };
 }
 

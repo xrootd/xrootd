@@ -247,6 +247,11 @@ namespace XrdCl
                                    XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
+      //! Decrement file object instance count bound to this channel
+      //------------------------------------------------------------------------
+      virtual void DecFileInstCnt( AnyObject &channelData );
+
+      //------------------------------------------------------------------------
       //! Wait until the program can safely exit
       //------------------------------------------------------------------------
       virtual void WaitBeforeExit();
