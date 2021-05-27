@@ -32,7 +32,8 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
-#include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClZipArchive.hh"
+#include "XrdCl/XrdClZipOperations.hh"
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
@@ -1025,7 +1026,7 @@ namespace
                        const std::string &ckSumType ):
                       XRootDSource( archive, chunkSize, parallelChunks, ckSumType ),
                       pFilename( filename ),
-                      pZipArchive( new XrdCl::ZipArchiveReader( *pFile ) )
+                      pZipArchive( new XrdCl::ZipArchive() )
       {
       }
 
@@ -1035,7 +1036,8 @@ namespace
       ~XRootDSourceZip()
       {
         CleanUpChunks();
-        XrdCl::XRootDStatus status = pZipArchive->Close();
+
+        XrdCl::WaitFor( XrdCl::CloseArchive( pZipArchive ) );
         delete pZipArchive;
       }
 
@@ -1051,20 +1053,23 @@ namespace
 
         std::string value;
         DefaultEnv::GetEnv()->GetString( "ReadRecovery", value );
-        pFile->SetProperty( "ReadRecovery", value );
+        pZipArchive->SetProperty( "ReadRecovery", value );
 
-        XRootDStatus st = pZipArchive->Open( pUrl->GetURL() );
+        XRootDStatus st = XrdCl::WaitFor( XrdCl::OpenArchive( pZipArchive, pUrl->GetURL(), XrdCl::OpenFlags::Read ) );
         if( !st.IsOK() )
           return st;
 
-        st = pZipArchive->Bind( pFilename );
+        st = pZipArchive->OpenFile( pFilename );
         if( !st.IsOK() )
           return st;
 
-        uint64_t size = 0;
-        st = pZipArchive->GetSize( pFilename, size );
+        XrdCl::StatInfo *info = 0;
+        st = pZipArchive->Stat( info );
         if( st.IsOK() )
-          pSize = size;
+        {
+          pSize = info->GetSize();
+          delete info;
+        }
         else
           return st;
 
@@ -1098,7 +1103,20 @@ namespace
       {
         // The ZIP archive by default contains a ZCRC32 checksum
         if( checkSumType == "zcrc32" )
-          return pZipArchive->ZCRC32( checkSum );
+        {
+          uint32_t cksum = 0;
+          auto st = pZipArchive->GetCRC32( pFilename, cksum );
+          if( !st.IsOK() ) return st;
+
+          XrdCksData ckSum;
+          ckSum.Set( "zcrc32" );
+          ckSum.Set( reinterpret_cast<void*>( &cksum ), sizeof( uint32_t ) );
+          char cksBuffer[265];
+          ckSum.Get( cksBuffer, 256 );
+          checkSum  = "zcrc32:";
+          checkSum += XrdCl::Utils::NormalizeChecksum( "zcrc32", cksBuffer );
+          return st;
+        }
 
         int useMtlnCksum = XrdCl::DefaultZipMtlnCksum;
         XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
@@ -1133,7 +1151,7 @@ namespace
       XRootDSourceZip &operator = (const XRootDSource &other);
 
       const std::string         pFilename;
-      XrdCl::ZipArchiveReader  *pZipArchive;
+      XrdCl::ZipArchive        *pZipArchive;
   };
 
   //----------------------------------------------------------------------------
