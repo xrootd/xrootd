@@ -330,10 +330,11 @@ namespace XrdCl
 
     // the file name exist in the archive but our user wants to append
     // a file with the same name
-    if( flags | OpenFlags::New )
+    if( flags & OpenFlags::New )
     {
       log->Dump( ZipMsg, "[0x%x] Open failed: file exists %s, cannot append.",
                          this, fn.c_str() );
+
       return XRootDStatus( stError, errInvalidOp );
     }
 
