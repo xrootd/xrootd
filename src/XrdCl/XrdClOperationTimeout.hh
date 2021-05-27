@@ -10,7 +10,6 @@
 
 #include <stdint.h>
 #include <time.h>
-
 #include <exception>
 
 namespace XrdCl
@@ -32,7 +31,7 @@ namespace XrdCl
       Timeout& operator=( const Timeout &to )
       {
         timeout = to.timeout;
-        start   = to.timeout;
+        start   = to.start;
         return *this;
       }
 
