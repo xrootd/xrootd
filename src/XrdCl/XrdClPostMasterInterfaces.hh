@@ -379,8 +379,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! HandHake
       //------------------------------------------------------------------------
-      virtual Status HandShake( HandShakeData *handShakeData,
-                                AnyObject     &channelData ) = 0;
+      virtual XRootDStatus HandShake( HandShakeData *handShakeData,
+                                      AnyObject     &channelData ) = 0;
 
       //------------------------------------------------------------------------
       // @return true if handshake has been done and stream is connected,

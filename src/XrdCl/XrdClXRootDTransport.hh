@@ -106,8 +106,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! HandShake
       //------------------------------------------------------------------------
-      virtual Status HandShake( HandShakeData *handShakeData,
-                                AnyObject     &channelData );
+      virtual XRootDStatus HandShake( HandShakeData *handShakeData,
+                                      AnyObject     &channelData );
 
       //------------------------------------------------------------------------
       // @return true if handshake has been done and stream is connected,
@@ -168,23 +168,23 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Marshal the outgoing message
       //------------------------------------------------------------------------
-      static Status MarshallRequest( Message *msg );
+      static XRootDStatus MarshallRequest( Message *msg );
 
       //------------------------------------------------------------------------
       //! Unmarshall the request - sometimes the requests need to be rewritten,
       //! so we need to unmarshall them
       //------------------------------------------------------------------------
-      static Status UnMarshallRequest( Message *msg );
+      static XRootDStatus UnMarshallRequest( Message *msg );
 
       //------------------------------------------------------------------------
       //! Unmarshall the body of the incoming message
       //------------------------------------------------------------------------
-      static Status UnMarshallBody( Message *msg, uint16_t reqType );
+      static XRootDStatus UnMarshallBody( Message *msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
       //! Unmarshall the body of the status response
       //------------------------------------------------------------------------
-      static Status UnMarshalStatusBody( Message *msg, uint16_t reqType );
+      static XRootDStatus UnMarshalStatusBody( Message *msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
       //! Unmarshall the header incoming message
@@ -267,13 +267,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Hand shake the main stream
       //------------------------------------------------------------------------
-      Status HandShakeMain( HandShakeData *handShakeData,
+      XRootDStatus HandShakeMain( HandShakeData *handShakeData,
                             AnyObject     &channelData );
 
       //------------------------------------------------------------------------
       // Hand shake a parallel stream
       //------------------------------------------------------------------------
-      Status HandShakeParallel( HandShakeData *handShakeData,
+      XRootDStatus HandShakeParallel( HandShakeData *handShakeData,
                                 AnyObject     &channelData );
 
       //------------------------------------------------------------------------
@@ -301,14 +301,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Process the server initial handshake response
       //------------------------------------------------------------------------
-      Status ProcessServerHS( HandShakeData     *hsData,
-                              XRootDChannelInfo *info );
+      XRootDStatus ProcessServerHS( HandShakeData     *hsData,
+                                    XRootDChannelInfo *info );
 
       //-----------------------------------------------------------------------
       // Process the protocol response
       //------------------------------------------------------------------------
-      Status ProcessProtocolResp( HandShakeData     *hsData,
-                                  XRootDChannelInfo *info );
+      XRootDStatus ProcessProtocolResp( HandShakeData     *hsData,
+                                        XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Generate the bind message
@@ -319,8 +319,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Generate the bind message
       //------------------------------------------------------------------------
-      Status ProcessBindResp( HandShakeData     *hsData,
-                              XRootDChannelInfo *info );
+      XRootDStatus ProcessBindResp( HandShakeData     *hsData,
+                                    XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Generate the login  message
@@ -331,21 +331,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Process the login response
       //------------------------------------------------------------------------
-      Status ProcessLogInResp( HandShakeData     *hsData,
+      XRootDStatus ProcessLogInResp( HandShakeData     *hsData,
                                XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Do the authentication
       //------------------------------------------------------------------------
-      Status DoAuthentication( HandShakeData     *hsData,
+      XRootDStatus DoAuthentication( HandShakeData     *hsData,
                                XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Get the initial credentials using one of the protocols
       //------------------------------------------------------------------------
-      Status GetCredentials( XrdSecCredentials *&credentials,
-                             HandShakeData      *hsData,
-                             XRootDChannelInfo  *info );
+      XRootDStatus GetCredentials( XrdSecCredentials *&credentials,
+                                   HandShakeData      *hsData,
+                                   XRootDChannelInfo  *info );
 
       //------------------------------------------------------------------------
       // Clean up the data structures created for the authentication process

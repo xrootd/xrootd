@@ -394,8 +394,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // HandShake
   //----------------------------------------------------------------------------
-  Status XRootDTransport::HandShake( HandShakeData *handShakeData,
-                                     AnyObject     &channelData )
+  XRootDStatus XRootDTransport::HandShake( HandShakeData *handShakeData,
+                                           AnyObject     &channelData )
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
@@ -407,7 +407,7 @@ namespace XrdCl
       log->Error( XRootDTransportMsg,
                   "[%s] Internal error: not enough substreams",
                   handShakeData->streamName.c_str() );
-      return Status( stFatal, errInternal );
+      return XRootDStatus( stFatal, errInternal );
     }
 
     if( handShakeData->subStreamId == 0 )
@@ -421,7 +421,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Hand shake the main stream
   //----------------------------------------------------------------------------
-  Status XRootDTransport::HandShakeMain( HandShakeData *handShakeData,
+  XRootDStatus XRootDTransport::HandShakeMain( HandShakeData *handShakeData,
                                          AnyObject     &channelData )
   {
     XRootDChannelInfo *info = 0;
@@ -437,7 +437,7 @@ namespace XrdCl
       handShakeData->out = GenerateInitialHSProtocol( handShakeData, info,
                                            ClientProtocolRequest::kXR_ExpLogin );
       sInfo.status = XRootDStreamInfo::HandShakeSent;
-      return Status( stOK, suContinue );
+      return XRootDStatus( stOK, suContinue );
     }
 
     //--------------------------------------------------------------------------
@@ -445,7 +445,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::HandShakeSent )
     {
-      Status st = ProcessServerHS( handShakeData, info );
+      XRootDStatus st = ProcessServerHS( handShakeData, info );
       if( st.IsOK() )
         sInfo.status = XRootDStreamInfo::HandShakeReceived;
       else
@@ -459,7 +459,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::HandShakeReceived )
     {
-      Status st = ProcessProtocolResp( handShakeData, info );
+      XRootDStatus st = ProcessProtocolResp( handShakeData, info );
 
       if( !st.IsOK() )
       {
@@ -472,12 +472,12 @@ namespace XrdCl
         handShakeData->out = GenerateProtocol( handShakeData, info,
                                           ClientProtocolRequest::kXR_ExpLogin );
         sInfo.status = XRootDStreamInfo::HandShakeReceived;
-        return Status( stOK, suRetry );
+        return XRootDStatus( stOK, suRetry );
       }
 
       handShakeData->out = GenerateLogIn( handShakeData, info );
       sInfo.status = XRootDStreamInfo::LoginSent;
-      return Status( stOK, suContinue );
+      return XRootDStatus( stOK, suContinue );
     }
 
     //--------------------------------------------------------------------------
@@ -486,7 +486,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::LoginSent )
     {
-      Status st = ProcessLogInResp( handShakeData, info );
+      XRootDStatus st = ProcessLogInResp( handShakeData, info );
 
       if( !st.IsOK() )
       {
@@ -505,7 +505,7 @@ namespace XrdCl
         {
           handShakeData->out = GenerateEndSession( handShakeData, info );
           sInfo.status = XRootDStreamInfo::EndSessionSent;
-          return Status( stOK, suContinue );
+          return XRootDStatus( stOK, suContinue );
         }
 
         sInfo.status = XRootDStreamInfo::Connected;
@@ -526,7 +526,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::AuthSent )
     {
-      Status st = DoAuthentication( handShakeData, info );
+      XRootDStatus st = DoAuthentication( handShakeData, info );
 
       if( !st.IsOK() )
       {
@@ -543,7 +543,7 @@ namespace XrdCl
         {
           handShakeData->out = GenerateEndSession( handShakeData, info );
           sInfo.status = XRootDStreamInfo::EndSessionSent;
-          return Status( stOK, suContinue );
+          return XRootDStatus( stOK, suContinue );
         }
 
         sInfo.status = XRootDStreamInfo::Connected;
@@ -559,7 +559,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::EndSessionSent )
     {
-      Status st = ProcessEndSessionResp( handShakeData, info );
+      XRootDStatus st = ProcessEndSessionResp( handShakeData, info );
 
       if( st.IsOK() && st.code == suDone )
       {
@@ -573,14 +573,14 @@ namespace XrdCl
       return st;
     }
 
-    return Status( stOK, suDone );
+    return XRootDStatus( stOK, suDone );
   }
 
   //----------------------------------------------------------------------------
   // Hand shake parallel stream
   //----------------------------------------------------------------------------
-  Status XRootDTransport::HandShakeParallel( HandShakeData *handShakeData,
-                                             AnyObject     &channelData )
+  XRootDStatus XRootDTransport::HandShakeParallel( HandShakeData *handShakeData,
+                                                   AnyObject     &channelData )
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
@@ -596,7 +596,7 @@ namespace XrdCl
       handShakeData->out = GenerateInitialHSProtocol( handShakeData, info,
                                             ClientProtocolRequest::kXR_ExpBind );
       sInfo.status = XRootDStreamInfo::HandShakeSent;
-      return Status( stOK, suContinue );
+      return XRootDStatus( stOK, suContinue );
     }
 
     //--------------------------------------------------------------------------
@@ -605,7 +605,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::HandShakeSent )
     {
-      Status st = ProcessServerHS( handShakeData, info );
+      XRootDStatus st = ProcessServerHS( handShakeData, info );
       if( st.IsOK() )
         sInfo.status = XRootDStreamInfo::HandShakeReceived;
       else
@@ -619,7 +619,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::HandShakeReceived )
     {
-      Status st = ProcessProtocolResp( handShakeData, info );
+      XRootDStatus st = ProcessProtocolResp( handShakeData, info );
 
       if( !st.IsOK() )
       {
@@ -629,7 +629,7 @@ namespace XrdCl
 
       handShakeData->out = GenerateBind( handShakeData, info );
       sInfo.status = XRootDStreamInfo::BindSent;
-      return Status( stOK, suContinue );
+      return XRootDStatus( stOK, suContinue );
     }
 
     //--------------------------------------------------------------------------
@@ -637,7 +637,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::BindSent )
     {
-      Status st = ProcessBindResp( handShakeData, info );
+      XRootDStatus st = ProcessBindResp( handShakeData, info );
 
       if( !st.IsOK() )
       {
@@ -645,9 +645,9 @@ namespace XrdCl
         return st;
       }
       sInfo.status = XRootDStreamInfo::Connected;
-      return Status();
+      return XRootDStatus();
     }
-    return Status();
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
@@ -966,7 +966,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Marshall
   //----------------------------------------------------------------------------
-  Status XRootDTransport::MarshallRequest( Message *msg )
+  XRootDStatus XRootDTransport::MarshallRequest( Message *msg )
   {
     ClientRequest *req = (ClientRequest*)msg->GetBuffer();
     switch( req->header.requestid )
@@ -1103,16 +1103,16 @@ namespace XrdCl
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
     msg->SetIsMarshalled( true );
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Unmarshall the request - sometimes the requests need to be rewritten,
   // so we need to unmarshall them
   //----------------------------------------------------------------------------
-  Status XRootDTransport::UnMarshallRequest( Message *msg )
+  XRootDStatus XRootDTransport::UnMarshallRequest( Message *msg )
   {
-    if( !msg->IsMarshalled() ) return Status( stOK, suAlreadyDone );
+    if( !msg->IsMarshalled() ) return XRootDStatus( stOK, suAlreadyDone );
     // We rely on the marshaling process to be symmetric!
     // First we unmarshall the request ID and the length because
     // MarshallRequest() relies on these, and then we need to unmarshall these
@@ -1121,7 +1121,7 @@ namespace XrdCl
     ClientRequest *req = (ClientRequest*)msg->GetBuffer();
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
-    Status st = MarshallRequest( msg );
+    XRootDStatus st = MarshallRequest( msg );
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
     msg->SetIsMarshalled( false );
@@ -1131,7 +1131,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Unmarshall the body of the incoming message
   //----------------------------------------------------------------------------
-  Status XRootDTransport::UnMarshallBody( Message *msg, uint16_t reqType )
+  XRootDStatus XRootDTransport::UnMarshallBody( Message *msg, uint16_t reqType )
   {
     ServerResponse *m = (ServerResponse *)msg->GetBuffer();
 
@@ -1147,7 +1147,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         case kXR_protocol:
           if( m->hdr.dlen < 8 )
-            return Status( stError, errInvalidMessage );
+            return XRootDStatus( stError, errInvalidMessage, 0, "kXR_protocol: body too short." );
           m->body.protocol.pval  = ntohl( m->body.protocol.pval );
           m->body.protocol.flags = ntohl( m->body.protocol.flags );
           break;
@@ -1159,7 +1159,7 @@ namespace XrdCl
     else if( m->hdr.status == kXR_error )
     {
       if( m->hdr.dlen < 4 )
-        return Status( stError, errInvalidMessage );
+        return XRootDStatus( stError, errInvalidMessage, 0, "kXR_error: body too short." );
       m->body.error.errnum = ntohl( m->body.error.errnum );
     }
 
@@ -1169,7 +1169,7 @@ namespace XrdCl
     else if( m->hdr.status == kXR_wait )
     {
       if( m->hdr.dlen < 4 )
-        return Status( stError, errInvalidMessage );
+        return XRootDStatus( stError, errInvalidMessage, 0, "kXR_wait: body too short." );
       m->body.wait.seconds = htonl( m->body.wait.seconds );
     }
 
@@ -1179,7 +1179,7 @@ namespace XrdCl
     else if( m->hdr.status == kXR_redirect )
     {
       if( m->hdr.dlen < 4 )
-        return Status( stError, errInvalidMessage );
+        return XRootDStatus( stError, errInvalidMessage, 0, "kXR_redirect: body too short." );
       m->body.redirect.port = htonl( m->body.redirect.port );
     }
 
@@ -1189,7 +1189,7 @@ namespace XrdCl
     else if( m->hdr.status == kXR_waitresp )
     {
       if( m->hdr.dlen < 4 )
-        return Status( stError, errInvalidMessage );
+        return XRootDStatus( stError, errInvalidMessage, 0, "kXR_waitresp: body too short." );
       m->body.waitresp.seconds = htonl( m->body.waitresp.seconds );
     }
 
@@ -1199,17 +1199,17 @@ namespace XrdCl
     else if( m->hdr.status == kXR_attn )
     {
       if( m->hdr.dlen < 4 )
-        return Status( stError, errInvalidMessage );
+        return XRootDStatus( stError, errInvalidMessage, 0, "kXR_attn: body too short." );
       m->body.attn.actnum = htonl( m->body.attn.actnum );
     }
 
-    return Status();
+    return XRootDStatus();
   }
 
   //------------------------------------------------------------------------
   //! Unmarshall the body of the status response
   //------------------------------------------------------------------------
-  Status XRootDTransport::UnMarshalStatusBody( Message *msg, uint16_t reqType )
+  XRootDStatus XRootDTransport::UnMarshalStatusBody( Message *msg, uint16_t reqType )
   {
     size_t stlen = sizeof( ServerResponseStatus );
     switch( reqType )
@@ -1221,7 +1221,8 @@ namespace XrdCl
       }
     }
 
-    if( msg->GetSize() < stlen ) return Status( stError, errInvalidMessage );
+    if( msg->GetSize() < stlen ) return XRootDStatus( stError, errInvalidMessage, 0,
+                                                      "kXR_status: invalid message size." );
 
     ServerResponseStatus      *rspst   = (ServerResponseStatus*)msg->GetBuffer();
     rspst->bdy.crc32c = ntohl( rspst->bdy.crc32c );
@@ -1237,7 +1238,7 @@ namespace XrdCl
       }
     }
 
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
@@ -1712,8 +1713,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Process the server initial handshake response
   //----------------------------------------------------------------------------
-  Status XRootDTransport::ProcessServerHS( HandShakeData     *hsData,
-                                           XRootDChannelInfo *info )
+  XRootDStatus XRootDTransport::ProcessServerHS( HandShakeData     *hsData,
+                                                 XRootDChannelInfo *info )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -1726,7 +1727,7 @@ namespace XrdCl
       log->Error( XRootDTransportMsg, "[%s] Invalid hand shake response",
                   hsData->streamName.c_str() );
 
-      return Status( stFatal, errHandShakeFailed );
+      return XRootDStatus( stFatal, errHandShakeFailed, 0, "Invalid hand shake response." );
     }
 
     info->protocolVersion = ntohl(hs->protover);
@@ -1741,18 +1742,18 @@ namespace XrdCl
                 ServerFlagsToStr( info->serverFlags ).c_str(),
                 info->protocolVersion );
 
-    return Status( stOK, suContinue );
+    return XRootDStatus( stOK, suContinue );
   }
 
   //----------------------------------------------------------------------------
   // Process the protocol response
   //----------------------------------------------------------------------------
-  Status XRootDTransport::ProcessProtocolResp( HandShakeData     *hsData,
-                                               XRootDChannelInfo *info )
+  XRootDStatus XRootDTransport::ProcessProtocolResp( HandShakeData     *hsData,
+                                                     XRootDChannelInfo *info )
   {
     Log *log = DefaultEnv::GetLog();
 
-    Status st = UnMarshallBody( hsData->in, kXR_protocol );
+    XRootDStatus st = UnMarshallBody( hsData->in, kXR_protocol );
     if( !st.IsOK() )
       return st;
 
@@ -1764,7 +1765,7 @@ namespace XrdCl
       log->Error( XRootDTransportMsg, "[%s] kXR_protocol request failed",
                                       hsData->streamName.c_str() );
 
-      return Status( stFatal, errHandShakeFailed );
+      return XRootDStatus( stFatal, errHandShakeFailed, 0, "kXR_protocol request failed" );
     }
 
     XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
@@ -1777,7 +1778,7 @@ namespace XrdCl
       // User requested an encrypted connection but the server is to old to
       // support it!
       //------------------------------------------------------------------------
-      if( !notlsok ) return Status( stFatal, errTlsError, ENOTSUP );
+      if( !notlsok ) return XRootDStatus( stFatal, errTlsError, ENOTSUP, "TLS not supported" );
 
       //------------------------------------------------------------------------
       // We are falling back to unencrypted data transmission, as configured
@@ -1814,7 +1815,8 @@ namespace XrdCl
       // User requested an encrypted connection but the server was not configured
       // to support encryption!
       //------------------------------------------------------------------------
-      return Status( stFatal, errTlsError, ECONNREFUSED );
+      return XRootDStatus( stFatal, errTlsError, ECONNREFUSED,
+                           "Server was not configured to support encryption." );
     }
 
     //--------------------------------------------------------------------------
@@ -1845,11 +1847,11 @@ namespace XrdCl
                 ( info->serverFlags & kXR_haveTLS ) )
       {
         info->encrypted = true;
-        return Status( stOK, suRetry );
+        return XRootDStatus( stOK, suRetry );
       }
     }
 
-    return Status( stOK, suContinue );
+    return XRootDStatus( stOK, suContinue );
   }
 
   //----------------------------------------------------------------------------
@@ -1878,12 +1880,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Generate the bind message
   //----------------------------------------------------------------------------
-  Status XRootDTransport::ProcessBindResp( HandShakeData     *hsData,
-                                           XRootDChannelInfo *info )
+  XRootDStatus XRootDTransport::ProcessBindResp( HandShakeData     *hsData,
+                                                 XRootDChannelInfo *info )
   {
     Log *log = DefaultEnv::GetLog();
 
-    Status st = UnMarshallBody( hsData->in, kXR_bind );
+    XRootDStatus st = UnMarshallBody( hsData->in, kXR_bind );
     if( !st.IsOK() )
       return st;
 
@@ -1893,14 +1895,14 @@ namespace XrdCl
     {
       log->Error( XRootDTransportMsg, "[%s] kXR_bind request failed",
                   hsData->streamName.c_str() );
-      return Status( stFatal, errHandShakeFailed );
+      return XRootDStatus( stFatal, errHandShakeFailed, 0, "kXR_bind request failed" );
     }
 
     info->stream[hsData->subStreamId].pathId = rsp->body.bind.substreamid;
     log->Debug( XRootDTransportMsg, "[%s] kXR_bind successful",
                 hsData->streamName.c_str() );
 
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
@@ -2025,12 +2027,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Process the protocol response
   //----------------------------------------------------------------------------
-  Status XRootDTransport::ProcessLogInResp( HandShakeData     *hsData,
-                                            XRootDChannelInfo *info )
+  XRootDStatus XRootDTransport::ProcessLogInResp( HandShakeData     *hsData,
+                                                  XRootDChannelInfo *info )
   {
     Log *log = DefaultEnv::GetLog();
 
-    Status st = UnMarshallBody( hsData->in, kXR_login );
+    XRootDStatus st = UnMarshallBody( hsData->in, kXR_login );
     if( !st.IsOK() )
       return st;
 
@@ -2040,7 +2042,7 @@ namespace XrdCl
     {
       log->Error( XRootDTransportMsg, "[%s] Got invalid login response",
                   hsData->streamName.c_str() );
-      return Status( stFatal, errLoginFailed );
+      return XRootDStatus( stFatal, errLoginFailed, 0, "Got invalid login response." );
     }
 
     if( !info->firstLogIn )
@@ -2057,11 +2059,11 @@ namespace XrdCl
       log->Warning( XRootDTransportMsg,
                     "[%s] Logged in, accepting empty login response.",
                     hsData->streamName.c_str() );
-      return Status();
+      return XRootDStatus();
     }
 
     if( rsp->hdr.dlen < 16 )
-      return Status( stError, errDataError );
+      return XRootDStatus( stError, errDataError, 0, "Login response too short." );
 
     memcpy( info->sessionId, rsp->body.login.sessid, 16 );
 
@@ -2082,16 +2084,16 @@ namespace XrdCl
       log->Debug( XRootDTransportMsg, "[%s] Authentication is required: %s",
                   hsData->streamName.c_str(), info->authBuffer );
 
-      return Status( stOK, suContinue );
+      return XRootDStatus( stOK, suContinue );
     }
 
-    return Status();
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Do the authentication
   //----------------------------------------------------------------------------
-  Status XRootDTransport::DoAuthentication( HandShakeData     *hsData,
+  XRootDStatus XRootDTransport::DoAuthentication( HandShakeData     *hsData,
                                             XRootDChannelInfo *info )
   {
     //--------------------------------------------------------------------------
@@ -2141,7 +2143,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Find a protocol that gives us valid credentials
       //------------------------------------------------------------------------
-      Status st = GetCredentials( credentials, hsData, info );
+      XRootDStatus st = GetCredentials( credentials, hsData, info );
       if( !st.IsOK() )
       {
         CleanUpAuthentication( info );
@@ -2180,14 +2182,13 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( !credentials )
         {
-//        log->Debug( XRootDTransportMsg,
           log->Error( XRootDTransportMsg,
                       "[%s] Auth protocol handler for %s refuses to give "
                       "us more credentials %s",
                       hsData->streamName.c_str(), protocolName.c_str(),
                       ei.getErrText() );
           CleanUpAuthentication( info );
-          return Status( stFatal, errAuthFailed );
+          return XRootDStatus( stFatal, errAuthFailed, 0, ei.getErrText() );
         }
       }
 
@@ -2222,7 +2223,7 @@ namespace XrdCl
                         hsData->streamName.c_str(), XrdSysE2T( -rc ) );
             CleanUpAuthentication( info );
 
-            return Status( stError, errAuthFailed, -rc );
+            return XRootDStatus( stError, errAuthFailed, -rc, XrdSysE2T( -rc ) );
           }
         }
 
@@ -2243,7 +2244,7 @@ namespace XrdCl
           //--------------------------------------------------------------------
           Tls::ClearErrorQueue();
 
-        return Status();
+        return XRootDStatus();
       } 
       //------------------------------------------------------------------------
       // Failure
@@ -2264,7 +2265,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Find another protocol that gives us valid credentials
         //----------------------------------------------------------------------
-        Status st = GetCredentials( credentials, hsData, info );
+        XRootDStatus st = GetCredentials( credentials, hsData, info );
         if( !st.IsOK() )
         {
           CleanUpAuthentication( info );
@@ -2283,7 +2284,7 @@ namespace XrdCl
         log->Error( XRootDTransportMsg,
                     "[%s] Authentication with %s failed: unexpected answer",
                     hsData->streamName.c_str(), protocolName.c_str() );
-        return Status( stFatal, errAuthFailed );
+        return XRootDStatus( stFatal, errAuthFailed, 0, "Authentication failed: unexpected answer." );
       }
     }
 
@@ -2313,15 +2314,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Tls::ClearErrorQueue();
 
-    return Status( stOK, suContinue );
+    return XRootDStatus( stOK, suContinue );
   }
 
   //------------------------------------------------------------------------
   // Get the initial credentials using one of the protocols
   //------------------------------------------------------------------------
-  Status XRootDTransport::GetCredentials( XrdSecCredentials *&credentials,
-                                          HandShakeData      *hsData,
-                                          XRootDChannelInfo  *info )
+  XRootDStatus XRootDTransport::GetCredentials( XrdSecCredentials *&credentials,
+                                                HandShakeData      *hsData,
+                                                XRootDChannelInfo  *info )
   {
     //--------------------------------------------------------------------------
     // Set up the auth handler
@@ -2330,7 +2331,7 @@ namespace XrdCl
     XrdOucErrInfo    ei( "", info->authEnv);
     XrdSecGetProt_t  authHandler = GetAuthHandler();
     if( !authHandler )
-      return Status( stFatal, errAuthFailed );
+      return XRootDStatus( stFatal, errAuthFailed, 0, "Could not load authentication handler." );
 
     //--------------------------------------------------------------------------
     // Retrieve secuid and secgid, if available. These will override the fsuid
@@ -2351,13 +2352,14 @@ namespace XrdCl
     if(!uidSetter.IsOk()) {
       log->Error( XRootDTransportMsg, "[%s] Error while setting (fsuid, fsgid) to (%d, %d)",
                   hsData->streamName.c_str(), secuid, secgid );
-      return Status( stFatal, errAuthFailed );
+      return XRootDStatus( stFatal, errAuthFailed, 0, "Error while setting (fsuid, fsgid)." );
     }
 #else
     if(secuid >= 0 || secgid >= 0) {
       log->Error( XRootDTransportMsg, "[%s] xrdcl.secuid and xrdcl.secgid only supported on Linux.",
                   hsData->streamName.c_str() );
-      return Status( stFatal, errAuthFailed );
+      return XRootDStatus( stFatal, errAuthFailed, 0, "xrdcl.secuid and xrdcl.secgid"
+                                                      " only supported on Linux" );
     }
 #endif
 
@@ -2382,7 +2384,7 @@ namespace XrdCl
       {
         log->Error( XRootDTransportMsg, "[%s] No protocols left to try",
                     hsData->streamName.c_str() );
-        return Status( stFatal, errAuthFailed );
+        return XRootDStatus( stFatal, errAuthFailed, 0, "No protocols left to try" );
       }
 
       std::string protocolName = info->authProtocol->Entity.prot;
@@ -2402,7 +2404,7 @@ namespace XrdCl
         info->authProtocol->Delete();
         continue;
       }
-      return Status( stOK, suContinue );
+      return XRootDStatus( stOK, suContinue );
     }
   }
 

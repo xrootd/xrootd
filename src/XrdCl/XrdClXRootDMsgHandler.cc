@@ -362,12 +362,12 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
-    Status st = XRootDTransport::UnMarshalStatusBody( msg, reqId );
+    XRootDStatus st = XRootDTransport::UnMarshalStatusBody( msg, reqId );
     if( !st.IsOK() )
     {
       log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
                   pUrl.GetHostId().c_str() );
-      pStatus = Status( stFatal, errInvalidMessage );
+      pStatus = st;
       HandleRspOrQueue();
       return Ignore;
     }
