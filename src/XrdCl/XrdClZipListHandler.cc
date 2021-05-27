@@ -121,7 +121,7 @@ namespace XrdCl
 
   void ZipListHandler::DoZipOpen( time_t timeLeft )
   {
-    XRootDStatus st = pZip.Open( pUrl.GetURL(), this, timeLeft );
+    XRootDStatus st = pZip.OpenArchive( pUrl.GetURL(), OpenFlags::Read, this, timeLeft );
     if( !st.IsOK() )
     {
       pHandler->HandleResponse( new XRootDStatus( st ), 0 );
@@ -133,7 +133,7 @@ namespace XrdCl
 
   void ZipListHandler::DoZipClose( time_t timeLeft )
   {
-    XRootDStatus st = pZip.Close( this, timeLeft );
+    XRootDStatus st = pZip.CloseArchive( this, timeLeft );
     if( !st.IsOK() )
     {
       pHandler->HandleResponse( new XRootDStatus( st ), 0 );

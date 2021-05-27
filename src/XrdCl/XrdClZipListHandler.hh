@@ -28,7 +28,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClZipArchive.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
@@ -76,8 +76,7 @@ namespace XrdCl
                       ResponseHandler     *handler,
                       uint16_t             timeout = 0 ) :
         pUrl( url ), pFlags( flags ), pHandler( handler ),
-        pTimeout( timeout ), pStartTime( time( 0 ) ),
-        pZip( pFile ), pStep( STAT )
+        pTimeout( timeout ), pStartTime( time( 0 ) ), pStep( STAT )
       {
         if( !pTimeout )
         {
@@ -128,7 +127,7 @@ namespace XrdCl
       time_t                          pStartTime;
 
       File                            pFile;
-      ZipArchiveReader                pZip;
+      ZipArchive                      pZip;
 
       int                             pStep;
 

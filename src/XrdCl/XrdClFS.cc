@@ -353,7 +353,8 @@ XRootDStatus DoLS( FileSystem                      *fs,
     return st;
   }
 
-  if( !info->TestFlags( StatInfo::IsDir ) )
+  if( !info->TestFlags( StatInfo::IsDir ) &&
+      !( flags & DirListFlags::Zip ) )
   {
     if( stats )
       PrintDirListStatInfo( info );
