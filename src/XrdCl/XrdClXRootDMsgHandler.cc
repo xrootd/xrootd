@@ -1738,6 +1738,7 @@ namespace XrdCl
       case kXR_write:
       case kXR_writev:
       case kXR_sync:
+      case kXR_chkpoint:
         return Status();
 
       //------------------------------------------------------------------------

@@ -900,7 +900,6 @@ namespace XrdCl
 //        req->pathid = info->stream[downStream].pathId;
         break;
       }
-
     };
     MarshallRequest( msg );
     return PathID( upStream, downStream );
@@ -3091,6 +3090,20 @@ namespace XrdCl
 
         o << "paths: " << fn << ")";
         delete [] fn;
+        break;
+      }
+
+      case kXR_chkpoint:
+      {
+        ClientChkPointRequest *sreq = (ClientChkPointRequest*)msg->GetBuffer();
+        o << "kXR_chkpoint (";
+        o << "opcode: ";
+        if( sreq->opcode == kXR_ckpBegin )         o << "kXR_ckpBegin)";
+        else if( sreq->opcode == kXR_ckpCommit )   o << "kXR_ckpCommit)";
+        else if( sreq->opcode == kXR_ckpQuery )    o << "kXR_ckpQuery)";
+        else if( sreq->opcode == kXR_ckpRollback ) o << "kXR_ckpRollback)";
+        else if( sreq->opcode == kXR_ckpXeq )      o << "kXR_ckpXeq)";
+
         break;
       }
 
