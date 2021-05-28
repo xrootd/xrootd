@@ -32,8 +32,9 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
-#include "XrdCl/XrdClZipArchiveReader.hh"
+#include "XrdCl/XrdClZipArchive.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClZipOperations.hh"
 
 using namespace XrdClTests;
 
@@ -199,9 +200,8 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   std::string archiveUrl = address + "/" + dataPath + "/data.zip";
 
-  File zipsrc;
-  ZipArchiveReader zip( zipsrc );
-  CPPUNIT_ASSERT_XRDST( zip.Open( archiveUrl ) );
+  ZipArchive zip;
+  CPPUNIT_ASSERT_XRDST( WaitFor( OpenArchive( zip, archiveUrl, OpenFlags::Read ) ) );
 
   //----------------------------------------------------------------------------
   // There are 3 files in the data.zip archive:
@@ -226,13 +226,19 @@ void FileTest::ReadTest()
 
   for( int i = 0; i < 3; ++i )
   {
-    uint32_t bytesRead;
-    CPPUNIT_ASSERT_XRDST( zip.Read( testset[i].file, testset[i].offset, testset[i].size, testset[i].buffer, bytesRead ) );
-    std::string result( testset[i].buffer, bytesRead );
+    std::string result;
+    CPPUNIT_ASSERT_XRDST( WaitFor(
+        ReadFrom( zip, testset[i].file, testset[i].offset, testset[i].size, testset[i].buffer ) >>
+          [&result]( auto& s, auto& c )
+          {
+            if( s.IsOK() )
+              result.assign( static_cast<char*>(c.buffer), c.length );
+          }
+      ) );
     CPPUNIT_ASSERT( testset[i].expected == result );
   }
 
-  CPPUNIT_ASSERT_XRDST( zip.Close() );
+  CPPUNIT_ASSERT_XRDST( WaitFor( CloseArchive( zip ) ) );
 }
 
 

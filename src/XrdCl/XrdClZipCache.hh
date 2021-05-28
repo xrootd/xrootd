@@ -74,25 +74,6 @@ namespace XrdCl
 
     public:
 
-      struct ReadHandler : public ResponseHandler // TODO once we drop ZipArchiveReader this class can be removed
-      {
-        ReadHandler( uint64_t offset, uint32_t length, ZipCache &self ) : offset( offset ), buffer( length ), self( self )
-        {
-        }
-
-        void HandleResponse( XRootDStatus *status, AnyObject *response )
-        {
-          self.QueueRsp( *status, offset, std::move( buffer ) );
-          delete status;
-          delete response;
-          delete this;
-        }
-
-        uint64_t  offset;
-        buffer_t  buffer;
-        ZipCache &self;
-      };
-
       ZipCache() : inabsoff( 0 )
       {
         strm.zalloc    = Z_NULL;

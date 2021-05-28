@@ -98,7 +98,6 @@ add_library(
   XrdClTPFallBackCopyJob.cc      XrdClTPFallBackCopyJob.hh
   XrdClMetalinkRedirector.cc     XrdClMetalinkRedirector.hh
   XrdClRedirectorRegistry.cc     XrdClRedirectorRegistry.hh
-  XrdClZipArchiveReader.cc       XrdClZipArchiveReader.hh
   XrdClXCpCtx.cc                 XrdClXCpCtx.hh
   XrdClXCpSrc.cc                 XrdClXCpSrc.hh
   XrdClLocalFileHandler.cc       XrdClLocalFileHandler.hh
