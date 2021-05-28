@@ -974,9 +974,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read message body directly from a socket
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadMessageBody( Message  *msg,
-                                            Socket   *socket,
-                                            uint32_t &bytesRead )
+  XRootDStatus XRootDMsgHandler::ReadMessageBody( Message  *msg,
+                                                  Socket   *socket,
+                                                  uint32_t &bytesRead )
   {
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
@@ -1455,8 +1455,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Write the message body
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::WriteMessageBody( Socket   *socket,
-                                             uint32_t &bytesWritten )
+  XRootDStatus XRootDMsgHandler::WriteMessageBody( Socket   *socket,
+                                                   uint32_t &bytesWritten )
   {
     if( !pChunkList->empty() )
     {

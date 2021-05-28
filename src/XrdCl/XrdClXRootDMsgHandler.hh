@@ -275,9 +275,9 @@ namespace XrdCl
       //!                  stOK & suRetry if more data is needed
       //!                  stError on failure
       //------------------------------------------------------------------------
-      virtual Status ReadMessageBody( Message  *msg,
-                                      Socket   *socket,
-                                      uint32_t &bytesRead );
+      virtual XRootDStatus ReadMessageBody( Message  *msg,
+                                            Socket   *socket,
+                                            uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
@@ -310,8 +310,8 @@ namespace XrdCl
       //!                  stOK & suRetry if more data needs to be written
       //!                  stError on failure
       //------------------------------------------------------------------------
-      Status WriteMessageBody( Socket   *socket,
-                               uint32_t &bytesWritten );
+      XRootDStatus WriteMessageBody( Socket   *socket,
+                                     uint32_t &bytesWritten );
 
       //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed

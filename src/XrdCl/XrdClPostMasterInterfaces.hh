@@ -155,9 +155,9 @@ namespace XrdCl
       //!                  stOK & suRetry if more data is needed
       //!                  stError on failure
       //------------------------------------------------------------------------
-      virtual Status ReadMessageBody( Message  *msg,
-                                      Socket   *socket,
-                                      uint32_t &bytesRead )
+      virtual XRootDStatus ReadMessageBody( Message  *msg,
+                                            Socket   *socket,
+                                            uint32_t &bytesRead )
       {
         (void)msg; (void)socket; (void)bytesRead;
         return Status( stOK, suDone );
@@ -222,8 +222,8 @@ namespace XrdCl
       //!                  stOK & suRetry if more data needs to be written
       //!                  stError on failure
       //------------------------------------------------------------------------
-      virtual Status WriteMessageBody( Socket   *socket,
-                                       uint32_t &bytesWritten )
+      virtual XRootDStatus WriteMessageBody( Socket   *socket,
+                                             uint32_t &bytesWritten )
       {
         (void)socket; (void)bytesWritten;
         return Status();
