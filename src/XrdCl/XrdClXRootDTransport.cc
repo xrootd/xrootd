@@ -2624,6 +2624,17 @@ namespace
     fn[req->dlen] = 0;
     return fn;
   }
+
+  // Extract file name from a request
+  //----------------------------------------------------------------------------
+  char *GetDataAsString( char *msg )
+  {
+    ClientRequestHdr *req = (ClientRequestHdr*)msg;
+    char *fn = new char[req->dlen+1];
+    memcpy( fn, msg + 24, req->dlen );
+    fn[req->dlen] = 0;
+    return fn;
+  }
 }
 
 namespace XrdCl
@@ -2631,14 +2642,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Get the description of a message
   //----------------------------------------------------------------------------
-  void XRootDTransport::SetDescription( Message *msg )
+  void XRootDTransport::GenerateDescription( char *msg, std::ostringstream &o )
   {
     Log *log = DefaultEnv::GetLog();
     if( log->GetLevel() < Log::ErrorMsg )
       return;
 
-    ClientRequestHdr *req = (ClientRequestHdr *)msg->GetBuffer();
-    std::ostringstream o;
+    ClientRequestHdr *req = (ClientRequestHdr *)msg;
     switch( req->requestid )
     {
       //------------------------------------------------------------------------
@@ -2646,7 +2656,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_open:
       {
-        ClientOpenRequest *sreq = (ClientOpenRequest *)msg->GetBuffer();
+        ClientOpenRequest *sreq = (ClientOpenRequest *)msg;
         o << "kXR_open (";
         char *fn = GetDataAsString( msg );
         o << "file: " << fn << ", ";
@@ -2696,7 +2706,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_close:
       {
-        ClientCloseRequest *sreq = (ClientCloseRequest *)msg->GetBuffer();
+        ClientCloseRequest *sreq = (ClientCloseRequest *)msg;
         o << "kXR_close (";
         o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << ")";
@@ -2708,7 +2718,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_stat:
       {
-        ClientStatRequest *sreq = (ClientStatRequest *)msg->GetBuffer();
+        ClientStatRequest *sreq = (ClientStatRequest *)msg;
         o << "kXR_stat (";
         if( sreq->dlen )
         {
@@ -2738,7 +2748,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_read:
       {
-        ClientReadRequest *sreq = (ClientReadRequest *)msg->GetBuffer();
+        ClientReadRequest *sreq = (ClientReadRequest *)msg;
         o << "kXR_read (";
         o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << std::setbase(10);
@@ -2753,7 +2763,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_pgread:
       {
-        ClientPgReadRequest *sreq = (ClientPgReadRequest *)msg->GetBuffer();
+        ClientPgReadRequest *sreq = (ClientPgReadRequest *)msg;
         o << "kXR_pgread (";
         o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << std::setbase(10);
@@ -2768,7 +2778,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_write:
       {
-        ClientWriteRequest *sreq = (ClientWriteRequest *)msg->GetBuffer();
+        ClientWriteRequest *sreq = (ClientWriteRequest *)msg;
         o << "kXR_write (";
         o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << std::setbase(10);
@@ -2783,7 +2793,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_sync:
       {
-        ClientSyncRequest *sreq = (ClientSyncRequest *)msg->GetBuffer();
+        ClientSyncRequest *sreq = (ClientSyncRequest *)msg;
         o << "kXR_sync (";
         o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << ")";
@@ -2795,13 +2805,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_truncate:
       {
-        ClientTruncateRequest *sreq = (ClientTruncateRequest *)msg->GetBuffer();
+        ClientTruncateRequest *sreq = (ClientTruncateRequest *)msg;
         o << "kXR_truncate (";
         if( !sreq->dlen )
           o << "handle: " << FileHandleToStr( sreq->fhandle );
         else
         {
-          char *fn = GetDataAsString( msg );;
+          char *fn = GetDataAsString( msg );
           o << "file: " << fn;
           delete [] fn;
         }
@@ -2820,7 +2830,7 @@ namespace XrdCl
         unsigned char *fhandle = 0;
         o << "kXR_readv (";
 
-        readahead_list *dataChunk = (readahead_list*)msg->GetBuffer( 24 );
+        readahead_list *dataChunk = (readahead_list*)(msg + 24 );
         uint64_t size      = 0;
         uint32_t numChunks = 0;
         for( size_t i = 0; i < req->dlen/sizeof(readahead_list); ++i )
@@ -2850,7 +2860,7 @@ namespace XrdCl
         o << "kXR_writev (";
 
         XrdProto::write_list *wrtList =
-            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+            reinterpret_cast<XrdProto::write_list*>( msg + 24 );
         uint64_t size      = 0;
         uint32_t numChunks = 0;
         for( size_t i = 0; i < req->dlen/sizeof(XrdProto::write_list); ++i )
@@ -2876,7 +2886,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_locate:
       {
-        ClientLocateRequest *sreq = (ClientLocateRequest *)msg->GetBuffer();
+        ClientLocateRequest *sreq = (ClientLocateRequest *)msg;
         char *fn = GetDataAsString( msg );;
         o << "kXR_locate (";
         o << "path: " << fn << ", ";
@@ -2906,13 +2916,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_mv:
       {
-        ClientMvRequest *sreq = (ClientMvRequest *)msg->GetBuffer();
+        ClientMvRequest *sreq = (ClientMvRequest *)msg;
         o << "kXR_mv (";
         o << "source: ";
-        o.write( msg->GetBuffer( sizeof( ClientMvRequest ) ), sreq->arg1len );
+        o.write( msg + sizeof( ClientMvRequest ), sreq->arg1len );
         o << ", ";
         o << "destination: ";
-        o.write( msg->GetBuffer( sizeof( ClientMvRequest ) + sreq->arg1len + 1 ), sreq->dlen - sreq->arg1len - 1 );
+        o.write( msg + sizeof( ClientMvRequest ) + sreq->arg1len + 1, sreq->dlen - sreq->arg1len - 1 );
         o << ")";
         break;
       }
@@ -2922,7 +2932,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_query:
       {
-        ClientQueryRequest *sreq = (ClientQueryRequest *)msg->GetBuffer();
+        ClientQueryRequest *sreq = (ClientQueryRequest *)msg;
         o << "kXR_query (";
         o << "code: ";
         switch( sreq->infotype )
@@ -2969,9 +2979,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_mkdir:
       {
-        ClientMkdirRequest *sreq = (ClientMkdirRequest *)msg->GetBuffer();
+        ClientMkdirRequest *sreq = (ClientMkdirRequest *)msg;
         o << "kXR_mkdir (";
-        char *fn = GetDataAsString( msg );;
+        char *fn = GetDataAsString( msg );
         o << "path: " << fn << ", ";
         delete [] fn;
         o << "mode: 0" << std::setbase(8) << sreq->mode << ", ";
@@ -2994,7 +3004,7 @@ namespace XrdCl
       case kXR_rmdir:
       {
         o << "kXR_rmdir (";
-        char *fn = GetDataAsString( msg );;
+        char *fn = GetDataAsString( msg );
         o << "path: " << fn << ")";
         delete [] fn;
         break;
@@ -3005,9 +3015,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_chmod:
       {
-        ClientChmodRequest *sreq = (ClientChmodRequest *)msg->GetBuffer();
+        ClientChmodRequest *sreq = (ClientChmodRequest *)msg;
         o << "kXR_chmod (";
-        char *fn = GetDataAsString( msg );;
+        char *fn = GetDataAsString( msg );
         o << "path: " << fn << ", ";
         delete [] fn;
         o << "mode: 0" << std::setbase(8) << sreq->mode << ")";
@@ -3028,7 +3038,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_protocol:
       {
-        ClientProtocolRequest *sreq = (ClientProtocolRequest *)msg->GetBuffer();
+        ClientProtocolRequest *sreq = (ClientProtocolRequest *)msg;
         o << "kXR_protocol (";
         o << "clientpv: 0x" << std::setbase(16) << sreq->clientpv << ")";
         break;
@@ -3063,7 +3073,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_prepare:
       {
-        ClientPrepareRequest *sreq = (ClientPrepareRequest *)msg->GetBuffer();
+        ClientPrepareRequest *sreq = (ClientPrepareRequest *)msg;
         o << "kXR_prepare (";
         o << "flags: ";
 
@@ -3095,14 +3105,20 @@ namespace XrdCl
 
       case kXR_chkpoint:
       {
-        ClientChkPointRequest *sreq = (ClientChkPointRequest*)msg->GetBuffer();
+        ClientChkPointRequest *sreq = (ClientChkPointRequest*)msg;
         o << "kXR_chkpoint (";
         o << "opcode: ";
         if( sreq->opcode == kXR_ckpBegin )         o << "kXR_ckpBegin)";
         else if( sreq->opcode == kXR_ckpCommit )   o << "kXR_ckpCommit)";
         else if( sreq->opcode == kXR_ckpQuery )    o << "kXR_ckpQuery)";
         else if( sreq->opcode == kXR_ckpRollback ) o << "kXR_ckpRollback)";
-        else if( sreq->opcode == kXR_ckpXeq )      o << "kXR_ckpXeq)";
+        else if( sreq->opcode == kXR_ckpXeq )
+        {
+          o << "kXR_ckpXeq) ";
+          // In this case our request body will be one of kXR_pgwrite,
+          // kXR_truncate, kXR_write, or kXR_writev request.
+          GenerateDescription( msg + sizeof( ClientChkPointRequest ), o );
+        }
 
         break;
       }
@@ -3116,7 +3132,6 @@ namespace XrdCl
         break;
       }
     };
-    msg->SetDescription( o.str() );
   }
 
   //----------------------------------------------------------------------------

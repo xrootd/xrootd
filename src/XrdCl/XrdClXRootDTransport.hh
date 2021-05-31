@@ -26,6 +26,7 @@
 #define __XRD_CL_XROOTD_TRANSPORT_HH__
 
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClMessage.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -214,10 +215,21 @@ namespace XrdCl
                             AnyObject &result,
                             AnyObject &channelData );
 
+
       //------------------------------------------------------------------------
       //! Get the description of a message
       //------------------------------------------------------------------------
-      static void SetDescription( Message *msg );
+      static void GenerateDescription( char *msg, std::ostringstream &o );
+
+      //------------------------------------------------------------------------
+      //! Get the description of a message
+      //------------------------------------------------------------------------
+      inline static void SetDescription( Message *msg )
+      {
+        std::ostringstream o;
+        GenerateDescription( msg->GetBuffer(), o );
+        msg->SetDescription( o.str() );
+      }
 
       //------------------------------------------------------------------------
       //! Check if the message invokes a stream action
