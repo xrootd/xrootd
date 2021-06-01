@@ -169,7 +169,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Marshal the outgoing message
       //------------------------------------------------------------------------
-      static XRootDStatus MarshallRequest( Message *msg );
+      inline static XRootDStatus MarshallRequest( Message *msg )
+      {
+        MarshallRequest( msg->GetBuffer() );
+        msg->SetIsMarshalled( true );
+        return XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Marshal the outgoing message
+      //------------------------------------------------------------------------
+      static XRootDStatus MarshallRequest( char *msg );
 
       //------------------------------------------------------------------------
       //! Unmarshall the request - sometimes the requests need to be rewritten,

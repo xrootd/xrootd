@@ -965,9 +965,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Marshall
   //----------------------------------------------------------------------------
-  XRootDStatus XRootDTransport::MarshallRequest( Message *msg )
+  XRootDStatus XRootDTransport::MarshallRequest( char *msg )
   {
-    ClientRequest *req = (ClientRequest*)msg->GetBuffer();
+    ClientRequest *req = (ClientRequest*)msg;
     switch( req->header.requestid )
     {
       //------------------------------------------------------------------------
@@ -1055,7 +1055,7 @@ namespace XrdCl
       case kXR_readv:
       {
         uint16_t numChunks  = (req->readv.dlen)/16;
-        readahead_list *dataChunk = (readahead_list*)msg->GetBuffer( 24 );
+        readahead_list *dataChunk = (readahead_list*)( msg + 24 );
         for( size_t i = 0; i < numChunks; ++i )
         {
           dataChunk[i].rlen   = htonl( dataChunk[i].rlen );
@@ -1071,7 +1071,7 @@ namespace XrdCl
       {
         uint16_t numChunks  = (req->writev.dlen)/16;
         XrdProto::write_list *wrtList =
-            reinterpret_cast<XrdProto::write_list*>( msg->GetBuffer( 24 ) );
+            reinterpret_cast<XrdProto::write_list*>( msg + 24 );
         for( size_t i = 0; i < numChunks; ++i )
         {
           wrtList[i].wlen   = htonl( wrtList[i].wlen );
@@ -1097,11 +1097,17 @@ namespace XrdCl
         req->prepare.port    = htons( req->prepare.port );
         break;
       }
+
+      case kXR_chkpoint:
+      {
+        if( req->chkpoint.opcode == kXR_ckpXeq )
+          MarshallRequest( msg + 24 );
+        break;
+      }
     };
 
     req->header.requestid = htons( req->header.requestid );
     req->header.dlen      = htonl( req->header.dlen );
-    msg->SetIsMarshalled( true );
     return XRootDStatus();
   }
 
