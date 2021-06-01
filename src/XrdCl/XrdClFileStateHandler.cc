@@ -1889,7 +1889,8 @@ namespace XrdCl
   //!
   //! @return        : status of the operation
   //------------------------------------------------------------------------
-  XRootDStatus FileStateHandler::Checkpoint( ResponseHandler  *handler,
+  XRootDStatus FileStateHandler::Checkpoint( kXR_char          code,
+                                             ResponseHandler  *handler,
                                              uint16_t          timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
@@ -1909,13 +1910,74 @@ namespace XrdCl
     MessageUtils::CreateRequest( msg, req );
 
     req->requestid  = kXR_chkpoint;
-    req->opcode     = kXR_ckpBegin;
+    req->opcode     = code;
     memcpy( req->fhandle, pFileHandle, 4 );
 
     MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
+
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //------------------------------------------------------------------------
+  //! Checkpointed write - async
+  //!
+  //! @param offset  offset from the beginning of the file
+  //! @param size    number of bytes to be written
+  //! @param buffer  a pointer to the buffer holding the data to be written
+  //! @param handler handler to be notified when the response arrives
+  //! @param timeout timeout value, if 0 the environment default will be
+  //!                used
+  //! @return        status of the operation
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::ChkptWrt( uint64_t         offset,
+                                           uint32_t         size,
+                                           const void      *buffer,
+                                           ResponseHandler *handler,
+                                           uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message               *msg;
+    ClientChkPointRequest *req;
+    MessageUtils::CreateRequest( msg, req, sizeof( ClientWriteRequest ) );
+
+    req->requestid = kXR_chkpoint;
+    req->opcode    = kXR_ckpXeq;
+    req->dlen      = 24; // as specified in the protocol specification
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    ClientWriteRequest *wrtreq = (ClientWriteRequest*)msg->GetBuffer( sizeof(ClientChkPointRequest) );
+    wrtreq->requestid = kXR_write;
+    wrtreq->offset    = offset;
+    wrtreq->dlen      = size;
+    memcpy( wrtreq->fhandle, pFileHandle, 4 );
+
+    ChunkList *list   = new ChunkList();
+    list->push_back( ChunkInfo( 0, size, (char*)buffer ) );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
 
     MessageUtils::ProcessSendParams( params );
 

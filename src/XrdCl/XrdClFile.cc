@@ -760,6 +760,42 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Create a checkpoint
+  //------------------------------------------------------------------------
+  XRootDStatus File::Checkpoint( kXR_char                  code,
+                                 ResponseHandler          *handler,
+                                 uint16_t                  timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->Checkpoint( code, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  //! Checkpointed write - async
+  //!
+  //! @param offset  offset from the beginning of the file
+  //! @param size    number of bytes to be written
+  //! @param buffer  a pointer to the buffer holding the data to be written
+  //! @param handler handler to be notified when the response arrives
+  //! @param timeout timeout value, if 0 the environment default will be
+  //!                used
+  //! @return        status of the operation
+  //------------------------------------------------------------------------
+  XRootDStatus File::ChkptWrt( uint64_t         offset,
+                               uint32_t         size,
+                               const void      *buffer,
+                               ResponseHandler *handler,
+                               uint16_t         timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->ChkptWrt( offset, size, buffer, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
   // Try different data server
   //------------------------------------------------------------------------
   XRootDStatus File::TryOtherServer( uint16_t timeout )

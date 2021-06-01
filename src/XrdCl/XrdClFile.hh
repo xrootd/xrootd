@@ -781,6 +781,45 @@ namespace XrdCl
       bool GetProperty( const std::string &name, std::string &value ) const;
 
     private:
+
+      template<bool HasHndl>
+      friend class CheckpointImpl;
+
+      template<bool HasHndl>
+      friend class ChkptWrtImpl;
+
+      //------------------------------------------------------------------------
+      //! Create a checkpoint - async
+      //!
+      //! @param handler : handler to be notified when the response arrives,
+      //!                  the response parameter will hold a std::vector of
+      //!                  XAttr objects
+      //! @param timeout : timeout value, if 0 the environment default will
+      //!                  be used
+      //!
+      //! @return        : status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Checkpoint( kXR_char                  code,
+                               ResponseHandler          *handler,
+                               uint16_t                  timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Checkpointed write - async
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    number of bytes to be written
+      //! @param buffer  a pointer to the buffer holding the data to be written
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ChkptWrt( uint64_t         offset,
+                             uint32_t         size,
+                             const void      *buffer,
+                             ResponseHandler *handler,
+                             uint16_t         timeout = 0 );
+
       FileStateHandler *pStateHandler;
       FilePlugIn       *pPlugIn;
       bool              pEnablePlugIns;
