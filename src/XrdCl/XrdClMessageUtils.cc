@@ -76,6 +76,21 @@ namespace XrdCl
       return st;
     }
 
+    //--------------------------------------------------------------------------
+    // Make sure that in case of checkpoint xeq request the embedded request
+    // SID is matching
+    //--------------------------------------------------------------------------
+    if( req->requestid == kXR_chkpoint )
+    {
+      ClientRequest *r = (ClientRequest*)req;
+      if( r->chkpoint.opcode == kXR_ckpXeq )
+      {
+        ClientRequest *xeq = (ClientRequest*) msg->GetBuffer( sizeof( ClientChkPointRequest ) );
+        xeq->header.streamid[0] = req->streamid[0];
+        xeq->header.streamid[1] = req->streamid[1];
+      }
+    }
+
     XRootDTransport::MarshallRequest( msg );
 
     //--------------------------------------------------------------------------
