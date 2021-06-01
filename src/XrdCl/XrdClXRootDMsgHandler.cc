@@ -1449,6 +1449,14 @@ namespace XrdCl
     uint16_t reqId = ntohs( req->header.requestid );
     if( reqId == kXR_write || reqId == kXR_writev )
       return true;
+    // checkpoint + execute
+    if( reqId == kXR_chkpoint && req->chkpoint.opcode == kXR_ckpXeq )
+    {
+      ClientRequest *xeq = (ClientRequest*)pRequest->GetBuffer( sizeof( ClientRequest ) );
+      reqId = ntohs( xeq->header.requestid );
+      return reqId != kXR_truncate; // only checkpointed truncate does not have raw data
+    }
+
     return false;
   }
 
