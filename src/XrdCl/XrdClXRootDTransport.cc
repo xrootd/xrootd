@@ -2613,18 +2613,6 @@ namespace XrdCl
 
 namespace
 {
-  //----------------------------------------------------------------------------
-  // Extract file name from a request
-  //----------------------------------------------------------------------------
-  char *GetDataAsString( XrdCl::Message *msg )
-  {
-    ClientRequestHdr *req = (ClientRequestHdr*)msg->GetBuffer();
-    char *fn = new char[req->dlen+1];
-    memcpy( fn, msg->GetBuffer(24), req->dlen );
-    fn[req->dlen] = 0;
-    return fn;
-  }
-
   // Extract file name from a request
   //----------------------------------------------------------------------------
   char *GetDataAsString( char *msg )
