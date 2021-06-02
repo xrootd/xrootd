@@ -1624,8 +1624,6 @@ namespace XrdCl
     req->dlen       = size;
     memcpy( req->fhandle, pFileHandle, 4 );
 
-
-
     MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
@@ -1972,6 +1970,74 @@ namespace XrdCl
 
     ChunkList *list   = new ChunkList();
     list->push_back( ChunkInfo( 0, size, (char*)buffer ) );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //------------------------------------------------------------------------
+  //! Write scattered buffers in one operation - async
+  //!
+  //! @param offset    offset from the beginning of the file
+  //! @param iov       list of the buffers to be written
+  //! @param iovcnt    number of buffers
+  //! @param handler   handler to be notified when the response arrives
+  //! @param timeout   timeout value, if 0 then the environment default
+  //!                  will be used
+  //! @return          status of the operation
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::ChkptWrtV( uint64_t            offset,
+                                            const struct iovec *iov,
+                                            int                 iovcnt,
+                                            ResponseHandler    *handler,
+                                            uint16_t            timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message               *msg;
+    ClientChkPointRequest *req;
+    MessageUtils::CreateRequest( msg, req, sizeof( ClientWriteRequest ) );
+
+    req->requestid = kXR_chkpoint;
+    req->opcode    = kXR_ckpXeq;
+    req->dlen      = 24; // as specified in the protocol specification
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    ChunkList *list   = new ChunkList();
+    uint32_t size = 0;
+    for( int i = 0; i < iovcnt; ++i )
+    {
+      if( iov[i].iov_len == 0 ) continue;
+      size += iov[i].iov_len;
+      list->push_back( ChunkInfo( 0, iov[i].iov_len,
+                       (char*)iov[i].iov_base ) );
+    }
+
+    ClientWriteRequest *wrtreq = (ClientWriteRequest*)msg->GetBuffer( sizeof(ClientChkPointRequest) );
+    wrtreq->requestid = kXR_write;
+    wrtreq->offset    = offset;
+    wrtreq->dlen      = size;
+    memcpy( wrtreq->fhandle, pFileHandle, 4 );
 
     MessageSendParams params;
     params.timeout         = timeout;

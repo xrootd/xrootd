@@ -788,6 +788,9 @@ namespace XrdCl
       template<bool HasHndl>
       friend class ChkptWrtImpl;
 
+      template <bool HasHndl>
+      friend class ChkptWrtVImpl;
+
       //------------------------------------------------------------------------
       //! Create a checkpoint - async
       //!
@@ -819,6 +822,23 @@ namespace XrdCl
                              const void      *buffer,
                              ResponseHandler *handler,
                              uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Checkpointed WriteV - async
+      //!
+      //! @param offset    offset from the beginning of the file
+      //! @param iov       list of the buffers to be written
+      //! @param iovcnt    number of buffers
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ChkptWrtV( uint64_t            offset,
+                              const struct iovec *iov,
+                              int                 iovcnt,
+                              ResponseHandler    *handler,
+                              uint16_t            timeout = 0 );
 
       FileStateHandler *pStateHandler;
       FilePlugIn       *pPlugIn;

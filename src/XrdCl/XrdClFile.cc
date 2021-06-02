@@ -774,14 +774,6 @@ namespace XrdCl
 
   //------------------------------------------------------------------------
   //! Checkpointed write - async
-  //!
-  //! @param offset  offset from the beginning of the file
-  //! @param size    number of bytes to be written
-  //! @param buffer  a pointer to the buffer holding the data to be written
-  //! @param handler handler to be notified when the response arrives
-  //! @param timeout timeout value, if 0 the environment default will be
-  //!                used
-  //! @return        status of the operation
   //------------------------------------------------------------------------
   XRootDStatus File::ChkptWrt( uint64_t         offset,
                                uint32_t         size,
@@ -793,6 +785,21 @@ namespace XrdCl
       return XRootDStatus( stError, errNotSupported );
 
     return pStateHandler->ChkptWrt( offset, size, buffer, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  //! Checkpointed WriteV - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::ChkptWrtV( uint64_t            offset,
+                                const struct iovec *iov,
+                                int                 iovcnt,
+                                ResponseHandler    *handler,
+                                uint16_t            timeout )
+  {
+    if( pPlugIn )
+      return XRootDStatus( stError, errNotSupported );
+
+    return pStateHandler->ChkptWrtV( offset, iov, iovcnt, handler, timeout );
   }
 
   //------------------------------------------------------------------------

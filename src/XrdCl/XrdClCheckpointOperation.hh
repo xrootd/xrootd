@@ -100,7 +100,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToString()
       {
-        return "Checkpoint";
+        return "ChkptWrt";
       }
 
     protected:
@@ -132,6 +132,66 @@ namespace XrdCl
   {
     return ChkptWrtImpl<false>( std::move( file ), std::move( offset ),
                                 std::move( size ), std::move( buffer ) ).Timeout( timeout );
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Checkpointed WriteV operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class ChkptWrtVImpl: public FileOperation<ChkptWrtVImpl, HasHndl, Resp<void>,
+                              Arg<uint64_t>, Arg<const struct iovec*>, Arg<int>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<ChkptWrtVImpl, HasHndl, Resp<void>,
+                  Arg<uint64_t>, Arg<const struct iovec*>, Arg<int>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { OffArg, IovecArg, IovcntArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "ChkptWrtV";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        uint64_t            off     = std::get<OffArg>( this->args ).Get();
+        const struct iovec* iov     = std::get<IovecArg>( this->args ).Get();
+        int                 iovcnt  = std::get<IovcntArg>( this->args ).Get();
+        uint16_t            timeout = pipelineTimeout < this->timeout ?
+                                      pipelineTimeout : this->timeout;
+        return this->file->ChkptWrtV( off, iov, iovcnt, handler, timeout );
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ReadImpl objects
+  //----------------------------------------------------------------------------
+  inline ChkptWrtVImpl<false> ChkptWrtV( Ctx<File> file, Arg<uint64_t> offset,
+                                         Arg<const struct iovec*> iov, Arg<int> iovcnt,
+                                         uint16_t timeout = 0 )
+  {
+    return ChkptWrtVImpl<false>( std::move( file ), std::move( offset ),
+                                 std::move( iov ), std::move( iovcnt ) ).Timeout( timeout );
   }
 }
 
