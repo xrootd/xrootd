@@ -365,7 +365,7 @@ bool XrdOfsCPFile::Reserve(int dlen, int nseg)
 #ifdef __APPLE__
    fstore_t Store = {F_ALLOCATEALL, F_PEOFPOSMODE, ckpSize, dlen};
    if (fcntl(ckpFD, F_PREALLOCATE, &Store) == -1
-   ||  ftruncate(ckpFD, ckpSize + dlen)    == -1) return false;
+   &&  ftruncate(ckpFD, ckpSize + dlen)    == -1) return false;
 #else
    if (posix_fallocate(ckpFD, ckpSize, dlen))
       {if (ftruncate(ckpFD, ckpSize)) {}
