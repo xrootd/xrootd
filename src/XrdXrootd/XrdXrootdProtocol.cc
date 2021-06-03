@@ -41,6 +41,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdTls/XrdTls.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -494,11 +495,14 @@ int XrdXrootdProtocol::Process2()
 // Force authentication at this point, if need be
 //
    if (Status & XRD_NEED_AUTH)
-      {if (Request.header.requestid == kXR_auth) return do_Auth();
+      {int rc;
+       if (Request.header.requestid == kXR_auth) rc = do_Auth();
           else {Response.Send(kXR_InvalidRequest,
                               "Invalid request; user not authenticated");
-                return -1;
+                rc = -1;
                }
+       if (tlsCtx) XrdTls::ClearErrorQueue();
+       return rc;
       }
 
 // Construct request ID as the following functions are async eligible
