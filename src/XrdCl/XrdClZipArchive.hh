@@ -464,6 +464,7 @@ namespace XrdCl
       std::string                 openfn;    //> file name of opened file
       zipcache_t                  zipcache;  //> cache for inflating compressed data
       std::unique_ptr<LFH>        lfh;       //> Local File Header record for the newly appended file
+      bool                        ckpinit;    //> a flag indicating whether a checkpoint has been initialized
   };
 
 } /* namespace XrdZip */

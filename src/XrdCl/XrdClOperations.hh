@@ -325,12 +325,18 @@ namespace XrdCl
     public:
 
       //------------------------------------------------------------------------
+      //! Default constructor
+      //------------------------------------------------------------------------
+      Pipeline()
+      {
+      }
+
+      //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
       Pipeline( Operation<true> *op ) :
           operation( op->Move() )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -339,7 +345,6 @@ namespace XrdCl
       Pipeline( Operation<true> &op ) :
           operation( op.Move() )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -348,13 +353,11 @@ namespace XrdCl
       Pipeline( Operation<true> &&op ) :
           operation( op.Move() )
       {
-
       }
 
       Pipeline( Operation<false> *op ) :
           operation( op->ToHandled() )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -363,7 +366,6 @@ namespace XrdCl
       Pipeline( Operation<false> &op ) :
           operation( op.ToHandled() )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -372,13 +374,11 @@ namespace XrdCl
       Pipeline( Operation<false> &&op ) :
           operation( op.ToHandled() )
       {
-
       }
 
       Pipeline( Pipeline &&pipe ) :
           operation( std::move( pipe.operation ) )
       {
-
       }
 
       //------------------------------------------------------------------------
@@ -460,11 +460,13 @@ namespace XrdCl
       void Run( Timeout timeout, std::function<void(const XRootDStatus&)> final = nullptr )
       {
         if( ftr.valid() )
-          throw std::logic_error( "Pipeline is already running" );
+          throw std::logic_error( "Pipeline is already running!" );
 
         // a promise that the pipe will have a result
         std::promise<XRootDStatus> prms;
         ftr = prms.get_future();
+
+        if( !operation ) std::logic_error( "Empty pipeline!" );
 
         Operation<true> *opr = operation.release();
         opr->Run( timeout, std::move( prms ), std::move( final ) );

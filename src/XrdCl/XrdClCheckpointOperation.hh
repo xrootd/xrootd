@@ -140,7 +140,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class ChkptWrtVImpl: public FileOperation<ChkptWrtVImpl, HasHndl, Resp<void>,
-                              Arg<uint64_t>, Arg<const struct iovec*>, Arg<int>>
+                              Arg<uint64_t>, Arg<std::vector<iovec>>>
   {
     public:
 
@@ -148,12 +148,12 @@ namespace XrdCl
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
       using FileOperation<ChkptWrtVImpl, HasHndl, Resp<void>,
-                  Arg<uint64_t>, Arg<const struct iovec*>, Arg<int>>::FileOperation;
+                  Arg<uint64_t>, Arg<std::vector<iovec>>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      enum { OffArg, IovecArg, IovcntArg };
+      enum { OffArg, IovecArg, };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -175,23 +175,31 @@ namespace XrdCl
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         uint64_t            off     = std::get<OffArg>( this->args ).Get();
-        const struct iovec* iov     = std::get<IovecArg>( this->args ).Get();
-        int                 iovcnt  = std::get<IovcntArg>( this->args ).Get();
+        std::vector<iovec> &stdiov  = std::get<IovecArg>( this->args ).Get();
         uint16_t            timeout = pipelineTimeout < this->timeout ?
                                       pipelineTimeout : this->timeout;
+
+        int iovcnt = stdiov.size();
+        iovec iov[iovcnt];
+        for( size_t i = 0; i < iovcnt; ++i )
+        {
+          iov[i].iov_base = stdiov[i].iov_base;
+          iov[i].iov_len  = stdiov[i].iov_len;
+        }
+
         return this->file->ChkptWrtV( off, iov, iovcnt, handler, timeout );
       }
   };
 
   //----------------------------------------------------------------------------
-  //! Factory for creating ReadImpl objects
+  //! Factory for creating ChkptWrtVImpl objects
   //----------------------------------------------------------------------------
   inline ChkptWrtVImpl<false> ChkptWrtV( Ctx<File> file, Arg<uint64_t> offset,
-                                         Arg<const struct iovec*> iov, Arg<int> iovcnt,
+                                         Arg<std::vector<iovec>> iov,
                                          uint16_t timeout = 0 )
   {
     return ChkptWrtVImpl<false>( std::move( file ), std::move( offset ),
-                                 std::move( iov ), std::move( iovcnt ) ).Timeout( timeout );
+                                 std::move( iov ) ).Timeout( timeout );
   }
 }
 

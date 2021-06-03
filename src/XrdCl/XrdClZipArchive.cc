@@ -23,6 +23,7 @@
 //-----------------------------------------------------------------------------
 
 #include "XrdCl/XrdClFileOperations.hh"
+#include "XrdCl/XrdClCheckpointOperation.hh"
 #include "XrdCl/XrdClZipArchive.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -46,7 +47,8 @@ namespace XrdCl
                                                 cdoff( 0 ),
                                                 orgcdsz( 0 ),
                                                 orgcdcnt( 0 ),
-                                                openstage( None )
+                                                openstage( None ),
+                                                ckpinit( false )
   {
   }
 
@@ -273,6 +275,7 @@ namespace XrdCl
                                       }
                                       if( chunk.length != archsize ) buffer.reset();
                                       openstage = Done;
+                                      cdexists  = true;
                                       break;
                                     }
 
@@ -448,6 +451,14 @@ namespace XrdCl
                        wrtbuff.reset();
                        if( handler ) handler->HandleResponse( make_status( st ), nullptr );
                      } );
+
+      //-------------------------------------------------------------------------
+      // If the file was updated, we need to write the Central Directory before
+      // closing the file.
+      //-------------------------------------------------------------------------
+      if( ckpinit )
+        p = XrdCl::Checkpoint( archive, ChkPtCode::COMMIT ) | p;
+
       Async( std::move( p ), timeout );
       return XRootDStatus();
     }
@@ -677,15 +688,7 @@ namespace XrdCl
                                       uint16_t               timeout )
   {
     Log *log = DefaultEnv::GetLog();
-
-    if( cdexists )
-    {
-      // TODO if this is an append: checkpoint the EOCD&co
-      cdexists = false;
-    }
-
-    static const int iovcnt = 2;
-    iovec iov[iovcnt];
+    std::vector<iovec> iov( 2 );
 
     //-------------------------------------------------------------------------
     // If there is a LFH we need to write it first ahead of the write-buffer
@@ -718,16 +721,39 @@ namespace XrdCl
 
     uint64_t wrtoff = cdoff; // we only support appending
     uint32_t wrtlen = iov[0].iov_len + iov[1].iov_len;
-    Pipeline p = XrdCl::WriteV( archive, wrtoff, iov, iovcnt ) >>
-                   [=]( XRootDStatus &st ) mutable
-                   {
-                     if( st.IsOK() ) updated   = true;
-                     lfhbuf.reset();
-                     if( handler )
-                       handler->HandleResponse( make_status( st ), nullptr );
-                   };
+
+    Pipeline p;
+    auto wrthandler = [=]( const XRootDStatus &st ) mutable
+                      {
+                        if( st.IsOK() ) updated = true;
+                        lfhbuf.reset();
+                        if( handler )
+                          handler->HandleResponse( make_status( st ), nullptr );
+                      };
+
+    //-------------------------------------------------------------------------
+    // If we are overwriting an existing CD we need to use checkpointed version
+    // of WriteV.
+    //-------------------------------------------------------------------------
+    if( archsize > cdoff )
+      p = XrdCl::ChkptWrtV( archive, wrtoff, iov ) | XrdCl::Final( wrthandler );
+    //-------------------------------------------------------------------------
+    // Otherwise use the ordinary WriteV.
+    //-------------------------------------------------------------------------
+    else
+      p = XrdCl::WriteV( archive, wrtoff, iov ) | XrdCl::Final( wrthandler );
+    //-----------------------------------------------------------------------
+    // If needed make sure the checkpoint is initialized
+    //-----------------------------------------------------------------------
+    if( archsize > cdoff && !ckpinit )
+    {
+      p = XrdCl::Checkpoint( archive, ChkPtCode::BEGIN ) | p;
+      ckpinit = true;
+    }
+
     archsize += wrtlen;
     cdoff    += wrtlen;
+
     //-------------------------------------------------------------------------
     // If we have written the LFH, add respective CDFH record
     //-------------------------------------------------------------------------

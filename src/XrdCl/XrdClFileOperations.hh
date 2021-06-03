@@ -609,7 +609,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   template<bool HasHndl>
   class WriteVImpl: public FileOperation<WriteVImpl, HasHndl, Resp<void>, Arg<uint64_t>,
-      Arg<struct iovec*>, Arg<int>>
+                                         Arg<std::vector<iovec>>>
   {
     public:
 
@@ -617,12 +617,12 @@ namespace XrdCl
       //! Inherit constructors from FileOperation (@see FileOperation)
       //------------------------------------------------------------------------
       using FileOperation<WriteVImpl, HasHndl, Resp<void>, Arg<uint64_t>,
-                          Arg<struct iovec*>, Arg<int>>::FileOperation;
+                          Arg<std::vector<iovec>>>::FileOperation;
 
       //------------------------------------------------------------------------
       //! Argument indexes in the args tuple
       //------------------------------------------------------------------------
-      enum { OffsetArg, IovArg, IovcntArg };
+      enum { OffsetArg, IovArg };
 
       //------------------------------------------------------------------------
       //! @return : name of the operation (@see Operation)
@@ -644,14 +644,31 @@ namespace XrdCl
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
         uint64_t            offset  = std::get<OffsetArg>( this->args ).Get();
-        const struct iovec *iov     = std::get<IovArg>( this->args ).Get();
-        int                 iovcnt  = std::get<IovcntArg>( this->args ).Get();
+        std::vector<iovec> &stdiov  = std::get<IovArg>( this->args ).Get();
         uint16_t            timeout = pipelineTimeout < this->timeout ?
                                       pipelineTimeout : this->timeout;
+
+        int iovcnt = stdiov.size();
+        iovec iov[iovcnt];
+        for( size_t i = 0; i < iovcnt; ++i )
+        {
+          iov[i].iov_base = stdiov[i].iov_base;
+          iov[i].iov_len  = stdiov[i].iov_len;
+        }
+
         return this->file->WriteV( offset, iov, iovcnt, handler, timeout );
       }
   };
-  typedef WriteVImpl<false> WriteV;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating WriteVImpl objects
+  //----------------------------------------------------------------------------
+  inline WriteVImpl<false> WriteV( Ctx<File> file, Arg<uint64_t> offset,
+                                   Arg<std::vector<iovec>> iov, uint16_t timeout = 0 )
+  {
+    return WriteVImpl<false>( std::move( file ), std::move( offset ),
+                              std::move( iov ) ).Timeout( timeout );
+  }
 
   //----------------------------------------------------------------------------
   //! Fcntl operation (@see FileOperation)
