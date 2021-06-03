@@ -10,5 +10,6 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+**[Server]** Make assumeV4 setting consistent (missing initializer).
 
 + **Miscellaneous**
