@@ -1335,7 +1335,7 @@ int XrdLinkXeq::TLS_RecvAll(char *Buff, int Blen, int timeout)
 
 // Note that we will block until we receive all the bytes.
 //
-   return Recv(Buff, Blen, -1);
+   return TLS_Recv(Buff, Blen, -1);
 }
 
 /******************************************************************************/
