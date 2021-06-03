@@ -11,5 +11,6 @@ Prerelease Notes
 
 + **Minor bug fixes**
 **[Server]** Make assumeV4 setting consistent (missing initializer).
+**[Server]** Corect copy-paste error rendering TLS RecvAll() useless.
 
 + **Miscellaneous**
