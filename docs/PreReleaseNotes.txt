@@ -10,7 +10,8 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
-**[Server]** Make assumeV4 setting consistent (missing initializer).
-**[Server]** Corect copy-paste error rendering TLS RecvAll() useless.
+  **[Server]** Make assumeV4 setting consistent (missing initializer).
+  **[Server]** Corect copy-paste error rendering TLS RecvAll() useless.
 
 + **Miscellaneous**
+  **[Server]** Make sure to clear OpenSSL error queue after authentication.
