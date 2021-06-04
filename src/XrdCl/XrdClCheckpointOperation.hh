@@ -181,7 +181,7 @@ namespace XrdCl
 
         int iovcnt = stdiov.size();
         iovec iov[iovcnt];
-        for( size_t i = 0; i < iovcnt; ++i )
+        for( size_t i = 0; i < stdiov.size(); ++i )
         {
           iov[i].iov_base = stdiov[i].iov_base;
           iov[i].iov_len  = stdiov[i].iov_len;

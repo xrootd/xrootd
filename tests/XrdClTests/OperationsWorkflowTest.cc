@@ -254,28 +254,26 @@ void WorkflowTest::WritingWorkflowTest(){
     //----------------------------------------------------------------------------
     // Forward parameters between operations
     //----------------------------------------------------------------------------
-    Fwd<iovec*>   iov;
-    Fwd<int>      iovcnt;
-    Fwd<uint32_t> size;
-    Fwd<void*>    buffer;
+    Fwd<std::vector<iovec>> iov;
+    Fwd<uint32_t>           size;
+    Fwd<void*>              buffer;
 
     //----------------------------------------------------------------------------
     // Create and execute workflow
     //----------------------------------------------------------------------------
-    Pipeline pipe = Open( f, fileUrl, flags ) >> [iov, iovcnt, texts]( XRootDStatus &status ) mutable
+    Pipeline pipe = Open( f, fileUrl, flags ) >> [iov, texts]( XRootDStatus &status ) mutable
                       {
                         CPPUNIT_ASSERT_XRDST( status );
-                        iovec *vec = new iovec[3];
+                        std::vector<iovec> vec( 3 );
                         vec[0].iov_base = strdup( texts[0].c_str() );
                         vec[0].iov_len  = texts[0].size();
                         vec[1].iov_base = strdup( texts[1].c_str() );
                         vec[1].iov_len  = texts[1].size();
                         vec[2].iov_base = strdup( texts[2].c_str() );
                         vec[2].iov_len  = texts[2].size();
-                        iov = vec;
-                        iovcnt = 3;
+                        iov = std::move( vec );
                       }
-                  | WriteV( f, 0, iov, iovcnt )
+                  | WriteV( f, 0, iov )
                   | Sync( f )
                   | Stat( f, true ) >> [size, buffer, createdFileSize]( XRootDStatus &status, StatInfo &info ) mutable
                       {
@@ -292,11 +290,9 @@ void WorkflowTest::WritingWorkflowTest(){
     CPPUNIT_ASSERT_XRDST( status );
     CPPUNIT_ASSERT( rdresp.get() == texts[0] + texts[1] + texts[2] );
 
-    iovec *vec = *iov;
-    free( vec[0].iov_base );
-    free( vec[1].iov_base );
-    free( vec[2].iov_base );
-    delete[] vec;
+    free( (*iov)[0].iov_base );
+    free( (*iov)[1].iov_base );
+    free( (*iov)[2].iov_base );
 }
 
 
