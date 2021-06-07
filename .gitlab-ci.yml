@@ -45,7 +45,7 @@ build:centos8:
     - cd packaging
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
-    - dnf update libarchive
+    - dnf -y update libarchive
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
