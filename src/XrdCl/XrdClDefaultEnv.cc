@@ -315,6 +315,7 @@ namespace XrdCl
     REGISTER_VAR_STR( varsStr, "OpenRecovery",            DefaultOpenRecovery            );
     REGISTER_VAR_STR( varsStr, "GlfnRedirector",          DefaultGlfnRedirector          );
     REGISTER_VAR_STR( varsStr, "TlsDbgLvl",               DefaultTlsDbgLvl               );
+    REGISTER_VAR_STR( varsStr, "CpTarget",                DefaultCpTarget                );
 
     //--------------------------------------------------------------------------
     // Process the configuration files

@@ -107,6 +107,7 @@ namespace XrdCl
   const char * const DefaultTlsDbgLvl          = "OFF";
   const char * const DefaultClConfDir          = "";
   const char * const DefaultClConfFile         = "";
+  const char * const DefaultCpTarget           = "";
 
   static std::unordered_map<std::string, int> theDefaultInts
     {
@@ -167,7 +168,8 @@ namespace XrdCl
       { "GlfnRedirector",     DefaultGlfnRedirector },
       { "TlsDbgLvl",          DefaultTlsDbgLvl },
       { "ClConfDir",          DefaultClConfDir },
-      { "DefaultClConfFile",  DefaultClConfFile }
+      { "DefaultClConfFile",  DefaultClConfFile },
+      { "CpTarget",           DefaultCpTarget }
     };
 }
 

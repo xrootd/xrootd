@@ -1697,6 +1697,17 @@ namespace
         if( !st.IsOK() )
           return st;
 
+        std::string cptarget = XrdCl::DefaultCpTarget;
+        XrdCl::DefaultEnv::GetEnv()->GetString( "CpTarget", cptarget );
+        if( !cptarget.empty() )
+        {
+          std::string targeturl;
+          pFile->GetProperty( "LastURL", targeturl );
+          if( symlink( targeturl.c_str(), cptarget.c_str() ) == -1 )
+            log->Warning( UtilityMsg, "Could not create cp-target symlink: %s",
+                          XrdSysE2T( errno ) );
+        }
+
         StatInfo *info = 0;
         st = pFile->Stat( false, info );
         if( !st.IsOK() )
