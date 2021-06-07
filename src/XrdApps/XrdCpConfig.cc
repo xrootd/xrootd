@@ -955,7 +955,7 @@ void XrdCpConfig::Usage(int rc)
    "-r | --recursive              recursively copies all source files\n"
    "     --rm-bad-cksum           remove the target file if checksum verification failed\n"
    "                              (enables also POSC semantics)\n"
-   "-t | --retry <n>              maximum number of times to retry rejected connections\n"
+   "-t | --retry <n>              maximum number of times to retry failed copy-jobs\n"
    "     --server                 runs in a server environment with added operations\n"
    "-s | --silent                 produces no output other than error messages\n"
    "-y | --sources <n>            uses up to the number of sources specified in parallel\n"

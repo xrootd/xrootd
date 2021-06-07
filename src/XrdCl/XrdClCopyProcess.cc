@@ -54,9 +54,11 @@ namespace
                      XrdSysSemaphore            *sem = 0 ):
         pJob(job), pProgress(progress), pCurrentJob(currentJob),
         pTotalJobs(totalJobs), pSem(sem),
-        pRetryCnt( XrdCl::DefaultRetryWrtAtLBLimit )
+        pWrtRetryCnt( XrdCl::DefaultRetryWrtAtLBLimit ),
+        pRetryCnt( 0 )
       {
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "RetryWrtAtLBLimit", pRetryCnt );
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "RetryWrtAtLBLimit", pWrtRetryCnt );
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "retry", pRetryCnt );
       }
 
       //------------------------------------------------------------------------
@@ -92,7 +94,10 @@ namespace
         while( true )
         {
           st = pJob->Run( pProgress );
-          if( !st.IsOK() && st.code == XrdCl::errRetry && pRetryCnt > 0 )
+          //--------------------------------------------------------------------
+          // Retry due to write-recovery
+          //--------------------------------------------------------------------
+          if( !st.IsOK() && st.code == XrdCl::errRetry && pWrtRetryCnt > 0 )
           {
             std::string url;
             pJob->GetResults()->Get( "LastURL", url );
@@ -124,6 +129,18 @@ namespace
             pJob->Init();
 
             // we have a new job, let's try again
+            --pWrtRetryCnt;
+            continue;
+          }
+          //--------------------------------------------------------------------
+          // Copy job retry
+          //--------------------------------------------------------------------
+          if( !st.IsOK() && pRetryCnt > 0 &&
+              ( XrdCl::Status::IsSocketError( st.code ) ||
+                st.code == XrdCl::errOperationExpired   ||
+                st.code == XrdCl::errThresholdExceeded ) )
+          {
+            pJob->GetProperties()->Set( "force", true );
             --pRetryCnt;
             continue;
           }
@@ -164,6 +181,7 @@ namespace
       uint16_t                    pCurrentJob;
       uint16_t                    pTotalJobs;
       XrdSysSemaphore            *pSem;
+      int                         pWrtRetryCnt;
       int                         pRetryCnt;
   };
 };

@@ -131,6 +131,11 @@ namespace XrdCl
       return (code/100)+50;
     }
 
+    inline static bool IsSocketError( uint16_t code )
+    {
+      return int( code / 100 ) == 1;
+    }
+
     //--------------------------------------------------------------------------
     //! Create a string representation
     //--------------------------------------------------------------------------
