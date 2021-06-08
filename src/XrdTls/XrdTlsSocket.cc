@@ -265,8 +265,7 @@ XrdTls::RC XrdTlsSocket::Connect(const char *thehost, std::string *eWhy)
 
 // Do the connect.
 //
-do{if (pImpl->isClient) ERR_clear_error();
-   int rc = SSL_connect( pImpl->ssl );
+do{int rc = SSL_connect( pImpl->ssl );
    if (rc == 1) break;
 
    ssler = Diagnose("TLS_Connect", rc, XrdTls::dbgSOK);
@@ -641,8 +640,7 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
     // have to explicitly call SSL_connect or SSL_do_handshake.
     //------------------------------------------------------------------------
 
- do{if (pImpl->isClient) ERR_clear_error();
-    int rc = SSL_read( pImpl->ssl, buffer, size );
+ do{int rc = SSL_read( pImpl->ssl, buffer, size );
 
     // Note that according to SSL whenever rc > 0 then SSL_ERROR_NONE can be
     // returned to the caller. So, we short-circuit all the error handling.
@@ -787,8 +785,7 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
     // have to explicitly call SSL_connect or SSL_do_handshake.
     //------------------------------------------------------------------------
 
- do{if (pImpl->isClient) ERR_clear_error();
-    int rc = SSL_write( pImpl->ssl, buffer, size );
+ do{int rc = SSL_write( pImpl->ssl, buffer, size );
 
     // Note that according to SSL whenever rc > 0 then SSL_ERROR_NONE can be
     // returned to the caller. So, we short-circuit all the error handling.
