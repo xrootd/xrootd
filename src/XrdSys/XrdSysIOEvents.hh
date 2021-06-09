@@ -512,6 +512,8 @@ bool            chDead;     // True if channel deleted by callback
 
 static time_t   maxTime;    // Maximum time allowed
 
+static pid_t    parentPID;  // register parent process PID
+
 private:
 
 void Attach(Channel *cP);

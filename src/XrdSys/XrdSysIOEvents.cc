@@ -91,6 +91,8 @@
   
        time_t       XrdSys::IOEvents::Poller::maxTime
                     = (sizeof(time_t) == 8 ? 0x7fffffffffffffffLL : 0x7fffffff);
+
+       pid_t        XrdSys::IOEvents::Poller::parentPID = getpid();
  
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */

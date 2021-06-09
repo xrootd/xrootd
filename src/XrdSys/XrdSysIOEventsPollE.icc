@@ -217,7 +217,15 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
        else if (numpolled <  0)
                {int rc = errno;
                 cerr <<"EPoll: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
-                abort();
+                //--------------------------------------------------------------
+                // If we are in a child process and the epoll file descriptor
+                // has been closed, there is an immense chance the fork will be
+                // followed by an exec, in which case we don't want to abort
+                //--------------------------------------------------------------
+                if( rc == EBADF && parentPID != getpid() )
+                  return;
+                else
+                  abort();
                }
        else for (int i = 0; i < numpolled; i++)
                 {if ((cP = (Channel *)pollTab[i].data.ptr))
