@@ -2241,13 +2241,11 @@ namespace XrdCl
                     "[%s] Authenticated with %s.", hsData->streamName.c_str(),
                     protocolName.c_str() );
 
-        if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
-            ( info->serverFlags & kXR_tlsLogin ) )
-          //--------------------------------------------------------------------
-          // Clear the SSL error queue of the calling thread, as there might be
-          // some leftover from the authentication!
-          //--------------------------------------------------------------------
-          Tls::ClearErrorQueue();
+        //--------------------------------------------------------------------
+        // Clear the SSL error queue of the calling thread, as there might be
+        // some leftover from the authentication!
+        //--------------------------------------------------------------------
+        Tls::ClearErrorQueue();
 
         return XRootDStatus();
       } 
@@ -2311,13 +2309,11 @@ namespace XrdCl
     MarshallRequest( msg );
     delete credentials;
 
-    if( info->encrypted || ( info->serverFlags & kXR_gotoTLS ) ||
-        ( info->serverFlags & kXR_tlsLogin ) )
-      //------------------------------------------------------------------------
-      // Clear the SSL error queue of the calling thread, as there might be
-      // some leftover from the authentication!
-      //------------------------------------------------------------------------
-      Tls::ClearErrorQueue();
+    //------------------------------------------------------------------------
+    // Clear the SSL error queue of the calling thread, as there might be
+    // some leftover from the authentication!
+    //------------------------------------------------------------------------
+    Tls::ClearErrorQueue();
 
     return XRootDStatus( stOK, suContinue );
   }
@@ -2425,6 +2421,7 @@ namespace XrdCl
     info->authProtocol = 0;
     info->authParams   = 0;
     info->authEnv      = 0;
+    Tls::ClearErrorQueue();
     return Status();
   }
 
