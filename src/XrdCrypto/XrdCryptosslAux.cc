@@ -43,7 +43,6 @@
 #include "XrdCrypto/XrdCryptosslX509.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 #include "XrdTls/XrdTlsPeerCerts.hh"
-#include <openssl/err.h>
 #include <openssl/pem.h>
 
 // Error code from verification set by verify callback function
@@ -606,7 +605,6 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
    if (BIO_write(bmem,(const void *)(b->buffer),b->size) != b->size) {
       DEBUG("problems writing data to BIO");
       BIO_free(bmem);
-      ERR_clear_error();
       return nci;
    }
 
@@ -623,16 +621,10 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
       } else {
          DEBUG("could not create certificate: memory exhausted?");
          BIO_free(bmem);
-         ERR_clear_error();
          return nci;
       }
       // reset cert otherwise the next one is not fetched
       xcer = 0;
-   }
-
-   // Clear OpenSSL error queue from PEM_read_bio_X509() loop end condition
-   if (ERR_GET_REASON(ERR_peek_last_error()) == PEM_R_NO_START_LINE) {
-      ERR_clear_error();
    }
 
    // If we found something, and we are asked to extract a key,
@@ -697,13 +689,6 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
 
    // Cleanup
    BIO_free(bmem);
-
-   // Report and clear any other OpenSSL errors on the queue
-   char eBuff[120]; int eCode;
-   while ((eCode = ERR_get_error())) {
-      ERR_error_string_n(eCode, eBuff, sizeof(eBuff));
-      DEBUG("TLS error: " << eBuff);
-   }
 
    // We are done
    return nci;
