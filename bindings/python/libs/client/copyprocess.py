@@ -88,7 +88,8 @@ class CopyProcess(object):
               inittimeout    = 600,
               tpctimeout     = 1800,
               rmBadCksum     = False,
-              retry          = 0 ):
+              retry          = 0,
+              cont           = False ):
     """Add a job to the copy process.
 
     :param         source: original source URL
@@ -129,11 +130,13 @@ class CopyProcess(object):
     :type      rmBadCksum: boolean
     :param     retry: number of retries
     :type      retry: integer
+    :param     cont: continue copying a file from the point where the previous copy was interrupted
+    :type      cont: boolean
     """
     self.__process.add_job(source, target, sourcelimit, force, posc, coerce, mkdir,
                            thirdparty, checksummode, checksumtype, checksumpreset,
                            dynamicsource, chunksize, parallelchunks, inittimeout,
-                           tpctimeout, rmBadCksum, retry)
+                           tpctimeout, rmBadCksum, retry, cont )
 
   def prepare(self):
     """Prepare the copy jobs. **Must be called before** ``run()``."""
