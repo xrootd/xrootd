@@ -284,6 +284,7 @@ release:centos8-x86_64:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git python-macros
     - dnf config-manager --set-enabled powertools
     - dnf install -y cppunit-devel
+    - dnf -y update libarchive
     - mkdir centos-8-x86_64
     - ./gen-tarball.sh $CI_COMMIT_TAG
     - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz centos-8-x86_64
@@ -412,6 +413,7 @@ weekly:centos8:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git python-macros
     - dnf config-manager --set-enabled powertools
     - dnf install -y cppunit-devel
+    - dnf -y update libarchive
     - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v' | grep -v 'rc.*$' | grep -v 'CERN$' | sed -e '$!d')
     - xrootd_version=${xrootd_version:11}
     - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
