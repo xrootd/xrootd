@@ -330,8 +330,9 @@ namespace XrdCl
       case XrdTls::TLS_UNK_Error:
       case XrdTls::TLS_SYS_Error: return XRootDStatus( stError, errTlsError, 0, msg );
 
+      case XrdTls::TLS_SSL_Error: return XRootDStatus( stFatal, errTlsError, EAGAIN, msg );
+
       case XrdTls::TLS_VER_Error:
-      case XrdTls::TLS_SSL_Error:
       case XrdTls::TLS_HNV_Error: return XRootDStatus( stFatal, errTlsError, 0, msg );
 
       // the connection was closed by the server, treat this as a socket error

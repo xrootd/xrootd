@@ -178,7 +178,9 @@ namespace XrdCl
         pDirListStarted( false ),
         pDirListWithStat( false ),
 
-        pCV( 0 )
+        pCV( 0 ),
+
+        pSslErrCnt( 0 )
 
       {
         pPostMaster = DefaultEnv::GetPostMaster();
@@ -642,9 +644,10 @@ namespace XrdCl
 
       typedef std::list<std::unique_ptr<RedirectEntry>> RedirectTraceBack;
 
-      static const size_t             PageSize      = XrdSys::PageSize;
-      static const size_t             CksumSize     = sizeof( uint32_t );
-      static const size_t             PageWithCksum = PageSize + CksumSize;
+      static const size_t             PageSize       = XrdSys::PageSize;
+      static const size_t             CksumSize      = sizeof( uint32_t );
+      static const size_t             PageWithCksum  = PageSize + CksumSize;
+      static const size_t             MaxSslErrRetry = 3;
 
       inline static size_t NbPages( uint32_t dlen )
       {
@@ -761,6 +764,11 @@ namespace XrdCl
       // to serve kXR_oksofar as a response to the user's handler
       //------------------------------------------------------------------------
       XrdSysCondVar                   pCV;
+
+      //------------------------------------------------------------------------
+      // Count of consecutive `errTlsSslError` errors
+      //------------------------------------------------------------------------
+      size_t                          pSslErrCnt;
   };
 }
 

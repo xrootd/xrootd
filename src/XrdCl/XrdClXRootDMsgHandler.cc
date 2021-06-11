@@ -2568,6 +2568,22 @@ namespace XrdCl
                 status.ToString().c_str() );
 
     //--------------------------------------------------------------------------
+    // Check if it is a fatal TLS error that has been marked as potentially
+    // recoverable, if yes check if we can downgrade from fatal to error.
+    //--------------------------------------------------------------------------
+    if( status.IsFatal() && status.code == errTlsError && status.errNo == EAGAIN )
+    {
+      if( pSslErrCnt < MaxSslErrRetry )
+      {
+        status.status &= ~stFatal; // switch off fatal&error bits
+        status.status |= stError;  // switch on error bit
+      }
+      ++pSslErrCnt; // count number of consecutive SSL errors
+    }
+    else
+      pSslErrCnt = 0;
+
+    //--------------------------------------------------------------------------
     // We have got an error message, we can recover it at the load balancer if:
     // 1) we haven't got it from the load balancer
     // 2) we have a load balancer assigned
