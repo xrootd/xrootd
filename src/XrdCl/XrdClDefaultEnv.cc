@@ -304,6 +304,7 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "WantTlsOnNoPgrw",         DefaultWantTlsOnNoPgrw         );
     REGISTER_VAR_INT( varsInt, "RetryWrtAtLBLimit",       DefaultRetryWrtAtLBLimit       );
     REGISTER_VAR_INT( varsInt, "XRateThreshold",          DefaultXRateThreshold          );
+    REGISTER_VAR_INT( varsInt, "CpRetry",                 DefaultCpRetry                 );
 
     REGISTER_VAR_STR( varsStr, "ClientMonitor",           DefaultClientMonitor           );
     REGISTER_VAR_STR( varsStr, "ClientMonitorParam",      DefaultClientMonitorParam      );
@@ -316,6 +317,7 @@ namespace XrdCl
     REGISTER_VAR_STR( varsStr, "GlfnRedirector",          DefaultGlfnRedirector          );
     REGISTER_VAR_STR( varsStr, "TlsDbgLvl",               DefaultTlsDbgLvl               );
     REGISTER_VAR_STR( varsStr, "CpTarget",                DefaultCpTarget                );
+    REGISTER_VAR_STR( varsStr, "CpRetryPolicy",           DefaultCpRetryPolicy           );
 
     //--------------------------------------------------------------------------
     // Process the configuration files

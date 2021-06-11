@@ -602,7 +602,10 @@ int main( int argc, char **argv )
     env->PutInt( "SubStreamsPerChannel", config.nStrm + 1 /*stands for the control stream*/ );
 
   if( config.Retry != -1 )
-    env->PutInt( "retry", config.Retry );
+  {
+    env->PutInt( "CpRetry", config.Retry );
+    env->PutString( "CpRetryPolicy", config.RetryPolicy );
+  }
 
   if( config.Want( XrdCpConfig::DoNoTlsOK ) )
     env->PutInt( "NoTlsOK", 1 );

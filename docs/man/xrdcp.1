@@ -17,7 +17,7 @@ xrdcp - copy files
 [\fB--parallel\fR \fIn\fR] [\fB--allow-http\fR] [\fB--xattr\fR]
 [\fB--notlsok\fR] [\fB--tlsnodata\fR] [\fB--tlsmetalink\fR]
 [\fB--zip-mtln-cksum\fR] [\fB--rm-bad-cksum\fR] [\fB--continue\fR]
-[\fB--xrate-threshold\fR]
+[\fB--xrate-threshold\fR] [\fB--retry-policy\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -609,6 +609,16 @@ User defined directory with config files (*.conf).
 XRD_CLCONFFILE
 .RS 5
 User defined config file.
+.RE
+
+XRD_CPRETRY
+.RS 5
+Maximum number of times to retry failed copy-jobs (default: 0).
+.RE
+
+XRD_CPRETRYPOLICY
+.RS 5
+Copy job retry policy, either force or retry (default: force).
 .RE
 
 .SH RETURN CODES

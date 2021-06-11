@@ -66,7 +66,7 @@ namespace PyXRootD
       = { "source", "target", "sourcelimit", "force", "posc", "coerce",
           "mkdir", "thirdparty", "checksummode", "checksumtype",
           "checksumpreset", "dynamicsource", "chunksize", "parallelchunks", "inittimeout",
-          "tpctimeout", "rmBadCksum", "cptimeout", "xratethreshold", "xrate", "retry", "cont", NULL };
+          "tpctimeout", "rmBadCksum", "cptimeout", "xratethreshold", "xrate", "retry", "cont", "rtrplc", NULL };
 
     const char  *source;
     const char  *target;
@@ -85,6 +85,7 @@ namespace PyXRootD
     long long    xRate             = 0;
     long long    retry             = 0;
     bool         cont              = false;
+    const char  *rtrplc            = "force";
 
 
     int val = XrdCl::DefaultCPChunkSize;
@@ -107,11 +108,12 @@ namespace PyXRootD
     env->GetInt( "CPTimeout", val );
     uint16_t cpTimeout = val;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHbHLLLb:add_job",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssbIHHHbHLLLbs:add_job",
          (char**) kwlist, &source, &target, &sourceLimit, &force, &posc,
          &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
          &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks,
-         &initTimeout, &tpcTimeout, &rmBadCksum, &cpTimeout, &xRateThreashold, &xRate, &retry, &cont ) )
+         &initTimeout, &tpcTimeout, &rmBadCksum, &cpTimeout, &xRateThreashold,
+         &xRate, &retry, &cont, &rtrplc ) )
       return NULL;
 
     XrdCl::PropertyList properties;
@@ -136,8 +138,10 @@ namespace PyXRootD
     properties.Set( "cpTimeout",       cpTimeout       );
     properties.Set( "xrateThreashold", xRateThreashold );
     properties.Set( "xrate",           xRate           );
-    properties.Set( "retry",           retry );
     properties.Set( "continue",        cont );
+
+    env->PutInt( "CpRetry", retry );
+    env->PutString( "CpRetryPolicy", rtrplc );
 
     if( sourceLimit > 1 )
     {

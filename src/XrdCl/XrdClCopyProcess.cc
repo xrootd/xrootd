@@ -55,10 +55,12 @@ namespace
         pJob(job), pProgress(progress), pCurrentJob(currentJob),
         pTotalJobs(totalJobs), pSem(sem),
         pWrtRetryCnt( XrdCl::DefaultRetryWrtAtLBLimit ),
-        pRetryCnt( 0 )
+        pRetryCnt( XrdCl::DefaultCpRetry ),
+        pRetryPolicy( XrdCl::DefaultCpRetryPolicy )
       {
         XrdCl::DefaultEnv::GetEnv()->GetInt( "RetryWrtAtLBLimit", pWrtRetryCnt );
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "retry", pRetryCnt );
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "CpRetry", pRetryCnt );
+        XrdCl::DefaultEnv::GetEnv()->GetString( "CpRetryPolicy", pRetryPolicy );
       }
 
       //------------------------------------------------------------------------
@@ -140,7 +142,16 @@ namespace
                 st.code == XrdCl::errOperationExpired   ||
                 st.code == XrdCl::errThresholdExceeded ) )
           {
-            pJob->GetProperties()->Set( "force", true );
+            if( pRetryPolicy == "continue" )
+            {
+              pJob->GetProperties()->Set( "force", false );
+              pJob->GetProperties()->Set( "continue", true );
+            }
+            else
+            {
+              pJob->GetProperties()->Set( "force", true );
+              pJob->GetProperties()->Set( "continue", false );
+            }
             --pRetryCnt;
             continue;
           }
@@ -183,6 +194,7 @@ namespace
       XrdSysSemaphore            *pSem;
       int                         pWrtRetryCnt;
       int                         pRetryCnt;
+      std::string                 pRetryPolicy;
   };
 };
 

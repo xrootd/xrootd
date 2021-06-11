@@ -93,6 +93,7 @@ namespace XrdCl
   const int DefaultIPNoShuffle             = 0;
   const int DefaultWantTlsOnNoPgrw         = 0;
   const int DefaultRetryWrtAtLBLimit       = 3;
+  const int DefaultCpRetry                 = 0;
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";
@@ -108,6 +109,7 @@ namespace XrdCl
   const char * const DefaultClConfDir          = "";
   const char * const DefaultClConfFile         = "";
   const char * const DefaultCpTarget           = "";
+  const char * const DefaultCpRetryPolicy      = "force";
 
   static std::unordered_map<std::string, int> theDefaultInts
     {

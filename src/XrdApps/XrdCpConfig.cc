@@ -118,6 +118,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "rm-bad-cksum",   0, 0, XrdCpConfig::OpRmOnBadCksum},
       {OPT_TYPE "continue",       0, 0, XrdCpConfig::OpContinue},
       {OPT_TYPE "xrate-threshold",1, 0, XrdCpConfig::OpXrateThreashold},
+      {OPT_TYPE "retry-policy",   1, 0, XrdCpConfig::OpRetryPolicy},
       {0,                         0, 0, 0}
      };
 
@@ -146,6 +147,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    nSrcs    = 1;
    nStrm    = 0;
    Retry    =-1;
+   RetryPolicy = "force";
    Verbose  = 0;
    numFiles = 0;
    totBytes = 0;
@@ -265,6 +267,10 @@ do{while(optind < Argc && Legacy(optind)) {}
                                 break;
           case OpRetry:         OpSpec |= DoRetry;
                                 if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
+                                break;
+          case OpRetryPolicy:   OpSpec |= DoRetryPolicy;
+                                RetryPolicy = optarg;
+                                if( RetryPolicy != "force" && RetryPolicy != "continue" ) Usage(22);
                                 break;
           case OpServer:        OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
                                 break;
@@ -917,7 +923,7 @@ void XrdCpConfig::Usage(int rc)
    "         [--tpc [delegate] {first|only}] [--verbose] [--version]\n"
    "         [--xrate <rate>] [--zip <file>] [--allow-http] [--xattr]\n"
    "         [--zip-mtln-cksum] [--rm-bad-cksum] [--continue]\n"
-   "         [--xrate-threshold <rate>]\n";
+   "         [--xrate-threshold <rate>] [--retry-policy <force|continue>]\n";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root[s]://<host>[:<port>]/]<path> | -";
@@ -984,6 +990,7 @@ void XrdCpConfig::Usage(int rc)
    "                              a file is being extracted from a ZIP archive\n"
    "     --continue               continue copying a file from the point where the previous\n"
    "                              copy was interrupted\n"
+   "     --retry-policy           retry policy: force or continue"
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 

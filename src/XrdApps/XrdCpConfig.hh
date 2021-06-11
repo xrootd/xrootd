@@ -35,6 +35,8 @@
 #include <ctype.h>
 #include <stdint.h>
 
+#include <string>
+
 struct option;
 class  XrdCks;
 class  XrdCksCalc;
@@ -71,7 +73,8 @@ struct defVar
              int    Dlvl;           // Debug level                 (0 to 3)
              int    nSrcs;          // Number of sources wanted    (dflt 1)
              int    nStrm;          // Number of streams wanted    (dflt 1)
-             int    Retry;          // Max times to retry connects (<0->use dflt)
+             int    Retry;          // Max times to retry failed copy job
+        std::string RetryPolicy;    // retry policy (to force or to continue)
              int    Verbose;        // True if --verbose specified
              int    CksLen;         // Binary length of checksum, if any
 
@@ -190,6 +193,9 @@ static const uint64_t    DoContinue     = 0x0000000100000000LL; // --continue
 
 static const uint64_t    OpXrateThreashold = 0x11;
 static const uint64_t    DoXrateThreashold = 0x0000000200000000LL; // --xrate-threashold
+
+static const uint64_t    OpRetryPolicy     = 0x12;
+static const uint64_t    DoRetryPolicy     = 0x0000000400000000LL; // --retry-policy
 
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
