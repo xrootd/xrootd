@@ -494,13 +494,15 @@ int main( int argc, char **argv )
   bool         rmOnBadCksum  = false;
   bool         continue_     = false;
   bool         recurse       = false;
+  bool         zipappend     = false;
   std::string thirdParty = "none";
 
-  if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
-  if( config.Want( XrdCpConfig::DoForce ) )    force      = true;
-  if( config.Want( XrdCpConfig::DoCoerce ) )   coerce     = true;
-  if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty = "first";
-  if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdParty = "only";
+  if( config.Want( XrdCpConfig::DoPosc ) )      posc       = true;
+  if( config.Want( XrdCpConfig::DoForce ) )     force      = true;
+  if( config.Want( XrdCpConfig::DoCoerce ) )    coerce     = true;
+  if( config.Want( XrdCpConfig::DoTpc ) )       thirdParty = "first";
+  if( config.Want( XrdCpConfig::DoTpcOnly ) )   thirdParty = "only";
+  if( config.Want( XrdCpConfig::DoZipAppend ) ) zipappend  = true;
   if( config.Want( XrdCpConfig::DoTpcDlgt ) )
   {
     // the env var is being set already here (we are issuing a stat
@@ -709,7 +711,7 @@ int main( int argc, char **argv )
     delete statInfo;
   }
 
-  if( !targetIsDir && targetExists && !force && !recurse )
+  if( !targetIsDir && targetExists && !force && !recurse && !zipappend )
   {
     XRootDStatus st( stError, errInvalidOp, EEXIST );
     // Unable to create /tmp/test.txt; file exists
@@ -855,6 +857,7 @@ int main( int argc, char **argv )
     properties.Set( "xrateThreashold", config.xRateThreashold );
     properties.Set( "rmOnBadCksum",    rmOnBadCksum           );
     properties.Set( "continue",        continue_              );
+    properties.Set( "zipAppend",       zipappend              );
 
     if( zip )
       properties.Set( "zipSource",     zipFile                );

@@ -1948,6 +1948,319 @@ namespace
       std::string                 pWrtRecoveryRedir;
       std::string                 pLastURL;
   };
+
+  //----------------------------------------------------------------------------
+  //! XRootD destination
+  //----------------------------------------------------------------------------
+  class XRootDZipDestination: public Destination
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      XRootDZipDestination( const XrdCl::URL &url, const std::string &fn, int64_t size, uint8_t parallelChunks,
+                         const std::string &ckSumType ):
+        Destination( ckSumType ),
+        pUrl( url ), pFilename( fn ), pZip( new XrdCl::ZipArchive() ),
+        pParallel( parallelChunks ), pSize( size )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~XRootDZipDestination()
+      {
+        CleanUpChunks();
+        delete pZip;
+
+        //----------------------------------------------------------------------
+        // If the copy failed and user requested posc and we are dealing with
+        // a local destination, remove the file
+        //----------------------------------------------------------------------
+        if( pUrl.IsLocalFile() && pPosc && !Result::Get().IsOK() )
+        {
+          XrdCl::FileSystem fs( pUrl );
+          XrdCl::XRootDStatus st = fs.Rm( pUrl.GetPath() );
+          if( !st.IsOK() )
+          {
+            XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+            log->Error( XrdCl::UtilityMsg, "Failed to remove local destination"
+                        " on failure: %s", st.ToString().c_str() );
+          }
+        }
+      }
+
+      //------------------------------------------------------------------------
+      //! Initialize the destination
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Initialize()
+      {
+        using namespace XrdCl;
+        Log *log = DefaultEnv::GetLog();
+        log->Debug( UtilityMsg, "Opening %s for writing",
+                                pUrl.GetURL().c_str() );
+
+        std::string value;
+        DefaultEnv::GetEnv()->GetString( "WriteRecovery", value );
+        pZip->SetProperty( "WriteRecovery", value );
+
+        OpenFlags::Flags flags = OpenFlags::Update;
+
+        FileSystem fs( pUrl );
+        StatInfo *info = nullptr;
+        auto st = fs.Stat( pUrl.GetPath(), info );
+        if( !st.IsOK() && st.code == errErrorResponse && st.errNo == kXR_NotFound )
+          flags |= OpenFlags::New;
+
+        if( pPosc )
+          flags |= OpenFlags::POSC;
+
+        if( pCoerce )
+          flags |= OpenFlags::Force;
+
+        if( pMakeDir)
+          flags |= OpenFlags::MakePath;
+
+        st = XrdCl::WaitFor( XrdCl::OpenArchive( pZip, pUrl.GetURL(), flags ) );
+        if( !st.IsOK() )
+          return st;
+
+        std::string cptarget = XrdCl::DefaultCpTarget;
+        XrdCl::DefaultEnv::GetEnv()->GetString( "CpTarget", cptarget );
+        if( !cptarget.empty() )
+        {
+          std::string targeturl;
+          pZip->GetProperty( "LastURL", targeturl );
+          if( symlink( targeturl.c_str(), cptarget.c_str() ) == -1 )
+            log->Warning( UtilityMsg, "Could not create cp-target symlink: %s",
+                          XrdSysE2T( errno ) );
+        }
+
+        st = pZip->OpenFile( pFilename, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write, pSize, 0/*file checksum*/ ); // TODO
+        if( !st.IsOK() )
+          return st;
+
+        if( pUrl.IsLocalFile() && pCkSumHelper && !pContinue )
+          return pCkSumHelper->Initialize();
+
+        return XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Finalize the destination
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Finalize()
+      {
+        pZip->CloseFile();
+        return XrdCl::WaitFor( XrdCl::CloseArchive( pZip ) );
+      }
+
+      //------------------------------------------------------------------------
+      //! Put a data chunk at a destination
+      //!
+      //! @param  ci     chunk information
+      //! @return status of the operation
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
+      {
+        using namespace XrdCl;
+
+        //----------------------------------------------------------------------
+        // If there is still place for this chunk to be sent send it
+        //----------------------------------------------------------------------
+        if( pChunks.size() < pParallel )
+          return QueueChunk( ci );
+
+        //----------------------------------------------------------------------
+        // We wait for a chunk to be sent so that we have space for the current
+        // one
+        //----------------------------------------------------------------------
+        std::unique_ptr<ChunkHandler> ch( pChunks.front() );
+        pChunks.pop();
+        ch->sem->Wait();
+        delete [] (char*)ch->chunk.buffer;
+        if( !ch->status.IsOK() )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
+                      ch->chunk.length, ch->chunk.offset,
+                      pUrl.GetURL().c_str(), ch->status.ToStr().c_str() );
+          CleanUpChunks();
+
+          //--------------------------------------------------------------------
+          // Check if we should re-try the transfer from scratch at a different
+          // data server
+          //--------------------------------------------------------------------
+          return CheckIfRetriable( ch->status );
+        }
+
+        return QueueChunk( ci );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get size
+      //------------------------------------------------------------------------
+      virtual int64_t GetSize()
+      {
+        return -1;
+      }
+
+      //------------------------------------------------------------------------
+      //! Clean up the chunks that are flying
+      //------------------------------------------------------------------------
+      void CleanUpChunks()
+      {
+        while( !pChunks.empty() )
+        {
+          ChunkHandler *ch = pChunks.front();
+          pChunks.pop();
+          ch->sem->Wait();
+          delete [] (char *)ch->chunk.buffer;
+          delete ch;
+        }
+      }
+
+      //------------------------------------------------------------------------
+      //! Queue a chunk
+      //------------------------------------------------------------------------
+      XrdCl::XRootDStatus QueueChunk( XrdCl::ChunkInfo &ci )
+      {
+        // we are writing chunks in order so we can calc the checksum
+        // in case of local files
+        if( pUrl.IsLocalFile() && pCkSumHelper && !pContinue )
+          pCkSumHelper->Update( ci.buffer, ci.length );
+
+        ChunkHandler *ch = new ChunkHandler(ci);
+        XrdCl::XRootDStatus st;
+
+        st = pZip->Write( ci.length, ci.buffer, ch );
+        if( !st.IsOK() )
+        {
+          CleanUpChunks();
+          delete [] (char*)ci.buffer;
+          ci.buffer = 0;
+          delete ch;
+          return st;
+        }
+        pChunks.push( ch );
+        return XrdCl::XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Flush chunks that might have been queues
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Flush()
+      {
+        XrdCl::XRootDStatus st;
+        while( !pChunks.empty() )
+        {
+          ChunkHandler *ch = pChunks.front();
+          pChunks.pop();
+          ch->sem->Wait();
+          if( !ch->status.IsOK() )
+          {
+            //--------------------------------------------------------------------
+            // Check if we should re-try the transfer from scratch at a different
+            // data server
+            //--------------------------------------------------------------------
+            st = CheckIfRetriable( ch->status );
+          }
+          delete [] (char *)ch->chunk.buffer;
+          delete ch;
+        }
+        return st;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType )
+      {
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+      }
+
+      //------------------------------------------------------------------------
+      //! Set extended attributes
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus SetXAttr( const std::vector<XrdCl::xattr_t> &xattrs )
+      {
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get last URL
+      //------------------------------------------------------------------------
+      const std::string& GetLastURL() const
+      {
+        return pLastURL;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get write-recovery redirector
+      //------------------------------------------------------------------------
+      const std::string& GetWrtRecoveryRedir() const
+      {
+        return pWrtRecoveryRedir;
+      }
+
+    private:
+      XRootDZipDestination(const XRootDDestination &other);
+      XRootDZipDestination &operator = (const XRootDDestination &other);
+
+      //------------------------------------------------------------------------
+      // Asynchronous chunk handler
+      //------------------------------------------------------------------------
+      class ChunkHandler: public XrdCl::ResponseHandler
+      {
+        public:
+          ChunkHandler( XrdCl::ChunkInfo ci ):
+            sem( new XrdSysSemaphore(0) ),
+            chunk(ci) {}
+          virtual ~ChunkHandler() { delete sem; }
+          virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
+                                       XrdCl::AnyObject    */*response*/ )
+          {
+            this->status = *statusval;
+            delete statusval;
+            sem->Post();
+          }
+
+          XrdSysSemaphore        *sem;
+          XrdCl::ChunkInfo        chunk;
+          XrdCl::XRootDStatus     status;
+      };
+
+      inline XrdCl::XRootDStatus CheckIfRetriable( XrdCl::XRootDStatus &status )
+      {
+        if( status.IsOK() ) return status;
+
+        //--------------------------------------------------------------------
+        // Check if we should re-try the transfer from scratch at a different
+        // data server
+        //--------------------------------------------------------------------
+        std::string value;
+        if( pZip->GetProperty( "WrtRecoveryRedir", value ) )
+        {
+          pWrtRecoveryRedir = value;
+          if( pZip->GetProperty( "LastURL", value ) ) pLastURL = value;
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errRetry );
+        }
+
+        return status;
+      }
+
+      const XrdCl::URL            pUrl;
+      std::string                 pFilename;
+      XrdCl::ZipArchive          *pZip;
+      uint8_t                     pParallel;
+      std::queue<ChunkHandler *>  pChunks;
+      int64_t                     pSize;
+
+      std::string                 pWrtRecoveryRedir;
+      std::string                 pLastURL;
+  };
 }
 
 //------------------------------------------------------------------------------
@@ -2014,7 +2327,7 @@ namespace XrdCl
     uint32_t    chunkSize;
     uint64_t    blockSize;
     bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr,
-                rmOnBadCksum, continue_;
+                rmOnBadCksum, continue_, zipappend;
     int32_t     nbXcpSources;
     long long   xRate;
     long long   xRateThreshold;
@@ -2039,6 +2352,7 @@ namespace XrdCl
     pProperties->Get( "rmOnBadCksum",    rmOnBadCksum );
     pProperties->Get( "continue",        continue_ );
     pProperties->Get( "cpTimeout",       cpTimeout );
+    pProperties->Get( "zipAppend",       zipappend );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
@@ -2049,6 +2363,10 @@ namespace XrdCl
     if( force && continue_ )
       return Result( stError, errInvalidArgs, EINVAL,
                      "Invalid argument combination: continue + force." );
+
+    if( zipappend && ( continue_ || force ) )
+      return Result( stError, errInvalidArgs, EINVAL,
+                     "Invalid argument combination: ( continue | force ) + zip-append." );
 
     //--------------------------------------------------------------------------
     // Start the cp t/o timer if necessary
@@ -2106,6 +2424,15 @@ namespace XrdCl
 
     if( GetTarget().GetProtocol() == "stdio" )
       dest.reset( new StdOutDestination( checkSumType ) );
+    else if( zipappend )
+    {
+      std::string fn = GetSource().GetPath();
+      size_t pos = fn.rfind( '/' );
+      if( pos != std::string::npos )
+        fn = fn.substr( pos + 1 );
+      int64_t size = src->GetSize();
+      dest.reset( new XRootDZipDestination( newDestUrl, fn, size, parallelChunks, checkSumType ) );
+    }
     //--------------------------------------------------------------------------
     // For xrootd destination build the oss.asize hint
     //--------------------------------------------------------------------------

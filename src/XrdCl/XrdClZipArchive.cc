@@ -338,7 +338,7 @@ namespace XrdCl
       log->Dump( ZipMsg, "[0x%x] Open failed: file exists %s, cannot append.",
                          this, fn.c_str() );
 
-      return XRootDStatus( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp, EEXIST, "The file already exists in the ZIP archive." );
     }
 
     openfn = fn;
@@ -653,7 +653,7 @@ namespace XrdCl
   {
     if( openstage != Done )
       return XRootDStatus( stError, errInvalidOp,
-                                  errInvalidOp, "Archive not opened." );
+                           0, "Archive not opened." );
 
     std::string value;
     archive.GetProperty( "LastURL", value );
@@ -762,6 +762,7 @@ namespace XrdCl
       mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
       cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
       cdmap[openfn] = cdvec.size() - 1;
+      lfh.reset();
     }
     Async( std::move( p ), timeout );
     return XRootDStatus();

@@ -158,8 +158,7 @@ namespace XrdCl
                                  uint16_t          timeout = 0 )
       {
         if( openstage != Done || openfn.empty() )
-          return XRootDStatus( stError, errInvalidOp,
-                               errInvalidOp, "Archive not opened." );
+          return XRootDStatus( stError, errInvalidOp, 0, "Archive not opened." );
 
         return WriteImpl( size, buffer, handler, timeout );
       }
@@ -252,7 +251,7 @@ namespace XrdCl
       {
         if( openstage != Done || openfn.empty() )
           return XRootDStatus( stError, errInvalidOp,
-                               errInvalidOp, "Archive not opened." );
+                               0, "Archive not opened." );
         openfn.clear();
         lfh.reset();
         return XRootDStatus();
@@ -278,6 +277,14 @@ namespace XrdCl
       inline bool SetProperty( const std::string &name, const std::string &value )
       {
         return archive.SetProperty( name, value );
+      }
+
+      //-----------------------------------------------------------------------
+      //! Get property on the underlying File object
+      //-----------------------------------------------------------------------
+      inline bool GetProperty( const std::string &name, std::string &value )
+      {
+        return archive.GetProperty( name, value );
       }
 
     private:

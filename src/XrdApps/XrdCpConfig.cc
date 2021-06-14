@@ -119,6 +119,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "continue",       0, 0, XrdCpConfig::OpContinue},
       {OPT_TYPE "xrate-threshold",1, 0, XrdCpConfig::OpXrateThreashold},
       {OPT_TYPE "retry-policy",   1, 0, XrdCpConfig::OpRetryPolicy},
+      {OPT_TYPE "zip-append",     0, 0, XrdCpConfig::OpZipAppend},
       {0,                         0, 0, 0}
      };
 
@@ -271,6 +272,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpRetryPolicy:   OpSpec |= DoRetryPolicy;
                                 RetryPolicy = optarg;
                                 if( RetryPolicy != "force" && RetryPolicy != "continue" ) Usage(22);
+                                break;
+          case OpZipAppend:     OpSpec |= DoZipAppend;
                                 break;
           case OpServer:        OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
                                 break;

@@ -197,6 +197,9 @@ static const uint64_t    DoXrateThreashold = 0x0000000200000000LL; // --xrate-th
 static const uint64_t    OpRetryPolicy     = 0x12;
 static const uint64_t    DoRetryPolicy     = 0x0000000400000000LL; // --retry-policy
 
+static const uint64_t    OpZipAppend       = 0x13;
+static const uint64_t    DoZipAppend       = 0x0000000800000000LL; // --zip-append
+
 // Flag to allow the use of HTTP (and HTTPS) as source and destination
 // protocols. If specified, the XrdClHttp client plugin must be available
 // for the transfer operations to succeed.
