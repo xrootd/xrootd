@@ -367,8 +367,18 @@ XrdTlsTempCA::Maintenance()
     errno = 0;
     while ((result = readdir(dirp))) {
         //m_log.Emsg("Will parse file for CA certificates", result->d_name);
-        if (result->d_type != DT_REG && result->d_type != DT_LNK) {continue;}
         if (result->d_name[0] == '.') {continue;}
+        if (result->d_type != DT_REG)
+           {if (result->d_type != DT_UNKNOWN && result->d_type != DT_LNK)
+               continue;
+            struct stat Stat;
+            if (fstatat(fddir, result->d_name, &Stat, 0))
+               {m_log.Emsg("Maintenance", "Failed to stat certificate file",
+                           result->d_name, strerror(errno));
+                continue;
+               }
+            if (!S_ISREG(Stat.st_mode)) continue;
+           }
         int fd = XrdSysFD_Openat(fddir, result->d_name, O_RDONLY);
         if (fd < 0) {
             m_log.Emsg("Maintenance", "Failed to open certificate file", result->d_name, strerror(errno));
