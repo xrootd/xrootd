@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Full comprehensive implementation of pgread and pgwrite.
+  **[Server]** Add additional xrootd trace options.
+  **[Server]** Automatically turn off async I/O for default oss plug-in.
 
 + **Major bug fixes**
 
@@ -14,5 +17,8 @@ Prerelease Notes
   **[Server]** Corect copy-paste error rendering TLS RecvAll() useless.
 
 + **Miscellaneous**
+  **[Server]** Re-architect async I/O to double its capacity.
+  **[Server]** Speed up file close.
+  **[Server]** Add a regular condition variable object to the mix.
   **[TLS]** Correct certfile screening to capture all files; fixes #1467
   **[Server]** Make sure to clear OpenSSL error queue after authentication.
