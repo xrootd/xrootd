@@ -51,7 +51,7 @@ static const int pgMaxBSize = INT_MAX & ~pgPageMask;
 /*                                c s C a l c                                 */
 /******************************************************************************/
   
-void XrdOucPgrwUtils::csCalc(const char* data, ssize_t offs, size_t count,
+void XrdOucPgrwUtils::csCalc(const char* data, off_t offs, size_t count,
                              uint32_t* csval)
 {
    int pgOff = offs & pgPageMask;
@@ -74,7 +74,7 @@ void XrdOucPgrwUtils::csCalc(const char* data, ssize_t offs, size_t count,
 
 /******************************************************************************/
   
-void XrdOucPgrwUtils::csCalc(const char* data, ssize_t offs, size_t count,
+void XrdOucPgrwUtils::csCalc(const char* data, off_t offs, size_t count,
                              std::vector<uint32_t> &csvec)
 {
    int pgOff = offs & pgPageMask;
@@ -106,7 +106,7 @@ void XrdOucPgrwUtils::csCalc(const char* data, ssize_t offs, size_t count,
 /*                                 c s N u m                                  */
 /******************************************************************************/
   
-int XrdOucPgrwUtils::csNum(ssize_t offs, int count)
+int XrdOucPgrwUtils::csNum(off_t offs, int count)
 {
    int k, pgOff = offs & pgPageMask;
 
