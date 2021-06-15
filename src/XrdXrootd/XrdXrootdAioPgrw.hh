@@ -1,10 +1,10 @@
-#ifndef __PSS_AIOCB_HH__
-#define __PSS_AIOCB_HH__
+#ifndef __XRDXROOTDAIOPGRW__
+#define __XRDXROOTDAIOPGRW__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d P s s A i o C B . h h                         */
+/*                   X r d X r o o t d A i o P g r w . h h                    */
 /*                                                                            */
-/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,41 +30,58 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
-#include <vector>
+#include <sys/uio.h>
 
-#include "XrdPosix/XrdPosixCallBack.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include "XProtocol/XProtocol.hh"
+#include "XrdXrootd/XrdXrootdAioBuff.hh"
+#include "XrdXrootd/XrdXrootdPgrwAio.hh"
 
-class XrdSfsAio;
+// The XrdXrootdAioPgr object represents a single aio read or write operation.
+// One or more of these are allocated by the XrdXrootdPgrwAio to effect
+// asynchronous I/O. This object is specific to pgRead requests.
+
+class XrdXrootdFile;
+class XrdXrootdAioTask;
+class XrdXrootdProtocol;
   
-class XrdPssAioCB : public XrdPosixCallBackIO
+class XrdXrootdAioPgrw : public XrdXrootdAioBuff
 {
 public:
 
-static XrdPssAioCB  *Alloc(XrdSfsAio *aiop, bool isWr, bool pgrw=false);
+static
+XrdXrootdAioPgrw   *Alloc(XrdXrootdAioTask *arp);
 
-virtual void         Complete(ssize_t Result);
+struct   iovec     *iov4Data(int &iovNum) {iovNum = csNum<<1; return &ioVec[1];}
 
-        void         Recycle();
+struct   iovec     *iov4Recv(int &iovNum);
 
-static  void         SetMax(int mval) {maxFree = mval;}
+struct   iovec     *iov4Send(int &iovNum, int &iovLen, bool cs2net=false);
 
-std::vector<uint32_t> csVec;
+         bool       noChkSums(bool reset=true)
+                             {bool retval = cksVec == 0;
+                              if (retval && reset) cksVec = csVec;
+                              return retval;
+                             }
+
+         void       Recycle() override;
+
+         int        Setup2Recv(off_t offs, int dlen, const char *&eMsg);
+
+         int        Setup2Send(off_t offs, int dlen, const char *&eMsg);
+
+                    XrdXrootdAioPgrw(XrdXrootdAioTask* tP, XrdBuffer *bP);
+                   ~XrdXrootdAioPgrw();
+
+static const int    aioSZ = XrdXrootdPgrwAio::aioSZ;
+static const int    acsSZ = aioSZ/XrdProto::kXR_pgPageSZ; // 16 checksums
 
 private:
-             XrdPssAioCB() : theAIOP(0), isWrite(false) {}
-virtual     ~XrdPssAioCB() {}
 
-static  XrdSysMutex  myMutex;
-static  XrdPssAioCB *freeCB;
-static  int          numFree;
-static  int          maxFree;
+static const char*  TraceID;
 
-union  {XrdSfsAio   *theAIOP;
-        XrdPssAioCB *next;
-       };
-bool                 isWrite;
-bool                 isPGrw;
+int                 csNum;
+int                 iovReset;
+uint32_t            csVec[acsSZ];
+struct iovec        ioVec[acsSZ*2+1];
 };
 #endif

@@ -31,7 +31,7 @@
 
 // Trace flags
 //
-#define TRACE_ALL       0x0fff
+#define TRACE_ALL       0xffff
 #define TRACE_DEBUG     0x0001
 #define TRACE_EMSG      0x0002
 #define TRACE_FS        0x0004
@@ -40,12 +40,12 @@
 #define TRACE_REQ       0x0020
 #define TRACE_REDIR     0x0040
 #define TRACE_RSP       0x0080
-#define TRACE_SCHED     0x0100
-#define TRACE_STALL     0x0200
-#define TRACE_AUTH      0x0400
-#define TRACE_PGRD      0x0800
-#define TRACE_PGWR      0x1000
-#define TRACE_PGCS      0x2000
+#define TRACE_STALL     0x0100
+#define TRACE_AUTH      0x0200
+#define TRACE_FSIO      0x0400
+#define TRACE_FSAIO     0x0800
+#define TRACE_FSZIO     0x0C00
+#define TRACE_PGCS      0x1000
  
 #ifndef NODEBUG
 

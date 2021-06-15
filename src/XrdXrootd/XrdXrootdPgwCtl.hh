@@ -34,10 +34,11 @@
 #include "XProtocol/XProtocol.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "XrdSys/XrdSysPageSize.hh"
+#include "XrdXrootd/XrdXrootdPgwBadCS.hh"
 
 class XrdXrootdFile;
 
-class XrdXrootdPgwCtl
+class XrdXrootdPgwCtl : public XrdXrootdPgwBadCS
 {
 public:
 
@@ -49,11 +50,6 @@ ServerResponseStatus       resp;
 ServerResponseBody_pgWrite info;  // info.offset
 
 bool          Advance();
-
-const char   *boAdd(XrdXrootdFile *fP, kXR_int64 foffs,
-                    int dlen=XrdProto::kXR_pgPageSZ);
-
-char         *boInfo(int &boLen);
 
 struct iovec *FrameInfo(int &iovn, int &rdlen)
                        {rdlen = iovLen;
@@ -83,36 +79,23 @@ char         *FrameLeft(int k, int &dlen)
 
 const char   *Setup(XrdBuffer *buffP, kXR_int64 fOffs, int totlen);
 
-bool          Suspend() {return isSusp;}
 
-bool          Suspend(bool torf)
-                     {bool curstate = isSusp;
-                      isSusp = torf;
-                      return curstate;
-                     }
-
-
-     XrdXrootdPgwCtl(const char *id, int pid);
+     XrdXrootdPgwCtl(int pid);
     ~XrdXrootdPgwCtl() {}
 
 private:
 
-ServerResponseBody_pgWrCSE cse;   // cse.dlFirst, cse.dlLast
-kXR_int64                  badOffs[XrdProto::kXR_pgMaxEpr];
-
 static
 const char      *TraceID;
-const char      *ID;
 char            *dataBuff;         // Pointer to data buffer
 int              dataBLen;         // Actual length of buffer
 int              iovNum;           // Number of elements in use
+int              lenLeft;          // Number of bytes left to read
+
 int              iovRem;           // Number of elements remaining to do
 int              iovLen;           // Length of data read by the ioVec
-short            endLen;           // Length of last segment if it is short
-short            boCount;          // Elements in badOffs
-short            fixSRD;           // ioVec[fixSRD] has short read
-char             pathID;           // Associated path ID
-bool             isSusp;           // Was suspended or not (1st time entry ctl)
+int              endLen;           // Length of last segment if it is short
+int              fixSRD;           // ioVec[fixSRD] has short read
 kXR_unt32        csVec[maxIOVN/2]; // Checksums received
 struct iovec     ioVec[maxIOVN];   // Read vector
 };

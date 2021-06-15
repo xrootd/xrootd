@@ -106,13 +106,6 @@ XrdSfsXferSize XrdSfsFile::pgRead(XrdSfsFileOffset   offset,
 //
    XrdOucPgrwUtils::csCalc(buffer, offset, bytes, csvec);
 
-// Put in network byte order if so requested
-//
-   if (opts & NetOrder)
-      {int n = XrdOucPgrwUtils::csNum(offset, bytes);
-       for (int i = 0; i < n; i++) csvec[i] = htonl(csvec[i]);
-      }
-
 // All done
 //
    return bytes;
@@ -144,10 +137,11 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 // If we have a checksum vector and verify is on, do verification.
 //
    if (opts & Verify)
-      {ssize_t badoff;
-       size_t  badlen;
+      {XrdOucPgrwUtils::dataInfo dInfo(buffer, csvec, offset, wrlen);
+       off_t badoff;
+       int   badlen;
 
-       if (XrdOucPgrwUtils::csVer(buffer,offset,wrlen,csvec,badoff,badlen) >= 0)
+       if (!XrdOucPgrwUtils::csVer(dInfo, badoff, badlen))
           {char eMsg[512];
            snprintf(eMsg, sizeof(eMsg),"Checksum error at offset %ld.",(long)badoff);
            error.setErrInfo(EDOM, eMsg);

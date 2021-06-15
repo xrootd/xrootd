@@ -1,10 +1,10 @@
-#ifndef __PSS_AIOCB_HH__
-#define __PSS_AIOCB_HH__
+#ifndef __XRDXROOTDAIOBUFF__
+#define __XRDXROOTDAIOBUFF__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d P s s A i o C B . h h                         */
+/*                         X r d A i o B u f f . h h                          */
 /*                                                                            */
-/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,41 +30,40 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
-#include <vector>
+#include "XrdSfs/XrdSfsAio.hh"
 
-#include "XrdPosix/XrdPosixCallBack.hh"
-#include "XrdSys/XrdSysPthread.hh"
+class XrdBuffer;
+class XrdXrootdAioNorm;
+class XrdXrootdAioPgrw;
+class XrdXrootdAioTask;
 
-class XrdSfsAio;
-  
-class XrdPssAioCB : public XrdPosixCallBackIO
+class XrdXrootdAioBuff : public XrdSfsAio
 {
 public:
 
-static XrdPssAioCB  *Alloc(XrdSfsAio *aiop, bool isWr, bool pgrw=false);
+static
+XrdXrootdAioBuff*       Alloc(XrdXrootdAioTask *arp);
 
-virtual void         Complete(ssize_t Result);
+        void            doneRead() override;
 
-        void         Recycle();
+        void            doneWrite() override;
 
-static  void         SetMax(int mval) {maxFree = mval;}
+virtual void            Recycle();
 
-std::vector<uint32_t> csVec;
+XrdXrootdAioBuff*       next;
 
-private:
-             XrdPssAioCB() : theAIOP(0), isWrite(false) {}
-virtual     ~XrdPssAioCB() {}
+XrdXrootdAioPgrw* const pgrwP;  // -> Derived type is of this type or 0
 
-static  XrdSysMutex  myMutex;
-static  XrdPssAioCB *freeCB;
-static  int          numFree;
-static  int          maxFree;
+                  XrdXrootdAioBuff(XrdXrootdAioTask* tP, XrdBuffer* bP)
+                                  : pgrwP(0),     reqP(tP), buffP(bP) {}
 
-union  {XrdSfsAio   *theAIOP;
-        XrdPssAioCB *next;
-       };
-bool                 isWrite;
-bool                 isPGrw;
+                  XrdXrootdAioBuff(XrdXrootdAioPgrw* pgrwP,
+                                   XrdXrootdAioTask* tP, XrdBuffer* bP)
+                                  : pgrwP(pgrwP), reqP(tP), buffP(bP) {}
+protected:
+
+static const char* TraceID;
+XrdXrootdAioTask*  reqP;         // -> Associated task
+XrdBuffer*         buffP;        // -> Buffer object
 };
 #endif

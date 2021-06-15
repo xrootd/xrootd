@@ -69,6 +69,12 @@ static const uint64_t hasSXIO = 0x0000000000000100LL;
 
 //! Feature: Supports no sendfile
 static const uint64_t hasNOSF = 0x0000000000000200LL;
+
+//! Feature: Implements a data cache
+static const uint64_t hasCACH = 0x0000000000000400LL;
+
+//! Feature: Supports no async I/O
+static const uint64_t hasNAIO = 0x0000000000000800LL;
 }
 
 //-----------------------------------------------------------------------------

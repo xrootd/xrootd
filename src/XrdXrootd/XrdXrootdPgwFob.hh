@@ -34,8 +34,6 @@
 
 #include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdXrootd/XrdXrootdPgwCtl.hh"
-#include "XrdXrootd/XrdXrootdProtocol.hh"
 
 class XrdOucString;
 class XrdXrootdFile;
@@ -44,7 +42,6 @@ class XrdXrootdPgwFob
 {
 public:
 
-XrdXrootdPgwCtl *ctlVec[XrdXrootdProtocol::maxStreams];
 
 bool             addOffs(kXR_int64 foffs, int dlen)
                         {XrdSysMutexHelper mHelp(fobMutex);
@@ -78,8 +75,7 @@ int              numOffs(int *errs=0, int *fixs=0)
                         }
 
                  XrdXrootdPgwFob(XrdXrootdFile *fP)
-                                : fileP(fP), numErrs(0), numFixd(0)
-                                {memset(ctlVec, 0, sizeof(ctlVec));}
+                                : fileP(fP), numErrs(0), numFixd(0) {}
 
                 ~XrdXrootdPgwFob();
 

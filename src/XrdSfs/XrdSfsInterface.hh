@@ -511,8 +511,6 @@ virtual int            getMmap(void **Addr, off_t &Size) = 0;
 
 static const uint64_t
 Verify       = 0x8000000000000000ULL; //!< all: Verify checksums
-static const uint64_t
-NetOrder     = 0x4000000000000000ULL; //!< pgR: output csvec in net byte order
 
 //-----------------------------------------------------------------------------
 //! Read file pages into a buffer and return corresponding checksums.

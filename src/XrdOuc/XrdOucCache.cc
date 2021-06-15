@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include "XrdOuc/XrdOucCache.hh"
-#include "XrdOuc/XrdOucCRC.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdSys/XrdSysPageSize.hh"
 
 /******************************************************************************/
@@ -44,12 +44,6 @@ int XrdOucCacheIO::pgRead(char                  *buff,
 {
    int bytes;
 
-// Make sure the offset is on a 4K boundary and the size if a multiple of
-// 4k as well (we use simple and for this).
-//
-   if ((offs & XrdSys::PageMask)
-   || (rdlen & XrdSys::PageMask)) return -EINVAL;
-
 // Read the data into the buffer
 //
    bytes = Read(buff, offs, rdlen);
@@ -57,11 +51,8 @@ int XrdOucCacheIO::pgRead(char                  *buff,
 // Calculate checksums if so wanted
 //
    if (bytes > 0 && (opts & forceCS))
-      {int n = (rdlen >> XrdSys::PageBits) + ((rdlen & XrdSys::PageMask) != 0);
-       csvec.resize(n);
-       csvec.assign(n, 0);
-       XrdOucCRC::Calc32C((void *)buff, bytes, csvec.data());
-      }
+       XrdOucPgrwUtils::csCalc((const char *)buff, (ssize_t)offs,
+                               (size_t)rdlen, csvec);
 
 // All done
 //
@@ -72,16 +63,12 @@ int XrdOucCacheIO::pgRead(char                  *buff,
 /*                               p g W r i t e                                */
 /******************************************************************************/
 
-int XrdOucCacheIO::pgWrite(char      *buff,
-                           long long  offs,
-                           int        wrlen,
-                           uint32_t  *csvec,
-                           uint64_t   opts)
+int XrdOucCacheIO::pgWrite(char                  *buff,
+                           long long              offs,
+                           int                    wrlen,
+                           std::vector<uint32_t> &csvec,
+                           uint64_t               opts)
 {
-// Make sure the offset is on a 4K boundary
-//
-   if (offs & XrdSys::PageMask) return -EINVAL;
-
 // Now just return the result of a plain write
 //
    return Write(buff, offs, wrlen);

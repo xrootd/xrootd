@@ -42,13 +42,13 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdTls/XrdTls.hh"
-#include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
 #include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPio.hh"
+#include "XrdXrootd/XrdXrootdPgwCtl.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -110,18 +110,21 @@ int                   XrdXrootdProtocol::maxTransz    = 262144; // 256KB
 int                   XrdXrootdProtocol::as_maxperlnk = 8;   // Max ops per link
 int                   XrdXrootdProtocol::as_maxperreq = 8;   // Max ops per request
 int                   XrdXrootdProtocol::as_maxpersrv = 4096;// Max ops per server
-int                   XrdXrootdProtocol::as_segsize   = 131072;
-int                   XrdXrootdProtocol::as_miniosz   = 32768;
+int                   XrdXrootdProtocol::as_seghalf   = 32768;
+int                   XrdXrootdProtocol::as_segsize   = 65536;
+int                   XrdXrootdProtocol::as_miniosz   = 98304;
 #ifdef __solaris__
 int                   XrdXrootdProtocol::as_minsfsz   = 1;
 #else
 int                   XrdXrootdProtocol::as_minsfsz   = 8192;
 #endif
-int                   XrdXrootdProtocol::as_maxstalls = 5;
-int                   XrdXrootdProtocol::as_force     = 0;
-int                   XrdXrootdProtocol::as_noaio     = 0;
-int                   XrdXrootdProtocol::as_nosf      = 0;
-int                   XrdXrootdProtocol::as_syncw     = 0;
+int                   XrdXrootdProtocol::as_maxstalls = 4;
+short                 XrdXrootdProtocol::as_okstutter = 1; // For 64K unit
+short                 XrdXrootdProtocol::as_timeout   = 45;
+bool                  XrdXrootdProtocol::as_force     = false;
+bool                  XrdXrootdProtocol::as_aioOK     = true;
+bool                  XrdXrootdProtocol::as_nosf      = false;
+bool                  XrdXrootdProtocol::as_syncw     = false;
 
 const char           *XrdXrootdProtocol::myInst  = 0;
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
@@ -148,12 +151,16 @@ int                   XrdXrootdProtocol::OD_Stall = 33;
 bool                  XrdXrootdProtocol::OD_Bypass= false;
 bool                  XrdXrootdProtocol::OD_Redir = false;
 
+bool                  XrdXrootdProtocol::isProxy  = false;
+
 int                   XrdXrootdProtocol::usxMaxNsz= kXR_faMaxNlen;
 int                   XrdXrootdProtocol::usxMaxVsz= kXR_faMaxVlen;
 char                 *XrdXrootdProtocol::usxParms = 0;
 
 char                  XrdXrootdProtocol::tlsCap   = 0;
 char                  XrdXrootdProtocol::tlsNot   = 0;
+
+std::atomic_int       XrdXrootdProtocol::srvrAioOps = {0};
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -162,7 +169,7 @@ char                  XrdXrootdProtocol::tlsNot   = 0;
 XrdObjectQ<XrdXrootdProtocol>
             XrdXrootdProtocol::ProtStack("ProtStack",
                                        "xroot protocol anchor");
-
+  
 /******************************************************************************/
 /*                       P r o t o c o l   L o a d e r                        */
 /*                        X r d g e t P r o t o c o l                         */
@@ -243,7 +250,7 @@ XrdXrootdProtocol::XrdXrootdProtocol()
 {
    Reset();
 }
-
+  
 /******************************************************************************/
 /* protected:                     g e t S I D                                 */
 /******************************************************************************/
@@ -353,10 +360,7 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
 // Check if we are servicing a slow link
 //
    if (Resume)
-      {if (myBlen && (rc = getData("data", myBuff, myBlen)) != 0)
-          {if (rc < 0 && myAioReq) myAioReq->Recycle(-1);
-           return rc;
-          }
+      {if (myBlen && (rc = getData("data", myBuff, myBlen)) != 0) return rc;
           else if ((rc = (*this.*Resume)()) != 0) return rc;
                   else {Resume = 0; return 0;}
       }
@@ -614,6 +618,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 {
    char *sfxp, ctbuff[24], buff[128], Flags = (reason ? XROOTD_MON_FORCED : 0);
    const char *What;
+   XrdSysMutexHelper recycleHelper(unbindMutex);
 
 // Check for disconnect or unbind
 //
@@ -632,19 +637,38 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
        eDest.Log(SYS_LOG_02, "Xeq", lp->ID, (char *)What, sfxp);
       }
 
-// If this is a bound stream then we cannot release the resources until
-// the main stream closes this stream (i.e., lp == 0). On the other hand, the
-// main stream will not be trying to do this if we are still tagged as active.
-// So, we need to redrive the main stream to complete the full shutdown.
+// Handle any waiting read on this link. This is a tricky proposition because
+// we don't know if the thread is waiting to run or not. However, we will
+// indicate that gdFail was already called and should the thread run, it will
+// promptly exit should it ever run again. That way, we handle the cleanup.
 //
-   if (Status == XRD_BOUNDPATH && Stream[0])
-      {Stream[0]->streamMutex.Lock();
-       isDead = true;
+   if (gdCtl.linkWait.fetch_or(GetDataCtl::Terminate) == GetDataCtl::Active
+   && (gdCtl.Status == GetDataCtl::inData
+   ||  gdCtl.Status == GetDataCtl::inDataIov)) gdCtl.CallBack->gdFail();
+
+// If this is a bound stream then we cannot release the resources until
+// all activity ceases on this stream (i.e., lp == 0). This is only relevant for
+// writes that read from the link. if we are still tagged as active and not
+// waiting for link activity then ask to be signalled once activity stops.
+// Otherwise, redrive the parallel I/O so that it cleans up.
+//
+   if (lp && Status == XRD_BOUNDPATH)
+      {streamMutex.Lock();
+       isDead = isNOP = true;
        if (isActive)
-          {isActive = false;
-           Stream[0]->Link->setRef(-1);
-          }
-       Stream[0]->streamMutex.UnLock();
+          {if (isLinkWT)
+              {streamMutex.UnLock();
+               do_OffloadIO();
+              } else {
+               while(isActive)
+                    {XrdSysCondVar2 aioDone(streamMutex);
+                     endNote = &aioDone;
+                     aioDone.Wait();
+                     endNote = 0;
+                    }
+               streamMutex.UnLock();
+              }
+          } else streamMutex.UnLock();
        if (lp) return;  // Async close
       }
 
@@ -858,6 +882,22 @@ void XrdXrootdProtocol::Reclaim(XrdSfsXioHandle h)
 }
   
 /******************************************************************************/
+/*                             S t r e a m N O P                              */
+/******************************************************************************/
+
+void XrdXrootdProtocol::StreamNOP()
+{
+
+// Mark this stream as not operation if it is not the control strea,
+//
+   if (PathID)
+      {streamMutex.Lock();
+       isNOP = true;
+       streamMutex.UnLock();
+      }
+}
+  
+/******************************************************************************/
 /*                                  S w a p                                   */
 /******************************************************************************/
   
@@ -880,6 +920,36 @@ XrdSfsXioHandle XrdXrootdProtocol::Swap(const char *buff, XrdSfsXioHandle h)
                        }
                    }
    return 0;
+}
+  
+/******************************************************************************/
+/*                          V e r i f y S t r e a m                           */
+/******************************************************************************/
+
+XrdXrootdProtocol *XrdXrootdProtocol::VerifyStream(int &rc, int pID, bool lok)
+{
+   XrdXrootdProtocol *pp;
+
+// Verify that the path actually exists
+//
+   if (pID >= maxStreams || !(pp = Stream[pID]))
+      {rc = Response.Send(kXR_ArgInvalid, "invalid path ID");
+       return 0;
+      }
+
+// Verify that this path is still functional
+//
+   pp->streamMutex.Lock();
+   if (pp->isNOP)
+      {pp->streamMutex.UnLock();
+       rc = Response.Send(kXR_ArgInvalid, "path ID is not operational");
+       return 0;
+      }
+
+// All done!
+//
+   if (!lok) pp->streamMutex.UnLock();
+   return pp;
 }
   
 /******************************************************************************/
@@ -931,6 +1001,26 @@ void XrdXrootdProtocol::Cleanup()
    XrdXrootdPio *pioP;
    int i;
 
+// Handle parallel stream cleanup. The session stream cannot be closed if
+// there is any queued activity on subordinate streams. A subordinate
+// can either be closed from the session stream or asynchronously only if
+// it is active. Which means they could be running while we are running.
+// So, we first call close() which should trigger a recycle quiesce. Upon
+// return we can actually recycle the object.
+//
+   if (Status != XRD_BOUNDPATH)
+      {streamMutex.Lock();
+       for (i = 1; i < maxStreams; i++)
+           if (Stream[i])
+              {Stream[i]->Stream[0] = 0;
+               if (!Stream[i]->isDead) Stream[i]->Link->Close();
+               Stream[i]->Recycle(0, 0, 0);
+               Stream[i] = 0;
+              }
+       streamMutex.UnLock();
+      }
+
+
 // Release any internal monitoring information
 //
    if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
@@ -943,28 +1033,18 @@ void XrdXrootdProtocol::Cleanup()
 //
    if (Status != XRD_BOUNDPATH) osFS->Disc(Client);
 
+// Handle parallel I/O appendages. We need to do this first as these have
+// referenced open files and we need to deref them before we cleanup the ftab.
+//
+   while((pioP = pioFirst))
+        {pioP->IO.File->Ref(-1); pioFirst = pioP->Next; pioP->Recycle();}
+   while((pioP = pioFree ))     {pioFree  = pioP->Next; pioP->Recycle();}
+
 // Delete the FTab if we have it
 //
    if (FTab)
       {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0);
        FTab = 0;
-      }
-
-// Handle parallel stream cleanup. The session stream cannot be closed if
-// there is any queued activity on subordinate streams. A subordinate
-// can either be closed from the session stream or asynchronously only if
-// it is active. Which means they could be running while we are running.
-//
-   if (isBound && Status != XRD_BOUNDPATH)
-      {streamMutex.Lock();
-       for (i = 1; i < maxStreams; i++)
-           if (Stream[i])
-              {Stream[i]->isBound = false; Stream[i]->Stream[0] = 0;
-               if (Stream[i]->isDead) Stream[i]->Recycle(0, 0, 0);
-                  else Stream[i]->Link->Close();
-               Stream[i] = 0;
-              }
-       streamMutex.UnLock();
       }
 
 // Handle statistics
@@ -978,11 +1058,6 @@ void XrdXrootdProtocol::Cleanup()
    if (AuthProt) {AuthProt->Delete(); AuthProt = 0;}
    if (Protect)  {Protect->Delete();  Protect  = 0;}
 
-// Handle parallel I/O appendages
-//
-   while((pioP = pioFirst)) {pioFirst = pioP->Next; pioP->Recycle();}
-   while((pioP = pioFree )) {pioFree  = pioP->Next; pioP->Recycle();}
-
 // Handle writev appendage
 //
    if (wvInfo) {free(wvInfo); wvInfo = 0;}
@@ -990,6 +1065,10 @@ void XrdXrootdProtocol::Cleanup()
 // Release aplication name
 //
    if (AppName) {free(AppName); AppName = 0;}
+
+// Release the pagewrite control object
+//
+   if (pgwCtl) delete pgwCtl;
 }
   
 /******************************************************************************/
@@ -1018,36 +1097,156 @@ int XrdXrootdProtocol::getData(const char *dtype, char *buff, int blen)
 
 /******************************************************************************/
   
-int XrdXrootdProtocol::getData(int (XrdXrootdProtocol::*CallBack)(),
-                               const char *dtype, struct iovec *iov, int iovn)
+int XrdXrootdProtocol::getData(XrdXrootd::gdCallBack *cbP,
+                               const char *dtype, char *buff, int blen)
 {
+   bool inCB = (gdCtl.Status == GetDataCtl::inCallBk);
 
 // Setup the control information to direct the vector read
 //
-   gdCtl.lenPart = 0;        // Start off fresh
-   gdCtl.iovNow  = 0;        // at the first element
+   memset(&gdCtl, 0, sizeof(gdCtl));
+   gdCtl.BuffLen = blen;     // Buffer length (bytes to read)
+   gdCtl.Buffer  = buff;     // The actual buffer
+   gdCtl.CallBack= cbP;      // Method to callback upon success
+   gdCtl.ioDType = dtype;    // Name of the data being read for tracing
+   gdCtl.Status  = GetDataCtl::inData;
+
+// Effect the read. We prevent recursive calls if this was called while
+// we were in a callback, which is possible due to I/O continuations.
+//
+   if (inCB)
+      {gdCtl.useCB = true;
+       return 1;
+      }
+   return getDataCont();
+}
+
+/******************************************************************************/
+  
+int XrdXrootdProtocol::getData(XrdXrootd::gdCallBack *cbP,
+                               const char *dtype, struct iovec *iov, int iovn)
+{
+   bool inCB = (gdCtl.Status == GetDataCtl::inCallBk);
+
+// Setup the control information to direct the vector read
+//
+   memset(&gdCtl, 0, sizeof(gdCtl));
    gdCtl.iovNum  = iovn;     // Number of original elements
    gdCtl.iovVec  = iov;      // The actual vector
-   gdCtl.CallBk  = CallBack; // Method to callback upon success
-   gdCtl.iovType = dtype;    // Name of the data being read for tracing
+   gdCtl.CallBack= cbP;      // Method to callback upon success
+   gdCtl.ioDType = dtype;    // Name of the data being read for tracing
+   gdCtl.Status  = GetDataCtl::inDataIov;
 
-// Effect the read
+// Effect the read. We prevent recursive calls if this was called while
+// we were in a callback, which is possible due to I/O continuations.
 //
+   if (inCB)
+      {gdCtl.useCB = true;
+       return 1;
+      }
    return getDataIovCont();
 }
 
+/******************************************************************************/
+/*                           g e t D a t a C o n t                            */
+/******************************************************************************/
+
+int XrdXrootdProtocol::getDataCont()
+{
+   int rlen;
+
+// Check if we need to terminate because the link died or we can proceed.
+//
+   if (gdCtl.linkWait.fetch_and(0) == GetDataCtl::Terminate)
+      return -EINPROGRESS;
+
+// I/O continuations may occur either via entry or an attempt to continue a new
+// operation via the callback. This takes care of it here.
+//
+do{if ((rlen = Link->Recv(gdCtl.Buffer, gdCtl.BuffLen, readWait)) < 0) break;
+   gdCtl.Buffer  += rlen;
+   gdCtl.BuffLen -= rlen;
+
+// If we completed the read then either return or use the callback. Note that
+// we convert recursive call for more data into an iterative continuation.
+//
+   if (!gdCtl.BuffLen)
+      {if (gdCtl.useCB)
+          {gdCtl.Status = GetDataCtl::inCallBk;
+           if (int(gdCtl.stalls) > as_okstutter)
+              myStalls += int(gdCtl.stalls)/as_okstutter;
+           rlen = gdCtl.CallBack->gdDone();
+           if (rlen < 0) break;
+           if (gdCtl.Status == GetDataCtl::inData) continue;
+           if (gdCtl.Status == GetDataCtl::inDataIov) return getDataIovCont();
+           if (gdCtl.Status == GetDataCtl::inDump) return getDumpCont();
+           gdCtl.Status = GetDataCtl::inNone;
+           return rlen;
+          }
+       gdCtl.Status = GetDataCtl::inNone;
+       return 0;
+      }
+
+// Make sure we don't have an over-run
+//
+   if (gdCtl.BuffLen < 0)
+      {rlen = Link->setEtext("link excessive read length error");
+       break;
+      }
+
+// Record where we stopped and setup to resume here when more data arrives. We
+// must set myBlen to zero to avoid calling the other GetData() method. We want
+// to resume and perform the GetData() function here.
+//
+   Resume = &XrdXrootdProtocol::getDataCont;
+   myBlen = 0;
+   gdCtl.useCB    = true;
+   gdCtl.linkWait = GetDataCtl::Active;
+   if (gdCtl.stalls < 255) gdCtl.stalls++;
+
+// Return indicating we need more data
+//
+   TRACEP(REQ, gdCtl.ioDType <<" timeout; read " <<rlen <<" bytes "
+                             <<gdCtl.BuffLen <<" remaining");
+   return 1;
+
+  } while(true);
+
+// If got here then we had a link failure or some other fatal issue
+//
+   if (rlen != -ENOMSG) return Link->setEtext("link read error");
+
+// Use callback, if need be.
+//
+   if (gdCtl.useCB)
+      {gdCtl.Status = GetDataCtl::inCallBk;
+       gdCtl.CallBack->gdFail();
+      }
+   gdCtl.Status = GetDataCtl::inNone;
+   return -1;
+}
+  
 /******************************************************************************/
 /*                         g e t D a t I o v C o n t                          */
 /******************************************************************************/
 
 int XrdXrootdProtocol::getDataIovCont()
 {
-   struct iovec old_iov, *ioV = &gdCtl.iovVec[gdCtl.iovNow];
+   int rc;
+
+// Check if we need to terminate because the link died or we can proceed.
+//
+   if (gdCtl.linkWait.fetch_and(0) == GetDataCtl::Terminate)
+      return -EINPROGRESS;
+
+// I/O continuations may occur either via entry or an attempt to continue a new
+// operation via the callback. This takes care of it here.
+//
+do{struct iovec old_iov, *ioV = &gdCtl.iovVec[gdCtl.iovNow];
    int i, rlen, iovN = gdCtl.iovNum - gdCtl.iovNow;
 
-
 // Check if we have a fragment to fill out in an iovec element. If we do, we
-// save it's contents and adjust to to receive unread data. We will restore it.
+// save it's contents and adjust to receive unread data. We will restore it.
 //
    if (gdCtl.lenPart)
       {old_iov = ioV[0];
@@ -1055,13 +1254,15 @@ int XrdXrootdProtocol::getDataIovCont()
        ioV[0].iov_len  -= gdCtl.lenPart;
       } else old_iov.iov_base = 0;
 
-// Read as much data as we can.
+// Read as much data as we can. Handle any link error. Note that when a link
+// error occurs we return failure whether or not the callback wants to do more.
 //
    rlen = Link->Recv(ioV, iovN, readWait);
    if (rlen  < 0)
-      {if (old_iov.iov_base) ioV[0] = old_iov;
-       if (rlen != -ENOMSG) return Link->setEtext("link read error");
-          else return -1;
+      {if (rlen != -ENOMSG) Link->setEtext("link read error");
+       if (old_iov.iov_base) ioV[0] = old_iov;
+       rc = -1;
+       break;
       }
 
 // Compute where we finished in the iovec.
@@ -1074,14 +1275,27 @@ int XrdXrootdProtocol::getDataIovCont()
    if (old_iov.iov_base) ioV[0] = old_iov;
 
 // If the vector is complete then effect the callback unless this was the
-// initial call, we simply return to prevent recursive continuations.
+// initial call, we simply return to prevent recursive continuations by
+// converting a recursive call to an iterative continuation!
 //
    if (i >= iovN)
       {if (!rlen) 
-          {if (gdCtl.iovNow) return (*this.*gdCtl.CallBk)();
+          {if (gdCtl.useCB)
+              {gdCtl.Status = GetDataCtl::inCallBk;
+               if (int(gdCtl.stalls) > as_okstutter)
+                  myStalls += int(gdCtl.stalls)/as_okstutter;
+               rc = gdCtl.CallBack->gdDone();
+               if (rc < 0) break;
+               if (gdCtl.Status == GetDataCtl::inDataIov) continue;
+               if (gdCtl.Status == GetDataCtl::inDump) return getDumpCont();
+               gdCtl.Status = GetDataCtl::inNone;
+               return rc;
+              }
+           gdCtl.Status = GetDataCtl::inNone;
            return 0;
           }
-       return Link->setEtext("link iov read length error");
+       rc = Link->setEtext("link iov read length error");
+       break;
       }
 
 // Record where we stopped and setup to resume here when more data arrives. We
@@ -1092,52 +1306,93 @@ int XrdXrootdProtocol::getDataIovCont()
    gdCtl.iovNow  = gdCtl.iovNow + i;
    Resume = &XrdXrootdProtocol::getDataIovCont;
    myBlen = 0;
+   gdCtl.useCB    = true;
+   gdCtl.linkWait = GetDataCtl::Active;
+   if (gdCtl.stalls < 255) gdCtl.stalls++;
 
 // Return indicating we need more data
 //
-   TRACEP(REQ, gdCtl.iovType<<" read timeout; "<<iovN-i<<" of "
+   TRACEP(REQ, gdCtl.ioDType<<" read timeout; "<<iovN-i<<" of "
              <<gdCtl.iovNum <<" iov elements left");
    return 1;
+
+  } while(true);
+
+// If got here then we had a link failure or some other fatal issue
+//
+   if (gdCtl.useCB)
+      {gdCtl.Status = GetDataCtl::inCallBk;
+       gdCtl.CallBack->gdFail();
+      }
+   gdCtl.Status = GetDataCtl::inNone;
+   return rc;
 }
+
+/******************************************************************************/
+/*                               g e t D u m p                                */
+/******************************************************************************/
   
-/******************************************************************************/
-/*                             g e t P a t h I D                              */
-/******************************************************************************/
-
-int XrdXrootdProtocol::getPathID(bool isRead)
+int XrdXrootdProtocol::getDump(const char *dtype, int dlen)
 {
-   XrdXrootdProtocol *pp;;
-   long long sBytes, bestBytes = 0;
-   int  bestStream = 0;
-   bool useS, sBusy, bestIsBusy = false;
+   bool inCB = (gdCtl.Status == GetDataCtl::inCallBk);
 
-// Find a working stream that is least loaded and has at least one free
-// parallel I/O object (it might not be the fastest). We allow for a delay
-// of 50ms so as not to pick a busy stream.
+// Setup the control information to direct the vector read
 //
-   for (int i = 1; i < maxStreams; i++)
-       {if (!(pp = Stream[i])) break;
-        pp->streamMutex.Lock();
-        if (!(pp->isDead || pp->isNOP))
-           {sBytes = (isRead ? pp->bytes2send : pp->bytes2recv);
-            sBusy  = (pp->pioFree == 0);
-                 if (!bestStream)        useS = true;
-            else if (bestBytes > sBytes) useS = !sBusy || bestIsBusy;
-            else if (!bestIsBusy)        useS = false;
-            else if (!sBusy)             useS = (bestBytes+5248000 >= sBytes);
-            else                         useS = false;
-            if (useS)
-               {bestBytes  = sBytes;
-                bestStream = i;
-                bestIsBusy = sBusy;
-               }
-           }
-        pp->streamMutex.UnLock();
-       }
+   memset(&gdCtl, 0, sizeof(gdCtl));
+   gdCtl.lenPart = dlen;     // Bytes left to drain
+   gdCtl.ioDType = dtype;    // Name of the data being read for tracing
+   gdCtl.Status  = GetDataCtl::inDump;
 
-// All done, return result
+// Effect the read. We prevent recursive calls if this was called while
+// we were in a callback, which is possible due to I/O continuations.
 //
-   return bestStream;
+   return (inCB ? 1 : getDumpCont());
+}
+
+/******************************************************************************/
+/* Private:                  g e t D u m p C o n t                            */
+/******************************************************************************/
+
+int XrdXrootdProtocol::getDumpCont()
+{
+    int  rlen = 0, rwant;
+    char buff[65536];
+
+   TRACEP(REQ, gdCtl.ioDType<<" discarding "<<gdCtl.lenPart<<" bytes.");
+
+// Read data and discard it
+//
+   while(gdCtl.lenPart > 0)
+        {if (gdCtl.lenPart <= (int)sizeof(buff)) rwant = gdCtl.lenPart;
+            else rwant = sizeof(buff);
+         if ((rlen = Link->Recv(buff, rwant, readWait)) <= 0) break;
+         gdCtl.lenPart -= rlen;
+        }
+
+// Check if we failed
+//
+   if (rlen < 0 || gdCtl.lenPart < 0)
+      {if (gdCtl.lenPart < 0) Link->setEtext("link read overrun error");
+          else if (rlen != -ENOMSG) Link->setEtext("link read error");
+       gdCtl.Status = GetDataCtl::inNone;
+       return -1;
+      }
+
+// Check if we completed
+//
+   if (gdCtl.lenPart == 0)
+      {gdCtl.Status = GetDataCtl::inNone;
+       return 0;
+      }
+
+// Wait until more data arrives. We will now need to use the callback.
+//
+   Resume = &XrdXrootdProtocol::getDumpCont;
+   myBlen = 0;
+
+   TRACEP(REQ, gdCtl.ioDType<<" read timeout; "<<gdCtl.lenPart
+             <<" bytes left to discard");
+   return 1;
 }
   
 /******************************************************************************/
@@ -1150,16 +1405,14 @@ void XrdXrootdProtocol::Reset()
    argp               = 0;
    Link               = 0;
    FTab               = 0;
+   ResumePio          = 0;
    Resume             = 0;
    myBuff             = (char *)&Request;
    myBlen             = sizeof(Request);
    myBlast            = 0;
-   myOffset           = 0;
-   myIOLen            = 0;
    myStalls           = 0;
-   myFlags            = 0;
-   myAioReq           = 0;
-   myFile             = 0;
+   pgwCtl             = 0;
+   memset(&IO, 0, sizeof(IO));
    wvInfo             = 0;
    numReads           = 0;
    numReadP           = 0;
@@ -1187,20 +1440,23 @@ void XrdXrootdProtocol::Reset()
    clientPV           = 0;
    clientRN           = 0;
    reTry              = 0;
+   endNote            = 0;
    PathID             = 0;
+   newPio             = false;
    rvSeq              = 0;
    wvSeq              = 0;
    doTLS              = tlsNot; // Assume client is not capable. This will be
    ableTLS            = false;  // resolved during the kXR_protocol interchange.
    isTLS              = false;  // Made true when link converted to TLS
+   linkAioReq         = {0};
    pioFree = pioFirst = pioLast = 0;
-   bytes2recv = bytes2send = 0;
-   isActive = isDead  = isNOP = isBound = false;
+   isActive = isLinkWT= isNOP = isDead = false;
    sigNeed = sigHere = sigRead = false;
    sigWarn = true;
    rdType             = 0;
    Entity.Reset(0);
    memset(Stream,  0, sizeof(Stream));
+   memset(&gdCtl,  0, sizeof(gdCtl));
    PrepareCount       = 0;
    if (AppName) {free(AppName); AppName = 0;}
 }

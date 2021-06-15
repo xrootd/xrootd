@@ -66,7 +66,6 @@
 #include "XrdTls/XrdTlsContext.hh"
 
 #include "XrdXrootd/XrdXrootdAdmin.hh"
-#include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -154,6 +153,10 @@ char                    *gpfLib  = 0;// Normally zero for default
 char                    *gpfParm = 0;
 char                    *SecLib;
 int                      tlsCache= XrdTlsContext::scNone;
+int                      asyncFlags = 0;
+
+static const int asDebug   = 0x01;
+static const int asNoCache = 0x02;
 }
   
 /******************************************************************************/
@@ -214,7 +217,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Pre-initialize some i/o values. Note that we now set maximum readv element
 // transfer size to the buffer size (before it was a reasonable 256K).
 //
-   if (!(as_miniosz = as_segsize/2)) as_miniosz = as_segsize;
    n = (pi->theEnv ? pi->theEnv->GetInt("MaxBuffSize") : 0);
    maxTransz = maxBuffsz = (n ? n : BPool->MaxSize());
    memset(Route, 0, sizeof(Route));
@@ -276,10 +278,11 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!ConfigMon(pi, xrootdEnv)) return 0;
 
-// Get the filesystem to be used and its features
+// Get the filesystem to be used and its features.
 //
    if (!ConfigFS(xrootdEnv, pi->ConfigFN)) return 0;
    fsFeatures = osFS->Features();
+   isProxy = (fsFeatures & XrdSfs::hasPRXY) != 0;
    if (pi->theEnv) pi->theEnv->PutPtr("XrdSfsFileSystem*", osFS);
 
 // Check if the file system includes a custom prepare handler as this will
@@ -312,20 +315,30 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
           } while(tP);
       }
 
-// Initialiaze for AIO
+// Initialiaze for AIO. If we are not in debug mode and aio is enabled then we
+// turn off async I/O if tghe filesystem requests it or if this is a caching
+// proxy and we were asked not to use aio in such a cacse.
 //
-   if (!as_noaio) XrdXrootdAioReq::Init(as_segsize, as_maxperreq, as_maxpersrv);
-      else eDest.Say("Config asynchronous I/O has been disabled!");
+   if (!(asyncFlags & asDebug) && as_aioOK)
+      {if (fsFeatures & XrdSfs::hasNAIO) as_aioOK = 0;
+          else if (asyncFlags && asNoCache && fsFeatures & XrdSfs::hasCACH)
+                  as_aioOK = 0;
+       if (!as_aioOK) eDest.Say("Config asynchronous I/O has been disabled!");
+      }
+
+// Compute the maximum stutter allowed during async I/O (one per 64k)
+//
+   if (as_segsize > 65536) as_okstutter = as_segsize/65536;
 
 // Establish final sendfile processing mode. This may be turned off by the
-// link or by the SFS plugin usually because ot's a proxy.
+// link or by the SFS plugin usually because it's a proxy.
 //
    const char *why = 0;
    if (!as_nosf)
       {if (fsFeatures & XrdSfs::hasNOSF) why = "file system plugin.";
           else if (!XrdLink::sfOK) why = "OS kernel.";
        if (why)
-          {as_nosf = 1;
+          {as_nosf = true;
            eDest.Say("Config sendfile has been disabled by ", why);
           }
       }
@@ -333,7 +346,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Create the file lock manager and initialize file handling
 //
    Locker = (XrdXrootdFileLock *)new XrdXrootdFileLock1();
-   XrdXrootdFile::Init(Locker, &eDest, as_nosf == 0);
+   XrdXrootdFile::Init(Locker, &eDest, !as_nosf);
 
 // Schedule protocol object cleanup (also advise the transit protocol)
 //
@@ -741,11 +754,13 @@ int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
    Purpose:  To parse directive: async [limit <aiopl>] [maxsegs <msegs>]
                                        [maxtot <mtot>] [segsize <segsize>]
                                        [minsize <iosz>] [maxstalls <cnt>]
-                                       [force] [syncw] [off] [nosf]
+                                       [timeout <tos>]
+                                       [Debug] [force] [syncw] [off]
+                                       [nocache] [nosf]
 
-             <aiopl>  maximum number of async ops per link. Default 8.
+             <aiopl>  maximum number of async req per link. Default 8.
              <msegs>  maximum number of async ops per request. Default 8.
-             <mtot>   maximum number of async ops per server. Default is 20%
+             <mtot>   maximum number of async ops per server. Default is 4096.
                       of maximum connection times aiopl divided by two.
              <segsz>  The aio segment size. This is the maximum size that data
                       will be read or written. The defaults to 64K but is
@@ -753,12 +768,16 @@ int XrdXrootdProtocol::ConfigSecurity(XrdOucEnv &xEnv, const char *cfn)
              <iosz>   the minimum number of bytes that must be read or written
                       to allow async processing to occur (default is maxbsz/2
                       typically 1M).
+             <tos>    second timeout for async I/O.
              <cnt>    Maximum number of client stalls before synchronous i/o is
                       used. Async mode is tried after <cnt> requests.
+             Debug    Turns on async I/O for everything. This an internal
+                      undocumented option used for testing purposes.
              force    Uses async i/o for all requests, even when not explicitly
                       requested (this is compatible with synchronous clients).
              syncw    Use synchronous i/o for write requests.
              off      Disables async i/o
+             nocache  Disables async I/O is this is a caching proxy.
              nosf     Disables use of sendfile to send data to the client.
 
    Output: 0 upon success or 1 upon failure.
@@ -770,17 +789,20 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
     int  i, ppp;
     int  V_force=-1, V_syncw = -1, V_off = -1, V_mstall = -1, V_nosf = -1;
     int  V_limit=-1, V_msegs=-1, V_mtot=-1, V_minsz=-1, V_segsz=-1;
-    int  V_minsf=-1;
+    int  V_minsf=-1, V_debug=-1, V_noca=-1, V_tmo=-1;
     long long llp;
     struct asyncopts {const char *opname; int minv; int *oploc;
                       const char *opmsg;} asopts[] =
        {
+        {"Debug",     -1, &V_debug, ""},
         {"force",     -1, &V_force, ""},
         {"off",       -1, &V_off,   ""},
+        {"nocache",   -1, &V_noca,  ""},
         {"nosf",      -1, &V_nosf,  ""},
         {"syncw",     -1, &V_syncw, ""},
         {"limit",      0, &V_limit, "async limit"},
         {"segsize", 4096, &V_segsz, "async segsize"},
+        {"timeout",    0, &V_tmo,   "async timeout"},
         {"maxsegs",    0, &V_msegs, "async maxsegs"},
         {"maxstalls",  0, &V_mstall,"async maxstalls"},
         {"maxtot",     0, &V_mtot,  "async maxtot"},
@@ -835,18 +857,35 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
           }
       }
 
+// Calculate actual timeout
+//
+   if (V_tmo >= 0)
+      {i = V_tmo;
+       if (V_tmo < 1) i = 1;
+          else if (V_tmo > 360) i = 360;
+       if (i != V_tmo)
+          {char buff[64];
+           sprintf(buff, "%d readjusted to %d", V_tmo, i);
+           eDest.Emsg("Config", "async timeout", buff);
+           V_tmo = i;
+          }
+      }
+
 // Establish async options
 //
    if (V_limit > 0) as_maxperlnk = V_limit;
    if (V_msegs > 0) as_maxperreq = V_msegs;
    if (V_mtot  > 0) as_maxpersrv = V_mtot;
    if (V_minsz > 0) as_miniosz   = V_minsz;
-   if (V_segsz > 0) as_segsize   = V_segsz;
+   if (V_segsz > 0){as_segsize   = V_segsz; as_seghalf = V_segsz/2;}
+   if (V_tmo   > 0) as_timeout   = V_tmo;
    if (V_mstall> 0) as_maxstalls = V_mstall;
-   if (V_force > 0) as_force     = 1;
-   if (V_off   > 0) as_noaio     = 1;
-   if (V_syncw > 0) as_syncw     = 1;
-   if (V_nosf  > 0) as_nosf      = 1;
+   if (V_debug > 0) asyncFlags  |= asDebug;
+   if (V_force > 0) as_force     = true;
+   if (V_off   > 0) as_aioOK     = false;
+   if (V_syncw > 0) as_syncw     = true;
+   if (V_noca  > 0) asyncFlags  |= asNoCache;
+   if (V_nosf  > 0) as_nosf      = true;
    if (V_minsf > 0) as_minsfsz   = V_minsf;
 
    return 0;
@@ -1770,18 +1809,18 @@ int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
        {
         {"all",      TRACE_ALL},
         {"auth",     TRACE_AUTH},
-        {"emsg",     TRACE_EMSG},
         {"debug",    TRACE_DEBUG},
+        {"emsg",     TRACE_EMSG},
         {"fs",       TRACE_FS},
+        {"fsaio",    TRACE_FSAIO},
+        {"fsio",     TRACE_FSIO},
         {"login",    TRACE_LOGIN},
         {"mem",      TRACE_MEM},
         {"pgcserr",  TRACE_PGCS},
-        {"pgread",   TRACE_PGRD},
-        {"pgwrite",  TRACE_PGWR},
-        {"stall",    TRACE_STALL},
         {"redirect", TRACE_REDIR},
         {"request",  TRACE_REQ},
-        {"response", TRACE_RSP}
+        {"response", TRACE_RSP},
+        {"stall",    TRACE_STALL}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 

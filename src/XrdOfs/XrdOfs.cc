@@ -79,6 +79,7 @@
 #include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -109,6 +110,35 @@ XrdOucTrace      OfsTrace(&OfsEroute);
   
 XrdOfsStats      OfsStats;
 
+/******************************************************************************/
+/*                       L o c a l   F u n c t i o n s                        */
+/******************************************************************************/
+
+namespace
+{
+bool VerPgw(const char *buf, ssize_t off, size_t len, const uint32_t* csv,
+            XrdOfsHandle *oh,  XrdOucErrInfo  &error)
+{
+   EPNAME("VerPgw");
+   XrdOucPgrwUtils::dataInfo dInfo(buf, csv, off, len);
+   off_t badoff;
+   int   badlen;
+
+// Verify incomming checksums
+//
+   if (!XrdOucPgrwUtils::csVer(dInfo, badoff, badlen))
+      {char eMsg[512];
+       int n;
+       n=snprintf(eMsg,sizeof(eMsg),"Checksum error at offset %ld.",badoff);
+       error.setErrInfo(EDOM, eMsg);
+       eMsg[n-1] = 0;
+       OfsEroute.Emsg(epname, eMsg, "aborted pgwrite to", oh->Name());
+       return false;
+      }
+   return true;
+}
+}
+  
 /******************************************************************************/
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
@@ -189,6 +219,7 @@ XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
 // Other options
 //
    DirRdr    = false;
+   OssHasPGrw= false;
 }
 
 /******************************************************************************/
@@ -1002,6 +1033,221 @@ int XrdOfsFile::fctl(const int cmd, int alen, const char *args,
 //
    myTPC->Del();
    myTPC = 0;
+   return SFS_OK;
+}
+
+/******************************************************************************/
+/*                                p g R e a d                                 */
+/******************************************************************************/
+  
+XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsFileOffset   offset,
+                                  char              *buffer,
+                                  XrdSfsXferSize     rdlen,
+                                  uint32_t          *csvec,
+                                  uint64_t           opts)
+{
+   EPNAME("pgRead");
+   XrdSfsXferSize nbytes;
+   uint64_t pgOpts;
+
+// If the oss plugin does not support pgRead and we doing rawio then simulate
+// the pgread. As this is relatively common we skip the vtable. This means
+// this class cannot be a inherited to override the read() method.
+//
+   if (!XrdOfsFS->OssHasPGrw || dorawio)
+      {if ((nbytes = XrdOfsFile::read(offset, buffer, rdlen)) > 0)
+          XrdOucPgrwUtils::csCalc(buffer, offset, nbytes, csvec);
+       return nbytes;
+      }
+
+// Perform required tracing
+//
+   FTRACE(read, rdlen <<"@" <<offset);
+
+// Make sure the offset is not too large
+//
+#if _FILE_OFFSET_BITS!=64
+   if (offset >  0x000000007fffffff)
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgRead", oh->Name());
+#endif
+
+// Pass through any flags of interest
+//
+   if (opts & XrdSfsFile::Verify) pgOpts = XrdOssDF::Verify;
+      else pgOpts = 0;
+
+// Now read the actual number of bytes
+//
+   nbytes = (XrdSfsXferSize)(oh->Select().pgRead((void *)buffer,
+                            (off_t)offset, (size_t)rdlen, csvec, pgOpts));
+   if (nbytes < 0)
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgRead", oh->Name());
+
+// Return number of bytes read
+//
+   return nbytes;
+}
+
+/******************************************************************************/
+
+XrdSfsXferSize XrdOfsFile::pgRead(XrdSfsAio *aioparm, uint64_t opts)
+{
+   EPNAME("aiopgread");
+   uint64_t pgOpts;
+   int rc;
+
+// If the oss plugin does not support pgRead or if we are doing rawio or the
+// file is compressed then revert to using a standard async read. Note that
+// the standard async read will generate checksums if a vector is present.
+// Note: we set cksVec in the request to nil to indicate simulation!
+//
+   if (!XrdOfsFS->OssHasPGrw || dorawio || oh->isCompressed)
+      {aioparm->cksVec = 0;
+       return XrdOfsFile::read(aioparm);
+      }
+
+// Perform required tracing
+//
+   FTRACE(aio, aioparm->sfsAio.aio_nbytes <<"@" <<aioparm->sfsAio.aio_offset);
+
+// Make sure the offset is not too large
+//
+#if _FILE_OFFSET_BITS!=64
+   if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgRead", oh->Name());
+#endif
+
+// Pass through any flags of interest
+//
+   if (opts & XrdSfsFile::Verify) pgOpts = XrdOssDF::Verify;
+      else pgOpts = 0;
+
+// Issue the read. Only true errors are returned here.
+//
+   if ((rc = oh->Select().pgRead(aioparm, pgOpts)) < 0)
+      return XrdOfsFS->Emsg(epname, error, rc, "pgRead", oh->Name());
+
+// All done
+//
+   return SFS_OK;
+}
+
+/******************************************************************************/
+/*                               p g W r i t e                                */
+/******************************************************************************/
+  
+XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsFileOffset   offset,
+                                   char              *buffer,
+                                   XrdSfsXferSize     wrlen,
+                                   uint32_t          *csvec,
+                                   uint64_t           opts)
+{
+   EPNAME("pgWrite");
+   XrdSfsXferSize nbytes;
+   uint64_t pgOpts;
+
+// If the oss plugin does not support pgWrite revert to using a standard write.
+//
+   if (!XrdOfsFS->OssHasPGrw)
+      {if ((opts & XrdSfsFile::Verify)
+       && !VerPgw(buffer, offset, wrlen, csvec, oh, error)) return SFS_ERROR;
+       return XrdOfsFile::write(offset, buffer, wrlen);
+      }
+
+// Perform any required tracing
+//
+   FTRACE(write, wrlen <<"@" <<offset);
+
+// Make sure the offset is not too large
+//
+#if _FILE_OFFSET_BITS!=64
+   if (offset >  0x000000007fffffff)
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh);
+#endif
+
+// Silly Castor stuff
+//
+   if (XrdOfsFS->evsObject && !(oh->isChanged)
+   &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
+
+// Pass through any flags of interest
+//
+   if (opts & XrdSfsFile::Verify) pgOpts = XrdOssDF::Verify;
+      else pgOpts = 0;
+
+// Write the requested bytes
+//
+   oh->isPending = 1;
+   nbytes = (XrdSfsXferSize)(oh->Select().pgWrite((void *)buffer,
+                            (off_t)offset, (size_t)wrlen, csvec, pgOpts));
+   if (nbytes < 0)
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "pgwrite", oh);
+
+// Return number of bytes written
+//
+   return nbytes;
+}
+
+/******************************************************************************/
+
+XrdSfsXferSize XrdOfsFile::pgWrite(XrdSfsAio *aioparm, uint64_t opts)
+{
+   EPNAME("aiopgWrite");
+   uint64_t pgOpts;
+   int rc;
+
+// If the oss plugin does not support pgWrite revert to using a standard write.
+//
+   if (!XrdOfsFS->OssHasPGrw)
+      {if ((opts & XrdSfsFile::Verify)
+       && !VerPgw((char *)aioparm->sfsAio.aio_buf,
+                          aioparm->sfsAio.aio_offset,
+                          aioparm->sfsAio.aio_nbytes,
+                          aioparm->cksVec, oh, error)) return SFS_ERROR;
+       return XrdOfsFile::write(aioparm);
+      }
+
+// If this is a POSC file, we must convert the async call to a sync call as we
+// must trap any errors that unpersist the file. We can't do that via aio i/f.
+//
+   if (oh->isRW == XrdOfsHandle::opPC)
+      {aioparm->Result = XrdOfsFile::pgWrite(aioparm->sfsAio.aio_offset,
+                                     (char *)aioparm->sfsAio.aio_buf,
+                                             aioparm->sfsAio.aio_nbytes,
+                                             aioparm->cksVec, opts);
+       aioparm->doneWrite();
+       return SFS_OK;
+      }
+
+// Perform any required tracing
+//
+   FTRACE(aio, aioparm->sfsAio.aio_nbytes <<"@" <<aioparm->sfsAio.aio_offset);
+
+// Make sure the offset is not too large
+//
+#if _FILE_OFFSET_BITS!=64
+   if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "pgwrite", oh->Name());
+#endif
+
+// Silly Castor stuff
+//
+   if (XrdOfsFS->evsObject && !(oh->isChanged)
+   &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
+
+// Pass through any flags of interest
+//
+   if (opts & XrdSfsFile::Verify) pgOpts = XrdOssDF::Verify;
+      else pgOpts = 0;
+
+// Write the requested bytes
+//
+   oh->isPending = 1;
+   if ((rc = oh->Select().pgWrite(aioparm, pgOpts)) < 0)
+       return XrdOfsFS->Emsg(epname, error, rc, "pgwrite", oh->Name());
+
+// All done
+//
    return SFS_OK;
 }
 

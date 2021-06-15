@@ -29,6 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
  
+#include <atomic>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -81,7 +82,6 @@ class XrdSecProtocol;
 class XrdBuffer;
 class XrdLink;
 class XrdTlsContext;
-class XrdXrootdAioReq;
 class XrdXrootdFile;
 class XrdXrootdFileLock;
 class XrdXrootdFileTable;
@@ -93,11 +93,73 @@ class XrdXrootdStats;
 class XrdXrootdWVInfo;
 class XrdXrootdXPath;
 
-class XrdXrootdProtocol : public XrdProtocol, public XrdSfsDio, public XrdSfsXio
+/******************************************************************************/
+/*                   N a m e s p a c e   X r d X r o o t d                    */
+/******************************************************************************/
+  
+namespace XrdXrootd
+{
+/******************************************************************************/
+/*                            g d C a l l B a c k                             */
+/******************************************************************************/
+  
+class gdCallBack             // Used for new style getData() with callback
+{
+public:
+
+// Called when getData with a buffer successfully completed with a suspension.
+// A direct return is made if there was no suspension. Return values and action:
+// >1 If getData with a buffer was called while in the callback, the operation
+//    is performed with a subsequent callback. Otherwise, a fatal error results.
+// =0 Variable discard holds the number of bytes to be discarded from the
+//    from the socket (default 0). Return is made to link-level.
+// <0 Considered a fatal link error.
+//
+virtual int   gdDone() = 0;
+
+// Called when a fatal link error occurs during reading.
+//
+virtual void  gdFail() {}   // Called when a link failure occurs
+
+              gdCallBack() {}
+virtual      ~gdCallBack() {}
+};
+
+/******************************************************************************/
+/*                               I O P a r m s                                */
+/******************************************************************************/
+  
+struct IOParms
+{
+XrdXrootdFile    *File;
+union {
+long long         Offset;
+long long         WVBytes;
+int               EInfo[2];
+      };
+int               IOLen;
+unsigned short    Flags;
+char              reserved;
+char              Mode;
+static const int  useBasic = 0;
+static const int  useMMap  = 1;
+static const int  useSF    = 2;
+};
+}
+
+/******************************************************************************/
+/*               C l a s s   X r d X r o o t d P r o t o c o l                */
+/******************************************************************************/
+  
+class XrdXrootdProtocol : public XrdProtocol, public XrdXrootd::gdCallBack,
+                          public XrdSfsDio,   public XrdSfsXio
 {
 friend class XrdXrootdAdmin;
-friend class XrdXrootdAioReq;
 public:
+
+       void          aioUpdate(int val) {srvrAioOps += val;}
+
+       void          aioUpdReq(int val) {linkAioReq += val;}
 
 static char         *Buffer(XrdSfsXioHandle h, int *bsz); // XrdSfsXio
 
@@ -108,6 +170,14 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
        void          DoIt() {(*this.*Resume)();}
 
        int           do_WriteSpan();
+
+       int           getData(gdCallBack   *gdcbP, const char *dtype,
+                             char *buff, int blen);
+
+       int           getData(gdCallBack   *gdcbP, const char *dtype,
+                             struct iovec *iov,   int iovn);
+
+       int           getDump(const char *dtype, int dlen);
 
        XrdProtocol  *Match(XrdLink *lp);
 
@@ -129,13 +199,34 @@ static void          Reclaim(XrdSfsXioHandle h); // XrdSfsXio
 
        int           Stats(char *buff, int blen, int do_sync=0);
 
+       void          StreamNOP();
+
 XrdSfsXioHandle      Swap(const char *buff, XrdSfsXioHandle h=0); // XrdSfsXio
+
+XrdXrootdProtocol   *VerifyStream(int &rc, int pID, bool lok=true);
 
               XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs) = delete;
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
 
 static const int     maxStreams = 16;
+
+// async configuration values (referenced outside this class)
+//
+static int           as_maxperlnk; // Max async requests per link
+static int           as_maxperreq; // Max async ops per request
+static int           as_maxpersrv; // Max async ops per server
+static int           as_miniosz;   // Min async request size
+static int           as_minsfsz;   // Min sendf request size
+static int           as_seghalf;
+static int           as_segsize;   // Aio quantum (optimal)
+static int           as_maxstalls; // Maximum stalls we will tolerate
+static short         as_okstutter; // Allowable stutters per transfer unit
+static short         as_timeout;   // request timeout (usually < stream timeout)
+static bool          as_force;     // aio to be forced
+static bool          as_aioOK;     // aio is enabled
+static bool          as_nosf;      // sendfile is disabled
+static bool          as_syncw;     // writes to be synchronous
 
 private:
 
@@ -163,14 +254,16 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Locate();
        int   do_Mkdir();
        int   do_Mv();
-       int   do_Offload(int pathID, bool isWrite, bool ispgio=false);
+       int   do_Offload(int (XrdXrootdProtocol::*Invoke)(), int pathID);
        int   do_OffloadIO();
        int   do_Open();
        bool  do_PgClose(XrdXrootdFile *fP, int &rc);
        int   do_PgRead();
        int   do_PgRIO();
        int   do_PgWrite();
+       bool  do_PgWAIO(int &rc);
        int   do_PgWIO();
+       int   do_PgWIO(bool isFresh);
        bool  do_PgWIORetry(int &rc);
        bool  do_PgWIOSetup(XrdXrootdPgwCtl *pgwCtl);
        int   do_Ping();
@@ -185,7 +278,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Qxattr();
        int   do_Read();
        int   do_ReadV();
-       int   do_ReadAll(int asyncOK=1);
+       int   do_ReadAll();
        int   do_ReadNone(int &retc, int &pathID);
        int   do_Rm();
        int   do_Rmdir();
@@ -196,6 +289,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Sync();
        int   do_Truncate();
        int   do_Write();
+       int   do_WriteAio();
        int   do_WriteAll();
        int   do_WriteCont();
        int   do_WriteNone();
@@ -205,11 +299,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_WriteV();
        int   do_WriteVec();
 
-       int   aio_Error(const char *op, int ecode);
-       int   aio_Read();
-       int   aio_Write();
-       int   aio_WriteAll();
-       int   aio_WriteCont();
+       int   gdDone() override {return do_PgWIO(false);}
 
        void  Assign(const XrdXrootdProtocol &rhs);
 static int   CheckSum(XrdOucStream *, char **, int);
@@ -224,10 +314,9 @@ static int   ConfigSecurity(XrdOucEnv &xEnv, const char *cfn);
        int   getBuff(const int isRead, int Quantum);
        char *getCksType(char *opaque, char *cspec=0, int cslen=0);
        int   getData(const char *dtype, char *buff, int blen);
-       int   getData(int (XrdXrootdProtocol::*CallBack)(),
-                     const char *dtype, struct iovec *iov, int iovn);
+       int   getDataCont();
        int   getDataIovCont();
-       int   getPathID(bool isRead);
+       int   getDumpCont();
        bool  logLogin(bool xauth=false);
 static int   mapMode(int mode);
        void  Reset();
@@ -344,12 +433,16 @@ static int    OD_Stall;
 static bool   OD_Bypass;
 static bool   OD_Redir;
 
+static bool   isProxy;
+
 // Extended attributes
 //
 static int    usxMaxNsz;
 static int    usxMaxVsz;
 static char  *usxParms;
 
+// TLS configuration
+//
 static const char Req_TLSData  = 0x01;
 static const char Req_TLSGPFile= 0x02;
 static const char Req_TLSLogin = 0x04;
@@ -359,19 +452,8 @@ static const char Req_TLSTPC   = 0x10;
 static char   tlsCap;    // TLS requirements for capable clients
 static char   tlsNot;    // TLS requirements for incapable clients
 
-// async configuration values
+// Buffer configuration
 //
-static int                 as_maxperlnk; // Max async requests per link
-static int                 as_maxperreq; // Max async ops per request
-static int                 as_maxpersrv; // Max async ops per server
-static int                 as_miniosz;   // Min async request size
-static int                 as_minsfsz;   // Min sendf request size
-static int                 as_segsize;   // Aio quantum (optimal)
-static int                 as_maxstalls; // Maximum stalls we will tolerate
-static int                 as_force;     // aio to be forced
-static int                 as_noaio;     // aio is disabled
-static int                 as_nosf;      // sendfile is disabled
-static int                 as_syncw;     // writes to be synchronous
 static int                 maxBuffsz;    // Maximum buffer size we can have
 static int                 maxTransz;    // Maximum transfer size we can have
 
@@ -394,6 +476,7 @@ int                        cumSegsV;     // Count less numSegsV
 int                        cumWritV;     // Count less numWritV
 int                        cumSegsW;     // Count less numSegsW
 int                        cumWrites;    // Count less numWrites
+int                        myStalls;     // Number of stalls
 long long                  totReadP;     // Bytes
 
 // Data local to each protocol/link combination
@@ -417,6 +500,8 @@ XrdSecEntity               Entity;
 XrdSecProtect             *Protect;
 char                      *AppName;
 
+// Request signing area
+//
 ClientRequest              sigReq2Ver;   // Request to verify
 SecurityRequest            sigReq;       // Signature request
 char                       sigBuff[64];  // Signature payload SHA256 + blowfish
@@ -425,13 +510,14 @@ bool                       sigHere;      // Signature request present
 bool                       sigRead;      // Signature being read
 bool                       sigWarn;      // Once for unneeded signature
 
-// Miscellaneous control area
+// Async I/O area, these need to be atomic
 //
-char                       miscrsv[4];   // Reserved
+std::atomic_int            linkAioReq;   // Aio requests   inflight for link
+static std::atomic_int     srvrAioOps;   // Aio operations inflight for server
 
-// Buffer information, used to drive DoIt(), getData(), and (*Resume)()
+// Buffer information, used to drive getData(), and (*Resume)()
 //
-XrdXrootdAioReq           *myAioReq;
+XrdXrootdPgwCtl           *pgwCtl;
 char                      *myBuff;
 int                        myBlen;
 int                        myBlast;
@@ -439,23 +525,35 @@ int                        myBlast;
 struct GetDataCtl
 {
 int                        lenPart;
-short                      iovNow;
-short                      iovNum;
-struct iovec              *iovVec;
-const  char               *iovType;
-int   (XrdXrootdProtocol::*CallBk)();
+int                        iovNow;
+union {int                 iovNum;
+       int                 BuffLen;
+      };
+bool                       useCB;
+char                       Status;
+unsigned char              stalls;
+atomic_char                linkWait;
+union {struct iovec       *iovVec;
+       char               *Buffer;
+      };
+const  char               *ioDType;
+XrdXrootd::gdCallBack     *CallBack;
+
+static const int inNone    = 0;
+static const int inCallBk  = 1;
+static const int inData    = 2;
+static const int inDataIov = 3;
+static const int inDump    = 4;
+
+static const int Active    = 1;  // linkWait: thread is waiting for link
+static const int Terminate = 3;  // linkWait: thread should immediately exit
+
 }                          gdCtl;
 
-int                       (XrdXrootdProtocol::*Resume)();
-XrdXrootdFile             *myFile;
 XrdXrootdWVInfo           *wvInfo;
-union {
-long long                  myOffset;
-long long                  myWVBytes;
-int                        myEInfo[2];
-      };
-int                        myIOLen;
-int                        myStalls;
+int                       (XrdXrootdProtocol::*ResumePio)(); //Used by Offload
+int                       (XrdXrootdProtocol::*Resume)();
+XrdXrootd::IOParms         IO;
 
 // Buffer resize control area
 //
@@ -467,31 +565,28 @@ static int                 hcMax;
 
 // This area is used for parallel streams
 //
+XrdSysMutex                unbindMutex;   // If locked always before streamMutex
 XrdSysMutex                streamMutex;
 XrdSysSemaphore           *reTry;
+XrdSysCondVar2            *endNote;
 XrdXrootdProtocol         *Stream[maxStreams];
 unsigned int               mySID;
 bool                       isActive;
-bool                       isDead;
-bool                       isBound;
+bool                       isLinkWT;
 bool                       isNOP;
+bool                       isDead;
 
 static const int           maxPio = 4;
 XrdXrootdPio              *pioFirst;
 XrdXrootdPio              *pioLast;
 XrdXrootdPio              *pioFree;
-long long                  bytes2recv;   // For write() to   FS
-long long                  bytes2send;   // For read()  from FS
 
 short                      PathID;       // Path for this protocol object
-unsigned short             myFlags;
-bool                       doPgIO;
-bool                       doWrite;
-bool                       doWriteC;
+bool                       newPio;       // True when initially scheduled
 unsigned char              rvSeq;
 unsigned char              wvSeq;
 
-char                       doTLS;       // TLS requuirements for client
+char                       doTLS;       // TLS requirements for client
 bool                       ableTLS;     // T->Client is able to use TLS
 bool                       isTLS;       // T->Client using TLS on control stream
 

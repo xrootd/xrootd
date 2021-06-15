@@ -19,7 +19,9 @@ add_library(
   XrdServer
   SHARED
   XrdXrootd/XrdXrootdAdmin.cc           XrdXrootd/XrdXrootdAdmin.hh
-  XrdXrootd/XrdXrootdAio.cc             XrdXrootd/XrdXrootdAio.hh
+  XrdXrootd/XrdXrootdAioBuff.cc         XrdXrootd/XrdXrootdAioBuff.hh
+  XrdXrootd/XrdXrootdAioPgrw.cc         XrdXrootd/XrdXrootdAioPgrw.hh
+  XrdXrootd/XrdXrootdAioTask.cc         XrdXrootd/XrdXrootdAioTask.hh
   XrdXrootd/XrdXrootdBridge.cc          XrdXrootd/XrdXrootdBridge.hh
   XrdXrootd/XrdXrootdCallBack.cc        XrdXrootd/XrdXrootdCallBack.hh
   XrdXrootd/XrdXrootdConfig.cc
@@ -35,6 +37,9 @@ add_library(
   XrdXrootd/XrdXrootdMonFMap.cc         XrdXrootd/XrdXrootdMonFMap.hh
   XrdXrootd/XrdXrootdMonitor.cc         XrdXrootd/XrdXrootdMonitor.hh
 
+  XrdXrootd/XrdXrootdNormAio.cc         XrdXrootd/XrdXrootdNormAio.hh
+  XrdXrootd/XrdXrootdPgrwAio.cc         XrdXrootd/XrdXrootdPgrwAio.hh
+  XrdXrootd/XrdXrootdPgwBadCS.cc        XrdXrootd/XrdXrootdPgwBadCS.hh
   XrdXrootd/XrdXrootdPgwCtl.cc          XrdXrootd/XrdXrootdPgwCtl.hh
   XrdXrootd/XrdXrootdPgwFob.cc          XrdXrootd/XrdXrootdPgwFob.hh
   XrdXrootd/XrdXrootdPio.cc             XrdXrootd/XrdXrootdPio.hh
@@ -51,7 +56,6 @@ add_library(
   XrdXrootd/XrdXrootdTransSend.cc       XrdXrootd/XrdXrootdTransSend.hh
                                         XrdXrootd/XrdXrootdWVInfo.hh
   XrdXrootd/XrdXrootdXeq.cc             XrdXrootd/XrdXrootdXeq.hh
-  XrdXrootd/XrdXrootdXeqAio.cc
   XrdXrootd/XrdXrootdXeqChkPnt.cc
   XrdXrootd/XrdXrootdXeqFAttr.cc
   XrdXrootd/XrdXrootdXeqPgrw.cc

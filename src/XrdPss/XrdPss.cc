@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdint.h>
 #include <strings.h>
 #include <stdio.h>
 #include <sys/file.h>
@@ -44,6 +45,7 @@
 #ifdef __solaris__
 #include <sys/vnode.h>
 #endif
+#include <vector>
 
 #include "XrdVersion.hh"
 
@@ -53,12 +55,14 @@
 #include "XrdPss/XrdPssUrlInfo.hh"
 #include "XrdPss/XrdPssUtils.hh"
 #include "XrdPosix/XrdPosixConfig.hh"
+#include "XrdPosix/XrdPosixExtra.hh"
 #include "XrdPosix/XrdPosixInfo.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -148,7 +152,7 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
   
 XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
-                         myFeatures(XRDOSS_HASPRXY|XRDOSS_HASNOSF)
+                         myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|XRDOSS_HASNOSF)
                          {}
 
 /******************************************************************************/
@@ -843,6 +847,120 @@ int XrdPssFile::Close(long long *retsz)
     rc = XrdPosixXrootd::Close(fd);
     fd = -1;
     return (rc == 0 ? XrdOssOK : -errno);
+}
+
+/******************************************************************************/
+/*                                p g R e a d                                 */
+/******************************************************************************/
+
+/*
+  Function:  Read file pages into a buffer and return corresponding checksums.
+
+  Input:   buffer  - pointer to buffer where the bytes are to be placed.
+           offset  - The offset where the read is to start.
+           rdlen   - The number of bytes to read.
+           csvec   - A vector to be filled with the corresponding CRC32C
+                     checksums for each page or page segment, if available.
+           opts    - Options as noted (see inherited class).
+
+   Output: returns Number of bytes that placed in buffer upon success and
+                   -errno upon failure.
+*/
+
+ssize_t XrdPssFile::pgRead(void     *buffer,
+                           off_t     offset,
+                           size_t    rdlen,
+                           uint32_t *csvec,
+                           uint64_t  opts)
+{
+   std::vector<uint32_t> vecCS;
+   uint64_t psxOpts;
+   ssize_t bytes;
+
+// Make sure file is open
+//
+   if (fd < 0) return (ssize_t)-XRDOSS_E8004;
+
+// Set options as needed
+//
+   psxOpts = (csvec ? XrdPosixExtra::forceCS : 0);
+
+// Issue the pgread
+//
+   if ((bytes = XrdPosixExtra::pgRead(fd,buffer,offset,rdlen,vecCS,psxOpts)) < 0)
+      return (ssize_t)-errno;
+
+// Copy out the checksum vector
+//
+   if (vecCS.size() && csvec)
+       memcpy(csvec, vecCS.data(), vecCS.size()*sizeof(uint32_t));
+
+// All done
+//
+   return bytes;
+}
+
+/******************************************************************************/
+/*                               p g W r i t e                                */
+/******************************************************************************/
+/*
+  Function: Write file pages into a file with corresponding checksums.
+
+  Input:  buffer  - pointer to buffer containing the bytes to write.
+          offset  - The offset where the write is to start.
+          wrlen   - The number of bytes to write.
+                    be the last write to the file at or above the offset.
+          csvec   - A vector which contains the corresponding CRC32 checksum
+                    for each page or page segment. If size is 0, then
+                    checksums are calculated. If not zero, the size must
+                    equal the required number of checksums for offset/wrlen.
+          opts    - Options as noted.
+
+  Output: Returns the number of bytes written upon success and -errno
+                  upon failure.
+*/
+
+ssize_t XrdPssFile::pgWrite(void     *buffer,
+                            off_t     offset,
+                            size_t    wrlen,
+                            uint32_t *csvec,
+                            uint64_t  opts)
+{
+   std::vector<uint32_t> vecCS;
+   ssize_t bytes;
+
+// Make sure we have an open file
+//
+   if (fd < 0) return (ssize_t)-XRDOSS_E8004;
+
+// Check if caller wants to verify the checksums before writing
+//
+   if (csvec && (opts & XrdOssDF::Verify))
+      {XrdOucPgrwUtils::dataInfo dInfo((const char*)buffer,csvec,offset,wrlen);
+       off_t bado;
+       int   badc;
+       if (!XrdOucPgrwUtils::csVer(dInfo, bado, badc)) return -EDOM;
+      }
+
+// Check if caller want checksum generated and possibly returned
+//
+   if ((opts & XrdOssDF::doCalc) || csvec == 0)
+      {XrdOucPgrwUtils::csCalc((const char *)buffer, offset, wrlen, vecCS);
+       if (csvec) memcpy(csvec, vecCS.data(), vecCS.size()*sizeof(uint32_t));
+      } else {
+       int n = XrdOucPgrwUtils::csNum(offset, wrlen);
+       vecCS.resize(n);
+       vecCS.assign(n, 0);
+       memcpy(vecCS.data(), csvec, n*sizeof(uint32_t));
+      }
+
+// Issue the pgwrite
+//
+   bytes = XrdPosixExtra::pgWrite(fd, buffer, offset, wrlen, vecCS);
+
+// Return result
+//
+   return (bytes < 0 ? (ssize_t)-errno : bytes);
 }
 
 /******************************************************************************/

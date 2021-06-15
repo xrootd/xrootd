@@ -46,7 +46,7 @@ int          XrdPssAioCB::maxFree  = 100;
 /*                                 A l l o c                                  */
 /******************************************************************************/
 
-XrdPssAioCB *XrdPssAioCB::Alloc(XrdSfsAio *aiop, bool isWr)
+XrdPssAioCB *XrdPssAioCB::Alloc(XrdSfsAio *aiop, bool isWr, bool pgrw)
 {
    XrdPssAioCB *newCB;
 
@@ -61,6 +61,7 @@ XrdPssAioCB *XrdPssAioCB::Alloc(XrdSfsAio *aiop, bool isWr)
 //
    newCB->theAIOP = aiop;
    newCB->isWrite = isWr;
+   newCB->isPGrw  = pgrw;
    return newCB;
 }
 
@@ -78,6 +79,17 @@ void XrdPssAioCB::Complete(ssize_t result)
 //           <<theAIOP->sfsAio.aio_nbytes <<'@' <<theAIOP->sfsAio.aio_offset
 //           <<" result " <<result <<std::endl;
    theAIOP->Result = (result < 0 ? -errno : result);
+
+// Perform post processing for pgRead or pgWrite if successful
+//
+   if (isPGrw && result >= 0)
+      {if (isWrite)
+          {
+          } else {
+           if (csVec.size() && theAIOP->cksVec)
+           memcpy(theAIOP->cksVec, csVec.data(), csVec.size()*sizeof(uint32_t));
+          }
+      }
 
 // Invoke the callback
 //
@@ -102,6 +114,7 @@ void XrdPssAioCB::Recycle()
       else {next   = freeCB;
             freeCB = this;
             numFree++;
+            csVec.clear();
            }
    myMutex.UnLock();
 }

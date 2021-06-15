@@ -44,6 +44,7 @@
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
+#include "XrdXrootd/XrdXrootdPgrwAio.hh"
 #include "XrdXrootd/XrdXrootdPgwCtl.hh"
 #include "XrdXrootd/XrdXrootdPgwFob.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -62,6 +63,13 @@ namespace
 static const int pgPageSize = XrdProto::kXR_pgPageSZ;
 static const int pgPageMask = XrdProto::kXR_pgPageSZ-1;
 static const int pgUnitSize = XrdProto::kXR_pgUnitSZ;
+}
+
+namespace
+{
+static const int pgAioMin = XrdXrootdPgrwAio::aioSZ
+                          + XrdXrootdPgrwAio::aioSZ*8/10; // 1.8 of aiosz
+static const int pgAioHalf= XrdXrootdPgrwAio::aioSZ/2;
 }
   
 /******************************************************************************/
@@ -109,50 +117,73 @@ int XrdXrootdProtocol::do_PgRead()
 
 // Unmarshall the data
 //
-   myIOLen = ntohl(Request.pgread.rlen);
-             n2hll(Request.pgread.offset, myOffset);
+   IO.IOLen = ntohl(Request.pgread.rlen);
+              n2hll(Request.pgread.offset, IO.Offset);
 
 // Perform a sanity check on the length
 //
-   if (myIOLen <= 0)
+   if (IO.IOLen <= 0)
       return Response.Send(kXR_ArgInvalid, "Read length is invalid");
 
 // Find the file object
 //
-   if (!FTab || !(myFile = FTab->Get(fh.handle)))
+   if (!FTab || !(IO.File = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen,
                            "pgread does not refer to an open file");
 
 // Now handle the optional pathid and reqflags arguments.
 //
-   myFlags = 0;
+   IO.Flags = 0;
    if (!Request.header.dlen) pathID = 0;
       else {ClientPgReadReqArgs *rargs=(ClientPgReadReqArgs *)(argp->buff);
-            pathID = (rargs->pathid == XrdProto::kXR_AnyPath)
-                   ? getPathID(true) : static_cast<int>(rargs->pathid);
+            pathID = static_cast<int>(rargs->pathid);
             if (Request.header.dlen > 1)
-               myFlags = static_cast<unsigned short>(rargs->reqflags);
+               IO.Flags = static_cast<unsigned short>(rargs->reqflags);
            }
 
 // Trace this
 //
-   TRACEP(FS, pathID <<" fh="<<fh.handle<<" pgread "<<myIOLen<<'@'<<myOffset);
+   TRACEP(FSIO,pathID<<" pgread "<<IO.IOLen<<'@'<<IO.Offset
+                     <<" fn=" <<IO.File->FileKey);
 
 // If we are monitoring, insert a read entry
 //
    if (Monitor.InOut())
-      Monitor.Agent->Add_rd(myFile->Stats.FileID, Request.pgread.rlen,
-                                                  Request.pgread.offset);
+      Monitor.Agent->Add_rd(IO.File->Stats.FileID, Request.pgread.rlen,
+                                                   Request.pgread.offset);
 
 // Do statistics. They will not always be accurate because we may not be
 // able to fully complete the I/O from the file. Note that we also count
 // the checksums which a questionable practice.
 //
-   myFile->Stats.pgrOps(myIOLen, (myFlags & XrdProto::kXR_pgRetry) != 0);
+   IO.File->Stats.pgrOps(IO.IOLen, (IO.Flags & XrdProto::kXR_pgRetry) != 0);
+
+// Use synchronous reads unless async I/O is allowed, the read size is
+// sufficient, and there are not too many async operations in flight.
+//
+   if (IO.File->AsyncMode && IO.IOLen >= pgAioMin
+   &&  IO.Offset+IO.IOLen <= IO.File->Stats.fSize+pgAioHalf
+   &&  linkAioReq < as_maxperlnk && srvrAioOps < as_maxpersrv
+   &&  !(IO.Flags & XrdProto::kXR_pgRetry))
+        {XrdXrootdProtocol *pP;
+         XrdXrootdPgrwAio  *aioP;
+         int rc;
+
+         if (!pathID) pP = this;
+            else {if (!(pP = VerifyStream(rc, pathID, false))) return rc;
+                  if (pP->linkAioReq >= as_maxperlnk) pP = 0;
+                 }
+
+         if (pP && (aioP = XrdXrootdPgrwAio::Alloc(pP, pP->Response, IO.File)))
+            {aioP->Read(IO.Offset, IO.IOLen);
+             return 0;
+            }
+         SI->AsyncRej++;
+        }
 
 // See if an alternate path is required, offload the read
 //
-   if (pathID) return do_Offload(pathID, false, true);
+   if (pathID) return do_Offload(&XrdXrootdProtocol::do_PgRIO, pathID);
 
 // Now do the read on the main path
 //
@@ -163,9 +194,9 @@ int XrdXrootdProtocol::do_PgRead()
 /*                              d o _ P g R I O                               */
 /******************************************************************************/
 
-// myFile   = file to be read
-// myOffset = Offset at which to read
-// myIOLen  = Number of bytes to read from file and write to socket
+// IO.File   = file to be read
+// IO.Offset = Offset at which to read
+// IO.IOLen  = Number of bytes to read from file and write to socket
 
 int XrdXrootdProtocol::do_PgRIO()
 {
@@ -173,6 +204,7 @@ int XrdXrootdProtocol::do_PgRIO()
 // elements where the first is used for the header.
 //
    static const int maxCSSZ = 1022;
+// static const int maxCSSZ = 32;
    static const int maxPGRD = maxCSSZ*pgPageSize; // 2,093,056 usually
    static const int maxIOVZ = maxCSSZ*2+1;
    static const int infoLen = sizeof(kXR_int64);
@@ -183,15 +215,15 @@ int XrdXrootdProtocol::do_PgRIO()
          } pgrResp;
 
    char *buff;
-   XrdSfsFile *sfsP = myFile->XrdSfsp;
-   uint64_t pgrOpts = XrdSfsFile::NetOrder;
-   int dlen, rc, xframt, Quantum;
+   XrdSfsFile *sfsP = IO.File->XrdSfsp;
+   uint64_t pgrOpts = 0;
+   int dlen, fLen, lLen, rc, xframt, Quantum;
    uint32_t csVec[maxCSSZ];
    struct iovec iov[maxIOVZ];
 
 // Set flags, as needed
 //
-   if (myFlags & XrdProto::kXR_pgRetry) pgrOpts |= XrdSfsFile::Verify;
+   if (IO.Flags & XrdProto::kXR_pgRetry) pgrOpts |= XrdSfsFile::Verify;
 
 // Preinitialize the header
 //
@@ -202,8 +234,8 @@ int XrdXrootdProtocol::do_PgRIO()
 // Calculate the total pages in the read request. Note that the first and
 // last pages may require short reads if they are not fully aligned.
 //
-   int pFrag, pgOff, rPages, rLen = myIOLen;
-   rPages = XrdOucPgrwUtils::csNum(myOffset, myIOLen) * pgPageSize;
+   int pgOff, rPages, rLen = IO.IOLen;
+   rPages = XrdOucPgrwUtils::csNum(IO.Offset, IO.IOLen) * pgPageSize;
 
 // Compute the quantum.
 //
@@ -243,7 +275,7 @@ int XrdXrootdProtocol::do_PgRIO()
 // so that remaining pages are page-aligned. It will be reset when needed.
 // We also calculate the actual length of the first read.
 //
-   if ((pgOff = myOffset & pgPageMask))
+   if ((pgOff = IO.Offset & pgPageMask))
       {rLen = pgPageSize - pgOff;
        buff = argp->buff + pgOff;
        iov[2].iov_base = buff;
@@ -253,41 +285,30 @@ int XrdXrootdProtocol::do_PgRIO()
        rLen = Quantum;
        buff = argp->buff;
       }
-   if (myIOLen < rLen) rLen = myIOLen;
+   if (IO.IOLen < rLen) rLen = IO.IOLen;
 
 // Now read all of the data. For each read we must recacalculate the number
 // of iovec elements that we will use to send the data as fewer bytes may have
 // been read. In fact, no bytes may have been read.
 //
-   do {if ((xframt = sfsP->pgRead(myOffset, buff, rLen, csVec, pgrOpts)) <= 0)
+   do {if ((xframt = sfsP->pgRead(IO.Offset, buff, rLen, csVec, pgrOpts)) <= 0)
           break;
 
-       if (xframt <= pgPageSize)
-          {if (xframt > (int)iov[2].iov_len)
-              {pFrag = xframt - iov[2].iov_len;
-               items = 2;
-              } else {
-               iov[2].iov_len = xframt;
-               pFrag = 0;
-               items = 1;
-              }
-          } else {
-           n = xframt - iov[2].iov_len;
-           pFrag = n & pgPageMask;
-           items = 1 + n/pgPageSize + (pFrag != 0);
-          }
+       items = XrdOucPgrwUtils::csNum(IO.Offset, xframt, fLen, lLen);
+       iov[2].iov_len = fLen;
+       if (items > 1) iov[items<<1].iov_len = lLen;
 
-       if (pFrag) iov[items*2].iov_len = pFrag;
-
-       if (xframt < rLen || xframt == myIOLen)
+       if (xframt < rLen || xframt == IO.IOLen)
           {pgrResp.rsp.bdy.resptype = XrdProto::kXR_FinalResult;
-           myIOLen = 0;
+           IO.IOLen = 0;
           } else {
-           myIOLen -= xframt; myOffset += xframt;
-           rLen = (myIOLen < Quantum ? myIOLen : Quantum);
+           IO.IOLen -= xframt; IO.Offset += xframt;
+           rLen = (IO.IOLen < Quantum ? IO.IOLen : Quantum);
           }
 
-       pgrResp.ofs = htonll(myOffset);
+       for (int i = 0; i < items; i++) csVec[i] = htonl(csVec[i]);
+
+       pgrResp.ofs = htonll(IO.Offset);
        dlen  = xframt + (items * sizeof(uint32_t));
        if ((rc = Response.Send(pgrResp.rsp, infoLen, iov, items*2+1, dlen)) < 0)
           return rc;
@@ -297,9 +318,8 @@ int XrdXrootdProtocol::do_PgRIO()
            iov[2].iov_len  = pgPageSize;
            pgOff = 0;
           }
-       if (pFrag) iov[items*2+1].iov_len = pgPageSize;
 
-      } while(myIOLen > 0);
+      } while(IO.IOLen > 0);
 
 // Determine why we ended here
 //
@@ -310,7 +330,7 @@ int XrdXrootdProtocol::do_PgRIO()
    if (pgrResp.rsp.bdy.resptype != XrdProto::kXR_FinalResult)
       {pgrResp.rsp.bdy.resptype = XrdProto::kXR_FinalResult;
        pgrResp.rsp.bdy.dlen     = 0;
-       pgrResp.ofs              = htonll(myOffset);
+       pgrResp.ofs              = htonll(IO.Offset);
        return Response.Send(pgrResp.rsp, infoLen);
       }
    return 0;
@@ -328,14 +348,14 @@ int XrdXrootdProtocol::do_PgWrite()
 
 // Unmarshall the data
 //
-   myIOLen = Request.pgwrite.dlen;
-             n2hll(Request.pgwrite.offset, myOffset);
+   IO.IOLen = Request.pgwrite.dlen;
+             n2hll(Request.pgwrite.offset, IO.Offset);
    pathID   = Request.pgwrite.pathid;
-   myFlags  = static_cast<unsigned short>(Request.pgwrite.reqflags);
+   IO.Flags  = static_cast<unsigned short>(Request.pgwrite.reqflags);
 
 // Perform a sanity check on the length.
 //
-   if (myIOLen <= (int)sizeof(kXR_unt32))
+   if (IO.IOLen <= (int)sizeof(kXR_unt32))
       {Response.Send(kXR_ArgInvalid, "pgwrite length is invalid");
        return Link->setEtext("pgwrite protocol violation");
       }
@@ -348,78 +368,112 @@ int XrdXrootdProtocol::do_PgWrite()
 
 // Find the file object
 //
-   if (!FTab || !(myFile = FTab->Get(fh.handle)))
-      {myFile = 0;
+   if (!FTab || !(IO.File = FTab->Get(fh.handle)))
+      {IO.File = 0;
        return do_WriteNone(pathID);
       }
 
 // If the file object does not have a pgWrite object, allocate one.
 //
-   if (myFile->pgwFob == 0) myFile->pgwFob = new XrdXrootdPgwFob(myFile);
-
-// We now need to allocate a control object for the wanted stream
-//
-   if (!myFile->pgwFob->ctlVec[pathID])
-      myFile->pgwFob->ctlVec[pathID] = new XrdXrootdPgwCtl(myFile->ID, pathID);
-      else myFile->pgwFob->ctlVec[pathID]->Suspend(false);
+   if (IO.File->pgwFob == 0) IO.File->pgwFob = new XrdXrootdPgwFob(IO.File);
 
 // Trace this
 //
-   TRACEP(PGWR, pathID<<" pgwrite "
-          <<(myFlags & XrdProto::kXR_pgRetry ? "retry " : "")
-          <<myIOLen<<'@'<<myOffset <<" fn=" <<myFile->FileKey);
-
+   TRACEP(FSIO, pathID<<" pgwrite "
+          <<(IO.Flags & XrdProto::kXR_pgRetry ? "retry " : "")
+          <<IO.IOLen<<'@'<<IO.Offset<<" fn=" <<IO.File->FileKey);
 
 // Do statistics. They will not always be accurate because we may not be
 // able to fully complete the I/O to the file. Note that we also count
 // the checksums which a questionable practice.
 //
-   myFile->Stats.pgwOps(myIOLen, (myFlags & XrdProto::kXR_pgRetry) != 0);
+   IO.File->Stats.pgwOps(IO.IOLen, (IO.Flags & XrdProto::kXR_pgRetry) != 0);
 
 // If we are monitoring, insert a write entry
 //
    if (Monitor.InOut())
-      Monitor.Agent->Add_wr(myFile->Stats.FileID, Request.pgwrite.dlen,
-                                                  Request.pgwrite.offset);
+      Monitor.Agent->Add_wr(IO.File->Stats.FileID, Request.pgwrite.dlen,
+                                                   Request.pgwrite.offset);
 
 // See if an alternate path is required, offload the write
 //
-   if (pathID) return do_Offload(pathID, true, true);
+   if (pathID) return do_Offload(&XrdXrootdProtocol::do_PgWIO, pathID);
 
 // Now do the write on the main path
 //
-   return do_PgWIO();
+   return do_PgWIO(true);
 }
 
+/******************************************************************************/
+/*                             d o _ P g W A I O                              */
+/******************************************************************************/
+  
+// IO.File   = file to be written
+// IO.Offset = Offset at which to write
+// IO.IOLen  = Number of bytes to read from socket
+// IO.Flags  = Flags associated with request
+
+bool XrdXrootdProtocol::do_PgWAIO(int &rc)
+{
+   XrdXrootdPgrwAio  *aioP;
+
+// Make sure the client is fast enough to do this
+//
+   if (myStalls >= as_maxstalls)
+      {SI->AsyncRej++;
+       myStalls--;
+       return false;
+      }
+
+// Allocate an aio request object
+//
+   if (!(aioP = XrdXrootdPgrwAio::Alloc(this, Response, IO.File, pgwCtl)))
+      {SI->AsyncRej++;
+       return false;
+      }
+
+// Issue the write request
+//
+   rc = aioP->Write(IO.Offset, IO.IOLen);
+   return true;
+}
+  
 /******************************************************************************/
 /*                              d o _ P g W I O                               */
 /******************************************************************************/
   
-// myFile   = file to be written
-// myOffset = Offset at which to write
-// myIOLen  = Number of bytes to read from socket
-// myFlags  = Flags associated with request
+// IO.File   = file to be written
+// IO.Offset = Offset at which to write
+// IO.IOLen  = Number of bytes to read from socket
+// IO.Flags  = Flags associated with request
 
-int XrdXrootdProtocol::do_PgWIO()
+int XrdXrootdProtocol::do_PgWIO() {return do_PgWIO(true);}
+
+int XrdXrootdProtocol::do_PgWIO(bool isFresh)
 {
    struct iovec    *ioV;
-   XrdSfsFile      *sfsP = myFile->XrdSfsp;
-   XrdXrootdPgwCtl *pgwCtl;
+   XrdSfsFile      *sfsP = IO.File->XrdSfsp;
    const char      *eMsg;
    char            *buff;
    kXR_unt32       *csVec;
    int n, rc, Quantum, iovLen, iovNum, csNum;
+   bool isRetry = (IO.Flags & XrdProto::kXR_pgRetry) != 0;
 
-// Verify that we still have a control area
+// Verify that we still have a control area and allocate a control object
+// if we do not have one already. The object stays around until disconnect.
 //
-   if (!myFile->pgwFob || !(pgwCtl = myFile->pgwFob->ctlVec[PathID]))
+   if (!IO.File->pgwFob)
       return do_WriteNone(PathID, kXR_Impossible, "pgwrite logic error 1");
+   if (!pgwCtl) pgwCtl = new XrdXrootdPgwCtl(PathID);
 
-// If this is the first entry then perform one-time initialization. This is
-// also the only time we can see a retry request, so handle that first.
+// If this is the first entry then check if the request is eligible for async
+// I/O or if this is a retry request which, of course, is not eligible.
 //
-   if (!pgwCtl->Suspend())
-      {if (myFlags & XrdProto::kXR_pgRetry && !do_PgWIORetry(rc)) return rc;
+   if (isFresh)
+      {if (IO.File->AsyncMode && IO.IOLen >= pgAioMin
+       &&  linkAioReq < as_maxperlnk && srvrAioOps < as_maxpersrv
+       &&  !isRetry && do_PgWAIO(rc)) return rc;
+       if (isRetry && !do_PgWIORetry(rc)) return rc;
        if (!do_PgWIOSetup(pgwCtl)) return -1;
       }
 
@@ -427,17 +481,13 @@ int XrdXrootdProtocol::do_PgWIO()
 // one, the I/O will not return unless all of the data was successfully read.
 // Hence, we update the length outstanding.
 //
-do{if (!pgwCtl->Suspend(false))
+do{if (isFresh)
       {if (!(ioV = pgwCtl->FrameInfo(iovNum, iovLen))) break;
-       myIOLen -= iovLen;
-       rc = getData(&XrdXrootdProtocol::do_PgWIO, "pgwrite", ioV, iovNum);
-       if (rc)
-          {if (rc > 0) pgwCtl->Suspend(true);
-           return rc;
-          }
+       IO.IOLen -= iovLen;
+       if ((rc = getData(this, "pgwrite", ioV, iovNum))) return rc;
       }
 
-// We have now all the data, get checksum and data information
+// We now have all the data, get checksum and data information
 //
    if (!(csVec = pgwCtl->FrameInfo(csNum, buff, Quantum, argp)))
       return do_WriteNone(PathID, kXR_Impossible, "pgwrite logic error 2");
@@ -448,35 +498,32 @@ do{if (!pgwCtl->Suspend(false))
 
 // Verify the checksums
 //
-  char   *data = buff;
-  ssize_t bado, offs = myOffset;
-   size_t badc;
-  int     k = 0, dlen = Quantum;
-  n = 0;
+  XrdOucPgrwUtils::dataInfo dInfo(buff, csVec, IO.Offset, Quantum);
+  off_t bado;
+  int   badc;
+  bool aOK = true;
 
-  do {if ((k = XrdOucPgrwUtils::csVer(data,offs,dlen,&csVec[n],bado,badc)))
-         {if ((eMsg = pgwCtl->boAdd(myFile, bado, badc)))
-             return do_WriteNone(PathID, kXR_TooManyErrs, eMsg);
-          n += k;
-          data = pgwCtl->FrameLeft(n, dlen);
-          offs = bado + badc;
-         } else {
-          if (myFlags & XrdProto::kXR_pgRetry)
-             myFile->pgwFob->delOffs(myOffset, dlen);
-         }
-
-     } while(k && dlen);
+  while(dInfo.count > 0 && !XrdOucPgrwUtils::csVer(dInfo, bado, badc))
+       {if ((eMsg = pgwCtl->boAdd(IO.File, bado, badc)))
+           return do_WriteNone(PathID, kXR_TooManyErrs, eMsg);
+        aOK = false;
+       }
 
 // Write the data out. The callee is responsible for unaligned writes!
 //
-   if ((rc = sfsP->pgWrite(myOffset, buff, Quantum, csVec)) <= 0)
-      {myEInfo[0] = rc; myEInfo[1] = 0;
+   if ((rc = sfsP->pgWrite(IO.Offset, buff, Quantum, csVec)) <= 0)
+      {IO.EInfo[0] = rc; IO.EInfo[1] = 0;
        return do_WriteNone();
       }
 
-// Update offset, length and advance to next frame
+// If this was a successful retry write, remove corrrected offset
 //
-   myOffset += Quantum;
+   if (aOK && IO.Flags & XrdProto::kXR_pgRetry)
+      IO.File->pgwFob->delOffs(IO.Offset, Quantum);
+
+// Update offset and advance to next frame
+//
+   IO.Offset += Quantum;
 
   } while(pgwCtl->Advance());
 
@@ -491,10 +538,10 @@ do{if (!pgwCtl->Suspend(false))
 /*                         d o _ P g W I O R e t r y                          */
 /******************************************************************************/
 
-// myFile   = file to be written
-// myOffset = Offset at which to write
-// myIOLen  = Number of bytes to read from socket
-// myFlags  = Flags associated with request
+// IO.File   = file to be written
+// IO.Offset = Offset at which to write
+// IO.IOLen  = Number of bytes to read from socket
+// IO.Flags  = Flags associated with request
 
 bool XrdXrootdProtocol::do_PgWIORetry(int &rc)
 {
@@ -505,10 +552,10 @@ bool XrdXrootdProtocol::do_PgWIORetry(int &rc)
 // can compute the exact length that we need. Otherwise, it can't be bigger
 // than a unit's worth of data. Not precise but usually good enough.
 //
-   if (myOffset & pgPageMask)
-      {int n = pgPageSize - (myOffset & pgPageMask);
-       isBad = myIOLen > (n + csLen);
-      } else isBad = myIOLen > pgUnitSize;
+   if (IO.Offset & pgPageMask)
+      {int n = pgPageSize - (IO.Offset & pgPageMask);
+       isBad = IO.IOLen > (n + csLen);
+      } else isBad = IO.IOLen > pgUnitSize;
 
 // Deep six the write if it violates retry rules.
 //
@@ -521,11 +568,11 @@ bool XrdXrootdProtocol::do_PgWIORetry(int &rc)
 // Make sure that the offset is registered, if it is not, treat this as a
 // regular write as this may have been a resend during write recovery.
 //
-   if (!myFile->pgwFob->hasOffs(myOffset, myIOLen - csLen))
+   if (!IO.File->pgwFob->hasOffs(IO.Offset, IO.IOLen - csLen))
       {char buff[64];
-       snprintf(buff, sizeof(buff), "retry %d@%lld", myIOLen-csLen, myOffset);
-       eDest.Emsg("pgwRetry", buff, "not in error; fn=", myFile->FileKey);
-       myFlags &= ~XrdProto::kXR_pgRetry;
+       snprintf(buff, sizeof(buff), "retry %d@%lld", IO.IOLen-csLen, IO.Offset);
+       eDest.Emsg("pgwRetry", buff, "not in error; fn=", IO.File->FileKey);
+       IO.Flags &= ~XrdProto::kXR_pgRetry;
       }
 
 // We can proceed with this write now.
@@ -537,10 +584,10 @@ bool XrdXrootdProtocol::do_PgWIORetry(int &rc)
 /*                         d o _ P g w I O S e t u p                          */
 /******************************************************************************/
 
-// myFile   = file to be written
-// myOffset = Offset at which to write
-// myIOLen  = Number of bytes to read from socket
-// myFlags  = Flags associated with request
+// IO.File   = file to be written
+// IO.Offset = Offset at which to write
+// IO.IOLen  = Number of bytes to read from socket
+// IO.Flags  = Flags associated with request
 
 bool XrdXrootdProtocol::do_PgWIOSetup(XrdXrootdPgwCtl *pgwCtl)
 {
@@ -549,8 +596,8 @@ bool XrdXrootdProtocol::do_PgWIOSetup(XrdXrootdPgwCtl *pgwCtl)
 
 // Compute the minimum (4K) or maximum buffer size we will use.
 //
-   if (myIOLen < XrdXrootdPgwCtl::maxBSize/2)
-      Quantum = (myIOLen < pgPageSize ? pgPageSize : myIOLen);
+   if (IO.IOLen < XrdXrootdPgwCtl::maxBSize/2)
+      Quantum = (IO.IOLen < pgPageSize ? pgPageSize : IO.IOLen);
       else Quantum = XrdXrootdPgwCtl::maxBSize;
 
 // Make sure we have a large enough buffer
@@ -560,11 +607,11 @@ bool XrdXrootdProtocol::do_PgWIOSetup(XrdXrootdPgwCtl *pgwCtl)
       {if (getBuff(0, Quantum) <= 0) return -1;}
       else if (hcNow < hcNext) hcNow++;
 
-// Do the setup. If it fails yhen either the client sent an incorrect stream
+// Do the setup. If it fails then either the client sent an incorrect stream
 // of the header was corrupted. In either case, it doesn't matter as we can't
 // depend on the information to clear the stream. So, we close the connection.
 //
-   if ((eMsg = pgwCtl->Setup(argp, myOffset, myIOLen)))
+   if ((eMsg = pgwCtl->Setup(argp, IO.Offset, IO.IOLen)))
       {Response.Send(kXR_ArgInvalid, eMsg);
        Link->setEtext("pgwrite protocol violation");
        return false;

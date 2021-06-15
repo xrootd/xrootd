@@ -163,6 +163,7 @@ int       Configure(const char *, XrdSysError &, XrdOucEnv *envP);
 void      Config_Display(XrdSysError &);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
+uint64_t  Features() {return XRDOSS_HASNAIO;} // Turn async I/O off for disk
 int       GenLocalPath(const char *, char *);
 int       GenRemotePath(const char *, char *);
 int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP);

@@ -83,7 +83,7 @@ XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
                              char mode, bool async, struct stat *sP)
                             : XrdSfsp(fp), mmAddr(0), FileKey(strdup(path)),
                               FileMode(mode), AsyncMode(async), pgwFob(0),
-                              fhProc(0), ID(id)
+                              fhProc(0), ID(id), refCount(0), syncWait(0)
 {
     static XrdSysMutex seqMutex;
     struct stat buf;
@@ -123,7 +123,7 @@ XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-void XrdXrootdFile::Init(XrdXrootdFileLock *lp, XrdSysError *erP, int sfok)
+void XrdXrootdFile::Init(XrdXrootdFileLock *lp, XrdSysError *erP, bool sfok)
 {
    Locker = lp;
    eDest  = erP;
@@ -136,6 +136,8 @@ void XrdXrootdFile::Init(XrdXrootdFileLock *lp, XrdSysError *erP, int sfok)
   
 XrdXrootdFile::~XrdXrootdFile()
 {
+
+   Serialize(); // Make sure there are no outstanding references
 
    if (XrdSfsp)
       {TRACEI(FS, "closing " <<FileMode <<' ' <<FileKey);
@@ -151,6 +153,41 @@ XrdXrootdFile::~XrdXrootdFile()
    if (FileKey) free(FileKey); // Must be the last thing deleted!
 }
 
+/******************************************************************************/
+/*                                   R e f                                    */
+/******************************************************************************/
+  
+void XrdXrootdFile::Ref(int num)
+{
+
+// Change the reference counter and check if anyone is waiting
+//
+   fileMutex.Lock();
+   refCount += num;
+   TRACEI(DEBUG,"File::Ref "<<refCount<<" after +"<<num);
+   if (num < 0 && syncWait && refCount <= 0) syncWait->Post();
+   fileMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                             S e r i a l i z e                              */
+/******************************************************************************/
+  
+void XrdXrootdFile::Serialize()
+{
+
+// Wait until the reference count reaches zero
+//
+   fileMutex.Lock();
+   if (refCount > 0)
+      {XrdSysSemaphore mySem(0);
+       TRACEI(DEBUG, "serializing access " <<FileMode <<' ' <<FileKey);
+       syncWait = &mySem;
+       fileMutex.UnLock();
+       mySem.Wait();
+      } else fileMutex.UnLock();
+}
+  
 /******************************************************************************/
 /*                   x r d _ F i l e T a b l e   C l a s s                    */
 /******************************************************************************/

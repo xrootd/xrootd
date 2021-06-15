@@ -1,10 +1,10 @@
-#ifndef __PSS_AIOCB_HH__
-#define __PSS_AIOCB_HH__
+#ifndef __XRDXROOTDNORMAIO_H__
+#define __XRDXROOTDNORMAIO_H__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d P s s A i o C B . h h                         */
+/*                   X r d X r o o t d N o r m A i o . h h                    */
 /*                                                                            */
-/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,41 +30,44 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
-#include <vector>
+#include "XrdXrootd/XrdXrootdAioTask.hh"
 
-#include "XrdPosix/XrdPosixCallBack.hh"
-#include "XrdSys/XrdSysPthread.hh"
-
-class XrdSfsAio;
+class XrdXrootdAioBuff;
+class XrdXrootdFile;
   
-class XrdPssAioCB : public XrdPosixCallBackIO
+class XrdXrootdNormAio : public XrdXrootdAioTask
 {
 public:
 
-static XrdPssAioCB  *Alloc(XrdSfsAio *aiop, bool isWr, bool pgrw=false);
+static XrdXrootdNormAio  *Alloc(XrdXrootdProtocol *protP,
+                                XrdXrootdResponse &resp,
+                                XrdXrootdFile     *fP);
 
-virtual void         Complete(ssize_t Result);
+       void               DoIt() override;
 
-        void         Recycle();
+       void               Read(long long offs, int dlen) override;
 
-static  void         SetMax(int mval) {maxFree = mval;}
+       void               Recycle(bool release) override;
 
-std::vector<uint32_t> csVec;
+       int                Write(long long offs, int dlen) override;
 
 private:
-             XrdPssAioCB() : theAIOP(0), isWrite(false) {}
-virtual     ~XrdPssAioCB() {}
 
-static  XrdSysMutex  myMutex;
-static  XrdPssAioCB *freeCB;
-static  int          numFree;
-static  int          maxFree;
+         XrdXrootdNormAio() : XrdXrootdAioTask("aio request"),
+                              sendQ(0), reorders(0) {}
+virtual ~XrdXrootdNormAio() {}
 
-union  {XrdSfsAio   *theAIOP;
-        XrdPssAioCB *next;
-       };
-bool                 isWrite;
-bool                 isPGrw;
+       bool               CopyF2L_Add2Q(XrdXrootdAioBuff *aioP=0);
+       void               CopyF2L() override;
+       int                CopyL2F() override;
+       bool               CopyL2F(XrdXrootdAioBuff *aioP) override;
+       bool               Send(XrdXrootdAioBuff *aioP, bool final=false);
+
+static const char        *TraceID;
+
+       XrdXrootdNormAio  *next;
+       XrdXrootdAioBuff  *sendQ;
+       off_t              sendOffset; // Required offset of next chunk to send
+       int                reorders;   // Number of buffers that were reordered
 };
 #endif

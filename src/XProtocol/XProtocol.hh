@@ -326,7 +326,7 @@ struct ClientFattrRequest {
 /*                    k X R _ g p f i l e   R e q u e s t                     */
 /******************************************************************************/
   
-struct ClientGPfileRequest { // ??? This is all wrong now
+struct ClientGPfileRequest { // ??? This is all wrong; correct when implemented
    kXR_char  streamid[2];
    kXR_unt16 requestid;      // kXR_gpfile
    kXR_int32 options;
@@ -1012,6 +1012,7 @@ enum XErrorCode {
    kXR_Impossible,      // 3031
    kXR_Conflict,        // 3032
    kXR_TooManyErrs,     // 3033
+   kXR_ReqTimedOut,     // 3034
    kXR_ERRFENCE,        // Always last valid errcode + 1
    kXR_noErrorYet = 10000
 };
@@ -1361,6 +1362,8 @@ static int mapError(int rc)
            case EIDRM:         return kXR_Impossible;
            case ENOTTY:        return kXR_Conflict;
            case ETOOMANYREFS:  return kXR_TooManyErrs;
+           case ETIMEDOUT:     return kXR_ReqTimedOut;
+           case EBADF:         return kXR_FileNotOpen;
            default:            return kXR_FSError;
           }
       }
@@ -1402,6 +1405,7 @@ static int toErrno( int xerr )
         case kXR_Impossible:    return EIDRM;
         case kXR_Conflict:      return ENOTTY;
         case kXR_TooManyErrs:   return ETOOMANYREFS;
+        case kXR_ReqTimedOut:   return ETIMEDOUT;
         default:                return ENOMSG;
        }
 }

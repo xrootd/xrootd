@@ -101,7 +101,8 @@ const char *errNames[kXR_ERRFENCE-kXR_ArgInvalid] =
                     "Authentication failed",      // kXR_AuthFailed
                     "Request is not possible",    // kXR_Impossible
                     "Conflicting request",        // kXR_Conflict
-                    "Too many errors"             // kXR_TooManyErrs
+                    "Too many errors",            // kXR_TooManyErrs
+                    "Request timed out"           // kXR_ReqTimedOut
                    };
 
 const char *reqNames[kXR_REQFENCE-kXR_auth] =

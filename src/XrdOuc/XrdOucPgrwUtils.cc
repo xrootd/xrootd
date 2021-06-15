@@ -28,6 +28,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <limits.h>
+
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
@@ -38,8 +40,11 @@
 
 namespace
 {
-static const int pgPageSize = XrdProto::kXR_pgPageSZ;
 static const int pgPageMask = XrdProto::kXR_pgPageSZ-1;
+static const int pgPageSize = XrdProto::kXR_pgPageSZ;
+static const int pgCsumSize = sizeof(uint32_t);
+static const int pgUnitSize = XrdProto::kXR_pgPageSZ + pgCsumSize;
+static const int pgMaxBSize = INT_MAX & ~pgPageMask;
 }
 
 /******************************************************************************/
@@ -68,17 +73,47 @@ void XrdOucPgrwUtils::csCalc(const char* data, ssize_t offs, size_t count,
 }
 
 /******************************************************************************/
+  
+void XrdOucPgrwUtils::csCalc(const char* data, ssize_t offs, size_t count,
+                             std::vector<uint32_t> &csvec)
+{
+   int pgOff = offs & pgPageMask;
+   int n = XrdOucPgrwUtils::csNum(offs, count);
+
+// Size the vector to be of correct size
+//
+   csvec.resize(n);
+   csvec.assign(n, 0);
+   uint32_t *csval = csvec.data();
+
+// If this is unaligned, the we must compute the checksum of the leading bytes
+// to align them to the next page boundary if one exists.
+//
+   if (pgOff)
+      {size_t chkLen = pgPageSize - pgOff;
+       if (chkLen >= count) {chkLen = count; count = 0;}
+          else count -= chkLen;
+       *csval++ = XrdOucCRC::Calc32C((void *)data, chkLen);
+       data += chkLen;
+      }
+
+// Compute the remaining checksums, if any are left
+//
+   if (count) XrdOucCRC::Calc32C((void *)data, count, csval);
+}
+
+/******************************************************************************/
 /*                                 c s N u m                                  */
 /******************************************************************************/
   
-int XrdOucPgrwUtils::csNum(ssize_t offs, size_t count)
+int XrdOucPgrwUtils::csNum(ssize_t offs, int count)
 {
    int k, pgOff = offs & pgPageMask;
 
 // Account for unaligned start
 //
    if (!pgOff) k = 0;
-      else {size_t chkLen = pgPageSize - pgOff;
+      else {int chkLen = pgPageSize - pgOff;
             if (chkLen >= count) return 1;
             count -= chkLen;
             k = 1;
@@ -90,47 +125,236 @@ int XrdOucPgrwUtils::csNum(ssize_t offs, size_t count)
 }
   
 /******************************************************************************/
+  
+int XrdOucPgrwUtils::csNum(off_t offs, int count, int &fLen, int &lLen)
+{
+   int pgOff = offs & pgPageMask;
+
+// Gaurd against invalid input
+//
+   if (!count)
+      {fLen = lLen = 0;
+       return 0;
+      }
+
+// Account for unaligned start
+//
+   if (!pgOff) fLen = (pgPageSize <= (int)count ? pgPageSize : count);
+      else {fLen = pgPageSize - pgOff;
+            if (fLen >= count) fLen = count;
+           }
+
+// Compute length of last segement and return number of checksums required
+//
+   count -= fLen;
+   if (count)
+      {pgOff = count & pgPageMask;
+       lLen  = (pgOff ? pgOff : pgPageSize);
+       return 1 + count/pgPageSize + (pgOff != 0);
+      }
+
+// There is only one checksum and the last length is the same as the first
+//
+   lLen = fLen;
+   return 1;
+}
+
+/******************************************************************************/
 /*                                 c s V e r                                  */
 /******************************************************************************/
   
-int XrdOucPgrwUtils::csVer(const char*     data,  ssize_t  offs, size_t  count,
-                           const uint32_t* csval, ssize_t &bado, size_t &badc)
+bool XrdOucPgrwUtils::csVer(dataInfo &dInfo, off_t &bado, int &badc)
 {
-   int k = 0, pgOff = offs & pgPageMask;
+   int pgOff = dInfo.offs & pgPageMask;
+
+// Make sure we have something to do
+//
+   if (dInfo.count <= 0) return true;
 
 // If this is unaligned, the we must verify the checksum of the leading bytes
 // to align them to the next page boundary if one exists.
 //
    if (pgOff)
-      {size_t chkLen = pgPageSize - pgOff;
-       if (count < chkLen) {chkLen = count; count = 0;}
-          else count -= chkLen;
-       if (!XrdOucCRC::Ver32C((void *)data, chkLen, csval[0]))
-          {bado = offs;
+      {off_t tempsave;
+       int chkLen = pgPageSize - pgOff;
+       if (dInfo.count < chkLen) {chkLen = dInfo.count; dInfo.count = 0;}
+          else dInfo.count -= chkLen;
+
+       bool aOK = XrdOucCRC::Ver32C((void *)dInfo.data, chkLen, dInfo.csval[0]);
+
+       dInfo.data += chkLen;
+       tempsave    = dInfo.offs;
+       dInfo.offs += chkLen;
+       dInfo.csval++;
+
+       if (!aOK)
+          {bado = tempsave;
            badc = chkLen;
-           return 1;
+           return false;
           }
-       data += chkLen;
-       offs += chkLen;
-       k = 1;
       }
 
-// Verify the remaining checksums, if any are left
+// Verify the remaining checksums, if any are left (offset is page aligned)
 //
-   if (count)
+   if (dInfo.count > 0)
       {uint32_t valcs;
-       int pgNum = XrdOucCRC::Ver32C((void *)data, count, &csval[k], valcs);
+       int pgNum = XrdOucCRC::Ver32C((void *)dInfo.data,  dInfo.count,
+                                             dInfo.csval, valcs);
        if (pgNum >= 0)
-          {bado = offs + (pgPageSize * pgNum);
-           if (pgNum < (csNum(offs, count) - 1)) badc = pgPageSize;
-              else {int pFrag = count & pgPageMask;
-                    badc = (pFrag ? pFrag : pgPageSize);
-                   }
-           return k + pgNum + 1;
+          {bado = dInfo.offs + (pgPageSize * pgNum);
+           int xlen = (bado - dInfo.offs);
+           dInfo.offs  += xlen;
+           dInfo.count -= xlen;
+           badc = (dInfo.count <= pgPageSize ? dInfo.count : pgPageSize);
+           dInfo.offs  += badc;
+           dInfo.count -= badc;
+           dInfo.csval += (pgNum+1);
+           return false;
           }
       }
 
 // All sent well
 //
-   return 0;
+   return true;
+}
+
+/******************************************************************************/
+/*                            r e c v L a y o u t                             */
+/******************************************************************************/
+
+int XrdOucPgrwUtils::recvLayout(Layout &layout, off_t  offs, int dlen, int bsz)
+{
+   int csNum, dataLen, maxLen;
+
+// Make sure length is correct
+//
+   if (dlen <= pgCsumSize)
+      {layout.eWhy = "invalid length";
+       return 0;
+      }
+
+// Either validate the bsz or compute a virtual bsz
+//
+   if (bsz <= 0) bsz = pgMaxBSize;
+      else if (bsz & pgPageMask)
+              {layout.eWhy = "invalid buffer size (logic error)";
+               return 0;
+              }
+  
+// Compute the data length of this request and set initial buffer pointer. While
+// the layout should have been verified before we goot here we will return an
+// error should something be amiss.
+//
+   dlen -= pgCsumSize;
+   if ((layout.bOffset = offs & pgPageMask))
+      {dataLen = pgPageSize - layout.bOffset;
+       csNum = 1;
+       if (dlen <= dataLen)
+          {dataLen = dlen;
+           maxLen  = 0;
+          } else {
+           dlen  -= dataLen;
+           maxLen = bsz - pgPageSize;
+          }
+       layout.fLen = dataLen;
+       layout.lLen = 0;
+      } else {
+       if (dlen <= pgPageSize)
+          {dataLen = layout.fLen = dlen;
+           layout.lLen = 0;
+           maxLen  = 0;
+           csNum   = 1;
+          } else {
+           dlen   += pgCsumSize;
+           dataLen = 0;
+           maxLen  = bsz;
+           csNum   = 0;
+           layout.fLen = pgPageSize;
+          }
+      }
+
+// Compute the length without the checksums and the maximum data bytes to read
+// And the number of checksums we will have.
+//
+   if (maxLen)
+      {int bytes = dlen / pgUnitSize * pgPageSize;
+       int bfrag = dlen % pgUnitSize;
+       if (bfrag)
+          {if (bfrag <= pgCsumSize)
+               {layout.eWhy = "last page too short";
+                return 0;
+               }
+           bytes += bfrag - pgCsumSize;
+          }
+       if (bytes > maxLen) bytes = maxLen;
+       dataLen += bytes;
+       layout.lLen = bytes & pgPageMask;
+       csNum   += bytes/pgPageSize + (layout.lLen != 0);
+       if (layout.lLen == 0) layout.lLen = pgPageSize;
+      }
+
+// Set layout data bytes and sock bytes and return the number of checksums
+//
+   layout.dataLen = dataLen;
+   layout.sockLen = dataLen + (csNum * pgCsumSize);
+   layout.eWhy    = 0;
+   return csNum;
+}
+
+/******************************************************************************/
+/*                            s e n d L a y o u t                             */
+/******************************************************************************/
+
+int XrdOucPgrwUtils::sendLayout(Layout &layout, off_t offs, int dlen, int bsz)
+{
+   int csNum, pgOff = offs & pgPageMask;
+
+// Make sure length is correct
+//
+   if (dlen <= 0)
+      {layout.eWhy = "invalid length";
+       return 0;
+      }
+
+// Either validate the bsz or compute a virtual bsz
+//
+   if (bsz <= 0) bsz = pgMaxBSize;
+      else if (bsz & pgPageMask)
+              {layout.eWhy = "invalid buffer size (logic error)";
+               return 0;
+              }
+   layout.eWhy = 0;
+
+// Account for unaligned start
+//
+   if (!pgOff) layout.fLen = (pgPageSize <= dlen ? pgPageSize : dlen);
+      else {layout.fLen = pgPageSize - pgOff;
+            if (layout.fLen > dlen) layout.fLen = dlen;
+           }
+   layout.bOffset = pgOff;
+
+// Adjust remaining length and reduce the buffer size as we have effectively
+// used the first page of the buffer.
+//
+   bsz  -= pgPageSize;
+   dlen -= layout.fLen;
+
+// Compute length of last segement and compute number of checksums required
+//
+   if (dlen && bsz)
+      {if (dlen > bsz) dlen = bsz;
+       if ((pgOff = dlen & pgPageMask)) layout.lLen = pgOff;
+          else layout.lLen = (pgPageSize <= dlen ? pgPageSize : dlen);
+       csNum = 1 + dlen/pgPageSize + (pgOff != 0);
+       layout.dataLen = layout.fLen + dlen;
+      } else {
+       csNum = 1;
+       layout.lLen = 0;
+       layout.dataLen = layout.fLen;
+      }
+
+// Set network bytes and return number of checksumss the same as the first
+//
+   layout.sockLen = layout.dataLen + (csNum * pgCsumSize);
+   return csNum;
 }

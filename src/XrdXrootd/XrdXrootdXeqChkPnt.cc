@@ -69,7 +69,7 @@ int XrdXrootdProtocol::do_ChkPnt()
    struct iov ckpVec;
    int rc;
 
-   if (!FTab || !(myFile = FTab->Get(fh.handle)))
+   if (!FTab || !(IO.File = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen,
                            "chkpoint does not refer to an open file");
 
@@ -77,13 +77,13 @@ int XrdXrootdProtocol::do_ChkPnt()
 //
    switch(Request.chkpoint.opcode)
          {case kXR_ckpBegin:
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpCreate);
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpCreate);
                break;
           case kXR_ckpCommit:
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpDelete);
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpDelete);
                break;
           case kXR_ckpQuery:
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpQuery,&ckpVec,1);
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpQuery,&ckpVec,1);
                if (!rc)
                   {ServerResponseBody_ChkPoint ckpQResp;
                    ckpQResp.maxCkpSize = htonl(ckpVec.size);
@@ -93,7 +93,7 @@ int XrdXrootdProtocol::do_ChkPnt()
                   }
                break;
           case kXR_ckpRollback:
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpRestore);
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpRestore);
                break;
           default: return Response.Send(kXR_ArgInvalid,
                                         "chkpoint subcode is invalid");
@@ -113,9 +113,9 @@ int XrdXrootdProtocol::do_ChkPnt()
            snprintf(eBuff, sizeof(eBuff), "chkpoint %s returned invalid rc=%d!",
                     ckpName[Request.chkpoint.opcode], rc);
            eDest.Emsg("Xeq", eBuff);
-           myFile->XrdSfsp->error.setErrInfo(ENODEV, "logic error");
+           IO.File->XrdSfsp->error.setErrInfo(ENODEV, "logic error");
           }
-       return fsError(SFS_ERROR, 0, myFile->XrdSfsp->error, 0, 0);
+       return fsError(SFS_ERROR, 0, IO.File->XrdSfsp->error, 0, 0);
       }
 
 // Respond that all went well
@@ -221,7 +221,7 @@ int XrdXrootdProtocol::do_ChkPntXeq()
 
 // Make sure we have the target file
 //
-   if (!FTab || !(myFile = FTab->Get(fh.handle)))
+   if (!FTab || !(IO.File = FTab->Get(fh.handle)))
       {rc = Response.Send(kXR_FileNotOpen,
                           "chkpoint does not refer to an open file");
        if (reqID != kXR_truncate)
@@ -240,14 +240,14 @@ int XrdXrootdProtocol::do_ChkPntXeq()
                              n2hll(Request.pgwrite.offset, ckpVec.offset);
                ckpVec.info = 0;
                ckpVec.data = 0;
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpWrite,&ckpVec,1);
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpWrite,&ckpVec,1);
                if (!rc) return do_PgWrite();
                break;
           case kXR_truncate:
                n2hll(Request.write.offset, ckpVec.offset);
                ckpVec.info = 0;
                ckpVec.data = 0;
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpTrunc,&ckpVec,1);
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpTrunc,&ckpVec,1);
                if (!rc) return do_Truncate();
                break;
           case kXR_write:
@@ -255,11 +255,11 @@ int XrdXrootdProtocol::do_ChkPntXeq()
                              n2hll(Request.write.offset, ckpVec.offset);
                ckpVec.info = 0;
                ckpVec.data = 0;
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpWrite,&ckpVec,1);
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpWrite,&ckpVec,1);
                if (!rc) return do_Write();
                break;
           default: // kXR_writev
-               rc = myFile->XrdSfsp->checkpoint(XrdSfsFile::cpWrite,
+               rc = IO.File->XrdSfsp->checkpoint(XrdSfsFile::cpWrite,
                                      (iov *)wvInfo->ioVec, wvInfo->vEnd);
                if (!rc)
                   {for (int i = 0; i < wvInfo->vEnd; i++)
@@ -282,17 +282,17 @@ int XrdXrootdProtocol::do_ChkPntXeq()
            snprintf(eBuff, sizeof(eBuff),
                     "chkpoint xeq %s returned invalid rc=%d!", xeqOp, rc);
            eDest.Emsg("Xeq", eBuff);
-           myFile->XrdSfsp->error.setErrInfo(ENODEV, "logic error");
+           IO.File->XrdSfsp->error.setErrInfo(ENODEV, "logic error");
           }
        if (reqID == kXR_pgwrite)
-          {myEInfo[0] = SFS_ERROR; myEInfo[0] = 0;
+          {IO.EInfo[0] = SFS_ERROR; IO.EInfo[0] = 0;
            return do_WriteNone(static_cast<int>(Request.pgwrite.pathid));
           }
        if (reqID == kXR_write)
-          {myEInfo[0] = SFS_ERROR; myEInfo[0] = 0;
+          {IO.EInfo[0] = SFS_ERROR; IO.EInfo[0] = 0;
            return do_WriteNone(static_cast<int>(Request.write.pathid));
           }
-       rc = fsError(SFS_ERROR, 0, myFile->XrdSfsp->error, 0, 0);
+       rc = fsError(SFS_ERROR, 0, IO.File->XrdSfsp->error, 0, 0);
        return (reqID != kXR_truncate ? -1 : rc);
       }
 

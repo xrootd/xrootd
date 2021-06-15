@@ -119,6 +119,13 @@ static void          DelayedDestroy(XrdPosixFile *fp);
                             char *buff, long long offs, int rdlen,
                             std::vector<uint32_t> &csvec, uint64_t opts=0);
 
+        int          pgWrite(char *buff, long long offs, int wrlen,
+                             std::vector<uint32_t> &csvec, uint64_t opts=0);
+
+        void         pgWrite(XrdOucCacheIOCB &iocb,
+                             char *buff, long long offs, int wrlen,
+                             std::vector<uint32_t> &csvec, uint64_t opts=0);
+
        int           Read (char *Buff, long long Offs, int Len);
 
        void          Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,

@@ -75,6 +75,7 @@ class XrdPosixFile;
 class XrdPosixCallBackIO : public XrdOucCacheIOCB
 {
 public:
+friend class XrdPosixExtra;
 friend class XrdPosixXrootd;
 
 virtual void Complete(ssize_t Result) = 0;

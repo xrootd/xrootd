@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                    X r d X r o o t d P g w F o b . c c                     */
+/*                  X r d X r o o t d P g w B a d C S . c c                   */
 /*                                                                            */
 /* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
@@ -27,67 +27,83 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <string.h>
+#include <arpa/inet.h>
 
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucCRC.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
+#include "XrdXrootd/XrdXrootdPgwBadCS.hh"
 #include "XrdXrootd/XrdXrootdPgwFob.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
+
+#define TRACELINK fP
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-namespace XrdXrootd
-{
-extern XrdSysError  eLog;
-}
-using namespace XrdXrootd;
-
 extern XrdOucTrace *XrdXrootdTrace;
-  
+
 /******************************************************************************/
-/*                            D e s t r u c t o r                             */
+/*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
   
-#define TRACELINK fileP
-  
-XrdXrootdPgwFob::~XrdXrootdPgwFob()
+const char *XrdXrootdPgwBadCS::TraceID = "pgwBadCS";
+
+/******************************************************************************/
+/*                                 b o A d d                                  */
+/******************************************************************************/
+
+const char *XrdXrootdPgwBadCS::boAdd(XrdXrootdFile *fP,
+                                     kXR_int64 foffs, int dlen)
 {
-   int len, n = badOffs.size();
 
-// Write an error message if this file has any outstanding checksum errors
+// Do some tracing
 //
-   if (n)
-      {char buff[128];
-       snprintf(buff, sizeof(buff), "Warning! %d checksum error(s) in", n);
-       eLog.Emsg("PgwFob", buff, fileP->FileKey);
+   TRACEI(PGCS, pathID <<" csErr "<<dlen<<'@'<<foffs<<" inreq="<<boCount+1
+                <<" infile=" <<fP->pgwFob->numOffs()+1<<" fn="<<fP->FileKey);
+
+// If this is the first offset, record the length as first and last.
+// Othewrise just update the last length.
+//
+   if (!boCount) cse.dlFirst = cse.dlLast = htons(dlen);
+      else cse.dlLast = htons(dlen);
+
+// Add offset to the vector to be returned to client for corrections.
+//
+   if (boCount+1 >= XrdProto::kXR_pgMaxEpr)
+      return "Too many checksum errors in request";
+   badOffs[boCount++] = htonll(foffs);
+
+// Add offset in the set of uncorrected offsets
+//
+   if (!fP->pgwFob->addOffs(foffs, dlen))
+      return "Too many uncorrected checksum errors in file";
+
+// Success!
+//
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                b o I n f o                                 */
+/******************************************************************************/
+  
+char *XrdXrootdPgwBadCS::boInfo(int &boLen)
+{
+   static const int crcSZ = sizeof(uint32_t);
+
+// If no bad offsets are present, indicate so.
+//
+   if (!boCount)
+      {boLen = 0;
+       return 0;
       }
 
-// Check if we have anything to do and if we do, dump the list of bad checksums.
+// Return the additional data
 //
-   if (TRACING(TRACE_PGCS))
-      {const char *TraceID = "FileFob", *fname = fileP->FileKey;
-       if (n)
-          {XrdOucString lolist((1+4+1+13)*n);
-           char item[128];
-           kXR_int64 val;
-
-           for (std::set<kXR_int64>::iterator it =  badOffs.begin();
-                                              it != badOffs.end(); ++it)
-               {val = *it;
-                len = val & (XrdProto::kXR_pgPageSZ-1);
-                if (!len) len = XrdProto::kXR_pgPageSZ;
-                val = val >> XrdProto::kXR_pgPageBL;
-                snprintf(item, sizeof(item), " %d@%lld", len, val);
-                lolist += item;
-               }
-           TRACEI(PGCS,fname<<" had "<<numErrs<<" cksum errs and "<<numFixd
-                            <<" fixes"<<"; areas in error:"<<lolist.c_str());
-          } else if (numErrs)
-                    {TRACEI(PGCS,fname<<" had "<<numErrs<<" cksum errs and "
-                                      <<numFixd<<" fixes.");
-                    }
-      }
+   boLen = sizeof(cse) + (boCount * sizeof(kXR_int64));
+   cse.cseCRC = htonl(XrdOucCRC::Calc32C(((char *)&cse)+crcSZ, boLen-crcSZ));
+   return (char *)&cse;
 }

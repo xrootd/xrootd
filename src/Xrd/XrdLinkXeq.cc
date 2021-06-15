@@ -205,7 +205,7 @@ int XrdLinkXeq::Close(bool defer)
 //
    if (defer)
       {if (!sendQ) Shutdown(false);
-          else {TRACEI(DEBUG, "Shutdown FD only via SendQ");
+          else {TRACEI(DEBUG, "Shutdown FD " <<LinkInfo.FD<<" only via SendQ");
                 LinkInfo.InUse++;
                 LinkInfo.FD = -LinkInfo.FD; // Leave poll version untouched!
                 wrMutex.Lock();
@@ -231,7 +231,8 @@ int XrdLinkXeq::Close(bool defer)
 //
    while(LinkInfo.InUse > 1)
       {opHelper.UnLock();
-       TRACEI(DEBUG, "Close defered, use count=" <<LinkInfo.InUse);
+       TRACEI(DEBUG, "Close FD "<<LinkInfo.FD <<" defered, use count="
+                     <<LinkInfo.InUse);
        Serialize();
        opHelper.Lock(&LinkInfo.opMutex);
       }

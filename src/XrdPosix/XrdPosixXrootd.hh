@@ -62,6 +62,7 @@ class XrdPosixXrootd
 {
 public:
 friend class XrdPosixConfig;
+friend class XrdPosixExtra;
 
 //-----------------------------------------------------------------------------
 //! Access() conforms to POSIX.1-2001 access()

@@ -230,6 +230,10 @@ int XrdPssSys::Configure(const char *cfn)
        psxConfig->xLfn2Pfn = false;
       }
 
+// If we have a cache, indicate so in the feature set
+//
+   if(psxConfig->hasCache()) myFeatures |= XRDOSS_HASCACH;
+
 // Finalize the configuration
 //
    if (!(psxConfig->ConfigSetup(eDest))) return 1;

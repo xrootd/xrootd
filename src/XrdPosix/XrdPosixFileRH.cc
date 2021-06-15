@@ -99,25 +99,6 @@ XrdPosixFileRH *XrdPosixFileRH::Alloc(XrdOucCacheIOCB *cbp,
    newCB->csFrc   = false;
    return newCB;
 }
-
-/******************************************************************************/
-/* Private:                   F i l l _ c s V e c                             */
-/******************************************************************************/
-
-void XrdPosixFileRH::Fill_csVec(void *buff, uint64_t offs, uint32_t dlen)
-{
-   int n = XrdOucPgrwUtils::csNum((ssize_t)offs, (size_t)dlen);
-
-// Correctly size the csvec
-//
-   csVec->resize(n);
-   csVec->assign(n, 0);
-
-// Place appropriate checksums in the csvec
-//
-   XrdOucPgrwUtils::csCalc((const char *)buff, (ssize_t)offs, 
-                           (size_t)dlen, csVec->data());
-}
   
 /******************************************************************************/
 /*                        H a n d l e R e s p o n s e                         */
@@ -149,7 +130,10 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
                    {if (!csFrc || pInfo->GetCksums().size() != 0 || result <= 0)
                        *csVec = std::move(pInfo->GetCksums() );
                        else {uint64_t offs = pInfo->GetOffset();
-                             Fill_csVec(pInfo->GetBuffer(), offs, ubRead);
+                             void *buff = pInfo->GetBuffer();
+                             XrdOucPgrwUtils::csCalc((const char *)buff,
+                                                     (ssize_t)offs, ubRead,
+                                                     *csVec);
                             }
                     csVec = 0;
                    }

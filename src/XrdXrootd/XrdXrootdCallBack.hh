@@ -30,6 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 

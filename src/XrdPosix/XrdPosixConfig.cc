@@ -173,8 +173,9 @@ void XrdPosixConfig::EnvInfo(XrdOucEnv &theEnv)
 //
    XrdPosixGlobals::schedP = (XrdScheduler *)theEnv.GetPtr("XrdScheduler*");
 
-// If we have a new-style cache, propogate the environment to it
-//??? Get rid of EnvInfo
+// We no longer propogate the environment to the new-style cache via this
+// method as it picks it up during init time. We leave the code for historical
+// reasons but we really should have gotten rid of EnvInfo()!
 // if (XrdPosixGlobals::myCache2) XrdPosixGlobals::myCache2->EnvInfo(theEnv);
 }
 

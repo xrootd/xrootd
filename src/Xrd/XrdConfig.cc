@@ -847,7 +847,7 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 /*
 // Construct the actual socket name
 //
-  char sokpath[sizeof(unix.sun_path)];
+  char sokpath[sizeof(Unix.sun_path)];
 
   if (sokpath[plen-1] != '/') sokpath[plen++] = '/';
   strcpy(&sokpath[plen], fname);

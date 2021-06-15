@@ -115,7 +115,6 @@ const char     *condID;
 };
 
 
-
 /******************************************************************************/
 /*                     X r d S y s C o n d V a r H e l p e r                  */
 /******************************************************************************/
@@ -165,6 +164,7 @@ XrdSysCondVar *cnd;
 class XrdSysMutex
 {
 public:
+friend class XrdSysCondVar2;
 
 inline int CondLock()
        {if (pthread_mutex_trylock( &cs )) return 0;
@@ -285,6 +285,38 @@ inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
            ~XrdSysMutexHelper() {if (mtx) UnLock();}
 private:
 XrdSysMutex *mtx;
+};
+  
+/******************************************************************************/
+/*                        X r d S y s C o n d V a r 2                         */
+/******************************************************************************/
+  
+// XrdSysCondVar2 implements the standard POSIX-compliant condition variable but
+//                unlike XrdSysCondVar requires the caller to supply a working
+//                mutex and does not handle any locking other than what is
+//                defined by POSIX.
+
+class XrdSysCondVar2
+{
+public:
+
+inline void  Signal()         {pthread_cond_signal(&cvar);}
+
+inline void  Broadcast()      {pthread_cond_broadcast(&cvar);}
+
+inline int   Wait()           {return pthread_cond_wait(&cvar, mtxP);}
+       bool  Wait(int sec)    {return WaitMS(sec*1000);}
+       bool  WaitMS(int msec);
+
+       XrdSysCondVar2(XrdSysMutex &mtx) : mtxP(&mtx.cs)
+                     {pthread_cond_init(&cvar, NULL);}
+
+      ~XrdSysCondVar2() {pthread_cond_destroy(&cvar);}
+
+protected:
+
+pthread_cond_t   cvar;
+pthread_mutex_t *mtxP;
 };
 
 /******************************************************************************/

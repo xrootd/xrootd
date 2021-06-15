@@ -20,6 +20,7 @@ add_library(
   XrdPosix/XrdPosixCallBack.cc     XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixConfig.cc       XrdPosix/XrdPosixConfig.hh
   XrdPosix/XrdPosixDir.cc          XrdPosix/XrdPosixDir.hh
+  XrdPosix/XrdPosixExtra.cc        XrdPosix/XrdPosixExtra.hh
   XrdPosix/XrdPosixFile.cc         XrdPosix/XrdPosixFile.hh
   XrdPosix/XrdPosixFileRH.cc       XrdPosix/XrdPosixFileRH.hh
   XrdPosix/XrdPosixMap.cc          XrdPosix/XrdPosixMap.hh

@@ -29,9 +29,8 @@
 /******************************************************************************/
 
 #include "XrdOss/XrdOss.hh"
-#include "XrdOuc/XrdOucCRC.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include "XrdSys/XrdSysPageSize.hh"
 
 /******************************************************************************/
 /*                          C l a s s   X r d O s s                           */
@@ -166,19 +165,14 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 {
    ssize_t bytes;
 
-// Make sure the offset is on a 4K boundary and the size if a multiple of
-// 4k as well (we use simple and for this).
-//
-   if ((offset & XrdSys::PageMask) || (rdlen & XrdSys::PageMask)) return -EINVAL;
-
 // Read the data into the buffer
 //
    bytes = Read(buffer, offset, rdlen);
 
 // Calculate checksums if so wanted
 //
-   if (bytes > 0 && csvec)
-      XrdOucCRC::Calc32C((void *)buffer, bytes, csvec);
+   if (bytes > 0 && csvec) 
+      XrdOucPgrwUtils::csCalc((const char *)buffer, offset, rdlen, csvec);
 
 // All done
 //
@@ -207,26 +201,15 @@ ssize_t XrdOssDF::pgWrite(void     *buffer,
                           uint32_t *csvec,
                           uint64_t  opts)
 {
-// Make sure the offset is on a 4K boundary
-//
-   if (offset & XrdSys::PageMask) return -EINVAL;
-
-// If a virtual end of file marker is set, make sure we are not trying to
-// write past it.
-//
-   if (pgwEOF && (off_t)(offset+wrlen) > pgwEOF) return -ESPIPE;
-
-// If this is a short write then establish the virtual eof
-//
-   if (wrlen & XrdSys::PageMask) pgwEOF = (offset + wrlen) & ~XrdSys::PageSize;
 
 // If we have a checksum vector and verify is on, make sure the data
 // in the buffer corresponds to he checksums.
 //
    if (csvec && (opts & Verify))
-      {uint32_t valcs;
-       if (XrdOucCRC::Ver32C((void *)buffer, wrlen, csvec, valcs) >= 0)
-          return -EDOM;
+      {XrdOucPgrwUtils::dataInfo dInfo((const char *)buffer,csvec,offset,wrlen);
+       off_t bado;
+       int   badc;
+       if (!XrdOucPgrwUtils::csVer(dInfo, bado, badc)) return -EDOM;
       }
 
 // Now just return the result of a plain write

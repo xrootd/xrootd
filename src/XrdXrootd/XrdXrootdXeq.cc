@@ -52,13 +52,13 @@
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLinkCtl.hh"
-#include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
+#include "XrdXrootd/XrdXrootdNormAio.hh"
 #include "XrdXrootd/XrdXrootdPio.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -311,7 +311,6 @@ int XrdXrootdProtocol::do_Bind()
 //
    pp->Stream[i] = this;
    Stream[0]     = pp;
-   pp->isBound   = true;
    PathID        = i;
    sprintf(buff, "FD %d#%d bound", Link->FDnum(), i);
    eDest.Log(SYS_LOG_01, "Xeq", buff, lp->ID);
@@ -518,13 +517,13 @@ int XrdXrootdProtocol::do_Close()
       return Response.Send(kXR_FileNotOpen, 
                           "close does not refer to an open file");
 
-// Serialize the link to make sure that any in-flight operations on this handle
-// have completed (async mode or parallel streams)
+// Serialize the file to make sure all references due to async I/O and parallel
+// stream operations have completed.
 //
-   Link->Serialize();
+   fp->Serialize();
 
-// If the file has a fob then it was subject to pgwrite and if there uncorrected
-// checksum errors do a forced close. This will trigger POSC or Restore.
+// If the file has a fob then it was subject to pgwrite and if uncorrected
+// checksum errors exist do a forced close. This will trigger POSC or a restore.
 //
    if (fp->pgwFob && !do_PgClose(fp, rc))
       {FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle, true);
@@ -553,6 +552,7 @@ int XrdXrootdProtocol::do_Close()
 // appropriate error code (if necessary).  Note that we delay the call
 // to Response.Send() in the successful case to avoid holding on to the lock
 // while the response is sent.
+//
    int retval = 0;
    if (SFS_OK != rc) retval = fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
 
@@ -1181,27 +1181,17 @@ int XrdXrootdProtocol::do_Mv()
 /*                            d o _ O f f l o a d                             */
 /******************************************************************************/
 
-int XrdXrootdProtocol::do_Offload(int pathID, bool isWrite, bool ispgio)
+int XrdXrootdProtocol::do_Offload(int (XrdXrootdProtocol::*Invoke)(),int pathID)
 {
    XrdSysSemaphore isAvail(0);
    XrdXrootdProtocol *pp;
    XrdXrootdPio      *pioP;
+   int rc;
    kXR_char streamID[2];
 
-// Verify that the path actually exists
+// Verify that the path actually exists (note we will have the stream lock)
 //
-   if (pathID >= maxStreams || !(pp = Stream[pathID]))
-      return Response.Send(kXR_ArgInvalid, "invalid path ID");
-
-// Verify that this path is still functional
-//
-   pp->streamMutex.Lock();
-   if (pp->isDead || pp->isNOP)
-      {pp->streamMutex.UnLock();
-       return Response.Send(kXR_ArgInvalid, 
-       (pp->isDead ? "path ID is not functional"
-                   : "path ID is not connected"));
-      }
+   if (!(pp = VerifyStream(rc, pathID))) return rc;
 
 // Grab the stream ID
 //
@@ -1209,25 +1199,20 @@ int XrdXrootdProtocol::do_Offload(int pathID, bool isWrite, bool ispgio)
 
 // Try to schedule this operation. In order to maximize the I/O overlap, we
 // will wait until the stream gets control and will have a chance to start
-// reading from the device or from the network.
+// reading from the network. We handle refs for consistency.
 //
    do{if (!pp->isActive)
-         {pp->myFile   = myFile;
-          pp->myOffset = myOffset;
-          pp->myIOLen  = myIOLen;
-          pp->myFlags  = myFlags;
+         {pp->IO       = IO;
           pp->myBlen   = 0;
-          pp->doWrite  = isWrite;
-          pp->doWriteC = false;
-          pp->doPgIO   = ispgio;
           pp->Resume   = &XrdXrootdProtocol::do_OffloadIO;
+          pp->ResumePio= Invoke;
           pp->isActive = true;
+          pp->newPio   = true;
           pp->reTry    = &isAvail;
           pp->Response.Set(streamID);
-          if (isWrite) pp->bytes2recv = myIOLen;
-             else      pp->bytes2send = myIOLen;
           pp->streamMutex.UnLock();
           Link->setRef(1);
+          IO.File->Ref(1);
           Sched->Schedule((XrdJob *)(pp->Link));
           isAvail.Wait();
           return 0;
@@ -1236,9 +1221,9 @@ int XrdXrootdProtocol::do_Offload(int pathID, bool isWrite, bool ispgio)
       if ((pioP = pp->pioFree)) break;
       pp->reTry = &isAvail;
       pp->streamMutex.UnLock();
-      TRACEP(FS, (isWrite ? 'w' : 'r') <<" busy path " <<pathID <<" offs=" <<myOffset);
+      TRACEP(FSZIO, "busy  path " <<pathID <<" offs=" <<IO.Offset);
       isAvail.Wait();
-      TRACEP(FS, (isWrite ? 'w' : 'r') <<" free path " <<pathID <<" offs=" <<myOffset);
+      TRACEP(FSZIO, "retry path " <<pathID <<" offs=" <<IO.Offset);
       pp->streamMutex.Lock();
       if (pp->isNOP)
          {pp->streamMutex.UnLock();
@@ -1249,7 +1234,8 @@ int XrdXrootdProtocol::do_Offload(int pathID, bool isWrite, bool ispgio)
 // Fill out the queue entry and add it to the queue
 //
    pp->pioFree = pioP->Next; pioP->Next = 0;
-   pioP->Set(myFile, myOffset, myIOLen, myFlags, streamID, isWrite, ispgio);
+   pioP->Set(Invoke, IO, streamID);
+   IO.File->Ref(1);
    if (pp->pioLast) pp->pioLast->Next = pioP;
       else          pp->pioFirst      = pioP;
    pp->pioLast = pioP;
@@ -1263,66 +1249,57 @@ int XrdXrootdProtocol::do_Offload(int pathID, bool isWrite, bool ispgio)
 
 int XrdXrootdProtocol::do_OffloadIO()
 {
-   XrdSysSemaphore *sesSem;
-   XrdXrootdPio    *pioP;
-   long long        actvBytes = 0;
+   XrdXrootdPio *pioP;
    int rc;
 
 // Entry implies that we just got scheduled and are marked as active. Hence
 // we need to post the session thread so that it can pick up the next request.
-// We can manipulate the semaphore pointer without a lock as the only other
-// thread that can manipulate the pointer is the waiting session thread.
 //
-   if (!doWriteC)
-      {actvBytes = (doWrite ? bytes2recv : bytes2send);
-       if ((sesSem = reTry)) {reTry = 0; sesSem->Post();}
+   streamMutex.Lock();
+   isLinkWT = false;
+   if (newPio)
+      {newPio = false;
+       if (reTry) {reTry->Post(); reTry = 0;}
+       TRACEP(FSZIO, "dispatch new I/O path " <<PathID <<" offs=" <<IO.Offset);
       }
   
-// Perform all I/O operations on a parallel stream (suppress async I/O).
+// Perform all I/O operations on a parallel stream
 //
-   do {if (!doWrite) rc = (doPgIO ? do_PgRIO() : do_ReadAll(0));
-          else {if (doPgIO) rc = do_PgWIO();
-                   else     rc = (doWriteC ? do_WriteCont() : do_WriteAll());
-                if (rc > 0)
-                   {Resume = &XrdXrootdProtocol::do_OffloadIO;
-                    doWriteC = true;
-                    return rc;
-                   }
-               }
-       streamMutex.Lock();
-       if (doWrite)
-          {if (bytes2recv <= actvBytes) bytes2recv = 0;
-              else bytes2recv -= actvBytes;
-          } else {
-           if (bytes2send <= actvBytes) bytes2send = 0;
-              else bytes2send -= actvBytes;
-          }
+   if (!isNOP)
+      do {streamMutex.UnLock();
+          rc = (*this.*ResumePio)();
+          streamMutex.Lock();
 
-       if (rc || !(pioP = pioFirst)) break;
-       if (!(pioFirst = pioP->Next)) pioLast = 0;
-       myFile   = pioP->myFile;
-       myOffset = pioP->myOffset;
-       myIOLen  = actvBytes = pioP->myIOLen;
-       myFlags  = pioP->myFlags;
-       doPgIO   = pioP->isPGio;
-       doWrite  = pioP->isWrite;
-       doWriteC = false;
-       Response.Set(pioP->StreamID);
-       pioP->Next = pioFree; pioFree = pioP;
-       if (reTry) {reTry->Post(); reTry = 0;}
-       streamMutex.UnLock();
-      } while(1);
+          if (rc > 0 && !isNOP)
+             {ResumePio = Resume;
+              Resume = &XrdXrootdProtocol::do_OffloadIO;
+              isLinkWT = true;
+              streamMutex.UnLock();
+              return rc;
+             }
+
+          IO.File->Ref(-1);  // Note: File was ref'd when request was queued
+          if (rc || isNOP || !(pioP = pioFirst)) break;
+          if (!(pioFirst = pioP->Next)) pioLast = 0;
+
+          IO = pioP->IO;
+          ResumePio = pioP->ResumePio;
+          Response.Set(pioP->StreamID);
+          pioP->Next = pioFree; pioFree = pioP;
+          if (reTry) {reTry->Post(); reTry = 0;}
+         } while(1);
+      else {rc = -1; IO.File->Ref(-1);}
 
 // There are no pending operations or the link died
 //
-   if (doWrite) bytes2recv = 0;
-      else      bytes2send = 0;
    if (rc) isNOP = true;
    isActive = false;
    Stream[0]->Link->setRef(-1);
    if (reTry) {reTry->Post(); reTry = 0;}
+   if (endNote) endNote->Signal();
    streamMutex.UnLock();
-   return -EINPROGRESS;
+   TRACEP(FSZIO, "offload complete path "<<PathID<<" virt rc=" <<rc);
+   return (rc ? rc : -EINPROGRESS);
 }
 
 /******************************************************************************/
@@ -1418,7 +1395,7 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_compress)        
            {openopts |= SFS_O_RAWIO;   *op++ = 'c'; compchk = 1;}
    if (opts & kXR_force)              {*op++ = 'f'; doforce = true;}
-   if ((opts & kXR_async || as_force) && !as_noaio)
+   if ((opts & kXR_async || as_force) && as_aioOK)
                                       {*op++ = 'a'; isAsync = true;}
    if (opts & kXR_refresh)            {*op++ = 's'; openopts |= SFS_O_RESET;
                                        SI->Bump(SI->Refresh);
@@ -2286,34 +2263,61 @@ int XrdXrootdProtocol::do_Read()
 
 // Unmarshall the data
 //
-   myIOLen  = ntohl(Request.read.rlen);
-              n2hll(Request.read.offset, myOffset);
+   IO.IOLen  = ntohl(Request.read.rlen);
+               n2hll(Request.read.offset, IO.Offset);
 
 // Find the file object
 //
-   if (!FTab || !(myFile = FTab->Get(fh.handle)))
+   if (!FTab || !(IO.File = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen,
                            "read does not refer to an open file");
 
 // Trace and verify read length is not negative
 //
-   TRACEP(FS, pathID <<" fh=" <<fh.handle <<" read " <<myIOLen <<'@' <<myOffset);
-   if ( myIOLen < 0) return Response.Send(kXR_ArgInvalid,
+   TRACEP(FSIO, pathID <<" fh=" <<fh.handle <<" read " <<IO.IOLen
+                       <<'@' <<IO.Offset);
+   if ( IO.IOLen < 0) return Response.Send(kXR_ArgInvalid,
                                           "Read length is negative");
 
 // If we are monitoring, insert a read entry
 //
    if (Monitor.InOut())
-      Monitor.Agent->Add_rd(myFile->Stats.FileID, Request.read.rlen,
+      Monitor.Agent->Add_rd(IO.File->Stats.FileID, Request.read.rlen,
                                                   Request.read.offset);
 
 // Short circuit processing if read length is zero
 //
-   if (!myIOLen) return Response.Send();
+   if (!IO.IOLen) return Response.Send();
+
+// There are many competing ways to accomplish a read. Pick the one we
+// will use and if possible, do a fast dispatch.
+//
+        if (IO.File->isMMapped) IO.Mode = XrdXrootd::IOParms::useMMap;
+   else if (IO.File->sfEnabled && !isTLS && IO.IOLen >= as_minsfsz
+        &&  IO.Offset+IO.IOLen <= IO.File->Stats.fSize)
+           IO.Mode = XrdXrootd::IOParms::useSF;
+   else if (IO.File->AsyncMode && IO.IOLen >= as_miniosz
+        &&  IO.Offset+IO.IOLen <= IO.File->Stats.fSize+as_seghalf
+        &&  linkAioReq < as_maxperlnk && srvrAioOps < as_maxpersrv)
+           {XrdXrootdProtocol *pP;
+            XrdXrootdNormAio  *aioP;
+
+            if (!pathID) pP = this;
+               else {if (!(pP = VerifyStream(retc, pathID, false))) return retc;
+                     if (pP->linkAioReq >= as_maxperlnk) pP = 0;
+                    }
+            if (pP && (aioP = XrdXrootdNormAio::Alloc(pP,pP->Response,IO.File)))
+               {aioP->Read(IO.Offset, IO.IOLen);
+                return 0;
+               }
+            SI->AsyncRej++;
+            IO.Mode = XrdXrootd::IOParms::useBasic;
+           }
+   else IO.Mode = XrdXrootd::IOParms::useBasic;
 
 // See if an alternate path is required, offload the read
 //
-   if (pathID) return do_Offload(pathID, false);
+   if (pathID) return do_Offload(&XrdXrootdProtocol::do_ReadAll, pathID);
 
 // Now read all of the data (do pre-reads first)
 //
@@ -2324,49 +2328,40 @@ int XrdXrootdProtocol::do_Read()
 /*                            d o _ R e a d A l l                             */
 /******************************************************************************/
 
-// myFile   = file to be read
-// myOffset = Offset at which to read
-// myIOLen  = Number of bytes to read from file and write to socket
+// IO.File   = file to be read
+// IO.Offset = Offset at which to read
+// IO.IOLen  = Number of bytes to read from file and write to socket
   
-int XrdXrootdProtocol::do_ReadAll(int asyncOK)
+int XrdXrootdProtocol::do_ReadAll()
 {
-   int rc, xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
+   int rc, xframt, Quantum = (IO.IOLen > maxBuffsz ? maxBuffsz : IO.IOLen);
    char *buff;
 
 // If this file is memory mapped, short ciruit all the logic and immediately
 // transfer the requested data to minimize latency.
 //
-   if (myFile->isMMapped)
-      {if (myOffset >= myFile->Stats.fSize) return Response.Send();
-       if (myOffset+myIOLen <= myFile->Stats.fSize)
-          {myFile->Stats.rdOps(myIOLen);
-           return Response.Send(myFile->mmAddr+myOffset, myIOLen);
+   if (IO.Mode == XrdXrootd::IOParms::useMMap)
+      {if (IO.Offset >= IO.File->Stats.fSize) return Response.Send();
+       if (IO.Offset+IO.IOLen <= IO.File->Stats.fSize)
+          {IO.File->Stats.rdOps(IO.IOLen);
+           return Response.Send(IO.File->mmAddr+IO.Offset, IO.IOLen);
           }
-       xframt = myFile->Stats.fSize -myOffset;
-       myFile->Stats.rdOps(xframt);
-       return Response.Send(myFile->mmAddr+myOffset, xframt);
+       xframt = IO.File->Stats.fSize -IO.Offset;
+       IO.File->Stats.rdOps(xframt);
+       return Response.Send(IO.File->mmAddr+IO.Offset, xframt);
       }
 
 // If we are sendfile enabled, then just send the file if possible
 //
-   if (myFile->sfEnabled && !isTLS && myIOLen >= as_minsfsz
-   &&  myOffset+myIOLen <= myFile->Stats.fSize)
-      {myFile->Stats.rdOps(myIOLen);
-       if (myFile->fdNum >= 0)
-          return Response.Send(myFile->fdNum, myOffset, myIOLen);
-       rc = myFile->XrdSfsp->SendData((XrdSfsDio *)this, myOffset, myIOLen);
+   if (IO.Mode == XrdXrootd::IOParms::useSF)
+      {IO.File->Stats.rdOps(IO.IOLen);
+       if (IO.File->fdNum >= 0)
+          return Response.Send(IO.File->fdNum, IO.Offset, IO.IOLen);
+       rc = IO.File->XrdSfsp->SendData((XrdSfsDio *)this, IO.Offset, IO.IOLen);
        if (rc == SFS_OK)
-          {if (!myIOLen)    return 0;
-           if (myIOLen < 0) return -1;  // Otherwise retry using read()
-          } else return fsError(rc, 0, myFile->XrdSfsp->error, 0, 0);
-      }
-
-// If we are in async mode, schedule the read to ocur asynchronously
-//
-   if (asyncOK && myFile->AsyncMode)
-      {if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
-          if ((rc = aio_Read()) != -EAGAIN) return rc;
-       SI->AsyncRej++;
+          {if (!IO.IOLen)    return 0;
+           if (IO.IOLen < 0) return -1;  // Otherwise retry using read()
+          } else return fsError(rc, 0, IO.File->XrdSfsp->error, 0, 0);
       }
 
 // Make sure we have a large enough buffer
@@ -2379,18 +2374,18 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // Now read all of the data. For statistics, we need to record the orignal
 // amount of the request even if we really do not get to read that much!
 //
-   myFile->Stats.rdOps(myIOLen);
-   do {if ((xframt = myFile->XrdSfsp->read(myOffset, buff, Quantum)) <= 0) break;
-       if (xframt >= myIOLen) return Response.Send(buff, xframt);
+   IO.File->Stats.rdOps(IO.IOLen);
+   do {if ((xframt = IO.File->XrdSfsp->read(IO.Offset, buff, Quantum)) <= 0) break;
+       if (xframt >= IO.IOLen) return Response.Send(buff, xframt);
        if (Response.Send(kXR_oksofar, buff, xframt) < 0) return -1;
-       myOffset += xframt; myIOLen -= xframt;
-       if (myIOLen < Quantum) Quantum = myIOLen;
-      } while(myIOLen);
+       IO.Offset += xframt; IO.IOLen -= xframt;
+       if (IO.IOLen < Quantum) Quantum = IO.IOLen;
+      } while(IO.IOLen);
 
 // Determine why we ended here
 //
    if (xframt == 0) return Response.Send();
-   return fsError(xframt, 0, myFile->XrdSfsp->error, 0, 0);
+   return fsError(xframt, 0, IO.File->XrdSfsp->error, 0, 0);
 }
 
 /******************************************************************************/
@@ -2419,17 +2414,17 @@ int XrdXrootdProtocol::do_ReadNone(int &retc, int &pathID)
 // Run down the pre-read list
 //
    while(ralsz > 0)
-        {myIOLen  = ntohl(ralsp->rlen);
-                    n2hll(ralsp->offset, myOffset);
+        {IO.IOLen  = ntohl(ralsp->rlen);
+                    n2hll(ralsp->offset, IO.Offset);
          memcpy((void *)&fh.handle, (const void *)ralsp->fhandle,
                   sizeof(fh.handle));
-         TRACEP(FS, "fh=" <<fh.handle <<" read " <<myIOLen <<'@' <<myOffset);
-         if (!FTab || !(myFile = FTab->Get(fh.handle)))
+         TRACEP(FSIO, "fh="<<fh.handle<<" read "<<IO.IOLen<<'@'<<IO.Offset);
+         if (!FTab || !(IO.File = FTab->Get(fh.handle)))
             {retc = Response.Send(kXR_FileNotOpen,
                              "preread does not refer to an open file");
              return 1;
             }
-         myFile->XrdSfsp->read(myOffset, myIOLen);
+         IO.File->XrdSfsp->read(IO.Offset, IO.IOLen);
          ralsz -= sizeof(struct readahead_list);
          ralsp++;
          numReads++;
@@ -2533,7 +2528,7 @@ int XrdXrootdProtocol::do_ReadV()
 //
    currFH = rdVec[0].info;
    memcpy(respHdr.fhandle, &currFH, sizeof(respHdr.fhandle));
-   if (!(myFile = FTab->Get(currFH))) return Response.Send(kXR_FileNotOpen,
+   if (!(IO.File = FTab->Get(currFH))) return Response.Send(kXR_FileNotOpen,
                                       "readv does not refer to an open file");
 
 // Setup variables for running through the list.
@@ -2545,29 +2540,29 @@ int XrdXrootdProtocol::do_ReadV()
 //
    for (i = 0; i < rdVecNum; i++)
        {if (rdVec[i].info != currFH)
-           {xfrSZ = myFile->XrdSfsp->readv(&rdVec[rdVNow], i-rdVNow);
+           {xfrSZ = IO.File->XrdSfsp->readv(&rdVec[rdVNow], i-rdVNow);
             if (xfrSZ != rdVAmt) break;
             rdVNum = i - rdVBeg; rdVXfr += rdVAmt;
-            myFile->Stats.rvOps(rdVXfr, rdVNum);
+            IO.File->Stats.rvOps(rdVXfr, rdVNum);
             if (rvMon)
-               {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdVXfr),
+               {Monitor.Agent->Add_rv(IO.File->Stats.FileID, htonl(rdVXfr),
                                               htons(rdVNum), rvSeq, vType);
                 if (ioMon) for (k = rdVBeg; k < i; k++)
-                    Monitor.Agent->Add_rd(myFile->Stats.FileID,
+                    Monitor.Agent->Add_rd(IO.File->Stats.FileID,
                             htonl(rdVec[k].size), htonll(rdVec[k].offset));
                }
             rdVXfr = rdVAmt = 0;
             if (i == rdVBreak) break;
             rdVBeg = rdVNow = i; currFH = rdVec[i].info;
             memcpy(respHdr.fhandle, &currFH, sizeof(respHdr.fhandle));
-            if (!(myFile = FTab->Get(currFH)))
+            if (!(IO.File = FTab->Get(currFH)))
                return Response.Send(kXR_FileNotOpen,
                                     "readv does not refer to an open file");
             }
 
         if (Qleft < (rdVec[i].size + hdrSZ))
            {if (rdVAmt)
-               {xfrSZ = myFile->XrdSfsp->readv(&rdVec[rdVNow], i-rdVNow);
+               {xfrSZ = IO.File->XrdSfsp->readv(&rdVec[rdVNow], i-rdVNow);
                 if (xfrSZ != rdVAmt) break;
                }
             if (Response.Send(kXR_oksofar,argp->buff,Quantum-Qleft) < 0)
@@ -2583,7 +2578,7 @@ int XrdXrootdProtocol::do_ReadV()
         memcpy(buffp, &respHdr, hdrSZ);
         rdVec[i].data = buffp + hdrSZ;
         buffp += (xfrSZ+hdrSZ); Qleft -= (xfrSZ+hdrSZ);
-        TRACEP(FS,"fh=" <<currFH <<" readV " << xfrSZ <<'@' <<rdVec[i].offset);
+        TRACEP(FSIO,"fh=" <<currFH<<" readV "<< xfrSZ <<'@'<<rdVec[i].offset);
        }
 
 // Check if we have an error here. This is indicated when rdVAmt is not zero.
@@ -2591,9 +2586,9 @@ int XrdXrootdProtocol::do_ReadV()
    if (rdVAmt)
       {if (xfrSZ >= 0)
           {xfrSZ = SFS_ERROR;
-           myFile->XrdSfsp->error.setErrInfo(-ENODATA,"readv past EOF");
+           IO.File->XrdSfsp->error.setErrInfo(-ENODATA,"readv past EOF");
           }
-       return fsError(xfrSZ, 0, myFile->XrdSfsp->error, 0, 0);
+       return fsError(xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0);
       }
 
 // All done, return result of the last segment or just zero
@@ -2960,77 +2955,99 @@ int XrdXrootdProtocol::do_Truncate()
   
 int XrdXrootdProtocol::do_Write()
 {
-   int retc, pathID;
+   int pathID;
    XrdXrootdFHandle fh(Request.write.fhandle);
    numWrites++;
 
 // Unmarshall the data
 //
-   myIOLen  = Request.header.dlen;
-              n2hll(Request.write.offset, myOffset);
+   IO.IOLen  = Request.header.dlen;
+              n2hll(Request.write.offset, IO.Offset);
    pathID   = static_cast<int>(Request.write.pathid);
 
 // Find the file object. We will drain socket data on the control path only!
 //                                                                             .
-   if (!FTab || !(myFile = FTab->Get(fh.handle)))
-      {myFile = 0;
+   if (!FTab || !(IO.File = FTab->Get(fh.handle)))
+      {IO.File = 0;
        return do_WriteNone(pathID);
       }
 
 // Trace and verify that length is not negative
 //
-   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
-   if ( myIOLen < 0) return Response.Send(kXR_ArgInvalid,
+   TRACEP(FSIO, pathID<<" fh="<<fh.handle<<" write "<<IO.IOLen<<'@'<<IO.Offset);
+   if ( IO.IOLen < 0) return Response.Send(kXR_ArgInvalid,
                                           "Write length is negative");
 
 // If we are monitoring, insert a write entry
 //
    if (Monitor.InOut())
-      Monitor.Agent->Add_wr(myFile->Stats.FileID, Request.write.dlen,
+      Monitor.Agent->Add_wr(IO.File->Stats.FileID, Request.write.dlen,
                                                   Request.write.offset);
 
 // If zero length write, simply return
 //
-   if (!myIOLen) return Response.Send();
+   if (!IO.IOLen) return Response.Send();
+   IO.File->Stats.wrOps(IO.IOLen); // Optimistically correct
+
+// If async write allowed and it is a true write request (e.g. not chkpoint) and
+// current conditions permit async; schedule the write to occur asynchronously
+//
+   if (IO.File->AsyncMode && Request.header.requestid == kXR_write
+   &&  !as_syncw && IO.IOLen >= as_miniosz && srvrAioOps < as_maxpersrv)
+      {if (myStalls < as_maxstalls)
+          {if (pathID) return do_Offload(&XrdXrootdProtocol::do_WriteAio,pathID);
+           return do_WriteAio();
+          }
+       SI->AsyncRej++;
+       myStalls--;
+      }
 
 // See if an alternate path is required
 //
-   if (pathID) return do_Offload(pathID, true);
-
-// If we are in async mode or this is not a true write request (e.g. chkpoint)
-// schedule the write to occur asynchronously
-//
-//
-   if (myFile->AsyncMode && !as_syncw && Request.header.requestid == kXR_write)
-      {if (myStalls > as_maxstalls) myStalls--;
-          else if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
-                  {if ((retc = aio_Write()) != -EAGAIN)
-                      {if (retc != -EIO) return retc;
-                       myEInfo[0] = SFS_ERROR; myEInfo[1] = 0;
-                       myFile->XrdSfsp->error.setErrInfo(retc, "I/O error");
-                       return do_WriteNone();
-                      }
-                  }
-       SI->AsyncRej++;
-      }
+   if (pathID) return do_Offload(&XrdXrootdProtocol::do_WriteAll, pathID);
 
 // Just to the i/o now
 //
-   myFile->Stats.wrOps(myIOLen); // Optimistically correct
    return do_WriteAll();
 }
   
 /******************************************************************************/
+/*                           d o _ W r i t e A i o                            */
+/******************************************************************************/
+
+// IO.File   = file to be written
+// IO.Offset = Offset at which to write
+// IO.IOLen  = Number of bytes to read from socket and write to file
+  
+int XrdXrootdProtocol::do_WriteAio()
+{
+   XrdXrootdNormAio *aioP;
+
+// Allocate an aio request object if client hasn't exceeded the link limit
+//
+   if (linkAioReq >= as_maxperlnk
+   ||  !(aioP = XrdXrootdNormAio::Alloc(this, Response, IO.File)))
+      {SI->AsyncRej++;
+       if (myStalls > 0) myStalls--;
+       return do_WriteAll();
+      }
+
+// Issue the write request
+//
+   return aioP->Write(IO.Offset, IO.IOLen);
+}
+
+/******************************************************************************/
 /*                           d o _ W r i t e A l l                            */
 /******************************************************************************/
 
-// myFile   = file to be written
-// myOffset = Offset at which to write
-// myIOLen  = Number of bytes to read from socket and write to file
+// IO.File   = file to be written
+// IO.Offset = Offset at which to write
+// IO.IOLen  = Number of bytes to read from socket and write to file
   
 int XrdXrootdProtocol::do_WriteAll()
 {
-   int rc, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
+   int rc, Quantum = (IO.IOLen > maxBuffsz ? maxBuffsz : IO.IOLen);
 
 // Make sure we have a large enough buffer
 //
@@ -3040,21 +3057,20 @@ int XrdXrootdProtocol::do_WriteAll()
 
 // Now write all of the data (XrdXrootdProtocol.C defines getData())
 //
-   while(myIOLen > 0)
+   while(IO.IOLen > 0)
         {if ((rc = getData("data", argp->buff, Quantum)))
             {if (rc > 0) 
                 {Resume = &XrdXrootdProtocol::do_WriteCont;
                  myBlast = Quantum;
-                 myStalls++;
                 }
              return rc;
             }
-         if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, Quantum)) < 0)
-            {myIOLen  = myIOLen-Quantum; myEInfo[0] = rc; myEInfo[1] = 0;
+         if ((rc = IO.File->XrdSfsp->write(IO.Offset, argp->buff, Quantum)) < 0)
+            {IO.IOLen  = IO.IOLen-Quantum; IO.EInfo[0] = rc; IO.EInfo[1] = 0;
              return do_WriteNone();
             }
-         myOffset += Quantum; myIOLen -= Quantum;
-         if (myIOLen < Quantum) Quantum = myIOLen;
+         IO.Offset += Quantum; IO.IOLen -= Quantum;
+         if (IO.IOLen < Quantum) Quantum = IO.IOLen;
         }
 
 // All done
@@ -3066,9 +3082,9 @@ int XrdXrootdProtocol::do_WriteAll()
 /*                          d o _ W r i t e C o n t                           */
 /******************************************************************************/
 
-// myFile   = file to be written
-// myOffset = Offset at which to write
-// myIOLen  = Number of bytes to read from socket and write to file
+// IO.File   = file to be written
+// IO.Offset = Offset at which to write
+// IO.IOLen  = Number of bytes to read from socket and write to file
 // myBlast  = Number of bytes already read from the socket
   
 int XrdXrootdProtocol::do_WriteCont()
@@ -3077,15 +3093,15 @@ int XrdXrootdProtocol::do_WriteCont()
 
 // Write data that was finaly finished comming in
 //
-   if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, myBlast)) < 0)
-      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc; myEInfo[1] = 0;
+   if ((rc = IO.File->XrdSfsp->write(IO.Offset, argp->buff, myBlast)) < 0)
+      {IO.IOLen  = IO.IOLen-myBlast; IO.EInfo[0] = rc; IO.EInfo[1] = 0;
        return do_WriteNone();
       }
-    myOffset += myBlast; myIOLen -= myBlast;
+    IO.Offset += myBlast; IO.IOLen -= myBlast;
 
 // See if we need to finish this request in the normal way
 //
-   if (myIOLen > 0) return do_WriteAll();
+   if (IO.IOLen > 0) return do_WriteAll();
    return Response.Send();
 }
   
@@ -3107,21 +3123,21 @@ int XrdXrootdProtocol::do_WriteNone()
        buff = dbuff;
        blen = sizeof(dbuff);
       }
-    if (myIOLen < blen) blen = myIOLen;
+    if (IO.IOLen < blen) blen = IO.IOLen;
 
 // Discard any data being transmitted
 //
-   TRACEP(REQ, "discarding " <<myIOLen <<" bytes");
-   while(myIOLen > 0)
+   TRACEP(REQ, "discarding " <<IO.IOLen <<" bytes");
+   while(IO.IOLen > 0)
         {rlen = Link->Recv(buff, blen, readWait);
          if (rlen  < 0) return Link->setEtext("link read error");
-         myIOLen -= rlen;
+         IO.IOLen -= rlen;
          if (rlen < blen) 
             {myBlen   = 0;
              Resume   = &XrdXrootdProtocol::do_WriteNone;
              return 1;
             }
-         if (myIOLen < blen) blen = myIOLen;
+         if (IO.IOLen < blen) blen = IO.IOLen;
         }
 
 // Send final message
@@ -3146,10 +3162,10 @@ int XrdXrootdProtocol::do_WriteNone(int pathID, XErrorCode ec,
 // Set error code if present
 //
    if (ec != kXR_noErrorYet)
-      {myEInfo[1] = ec;
-       if (myFile)
+      {IO.EInfo[1] = ec;
+       if (IO.File)
           {if (!emsg) emsg = XProtocol::errName(ec);
-           myFile->XrdSfsp->error.setErrInfo(0, emsg);
+           IO.File->XrdSfsp->error.setErrInfo(0, emsg);
           }
       }
 
@@ -3166,16 +3182,16 @@ int XrdXrootdProtocol::do_WriteNoneMsg()
 {
 // Send our the error message and return
 //
-   if (!myFile) return
+   if (!IO.File) return
       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
 
-   if (myEInfo[1])
-      return Response.Send((XErrorCode)myEInfo[1],
-                           myFile->XrdSfsp->error.getErrText());
+   if (IO.EInfo[1])
+      return Response.Send((XErrorCode)IO.EInfo[1],
+                           IO.File->XrdSfsp->error.getErrText());
 
-   if (myEInfo[0]) return fsError(myEInfo[0], 0, myFile->XrdSfsp->error, 0, 0);
+   if (IO.EInfo[0]) return fsError(IO.EInfo[0], 0, IO.File->XrdSfsp->error, 0, 0);
 
-   return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
+   return Response.Send(kXR_FSError, IO.File->XrdSfsp->error.getErrText());
 }
   
 /******************************************************************************/
@@ -3190,38 +3206,38 @@ int XrdXrootdProtocol::do_WriteSpan()
 
 // Unmarshall the data
 //
-   myIOLen  = Request.header.dlen;
-              n2hll(Request.write.offset, myOffset);
+   IO.IOLen  = Request.header.dlen;
+              n2hll(Request.write.offset, IO.Offset);
 
 // Find the file object. We will only drain socket data on the control path.
 //                                                                             .
-   if (!FTab || !(myFile = FTab->Get(fh.handle)))
-      {myIOLen -= myBlast;
-       myFile = 0;
+   if (!FTab || !(IO.File = FTab->Get(fh.handle)))
+      {IO.IOLen -= myBlast;
+       IO.File = 0;
        return do_WriteNone(Request.write.pathid);
       }
 
 // If we are monitoring, insert a write entry
 //
    if (Monitor.InOut())
-      Monitor.Agent->Add_wr(myFile->Stats.FileID, Request.write.dlen,
+      Monitor.Agent->Add_wr(IO.File->Stats.FileID, Request.write.dlen,
                                                   Request.write.offset);
 
 // Trace this entry
 //
-   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
+   TRACEP(FSIO, "fh=" <<fh.handle <<" write " <<IO.IOLen <<'@' <<IO.Offset);
 
 // Write data that was already read
 //
-   if ((rc = myFile->XrdSfsp->write(myOffset, myBuff, myBlast)) < 0)
-      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc; myEInfo[1] = 0;
+   if ((rc = IO.File->XrdSfsp->write(IO.Offset, myBuff, myBlast)) < 0)
+      {IO.IOLen  = IO.IOLen-myBlast; IO.EInfo[0] = rc; IO.EInfo[1] = 0;
        return do_WriteNone();
       }
-    myOffset += myBlast; myIOLen -= myBlast;
+    IO.Offset += myBlast; IO.IOLen -= myBlast;
 
 // See if we need to finish this request in the normal way
 //
-   if (myIOLen > 0) return do_WriteAll();
+   if (IO.IOLen > 0) return do_WriteAll();
    return Response.Send();
 }
   
@@ -3324,7 +3340,7 @@ int XrdXrootdProtocol::do_WriteV()
 
 // Check that we really have at least the first file open (part of setup)
 //
-   if (!FTab || !(myFile = FTab->Get(wrVec[0].info)))
+   if (!FTab || !(IO.File = FTab->Get(wrVec[0].info)))
       {Response.Send(kXR_FileNotOpen, "writev does not refer to an open file");
        return -1;
       }
@@ -3340,13 +3356,13 @@ int XrdXrootdProtocol::do_WriteV()
    wvInfo->wvMon = Monitor.InOut();
    wvInfo->ioMon = (wvInfo->vMon > 1);
 // wvInfo->vType = (wvInfo->ioMon ? XROOTD_MON_WRITEU : XROOTD_MON_WRITEV);
-   myWVBytes     = 0;
-   myIOLen       = wrVec[0].size;
+   IO.WVBytes     = 0;
+   IO.IOLen       = wrVec[0].size;
    myBuff        = argp->buff;
    myBlast       = 0;
 
 // Now we simply start the write operations if this is a true writev request.
-// Otherwise rteunr to the caller for additional procesing.
+// Otherwise return to the caller for additional processing.
 //
    freeInfo.doit = false;
    if (Request.header.requestid == kXR_writev) return do_WriteVec();
@@ -3366,14 +3382,13 @@ int XrdXrootdProtocol::do_WriteVec()
 // Read the complete data from the socket for the current element. Note that
 // should we enter a resume state; upon re-entry all of the data will be read.
 //
-do{if (myIOLen > 0)
+do{if (IO.IOLen > 0)
       {wvInfo->wrVec[vNow].data = argp->buff + myBlast;
-       myBlast += myIOLen;
-       if ((rc = getData("data", myBuff, myIOLen)))
+       myBlast += IO.IOLen;
+       if ((rc = getData("data", myBuff, IO.IOLen)))
           {if (rc < 0) return rc;
-           myIOLen  = 0;
+           IO.IOLen  = 0;
            Resume = &XrdXrootdProtocol::do_WriteVec;
-           myStalls++;
            return rc;
           }
       }
@@ -3385,7 +3400,7 @@ do{if (myIOLen > 0)
         if (vNow >= wvInfo->vEnd) done = true;
    else if (wvInfo->wrVec[vNow].info != wvInfo->curFH) newfile = true;
    else if (myBlast + wvInfo->wrVec[vNow].size <= argp->bsize)
-           {myIOLen = wvInfo->wrVec[vNow].size;
+           {IO.IOLen = wvInfo->wrVec[vNow].size;
             myBuff  = argp->buff + myBlast;
             wvInfo->vPos = vNow;
             continue;
@@ -3394,8 +3409,8 @@ do{if (myIOLen > 0)
 // We need to write out what we have.
 //
    wrVNum = vNow - wvInfo->vBeg;
-   xfrSZ = myFile->XrdSfsp->writev(&(wvInfo->wrVec[wvInfo->vBeg]), wrVNum);
-   TRACEP(FS,"fh=" <<wvInfo->curFH <<" writeV " << xfrSZ <<':' <<wrVNum);
+   xfrSZ = IO.File->XrdSfsp->writev(&(wvInfo->wrVec[wvInfo->vBeg]), wrVNum);
+   TRACEP(FSIO,"fh=" <<wvInfo->curFH <<" writeV " << xfrSZ <<':' <<wrVNum);
    if (xfrSZ != myBlast) break;
 
 // Check if we need to do monitoring or a sync with no deferal. Note that
@@ -3403,21 +3418,21 @@ do{if (myIOLen > 0)
 //
    if (done || newfile)
       {int monVnum = vNow - wvInfo->vMon;
-       myFile->Stats.wvOps(myWVBytes, monVnum);
+       IO.File->Stats.wvOps(IO.WVBytes, monVnum);
 /*!!   if (wvMon)
-          {Monitor.Agent->Add_wv(myFile->Stats.FileID, htonl(myWVBytes),
+          {Monitor.Agent->Add_wv(IO.File->Stats.FileID, htonl(IO.WVBytes),
                                  htons(monVNum), wvSeq++, wvInfo->vType);
            if (ioMon) for (int k = wvInfo->vMon; k < vNow; k++)
-              Monitor.Agent->Add_wr(myFile->Stats.FileID,
+              Monitor.Agent->Add_wr(IO.File->Stats.FileID,
                                     htonl(wvInfo->wrVec[k].size),
                                     htonll(wvInfo->wrVec[k].offset));
           }
 */
        wvInfo->vMon = vNow;
-       myWVBytes = 0;
+       IO.WVBytes = 0;
        if (wvInfo->doSync)
-          {myFile->XrdSfsp->error.setErrCB(0,0);
-           xfrSZ = myFile->XrdSfsp->sync();
+          {IO.File->XrdSfsp->error.setErrCB(0,0);
+           xfrSZ = IO.File->XrdSfsp->sync();
            if (xfrSZ< 0) break;
           }
       }
@@ -3432,7 +3447,7 @@ do{if (myIOLen > 0)
 // Sequence to a new file if we need to do so
 //
    if (newfile)
-      {if (!FTab || !(myFile = FTab->Get(wvInfo->wrVec[vNow].info)))
+      {if (!FTab || !(IO.File = FTab->Get(wvInfo->wrVec[vNow].info)))
           {Response.Send(kXR_FileNotOpen,"writev does not refer to an open file");
            return -1;
           }
@@ -3443,7 +3458,7 @@ do{if (myIOLen > 0)
 //
    myBlast = 0;
    myBuff  = argp->buff;
-   myIOLen = wvInfo->wrVec[vNow].size;
+   IO.IOLen = wvInfo->wrVec[vNow].size;
    wvInfo->vBeg = vNow;
    wvInfo->vPos = vNow;
 
@@ -3452,7 +3467,7 @@ do{if (myIOLen > 0)
 // If we got here then there was a write error (file pointer is valid).
 //
    if (wvInfo) {free(wvInfo); wvInfo = 0;}
-   return fsError((int)xfrSZ, 0, myFile->XrdSfsp->error, 0, 0);
+   return fsError((int)xfrSZ, 0, IO.File->XrdSfsp->error, 0, 0);
 }
   
 /******************************************************************************/
@@ -3464,12 +3479,12 @@ int XrdXrootdProtocol::SendFile(int fildes)
 
 // Make sure we have some data to send
 //
-   if (!myIOLen) return 1;
+   if (!IO.IOLen) return 1;
 
 // Send off the data
 //
-   myIOLen = Response.Send(fildes, myOffset, myIOLen);
-   return myIOLen;
+   IO.IOLen = Response.Send(fildes, IO.Offset, IO.IOLen);
+   return IO.IOLen;
 }
 
 /******************************************************************************/
@@ -3480,18 +3495,18 @@ int XrdXrootdProtocol::SendFile(XrdOucSFVec *sfvec, int sfvnum)
 
 // Make sure we have some data to send
 //
-   if (!myIOLen) return 1;
+   if (!IO.IOLen) return 1;
 
 // Verify the length, it can't be greater than what the client wants
 //
    for (i = 1; i < sfvnum; i++) xframt += sfvec[i].sendsz;
-   if (xframt > myIOLen) return 1;
+   if (xframt > IO.IOLen) return 1;
 
 // Send off the data
 //
-   if (xframt) myIOLen = Response.Send(sfvec, sfvnum, xframt);
-      else {myIOLen = 0; Response.Send();}
-   return myIOLen;
+   if (xframt) IO.IOLen = Response.Send(sfvec, sfvnum, xframt);
+      else {IO.IOLen = 0; Response.Send();}
+   return IO.IOLen;
 }
 
 /******************************************************************************/
@@ -3500,8 +3515,8 @@ int XrdXrootdProtocol::SendFile(XrdOucSFVec *sfvec, int sfvnum)
   
 void XrdXrootdProtocol::SetFD(int fildes)
 {
-   if (fildes < 0) myFile->sfEnabled = 0;
-      else myFile->fdNum = fildes;
+   if (fildes < 0) IO.File->sfEnabled = 0;
+      else IO.File->fdNum = fildes;
 }
 
 /******************************************************************************/

@@ -172,13 +172,11 @@ const char  *Path() = 0;
 //! Read file pages into a buffer and return corresponding checksums.
 //!
 //! @param  buff  pointer to buffer where the bytes are to be placed.
-//! @param  offs  The offset where the read is to start. It must be
-//!               page aligned.
-//! @param  rdlen The number of bytes to read. The amount must be an
-//!               integral number of XrdSys::PageSize bytes.
+//! @param  offs  The offset where the read is to start.
+//! @param  rdlen The number of bytes to read.
 //! @param  csvec A vector whose entries which will be filled with the
-//!               corresponding CRC32C checksum for each page. If a zero length
-//!               vector is returned, checksums are not available.
+//!               corresponding CRC32C checksum for each page or pgae segment.
+//!               If a zero length vector is returned, checksums are not present.
 //! @param  opts  Processing options:
 //!               forceCS - always return checksums even when not available.
 //!
@@ -202,12 +200,10 @@ virtual int  pgRead(char                  *buff,
 //!               caller holds any locks they must be recursive locks as the
 //!               callback may occur on the calling thread.
 //! @param  buff  pointer to buffer where the bytes are to be placed.
-//! @param  offs  The offset where the read is to start. It must be
-//!               page aligned.
-//! @param  rdlen The number of bytes to read. The amount must be an
-//!               integral number of XrdSys::PageSize bytes.
+//! @param  offs  The offset where the read is to start.
+//! @param  rdlen The number of bytes to read.
 //! @param  csvec A vector which will be filled with the corresponding
-//!               CRC32C checksum for each page.
+//!               CRC32C checksum for each page or page segment.
 //! @param  opts  Processing options:
 //!               forceCS - always return checksums even when not available.
 //-----------------------------------------------------------------------------
@@ -224,26 +220,22 @@ virtual void pgRead(XrdOucCacheIOCB       &iocb,
 //! Write file pages from a buffer and corresponding verified checksums.
 //!
 //! @param  buff  pointer to buffer holding the bytes to be written.
-//! @param  offs  The offset where the write is to start. It must be
-//!               page aligned.
-//! @param  wrlen The number of bytes to write. The amount must be an
-//!               integral number of XrdSys::PageSize bytes except for the last
-//!               page of the file. A short write prohibits writing past
+//! @param  offs  The offset where the write is to start.
+//! @param  wrlen The number of bytes to write.
 //!               offs+wrlen (i.e. it establishes an end of file).
 //! @param  csvec A vector of that holds the corresponding verified CRC32C
-//!               checksum for each page; sized to:
-//!               (wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0).
+//!               checksum for each page or page segment.
 //! @param  opts  Processing options.
 //!
 //! @return >= 0      The number of bytes written.
 //! @return -errno    File could not be written, returned value is the reason.
 //-----------------------------------------------------------------------------
 
-virtual int  pgWrite(char      *buff,
-                     long long  offs,
-                     int        rdlen,
-                     uint32_t  *csvec,
-                     uint64_t   opts=0);
+virtual int  pgWrite(char                  *buff,
+                     long long              offs,
+                     int                    wrlen,
+                     std::vector<uint32_t> &csvec,
+                     uint64_t               opts=0);
 
 //-----------------------------------------------------------------------------
 //! Write file pages and checksums using asynchronous I/O (default sync).
@@ -253,24 +245,19 @@ virtual int  pgWrite(char      *buff,
 //!               caller holds any locks they must be recursive locks as the
 //!               callback may occur on the calling thread.
 //! @param  buff  pointer to buffer holding the bytes to be written.
-//! @param  offs  The offset where the write is to start. It must be
-//!               page aligned.
-//! @param  wrlen The number of bytes to write. The amount must be an
-//!               integral number of XrdSys::PageSize bytes except for the last
-//!               page of the file. A short write prohibits writing past
-//!               offs+wrlen (i.e. it establishes an end of file).
+//! @param  offs  The offset where the write is to start.
+//! @param  wrlen The number of bytes to write.
 //! @param  csvec A vector of that holds the corresponding verified CRC32C
-//!               checksum for each page; sized to:
-//!               (wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0).
+//!               checksum for each page or page segment.
 //! @param  opts  Processing options.
 //-----------------------------------------------------------------------------
 
-virtual void pgWrite(XrdOucCacheIOCB &iocb,
-                     char            *buff,
-                     long long        offs,
-                     int              wrlen,
-                     uint32_t        *csvec,
-                     uint64_t         opts=0)
+virtual void pgWrite(XrdOucCacheIOCB       &iocb,
+                     char                  *buff,
+                     long long              offs,
+                     int                    wrlen,
+                     std::vector<uint32_t> &csvec,
+                     uint64_t               opts=0)
                     {iocb.Done(pgWrite(buff, offs, wrlen, csvec, opts));}
 
 //------------------------------------------------------------------------------

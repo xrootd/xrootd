@@ -455,7 +455,8 @@ void XrdLink::setProtName(const char *name)
 void XrdLink::setRef(int use)
 {
    linkXQ.LinkInfo.opMutex.Lock();
-   TRACEI(DEBUG,"Setting ref to " <<linkXQ.LinkInfo.InUse <<'+' 
+   TRACEI(DEBUG,"Setting FD "<<linkXQ.LinkInfo.FD <<" ref to " 
+                <<linkXQ.LinkInfo.InUse <<'+'
                  <<use <<" post=" <<linkXQ.LinkInfo.doPost);
    linkXQ.LinkInfo.InUse += use;
 

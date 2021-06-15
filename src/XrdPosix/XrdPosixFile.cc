@@ -453,11 +453,6 @@ int XrdPosixFile::pgRead(char                  *buff,
                          std::vector<uint32_t> &csvec,
                          uint64_t               opts)
 {
-
-// Make sure the parameters line up on pages (this will be repeated later)
-//
-   if ((offs & XrdSys::PageMask) || (rlen & XrdSys::PageMask)) return -EINVAL;
-
 // Do a sync call using the async interface
 //
    pgioCB pgrCB("Posix pgRead CB");
@@ -477,16 +472,13 @@ void XrdPosixFile::pgRead(XrdOucCacheIOCB       &iocb,
    XrdCl::XRootDStatus Status;
    XrdPosixFileRH *rhP;
 
-// Make sure the parameters line up on pages (this will be repeated later)
-//
-   if ((offs & XrdSys::PageMask) || (rlen & XrdSys::PageMask))
-      {iocb.Done(-EINVAL);
-       return;
-      }
-
-// Allocate callback object and set the checksum vector for returning result
+// Allocate callback object. Note the response handler may do additional post
+// processing.
 //
    rhP = XrdPosixFileRH::Alloc(&iocb, this, offs, rlen, XrdPosixFileRH::isReadP);
+
+// Set the destination checksum vector
+//
    rhP->setCSVec(&csvec, (opts & XrdOucCacheIO::forceCS) != 0);
 
 // Issue read
@@ -503,6 +495,57 @@ void XrdPosixFile::pgRead(XrdOucCacheIOCB       &iocb,
 }
 
 /******************************************************************************/
+/*                               p g W r i t e                                */
+/******************************************************************************/
+
+int XrdPosixFile::pgWrite(char                  *buff,
+                          long long              offs,
+                          int                    wlen,
+                          std::vector<uint32_t> &csvec,
+                          uint64_t               opts)
+{
+   XrdCl::XRootDStatus Status;
+
+// Issue write and return appropriately
+//
+   Ref();
+   Status = clFile.PgWrite((uint64_t)offs, (uint32_t)wlen, buff, csvec);
+   unRef();
+
+   return (Status.IsOK() ? wlen : XrdPosixMap::Result(Status));
+}
+  
+/******************************************************************************/
+
+void XrdPosixFile::pgWrite(XrdOucCacheIOCB       &iocb,
+                           char                  *buff,
+                           long long              offs,
+                           int                    wlen,
+                           std::vector<uint32_t> &csvec,
+                           uint64_t               opts)
+{
+   XrdCl::XRootDStatus Status;
+   XrdPosixFileRH *rhP;
+
+// Allocate callback object. Note that a pgWrite is essentially a normal write
+// as far as the response handler is concerned.
+//
+   rhP = XrdPosixFileRH::Alloc(&iocb,this,offs,wlen,XrdPosixFileRH::isWrite);
+
+// Issue write
+//
+   Ref();
+   Status = clFile.PgWrite((uint64_t)offs, (uint32_t)wlen, buff, csvec, rhP);
+
+// Check status
+//
+   if (!Status.IsOK())
+      {rhP->Sched(XrdPosixMap::Result(Status));
+       unRef();
+      }
+}
+
+/******************************************************************************/
 /*                                  R e a d                                   */
 /******************************************************************************/
 
@@ -511,10 +554,9 @@ int XrdPosixFile::Read (char *Buff, long long Offs, int Len)
    XrdCl::XRootDStatus Status;
    uint32_t bytes;
 
-// If automatic pgread is wanted, make sure this read qualifies.
+// Handle automatic pgread
 //
-   if (!XrdPosixGlobals::autoPGRD
-   && !(Offs & XrdSys::PageMask) && !(Len & XrdSys::PageMask))
+   if (XrdPosixGlobals::autoPGRD)
       {pgioCB pgrCB("Posix pgRead CB");
        Read(pgrCB, Buff, Offs, Len);
        return pgrCB.Wait4PGIO();
@@ -537,12 +579,7 @@ void XrdPosixFile::Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
    XrdCl::XRootDStatus Status;
    XrdPosixFileRH *rhP;
    XrdPosixFileRH::ioType rhT;
-   bool doPgRd;
-
-// If automatic pgread is wanted, make sure this read qualifies.
-//
-   if (!XrdPosixGlobals::autoPGRD) doPgRd = false;
-      else doPgRd = !(offs & XrdSys::PageMask) && !(rlen & XrdSys::PageMask);
+   bool doPgRd = XrdPosixGlobals::autoPGRD;
 
 // Allocate correct callback object
 //
@@ -738,7 +775,7 @@ int XrdPosixFile::Write(char *Buff, long long Offs, int Len)
 {
    XrdCl::XRootDStatus Status;
 
-// Issue read and return appropriately
+// Issue write and return appropriately
 //
    Ref();
    Status = clFile.Write((uint64_t)Offs, (uint32_t)Len, Buff);
@@ -756,7 +793,7 @@ void XrdPosixFile::Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
    XrdPosixFileRH *rhp =  XrdPosixFileRH::Alloc(&iocb, this, offs, wlen,
                                                 XrdPosixFileRH::isWrite);
 
-// Issue read
+// Issue write
 //
    Ref();
    Status = clFile.Write((uint64_t)offs, (uint32_t)wlen, buff, rhp);

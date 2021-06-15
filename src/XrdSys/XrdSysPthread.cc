@@ -161,6 +161,51 @@ int XrdSysCondVar::WaitMS(int msec)
 }
  
 /******************************************************************************/
+/*                        X r d S y s C o n d V a r 2                         */
+/******************************************************************************/
+/******************************************************************************/
+/*                                W a i t M S                                 */
+/******************************************************************************/
+  
+bool XrdSysCondVar2::WaitMS(int msec)
+{
+ int sec, retc, usec;
+ struct timeval tnow;
+ struct timespec tval;
+
+// Adjust millseconds
+//
+   if (msec < 1000) sec = 0;
+      else {sec = msec / 1000; msec = msec % 1000;}
+   usec = msec * 1000;
+
+// Get current time of day
+//
+   gettimeofday(&tnow, 0);
+
+// Add the second and microseconds
+//
+   tval.tv_sec  = tnow.tv_sec  +  sec;
+   tval.tv_nsec = tnow.tv_usec + usec;
+   if (tval.tv_nsec >= 1000000)
+      {tval.tv_sec += tval.tv_nsec / 1000000;
+       tval.tv_nsec = tval.tv_nsec % 1000000;
+      }
+   tval.tv_nsec *= 1000;
+
+
+// Now wait for the condition or timeout
+//
+   do {retc = pthread_cond_timedwait(&cvar, mtxP, &tval);}
+   while (retc && (retc == EINTR));
+
+// Determine how to return
+//
+   if (retc && retc != ETIMEDOUT) {throw "cond_timedwait() failed";}
+   return retc == ETIMEDOUT;
+}
+  
+/******************************************************************************/
 /*                       X r d S y s S e m a p h o r e                        */
 /******************************************************************************/
 /******************************************************************************/

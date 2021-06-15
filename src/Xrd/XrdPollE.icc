@@ -199,17 +199,19 @@ void XrdPollE::remFD(XrdPollInfo &pInfo, unsigned int events)
 // wasn't then the client will eventually timeout and retry the request. This
 // may cause a double remove; so we don't consider these an arror.
 //
-   TRACEI(POLL, "Poller " <<PID <<" removing FD " <<pInfo.FD);
-   if (epoll_ctl(PollDfd, EPOLL_CTL_DEL, pInfo.FD, &myEvents)
-   && (errno != ENOENT || events != 0))
-      {const char *why;
-       char buff[96];
-       if (events & (EPOLLHUP | EPOLLRDHUP)) why = "sever";
-          else if (events & EPOLLERR) why = "error";
-                  else why = "disc";
-       snprintf(buff, sizeof(buff), "exclude fd %d during %s (%x) event; link",
-                      pInfo.FD, why, events);
-       Log.Emsg("Poll", errno, buff, pInfo.Link.ID);
+   if (pInfo.FD > 0)
+      {TRACEI(POLL, "Poller " <<PID <<" removing FD " <<pInfo.FD);
+       if (epoll_ctl(PollDfd, EPOLL_CTL_DEL, pInfo.FD, &myEvents)
+       && (errno != ENOENT || events != 0))
+          {const char *why;
+           char buff[96];
+           if (events & (EPOLLHUP | EPOLLRDHUP)) why = "sever";
+              else if (events & EPOLLERR) why = "error";
+                      else why = "disc";
+           snprintf(buff, sizeof(buff), "exclude fd %d during %s (%x) event; link",
+                          pInfo.FD, why, events);
+           Log.Emsg("Poll", errno, buff, pInfo.Link.ID);
+          }
       }
 }
 

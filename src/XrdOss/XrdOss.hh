@@ -243,14 +243,10 @@ virtual int     pgRead (XrdSfsAio* aioparm, uint64_t opts);
 //! Write file pages into a file with corresponding checksums.
 //!
 //! @param  buffer  - pointer to buffer containing the bytes to write.
-//! @param  offset  - The offset where the write is to start. It must be
-//!                   page aligned.
-//! @param  wrlen   - The number of bytes to write. If amount is not an
-//!                   integral number of XrdSys::PageSize bytes, then this must
-//!                   be the last write to the file at or above the offset.
+//! @param  offset  - The offset where the write is to start.
+//! @param  wrlen   - The number of bytes to write.
 //! @param  csvec   - A vector which contains the corresponding CRC32 checksum
-//!                   for each page. It must be size to
-//!                   wrlen/XrdSys::PageSize + (wrlen%XrdSys::PageSize != 0)
+//!                   for each page. See XrdOucPgrwUtils::csNum() for sizing.
 //! @param  opts    - Processing options (see above).
 //!
 //! @return >= 0      The number of bytes written upon success.
@@ -480,6 +476,8 @@ short       rsvd;    // Reserved
 #define XRDOSS_HASFSCS 0x0000000000000002ULL
 #define XRDOSS_HASPRXY 0x0000000000000004ULL
 #define XRDOSS_HASNOSF 0x0000000000000008ULL
+#define XRDOSS_HASCACH 0x0000000000000010ULL
+#define XRDOSS_HASNAIO 0x0000000000000020ULL
 
 // Options that can be passed to Stat()
 //

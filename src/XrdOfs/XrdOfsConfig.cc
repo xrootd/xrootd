@@ -264,6 +264,8 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       else {ofsConfig->Plugin(XrdOfsOss);
             ossFeatures = XrdOfsOss->Features();
             if (ossFeatures & XRDOSS_HASNOSF)  FeatureSet |= XrdSfs::hasNOSF;
+            if (ossFeatures & XRDOSS_HASCACH)  FeatureSet |= XrdSfs::hasCACH;
+            if (ossFeatures & XRDOSS_HASNAIO)  FeatureSet |= XrdSfs::hasNAIO;
             if (xrdEnv) xrdEnv->PutPtr("XrdOss*", XrdOfsOss);
             ofsConfig->Plugin(Cks);
             CksPfn = !ofsConfig->OssCks();
@@ -336,6 +338,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
        CksPfn = false;
        FeatureSet |= XrdSfs::hasPRXY;
       } else if (!(Options & isManager) && !XrdOfsConfigCP::Init()) NoGo = 1;
+
+// Indicate wheter oss implements pgrw or it has to be simulated
+//
+   OssHasPGrw = (ossFeatures & XRDOSS_HASPGRW) != 0;
 
 // If POSC processing is enabled (as by default) do it. Warning! This must be
 // the last item in the configuration list as we need a working filesystem.

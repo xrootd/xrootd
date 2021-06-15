@@ -119,7 +119,11 @@ const char        *ID;           // File user
 
 XrdXrootdFileStats Stats;        // File access statistics
 
-static void Init(XrdXrootdFileLock *lp, XrdSysError *erP, int sfok);
+static void Init(XrdXrootdFileLock *lp, XrdSysError *erP, bool sfok);
+
+       void Ref(int num);
+
+       void Serialize();
 
            XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
                          char mode='r', bool async=false, struct stat *sP=0);
@@ -130,6 +134,11 @@ int bin2hex(char *outbuff, char *inbuff, int inlen);
 static XrdXrootdFileLock *Locker;
 static int                sfOK;
 static const char        *TraceID;
+
+int                       refCount;     // Reference counter
+int                       reserved;
+XrdSysSemaphore          *syncWait;
+XrdSysMutex               fileMutex;
 };
  
 /******************************************************************************/

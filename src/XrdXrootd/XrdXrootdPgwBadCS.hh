@@ -1,11 +1,10 @@
-#ifndef __PSS_AIOCB_HH__
-#define __PSS_AIOCB_HH__
+#ifndef __XRDXROOTDPGWBadCS_HH_
+#define __XRDXROOTDPGWBadCS_HH_
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d P s s A i o C B . h h                         */
+/*                  X r d X r o o t d P g w B a d C S . h h                   */
 /*                                                                            */
-/* (c) 2016 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*                            All Rights Reserved                             */
+/* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -30,41 +29,32 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
-#include <vector>
+#include "XProtocol/XProtocol.hh"
 
-#include "XrdPosix/XrdPosixCallBack.hh"
-#include "XrdSys/XrdSysPthread.hh"
+class XrdXrootdFile;
 
-class XrdSfsAio;
-  
-class XrdPssAioCB : public XrdPosixCallBackIO
+class XrdXrootdPgwBadCS
 {
 public:
 
-static XrdPssAioCB  *Alloc(XrdSfsAio *aiop, bool isWr, bool pgrw=false);
+const char   *boAdd(XrdXrootdFile *fP, kXR_int64 foffs,
+                    int dlen=XrdProto::kXR_pgPageSZ);
 
-virtual void         Complete(ssize_t Result);
+char         *boInfo(int &boLen);
 
-        void         Recycle();
+void          boReset() {boCount = 0;}
 
-static  void         SetMax(int mval) {maxFree = mval;}
-
-std::vector<uint32_t> csVec;
+              XrdXrootdPgwBadCS(int pid=0) : boCount(0), pathID(pid) {}
+             ~XrdXrootdPgwBadCS() {}
 
 private:
-             XrdPssAioCB() : theAIOP(0), isWrite(false) {}
-virtual     ~XrdPssAioCB() {}
 
-static  XrdSysMutex  myMutex;
-static  XrdPssAioCB *freeCB;
-static  int          numFree;
-static  int          maxFree;
+ServerResponseBody_pgWrCSE cse;   // cse.dlFirst, cse.dlLast
+kXR_int64                  badOffs[XrdProto::kXR_pgMaxEpr];
 
-union  {XrdSfsAio   *theAIOP;
-        XrdPssAioCB *next;
-       };
-bool                 isWrite;
-bool                 isPGrw;
+static
+const char      *TraceID;
+int              boCount;          // Elements in badOffs
+int              pathID;
 };
 #endif

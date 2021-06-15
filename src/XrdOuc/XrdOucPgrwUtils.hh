@@ -31,6 +31,7 @@
 /******************************************************************************/
 
 #include <stdint.h>
+#include <vector>
 #include <sys/types.h>
 
 class XrdOucPgrwUtils
@@ -38,20 +39,23 @@ class XrdOucPgrwUtils
 public:
 
 //------------------------------------------------------------------------------
-//! Compute a CRC32C checksums for a pgRead request.
+//! Compute a CRC32C checksums for a pgRead/pgWrite request.
 //!
 //! @param  data   Pointer to the data whose checksum it to be computed.
 //! @param  offs   The offset at which the read or write occurs.
 //! @param  count  The number of bytes pointed to by data.
 //! @param  csval  Pointer to a vector to hold individual page checksums. The
-//!                vector must be sized as computed by csNum().
-//! @param  asnbo  Return checksum values in network bytes order.
+//!                raw vector must be sized as computed by csNum(). When
+//!                passed an std::vector, it is done automatically.
 //!
 //! @return Each element of csval holds the checksum for the associated page.
 //------------------------------------------------------------------------------
 
-static void csCalc(const char* data, ssize_t offs, size_t count,
+static void csCalc(const char* data, off_t offs, size_t count,
                    uint32_t* csval);
+
+static void csCalc(const char* data, off_t offs, size_t count,
+                   std::vector<uint32_t> &csvec);
 
 //------------------------------------------------------------------------------
 //! Compute the required size of a checksum vector based on offset & length
@@ -63,25 +67,83 @@ static void csCalc(const char* data, ssize_t offs, size_t count,
 //! @return The number of checksums that are needed.
 //------------------------------------------------------------------------------
 
-static int   csNum(ssize_t offs, size_t count);
+static int   csNum(off_t offs, int count);
+
+//------------------------------------------------------------------------------
+//! Compute the required size of a checksum vector based on offset & length
+//| applying the pgRead/pgWrite requirements and return the length of the first
+//! and last segments required in the iov vector.
+//!
+//! @param  offs   The offset at which the read or write occurs.
+//! @param  count  The number of bytes read or to write excluding checksums.
+//! @param  fLen   The number of bytes needed in iov[0].iov_length
+//! @param  lLen   The number of bytes needed in iov[csnum-1].iov_length
+//!
+//! @return The number of checksums that are needed.
+//------------------------------------------------------------------------------
+
+static int   csNum(off_t offs, int count, int &fLen, int &lLen);
 
 //------------------------------------------------------------------------------
 //! Verify CRC32C checksums for a pgWrite request.
 //!
-//! @param  data   Pointer to the data whose checksum it to be verified.
-//! @param  offs   The offset at which the read or write occurs.
-//! @param  count  The number of bytes pointed to by data.
-//! @param  csval  Pointer to a vector of expected page checksums. The
-//!                vector must be sized as returned by csNum().
-//! @param  bado   The offset in error when return > 0.
+//! @param  dInfo  Reference to the data information used or state control.
+//! @param  bado   The offset in error when return false.
 //! @param  badc   The length of erroneous data at bado.
 //!
-//! @return 0 if all the checksums match. Otherwise, the index+1 in the checksum
-//!           vector containing the bad checksum (i.e. resumption point).
+//! @return true if all the checksums match. Otherwise, false is returned with
+//!         bado and badc set and dInfo is updated so that the next call with
+//!         the same dInfo will verify the remaing data. To avoid an unneeded
+//!         call first check if dInfo.count is positive.
 //------------------------------------------------------------------------------
 
-static int   csVer(const char*     data,  ssize_t  offs, size_t  count,
-                   const uint32_t* csval, ssize_t &bado, size_t &badc);
+struct dataInfo
+      {const char*     data;   //!< Pointer to data buffer
+       const uint32_t* csval;  //!< Pointer to vector of checksums
+       off_t           offs;   //!< Offset associated with data
+       int             count;  //!< Number of bytes to check
+
+       dataInfo(const char* dP, const uint32_t* cP, off_t o, int n)
+               : data(dP), csval(cP), offs(o), count(n) {}
+      };
+
+static bool  csVer(dataInfo &dInfo, off_t &bado, int &badc);
+
+//------------------------------------------------------------------------------
+//! Compute the layout for an iovec that receives network bytes applying
+//| pgRead/pgWrite requirements.
+//!
+//! @param  layout Reference to the layout parameter (see below).
+//! @param  offs   recvLayout: Offset at which the subsequent write occurs.
+//!                sendLayout: Offset at which the preceeding read  occurs.
+//! @param  dlen   recvLayout: Nmber of sock bytes to receive with    checksums.
+//! @param  dlen   sendLayout: Nmber of file bytes to read    without checksums.
+//! @param  bsz    The size of the buffer exclusive of any checksums and must
+//!                be a multiple of 4096 (one page). If it's <= 0 then then the
+//!                layout is computed as if bsz could fully accomodate the dlen.
+//!
+//! @return The number of checksums that are needed. If the result is zero then
+//!         the supplied offset/dlen violates requirements amd eWhy holds reason.
+//!
+//! @note The iovec layout assumes iov[0] reads the checksum and iov[1] reads
+//!       only the data where the last such pair is iov[csnum*-2],iov[csnum*-1].
+//! @note dataLen can be used to adjust the next offset for filesystem I/O while
+//!       sockLen is the total number of network bytes to receive or send.
+//------------------------------------------------------------------------------
+
+struct Layout
+{
+off_t       bOffset; //!< Buffer offset to apply iov[1].iov_base
+int         dataLen; //!< Total number of filesys bytes the iovec will handle
+int         sockLen; //!< Total number of network bytes the iovec will handle
+int         fLen;    //!< Length to use for iov[1].iov_len
+int         lLen;    //!< Length to use for iov[csnum*2-1].iov_len)
+const char *eWhy;    //!< Reason for failure when zero is returned
+};
+
+static int  recvLayout(Layout &layout, off_t offs, int dlen, int bsz=0);
+
+static int  sendLayout(Layout &layout, off_t offs, int dlen, int bsz=0);
 
              XrdOucPgrwUtils() {}
             ~XrdOucPgrwUtils() {}

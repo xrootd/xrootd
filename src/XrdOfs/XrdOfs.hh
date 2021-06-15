@@ -141,6 +141,24 @@ public:
 
         int            getMmap(void **Addr, off_t &Size);
 
+        XrdSfsXferSize pgRead(XrdSfsFileOffset   offset,
+                              char              *buffer,
+                              XrdSfsXferSize     rdlen,
+                              uint32_t          *csvec,
+                              uint64_t           opts=0);
+
+        int            pgRead(XrdSfsAio *aioparm, uint64_t opts=0);
+
+
+        XrdSfsXferSize pgWrite(XrdSfsFileOffset   offset,
+                               char              *buffer,
+                               XrdSfsXferSize     wrlen,
+                               uint32_t          *csvec,
+                               uint64_t           opts=0);
+
+        int            pgWrite(XrdSfsAio *aioparm, uint64_t opts=0);
+
+
         int            read(XrdSfsFileOffset   fileOffset,   // Preread only
                             XrdSfsXferSize     amount);
 
@@ -455,6 +473,7 @@ static XrdOfsHandle     *dummyHandle;
 XrdSysMutex              ocMutex; // Global mutex for open/close
 
 bool              DirRdr;         // Opendir() can be redirected.
+bool              OssHasPGrw;     // True: oss implements full rgRead/Write
 
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */
