@@ -391,6 +391,24 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Extend pipeline
+      //------------------------------------------------------------------------
+      Pipeline& operator|=( Operation<true>&& op )
+      {
+        operation->AddOperation( op.Move() );
+        return *this;
+      }
+
+      //------------------------------------------------------------------------
+      //! Extend pipeline
+      //------------------------------------------------------------------------
+      Pipeline& operator|=( Operation<false>&& op )
+      {
+        operation->AddOperation( op.ToHandled() );
+        return *this;
+      }
+
+      //------------------------------------------------------------------------
       //! Conversion to Operation<true>
       //!
       //! @throws : std::logic_error if pipeline is invalid
