@@ -164,6 +164,14 @@ namespace XrdCl
       }
 
       //-----------------------------------------------------------------------
+      //! Update the metadata of the currently open file
+      //!
+      //! @param crc32   : the crc32 checksum
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
+      XRootDStatus UpdateMetadata( uint32_t crc32 );
+
+      //-----------------------------------------------------------------------
       //! Create a new file in the ZIP archive and append the data
       //!
       //! @param fn      : the name of the new file to be created
@@ -450,9 +458,32 @@ namespace XrdCl
       };
 
       //-----------------------------------------------------------------------
+      //! LFH of a newly appended file (in case it needs to be overwritten)
+      //-----------------------------------------------------------------------
+      struct NewFile
+      {
+        NewFile( uint64_t offset, std::unique_ptr<LFH> lfh ) : offset( offset ),
+                                                               lfh( std::move( lfh ) ),
+                                                               overwrt( false )
+        {
+        }
+
+        NewFile( NewFile && nf ) : offset( nf.offset ),
+                                   lfh( std::move( nf.lfh ) ),
+                                   overwrt( nf.overwrt )
+        {
+        }
+
+        uint64_t             offset;  // the offset of the LFH of the file
+        std::unique_ptr<LFH> lfh;     // LFH of the file
+        bool                 overwrt; // if true the LFH needs to be overwritten on close
+      };
+
+      //-----------------------------------------------------------------------
       //! Type that maps file name to its cache
       //-----------------------------------------------------------------------
       typedef std::unordered_map<std::string, ZipCache> zipcache_t;
+      typedef std::unordered_map<std::string, NewFile>  new_files_t;
 
       File                        archive;   //> File object for handling the ZIP archive
       uint64_t                    archsize;  //> size of the ZIP archive
@@ -471,7 +502,8 @@ namespace XrdCl
       std::string                 openfn;    //> file name of opened file
       zipcache_t                  zipcache;  //> cache for inflating compressed data
       std::unique_ptr<LFH>        lfh;       //> Local File Header record for the newly appended file
-      bool                        ckpinit;    //> a flag indicating whether a checkpoint has been initialized
+      bool                        ckpinit;   //> a flag indicating whether a checkpoint has been initialized
+      new_files_t                 newfiles;  //> all newly appended files
   };
 
 } /* namespace XrdZip */

@@ -196,26 +196,9 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
 
-        //----------------------------------------------------------------------
-        // Sanity check
-        //----------------------------------------------------------------------
-        if( !pCksCalcObj )
-        {
-          log->Error( UtilityMsg, "Calculator for %s was not initialized",
-                      pCkSumType.c_str() );
-          return XRootDStatus( stError, errCheckSumError );
-        }
-
-        int          calcSize = 0;
-        std::string  calcType = pCksCalcObj->Type( calcSize );
-
-        if( calcType != checkSumType )
-        {
-          log->Error( UtilityMsg, "Calculated checksum: %s, requested "
-                      "checksum: %s", pCkSumType.c_str(),
-                      checkSumType.c_str() );
-          return XRootDStatus( stError, errCheckSumError );
-        }
+        int calcSize = 0;
+        auto st = GetCheckSumImpl( checkSumType, calcSize );
+        if( !st.IsOK() ) return st;
 
         //----------------------------------------------------------------------
         // Response
@@ -234,7 +217,54 @@ namespace
         return XrdCl::XRootDStatus();
       }
 
+      template<typename T>
+      XrdCl::XRootDStatus GetRawCheckSum( const std::string &checkSumType, T &value )
+      {
+        int calcSize = 0;
+        auto st = GetCheckSumImpl( checkSumType, calcSize );
+        if( !st.IsOK() ) return st;
+        if( sizeof( T ) != calcSize )
+          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidArgs, 0,
+                                      "checksum size mismatch" );
+        value = *reinterpret_cast<T*>( pCksCalcObj->Final() );
+        return XrdCl::XRootDStatus();
+      }
+
     private:
+
+      //------------------------------------------------------------------------
+      // Get checksum
+      //------------------------------------------------------------------------
+      inline
+      XrdCl::XRootDStatus GetCheckSumImpl( const std::string  &checkSumType,
+                                           int                &calcSize )
+      {
+        using namespace XrdCl;
+        Log *log = DefaultEnv::GetLog();
+
+        //----------------------------------------------------------------------
+        // Sanity check
+        //----------------------------------------------------------------------
+        if( !pCksCalcObj )
+        {
+          log->Error( UtilityMsg, "Calculator for %s was not initialized",
+                      pCkSumType.c_str() );
+          return XRootDStatus( stError, errCheckSumError );
+        }
+
+        std::string  calcType = pCksCalcObj->Type( calcSize );
+
+        if( calcType != checkSumType )
+        {
+          log->Error( UtilityMsg, "Calculated checksum: %s, requested "
+                      "checksum: %s", pCkSumType.c_str(),
+                      checkSumType.c_str() );
+          return XRootDStatus( stError, errCheckSumError );
+        }
+
+        return XrdCl::XRootDStatus();
+      }
+
       std::string  pName;
       std::string  pCkSumType;
       XrdCksCalc  *pCksCalcObj;
@@ -1958,9 +1988,9 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      XRootDZipDestination( const XrdCl::URL &url, const std::string &fn, int64_t size, uint8_t parallelChunks,
-                         const std::string &ckSumType ):
-        Destination( ckSumType ),
+      XRootDZipDestination( const XrdCl::URL &url, const std::string &fn,
+                            int64_t size, uint8_t parallelChunks ):
+        Destination( "zcrc32" ),
         pUrl( url ), pFilename( fn ), pZip( new XrdCl::ZipArchive() ),
         pParallel( parallelChunks ), pSize( size )
       {
@@ -2037,14 +2067,11 @@ namespace
                           XrdSysE2T( errno ) );
         }
 
-        st = pZip->OpenFile( pFilename, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write, pSize, 0/*file checksum*/ ); // TODO
+        st = pZip->OpenFile( pFilename, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write, pSize );
         if( !st.IsOK() )
           return st;
 
-        if( pUrl.IsLocalFile() && pCkSumHelper && !pContinue )
-          return pCkSumHelper->Initialize();
-
-        return XRootDStatus();
+        return pCkSumHelper->Initialize();
       }
 
       //------------------------------------------------------------------------
@@ -2052,6 +2079,10 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Finalize()
       {
+        uint32_t crc32 = 0;
+        auto st = pCkSumHelper->GetRawCheckSum( "zcrc32", crc32 );
+        if( !st.IsOK() ) return st;
+        pZip->UpdateMetadata( crc32 );
         pZip->CloseFile();
         return XrdCl::WaitFor( XrdCl::CloseArchive( pZip ) );
       }
@@ -2128,8 +2159,7 @@ namespace
       {
         // we are writing chunks in order so we can calc the checksum
         // in case of local files
-        if( pUrl.IsLocalFile() && pCkSumHelper && !pContinue )
-          pCkSumHelper->Update( ci.buffer, ci.length );
+        if( pCkSumHelper ) pCkSumHelper->Update( ci.buffer, ci.length );
 
         ChunkHandler *ch = new ChunkHandler(ci);
         XrdCl::XRootDStatus st;
@@ -2431,7 +2461,7 @@ namespace XrdCl
       if( pos != std::string::npos )
         fn = fn.substr( pos + 1 );
       int64_t size = src->GetSize();
-      dest.reset( new XRootDZipDestination( newDestUrl, fn, size, parallelChunks, checkSumType ) );
+      dest.reset( new XRootDZipDestination( newDestUrl, fn, size, parallelChunks ) );
     }
     //--------------------------------------------------------------------------
     // For xrootd destination build the oss.asize hint

@@ -430,11 +430,29 @@ namespace XrdCl
     //-------------------------------------------------------------------------
     if( updated )
     {
+      ChunkList chunks;
+      std::vector<std::shared_ptr<buffer_t>> wrtbufs;
+      for( auto &p : newfiles )
+      {
+        NewFile &nf = p.second;
+        if( !nf.overwrt ) continue;
+        uint32_t lfhlen = lfh->lfhSize;
+        auto lfhbuf = std::make_shared<buffer_t>();
+        lfhbuf->reserve( lfhlen );
+        nf.lfh->Serialize( *lfhbuf );
+        chunks.emplace_back( nf.offset, lfhbuf->size(), lfhbuf->data() );
+        wrtbufs.emplace_back( std::move( lfhbuf ) );
+      }
+
       uint64_t wrtoff  = cdoff;
       auto wrtbuff = std::make_shared<buffer_t>( GetCD() );
+      chunks.emplace_back( cdoff, wrtbuff->size(), wrtbuff->data() );
+      wrtbufs.emplace_back( std::move( wrtbuff ) );
 
-      Pipeline p = XrdCl::Write( archive, wrtoff, wrtbuff->size(), wrtbuff->data() )
-                 | Close( archive ) >>
+      Pipeline p = XrdCl::VectorWrite( archive, chunks );
+      if( ckpinit )
+        p       |= XrdCl::Checkpoint( archive, ChkPtCode::COMMIT );
+      p         |= Close( archive ) >>
                      [=]( XRootDStatus &st )
                      {
                        if( st.IsOK() ) Clear();
@@ -448,16 +466,9 @@ namespace XrdCl
                        else
                          log->Error( ZipMsg, "[0x%x] Failed to close ZIP archive: %s",
                                              this, st.ToString().c_str() );
-                       wrtbuff.reset();
+                       wrtbufs.clear();
                        if( handler ) handler->HandleResponse( make_status( st ), nullptr );
                      } );
-
-      //-------------------------------------------------------------------------
-      // If the file was updated, we need to write the Central Directory before
-      // closing the file.
-      //-------------------------------------------------------------------------
-      if( ckpinit )
-        p = XrdCl::Checkpoint( archive, ChkPtCode::COMMIT ) | p;
 
       Async( std::move( p ), timeout );
       return XRootDStatus();
@@ -762,9 +773,41 @@ namespace XrdCl
       mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
       cdvec.emplace_back( new CDFH( lfh.get(), mode, wrtoff ) );
       cdmap[openfn] = cdvec.size() - 1;
-      lfh.reset();
+      // make sure we keep track of all appended files
+      newfiles.emplace( std::piecewise_construct,
+                        std::forward_as_tuple( lfh->filename ),
+                        std::forward_as_tuple( wrtoff, std::move( lfh ) )
+                      );
     }
     Async( std::move( p ), timeout );
+    return XRootDStatus();
+  }
+
+  //-----------------------------------------------------------------------
+  // Update the metadata of the currently open file
+  //-----------------------------------------------------------------------
+  XRootDStatus ZipArchive::UpdateMetadata( uint32_t crc32 )
+  {
+    if( openstage != Done || openfn.empty() )
+      return XRootDStatus( stError, errInvalidOp, 0, "Archive not opened." );
+
+    //---------------------------------------------------------------------
+    // Firstly, update the crc32 in the central directory
+    //---------------------------------------------------------------------
+    auto itr = cdmap.find( openfn );
+    if( itr == cdmap.end() )
+      return XRootDStatus( stError, errInvalidOp );
+    cdvec[itr->second]->ZCRC32 = crc32;
+
+    //---------------------------------------------------------------------
+    // Secondly, update the crc32 in the LFH and mark it as needing
+    // overwriting
+    //---------------------------------------------------------------------
+    auto itr2 = newfiles.find( openfn );
+    if( itr2 == newfiles.end() )
+      return XRootDStatus( stError, errInvalidOp );
+    itr2->second.lfh->ZCRC32 = crc32;
+
     return XRootDStatus();
   }
 
