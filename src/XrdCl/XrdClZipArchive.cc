@@ -444,7 +444,6 @@ namespace XrdCl
         wrtbufs.emplace_back( std::move( lfhbuf ) );
       }
 
-      uint64_t wrtoff  = cdoff;
       auto wrtbuff = std::make_shared<buffer_t>( GetCD() );
       chunks.emplace_back( cdoff, wrtbuff->size(), wrtbuff->data() );
       wrtbufs.emplace_back( std::move( wrtbuff ) );
