@@ -1104,7 +1104,7 @@ int XrdXrootdProtocol::getData(XrdXrootd::gdCallBack *cbP,
 
 // Setup the control information to direct the vector read
 //
-   memset(&gdCtl, 0, sizeof(gdCtl));
+   memset((char *)&gdCtl, 0, sizeof(gdCtl));
    gdCtl.BuffLen = blen;     // Buffer length (bytes to read)
    gdCtl.Buffer  = buff;     // The actual buffer
    gdCtl.CallBack= cbP;      // Method to callback upon success
@@ -1130,7 +1130,7 @@ int XrdXrootdProtocol::getData(XrdXrootd::gdCallBack *cbP,
 
 // Setup the control information to direct the vector read
 //
-   memset(&gdCtl, 0, sizeof(gdCtl));
+   memset((char *)&gdCtl, 0, sizeof(gdCtl));
    gdCtl.iovNum  = iovn;     // Number of original elements
    gdCtl.iovVec  = iov;      // The actual vector
    gdCtl.CallBack= cbP;      // Method to callback upon success
@@ -1338,7 +1338,7 @@ int XrdXrootdProtocol::getDump(const char *dtype, int dlen)
 
 // Setup the control information to direct the vector read
 //
-   memset(&gdCtl, 0, sizeof(gdCtl));
+   memset((char *)&gdCtl, 0, sizeof(gdCtl));
    gdCtl.lenPart = dlen;     // Bytes left to drain
    gdCtl.ioDType = dtype;    // Name of the data being read for tracing
    gdCtl.Status  = GetDataCtl::inDump;
@@ -1456,7 +1456,7 @@ void XrdXrootdProtocol::Reset()
    rdType             = 0;
    Entity.Reset(0);
    memset(Stream,  0, sizeof(Stream));
-   memset(&gdCtl,  0, sizeof(gdCtl));
+   memset((char *)&gdCtl,  0, sizeof(gdCtl));
    PrepareCount       = 0;
    if (AppName) {free(AppName); AppName = 0;}
 }
