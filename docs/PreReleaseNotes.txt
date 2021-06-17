@@ -11,6 +11,8 @@ Prerelease Notes
   **[Server]** Automatically turn off async I/O for default oss plug-in.
 
 + **Major bug fixes**
+  **[SSS]** Avoid server-side SEGV for certain configurations.
+  **[SSS]** Correct client backward incompatibily when 'anygroup' is specified.
 
 + **Minor bug fixes**
   **[Server]** Make assumeV4 setting consistent (missing initializer).
