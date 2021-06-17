@@ -22,14 +22,12 @@ void IO::Update(XrdOucCacheIO &iocp)
 
 void IO::SetInput(XrdOucCacheIO* x)
 {
-   XrdSysMutexHelper lock(&updMutex);
-   m_io = x;
+   m_io.store(x, std::memory_order_relaxed);
 }
 
 XrdOucCacheIO* IO::GetInput()
 {
-   XrdSysMutexHelper lock(&updMutex);
-   return m_io;
+   return m_io.load(std::memory_order_relaxed);
 }
 
 //==============================================================================

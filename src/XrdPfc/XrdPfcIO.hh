@@ -8,6 +8,8 @@ class XrdSysTrace;
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include <atomic>
+
 namespace XrdPfc
 {
 //----------------------------------------------------------------------------
@@ -22,7 +24,7 @@ public:
    virtual XrdOucCacheIO *Base() { return m_io; }
 
    //! Original data source URL.
-   virtual const char *Path() { return m_io->Path(); }
+   virtual const char *Path() { return m_io.load(std::memory_order_relaxed)->Path(); }
 
    using XrdOucCacheIO::Sync;
 
@@ -45,7 +47,7 @@ public:
    virtual bool ioActive()       = 0;
    virtual void DetachFinalize() = 0;
 
-   const char*  GetLocation() { return m_io->Location(false); }
+   const char*  GetLocation() { return m_io.load(std::memory_order_relaxed)->Location(false); }
    XrdSysTrace* GetTrace()    { return m_cache.GetTrace(); }
 
    XrdOucCacheIO* GetInput();
@@ -54,13 +56,12 @@ protected:
    Cache       &m_cache;           //!< reference to Cache needed in detach
    const char  *m_traceID;
 
-   const char*  GetPath()         { return m_io->Path(); }
+   const char*  GetPath()         { return m_io.load(std::memory_order_relaxed)->Path(); }
    std::string  GetFilename()     { return XrdCl::URL(GetPath()).GetPath(); }
-   const char*  RefreshLocation() { return m_io->Location(true);  }
+   const char*  RefreshLocation() { return m_io.load(std::memory_order_relaxed)->Location(true);  }
 
 private:
-   XrdOucCacheIO  *m_io;                //!< original data source
-   XrdSysMutex     updMutex;
+   std::atomic<XrdOucCacheIO*> m_io;                //!< original data source
 
    void         SetInput(XrdOucCacheIO*);
 };
