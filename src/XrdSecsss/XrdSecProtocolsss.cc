@@ -309,8 +309,8 @@ if (!(decKey.Data.Opts & XrdSecsssKT::ktEnt::noIPCK))
 
        // Set corresponding uid and gid
        //
-          XrdOucUtils::getUID(myID.name, Entity.uid, &Entity.gid);
-          XrdOucUtils::getGID(myID.grps, Entity.gid);
+          if (myID.name) XrdOucUtils::getUID(myID.name, Entity.uid, &Entity.gid);
+          if (myID.grps) XrdOucUtils::getGID(myID.grps, Entity.gid);
        }
 
 // Calculate the amount of space we will need
