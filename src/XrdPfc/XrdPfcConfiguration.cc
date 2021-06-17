@@ -36,7 +36,7 @@ Configuration::Configuration() :
    m_accHistorySize(20),
    m_dirStatsMaxDepth(-1),
    m_dirStatsStoreDepth(0),
-   m_bufferSize(1024*1024),
+   m_bufferSize(256*1024),
    m_RamAbsAvailable(0),
    m_RamKeepStdBlocks(0),
    m_wqueue_blocks(16),
