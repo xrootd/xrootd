@@ -353,7 +353,7 @@ void XrdAccAccess::SwapTabs(struct XrdAccAccess_Tables &newtab)
 // Determine if we need to resolve the hostname at all.
 //
    if (!hRefX)
-      {if (Atab.D_List || Atab.H_Hash || Atab.N_Hash) hRefY = true;
+      {if (newtab.D_List || newtab.H_Hash || newtab.N_Hash) hRefY = true;
           else {XrdAccAccess_ID *ylP = newtab.SYList;
                 while (ylP)
                       {if (ylP->host) {hRefY = true; break;}
