@@ -948,7 +948,7 @@ namespace XrdCl
       handler = new AssignLastURLHandler( this, handler );
 
       if( !pLoadBalancerLookupDone && pFollowRedirects )
-        handler = new AssignLBHandler( this, handler ); // TODO
+        handler = new AssignLBHandler( this, handler ); // TODO the handlers could leak if SendMessage fails
 
       params.followRedirects = pFollowRedirects;
 
@@ -1014,25 +1014,29 @@ namespace XrdCl
     }
 
     bool finalrsp = !( status->IsOK() && status->code == suContinue );
-    pUserHandler->HandleResponseWithHosts( status, response, hostList );
     if( finalrsp )
+    {
+      pUserHandler->HandleResponseWithHosts( status, response, hostList );
       delete this;
+    }
   }
 
   //------------------------------------------------------------------------
   // Response callback
   //------------------------------------------------------------------------
   void AssignLastURLHandler::HandleResponseWithHosts( XRootDStatus *status,
-                                               AnyObject    *response,
-                                               HostList     *hostList )
+                                                      AnyObject    *response,
+                                                      HostList     *hostList )
   {
     if( status->IsOK() && hostList )
       pFS->AssignLastURL( hostList->front().url );
 
     bool finalrsp = !( status->IsOK() && status->code == suContinue );
-    pUserHandler->HandleResponseWithHosts( status, response, hostList );
     if( finalrsp )
+    {
+      pUserHandler->HandleResponseWithHosts( status, response, hostList );
       delete this;
+    }
   }
 
   //----------------------------------------------------------------------------
