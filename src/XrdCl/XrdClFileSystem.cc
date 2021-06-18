@@ -945,14 +945,26 @@ namespace XrdCl
       log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
                  pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
 
-      handler = new AssignLastURLHandler( this, handler );
+      AssignLastURLHandler *lastUrlHandler = new AssignLastURLHandler( this, handler );
+      handler = lastUrlHandler;
 
+      AssignLBHandler *lbHandler = nullptr;
       if( !pLoadBalancerLookupDone && pFollowRedirects )
-        handler = new AssignLBHandler( this, handler ); // TODO the handlers could leak if SendMessage fails
+      {
+        lbHandler = new AssignLBHandler( this, handler );
+        handler = lbHandler;
+      }
 
       params.followRedirects = pFollowRedirects;
 
-      return MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
+      auto st = MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
+      if( !st.IsOK() )
+      {
+        delete lastUrlHandler;
+        delete lbHandler;
+      }
+
+      return st;
     }
 
     //----------------------------------------------------------------------------
