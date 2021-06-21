@@ -1675,6 +1675,22 @@ namespace
         CleanUpChunks();
         delete pFile;
 
+        XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
+
+        //----------------------------------------------------------------------
+        // Make sure we clean up the cp-target symlink
+        //----------------------------------------------------------------------
+        std::string cptarget = XrdCl::DefaultCpTarget;
+        XrdCl::DefaultEnv::GetEnv()->GetString( "CpTarget", cptarget );
+        if( !cptarget.empty() )
+        {
+          XrdCl::FileSystem fs( "file://localhost" );
+          XrdCl::XRootDStatus st = fs.Rm( cptarget );
+          if( !st.IsOK() )
+            log->Warning( XrdCl::UtilityMsg, "Could not delete cp-target symlink: %s",
+                          st.ToString().c_str() );
+        }
+
         //----------------------------------------------------------------------
         // If the copy failed and user requested posc and we are dealing with
         // a local destination, remove the file
@@ -1684,11 +1700,8 @@ namespace
           XrdCl::FileSystem fs( pUrl );
           XrdCl::XRootDStatus st = fs.Rm( pUrl.GetPath() );
           if( !st.IsOK() )
-          {
-            XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
             log->Error( XrdCl::UtilityMsg, "Failed to remove local destination"
                         " on failure: %s", st.ToString().c_str() );
-          }
         }
       }
 
