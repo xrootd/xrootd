@@ -1025,10 +1025,15 @@ namespace XrdCl
         }
     }
 
+    SyncResponseHandler * syncHandler = dynamic_cast<SyncResponseHandler*>( pUserHandler );
+    if( !syncHandler )
+      pUserHandler->HandleResponseWithHosts( status, response, hostList );
+
     bool finalrsp = !( status->IsOK() && status->code == suContinue );
     if( finalrsp )
     {
-      pUserHandler->HandleResponseWithHosts( status, response, hostList );
+      if( syncHandler )
+        pUserHandler->HandleResponseWithHosts( status, response, hostList );
       delete this;
     }
   }
