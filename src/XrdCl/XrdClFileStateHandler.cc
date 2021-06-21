@@ -37,6 +37,7 @@
 #include "XrdCl/XrdClResponseJob.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
+#include "XrdCl/XrdClAnyObject.hh"
 
 #ifdef WITH_XRDEC
 #include "XrdCl/XrdClEcHandler.hh"
@@ -75,7 +76,8 @@ namespace
                                                             userHandler( userHandler ),
                                                             orgOffset( orgOffset ),
                                                             maincall( true ),
-                                                            retrycnt( 0 )
+                                                            retrycnt( 0 ),
+                                                            nbrepair( 0 )
       {
       }
 
@@ -99,7 +101,10 @@ namespace
           if( !status->IsOK() )
             st.reset( status );
           else
+          {
             delete status; // by convention other args are null (see PgReadRetryHandler)
+            ++nbrepair;    // update number of repaired pages
+          }
 
           if( retrycnt == 0 )
           {
@@ -107,7 +112,11 @@ namespace
             // All retries came back
             //------------------------------------------------------------------
             if( st->IsOK() )
+            {
+              PageInfo &pginf = XrdCl::To<PageInfo>( *resp );
+              pginf.SetNbRepair( nbrepair );
               userHandler->HandleResponseWithHosts( st.release(), resp.release(), hosts.release() );
+            }
             else
               userHandler->HandleResponseWithHosts( st.release(), 0, 0 );
             lck.unlock();
@@ -213,6 +222,7 @@ namespace
       std::mutex mtx;
       bool       maincall;
       size_t     retrycnt;
+      size_t     nbrepair;
 
   };
 

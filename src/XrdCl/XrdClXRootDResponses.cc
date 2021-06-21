@@ -598,21 +598,24 @@ namespace XrdCl
       offset( offset ),
       length( length ),
       buffer( buffer ),
-      cksums( std::move( cksums ) )
+      cksums( std::move( cksums ) ),
+      nbrepair( 0 )
     {
     }
 
     PageInfoImpl( PageInfoImpl &&pginf ) : offset( pginf.offset ),
                                            length( pginf.length ),
                                            buffer( pginf.buffer ),
-                                           cksums( std::move( pginf.cksums ) )
+                                           cksums( std::move( pginf.cksums ) ),
+                                           nbrepair( pginf.nbrepair )
     {
     }
 
-    uint64_t               offset; //> offset in the file
-    uint32_t               length; //> length of the data read
-    void                  *buffer; //> buffer with the read data
-    std::vector<uint32_t>  cksums; //> a vector of crc32c checksums
+    uint64_t               offset;   //> offset in the file
+    uint32_t               length;   //> length of the data read
+    void                  *buffer;   //> buffer with the read data
+    std::vector<uint32_t>  cksums;   //> a vector of crc32c checksums
+    size_t                 nbrepair; //> number of repaired pages
   };
 
   //----------------------------------------------------------------------------
@@ -668,6 +671,22 @@ namespace XrdCl
   std::vector<uint32_t>& PageInfo::GetCksums()
   {
     return pImpl->cksums;
+  }
+
+  //----------------------------------------------------------------------------
+  // Set number of repaired pages
+  //----------------------------------------------------------------------------
+  void PageInfo::SetNbRepair( size_t nbrepair )
+  {
+    pImpl->nbrepair = nbrepair;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get number of repaired pages
+  //----------------------------------------------------------------------------
+  size_t PageInfo::GetNbRepair()
+  {
+    return pImpl->nbrepair;
   }
 
   //------------------------------------------------------------------------
