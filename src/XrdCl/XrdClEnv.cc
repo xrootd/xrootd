@@ -28,8 +28,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Get string
   //----------------------------------------------------------------------------
-  bool Env::GetString( const std::string &key, std::string &value )
+  bool Env::GetString( const std::string &k, std::string &value )
   {
+    std::string key = UnifyKey( k );
     XrdSysRWLockHelper scopedLock( pLock );
     StringMap::iterator it;
     it = pStringMap.find( key );
@@ -48,8 +49,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Put string
   //----------------------------------------------------------------------------
-  bool Env::PutString( const std::string &key, const std::string &value )
+  bool Env::PutString( const std::string &k, const std::string &value )
   {
+    std::string key = UnifyKey( k );
     XrdSysRWLockHelper scopedLock( pLock, false );
 
     //--------------------------------------------------------------------------
@@ -84,8 +86,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Get int
   //----------------------------------------------------------------------------
-  bool Env::GetInt( const std::string &key, int &value )
+  bool Env::GetInt( const std::string &k, int &value )
   {
+    std::string key = UnifyKey( k );
     XrdSysRWLockHelper scopedLock( pLock );
     IntMap::iterator it;
     it = pIntMap.find( key );
@@ -104,8 +107,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Put int
   //----------------------------------------------------------------------------
-  bool Env::PutInt( const std::string &key, int value )
+  bool Env::PutInt( const std::string &k, int value )
   {
+    std::string key = UnifyKey( k );
     XrdSysRWLockHelper scopedLock( pLock, false );
 
     //--------------------------------------------------------------------------
@@ -141,8 +145,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Import int
   //----------------------------------------------------------------------------
-  bool Env::ImportInt( const std::string &key, const std::string &shellKey )
+  bool Env::ImportInt( const std::string &k, const std::string &shellKey )
   {
+    std::string key = UnifyKey( k );
     XrdSysRWLockHelper scopedLock( pLock, false );
     std::string strValue = GetEnv( shellKey );
     if( strValue == "" )
@@ -169,8 +174,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Import string
   //----------------------------------------------------------------------------
-  bool Env::ImportString( const std::string &key, const std::string &shellKey )
+  bool Env::ImportString( const std::string &k, const std::string &shellKey )
   {
+    std::string key = UnifyKey( k );
     XrdSysRWLockHelper scopedLock( pLock, false );
     std::string value = GetEnv( shellKey );
     if( value == "" )
@@ -186,8 +192,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Get default integer value for the given key
   //------------------------------------------------------------------------
-  bool Env::GetDefaultIntValue( const std::string &key, int &value )
+  bool Env::GetDefaultIntValue( const std::string &k, int &value )
   {
+    std::string key = UnifyKey( k );
     auto itr = theDefaultInts.find( key );
     if( itr == theDefaultInts.end() ) return false;
     value = itr->second;
@@ -197,8 +204,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Get default string value for the given key
   //------------------------------------------------------------------------
-  bool Env::GetDefaultStringValue( const std::string &key, std::string &value )
+  bool Env::GetDefaultStringValue( const std::string &k, std::string &value )
   {
+    std::string key = UnifyKey( k );
     auto itr = theDefaultStrs.find( key );
     if( itr == theDefaultStrs.end() ) return false;
     value = itr->second;
