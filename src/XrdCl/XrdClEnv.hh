@@ -22,6 +22,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <algorithm>
 
 #include "XrdSys/XrdSysPthread.hh"
 
