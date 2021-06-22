@@ -187,7 +187,7 @@ virtual int       Init(XrdSysLogger *lp, const char *cfn) /* override */ { retur
 virtual int       Init(XrdSysLogger *lp, const char *cfn, XrdOucEnv *envP) /* override */ { return Init(lp, cfn, 0, envP); }
         int       Init(XrdSysLogger *, const char *, const char *, XrdOucEnv *);
 
-virtual uint64_t  Features() /* override */ { return (successor_->Features() | XRDOSS_HASFSCS); }
+virtual uint64_t  Features() /* override */ { return (successor_->Features() | XRDOSS_HASFSCS | XRDOSS_HASPGRW); }
 
 virtual int       Unlink(const char *path, int Opts=0, XrdOucEnv *eP=0) /* override */;
 virtual int       Rename(const char *oldname, const char *newname,
