@@ -744,6 +744,11 @@ char *XrdOucStream::GetWord(int lowcase)
 {
      char *wp, *ep;
 
+     // A call means the first token was acceptable and we continuing to
+     // parse, hence the line is echoable.
+     //
+     if (llBok == 1) llBok = 2;
+
      // If we have a token, return it
      //
      xline = 1;
