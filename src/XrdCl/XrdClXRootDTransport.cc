@@ -741,7 +741,7 @@ namespace XrdCl
     if( !allocatedSIDs )
       return Status();
 
-    return Status( stError, errSocketError );
+    return Status( stError, errSocketTimeout );
   }
 
   //----------------------------------------------------------------------------
