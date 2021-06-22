@@ -179,6 +179,8 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           getDump(const char *dtype, int dlen);
 
+       int           getPathID() {return PathID;}
+
        XrdProtocol  *Match(XrdLink *lp);
 
        int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process

@@ -1,11 +1,10 @@
-#ifndef __XRDXROOTDNORMAIO_H__
-#define __XRDXROOTDNORMAIO_H__
+#ifndef __XRDXROOTDAIOFOB_HH_
+#define __XRDXROOTDAIOFOB_HH_
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d X r o o t d N o r m A i o . h h                    */
+/*                    X r d X r o o t d A i o F o b . h h                     */
 /*                                                                            */
 /* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -30,44 +29,38 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdXrootd/XrdXrootdAioTask.hh"
+#include "XrdXrootd/XrdXrootdProtocol.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
-class XrdXrootdAioBuff;
-class XrdXrootdFile;
-  
-class XrdXrootdNormAio : public XrdXrootdAioTask
+class XrdXrootdAioTask;
+
+class XrdXrootdAioFob
 {
 public:
 
-static XrdXrootdNormAio  *Alloc(XrdXrootdProtocol *protP,
-                                XrdXrootdResponse &resp,
-                                XrdXrootdFile     *fP);
+void         Reset();
 
-       void               DoIt() override;
+void         Reset(XrdXrootdProtocol *protP);
 
-       void               Read(long long offs, int dlen) override;
+void         Schedule(XrdXrootdAioTask *aioP);
 
-       void               Recycle(bool release) override;
+void         Schedule(XrdXrootdProtocol *protP);
 
-       int                Write(long long offs, int dlen) override;
+             XrdXrootdAioFob() : maxQ(0) {}
+
+            ~XrdXrootdAioFob() {Reset();}
 
 private:
+void         Notify(XrdXrootdAioTask *aioP, const char *what);
 
-         XrdXrootdNormAio() : XrdXrootdAioTask("aio request"),
-                              sendQ(0), reorders(0), didSched(false) {}
-virtual ~XrdXrootdNormAio() {}
-
-       bool               CopyF2L_Add2Q(XrdXrootdAioBuff *aioP=0);
-       void               CopyF2L() override;
-       int                CopyL2F() override;
-       bool               CopyL2F(XrdXrootdAioBuff *aioP) override;
-       bool               Send(XrdXrootdAioBuff *aioP, bool final=false);
-
-static const char        *TraceID;
-
-       XrdXrootdAioBuff  *sendQ;
-       off_t              sendOffset; // Required offset of next chunk to send
-       int                reorders;   // Number of buffers that were reordered
-       bool               didSched;   // Next aio request scheduled
+XrdSysMutex         fobMutex;
+bool                Running[XrdXrootdProtocol::maxStreams] = {false};
+struct AioTasks
+      {XrdXrootdAioTask *first;
+       XrdXrootdAioTask *last;
+                         AioTasks() : first(0), last(0) {}
+                        ~AioTasks() {}
+      } aioQ[XrdXrootdProtocol::maxStreams];
+int     maxQ;
 };
 #endif

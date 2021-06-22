@@ -52,6 +52,7 @@
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLinkCtl.hh"
+#include "XrdXrootd/XrdXrootdAioFob.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -2307,7 +2308,8 @@ int XrdXrootdProtocol::do_Read()
                      if (pP->linkAioReq >= as_maxperlnk) pP = 0;
                     }
             if (pP && (aioP = XrdXrootdNormAio::Alloc(pP,pP->Response,IO.File)))
-               {aioP->Read(IO.Offset, IO.IOLen);
+               {if (!IO.File->aioFob) IO.File->aioFob = new XrdXrootdAioFob;
+                aioP->Read(IO.Offset, IO.IOLen);
                 return 0;
                }
             SI->AsyncRej++;

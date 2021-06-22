@@ -38,6 +38,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdXrootd/XrdXrootdAioFob.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdMonFile.hh"
@@ -82,8 +83,9 @@ static const unsigned long  heldMask = ~1UL;
 XrdXrootdFile::XrdXrootdFile(const char *id, const char *path, XrdSfsFile *fp,
                              char mode, bool async, struct stat *sP)
                             : XrdSfsp(fp), mmAddr(0), FileKey(strdup(path)),
-                              FileMode(mode), AsyncMode(async), pgwFob(0),
-                              fhProc(0), ID(id), refCount(0), syncWait(0)
+                              FileMode(mode), AsyncMode(async),
+                              aioFob(0), pgwFob(0), fhProc(0),
+                              ID(id), refCount(0), syncWait(0)
 {
     static XrdSysMutex seqMutex;
     struct stat buf;
@@ -136,6 +138,7 @@ void XrdXrootdFile::Init(XrdXrootdFileLock *lp, XrdSysError *erP, bool sfok)
   
 XrdXrootdFile::~XrdXrootdFile()
 {
+   if (aioFob) aioFob->Reset();
 
    Serialize(); // Make sure there are no outstanding references
 
@@ -147,6 +150,8 @@ XrdXrootdFile::~XrdXrootdFile()
       }
 
    if (fhProc) fhProc->Avail(fHandle);
+
+   if (aioFob) delete aioFob;
 
    if (pgwFob) delete pgwFob;
 

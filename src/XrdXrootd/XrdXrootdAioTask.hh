@@ -38,11 +38,14 @@
 
 class XrdLink;
 class XrdXrootdAioBuff;
+class XrdXrootdNormAio;
+class XrdXrootdPgrwAio;
 class XrdXrootdFile;
   
 class XrdXrootdAioTask : public XrdJob, public XrdXrootdProtocol::gdCallBack
 {
 public:
+friend class XrdXrootdAioFob;
 
         void               Completed(XrdXrootdAioBuff *aioP);
 
@@ -84,6 +87,11 @@ static  const char*        TraceID;
         XrdXrootdAioBuff*  pendQ;
         XrdXrootdAioBuff*  pendQEnd;   // -> Last element in pendQ
 
+union  {XrdXrootdNormAio*  nextNorm;   // Never used in conflicting context!
+        XrdXrootdPgrwAio*  nextPgrw;
+        XrdXrootdAioTask*  nextTask;
+       };
+
         XrdXrootdProtocol* Protocol;   // -> Protocol associated with dataLink
         XrdLink*           dataLink;   // -> Network link
         XrdXrootdFile*     dataFile;   // -> Associated file
@@ -94,18 +102,26 @@ union  {XrdXrootdAioBuff  *finalRead;  // -> A short read indicating EOF
         off_t              dataOffset; // Next offset
         int                dataLen;    // Size remaining
 
-        char               aioType;   // 'r' or 'w'
+        char               aioState;  // See aioXXX below
         std::atomic_uchar  inFlight;
         std::atomic_bool   isDone;    // Request finished
         char               Status;    // Offline | Running | Waiting
 
         XrdXrootdResponse  Response;
 
+// These values may be present in aioState
+//
+static const int aioDead = 0x01;      // This aio encountered a fatal link error
+static const int aioHeld = 0x02;      // This aio is recycled but held
+static const int aioPage = 0x04;      // This read is a pgread
+static const int aioRead = 0x08;      // This is a read (i.e. File to Link copy)
+static const int aioSchd = 0x10;      // Next read has been scheduled
+
 // These must be inspected or set with aioMutex held
 //
-static const int Offline = 0;  // Needs to be rescheduled (read only)
-static const int Running = 1;  // Executing
-static const int Waiting = 2;  // Waiting for buffer needs to be signalled
+static const int Offline = 0;         // Needs to be rescheduled (read only)
+static const int Running = 1;         // Executing
+static const int Waiting = 2;         // Waiting for buffer needs to be signaled
 
 private:
 

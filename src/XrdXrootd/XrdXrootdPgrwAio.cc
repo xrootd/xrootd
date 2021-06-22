@@ -39,6 +39,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdXrootd/XrdXrootdAioFob.hh"
 #include "XrdXrootd/XrdXrootdAioPgrw.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdPgrwAio.hh"
@@ -94,7 +95,7 @@ XrdXrootdPgrwAio *XrdXrootdPgrwAio::Alloc(XrdXrootdProtocol *protP,
 //
    fqMutex.Lock();
    if ((reqP = fqFirst))
-      {fqFirst = reqP->next;
+      {fqFirst = reqP->nextPgrw;
        numFree--;
       }
    fqMutex.UnLock();
@@ -106,8 +107,8 @@ XrdXrootdPgrwAio *XrdXrootdPgrwAio::Alloc(XrdXrootdProtocol *protP,
 // Initialize the object and return it
 //
    reqP->Init(protP, resp, fP);
-   reqP->next   = 0;
-   reqP->badCSP = bcsP;
+   reqP->nextPgrw = 0;
+   reqP->badCSP   = bcsP;
    return reqP;
 }
 
@@ -143,6 +144,10 @@ bool XrdXrootdPgrwAio::CopyF2L_Add2Q(XrdXrootdAioPgrw *aioP)
                                  <<" inF=" <<int(inFlight));
        dataOffset += dlen;
        dataLen    -= dlen;
+       if (dataLen <= 0)
+          {dataFile->aioFob->Schedule(Protocol);
+           aioState |= aioSchd;
+          }
       }
    return true;
 }
@@ -210,6 +215,12 @@ do{bool doWait = dataLen <= 0 || inFlight >= XrdXrootdProtocol::as_maxperreq;
 //
    if (!isDone) SendData(finalRead, true);
    if (finalRead) finalRead->Recycle();
+
+// If we encountered a fatal link error then cancel any pending aio reads on
+// this link. Otherwise if we have not yet scheduled the next aio, do so.
+//
+   if (aioState & aioDead) dataFile->aioFob->Reset(Protocol);
+      else if (!(aioState & aioSchd)) dataFile->aioFob->Schedule(Protocol);
 
 // Do a quick drain if something is still in flight for logging purposes.
 // If the quick drain wasn't successful, then draining will be done in
@@ -342,7 +353,7 @@ void XrdXrootdPgrwAio::DoIt()
 {
 // Reads run disconnected as they will never read from the link.
 //
-   if (aioType == 'r') CopyF2L();
+   if (aioState & aioRead) CopyF2L();
 }
 
 /******************************************************************************/
@@ -356,7 +367,7 @@ void XrdXrootdPgrwAio::Read(long long offs, int dlen)
 //
    dataOffset = highOffset = offs;
    dataLen    = dlen;
-   aioType    = 'r';
+   aioState   = aioRead | aioPage;
 
 // Reads run disconnected and are self-terminating, so we need to inclreas the
 // refcount for the link we will be using to prevent it from disaapearing.
@@ -369,7 +380,7 @@ void XrdXrootdPgrwAio::Read(long long offs, int dlen)
 
 // Schedule ourselves to run this asynchronously and return
 //
-   XrdXrootd::Sched->Schedule(this);
+   dataFile->aioFob->Schedule(this);
 }
   
 /******************************************************************************/
@@ -380,19 +391,20 @@ void XrdXrootdPgrwAio::Recycle(bool release)
 {
 // Update request count, file and link reference count
 //
-   if (Protocol)
+   if (!(aioState & aioHeld))
        {Protocol->aioUpdReq(-1);
-        if (aioType == 'r')
+        if (aioState & aioRead)
            {dataLink->setRef(-1);
             dataFile->Ref(-1);
            }
-        Protocol = 0;
+        aioState |= aioHeld;
        }
 
 // Do some traceing
 //
    TRACEP(FSAIO,"pgrw recycle "<<(release ? "" : "hold ")
-                <<aioType<<" D-S="<<isDone<<'-'<<int(Status));
+                <<(aioState & aioRead ? 'R' : 'W')<<" D-S="
+                <<isDone<<'-'<<int(Status));
 
 // Place the object on the free queue if possible
 //
@@ -402,7 +414,7 @@ void XrdXrootdPgrwAio::Recycle(bool release)
           {fqMutex.UnLock();
            delete this;
           } else {
-           next = fqFirst;
+           nextPgrw = fqFirst;
            fqFirst = this;
            numFree++;
            fqMutex.UnLock();
@@ -448,6 +460,7 @@ bool XrdXrootdPgrwAio::SendData(XrdXrootdAioBuff *bP, bool final)
    if (rc || final)
       {isDone = true;
        dataLen = 0;
+       if (rc) aioState |= aioDead;
       }
    return rc == 0;
 }
@@ -480,6 +493,7 @@ int XrdXrootdPgrwAio::SendDone()
 //
    if ((rc = Response.Send(pgwResp.rsp, infoLen, buff, n))) dataLen = 0;
    isDone = true;
+   if (rc) aioState |= aioDead;
    return rc;
 }
 
@@ -533,7 +547,7 @@ int XrdXrootdPgrwAio::Write(long long offs, int dlen)
 
 // Setup the copy from the network to the file
 //
-   aioType    = 'w';
+   aioState  &= ~aioRead;
    dataOffset = highOffset = offs;
    dataLen    = dlen;
 

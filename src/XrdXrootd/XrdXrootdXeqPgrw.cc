@@ -41,6 +41,7 @@
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucPgrwUtils.hh"
+#include "XrdXrootd/XrdXrootdAioFob.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
@@ -175,7 +176,8 @@ int XrdXrootdProtocol::do_PgRead()
                  }
 
          if (pP && (aioP = XrdXrootdPgrwAio::Alloc(pP, pP->Response, IO.File)))
-            {aioP->Read(IO.Offset, IO.IOLen);
+            {if (!IO.File->aioFob) IO.File->aioFob = new XrdXrootdAioFob;
+             aioP->Read(IO.Offset, IO.IOLen);
              return 0;
             }
          SI->AsyncRej++;

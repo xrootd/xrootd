@@ -20,6 +20,7 @@ add_library(
   SHARED
   XrdXrootd/XrdXrootdAdmin.cc           XrdXrootd/XrdXrootdAdmin.hh
   XrdXrootd/XrdXrootdAioBuff.cc         XrdXrootd/XrdXrootdAioBuff.hh
+  XrdXrootd/XrdXrootdAioFob.cc          XrdXrootd/XrdXrootdAioFob.hh
   XrdXrootd/XrdXrootdAioPgrw.cc         XrdXrootd/XrdXrootdAioPgrw.hh
   XrdXrootd/XrdXrootdAioTask.cc         XrdXrootd/XrdXrootdAioTask.hh
   XrdXrootd/XrdXrootdBridge.cc          XrdXrootd/XrdXrootdBridge.hh

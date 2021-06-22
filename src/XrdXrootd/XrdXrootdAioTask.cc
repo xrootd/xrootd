@@ -39,6 +39,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdXrootd/XrdXrootdAioBuff.hh"
+#include "XrdXrootd/XrdXrootdAioFob.hh"
 #include "XrdXrootd/XrdXrootdAioTask.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -134,7 +135,8 @@ bool XrdXrootdAioTask::Drain()
       {char buff[128];
        snprintf(buff, sizeof(buff),
                       "aio%c overdue %d inflight request%s for",
-                      aioType-0x20, int(inFlight), (inFlight > 1 ? "s" : ""));
+                      (aioState & aioRead ? 'R' : 'W'), int(inFlight),
+                      (inFlight > 1 ? "s" : ""));
        eLog.Emsg("AioTask", buff, dataLink->ID, dataFile->FileKey);
       }
 
@@ -208,8 +210,13 @@ void XrdXrootdAioTask::gdFail()
 // This is a callback indicating the link is dead. Terminate this operation.
 //
    isDone = true;
+   aioState |= aioDead;
    dataLen = 0;
    if (pendWrite) {pendWrite->Recycle(); pendWrite = 0;}
+
+// If this is a read, cancel all queued read requests
+//
+   if (aioState & aioRead) dataFile->aioFob->Reset(Protocol);
 
 // If we still have any requests in flight drain them.
 //
@@ -249,8 +256,8 @@ do{if ((aioP = pendQ))
 // We timed out and this is considered an error
 //
    aioMutex.UnLock();
-   SendError(ETIMEDOUT, (aioType == 'r' ? "aio file read timed out"
-                                        : "aio file write timed out"));
+   SendError(ETIMEDOUT, (aioState & aioRead ? "aio file read timed out"
+                                            : "aio file write timed out"));
    return 0;
 }
   
@@ -277,7 +284,7 @@ void XrdXrootdAioTask::Init(XrdXrootdProtocol *protP,
    dataLink   = resp.theLink();
    Response   = resp;
    dataFile   = fP;
-   aioType    = ' ';
+   aioState   = 0;
    inFlight   = 0;
    isDone     = false;
    Status     = Running;
@@ -298,7 +305,7 @@ void XrdXrootdAioTask::SendError(int rc, const char *eText)
 // For message for display
 //
    snprintf(eBuff, sizeof(eBuff), "async %s failed for %s;",
-            (aioType == 'r' ? "read" : "write"), dataLink->ID);
+            (aioState & aioRead ? "read" : "write"), dataLink->ID);
    eLog.Emsg("AioTask", eBuff, eText, dataFile->FileKey);
 
 // If this request is still active, send the error to the client
@@ -306,12 +313,10 @@ void XrdXrootdAioTask::SendError(int rc, const char *eText)
    if (!isDone)
       {XErrorCode eCode = (XErrorCode)XProtocol::mapError(rc);
        if (Response.Send(eCode, eText))
-          {isDone = true;
+          {aioState |= aioDead;
            dataLen = 0;
-          } else {
-           if (aioType == 'r') dataLen = 0;
-           isDone = true;
-         }
+          } else if (aioState & aioRead) dataLen = 0;
+       isDone = true;
       }
 }
 
@@ -342,12 +347,10 @@ void XrdXrootdAioTask::SendFSError(int rc)
        eLog.Emsg("AioTask", dataLink->ID, eMsg, dataFile->FileKey);
        int rc = XProtocol::mapError(eCode);
        if (Response.Send((XErrorCode)rc, eMsg))
-          {isDone = true;
+          {aioState |= aioDead;
            dataLen = 0;
-          } else {
-           if (aioType == 'r') dataLen = 0;
-           isDone = true;
-          }
+          } else if (aioState & aioRead) dataLen = 0;
+       isDone = true;
       }
 
 // Clear error message and recycle aio object if need be
@@ -461,7 +464,7 @@ bool XrdXrootdAioTask::Wait4Buff(int maxWait)
              int inF = inFlight;
              msgWait += aioWait;
              snprintf(buff, sizeof(buff), "%d tardy aio%c requests for",
-                            inF, aioType-0x20);
+                            inF, (aioState & aioRead ? 'R' : 'W'));
              eLog.Emsg("Wait4Buff", dataLink->ID, buff, dataFile->FileKey);
             }
         }

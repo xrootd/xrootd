@@ -69,7 +69,6 @@ virtual ~XrdXrootdPgrwAio() {}
 
 static const char        *TraceID;
 
-       XrdXrootdPgrwAio  *next;
        XrdXrootdPgwBadCS *badCSP;     // -> Bad checksum recorder
 };
 #endif
