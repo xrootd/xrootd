@@ -219,6 +219,7 @@ XrdOfs::XrdOfs() : tpcRdrHost{}, tpcRdrPort{}
 // Other options
 //
    DirRdr    = false;
+   reProxy   = false;
    OssHasPGrw= false;
 }
 

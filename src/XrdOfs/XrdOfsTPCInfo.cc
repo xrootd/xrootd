@@ -34,6 +34,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdOfs/XrdOfsStats.hh"
+#include "XrdOfs/XrdOfsTPCConfig.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -50,7 +51,7 @@ extern XrdOss      *XrdOfsOss;
 
 namespace XrdOfsTPCParms
 {
-extern bool         autoRM;
+extern XrdOfsTPCConfig Cfg;
 }
 
 /******************************************************************************/
@@ -61,7 +62,7 @@ XrdOfsTPCInfo::~XrdOfsTPCInfo()
 {
 // Check if we should remove the file
 //
-   if (isDST && !isAOK && XrdOfsTPCParms::autoRM && Lfn)
+   if (isDST && !isAOK && XrdOfsTPCParms::Cfg.autoRM && Lfn)
       XrdOfsOss->Unlink(Lfn);
 
 // Delete all appendages
@@ -73,6 +74,7 @@ XrdOfsTPCInfo::~XrdOfsTPCInfo()
    if (Spr) {free(Spr); Spr = 0;}
    if (Tpr) {free(Tpr); Tpr = 0;}
    if (Cks) {free(Cks); Cks = 0;}
+   if (Rpx) {free(Rpx); Rpx = 0;}
    if (Crd) {free(Crd); Crd = 0; Csz = 0;}
    if (cbP) delete cbP;
 }

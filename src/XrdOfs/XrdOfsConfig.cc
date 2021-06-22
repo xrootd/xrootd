@@ -56,6 +56,7 @@
 #include "XrdOfs/XrdOfsPoscq.hh"
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTPC.hh"
+#include "XrdOfs/XrdOfsTPCConfig.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
 #include "XrdOss/XrdOss.hh"
@@ -93,10 +94,13 @@ class  XrdScheduler;
 
 XrdVERSIONINFO(XrdOfs,XrdOfs);
 
+namespace XrdOfsTPCParms
+{
+extern XrdOfsTPCConfig Cfg;
+}
+
 namespace
 {
-XrdOfsTPC::iParm  Parms;          // TPC parameters
-
 int SetMode(const char *path, mode_t mode) {return chmod(path, mode);}
 }
 
@@ -235,10 +239,11 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
        ofsConfig->Default(XrdOfsConfigPI::theCksLib, buff, 0);
       }
 
-// Configure third party copy but only if we are not a manager
+// Configure third party copy but only if we are not a manager. Phase 1 needs
+// to be done before we load the plugins as they may need this info.
 //
    if ((Options & ThirdPC) && !(Options & isManager))
-      NoGo |= ConfigTPC(Eroute);
+      NoGo |= ConfigTPC(Eroute, EnvInfo);
 
 // We need to do pre-initialization for event recording as the oss needs some
 // environmental information from that initialization to initialize the frm,
@@ -281,6 +286,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                 FeatureSet |= XrdSfs::hasAUTZ;
                }
            }
+
+// Configure third party copy phase 2, but only if we are not a manager.
+//
+   if ((Options & ThirdPC) && !(Options & isManager)) NoGo |= ConfigTPC(Eroute);
 
 // Extract out the export list should it have been supplied by the oss plugin
 //
@@ -625,35 +634,70 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 /*                             C o n f i g T P C                              */
 /******************************************************************************/
   
-int XrdOfs::ConfigTPC(XrdSysError &Eroute)
+  
+int XrdOfs::ConfigTPC(XrdSysError &Eroute, XrdOucEnv *envP)
 {
+   XrdOfsTPCConfig &Cfg = XrdOfsTPCParms::Cfg;
 
 // Check if we need to configure rge credentials directory
 //
-   if (Parms.fCreds)
-      {char *cpath = Parms.cpath;
-       if (!(Parms.cpath = ConfigTPCDir(Eroute, cpath))) return 1;
+   if (Cfg.fCreds)
+      {char *cpath = Cfg.cPath;
+       if (!(Cfg.cPath = ConfigTPCDir(Eroute, ".ofs/.tpccreds/", cpath)))
+          return 1;
        free(cpath);
+      }
+
+// Construct the reproxy path. We always do this as need to solve the cart-horse
+// problem of plugin loading. If we don't need it it will be ignored later.
+//
+   if (!(Cfg.rPath = ConfigTPCDir(Eroute, ".ofs/.tpcproxy"))) return 1;
+   if (envP) envP->Put("tpc.rpdir", Cfg.rPath);
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+  
+int XrdOfs::ConfigTPC(XrdSysError &Eroute)
+{
+   XrdOfsTPCConfig &Cfg = XrdOfsTPCParms::Cfg;
+
+// If the oss plugin does not use a reproxy then remove it from the TPC config.
+// Otherwise, complete it.
+//
+   if (ossFeatures & XRDOSS_HASRPXY && Cfg.rPath)
+      {char rPBuff[1024];
+       reProxy = true;
+       snprintf(rPBuff,sizeof(rPBuff),"%s/%x-%%d.rpx",Cfg.rPath,int(time(0)));
+       free(Cfg.rPath);
+       Cfg.rPath = strdup(rPBuff);
+      } else {
+       if (Cfg.rPath) free(Cfg.rPath);
+       Cfg.rPath = 0;
       }
 
 // Initialize the TPC object
 //
-   XrdOfsTPC::Init(Parms);
+   XrdOfsTPC::Init();
 
 // Start TPC operations
 //
    return (XrdOfsTPC::Start() ? 0 : 1);
 }
-
 /******************************************************************************/
 /*                          C o n f i g T P C D i r                           */
 /******************************************************************************/
 
-char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *xPath)
+char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *sfx,
+                                                const char *xPath)
 {
   
    const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
    const int BMode = S_IRWXU|        S_IRGRP|S_IXGRP; // 750
+   const int nswOpt= XrdOucNSWalk::retFile | XrdOucNSWalk::retLink;
    const char *iName;
    char pBuff[MAXPATHLEN], *aPath;
    int rc;
@@ -661,12 +705,12 @@ char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *xPath)
 // Construct the proper path to stored credentials
 //
    iName = XrdOucUtils::InstName(-1);
-   if (xPath) aPath = XrdOucUtils::genPath(xPath, iName, ".ofs/.tpccreds/");
+   if (xPath) aPath = XrdOucUtils::genPath(xPath, iName, sfx);
       else {if (!(aPath = getenv("XRDADMINPATH")))
                {XrdOucUtils::genPath(pBuff, MAXPATHLEN, "/tmp", iName);
                 aPath = pBuff;
                }
-            aPath = XrdOucUtils::genPath(aPath, (char *)0, ".ofs/.tpccreds/");
+            aPath = XrdOucUtils::genPath(aPath, (char *)0, sfx);
            }
 
 // Make sure directory path exists
@@ -687,7 +731,7 @@ char *XrdOfs::ConfigTPCDir(XrdSysError &Eroute, const char *xPath)
 
 // list the contents of teh directory
 //
-   XrdOucNSWalk nsWalk(&Eroute, aPath, 0, XrdOucNSWalk::retFile);
+   XrdOucNSWalk nsWalk(&Eroute, aPath, 0, nswOpt);
    XrdOucNSWalk::NSEnt *nsX, *nsP = nsWalk.Index(rc);
    if (rc)
       {Eroute.Emsg("Config", rc, "list TPC path", aPath);
@@ -1446,6 +1490,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
 {
    char *val, pgm[1024];
+   XrdOfsTPCConfig &Parms = XrdOfsTPCParms::Cfg;
    *pgm = 0;
    int  reqType;
    bool rdrok = true;
@@ -1464,29 +1509,30 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
          if (!strcmp(val, "cksum"))
             {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","cksum type not specified"); return 1;}
-             if (Parms.Ckst) free(Parms.Ckst);
-             Parms.Ckst = strdup(val);
+             if (Parms.cksType) free(Parms.cksType);
+             Parms.cksType = strdup(val);
              continue;
             }
          if (!strcmp(val, "scan"))
             {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","scan type not specified"); return 1;}
-                  if (strcmp(val, "stderr")) Parms.Grab = -2;
-             else if (strcmp(val, "stdout")) Parms.Grab = -1;
-             else if (strcmp(val, "all"   )) Parms.Grab =  0;
+                  if (strcmp(val, "stderr")) Parms.errMon = -2;
+             else if (strcmp(val, "stdout")) Parms.errMon = -1;
+             else if (strcmp(val, "all"   )) Parms.errMon =  0;
              else {Eroute.Emsg("Config","invalid scan type -",val); return 1;}
              continue;
             }
-         if (!strcmp(val, "echo"))  {Parms.xEcho = 1; continue;}
-         if (!strcmp(val, "logok")) {Parms.Logok = 1; continue;}
-         if (!strcmp(val, "autorm")){Parms.autoRM = 1; continue;}
-         if (!strcmp(val, "oids"))  {Parms.oidsOK = 1; continue;}
+         if (!strcmp(val, "echo"))  {Parms.doEcho = true; continue;}
+         if (!strcmp(val, "logok")) {Parms.LogOK  = true; continue;}
+         if (!strcmp(val, "autorm")){Parms.autoRM = true; continue;}
+         if (!strcmp(val, "oids"))  {Parms.noids  = false;continue;}
          if (!strcmp(val, "pgm"))
             {if (!Config.GetRest(pgm, sizeof(pgm)))
                 {Eroute.Emsg("Config", "tpc command line too long"); return 1;}
              if (!*pgm)
                 {Eroute.Emsg("Config", "tpc program not specified"); return 1;}
-             Parms.Pgm = strdup( pgm );
+             if (Parms.XfrProg) free(Parms.XfrProg);
+             Parms.XfrProg = strdup( pgm );
              break;
             }
          if (!strcmp(val, "require"))
@@ -1513,18 +1559,18 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
          if (!strcmp(val, "ttl"))
             {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","tpc ttl value not specified"); return 1;}
-             if (XrdOuca2x::a2tm(Eroute,"tpc ttl default",val,&Parms.Dflttl,1))
+             if (XrdOuca2x::a2tm(Eroute,"tpc ttl default",val,&Parms.dflTTL,1))
                  return 1;
              if (!(val = Config.GetWord())) break;
              if (!(isdigit(*val))) {Config.RetToken(); continue;}
-             if (XrdOuca2x::a2tm(Eroute,"tpc ttl maximum",val,&Parms.Maxttl,1))
+             if (XrdOuca2x::a2tm(Eroute,"tpc ttl maximum",val,&Parms.maxTTL,1))
                  return 1;
              continue;
             }
          if (!strcmp(val, "xfr"))
             {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","tpc xfr value not specified"); return 1;}
-             if (XrdOuca2x::a2i(Eroute,"tpc xfr",val,&Parms.Xmax,1)) return 1;
+             if (XrdOuca2x::a2i(Eroute,"tpc xfr",val,&Parms.xfrMax,1)) return 1;
              continue;
             }
          if (!strcmp(val, "streams"))
@@ -1535,15 +1581,15 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
                 {*comma++ = 0;
                  if (!(*comma))
                     {Eroute.Emsg("Config","tpc streams max value missing"); return 1;}
-                 if (XrdOuca2x::a2i(Eroute,"tpc max streams",comma,&Parms.SMax,0,15))
+                 if (XrdOuca2x::a2i(Eroute,"tpc max streams",comma,&Parms.tcpSMax,0,15))
                     return 1;
                 }
-             if (XrdOuca2x::a2i(Eroute,"tpc streams",val,&Parms.Strm,0,15)) return 1;
+             if (XrdOuca2x::a2i(Eroute,"tpc streams",val,&Parms.tcpSTRM,0,15)) return 1;
              continue;
             }
          if (!strcmp(val, "fcreds"))
             {char aBuff[64];
-             Parms.fCreds = 1;
+             Parms.fCreds = true;
              if (!(val = Config.GetWord()) || (*val == '?' && *(val+1) == '\0'))
                 {Eroute.Emsg("Config","tpc fcreds auth not specified"); return 1;}
              if (strlen(val) >= sizeof(aBuff))
@@ -1556,10 +1602,10 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
              continue;
             }
          if (!strcmp(val, "fcpath"))
-            {if (Parms.cpath) {free(Parms.cpath); Parms.cpath = 0;}
-             if (!(val = Config.GetWord()))
+            {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","tpc fcpath arg not specified"); return 1;}
-             Parms.cpath = strdup(val);
+             if (Parms.cPath) free(Parms.cPath);
+             Parms.cPath = strdup(val);
              continue;
             }
          Eroute.Say("Config warning: ignoring invalid tpc option '",val,"'.");

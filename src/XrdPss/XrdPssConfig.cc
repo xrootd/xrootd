@@ -50,6 +50,7 @@
 #include "XrdPss/XrdPssUtils.hh"
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -87,7 +88,7 @@
 
 #define TS_DBG(x,m)    if (!strcmp(x,var)) {SysTrace.What |= m; return 0;}
 
-/*******x**********************************************************************/
+/******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
@@ -112,6 +113,7 @@ bool         XrdPssSys::xLfn2Pfn  = false;
 bool         XrdPssSys::dcaCheck  = false;
 bool         XrdPssSys::dcaWorld  = false;
 bool         XrdPssSys::deferID   = false;
+bool         XrdPssSys::reProxy   = false;
 
 namespace XrdProxy
 {
@@ -124,6 +126,8 @@ extern XrdOucSid       *sidP;
 extern XrdOucEnv       *envP;
 
 extern XrdSecsssID     *idMapper; // -> Auth ID mapper
+
+extern int              rpFD;
 
 extern bool             idMapAll;
 
@@ -151,7 +155,7 @@ using namespace XrdProxy;
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdPssSys::Configure(const char *cfn)
+int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 {
 /*
   Function: Establish configuration at start up time.
@@ -233,6 +237,24 @@ int XrdPssSys::Configure(const char *cfn)
 // If we have a cache, indicate so in the feature set
 //
    if(psxConfig->hasCache()) myFeatures |= XRDOSS_HASCACH;
+
+// If we need to reproxy, then open the directory where the reproxy information
+// will ne placed. The path is in the Env.
+//
+   if (reProxy)
+      {char *rPath;
+       if (!envP || !(rPath = envP->Get("tpc.rpdir")))
+          {eDest.Say("Config warning: ignoring 'pss.reproxy'; TPC is not enabled!");
+           reProxy = false;
+           myFeatures &= ~XRDOSS_HASRPXY;
+          } else {
+           rpFD = XrdSysFD_Open(rPath, O_DIRECTORY);
+           if (rpFD < 0)
+              {eDest.Emsg("Config", "to open reproxy directory", rPath);
+               return 1;
+              }
+          }
+      }
 
 // Finalize the configuration
 //
@@ -469,6 +491,13 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("persona",       xpers);
    TS_PSX("setopt",        ParseSet);
    TS_PSX("trace",         ParseTrace);
+
+   if (!strcmp("reproxy", var))
+      {myFeatures |= XRDOSS_HASRPXY;
+       reProxy = true;
+       Config.GetWord(); // Force echo
+       return 0;
+      }
 
    // Copy the variable name as this may change because it points to an
    // internal buffer in Config. The vagaries of effeciency. Then get value.

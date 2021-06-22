@@ -66,6 +66,11 @@ void        SetCreds(const char *evar, const char *creds, int crdsz)
                      Csz = crdsz;
                     }
 
+void        SetRPath(const char *rpath)
+                    {if (Rpx) free(Rpx);
+                     Rpx = strdup(rpath);
+                    }
+
 void        SetStreams(char sval) {Str = sval;}
 
 void        Success() {isAOK = true;}
@@ -81,7 +86,7 @@ void        Success() {isAOK = true;}
                       Dst(vDst ? strdup(vDst) :0),
                       Spr(vSpr ? strdup(vSpr) :0),
                       Tpr(vTpr ? strdup(vTpr) :0),
-                      Env(0), Crd(0), Csz(0), Str(0),
+                      Rpx(0), Env(0), Crd(0), Csz(0), Str(0),
                       inWtR(false), isDST(false), isAOK(false)
                       {}
 
@@ -95,6 +100,7 @@ char           *Lfn;   // Rendezvous path   or dest LFN
 char           *Dst;   // Rendezvous dest   or dest PFN
 char           *Spr;   // Source protocol
 char           *Tpr;   // Target protocol
+char           *Rpx;   // -> Reproxy path
 const char     *Env;   // -> creds envar name
 char           *Crd;   // Credentials to be forwarded dst->src
 int             Csz;   // Size of credentials

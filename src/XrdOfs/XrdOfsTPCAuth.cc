@@ -34,6 +34,7 @@
   
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTPCAuth.hh"
+#include "XrdOfs/XrdOfsTPCConfig.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -45,6 +46,12 @@
   
 extern XrdSysError  OfsEroute;
 extern XrdOfsStats  OfsStats;
+
+namespace XrdOfsTPCParms
+{
+extern XrdOfsTPCConfig Cfg;
+}
+using namespace XrdOfsTPCParms;
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
@@ -217,7 +224,7 @@ int XrdOfsTPCAuth::Get(XrdOfsTPC::Facts &Args, XrdOfsTPCAuth **theTPC)
 
 // Add this request as a pending authorization to the queue
 //
-   if (!(aP = new XrdOfsTPCAuth(maxTTL)))
+   if (!(aP = new XrdOfsTPCAuth(Cfg.maxTTL)))
       return Fatal(Args, "insufficient memory", ENOMEM);
 
 // Set the copy authorization information
@@ -267,7 +274,7 @@ int XrdOfsTPCAuth::RunTTL(int Init)
 //
 do{authMutex.Lock();
    cP = authQ; pP = 0;
-   eNow = time(0); eWait = maxTTL; numExp = 0;
+   eNow = time(0); eWait = Cfg.maxTTL; numExp = 0;
    while(cP)
         {if (eNow < cP->expT)
             {eDiff = cP->expT - eNow;

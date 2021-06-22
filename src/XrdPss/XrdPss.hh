@@ -102,16 +102,28 @@ int     Write(XrdSfsAio *aiop);
          // Constructor and destructor
          XrdPssFile(const char *tid)
                    : XrdOssDF(tid, XrdOssDF::DF_isFile|XrdOssDF::DF_isProxy),
-                     tpcPath(0), entity(0) {}
+                     rpInfo(0), entity(0) {}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
+                       if (rpInfo) delete(rpInfo);
                        if (tpcPath) free(tpcPath);
                       }
 
 private:
 
-      char *tpcPath;
+struct tprInfo
+      {char  *tprPath;
+       char  *dstURL;
+       size_t fSize;
 
+              tprInfo(const char *fn) : tprPath(strdup(fn)),dstURL(0),fSize(0)
+                                        {}
+             ~tprInfo() {if (tprPath) free(tprPath);
+                         if (dstURL)  free(dstURL);
+                        }
+      } *rpInfo;
+
+      char         *tpcPath;
 const XrdSecEntity *entity;
 };
 
@@ -147,7 +159,8 @@ virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 void      EnvInfo(XrdOucEnv *envP);
 uint64_t  Features() {return myFeatures;}
-int       Init(XrdSysLogger *, const char *);
+int       Init(XrdSysLogger *, const char *) override {return -ENOTSUP;}
+int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP) override;
 int       Lfn2Pfn(const char *Path, char *buff, int blen);
 const
 char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc);
@@ -189,6 +202,7 @@ static bool         xLfn2Pfn;
 static bool         dcaCheck;
 static bool         dcaWorld;
 static bool         deferID;  // Defer ID mapping until needed
+static bool         reProxy;  // TPC requires reproxing
 
          XrdPssSys();
 virtual ~XrdPssSys() {}
@@ -202,7 +216,7 @@ XrdVersionInfo    *myVersion;// -> Compilation version
 XrdSecsssID       *idMapper; // -> Auth ID mapper
 uint64_t          myFeatures;// Our feature set
 
-int    Configure(const char *);
+int    Configure(const char *, XrdOucEnv *);
 int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);

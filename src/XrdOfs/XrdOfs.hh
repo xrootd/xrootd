@@ -473,6 +473,7 @@ static XrdOfsHandle     *dummyHandle;
 XrdSysMutex              ocMutex; // Global mutex for open/close
 
 bool              DirRdr;         // Opendir() can be redirected.
+bool              reProxy;        // Reproxying required for TPC
 bool              OssHasPGrw;     // True: oss implements full rgRead/Write
 
 /******************************************************************************/
@@ -496,8 +497,10 @@ int   remove(const char type, const char *path, XrdOucErrInfo &out_error,
 int           ConfigDispFwd(char *buff, struct fwdOpt &Fwd);
 int           ConfigPosc(XrdSysError &Eroute);
 int           ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
+int           ConfigTPC(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
 int           ConfigTPC(XrdSysError &Eroute);
-char         *ConfigTPCDir(XrdSysError &Eroute, const char *xPath);
+char         *ConfigTPCDir(XrdSysError &Eroute, const char *sfx,
+                                                const char *xPath=0);
 const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,

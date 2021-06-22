@@ -84,6 +84,7 @@ add_library(
   XrdOfs/XrdOfsStats.cc         XrdOfs/XrdOfsStats.hh
   XrdOfs/XrdOfsTPC.cc           XrdOfs/XrdOfsTPC.hh
   XrdOfs/XrdOfsTPCAuth.cc       XrdOfs/XrdOfsTPCAuth.hh
+                                XrdOfs/XrdOfsTPCConfig.hh
   XrdOfs/XrdOfsTPCJob.cc        XrdOfs/XrdOfsTPCJob.hh
   XrdOfs/XrdOfsTPCInfo.cc       XrdOfs/XrdOfsTPCInfo.hh
   XrdOfs/XrdOfsTPCProg.cc       XrdOfs/XrdOfsTPCProg.hh

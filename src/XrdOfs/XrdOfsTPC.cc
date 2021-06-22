@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <atomic>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -40,6 +41,7 @@
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTPC.hh"
 #include "XrdOfs/XrdOfsTPCAuth.hh"
+#include "XrdOfs/XrdOfsTPCConfig.hh"
 #include "XrdOfs/XrdOfsTPCJob.hh"
 #include "XrdOfs/XrdOfsTPCProg.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -73,20 +75,14 @@ struct fcTb {char *aVar;
              bool  aOpt;
              bool  aGSI;
              }     fcAuth[fcMax];
-char              *XfrProg  = 0;
-char              *cksType  = 0;
+
 const char        *gsiPKH   = "-----BEGIN PRIVATE KEY-----\n";
-int                tcpSTRM  = 0;
-int                tcpSMax  = 15;
-int                LogOK    = 0;
-int                xfrMax   = 9;
-int                tpcOK    = 0;
-int                encTPC   = 0;
-int                errMon   =-3;
+
 int                fcNum    = 0;
-bool               doEcho   = false;
-bool               autoRM   = false;
-bool               noids    = true;
+bool               tpcOK    = false;
+bool               encTPC   = false;
+
+XrdOfsTPCConfig    Cfg;
 }
 
 using namespace XrdOfsTPCParms;
@@ -156,8 +152,10 @@ XrdAccAuthorize   *XrdOfsTPC::fsAuth   = 0;
 
 char              *XrdOfsTPC::cPath    = 0;
 
-int                XrdOfsTPC::maxTTL   =15;
-int                XrdOfsTPC::dflTTL   = 7;
+namespace
+{
+atomic_int rpInst = {0};
+}
   
 /******************************************************************************/
 /*                               A d d A u t h                                */
@@ -299,7 +297,7 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
 
 // Log the grant if so wanted
 //
-   if (LogOK)
+   if (Cfg.LogOK)
       {char Buff[1024];
        snprintf(Buff, sizeof(Buff), "%s granted tpc access by %s to",
                 Args.Usr->tident, Args.Org);
@@ -322,7 +320,7 @@ int XrdOfsTPC::Death(XrdOfsTPC::Facts &Args, const char *eMsg, int eCode, int no
 {
 // If automatc removal is wanted, remove the file.
 //
-   if (autoRM && Args.Pfn) XrdOfsOss->Unlink(Args.Lfn);
+   if (Cfg.autoRM && Args.Pfn) XrdOfsOss->Unlink(Args.Lfn);
 
 // Return error information
 //
@@ -403,58 +401,31 @@ int XrdOfsTPC::getTTL(XrdOucEnv *Env)
        {char *ePtr;
         int   n;
         n = strtol(vTTL, &ePtr, 10);
-        if (n < 0 || *ePtr) return dflTTL;
-        return (n > maxTTL ? maxTTL : n);
+        if (n < 0 || *ePtr) return Cfg.dflTTL;
+        return (n > Cfg.maxTTL ? Cfg.maxTTL : n);
        }
-    return dflTTL;
+    return Cfg.dflTTL;
 }
 
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
+void XrdOfsTPC::Init()
 {
    std::string aStr;
-
-// Set program if specified
-//
-   if (Parms.Pgm)
-      {if (XfrProg) free(XfrProg);
-       XfrProg = Parms.Pgm;
-       Parms.Pgm = 0;
-      }
-
-// Set checksum type if specified
-//
-   if (Parms.Ckst)
-      {if (cksType) free(cksType);
-       cksType = Parms.Ckst;
-      }
 
 // Create credential forwarding template, if cred path specified. It is
 // gauranteed to end with a slash (it better be).
 //
-   if (Parms.cpath && Parms.fCreds) cPath = strdup(Parms.cpath);
+   if (Cfg.cPath && Cfg.fCreds) cPath = Cfg.cPath;
       else cPath = 0;
 
 // Check for streams option
 //
-   if (Parms.Strm > 15) Parms.Strm = 15;
+   if (Cfg.tcpSTRM > 15) Cfg.tcpSTRM = 15;
+   if (Cfg.tcpSMax > 15) Cfg.tcpSMax = 15;
 
-// Set all other static values
-//
-   if (Parms.Dflttl >  0) dflTTL = Parms.Dflttl;
-   if (Parms.Maxttl >  0) maxTTL = Parms.Maxttl;
-   if (Parms.Logok  >= 0) LogOK  = Parms.Logok;
-   if (Parms.Strm   >  0) tcpSTRM= Parms.Strm;
-   if (Parms.SMax   >  0) tcpSMax= Parms.SMax;
-   if (Parms.Xmax   >  0) xfrMax = Parms.Xmax;
-   if (Parms.Grab   <  0) errMon = Parms.Grab;
-   if (Parms.xEcho  >= 0) doEcho = Parms.xEcho != 0;
-   if (Parms.autoRM >= 0) autoRM = Parms.autoRM != 0;
-
-   noids  = Parms.oidsOK == 0;
 
 // Record all delegated auths
 //
@@ -555,7 +526,7 @@ int XrdOfsTPC::Start()
 
 // If there is no copy program then we use the default one
 //
-   if (!XfrProg) XfrProg = strdup("xrdcp --server");
+   if (!Cfg.XfrProg) Cfg.XfrProg = strdup("xrdcp --server");
 
 // Allocate copy program objects
 //
@@ -568,7 +539,7 @@ int XrdOfsTPC::Start()
 // All done
 //
    XrdOucEnv::Export("XRDTPC", (encTPC ? "+1" : "1"));
-   tpcOK = 1;
+   tpcOK = true;
    return 1;
 }
   
@@ -619,7 +590,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 // If the lfn, if present, it must be absolute.
 //
         if (!tpcLfn) tpcLfn = Args.Lfn;
-   else if (noids && *tpcLfn != '/')
+   else if (Cfg.noids && *tpcLfn != '/')
            return Death(Args,"source lfn not absolute",EINVAL);
    else doRN = (strcmp(Args.Lfn, tpcLfn) != 0);
 
@@ -630,9 +601,9 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
        long nStrm = strtol(tpcStr, &eP, 10);
        if (nStrm < 0 || *eP)
           return Death(Args, "tpc streams value is invalid", EINVAL);
-       if (nStrm > tcpSMax) nStrm = tcpSMax;
+       if (nStrm > Cfg.tcpSMax) nStrm = Cfg.tcpSMax;
        sVal = static_cast<char>(nStrm);
-      } else sVal = static_cast<char>(tcpSTRM);
+      } else sVal = static_cast<char>(Cfg.tcpSTRM);
 
 // Generate the origin id
 //
@@ -662,7 +633,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
        cgiL -= n;
       }
 
-// Insert tpc toksns unless this is a delegated tpc which needs no tokens
+// Insert tpc tokens unless this is a delegated tpc which needs no tokens
 //
    if (!enVar)
       {if (cgiL < 3) return Death(Args, "url too long", EINVAL);
@@ -684,9 +655,19 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
    if (enVar && Args.Usr->credslen > 0)
       myTPC->Info.SetCreds(enVar, Args.Usr->creds, Args.Usr->credslen);
 
+// Setup reproxing if this is required
+//
+   if (Cfg.rPath)
+      {int inst = rpInst++;
+       char rpBuff[1024];
+       snprintf(rpBuff, sizeof(rpBuff), Cfg.rPath, inst);
+       myTPC->Info.SetRPath(rpBuff);
+       Args.Env->Put("tpc.reproxy", rpBuff);
+      }
+
 // Set number of streams to use
 //
-   if (sVal > 1) myTPC->Info.SetStreams(sVal);
+   if (sVal > 0) myTPC->Info.SetStreams(sVal);
 
 // All done
 //

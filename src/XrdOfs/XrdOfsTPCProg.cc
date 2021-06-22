@@ -32,6 +32,7 @@
 #include <strings.h>
   
 #include "XrdOfs/XrdOfsTPC.hh"
+#include "XrdOfs/XrdOfsTPCConfig.hh"
 #include "XrdOfs/XrdOfsTPCJob.hh"
 #include "XrdOfs/XrdOfsTPCProg.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -53,13 +54,8 @@ extern XrdOss      *XrdOfsOss;
 
 namespace XrdOfsTPCParms
 {
-extern char        *XfrProg;
-extern char        *cksType;
-extern int          xfrMax;
-extern int          errMon;
-extern bool         doEcho;
-extern bool         autoRM;
-};
+extern XrdOfsTPCConfig Cfg;
+}
 
 using namespace XrdOfsTPCParms;
 
@@ -170,14 +166,14 @@ int XrdOfsTPCProg::Init()
 
 // Allocate copy program objects
 //
-   for (n = 0; n < xfrMax; n++)
-       {pgmIdle = new XrdOfsTPCProg(pgmIdle, n, errMon);
-        if (pgmIdle->Prog.Setup(XfrProg, &OfsEroute)) return 0;
+   for (n = 0; n < Cfg.xfrMax; n++)
+       {pgmIdle = new XrdOfsTPCProg(pgmIdle, n, Cfg.errMon);
+        if (pgmIdle->Prog.Setup(Cfg.XfrProg, &OfsEroute)) return 0;
        }
 
 // All done
 //
-   doEcho = doEcho || GTRACE(debug);
+   Cfg.doEcho = Cfg.doEcho || GTRACE(debug);
    return 1;
 }
 
@@ -240,7 +236,7 @@ int XrdOfsTPCProg::Xeq()
 {
    EPNAME("Xeq");
    credFile cFile(Job);
-   const char *Args[6], *eVec[5], **envArg;
+   const char *Args[6], *eVec[6], **envArg;
    char *lP, *Colon, *cksVal, sBuff[8], *tident = Job->Info.Org;
    char *Quest = index(Job->Info.Key, '?');
    int i, rc, aNum = 0;
@@ -254,7 +250,7 @@ int XrdOfsTPCProg::Xeq()
 
 // Echo out what we are doing if so desired
 //
-   if (doEcho)
+   if (Cfg.doEcho)
       {if (Quest) *Quest = 0;
        OfsEroute.Say(Pname,tident," copying ",Job->Info.Key," to ",Job->Info.Dst);
        if (Quest) *Quest = '?';
@@ -262,7 +258,7 @@ int XrdOfsTPCProg::Xeq()
 
 // Determine checksum option
 //
-   cksVal = (Job->Info.Cks ? Job->Info.Cks : XrdOfsTPCParms::cksType);
+   cksVal = (Job->Info.Cks ? Job->Info.Cks : Cfg.cksType);
    if (cksVal)
       {Args[aNum++] = "-C";
        Args[aNum++] = cksVal;
@@ -305,6 +301,14 @@ int XrdOfsTPCProg::Xeq()
        eVec[i++] = tprBuff;
       }
 
+// If we need to reproxy, export the path
+//
+   char rpxBuff[1024];
+   if (Job->Info.Rpx)
+      {snprintf(rpxBuff, sizeof(rpxBuff), "XRD_CPTARGET=%s", Job->Info.Rpx);
+       eVec[i++] = rpxBuff;
+      }
+
 // Determine if credentials are being passed, If so, pass where it is.
 //
    if (cFile.Path) eVec[i++] = cFile.pEnv;
@@ -325,9 +329,9 @@ int XrdOfsTPCProg::Xeq()
    while((lP = JobStream.GetLine()))
         {if ((Colon = index(lP, ':')) && *(Colon+1) == ' ')
             {strncpy(eRec, Colon+2, sizeof(eRec)-1); 
-	     eRec[sizeof(eRec)-1] = 0;
-	    }
-         if (doEcho && *lP) OfsEroute.Say(Pname, lP);
+             eRec[sizeof(eRec)-1] = 0;
+            }
+         if (Cfg.doEcho && *lP) OfsEroute.Say(Pname, lP);
         }
 
 // The job has completed. So, we must get the ending status.
@@ -344,7 +348,7 @@ int XrdOfsTPCProg::Xeq()
 //
    if (rc)
       {OfsEroute.Emsg("TPC", Job->Info.Org, Job->Info.Lfn, eRec);
-       if (autoRM) XrdOfsOss->Unlink(Job->Info.Lfn);
+       if (Cfg.autoRM) XrdOfsOss->Unlink(Job->Info.Lfn);
       } else Job->Info.Success();
 
 // All done

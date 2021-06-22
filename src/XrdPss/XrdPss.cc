@@ -73,6 +73,10 @@
 #define O_DIRECT 0
 #endif
 
+#ifndef ENOATTR
+#define ENOATTR ENODATA
+#endif
+
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/
@@ -107,6 +111,8 @@ static const char   *osslclCGI = "oss.lcl=1";
 
 static const int     PBsz = 4096;
 
+       int           rpFD = -1;
+
        bool          idMapAll = false;
 
        bool          outProxy = false; // True means outgoing proxy
@@ -115,7 +121,6 @@ static const int     PBsz = 4096;
 
        XrdSysTrace SysTrace("Pss",0);
 }
-
 using namespace XrdProxy;
 
 /******************************************************************************/
@@ -139,7 +144,7 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
 // Ignore the parms (we accept none for now) and call the init routine
 //
    envP = envp;
-   return (XrdProxySS.Init(Logger, cFN) ? 0 : (XrdOss *)&XrdProxySS);
+   return (XrdProxySS.Init(Logger, cFN, envP) ? 0 : (XrdOss *)&XrdProxySS);
 }
 }
  
@@ -166,7 +171,7 @@ XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
 
   Output:   Returns zero upon success otherwise (-errno).
 */
-int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN)
+int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN, XrdOucEnv *envP)
 {
    int NoGo;
    const char *tmp;
@@ -179,7 +184,7 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *cFN)
 
 // Initialize the subsystems
 //
-   tmp = ((NoGo = Configure(cFN)) ? "failed." : "completed.");
+   tmp = ((NoGo = Configure(cFN, envP)) ? "failed." : "completed.");
    eDest.Say("------ Proxy storage system initialization ", tmp);
 
 // All done.
@@ -770,7 +775,17 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    if (tpcMode)
       {Oflag &= ~O_NOFOLLOW;
        if (!XrdProxy::outProxy || !IS_FWDPATH(path))
-          {if (rwMode) {tpcPath = strdup(path); return XrdOssOK;}
+          {if (rwMode)
+              {tpcPath = strdup(path);
+               if (XrdPssSys::reProxy)
+                  {const char *rPath = Env.Get("tpc.reproxy");
+                   if (!rPath || *rPath != '/') return -ENOATTR;
+                   if (!(rPath = rindex(rPath, '/')) || *(rPath+1) == 0)
+                      return -EFAULT;
+                   rpInfo = new tprInfo(rPath+1);
+                  }
+               return XrdOssOK;
+              }
            ucgiOK = false;
           }
       }
@@ -1096,15 +1111,76 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 
 int XrdPssFile::Fstat(struct stat *buff)
 {
-    if (fd < 0)
-       {if (!tpcPath) return -XRDOSS_E8004;
-        XrdOucEnv fstatEnv(0, 0, entity);
-        if (XrdProxySS.Stat(tpcPath, buff, 0, &fstatEnv))
-           memset(buff, 0, sizeof(struct stat));
-        return XrdOssOK;
-       }
+// If we have a file descriptor then return a stat for it
+//
+   if (fd >= 0) return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
 
-    return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
+// Otherwise, if this is not a tpc of any kind, return an error
+//
+   if (!tpcPath) return -XRDOSS_E8004;
+
+// If this is a normal tpc then simply issue the stat against the origin
+//
+   if (!rpInfo)
+      {XrdOucEnv fstatEnv(0, 0, entity);
+       return XrdProxySS.Stat(tpcPath, buff, 0, &fstatEnv);
+      }
+
+// This is a reproxy tpc, if we have not yet dertermined the true dest, do so.
+//
+   struct stat Stat;
+
+   if (rpInfo->dstURL == 0
+   ||  !fstatat(rpFD, rpInfo->tprPath, &Stat, AT_SYMLINK_NOFOLLOW))
+      {char lnkbuff[2048]; int lnklen;
+       lnklen = readlinkat(rpFD, rpInfo->tprPath, lnkbuff, sizeof(lnkbuff)-1);
+       if (lnklen <= 0)
+          {int rc = 0;
+           if (lnklen < 0) {if (errno != ENOENT) rc = -errno;}
+               else rc = -EFAULT;
+           if (rc)
+              {unlinkat(rpFD, rpInfo->tprPath, 0);
+               return rc;
+              }
+          } else {
+            unlinkat(rpFD, rpInfo->tprPath, 0);
+            lnkbuff[lnklen] = 0;
+            if (rpInfo->dstURL) free(rpInfo->dstURL);
+            rpInfo->dstURL = strdup(lnkbuff);
+            rpInfo->fSize = 1;
+std::cerr<<"Pss_fstat: "<<tident<<" "<<rpInfo->tprPath<<" maps "
+         <<tpcPath<<" -> "<<lnkbuff<<"\n"<<std::flush;
+          }
+      }
+
+// At this point we may or may not have the final endpoint. An error here could
+// be due to write error recovery, so make allowance for that.
+//
+   if (rpInfo->dstURL)
+      {if (!XrdPosixXrootd::Stat(rpInfo->dstURL, buff))
+          {if (!(rpInfo->fSize = buff->st_size)) rpInfo->fSize = 1;
+           return XrdOssOK;
+          }
+       free(rpInfo->dstURL);
+       rpInfo->dstURL = 0;
+      }
+
+// We don't have the final endpoint. If we ever had it before, then punt.
+//
+   if (rpInfo->fSize)
+      {memset(buff, 0, sizeof(struct stat));
+       buff->st_size = rpInfo->fSize;
+       return XrdOssOK;
+      }
+
+// If we are here then maybe the reproxy option was the wrong config setting.
+// Give stat a try on the origin we'll retry resolution on the next stat.
+//
+   XrdOucEnv fstatEnv(0, 0, entity);
+
+   if (XrdProxySS.Stat(tpcPath, buff, 0, &fstatEnv))
+       memset(buff, 0, sizeof(struct stat));
+   return XrdOssOK;
 }
 
 /******************************************************************************/
