@@ -112,7 +112,7 @@ XrdSecsssID::XrdSecsssID(authType aType, const XrdSecEntity *idP,
 // Generate a default identity
 //
    if (idP) defaultID = new XrdSecsssEnt(idP);
-      else  defaultID = genID(!isStatic);
+      else  defaultID = genID(isStatic);
 
 // Establish a pointer to this object.
 //
@@ -192,7 +192,7 @@ XrdSecsssEnt *XrdSecsssID::genID(bool Secure)
   
 XrdSecsssID *XrdSecsssID::getObj(authType &aType, XrdSecsssEnt *&idP)
 {
-   bool Secure = true;
+   bool sType = false;
 
 // Prevent changes
 //
@@ -202,13 +202,13 @@ XrdSecsssID *XrdSecsssID::getObj(authType &aType, XrdSecsssEnt *&idP)
 //
    if (!IDMapper)
       {aType = idStatic;
-       Secure= false;
+       sType = true;
        idP   = 0;
       } else {
        aType = IDMapper->myAuth;
        idP   = IDMapper->defaultID;
       }
-   if (!idP) idP = genID(Secure);
+   if (!idP) idP = genID(sType);
 
 // Return result
 //
