@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Add per file stream scheduling to async I/O.
   **[Server]** Full comprehensive implementation of pgread and pgwrite.
   **[Server]** Add additional xrootd trace options.
   **[Server]** Automatically turn off async I/O for default oss plug-in.
