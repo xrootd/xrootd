@@ -1025,11 +1025,12 @@ namespace XrdCl
         }
     }
 
+    bool finalrsp = !( status->IsOK() && status->code == suContinue );
+
     SyncResponseHandler * syncHandler = dynamic_cast<SyncResponseHandler*>( pUserHandler );
     if( !syncHandler )
       pUserHandler->HandleResponseWithHosts( status, response, hostList );
 
-    bool finalrsp = !( status->IsOK() && status->code == suContinue );
     if( finalrsp )
     {
       if( syncHandler )
@@ -1049,9 +1050,15 @@ namespace XrdCl
       pFS->AssignLastURL( hostList->front().url );
 
     bool finalrsp = !( status->IsOK() && status->code == suContinue );
+
+    SyncResponseHandler *syncHandler = dynamic_cast<SyncResponseHandler*>( pUserHandler );
+    if( !syncHandler )
+      pUserHandler->HandleResponseWithHosts( status, response, hostList );
+
     if( finalrsp )
     {
-      pUserHandler->HandleResponseWithHosts( status, response, hostList );
+      if( syncHandler )
+        pUserHandler->HandleResponseWithHosts( status, response, hostList );
       delete this;
     }
   }
