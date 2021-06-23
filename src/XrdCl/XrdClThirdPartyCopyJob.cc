@@ -723,7 +723,7 @@ namespace XrdCl
     bool canceled = false;
     while( 1 )
     {
-      XrdSysTimer::Wait( 5000 );
+      XrdSysTimer::Wait( 2500 );
 
       if( progress )
       {
@@ -841,7 +841,7 @@ namespace XrdCl
     bool canceled = false;
     while( 1 )
     {
-      XrdSysTimer::Wait( 1000 );
+      XrdSysTimer::Wait( 2500 );
 
       if( progress )
       {
