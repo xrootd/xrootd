@@ -69,17 +69,26 @@ XrdOfsPoscq::XrdOfsPoscq(XrdSysError *erp, XrdOss *oss, const char *fn, int sv)
 /*                                   A d d                                    */
 /******************************************************************************/
   
-int XrdOfsPoscq::Add(const char *Tident, const char *Lfn)
+int XrdOfsPoscq::Add(const char *Tident, const char *Lfn, bool isNew)
 {
+   XrdSysMutexHelper myHelp(myMutex);
+   std::map<std::string,int>::iterator it = pqMap.end();
    XrdOfsPoscq::Request tmpReq;
    struct stat Stat;
    FileSlot *freeSlot;
-   int fP, rc;
+   int fP;
 
-// Add is only called when file is to be created. Therefore, it must not exist.
-// We need to check this to avoid deleting already created files.
+// Add is only called when file is to be created. Therefore, it must not exist
+// unless it is being replaced typically due to a retry. If not being replaced
+// then We need to check this to avoid deleting already created files.
+// Otherwise, we need to see if the file is already in the queue to avoid it
+// being deleted after the fact because it would be in the queue twice.
 //
-   if (!(rc = ossFS->Stat(Lfn, &Stat))) return -EEXIST;
+   if (!ossFS->Stat(Lfn, &Stat))
+      {if (isNew) return -EEXIST;
+       it = pqMap.find(std::string(Lfn));
+       if (it != pqMap.end() && VerOffset(Lfn, it->second)) return it->second;
+      }
 
 // Construct the request
 //
@@ -90,7 +99,6 @@ int XrdOfsPoscq::Add(const char *Tident, const char *Lfn)
 
 // Obtain a free slot
 //
-   myMutex.Lock();
    if ((freeSlot = SlotList))
       {fP = freeSlot->Offset;
        SlotList = freeSlot->Next;
@@ -98,7 +106,6 @@ int XrdOfsPoscq::Add(const char *Tident, const char *Lfn)
        SlotLust = freeSlot;
       } else {fP = pocSZ; pocSZ += ReqSize;}
    pocIQ++;
-   myMutex.UnLock();
 
 // Write out the record
 //
@@ -107,6 +114,11 @@ int XrdOfsPoscq::Add(const char *Tident, const char *Lfn)
        myMutex.Lock(); pocIQ--; myMutex.UnLock();
        return -EIO;
       }
+
+// Check if we update the map or simply add it to the map
+//
+   if (it != pqMap.end()) it->second = fP;
+      else pqMap[std::string(Lfn)] = fP;
 
 // Return the record offset
 //
@@ -127,9 +139,17 @@ int XrdOfsPoscq::Commit(const char *Lfn, int Offset)
 
 // Indicate the record is free
 //
-   if (reqWrite((void *)&addT, sizeof(addT), Offset)) return 0;
-   eDest->Emsg("Commit", Lfn, "not commited to the persist queue.");
-   return -EIO;
+   if (!reqWrite((void *)&addT, sizeof(addT), Offset))
+      {eDest->Emsg("Commit", Lfn, "not commited to the persist queue.");
+       return -EIO;
+      }
+
+// Remove entry from the map and return
+//
+   myMutex.Lock();
+   pqMap.erase(std::string(Lfn));
+   myMutex.UnLock();
+   return 0;
 }
 
 /******************************************************************************/
@@ -169,6 +189,10 @@ int XrdOfsPoscq::Del(const char *Lfn, int Offset, int Unlink)
    freeSlot->Next   = SlotList;
    SlotList         = freeSlot;
    if (pocIQ > 0) pocIQ--;
+
+// Remove item from the map
+//
+   pqMap.erase(std::string(Lfn));
    myMutex.UnLock();
 
 // All done
@@ -290,7 +314,7 @@ void XrdOfsPoscq::FailIni(const char *txt)
 /*                              r e q W r i t e                               */
 /******************************************************************************/
   
-int XrdOfsPoscq::reqWrite(void *Buff, int Bsz, int Offs)
+bool XrdOfsPoscq::reqWrite(void *Buff, int Bsz, int Offs)
 {
    int rc = 0;
 
@@ -301,25 +325,26 @@ int XrdOfsPoscq::reqWrite(void *Buff, int Bsz, int Offs)
           else pocWS--;
       }
 
-   if (rc < 0) {eDest->Emsg("reqWrite",errno,"write", pocFN); return 0;}
-   return 1;
+   if (rc < 0) {eDest->Emsg("reqWrite",errno,"write", pocFN); return false;}
+   return true;
 }
 
 /******************************************************************************/
 /*                               R e W r i t e                                */
 /******************************************************************************/
   
-int XrdOfsPoscq::ReWrite(XrdOfsPoscq::recEnt *rP)
+bool XrdOfsPoscq::ReWrite(XrdOfsPoscq::recEnt *rP)
 {
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    char newFN[MAXPATHLEN], *oldFN;
-   int  newFD, oldFD, Offs = ReqOffs, aOK = 1;
+   int  newFD, oldFD, Offs = ReqOffs;
+   bool aOK = true;
 
 // Construct new file and open it
 //
    strcpy(newFN, pocFN); strcat(newFN, ".new");
    if ((newFD = XrdSysFD_Open(newFN, O_RDWR|O_CREAT|O_TRUNC, Mode)) < 0)
-      {eDest->Emsg("ReWrite",errno,"open",newFN); return 0;}
+      {eDest->Emsg("ReWrite",errno,"open",newFN); return false;}
 
 // Setup to write/swap the file
 //
@@ -330,7 +355,9 @@ int XrdOfsPoscq::ReWrite(XrdOfsPoscq::recEnt *rP)
 //
    while(rP)
         {rP->Offset = Offs;
-         if (!reqWrite((void *)&rP->reqData, ReqSize, Offs)) {aOK = 0; break;}
+         if (!reqWrite((void *)&rP->reqData, ReqSize, Offs))
+            {aOK = false; break;}
+         pqMap[std::string(rP->reqData.LFN)] = Offs;
          Offs += ReqSize;
          rP = rP->Next;
         }
@@ -338,7 +365,7 @@ int XrdOfsPoscq::ReWrite(XrdOfsPoscq::recEnt *rP)
 // If all went well, rename the file
 //
    if (aOK && rename(newFN, oldFN) < 0)
-      {eDest->Emsg("ReWrite",errno,"rename",newFN); aOK = 0;}
+      {eDest->Emsg("ReWrite",errno,"rename",newFN); aOK = false;}
 
 // Perform post processing
 //
@@ -353,7 +380,7 @@ int XrdOfsPoscq::ReWrite(XrdOfsPoscq::recEnt *rP)
 /*                             V e r O f f s e t                              */
 /******************************************************************************/
   
-int XrdOfsPoscq::VerOffset(const char *Lfn, int Offset)
+bool XrdOfsPoscq::VerOffset(const char *Lfn, int Offset)
 {
 
 // Verify the offset
@@ -362,7 +389,7 @@ int XrdOfsPoscq::VerOffset(const char *Lfn, int Offset)
       {char buff[128];
        sprintf(buff, "Invalid slot %d for", Offset);
        eDest->Emsg("VerOffset", buff, Lfn);
-       return 0;
+       return false;
       }
-   return 1;
+   return true;
 }

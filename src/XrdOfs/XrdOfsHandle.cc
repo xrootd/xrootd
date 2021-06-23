@@ -407,7 +407,10 @@ int XrdOfsHandle::PoscSet(const char *User, int Unum, short Umod)
    if (!(Col = index(User, ':')) || !(At = index(User, '@')))
       {User = Who; Col = Whc; At = Whh;}
 
-// If we already have a user check if it matches
+// If we already have a user check if it matches. We allow the same user to
+// reconnect to the file even when it is in posc mode to allow for write error
+// recovery. Other users must re-enable posc for the file to show that they are
+// aware that the file is under POSC mode as this is not a recovery.
 //
    if (Posc->User)
       {if (!Unum)

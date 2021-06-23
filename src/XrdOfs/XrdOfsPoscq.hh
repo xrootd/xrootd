@@ -30,6 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <map>
+#include <string>
+
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdOss;
@@ -60,7 +63,7 @@ struct Request reqData;
                      {Next = nval; Offset = 0; Mode = mval; reqData = reqref;}
 };
 
-       int     Add(const char *Tident, const char *Lfn);
+       int     Add(const char *Tident, const char *Lfn, bool isNew);
 
        int     Commit(const char *Lfn, int Offset);
 
@@ -78,15 +81,17 @@ inline int     Num() {return pocIQ;}
 
 private:
 void   FailIni(const char *lfn);
-int    reqRead(void *Buff, int Offs);
-int    reqWrite(void *Buff, int Bsz, int Offs);
-int    ReWrite(recEnt *rP);
-int    VerOffset(const char *Lfn, int Offset);
+//int    reqRead(void *Buff, int Offs);
+bool   reqWrite(void *Buff, int Bsz, int Offs);
+bool   ReWrite(recEnt *rP);
+bool   VerOffset(const char *Lfn, int Offset);
 
 struct FileSlot
       {FileSlot *Next;
        int       Offset;
       };
+
+std::map<std::string, int> pqMap;
 
 XrdSysMutex  myMutex;
 XrdSysError *eDest;

@@ -588,8 +588,11 @@ int XrdOfsFile::open(const char          *path,      // In
 
        // For ephemeral file, we must enter the file into the queue
        //
-       if (isPosc && (oP.poscNum = XrdOfsFS->poscQ->Add(tident,path)) < 0)
-          return XrdOfsFS->Emsg(epname, error, oP.poscNum, "pcreate", path);
+       if (isPosc)
+          {bool isNew = (open_mode & SFS_O_TRUNC) == 0;
+           if ((oP.poscNum = XrdOfsFS->poscQ->Add(tident, path, isNew)) < 0)
+              return XrdOfsFS->Emsg(epname, error, oP.poscNum, "pcreate", path);
+          }
 
        // Create the file. If ENOTSUP is returned, promote the creation to
        // the subsequent open. This is to accomodate proxy support.
