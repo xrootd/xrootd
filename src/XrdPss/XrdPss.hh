@@ -102,7 +102,7 @@ int     Write(XrdSfsAio *aiop);
          // Constructor and destructor
          XrdPssFile(const char *tid)
                    : XrdOssDF(tid, XrdOssDF::DF_isFile|XrdOssDF::DF_isProxy),
-                     rpInfo(0), entity(0) {}
+                     rpInfo(0), tpcPath(0), entity(0) {}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
                        if (rpInfo) delete(rpInfo);
