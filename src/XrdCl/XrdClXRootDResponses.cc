@@ -711,8 +711,11 @@ namespace XrdCl
           response = &nullref;
         // call the user completion handler
         func( *status, *response );
-        // deallocate the wrapper
-        delete this;
+        // check if this is a final respons
+        bool finalrsp = !( status->IsOK() && status->code == suContinue );
+        // deallocate the wrapper if final
+        if( finalrsp )
+          delete this;
       }
 
       std::function<void(XRootDStatus&, AnyObject&)> func;
@@ -733,8 +736,11 @@ namespace XrdCl
       {
         // call the user completion handler
         func( status, response );
-        // deallocate the wrapper
-        delete this;
+        // check if this is a final respons
+        bool finalrsp = !( status->IsOK() && status->code == suContinue );
+        // deallocate the wrapper if final
+        if( finalrsp )
+          delete this;
       }
 
       std::function<void(XRootDStatus*, AnyObject*)> func;
