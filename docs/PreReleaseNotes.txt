@@ -18,6 +18,7 @@ Prerelease Notes
   **[SSS]** Correct client backward incompatibily when 'anygroup' is specified.
 
 + **Minor bug fixes**
+  **[Server]** Re-enable POSC write recovery disabled by previous commit.
   **[Server]** Fix echoing config line that only has a directive.
   **[Server]** Make assumeV4 setting consistent (missing initializer).
   **[Server]** Corect copy-paste error rendering TLS RecvAll() useless.
