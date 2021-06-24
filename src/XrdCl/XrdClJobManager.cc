@@ -118,17 +118,21 @@ namespace XrdCl
     {
       void *threadRet;
       log->Dump( JobMgrMsg, "Stopping worker #%d...", i );
-      if( pthread_cancel( pWorkers[i] ) != 0 )
+      int rc = pthread_cancel( pWorkers[i] );
+      if( rc != 0 )
       {
         log->Error( TaskMgrMsg, "Unable to cancel worker #%d: %s", i,
                     XrdSysE2T( errno ) );
+        if( rc == ESRCH ) continue;
         abort();
       }
       
-      if( pthread_join( pWorkers[i], (void**)&threadRet ) != 0 )
+      rc = pthread_join( pWorkers[i], (void**)&threadRet );
+      if( rc != 0 )
       {
         log->Error( TaskMgrMsg, "Unable to join worker #%d: %s", i,
                     XrdSysE2T( errno ) );
+        if( rc == ESRCH ) continue;
         abort();
       }
 
