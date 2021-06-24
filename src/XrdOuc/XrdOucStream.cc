@@ -503,7 +503,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
        {if (inrd)
            {if (dup2(Child_in, STDIN_FILENO) < 0)
                {Erx(Exec, errno, "setting up standard in for " <<parm[0]);
-                exit(255);
+                _exit(255);
                } else if (Child_in != Child_out) close(Child_in);
            }
        }
@@ -513,7 +513,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     if (Child_out >= 0)
        {if (dup2(Child_out, STDOUT_FILENO) < 0)
            {Erx(Exec, errno, "setting up standard out for " <<parm[0]);
-            exit(255);
+            _exit(255);
            } else if (Child_out != Child_log) close(Child_out);
        }
 
@@ -522,7 +522,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     if (Child_log >= 0)
        {if (dup2(Child_log, STDERR_FILENO) < 0)
            {Erx(Exec, errno, "set up standard err for " <<parm[0]);
-            exit(255);
+            _exit(255);
            } else close(Child_log);
        }
 
@@ -541,7 +541,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     setpgid(0,0);
     execv(parm[0], parm);
     Erx(Exec, errno, "executing " <<parm[0]);
-    exit(255);
+    _exit(255);
 }
 
 /******************************************************************************/
