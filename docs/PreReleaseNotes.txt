@@ -6,30 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
-  **[Server]** Provide a way to verify volumes have been mounted before use.
-  **[Server]** Add per file stream scheduling to async I/O.
-  **[TPC]** Implement the reproxy option for proxies doing TPC.
-  **[Server]** Full comprehensive implementation of pgread and pgwrite.
-  **[Server]** Add additional xrootd trace options.
-  **[Server]** Automatically turn off async I/O for default oss plug-in.
 
 + **Major bug fixes**
-  **[SSS]** Add missing initializer to avoid random sss authentication failure.
-  **[Server]** Fix host related authorization rules that would always fail.
-  **[SSS]** Avoid server-side SEGV for certain configurations.
-  **[SSS]** Correct client backward incompatibily when 'anygroup' is specified.
 
 + **Minor bug fixes**
-  **[Server]** Re-enable POSC write recovery disabled by previous commit.
-  **[Server]** Fix echoing config line that only has a directive.
-  **[Server]** Make assumeV4 setting consistent (missing initializer).
-  **[Server]** Corect copy-paste error rendering TLS RecvAll() useless.
 
 + **Miscellaneous**
-  **[Server]** Report pgread/pgwrite statistics as regulat reads/writes.
-  **[Server]** Avoid running exit handlers when exiting a forked process.
-  **[Server]** Re-architect async I/O to double its capacity.
-  **[Server]** Speed up file close.
-  **[Server]** Add a regular condition variable object to the mix.
-  **[TLS]** Correct certfile screening to capture all files; fixes #1467
-  **[Server]** Make sure to clear OpenSSL error queue after authentication.
