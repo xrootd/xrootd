@@ -359,7 +359,7 @@ int    xprerd(XrdOucStream &Config, XrdSysError &Eroute);
 int    xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD=0);
 int    xspace(XrdOucStream &Config, XrdSysError &Eroute,
               const char *grp, bool isAsgn);
-int    xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
+int    xspaceBuild(OssSpaceConfig &sInfo, XrdSysError &Eroute);
 int    xstg(XrdOucStream &Config, XrdSysError &Eroute);
 int    xstl(XrdOucStream &Config, XrdSysError &Eroute);
 int    xusage(XrdOucStream &Config, XrdSysError &Eroute);

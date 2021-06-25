@@ -51,4 +51,20 @@ struct  OssDPath
         char     *Path2;
         OssDPath(OssDPath *dP,char *p1,char *p2) : Next(dP),Path1(p1),Path2(p2) {}
        };
+
+class   XrdOucString;
+
+struct  OssSpaceConfig
+       {const XrdOucString& sName;
+        const XrdOucString& sPath;
+        const XrdOucString& mName;
+        bool          isXA;
+        bool          noFail;
+        bool          chkMnt;
+        OssSpaceConfig(XrdOucString& sn, XrdOucString& sp, XrdOucString& mn)
+                      : sName(sn), sPath(sp), mName(mn),
+                        isXA(true), noFail(false), chkMnt(false)
+                      {}
+       };
+
 #endif

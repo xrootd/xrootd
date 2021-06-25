@@ -62,7 +62,9 @@
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -1538,11 +1540,12 @@ int XrdOssSys::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xspace
 
-   Purpose:  To parse the directive: space <name> <path>
+   Purpose:  To parse the directive: space <name> <path> {chkmount <id> [nofail]
                                  or: space <name> {assign}default} <lfn> [...]
 
              <name>   logical name for the filesystem.
              <path>   path to the filesystem.
+             <id>     mountpoint name in order to be considered valid
 
    Output: 0 upon success or !0 upon failure.
 
@@ -1551,14 +1554,11 @@ int XrdOssSys::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
 {
-   char *val, *pfxdir, *sfxdir;
-   char grp[XrdOssSpace::minSNbsz], dn[XrdOssSpace::minSNbsz];
-   char fn[MAXPATHLEN+1];
-   int i, k, rc, pfxln, isxa = 0, cnum = 0;
-   struct dirent *dp;
-   struct stat buff;
-   DIR *DFD;
-   bool isAsgn;
+   XrdOucString grp, fn, mn;
+   OssSpaceConfig sInfo(grp, fn, mn);
+   char *val;
+   int  k;
+   bool isAsgn, isStar;
 
 // Get the space name
 //
@@ -1566,22 +1566,32 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
       {Eroute.Emsg("Config", "space name not specified"); return 1;}
    if ((int)strlen(val) > XrdOssSpace::maxSNlen)
       {Eroute.Emsg("Config","excessively long space name - ",val); return 1;}
-   strcpy(grp, val);
+   grp = val;
 
 // Get the path to the space
 //
-   if (!(val = Config.GetWord()))
+   if (!(val = Config.GetWord()) || !(*val))
       {Eroute.Emsg("Config", "space path not specified"); return 1;}
 
 // Check if assignment
 //
    if (((isAsgn = !strcmp("assign",val)) || ! strcmp("default",val)) && !isCD)
-      return xspace(Config, Eroute, grp, isAsgn);
+      return xspace(Config, Eroute, grp.c_str(), isAsgn);
 
-   k = strlen(val);
-   if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
+// Preprocess this path and validate it
+//
+   k = strlen(val)-1;
+   if ((isStar = val[k] == '*')) val[k--] = 0;
+      else while(k > 0 && val[k] == '/') val[k--] = 0;
+
+   if (k >= MAXPATHLEN || val[0] != '/' || (k < 2 && !isStar))
       {Eroute.Emsg("Config", "invalid space path - ", val); return 1;}
-   strcpy(fn, val);
+   fn = val;
+
+// Sanitize the path as we are sensitive to proper placement of slashes
+//
+   do {k = fn.replace("/./", "/");} while(k);
+   do {k = fn.replace("//",  "/");} while(k);
 
 // Additional options (for now) are only available to the old-style cache
 // directive. So, ignore any unless we entered via the directive.
@@ -1590,38 +1600,67 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
       {if ((val = Config.GetWord()))
           {if (strcmp("xa", val))
               {Eroute.Emsg("Config","invalid cache option - ",val); return 1;}
-              else *isCD = isxa = 1;
-          } else   *isCD = 0;
-      } else isxa = 1;
-
-// Check if any directory in the parent can be used for space
-//
-   if (fn[k-1] != '*')
-      {for (i = k-1; i; i--) if (fn[i] != '/') break;
-       fn[i+1] = '/'; fn[i+2] = '\0';
-       return !xspaceBuild(grp, fn, isxa, Eroute);
+              else *isCD = 1;
+          } else  {*isCD = 0; sInfo.isXA = false;}
+      } else {
+       if ((val = Config.GetWord()) && !strcmp("chkmount", val))
+          {if (!(val = Config.GetWord()))
+              {Eroute.Emsg("Config","chkmount ID not specified"); return 1;}
+           if ((int)strlen(val) > XrdOssSpace::maxSNlen)
+              {Eroute.Emsg("Config","excessively long mount name - ",val);
+               return 1;
+              }
+           mn = val;
+           sInfo.chkMnt = true;
+           if ((val = Config.GetWord()))
+              {if (!strcmp("nofail", val)) sInfo.noFail = true;
+                  else {Eroute.Emsg("Config","invalid space option - ",val);
+                        return 1;
+                       }
+              }
+          }
       }
 
-// We now need to build a space for each directory
+// Check if this directory in the parent is only to be used for the space
 //
-   for (i = k-1; i; i--) if (fn[i] == '/') break;
-   i++; strcpy(dn, &fn[i]); fn[i] = '\0';
-   sfxdir = &fn[i]; pfxdir = dn; pfxln = strlen(dn)-1;
-   if (!(DFD = opendir(fn)))
-      {Eroute.Emsg("Config", errno, "open space directory", fn); return 1;}
+   if (!isStar)
+      {if (!fn.endswith('/')) fn += '/';
+       return !xspaceBuild(sInfo, Eroute);
+      }
+
+// We now need to build a space for each directory in the parent
+//
+   struct dirent *dp;
+   struct stat    Stat;
+   XrdOucString   pfx, basepath(fn);
+   DIR  *dirP;
+   int   dFD, rc, snum = 0;
+   bool  chkPfx, failed = false;
+
+   if (basepath.endswith('/')) chkPfx = false;
+      else {int pos = basepath.rfind('/');
+            pfx = &basepath[pos+1];
+            basepath.keep(0, pos+1);
+            chkPfx = true;
+           }
+
+   if ((dFD = open(fn.c_str(), O_DIRECTORY)) < 0 || !(dirP = fdopendir(dFD)))
+      {Eroute.Emsg("Config",errno,"open space directory",fn.c_str()); return 1;}
 
    errno = 0;
-   while((dp = readdir(DFD)))
+   while((dp = readdir(dirP)))
         {if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")
-         || (pfxln && strncmp(dp->d_name, pfxdir, pfxln)))
-            continue;
-         strcpy(sfxdir, dp->d_name);
-         if (stat(fn, &buff)) break;
-         if ((buff.st_mode & S_IFMT) == S_IFDIR)
-            {val = sfxdir + strlen(sfxdir) - 1;
-            if (*val++ != '/') {*val++ = '/'; *val = '\0';}
-            if (xspaceBuild(grp, fn, isxa, Eroute)) cnum++;
-               else {closedir(DFD); return 1;}
+         || (chkPfx && strncmp(dp->d_name,pfx.c_str(),pfx.length()))) continue;
+
+         if (fstatat(dFD, dp->d_name, &Stat, AT_SYMLINK_NOFOLLOW))
+            {basepath += dp->d_name;
+             break;
+            }
+
+         if ((Stat.st_mode & S_IFMT) == S_IFDIR)
+            {fn = basepath; fn += dp->d_name; fn += '/';
+             if (!xspaceBuild(sInfo, Eroute)) failed = true;
+             snum++;
             }
          errno = 0;
         }
@@ -1629,11 +1668,13 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
 // Make sure we built all space successfully and have at least one space
 //
    if ((rc = errno))
-      Eroute.Emsg("Config", errno, "process space directory", fn);
-      else if (!cnum) Eroute.Say("Config warning: no space directories found in ",val);
+      Eroute.Emsg("Config", errno, "process space directory", fn.c_str());
+      else if (!snum)
+              Eroute.Say("Config warning: no space directories found in ",
+                         fn.c_str());
 
-   closedir(DFD);
-   return rc != 0;
+   closedir(dirP);
+   return rc != 0 || failed;
 }
 
 /******************************************************************************/
@@ -1666,15 +1707,39 @@ do{if ((pl = SPList.Match(path))) pl->Set(path, grp);
 
 /******************************************************************************/
 
-int XrdOssSys::xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute)
+int XrdOssSys::xspaceBuild(OssSpaceConfig &sInfo, XrdSysError &Eroute)
 {
-    XrdOssCache_FS::FSOpts fopts = (isxa ? XrdOssCache_FS::isXA
-                                         : XrdOssCache_FS::None);
-    XrdOssCache_FS *fsp;
+    XrdOssCache_FS::FSOpts fopts = (sInfo.isXA ? XrdOssCache_FS::isXA
+                                               : XrdOssCache_FS::None);
     int rc = 0;
-    if (!(fsp = new XrdOssCache_FS(rc, grp, fn, fopts))) rc = ENOMEM;
+
+// Check if we need to verify the mount. Note: sPath must end with a '/'!
+//
+   if (sInfo.chkMnt)
+      {XrdOucString mFile(sInfo.mName), mPath(sInfo.sPath);
+       struct stat Stat;
+       mPath.erasefromend(1);
+       mFile += '.';
+       mFile += rindex(mPath.c_str(), '/')+1;
+       mPath += '/'; mPath += mFile;
+       if (stat(mPath.c_str(), &Stat))
+          {char buff[2048];
+           snprintf(buff, sizeof(buff), "%s@%s; ",
+                          mFile.c_str(), sInfo.sPath.c_str());
+           Eroute.Say((sInfo.noFail ? "Config warning:" : "Config failure:"),
+                      " Unable to verify mount point ", buff, XrdSysE2T(errno));
+           return (sInfo.noFail ? 1 : 0);
+          }
+      }
+
+// Add the space to the configuration
+
+    XrdOssCache_FS *fsp = new XrdOssCache_FS(rc, sInfo.sName.c_str(),
+                                                 sInfo.sPath.c_str(), fopts);
     if (rc)
-       {Eroute.Emsg("Config", rc, "create space", fn);
+       {char buff[256];
+        snprintf(buff, sizeof(buff), "create %s space at", sInfo.sName.c_str());
+        Eroute.Emsg("Config", rc, buff, sInfo.sPath.c_str());
         if (fsp) delete fsp;
         return 0;
        }
