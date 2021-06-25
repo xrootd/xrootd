@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Provide a way to verify volumes have been mounted before use.
   **[Server]** Add per file stream scheduling to async I/O.
   **[TPC]** Implement the reproxy option for proxies doing TPC.
   **[Server]** Full comprehensive implementation of pgread and pgwrite.
