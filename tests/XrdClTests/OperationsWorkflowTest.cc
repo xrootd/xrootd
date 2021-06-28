@@ -575,6 +575,31 @@ void WorkflowTest::ParallelTest(){
 
     delete f;
     delete dataF;
+
+    //----------------------------------------------------------------------------
+    // Test the policies
+    //----------------------------------------------------------------------------
+    std::string url_exists = "/data/1db882c8-8cd6-4df1-941f-ce669bad3458.dat";
+    std::string not_exists = "/data/blablabla.txt";
+    CPPUNIT_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists ), Stat( fs, url_exists ) ).Any() ) );
+
+    std::string also_exists = "/data/3c9a9dd8-bc75-422c-b12c-f00604486cc1.dat";
+    CPPUNIT_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists ),
+                                             Stat( fs, also_exists ),
+                                             Stat( fs, not_exists ) ).Some( 2 ) ) );
+    std::atomic<int> errcnt( 0 );
+    std::atomic<int> okcnt( 0 );
+
+    auto hndl = [&]( auto s, auto i )
+      {
+        if( s.IsOK() ) ++okcnt;
+        else ++errcnt;
+      };
+
+    CPPUNIT_ASSERT_XRDST( WaitFor( Parallel( Stat( fs, url_exists )  >> hndl,
+                                             Stat( fs, also_exists ) >> hndl,
+                                             Stat( fs, not_exists )  >> hndl ).AtLeast( 1 ) ) );
+    CPPUNIT_ASSERT( okcnt == 2 && errcnt == 1 );
 }
 
 
