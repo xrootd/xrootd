@@ -73,24 +73,27 @@ class CopyProcess(object):
   def add_job(self,
               source,
               target,
-              sourcelimit    = 1,
-              force          = False,
-              posc           = False,
-              coerce         = False,
-              mkdir          = False,
-              thirdparty     = 'none',
-              checksummode   = 'none',
-              checksumtype   = '',
-              checksumpreset = '',
-              dynamicsource  = False,
-              chunksize      = 8388608,
-              parallelchunks = 4,
-              inittimeout    = 600,
-              tpctimeout     = 1800,
-              rmBadCksum     = False,
-              retry          = 0,
-              cont           = False,
-              rtrplc         = "force" ):
+              sourcelimit     = 1,
+              force           = False,
+              posc            = False,
+              coerce          = False,
+              mkdir           = False,
+              thirdparty      = 'none',
+              checksummode    = 'none',
+              checksumtype    = '',
+              checksumpreset  = '',
+              dynamicsource   = False,
+              chunksize       = 8388608,
+              parallelchunks  = 4,
+              inittimeout     = 600,
+              tpctimeout      = 1800,
+              rmBadCksum      = False,
+              cptimeout       = 0,
+              xrateThreashold = 0,
+              xrate           = 0,
+              retry           = 0,
+              cont            = False,
+              rtrplc          = "force" ):
     """Add a job to the copy process.
 
     :param         source: original source URL
@@ -129,6 +132,12 @@ class CopyProcess(object):
     :type      tpctimeout: integer
     :param     rmBadCksum: remove target file on bad checksum
     :type      rmBadCksum: boolean
+    :param      cptimeout: timeout for classic cp operation
+    :type       cptimeout: integer
+    :param xrateThreashold: data transfer rate threshold
+    :type  xrateThreashold: integer
+    :param           xrate: data transfer rate limit
+    :type            xrate: integer
     :param     retry: number of retries
     :type      retry: integer
     :param     cont: continue copying a file from the point where the previous copy was interrupted
@@ -136,10 +145,11 @@ class CopyProcess(object):
     :param     rtrplc: the retry polic (force or continue)
     :type      rtrplc: string
     """
-    self.__process.add_job(source, target, sourcelimit, force, posc, coerce, mkdir,
-                           thirdparty, checksummode, checksumtype, checksumpreset,
-                           dynamicsource, chunksize, parallelchunks, inittimeout,
-                           tpctimeout, rmBadCksum, retry, cont, rtrplc )
+    self.__process.add_job(source, target, sourcelimit, force, posc,
+                           coerce, mkdir, thirdparty, checksummode, checksumtype,
+                           checksumpreset, dynamicsource, chunksize, parallelchunks, inittimeout,
+                           tpctimeout, rmBadCksum, cptimeout, retry, xrateThreashold,
+                           xrate, cont, rtrplc )
 
   def prepare(self):
     """Prepare the copy jobs. **Must be called before** ``run()``."""
