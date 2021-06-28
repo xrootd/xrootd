@@ -14,7 +14,7 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_ZTN}
-# XrdUtils
+  XrdUtils
   )
 
 set_target_properties(
