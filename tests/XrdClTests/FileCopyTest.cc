@@ -346,7 +346,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string localFile    = "/data/localfile.dat";
 
   CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
-               process10, process11, process12, process13, process14;
+               process10, process11, process12, process13, process14, process15;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -431,12 +431,27 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     CPPUNIT_ASSERT_XRDST( process14.Prepare() );
     CPPUNIT_ASSERT_XRDST( process14.Run(0) );
     CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+
+    //--------------------------------------------------------------------------
+    // Now test the cp-timeout
+    //--------------------------------------------------------------------------
+    results.Clear();
+    properties.Clear();
+    properties.Set( "source",    sourceURL   );
+    properties.Set( "target",    targetURL   );
+    properties.Set( "xrate",     1024 * 1024 ); //< limit the transfer rate to 1MB/s (the file is 1GB big so the transfer will take 1024 seconds)
+    properties.Set( "cpTimeout", 10          ); //< timeout the job after 10 seconds
+    CPPUNIT_ASSERT_XRDST( process15.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process15.Prepare() );
+    CPPUNIT_ASSERT_XRDST_NOTOK( process15.Run(0), XrdCl::errOperationExpired );
+    CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
   }
 
   //----------------------------------------------------------------------------
   // Copy from a Metalink
   //----------------------------------------------------------------------------
   results.Clear();
+  properties.Clear();
   properties.Set( "source",       metalinkURL );
   properties.Set( "target",       targetURL   );
   properties.Set( "checkSumMode", "end2end"   );
