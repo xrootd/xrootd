@@ -346,7 +346,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string localFile    = "/data/localfile.dat";
 
   CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
-               process10, process11, process12, process13, process14, process15;
+               process10, process11, process12, process13, process14, process15, process16;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -445,6 +445,23 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     CPPUNIT_ASSERT_XRDST( process15.Prepare() );
     CPPUNIT_ASSERT_XRDST_NOTOK( process15.Run(0), XrdCl::errOperationExpired );
     CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+
+    //--------------------------------------------------------------------------
+    // Test posc for local files
+    //--------------------------------------------------------------------------
+    results.Clear();
+    properties.Clear();
+    std::string localtrg = "file://localhost/data/tpcFile.dat";
+    properties.Set( "source",    sourceURL );
+    properties.Set( "target",    localtrg  );
+    properties.Set( "posc",      true      );
+    CancelProgressHandler progress16; //> abort the copy after 100MB
+    CPPUNIT_ASSERT_XRDST( process16.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process16.Prepare() );
+    CPPUNIT_ASSERT_XRDST_NOTOK( process16.Run( &progress16 ), errOperationInterrupted );
+    XrdCl::FileSystem localfs( "file://localhost" );
+    XrdCl::StatInfo *ptr = nullptr;
+    CPPUNIT_ASSERT_XRDST_NOTOK( localfs.Stat( "/data/tpcFile.dat", ptr ), XrdCl::errErrorResponse );
   }
 
   //----------------------------------------------------------------------------
