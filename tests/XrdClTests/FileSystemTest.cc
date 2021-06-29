@@ -416,79 +416,6 @@ void FileSystemTest::DeepLocateTest()
 }
 
 //------------------------------------------------------------------------------
-// Handler for chunked DirList
-//------------------------------------------------------------------------------
-class DirListChunkedHandler : public XrdCl::ResponseHandler
-{
-  public:
-
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    DirListChunkedHandler( std::set<std::string> &dirls ) : sem( 0 ), dirls( dirls )
-    {
-
-    }
-
-    //--------------------------------------------------------------------------
-    //
-    //--------------------------------------------------------------------------
-    void HandleResponse( XrdCl::XRootDStatus *status, XrdCl::AnyObject *response )
-    {
-      using namespace XrdCl;
-
-      CPPUNIT_ASSERT_XRDST( *status );
-
-      //------------------------------------------------------------------------
-      // concatenate chunks
-      //------------------------------------------------------------------------
-      if( status->IsOK() )
-      {
-        DirectoryList *list = 0;
-        response->Get( list );
-
-        for( auto itr = list->Begin(); itr != list->End(); ++itr )
-        {
-          DirectoryList::ListEntry *entry = *itr;
-          dirls.insert( entry->GetName() );
-        }      }
-
-      //------------------------------------------------------------------------
-      // if it is the final response we can post the semaphore
-      //------------------------------------------------------------------------
-      if( IsFinal( status ) ) sem.Post();
-
-      //------------------------------------------------------------------------
-      // Clean up
-      //------------------------------------------------------------------------
-      delete status;
-      delete response;
-    }
-
-    //--------------------------------------------------------------------------
-    // Wait until we have all the data
-    //--------------------------------------------------------------------------
-    void Wait()
-    {
-      sem.Wait();
-    }
-
-  private:
-
-    //--------------------------------------------------------------------------
-    // @return : true if it is the final response
-    //--------------------------------------------------------------------------
-    bool IsFinal( XrdCl::XRootDStatus *status )
-    {
-      return !( status->IsOK() && status->code == XrdCl::suContinue );
-    }
-
-    XrdSysSemaphore sem;
-
-    std::set<std::string> &dirls;
-};
-
-//------------------------------------------------------------------------------
 // Dir list
 //------------------------------------------------------------------------------
 void FileSystemTest::DirListTest()
@@ -542,10 +469,20 @@ void FileSystemTest::DirListTest()
 
   for( auto itr = info->Begin(); itr != info->End(); ++itr )
   {
-    DirListChunkedHandler handler( dirls2 );
+    XrdSysSemaphore sem( 0 );
+    auto handler = XrdCl::ResponseHandler::Wrap( [&]( auto &s, auto &r )
+      {
+        CPPUNIT_ASSERT_XRDST( s );
+        auto &list = To<XrdCl::DirectoryList>( r );
+        for( auto itr = list.Begin(); itr != list.End(); ++itr )
+          dirls2.insert( ( *itr )->GetName() );
+        if( s.code == XrdCl::suDone ) 
+          sem.Post();
+      } );
+
     FileSystem fs1( std::string( itr->GetAddress() ) );
-    CPPUNIT_ASSERT_XRDST( fs1.DirList( lsPath, DirListFlags::Stat | DirListFlags::Chunked, &handler ) );
-    handler.Wait();
+    CPPUNIT_ASSERT_XRDST( fs1.DirList( lsPath, DirListFlags::Stat | DirListFlags::Chunked, handler ) );
+    sem.Wait();
   }
   delete info;
   info = 0;
