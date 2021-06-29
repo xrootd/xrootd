@@ -346,7 +346,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string localFile    = "/data/localfile.dat";
 
   CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
-               process10, process11, process12, process13;
+               process10, process11, process12, process13, process14;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -414,6 +414,22 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     CPPUNIT_ASSERT_XRDST( process13.Prepare() );
     CPPUNIT_ASSERT_XRDST_NOTOK( process13.Run(0), XrdCl::errCheckSumError );
     env->PutInt( "ZipMtlnCksum", 0 );
+    CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+
+    //--------------------------------------------------------------------------
+    // Copy with
+    //   `--xrate`
+    //   `--xrate-threshold`
+    //--------------------------------------------------------------------------
+    results.Clear();
+    properties.Clear();
+    properties.Set( "source",          sourceURL        );
+    properties.Set( "target",          targetURL        );
+    properties.Set( "xrate",           1024 * 1024 * 32 ); //< limit the transfer rate to 32MB/s
+    properties.Set( "xrateThreashold", 1024 * 1024 * 30 ); //< fail the job if the transfer rate drops under 30MB/s
+    CPPUNIT_ASSERT_XRDST( process14.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process14.Prepare() );
+    CPPUNIT_ASSERT_XRDST( process14.Run(0) );
     CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
   }
 
