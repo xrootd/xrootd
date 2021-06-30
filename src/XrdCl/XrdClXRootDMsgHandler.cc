@@ -270,11 +270,7 @@ namespace XrdCl
           {
             pReadRawStarted = false;
             pAsyncMsgSize   = dlen;
-#if __cplusplus >= 201103L
-            pTimeoutFence = true;
-#else
-            AtomicCAS( pTimeoutFence, pTimeoutFence, true );
-#endif
+            pTimeoutFence.store( true, std::memory_order_relaxed );
             return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
           }
           else
@@ -293,11 +289,7 @@ namespace XrdCl
           {
             pAsyncMsgSize      = dlen;
             pReadVRawMsgOffset = 0;
-#if __cplusplus >= 201103L
-            pTimeoutFence = true;
-#else
-            AtomicCAS( pTimeoutFence, pTimeoutFence, true );
-#endif
+            pTimeoutFence.store( true, std::memory_order_relaxed );
             return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
           }
           else
@@ -424,11 +416,7 @@ namespace XrdCl
       if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
       {
         action |= NoProcess;
-#if __cplusplus >= 201103L
-        pTimeoutFence = true;
-#else
-        AtomicCAS( pTimeoutFence, pTimeoutFence, true );
-#endif
+        pTimeoutFence.store( true, std::memory_order_relaxed );
       }
       else
         action |= RemoveHandler;
@@ -965,6 +953,9 @@ namespace XrdCl
                pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
 
     if( event == Ready )
+      return 0;
+
+    if( pTimeoutFence.load( std::memory_order_relaxed ) )
       return 0;
 
     HandleError( status, 0 );
@@ -1544,11 +1535,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::TakeDownTimeoutFence()
   {
-#if __cplusplus >= 201103L
-    pTimeoutFence = false;
-#else
-    AtomicCAS( pTimeoutFence, pTimeoutFence, false );
-#endif
+    pTimeoutFence.store( false, std::memory_order_relaxed );
   }
 
   //----------------------------------------------------------------------------
@@ -1629,11 +1616,7 @@ namespace XrdCl
       XrdSysCondVarHelper lck( pCV );
       delete pResponse;
       pResponse = 0;
-#if __cplusplus >= 201103L
-      pTimeoutFence = false;
-#else
-      AtomicCAS( pTimeoutFence, pTimeoutFence, false );
-#endif
+      pTimeoutFence.store( false, std::memory_order_relaxed );
       pCV.Broadcast();
     }
   }

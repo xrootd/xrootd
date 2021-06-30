@@ -228,7 +228,7 @@ namespace XrdCl
           // keep the status in case this is the final result
           res = status;
           // decrement the counter
-          size_t nb = cnt.fetch_sub( 1 );
+          size_t nb = cnt.fetch_sub( 1, std::memory_order_relaxed );
           // we require just one operation to be successful
           if( status.IsOK() ) return true;
           // lets see if this is the last one?
@@ -266,12 +266,12 @@ namespace XrdCl
           res = status;
           if( status.IsOK() )
           {
-            size_t s = succeeded.fetch_add( 1 );
+            size_t s = succeeded.fetch_add( 1, std::memory_order_relaxed );
             if( s + 1 == threshold ) return true; // we reached the threshold
             // we are not yet there
             return false;
           }
-          size_t f = failed.fetch_add( 1 );
+          size_t f = failed.fetch_add( 1, std::memory_order_relaxed );
           // did we dropped bellow the threshold
           if( f == size - threshold ) return true;
           // we still have a chance there will be enough of successful operations
@@ -309,10 +309,10 @@ namespace XrdCl
         bool Examine( const XrdCl::XRootDStatus &status )
         {
           // update number of pending operations
-          size_t pending = pending_cnt.fetch_sub( 1 ) - 1;
+          size_t pending = pending_cnt.fetch_sub( 1, std::memory_order_relaxed ) - 1;
           // although we might have the minimum to succeed we wait for the rest
           if( status.IsOK() ) return false;
-          size_t nb = failed_cnt.fetch_add( 1 );
+          size_t nb = failed_cnt.fetch_add( 1, std::memory_order_relaxed );
           if( nb == failed_threshold ) res = status; // we dropped bellow the threshold
           // all done ...
           if( pending == 0 ) return true;
@@ -403,7 +403,7 @@ namespace XrdCl
         //---------------------------------------------------------------------
         inline void Handle( const XRootDStatus &st )
         {
-            PipelineHandler* hdlr = handler.exchange( nullptr );
+            PipelineHandler* hdlr = handler.exchange( nullptr, std::memory_order_relaxed );
             if( hdlr )
             {
               barrier.wait();

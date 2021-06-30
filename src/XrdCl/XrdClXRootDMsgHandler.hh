@@ -44,9 +44,7 @@
 #include <list>
 #include <memory>
 
-#if __cplusplus >= 201103L
 #include <atomic>
-#endif
 
 namespace XrdCl
 {
@@ -745,11 +743,7 @@ namespace XrdCl
       // Stream (this could happen if server gave oksofar response), otherwise
       // false
       //------------------------------------------------------------------------
-#if __cplusplus >= 201103L
       std::atomic<bool>               pTimeoutFence;
-#else
-      bool                            pTimeoutFence;
-#endif
 
       //------------------------------------------------------------------------
       // if we are serving chunked data to the user's handler in case of

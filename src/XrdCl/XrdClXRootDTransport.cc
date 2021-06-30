@@ -57,9 +57,7 @@
 #include <set>
 #include <limits>
 
-#if __cplusplus >= 201103L
 #include <atomic>
-#endif
 
 XrdVERSIONINFOREF( XrdCl );
 
@@ -2457,20 +2455,13 @@ namespace XrdCl
   XrdSecGetProt_t XRootDTransport::GetAuthHandler()
   {
     Log *log = DefaultEnv::GetLog();
+    char errorBuff[1024];
 
     // the static constructor is invoked only once and it is guaranteed that this
     // is thread safe
-    char errorBuff[1024];
-
-#if __cplusplus >= 201103L
     static std::atomic<XrdSecGetProt_t> authHandler( XrdSecLoadSecFactory( errorBuff, 1024 ) );
-    if( authHandler ) return authHandler;
-#else
-    static XrdSecGetProt_t authHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
-    // use full memory barrier and get the authHandler (if it exists we are done)
-    XrdSecGetProt_t ret = AtomicGet( authHandler );
+    auto ret = authHandler.load( std::memory_order_relaxed );
     if( ret ) return ret;
-#endif
 
     // if we are here it means we failed to load the security library for the
     // first time and we hope the environment changed
@@ -2479,18 +2470,20 @@ namespace XrdCl
     static XrdSysMutex mtx;
     XrdSysMutexHelper lck( mtx );
     // check if in the meanwhile some else didn't load the library
-    if( authHandler ) return authHandler;
+    ret = authHandler.load( std::memory_order_relaxed );
+    if( ret ) return ret;
 
     // load the library
-    authHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
+    ret = XrdSecLoadSecFactory( errorBuff, 1024 );
+    authHandler.store( ret, std::memory_order_relaxed );
     // if we failed report an error
-    if( !authHandler )
+    if( !ret )
     {
       log->Error( XRootDTransportMsg,
                   "Unable to get the security framework: %s", errorBuff );
       return 0;
     }
-    return authHandler;
+    return ret;
   }
 
   //----------------------------------------------------------------------------

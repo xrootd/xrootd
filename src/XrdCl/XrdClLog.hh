@@ -38,9 +38,7 @@
 // and the visibility is relatively undefined. However, we know the stores are
 // at least atomic.
 //------------------------------------------------------------------------------
-#if __cplusplus >= 201103L
 #include <atomic>
-#endif
 
 namespace XrdCl
 {
@@ -239,12 +237,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       LogLevel GetLevel() const
       {
-#if __cplusplus >= 201103L
         LogLevel lvl = pLevel.load(std::memory_order_relaxed);
         return lvl;
-#else
-        return pLevel;
-#endif
       }
 
       //------------------------------------------------------------------------
@@ -261,11 +255,8 @@ namespace XrdCl
       bool StringToLogLevel( const std::string &strLevel, LogLevel &level );
       std::string TopicToString( uint64_t topic );
 
-#if __cplusplus >= 201103L
       std::atomic<LogLevel> pLevel;
-#else
-      LogLevel    pLevel;
-#endif
+
       uint64_t    pMask[DumpMsg+1];
       LogOut     *pOutput;
       TopicMap    pTopicMap;
