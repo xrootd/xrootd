@@ -295,6 +295,11 @@ XrdXrootdFile *XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum,
 
    if (fp)
       {XrdXrootdFileStats &Stats = fp->Stats;
+   //!!! For now we add pgreads to normal reads and pgwrite to normal writes
+   //!!! Once we figure out how to report them separately, we need to do this.
+
+       Stats.xfr.read  += Stats.prw.rBytes;
+       Stats.xfr.write += Stats.prw.wBytes;
 
        if (monP) monP->Close(Stats.FileID,
                              Stats.xfr.read + Stats.xfr.readv,

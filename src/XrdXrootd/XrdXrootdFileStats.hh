@@ -130,8 +130,10 @@ inline void wrOps(int wsz)
                      }
                  }
 
-inline void wvOps(int wsz, int ssz) {}
-/* When we start reporting detail of writev's we will uncomment this
+inline void wvOps(int wsz, int ssz) {wrOps(wsz);}
+/* !!! When we start reporting detail of writev's we will uncomment this
+   !!! For now writev's are treated as single write, not correct but at least
+   !!! the data gets counted.
                  {if (monLvl)
                      {xfr.writev += wsz; ops.writev++; ops.wsegs += ssz; xfrXeq=1;
                       if (monLvl > 1)
