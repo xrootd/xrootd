@@ -26,6 +26,7 @@ Prerelease Notes
   **[Server]** Corect copy-paste error rendering TLS RecvAll() useless.
 
 + **Miscellaneous**
+  **[Server]** Report pgread/pgwrite statistics as regulat reads/writes.
   **[Server]** Avoid running exit handlers when exiting a forked process.
   **[Server]** Re-architect async I/O to double its capacity.
   **[Server]** Speed up file close.
