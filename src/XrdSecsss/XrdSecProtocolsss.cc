@@ -685,7 +685,7 @@ XrdSecCredentials *XrdSecProtocolsss::getCredentials(XrdSecParameters *parms,
       {strcpy(rrHdr.keyName, encKey.Data.Name);
        int n = (strlen(rrHdr.keyName) + 8) & ~7;
        rrHdr.knSize = static_cast<uint8_t>(n);
-      }
+      } else rrHdr.knSize = 0;
 
 // Now simply encode the data and return the result
 //
