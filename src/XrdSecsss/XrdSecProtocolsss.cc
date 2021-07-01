@@ -682,8 +682,8 @@ XrdSecCredentials *XrdSecProtocolsss::getCredentials(XrdSecParameters *parms,
 // Determine if we should send the keyname (v2 servers only)
 //
    if (v2EndPnt)
-      {strcpy(rrHdr.keyName, encKey.Data.Name);
-       int n = (strlen(rrHdr.keyName) + 8) & ~7;
+      {int n = (strlen(encKey.Data.Name) + 8) & ~7;
+       strncpy(rrHdr.keyName, encKey.Data.Name, n);
        rrHdr.knSize = static_cast<uint8_t>(n);
       } else rrHdr.knSize = 0;
 
