@@ -683,7 +683,7 @@ XrdSecCredentials *XrdSecProtocolsss::getCredentials(XrdSecParameters *parms,
 //
    if (v2EndPnt)
       {int n = (strlen(encKey.Data.Name) + 8) & ~7;
-       strncpy(rrHdr.keyName, encKey.Data.Name, n);
+       memcpy(rrHdr.keyName, encKey.Data.Name, n);
        rrHdr.knSize = static_cast<uint8_t>(n);
       } else rrHdr.knSize = 0;
 
