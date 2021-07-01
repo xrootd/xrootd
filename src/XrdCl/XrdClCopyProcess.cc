@@ -40,7 +40,6 @@
 #include <sys/time.h>
 
 #include <memory>
-#include <iostream>
 
 namespace
 {

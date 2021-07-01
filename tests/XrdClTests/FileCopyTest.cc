@@ -346,7 +346,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   std::string localFile    = "/data/localfile.dat";
 
   CopyProcess  process1, process2, process3, process4, process5, process6, process7, process8, process9,
-               process10, process11, process12, process13, process14, process15, process16;
+               process10, process11, process12, process13, process14, process15, process16, process17;
   PropertyList properties, results;
   FileSystem fs( manager2 );
 
@@ -462,6 +462,24 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     XrdCl::FileSystem localfs( "file://localhost" );
     XrdCl::StatInfo *ptr = nullptr;
     CPPUNIT_ASSERT_XRDST_NOTOK( localfs.Stat( "/data/tpcFile.dat", ptr ), XrdCl::errErrorResponse );
+
+    //--------------------------------------------------------------------------
+    // Test --retry and --retry-policy
+    //--------------------------------------------------------------------------
+    results.Clear();
+    properties.Clear();
+    properties.Set( "xrate",     1024 * 1024 * 32 ); //< limit the transfer rate to 32MB/s
+    properties.Set( "cpTimeout", 20               ); //< timeout the job after 20 seconds
+    properties.Set( "source",    sourceURL        );
+    properties.Set( "target",    targetURL        );
+    env->PutInt( "CpRetry", 1 );
+    env->PutString( "CpRetryPolicy", "continue" );
+    CPPUNIT_ASSERT_XRDST( process17.AddJob( properties, &results ) );
+    CPPUNIT_ASSERT_XRDST( process17.Prepare() );
+    CPPUNIT_ASSERT_XRDST( process17.Run(0) );
+    CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+    env->PutInt( "CpRetry", XrdCl::DefaultCpRetry );
+    env->PutString( "CpRetryPolicy", XrdCl::DefaultCpRetryPolicy );
   }
 
   //----------------------------------------------------------------------------
