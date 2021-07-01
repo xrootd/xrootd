@@ -300,6 +300,8 @@ XrdXrootdFile *XrdXrootdFileTable::Del(XrdXrootdMonitor *monP, int fnum,
 
        Stats.xfr.read  += Stats.prw.rBytes;
        Stats.xfr.write += Stats.prw.wBytes;
+       Stats.ops.read  += Stats.prw.rCount;
+       Stats.ops.write += Stats.prw.wCount; // Doesn't include retries!!!
 
        if (monP) monP->Close(Stats.FileID,
                              Stats.xfr.read + Stats.xfr.readv,
