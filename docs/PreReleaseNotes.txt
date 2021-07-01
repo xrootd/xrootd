@@ -14,6 +14,7 @@ Prerelease Notes
   **[Server]** Automatically turn off async I/O for default oss plug-in.
 
 + **Major bug fixes**
+  **[SSS]** Add missing initializer to avoid random sss authentication failure.
   **[Server]** Fix host related authorization rules that would always fail.
   **[SSS]** Avoid server-side SEGV for certain configurations.
   **[SSS]** Correct client backward incompatibily when 'anygroup' is specified.
