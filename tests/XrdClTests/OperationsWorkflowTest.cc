@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClParallelOperation.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClFileSystemOperations.hh"
+#include "XrdCl/XrdClCheckpointOperation.hh"
 #include "XrdCl/XrdClFwd.hh"
 
 #include <algorithm>
@@ -55,6 +56,7 @@ class WorkflowTest: public CppUnit::TestCase
       CPPUNIT_TEST( WorkflowWithFutureTest );
       CPPUNIT_TEST( XAttrWorkflowTest );
       CPPUNIT_TEST( MkDirAsyncTest );
+      CPPUNIT_TEST( CheckpointTest );
     CPPUNIT_TEST_SUITE_END();
     void ReadingWorkflowTest();
     void WritingWorkflowTest();
@@ -67,6 +69,7 @@ class WorkflowTest: public CppUnit::TestCase
     void WorkflowWithFutureTest();
     void XAttrWorkflowTest();
     void MkDirAsyncTest();
+    void CheckpointTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( WorkflowTest );
@@ -924,5 +927,47 @@ void WorkflowTest::MkDirAsyncTest() {
                   );
 
   CPPUNIT_ASSERT(t.get().status == stOK); 
+}
+
+void WorkflowTest::CheckpointTest() {
+  return ;
+  using namespace XrdCl;
+
+  File f1;
+  const char data[] = "Murzynek Bambo w Afryce mieszka,\n"
+                      "czarna ma skore ten nasz kolezka\n"
+                      "Uczy sie pilnie przez cale ranki\n"
+                      "Ze swej murzynskiej pierwszej czytanki.";
+  std::string url = "root://localhost//data/chkpttest.txt";
+
+  CPPUNIT_ASSERT_XRDST( WaitFor( Open( f1, url, OpenFlags::New | OpenFlags::Write ) |
+                                 Write( f1, 0, sizeof( data ), data ) |
+                                 Close( f1 ) ) );
+
+  //---------------------------------------------------------------------------
+  // Update the file without commiting the checkpoint
+  //---------------------------------------------------------------------------
+  File f2;
+  const char update[] = "Jan A Kowalski";
+
+  CPPUNIT_ASSERT_XRDST( WaitFor( Open( f2, url, OpenFlags::Update ) |
+                                 Checkpoint( f2, ChkPtCode::BEGIN ) |
+                                 ChkptWrt( f2, 0, sizeof( update ), update ) |
+                                 Close( f2 ) ) );
+
+  File f3;
+  char readout[sizeof( data )];
+  // readout the data to see if the update was succesful (it shouldn't be)
+  CPPUNIT_ASSERT_XRDST( WaitFor( Open( f3, url, OpenFlags::Read ) |
+                                 Read( f3, 0, sizeof( readout ), readout ) |
+                                 Close( f3 ) ) );
+  // we expect the data to be unchanged
+  CPPUNIT_ASSERT( strncmp( readout, data, sizeof( data ) ) == 0 );
+
+  //---------------------------------------------------------------------------
+  // Now clean up
+  //---------------------------------------------------------------------------
+  FileSystem fs( url );
+  CPPUNIT_ASSERT_XRDST( WaitFor( Rm( fs, "/data/chkpttest.txt" ) ) );
 }
 
