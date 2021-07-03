@@ -1644,7 +1644,7 @@ int XrdOssSys::xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD)
             chkPfx = true;
            }
 
-   if ((dFD = open(fn.c_str(), O_DIRECTORY)) < 0 || !(dirP = fdopendir(dFD)))
+   if ((dFD=open(basepath.c_str(),O_DIRECTORY)) < 0 || !(dirP=fdopendir(dFD)))
       {Eroute.Emsg("Config",errno,"open space directory",fn.c_str()); return 1;}
 
    errno = 0;
