@@ -930,7 +930,6 @@ void WorkflowTest::MkDirAsyncTest() {
 }
 
 void WorkflowTest::CheckpointTest() {
-  return ;
   using namespace XrdCl;
 
   File f1;
@@ -963,6 +962,25 @@ void WorkflowTest::CheckpointTest() {
                                  Close( f3 ) ) );
   // we expect the data to be unchanged
   CPPUNIT_ASSERT( strncmp( readout, data, sizeof( data ) ) == 0 );
+
+  //---------------------------------------------------------------------------
+  // Update the file and commit the changes
+  //---------------------------------------------------------------------------
+  File f4;
+  CPPUNIT_ASSERT_XRDST( WaitFor( Open( f4, url, OpenFlags::Update ) |
+                                 Checkpoint( f4, ChkPtCode::BEGIN ) |
+                                 ChkptWrt( f4, 0, sizeof( update ), update ) |
+                                 Checkpoint( f4, ChkPtCode::COMMIT ) |
+                                 Close( f4 ) ) );
+  File f5;
+  // readout the data to see if the update was succesful (it shouldn't be)
+  CPPUNIT_ASSERT_XRDST( WaitFor( Open( f5, url, OpenFlags::Read ) |
+                                 Read( f5, 0, sizeof( readout ), readout ) |
+                                 Close( f5 ) ) );
+  // we expect the data to be unchanged
+  CPPUNIT_ASSERT( strncmp( readout, update, sizeof( update ) ) == 0 );
+  CPPUNIT_ASSERT( strncmp( readout + sizeof( update ), data + sizeof( update ),
+                           sizeof( data ) - sizeof( update ) ) == 0 );
 
   //---------------------------------------------------------------------------
   // Now clean up
