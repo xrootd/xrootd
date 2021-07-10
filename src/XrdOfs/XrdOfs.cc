@@ -129,7 +129,7 @@ bool VerPgw(const char *buf, ssize_t off, size_t len, const uint32_t* csv,
    if (!XrdOucPgrwUtils::csVer(dInfo, badoff, badlen))
       {char eMsg[512];
        int n;
-       n=snprintf(eMsg,sizeof(eMsg),"Checksum error at offset %ld.",badoff);
+       n = snprintf(eMsg, sizeof(eMsg), "Checksum error at offset %lld.", (long long) badoff);
        error.setErrInfo(EDOM, eMsg);
        eMsg[n-1] = 0;
        OfsEroute.Emsg(epname, eMsg, "aborted pgwrite to", oh->Name());
