@@ -143,7 +143,7 @@ XrdSfsXferSize XrdSfsFile::pgWrite(XrdSfsFileOffset   offset,
 
        if (!XrdOucPgrwUtils::csVer(dInfo, badoff, badlen))
           {char eMsg[512];
-           snprintf(eMsg, sizeof(eMsg),"Checksum error at offset %ld.",(long)badoff);
+           snprintf(eMsg, sizeof(eMsg), "Checksum error at offset %lld.", (long long) badoff);
            error.setErrInfo(EDOM, eMsg);
            return SFS_ERROR;
           }
