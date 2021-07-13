@@ -12,4 +12,5 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Server]** Use RAtomics to enhance performance where needed.
   **[Misc]** Implement RAtomics object all of whose operations use relaxed mem order.
