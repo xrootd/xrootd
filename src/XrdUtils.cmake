@@ -49,6 +49,7 @@ set ( XrdSysSources
   XrdSys/XrdSysPlugin.cc        XrdSys/XrdSysPlugin.hh
   XrdSys/XrdSysPriv.cc          XrdSys/XrdSysPriv.hh
   XrdSys/XrdSysPthread.cc       XrdSys/XrdSysPthread.hh
+                                XrdSys/XrdSysRAtomic.hh
                                 XrdSys/XrdSysSemWait.hh
   XrdSys/XrdSysTimer.cc         XrdSys/XrdSysTimer.hh
   XrdSys/XrdSysTrace.cc         XrdSys/XrdSysTrace.hh
