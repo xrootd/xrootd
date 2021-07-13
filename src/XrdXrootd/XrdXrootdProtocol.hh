@@ -29,13 +29,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
  
-#include <atomic>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsDio.hh"
 #include "XrdSfs/XrdSfsXioImpl.hh"
@@ -514,8 +514,8 @@ bool                       sigWarn;      // Once for unneeded signature
 
 // Async I/O area, these need to be atomic
 //
-std::atomic_int            linkAioReq;   // Aio requests   inflight for link
-static std::atomic_int     srvrAioOps;   // Aio operations inflight for server
+XrdSys::RAtomic_int        linkAioReq;   // Aio requests   inflight for link
+static XrdSys::RAtomic_int srvrAioOps;   // Aio operations inflight for server
 
 // Buffer information, used to drive getData(), and (*Resume)()
 //
@@ -534,7 +534,7 @@ union {int                 iovNum;
 bool                       useCB;
 char                       Status;
 unsigned char              stalls;
-atomic_char                linkWait;
+XrdSys::RAtomic_uchar      linkWait;
 union {struct iovec       *iovVec;
        char               *Buffer;
       };

@@ -30,11 +30,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <atomic>
-
 #include "Xrd/XrdJob.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
+
+using namespace XrdSys;
 
 class XrdLink;
 class XrdXrootdAioBuff;
@@ -103,8 +104,8 @@ union  {XrdXrootdAioBuff  *finalRead;  // -> A short read indicating EOF
         int                dataLen;    // Size remaining
 
         char               aioState;  // See aioXXX below
-        std::atomic_uchar  inFlight;
-        std::atomic_bool   isDone;    // Request finished
+        RAtomic_uchar      inFlight;
+        RAtomic_bool       isDone;    // Request finished
         char               Status;    // Offline | Running | Waiting
 
         XrdXrootdResponse  Response;
