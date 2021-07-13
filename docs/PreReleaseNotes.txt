@@ -12,3 +12,4 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Misc]** Implement RAtomics object all of whose operations use relaxed mem order.
