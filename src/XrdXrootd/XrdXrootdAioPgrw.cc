@@ -97,6 +97,7 @@ XrdXrootdAioPgrw::XrdXrootdAioPgrw(XrdXrootdAioTask* tP, XrdBuffer *bP)
 // Complete initialization
 //
    Result = 0;
+   iovReset = 0;
    cksVec = csVec;
    TIdent = "AioPgrw";
 }
