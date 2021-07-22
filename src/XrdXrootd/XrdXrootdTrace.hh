@@ -50,27 +50,25 @@
 #ifndef NODEBUG
 
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 #define TRACE(act, x) \
-   if (XrdXrootdTrace->What & TRACE_ ## act) \
-      {XrdXrootdTrace->Beg(TraceID);   cerr <<x; XrdXrootdTrace->End();}
+   if (XrdXrootdTrace.What & TRACE_ ## act) \
+      {SYSTRACE(XrdXrootdTrace., 0, TraceID, 0, x)}
 
 #define TRACEI(act, x) \
-   if (XrdXrootdTrace->What & TRACE_ ## act) \
-      {XrdXrootdTrace->Beg(TraceID,TRACELINK->ID); cerr <<x; XrdXrootdTrace->End();}
+   if (XrdXrootdTrace.What & TRACE_ ## act) \
+      {SYSTRACE(XrdXrootdTrace., TRACELINK->ID, TraceID, 0, x)}
 
 #define TRACEP(act, x) \
-   if (XrdXrootdTrace->What & TRACE_ ## act) \
-      {XrdXrootdTrace->Beg(TraceID,TRACELINK->ID,Response.ID()); cerr <<x; \
-       XrdXrootdTrace->End();}
+   if (XrdXrootdTrace.What & TRACE_ ## act) \
+      {SYSTRACE(XrdXrootdTrace., TRACELINK->ID, TraceID, Response.ID(), x)}
 
 #define TRACES(act, x) \
-   if (XrdXrootdTrace->What & TRACE_ ## act) \
-      {XrdXrootdTrace->Beg(TraceID,TRACELINK->ID,(const char *)trsid); cerr <<x; \
-       XrdXrootdTrace->End();}
+   if (XrdXrootdTrace.What & TRACE_ ## act) \
+      {SYSTRACE(XrdXrootdTrace.,TRACELINK->ID,TraceID,trsid,x)}
 
-#define TRACING(x) XrdXrootdTrace->What & x
+#define TRACING(x) XrdXrootdTrace.What & x
 
 #else
 

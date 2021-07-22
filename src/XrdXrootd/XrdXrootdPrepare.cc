@@ -59,7 +59,7 @@
 /******************************************************************************/
 
 #ifndef NODEBUG  
-extern XrdOucTrace     *XrdXrootdTrace;
+extern XrdSysTrace      XrdXrootdTrace;
 #endif
 
        XrdScheduler    *XrdXrootdPrepare::SchedP;

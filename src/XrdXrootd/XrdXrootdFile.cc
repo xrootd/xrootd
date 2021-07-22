@@ -52,7 +52,7 @@
 /******************************************************************************/
 
 #ifndef NODEBUG  
-extern XrdOucTrace      *XrdXrootdTrace;
+extern XrdSysTrace       XrdXrootdTrace;
 #endif
 
        XrdXrootdFileLock *XrdXrootdFile::Locker;

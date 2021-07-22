@@ -32,7 +32,7 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdScheduler.hh"
 
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -46,7 +46,7 @@ namespace XrdGlobal
 {
 XrdSysLogger      Logger;
 XrdSysError       Log(&Logger, "Xrd");
-XrdOucTrace       XrdTrace(&Log);
+XrdSysTrace       XrdTrace("Xrd", &Logger);
 XrdScheduler      Sched(&Log, &XrdTrace);
 XrdBuffManager    BuffPool;
 XrdTlsContext    *tlsCtx = 0;

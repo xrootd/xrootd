@@ -98,7 +98,7 @@ static const int          argvnum = sizeof(theArgs)/sizeof(theArgs[0]);
 /*                      G l o b a l   F u n c t i o n s                       */
 /******************************************************************************/
 
-extern XrdOucTrace     *XrdXrootdTrace;
+extern XrdSysTrace      XrdXrootdTrace;
   
 int XrdXrootdJobWaiting(XrdXrootdJob2Do *item, void *arg)
 {

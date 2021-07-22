@@ -311,11 +311,10 @@ void XrdSsiClientProvider::SetLogger()
   
 void XrdSsiClientProvider::SetScheduler()
 {
-   static XrdOucTrace myTrc(&Log);
+   static XrdSysTrace myTrc("XrdSsi", Log.logger());
 
 // Now construct the proper trace object (note that we do not set tracing if
 // message forwarding is on because these messages will not be forwarded).
-// This must be fixed when xrootd starts using XrdSysTrace!!!
 //
    if (!msgCBCl && Trace.What & TRACESSI_Debug) myTrc.What = TRACE_SCHED;
 

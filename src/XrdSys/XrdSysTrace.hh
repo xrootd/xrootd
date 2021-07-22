@@ -39,7 +39,7 @@ class XrdSysLogger;
 
 namespace Xrd
 {
-enum Fmt {dec=0, hex};
+enum Fmt {dec=0, hex, hex1};
 }
 
 #define SYSTRACE(obj, usr, epn, txt, dbg) \
@@ -89,8 +89,9 @@ XrdSysTrace& operator<<(long double val)
 XrdSysTrace& operator<<(void* val);
 
 XrdSysTrace& operator<<(Xrd::Fmt val)
-                       {     if (val == Xrd::hex) doHex = true;
-                        else if (val == Xrd::dec) doHex = false;
+                       {     if (val == Xrd::hex)  doHex =  1;
+                        else if (val == Xrd::hex1) doHex = -1;
+                        else if (val == Xrd::dec)  doHex =  0;
                         return *this;
                        }
 
@@ -98,7 +99,7 @@ XrdSysTrace& operator<<(XrdSysTrace *stp);
 
              XrdSysTrace(const char *pfx, XrdSysLogger *logp=0, int tf=0)
                         : What(tf), logP(logp), iName(pfx), dPnt(0),
-                          dFree(txtMax), vPnt(1), doHex(false) {}
+                          dFree(txtMax), vPnt(1), doHex(0) {}
             ~XrdSysTrace() {}
 
 private:
@@ -115,7 +116,7 @@ const char      *iName;
 short            dPnt;
 short            dFree;
 short            vPnt;
-bool             doHex;
+char             doHex;
 struct iovec     ioVec[iovMax];
 char             pBuff[pfxMax];
 char             dBuff[txtMax];

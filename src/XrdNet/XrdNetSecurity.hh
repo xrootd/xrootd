@@ -38,7 +38,7 @@
 
 class  XrdNetAddr;
 class  XrdNetTextList;
-class  XrdOucTrace;
+class  XrdSysTrace;
 
 class XrdNetSecurity
 {
@@ -54,7 +54,7 @@ bool  Authorize(XrdNetAddr &addr);
 
 void  Merge(XrdNetSecurity *srcp);  // Deletes srcp
 
-void  Trace(XrdOucTrace *et=0) {eTrace = et;}
+void  Trace(XrdSysTrace *et=0) {eTrace = et;}
 
      XrdNetSecurity() : NetGroups(0), eTrace(0),
                         chkNetLst(false), chkNetGrp(false) {}
@@ -71,7 +71,7 @@ XrdNetTextList           *NetGroups;
 
 XrdOucHash<char>          OKHosts;
 XrdSysMutex               okHMutex;
-XrdOucTrace              *eTrace;
+XrdSysTrace              *eTrace;
 bool                      chkNetLst;
 bool                      chkNetGrp;
 

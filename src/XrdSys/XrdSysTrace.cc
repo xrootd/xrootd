@@ -33,15 +33,6 @@
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysTrace.hh"
-
-/******************************************************************************/
-/*                G l o b a l   T r a c i n g   O b j e c t s                 */
-/******************************************************************************/
-
-// The following objects are defined centrally for all components of the stack.
-// The naming convention is: XrdSysTrace<compname>
-//
-XrdSysTrace XrdSysTraceXrd("xrd_");
   
 /******************************************************************************/
 /*                  C o n v e r s i o n   F u n c t i o n s                   */
@@ -183,6 +174,7 @@ XrdSysTrace& XrdSysTrace::operator<<(char val)
            ioVec[vPnt++].iov_len  = 2;
            dBuff[dPnt++] = hv[(val >> 4) & 0x0f];
            dBuff[dPnt++] = hv[ val       & 0xf0];
+           if (doHex < 0) doHex = 0;
            dFree -= 2;
           } else {
            ioVec[vPnt]  .iov_base = (char *)(&dBuff[dPnt]);
@@ -237,6 +229,7 @@ XrdSysTrace& XrdSysTrace::operator<<(short val)
                 dPnt += n; dFree -= n;
                }
       }
+   if (doHex < 0) doHex = 0;
    return *this;
 }
 
@@ -259,6 +252,7 @@ XrdSysTrace& XrdSysTrace::operator<<(int val)
                 dPnt += n; dFree -= n;
                }
       }
+   if (doHex < 0) doHex = 0;
    return *this;
 }
 
@@ -294,6 +288,7 @@ XrdSysTrace& XrdSysTrace::operator<<(long long val)
                 dPnt += n; dFree -= n;
                }
       }
+   if (doHex < 0) doHex = 0;
    return *this;
 }
 
@@ -316,6 +311,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned short val)
                 dPnt += n; dFree -= n;
                }
       }
+   if (doHex < 0) doHex = 0;
    return *this;
 }
 
@@ -338,6 +334,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned int val)
                 dPnt += n; dFree -= n;
                }
       }
+   if (doHex < 0) doHex = 0;
    return *this;
 }
 
@@ -373,6 +370,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned long long val)
                 dPnt += n; dFree -= n;
                }
       }
+   if (doHex < 0) doHex = 0;
    return *this;
 }
 

@@ -93,7 +93,7 @@ int                        Result;
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-extern XrdOucTrace       *XrdXrootdTrace;
+extern XrdSysTrace        XrdXrootdTrace;
 
 namespace
 {

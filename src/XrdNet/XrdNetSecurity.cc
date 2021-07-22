@@ -51,7 +51,7 @@ int innetgr(const char *netgroup, const char *host, const char *user,
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetUtils.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -72,7 +72,7 @@ char           *text;
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define DEBUG(x) if (eTrace) {eTrace->Beg(TraceID); cerr <<x; eTrace->End();}
+#define DEBUG(x) if (eTrace) {SYSTRACE(eTrace->, 0, TraceID, 0, x)}
 
 /******************************************************************************/
 /*                               G l o b a l s                                */

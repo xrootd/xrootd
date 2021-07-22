@@ -55,31 +55,20 @@
 #ifndef NODEBUG
 
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 
-extern XrdOucTrace *XrdHttpTrace;
-extern const char *XrdHttpTraceID;
+extern XrdSysTrace XrdHttpTrace;
 
 #define TRACE(act, x) \
-   if (XrdHttpTrace->What & TRACE_ ## act) \
-      {XrdHttpTrace->Beg(XrdHttpTraceID);   cerr <<x; XrdHttpTrace->End();}
+   if (XrdHttpTrace.What & TRACE_ ## act) \
+      {SYSTRACE(XrdHttpTrace., 0, TraceID, 0, x)}
 
 #define TRACEI(act, x) \
-   if (XrdHttpTrace->What & TRACE_ ## act) \
-      {XrdHttpTrace->Beg(XrdHttpTraceID,TRACELINK->ID); cerr <<x; XrdHttpTrace->End();}
+   if (XrdHttpTrace.What & TRACE_ ## act) \
+      {SYSTRACE(XrdHttpTrace., TRACELINK->ID, TraceID, 0, x)}
 
-#define TRACEP(act, x) \
-   if (XrdHttpTrace->What & TRACE_ ## act) \
-      {XrdHttpTrace->Beg(XrdHttpTraceID,TRACELINK->ID,Response.ID()); cerr <<x; \
-       XrdHttpTrace->End();}
-
-#define TRACES(act, x) \
-   if (XrdHttpTrace->What & TRACE_ ## act) \
-      {XrdHttpTrace->Beg(XrdHttpTraceID,TRACELINK->ID,(const char *)trsid); cerr <<x; \
-       XrdHttpTrace->End();}
-
-#define TRACING(x) XrdHttpTrace->What & x
+#define TRACING(x) XrdHttpTrace.What & x
 #define EPNAME(x)  static const char* epname = x;
 
 #else

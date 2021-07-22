@@ -56,7 +56,6 @@
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -111,7 +110,7 @@ Where:
 
                 XrdOucString      *XrdXrootdCF;
 
-extern          XrdOucTrace       *XrdXrootdTrace;
+extern          XrdSysTrace        XrdXrootdTrace;
 
                 XrdXrootdPrepare  *XrdXrootdPrepQ;
 
@@ -187,7 +186,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Copy out the special info we want to use at top level
 //
    eDest.logger(pi->eDest->logger());
-   XrdXrootdTrace = new XrdOucTrace(&eDest);
+   XrdXrootdTrace.SetLogger(pi->eDest->logger());
    SI           = new XrdXrootdStats(pi->Stats);
    XrdXrootd::SI= SI;
    Sched        = pi->Sched; XrdXrootd::Sched = pi->Sched;
@@ -225,7 +224,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    rdf = (parms && *parms ? parms : pi->ConfigFN);
    if (rdf && Config(rdf)) return 0;
-   if (pi->DebugON) XrdXrootdTrace->What = TRACE_ALL;
+   if (pi->DebugON) XrdXrootdTrace.What = TRACE_ALL;
 
 // Check if we are exporting a generic object name
 //
@@ -350,7 +349,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Schedule protocol object cleanup (also advise the transit protocol)
 //
-   ProtStack.Set(pi->Sched, XrdXrootdTrace, TRACE_MEM);
+   ProtStack.Set(pi->Sched, &XrdXrootdTrace, TRACE_MEM);
    n = (pi->ConnMax/3 ? pi->ConnMax/3 : 30);
    ProtStack.Set(n, 60*60);
    XrdXrootdTransit::Init(pi->Sched, n, 60*60);
@@ -1841,7 +1840,7 @@ int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
                   }
           val = Config.GetWord();
          }
-    XrdXrootdTrace->What = trval;
+    XrdXrootdTrace.What = trval;
     return 0;
 }
 
