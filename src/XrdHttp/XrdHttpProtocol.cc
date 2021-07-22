@@ -105,6 +105,13 @@ XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 int XrdHttpProtocol::m_bio_type = 0; // BIO type identifier for our custom BIO.
 BIO_METHOD *XrdHttpProtocol::m_bio_method = NULL; // BIO method constructor.
 
+XrdSysTrace XrdHttpTrace("http");
+
+namespace
+{
+const char *TraceID = "Protocol";
+}
+
 namespace XrdHttpProtoInfo
 {
 XrdTlsContext *xrdctx = 0;
@@ -462,7 +469,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 {
   int rc = 0;
 
-  TRACEI(DEBUG, " Process. lp:" << lp << " reqstate: " << CurrentReq.reqstate);
+  TRACEI(DEBUG, " Process. lp:"<<(void *)lp<<" reqstate: "<<CurrentReq.reqstate);
 
   if (!myBuff || !myBuff->buff || !myBuff->bsize) {
     TRACE(ALL, " Process. No buffer available. Internal error.");
@@ -576,7 +583,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
     // Read as many lines as possible into the buffer. An empty line breaks
     while ((rc = BuffgetLine(tmpline)) > 0) {
-      TRACE(DEBUG, " rc:" << rc << " got hdr line: " << tmpline);
+      TRACE(DEBUG, " rc:" << rc << " got hdr line: " << tmpline.c_str());
 
       if ((rc == 2) && (tmpline.length() > 1) && (tmpline[rc - 1] == '\n')) {
         CurrentReq.headerok = true;
@@ -586,7 +593,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
 
       if (CurrentReq.request == CurrentReq.rtUnset) {
-        TRACE(DEBUG, " Parsing first line: " << tmpline);
+        TRACE(DEBUG, " Parsing first line: " << tmpline.c_str());
         int result = CurrentReq.parseFirstLine((char *)tmpline.c_str(), rc);
         if (result < 0) {
           TRACE(DEBUG, " Parsing of first line failed with " << result);
@@ -687,7 +694,8 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         dest += ":";
         dest += Port_str;
         dest += CurrentReq.resource.c_str();
-        TRACEI(REQ, " rc:" << rc << " self-redirecting to http with security token: '" << dest << "'");
+        TRACEI(REQ," rc:"<<rc<<" self-redirecting to http with security token: '"
+                   << dest.c_str() << "'");
 
         
         CurrentReq.appendOpaque(dest, &SecEntity, hash, timenow);
@@ -1589,7 +1597,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   // Copy out the special info we want to use at top level
   //
   eDest.logger(pi->eDest->logger());
-  XrdHttpTrace = new XrdOucTrace(&eDest);
+  XrdHttpTrace.SetLogger(pi->eDest->logger());
   //  SI = new XrdXrootdStats(pi->Stats);
   Sched = pi->Sched;
   BPool = pi->BPool;
@@ -1612,7 +1620,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   //
   rdf = (parms && *parms ? parms : pi->ConfigFN);
   if (rdf && Config(rdf, pi->theEnv)) return 0;
-  if (pi->DebugON) XrdHttpTrace->What = TRACE_ALL;
+  if (pi->DebugON) XrdHttpTrace.What = TRACE_ALL;
 
   // Set the redirect flag if we are a pure redirector
   myRole = kXR_isServer;
@@ -1633,7 +1641,8 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 
   // Schedule protocol object cleanup
   //
-  ProtStack.Set(pi->Sched, XrdHttpTrace, TRACE_MEM);
+  ProtStack.Set(pi->Sched, &XrdHttpTrace,
+                (XrdHttpTrace.What & TRACE_MEM ? TRACE_MEM : 0));
   ProtStack.Set((pi->ConnMax / 3 ? pi->ConnMax / 3 : 30), 60 * 60);
 
   // Return success
@@ -2720,7 +2729,7 @@ int XrdHttpProtocol::xtrace(XrdOucStream & Config) {
     }
     val = Config.GetWord();
   }
-  XrdHttpTrace->What = trval;
+  XrdHttpTrace.What = trval;
   return 0;
 }
 

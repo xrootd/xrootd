@@ -83,7 +83,7 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-extern XrdOucTrace *XrdXrootdTrace;
+extern XrdSysTrace  XrdXrootdTrace;
 
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */

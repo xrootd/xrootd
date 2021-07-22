@@ -50,7 +50,7 @@
 /*                     G l o b a l s   &   S t a t i c s                      */
 /******************************************************************************/
 
-extern XrdOucTrace     *XrdXrootdTrace;
+extern XrdSysTrace      XrdXrootdTrace;
 
        XrdSysError     *XrdXrootdAdmin::eDest;
 

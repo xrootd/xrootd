@@ -38,6 +38,7 @@
 class XrdOucTrace;
 class XrdSchedulerPID;
 class XrdSysError;
+class XrdSysTrace;
 
 #define MAX_SCHED_PROCS 30000
 
@@ -80,18 +81,28 @@ int        num_Jobs;    // Number of jobs scheduled
 int        max_QLength; // Longest queue length we had
 int        num_Limited; // Number of times max was reached
 
-// Constructor and destructor
+// This is the preferred constructor
+//
+              XrdScheduler(XrdSysError *eP, XrdSysTrace *tP,
+                           int minw=8, int maxw=8192, int maxi=780);
+
+// This constructor is only maintained for ABI compatibility and will be
+// removed in a future major release. While syntactically compatible the
+// sematics now are slightly different and tracing might not occur.
 //
               XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
                            int minw=8, int maxw=8192, int maxi=780);
 
+// This constructor is used for a stand-alone scheduler.
+//
               XrdScheduler(int minw=3, int maxw=128,  int maxi=12);
 
              ~XrdScheduler();
 
 private:
 XrdSysError *XrdLog;
-XrdOucTrace *XrdTrace;
+XrdSysTrace *XrdTrace;
+XrdOucTrace *XrdTraceOld;  // This is only used for ABI compatibility
 
 XrdSysMutex DispatchMutex; // Disp: Protects above area
 int        idl_Workers;    // Disp: Number of idle workers
@@ -116,6 +127,7 @@ XrdSysMutex            TimerMutex; // Protects scheduler area
 XrdSchedulerPID       *firstPID;
 XrdSysMutex            ReaperMutex;
 
+void Boot(XrdSysError *eP, XrdSysTrace *tP, int minw, int maxw, int maxi);
 void hireWorker(int dotrace=1);
 void Init(int minw, int maxw, int maxi);
 void Monitor();

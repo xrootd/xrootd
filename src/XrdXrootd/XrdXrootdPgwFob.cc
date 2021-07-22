@@ -45,7 +45,7 @@ extern XrdSysError  eLog;
 }
 using namespace XrdXrootd;
 
-extern XrdOucTrace *XrdXrootdTrace;
+extern XrdSysTrace  XrdXrootdTrace;
   
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */

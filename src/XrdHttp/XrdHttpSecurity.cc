@@ -41,6 +41,11 @@ XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 // Static definitions
 #define TRACELINK lp
 
+namespace
+{
+const char *TraceID = "Security";
+}
+
 using namespace XrdHttpProtoInfo;
 
 /******************************************************************************/
@@ -61,7 +66,7 @@ bool XrdHttpProtocol::InitSecurity() {
 //
    if (gridmap) {
      XrdOucString pars;
-     if (XrdHttpTrace->What == TRACE_DEBUG) pars += "dbg|";
+     if (XrdHttpTrace.What & TRACE_DEBUG) pars += "dbg|";
 
      if (!(servGMap = XrdOucgetGMap(&eDest, gridmap, pars.c_str()))) {
        eDest.Say("Error loading grid map file:", gridmap);
@@ -74,7 +79,7 @@ bool XrdHttpProtocol::InitSecurity() {
 //
    if (secxtractor)
       {SSL_CTX *sslctx = (SSL_CTX*)xrdctx->Context(); // Need to avoid this!
-       secxtractor->Init(sslctx, XrdHttpTrace->What);
+       secxtractor->Init(sslctx, XrdHttpTrace.What);
       }
 
 // All done

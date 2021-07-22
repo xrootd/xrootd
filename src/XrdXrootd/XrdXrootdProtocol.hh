@@ -72,7 +72,6 @@ class XrdOucReqID;
 class XrdOucStream;
 class XrdOucTList;
 class XrdOucTokenizer;
-class XrdOucTrace;
 class XrdSecProtect;
 class XrdSecProtector;
 class XrdSfsDirectory;

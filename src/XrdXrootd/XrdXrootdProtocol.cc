@@ -66,7 +66,7 @@ XrdScheduler         *Sched;
 XrdXrootdStats       *SI;
 }
 
-XrdOucTrace          *XrdXrootdTrace;
+XrdSysTrace           XrdXrootdTrace("Xrootd");
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */

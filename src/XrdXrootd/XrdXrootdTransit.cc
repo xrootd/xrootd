@@ -52,7 +52,7 @@
 /*                        C l o b a l   S y m b o l s                         */
 /******************************************************************************/
   
-extern  XrdOucTrace *XrdXrootdTrace;
+extern  XrdSysTrace  XrdXrootdTrace;
 
 #undef  TRACELINK
 #define TRACELINK Link
@@ -215,7 +215,7 @@ int XrdXrootdTransit::Fatal(int rc)
 
 void XrdXrootdTransit::Init(XrdScheduler *schedP, int qMax, int qTTL)
 {
-   TranStack.Set(schedP, XrdXrootdTrace, TRACE_MEM);
+   TranStack.Set(schedP, &XrdXrootdTrace, TRACE_MEM);
    TranStack.Set(qMax, qTTL);
 }
 

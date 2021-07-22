@@ -104,7 +104,7 @@ namespace XrdGlobal
        XrdOucString      totalCF;
 extern XrdSysLogger      Logger;
 extern XrdSysError       Log;
-extern XrdOucTrace       XrdTrace;
+extern XrdSysTrace       XrdTrace;
 extern XrdScheduler      Sched;
 extern XrdBuffManager    BuffPool;
 extern XrdTlsContext    *tlsCtx;

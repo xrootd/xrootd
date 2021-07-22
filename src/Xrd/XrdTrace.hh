@@ -48,28 +48,24 @@
 
 #ifndef NODEBUG
 
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 namespace XrdGlobal
 {
-extern XrdOucTrace XrdTrace;
+extern XrdSysTrace XrdTrace;
 }
-
-#include "XrdSys/XrdSysHeaders.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 
 #ifndef XRD_TRACE
 #define XRD_TRACE XrdGlobal::XrdTrace.
 #endif
 
 #define TRACE(act, x) \
-   if (XRD_TRACE What & TRACE_ ## act) \
-      {XRD_TRACE Beg(TraceID);   cerr <<x; XRD_TRACE End();}
+   if (XRD_TRACE What & TRACE_ ## act) {SYSTRACE(XRD_TRACE, 0, TraceID, 0, x)}
 
 #define TRACEI(act, x) \
    if (XRD_TRACE What & TRACE_ ## act) \
-      {XRD_TRACE Beg(TraceID,TRACE_IDENT); cerr <<x; \
-       XRD_TRACE End();}
+      {SYSTRACE(XRD_TRACE, TRACE_IDENT, TraceID, 0, x)}
 
 #define TRACING(x) XRD_TRACE What & x
 

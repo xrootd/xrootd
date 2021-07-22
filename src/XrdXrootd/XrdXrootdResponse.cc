@@ -36,6 +36,7 @@
 #include "Xrd/XrdLinkCtl.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
+#define TRACELINK Link
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdTransit.hh"
   
@@ -43,7 +44,7 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-extern XrdOucTrace *XrdXrootdTrace;
+extern XrdSysTrace  XrdXrootdTrace;
 
 const char *XrdXrootdResponse::TraceID = "Response";
 
@@ -51,7 +52,6 @@ const char *XrdXrootdResponse::TraceID = "Response";
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
 
-#define TRACELINK Link
 
 namespace
 {

@@ -82,7 +82,7 @@ time_t         QTime;  // Only used for time-managed objects
 // Note to properly cleanup this type of queue you must call Set() at least
 // once to cause the time element to be sceduled.
 
-class XrdOucTrace;
+class XrdSysTrace;
 class XrdScheduler;
   
 template <class T>
@@ -111,7 +111,7 @@ inline void    Push(XrdObject<T> *Node)
 
        void    Set(int inQMax, time_t agemax=1800);
 
-       void    Set(XrdScheduler *sp, XrdOucTrace *tp, int TraceChk=0)
+       void    Set(XrdScheduler *sp, XrdSysTrace *tp, int TraceChk=0)
                       {Sched = sp; Trace = tp; TraceON = TraceChk;}
 
        void    DoIt();
@@ -133,7 +133,7 @@ int            MininQ;
 int            MaxinQ;
 time_t         Maxage;
 XrdScheduler  *Sched;
-XrdOucTrace   *Trace;
+XrdSysTrace   *Trace;
 int            TraceON;
 const char    *TraceID;
 };

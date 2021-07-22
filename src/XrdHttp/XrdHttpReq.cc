@@ -66,6 +66,10 @@
 // This is to fix the trace macros
 #define TRACELINK prot->Link
 
+namespace
+{
+const char *TraceID = "Req";
+}
 
 static std::string convert_digest_rfc_name(const std::string &rfc_name_multiple)
 {
@@ -730,7 +734,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
     appendOpaque(redirdest, 0, 0, 0);
 
   
-  TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << redirdest);
+  TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << redirdest.c_str());
 
   prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
 
@@ -985,7 +989,8 @@ int XrdHttpReq::ProcessHTTPReq() {
 
     char *q = quote(hdr2cgistr.c_str());
     resourceplusopaque.append(q);
-    TRACEI(DEBUG, "Appended header fields to opaque info: '" << hdr2cgistr << "'");
+    TRACEI(DEBUG, "Appended header fields to opaque info: '" 
+                 << hdr2cgistr.c_str() << "'");
     free(q);
     m_appended_hdr2cgistr = true;
     }
@@ -1767,7 +1772,9 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
       return -1;
     }
 
-    TRACEI(REQ, "Checksum for HEAD " << resource << " " << reinterpret_cast<char *>(iovP[0].iov_base) << "=" << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
+    TRACEI(REQ, "Checksum for HEAD " << resource.c_str() << " "
+               << reinterpret_cast<char *>(iovP[0].iov_base) << "=" 
+               << reinterpret_cast<char *>(iovP[iovN-1].iov_base));
     std::string response_name = convert_xrootd_to_rfc_name(reinterpret_cast<char *>(iovP[0].iov_base));
 
     bool convert_to_base64 = needs_base64_padding(convert_digest_rfc_name(m_req_digest));
@@ -1828,7 +1835,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         if (iovN > 0) {
 
           // Now parse the stat info
-          TRACEI(REQ, "Stat for HEAD " << resource << " stat=" << (char *) iovP[0].iov_base);
+          TRACEI(REQ, "Stat for HEAD " << resource.c_str()
+                      << " stat=" << (char *) iovP[0].iov_base);
 
           long dummyl;
           sscanf((const char *) iovP[0].iov_base, "%ld %lld %ld %ld",
@@ -1930,7 +1938,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               endp++;
 
               // Now parse the stat info
-              TRACEI(REQ, "Dirlist " << resource << " entry=" << entry << " stat=" << endp);
+              TRACEI(REQ, "Dirlist " << resource.c_str() << " entry=" << entry 
+                       << " stat=" << endp);
 
               long dummyl;
               sscanf(endp, "%ld %lld %ld %ld",
@@ -2087,7 +2096,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               if (iovN > 0) {
                 
                 // Now parse the stat info
-                TRACEI(REQ, "Stat for GET " << resource << " stat=" << (char *) iovP[0].iov_base);
+                TRACEI(REQ, "Stat for GET " << resource.c_str()
+                         << " stat=" << (char *) iovP[0].iov_base);
                 
                 long dummyl;
                 sscanf((const char *) iovP[0].iov_base, "%ld %lld %ld %ld",
@@ -2103,7 +2113,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 }
               }
               else {
-                TRACEI(REQ, "Can't find the stat information for '" << resource << "' Internal error?");
+                TRACEI(REQ, "Can't find the stat information for '" 
+                         << resource.c_str() << "' Internal error?");
               }
             }
             
@@ -2139,7 +2150,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               // Now parse the stat info if we still don't have it
               if (filesize == 0) {
                 if (iovP[1].iov_len > 1) {
-                  TRACEI(REQ, "Stat for GET " << resource << " stat=" << (char *) iovP[1].iov_base);
+                  TRACEI(REQ, "Stat for GET " << resource.c_str() 
+                           << " stat=" << (char *) iovP[1].iov_base);
               
                   long dummyl;
                   sscanf((const char *) iovP[1].iov_base, "%ld %lld %ld %ld",
@@ -2406,7 +2418,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           if (iovN > 0) {
 
             // Now parse the stat info
-            TRACEI(REQ, "Stat for removal " << resource << " stat=" << (char *) iovP[0].iov_base);
+            TRACEI(REQ, "Stat for removal " << resource.c_str() 
+                     << " stat=" << (char *) iovP[0].iov_base);
 
             long dummyl;
             sscanf((const char *) iovP[0].iov_base, "%ld %lld %ld %ld",
@@ -2455,7 +2468,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             e.path = resource.c_str();
 
             // Now parse the stat info
-            TRACEI(REQ, "Collection " << resource << " entry=" << resource << " stat=" << (char *) iovP[0].iov_base);
+            TRACEI(REQ, "Collection " << resource.c_str()
+                     << " stat=" << (char *) iovP[0].iov_base);
 
             long dummyl;
             sscanf((const char *) iovP[0].iov_base, "%ld %lld %ld %ld",
@@ -2553,7 +2567,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 endp++;
 
                 // Now parse the stat info
-                TRACEI(REQ, "Dirlist " << resource << " entry=" << entry << " stat=" << endp);
+                TRACEI(REQ, "Dirlist " <<resource.c_str() <<" entry=" <<entry
+                            << " stat=" << endp);
 
                 long dummyl;
                 sscanf(endp, "%ld %lld %ld %ld",

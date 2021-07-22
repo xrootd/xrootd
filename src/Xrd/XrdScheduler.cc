@@ -41,6 +41,7 @@
 
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "XrdOuc/XrdOucTrace.hh"    // For ABI compatibility only!
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
@@ -93,12 +94,70 @@ void *XrdStartWorking(void *carg)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
+XrdScheduler::XrdScheduler(XrdSysError *eP, XrdSysTrace *tP,
+                           int minw, int maxw, int maxi)
+              : XrdJob("underused thread monitor"),
+                 XrdTraceOld(0), WorkAvail(0, "sched work")
+{
+   Boot(eP, tP, minw, maxw, maxi);
+}
+ 
+/******************************************************************************/
+
+  
 XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
                            int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
-                WorkAvail(0, "sched work")
+                XrdTraceOld(tP), WorkAvail(0, "sched work")
 {
 
+// Invoke the main initialization function with a new style trace object
+//
+   Boot(eP, new XrdSysTrace("Xrd", eP->logger()), minw, maxw, maxi);
+}
+
+/******************************************************************************/
+
+// This constructor creates a self contained scheduler.
+//
+XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
+              : XrdJob("underused thread monitor"),
+                WorkAvail(0, "sched work")
+{
+   XrdSysLogger *Logger;
+   int eFD;
+
+// Get a file descriptor mirroring standard error
+//
+#if ( defined(__linux__) || defined(__GNU__) ) && defined(F_DUPFD_CLOEXEC)
+   eFD = fcntl(STDERR_FILENO, F_DUPFD_CLOEXEC, 0);
+#else
+   eFD = dup(STDERR_FILENO);
+   fcntl(eFD, F_SETFD, FD_CLOEXEC);
+#endif
+
+// Now we need to get a logger object. We make this a real dumb one.
+//
+   Logger = new XrdSysLogger(eFD, 0);
+   XrdLog = new XrdSysError(Logger);
+
+// Now get a trace object
+//
+   XrdTrace = new XrdSysTrace("Xrd", Logger);
+   if (getenv("XRDDEBUG") != 0) XrdTrace->What = TRACE_SCHED;
+
+// Set remaining values. We do no use maximum possible threads here.
+//
+   Init(minw, maxw, maxi);
+}
+
+/******************************************************************************/
+/* Private:                         B o o t                                   */
+/******************************************************************************/
+
+void XrdScheduler::Boot(XrdSysError *eP, XrdSysTrace *tP,
+                        int minw, int maxw, int maxi)
+{
 // Perform common initialization
 //
    XrdLog      =  eP;
@@ -150,41 +209,6 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
       }
 #endif
 
-}
- 
-/******************************************************************************/
-
-// This constructor creates a self contained scheduler.
-//
-XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
-              : XrdJob("underused thread monitor"),
-                WorkAvail(0, "sched work")
-{
-   XrdSysLogger *Logger;
-   int eFD;
-
-// Get a file descriptor mirroring standard error
-//
-#if ( defined(__linux__) || defined(__GNU__) ) && defined(F_DUPFD_CLOEXEC)
-   eFD = fcntl(STDERR_FILENO, F_DUPFD_CLOEXEC, 0);
-#else
-   eFD = dup(STDERR_FILENO);
-   fcntl(eFD, F_SETFD, FD_CLOEXEC);
-#endif
-
-// Now we need to get a logger object. We make this a real dumb one.
-//
-   Logger = new XrdSysLogger(eFD, 0);
-   XrdLog = new XrdSysError(Logger);
-
-// Now get a trace object
-//
-   XrdTrace = new XrdOucTrace(XrdLog);
-   if (getenv("XRDDEBUG") != 0) XrdTrace->What = TRACE_SCHED;
-
-// Set remaining values. We do no use maximum possible threads here.
-//
-   Init(minw, maxw, maxi);
 }
 
 /******************************************************************************/
@@ -536,8 +560,13 @@ void XrdScheduler::setParms(int minw, int maxw, int avlw, int maxi, int once)
   
 void XrdScheduler::Start() // Serialized one time call!
 {
-    int retc, numw;
-    pthread_t tid;
+   int retc, numw;
+   pthread_t tid;
+
+// Provide ABI compatibility for XrdOucTrace which is deprecated!
+//
+   if (getenv("XRDDEBUG") != 0) XrdTrace->What = TRACE_SCHED;
+      else if (XrdTraceOld) XrdTrace->What |= XrdTraceOld->What;
 
 // Start a time based scheduler
 //

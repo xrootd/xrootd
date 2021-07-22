@@ -50,7 +50,7 @@
 /*                        G l o b a l   S t a t i c s                         */
 /******************************************************************************/
 
-extern XrdOucTrace *XrdXrootdTrace;
+extern XrdSysTrace  XrdXrootdTrace;
 
 namespace XrdXrootd
 {
@@ -160,7 +160,7 @@ int XrdXrootdAioTask::gdDone() // Only called for link to file transfers!
 
 // Do some debugging
 //
-   TRACEP(DEBUG,"gdDone: "<<std::hex<<this<<std::dec<<" pendWrite "
+   TRACEP(DEBUG,"gdDone: "<<(void *)this<<" pendWrite "
                 <<(pendWrite != 0 ? "set":"not set"));
 
 // This is a callback indicating the pending aio object has all of the data.
@@ -174,7 +174,7 @@ int XrdXrootdAioTask::gdDone() // Only called for link to file transfers!
 
 // Do some debugging
 //
-   TRACEP(DEBUG,"gdDone: "<<std::hex<<this<<std::dec<<" ending rc="<<rc);
+   TRACEP(DEBUG,"gdDone: "<<(void *)this<<" ending rc="<<rc);
 
 // If we are not pausing for data to be delivered. Drain any oustanding aio
 // requests and discard left over bytes, if any. Note we must copy the left
@@ -200,7 +200,7 @@ void XrdXrootdAioTask::gdFail()
 
 // Do some tracing
 //
-   TRACEP(DEBUG,"gdFail: "<<std::hex<<this<<std::dec);
+   TRACEP(DEBUG,"gdFail: "<<(void *)this);
 
 // Format message for display
 //

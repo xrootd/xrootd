@@ -45,7 +45,7 @@ namespace
 const char *TraceID = "AioFob";
 }
 
-extern XrdOucTrace *XrdXrootdTrace;
+extern XrdSysTrace  XrdXrootdTrace;
   
 namespace XrdXrootd
 {
