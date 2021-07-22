@@ -13,5 +13,6 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Server]** Replace XrdOucTrace by XrdSysTrace, part 1 (internal change).
   **[Server]** Use RAtomics to enhance performance where needed.
   **[Misc]** Implement RAtomics object all of whose operations use relaxed mem order.
