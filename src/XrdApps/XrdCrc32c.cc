@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"dhnsz")) && ((unsigned char)c != 0xff))
+      while ((c = getopt(argc,argv,"dhnsx")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'd': opts |= O_DIRECT;
