@@ -1,5 +1,22 @@
 #include "XrdCks/XrdCksCalccrc32C.hh"
 
+/*
+    C++ implementation of CRC-32C checksums based upon
+    unattributed library functions.
+
+    This file contains:
+        functions implementing the methods of the XrdCksCalc class
+    
+    Provided by:
+        Anton Schwarz
+        University of Heidelberg
+        July 26, 2021
+
+    Status:
+        Public Domain
+
+*/
+
 void XrdCksCalccrc32C::Update(const char *Buff, int BLen)
 {
     C32CResult = (unsigned int)XrdOucCRC::Calc32C(Buff, BLen, C32CResult);
