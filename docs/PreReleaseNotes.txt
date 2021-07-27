@@ -8,7 +8,6 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
-  **[Server]** Add missing initializer to avoid SEGV in async pgread/pgwrite.
 
 + **Minor bug fixes**
 
