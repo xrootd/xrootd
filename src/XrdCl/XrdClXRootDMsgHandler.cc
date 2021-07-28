@@ -409,8 +409,14 @@ namespace XrdCl
       //----------------------------------------------------------------------
       // The message contains only Status header and body but no raw data
       //----------------------------------------------------------------------
+      ServerResponseBody_pgRead *pgrdBody = (ServerResponseBody_pgRead*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
       pReadRawStarted = false;
       pAsyncMsgSize   = rspst->bdy.dlen;
+      pPgReadLength   = rspst->bdy.dlen;
+      pPgReadOffset   = pgrdBody->offset;
+      // now calculate the size of the first page
+      pPgReadCurrentPageSize = XrdSys::PageSize - pPgReadOffset % XrdSys::PageSize;
+
       action |= Raw;
 
       if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
@@ -1074,7 +1080,7 @@ namespace XrdCl
       pAsyncOffset     = 0;
       pAsyncReadSize   = pAsyncMsgSize;
       pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
-      size_t rawDataSize      = pAsyncMsgSize - NbPages( pAsyncMsgSize ) * CksumSize;
+      size_t rawDataSize      = pAsyncMsgSize - XrdOucPgrwUtils::csNum( pPgReadOffset, pPgReadLength ) * CksumSize;
 
       if( pReadRawCurrentOffset + rawDataSize > chunk.length )
       {
@@ -1088,8 +1094,7 @@ namespace XrdCl
       }
       else
       {
-        size_t datalen = pAsyncMsgSize - NbPages( pAsyncMsgSize ) * 4;
-        pReadRawCurrentOffset += datalen;
+        pReadRawCurrentOffset += rawDataSize;
       }
       pReadRawStarted = true;
     }
@@ -1338,36 +1343,46 @@ namespace XrdCl
     uint32_t totalToBeRead = pAsyncReadSize - pAsyncOffset;
     if( totalToBeRead == 0 )  return Status();
 
-    uint32_t reminder = pAsyncOffset % PageWithCksum;
-    if( reminder < 4 ) // we are reading the checksum
+    if( pPgReadCksumBuff.GetCursor() == 0 ) // we are reading the checksum
     {
-      uint32_t toBeRead = CksumSize - reminder;
+      uint32_t toBeRead = CksumSize - pPgReadCksumBuff.GetCursor();
       uint32_t btsRead = 0;
-      char *buffer = pPgReadCksumBuff.data() + reminder;
+      char *buffer = pPgReadCksumBuff.GetBufferAtCursor();
       Status st = ReadBytesAsync( socket, buffer, toBeRead, btsRead );
       pAsyncOffset  += btsRead;
       bytesRead     += btsRead;
       totalToBeRead -= btsRead;
+      pPgReadCksumBuff.AdvanceCursor( btsRead );
       if( !st.IsOK() || st.code == suRetry ) return st;
 
       // now check if we have the full checksum
-      if( btsRead + reminder == CksumSize )
+      if( pPgReadCksumBuff.GetCursor() == CksumSize )
       {
         uint32_t crc32c = 0;
-        memcpy( &crc32c, pPgReadCksumBuff.data(), CksumSize );
+        memcpy( &crc32c, pPgReadCksumBuff.GetBuffer(), CksumSize );
         pPgReadCksums.push_back( ntohl( crc32c ) );
       }
       else return Status();
     }
 
     // we are reading the page
-    reminder = pAsyncOffset % PageWithCksum;
-    uint32_t toBeRead = PageWithCksum - reminder;
+    uint32_t toBeRead = pPgReadCurrentPageSize;
     if( toBeRead > totalToBeRead ) toBeRead = totalToBeRead;
     uint32_t btsRead = 0;
     Status st = ReadBytesAsync( socket, pAsyncReadBuffer, toBeRead, btsRead );
     pAsyncOffset  += btsRead;
     bytesRead     += btsRead;
+
+    //------------------------------------------------------------------------
+    // If we have read the whole page reset pPgReadCksumBuff &
+    // pPgReadCurrentPageSize in order to read the next page
+    //------------------------------------------------------------------------
+    pPgReadCurrentPageSize -= btsRead;
+    if( pPgReadCurrentPageSize == 0 )
+    {
+      pPgReadCksumBuff.SetCursor( 0 );
+      pPgReadCurrentPageSize = XrdSys::PageSize;
+    }
 
     return st;
   }
@@ -2069,12 +2084,11 @@ namespace XrdCl
         char      *cursor        = (char*)chunk.buffer;
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
-          ServerResponseStatus *part = (ServerResponseStatus*)pPartialResps[i]->GetBuffer();
-
+          ServerResponseStatus      *part  = (ServerResponseStatus*)pPartialResps[i]->GetBuffer();
           //--------------------------------------------------------------------
           // the actual size of the raw data without the crc32c checksums
           //--------------------------------------------------------------------
-          size_t datalen = part->bdy.dlen - NbPages( part->bdy.dlen ) * 4;
+          size_t datalen = part->bdy.dlen - NbPages( part->bdy.dlen ) * CksumSize;
 
           if( currentOffset + datalen > chunk.length )
           {
@@ -2087,9 +2101,9 @@ namespace XrdCl
         }
 
         ServerResponseStatus *rspst = (ServerResponseStatus*)pResponse->GetBuffer();
-        size_t datalen = rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
+        size_t datalen = rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * CksumSize;
         if( currentOffset + datalen <= chunk.length )
-          currentOffset += rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * 4;
+          currentOffset += datalen;
         else
           sizeMismatch = true;
 

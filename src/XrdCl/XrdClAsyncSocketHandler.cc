@@ -615,8 +615,7 @@ namespace XrdCl
       if( pIncHandler.first )
       {
         uint32_t bytesRead = 0;
-        st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket,
-                                                 bytesRead );
+        st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket, bytesRead );
         if( !st.IsOK() )
         {
           OnFault( st );

@@ -36,6 +36,9 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPageSize.hh"
 #include "XrdSys/XrdSysKernelBuffer.hh"
+#include "XrdSys/XrdSysPlatform.hh"
+
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 
 #include <sys/uio.h>
 #include <arpa/inet.h> // for network unmarshaling stuff
@@ -141,6 +144,7 @@ namespace XrdCl
         pHasLoadBalancer( false ),
         pHasSessionId( false ),
         pChunkList( 0 ),
+        pKBuff( 0 ),
         pRedirectCounter( 0 ),
         pNotAuthorizedCounter( 0 ),
 
@@ -153,6 +157,11 @@ namespace XrdCl
 
         pReadRawStarted( false ),
         pReadRawCurrentOffset( 0 ),
+
+        pPgReadCksumBuff( 4 ),
+        pPgReadOffset( 0 ),
+        pPgReadLength( 0 ),
+        pPgReadCurrentPageSize( 0 ),
 
         pReadVRawMsgOffset( 0 ),
         pReadVRawChunkHeaderDone( false ),
@@ -195,7 +204,8 @@ namespace XrdCl
         if( ntohs( hdr->requestid ) == kXR_pgread )
         {
           ClientPgReadRequest *pgrdreq = (ClientPgReadRequest*)pRequest->GetBuffer();
-          pPgReadCksums.reserve( NbPages( ntohl( pgrdreq->rlen ) ) );
+          pPgReadCksums.reserve( XrdOucPgrwUtils::csNum( ntohll( pgrdreq->offset ),
+                                                         ntohl( pgrdreq->rlen ) ) );
         }
       }
 
@@ -642,9 +652,8 @@ namespace XrdCl
 
       typedef std::list<std::unique_ptr<RedirectEntry>> RedirectTraceBack;
 
-      static const size_t             PageSize       = XrdSys::PageSize;
       static const size_t             CksumSize      = sizeof( uint32_t );
-      static const size_t             PageWithCksum  = PageSize + CksumSize;
+      static const size_t             PageWithCksum  = XrdSys::PageSize + CksumSize;
       static const size_t             MaxSslErrRetry = 3;
 
       inline static size_t NbPages( uint32_t dlen )
@@ -715,8 +724,11 @@ namespace XrdCl
       bool                            pReadRawStarted;
       uint32_t                        pReadRawCurrentOffset;
 
-      std::array<char, 4>             pPgReadCksumBuff;
+      Buffer                          pPgReadCksumBuff;
       std::vector<uint32_t>           pPgReadCksums;
+      uint64_t                        pPgReadOffset;
+      uint32_t                        pPgReadLength;
+      uint32_t                        pPgReadCurrentPageSize;
 
       uint32_t                        pReadVRawMsgOffset;
       bool                            pReadVRawChunkHeaderDone;

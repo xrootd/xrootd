@@ -44,6 +44,7 @@
 #endif
 
 #include "XrdOuc/XrdOucCRC.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 
 #include "XrdSys/XrdSysKernelBuffer.hh"
 #include "XrdSys/XrdSysPageSize.hh"
@@ -148,15 +149,16 @@ namespace
         PageInfo *pginf = 0;
         response->Get( pginf );
 
+        uint64_t               pgoff     = pginf->GetOffset();
         uint32_t               bytesRead = pginf->GetLength();
         std::vector<uint32_t> &cksums    = pginf->GetCksums();
         char                  *buffer    = reinterpret_cast<char*>( pginf->GetBuffer() );
-        size_t                 pgnb      = 0;
+        size_t                 nbpages   = XrdOucPgrwUtils::csNum( pgoff, bytesRead );
+        uint32_t               pgsize    = XrdSys::PageSize - pgoff % XrdSys::PageSize;
+        if( pgsize > bytesRead ) pgsize = bytesRead;
 
-        while( bytesRead > 0 )
+        for( size_t pgnb = 0; pgnb < nbpages; ++pgnb )
         {
-          uint32_t pgsize = XrdSys::PageSize;
-          if( pgsize > bytesRead ) pgsize = bytesRead;
           uint32_t crcval = XrdOucCRC::Calc32C( buffer, pgsize );
           if( crcval != cksums[pgnb] )
           {
@@ -164,8 +166,7 @@ namespace
             log->Info( FileMsg, "[0x%x@%s] Received corrupted page, will retry page #%d.",
                         this, stateHandler->pFileUrl->GetURL().c_str(), pgnb );
 
-            uint64_t offset = orgOffset + pgnb * XrdSys::PageSize;
-            XRootDStatus st = stateHandler->PgReadRetry( offset, XrdSys::PageSize, pgnb, buffer, this, 0 );
+            XRootDStatus st = stateHandler->PgReadRetry( pgoff, pgsize, pgnb, buffer, this, 0 );
             if( !st.IsOK())
             {
               *status = st; // the reason for this failure
@@ -173,9 +174,12 @@ namespace
             }
             ++retrycnt; // update the retry counter
           }
+
           bytesRead -= pgsize;
           buffer    += pgsize;
-          ++pgnb;
+          pgoff     += pgsize;
+          pgsize     = XrdSys::PageSize;
+          if( pgsize > bytesRead ) pgsize = bytesRead;
         }
 
 
@@ -1140,11 +1144,6 @@ namespace XrdCl
                                          ResponseHandler *handler,
                                          uint16_t         timeout )
   {
-    if( offset % XrdSys::PageSize ) return XRootDStatus( stError, errInvalidArgs, EINVAL,
-                                                         "PgRead offset not 4KB aligned." );
-    if( size % XrdSys::PageSize ) return XRootDStatus( stError, errInvalidArgs, EINVAL,
-                                                       "PgRead size not 4KB aligned." );
-
     int issupported = true;
     AnyObject obj;
     XRootDStatus st = DefaultEnv::GetPostMaster()->QueryTransport( *pDataServer, XRootDQuery::ServerFlags, obj );
@@ -1179,8 +1178,6 @@ namespace XrdCl
                                               PgReadHandler  *handler,
                                               uint16_t        timeout )
   {
-    if( offset % XrdSys::PageSize ) return XRootDStatus( stError, errInvalidArgs, EINVAL,
-                                                         "PgRead offset not 4KB aligned." );
     if( size > (uint32_t)XrdSys::PageSize )
       return XRootDStatus( stError, errInvalidArgs, EINVAL,
                           "PgRead retry size exceeded 4KB." );
