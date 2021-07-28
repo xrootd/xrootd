@@ -58,6 +58,7 @@
 
 #include "XrdOss/XrdOss.hh"
 
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPup.hh"
@@ -1173,6 +1174,11 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
           }
       }
 
+// Compute alternate hash.
+//
+   if (Sel.Opts & XrdCmsSelect::Pack && Config.sched_AffPC
+   &&  Sel.Path.Len > 3) setHash(Sel, Config.sched_AffPC);
+
 // Check if an avoid node present. If so, this is ineligible for fast redirect.
 //
    bool doRedir = false;
@@ -1928,4 +1934,43 @@ int XrdCmsNode::getSize(const char *theSize, long long &Size)
 //
    if (!(Size = strtoll(theSize, &eP, 10)) || *eP) return 0;
    return 1;
+}
+
+/******************************************************************************/
+/*                               s e t H a s h                                */
+/******************************************************************************/
+  
+void XrdCmsNode::setHash(XrdCmsSelect &Sel, int acount)
+{
+
+// Process postive count
+//
+   if (acount > 0)
+      {char *spos = (*Sel.Path.Val == '/' ? Sel.Path.Val+1 : Sel.Path.Val);
+       char *slash;
+       while(acount)
+            {if (!(slash = index(spos, '/'))) return;
+             acount--; spos = slash+1;
+            }
+       *slash = 0;
+       Sel.AltHash = XrdOucCRC::Calc32C(Sel.Path.Val, slash - Sel.Path.Val);
+       *slash = '/';
+       Sel.Opts |= XrdCmsSelect::UseAH;
+       return;
+      }
+
+// Process negative count
+//
+   if (acount < 0)
+      {int i = Sel.Path.Len-1;
+       if (Sel.Path.Val[i] == '/') i--;
+
+       for(; i > 0; i--)
+           {if (Sel.Path.Val[i] == '/' && !(++acount)) break;}
+
+       if (i)
+          {Sel.AltHash = XrdOucCRC::Calc32C(Sel.Path.Val+i, Sel.Path.Len-i);
+           Sel.Opts |= XrdCmsSelect::UseAH;
+          }
+      }
 }

@@ -235,6 +235,7 @@ static const int fsL2PFail2 = 999992;
 const  char *fsFail(const char *Who, const char *What, const char *Path, int rc);
        int   getMode(const char *theMode, mode_t &Mode);
        int   getSize(const char *theSize, long long &Size);
+       void  setHash(XrdCmsSelect &Sel, int acount);
 
 XrdSysCondVar      nodeMutex;
 unsigned int       lkCount;  // Only Modified with global lock held

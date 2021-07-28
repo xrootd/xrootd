@@ -747,11 +747,11 @@ void XrdCmsConfig::ConfigDefaults(void)
    DiskHWMP = 5;
    DiskAsk  = 12;         // 15 Seconds between space calibrations.
    DiskWT   = 0;          // Do not defer when out of space
-   DiskSS   = 0;          // Not a staging server
-   DiskOK   = 0;          // Does not have any disk
+   DiskSS   = false;      // Not a staging server
+   DiskOK   = false;      // Does not have any disk
    myPaths  = (char *)""; // Default is 'r /'
    ConfigFN = 0;
-   sched_RR = sched_Pack = sched_Level = 0; sched_Force = 1;
+   sched_RR = sched_Pack = sched_AffPC = sched_Level = 0; sched_Force = 1;
    isManager= 0;
    isMeta   = 0;
    isPeer   = 0;
@@ -932,7 +932,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
                 ||  !strcmp(var, "all.seclib")
                 ||  !strcmp(var, "all.subcluster"))
                    {if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}}
-                   else if (!strcmp(var, "oss.stagecmd")) DiskSS = 1;
+                   else if (!strcmp(var, "oss.stagecmd")) DiskSS = true;
 
 // Now check if any errors occured during file i/o
 //
@@ -1042,7 +1042,7 @@ int XrdCmsConfig::MergeP()
                 else        npinfo.ssvec = (Opts &  stageAny   ? 1 : 0);
              if (!PathList.Add(plp->Path(), &npinfo))
                 Say.Emsg("Config","Ignoring duplicate export path",plp->Path());
-                else if (npinfo.ssvec) DiskSS = 1;
+                else if (npinfo.ssvec) DiskSS = true;
             }
           plp = plp->Next();
          }
@@ -1204,7 +1204,7 @@ int XrdCmsConfig::setupServer()
    if (isManager || isPeer) return 0;
    SUPCount = 0; SUPLevel = 0;
    if (isProxy) return 0;
-   DiskOK = 1; 
+   DiskOK = true;
 
 // If this is a staging server then set up the Prepq object
 //
@@ -2613,6 +2613,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
                                        [maxretries <n>[@<host>:<port>]]
                                        [nomultisrc[@<host>:<port>]]
                 [affinity [default] {none | weak | strong | strict}]
+                [affpath {all | first m | last n}]
 
              <p>      is the percentage to include in the load as a value
                       between 0 and 100. For fuzz this is the largest
@@ -2648,6 +2649,7 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
         {"maxload",  100, &MaxLoad},
         {"refreset", -1,  &RefReset},
         {"affinity", -2,  0},
+        {"affpath",  -3,  0},
         {"tryhname",   1, &V_hntry}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
@@ -2658,13 +2660,17 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
     while (val)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, scopts[i].opname))
-                  {if (scopts[i].maxv != -3 && !(val = CFile.GetWord()))
+                  {if (!(val = CFile.GetWord()))
                       {eDest->Emsg("Config", "sched ", scopts[i].opname,
                                    "argument not specified.");
                        return 1;
                       }
                    if (scopts[i].maxv == -2)
                       {if (!xschedm(val, eDest, CFile)) return 1;
+                       break;
+                      }
+                   if (scopts[i].maxv == -3)
+                      {if (!xschedp(val, eDest, CFile)) return 1;
                        break;
                       }
                    if (scopts[i].maxv < 0)
@@ -2723,6 +2729,33 @@ int XrdCmsConfig::xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile)
 
    eDest->Emsg("Config", "Invalid sched affinity -", val);
    return 0;
+}
+
+/******************************************************************************/
+
+int XrdCmsConfig::xschedp(char *val, XrdSysError *eDest, XrdOucStream &CFile)
+{
+   int afpsign, afpval;
+
+   if (!strcmp(val, "all"))
+      {sched_AffPC = 0;
+       return 1;
+      }
+
+   if (!strcmp(val, "first")) afpsign = 1;
+      else if (!strcmp(val, "last")) afpsign = -1;
+              else {eDest->Emsg("Config", "sched affpath option invalid -", val);
+                    return 0;
+                   }
+
+   if (!(val = CFile.GetWord()))
+      {eDest->Emsg("Config", "sched affpath argument not specified"); return 0;}
+
+   if (XrdOuca2x::a2i(*eDest,"sched affpath value", val, &afpval, 1, 255))
+      return 0;
+
+   sched_AffPC = static_cast<char>(afpval*afpsign);
+   return 1;
 }
 
 /******************************************************************************/

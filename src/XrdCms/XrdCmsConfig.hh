@@ -120,11 +120,14 @@ short       DiskHWMP;     // Minimum MB needed of space to requalify   as %
 int         DiskLinger;   // Manager Only
 int         DiskAsk;      // Seconds between disk space reclaculations
 int         DiskWT;       // Seconds to defer client while waiting for space
-int         DiskSS;       // This is a staging server
-int         DiskOK;       // This configuration has data
+bool        DiskSS;       // This is a staging server
+bool        DiskOK;       // This configuration has data
+
+char        rsvd[5];
 
 char        sched_RR;     // 1 -> Simply do round robin scheduling
-char        sched_Pack;   // 1 -> Pick oldest node (>1 same but wait for resps)
+char        sched_Pack;   // 1 -> Pick with affinity (>1 same but wait for resps)
+char        sched_AffPC;  // Affinity path component count (-255 <= n <= 255)
 char        sched_Level;  // 1 -> Use load-based level for "pack" selection
 char        sched_Force;  // 1 -> Client cannot select mode
 int         doWait;       // 1 -> Wait for a data end-point
@@ -240,6 +243,7 @@ int  xrmtrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xrole(XrdSysError *edest, XrdOucStream &CFile);
 int  xsched(XrdSysError *edest, XrdOucStream &CFile);
 int  xschedm(char *val, XrdSysError *eDest, XrdOucStream &CFile);
+int  xschedp(char *val, XrdSysError *eDest, XrdOucStream &CFile);
 int  xschedx(char *val, XrdSysError *eDest, XrdOucStream &CFile);
 bool xschedy(char *val, XrdSysError *eDest, char *&host, int &hlen, int &port);
 int  xsecl(XrdSysError *edest, XrdOucStream &CFile);
