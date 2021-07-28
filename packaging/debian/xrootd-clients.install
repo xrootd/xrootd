@@ -1,4 +1,5 @@
 usr/bin/xrdadler32
+usr/bin/xrdcrc32c
 usr/bin/xrdcopy
 usr/bin/xrdcp
 usr/bin/xrdfs
