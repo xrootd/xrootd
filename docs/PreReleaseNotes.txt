@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[cmsd]** Allow flexible path consideration when determining affinity.
 
 + **Major bug fixes**
   **[Server]** Add missing initializer to avoid SEGV in async pgread/pgwrite.
