@@ -213,6 +213,7 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdCks/XrdCksAssist.cc           XrdCks/XrdCksAssist.hh
   XrdCks/XrdCksCalccrc32.cc        XrdCks/XrdCksCalccrc32.hh
+  XrdCks/XrdCksCalccrc32C.cc       XrdCks/XrdCksCalccrc32C.hh
   XrdCks/XrdCksCalcmd5.cc          XrdCks/XrdCksCalcmd5.hh
   XrdCks/XrdCksConfig.cc           XrdCks/XrdCksConfig.hh
   XrdCks/XrdCksLoader.cc           XrdCks/XrdCksLoader.hh

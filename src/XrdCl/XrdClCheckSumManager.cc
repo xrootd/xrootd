@@ -26,6 +26,7 @@
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdCks/XrdCksCalccrc32.hh"
+#include "XrdCks/XrdCksCalccrc32C.hh"
 #include "XrdCks/XrdCksCalcadler32.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -48,6 +49,7 @@ namespace XrdCl
     pLoader = new XrdCksLoader( XrdVERSIONINFOVAR( XrdCl ) );
     pCalculators["md5"]     = new XrdCksCalcmd5();
     pCalculators["crc32"]   = new XrdCksCalccrc32;
+    pCalculators["crc32c"]  = new XrdCksCalccrc32C;
     pCalculators["adler32"] = new XrdCksCalcadler32;
   }
 

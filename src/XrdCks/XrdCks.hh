@@ -48,7 +48,7 @@ class XrdSysPlugin;
 /******************************************************************************/
 /*                             X r d C k s P C B                              */
 /******************************************************************************/
-/*! The XrdCksPCB object defines a callabck hat allows he caller to monitor the
+/*! The XrdCksPCB object defines a callback hat allows he caller to monitor the
     progress of a checksum calculation (calc or verify).
 */
 
