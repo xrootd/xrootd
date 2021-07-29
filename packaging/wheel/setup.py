@@ -64,8 +64,15 @@ def is_rhel7():
 def has_devtoolset():
     """check if devtoolset-7 is installed"""
     import subprocess
-    args = ( "/usr/bin/rpm", "-q", "devtoolset-7" )
+    args = ( "/usr/bin/rpm", "-q", "devtoolset-7-gcc-c++" )
     popen = subprocess.Popen(args, stdout=subprocess.PIPE)
+    rc = popen.wait()
+    return rc == 0
+
+def has_cxx14():
+    """check if C++ compiler supports C++14"""
+    import subprocess
+    popen = subprocess.Popen("$(pwd)/has_c++14.sh", stdout=subprocess.PIPE)
     rc = popen.wait()
     return rc == 0
 
@@ -98,9 +105,14 @@ class CustomInstall(install):
         zlib_dev     = pkgconfig.exists( 'zlib' )
         openssl_dev  = pkgconfig.exists( 'openssl' )
         uuid_dev     = pkgconfig.exists( 'uuid' )
+
         if is_rhel7():
-          devtoolset7 = has_devtoolset()
-          need_devtoolset = "true"
+          if has_cxx14():
+            devtoolset7 = True # we only care about devtoolset7 if the compiler does not support C++14
+            need_devtoolset = "false"
+          else:
+            devtoolset7 = has_devtoolset()
+            need_devtoolset = "true"
         else:
           devtoolset7 = True # we only care about devtoolset7 on rhel7
           need_devtoolset = "false"
@@ -124,7 +136,7 @@ class CustomInstall(install):
           if not openssl_dev:  print('\topenssl development package is missing!')
           if not python_dev:   print('\t{} development package is missing!'.format(pyname) )
           if not uuid_dev:     print('\tuuid development package is missing')
-          if not devtoolset7:  print('\tdevtoolset-7 package is missing')
+          if not devtoolset7:  print('\tdevtoolset-7-gcc-c++ package is missing')
           raise Exception( 'Dependencies missing!' )
 
         useropt = ''
