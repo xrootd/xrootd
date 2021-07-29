@@ -1,0 +1,95 @@
+###############################################################################
+# Test with cmake if the compiler supports all features of C++14
+###############################################################################
+
+cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
+project(TestCXX14 CXX)
+
+message("Your C++ compiler supports these C++14 features:")
+
+foreach( feature ${CMAKE_CXX_COMPILE_FEATURES} )
+
+  if( feature STREQUAL "cxx_std_14" )
+    message( "${feature}" )
+    set( has_cxx_std_14 TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_aggregate_default_initializers" )
+    message( "${feature}" )
+    set( has_cxx_aggregate_default_initializers TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_attribute_deprecated" )
+    message( "${feature}" )
+    set( has_cxx_attribute_deprecated TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_binary_literals" )
+    message( "${feature}" )
+    set( has_cxx_binary_literals TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_contextual_conversions" )
+    message( "${feature}" )
+    set( has_cxx_contextual_conversions TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_decltype_auto" )
+    message( "${feature}" )
+    set( has_cxx_decltype_auto TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_digit_separators" )
+    message( "${feature}" )
+    set( has_cxx_digit_separators TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_generic_lambdas" )
+    message( "${feature}" )
+    set( has_cxx_generic_lambdas TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_lambda_init_captures" )
+    message( "${feature}" )
+    set( has_cxx_lambda_init_captures TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_relaxed_constexpr" )
+    message( "${feature}" )
+    set( has_cxx_relaxed_constexpr TRUE )
+  endif()
+
+  if( feature STREQUAL "cxx_return_type_deduction" )
+    message( "${feature}" )
+    set( has_cxx_return_type_deduction TRUE )
+  endif()
+  
+    if( feature STREQUAL "cxx_variable_templates" )
+    message( "${feature}" )
+    set( has_cxx_variable_templates TRUE )
+  endif()
+
+endforeach()
+
+if( has_cxx_std_14 AND
+    has_cxx_aggregate_default_initializers AND
+    has_cxx_attribute_deprecated AND     
+    has_cxx_binary_literals AND
+    has_cxx_contextual_conversions AND
+    has_cxx_decltype_auto AND
+    has_cxx_digit_separators AND
+    has_cxx_generic_lambdas AND
+    has_cxx_lambda_init_captures AND
+    has_cxx_relaxed_constexpr AND
+    has_cxx_return_type_deduction AND
+    has_cxx_variable_templates )
+
+    message( "We have full C++14 support." )
+    set( has_full_cxx14 TRUE )
+
+endif()
+
+if( NOT has_full_cxx14 )
+    message( FATAL_ERROR "The compiler DOES NOT support all features of C++14!." )
+endif()
+  
