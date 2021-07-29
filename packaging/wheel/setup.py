@@ -72,7 +72,7 @@ def has_devtoolset():
 def has_cxx14():
     """check if C++ compiler supports C++14"""
     import subprocess
-    popen = subprocess.Popen("$(pwd)/has_c++14.sh", stdout=subprocess.PIPE)
+    popen = subprocess.Popen("./has_c++14.sh", stdout=subprocess.PIPE)
     rc = popen.wait()
     return rc == 0
 
