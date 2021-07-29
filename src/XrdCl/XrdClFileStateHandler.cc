@@ -796,7 +796,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
-    if( pSessionId ) // if the file object was bound to a physical connection
+    //--------------------------------------------------------------------------
+    // This, in principle, should never ever happen. Except for the case
+    // when we're interfaced with ROOT that may call this desctructor from
+    // its garbage collector, from its __cxa_finalize, ie. after the XrdCl lib
+    // has been finalized by the linker. So, if we don't have the log object
+    // at this point we just give up the hope.
+    //--------------------------------------------------------------------------
+    if( DefaultEnv::GetLog() && pSessionId ) // if the file object was bound to a physical connection
       DefaultEnv::GetPostMaster()->DecFileInstCnt( *pDataServer );
 
     if( pReOpenHandler )
