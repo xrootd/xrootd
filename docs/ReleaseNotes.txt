@@ -5,6 +5,19 @@ XRootD
 Release Notes
 =============
 
+
+--------------
+Version 5.3.1
+--------------
+
++ **Major bug fixes**
+  **[Server]** Add missing initializer to avoid SEGV in async pgread/pgwrite.
+  **[XrdCl]** FileStateHandler::~FileStateHandler : make sure PostMaster is
+              not used after libXrdCl has been unloaded.
+
++ **Miscellaneous**
+  **[PIP]** Improve the compiler/devtoolset check on RHEL7.
+
 --------------
 Version 5.3.0
 --------------
