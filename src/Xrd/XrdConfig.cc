@@ -444,7 +444,7 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'n': myInsName = (!strcmp(optarg,"anon")||!strcmp(optarg,"default")
                            ? 0 : optarg);
                  break;
-       case 'p': if ((clPort = yport(&Log, "tcp", optarg)) < 0) Usage(1);
+       case 'p': if ((clPort = XrdOuca2x::a2p(Log,"tcp",optarg)) < 0) Usage(1);
                  break;
        case 'P': if (dfltProt) free(dfltProt);
                  dfltProt = strdup(optarg);
@@ -1888,32 +1888,13 @@ int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
                               ProtInfo.myInst, myProg)) <= 0)
           {if (!rc) Config.noEcho(); return (rc < 0);}
 
-    if ((pnum = yport(eDest, "tcp", cport)) < 0) return 1;
+    if ((pnum = XrdOuca2x::a2p(eDest, "tcp", cport)) < 0) return 1;
     if (istls) PortTLS = pnum;
        else PortTCP = PortUDP = pnum;
 
     return 0;
 }
 
-/******************************************************************************/
-
-int XrdConfig::yport(XrdSysError *eDest, const char *ptype, const char *val)
-{
-    int pnum;
-    if (!strcmp("any", val)) return 0;
-
-    const char *invp = (*ptype == 't' ? "tcp port" : "udp port" );
-    const char *invs = (*ptype == 't' ? "Unable to find tcp service" :
-                                        "Unable to find udp service" );
-
-    if (isdigit(*val))
-       {if (XrdOuca2x::a2i(*eDest,invp,val,&pnum,1,65535)) return 0;}
-       else if (!(pnum = XrdNetUtils::ServPort(val, (*ptype != 't'))))
-               {eDest->Emsg("Config", invs, val);
-                return -1;
-               }
-    return pnum;
-}
   
 /******************************************************************************/
 /*                                 x p r o t                                  */
@@ -1951,7 +1932,7 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
     strcpy(proname, val);
 
     if ((val = index(proname, ':')))
-       {if ((portnum = yport(&Log, "tcp", val+1)) < 0) return 1;
+       {if ((portnum = XrdOuca2x::a2p(&Log, "tcp", val+1)) < 0) return 1;
            else *val = '\0';
        }
 
