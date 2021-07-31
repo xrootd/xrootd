@@ -13,6 +13,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Utils]** Add generic port specification to port number utility.
   **[Apps]** Provide cli to compute crc32c checksum (i.e. xrdcrc32c).
   **[Server]** Replace XrdOucTrace by XrdSysTrace, part 1 (internal change).
   **[Server]** Use RAtomics to enhance performance where needed.
