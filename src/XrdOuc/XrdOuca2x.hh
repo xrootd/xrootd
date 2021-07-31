@@ -41,7 +41,8 @@ static int a2i( XrdSysError &, const char *emsg, const char *item, int *val, int
 static int a2ll(XrdSysError &, const char *emsg, const char *item, long long *val, long long minv=-1, long long maxv=-1);
 static int a2fm(XrdSysError &, const char *emsg, const char *item, int *val, int minv);
 static int a2fm(XrdSysError &, const char *emsg, const char *item, int *val, int minv, int maxv);
-static int a2sn(XrdSysError &Eroute, const char *emsg, const char *item,
+static int a2p(XrdSysError  &, const char *ptype, const char *val, bool anyOK=true);
+static int a2sn(XrdSysError &, const char *emsg, const char *item,
                 int *val, int nScale, int minv=-1, int maxv=-1);
 static int a2sp(XrdSysError &, const char *emsg, const char *item, long long *val, long long minv=-1, long long maxv=-1);
 static int a2sz(XrdSysError &, const char *emsg, const char *item, long long *val, long long minv=-1, long long maxv=-1);
@@ -53,12 +54,12 @@ static int x2b(const char* src, int slen, unsigned char* dst, int dlen,
                bool radj=false);
 
 private:
-static int Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
-                                     const char *etxt2, double    val);
-static int Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
-                                     const char *etxt2, int       val);
-static int Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
-                                     const char *etxt2, long long val);
+static int Emsg(XrdSysError &, const char *etxt1, const char *item,
+                               const char *etxt2, double    val);
+static int Emsg(XrdSysError &, const char *etxt1, const char *item,
+                               const char *etxt2, int       val);
+static int Emsg(XrdSysError &, const char *etxt1, const char *item,
+                               const char *etxt2, long long val);
 };
 
 #endif

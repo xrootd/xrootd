@@ -35,6 +35,7 @@
 #ifdef WIN32
 #include "XrdSys/XrdWin32.hh"
 #endif
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 
 /******************************************************************************/
@@ -132,6 +133,34 @@ int XrdOuca2x::a2fm(XrdSysError &Eroute, const char *emsg, const char *item,
     return 0;
 }
 
+/******************************************************************************/
+/*                                   a 2 p                                    */
+/******************************************************************************/
+
+int XrdOuca2x::a2p(XrdSysError &eDest, const char *ptype, const char *val,
+                   bool anyOK)
+{
+    int pnum;
+
+    if (!strcmp("any", val))
+       {if (anyOK) return 0;
+        eDest.Emsg("Config", "port 'any' is not allowed");
+        return -1;
+       }
+
+    const char *invp = (*ptype == 't' ? "tcp port" : "udp port" );
+    const char *invs = (*ptype == 't' ? "Unable to find tcp service" :
+                                        "Unable to find udp service" );
+
+    if (isdigit(*val))
+       {if (XrdOuca2x::a2i(eDest,invp,val,&pnum,1,65535)) return -1;}
+       else if (!(pnum = XrdNetUtils::ServPort(val, (*ptype != 't'))))
+               {eDest.Emsg("Config", invs, val);
+                return -1;
+               }
+    return pnum;
+}
+  
 /******************************************************************************/
 /*                                  a 2 s n                                   */
 /******************************************************************************/
