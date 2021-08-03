@@ -10,6 +10,7 @@ Prerelease Notes
   **[cmsd]** Allow flexible path consideration when determining affinity.
 
 + **Major bug fixes**
+  **[Server]** Avoid SEGV when previous monitory directive overridden.
 
 + **Minor bug fixes**
 
