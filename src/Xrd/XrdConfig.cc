@@ -1888,7 +1888,7 @@ int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
                               ProtInfo.myInst, myProg)) <= 0)
           {if (!rc) Config.noEcho(); return (rc < 0);}
 
-    if ((pnum = XrdOuca2x::a2p(eDest, "tcp", cport)) < 0) return 1;
+    if ((pnum = XrdOuca2x::a2p(*eDest, "tcp", cport)) < 0) return 1;
     if (istls) PortTLS = pnum;
        else PortTCP = PortUDP = pnum;
 
@@ -1932,7 +1932,7 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
     strcpy(proname, val);
 
     if ((val = index(proname, ':')))
-       {if ((portnum = XrdOuca2x::a2p(&Log, "tcp", val+1)) < 0) return 1;
+       {if ((portnum = XrdOuca2x::a2p(*eDest, "tcp", val+1)) < 0) return 1;
            else *val = '\0';
        }
 
