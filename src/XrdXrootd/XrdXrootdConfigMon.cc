@@ -72,7 +72,7 @@ struct MonParms
                           monFbsz(0),   monIdent(3600),monRnums(0),
                           monFSint(0),  monFSopt(0),   monFSion(0) {}
             ~MonParms() {if (monDest[0]) free(monDest[0]);
-                         if (monDest[0]) free(monDest[0]);
+                         if (monDest[1]) free(monDest[1]);
                         }
 };
 
