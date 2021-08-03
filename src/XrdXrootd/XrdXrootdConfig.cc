@@ -519,6 +519,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
 
          if (ismine)
             {     if TS_Xeq("async",         xasync);
+             else if TS_Xeq("bindif",        xbif);
              else if TS_Xeq("chksum",        xcksum);
              else if TS_Xeq("diglib",        xdig);
              else if TS_Xeq("export",        xexp);
@@ -891,6 +892,82 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 }
 
 /******************************************************************************/
+/*                                  x b i f                                   */
+/******************************************************************************/
+  
+/* Function: xbif
+
+   Purpose:  To parse the directive: bindif <trg>
+
+   <trg>:    <host>:<port>[%<prvhost>:<port>]] [<trg>]
+*/
+
+namespace XrdXrootd
+{
+char *bifResp[2] = {0,0};
+int   bifRLen[2] = {0,0};
+}
+
+int XrdXrootdProtocol::xbif(XrdOucStream &Config)
+{
+   static const int brSize = sizeof(XrdProto::bifReqs);
+   using XrdXrootd::bifResp;
+   using XrdXrootd::bifRLen;
+
+   XrdOucString bSpec[2];
+   char *bHost[2], *val, buff[512];
+   int   bPort[2], thePort;
+
+// Cleanup any previous bif specification
+//
+   if (bifResp[1])
+      {if (bifResp[1] != bifResp[0]) free(bifResp[1]);
+       bifResp[1] = 0; bifRLen[1] = 0;
+      }
+   if (bifResp[0])
+      {free(bifResp[0]);
+       bifResp[0] = 0; bifRLen[0] = 0;
+      }
+
+// Process all of the options
+//
+   while((val = Config.GetWord()) && *val)
+        {if (!xred_php(val, bHost, bPort, "bindif", true)) return 1;
+         for (int i = 0; i < 2 && bHost[i] != 0; i++)
+             {thePort = (bPort[i] ? bPort[i] : XrdXrootdPort);
+              snprintf(buff, sizeof(buff), "%s%s:%d",
+                      (bSpec[i].length() ? "," : ""),  bHost[i], thePort);
+              bSpec[i] += buff;
+             }
+        }
+
+// Generate the "b" record for each type of interface
+//
+   for (int i = 0; i < 2 && bSpec[i].length(); i++)
+       {int n = brSize + bSpec[i].length() + 1;
+        n = (n + 7) & ~7;
+        XrdProto::bifReqs *bifRec = (XrdProto::bifReqs *)malloc(n);
+        memset(bifRec, 0, n);
+        bifRec->theTag = 'B';
+        bifRec->bifILen = htons(static_cast<kXR_unt16>(n-brSize));
+        strcpy(((char *)bifRec)+brSize, bSpec[i].c_str());
+        bifResp[i] = (char *)bifRec;
+        bifRLen[i] = n;
+       }
+
+// Now complete the definition
+//
+   if (bifResp[0] && bifResp[1] == 0)
+      {bifResp[1] = bifResp[0];
+       bifRLen[1] = bifRLen[0];
+      }
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
 /*                                x c k s u m                                 */
 /******************************************************************************/
 
@@ -1219,7 +1296,7 @@ int XrdXrootdProtocol::xfso(XrdOucStream &Config)
          else if (!strcmp(val, "nobypass")) bypass = 0;
          else if (!strcmp(val, "redirect"))
                  {val = Config.GetWord();
-                  if (!xred_php(val, hP, rPort)) return 1;
+                  if (!xred_php(val, hP, rPort, "redirect")) return 1;
                   for (int i = 0; i < 2; i++)
                       {if (!hP[i]) rHost[i][0] = 0;
                           else {strlcpy(rHost[i], hP[i], rHLen);
@@ -1454,7 +1531,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
 // Get the host and port
 //
    val = Config.GetWord();
-   if (!xred_php(val, hP, rPort)) return 1;
+   if (!xred_php(val, hP, rPort, "redirect")) return 1;
 
 // Copy out he values as the target variable will be lost
 //
@@ -1518,14 +1595,18 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
    return 0;
 }
 
-bool XrdXrootdProtocol::xred_php(char *val, char *hP[2], int rPort[2])
+/******************************************************************************/
+
+bool XrdXrootdProtocol::xred_php(char *val, char *hP[2], int rPort[2],
+                                 const char *what, bool optport)
 {
+   XrdNetAddr testAddr;
    char *pp;
 
 // Make sure we have a value
 //
    if (!val || !(*val))
-      {eDest.Emsg("config", "redirect option not specified"); return false;}
+      {eDest.Emsg("config", what, "argument not specified"); return false;}
 
 // Check if we have two hosts here
 //
@@ -1536,7 +1617,7 @@ bool XrdXrootdProtocol::xred_php(char *val, char *hP[2], int rPort[2])
 // Verify corectness here
 //
    if (!(*val) || (hP[1] && !*hP[1]))
-      {eDest.Emsg("Config", "malformed redirect host specification");
+      {eDest.Emsg("Config", "malformed", what, "host specification");
        return false;
       }
 
@@ -1545,12 +1626,26 @@ bool XrdXrootdProtocol::xred_php(char *val, char *hP[2], int rPort[2])
    for (int i = 0; i < 2; i++)
        {if (!(val = hP[i])) break;
         if (!val || !val[0] || val[0] == ':')
-           {eDest.Emsg("Config", "redirect host not specified"); return false;}
-        if (!(pp = rindex(val, ':')))
-           {eDest.Emsg("Config", "redirect port not specified"); return false;}
-        if (!(rPort[i] = atoi(pp+1)))
-           {eDest.Emsg("Config", "redirect port is invalid");    return false;}
-        *pp = '\0';
+           {eDest.Emsg("Config", what, "host not specified"); return false;}
+        if ((pp = rindex(val, ':')))
+           {if ((rPort[i] = XrdOuca2x::a2p(eDest, "tcp", pp+1, false)) <= 0)
+               return false;
+            *pp = '\0';
+           } else {
+            if (optport) rPort[i] = 0;
+               else {eDest.Emsg("Config", what, "port not specified");
+                     return false;
+                    }
+           }
+        const char *eText = testAddr.Set(val, 0);
+        if (eText)
+           {if (XrdNetAddrInfo::isHostName(val) && !strncmp(eText,"Dynamic",7))
+               eDest.Say("Config warning: ", eText, " as ", val);
+               else {eDest.Say("Config failure: ", what, " target ", val,
+                               " is invalid; ", eText);
+                     return false;
+                    }
+            }
        }
 
 // All done

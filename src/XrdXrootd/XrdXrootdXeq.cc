@@ -1800,6 +1800,12 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
 /******************************************************************************/
 /*                           d o _ P r o t o c o l                            */
 /******************************************************************************/
+
+namespace XrdXrootd
+{
+extern char *bifResp[2];
+extern int   bifRLen[2];
+}
   
 int XrdXrootdProtocol::do_Protocol()
 {
@@ -1809,7 +1815,9 @@ int XrdXrootdProtocol::do_Protocol()
    static kXR_int32 theRlt = static_cast<kXR_int32>(htonl(myRole|kXR_gotoTLS));
 
    ServerResponseBody_Protocol theResp;
-   int rc, RespLen = kXR_ShortProtRespLen;
+   struct iovec ioVec[4] = {{0,0},{&theResp,kXR_ShortProtRespLen},{0,0},{0,0}};
+
+   int rc, iovN = 2, RespLen = kXR_ShortProtRespLen;
    bool wantTLS = false;
 
 // Keep Statistics
@@ -1823,9 +1831,23 @@ int XrdXrootdProtocol::do_Protocol()
        if (!Status || !(clientPV & XrdOucEI::uVMask))
           clientPV = (clientPV & ~XrdOucEI::uVMask) | cvn;
           else cvn = (clientPV &  XrdOucEI::uVMask);
+
+       if (Request.protocol.flags & ClientProtocolRequest::kXR_bifreqs
+       &&  XrdXrootd::bifResp[0])
+          {int k =( Link->AddrInfo()->isPrivate() ? 1 : 0);
+           ioVec[iovN  ].iov_base = XrdXrootd::bifResp[k];
+           ioVec[iovN++].iov_len  = XrdXrootd::bifRLen[k];
+           RespLen += XrdXrootd::bifRLen[k];
+          }
+
        if (DHS && cvn >= kXR_PROTSIGNVERSION
        &&  Request.protocol.flags & ClientProtocolRequest::kXR_secreqs)
-          RespLen += DHS->ProtResp(theResp.secreq, *(Link->AddrInfo()), cvn);
+          {int n = DHS->ProtResp(theResp.secreq, *(Link->AddrInfo()), cvn);
+           ioVec[iovN  ].iov_base = (void *)&theResp.secreq;
+           ioVec[iovN++].iov_len  = n;
+           RespLen += n;
+          }
+
        if ((myRole & kXR_haveTLS) != 0 && !(Link->hasTLS()))
           {wantTLS = (Request.protocol.flags &
                       ClientProtocolRequest::kXR_wantTLS) != 0;
@@ -1857,9 +1879,9 @@ int XrdXrootdProtocol::do_Protocol()
 // Send the response
 //
    theResp.pval = verNum;
-   rc = Response.Send((void *)&theResp,RespLen);
+   rc = Response.Send(ioVec, iovN, RespLen);
 
-// If the clientwants to start using TLS, enable it now. If we fail then we
+// If the client wants to start using TLS, enable it now. If we fail then we
 // have no choice but to terminate the connection. Note that incapable clients
 // don't want TLS but if we require TLS anyway, they will get an error either
 // pre-login or post-login or on a bind later on.

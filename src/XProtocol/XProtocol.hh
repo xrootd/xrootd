@@ -558,7 +558,8 @@ struct ClientProtocolRequest {
 enum RequestFlags {
    kXR_secreqs  = 0x01,  // Options: Return security requirements
    kXR_ableTLS  = 0x02,  // Options: Client is TLS capable
-   kXR_wantTLS  = 0x04   // Options: Change connection to use TLS
+   kXR_wantTLS  = 0x04,  // Options: Change connection to use TLS
+   kXR_bifreqs  = 0x08   // Options: Return bind interface requirements
 };
 
 enum ExpectFlags {
@@ -1072,6 +1073,18 @@ struct ServerResponseBody_pgWrCSE {
 /******************************************************************************/
 /*                 k X R _ p r o t o c o l   R e s p o n s e                  */
 /******************************************************************************/
+
+// The following information is returned in the response body when kXR_bifreqs
+// is set in ClientProtocolRequest::flags. Note that the size of bifInfo is
+// is variable. This response will not be returned if there are no bif's.
+// Note: This structure is null byte padded to be a multiple of 8 bytes!
+//
+struct ServerResponseBifs_Protocol {
+   kXR_char  theTag;      // Always the character 'B' to identify struct
+   kXR_char  rsvd;        // Reserved for the future (always 0 for now)
+   kXR_unt16 bifILen;     // Length of bifInfo including null bytes.
+// kXR_char  bifInfo[bifILen];
+};
   
 // The following information is returned in the response body when kXR_secreqs
 // is set in ClientProtocolRequest::flags. Note that the size of secvec is
@@ -1091,6 +1104,13 @@ struct ServerResponseReqs_Protocol {
    kXR_char  secvsz;      // Number of items in secvec (i.e. its length/2)
    ServerResponseSVec_Protocol secvec;
 };
+
+
+namespace XrdProto
+{
+typedef struct ServerResponseBifs_Protocol bifReqs;
+typedef struct ServerResponseReqs_Protocol secReqs;
+}
 
 // Options reflected in protocol response ServerResponseReqs_Protocol::secopt
 //

@@ -333,6 +333,7 @@ static int   Squash(char *);
 static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
+static int   xbif(XrdOucStream &Config);
 static int   xdig(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
@@ -348,7 +349,8 @@ static int   xmongs(XrdOucStream &Config);
 static bool  xmongsend(XrdOucStream &Config, char *val, char *&dest,
                        int &opt, int &fmt, int &hdr);
 static int   xred(XrdOucStream &Config);
-static bool  xred_php(char *val, char *hP[2], int rPort[2]);
+static bool  xred_php(char *val, char *hP[2], int rPort[2], const char *what,
+                      bool optport=false);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
 static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
