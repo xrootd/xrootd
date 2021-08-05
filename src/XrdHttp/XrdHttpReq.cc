@@ -639,7 +639,7 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
 
   xrdresp = kXR_error;
   xrderrcode = (XErrorCode) ecode;
-  this->etext = etext_;
+  obfuscatepath(this->etext, etext_);
 
 
   if (PostProcessHTTPReq()) reset();
