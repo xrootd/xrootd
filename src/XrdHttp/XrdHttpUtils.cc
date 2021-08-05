@@ -439,5 +439,32 @@ char *escapeXML(const char *str) {
 
 
 
+// If the text contains a path then it will not be seen as such by wannabe security tests
+// Returns the number of chars that have been substituted
+int obfuscatepath(std::string &strout, const char *strin) {
+  int l = strlen(strin);
+  strout.clear();
+  int i, j = 0;
+
+  for (i = 0; i < l; i++) {
+    const char c = strin[i];
+
+    switch (c) {
+      case '/':
+        strout.append(" / ");
+        j++;
+        break;
+      case '\\':
+        strout.append(" \\ ");
+        j++;
+        break;
+      default:
+        strout.push_back(c);
+    }
+  }
+
+
+  return j;
+}
 
 

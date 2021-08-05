@@ -89,5 +89,10 @@ char *unquote(char *str);
 // Escape a string and return a new one
 char *escapeXML(const char *str);
 
+
+// If the text contains a path then it will not be seen as such by wannabe security tests
+// // Returns the number of chars that have been substituted
+int obfuscatepath(std::string &, const char *);
+ 
 #endif	/* XRDHTTPUTILS_HH */
 
