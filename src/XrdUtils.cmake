@@ -134,6 +134,7 @@ add_library(
   XrdOuc/XrdOucTokenizer.cc     XrdOuc/XrdOucTokenizer.hh
   XrdOuc/XrdOucTPC.cc           XrdOuc/XrdOucTPC.hh
   XrdOuc/XrdOucTrace.cc         XrdOuc/XrdOucTrace.hh
+  XrdOuc/XrdOucUri.cc           XrdOuc/XrdOucUri.hh
   XrdOuc/XrdOucUtils.cc         XrdOuc/XrdOucUtils.hh
   XrdOuc/XrdOucVerName.cc       XrdOuc/XrdOucVerName.hh
                                 XrdOuc/XrdOucChain.hh
