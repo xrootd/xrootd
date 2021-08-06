@@ -102,6 +102,7 @@ int                 PrivsConvert(char *privs, XrdAccPrivCaps &ctab);
 int                 xaud(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xart(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xdbp(XrdOucStream &Config, XrdSysError &Eroute);
+int                 xenc(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xglt(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xgrt(XrdOucStream &Config, XrdSysError &Eroute);
 int                 xnis(XrdOucStream &Cofig, XrdSysError &Eroute);
@@ -116,5 +117,6 @@ XrdSysThread         Config_Refresh;
 int                  options;
 int                  rulenum;
 char                 spChar;
+bool                 uriPath;
 };
 #endif
