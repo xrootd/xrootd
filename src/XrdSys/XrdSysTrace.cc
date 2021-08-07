@@ -169,13 +169,24 @@ XrdSysTrace& XrdSysTrace::operator<<(char val)
 // If we have enough space then format the value
 //
    if (vPnt < iovMax && dFree > 1)
-      {if (doHex)
-          {ioVec[vPnt]  .iov_base = (char *)(&dBuff[dPnt]);
-           ioVec[vPnt++].iov_len  = 2;
-           dBuff[dPnt++] = hv[(val >> 4) & 0x0f];
-           dBuff[dPnt++] = hv[ val       & 0xf0];
-           if (doHex < 0) doHex = 0;
-           dFree -= 2;
+      {if (doFmt)
+          {if (doFmt & Xrd::hex)
+              {ioVec[vPnt].iov_base = (char *)(&dBuff[dPnt]);
+               if (doFmt & Xrd::hex)
+                  {ioVec[vPnt++].iov_len  = 2;
+                   dBuff[dPnt++] = hv[(val >> 4) & 0x0f];
+                   dBuff[dPnt++] = hv[ val       & 0xf0];
+                   dFree -= 2;
+                  } else if (doFmt & Xrd::oct && dFree > 2) {
+                   ioVec[vPnt++].iov_len  = 3;
+                   dBuff[dPnt+2] = hv[val & 0x07]; val >>= 3;
+                   dBuff[dPnt+1] = hv[val & 0x07]; val >>= 3;
+                   dBuff[dPnt+1] = hv[val & 0x03];
+                   dPnt  += 3;
+                   dFree -= 3;
+                 }
+              }
+           if (doFmt & doOne) doFmt = Xrd::dec;
           } else {
            ioVec[vPnt]  .iov_base = (char *)(&dBuff[dPnt]);
            ioVec[vPnt++].iov_len  = 1;
@@ -221,7 +232,7 @@ XrdSysTrace& XrdSysTrace::operator<<(short val)
 // If we have enough space then format the value
 //
    if (dFree >= xSz && vPnt < iovMax)
-      {const char *fmt = (doHex ? "%hx" : "%hd");
+      {const char *fmt = (doFmt ? (doFmt & Xrd::hex ? "%hx" : "%ho") : "%hd");
        int n = snprintf(&dBuff[dPnt], dFree, fmt, val);
        if (n > dFree) dFree = 0;
           else {ioVec[vPnt]  .iov_base = &dBuff[dPnt];
@@ -229,7 +240,7 @@ XrdSysTrace& XrdSysTrace::operator<<(short val)
                 dPnt += n; dFree -= n;
                }
       }
-   if (doHex < 0) doHex = 0;
+   if (doFmt & doOne) doFmt = Xrd::dec;
    return *this;
 }
 
@@ -244,7 +255,7 @@ XrdSysTrace& XrdSysTrace::operator<<(int val)
 // If we have enough space then format the value
 //
    if (dFree >= xSz && vPnt < iovMax)
-      {const char *fmt = (doHex ? "%x" : "%d");
+      {const char *fmt = (doFmt ? (doFmt & Xrd::hex ? "%x" : "%o") : "%d");
        int n = snprintf(&dBuff[dPnt], dFree, fmt, val);
        if (n > dFree) dFree = 0;
           else {ioVec[vPnt]  .iov_base = &dBuff[dPnt];
@@ -252,7 +263,7 @@ XrdSysTrace& XrdSysTrace::operator<<(int val)
                 dPnt += n; dFree -= n;
                }
       }
-   if (doHex < 0) doHex = 0;
+   if (doFmt & doOne) doFmt = Xrd::dec;
    return *this;
 }
 
@@ -280,7 +291,7 @@ XrdSysTrace& XrdSysTrace::operator<<(long long val)
 // If we have enough space then format the value
 //
    if (dFree >= xSz && vPnt < iovMax)
-      {const char *fmt = (doHex ? "%llx" : "%lld");
+      {const char *fmt = (doFmt ? (doFmt & Xrd::hex ? "%llx" : "%llo") : "%lld");
        int n = snprintf(&dBuff[dPnt], dFree, fmt, val);
        if (n > dFree) dFree = 0;
           else {ioVec[vPnt]  .iov_base = &dBuff[dPnt];
@@ -288,7 +299,7 @@ XrdSysTrace& XrdSysTrace::operator<<(long long val)
                 dPnt += n; dFree -= n;
                }
       }
-   if (doHex < 0) doHex = 0;
+   if (doFmt & doOne) doFmt = Xrd::dec;
    return *this;
 }
 
@@ -303,7 +314,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned short val)
 // If we have enough space then format the value
 //
    if (dFree >= xSz && vPnt < iovMax)
-      {const char *fmt = (doHex ? "%hx" : "%hu");
+      {const char *fmt = (doFmt ? (doFmt & Xrd::hex ? "%hx" : "%ho") : "%hu");
        int n = snprintf(&dBuff[dPnt], dFree, fmt, val);
        if (n > dFree) dFree = 0;
           else {ioVec[vPnt]  .iov_base = &dBuff[dPnt];
@@ -311,7 +322,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned short val)
                 dPnt += n; dFree -= n;
                }
       }
-   if (doHex < 0) doHex = 0;
+   if (doFmt & doOne) doFmt = Xrd::dec;
    return *this;
 }
 
@@ -326,7 +337,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned int val)
 // If we have enough space then format the value
 //
    if (dFree >= xSz && vPnt < iovMax)
-      {const char *fmt = (doHex ? "%x" : "%u");
+      {const char *fmt = (doFmt ? (doFmt & Xrd::hex ? "%x" : "%o") : "%u");
        int n = snprintf(&dBuff[dPnt], dFree, fmt, val);
        if (n > dFree) dFree = 0;
           else {ioVec[vPnt]  .iov_base = &dBuff[dPnt];
@@ -334,7 +345,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned int val)
                 dPnt += n; dFree -= n;
                }
       }
-   if (doHex < 0) doHex = 0;
+   if (doFmt & doOne) doFmt = Xrd::dec;
    return *this;
 }
 
@@ -362,7 +373,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned long long val)
 // If we have enough space then format the value
 //
    if (dFree >= xSz && vPnt < iovMax)
-      {const char *fmt = (doHex ? "%llx" : "%llu");
+      {const char *fmt = (doFmt ? (doFmt & Xrd::hex ? "%llx" : "%llo") : "%llu");
        int n = snprintf(&dBuff[dPnt], dFree, fmt, val);
        if (n > dFree) dFree = 0;
           else {ioVec[vPnt]  .iov_base = &dBuff[dPnt];
@@ -370,7 +381,7 @@ XrdSysTrace& XrdSysTrace::operator<<(unsigned long long val)
                 dPnt += n; dFree -= n;
                }
       }
-   if (doHex < 0) doHex = 0;
+   if (doFmt & doOne) doFmt = Xrd::dec;
    return *this;
 }
 
