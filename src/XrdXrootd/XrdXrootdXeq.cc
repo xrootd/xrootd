@@ -545,7 +545,7 @@ int XrdXrootdProtocol::do_Close()
 // file from our open table but a "started" return defers the the delete.
 //
    rc = fp->XrdSfsp->close();
-   TRACEP(FS, "close rc=" <<rc <<" fh=" <<fh.handle);
+   TRACEP(FS, " fh=" <<fh.handle <<" close rc=" <<rc);
    if (rc >= SFS_STALL) return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
    if (rc == SFS_STARTED) doDel = false;
 
@@ -2112,7 +2112,7 @@ int XrdXrootdProtocol::do_Qfh()
 
 // Preform the actual function
 //
-   TRACEP(FS, "query " <<qType <<" rc=" <<rc <<" fh=" <<fh.handle);
+   TRACEP(FS, "fh=" <<fh.handle <<" query " <<qType <<" rc=" <<rc);
 
 // Return appropriately
 //
@@ -2800,7 +2800,7 @@ int XrdXrootdProtocol::do_Stat()
           return Response.Send(kXR_FileNotOpen,
                               "stat does not refer to an open file");
        rc = fp->XrdSfsp->stat(&buf);
-       TRACEP(FS, "stat rc=" <<rc <<" fh=" <<fh.handle);
+       TRACEP(FS, "fh=" <<fh.handle <<" stat rc=" <<rc);
        if (SFS_OK == rc) return Response.Send(xxBuff,
                                 StatGen(buf,xxBuff,sizeof(xxBuff)));
        return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
@@ -2900,7 +2900,7 @@ int XrdXrootdProtocol::do_Sync()
 // Sync the file
 //
    rc = fp->XrdSfsp->sync();
-   TRACEP(FS, "sync rc=" <<rc <<" fh=" <<fh.handle);
+   TRACEP(FS, "fh=" <<fh.handle <<" sync rc=" <<rc);
    if (SFS_OK != rc) return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
 
 // Respond that all went well
@@ -2942,7 +2942,7 @@ int XrdXrootdProtocol::do_Truncate()
      //
         fp->XrdSfsp->error.setErrCB(&truncCB, ReqID.getID());
         rc = fp->XrdSfsp->truncate(theOffset);
-        TRACEP(FS, "trunc rc=" <<rc <<" sz=" <<theOffset <<" fh=" <<fh.handle);
+        TRACEP(FS, "fh=" <<fh.handle <<" trunc rc=" <<rc <<" sz=" <<theOffset);
         if (SFS_OK != rc) return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
 
    } else {

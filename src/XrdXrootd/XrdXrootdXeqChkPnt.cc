@@ -101,8 +101,8 @@ int XrdXrootdProtocol::do_ChkPnt()
 
 // Do some tracing
 //
-   TRACEP(FS, "chkpnt " <<ckpName[Request.chkpoint.opcode]
-                        <<" rc=" <<rc <<" fh=" <<fh.handle);
+   TRACEP(FS, "fh=" <<fh.handle <<" chkpnt " <<ckpName[Request.chkpoint.opcode]
+                    <<" rc=" <<rc);
 
 // Check for error and invalid return codes from checkpoint note that writev's
 // aren't flushed, we simply close the connection to get rid of pending data.
@@ -271,7 +271,7 @@ int XrdXrootdProtocol::do_ChkPntXeq()
 
 // Do some tracing
 //
-   TRACEP(FS, "chkpnt " <<xeqOp <<" rc=" <<rc <<" fh=" <<fh.handle);
+   TRACEP(FS, "fh=" <<fh.handle <<" chkpnt " <<xeqOp <<" rc=" <<rc);
 
 // Check for error and invalid return codes from checkpoint note that writev's
 // aren't flushed, we simply close the connection to get rid of pending data.

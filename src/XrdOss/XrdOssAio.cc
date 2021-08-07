@@ -164,9 +164,9 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
       {aiop->sfsAio.aio_fildes = fd;
        aiop->sfsAio.aio_sigevent.sigev_signo  = OSS_AIO_READ_DONE;
        aiop->TIdent = tident;
-       TRACE(Debug,  "Read " <<aiop->sfsAio.aio_nbytes <<'@'
-                             <<aiop->sfsAio.aio_offset <<" started; aiocb="
-                             <<std::hex <<aiop <<std::dec);
+       TRACE(Debug,  "fd=" <<fd <<" read " <<aiop->sfsAio.aio_nbytes <<'@'
+                           <<aiop->sfsAio.aio_offset <<" started; aiocb="
+                           <<std::hex <<aiop <<std::dec);
 
        // Start the operation
        //
@@ -221,9 +221,9 @@ int XrdOssFile::Write(XrdSfsAio *aiop)
       {aiop->sfsAio.aio_fildes = fd;
        aiop->sfsAio.aio_sigevent.sigev_signo  = OSS_AIO_WRITE_DONE;
        aiop->TIdent = tident;
-       TRACE(Debug, "Write " <<aiop->sfsAio.aio_nbytes <<'@'
-                             <<aiop->sfsAio.aio_offset <<" started; aiocb="
-                             <<std::hex <<aiop <<std::dec);
+       TRACE(Debug, "fd=" <<fd <<" write " <<aiop->sfsAio.aio_nbytes <<'@'
+                          <<aiop->sfsAio.aio_offset <<" started; aiocb="
+                          <<std::hex <<aiop <<std::dec);
 
        // Start the operation
        //
