@@ -39,7 +39,6 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdOuc/XrdOucProg.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -49,7 +48,7 @@
 /******************************************************************************/
   
 extern XrdSysError  OfsEroute;
-extern XrdOucTrace  OfsTrace;
+extern XrdSysTrace  OfsTrace;
 extern XrdOss      *XrdOfsOss;
 
 namespace XrdOfsTPCParms

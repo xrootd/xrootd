@@ -30,6 +30,7 @@
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysTrace.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 // If you are replacing the standard definition of the file system interface,
@@ -51,6 +52,7 @@ XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
                                              XrdOucEnv        *EnvInfo)
 {
    extern XrdSysError OfsEroute;
+   extern XrdSysTrace OfsTrace;
    static XrdSysMutex XrdDefaultOfsMutex;
    static XrdOfs XrdDefaultOfsFS;
 
@@ -58,6 +60,7 @@ XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
 //
    OfsEroute.SetPrefix("ofs_");
    OfsEroute.logger(lp);
+   OfsTrace.SetLogger(lp);
 
 // Initialize the subsystems
 //

@@ -35,7 +35,6 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 
 #include "XrdSec/XrdSecEntity.hh"
 
@@ -49,7 +48,7 @@
 /*                  E r r o r   R o u t i n g   O b j e c t                   */
 /******************************************************************************/
 
-extern XrdOucTrace      OfsTrace;
+extern XrdSysTrace      OfsTrace;
 
 /******************************************************************************/
 /*                    F i l e   S y s t e m   O b j e c t                     */

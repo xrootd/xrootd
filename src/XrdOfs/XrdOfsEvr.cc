@@ -39,7 +39,6 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -50,7 +49,7 @@
 
 extern XrdOfsStats OfsStats;
 
-extern XrdOucTrace OfsTrace;
+extern XrdSysTrace OfsTrace;
   
 void *XrdOfsEvRecv(void *pp)
 {

@@ -33,12 +33,12 @@
 #ifndef NODEBUG
 
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysTrace.hh"
 #include "XrdOfs/XrdOfs.hh"
 
 #define GTRACE(act)         OfsTrace.What & TRACE_ ## act
 
-#define TRACES(x) \
-        {OfsTrace.Beg(epname,tident); cerr <<x; OfsTrace.End();}
+#define TRACES(x) {SYSTRACE(OfsTrace.,tident,epname,0,x)}
 
 #define FTRACE(act, x) \
    if (GTRACE(act)) \

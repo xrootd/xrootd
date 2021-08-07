@@ -52,7 +52,6 @@
 #include "XrdOuc/XrdOucNList.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTPC.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -63,7 +62,7 @@
   
 extern XrdSysError  OfsEroute;
 extern XrdOfsStats  OfsStats;
-extern XrdOucTrace  OfsTrace;
+extern XrdSysTrace  OfsTrace;
 extern XrdOss      *XrdOfsOss;
 
 namespace XrdOfsTPCParms

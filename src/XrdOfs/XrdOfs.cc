@@ -82,7 +82,6 @@
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTPC.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
@@ -102,7 +101,7 @@
 
 XrdSysError      OfsEroute(0);
 
-XrdOucTrace      OfsTrace(&OfsEroute);
+XrdSysTrace      OfsTrace("ofs");
 
 /******************************************************************************/
 /*               S t a t i s t i c a l   D a t a   O b j e c t                */
@@ -505,7 +504,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Trace entry
 //
-   ZTRACE(open, std::hex <<open_mode <<"-" <<std::oct <<Mode <<std::dec <<" fn=" <<path);
+   ZTRACE(open, Xrd::hex1 <<open_mode <<"-" <<Xrd::oct1 <<Mode <<" fn=" <<path);
 
 // Verify that this object is not already associated with an open file
 //

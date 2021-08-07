@@ -63,12 +63,12 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
 
@@ -84,7 +84,7 @@
 
 extern XrdOfsStats OfsStats;
 
-extern XrdOucTrace OfsTrace;
+extern XrdSysTrace OfsTrace;
   
 class  XrdOss;
 extern XrdOss     *XrdOfsOss;

@@ -56,7 +56,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucExport.hh"
-#include "XrdOuc/XrdOucTrace.hh"
 
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsFAttr.hh"
@@ -73,7 +72,7 @@
 
 extern XrdSysError      OfsEroute;
 
-extern XrdOucTrace      OfsTrace;
+extern XrdSysTrace      OfsTrace;
 
 /******************************************************************************/
 /*                    F i l e   S y s t e m   O b j e c t                     */
