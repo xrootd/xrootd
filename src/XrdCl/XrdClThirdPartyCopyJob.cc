@@ -219,7 +219,8 @@ namespace XrdCl
         if( !checkSumPreset.empty() )
         {
           sourceCheckSum  = checkSumType + ":";
-          sourceCheckSum += checkSumPreset;
+          sourceCheckSum += Utils::NormalizeChecksum( checkSumType,
+                                                      checkSumPreset );
         }
         else
         {
