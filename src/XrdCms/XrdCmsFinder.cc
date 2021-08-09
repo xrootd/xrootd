@@ -88,7 +88,7 @@ namespace XrdCms
 {
 XrdSysError  Say(0, "cms_");
   
-XrdOucTrace  Trace(&Say);
+XrdSysTrace  Trace("cms");
 
 XrdVERSIONINFODEF(myVersion,cmsclient,XrdVNUMBER,XrdVERSION);
 };
@@ -114,6 +114,7 @@ XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami, int Port)
      isTarget    = whoami & IsTarget;
      savePath    = 0;
      Say.logger(lp);
+     Trace.SetLogger(lp);
 }
  
 /******************************************************************************/

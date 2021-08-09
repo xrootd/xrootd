@@ -1406,8 +1406,8 @@ void XrdCmsNode::do_StateDFS(XrdCmsBaseFR *rP, int rc)
 
 // Do some debugging and record the hash code.
 //
-   DEBUG((rP->Mod & CmsStateRequest::kYR_metaman ? "met " : "man ") <<std::hex
-         <<int(rP->Mod) <<std::dec <<" rc=" <<rc <<" path=" <<rP->Path);
+   DEBUG((rP->Mod & CmsStateRequest::kYR_metaman ? "met " : "man ") <<Xrd::hex1
+         <<int(rP->Mod) <<" rc=" <<rc <<" path=" <<rP->Path);
    Sel.Path.Hash = rP->Sid;
 
 // If the return code is negative then the file does not exist. If it is zero

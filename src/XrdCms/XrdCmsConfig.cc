@@ -109,7 +109,7 @@ namespace XrdCms
 
        XrdSysError      Say(0, "");
 
-       XrdOucTrace      Trace(&Say);
+       XrdSysTrace      Trace("cms");
 
        XrdScheduler    *Sched = 0;
 };
@@ -207,6 +207,7 @@ int XrdCmsConfig::Configure0(XrdProtocol_Config *pi)
 // Initialize the error message handler and get starting values
 //
    Say.logger(pi->eDest->logger(0));
+   Trace.SetLogger(pi->eDest->logger(0));
    myName    = strdup(pi->myName);
    PortTCP   = (pi->Port < 0 ? 0 : pi->Port);
    myInsName = strdup(pi->myInst);

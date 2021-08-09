@@ -61,7 +61,7 @@ namespace XrdCms
 {
 extern XrdSysError     Say;
 
-extern XrdOucTrace     Trace;
+extern XrdSysTrace     Trace;
 }
 
 using namespace XrdCms;
