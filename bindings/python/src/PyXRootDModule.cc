@@ -80,10 +80,12 @@ namespace PyXRootD
   PyMODINIT_FUNC initclient( void )
 #endif
   {
+#if PY_VERSION_HEX < 0x03070000
     // Ensure GIL state is initialized
     if ( !PyEval_ThreadsInitialized() ) {
       PyEval_InitThreads();
     }
+#endif
 
     FileSystemType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &FileSystemType ) < 0 ) {
