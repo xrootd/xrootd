@@ -42,6 +42,8 @@ public:
 
 static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 
+static char *bin2hex(char *inbuff, int dlen, char *buff, int blen, bool sep=true);
+
 static bool  endsWith(const char *text, const char *ending, int endlen);
 
 static char *eText(int rc, char *eBuff, int eBlen);

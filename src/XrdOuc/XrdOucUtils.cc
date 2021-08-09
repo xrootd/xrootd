@@ -107,6 +107,26 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
 }
   
 /******************************************************************************/
+/*                               b i n 2 h e x                                */
+/******************************************************************************/
+  
+char *XrdOucUtils::bin2hex(char *inbuff, int dlen, char *buff, int blen,
+                           bool sep)
+{
+    static char hv[] = "0123456789abcdef";
+    char *outbuff = buff;
+    for (int i = 0; i < dlen && blen > 2; i++) {
+        *outbuff++ = hv[(inbuff[i] >> 4) & 0x0f];
+        *outbuff++ = hv[ inbuff[i]       & 0x0f];
+        blen -= 2;
+        if (sep && blen > 1 && ((i & 0x03) == 0x03 || i+1 == dlen))
+           {*outbuff++ = ' '; blen--;}
+        }
+     *outbuff = '\0';
+     return buff;
+}
+
+/******************************************************************************/
 /*                              e n d s W i t h                               */
 /******************************************************************************/
   
