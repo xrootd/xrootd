@@ -71,7 +71,7 @@
   
 extern XrdSysError OssEroute;
 
-extern XrdOucTrace OssTrace;
+extern XrdSysTrace OssTrace;
 
 extern XrdOssSys  *XrdOssSS;
 
@@ -190,8 +190,8 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
      //
         if (crInfo.pOpts & XRDEXP_RCREATE)
            {if ((retc = MSS_Create(remote_path, access_mode, env)) < 0)
-               {DEBUG("rc" <<retc <<" mode=" <<std::oct <<access_mode
-                           <<std::dec <<" remote path=" <<remote_path);
+               {DEBUG("rc" <<retc <<" mode=" <<Xrd::oct1 <<access_mode
+                           <<" remote path=" <<remote_path);
                 return retc;
                }
            } else if (!(crInfo.pOpts & XRDEXP_NOCHECK))

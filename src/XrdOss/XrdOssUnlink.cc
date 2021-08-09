@@ -53,7 +53,7 @@
 
 extern XrdSysError OssEroute;
 
-extern XrdOucTrace OssTrace;
+extern XrdSysTrace OssTrace;
   
 /******************************************************************************/
 /*                                R e m d i r                                 */

@@ -75,7 +75,7 @@
   
 extern XrdOssSys   *XrdOssSS;
 
-extern XrdOucTrace  OssTrace;
+extern XrdSysTrace  OssTrace;
 
 XrdOucPListAnchor  *XrdOssRPList;
 

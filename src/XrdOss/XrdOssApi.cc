@@ -78,7 +78,7 @@ XrdOssSys  *XrdOssSS = 0;
   
 XrdSysError OssEroute(0, "oss_");
 
-XrdOucTrace OssTrace(&OssEroute);
+XrdSysTrace OssTrace("oss");
 
 /******************************************************************************/
 /*           S t o r a g e   S y s t e m   I n s t a n t i a t o r            */
@@ -109,6 +109,11 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
    if (urVer.vNum != myOssSys.myVersion->vNum
    &&  !XrdSysPlugin::VerCmp(urVer, *(myOssSys.myVersion))) return 0;
 
+// Set logger for tracing and errors
+//
+   OssTrace.SetLogger(Logger);
+   OssEroute.logger(Logger);
+
 // If no library has been specified, return the default object
 //
    if (!OssLib) {if (myOssSys.Init(Logger, config_fn, envP)) return 0;
@@ -118,7 +123,6 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 // Create a plugin object. Take into account the proxy library. Eventually,
 // we will need to support other core libraries. But, for now, this will do.
 //
-   OssEroute.logger(Logger);
    if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
                                      "osslib",   OssLib))) return 0;
 // Declare the interface versions
@@ -1275,8 +1279,8 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 
 // Trace the action.
 //
-    TRACE(Open, "fd=" <<myfd <<" flags=" <<std::hex <<Oflag <<" mode="
-                <<std::oct <<Mode <<std::dec <<ftype <<path);
+    TRACE(Open, "fd=" <<myfd <<" flags=" <<Xrd::hex1 <<Oflag <<" mode="
+                <<Xrd::oct1 <<Mode <<ftype <<path);
 
 // All done
 //

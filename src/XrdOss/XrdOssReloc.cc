@@ -60,7 +60,7 @@
   
 extern XrdSysError OssEroute;
 
-extern XrdOucTrace OssTrace;
+extern XrdSysTrace OssTrace;
 
 extern XrdOssSys  *XrdOssSS;
 

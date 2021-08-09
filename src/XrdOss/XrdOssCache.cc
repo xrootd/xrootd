@@ -60,7 +60,7 @@
 
 extern XrdSysError  OssEroute;
 
-extern XrdOucTrace  OssTrace;
+extern XrdSysTrace  OssTrace;
 
 XrdOssCache_Group  *XrdOssCache_Group::fsgroups = 0;
 XrdOssCache_Group  *XrdOssCache_Group::PubGroup = 0;

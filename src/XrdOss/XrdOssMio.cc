@@ -42,6 +42,7 @@
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssMioFile.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
@@ -70,7 +71,7 @@ long long      XrdOssMio::MM_inuse    = 0;
 
 extern XrdSysError OssEroute;
 
-extern XrdOucTrace OssTrace;
+extern XrdSysTrace OssTrace;
   
 /******************************************************************************/
 /*                               D i s p l a y                                */
@@ -109,10 +110,12 @@ XrdOssMioFile *XrdOssMio::Map(char *path, int fd, int opts)
 
 // Develop hash name for this file
 //
-   XrdOucTrace::bin2hex((char *)&statb.st_dev,
-                         int(sizeof(statb.st_dev)), hashname);
-   XrdOucTrace::bin2hex((char *)&statb.st_ino, int(sizeof(statb.st_ino)),
-                                         hashname+(sizeof(statb.st_dev)*2));
+   int st_devSZ = sizeof(statb.st_dev);
+   XrdOucUtils::bin2hex((char *)&statb.st_dev, st_devSZ,
+                         hashname, sizeof(hashname), false);
+   st_devSZ <<= 1;
+   XrdOucUtils::bin2hex((char *)&statb.st_ino, int(sizeof(statb.st_ino)),
+                        hashname+st_devSZ, sizeof(hashname) - st_devSZ, false);
 
 // Because of potntial race conditions, we must serialize execution
 //

@@ -50,7 +50,7 @@
   
 extern XrdSysError OssEroute;
 
-extern XrdOucTrace OssTrace;
+extern XrdSysTrace OssTrace;
 
 /******************************************************************************/
 /* Public:                          C o p y                                   */

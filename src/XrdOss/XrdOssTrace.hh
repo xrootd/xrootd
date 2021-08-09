@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysTrace.hh"
 
 // Trace flags
 //
@@ -47,14 +47,12 @@
 #define QTRACE(act) OssTrace.What & TRACE_ ## act
 
 #define TRACE(act, x) \
-        if (QTRACE(act)) \
-           {OssTrace.Beg(epname,tident); cerr <<x; OssTrace.End();}
+        if (QTRACE(act)) {SYSTRACE(OssTrace., tident, epname, 0, x);}
 
 #define TRACEReturn(type, ecode, msg) \
                {TRACE(type, "err " <<ecode <<msg); return ecode;}
 
-#define DEBUG(y) if (QTRACE(Debug)) \
-                    {OssTrace.Beg(epname); cerr <<y; OssTrace.End();}
+#define DEBUG(y) if (QTRACE(Debug)) {SYSTRACE(OssTrace., 0, epname, 0, y)}
 
 #define EPNAME(x) static const char *epname = x;
 

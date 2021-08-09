@@ -72,7 +72,7 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-extern XrdOucTrace OssTrace;
+extern XrdSysTrace OssTrace;
 //define tident aiop->TIdent
 
 extern XrdSysError OssEroute;
@@ -166,7 +166,7 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
        aiop->TIdent = tident;
        TRACE(Debug,  "fd=" <<fd <<" read " <<aiop->sfsAio.aio_nbytes <<'@'
                            <<aiop->sfsAio.aio_offset <<" started; aiocb="
-                           <<std::hex <<aiop <<std::dec);
+                           <<Xrd::hex1 <<aiop);
 
        // Start the operation
        //
@@ -223,7 +223,7 @@ int XrdOssFile::Write(XrdSfsAio *aiop)
        aiop->TIdent = tident;
        TRACE(Debug, "fd=" <<fd <<" write " <<aiop->sfsAio.aio_nbytes <<'@'
                           <<aiop->sfsAio.aio_offset <<" started; aiocb="
-                          <<std::hex <<aiop <<std::dec);
+                          <<Xrd::hex1 <<aiop);
 
        // Start the operation
        //
@@ -415,7 +415,7 @@ void *XrdOssAioWait(void *mySigarg)
        retval = (ssize_t)aio_return(&aiop->sfsAio);
 
        DEBUG(sigType <<" completed for " <<aiop->TIdent <<"; rc=" <<rc 
-             <<" result=" <<retval <<" aiocb=" <<std::hex <<aiop <<std::dec);
+             <<" result=" <<retval <<" aiocb=" <<Xrd::hex1 <<aiop);
 
        if (retval < 0) aiop->Result = -rc;
           else         aiop->Result = retval;
