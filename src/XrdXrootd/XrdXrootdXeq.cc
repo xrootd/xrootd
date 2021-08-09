@@ -372,7 +372,7 @@ int XrdXrootdProtocol::do_Chmod()
 // Preform the actual function
 //
    rc = osFS->chmod(argp->buff, (XrdSfsMode)mode, myError, CRED, opaque);
-   TRACEP(FS, "chmod rc=" <<rc <<" mode=" <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
+   TRACEP(FS, "chmod rc=" <<rc <<" mode=" <<Xrd::oct1 <<mode <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
 // An error occured
@@ -1117,7 +1117,7 @@ int XrdXrootdProtocol::do_Mkdir()
 // Preform the actual function
 //
    rc = osFS->mkdir(argp->buff, (XrdSfsMode)mode, myError, CRED, opaque);
-   TRACEP(FS, "rc=" <<rc <<" mkdir " <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
+   TRACEP(FS, "rc=" <<rc <<" mkdir " <<Xrd::oct1 <<mode <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
 // An error occured
