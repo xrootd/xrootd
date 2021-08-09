@@ -799,7 +799,7 @@ namespace XrdCl
     // has been finalized by the linker. So, if we don't have the log object
     // at this point we just give up the hope.
     //--------------------------------------------------------------------------
-    if( DefaultEnv::GetLog() && pSessionId ) // if the file object was bound to a physical connection
+    if( DefaultEnv::GetLog() && pSessionId && !pDataServer->IsLocalFile() ) // if the file object was bound to a physical connection
       DefaultEnv::GetPostMaster()->DecFileInstCnt( *pDataServer );
 
     if( pReOpenHandler )
