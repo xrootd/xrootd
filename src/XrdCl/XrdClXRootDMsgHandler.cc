@@ -1360,7 +1360,7 @@ namespace XrdCl
       {
         uint32_t crc32c = 0;
         memcpy( &crc32c, pPgReadCksumBuff.GetBuffer(), CksumSize );
-        pPgReadCksums.push_back( ntohl( crc32c ) );
+        pCrc32cDigests.push_back( ntohl( crc32c ) );
       }
       else return Status();
     }
@@ -1453,7 +1453,7 @@ namespace XrdCl
   {
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
-    if( reqId == kXR_write || reqId == kXR_writev )
+    if( reqId == kXR_write || reqId == kXR_writev || reqId == kXR_pgwrite )
       return true;
     // checkpoint + execute
     if( reqId == kXR_chkpoint && req->chkpoint.opcode == kXR_ckpXeq )
@@ -1472,7 +1472,81 @@ namespace XrdCl
   XRootDStatus XRootDMsgHandler::WriteMessageBody( Socket   *socket,
                                                    uint32_t &bytesWritten )
   {
-    if( !pChunkList->empty() )
+    //--------------------------------------------------------------------------
+    // First check if it is a PgWrite
+    //--------------------------------------------------------------------------
+    if( !pChunkList->empty() && !pCrc32cDigests.empty() )
+    {
+      //------------------------------------------------------------------------
+      // PgWrite will have just one chunk
+      //------------------------------------------------------------------------
+      ChunkInfo chunk = pChunkList->front();
+      //------------------------------------------------------------------------
+      // Calculate the size of the first and last page (in case the chunk is not
+      // 4KB aligned)
+      //------------------------------------------------------------------------
+      int fLen = 0, lLen = 0;
+      size_t nbpgs = XrdOucPgrwUtils::csNum( chunk.offset, chunk.length, fLen, lLen );
+
+      //------------------------------------------------------------------------
+      // Set the crc32c buffer if not ready yet
+      //------------------------------------------------------------------------
+      if( pPgWrtCksumBuff.GetCursor() == 0 )
+      {
+        uint32_t digest = htonl( pCrc32cDigests[pPgWrtCurrentPageNb] );
+        memcpy( pPgWrtCksumBuff.GetBuffer(), &digest, sizeof( uint32_t ) );
+      }
+
+      uint32_t btsLeft = chunk.length - pAsyncOffset;
+      uint32_t pglen   = ( pPgWrtCurrentPageNb == 0 ? fLen : XrdSys::PageSize ) - pPgWrtCurrentPageOffset;
+      if( pglen > btsLeft ) pglen = btsLeft;
+      char*    pgbuf   = static_cast<char*>( chunk.buffer ) + pAsyncOffset;
+
+      while( btsLeft > 0 )
+      {
+        // first write the crc32c digest
+        while( pPgWrtCksumBuff.GetCursor() < sizeof( uint32_t ) )
+        {
+          uint32_t dgstlen = sizeof( uint32_t ) - pPgWrtCksumBuff.GetCursor();
+          char*    dgstbuf = pPgWrtCksumBuff.GetBufferAtCursor();
+          int btswrt = 0;
+          Status st = socket->Send( dgstbuf, dgstlen, btswrt );
+          if( !st.IsOK() || st.code == suRetry ) return st;
+          pPgWrtCksumBuff.AdvanceCursor( btswrt );
+        }
+        // then write the raw data (one page)
+        int btswrt = 0;
+        Status st = socket->Send( pgbuf, pglen, btswrt );
+        if( !st.IsOK() || st.code == suRetry ) return st;
+        pgbuf   += btswrt;
+        pglen   -= btswrt;
+        btsLeft -= btswrt;
+        // if we managed to write all the data ...
+        if( pglen == 0 )
+        {
+          // move to the next page
+          ++pPgWrtCurrentPageNb;
+          if( pPgWrtCurrentPageNb < nbpgs )
+          {
+            // set the digest buffer
+            pPgWrtCksumBuff.SetCursor( 0 );
+            uint32_t digest = htonl( pCrc32cDigests[pPgWrtCurrentPageNb] );
+            memcpy( pPgWrtCksumBuff.GetBuffer(), &digest, sizeof( uint32_t ) );
+          }
+          // set the page length
+          pglen = XrdSys::PageSize;
+          if( pglen > btsLeft ) pglen = btsLeft;
+          // reset offset in the current page
+          pPgWrtCurrentPageOffset = 0;
+        }
+        else
+          // otherwise just adjust the offset in the current page
+          pPgWrtCurrentPageOffset += btswrt;
+        // and finally update the offset to the raw data
+        pAsyncOffset += btswrt;
+      }
+    }
+    else if( !pChunkList->empty() )
     {
       size_t size = pChunkList->size();
       for( size_t i = pAsyncChunkIndex ; i < size; ++i )
@@ -1743,6 +1817,7 @@ namespace XrdCl
       case kXR_close:
       case kXR_write:
       case kXR_writev:
+      case kXR_pgwrite:
       case kXR_sync:
       case kXR_chkpoint:
         return Status();
@@ -2121,7 +2196,7 @@ namespace XrdCl
 
         AnyObject *obj   = new AnyObject();
         PageInfo *pgInfo = new PageInfo( chunk.offset, currentOffset, chunk.buffer,
-                                         std::move( pPgReadCksums) );
+                                         std::move( pCrc32cDigests) );
 
         obj->Set( pgInfo );
         response = obj;

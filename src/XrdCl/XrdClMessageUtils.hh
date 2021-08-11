@@ -132,17 +132,18 @@ namespace XrdCl
   {
     MessageSendParams():
       timeout(0), expires(0), followRedirects(true), chunkedResponse(false),
-      stateful(true), hostList(0), chunkList(0), redirectLimit(0), kbuff(0) {}
-    uint16_t              timeout;
-    time_t                expires;
-    HostInfo              loadBalancer;
-    bool                  followRedirects;
-    bool                  chunkedResponse;
-    bool                  stateful;
-    HostList             *hostList;
-    ChunkList            *chunkList;
-    uint16_t              redirectLimit;
-    XrdSys::KernelBuffer *kbuff;
+      stateful(true), hostList(0), chunkList(0), redirectLimit(0), kbuff(0){}
+    uint16_t               timeout;
+    time_t                 expires;
+    HostInfo               loadBalancer;
+    bool                   followRedirects;
+    bool                   chunkedResponse;
+    bool                   stateful;
+    HostList              *hostList;
+    ChunkList             *chunkList;
+    uint16_t               redirectLimit;
+    XrdSys::KernelBuffer  *kbuff;
+    std::vector<uint32_t>  crc32cDigests;
   };
 
   class MessageUtils

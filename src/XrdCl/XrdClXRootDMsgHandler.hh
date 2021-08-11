@@ -163,6 +163,10 @@ namespace XrdCl
         pPgReadLength( 0 ),
         pPgReadCurrentPageSize( 0 ),
 
+        pPgWrtCksumBuff( 4 ),
+        pPgWrtCurrentPageOffset( 0 ),
+        pPgWrtCurrentPageNb( 0 ),
+
         pReadVRawMsgOffset( 0 ),
         pReadVRawChunkHeaderDone( false ),
         pReadVRawChunkHeaderStarted( false ),
@@ -188,7 +192,6 @@ namespace XrdCl
         pCV( 0 ),
 
         pSslErrCnt( 0 )
-
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -204,7 +207,7 @@ namespace XrdCl
         if( ntohs( hdr->requestid ) == kXR_pgread )
         {
           ClientPgReadRequest *pgrdreq = (ClientPgReadRequest*)pRequest->GetBuffer();
-          pPgReadCksums.reserve( XrdOucPgrwUtils::csNum( ntohll( pgrdreq->offset ),
+          pCrc32cDigests.reserve( XrdOucPgrwUtils::csNum( ntohll( pgrdreq->offset ),
                                                          ntohl( pgrdreq->rlen ) ) );
         }
       }
@@ -394,6 +397,11 @@ namespace XrdCl
           pChunkStatus.resize( chunkList->size() );
         else
           pChunkStatus.clear();
+      }
+
+      void SetCrc32cDigests( std::vector<uint32_t> && crc32cDigests )
+      {
+        pCrc32cDigests = std::move( crc32cDigests );
       }
 
       //------------------------------------------------------------------------
@@ -709,6 +717,7 @@ namespace XrdCl
       bool                            pHasSessionId;
       std::string                     pRedirectUrl;
       ChunkList                      *pChunkList;
+      std::vector<uint32_t>           pCrc32cDigests;
       XrdSys::KernelBuffer           *pKBuff;
       std::vector<ChunkStatus>        pChunkStatus;
       uint16_t                        pRedirectCounter;
@@ -725,10 +734,13 @@ namespace XrdCl
       uint32_t                        pReadRawCurrentOffset;
 
       Buffer                          pPgReadCksumBuff;
-      std::vector<uint32_t>           pPgReadCksums;
       uint64_t                        pPgReadOffset;
       uint32_t                        pPgReadLength;
       uint32_t                        pPgReadCurrentPageSize;
+
+      Buffer                          pPgWrtCksumBuff;
+      uint32_t                        pPgWrtCurrentPageOffset;
+      uint32_t                        pPgWrtCurrentPageNb;
 
       uint32_t                        pReadVRawMsgOffset;
       bool                            pReadVRawChunkHeaderDone;

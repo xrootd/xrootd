@@ -898,6 +898,16 @@ namespace XrdCl
 //        req->pathid = info->stream[downStream].pathId;
         break;
       }
+
+      //------------------------------------------------------------------------
+      // PgWrite - multiplexing writes doesn't work properly in the server
+      //------------------------------------------------------------------------
+      case kXR_pgwrite:
+      {
+//        ClientWriteVRequest *req = (ClientWriteVRequest*)msg->GetBuffer();
+//        req->pathid = info->stream[downStream].pathId;
+        break;
+      }
     };
     MarshallRequest( msg );
     return PathID( upStream, downStream );
@@ -1083,6 +1093,12 @@ namespace XrdCl
       {
         req->pgread.offset = htonll( req->pgread.offset );
         req->pgread.rlen   = htonl( req->pgread.rlen );
+        break;
+      }
+
+      case kXR_pgwrite:
+      {
+        req->pgwrite.offset = htonll( req->pgwrite.offset );
         break;
       }
 
@@ -2764,6 +2780,21 @@ namespace XrdCl
       {
         ClientWriteRequest *sreq = (ClientWriteRequest *)msg;
         o << "kXR_write (";
+        o << "handle: " << FileHandleToStr( sreq->fhandle );
+        o << std::setbase(10);
+        o << ", ";
+        o << "offset: " << sreq->offset << ", ";
+        o << "size: " << sreq->dlen << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_pgwrite
+      //------------------------------------------------------------------------
+      case kXR_pgwrite:
+      {
+        ClientPgWriteRequest *sreq = (ClientPgWriteRequest *)msg;
+        o << "kXR_pgwrite (";
         o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << std::setbase(10);
         o << ", ";

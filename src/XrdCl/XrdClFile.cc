@@ -363,7 +363,10 @@ namespace XrdCl
                               ResponseHandler       *handler,
                               uint16_t               timeout )
   {
-    return XRootDStatus( stError, errNotImplemented );
+    if( pPlugIn )
+      return pPlugIn->PgWrite( offset, size, buffer, cksums, handler, timeout );
+
+    return pStateHandler->PgWrite( offset, size, buffer, cksums, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -375,7 +378,13 @@ namespace XrdCl
                               std::vector<uint32_t> &cksums,
                               uint16_t               timeout )
   {
-    return XRootDStatus( stError, errNotImplemented );
+    SyncResponseHandler handler;
+    XRootDStatus st = PgWrite( offset, size, buffer, cksums, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
   }
 
   //----------------------------------------------------------------------------

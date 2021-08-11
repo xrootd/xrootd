@@ -1370,6 +1370,73 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Write number of pages at a given offset - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::PgWrite( uint64_t               offset,
+                                          uint32_t               size,
+                                          const void            *buffer,
+                                          std::vector<uint32_t> &cksums,
+                                          ResponseHandler       *handler,
+                                          uint16_t               timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a pgwrite command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Validate the digest vector size
+    //--------------------------------------------------------------------------
+    if( cksums.empty() )
+    {
+      const char *data = static_cast<const char*>( buffer );
+      XrdOucPgrwUtils::csCalc( data, offset, size, cksums );
+    }
+    else
+    {
+      size_t crc32cCnt = XrdOucPgrwUtils::csNum( offset, size );
+      if( crc32cCnt != cksums.size() )
+        return XRootDStatus( stError, errInvalidArgs, 0, "Wrong number of crc32c digests." );
+    }
+
+    //--------------------------------------------------------------------------
+    // Create the message
+    //--------------------------------------------------------------------------
+    Message              *msg;
+    ClientPgWriteRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid  = kXR_pgwrite;
+    req->offset     = offset;
+    req->dlen       = size + cksums.size() * sizeof( uint32_t );
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    ChunkList *list   = new ChunkList();
+    list->push_back( ChunkInfo( offset, size, (char*)buffer ) );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.chunkList       = list;
+    params.crc32cDigests.swap( cksums );
+
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //----------------------------------------------------------------------------
   // Commit all pending disk writes - async
   //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Sync( ResponseHandler *handler,
@@ -2363,11 +2430,12 @@ namespace XrdCl
       ClientRequest *req = (ClientRequest*)message->GetBuffer();
       switch( req->header.requestid )
       {
-        case kXR_read:   i.opCode = Monitor::ErrorInfo::ErrRead;   break;
-        case kXR_readv:  i.opCode = Monitor::ErrorInfo::ErrReadV;  break;
-        case kXR_pgread: i.opCode = Monitor::ErrorInfo::ErrRead;   break;
-        case kXR_write:  i.opCode = Monitor::ErrorInfo::ErrWrite;  break;
-        case kXR_writev: i.opCode = Monitor::ErrorInfo::ErrWriteV; break;
+        case kXR_read:    i.opCode = Monitor::ErrorInfo::ErrRead;   break;
+        case kXR_readv:   i.opCode = Monitor::ErrorInfo::ErrReadV;  break;
+        case kXR_pgread:  i.opCode = Monitor::ErrorInfo::ErrRead;   break;
+        case kXR_write:   i.opCode = Monitor::ErrorInfo::ErrWrite;  break;
+        case kXR_writev:  i.opCode = Monitor::ErrorInfo::ErrWriteV; break;
+        case kXR_pgwrite: i.opCode = Monitor::ErrorInfo::ErrWrite;  break;
         default: i.opCode = Monitor::ErrorInfo::ErrUnc;
       }
 
@@ -2509,6 +2577,16 @@ namespace XrdCl
       {
         ++pWCount;
         pWBytes += req->write.dlen;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Handle write response
+      //------------------------------------------------------------------------
+      case kXR_pgwrite:
+      {
+        ++pWCount;
+        pWBytes += req->pgwrite.dlen;
         break;
       }
 
@@ -3007,6 +3085,12 @@ namespace XrdCl
       case kXR_pgread:
       {
         ClientPgReadRequest *req = (ClientPgReadRequest*) msg->GetBuffer();
+        memcpy( req->fhandle, pFileHandle, 4 );
+        break;
+      }
+      case kXR_pgwrite:
+      {
+        ClientPgWriteRequest *req = (ClientPgWriteRequest*) msg->GetBuffer();
         memcpy( req->fhandle, pFileHandle, 4 );
         break;
       }

@@ -105,6 +105,7 @@ namespace XrdCl
     msgHandler->SetKernelBuffer( sendParams.kbuff );
     msgHandler->SetRedirectCounter( sendParams.redirectLimit );
     msgHandler->SetStateful( sendParams.stateful );
+    msgHandler->SetCrc32cDigests( std::move( sendParams.crc32cDigests ) );
 
     if( sendParams.loadBalancer.url.IsValid() )
       msgHandler->SetLoadBalancer( sendParams.loadBalancer );
