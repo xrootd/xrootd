@@ -294,7 +294,7 @@ int main( int argc, char **argv )
    XrdCryptoRSA *key = 0;
    XrdCryptoX509Chain *chain = new XrdCryptoX509Chain();
    if (ParseFile) {
-      int nci = (*ParseFile)(PXcert.c_str(), chain);
+      int nci = (*ParseFile)(PXcert.c_str(), chain, 0);
       if (!(key = chain->Begin()->PKI())) {
          pdots("getting PKI", 0);
       }
