@@ -37,6 +37,7 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -333,7 +334,7 @@ namespace XrdCl
       bodySize = rsphdr->dlen;
     else
     {
-      size_t stlen = sizeof( ServerResponseStatus ) + sizeof( ServerResponseBody_pgRead );
+      size_t stlen = sizeof( ServerResponseStatus ); // we read everything up to the offset
       if( message->GetCursor() < stlen )
         bodySize = rsphdr->dlen;
       else
@@ -359,6 +360,7 @@ namespace XrdCl
       leftToBeRead -= bytesRead;
       message->AdvanceCursor( bytesRead );
     }
+
     return XRootDStatus( stOK, suDone );
   }
 
@@ -1230,6 +1232,14 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus XRootDTransport::UnMarshalStatusBody( Message *msg, uint16_t reqType )
   {
+    //--------------------------------------------------------------------------
+    // Calculate the crc32c before the unmarshaling the body!
+    //--------------------------------------------------------------------------
+    ServerResponseStatus *rspst   = (ServerResponseStatus*)msg->GetBuffer();
+    char   *buffer = msg->GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
+    size_t  length = rspst->hdr.dlen - sizeof( rspst->bdy.crc32c );
+    uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
+
     size_t stlen = sizeof( ServerResponseStatus );
     switch( reqType )
     {
@@ -1238,12 +1248,17 @@ namespace XrdCl
         stlen += sizeof( ServerResponseBody_pgRead );
         break;
       }
+
+      case kXR_pgwrite:
+      {
+        stlen += sizeof( ServerResponseBody_pgWrite );
+        break;
+      }
     }
 
     if( msg->GetSize() < stlen ) return XRootDStatus( stError, errInvalidMessage, 0,
                                                       "kXR_status: invalid message size." );
 
-    ServerResponseStatus      *rspst   = (ServerResponseStatus*)msg->GetBuffer();
     rspst->bdy.crc32c = ntohl( rspst->bdy.crc32c );
     rspst->bdy.dlen   = ntohl( rspst->bdy.dlen );
 
@@ -1255,7 +1270,87 @@ namespace XrdCl
         pgrdbdy->offset = ntohll( pgrdbdy->offset );
         break;
       }
+
+      case kXR_pgwrite:
+      {
+        ServerResponseBody_pgWrite *pgwrtbdy = (ServerResponseBody_pgWrite*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
+        pgwrtbdy->offset = ntohll( pgwrtbdy->offset );
+        break;
+      }
     }
+
+    //--------------------------------------------------------------------------
+    // Do the integrity checks
+    //--------------------------------------------------------------------------
+    if( crcval != rspst->bdy.crc32c )
+    {
+      return XRootDStatus( stError, errDataError, 0, "kXR_status response header "
+                           "corrupted (crc32c integrity check failed)." );
+    }
+
+    if( rspst->hdr.streamid[0] != rspst->bdy.streamID[0] ||
+        rspst->hdr.streamid[1] != rspst->bdy.streamID[1] )
+    {
+      return XRootDStatus( stError, errDataError, 0, "response header corrupted "
+                  "(stream ID mismatch)." );
+    }
+
+
+
+    if( rspst->bdy.requestid + kXR_1stRequest != reqType )
+    {
+      return XRootDStatus( stError, errDataError, 0, "kXR_status response header corrupted "
+                  "(request ID mismatch)." );
+    }
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Unmarshall the correction-segment of the status response for pgwrite
+  //----------------------------------------------------------------------------
+  XRootDStatus XRootDTransport::UnMarchalStatusCSE( Message *msg )
+  {
+    ServerResponseV2 *rsp = (ServerResponseV2*)msg->GetBuffer();
+    //--------------------------------------------------------------------------
+    // If there's no additional data there's nothing to unmarshal
+    //--------------------------------------------------------------------------
+    if( rsp->status.bdy.dlen == 0 ) return XRootDStatus();
+    //--------------------------------------------------------------------------
+    // If there's not enough data to form correction-segment report an error
+    //--------------------------------------------------------------------------
+    if( size_t( rsp->status.bdy.dlen ) < sizeof( ServerResponseBody_pgWrCSE ) )
+      return XRootDStatus( stError, errInvalidMessage, 0,
+                           "kXR_status: invalid message size." );
+
+    //--------------------------------------------------------------------------
+    // Calculate the crc32c for the additional data
+    //--------------------------------------------------------------------------
+    ServerResponseBody_pgWrCSE *cse = (ServerResponseBody_pgWrCSE*)msg->GetBuffer( sizeof( ServerResponseV2 ) );
+    cse->cseCRC = ntohl( cse->cseCRC );
+    size_t length = rsp->status.bdy.dlen - sizeof( uint32_t );
+    void*  buffer = msg->GetBuffer( sizeof( ServerResponseV2 ) + sizeof( uint32_t ) );
+    uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
+
+    //--------------------------------------------------------------------------
+    // Do the integrity checks
+    //--------------------------------------------------------------------------
+    if( crcval != cse->cseCRC )
+    {
+      return XRootDStatus( stError, errDataError, 0, "kXR_status response header "
+                           "corrupted (crc32c integrity check failed)." );
+    }
+
+    cse->dlFirst = ntohs( cse->dlFirst );
+    cse->dlLast  = ntohs( cse->dlLast );
+
+    size_t pgcnt = ( rsp->status.bdy.dlen  - sizeof( ServerResponseBody_pgWrCSE ) ) /
+                   sizeof( kXR_int64 );
+    kXR_int64 *pgoffs = (kXR_int64*)msg->GetBuffer( sizeof( ServerResponseV2 ) +
+                                                    sizeof( ServerResponseBody_pgWrCSE ) );
+
+    for( size_t i = 0; i < pgcnt; ++i )
+      pgoffs[i] = ntohll( pgoffs[i] );
 
     return XRootDStatus();
   }

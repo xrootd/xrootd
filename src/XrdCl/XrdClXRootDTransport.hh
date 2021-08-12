@@ -198,6 +198,11 @@ namespace XrdCl
       static XRootDStatus UnMarshalStatusBody( Message *msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
+      //! Unmarshall the correction-segment of the status response for pgwrite
+      //------------------------------------------------------------------------
+      static XRootDStatus UnMarchalStatusCSE( Message *msg );
+
+      //------------------------------------------------------------------------
       //! Unmarshall the header incoming message
       //------------------------------------------------------------------------
       static void UnMarshallHeader( Message *msg );
