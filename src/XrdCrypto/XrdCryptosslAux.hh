@@ -62,9 +62,9 @@ int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *c, const char *fn);
 // export single certificate to file; fname is solely for debug message purposes
 extern "C" int XrdCryptosslX509ToFile(XrdCryptoX509 *x509, FILE *file, const char *fname);
 // certificates from file parsing
-int XrdCryptosslX509ParseFile(const char *fname, XrdCryptoX509Chain *c);
+int XrdCryptosslX509ParseFile(const char *fname, XrdCryptoX509Chain *c, const char *fkey = 0);
 // certificates from FILE object; fname is solely for debug message purposes
-extern "C" int XrdCryptosslX509ParseFile(FILE *file, XrdCryptoX509Chain *c, const char *fname);
+extern "C" int XrdCryptosslX509ParseFile(FILE *file, XrdCryptoX509Chain *c, const char *fname, const char *fkey = 0);
 // certificates from bucket parsing
 int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *c);
 // certificates from STACK_OF(X509*)
