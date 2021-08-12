@@ -689,6 +689,56 @@ namespace XrdCl
     return pImpl->nbrepair;
   }
 
+  struct RetryInfoImpl
+  {
+      RetryInfoImpl( std::vector<std::tuple<uint64_t, uint32_t>> && retries ) :
+          retries( std::move( retries ) )
+      {
+
+      }
+
+      std::vector<std::tuple<uint64_t, uint32_t>> retries;
+  };
+
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  RetryInfo::RetryInfo( std::vector<std::tuple<uint64_t, uint32_t>> && retries ) :
+      pImpl( new RetryInfoImpl( std::move( retries ) ) )
+  {
+
+  }
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  RetryInfo::~RetryInfo(){ }
+
+  //----------------------------------------------------------------------------
+  // @return : true if some pages need retrying, false otherwise
+  //----------------------------------------------------------------------------
+  bool RetryInfo::NeedRetry()
+  {
+    return !pImpl->retries.empty();
+  }
+
+  //----------------------------------------------------------------------------
+  // @return number of pages that need to be retransmitted
+  //----------------------------------------------------------------------------
+  size_t RetryInfo::Size()
+  {
+    return pImpl->retries.size();
+  }
+
+  //----------------------------------------------------------------------------
+  // @return : offset and size of respective page that requires to be
+  //           retransmitted
+  //----------------------------------------------------------------------------
+  std::tuple<uint64_t, uint32_t> RetryInfo::At( size_t i )
+  {
+    return pImpl->retries[i];
+  }
+
   //------------------------------------------------------------------------
   // Factory function for generating handler objects from lambdas
   //------------------------------------------------------------------------

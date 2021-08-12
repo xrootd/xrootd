@@ -1825,7 +1825,6 @@ namespace XrdCl
       case kXR_close:
       case kXR_write:
       case kXR_writev:
-      case kXR_pgwrite: // TODO
       case kXR_sync:
       case kXR_chkpoint:
         return Status();
@@ -2210,6 +2209,40 @@ namespace XrdCl
         response = obj;
         return Status();
       }
+
+      //------------------------------------------------------------------------
+      // kXR_pgwrite
+      //------------------------------------------------------------------------
+      case kXR_pgwrite:
+      {
+        std::vector<std::tuple<uint64_t, uint32_t>> retries;
+
+        ServerResponseV2 *rsp = (ServerResponseV2*)pResponse->GetBuffer();
+        if( rsp->status.bdy.dlen > 0 )
+        {
+          ServerResponseBody_pgWrCSE *cse = (ServerResponseBody_pgWrCSE*)pResponse->GetBuffer( sizeof( ServerResponseV2 ) );
+          size_t pgcnt = ( rsp->status.bdy.dlen - 8 ) / sizeof( kXR_int64 );
+          retries.reserve( pgcnt );
+          kXR_int64 *pgoffs = (kXR_int64*)pResponse->GetBuffer( sizeof( ServerResponseV2 ) +
+                                                                sizeof( ServerResponseBody_pgWrCSE ) );
+
+          for( size_t i = 0; i < pgcnt; ++i )
+          {
+            uint32_t len = XrdSys::PageSize;
+            if( i == 0 ) len = cse->dlFirst;
+            else if( i == pgcnt - 1 ) len = cse->dlLast;
+            retries.push_back( std::make_tuple( pgoffs[i], len ) );
+          }
+
+          RetryInfo *info = new RetryInfo( std::move( retries ) );
+          AnyObject *obj   = new AnyObject();
+          obj->Set( info );
+          response = obj;
+        }
+
+        return Status();
+      }
+
 
       //------------------------------------------------------------------------
       // kXR_readv - we need to pass the length of the buffer to the user code
