@@ -663,6 +663,9 @@ namespace XrdCl
           pIncHandler.second = true;
           repeat = true;
         }
+
+        if( action & IncomingMsgHandler::More )
+          repeat = true; // for pgwrite we might have additional non-raw data
       }
     }
     while( repeat );

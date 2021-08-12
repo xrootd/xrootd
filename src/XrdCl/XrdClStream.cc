@@ -1144,6 +1144,9 @@ namespace XrdCl
     if( action & IncomingMsgHandler::Corrupted )
       return IncomingMsgHandler::Corrupted;
 
+    if( action & IncomingMsgHandler::More )
+      return IncomingMsgHandler::More;
+
     return IncomingMsgHandler::None;
   }
 

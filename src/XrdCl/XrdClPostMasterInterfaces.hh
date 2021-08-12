@@ -87,9 +87,10 @@ namespace XrdCl
         NoProcess     = 0x0010,    //!< don't call the processing callback
                                    //!< even if the message belongs to this
                                    //!< handler
-        Corrupted     = 0x0020     //!< the handler discovered that the message
+        Corrupted     = 0x0020,    //!< the handler discovered that the message
                                    //!< header is corrupted, we will have to
                                    //!< tear down the socket
+        More          = 0x0040     //!< there are more (non-raw) data to be read
       };
 
       //------------------------------------------------------------------------

@@ -191,7 +191,10 @@ namespace XrdCl
 
         pCV( 0 ),
 
-        pSslErrCnt( 0 )
+        pSslErrCnt( 0 ),
+
+        pRspStatusBodyUnMarshaled( false ),
+        pRspPgWrtRetrnsmReqUnMarshalled( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -787,6 +790,13 @@ namespace XrdCl
       // Count of consecutive `errTlsSslError` errors
       //------------------------------------------------------------------------
       size_t                          pSslErrCnt;
+
+      //------------------------------------------------------------------------
+      // Keep track if respective parts of kXR_status response have been
+      // unmarshaled.
+      //------------------------------------------------------------------------
+      bool                            pRspStatusBodyUnMarshaled;
+      bool                            pRspPgWrtRetrnsmReqUnMarshalled;
   };
 }
 

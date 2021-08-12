@@ -341,59 +341,37 @@ namespace XrdCl
     if( msg->GetSize() < sizeof( ServerResponseStatus ) )
       return Ignore;
 
-    //--------------------------------------------------------------------------
-    // Calculate the crc32c before the unmarshaling the body!
-    //--------------------------------------------------------------------------
-    ServerResponseStatus *rspst = (ServerResponseStatus*)msg->GetBuffer();
-    char   *buffer = msg->GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
-    size_t  length = rspst->hdr.dlen - sizeof( rspst->bdy.crc32c );
-    uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
-
+    ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
+    uint16_t reqId = ntohs( req->header.requestid );
     //--------------------------------------------------------------------------
     // Unmarshal the status body
     //--------------------------------------------------------------------------
-    ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
-    uint16_t reqId = ntohs( req->header.requestid );
-    XRootDStatus st = XRootDTransport::UnMarshalStatusBody( msg, reqId );
-    if( !st.IsOK() )
+    if( !pRspStatusBodyUnMarshaled )
     {
-      log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
-                  pUrl.GetHostId().c_str() );
-      pStatus = st;
-      HandleRspOrQueue();
-      return Ignore;
-    }
+      XRootDStatus st = XRootDTransport::UnMarshalStatusBody( msg, reqId );
 
-    //--------------------------------------------------------------------------
-    // Do the integrity checks
-    //--------------------------------------------------------------------------
-    if( crcval != rspst->bdy.crc32c )
-    {
-      log->Error( XRootDMsg, "[%s] kXR_status response header corrupted "
-                  "(crc32c integrity check failed).", pUrl.GetHostId().c_str() );
-      return Corrupted;
-    }
+      if( !st.IsOK() && st.code == errDataError )
+      {
+        log->Error( XRootDMsg, "[%s] %s", pUrl.GetHostId().c_str(),
+                    st.GetErrorMessage().c_str() );
+        return Corrupted;
+      }
 
-    if( rspst->hdr.streamid[0] != rspst->bdy.streamID[0] ||
-        rspst->hdr.streamid[1] != rspst->bdy.streamID[1] )
-    {
-      log->Error( XRootDMsg, "[%s] kXR_status response header corrupted "
-                  "(stream ID mismatch).", pUrl.GetHostId().c_str() );
-      return Corrupted;
-    }
-
-
-
-    if( rspst->bdy.requestid + kXR_1stRequest != reqId )
-    {
-      log->Error( XRootDMsg, "[%s] kXR_status response header corrupted "
-                  "(request ID mismatch).", pUrl.GetHostId().c_str() );
-      return Corrupted;
+      if( !st.IsOK() )
+      {
+        log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
+                    pUrl.GetHostId().c_str() );
+        pStatus = st;
+        HandleRspOrQueue();
+        return Ignore;
+      }
+      pRspStatusBodyUnMarshaled = true;
     }
 
     //--------------------------------------------------------------------------
     // Common handling for partial results
     //--------------------------------------------------------------------------
+    ServerResponseStatus *rspst   = (ServerResponseStatus*)msg->GetBuffer();
     if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
     {
       pResponse = 0;
@@ -426,6 +404,36 @@ namespace XrdCl
       }
       else
         action |= RemoveHandler;
+    }
+    else if( reqId == kXR_pgwrite )
+    {
+      // if data corruption has been detected on the server side we will
+      // send some additional data pointing to the pages that need to be
+      // retransmitted
+      if( size_t( sizeof( ServerResponseHeader ) + rspst->hdr.dlen + rspst->bdy.dlen ) >
+          msg->GetCursor() )
+        action |= More;
+      // if we already have this data we need to unmarshal it
+      else if( !pRspPgWrtRetrnsmReqUnMarshalled )
+      {
+        XRootDStatus st = XRootDTransport::UnMarchalStatusCSE( msg );
+        if( !st.IsOK() && st.code == errDataError )
+        {
+          log->Error( XRootDMsg, "[%s] %s", pUrl.GetHostId().c_str(),
+                      st.GetErrorMessage().c_str() );
+          return Corrupted;
+        }
+
+        if( !st.IsOK() )
+        {
+          log->Error( XRootDMsg, "[%s] Failed to unmarshall status body.",
+                      pUrl.GetHostId().c_str() );
+          pStatus = st;
+          HandleRspOrQueue();
+          return Ignore;
+        }
+        pRspPgWrtRetrnsmReqUnMarshalled = true;
+      }
     }
 
     return action;
@@ -1817,7 +1825,7 @@ namespace XrdCl
       case kXR_close:
       case kXR_write:
       case kXR_writev:
-      case kXR_pgwrite:
+      case kXR_pgwrite: // TODO
       case kXR_sync:
       case kXR_chkpoint:
         return Status();
