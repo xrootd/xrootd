@@ -784,10 +784,10 @@ namespace XrdCl
 
       void HandleResponse( XRootDStatus *status, AnyObject *response )
       {
-        // call the user completion handler
-        func( status, response );
         // check if this is a final respons
         bool finalrsp = !( status->IsOK() && status->code == suContinue );
+        // call the user completion handler
+        func( status, response );
         // deallocate the wrapper if final
         if( finalrsp )
           delete this;
