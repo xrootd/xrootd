@@ -1431,6 +1431,7 @@ namespace XrdCl
     XrdOucPgrwUtils::csNum( offset, size, fLen, lLen );
     uint32_t fstpglen = fLen;
 
+    time_t start = ::time( nullptr );
     auto h = ResponseHandler::Wrap( [=]( auto* s, auto* r ) mutable
         {
           std::unique_ptr<AnyObject> scoped( r );
@@ -1439,7 +1440,7 @@ namespace XrdCl
           if( !s->IsOK() )
           {
             pgwrt->SetStatus( s );
-            return; // the destructor will call the handler
+            return; // pgwrt destructor will call the handler
           }
           // also if the request was sucessful and there were no
           // corrupted pages pass the status to the user handler
@@ -1448,10 +1449,18 @@ namespace XrdCl
           if( !inf->NeedRetry() )
           {
             pgwrt->SetStatus( s );
-            return; // the destructor will call the handler
+            return; // pgwrt destructor will call the handler
           }
           delete s;
-          // otherwise we need to retransmit the corrupted pages
+          // first adjust the timeout value
+          uint16_t elapsed = ::time( nullptr ) - start;
+          if( elapsed >= timeout )
+          {
+            pgwrt->SetStatus( new XRootDStatus( stError, errOperationExpired ) );
+            return; // pgwrt destructor will call the handler
+          }
+          else timeout -= elapsed;
+          // retransmit the corrupted pages
           for( size_t i = 0; i < inf->Size(); ++i )
           {
             auto tpl = inf->At( i );
@@ -1476,7 +1485,7 @@ namespace XrdCl
                     pgwrt->SetStatus( new XRootDStatus( stError, errDataError, 0,
                                       "Failed to retransmit corrupted page" ) );
                 } );
-            auto st = PgWriteRetry( pgoff, pglen, pgbuf, pgdigest, h, timeout /*TODO*/ );
+            auto st = PgWriteRetry( pgoff, pglen, pgbuf, pgdigest, h, timeout );
             if( !st.IsOK() ) pgwrt->SetStatus( new XRootDStatus( st ) );
           }
         } );
