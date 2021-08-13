@@ -1379,18 +1379,6 @@ namespace XrdCl
                                           ResponseHandler       *handler,
                                           uint16_t               timeout )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
-
-    if( pFileState == Error ) return pStatus;
-
-    if( pFileState != Opened && pFileState != Recovering )
-      return XRootDStatus( stError, errInvalidOp );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( FileMsg, "[0x%x@%s] Sending a pgwrite command for handle 0x%x to "
-                "%s", this, pFileUrl->GetURL().c_str(),
-                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
-
     //--------------------------------------------------------------------------
     // Validate the digest vector size
     //--------------------------------------------------------------------------
@@ -1407,6 +1395,133 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
+    // Create a context for PgWrite operation
+    //--------------------------------------------------------------------------
+    struct pgwrt_t
+    {
+      pgwrt_t( ResponseHandler *h ) : handler( h ), status( nullptr )
+      {
+      }
+
+      ~pgwrt_t()
+      {
+        // if all retries were succesful no error status was set
+        if( !status ) status = new XRootDStatus();
+        handler->HandleResponse( status, nullptr );
+      }
+
+      static size_t GetPgNb( uint64_t pgoff, uint64_t offset, uint32_t fstpglen )
+      {
+        if( pgoff == offset ) return 0; // we need this if statment because we operate on unsigned integers
+        return ( pgoff - ( offset + fstpglen ) ) / XrdSys::PageSize + 1;
+      }
+
+      inline void SetStatus( XRootDStatus* s )
+      {
+        if( !status ) status = s;
+        else delete s;
+      }
+
+      ResponseHandler *handler;
+      XRootDStatus    *status;
+    };
+    auto pgwrt = std::make_shared<pgwrt_t>( handler );
+
+    int fLen, lLen;
+    XrdOucPgrwUtils::csNum( offset, size, fLen, lLen );
+    uint32_t fstpglen = fLen;
+
+    auto h = ResponseHandler::Wrap( [=]( auto* s, auto* r ) mutable
+        {
+          std::unique_ptr<AnyObject> scoped( r );
+          // if the request failed simply pass the status to the
+          // user handler
+          if( !s->IsOK() )
+          {
+            pgwrt->SetStatus( s );
+            return; // the destructor will call the handler
+          }
+          // also if the request was sucessful and there were no
+          // corrupted pages pass the status to the user handler
+          RetryInfo *inf = nullptr;
+          r->Get( inf );
+          if( !inf->NeedRetry() )
+          {
+            pgwrt->SetStatus( s );
+            return; // the destructor will call the handler
+          }
+          delete s;
+          // otherwise we need to retransmit the corrupted pages
+          for( size_t i = 0; i < inf->Size(); ++i )
+          {
+            auto tpl = inf->At( i );
+            uint64_t    pgoff = std::get<0>( tpl );
+            uint32_t    pglen = std::get<1>( tpl );
+            const void *pgbuf = static_cast<const char*>( buffer ) + ( pgoff - offset );
+            uint32_t pgdigest = cksums[pgwrt_t::GetPgNb( pgoff, offset, fstpglen )];
+            auto h = ResponseHandler::Wrap( [=]( auto *s, auto *r ) mutable
+                {
+                  std::unique_ptr<AnyObject> scoped( r );
+                  // if we failed simply set the status
+                  if( !s->IsOK() )
+                  {
+                    pgwrt->SetStatus( s );
+                    return; // the destructor will call the handler
+                  }
+                  delete s;
+                  // otherwise check if the data were not corrupted again
+                  RetryInfo *inf = nullptr;
+                  r->Get( inf );
+                  if( inf->NeedRetry() ) // so we failed in the end
+                    pgwrt->SetStatus( new XRootDStatus( stError, errDataError, 0,
+                                      "Failed to retransmit corrupted page" ) );
+                } );
+            auto st = PgWriteRetry( pgoff, pglen, pgbuf, pgdigest, h, timeout /*TODO*/ );
+            if( !st.IsOK() ) pgwrt->SetStatus( new XRootDStatus( st ) );
+          }
+        } );
+
+    return PgWriteImpl( offset, size, buffer, cksums, 0, h, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Write number of pages at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::PgWriteRetry( uint64_t             offset,
+                                               uint32_t               size,
+                                               const void            *buffer,
+                                               uint32_t               digest,
+                                               ResponseHandler       *handler,
+                                               uint16_t               timeout )
+  {
+    std::vector<uint32_t> cksums{ digest };
+    return PgWriteImpl( offset, size, buffer, cksums, PgReadFlags::Retry, handler, timeout );
+  }
+
+  //------------------------------------------------------------------------
+  // Write number of pages at a given offset - async
+  //------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::PgWriteImpl( uint64_t             offset,
+                                              uint32_t               size,
+                                              const void            *buffer,
+                                              std::vector<uint32_t> &cksums,
+                                              kXR_char               flags,
+                                              ResponseHandler       *handler,
+                                              uint16_t               timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Error ) return pStatus;
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a pgwrite command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    //--------------------------------------------------------------------------
     // Create the message
     //--------------------------------------------------------------------------
     Message              *msg;
@@ -1416,6 +1531,7 @@ namespace XrdCl
     req->requestid  = kXR_pgwrite;
     req->offset     = offset;
     req->dlen       = size + cksums.size() * sizeof( uint32_t );
+    req->reqflags   = flags;
     memcpy( req->fhandle, pFileHandle, 4 );
 
     ChunkList *list   = new ChunkList();

@@ -309,11 +309,51 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus PgWrite( uint64_t             offset,
-                          uint32_t               size,
-                          const void            *buffer,
-                          std::vector<uint32_t> &cksums,
-                          ResponseHandler       *handler,
-                          uint16_t               timeout = 0 );
+                           uint32_t               size,
+                           const void            *buffer,
+                           std::vector<uint32_t> &cksums,
+                           ResponseHandler       *handler,
+                           uint16_t               timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write number of pages at a given offset - async
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    buffer size
+      //! @param buffer  a pointer to a buffer holding data pages
+      //! @param cksums  the crc32c checksums for each 4KB page
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PgWriteRetry( uint64_t             offset,
+                                 uint32_t               size,
+                                 const void            *buffer,
+                                 uint32_t               digest,
+                                 ResponseHandler       *handler,
+                                 uint16_t               timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Write number of pages at a given offset - async
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    buffer size
+      //! @param buffer  a pointer to a buffer holding data pages
+      //! @param cksums  the crc32c checksums for each 4KB page
+      //! @param flags   PgWrite flags
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus PgWriteImpl( uint64_t             offset,
+                                uint32_t               size,
+                                const void            *buffer,
+                                std::vector<uint32_t> &cksums,
+                                kXR_char               flags,
+                                ResponseHandler       *handler,
+                                uint16_t               timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Commit all pending disk writes - async

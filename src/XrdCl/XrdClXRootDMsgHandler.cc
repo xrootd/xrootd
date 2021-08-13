@@ -2233,12 +2233,12 @@ namespace XrdCl
             else if( i == pgcnt - 1 ) len = cse->dlLast;
             retries.push_back( std::make_tuple( pgoffs[i], len ) );
           }
-
-          RetryInfo *info = new RetryInfo( std::move( retries ) );
-          AnyObject *obj   = new AnyObject();
-          obj->Set( info );
-          response = obj;
         }
+
+        RetryInfo *info = new RetryInfo( std::move( retries ) );
+        AnyObject *obj   = new AnyObject();
+        obj->Set( info );
+        response = obj;
 
         return Status();
       }
