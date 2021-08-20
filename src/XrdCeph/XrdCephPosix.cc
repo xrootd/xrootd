@@ -947,7 +947,7 @@ static void ceph_aio_read_complete(rados_completion_t c, void *arg) {
     XrdSysMutexHelper lock(fr->statsMutex);
     fr->asyncRdCompletionCount++;
   }
-  awa->callback(awa->aiop, rc == 0 ? awa->nbBytes : rc);
+  awa->callback(awa->aiop, rc );
   delete(awa);
 }
 
