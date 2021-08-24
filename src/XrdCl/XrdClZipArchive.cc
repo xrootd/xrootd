@@ -574,7 +574,7 @@ namespace XrdCl
       // straight away
       if( empty && buffer)
       {
-        auto begin = buffer.get();
+        auto begin = buffer.get() + fileoff;
         auto end   = begin + filesize ;
         buffer_t buff( begin, end );
         cache.QueueRsp( XRootDStatus(), 0, std::move( buff ) );
