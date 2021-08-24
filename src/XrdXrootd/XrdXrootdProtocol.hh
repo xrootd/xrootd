@@ -513,8 +513,8 @@ bool                       sigWarn;      // Once for unneeded signature
 
 // Async I/O area, these need to be atomic
 //
-XrdSys::RAtomic_int        linkAioReq;   // Aio requests   inflight for link
-static XrdSys::RAtomic_int srvrAioOps;   // Aio operations inflight for server
+RAtomic_int                linkAioReq;   // Aio requests   inflight for link
+static RAtomic_int         srvrAioOps;   // Aio operations inflight for server
 
 // Buffer information, used to drive getData(), and (*Resume)()
 //
@@ -533,7 +533,7 @@ union {int                 iovNum;
 bool                       useCB;
 char                       Status;
 unsigned char              stalls;
-XrdSys::RAtomic_uchar      linkWait;
+RAtomic_uchar              linkWait;
 union {struct iovec       *iovVec;
        char               *Buffer;
       };
