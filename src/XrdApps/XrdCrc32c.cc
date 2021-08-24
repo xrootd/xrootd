@@ -47,6 +47,10 @@ using namespace std;
 namespace
 {const char *pgm = "xrdcrc32c";
 }
+
+#ifndef O_DIRECT
+#define O_DIRECT 0
+#endif
   
 /******************************************************************************/
 /*                                 F a t a l                                  */
