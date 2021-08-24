@@ -309,29 +309,29 @@ private:
 
 std::atomic<bool> _m;
 };
+}
 
 // Common  types
 //
-   typedef RAtomic<bool>                RAtomic_bool;
-   typedef RAtomic<char>                RAtomic_char;
-   typedef RAtomic<signed char>         RAtomic_schar;
-   typedef RAtomic<unsigned char>       RAtomic_uchar;
-   typedef RAtomic<short>               RAtomic_short;
-   typedef RAtomic<unsigned short>      RAtomic_ushort;
-   typedef RAtomic<int>                 RAtomic_int;
-   typedef RAtomic<unsigned int>        RAtomic_uint;
-   typedef RAtomic<long>                RAtomic_long;
-   typedef RAtomic<unsigned long>       RAtomic_ulong;
-   typedef RAtomic<long long>           RAtomic_llong;
-   typedef RAtomic<unsigned long long>  RAtomic_ullong;
-   typedef RAtomic<wchar_t>             RAtomic_wchar_t;
-   typedef RAtomic<int8_t>              RAtomic_int8_t;
-   typedef RAtomic<uint8_t>             RAtomic_uint8_t;
-   typedef RAtomic<int16_t>             RAtomic_int16_t;
-   typedef RAtomic<uint16_t>            RAtomic_uint16_t;
-   typedef RAtomic<int32_t>             RAtomic_int32_t;
-   typedef RAtomic<uint32_t>            RAtomic_uint32_t;
-   typedef RAtomic<int64_t>             RAtomic_int64_t;
-   typedef RAtomic<uint64_t>            RAtomic_uint64_t;
-}
+   typedef XrdSys::RAtomic<bool>                RAtomic_bool;
+   typedef XrdSys::RAtomic<char>                RAtomic_char;
+   typedef XrdSys::RAtomic<signed char>         RAtomic_schar;
+   typedef XrdSys::RAtomic<unsigned char>       RAtomic_uchar;
+   typedef XrdSys::RAtomic<short>               RAtomic_short;
+   typedef XrdSys::RAtomic<unsigned short>      RAtomic_ushort;
+   typedef XrdSys::RAtomic<int>                 RAtomic_int;
+   typedef XrdSys::RAtomic<unsigned int>        RAtomic_uint;
+   typedef XrdSys::RAtomic<long>                RAtomic_long;
+   typedef XrdSys::RAtomic<unsigned long>       RAtomic_ulong;
+   typedef XrdSys::RAtomic<long long>           RAtomic_llong;
+   typedef XrdSys::RAtomic<unsigned long long>  RAtomic_ullong;
+   typedef XrdSys::RAtomic<wchar_t>             RAtomic_wchar_t;
+   typedef XrdSys::RAtomic<int8_t>              RAtomic_int8_t;
+   typedef XrdSys::RAtomic<uint8_t>             RAtomic_uint8_t;
+   typedef XrdSys::RAtomic<int16_t>             RAtomic_int16_t;
+   typedef XrdSys::RAtomic<uint16_t>            RAtomic_uint16_t;
+   typedef XrdSys::RAtomic<int32_t>             RAtomic_int32_t;
+   typedef XrdSys::RAtomic<uint32_t>            RAtomic_uint32_t;
+   typedef XrdSys::RAtomic<int64_t>             RAtomic_int64_t;
+   typedef XrdSys::RAtomic<uint64_t>            RAtomic_uint64_t;
 #endif
