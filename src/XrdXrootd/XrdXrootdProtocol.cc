@@ -160,7 +160,7 @@ char                 *XrdXrootdProtocol::usxParms = 0;
 char                  XrdXrootdProtocol::tlsCap   = 0;
 char                  XrdXrootdProtocol::tlsNot   = 0;
 
-XrdSys::RAtomic_int   XrdXrootdProtocol::srvrAioOps = {0};
+RAtomic_int           XrdXrootdProtocol::srvrAioOps = {0};
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
