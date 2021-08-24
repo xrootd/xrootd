@@ -347,8 +347,35 @@ inline void WriteLock( int &status ) {status = pthread_rwlock_wrlock(&lock);}
 
 inline void UnLock() {pthread_rwlock_unlock(&lock);}
 
+enum PrefType {prefWR=1};
+
+        XrdSysRWLock(PrefType ptype)
+                    {
+#ifdef __linux__
+                     pthread_rwlockattr_t attr;
+                     pthread_rwlockattr_setkind_np(&attr,
+                             PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+                     pthread_rwlock_init(&lock, &attr);
+#else
+                     pthread_rwlock_init(&lock, NULL);
+#endif
+                    }
+
         XrdSysRWLock() {pthread_rwlock_init(&lock, NULL);}
        ~XrdSysRWLock() {pthread_rwlock_destroy(&lock);}
+
+inline void ReInitialize(PrefType ptype)
+{
+  pthread_rwlock_destroy(&lock);
+#ifdef __linux__
+  pthread_rwlockattr_t attr;
+  pthread_rwlockattr_setkind_np(&attr,
+                     PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+  pthread_rwlock_init(&lock, &attr);
+#else
+  pthread_rwlock_init(&lock, NULL);
+#endif
+}
 
 inline void ReInitialize()
 {
@@ -399,6 +426,35 @@ private:
 XrdSysRWLock *lck;
 };
 
+/******************************************************************************/
+/*                      X r d S y s F u s e d M u t e x                       */
+/******************************************************************************/
+
+class XrdSysFusedMutex
+{
+public:
+
+inline void  Lock()      {isRW ? rwLok->WriteLock() : mutex->Lock();}
+
+inline void  ReadLock()  {isRW ? rwLok->ReadLock()  : mutex->Lock();}
+
+inline void  WriteLock() {isRW ? rwLok->WriteLock() : mutex->Lock();}
+
+inline void  UnLock()    {isRW ? rwLok->UnLock()    : mutex->UnLock();}
+
+             XrdSysFusedMutex(XrdSysRWLock &mtx)
+                             : rwLok(&mtx), isRW(true) {}
+
+             XrdSysFusedMutex(XrdSysMutex  &mtx)
+                             : mutex(&mtx), isRW(false) {}
+
+            ~XrdSysFusedMutex() {}
+private:
+
+union {XrdSysRWLock *rwLok; XrdSysMutex *mutex;};
+bool  isRW;
+};
+  
 /******************************************************************************/
 /*                       X r d S y s S e m a p h o r e                        */
 /******************************************************************************/
