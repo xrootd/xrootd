@@ -269,6 +269,65 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  //! PgRead operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class PgReadImpl: public FileOperation<PgReadImpl, HasHndl, Resp<PageInfo>,
+      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<PgReadImpl, HasHndl, Resp<PageInfo>, Arg<uint64_t>,
+                          Arg<uint32_t>, Arg<void*>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { OffsetArg, SizeArg, BufferArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "PgRead";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        uint64_t  offset  = std::get<OffsetArg>( this->args ).Get();
+        uint32_t  size    = std::get<SizeArg>( this->args ).Get();
+        void     *buffer  = std::get<BufferArg>( this->args ).Get();
+        uint16_t  timeout = pipelineTimeout < this->timeout ?
+                            pipelineTimeout : this->timeout;
+        return this->file->PgRead( offset, size, buffer, handler, timeout );
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating PgReadImpl objects
+  //----------------------------------------------------------------------------
+  inline PgReadImpl<false> PgRead( Ctx<File> file, Arg<uint64_t> offset,
+                                 Arg<uint32_t> size, Arg<void*> buffer,
+                                 uint16_t timeout = 0 )
+  {
+    return PgReadImpl<false>( std::move( file ), std::move( offset ), std::move( size ),
+                            std::move( buffer ) ).Timeout( timeout );
+  }
+
+  //----------------------------------------------------------------------------
   //! Close operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
