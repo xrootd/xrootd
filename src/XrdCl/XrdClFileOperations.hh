@@ -328,6 +328,35 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  //! RdWithRsp: factory for creating ReadImpl/PgReadImpl objects
+  //----------------------------------------------------------------------------
+  template<typename RSP> struct ReadTrait { };
+
+  template<> struct ReadTrait<ChunkInfo> { using RET = ReadImpl<false>; };
+
+  template<> struct ReadTrait<PageInfo> { using RET = PgReadImpl<false>; };
+
+  template<typename RSP> inline typename ReadTrait<RSP>::RET
+  RdWithRsp( Ctx<File> file, Arg<uint64_t> offset, Arg<uint32_t> size,
+             Arg<void*> buffer, uint16_t timeout = 0 );
+
+  template<> inline ReadImpl<false>
+  RdWithRsp<ChunkInfo>( Ctx<File> file, Arg<uint64_t> offset, Arg<uint32_t> size,
+                        Arg<void*> buffer, uint16_t timeout )
+  {
+    return Read( std::move( file ), std::move( offset ), std::move( size ),
+                 std::move( buffer ), timeout );
+  }
+
+  template<> inline PgReadImpl<false>
+  RdWithRsp<PageInfo>( Ctx<File> file, Arg<uint64_t> offset, Arg<uint32_t> size,
+                       Arg<void*> buffer, uint16_t timeout )
+  {
+    return PgRead( std::move( file ), std::move( offset ), std::move( size ),
+                   std::move( buffer ), timeout );
+  }
+
+  //----------------------------------------------------------------------------
   //! Close operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
