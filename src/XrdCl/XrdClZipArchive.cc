@@ -34,8 +34,167 @@
 
 namespace XrdCl
 {
-
   using namespace XrdZip;
+
+  //---------------------------------------------------------------------------
+  // Read data from a given file
+  //---------------------------------------------------------------------------
+  template<typename RSP>
+  XRootDStatus ReadFromImpl( ZipArchive        &me,
+                             const std::string &fn,
+                             uint64_t           relativeOffset,
+                             uint32_t           size,
+                             void              *usrbuff,
+                             ResponseHandler   *usrHandler,
+                             uint16_t           timeout )
+  {
+    if( me.openstage != ZipArchive::Done || !me.archive.IsOpen() )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+
+    auto cditr = me.cdmap.find( fn );
+    if( cditr == me.cdmap.end() )
+      return XRootDStatus( stError, errNotFound,
+                           errNotFound, "File not found." );
+
+    CDFH *cdfh = me.cdvec[cditr->second].get();
+
+    // check if the file is compressed, for now we only support uncompressed and inflate/deflate compression
+    if( cdfh->compressionMethod != 0 && cdfh->compressionMethod != Z_DEFLATED )
+      return XRootDStatus( stError, errNotSupported,
+                           0, "The compression algorithm is not supported!" );
+
+    // Now the problem is that at the beginning of our
+    // file there is the Local-file-header, which size
+    // is not known because of the variable size 'extra'
+    // field, so we need to know the offset of the next
+    // record and shift it by the file size.
+    // The next record is either the next LFH (next file)
+    // or the start of the Central-directory.
+    uint64_t cdOffset = me.zip64eocd ? me.zip64eocd->cdOffset : me.eocd->cdOffset;
+    uint64_t nextRecordOffset = ( cditr->second + 1 < me.cdvec.size() ) ?
+                                CDFH::GetOffset( *me.cdvec[cditr->second + 1] ) : cdOffset;
+    uint64_t filesize = cdfh->compressedSize;
+    uint16_t descsize = cdfh->HasDataDescriptor() ?
+                        DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
+    uint64_t fileoff  = nextRecordOffset - filesize - descsize;
+    uint64_t offset   = fileoff + relativeOffset;
+    uint64_t sizeTillEnd = relativeOffset > cdfh->uncompressedSize ?
+                           0 : cdfh->uncompressedSize - relativeOffset;
+    if( size > sizeTillEnd ) size = sizeTillEnd;
+
+    // if it is a compressed file use ZIP cache to read from the file
+    if( cdfh->compressionMethod == Z_DEFLATED )
+    {
+      log->Dump( ZipMsg, "[0x%x] Reading compressed data.", &me );
+      // check if respective ZIP cache exists
+      bool empty = me.zipcache.find( fn ) == me.zipcache.end();
+      // if the entry does not exist, it will be created using
+      // default constructor
+      ZipCache &cache = me.zipcache[fn];
+
+      if( relativeOffset > cdfh->uncompressedSize )
+      {
+        // we are reading past the end of file,
+        // we can serve the request right away!
+        RSP *r = new RSP( relativeOffset, 0, usrbuff );
+        AnyObject *rsp = new AnyObject();
+        rsp->Set( r );
+        usrHandler->HandleResponse( new XRootDStatus(), rsp );
+        return XRootDStatus();
+      }
+
+      uint32_t sizereq = size;
+      if( relativeOffset + size > cdfh->uncompressedSize )
+        sizereq = cdfh->uncompressedSize - relativeOffset;
+      cache.QueueReq( relativeOffset, sizereq, usrbuff, usrHandler );
+
+      // if we have the whole ZIP archive we can populate the cache
+      // straight away
+      if( empty && me.buffer)
+      {
+        auto begin = me.buffer.get() + fileoff;
+        auto end   = begin + filesize ;
+        buffer_t buff( begin, end );
+        cache.QueueRsp( XRootDStatus(), 0, std::move( buff ) );
+        return XRootDStatus();
+      }
+
+      // if we don't have the data we need to issue a remote read
+      if( !me.buffer )
+      {
+        if( relativeOffset > cdfh->compressedSize ) return XRootDStatus(); // there's nothing to do,
+                                                                           // we already have all the data locally
+        uint32_t rdsize = size;
+        // check if this is the last read (we reached the end of
+        // file from user perspective)
+        if( relativeOffset + size >= cdfh->uncompressedSize )
+        {
+          // if yes, make sure we readout all the compressed data
+          // Note: In a patological case the compressed size may
+          //       be greater than the uncompressed size
+          rdsize = cdfh->compressedSize > relativeOffset ?
+                   cdfh->compressedSize - relativeOffset :
+                   0;
+        }
+        // make sure we are not reading past the end of
+        // compressed data
+        if( relativeOffset + size > cdfh->compressedSize )
+          rdsize = cdfh->compressedSize - relativeOffset;
+
+
+        // now read the data ...
+        auto rdbuff = std::make_shared<ZipCache::buffer_t>( rdsize );
+        Pipeline p = XrdCl::RdWithRsp<RSP>( me.archive, offset, rdbuff->size(), rdbuff->data() ) >>
+                       [relativeOffset, rdbuff, &cache, &me]( XRootDStatus &st, RSP &rsp )
+                       {
+                         Log *log = DefaultEnv::GetLog();
+                         log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at offset %d.",
+                                            &me, rsp.GetLength(), rsp.GetOffset() );
+                         cache.QueueRsp( st, relativeOffset, std::move( *rdbuff ) );
+                       };
+        Async( std::move( p ), timeout );
+      }
+
+      return XRootDStatus();
+    }
+
+    // check if we have the whole file in our local buffer
+    if( me.buffer || size == 0 )
+    {
+      if( size )
+      {
+        memcpy( usrbuff, me.buffer.get() + offset, size );
+        log->Dump( ZipMsg, "[0x%x] Serving read from local cache.", &me );
+      }
+
+      if( usrHandler )
+      {
+        XRootDStatus *st  = ZipArchive::make_status();
+        RSP          *rsp = new RSP( relativeOffset, size, usrbuff );
+        ZipArchive::Schedule( usrHandler, st, rsp );
+      }
+      return XRootDStatus();
+    }
+
+    Pipeline p = XrdCl::RdWithRsp<RSP>( me.archive, offset, size, usrbuff ) >>
+                   [=, &me]( XRootDStatus &st, RSP &r )
+                   {
+                     log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at "
+                                        "offset %d.", &me, r.GetLength(), r.GetOffset() );
+                     if( usrHandler )
+                     {
+                       XRootDStatus *status = ZipArchive::make_status( st );
+                       RSP          *rsp    = nullptr;
+                       if( st.IsOK() )
+                         rsp = new RSP( relativeOffset, r.GetLength(), r.GetBuffer() );
+                       usrHandler->HandleResponse( status, ZipArchive::PkgRsp( rsp ) );
+                     }
+                   };
+    Async( std::move( p ), timeout );
+    return XRootDStatus();
+  }
 
   //---------------------------------------------------------------------------
   // Constructor
@@ -502,158 +661,26 @@ namespace XrdCl
   // Read data from a given file
   //---------------------------------------------------------------------------
   XRootDStatus ZipArchive::ReadFrom( const std::string &fn,
-                                     uint64_t           relativeOffset,
+                                     uint64_t           offset,
                                      uint32_t           size,
-                                     void              *usrbuff,
-                                     ResponseHandler   *usrHandler,
+                                     void              *buffer,
+                                     ResponseHandler   *handler,
                                      uint16_t           timeout )
   {
-    if( openstage != Done || !archive.IsOpen() )
-      return XRootDStatus( stError, errInvalidOp );
+    return ReadFromImpl<ChunkInfo>( *this, fn, offset, size, buffer, handler, timeout );
+  }
 
-    Log *log = DefaultEnv::GetLog();
-
-    auto cditr = cdmap.find( fn );
-    if( cditr == cdmap.end() )
-      return XRootDStatus( stError, errNotFound,
-                           errNotFound, "File not found." );
-
-    CDFH *cdfh = cdvec[cditr->second].get();
-
-    // check if the file is compressed, for now we only support uncompressed and inflate/deflate compression
-    if( cdfh->compressionMethod != 0 && cdfh->compressionMethod != Z_DEFLATED )
-      return XRootDStatus( stError, errNotSupported,
-                           0, "The compression algorithm is not supported!" );
-
-    // Now the problem is that at the beginning of our
-    // file there is the Local-file-header, which size
-    // is not known because of the variable size 'extra'
-    // field, so we need to know the offset of the next
-    // record and shift it by the file size.
-    // The next record is either the next LFH (next file)
-    // or the start of the Central-directory.
-    uint64_t cdOffset = zip64eocd ? zip64eocd->cdOffset : eocd->cdOffset;
-    uint64_t nextRecordOffset = ( cditr->second + 1 < cdvec.size() ) ?
-                                CDFH::GetOffset( *cdvec[cditr->second + 1] ) : cdOffset;
-    uint64_t filesize = cdfh->compressedSize;
-    uint16_t descsize = cdfh->HasDataDescriptor() ?
-                        DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
-    uint64_t fileoff  = nextRecordOffset - filesize - descsize;
-    uint64_t offset   = fileoff + relativeOffset;
-    uint64_t sizeTillEnd = relativeOffset > cdfh->uncompressedSize ?
-                           0 : cdfh->uncompressedSize - relativeOffset;
-    if( size > sizeTillEnd ) size = sizeTillEnd;
-
-    // if it is a compressed file use ZIP cache to read from the file
-    if( cdfh->compressionMethod == Z_DEFLATED )
-    {
-      log->Dump( ZipMsg, "[0x%x] Reading compressed data.", this );
-      // check if respective ZIP cache exists
-      bool empty = zipcache.find( fn ) == zipcache.end();
-      // if the entry does not exist, it will be created using
-      // default constructor
-      ZipCache &cache = zipcache[fn];
-
-      if( relativeOffset > cdfh->uncompressedSize )
-      {
-        // we are reading past the end of file,
-        // we can serve the request right away!
-        ChunkInfo *ch = new ChunkInfo( relativeOffset, 0, usrbuff );
-        AnyObject *rsp = new AnyObject();
-        rsp->Set( ch );
-        usrHandler->HandleResponse( new XRootDStatus(), rsp );
-        return XRootDStatus();
-      }
-
-      uint32_t sizereq = size;
-      if( relativeOffset + size > cdfh->uncompressedSize )
-        sizereq = cdfh->uncompressedSize - relativeOffset;
-      cache.QueueReq( relativeOffset, sizereq, usrbuff, usrHandler );
-
-      // if we have the whole ZIP archive we can populate the cache
-      // straight away
-      if( empty && buffer)
-      {
-        auto begin = buffer.get() + fileoff;
-        auto end   = begin + filesize ;
-        buffer_t buff( begin, end );
-        cache.QueueRsp( XRootDStatus(), 0, std::move( buff ) );
-        return XRootDStatus();
-      }
-
-      // if we don't have the data we need to issue a remote read
-      if( !buffer )
-      {
-        if( relativeOffset > cdfh->compressedSize ) return XRootDStatus(); // there's nothing to do,
-                                                                           // we already have all the data locally
-        uint32_t rdsize = size;
-        // check if this is the last read (we reached the end of
-        // file from user perspective)
-        if( relativeOffset + size >= cdfh->uncompressedSize )
-        {
-          // if yes, make sure we readout all the compressed data
-          // Note: In a patological case the compressed size may
-          //       be greater than the uncompressed size
-          rdsize = cdfh->compressedSize > relativeOffset ?
-                   cdfh->compressedSize - relativeOffset :
-                   0;
-        }
-        // make sure we are not reading past the end of
-        // compressed data
-        if( relativeOffset + size > cdfh->compressedSize )
-          rdsize = cdfh->compressedSize - relativeOffset;
-
-
-        // now read the data ...
-        auto rdbuff = std::make_shared<ZipCache::buffer_t>( rdsize );
-        Pipeline p = XrdCl::Read( archive, offset, rdbuff->size(), rdbuff->data() ) >>
-                       [relativeOffset, rdbuff, &cache, this]( XRootDStatus &st, ChunkInfo &ch )
-                       {
-                         Log *log = DefaultEnv::GetLog();
-                         log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at offset %d.",
-                                            this, ch.length, ch.offset );
-                         cache.QueueRsp( st, relativeOffset, std::move( *rdbuff ) );
-                       };
-        Async( std::move( p ), timeout );
-      }
-
-      return XRootDStatus();
-    }
-
-    // check if we have the whole file in our local buffer
-    if( buffer || size == 0 )
-    {
-      if( size )
-      {
-        memcpy( usrbuff, buffer.get() + offset, size );
-        log->Dump( ZipMsg, "[0x%x] Serving read from local cache.", this );
-      }
-
-      if( usrHandler )
-      {
-        XRootDStatus *st = make_status();
-        ChunkInfo    *ch = new ChunkInfo( relativeOffset, size, usrbuff );
-        Schedule( usrHandler, st, ch );
-      }
-      return XRootDStatus();
-    }
-
-    Pipeline p = XrdCl::Read( archive, offset, size, usrbuff ) >>
-                   [=]( XRootDStatus &st, ChunkInfo &chunk )
-                   {
-                     log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at "
-                                        "offset %d.", this, chunk.length, chunk.offset );
-                     if( usrHandler )
-                     {
-                       XRootDStatus *status = make_status( st );
-                       ChunkInfo    *rsp = nullptr;
-                       if( st.IsOK() )
-                         rsp = new ChunkInfo( relativeOffset, chunk.length, chunk.buffer );
-                       usrHandler->HandleResponse( status, PkgRsp( rsp ) );
-                     }
-                   };
-    Async( std::move( p ), timeout );
-    return XRootDStatus();
+  //---------------------------------------------------------------------------
+  // PgRead data from a given file
+  //---------------------------------------------------------------------------
+  XRootDStatus ZipArchive::PgReadFrom( const std::string &fn,
+                                       uint64_t           offset,
+                                       uint32_t           size,
+                                       void              *buffer,
+                                       ResponseHandler   *handler,
+                                       uint16_t           timeout )
+  {
+    return ReadFromImpl<PageInfo>( *this, fn, offset, size, buffer, handler, timeout );
   }
 
   //---------------------------------------------------------------------------

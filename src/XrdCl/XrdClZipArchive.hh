@@ -47,7 +47,6 @@ class MicroTest;
 
 namespace XrdCl
 {
-
   using namespace XrdZip;
 
   //---------------------------------------------------------------------------
@@ -64,6 +63,9 @@ namespace XrdCl
     template<bool>
     friend class XrdEc::OpenOnlyImpl;
     friend class ::MicroTest;
+
+    template<typename RSP>
+    friend XRootDStatus ReadFromImpl( ZipArchive &me, const std::string&, uint64_t, uint32_t, void*, ResponseHandler*, uint16_t );
 
     public:
       //-----------------------------------------------------------------------
@@ -126,6 +128,27 @@ namespace XrdCl
       }
 
       //-----------------------------------------------------------------------
+      //! PgRead data from an open file
+      //!
+      //! @param offset  : offset within the file to read at
+      //! @param size    : number of bytes to be read
+      //! @param buffer  : the buffer for the data
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
+      inline
+      XRootDStatus PgRead( uint64_t         offset,
+                           uint32_t         size,
+                           void            *buffer,
+                           ResponseHandler *handler,
+                           uint16_t         timeout = 0 )
+      {
+        if( openfn.empty() ) return XRootDStatus( stError, errInvalidOp );
+        return PgReadFrom( openfn, offset, size, buffer, handler, timeout );
+      }
+
+      //-----------------------------------------------------------------------
       //! Read data from a given file
       //!
       //! @param fn      : the name of the file from which we are going to read
@@ -142,6 +165,24 @@ namespace XrdCl
                              void              *buffer,
                              ResponseHandler   *handler,
                              uint16_t           timeout = 0 );
+
+      //-----------------------------------------------------------------------
+      //! PgRead data from a given file
+      //!
+      //! @param fn      : the name of the file from which we are going to read
+      //! @param offset  : offset within the file to read at
+      //! @param size    : number of bytes to be read
+      //! @param buffer  : the buffer for the data
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
+      XRootDStatus PgReadFrom( const std::string &fn,
+                               uint64_t           offset,
+                               uint32_t           size,
+                               void              *buffer,
+                               ResponseHandler   *handler,
+                               uint16_t           timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Append data to a new file
