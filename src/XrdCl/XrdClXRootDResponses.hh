@@ -912,6 +912,30 @@ namespace XrdCl
     ChunkInfo( uint64_t off = 0, uint32_t len = 0, void *buff = 0 ):
       offset( off ), length( len ), buffer(buff) {}
 
+    //----------------------------------------------------------------------------
+    //! Get the offset
+    //----------------------------------------------------------------------------
+    inline uint64_t GetOffset() const
+    {
+      return offset;
+    }
+
+    //----------------------------------------------------------------------------
+    //! Get the data length
+    //----------------------------------------------------------------------------
+    inline uint32_t GetLength() const
+    {
+      return length;
+    }
+
+    //----------------------------------------------------------------------------
+    //! Get the buffer
+    //----------------------------------------------------------------------------
+    inline void* GetBuffer()
+    {
+      return buffer;
+    }
+
     uint64_t  offset; //! offset in the file
     uint32_t  length; //! length of the chunk
     void     *buffer; //! optional buffer pointer
