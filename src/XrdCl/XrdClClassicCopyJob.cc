@@ -742,6 +742,10 @@ namespace
         int val = XrdCl::DefaultSubStreamsPerChannel;
         XrdCl::DefaultEnv::GetEnv()->GetInt( "SubStreamsPerChannel", val );
         pMaxNbConn = val - 1; // account for the control stream
+
+        val = XrdCl::DefaultCpUsePgWrtRd;
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
+        pUsePgRead = !url->IsLocalFile() && ( val == 1 );
       }
 
       //------------------------------------------------------------------------
@@ -913,11 +917,10 @@ namespace
             chunkSize = pSize - pCurrentOffset;
 
           char *buffer = new char[chunkSize];
-          ChunkHandler *ch = new ChunkHandler;
-          ch->chunk.offset = pCurrentOffset;
-          ch->chunk.length = chunkSize;
-          ch->chunk.buffer = buffer;
-          ch->status = reader->Read( pCurrentOffset, chunkSize, buffer, ch );
+          ChunkHandler *ch = new ChunkHandler( pUsePgRead );
+          ch->status = pUsePgRead
+                     ? reader->PgRead( pCurrentOffset, chunkSize, buffer, ch )
+                     : reader->Read( pCurrentOffset, chunkSize, buffer, ch );
           pChunks.push( ch );
           pCurrentOffset += chunkSize;
           if( !ch->status.IsOK() )
@@ -1003,7 +1006,7 @@ namespace
       class ChunkHandler: public XrdCl::ResponseHandler
       {
         public:
-          ChunkHandler(): sem( new XrdSysSemaphore(0) ) {}
+          ChunkHandler( bool usepgrd ): sem( new XrdSysSemaphore(0) ), usepgrd(usepgrd) {}
           virtual ~ChunkHandler() { delete sem; }
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    *response )
@@ -1012,30 +1015,46 @@ namespace
             delete statusval;
             if( response )
             {
-              XrdCl::ChunkInfo *resp = 0;
-              response->Get( resp );
-              if( resp )
-                chunk = *resp;
+              chunk = ToChunk( response );
               delete response;
             }
             sem->Post();
           }
 
+          XrdCl::ChunkInfo ToChunk( XrdCl::AnyObject *response )
+          {
+            if( usepgrd )
+            {
+              XrdCl::PageInfo *resp = nullptr;
+              response->Get( resp );
+              return XrdCl::ChunkInfo( resp->GetOffset(), resp->GetLength(),
+                                       resp->GetBuffer() );
+            }
+            else
+            {
+              XrdCl::ChunkInfo *resp = nullptr;
+              response->Get( resp );
+              return *resp;
+            }
+          }
+
         XrdSysSemaphore     *sem;
         XrdCl::ChunkInfo     chunk;
         XrdCl::XRootDStatus  status;
+        bool                 usepgrd;
       };
 
-      const XrdCl::URL               *pUrl;
-      XrdCl::File                    *pFile;
-      int64_t                         pSize;
-      int64_t                         pCurrentOffset;
-      uint32_t                        pChunkSize;
-      uint16_t                        pParallel;
-      std::queue<ChunkHandler *>      pChunks;
-      std::string                     pDataServer;
-      uint16_t                        pNbConn;
-      uint16_t                        pMaxNbConn;
+      const XrdCl::URL          *pUrl;
+      XrdCl::File               *pFile;
+      int64_t                    pSize;
+      int64_t                    pCurrentOffset;
+      uint32_t                   pChunkSize;
+      uint16_t                   pParallel;
+      std::queue<ChunkHandler*>  pChunks;
+      std::string                pDataServer;
+      uint16_t                   pNbConn;
+      uint16_t                   pMaxNbConn;
+      bool                       pUsePgRead;
 
       std::shared_ptr<CancellableJob> pDataConnCB;
   };
@@ -1063,7 +1082,7 @@ namespace
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      ~XRootDSourceZip()
+      virtual ~XRootDSourceZip()
       {
         CleanUpChunks();
 
@@ -1177,8 +1196,8 @@ namespace
 
     private:
 
-      XRootDSourceZip(const XRootDSource &other);
-      XRootDSourceZip &operator = (const XRootDSource &other);
+      XRootDSourceZip(const XRootDSourceZip &other);
+      XRootDSourceZip &operator = (const XRootDSourceZip &other);
 
       const std::string         pFilename;
       XrdCl::ZipArchive        *pZipArchive;
@@ -1209,6 +1228,9 @@ namespace
         pUrl( url ), pFile( new XrdCl::File() ), pCurrentOffset( 0 ),
         pChunkSize( chunkSize ), pDone( false )
       {
+        int val = XrdCl::DefaultCpUsePgWrtRd;
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
+        pUsePgRead = !url->IsLocalFile() && ( val == 1 );
       }
 
       //------------------------------------------------------------------------
@@ -1287,8 +1309,10 @@ namespace
         char     *buffer = new char[pChunkSize];
         uint32_t  bytesRead = 0;
 
-        XRootDStatus st = pFile->Read( pCurrentOffset, pChunkSize, buffer,
-                                       bytesRead );
+        std::vector<uint32_t> cksums;
+        XRootDStatus st = pUsePgRead
+                        ? pFile->PgRead( pCurrentOffset, pChunkSize, buffer, cksums, bytesRead )
+                        : pFile->Read( pCurrentOffset, pChunkSize, buffer, bytesRead );
 
         if( !st.IsOK() )
         {
@@ -1365,6 +1389,7 @@ namespace
       int64_t                     pCurrentOffset;
       uint32_t                    pChunkSize;
       bool                        pDone;
+      bool                        pUsePgRead;
   };
 
   //----------------------------------------------------------------------------
@@ -1653,7 +1678,7 @@ namespace
   //----------------------------------------------------------------------------
   //! XRootD destination
   //----------------------------------------------------------------------------
-  class XRootDDestination: public Destination
+  class XRootDDestination: public Destination // TODO Read/PgRead
   {
     public:
       //------------------------------------------------------------------------
@@ -1995,7 +2020,7 @@ namespace
   //----------------------------------------------------------------------------
   //! XRootD destination
   //----------------------------------------------------------------------------
-  class XRootDZipDestination: public Destination
+  class XRootDZipDestination: public Destination // TODO Read/PgRead
   {
     public:
       //------------------------------------------------------------------------
