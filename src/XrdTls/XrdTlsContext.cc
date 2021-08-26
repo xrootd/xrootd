@@ -133,7 +133,7 @@ do{ctxImpl->crlMutex.ReadLock();
 
 // Verify that the context was properly built
 //
-   if (!newctx->isOK())
+   if (!newctx || !newctx->isOK())
       {XrdTlsGlobal::msgCB("CrlRefresh:","Refresh of context failed!!!",false);
        continue;
       }
