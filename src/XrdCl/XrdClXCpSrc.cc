@@ -38,8 +38,8 @@ class ChunkHandler: public ResponseHandler
 {
   public:
 
-    ChunkHandler( XCpSrc *src, uint64_t offset, uint64_t size, char *buffer, File *handle ) :
-      pSrc( src->Self() ), pOffset( offset ), pSize( size ), pBuffer( buffer ), pHandle( handle )
+    ChunkHandler( XCpSrc *src, uint64_t offset, uint64_t size, char *buffer, File *handle, bool usepgrd ) :
+      pSrc( src->Self() ), pOffset( offset ), pSize( size ), pBuffer( buffer ), pHandle( handle ), pUsePgRead( usepgrd )
     {
 
     }
@@ -54,7 +54,7 @@ class ChunkHandler: public ResponseHandler
       ChunkInfo *chunk = 0;
       if( response ) // get the response
       {
-        response->Get( chunk );
+        ToChunk( response, chunk );
         response->Set( ( int* )0 );
         delete response;
       }
@@ -83,11 +83,24 @@ class ChunkHandler: public ResponseHandler
 
   private:
 
+    void ToChunk( AnyObject *response, ChunkInfo *&chunk )
+    {
+      if( pUsePgRead )
+      {
+        PageInfo *rsp = nullptr;
+        response->Get( rsp );
+        chunk = new ChunkInfo( rsp->GetOffset(), rsp->GetLength(), rsp->GetBuffer() );
+      }
+      else
+        response->Get( chunk );
+    }
+
     XCpSrc           *pSrc;
     uint64_t           pOffset;
     uint64_t           pSize;
     char              *pBuffer;
     File              *pHandle;
+    bool               pUsePgRead;
 };
 
 
@@ -96,7 +109,9 @@ XCpSrc::XCpSrc( uint32_t chunkSize, uint8_t parallel, int64_t fileSize, XCpCtx *
   pCtx( ctx->Self() ), pFile( 0 ), pCurrentOffset( 0 ), pBlkEnd( 0 ), pDataTransfered( 0 ), pRefCount( 1 ),
   pRunning( false ), pStartTime( 0 ), pTransferTime( 0 )
 {
-
+  int val = XrdCl::DefaultCpUsePgWrtRd;
+  XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
+  pUsePgRead = ( val == 1 );
 }
 
 XCpSrc::~XCpSrc()
@@ -317,8 +332,10 @@ XRootDStatus XCpSrc::ReadChunks()
     pRecovered.erase( itr );
 
     char *buffer = new char[p.second];
-    ChunkHandler *handler = new ChunkHandler( this, p.first, p.second, buffer, pFile );
-    XRootDStatus st = pFile->Read( p.first, p.second, buffer, handler );
+    ChunkHandler *handler = new ChunkHandler( this, p.first, p.second, buffer, pFile, pUsePgRead );
+    XRootDStatus st = pUsePgRead
+                    ? pFile->PgRead( p.first, p.second, buffer, handler )
+                    : pFile->Read( p.first, p.second, buffer, handler );
     if( !st.IsOK() )
     {
       delete[] buffer;
@@ -335,8 +352,10 @@ XRootDStatus XCpSrc::ReadChunks()
       chunkSize = pBlkEnd - pCurrentOffset;
     pOngoing[pCurrentOffset] = chunkSize;
     char *buffer = new char[chunkSize];
-    ChunkHandler *handler = new ChunkHandler( this, pCurrentOffset, chunkSize, buffer, pFile );
-    XRootDStatus st = pFile->Read( pCurrentOffset, chunkSize, buffer, handler );
+    ChunkHandler *handler = new ChunkHandler( this, pCurrentOffset, chunkSize, buffer, pFile, pUsePgRead );
+    XRootDStatus st = pUsePgRead
+                    ? pFile->PgRead( pCurrentOffset, chunkSize, buffer, handler )
+                    : pFile->Read( pCurrentOffset, chunkSize, buffer, handler );
     pCurrentOffset += chunkSize;
     if( !st.IsOK() )
     {

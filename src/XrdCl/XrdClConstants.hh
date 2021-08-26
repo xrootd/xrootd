@@ -95,6 +95,7 @@ namespace XrdCl
   const int DefaultWantTlsOnNoPgrw         = 0;
   const int DefaultRetryWrtAtLBLimit       = 3;
   const int DefaultCpRetry                 = 0;
+  const int DefaultCpUsePgWrtRd            = 1;
 
   const char * const DefaultPollerPreference   = "built-in";
   const char * const DefaultNetworkStack       = "IPAuto";

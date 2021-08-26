@@ -360,6 +360,12 @@ class XCpSrc
      * the restart
      */
     time_t                        pTransferTime;
+
+    /**
+     * The total time we were transferring data, before
+     * the restart
+     */
+    bool                          pUsePgRead;
 };
 
 } /* namespace XrdCl */
