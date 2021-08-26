@@ -12,6 +12,7 @@ Prerelease Notes
 
 + **Major bug fixes**
   **[Server]** Avoid SEGV when previous monitory directive overridden.
+  **[TLS]** Avoid SEGV when a refresh context cannot be cloned (rare).
 
 + **Minor bug fixes**
 
