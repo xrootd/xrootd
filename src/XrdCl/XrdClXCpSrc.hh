@@ -123,11 +123,11 @@ class XCpSrc
      *
      * @param chunk : the chunk to be deleted
      */
-    static void DeleteChunk( ChunkInfo *&chunk )
+    static void DeleteChunk( PageInfo *&chunk )
     {
       if( chunk )
       {
-        delete[] static_cast<char*>( chunk->buffer );
+        delete[] static_cast<char*>( chunk->GetBuffer() );
         delete   chunk;
         chunk = 0;
       }
@@ -222,7 +222,7 @@ class XCpSrc
      * @param chunk  : the read chunk (if operation failed, should be null)
      * @param handle : the file object used to read the chunk
      */
-    void ReportResponse( XRootDStatus *status, ChunkInfo *chunk, File *handle );
+    void ReportResponse( XRootDStatus *status, PageInfo *chunk, File *handle );
 
     /**
      * Delets a pointer and sets it to null.

@@ -104,7 +104,7 @@ class XCpCtx
      *
      * @param chunk : the chunk
      */
-    void PutChunk( ChunkInfo* chunk );
+    void PutChunk( PageInfo* chunk );
 
     /**
      * Get next block that has to be transfered
@@ -157,7 +157,7 @@ class XCpCtx
      *             - suRetry    : a chunk has not been written into ci,
      *                            try again.
      */
-    XRootDStatus GetChunk( XrdCl::ChunkInfo &ci );
+    XRootDStatus GetChunk( XrdCl::PageInfo &ci );
 
     /**
      * Remove given source
@@ -270,7 +270,7 @@ class XCpCtx
      * A queue shared between all the sources (producers),
      * and the extreme copy context (consumer).
      */
-    SyncQueue<ChunkInfo*>      pSink;
+    SyncQueue<PageInfo*>       pSink;
 
     /**
      * Total amount of data received

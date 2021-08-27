@@ -51,10 +51,10 @@ class ChunkHandler: public ResponseHandler
 
     virtual void HandleResponse( XRootDStatus *status, AnyObject *response )
     {
-      ChunkInfo *chunk = 0;
+      PageInfo *chunk = 0;
       if( response ) // get the response
       {
-        ToChunk( response, chunk );
+        ToPgInfo( response, chunk );
         delete response;
       }
 
@@ -63,7 +63,7 @@ class ChunkHandler: public ResponseHandler
         *status = XRootDStatus( stError, errInternal );
       }
 
-      if( status->IsOK() && chunk->length != pSize ) // the file size on the server is different
+      if( status->IsOK() && chunk->GetLength() != pSize ) // the file size on the server is different
       {                                              // than the one specified in metalink file
         *status = XRootDStatus( stError, errDataError );
       }
@@ -82,17 +82,15 @@ class ChunkHandler: public ResponseHandler
 
   private:
 
-    void ToChunk( AnyObject *response, ChunkInfo *&chunk ) // TODO PageInfo is not deleted !!!
+    void ToPgInfo( AnyObject *response, PageInfo *&chunk )
     {
       if( pUsePgRead )
-      {
-        PageInfo *rsp = nullptr;
-        response->Get( rsp );
-        chunk = new ChunkInfo( rsp->GetOffset(), rsp->GetLength(), rsp->GetBuffer() );
-      }
+        response->Get( chunk );
       else
       {
-        response->Get( chunk );
+        ChunkInfo *rsp = nullptr;
+        response->Get( rsp );
+        *chunk = PageInfo( rsp->offset, rsp->length, rsp->buffer );
         response->Set( ( int* )0 );
       }
     }
@@ -375,7 +373,7 @@ XRootDStatus XCpSrc::ReadChunks()
   return XRootDStatus( stOK, suContinue );
 }
 
-void XCpSrc::ReportResponse( XRootDStatus *status, ChunkInfo *chunk, File *handle )
+void XCpSrc::ReportResponse( XRootDStatus *status, PageInfo *chunk, File *handle )
 {
   XrdSysMutexHelper lck( pMtx );
   bool ignore = false;
@@ -387,7 +385,7 @@ void XCpSrc::ReportResponse( XRootDStatus *status, ChunkInfo *chunk, File *handl
     // was not on the list we ignore the
     // response (this could happen due to
     // source change or stealing)
-    ignore = !pOngoing.erase( chunk->offset );
+    ignore = !pOngoing.erase( chunk->GetOffset() );
   }
   else if( FilesEqual( pFile, handle ) )
   {
@@ -431,7 +429,7 @@ void XCpSrc::ReportResponse( XRootDStatus *status, ChunkInfo *chunk, File *handl
 
   if( chunk )
   {
-    pDataTransfered += chunk->length;
+    pDataTransfered += chunk->GetLength();
     pCtx->PutChunk( chunk );
   }
 }

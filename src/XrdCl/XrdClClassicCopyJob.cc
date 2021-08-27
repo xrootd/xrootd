@@ -384,7 +384,7 @@ namespace
       //!                suContinue - there are some chunks left
       //!                suDone     - no chunks left
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci ) = 0;
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::PageInfo &ci ) = 0;
 
       //------------------------------------------------------------------------
       //! Get check sum
@@ -452,7 +452,7 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci ) = 0;
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::PageInfo &&ci ) = 0;
 
       //------------------------------------------------------------------------
       //! Flush chunks that might have been queues
@@ -598,7 +598,7 @@ namespace
       //------------------------------------------------------------------------
       //! Get a data chunk from the source
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::PageInfo &ci )
       {
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
@@ -636,9 +636,7 @@ namespace
         if( pCkSumHelper )
           pCkSumHelper->Update( buffer, bytesRead );
 
-        ci.offset = pCurrentOffset;
-        ci.length = bytesRead;
-        ci.buffer = buffer;
+        ci = XrdCl::PageInfo( pCurrentOffset, bytesRead, buffer );
         pCurrentOffset += bytesRead;
         return XRootDStatus( stOK, suContinue );
       }
@@ -828,7 +826,7 @@ namespace
       //!                suContinue - there are some chunks left
       //!                suDone     - no chunks left
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::PageInfo &ci )
       {
         return GetChunkImpl( pFile, ci );
       }
@@ -851,7 +849,7 @@ namespace
           ChunkHandler *ch = pChunks.front();
           pChunks.pop();
           ch->sem->Wait();
-          delete [] (char *)ch->chunk.buffer;
+          delete [] (char *)ch->chunk.GetBuffer();
           delete ch;
         }
       }
@@ -956,7 +954,7 @@ namespace
       //!                    suDone     - no chunks left
       //------------------------------------------------------------------------
       template<typename READER>
-      XrdCl::XRootDStatus GetChunkImpl( READER *reader, XrdCl::ChunkInfo &ci )
+      XrdCl::XRootDStatus GetChunkImpl( READER *reader, XrdCl::PageInfo &ci )
       {
         //----------------------------------------------------------------------
         // Sanity check
@@ -985,17 +983,17 @@ namespace
         if( !ch->status.IsOK() )
         {
           log->Debug( UtilityMsg, "Unable read %d bytes at %ld from %s: %s",
-                      ch->chunk.length, ch->chunk.offset,
+                      ch->chunk.GetLength(), ch->chunk.GetOffset(),
                       pUrl->GetURL().c_str(), ch->status.ToStr().c_str() );
-          delete [] (char *)ch->chunk.buffer;
+          delete [] (char *)ch->chunk.GetBuffer();
           CleanUpChunks();
           return ch->status;
         }
 
-        ci = ch->chunk;
+        ci = std::move( ch->chunk );
         // if it is a local file update the checksum
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
-          pCkSumHelper->Update( ci.buffer, ci.length );
+          pCkSumHelper->Update( ci.GetBuffer(), ci.GetLength() );
 
         return XRootDStatus( stOK, suContinue );
       }
@@ -1021,25 +1019,25 @@ namespace
             sem->Post();
           }
 
-          XrdCl::ChunkInfo ToChunk( XrdCl::AnyObject *response )
+          XrdCl::PageInfo ToChunk( XrdCl::AnyObject *response )
           {
             if( usepgrd )
             {
               XrdCl::PageInfo *resp = nullptr;
               response->Get( resp );
-              return XrdCl::ChunkInfo( resp->GetOffset(), resp->GetLength(),
-                                       resp->GetBuffer() );
+              return std::move( *resp );
             }
             else
             {
               XrdCl::ChunkInfo *resp = nullptr;
               response->Get( resp );
-              return *resp;
+              return XrdCl::PageInfo( resp->GetOffset(), resp->GetLength(),
+                                      resp->GetBuffer() );
             }
           }
 
         XrdSysSemaphore     *sem;
-        XrdCl::ChunkInfo     chunk;
+        XrdCl::PageInfo      chunk;
         XrdCl::XRootDStatus  status;
         bool                 usepgrd;
       };
@@ -1139,7 +1137,7 @@ namespace
       //!                suContinue - there are some chunks left
       //!                suDone     - no chunks left
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::PageInfo &ci )
       {
         return GetChunkImpl( pZipArchive, ci );
       }
@@ -1293,7 +1291,7 @@ namespace
       //!                suContinue - there are some chunks left
       //!                suDone     - no chunks left
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::PageInfo &ci )
       {
         //----------------------------------------------------------------------
         // Sanity check
@@ -1333,10 +1331,7 @@ namespace
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
           pCkSumHelper->Update( buffer, bytesRead );
 
-        ci.offset = pCurrentOffset;
-        ci.length = bytesRead;
-        ci.buffer = buffer;
-
+        ci = XrdCl::PageInfo( pCurrentOffset, bytesRead, buffer );
         pCurrentOffset += bytesRead;
 
         return XRootDStatus( stOK, suContinue );
@@ -1484,7 +1479,7 @@ namespace
       //!                suContinue - there are some chunks left
       //!                suDone     - no chunks left
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus GetChunk( XrdCl::PageInfo &ci )
       {
         XrdCl::XRootDStatus st;
         do
@@ -1597,21 +1592,21 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::PageInfo &&ci )
       {
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
 
-        if( pCurrentOffset != ci.offset )
+        if( pCurrentOffset != ci.GetOffset() )
         {
           log->Error( UtilityMsg, "Got out-of-bounds chunk, expected offset:"
-                      " %ld, got %ld", pCurrentOffset, ci.offset );
+                      " %ld, got %ld", pCurrentOffset, ci.GetOffset() );
           return XRootDStatus( stError, errInternal );
         }
 
         int64_t   wr     = 0;
-        uint32_t  length = ci.length;
-        char     *cursor = (char*)ci.buffer;
+        uint32_t  length = ci.GetLength();
+        char     *cursor = (char*)ci.GetBuffer();
         do
         {
           wr = write( 1, cursor, length );
@@ -1619,7 +1614,7 @@ namespace
           {
             log->Debug( UtilityMsg, "Unable to write to stdout: %s",
                         XrdSysE2T( errno ) );
-            delete [] (char*)ci.buffer; ci.buffer = 0;
+            delete [] (char*)ci.GetBuffer();
             return XRootDStatus( stError, errOSError, errno );
           }
           pCurrentOffset += wr;
@@ -1629,8 +1624,8 @@ namespace
         while( length );
 
         if( pCkSumHelper )
-          pCkSumHelper->Update( ci.buffer, ci.length );
-        delete [] (char*)ci.buffer; ci.buffer = 0;
+          pCkSumHelper->Update( ci.GetBuffer(), ci.GetLength() );
+        delete [] (char*)ci.GetBuffer();
         return XRootDStatus();
       }
 
@@ -1806,7 +1801,7 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::PageInfo &&ci )
       {
         using namespace XrdCl;
         if( !pFile->IsOpen() )
@@ -1816,7 +1811,7 @@ namespace
         // If there is still place for this chunk to be sent send it
         //----------------------------------------------------------------------
         if( pChunks.size() < pParallel )
-          return QueueChunk( ci );
+          return QueueChunk( std::move( ci ) );
 
         //----------------------------------------------------------------------
         // We wait for a chunk to be sent so that we have space for the current
@@ -1825,12 +1820,12 @@ namespace
         std::unique_ptr<ChunkHandler> ch( pChunks.front() );
         pChunks.pop();
         ch->sem->Wait();
-        delete [] (char*)ch->chunk.buffer;
+        delete [] (char*)ch->chunk.GetBuffer();
         if( !ch->status.IsOK() )
         {
           Log *log = DefaultEnv::GetLog();
           log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
-                      ch->chunk.length, ch->chunk.offset,
+                      ch->chunk.GetLength(), ch->chunk.GetOffset(),
                       pUrl.GetURL().c_str(), ch->status.ToStr().c_str() );
           CleanUpChunks();
 
@@ -1841,7 +1836,7 @@ namespace
           return CheckIfRetriable( ch->status );
         }
 
-        return QueueChunk( ci );
+        return QueueChunk( std::move( ci ) );
       }
 
       //------------------------------------------------------------------------
@@ -1862,7 +1857,7 @@ namespace
           ChunkHandler *ch = pChunks.front();
           pChunks.pop();
           ch->sem->Wait();
-          delete [] (char *)ch->chunk.buffer;
+          delete [] (char *)ch->chunk.GetBuffer();
           delete ch;
         }
       }
@@ -1870,24 +1865,22 @@ namespace
       //------------------------------------------------------------------------
       //! Queue a chunk
       //------------------------------------------------------------------------
-      XrdCl::XRootDStatus QueueChunk( XrdCl::ChunkInfo &ci )
+      XrdCl::XRootDStatus QueueChunk( XrdCl::PageInfo &&ci )
       {
         // we are writing chunks in order so we can calc the checksum
         // in case of local files
         if( pUrl.IsLocalFile() && pCkSumHelper && !pContinue )
-          pCkSumHelper->Update( ci.buffer, ci.length );
+          pCkSumHelper->Update( ci.GetBuffer(), ci.GetLength() );
 
-        ChunkHandler *ch = new ChunkHandler(ci);
-        std::vector<uint32_t> cksums;
+        ChunkHandler *ch = new ChunkHandler( std::move( ci ) );
         XrdCl::XRootDStatus st;
         st = pUsePgWrt
-           ? pFile->PgWrite(ci.offset, ci.length, ci.buffer, cksums, ch)
-           : pFile->Write( ci.offset, ci.length, ci.buffer, ch );
+           ? pFile->PgWrite(ch->chunk.GetOffset(), ch->chunk.GetLength(), ch->chunk.GetBuffer(), ch->chunk.GetCksums(), ch)
+           : pFile->Write( ch->chunk.GetOffset(), ch->chunk.GetLength(), ch->chunk.GetBuffer(), ch );
         if( !st.IsOK() )
         {
           CleanUpChunks();
-          delete [] (char*)ci.buffer;
-          ci.buffer = 0;
+          delete [] (char*)ch->chunk.GetBuffer();
           delete ch;
           return st;
         }
@@ -1914,7 +1907,7 @@ namespace
             //--------------------------------------------------------------------
             st = CheckIfRetriable( ch->status );
           }
-          delete [] (char *)ch->chunk.buffer;
+          delete [] (char *)ch->chunk.GetBuffer();
           delete ch;
         }
         return st;
@@ -1977,9 +1970,9 @@ namespace
       class ChunkHandler: public XrdCl::ResponseHandler
       {
         public:
-          ChunkHandler( XrdCl::ChunkInfo ci ):
+          ChunkHandler( XrdCl::PageInfo &&ci ):
             sem( new XrdSysSemaphore(0) ),
-            chunk(ci) {}
+            chunk(std::move( ci ) ) {}
           virtual ~ChunkHandler() { delete sem; }
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    */*response*/ )
@@ -1990,7 +1983,7 @@ namespace
           }
 
           XrdSysSemaphore        *sem;
-          XrdCl::ChunkInfo        chunk;
+          XrdCl::PageInfo         chunk;
           XrdCl::XRootDStatus     status;
       };
 
@@ -2138,7 +2131,7 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::PageInfo &&ci )
       {
         using namespace XrdCl;
 
@@ -2146,7 +2139,7 @@ namespace
         // If there is still place for this chunk to be sent send it
         //----------------------------------------------------------------------
         if( pChunks.size() < pParallel )
-          return QueueChunk( ci );
+          return QueueChunk( std::move( ci ) );
 
         //----------------------------------------------------------------------
         // We wait for a chunk to be sent so that we have space for the current
@@ -2155,12 +2148,12 @@ namespace
         std::unique_ptr<ChunkHandler> ch( pChunks.front() );
         pChunks.pop();
         ch->sem->Wait();
-        delete [] (char*)ch->chunk.buffer;
+        delete [] (char*)ch->chunk.GetBuffer();
         if( !ch->status.IsOK() )
         {
           Log *log = DefaultEnv::GetLog();
           log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
-                      ch->chunk.length, ch->chunk.offset,
+                      ch->chunk.GetLength(), ch->chunk.GetOffset(),
                       pUrl.GetURL().c_str(), ch->status.ToStr().c_str() );
           CleanUpChunks();
 
@@ -2171,7 +2164,7 @@ namespace
           return CheckIfRetriable( ch->status );
         }
 
-        return QueueChunk( ci );
+        return QueueChunk( std::move( ci ) );
       }
 
       //------------------------------------------------------------------------
@@ -2192,7 +2185,7 @@ namespace
           ChunkHandler *ch = pChunks.front();
           pChunks.pop();
           ch->sem->Wait();
-          delete [] (char *)ch->chunk.buffer;
+          delete [] (char *)ch->chunk.GetBuffer();
           delete ch;
         }
       }
@@ -2200,13 +2193,13 @@ namespace
       //------------------------------------------------------------------------
       // Queue a chunk
       //------------------------------------------------------------------------
-      XrdCl::XRootDStatus QueueChunk( XrdCl::ChunkInfo &ci )
+      XrdCl::XRootDStatus QueueChunk( XrdCl::PageInfo &&ci )
       {
         // we are writing chunks in order so we can calc the checksum
         // in case of local files
-        if( pCkSumHelper ) pCkSumHelper->Update( ci.buffer, ci.length );
+        if( pCkSumHelper ) pCkSumHelper->Update( ci.GetBuffer(), ci.GetLength() );
 
-        ChunkHandler *ch = new ChunkHandler(ci);
+        ChunkHandler *ch = new ChunkHandler( std::move( ci ) );
         XrdCl::XRootDStatus st;
 
         //----------------------------------------------------------------------
@@ -2214,12 +2207,11 @@ namespace
         // In order to use PgWrite with ZIP append we need first to implement
         // PgWriteV!!!
         //----------------------------------------------------------------------
-        st = pZip->Write( ci.length, ci.buffer, ch );
+        st = pZip->Write( ch->chunk.GetLength(), ch->chunk.GetBuffer(), ch );
         if( !st.IsOK() )
         {
           CleanUpChunks();
-          delete [] (char*)ci.buffer;
-          ci.buffer = 0;
+          delete [] (char*)ch->chunk.GetBuffer();
           delete ch;
           return st;
         }
@@ -2246,7 +2238,7 @@ namespace
             //--------------------------------------------------------------------
             st = CheckIfRetriable( ch->status );
           }
-          delete [] (char *)ch->chunk.buffer;
+          delete [] (char *)ch->chunk.GetBuffer();
           delete ch;
         }
         return st;
@@ -2295,9 +2287,9 @@ namespace
       class ChunkHandler: public XrdCl::ResponseHandler
       {
         public:
-          ChunkHandler( XrdCl::ChunkInfo ci ):
+          ChunkHandler( XrdCl::PageInfo &&ci ):
             sem( new XrdSysSemaphore(0) ),
-            chunk(ci) {}
+            chunk( std::move( ci ) ) {}
           virtual ~ChunkHandler() { delete sem; }
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    */*response*/ )
@@ -2308,7 +2300,7 @@ namespace
           }
 
           XrdSysSemaphore        *sem;
-          XrdCl::ChunkInfo        chunk;
+          XrdCl::PageInfo         chunk;
           XrdCl::XRootDStatus     status;
       };
 
@@ -2550,7 +2542,7 @@ namespace XrdCl
       if( !st.IsOK() ) return Result( st );
     }
 
-    ChunkInfo chunkInfo;
+    PageInfo  pageInfo;
     uint64_t  total_processed = 0;
     uint64_t  processed = 0;
     auto      start = time_nsec();
@@ -2559,7 +2551,7 @@ namespace XrdCl
     timer_nsec_t threshold_timer;
     while( 1 )
     {
-      st = src->GetChunk( chunkInfo );
+      st = src->GetChunk( pageInfo );
       if( !st.IsOK() )
         return SourceError( st);
 
@@ -2572,7 +2564,7 @@ namespace XrdCl
       if( xRate )
       {
         auto   elapsed     = ( time_nsec() - start ).count();
-        double transferred = total_processed + chunkInfo.length;
+        double transferred = total_processed + pageInfo.GetLength();
         double expected    = double( xRate ) / to_nsec( 1 ) * elapsed;
         //----------------------------------------------------------------------
         // check if our transfer rate didn't exceeded the limit
@@ -2589,7 +2581,7 @@ namespace XrdCl
       if( xRateThreshold )
       {
         auto   elapsed     = threshold_timer.elapsed();
-        double transferred = processed + chunkInfo.length;
+        double transferred = processed + pageInfo.GetLength();
         double expected    = double( xRateThreshold ) / to_nsec( 1 ) * elapsed;
         //----------------------------------------------------------------------
         // check if our transfer rate dropped below the threshold
@@ -2622,7 +2614,10 @@ namespace XrdCl
         threshold_interval = threshold_interval > 0 ? threshold_interval - 1 : parallelChunks;
       }
 
-      st = dest->PutChunk( chunkInfo );
+      total_processed += pageInfo.GetLength();
+      processed       += pageInfo.GetLength();
+
+      st = dest->PutChunk( std::move( pageInfo ) );
       if( !st.IsOK() )
       {
         if( st.code == errRetry )
@@ -2635,8 +2630,6 @@ namespace XrdCl
         return DestinationError( st );
       }
 
-      total_processed += chunkInfo.length;
-      processed       += chunkInfo.length;
       if( progress )
       {
         progress->JobProgress( pJobId, total_processed, size );
