@@ -146,7 +146,7 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
        }
      }
 
-     // Now check if any errors occured during file i/o
+     // Now check if any errors occurred during file i/o
      int retc = Config.LastError();
      if (retc) {
        NoGo = Eroute.Emsg("Config", -retc, "read config file",
