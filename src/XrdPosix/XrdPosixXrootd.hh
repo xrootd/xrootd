@@ -362,8 +362,8 @@ static bool    myFD(int fd);
             The value returned by getrlimit() over-rides the passed value
             unless maxfd is negative. When negative, abs(maxfd) becomes the
             absolute maximum and shadow file descriptors are not used.
-   maxdir - Ignored, only here for backward compatability.
-   maxthr - Ignored, only here for backward compatability.
+   maxdir - Ignored, only here for backward compatibility.
+   maxthr - Ignored, only here for backward compatibility.
 */
                XrdPosixXrootd(int maxfd=255, int maxdir=0, int maxthr=0);
               ~XrdPosixXrootd();

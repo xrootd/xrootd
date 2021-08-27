@@ -532,7 +532,7 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
          DEBUG("no RSA private key found in file " << fname);
       } else {
          DEBUG("found a RSA private key in file " << fname);
-         // We need to complete the key: we save it temporarly
+         // We need to complete the key: we save it temporarily
          // to a bio and check all the private keys of the
          // loaded certificates 
          bool ok = 1;
@@ -649,7 +649,7 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
          DEBUG("no RSA private key found in bucket ");
       } else {
          DEBUG("found a RSA private key in bucket ");
-         // We need to complete the key: we save it temporarly
+         // We need to complete the key: we save it temporarily
          // to a bio and check all the private keys of the
          // loaded certificates 
          bool ok = 1;

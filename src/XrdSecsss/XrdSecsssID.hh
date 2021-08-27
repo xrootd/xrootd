@@ -101,7 +101,7 @@ enum authType
 //!                  pointer is NIL, then the mapping is deleted.
 //! @param  doRep  - When true, any existing mapping is replaced.
 //! @param  defer  - When true, the entity object is recorded but serialization
-//!                  is defered until the object is needed. The entity object
+//!                  is deferred until the object is needed. The entity object
 //!                  must remain valid until the mapping is deleted. The entity
 //!                  may not be modified during this period.
 //!

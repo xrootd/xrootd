@@ -1171,7 +1171,7 @@ int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
 {
    // Get VOMS attributes from the certificate, if present
    // Return 0 in case of success, 1 if VOMS info is not available, < 0 if any
-   // error occured
+   // error occurred
    EPNAME("X509GetVOMSAttr");
 
    int rc = -1;

@@ -412,7 +412,7 @@ bool XrdDigConfig::ConfigProc(const char *ConfigFN)
             if (!ConfigXeq(var+4, cFile)) {cFile.Echo(); NoGo = 1;}
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = cFile.LastError()))
       NoGo = eDest->Emsg("Config", retc, "read config file", ConfigFN);

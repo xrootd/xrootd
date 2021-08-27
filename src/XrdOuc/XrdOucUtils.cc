@@ -174,7 +174,7 @@ char *XrdOucUtils::eText(int rc, char *eBuff, int eBlen)
 // Returning 1 if true (i.e., this machine is one of the named hosts in hostlist 
 // and is running one of the programs pgmlist and named by one of the names in 
 // namelist).
-// Return -1 (negative truth) if an error occured.
+// Return -1 (negative truth) if an error occurred.
 // Otherwise, returns false (0). Some combination of hostlist, pgm, and 
 // namelist, must be specified.
 
@@ -707,7 +707,7 @@ bool XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst,
    const char *slash = "", *slash2 = "";
    int n, rc;
 
-// Provide backward compatability for instance name qualification
+// Provide backward compatibility for instance name qualification
 //
 
    if (!path || !(n = strlen(path)))

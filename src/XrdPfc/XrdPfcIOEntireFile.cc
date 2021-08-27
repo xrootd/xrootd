@@ -93,7 +93,7 @@ int IOEntireFile::initCachedStat(const char* path)
          if (info.Read(infoFile, path))
          {
             tmpStat.st_size = info.GetFileSize();
-            TRACEIO(Info, trace_pfx << "successfuly read size from info file = " << tmpStat.st_size);
+            TRACEIO(Info, trace_pfx << "successfully read size from info file = " << tmpStat.st_size);
             res = 0;
          }
          else

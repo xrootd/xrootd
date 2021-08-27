@@ -134,7 +134,7 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
        return 0;
       }
 
-// Send off the defered response
+// Send off the deferred response
 //
    rc = Send(rcode, ioV, ioN, ioL);
 

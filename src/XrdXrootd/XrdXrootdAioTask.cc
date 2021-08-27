@@ -373,7 +373,7 @@ bool XrdXrootdAioTask::Validate(XrdXrootdAioBuff* aioP)
 //
    if (isDone) return false;
 
-// Step 2: Check if an error occured as this will terminate the request even
+// Step 2: Check if an error occurred as this will terminate the request even
 //         if we have not sent all of the data.
 //
    if (aioP->Result < 0)

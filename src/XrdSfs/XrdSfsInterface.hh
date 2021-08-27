@@ -860,7 +860,7 @@ virtual XrdSfsDirectory *newDir(char *user=0, int MonID=0)  = 0;
 //!
 //! @param  eInfo  - Reference to the error object to be used by the new
 //!                  directory object. Note that an implementation is supplied
-//!                  for compatability purposes but it returns a nil pointer
+//!                  for compatibility purposes but it returns a nil pointer
 //!                  which is considered to be a failure. You must supply an
 //!                  implementation for this to work correctly.
 //!
@@ -1344,7 +1344,7 @@ typedef XrdSfsFileSystem *(*XrdSfsFileSystem_t) (XrdSfsFileSystem *nativeFS,
 /*! Specify the compilation version.
 
     Additionally, you *should* declare the xrootd version you used to compile
-    your plug-in. The plugin manager automatically checks for compatability.
+    your plug-in. The plugin manager automatically checks for compatibility.
     Declare it as follows:
 
     #include "XrdVersion.hh"

@@ -116,7 +116,7 @@ int XrdFrmXfrQueue::Add(XrdFrcRequest *rP, XrdFrcReqFile *reqFQ, int qNum)
        return Notify(rP, qNum, 1, "Unable to generate pfn");
       }
 
-// Check if the file exists or not. For incomming requests, the file must not
+// Check if the file exists or not. For incoming requests, the file must not
 // exist. For outgoing requests the file must exist.
 //
    if (Config.Stat((rP->LFN)+rP->LFO, lclpath, &buf))

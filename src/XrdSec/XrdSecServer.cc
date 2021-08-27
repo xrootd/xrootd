@@ -574,7 +574,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
             }
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = Config.LastError()))
       NoGo = eDest.Emsg("Config",-retc,"reading config file", ConfigFN);

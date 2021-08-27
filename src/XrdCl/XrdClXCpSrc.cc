@@ -147,7 +147,7 @@ void XCpSrc::StartDownloading()
   {
     pRunning = false;
     // notify those who wait for the file
-    // size, they wont get it from this
+    // size, they won't get it from this
     // source
     pCtx->NotifyInitExpectant();
     // put a null chunk so we are sure

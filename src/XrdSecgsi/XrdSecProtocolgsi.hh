@@ -77,7 +77,7 @@ typedef XrdCryptogsiX509Chain X509Chain;
 //
 // Message codes either returned by server or included in buffers
 enum kgsiStatus {
-   kgST_error    = -1,      // error occured
+   kgST_error    = -1,      // error occurred
    kgST_ok       =  0,      // ok
    kgST_more     =  1       // need more info
 };

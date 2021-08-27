@@ -460,7 +460,7 @@ void XrdOssCache::Adjust(const char *Path, off_t size, struct stat *buf)
 // Process the result
 //
    if (fsp) Adjust(fsp, size);
-      else {DEBUG("cahe path " <<Path <<" not found.");}
+      else {DEBUG("cache path " <<Path <<" not found.");}
 }
 
 /******************************************************************************/

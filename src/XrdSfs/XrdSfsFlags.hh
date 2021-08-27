@@ -93,7 +93,7 @@ static const uint64_t hasNAIO = 0x0000000000000800LL;
 //! The following bits may be set in the st_rdev member of the stat() structure
 //! to indicate special attributes of a regular file. These bits are inspected
 //! only when the remaining bits identified by XRD_RDVMASK are set to zero.
-//! For backward compatability, offline status is also assumed when st_dev and
+//! For backward compatibility, offline status is also assumed when st_dev and
 //! st_ino are both set to zero.
 //-----------------------------------------------------------------------------
 

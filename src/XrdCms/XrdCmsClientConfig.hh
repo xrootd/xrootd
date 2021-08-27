@@ -55,7 +55,7 @@ int           RepWaitMS;    // RepWait*1000 for poll()
 int           RepDelay;     // Seconds to delay before retrying manager
 int           RepNone;      // Max number of consecutive non-responses
 int           PrepWait;     // Millisecond wait between prepare requests
-int           FwdWait;      // Millisecond wait between foward  requests
+int           FwdWait;      // Millisecond wait between forward  requests
 int           haveMeta;     // Have a meta manager (only if we are a manager)
 
 char         *CMSPath;      // Path to the local cmsd for target nodes

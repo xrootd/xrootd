@@ -140,7 +140,7 @@ int XrdOfsPoscq::Commit(const char *Lfn, int Offset)
 // Indicate the record is free
 //
    if (!reqWrite((void *)&addT, sizeof(addT), Offset))
-      {eDest->Emsg("Commit", Lfn, "not commited to the persist queue.");
+      {eDest->Emsg("Commit", Lfn, "not committed to the persist queue.");
        return -EIO;
       }
 

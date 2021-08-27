@@ -123,7 +123,7 @@ bool VerPgw(const char *buf, ssize_t off, size_t len, const uint32_t* csv,
    off_t badoff;
    int   badlen;
 
-// Verify incomming checksums
+// Verify incoming checksums
 //
    if (!XrdOucPgrwUtils::csVer(dInfo, badoff, badlen))
       {char eMsg[512];
@@ -1896,7 +1896,7 @@ int XrdOfs::chmod(const char             *path,    // In
 //
    if (!(retc = XrdOfsOss->Chmod(path, acc_mode, &chmod_Env))) return SFS_OK;
 
-// An error occured, return the error info
+// An error occurred, return the error info
 //
    return XrdOfsFS->Emsg(epname, einfo, retc, "change", path);
 }
@@ -1985,7 +1985,7 @@ int XrdOfs::exists(const char                *path,        // In
        return SFS_OK;
       }
 
-// An error occured, return the error info
+// An error occurred, return the error info
 //
    return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
 }
@@ -2410,7 +2410,7 @@ int XrdOfs::truncate(const char             *path,    // In
 //
    if (!(retc = XrdOfsOss->Truncate(path, Size, &trunc_Env))) return SFS_OK;
 
-// An error occured, return the error info
+// An error occurred, return the error info
 //
    return XrdOfsFS->Emsg(epname, einfo, retc, "trunc", path);
 }

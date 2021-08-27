@@ -239,7 +239,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // Enable the cancelation and go to sleep
+      // Enable the cancellation and go to sleep
       //------------------------------------------------------------------------
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       pthread_testcancel();

@@ -88,7 +88,7 @@ XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
          if (!(anum%60)) eDest->Emsg("Accept", "Unable to accept connections!");
         }
 
-// If authorization was defered, tell call we accepted the connection but
+// If authorization was deferred, tell call we accepted the connection but
 // will be doing a background check on this connection.
 //
    if (theSem) theSem->Post();

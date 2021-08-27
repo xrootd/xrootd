@@ -37,7 +37,7 @@
    struct XrdVersionPlugin
          {const char *pName;    //!< -> plugin object creator function name
           char        vPfxLen;  //!< Generic rule prefix length
-          char        vSfxLen;  //!< Generic rule suffix length for preceeding
+          char        vSfxLen;  //!< Generic rule suffix length for preceding
           int         vProcess; //!< version: <0 skip, =0 optional, >0 required
           short       vMajLow;  //!< Lowest compatible major version number
           short       vMinLow;  //!< Lowest compatible minor (< 0 don't check).

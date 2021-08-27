@@ -57,6 +57,6 @@ class XrdSysDir
 
  private:
    void  *dhandle;  // Directory handle
-   int    lasterr;  // Error occured at last operation
+   int    lasterr;  // Error occurred at last operation
 };
 #endif

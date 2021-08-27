@@ -5,7 +5,7 @@ This directory contains start and stop scripts for the cmsd, olbd (deprecated)
 and xrootd, as well as a monitoring script for the cmsd when you wish to use
 load balanced clustering. Please note that the cmsd and olbd provide the same
 services but you must use one or the other everywhere. You may not mix them. The
-cmsd is the prefered daemon (the olbd is provided for backward compatability).
+cmsd is the prefered daemon (the olbd is provided for backward compatibility).
 
 The documentation for each script is contained within the script itself. Please
 read the header comments in each script before using the script!

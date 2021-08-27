@@ -73,7 +73,7 @@ public:
       int status = 0;
       cent->rwmtx.ReadLock( status );
       if ( status ) {
-         // A problem occured: fail (set the entry invalid)
+         // A problem occurred: fail (set the entry invalid)
          cent->status = kCE_inactive;
       }
       return cent;
@@ -100,7 +100,7 @@ public:
          int status = 0;
          cent->rwmtx.WriteLock( status );
          if (status) {
-            // A problem occured: delete the entry and fail
+            // A problem occurred: delete the entry and fail
             delete cent;
             return (XrdSutCacheEntry *)0;
          }
@@ -114,7 +114,7 @@ public:
       int status = 0;
       cent->rwmtx.ReadLock( status );
       if (status) {
-         // A problem occured: fail (set the entry invalid)
+         // A problem occurred: fail (set the entry invalid)
          cent->status = kCE_inactive;
          return cent;
       }
@@ -130,7 +130,7 @@ public:
             int status = 0;
             cent->rwmtx.WriteLock( status );
             if (status) {
-               // A problem occured: fail (set the entry invalid)
+               // A problem occurred: fail (set the entry invalid)
                cent->status = kCE_inactive;
                return cent;
             }

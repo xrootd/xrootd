@@ -56,7 +56,7 @@ struct refReq
        Flow    Way;
 
        refReq(int id, XrdBwmPolicy::Flow xF) : Next(0), refID(id),
-             Way(xF == XrdBwmPolicy::Incomming ? In : Out) {}
+             Way(xF == XrdBwmPolicy::Incoming ? In : Out) {}
       ~refReq() {}
       };
 

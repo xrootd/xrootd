@@ -322,7 +322,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
    if (ManList) sprintf(theRdr, "%s%s:%d", outeq, ManList->text, ManList->val);
       else strcpy(theRdr, outeq);
    XrdOucEnv::Export("XRDXROOTD_PROXY",  theRdr);
-   XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr); // Backward compatability
+   XrdOucEnv::Export("XRDXROOTD_ORIGIN", theRdr); // Backward compatibility
 
 // Construct the contact URL header
 //
@@ -449,7 +449,7 @@ int XrdPssSys::ConfigProc(const char *Cfn)
             if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = Config.LastError()))
       NoGo = eDest.Emsg("Config", retc, "read config file", Cfn);

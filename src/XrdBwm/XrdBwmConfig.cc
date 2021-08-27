@@ -116,7 +116,7 @@ int XrdBwm::Configure(XrdSysError &Eroute) {
                     if (ConfigXeq(var+4,Config,Eroute)) {Config.Echo();NoGo=1;}
                 }
 
-           // Now check if any errors occured during file i/o
+           // Now check if any errors occurred during file i/o
            //
            if ((retc = Config.LastError()))
            NoGo = Eroute.Emsg("Config", -retc, "read config file",

@@ -103,7 +103,7 @@ virtual const char  *LName(XrdSecProtectParms::secLevel level);
 //!
 //! @param  aprot   Sets the authentication protocol used and is the protocol
 //!                 used to secure requests. It must be supplied. Security is
-//!                 meaningless unless successful authentication has occured.
+//!                 meaningless unless successful authentication has occurred.
 //! @param  inReqs  Reference to the security information returned in the
 //!                 kXR_protocol request.
 //! @param  reqLen  The actual length of inReqs (is validated).

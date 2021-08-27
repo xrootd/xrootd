@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
          Config->Echo();
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = Config->LastError()))
       {Say.Say(Pgm, XrdSysE2T(retc), " reading config file ", Cfn); retc = 8;}

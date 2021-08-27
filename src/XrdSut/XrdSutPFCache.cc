@@ -326,7 +326,7 @@ bool XrdSutPFCache::Remove(const char *ID, int opt)
       //
       // Check if pos makes sense
       if (cachent[pos] && !strcmp(cachent[pos]->name,ID)) {
-         if (!Delete(cachent[pos])) DEBUG("Delete defered for " <<ID);
+         if (!Delete(cachent[pos])) DEBUG("Delete deferred for " <<ID);
          cachent[pos] = 0;
          // We are done, if not the one at highest index
          if (pos < cachemx)
@@ -340,7 +340,7 @@ bool XrdSutPFCache::Remove(const char *ID, int opt)
       for (; i >= 0; i--) {
          if (cachent[i]) {
             if (!strncmp(cachent[i]->name,ID,strlen(ID))) {
-               if (!Delete(cachent[i])) DEBUG("Delete defered for " <<ID);
+               if (!Delete(cachent[i])) DEBUG("Delete deferred for " <<ID);
                cachent[i] = 0;
                found = 1;
             }
@@ -375,7 +375,7 @@ bool XrdSutPFCache::Delete(XrdSutPFEntry *pfEnt)
    EPNAME("Cache::Delete");
    static pfQ pfDefer(0,0);
 
-// Try to remove all defered entries first
+// Try to remove all deferred entries first
 //
    if (pfDefer.next)
       {pfQ *pQ = &pfDefer, *dQ;
@@ -389,7 +389,7 @@ bool XrdSutPFCache::Delete(XrdSutPFEntry *pfEnt)
                  dTot++;
                 } else pQ = dQ;
             }
-       if (nTot) DEBUG("Defered delete " <<dTot <<" of " <<nTot);
+       if (nTot) DEBUG("Deferred delete " <<dTot <<" of " <<nTot);
       }
 
 // Now try to delete this entry
@@ -430,7 +430,7 @@ int XrdSutPFCache::Trim(int lifet)
    for (; i >= 0; i--) {
       if (cachent[i] && cachent[i]->mtime < reftime) {
          if (!Delete(cachent[i]))
-            DEBUG("Delete defered for " <<cachent[i]->name);
+            DEBUG("Delete deferred for " <<cachent[i]->name);
          cachent[i] = 0;
          nrm++;
       }
@@ -460,7 +460,7 @@ int XrdSutPFCache::Reset(int newsz, bool lock)
    for (; i >= 0; i--) {
       if (cachent[i]) {
          if (!Delete(cachent[i]))
-            DEBUG("Delete defered for " <<cachent[i]->name);
+            DEBUG("Delete deferred for " <<cachent[i]->name);
          cachent[i] = 0;
       }
    }

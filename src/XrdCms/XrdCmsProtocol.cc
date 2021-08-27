@@ -98,7 +98,7 @@ extern XrdOucEnv        theEnv;
 // to provide a default protocol (which, for cms protocol we do). The interface
 // below is used by Xrd to obtain a copy of the protocol object that can be
 // used to decide whether or not a link is talking our particular protocol.
-// Phase 1 initialization occured on the call to XrdgetProtocolPort(). At this
+// Phase 1 initialization occurred on the call to XrdgetProtocolPort(). At this
 // point a network interface is defined and we can complete initialization.
 //
 XrdVERSIONINFO(XrdgetProtocol,cmsd);
@@ -620,12 +620,12 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 //
    if (!Source.Admit(Link, Data, Config.mySID, envP)) return 0;
 
-// Construct environment for incomming node
+// Construct environment for incoming node
 //
    XrdOucEnv cgiEnv((const char *)Data.envCGI);
 
 // We have this problem hat many times the IPv6 address is missing the ptr
-// record in DNS. If this node is IPv6 unregistered and the incomming node
+// record in DNS. If this node is IPv6 unregistered and the incoming node
 // supplied it's host name then we can attempt to register it locally.
 //
    if (!(Link->AddrInfo()->isRegistered())
@@ -673,7 +673,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    isServ = Data.Mode & CmsLoginData::kYR_server;
    isSubm = Data.Mode & CmsLoginData::kYR_subman;
 
-// Determine the role of this incomming login.
+// Determine the role of this incoming login.
 //
         if (isMan)
            {Status = (isServ ? CMS_isSuper|CMS_isMan : CMS_isMan);
@@ -701,7 +701,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    myRole = XrdCmsRole::Name(roleID);
    Link->setID(myRole, Data.HoldTime);
 
-// Make sure that our role is compatible with the incomming role
+// Make sure that our role is compatible with the incoming role
 //
    Reason = 0;
         if (Config.asProxy()) {if (!isProxy || isPeer)

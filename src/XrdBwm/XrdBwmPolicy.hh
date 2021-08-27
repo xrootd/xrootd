@@ -112,7 +112,7 @@ virtual int  Done(int rHandle) = 0;
                          terminated string to be sent to client. If none, it
                          must contain a null string (i.e., zero byte).
 */
-enum Flow {Incomming = 0, Outgoing};
+enum Flow {Incoming = 0, Outgoing};
 
 struct SchedParms
 {
@@ -126,7 +126,7 @@ const char  *Tident;     // In: -> Client's trace identity
 virtual int  Schedule(char *RespBuff, int RespSize, SchedParms &Parms) = 0;
 
 /* Status() returns the number of requests as three items via parameters:
-            numqIn  - Number of incomming data requests queued
+            numqIn  - Number of incoming data requests queued
             numqOut - Number of outgoing  data requests queued
             numXeq  - Number of requests that are active (in or out).
 */

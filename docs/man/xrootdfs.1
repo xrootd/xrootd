@@ -51,7 +51,7 @@ Documentation for all components associated with \fBxrootdfs\fR can be found at
 http://xrootd.org/docs.html
 
 xrootdfs allows users and administators to query and change the internal
-parameters on the fly via the filesystem extened attributes
+parameters on the fly via the filesystem extended attributes
 
 getfattr -n attribute_name /mount_point
 .br 
@@ -75,7 +75,7 @@ By default, XrootdFS does not send individual user identity to the Xrootd storag
 So Xrootd storage thinks that all operations from an XrootdFS instance come from the user 
 that runs the XrootdFS instance. When the Xrootd "sss" security module (Simple Shared Security) 
 is enabled at both XrootdFS and Xrootd storage system, XrootdFS will send individual user
-identity infomation to the Xrootd storage servers. This info can be used along with the Xrootd ACL
+identity information to the Xrootd storage servers. This info can be used along with the Xrootd ACL
 to control file/directory access.
 
 To use "sss" security module, both Xrootd data servers and XrootdFS should be

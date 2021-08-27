@@ -299,7 +299,7 @@ class XCpSrc
     std::map<File*, uint8_t>      pFailed;
 
     /**
-     * The offset of the next chunk to be transfered.
+     * The offset of the next chunk to be transferred.
      */
     uint64_t                      pCurrentOffset;
 
@@ -309,7 +309,7 @@ class XCpSrc
     uint64_t                      pBlkEnd;
 
     /**
-     * Total number of data transfered from this source.
+     * Total number of data transferred from this source.
      */
     uint64_t                      pDataTransfered;
 

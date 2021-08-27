@@ -82,7 +82,7 @@ typedef XrdSysLogPI_t  (*XrdSysLogPInit_t)(const char  *cfgn,
 /*! Specify the compilation version.
 
     Additionally, you *should* declare the xrootd version you used to compile
-    your plug-in. The plugin manager automatically checks for compatability.
+    your plug-in. The plugin manager automatically checks for compatibility.
     Declare it as follows:
 
     #include "XrdVersion.hh"

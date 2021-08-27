@@ -1961,7 +1961,7 @@ kXR_int32 XrdSutPFile::UpdateHashTable(bool force)
 {
    // Update hash table reflecting the index of the file
    // If force is .true. the table is recreated even if no recent 
-   // change in the index has occured.
+   // change in the index has occurred.
    // Returns the number of entries in the table.
 
    // The file must be open

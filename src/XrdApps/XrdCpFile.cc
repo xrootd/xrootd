@@ -85,7 +85,7 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
        return;
       }
 
-// Dtermine protocol of the incomming spec
+// Dtermine protocol of the incoming spec
 //
    for (i = 0; i < pTnum; i++)
        {if (!strncmp(FSpec, pTab[i].pHdr, pTab[i].pHsz))

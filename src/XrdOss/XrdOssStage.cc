@@ -131,7 +131,7 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
    int pdlen[XrdOucMsubs::maxElem + 2];
    time_t cTime, mTime, tNow = time(0);
 
-// If there is a fail file and the error occured within the hold time,
+// If there is a fail file and the error occurred within the hold time,
 // fail the request. Otherwise, try it again. This avoids tight loops.
 //
    if ((cTime = HasFile(fn, XRDOSS_FAIL_FILE, &mTime))
@@ -409,8 +409,8 @@ int XrdOssSys::CalcTime(XrdOssStage_Req *req) // StageMutex lock held!
           else return (xfrovhd < 4 ? 2 : xfrovhd / 2);
       }
 
-// Calculate the number of pending bytes being transfered plus 1/2 of the
-// current number of bytes being transfered
+// Calculate the number of pending bytes being transferred plus 1/2 of the
+// current number of bytes being transferred
 //
     while ((rqp=(rqp->pendList.Next()->Item()))) {tbytes += rqp->size; numq++;}
 

@@ -326,7 +326,7 @@ I("options:  (defaults: -k /etc/srvtab\\n")
 I("-b        indicates the cred is in binary format (i.e., not hexchar).")
 I("-c cfn    the config file.")
 I("-d        turns on debugging.")
-I("-h host   the incomming hostname.")
+I("-h host   the incoming hostname.")
 I("-i input  specifies the input stream (e.g., fname) if other than stdin.")
 H("          This -i is ignored if cred is specified on the command line.")
 exit(rc);
