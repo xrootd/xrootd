@@ -55,7 +55,6 @@ class ChunkHandler: public ResponseHandler
       if( response ) // get the response
       {
         ToChunk( response, chunk );
-        response->Set( ( int* )0 );
         delete response;
       }
 
@@ -83,7 +82,7 @@ class ChunkHandler: public ResponseHandler
 
   private:
 
-    void ToChunk( AnyObject *response, ChunkInfo *&chunk )
+    void ToChunk( AnyObject *response, ChunkInfo *&chunk ) // TODO PageInfo is not deleted !!!
     {
       if( pUsePgRead )
       {
@@ -92,7 +91,10 @@ class ChunkHandler: public ResponseHandler
         chunk = new ChunkInfo( rsp->GetOffset(), rsp->GetLength(), rsp->GetBuffer() );
       }
       else
+      {
         response->Get( chunk );
+        response->Set( ( int* )0 );
+      }
     }
 
     XCpSrc           *pSrc;
