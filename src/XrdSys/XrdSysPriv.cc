@@ -339,7 +339,7 @@ void XrdSysPriv::DumpUGID(const char *msg)
 //______________________________________________________________________________
 XrdSysPrivGuard::XrdSysPrivGuard(uid_t uid, gid_t gid)
 {
-   // Constructor. Create a guard object for temporarly change to privileges
+   // Constructor. Create a guard object for temporarily change to privileges
    // of {'uid', 'gid'}
 
    dum = 1;
@@ -351,7 +351,7 @@ XrdSysPrivGuard::XrdSysPrivGuard(uid_t uid, gid_t gid)
 //______________________________________________________________________________
 XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
 {
-   // Constructor. Create a guard object for temporarly change to privileges
+   // Constructor. Create a guard object for temporarily change to privileges
    // of 'usr'
 
    dum = 1;
@@ -401,7 +401,7 @@ void XrdSysPrivGuard::Init(uid_t uid, gid_t gid)
        getresgid(&rgid, &egid, &sgid) == 0) {
       if ((euid != uid) || (egid != gid)) {
          if (!ruid) {
-            // Change temporarly identity
+            // Change temporarily identity
             if (XrdSysPriv::ChangeTo(uid, gid) != 0)
                valid = 0;
             dum = 0;

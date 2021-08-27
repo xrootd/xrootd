@@ -727,7 +727,7 @@ int XrdSfsNative::exists(const char                *path,        // In
        return SFS_OK;
       }
 
-// An error occured, return the error info
+// An error occurred, return the error info
 //
    return XrdSfsNative::Emsg(epname, error, errno, "locate", path);
 }

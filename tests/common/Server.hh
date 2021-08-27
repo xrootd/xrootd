@@ -149,7 +149,7 @@ class Server
     ~Server();
 
     //--------------------------------------------------------------------------
-    //! Listen for incomming connections and handle clients
+    //! Listen for incoming connections and handle clients
     //!
     //! @param port    port to listen on
     //! @param accept  number of clients to accept

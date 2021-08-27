@@ -725,7 +725,7 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
         if (var && !strcmp("fi",   var))
            {if (sawif) sawif = skpel = skip2fi = 0;
                else {if (Eroute)
-                        Eroute->Emsg("Stream", "No preceeding 'if' for 'fi'.");
+                        Eroute->Emsg("Stream", "No preceding 'if' for 'fi'.");
                      ecode = EINVAL;
                     }
             continue;
@@ -1213,7 +1213,7 @@ char *XrdOucStream::doelse()
 // An else must be preceeded by an if and not by a naked else
 //
    if (!sawif || sawif == 2)
-      {if (Eroute) Eroute->Emsg("Stream", "No preceeding 'if' for 'else'.");
+      {if (Eroute) Eroute->Emsg("Stream", "No preceding 'if' for 'else'.");
        ecode = EINVAL;
        return 0;
       }

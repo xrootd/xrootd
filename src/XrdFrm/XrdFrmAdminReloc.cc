@@ -83,7 +83,7 @@ int XrdFrmAdmin::Reloc(char *srcLfn, char *Space)
    strcpy(trgSpace, Space);
    if (fsTarget) *(fsTarget-1) = ':';
 
-// Get the pfn for the incomming path
+// Get the pfn for the incoming path
 //
    if (!Config.LocalPath(srcLfn, srcPfn, sizeof(srcPfn)-8))
       {finalRC = 4; return 0;}

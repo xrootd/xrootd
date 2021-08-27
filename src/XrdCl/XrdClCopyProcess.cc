@@ -110,7 +110,7 @@ namespace
               std::string tried = itr->second;
               if( tried[tried.size() - 1] != ',' ) tried += ',';
               tried += lastURL.GetHostName();
-              cgi["tired"] = tried;
+              cgi["tried"] = tried;
             }
             else
               cgi["tried"] = lastURL.GetHostName();

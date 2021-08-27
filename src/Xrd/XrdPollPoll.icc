@@ -307,7 +307,7 @@ void XrdPollPoll::Start(XrdSysSemaphore *syncsem, int &retcode)
                      Finish(*pInfo, Poll2Text(pollevents));
                   lp = &(pInfo->Link);
                   if (!(pInfo->isEnabled))
-                     Log.Emsg("Poll", "Disabled event occured for", lp->ID);
+                     Log.Emsg("Poll", "Disabled event occurred for", lp->ID);
                      else {pInfo->isEnabled = false;
                            lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
                            if (!jlast) jlast=(XrdJob *)lp;

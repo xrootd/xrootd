@@ -1611,7 +1611,7 @@ namespace XrdCl
         if( !st.IsOK() || st.code == suRetry ) return st;
       }
 
-      log->Debug( XRootDMsg, "[%s] Request %s payload (kernel buffer) transfered to socket.",
+      log->Debug( XRootDMsg, "[%s] Request %s payload (kernel buffer) transferred to socket.",
                   pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
     }
 

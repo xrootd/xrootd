@@ -187,7 +187,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
           }
       }
 
-// Reuse an old ID if we must or redirect the incomming node
+// Reuse an old ID if we must or redirect the incoming node
 //
    if (!nP) 
       {if (Free >= 0) Slot = Free;
@@ -1108,7 +1108,7 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 //
    selR.selPack = 0;
 
-// If we are exporting a shared-everything system then the incomming mask
+// If we are exporting a shared-everything system then the incoming mask
 // may have more than one server indicated. So, we need to do a full select.
 // This is forced when isMulti is true, indicating a choice may exist. Note
 // that the node, if any, is returned unlocked but we have the global mutex.
@@ -1122,7 +1122,7 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
        return hlen != 1;
       }
 
-// In shared-nothing systems the incomming mask will only have a single node.
+// In shared-nothing systems the incoming mask will only have a single node.
 // Compute the a single node number that is contained in the mask.
 //
    do {if (!(tmask = pmask & smLow)) Snum += 8;
@@ -1408,7 +1408,7 @@ XrdCmsNode *XrdCmsCluster::calcDelay(XrdCmsSelector &selR)
 // Warning: STMutex must be locked in write upon entry and the caller must
 //          release it if this method is called directily. Otherwise, the mutex
 //          will be obtained and released. Also, this method may only be called
-//          via Remove() either directly or via a defered job scheduled by that
+//          via Remove() either directly or via a deferred job scheduled by that
 //          method. This method actually deletes the node object.
 
 int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
@@ -1557,7 +1557,7 @@ void XrdCmsCluster::Record(char *path, const char *reason, bool force)
    msgcnt++; skipmsg = msgcnt & (force ? 0x0f : 0xff);
    mcMutex.UnLock();
 
-   if (!skipmsg) Say.Emsg(epname, "client defered;", reason, path);
+   if (!skipmsg) Say.Emsg(epname, "client deferred;", reason, path);
 }
  
 /******************************************************************************/
@@ -1635,7 +1635,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
        if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
 
        // Do special post proccessing when any of:
-       // a) isalt true: Secondary selection occured
+       // a) isalt true: Secondary selection occurred
        // b) Create set: File creation will occur
        //
        if (isalt || (Sel.Opts & XrdCmsSelect::Create))

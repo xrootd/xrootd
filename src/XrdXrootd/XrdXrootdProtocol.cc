@@ -211,7 +211,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 /******************************************************************************/
 
 // This function is called early on to determine the port we need to use. The
-// default is ostensibly 1094 but can be overidden; which we allow.
+// default is ostensibly 1094 but can be overridden; which we allow.
 //
 XrdVERSIONINFO(XrdgetProtocolPort,xrootd);
 

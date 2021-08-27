@@ -119,7 +119,7 @@ Server::~Server()
 
 
 //------------------------------------------------------------------------------
-// Listen for incomming connections and handle clients
+// Listen for incoming connections and handle clients
 //------------------------------------------------------------------------------
 bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
 {

@@ -384,7 +384,7 @@ const char *XrdFrmPurge::Eligible(XrdFrmFileset *sP, time_t &xTime, int hTime)
 //
    if (sP->pinInfo.Attr.Flags & XrdFrcXAttrPin::pinIdle
    &&  sP->pinInfo.Attr.pinTime > static_cast<long long>(xTime))
-      return "is pin defered";
+      return "is pin deferred";
    return 0;
 }
 

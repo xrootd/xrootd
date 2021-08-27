@@ -160,7 +160,7 @@ XrdPosixFile::~XrdPosixFile()
           XrdPosixGlobals::Stats.Count(XrdPosixGlobals::Stats.X.CloseErrs);
       }
 
-// Get rid of defered open object
+// Get rid of deferred open object
 //
    if (PrepIO) delete PrepIO;
 
@@ -212,7 +212,7 @@ do{if (doWait)
 
 // Do some debugging
 //
-   DEBUG("DLY destory of "<<ddCount<<" objects; "<<ddNumLost <<" already lost.");
+   DEBUG("DLY destroy of "<<ddCount<<" objects; "<<ddNumLost <<" already lost.");
 
 // Try to delete all the files on the list. If we exceeded the try limit,
 // remove the file from the list and let it sit forever.
@@ -257,7 +257,7 @@ do{if (doWait)
                                          ddCount,  ddNumLost);
             Say->Emsg("DDestroy", buff);
            } else {
-            DEBUG("DLY destory end; "<<ddCount<<" objects deferred and "
+            DEBUG("DLY destroy end; "<<ddCount<<" objects deferred and "
                              <<ddNumLost <<" lost.");
            }
         if (XrdPosixGlobals::theCache && ddNumLost != nowLost)
@@ -295,7 +295,7 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
    fp->numTries = 0;
    ddMutex.UnLock();
 
-   DEBUG("DLY destory "<<(doPost ? "post " : "has ")<<ddCount
+   DEBUG("DLY destroy "<<(doPost ? "post " : "has ")<<ddCount
                        <<" objects; added "<<fp->Origin());
 
    if (doPost) ddSem.Post();
@@ -307,7 +307,7 @@ void XrdPosixFile::DelayedDestroy(XrdPosixFile *fp)
 
 bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 {
-// If this is a defered open, disable any future calls as we are ready to
+// If this is a deferred open, disable any future calls as we are ready to
 // shutdown this beast!
 //
    if (PrepIO) PrepIO->Disable();
@@ -398,7 +398,7 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
    XrdPosixCallBack *xeqCB = theCB;
    int rc = fdNum;
 
-// If no errors occured, complete the open
+// If no errors occurred, complete the open
 //
    if (!(status->IsOK()))          rc = XrdPosixMap::Result(*status);
       else if (!Finalize(&Status)) rc = XrdPosixMap::Result(Status);

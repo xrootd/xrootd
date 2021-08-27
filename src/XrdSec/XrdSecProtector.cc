@@ -210,7 +210,7 @@ XrdSecProtect *XrdSecProtector::New4Client(XrdSecProtocol              &aprot,
                      * sizeof(ServerResponseSVec_Protocol);
    bool okED;
 
-// Validate the incomming struct (if it's bad skip the security) and that any
+// Validate the incoming struct (if it's bad skip the security) and that any
 // security is actually wanted.
 //
    if (vLen+hdrLen > reqLen

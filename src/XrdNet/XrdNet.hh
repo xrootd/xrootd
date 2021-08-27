@@ -53,7 +53,7 @@ class XrdNet
 public:
 
 //------------------------------------------------------------------------------
-//! Accept incomming TCP connection. This is the preferred method for TCP.
+//! Accept incoming TCP connection. This is the preferred method for TCP.
 //!
 //! @param  myAddr   the address object to contain connection information.
 //! @param  opts     processing options:
@@ -73,7 +73,7 @@ int             Accept(XrdNetAddr &myAddr,
                        int timeout=-1);
 
 //------------------------------------------------------------------------------
-//! Accept incomming TCP or UDP connection. This method should only be used for
+//! Accept incoming TCP or UDP connection. This method should only be used for
 //! UDP-style networks. The previous method is preferred for TCP-style networks.
 //!
 //! @param  myPeer   the peer object to contain connection information.

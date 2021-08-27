@@ -217,7 +217,7 @@ namespace XrdCl
         XRootDStatus st = pSocketHandler->EnableUplink();
         if( !st.IsOK() ) status = st;
         //--------------------------------------------------------------------
-        // Return early so the revert state wont get cleared
+        // Return early so the revert state won't get cleared
         //--------------------------------------------------------------------
         return status;
       }
@@ -279,7 +279,7 @@ namespace XrdCl
         XRootDStatus st = pSocketHandler->DisableUplink();
         if( !st.IsOK() ) status = st;
         //----------------------------------------------------------------------
-        // Return early so the revert state wont get cleared
+        // Return early so the revert state won't get cleared
         //----------------------------------------------------------------------
         return status;
       }

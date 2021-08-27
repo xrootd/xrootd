@@ -68,7 +68,7 @@ XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
    static XrdVERSIONINFODEF(myVer, XrdAcc, XrdVNUMBER, XrdVERSION);
    static XrdSysError Eroute(lp, "acc_");
 
-// Verify version compatability
+// Verify version compatibility
 //
    if (urVer.vNum != myVer.vNum && !XrdSysPlugin::VerCmp(urVer,myVer))
       return 0;

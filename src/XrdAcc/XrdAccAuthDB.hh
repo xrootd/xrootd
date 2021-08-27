@@ -49,7 +49,7 @@
 //            to each one. True is returned until end-of-record.
 
 // Close()    terminates database processing and releases the associated lock.
-//            It also return FALSE if any errors occured during processing.
+//            It also return FALSE if any errors occurred during processing.
 
 // Changed()  Returns 1 id the current authorization file has changed since
 //            the last time it was opened.

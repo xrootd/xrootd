@@ -104,7 +104,7 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
    char hName[1024], *unp, buff[32];
    int bl, peerFD = peer.SockFD();
 
-// Make sure that the incomming file descriptor can be handled
+// Make sure that the incoming file descriptor can be handled
 //
    if (peerFD < 0 || peerFD >= maxFD)
       {snprintf(hName, sizeof(hName), "%d", peerFD);
@@ -159,7 +159,7 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
    lp->Addr = peer;
    strlcpy(lp->Lname, hName, sizeof(lp->Lname));
    bl = sprintf(buff, "anon.0:%d", peerFD);
-   unp = lp->Uname + sizeof(Uname) - bl - 1; // Solaris compatability
+   unp = lp->Uname + sizeof(Uname) - bl - 1; // Solaris compatibility
    memcpy(unp, buff, bl);
    lp->ID = unp;
    lp->PollInfo.FD = lp->LinkInfo.FD = peerFD;

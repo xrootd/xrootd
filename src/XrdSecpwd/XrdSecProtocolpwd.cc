@@ -3537,7 +3537,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
 {
    // Retrieve crypt-like password-hash from $HOME/fn or from system password files,
    // if accessible.
-   // To avoid problems with NFS-root-squashing, if 'root' changes temporarly the
+   // To avoid problems with NFS-root-squashing, if 'root' changes temporarily the
    // uid/gid to those of the target user (usr).   
    // If OK, returns pass length and fill 'pass' with the password, null-terminated.
    // ('pass' is allocated externally to contain max lpwmax bytes).
@@ -3572,7 +3572,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       XrdSysPrivGuard priv(uid, pw->pw_gid);
       bool go = priv.Valid();
       if (!go) {
-         PRINT("problems acquiring temporarly identity: "<<hs->User);
+         PRINT("problems acquiring temporarily identity: "<<hs->User);
       }
 
       // The file
@@ -3651,7 +3651,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
          } else
             pwhash = spw->sp_pwdp;
       } else {
-         NOTIFY("problems acquiring temporarly superuser privileges");
+         NOTIFY("problems acquiring temporarily superuser privileges");
       }
    }
 #else

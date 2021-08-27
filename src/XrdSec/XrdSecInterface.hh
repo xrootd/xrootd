@@ -150,7 +150,7 @@ XrdSecEntity               Entity;
 //!
 //! @return > 0 -> parms  present (more authentication needed)
 //!         = 0 -> Entity present (authentication suceeded)
-//!         < 0 -> einfo  present (error has occured)
+//!         < 0 -> einfo  present (error has occurred)
 //------------------------------------------------------------------------------
 
 virtual int                Authenticate  (XrdSecCredentials  *cred,
@@ -519,7 +519,7 @@ typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *,
 
     @return >0      pointer to the protect object placed in protP.
     @return =0      No protection is needed, protP set to zero.
-    @return <0      An error occured getting the protection object the
+    @return <0      An error occurred getting the protection object the
                     return value is -errno and protP has been set to zero.
 
     Simply declare the following in the place where this is called:

@@ -402,7 +402,7 @@ void *XrdCmsRRQ::TimeOut()
 
 // We measure millisecond intervals to timeout waiting requests. We used to zero
 // out arg1/2 to force expiration, but they would be zero anyway if no responses
-// occurred. Now with qdn we need to leave them alone as we may have defered
+// occurred. Now with qdn we need to leave them alone as we may have deferred
 // a fast dispatch because we were waiting for more than one responder.
 //
    while(1)

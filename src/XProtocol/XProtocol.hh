@@ -1061,7 +1061,7 @@ struct ServerResponseBody_pgWrite {
 
 
 // The following structure is appended to ServerResponseBody_pgWrite if one or
-// more checksum errors occured and need to be retransmitted.
+// more checksum errors occurred and need to be retransmitted.
 //
 struct ServerResponseBody_pgWrCSE {
    kXR_unt32 cseCRC;                // crc32c of all following bits

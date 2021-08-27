@@ -736,7 +736,7 @@ int XrdFrmConfig::ConfigMP(const char *pType)
 
 // The oss would have already set NORCREATE and NOCHECK for all stageable paths.
 // But now, we must also off the R/O flag on every purgeable and stageable path
-// to prevent oss complaints. This needs to be defered to here because we need
+// to prevent oss complaints. This needs to be deferred to here because we need
 // to know which paths are actually r/o and r/w.
 //
    if (!NoGo)
@@ -983,7 +983,7 @@ int XrdFrmConfig::ConfigProc()
          if(ConfigXeq(var, mbok)) {cfgFile.Echo(); NoGo = 1;}
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = cfgFile.LastError()))
       NoGo = Say.Emsg("Config", retc, "read config file", ConfigFN);
@@ -1404,10 +1404,10 @@ int XrdFrmConfig::xcnsd()
 
    Options:  [in] [noalloc] [out] [rmerr] [stats] [timeout <sec>] [url] [xpd]
 
-             in        use command for incomming copies.
-             noalloc   do not pre-allocate space for incomming copies.
+             in        use command for incoming copies.
+             noalloc   do not pre-allocate space for incoming copies.
              out       use command for outgoing copies.
-             rmerr     remove incomming file when copy ends with an error.
+             rmerr     remove incoming file when copy ends with an error.
                        Default unless noalloc is specified.
              stats     print transfer statistics in the log.
              timeout   how long the cmd can run before it is killed.

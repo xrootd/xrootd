@@ -380,7 +380,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
       }
 #endif
 
-// The caller may have defered setting destinations. If so, don't upset what
+// The caller may have deferred setting destinations. If so, don't upset what
 // if currently set.
 //
    if (MP->monDest[0])

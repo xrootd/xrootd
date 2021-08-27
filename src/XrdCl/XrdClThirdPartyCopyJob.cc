@@ -738,7 +738,7 @@ namespace XrdCl
         bool shouldCancel = progress->ShouldCancel( pJobId );
         if( shouldCancel )
         {
-          log->Debug( UtilityMsg, "Cancelation requested by progress handler" );
+          log->Debug( UtilityMsg, "Cancellation requested by progress handler" );
           Buffer arg, *response = 0; arg.FromString( "ofs.tpc cancel" );
           XRootDStatus st = dstFile.Fcntl( arg, response );
           if( !st.IsOK() )
@@ -856,7 +856,7 @@ namespace XrdCl
         bool shouldCancel = progress->ShouldCancel( pJobId );
         if( shouldCancel )
         {
-          log->Debug( UtilityMsg, "Cancelation requested by progress handler" );
+          log->Debug( UtilityMsg, "Cancellation requested by progress handler" );
           Buffer arg, *response = 0; arg.FromString( "ofs.tpc cancel" );
           XRootDStatus st = dstFile.Fcntl( arg, response );
           if( !st.IsOK() )

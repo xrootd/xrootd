@@ -375,7 +375,7 @@ int XrdXrootdProtocol::do_Chmod()
    TRACEP(FS, "chmod rc=" <<rc <<" mode=" <<Xrd::oct1 <<mode <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
-// An error occured
+// An error occurred
 //
    return fsError(rc, XROOTD_MON_CHMOD, myError, argp->buff, opaque);
 }
@@ -1120,7 +1120,7 @@ int XrdXrootdProtocol::do_Mkdir()
    TRACEP(FS, "rc=" <<rc <<" mkdir " <<Xrd::oct1 <<mode <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
-// An error occured
+// An error occurred
 //
    return fsError(rc, XROOTD_MON_MKDIR, myError, argp->buff, opaque);
 }
@@ -1165,7 +1165,7 @@ int XrdXrootdProtocol::do_Mv()
 // Check if new path actually specified here
 //
    if (*newp == '\0')
-      Response.Send(kXR_ArgMissing, "new path specfied for mv");
+      Response.Send(kXR_ArgMissing, "new path specified for mv");
 
 // Preform the actual function
 //
@@ -1173,7 +1173,7 @@ int XrdXrootdProtocol::do_Mv()
    TRACEP(FS, "rc=" <<rc <<" mv " <<oldp <<' ' <<newp);
    if (SFS_OK == rc) return Response.Send();
 
-// An error occured
+// An error occurred
 //
    return fsError(rc, XROOTD_MON_MV, myError, oldp, Opaque);
 }
@@ -1463,7 +1463,7 @@ int XrdXrootdProtocol::do_Open()
       }
    oHelp.fp = fp;
 
-// The open is elegible for a defered response, indicate we're ok with that
+// The open is elegible for a deferred response, indicate we're ok with that
 //
    fp->error.setErrCB(&openCB, ReqID.getID());
    fp->error.setUCap(clientPV);
@@ -2089,7 +2089,7 @@ int XrdXrootdProtocol::do_Qfh()
       return Response.Send(kXR_FileNotOpen,
                            "query does not refer to an open file");
 
-// The query is elegible for a defered response, indicate we're ok with that
+// The query is elegible for a deferred response, indicate we're ok with that
 //
    fp->XrdSfsp->error.setErrCB(&qryCB, ReqID.getID());
 
@@ -2160,7 +2160,7 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
        fsctl_cmd = SFS_FSCTL_PLUGIN;
        Act = " qopaquf '"; AData = argp->buff;
       }
-// The query is elegible for a defered response, indicate we're ok with that
+// The query is elegible for a deferred response, indicate we're ok with that
 //
    myError.setErrCB(&qpqCB, ReqID.getID());
 
@@ -2645,7 +2645,7 @@ int XrdXrootdProtocol::do_Rm()
    TRACEP(FS, "rc=" <<rc <<" rm " <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
-// An error occured
+// An error occurred
 //
    return fsError(rc, XROOTD_MON_RM, myError, argp->buff, opaque);
 }
@@ -2675,7 +2675,7 @@ int XrdXrootdProtocol::do_Rmdir()
    TRACEP(FS, "rc=" <<rc <<" rmdir " <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
-// An error occured
+// An error occurred
 //
    return fsError(rc, XROOTD_MON_RMDIR, myError, argp->buff, opaque);
 }
@@ -2893,7 +2893,7 @@ int XrdXrootdProtocol::do_Sync()
    if (!FTab || !(fp = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen,"sync does not refer to an open file");
 
-// The sync is elegible for a defered response, indicate we're ok with that
+// The sync is elegible for a deferred response, indicate we're ok with that
 //
    fp->XrdSfsp->error.setErrCB(&syncCB, ReqID.getID());
 
@@ -3607,7 +3607,7 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
       }
 
 // Process the deferal. We also synchronize sending the deferal response with
-// sending the actual defered response by calling Done() in the callback object.
+// sending the actual deferred response by calling Done() in the callback object.
 // This allows the requestor of he callback know that we actually send the
 // kXR_waitresp to the end client and avoid violating time causality.
 //

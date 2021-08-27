@@ -258,7 +258,7 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
        {
        case 'i': immed = 1;
                  break;
-       case 'w': immed = -1;   // Backward compatability only
+       case 'w': immed = -1;   // Backward compatibility only
                  break;
        default:  buff[0] = '-'; buff[1] = optopt; buff[2] = '\0';
                  Say.Say("Config warning: unrecognized option, ",buff,", ignored.");
@@ -921,7 +921,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
                   }
            }
            else if (!strncmp(var, "cms.", 4)
-                ||  !strncmp(var, "olb.", 4)      // Backward compatability
+                ||  !strncmp(var, "olb.", 4)      // Backward compatibility
                 ||  !strcmp(var, "ofs.osslib")
                 ||  !strcmp(var, "oss.defaults")
                 ||  !strcmp(var, "oss.localroot")
@@ -935,7 +935,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
                    {if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}}
                    else if (!strcmp(var, "oss.stagecmd")) DiskSS = true;
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = CFile.LastError()))
       NoGo = Say.Emsg("Config", retc, "read config file", ConfigFN);
@@ -966,7 +966,7 @@ int XrdCmsConfig::isExec(XrdSysError *eDest, const char *ptype, char *prog)
 // Make sure the program is executable by us
 //
    if (access(prog, X_OK))
-      {sprintf(buff, "find %s execuatble", ptype);
+      {sprintf(buff, "find %s executable", ptype);
        eDest->Emsg("Config", errno, buff, prog);
        *mp = pp;
        return 0;
@@ -2577,7 +2577,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
           default: eDest->Emsg("Config", "invalid role -", Tok1, Tok2); rc = 1;
          }
 
-// Release storage and return if an error occured
+// Release storage and return if an error occurred
 //
    free(Tok1);
    if (Tok2) free(Tok2);
@@ -3078,7 +3078,7 @@ int XrdCmsConfig::xsubc(XrdSysError *eDest, XrdOucStream &CFile)
    Purpose:  To parse the directive: superport <tcpnum>
                                                [if [<hlst>] [named <nlst>]]
 
-             <tcpnum>   number of the tcp port for incomming requests
+             <tcpnum>   number of the tcp port for incoming requests
              <hlst>     list of applicable host patterns
              <nlst>     list of applicable instance names.
 

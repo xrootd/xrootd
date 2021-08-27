@@ -1186,7 +1186,7 @@ static int xrootdfs_removexattr(const char *path, const char *name)
 
 /*
  * We need this as casting function pointer to a function pointer
- * of a diffrent type and then calling it results in undefined
+ * of a different type and then calling it results in undefined
  * behavior (Annex J.2).
  *
  * GCC 8 available on Fedora 28 is very picky about those things.

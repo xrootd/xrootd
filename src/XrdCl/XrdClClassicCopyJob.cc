@@ -2516,7 +2516,7 @@ namespace XrdCl
         std::ostringstream o; o << src->GetSize();
         params["oss.asize"] = o.str();
         newDestUrl.SetParams( params );
- //     makeDir = true; // Backward compatability for xroot destinations!!!
+ //     makeDir = true; // Backward compatibility for xroot destinations!!!
       }
       dest.reset( new XRootDDestination( newDestUrl, parallelChunks, checkSumType ) );
     }
@@ -2655,7 +2655,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // The size of the source is known and not enough data has been transfered
+    // The size of the source is known and not enough data has been transferred
     // to the destination
     //--------------------------------------------------------------------------
     if( src->GetSize() >= 0 && size != total_processed )

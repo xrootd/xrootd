@@ -155,7 +155,7 @@ int OpenDefer(XrdPosixFile           *fp,
 //
    fp->PrepIO = new XrdPosixPrepIO(fp, XOflags, XOmode);
 
-// Finalize this file object. A null argument indicates it is defered.
+// Finalize this file object. A null argument indicates it is deferred.
 //
    fp->Finalize(0);
 
@@ -647,7 +647,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
       }
 
 // Finalize the open (this gets the stat info). For async opens, the
-// finalization is defered until the callback happens.
+// finalization is deferred until the callback happens.
 //
    if (cbP) {errno = EINPROGRESS; return -1;}
    if (fp->Finalize(&Status)) return fp->FDNum();

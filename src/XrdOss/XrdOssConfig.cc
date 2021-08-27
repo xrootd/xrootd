@@ -638,7 +638,7 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
                  &&  xpath(Config, Eroute)) {Config.Echo(); NoGo = 1;}
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("Config", retc, "read config file", ConfigFN);
@@ -1992,7 +1992,7 @@ int XrdOssSys::xusage(XrdOucStream &Config, XrdSysError &Eroute)
              fdir      the base directory where '.fail' files are to be written
              <threads> number of threads for staging (* uses default).
 
-The following are deprecated and allowed for backward compatability:
+The following are deprecated and allowed for backward compatibility:
 
              <speed>   average speed in bytes/second (* uses default).
              <ovhd>    minimum seconds of overhead (* uses default).

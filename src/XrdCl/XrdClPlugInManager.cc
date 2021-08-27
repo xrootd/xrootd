@@ -394,7 +394,7 @@ namespace XrdCl
       if (pDefaultFactory) {
         if (pDefaultFactory->isEnv) {
           log->Debug(PlugInMgrMsg, "There is already an env default plugin "
-                     "loaded, skiping %s", lib.c_str());
+                     "loaded, skipping %s", lib.c_str());
           return false;
         } else {
           log->Debug(PlugInMgrMsg, "There can be only one default plugin "

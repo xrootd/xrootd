@@ -402,7 +402,7 @@ int XrdOfsHandle::PoscSet(const char *User, int Unum, short Umod)
           else return 0;
       }
 
-// Find the markers in the incomming user
+// Find the markers in the incoming user
 //
    if (!(Col = index(User, ':')) || !(At = index(User, '@')))
       {User = Who; Col = Whc; At = Whh;}
@@ -493,7 +493,7 @@ int XrdOfsHandle::Retire(XrdOfsHanCB *cbP, int hTime)
    int retc;
 
 // The handle can only be held by one reference and only if it's a POSC and
-// defered handling was properly set up.
+// deferred handling was properly set up.
 //
    myMutex.Lock();
    if (!Posc || !allOK)
@@ -782,7 +782,7 @@ void XrdOfsHanXpr::add2Q(int doLK)
 {
    XrdOfsHanXpr *xPP, *xP;
 
-// Place this object on the defered queue
+// Place this object on the deferred queue
 //
    if (doLK) xqCV.Lock();
    xPP = 0; xP = xprQ;

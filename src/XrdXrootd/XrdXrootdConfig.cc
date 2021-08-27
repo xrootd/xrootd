@@ -438,7 +438,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!(AdminSock = XrdNetSocket::Create(&eDest, adminp, "admin", pi->AdmMode))
    ||  !XrdXrootdAdmin::Init(&eDest, AdminSock)) return 0;
 
-// Indicate whether or not we support extened attributes
+// Indicate whether or not we support extended attributes
 //
   {XrdOucEnv     myEnv;
    XrdOucErrInfo eInfo("", &myEnv);
@@ -1562,7 +1562,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
         for (k = static_cast<int>(RD_open1); k < RD_Num; k++)
             if (xred_xok(k, hP, rPort)) break;
         if (k >= RD_Num)
-           {eDest.Emsg("Config", "too many diffrent path redirects"); return 1;}
+           {eDest.Emsg("Config", "too many different path redirects"); return 1;}
         xred_set(RD_func(k), hP, rPort);
         do {if (isQ) RQList.Insert(val, k, 0);
                else  RPList.Insert(val, k, 0);

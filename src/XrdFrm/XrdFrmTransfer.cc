@@ -685,7 +685,7 @@ const char *XrdFrmTransfer::Throw()
 //
    if (!rc)
       {if ((rc = Config.Stat(lfnpath+xfrP->reqData.LFO, xfrP->PFN, &endStat)))
-          {Say.Emsg("Throw", lfnpath, "transfered but not found!");
+          {Say.Emsg("Throw", lfnpath, "transferred but not found!");
            retMsg = "unable to verify copy";
           } else {
            if (begStat.st_mtime != endStat.st_mtime
@@ -820,7 +820,7 @@ const char *XrdFrmTransfer::ThrowOK(XrdFrmTranChk *cP)
       } else statRC = 1;
    if (statRC && !Config.runNew) return "missing lock file";
 
-// If running in new mode then we must get the extened attribute for this file
+// If running in new mode then we must get the extended attribute for this file
 // unless we got the lock file time which takes precendence.
 //
    if (Config.runNew)

@@ -59,7 +59,7 @@ int XrdSysFAttr::Del(const char *Aname, const char *Path, int fd)
    fd =  (fd < 0 ? attropen(Path, ".", O_RDONLY)
                  : openat(    fd, ".", O_RDONLY|O_XATTR));
 
-// If the preceeding open failed, diagnose the problem.
+// If the preceding open failed, diagnose the problem.
 //
    if (fd < 0) return Diagnose("open to remove", Aname, Path, errno);
 
@@ -87,7 +87,7 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
    fd =  (fd < 0 ? attropen(Path, Aname, O_RDONLY)
                  : openat(    fd, Aname, O_RDONLY|O_XATTR));
 
-// If the preceeding open failed, diagnose the problem.
+// If the preceding open failed, diagnose the problem.
 //
    if (fd < 0) return Diagnose("open to get", Aname, Path, errno);
       }
@@ -133,7 +133,7 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
    fd =  (fd < 0 ? attropen(Path, ".", O_RDONLY)
                  : openat(    fd, ".", O_RDONLY|O_XATTR));
 
-// If the preceeding open failed, diagnose the problem. We ignore ENOATTR.
+// If the preceding open failed, diagnose the problem. We ignore ENOATTR.
 //
    if (fd < 0)
       {if (errno == ENOATTR) return 0;
@@ -186,7 +186,7 @@ int XrdSysFAttr::Set(const char *Aname, const void *Aval, int Avsz,
    fd =  (fd < 0 ? attropen(Path, Aname, oFlag, aMode)
                  : openat(    fd, Aname, oFlag, aMode));
 
-// If the preceeding open failed, diagnose the problem.
+// If the preceding open failed, diagnose the problem.
 //
    if (fd < 0) return Diagnose("open to set", Aname, Path, errno);
 

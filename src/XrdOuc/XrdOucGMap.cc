@@ -260,11 +260,11 @@ int XrdOucGMap::load(const char *mf, bool force)
          mappings.Add(p, new XrdSecGMapEntry_t(udn.c_str(), usr.c_str(), type));
          DEBUG(dbg, tracer, "XrdOucGMap::load", "mapping DN: '"<<udn<<"' to user: '"<< usr <<"' (type:'"<< stype <<"')");
       } else {
-         PRINT(tracer, "OucGMap::load", "ERROR: uncomplete line found in file '"
+         PRINT(tracer, "OucGMap::load", "ERROR: incomplete line found in file '"
               <<mf_name <<"': "<<var<<" - skipping");
       }
    }
-   // Now check if any errors occured during file i/o
+   // Now check if any errors occurred during file i/o
    //
    if ((rc = mapf.LastError())) {
       PRINT(tracer, "OucGMap::load", "ERROR: reading file '"<<mf_name<<"'; "

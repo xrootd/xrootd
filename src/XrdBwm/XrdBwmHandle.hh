@@ -50,7 +50,7 @@ enum HandleState {Idle = 0, Scheduled, Dispatched};
 
 static XrdBwmHandle *Alloc(const char *theUsr,  const char *thePath,
                            const char *lclNode, const char *rmtNode,
-                           int Incomming);
+                           int Incoming);
 
 static void         *Dispatch();
 
