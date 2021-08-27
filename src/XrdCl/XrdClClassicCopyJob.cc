@@ -744,7 +744,7 @@ namespace
         pMaxNbConn = val - 1; // account for the control stream
 
         val = XrdCl::DefaultCpUsePgWrtRd;
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
         pUsePgRead = !url->IsLocalFile() && ( val == 1 );
       }
 
@@ -1229,7 +1229,7 @@ namespace
         pChunkSize( chunkSize ), pDone( false )
       {
         int val = XrdCl::DefaultCpUsePgWrtRd;
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
         pUsePgRead = !url->IsLocalFile() && ( val == 1 );
       }
 
@@ -1691,7 +1691,7 @@ namespace
         pParallel( parallelChunks ), pSize( -1 )
       {
         int val = XrdCl::DefaultCpUsePgWrtRd;
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
         pUsePgWrt = !url.IsLocalFile() && ( val == 1 );
       }
 
