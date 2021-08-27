@@ -48,7 +48,7 @@ XCpCtx::~XCpCtx()
   // this object dies as the last one
   while( !pSink.IsEmpty() )
   {
-    ChunkInfo *chunk = pSink.Get();
+    PageInfo *chunk = pSink.Get();
     if( chunk )
       XCpSrc::DeleteChunk( chunk );
   }
@@ -84,7 +84,7 @@ XCpSrc* XCpCtx::WeakestLink( XCpSrc *exclude )
   return ret;
 }
 
-void XCpCtx::PutChunk( ChunkInfo* chunk )
+void XCpCtx::PutChunk( PageInfo* chunk )
 {
   pSink.Put( chunk );
 }
@@ -137,7 +137,7 @@ XRootDStatus XCpCtx::Initialize()
   return XRootDStatus();
 }
 
-XRootDStatus XCpCtx::GetChunk( XrdCl::ChunkInfo &ci )
+XRootDStatus XCpCtx::GetChunk( XrdCl::PageInfo &ci )
 {
   // if we received all the data we are done here
   if( pDataReceived == uint64_t( pFileSize ) )
@@ -157,11 +157,11 @@ XRootDStatus XCpCtx::GetChunk( XrdCl::ChunkInfo &ci )
     return XRootDStatus( stError, errNoMoreReplicas );
   }
 
-  ChunkInfo *chunk = pSink.Get();
+  PageInfo *chunk = pSink.Get();
   if( chunk )
   {
-    pDataReceived += chunk->length;
-    ci = *chunk;
+    pDataReceived += chunk->GetLength();
+    ci = std::move( *chunk );
     delete chunk;
     return XRootDStatus( stOK, suContinue );
   }
