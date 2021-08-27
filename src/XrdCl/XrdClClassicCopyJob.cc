@@ -1678,7 +1678,7 @@ namespace
   //----------------------------------------------------------------------------
   //! XRootD destination
   //----------------------------------------------------------------------------
-  class XRootDDestination: public Destination // TODO Read/PgRead
+  class XRootDDestination: public Destination
   {
     public:
       //------------------------------------------------------------------------
@@ -1690,6 +1690,9 @@ namespace
         pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ),
         pParallel( parallelChunks ), pSize( -1 )
       {
+        int val = XrdCl::DefaultCpUsePgWrtRd;
+        XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
+        pUsePgWrt = !url.IsLocalFile() && ( val == 1 );
       }
 
       //------------------------------------------------------------------------
@@ -1875,8 +1878,11 @@ namespace
           pCkSumHelper->Update( ci.buffer, ci.length );
 
         ChunkHandler *ch = new ChunkHandler(ci);
+        std::vector<uint32_t> cksums;
         XrdCl::XRootDStatus st;
-        st = pFile->Write( ci.offset, ci.length, ci.buffer, ch );
+        st = pUsePgWrt
+           ? pFile->PgWrite(ci.offset, ci.length, ci.buffer, cksums, ch)
+           : pFile->Write( ci.offset, ci.length, ci.buffer, ch );
         if( !st.IsOK() )
         {
           CleanUpChunks();
@@ -2015,12 +2021,13 @@ namespace
 
       std::string                 pWrtRecoveryRedir;
       std::string                 pLastURL;
+      bool                        pUsePgWrt;
   };
 
   //----------------------------------------------------------------------------
   //! XRootD destination
   //----------------------------------------------------------------------------
-  class XRootDZipDestination: public Destination // TODO Read/PgRead
+  class XRootDZipDestination: public Destination
   {
     public:
       //------------------------------------------------------------------------
@@ -2191,7 +2198,7 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      //! Queue a chunk
+      // Queue a chunk
       //------------------------------------------------------------------------
       XrdCl::XRootDStatus QueueChunk( XrdCl::ChunkInfo &ci )
       {
@@ -2202,6 +2209,11 @@ namespace
         ChunkHandler *ch = new ChunkHandler(ci);
         XrdCl::XRootDStatus st;
 
+        //----------------------------------------------------------------------
+        // TODO
+        // In order to use PgWrite with ZIP append we need first to implement
+        // PgWriteV!!!
+        //----------------------------------------------------------------------
         st = pZip->Write( ci.length, ci.buffer, ch );
         if( !st.IsOK() )
         {
