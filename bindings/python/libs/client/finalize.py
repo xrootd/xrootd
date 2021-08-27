@@ -42,7 +42,10 @@ def finalize():
      # If this isn't done, there will be no running threads to process requests
      # after this function returns so the interpreter will deadlock.
      for obj in gc.get_objects():
-         if isinstance(obj, File) and obj.is_open():
-             obj.close()
+        try:
+            if isinstance(obj, File) and obj.is_open():
+                obj.close()
+        except ReferenceError:
+            pass
 
      client.__XrdCl_Stop_Threads()
