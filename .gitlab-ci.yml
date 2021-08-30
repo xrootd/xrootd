@@ -95,9 +95,9 @@ build:cc7:
     - schedules
     - web
     
-build:fedora-rawhide:
+build:fedora-36:
   stage: build:rpm
-  image: fedora:rawhide
+  image: fedora:36
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
@@ -123,9 +123,9 @@ build:fedora-rawhide:
     - schedules
     - web
 
-build:fedorai-33:
+build:fedorai-35:
   stage: build:rpm
-  image: fedora:33
+  image: fedora:35
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
@@ -151,9 +151,9 @@ build:fedorai-33:
     - schedules
     - web
 
-build:fedora-32:
+build:fedora-34:
   stage: build:rpm
-  image: fedora:32
+  image: fedora:34
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
@@ -179,9 +179,9 @@ build:fedora-32:
     - schedules
     - web
 
-build:fedora-31:
+build:fedora-33:
   stage: build:rpm
-  image: fedora:31
+  image: fedora:33
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
