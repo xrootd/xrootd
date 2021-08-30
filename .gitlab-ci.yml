@@ -134,13 +134,13 @@ build:fedorai-35:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-30/
-    - cp packaging/*.src.rpm fc-30
-    - cp packaging/RPMS/* fc-30
+    - mkdir fc-35/
+    - cp packaging/*.src.rpm fc-35
+    - cp packaging/RPMS/* fc-35
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-30/
+    - fc-35/
   tags:
     - docker_node
   only:
@@ -162,13 +162,13 @@ build:fedora-34:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-29/
-    - cp packaging/*.src.rpm fc-29
-    - cp packaging/RPMS/* fc-29
+    - mkdir fc-34/
+    - cp packaging/*.src.rpm fc-34
+    - cp packaging/RPMS/* fc-34
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-29/
+    - fc-34/
   tags:
     - docker_node
   only:
@@ -190,13 +190,13 @@ build:fedora-33:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-31/
-    - cp packaging/*.src.rpm fc-31
-    - cp packaging/RPMS/* fc-31
+    - mkdir fc-33/
+    - cp packaging/*.src.rpm fc-33
+    - cp packaging/RPMS/* fc-33
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-31/
+    - fc-33/
   tags:
     - docker_node
   only:
@@ -590,7 +590,7 @@ publish:rhel:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in centos-8 cc-7 fc-rawhide fc-30 fc-29 fc-31; do 
+    - "for platform in centos-8 cc-7 fc-35 fc-34 fc-33; do 
          repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
          path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
