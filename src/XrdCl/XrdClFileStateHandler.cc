@@ -1485,7 +1485,7 @@ namespace XrdCl
                     pgwrt->SetStatus( new XRootDStatus( stError, errDataError, 0,
                                       "Failed to retransmit corrupted page" ) );
                 } );
-            auto st = PgWriteRetry( pgoff, pglen, pgbuf, pgdigest, h, timeout );
+            auto st = this->PgWriteRetry( pgoff, pglen, pgbuf, pgdigest, h, timeout );
             if( !st.IsOK() ) pgwrt->SetStatus( new XRootDStatus( st ) );
           }
         } );
