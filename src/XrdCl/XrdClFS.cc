@@ -347,6 +347,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
 
   StatInfo *info = 0;
   XRootDStatus st = fs->Stat( newPath, info );
+  std::unique_ptr<StatInfo> ptr( info );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable to stat the path: %s", st.ToStr().c_str() );
