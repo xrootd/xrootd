@@ -95,33 +95,33 @@ build:cc7:
     - schedules
     - web
     
-build:fedora-36:
-  stage: build:rpm
-  image: fedora:36
-  script:
-    - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
-    - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
-    - dnf builddep --nogpgcheck -y *.src.rpm
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - cd ..
-    - mkdir fc-rawhide
-    - cp packaging/*.src.rpm fc-rawhide
-    - cp packaging/RPMS/* fc-rawhide
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-rawhide/
-  tags:
-    - docker_node
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
+#build:fedora-36:
+#  stage: build:rpm
+#  image: fedora:36
+#  script:
+#    - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
+#    - cd packaging/
+#    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
+#    - dnf builddep --nogpgcheck -y *.src.rpm
+#    - mkdir RPMS
+#    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+#    - cd ..
+#    - mkdir fc-rawhide
+#    - cp packaging/*.src.rpm fc-rawhide
+#    - cp packaging/RPMS/* fc-rawhide
+#  artifacts:
+#    expire_in: 1 day
+#    paths:
+#    - fc-rawhide/
+#  tags:
+#    - docker_node
+#  only:
+#    - master
+#    - /^stable-.*$/
+#  except:
+#    - tags
+#    - schedules
+#    - web
 
 build:fedorai-35:
   stage: build:rpm
@@ -129,7 +129,7 @@ build:fedorai-35:
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
     - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_ceph11 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
