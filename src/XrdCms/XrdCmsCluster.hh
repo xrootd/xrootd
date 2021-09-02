@@ -39,6 +39,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucEnum.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
 class XrdLink;
 class XrdCmsDrop;
@@ -168,9 +169,9 @@ void           *MonPerf();
 //
 void           *MonRefs();
 
-// Return total number of redirect references (sloppy as we don't lock it)
+// Return total number of redirect references
 //
-long long       Refs() {return SelWcnt+SelWtot+SelRcnt+SelRtot;}
+long long       Refs() {return SelWtot+SelRtot;}
 
 // Called to remove a node from the cluster
 //
@@ -196,9 +197,12 @@ int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 
 // Manipulate the global selection lock
 //
-void            SLock(bool dolock)
-                     {if (dolock) STMutex.Lock();
-                         else     STMutex.UnLock();
+void            SLock(bool dolock, bool wrmode=true)
+                     {if (dolock)
+                         {if (wrmode) STMutex.WriteLock();
+                             else     STMutex.ReadLock();
+                         }
+                         else         STMutex.UnLock();
                      }
 
 // Called to get cluster space (for managers and supervisors only)
@@ -238,17 +242,14 @@ int         Unuseable(XrdCmsSelect &Sel);
 //
 static const  int AltSize = 254; // We may revert to IP address
 
-XrdSysMutex   XXMutex;          // Protects cluster summary state variables
-XrdSysMutex   STMutex;          // Protects all node information  variables
+XrdSysRWLock  STMutex;          // Protects all node information  variables
 XrdCmsNode   *NodeTab[STMax];   // Current  set of nodes
 
 int           STHi;             // NodeTab high watermark
 int           Reserved;
-long long     SelWcnt;          // Curr  number of r/w selections (successful)
-long long     SelWtot;          // Total number of r/w selections (successful)
-long long     SelRcnt;          // Curr  number of r/o selections (successful)
-long long     SelRtot;          // Total number of r/o selections (successful)
-long long     SelTcnt;          // Total number of all selections
+RAtomic_llong SelWtot;          // Total number of r/w selections (successful)
+RAtomic_llong SelRtot;          // Total number of r/o selections (successful)
+RAtomic_llong SelTcnt;          // Total number of all selections
 
 // The following is a list of IP:Port tokens that identify supervisor nodes.
 // The information is sent via the try request to redirect nodes; as needed.
@@ -258,7 +259,7 @@ char          AltMans[STMax*AltSize]; // ||123.123.123.123:12345|| = 21
 char         *AltMend;
 int           AltMent;
 
-// The foloowing three variables are protected by the STMutex
+// The following two variables are protected by the STMutex
 //
 SMask_t       peerHost;         // Nodes that are acting as peers
 SMask_t       peerMask;         // Always ~peerHost

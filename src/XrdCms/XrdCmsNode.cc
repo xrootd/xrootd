@@ -68,6 +68,7 @@
 
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdCms;
 
@@ -95,7 +96,7 @@ int mtrylen = strlen(mtrymsg)+1;
 /******************************************************************************/
   
 XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
-                       int port, int lvl, int id) : nodeMutex(0, "nodeCV")
+                       int port, int lvl, int id)
 {
     static XrdSysMutex   iMutex;
     static const SMask_t smask_1(1);
@@ -104,54 +105,13 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     Link     =  lnkp;
     NodeMask =  (id < 0 ? 0 : smask_1 << id);
     NodeID   = id;
-    cidP     =  0;
-    hasNet   =  0;
-    isBad    =  0;
     isOffline=  (lnkp == 0);
-    isNoStage=  0;
-    isBound  =  0;
-    isConn   =  0;
-    isGone   =  0;
-    isPerm   =  0;
-    isMan    =  0;
-    isKnown  =  0;
-    isPeer   =  0;
-    incUL    =  0;
-    myCost   =  0;
-    myLoad   =  0;
-    myMass   =  0;
-    DiskTotal=  0;
-    DiskFree =  0;
-    DiskMinF =  0;
-    DiskNums =  0;
-    DiskUtil =  0;
-    Next     =  0;
-    RefW     =  0;
-    RefTotW  =  0;
-    RefR     =  0;
-    RefTotR  =  0;
-    Share    =  0;
-    Shrem    =  0;
-    Shrin    =  0;
     logload  =  Config.LogPerf;
-    DropTime =  0;
-    DropJob  =  0;
-    myName   =  0;
-    myNlen   =  0;
-    Ident    =  0;
     myNID    = strdup(nid ? nid : "?");
     if ((myCID = index(myNID, ' '))) myCID++;
        else myCID = myNID;
     myLevel  = lvl;
-    ConfigID =  0;
-    TZValid  = 0;
-    TimeZone = 0;
-    subsPort = 0;
     myVersion= kYR_Version;
-
-    lkCount  = 0;
-    ulCount  = 0;
-    Manager  = 0;
 
 // setName() will set the node identification information
 //
@@ -169,7 +129,6 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
 XrdCmsNode::~XrdCmsNode()
 {
    isOffline = 1;  // STMutex not needed here
-   if (isLocked) UnLock();
 
 // Delete other appendages
 //
@@ -222,54 +181,48 @@ void XrdCmsNode::setName(XrdLink *lnkp, const char *theIF, int port)
 /*                                D e l e t e                                 */
 /******************************************************************************/
 
-void XrdCmsNode::Delete(XrdSysMutex &gMutex)
+void XrdCmsNode::Delete(XrdSysFusedMutex &gMutex)
 {
    EPNAME("Delete");
-   time_t tNow;
-   unsigned int theLKCnt;
-   int tmoWait = 60, totWait = 0;
+   static const int warnIntvl = 60;
+   int totWait = 0, tmoWarn = 60;
+   int tmoWait (Config.DELDelay < 3 ? Config.DELDelay : 3);
    bool doDel = true;
 
 // We need to make sure there are no references to this object. This is true
-// when the lkCount equals the ulCount. The lkCount is under control of the
-// global mutex passed to us. The ulCount is under control of the node lock.
-// we will wait until they are equal. As this node has been removed from all
-// tables at this point, the lkCount cannot increase but it may decrease when
-// Ref2G() is called which happens for none lock-free operations (e.g. Send).
-// However, we will refresh it if we timeout.
-//
-   gMutex.Lock();
-   theLKCnt = lkCount;
-   gMutex.UnLock();
-
-// Get the node lock and do some debugging. Set tghe isGone flag even though it
-// should be set. We need to do that under the node lock to make sure we get
-// signalled whenever the node gets unlocked by some thread (ulCount changed).
+// when the refCnt is zero but only when we hold a global write lock that has
+// been passed to us. As this node has been removed from all global tables
+// at this point, we just need to make sure than no threads are poised to
+// increase it. That can't happen if we obrtain a write lock. To start,
+// get the node lock and do some debugging. Set the isGone flag even though it
+// should be set. Note that we need to serialize with the refCnt as some
+// threads may still be holding a reference to the node.
 //
    nodeMutex.Lock();
    isGone = 1;
-   DEBUG(Ident <<" locks=" <<theLKCnt <<" unlocks=" <<ulCount);
+   nodeMutex.UnLock();
+   DEBUG(Ident <<" refs=" <<refCnt);
 
 // Now wait for things to simmer down. We wait for an appropriate time because
 // we don't want to occupy this thread forever.
 //
-   while(theLKCnt != ulCount)
+   gMutex.WriteLock();
+   while(refCnt)
         {if (totWait >= Config.DELDelay) {doDel = false; break;}
-         tNow = time(0);
-         if (!nodeMutex.Wait(tmoWait)) totWait += (time(0) - tNow);
-            else {DeleteWarn(gMutex, theLKCnt);
-                  totWait += tmoWait;
-                  tmoWait  = tmoWait << 1;
-                  if (totWait + tmoWait > Config.DELDelay)
-                     {tmoWait = Config.DELDelay - totWait;
-                      if (tmoWait < 30) tmoWait = 30;
-                     }
-                 }
+         gMutex.UnLock();
+         if (totWait >= tmoWarn)
+            {unsigned int theCnt = refCnt;
+             DeleteWarn(theCnt);
+             tmoWarn += warnIntvl;
+            }
+         XrdSysTimer::Snooze(tmoWait);
+         totWait += tmoWait;
+         gMutex.WriteLock();
         }
+    gMutex.UnLock();
 
 // We can now safely delete this node
 //
-   nodeMutex.UnLock();
    if (doDel) delete this;
       else {char eBuff[256];
             snprintf(eBuff, sizeof(eBuff),
@@ -282,23 +235,16 @@ void XrdCmsNode::Delete(XrdSysMutex &gMutex)
 /* Private:                   D e l e t e W a r n                             */
 /******************************************************************************/
 
-void XrdCmsNode::DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal)
+void XrdCmsNode::DeleteWarn(unsigned int lkVal)
 {
-   char eBuff[256];
 
 // Print warning
 //
-   snprintf(eBuff, sizeof(eBuff), "delete sync stall; lk %d != ul %d",
-            lkVal, ulCount);
-   Say.Emsg("Delete", Ident, eBuff);
-
-// Update the lock count
-//
-   nodeMutex.UnLock();
-   gMutex.Lock();
-   lkVal = lkCount;
-   gMutex.UnLock();
-   nodeMutex.Lock();
+   if (lkVal)
+      {char eBuff[256];
+       snprintf(eBuff, sizeof(eBuff), "delete sync stall; refs = %u", lkVal);
+       Say.Emsg("Delete", Ident, eBuff);
+      }
 }
   
 /******************************************************************************/
@@ -523,7 +469,10 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
    ppag = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::pagLoad]);
    pdsk = static_cast<uint32_t>(Arg.Opaque[CmsLoadRequest::dskLoad]);
 
-// Compute actual load value
+// Compute actual load value. Note that the update is not thread-kosher as we
+// do not obtain a write lock. However, the values below use the single writer
+// principal so other threads will eventually see a coherent picture. This is
+// good enough for what these values are used for.
 //
    myLoad = Meter.calcLoad(pcpu, pnet, pxeq, pmem, ppag);
    myMass = Meter.calcLoad(myLoad, pdsk);
@@ -1666,19 +1615,25 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
           else      {add2Stage =  1; isNoStage = 0; stgMsg="staging resumed";}
        else         {add2Stage =  0;                stgMsg = 0;}
 
-// Process suspend/resume
+// Process suspend/resume. We mmerely need a read lock to alter isBad here.
 //
     if ((Resume && (isBad & isSuspend)) || (Suspend && !(isBad & isSuspend)))
-       if (Suspend) {add2Activ = -1; isBad |=  isSuspend;
+       if (Suspend) {add2Activ = -1;
+                     Cluster.SLock(true, false);
+                     isBad |=  isSuspend; // Keep coherency with black listing
+                     Cluster.SLock(false);
                      srvMsg="service suspended"; 
                      stgMsg = 0;
                     }
-          else      {add2Activ =  1; isBad &= ~isSuspend;
+          else      {add2Activ =  1;
+                     Cluster.SLock(true, false);
+                     isBad &= ~isSuspend; // Keep coherency with black listing
+                     Cluster.SLock(false);
                      srvMsg="service resumed";
                      stgMsg = (isNoStage ? "(no staging)" : "(staging)");
                      port = ntohl(Arg.Request.streamid);
                      if (port && port != netIF.Port())
-                        {Lock(false); netIF.Port(port); UnLock();
+                        {Lock(); netIF.Port(port); UnLock();
                          DEBUGR("set data port to " <<port);
                         }
                     }

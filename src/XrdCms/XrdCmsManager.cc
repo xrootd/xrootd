@@ -244,7 +244,7 @@ void XrdCmsManager::Inform(const char *What, const char *Data, int Dlen)
 //
    for (i = 0; i <= MTHi; i++)
        {if ((nP=MastTab[i]) && !nP->isOffline)
-           {nP->Lock(true);
+           {nP->Lock();
             MTMutex.UnLock();
             DEBUG(nP->Name() <<" " <<What);
             nP->Send(Data, Dlen);
@@ -271,7 +271,7 @@ void XrdCmsManager::Inform(const char *What, struct iovec *vP, int vN, int vT)
 //
    for (i = 0; i <= MTHi; i++)
        {if ((nP=MastTab[i]) && !nP->isOffline)
-           {nP->Lock(true);
+           {nP->Lock();
             MTMutex.UnLock();
             DEBUG(nP->Name() <<" " <<What);
             nP->Send(vP, vN, vT);
@@ -440,7 +440,7 @@ void XrdCmsManager::Reset()
 //
    for (i = 0; i <= MTHi; i++)
        {if ((nP=MastTab[i]) && !nP->isOffline && nP->isKnown)
-           {nP->Lock(true);
+           {nP->Lock();
             nP->isKnown = 0;
             MTMutex.UnLock();
             DEBUG("sent to " <<nP->Name());
