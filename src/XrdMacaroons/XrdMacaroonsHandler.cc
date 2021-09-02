@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include <uuid/uuid.h>
 #include "json.h"
