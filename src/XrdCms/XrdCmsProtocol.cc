@@ -492,7 +492,7 @@ int XrdCmsProtocol::Process(XrdLink *lp)
    lp->Serialize();
    if (!myNode) return -1;
    Sync();
-   myNode->Lock(false);
+   myNode->Lock();
 
 // Immediately terminate redirectors (they have an Rslot). The redirector node
 // can be directly deleted as all references were serialized through the
@@ -833,7 +833,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 // Director logins have no additional parameters. We return with the node object
 // locked to be consistent with the way server/suprvisors nodes are returned.
 //
-   myNode = new XrdCmsNode(Link); myNode->Lock(false);
+   myNode = new XrdCmsNode(Link); myNode->Lock();
    if (!(RSlot = RTable.Add(myNode)))
       {myNode->UnLock();
        delete myNode;

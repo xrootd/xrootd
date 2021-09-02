@@ -41,6 +41,7 @@
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
 class XrdCmsBaseFR;
 class XrdCmsBaseFS;
@@ -57,23 +58,23 @@ class XrdCmsNode
 {
 friend class XrdCmsCluster;
 public:
-       char  *Ident;        // -> role hostname
-       char   hasNet;       //0 Network selection mask
-       char   isBad;        //1 Set on an event that makes it unselectable
-       char   isOffline;    //2 Set when a link failure occurs
-       char   isRW;         //3 Set when node can write or stage data
-       char   isNoStage;    //4 Set upon a nostage event
-       char   isMan;        //5 Set when node acts as manager
-       char   isPeer;       //6 Set when node acts as peer manager
-       char   isBound;      //7 Set when node is in the configuration
-       char   isKnown;      //0 Set when we have recieved a "state"
-       char   isConn;       //1 Set when node is network connected
-       char   isGone;       //2 Set when node must be deleted
-       char   isPerm;       //3 Set when node is permanently bound
-       char   incUL;        //4 Set when unlock count nedds to be incremented
-       char   RoleID;       //5 The converted XrdCmsRole::RoleID
-       char   TimeZone;     //6 Time zone in +UTC-
-       char   TZValid;      //7 Time zone has been set
+       char  *Ident     = 0; // -> role hostname
+       char   hasNet    = 0; //0 Network selection mask
+       char   isBad     = 0; //1 Set on an event that makes it unselectable
+       char   isOffline;     //2 Set when a link failure occurs (constructor)
+       char   isRW      = 0; //3 Set when node can write or stage data
+       char   isNoStage = 0; //4 Set upon a nostage event
+       char   isMan     = 0; //5 Set when node acts as manager
+       char   isPeer    = 0; //6 Set when node acts as peer manager
+       char   isBound   = 0; //7 Set when node is in the configuration
+       char   isKnown   = 0; //0 Set when we have recieved a "state"
+       char   isConn    = 0; //1 Set when node is network connected
+       char   isGone    = 0; //2 Set when node must be deleted
+       char   isPerm    = 0; //3 Set when node is permanently bound
+       char   rsvd      = 0; //4 Reserved
+       char   RoleID    = 0; //5 The converted XrdCmsRole::RoleID
+       char   TimeZone  = 0; //6 Time zone in +UTC-
+       char   TZValid   = 0; //7 Time zone has been set
 
 static const char isBlisted  = 0x01; // in isBad -> Node is black listed
 static const char isDisabled = 0x02; // in isBad -> Node is disable (internal)
@@ -83,12 +84,12 @@ static const char isDoomed   = 0x08; // in isBad -> Node socket must be closed
 static const char allowsRW   = 0x01; // in isRW  -> Server allows r/w access
 static const char allowsSS   = 0x02; // in isRW  -> Server can stage data
 
-unsigned int    DiskTotal;    // Total disk space in GB
-         int    DiskNums;     // Number of file systems
-         int    DiskMinF;     // Minimum MB needed for selection
-         int    DiskFree;     // Largest free MB
-         int    DiskUtil;     // Total disk utilization
-unsigned int    ConfigID;     // Configuration identifier
+unsigned int    DiskTotal = 0;// Total disk space in GB
+         int    DiskNums  = 0;// Number of file systems
+         int    DiskMinF  = 0;// Minimum MB needed for selection
+         int    DiskFree  = 0;// Largest free MB
+         int    DiskUtil  = 0;// Total disk utilization
+unsigned int    ConfigID  = 0;// Configuration identifier
 
 const  char  *do_Avail(XrdCmsRRData &Arg);
 const  char  *do_Chmod(XrdCmsRRData &Arg);
@@ -125,7 +126,13 @@ const  char  *do_Try(XrdCmsRRData &Arg);
 const  char  *do_Update(XrdCmsRRData &Arg);
 const  char  *do_Usage(XrdCmsRRData &Arg);
 
-       void   Delete(XrdSysMutex &gMutex);
+       void   Delete(XrdSysRWLock &gMutex)
+                    {XrdSysFusedMutex gMeld(gMutex); Delete(gMeld);}
+
+       void   Delete(XrdSysMutex &gMutex)
+                    {XrdSysFusedMutex gMeld(gMutex); Delete(gMeld);}
+
+       void   Delete(XrdSysFusedMutex &gMutex);
 
        void   Disc(const char *reason=0, int needLock=1);
 
@@ -152,43 +159,26 @@ inline char  *Name()   {return (myName ? myName : (char *)"?");}
 
 inline SMask_t Mask() {return NodeMask;}
 
-inline void    g2Ref(XrdSysMutex &gMutex) {lkCount++; gMutex.UnLock();}
-
-inline void    Ref2g(XrdSysMutex &gMutex) {gMutex.Lock(); lkCount--;}
-
-inline void    g2nLock(XrdSysMutex &gMutex)
-                      {lkCount++;        // gMutex must be held
-                       gMutex.UnLock();  // Safe because lkCount != ulCount
+inline void    g2nLock(XrdSysRWLock &gMutex)
+                      {refCnt++;         // Keep node alive during transition
+                       gMutex.UnLock();  // The lock must have ben held
                        nodeMutex.Lock(); // Downgrade to node lock
-                       incUL = 1;
-                       isLocked = 1;
+                       refCnt--;         // OK, we have the node lock now
                       }
 
-inline void    n2gLock(XrdSysMutex &gMutex)
-                      {isLocked = 0;
-                       if (incUL)
-                          {ulCount++; incUL = 0;
-                           if (isGone) nodeMutex.Signal();
-                          }
-                       nodeMutex.UnLock(); // Release this node
-                       gMutex.Lock();      // Upgade to global mutex
+inline void    n2gLock(XrdSysRWLock &gMutex, bool rdlock=false)
+                      {nodeMutex.UnLock(); // Release this node
+                       refCnt--;           // OK for node to go away
+                       if (rdlock) gMutex.ReadLock();
+                          else     gMutex.WriteLock();
                       }
 
-inline void    Lock(bool doinc)
-                   {if (!doinc) nodeMutex.Lock();
-                       else    {lkCount++;  // Global lock must be held
-                                nodeMutex.Lock();
-                                incUL = 1;
-                               }
-                    isLocked = 1;
-                   }
-inline void  UnLock() {isLocked = 0;
-                       if (incUL)
-                          {ulCount++; incUL = 0;
-                           if (isGone) nodeMutex.Signal();
-                          }
-                       nodeMutex.UnLock();
-                      }
+inline void    Lock() {refCnt++; nodeMutex.Lock();}
+
+inline void  UnLock() {nodeMutex.UnLock(); refCnt--;}
+
+inline void    Ref() {refCnt++;} // Must have global or node locked!
+inline void  unRef() {refCnt--;}
 
 static void  Report_Usage(XrdLink *lp);
 
@@ -230,52 +220,49 @@ private:
 static const int fsL2PFail1 = 999991;
 static const int fsL2PFail2 = 999992;
 
-       void  DeleteWarn(XrdSysMutex &gMutex, unsigned int &lkVal);
+       void  DeleteWarn(unsigned int lkVal);
        int   fsExec(XrdOucProg *Prog, char *Arg1, char *Arg2=0);
 const  char *fsFail(const char *Who, const char *What, const char *Path, int rc);
        int   getMode(const char *theMode, mode_t &Mode);
        int   getSize(const char *theSize, long long &Size);
        void  setHash(XrdCmsSelect &Sel, int acount);
 
-XrdSysCondVar      nodeMutex;
-unsigned int       lkCount;  // Only Modified with global lock held
-unsigned int       ulCount;  // Only Modified with node   lock held
+XrdSysMutex        nodeMutex;
+RAtomic_uint       refCnt{0};    // Tracks references to this onnject
 
-XrdLink           *Link;
-XrdNetAddr         netID;
-XrdNetIF           netIF;
-XrdCmsManager     *Manager;
-XrdCmsNode        *Next;
-time_t             DropTime;
-XrdCmsDrop        *DropJob;  
+XrdLink           *Link;         // Constructor
+XrdNetAddr         netID;        // Constructor
+XrdNetIF           netIF;        // Constructor
+XrdCmsManager     *Manager  = 0;
+time_t             DropTime = 0;
+XrdCmsDrop        *DropJob  = 0;
 
-XrdCmsClustID     *cidP;
+XrdCmsClustID     *cidP     = 0;
 SMask_t            NodeMask;
 int                NodeID;
 int                Instance;
 int                myLevel;
-short              subsPort;     // Subscription port number
-unsigned short     myVersion;
-char              *myCID;
-char              *myNID;
-char              *myName;
-int                myNlen;
+short              subsPort = 0; // Subscription port number
+unsigned short     myVersion;    // Constructor
+char              *myCID;        // Constructor
+char              *myNID;        // Constructor
+char              *myName   = 0;
+int                myNlen   = 0;
 
 int                logload;
-int                myCost;       // Overall cost (determined by location)
-int                myLoad;       // Overall load
-int                myMass;       // Overall load including space utilization
-int                RefW;         // Number of times used for writing
-int                RefTotW;
-int                RefR;         // Number of times used for redirection
-int                RefTotR;
-short              RSlot;
-char               isLocked;
-char               Share;        // Share of requests for this node (0 -> n/a)
-char               Shrem;        // Share of requests left
-char               Shrip;        // Share of requests to skip
-char               Rsvd[2];
-int                Shrin;        // Share intervals used
+int                myCost   = 0; // Overall cost (determined by location)
+int                myLoad   = 0; // Overall load
+int                myMass   = 0; // Overall load including space utilization
+RAtomic_int        RefW{0};      // Number of times used for writing
+RAtomic_int        RefTotW{0};   // Actual total w/o share adjustments
+RAtomic_int        RefR{0};      // Number of times used for redirection
+RAtomic_int        RefTotR{0};   // Actual total w/o share adjustments
+short              RSlot    = 0;
+char               Share    = 0; // Share of requests for this node (0 -> n/a)
+RAtomic_char       Shrem{0};     // Share of requests left
+RAtomic_char       Shrin{0};     // Share intervals used
+char               Shrip    = 0; // Share of requests to skip (set once)
+char               Rsvd[3];
 
 // The following fields are used to keep the supervisor's free space value
 //
