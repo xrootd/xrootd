@@ -104,8 +104,7 @@ bool XrdCmsClustID::AddNode(XrdCmsNode *nP, bool isMan)
 //
    if (!isMan)
       {cidMask |= nP->Mask();
-       DEBUG("srv " <<nP->Ident <<" cluster " <<cidName
-             <<" mask=" <<hex <<cidMask <<dec <<" anum=" <<npNum);
+       DEBUG("srv " <<nP->Ident <<" cluster " <<cidName <<" anum=" <<npNum);
        return true;
       }
 
@@ -131,8 +130,7 @@ bool XrdCmsClustID::AddNode(XrdCmsNode *nP, bool isMan)
    ntSlot = sNum;
    cidMask |= nP->Mask();
    nodeP[npNum++] = nP;
-   DEBUG("man " <<nP->Ident <<" cluster " <<cidName
-         <<" mask=" <<hex <<cidMask <<dec <<" anum=" <<npNum);
+   DEBUG("man " <<nP->Ident <<" cluster " <<cidName <<" anum=" <<npNum);
    return true;
 }
 
@@ -226,8 +224,7 @@ XrdCmsNode *XrdCmsClustID::RemNode(XrdCmsNode *nP)
 //
    if (!(nP->isMan | nP->isPeer))
       {cidMask &= ~(nP->Mask());
-       DEBUG("srv " <<nP->Ident <<" cluster " <<cidName
-             <<" mask=" <<hex <<cidMask <<dec <<" anum=" <<npNum);
+       DEBUG("srv " <<nP->Ident <<" cluster " <<cidName <<" anum=" <<npNum);
        return 0;
       }
 
@@ -248,8 +245,7 @@ XrdCmsNode *XrdCmsClustID::RemNode(XrdCmsNode *nP)
 
 // Do some debugging and return what we have in the table
 //
-   DEBUG("man " <<nP->Ident <<" cluster " <<cidName
-         <<" mask=" <<hex <<cidMask <<dec <<" anum=" <<npNum
+   DEBUG("man " <<nP->Ident <<" cluster " <<cidName <<" anum=" <<npNum
          <<(didRM ? "" : " n/p"));
    return (npNum ? nodeP[0] : 0);
 }
