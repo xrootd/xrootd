@@ -185,7 +185,16 @@ bool XrdPosixAdmin::Stat(struct stat &Stat)
    Stat.st_size   = static_cast<size_t>(sInfo->GetSize());
    Stat.st_blocks = Stat.st_size/512 + Stat.st_size%512;
    Stat.st_ino    = static_cast<ino_t>(strtoll(sInfo->GetId().c_str(), 0, 10));
+#if defined(__mips__) && _MIPS_SIM == _ABIO32
+   // Work around inconsistent type definitions on MIPS
+   // The st_rdev field in struct stat (which is 32 bits) is not type
+   // dev_t (which is 64 bits)
+   dev_t tmp_rdev = Stat.st_rdev;
+   Stat.st_mode   = XrdPosixMap::Flags2Mode(&tmp_rdev, sInfo->GetFlags());
+   Stat.st_rdev = tmp_rdev;
+#else
    Stat.st_mode   = XrdPosixMap::Flags2Mode(&Stat.st_rdev, sInfo->GetFlags());
+#endif
    Stat.st_mtime  = static_cast<time_t>(sInfo->GetModTime());
 
    if (sInfo->ExtendedFormat())
