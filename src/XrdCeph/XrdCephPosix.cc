@@ -800,7 +800,7 @@ ssize_t ceph_posix_pwrite(int fd, const void *buf, size_t count, off64_t offset)
     XrdSysMutexHelper lock(fr->statsMutex);
     fr->wrcount++;
     fr->bytesWritten+=count;
-    if (offset + count) fr->maxOffsetWritten = std::max(offset + count - 1, fr->maxOffsetWritten);
+    if (offset + count) fr->maxOffsetWritten = std::max(uint64_t(offset + count - 1), fr->maxOffsetWritten);
     return count;
   } else {
     return -EBADF;
@@ -819,7 +819,7 @@ static void ceph_aio_write_complete(rados_completion_t c, void *arg) {
     fr->bytesAsyncWritePending -= awa->nbBytes;
     fr->bytesWritten += awa->nbBytes;
     if (awa->aiop->sfsAio.aio_nbytes)
-      fr->maxOffsetWritten = std::max(fr->maxOffsetWritten, awa->aiop->sfsAio.aio_offset + awa->aiop->sfsAio.aio_nbytes - 1);
+      fr->maxOffsetWritten = std::max(fr->maxOffsetWritten, uint64_t(awa->aiop->sfsAio.aio_offset + awa->aiop->sfsAio.aio_nbytes - 1));
     ::timeval now;
     ::gettimeofday(&now, nullptr);
     double writeTime = 0.000001 * (now.tv_usec - awa->startTime.tv_usec) + 1.0 * (now.tv_sec - awa->startTime.tv_sec);
