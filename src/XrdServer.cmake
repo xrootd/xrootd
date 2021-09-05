@@ -185,11 +185,14 @@ add_library(
   XrdDig/XrdDigConfig.cc        XrdDig/XrdDigConfig.hh
   XrdDig/XrdDigFS.cc            XrdDig/XrdDigFS.hh )
 
+set( THREADS_PREFER_PTHREAD_FLAG TRUE )
+find_package( Threads )
+
 target_link_libraries(
   XrdServer
   XrdUtils
   ${CMAKE_DL_LIBS}
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
