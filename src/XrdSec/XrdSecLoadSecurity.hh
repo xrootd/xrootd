@@ -85,7 +85,7 @@ struct ServerResponseBody_Protocol;
 //!
 //! @return >0      pointer to the protect object placed in protP.
 //! @return =0      No protection is needed, protP set to zero.
-//! @return <0      An error occured getting the protection object the
+//! @return <0      An error occurred getting the protection object the
 //!                 return value is -errno and protP has been set to zero.
 //------------------------------------------------------------------------------
 

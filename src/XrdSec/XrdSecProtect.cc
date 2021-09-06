@@ -387,7 +387,7 @@ const char *XrdSecProtect::Verify(SecurityRequest  &secreq,
    unsigned char *inHash, secHash[SHA256_DIGEST_LENGTH];
    int           dlen, n, rc;
 
-// First check for replay attacks. The incomming sequence number must be greater
+// First check for replay attacks. The incoming sequence number must be greater
 // the previous one we have seen. Since it is in network byte order we can use
 // a simple byte for byte compare (no need for byte swapping).
 //

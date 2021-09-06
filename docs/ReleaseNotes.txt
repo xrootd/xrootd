@@ -39,7 +39,7 @@ Version 5.3.0
 + **Major bug fixes**
   **[SSS]** Add missing initializer to avoid random sss authentication failure.
   **[Server]** Fix host related authorization rules that would always fail.
-  **[Server]** Fix backward compatability issue with oss.space directive.
+  **[Server]** Fix backward compatibility issue with oss.space directive.
   **[SSS]** Avoid server-side SEGV for certain configurations.
   **[SSS]** Correct client backward incompatibily when 'anygroup' is specified.
   **[XrdCl/XrdSys]i** Fail gracefuly on epoll_wait errors if in child process.
@@ -497,7 +497,7 @@ Version 5.0.0
   * **[Server]** Add missing initializer to avoid TPC SEGV on busy systems.
   * **[Server]** Accommodate changes in epoll handling in CentOS 7.10 plus.
   * **[SSI]** Fix double delete due to extraneous code addition.
-  * **[XrdCl]** Use diffrent bit for mkpath and tpc delegation.
+  * **[XrdCl]** Use different bit for mkpath and tpc delegation.
   * **[XrdCl]** tpc: don't open non-root/xroot source.
   * **[XrdCl]** Adjust # of strm queues when server requests additional data.
   * **[PFC]** Make sure scheduler pointer is always valid.
@@ -766,7 +766,7 @@ Version 4.11.1
 + **Major bug fixes**
   * **[XrdSys]** Avoid deadlock on poller stop, fixes #1095 
   * **[XrdCl]** Recreate env r/w lock after forking.
-  * **[XrdCl]** Use diffrent bit for mkpath and tpc delegation.
+  * **[XrdCl]** Use different bit for mkpath and tpc delegation.
 
 + **Minor bug fixes**
   * **[Server]** Use correct mechanism to determine DNS registration.
@@ -1515,7 +1515,7 @@ Version 4.4.0
 + **Major bug fixes**
   * **[Posix]** Remove double unlock of a mutex.
   * **[Client]** Serialize security protocol manager to allow MT loads.
-  * **[Authentication/sss]** Fix dynamic id incompatability introduced in 4.0.
+  * **[Authentication/sss]** Fix dynamic id incompatibility introduced in 4.0.
   * **[XtdHttp]** Removed the deprecated cipher SSLv3, in favor of TLS1.2
   * **[XrdCl]** Close file on open timeout.
   * **[XrdCl]** Differentiate between a handshake and an xrootd request/response 
@@ -1680,7 +1680,7 @@ Version 4.2.2
   * **[XrdCl]** xrdfs correctly handles quotations (fixes the problem with ALICE token)
 
 + **Miscellaneous**
-  * Fixes #245 Provide compatability when cmake version is > 3.0.
+  * Fixes #245 Provide compatibility when cmake version is > 3.0.
   * Use atomics to manipulate unlocked variable pollNum.
   * Bugfix: release lock when a file is closed before the prefetch thread is started. 
     Observed with xrdcp ran without -f option and an existing local file. Fixes #239.
@@ -1702,7 +1702,7 @@ Version 4.2.1
 
 + **Miscellaneous**
    * **[Client/Cl]** Make sure kXR_mkpath is set for classic copy jobs when the
-     destination is xrootd (backward compatability fix).
+     destination is xrootd (backward compatibility fix).
 
 -------------
 Version 4.2.0
@@ -2170,7 +2170,7 @@ Version 3.3.2
 + **Major bug fixes**
    * Fix the opaque information setting in xrdcp using -OD (issue #1)
    * Fix compilation on Solaris 11 (issue #7)
-   * Fix issues with semaphore locking during thread cancelation on
+   * Fix issues with semaphore locking during thread cancellation on
      MaxOSX (issue #10)
    * Solve locking problems in the built-in poller (issue #4)
    * Solve performance issues in the new client. Note: this actually
@@ -2424,7 +2424,7 @@ Version 3.2.0
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
-   * Provide compatability for sprintf() implementations that check output
+   * Provide compatibility for sprintf() implementations that check output
      buffer length. This currently only affects gentoo and Ubuntu Linux.
      We place it in the "major" section as it causes run-time errors there.
    * Reinsert buffer size calculation that was mistakenly deleted.
@@ -2477,7 +2477,7 @@ Version 3.1.1
 
 + **Major bug fixes**
    * Fix various client threading issues.
-   * [bug #87880] Properly unpack the incomming vector read data.
+   * [bug #87880] Properly unpack the incoming vector read data.
    * Rework the handshake when making a parallel connection. Previous method
      caused a deadlock when parallel connections were requested (e.g. xrdcp).
    * Add HAVE_SENDFILE definition to cmake config. All post-cmake version of
@@ -2577,7 +2577,7 @@ Version 3.1.0
      meta-manager the minimum number of responses needed to satisfy a hold
      delay (i.e. fast redirect).
    * Accept XrdSecSSSKT envar as documented but also continue to support
-     XrdSecsssKT for backward compatability.
+     XrdSecsssKT for backward compatibility.
    * Allow servers to specify to the meta-manager what share of requests they
      are willing to handle. Add the 'cms.sched gsdflt' and 'cms.sched gshr'
      configuration directives to specify this.
@@ -2595,7 +2595,7 @@ Version 3.1.0
    * Finally implement adding authentication information to the user monitoring
      record (requested by Matevz Tadel, CMS). This adds a new generic option,
      auth, to the xrootd.monitor directive. It needs to be specified for the
-     authentication information to be added. This keeps backward compatability.
+     authentication information to be added. This keeps backward compatibility.
    * Add a new method, chksum, to the standard filesystem interface.
    * Integrate checksums into the logical filesystem layer implementation.
      See the ofs.ckslib directive on how to do non-default configuration.

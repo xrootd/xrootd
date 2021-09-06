@@ -386,7 +386,7 @@ bool XrdDigAuth::SetupAuth(bool isRefresh)
          lNum++;
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = aFile.LastError()))
       {eDest->Say("Config ",XrdSysE2T(-retc)," reading config file ",authFN);

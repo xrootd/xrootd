@@ -347,7 +347,7 @@ int XrdCryptosslX509Crl::GetFileType(const char *crlfn)
 {
    // Try to understand if file 'crlfn' is in DER (binary) or PEM (ASCII)
    // format (assume that is not ASCII is a DER).
-   // Return 1 if not-PEM, 0 if PEM, -1 if any error occured
+   // Return 1 if not-PEM, 0 if PEM, -1 if any error occurred
    EPNAME("GetFileType");
 
    if (!crlfn || strlen(crlfn) <= 0) {

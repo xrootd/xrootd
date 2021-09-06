@@ -41,8 +41,8 @@ public:
 
 int             fd;       // File descriptor
 XrdNetSockAddr  Inet;
-char           *InetName; // Incomming peer host name (must be copied)
-XrdNetBuffer   *InetBuff; // Incomming datagram buffer for UDP accepts
+char           *InetName; // Incoming peer host name (must be copied)
+XrdNetBuffer   *InetBuff; // Incoming datagram buffer for UDP accepts
 
                 XrdNetPeer() {InetName = 0; InetBuff = 0;}
                ~XrdNetPeer() {if (InetName) free(InetName);

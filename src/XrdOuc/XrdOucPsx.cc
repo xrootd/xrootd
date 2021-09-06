@@ -151,7 +151,7 @@ bool XrdOucPsx::ClientConfig(const char *pfx, bool hush)
        tFifo.Clear();
       }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = Config.LastError()))
       {eDest.Emsg("Config", retc, "read config file", configFN); aOK = false;}
@@ -536,7 +536,7 @@ bool XrdOucPsx::ParseCLib(XrdSysError *Eroute, XrdOucStream &Config)
    if (cPath) free(cPath);
    if (!strcmp(val,"libXrdFileCache.so") || !strcmp(val,"libXrdFileCache-4.so"))
       {Eroute->Say("Config warning: 'libXrdFileCache' has been replaced by "
-            "'libXrdPfc'; for future compatability specify 'default' instead!");
+            "'libXrdPfc'; for future compatibility specify 'default' instead!");
        cPath = strdup("libXrdPfc.so");
       } else {
        cPath = (strcmp(val,"default") ? strdup(val) : strdup("libXrdPfc.so"));

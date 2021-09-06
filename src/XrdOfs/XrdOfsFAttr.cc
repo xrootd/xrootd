@@ -110,7 +110,7 @@ bool GetFAVal(XrdSfsFACtl &faCtl, char *&bP, int &bL, unsigned int k)
 //
    rc = XrdSysFAttr::Xat->Get(faCtl.info[k].Name, bP, bL, faCtl.pfnP);
 
-// If all went well, record the value and update incomming information
+// If all went well, record the value and update incoming information
 //
    if (rc >= 0)
       {faCtl.info[k].faRC  = 0;

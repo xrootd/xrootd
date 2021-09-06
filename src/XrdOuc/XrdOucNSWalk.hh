@@ -67,9 +67,9 @@ Etype         Type;   // One of the above. If isLink then Link is invalid!
 // NSEnts != 0 && rc == 0: Normal ending.
 // NSEnts != 0 && rc != 0: Potentially short list as indexing aborted w/ err.
 // NSEnts == 0 && rc == 0: End of indexing no more entries can be returned.
-// NSEnts == 0 && rc != 0: Abort occured before any entries could be returned.
+// NSEnts == 0 && rc != 0: Abort occurred before any entries could be returned.
 //
-// When opts & skpErrs is true, then rc may be zero even when an error occured.
+// When opts & skpErrs is true, then rc may be zero even when an error occurred.
 //
 // If opts & Recurse, indexing will traverse the directory tree, one directory
 // at a time. For a complete traversal you sould keep calling Index() until

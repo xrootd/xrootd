@@ -896,7 +896,7 @@ int XrdConfig::ConfigProc()
         ||  !strcmp (var, "all.sitename" ))
            if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = Config.LastError()))
       NoGo = Log.Emsg("Config", retc, "read config file", ConfigFN);
@@ -1586,7 +1586,7 @@ int XrdConfig::xhpath(XrdSysError *eDest, XrdOucStream &Config)
 // If the command line specified he home, it cannot be undone
 //
    if (Specs & hpSpec)
-      {eDest->Say("Config warning: command line homepath cannot be overidden.");
+      {eDest->Say("Config warning: command line homepath cannot be overridden.");
        Config.GetWord();
        return 0;
       }
@@ -1663,7 +1663,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
              tls       parameters apply only to the tls port
              keepalive do [not] set the socket keepalive option.
-             kaparms   keepalive paramters as specfied by parms.
+             kaparms   keepalive paramters as specified by parms.
              <blen>    is the socket's send/rcv buffer size.
              <ct>      Seconds to cache address to name resolutions.
              [no]dnr   do [not] perform a reverse DNS lookup if not needed.
@@ -1865,7 +1865,7 @@ int XrdConfig::xpidf(XrdSysError *eDest, XrdOucStream &Config)
                                                [if [<hlst>] [named <nlst>]]
 
              tls        apply this to the tls port
-             <tcpnum>   number of the tcp port for incomming requests
+             <tcpnum>   number of the tcp port for incoming requests
              <hlst>     list of applicable host patterns
              <nlst>     list of applicable instance names.
 

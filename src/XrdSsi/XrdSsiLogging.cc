@@ -97,7 +97,7 @@ void ConfigLog(const char *cFN)
                  }
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = cStrm.LastError()))
       {cerr <<"Config " <<XrdSysE2T(-retc) <<" reading " <<cFN <<endl;

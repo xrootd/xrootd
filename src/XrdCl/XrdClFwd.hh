@@ -96,12 +96,12 @@ namespace XrdCl
     union Memory
     {
       //------------------------------------------------------------------------
-      //! Make sure the default constructor of T wont be called
+      //! Make sure the default constructor of T won't be called
       //------------------------------------------------------------------------
       Memory() { }
 
       //------------------------------------------------------------------------
-      //! Make sure the destrutor of T wont be called
+      //! Make sure the destrutor of T won't be called
       //------------------------------------------------------------------------
       ~Memory() { }
 

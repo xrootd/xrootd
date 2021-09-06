@@ -107,7 +107,7 @@ class XCpCtx
     void PutChunk( PageInfo* chunk );
 
     /**
-     * Get next block that has to be transfered
+     * Get next block that has to be transferred
      *
      * @return : pair of offset and block size
      */
@@ -149,7 +149,7 @@ class XCpCtx
      * @param ci : the chunk retrieved from sink (output parameter)
      * @retrun   : stError if we failed to transfer the file,
      *             stOK otherwise, with one of the following codes:
-     *             - suDone     : the whole file has been transfered,
+     *             - suDone     : the whole file has been transferred,
      *                            we are done
      *             - suContinue : a chunk has been written into ci,
      *                            continue calling GetChunk in order
@@ -180,11 +180,11 @@ class XCpCtx
     void NotifyIdleSrc();
 
     /**
-     * Returns true if all chunks have been transfered,
+     * Returns true if all chunks have been transferred,
      * otherwise blocks until NotifyIdleSrc is called,
      * or a 1 minute timeout occurs.
      *
-     * @return : true is all chunks have been transfered,
+     * @return : true is all chunks have been transferred,
      *           false otherwise.
      */
     bool AllDone();

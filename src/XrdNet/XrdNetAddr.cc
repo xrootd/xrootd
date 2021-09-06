@@ -173,7 +173,7 @@ bool XrdNetAddr::Register(const char *hName)
    XrdNetAddr *aListVec = 0;
    int i, aListNum;
 
-// Step one is to make sure the incomming name is not an address
+// Step one is to make sure the incoming name is not an address
 //
    if (!isHostName(hName)) return false;
 

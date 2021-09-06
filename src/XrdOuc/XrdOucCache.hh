@@ -110,7 +110,7 @@ public:
 //!
 //! @note   This method must be called instead of using the delete operator
 //!         since CacheIO objects may have multiple outstanding references and
-//!         actual deletion may need to be defered.
+//!         actual deletion may need to be deferred.
 //!
 //! @param  iocd   reference to the detach complete callback object.
 //!

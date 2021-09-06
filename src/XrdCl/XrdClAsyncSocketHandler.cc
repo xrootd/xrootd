@@ -741,7 +741,7 @@ namespace XrdCl
         {
           Log *log = DefaultEnv::GetLog();
           log->Error( AsyncSockMsg,
-                      "[%s] Wont retry kXR_endsess request because would"
+                      "[%s] Won't retry kXR_endsess request because would"
                       "reach connection timeout.",
                       pStreamName.c_str() );
 
@@ -906,7 +906,7 @@ namespace XrdCl
       // if we are here it means Stream::OnError has been
       // called from inside of Stream::OnReadTimeout, this
       // in turn means that the ownership of following
-      // pointers, has been transfered to the inQueue
+      // pointers, has been transferred to the inQueue
       if( !pIncHandler.second )
         delete pIncoming;
 

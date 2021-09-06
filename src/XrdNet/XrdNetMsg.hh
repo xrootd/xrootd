@@ -61,7 +61,7 @@ public:
 //!                  the default, no time limit applies.
 //! @return <0       Message not sent due to error.
 //! @return =0       Message send (well as defined by UDP)
-//! @return >0       Message not sent, timeout occured.
+//! @return >0       Message not sent, timeout occurred.
 //------------------------------------------------------------------------------
 
 int           Send(const char *buff,          // The data to be send
@@ -80,7 +80,7 @@ int           Send(const char *buff,          // The data to be send
 //!                  the default, no time limit applies.
 //! @return <0       Message not sent due to error.
 //! @return =0       Message send (well as defined by UDP)
-//! @return >0       Message not sent, timeout occured.
+//! @return >0       Message not sent, timeout occurred.
 //------------------------------------------------------------------------------
 
 int           Send(const struct  iovec iov[], // Remaining parms as above

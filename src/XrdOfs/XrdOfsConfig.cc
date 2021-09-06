@@ -204,7 +204,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                             }
                 }
 
-           // Now check if any errors occured during file i/o
+           // Now check if any errors occurred during file i/o
            //
            if ((retc = Config.LastError()))
            NoGo = Eroute.Emsg("Config", -retc, "read config file",
@@ -968,11 +968,11 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
 
     *rHost = '\0';
     if (!(val = Config.GetWord()))
-       {Eroute.Emsg("Config", "foward option not specified"); return 1;}
+       {Eroute.Emsg("Config", "forward option not specified"); return 1;}
     if ((is2way = !strcmp("2way", val)) || !strcmp("1way", val)
     ||  (is3way = !strcmp("3way", val)))
        if (!(val = Config.GetWord()))
-          {Eroute.Emsg("Config", "foward operation not specified"); return 1;}
+          {Eroute.Emsg("Config", "forward operation not specified"); return 1;}
 
     if (is3way)
        {if (!strcmp("local", val)) rPort = -1;
@@ -987,7 +987,7 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
         strlcpy(rHost, val, sizeof(rHost));
        }
         if (!(val = Config.GetWord()))
-           {Eroute.Emsg("Config", "foward operation not specified"); return 1;}
+           {Eroute.Emsg("Config", "forward operation not specified"); return 1;}
        }
 
     while (val)
@@ -1002,7 +1002,7 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
                            }
                        }
                    if (i >= numopts)
-                      Eroute.Say("Config warning: ignoring invalid foward option '",val,"'.");
+                      Eroute.Say("Config warning: ignoring invalid forward option '",val,"'.");
                   }
           val = Config.GetWord();
          }
@@ -1412,7 +1412,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
           default: Eroute.Emsg("Config", "invalid role -", Tok1, Tok2); rc = 1;
          }
 
-// Release storage and return if an error occured
+// Release storage and return if an error occurred
 //
    free(Tok1);
    if (Tok2) free(Tok2);
@@ -1452,7 +1452,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 
              <dflt>  the default seconds a tpc authorization may be valid.
              <max>   the maximum seconds a tpc authorization may be valid.
-             cksum   checksum incomming files using <type> checksum.
+             cksum   checksum incoming files using <type> checksum.
              logok   log successful authorizations.
              allow   only allow destinations that match the specified
                      authentication specification.

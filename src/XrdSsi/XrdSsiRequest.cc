@@ -174,7 +174,7 @@ void XrdSsiRequest::GetResponseData(char *buff, int  blen)
            {if (CopyData(buff, blen)) return;}
    else    errInfo.Set("Not a stream", ENODATA);
 
-// If we got here then an error occured during the setup, reflect the error
+// If we got here then an error occurred during the setup, reflect the error
 // via the callback (in the future we will schedule a new thread).
 //
    ProcessResponseData(errInfo, buff, -1, true);

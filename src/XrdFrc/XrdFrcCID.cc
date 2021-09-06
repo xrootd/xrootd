@@ -189,7 +189,7 @@ int XrdFrcCID::Init(const char *aPath)
             NoGo |= Init(cidFile);
            }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if (NoGo) Say.Emsg("Init", "Errors processing chkpnt file", cidFN);
       else if ((n = cidFile.LastError()))

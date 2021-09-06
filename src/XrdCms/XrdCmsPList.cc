@@ -112,7 +112,7 @@ SMask_t XrdCmsPList_Anchor::Insert(const char *pname, XrdCmsPInfo *pinfo)
    pp = 0;
 
 // Find the proper insertion point. Paths are sorted in decreasin length
-// order. We must merge in the incomming mask with all subset paths.
+// order. We must merge in the incoming mask with all subset paths.
 //
    rc = 1;
    while(p && p->pathlen >= plen)

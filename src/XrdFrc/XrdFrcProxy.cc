@@ -287,7 +287,7 @@ int XrdFrcProxy::Init2(const char *ConfigFN)
             {cfgFile.Echo(); NoGo = 1;}
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = cfgFile.LastError()))
       NoGo = Say.Emsg("Config", retc, "read config file", ConfigFN);

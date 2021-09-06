@@ -139,7 +139,7 @@ XrdOucFileInfo *XrdXmlMetaLink::Convert(const char *fname, int blen)
    if (!(reader = XrdXmlReader::GetReader(fname, encType)))
       {eCode =  errno;
        snprintf(eText, sizeof(eText), "%s trying to read %s",
-               (errno ? XrdSysE2T(errno) : "Unknow error"), fname);
+               (errno ? XrdSysE2T(errno) : "Unknown error"), fname);
        return 0;
       }
 

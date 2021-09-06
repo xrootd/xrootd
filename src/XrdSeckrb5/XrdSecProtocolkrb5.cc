@@ -480,7 +480,7 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
    krbContext.Lock();
 
 // Check if whether the IP address in the credentials must match that of
-// the incomming host.
+// the incoming host.
 //
    CLDBG("Context Locked");
    if (!(XrdSecProtocolkrb5::options & XrdSecNOIPCHK))

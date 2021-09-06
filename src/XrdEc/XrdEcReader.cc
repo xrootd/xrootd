@@ -234,7 +234,7 @@ namespace XrdEc
       if( missingcnt + recoveringcnt == 0 ) return true;
       //---------------------------------------------------------------------
       // Check if we can do the recovery at all (if too many stripes are
-      // missing it wont be possible)
+      // missing it won't be possible)
       //---------------------------------------------------------------------
       if( missingcnt + recoveringcnt > self->objcfg.nbparity )
       {

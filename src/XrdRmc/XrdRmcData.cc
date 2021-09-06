@@ -404,7 +404,7 @@ int XrdRmcData::Read(char *Buff, long long Offs, int rLen)
 //
    Statistics.Add(Now);
 
-// See if a preread needs to be done. We will only do this if no errors occured
+// See if a preread needs to be done. We will only do this if no errors occurred
 //
    if (doPR && cBuff)
       {EnforceMrSw.UnLock();

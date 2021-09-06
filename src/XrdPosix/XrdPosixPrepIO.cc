@@ -52,7 +52,7 @@ void XrdPosixPrepIO::Disable()
    EPNAME("PrepIODisable");
    XrdPosixObjGuard objGuard(fileP);
 
-   DEBUG("Disabling defered open "<<fileP->Origin());
+   DEBUG("Disabling deferred open "<<fileP->Origin());
 
    openRC = -ESHUTDOWN;
 }

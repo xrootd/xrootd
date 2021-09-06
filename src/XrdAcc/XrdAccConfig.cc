@@ -287,7 +287,7 @@ int XrdAccConfig::ConfigFile(XrdSysError &Eroute, const char *ConfigFN) {
             }
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("Config",-retc,"read config file",ConfigFN);

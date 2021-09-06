@@ -228,7 +228,7 @@ int IOFileBlock::initLocalStat()
          if (m_info.Read(m_info_file, path.c_str()))
          {
             tmpStat.st_size = m_info.GetFileSize();
-            TRACEIO(Info, "initCachedStat successfuly read size from existing info file = " << tmpStat.st_size);
+            TRACEIO(Info, "initCachedStat successfully read size from existing info file = " << tmpStat.st_size);
             res = 0;
          }
          else

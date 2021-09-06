@@ -270,7 +270,7 @@ int XrdBwmFile::open(const char          *path,      // In
 {
    EPNAME("open");
    XrdBwmHandle *hP;
-   int incomming;
+   int incoming;
    const char *miss, *theUsr, *theSrc, *theDst=0, *theLfn=0, *lclNode, *rmtNode;
    XrdOucEnv Open_Env(info);
 
@@ -313,14 +313,14 @@ int XrdBwmFile::open(const char          *path,      // In
 // Determine the direction of flow
 //
         if (XrdOucUtils::endsWith(theSrc,XrdBwmFS.myDomain,XrdBwmFS.myDomLen))
-           {incomming = 0; lclNode = theSrc; rmtNode = theDst;}
+           {incoming = 0; lclNode = theSrc; rmtNode = theDst;}
    else if (XrdOucUtils::endsWith(theDst,XrdBwmFS.myDomain,XrdBwmFS.myDomLen))
-           {incomming = 1; lclNode = theDst; rmtNode = theSrc;}
+           {incoming = 1; lclNode = theDst; rmtNode = theSrc;}
    else return XrdBwmFS.Emsg("open", error, EREMOTE, "open", path);
 
 // Get a handle for this file.
 //
-   if (!(hP = XrdBwmHandle::Alloc(theUsr,theLfn,lclNode,rmtNode,incomming)))
+   if (!(hP = XrdBwmHandle::Alloc(theUsr,theLfn,lclNode,rmtNode,incoming)))
       return XrdBwmFS.Stall(error, 13, path);
 
 // All done

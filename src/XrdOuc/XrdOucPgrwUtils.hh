@@ -115,7 +115,7 @@ static bool  csVer(dataInfo &dInfo, off_t &bado, int &badc);
 //!
 //! @param  layout Reference to the layout parameter (see below).
 //! @param  offs   recvLayout: Offset at which the subsequent write occurs.
-//!                sendLayout: Offset at which the preceeding read  occurs.
+//!                sendLayout: Offset at which the preceding  read  occurs.
 //! @param  dlen   recvLayout: Nmber of sock bytes to receive with    checksums.
 //! @param  dlen   sendLayout: Nmber of file bytes to read    without checksums.
 //! @param  bsz    The size of the buffer exclusive of any checksums and must

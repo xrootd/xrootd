@@ -111,7 +111,7 @@ int  XrdBwmPolicy1::Done(int rHandle)
   
 int  XrdBwmPolicy1::Schedule(char *RespBuff, int RespSize, SchedParms &Parms)
 {
-   static const char *theWay[] = {"Incomming", "Outgoing"};
+   static const char *theWay[] = {"Incoming", "Outgoing"};
    refReq *rP;
    int myID;
 

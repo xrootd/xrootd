@@ -791,7 +791,7 @@ void XrdSsiFileReq::Recycle()
 {
 
 // If we have an oucbuffer then we need to recycle it, otherwise if we have
-// and sfs buffer, put it on the defered release queue.
+// and sfs buffer, put it on the deferred release queue.
 //
         if (oucBuff) {oucBuff->Recycle(); oucBuff = 0;}
    else if (sfsBref) {XrdSfsXio::Reclaim(sfsBref); sfsBref = 0;}

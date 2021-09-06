@@ -216,7 +216,7 @@ int XrdLinkXeq::Close(bool defer)
        return 0;
       }
 
-// If we got here then this is not a defered close so we just need to check
+// If we got here then this is not a deferred close so we just need to check
 // if there is a sendq appendage we need to get rid of.
 //
    if (sendQ)
@@ -231,7 +231,7 @@ int XrdLinkXeq::Close(bool defer)
 //
    while(LinkInfo.InUse > 1)
       {opHelper.UnLock();
-       TRACEI(DEBUG, "Close FD "<<LinkInfo.FD <<" defered, use count="
+       TRACEI(DEBUG, "Close FD "<<LinkInfo.FD <<" deferred, use count="
                      <<LinkInfo.InUse);
        Serialize();
        opHelper.Lock(&LinkInfo.opMutex);
@@ -556,7 +556,7 @@ int XrdLinkXeq::RecvAll(char *Buff, int Blen, int timeout)
    if (int(rlen) == Blen) return Blen;
         if (!rlen) {TRACEI(DEBUG, "No RecvAll() data; errno=" <<errno);}
    else if (rlen > 0) Log.Emsg("RecvAll", "Premature end from", ID);
-   else if (LinkInfo.FD >= 0) Log.Emsg("Link", errno, "recieve from", ID);
+   else if (LinkInfo.FD >= 0) Log.Emsg("Link", errno, "receive from", ID);
    return -1;
 }
   

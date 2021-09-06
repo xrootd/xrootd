@@ -586,7 +586,7 @@ int XrdSecProtocolsss::getCred(XrdOucErrInfo       *einfo,
    if ((dLen = Decode(einfo, decKey, parm->buffer, &prData, parm->size)) <= 0)
       return Fatal(einfo, "getCred", EINVAL, "Unable to decode server response.");
 
-// Extract out the loginid. This messy code is for backwards compatability.
+// Extract out the loginid. This messy code is for backwards compatibility.
 //
    bP = prData.Data; eodP = dLen + (char *)&prData;
    while(bP < eodP)
@@ -832,7 +832,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
 
 // We want to establish the default location of the keytable. First check
 // the environment passed from the client then the envar. We support two
-// version of the envar for backward compatability due to an early mistake.
+// version of the envar for backward compatibility due to an early mistake.
 //
    if( erp && erp->getEnv() && ( kP = erp->getEnv()->Get( "xrd.sss" ) ) )
      ktFixed = true;
@@ -1020,7 +1020,7 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
    CLDBG("Server keytab='" <<ktServer <<"'");
 
 // Construct client parameter <enccode>.+<lifetime>:<keytab>
-// Note: The plus preceeding the <lifetime> indicates that we are a V2 server.
+// Note: The plus preceding the <lifetime> indicates that we are a V2 server.
 // V1 clients will simply ignore this and treat us as a V1 server.
 //
    sprintf(buff, "%c.+%s%d:%s", CryptObj->Type(),ask4Creds,lifeTime,ktClient);

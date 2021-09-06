@@ -137,7 +137,7 @@ int XrdBwmHandle::Activate(XrdOucErrInfo &einfo)
        Status  = Dispatched;
        rTime   = time(0);
        ZTRACE(sched,"Run " <<Parms.Lfn <<' ' <<Parms.LclNode
-                    <<(Parms.Direction==XrdBwmPolicy::Incomming?" <- ":" -> ")
+                    <<(Parms.Direction==XrdBwmPolicy::Incoming?" <- ":" -> ")
                     <<Parms.RmtNode);
        einfo.setErrCode(strlen(rBuff));
        return (*rBuff ? SFS_DATA : SFS_OK);
@@ -152,7 +152,7 @@ int XrdBwmHandle::Activate(XrdOucErrInfo &einfo)
    Status = Scheduled;
    refHandle(rHandle, this);
    ZTRACE(sched, "inQ " <<Parms.Lfn <<' ' <<Parms.LclNode
-                <<(Parms.Direction==XrdBwmPolicy::Incomming?" <- ":" -> ")
+                <<(Parms.Direction==XrdBwmPolicy::Incoming?" <- ":" -> ")
                 <<Parms.RmtNode);
 
 // Indicate that client needs to wait
@@ -167,7 +167,7 @@ int XrdBwmHandle::Activate(XrdOucErrInfo &einfo)
   
 XrdBwmHandle *XrdBwmHandle::Alloc(const char *theUsr,  const char *thePath,
                                   const char *LclNode, const char *RmtNode,
-                                  int Incomming)
+                                  int Incoming)
 {
    XrdBwmHandle *hP = Alloc();
 
@@ -178,7 +178,7 @@ XrdBwmHandle *XrdBwmHandle::Alloc(const char *theUsr,  const char *thePath,
        hP->Parms.Lfn       = strdup(thePath);
        hP->Parms.LclNode   = strdup(LclNode);
        hP->Parms.RmtNode   = strdup(RmtNode);
-       hP->Parms.Direction = (Incomming ? XrdBwmPolicy::Incomming
+       hP->Parms.Direction = (Incoming ? XrdBwmPolicy::Incoming
                                         : XrdBwmPolicy::Outgoing);
        hP->Status          = Idle;
        hP->qTime           = 0;
@@ -270,7 +270,7 @@ void *XrdBwmHandle::Dispatch()
                  Result = (*RespBuff ? SFS_DATA : SFS_OK);
                 }
        ZTRACE(sched,(Err?"Err ":"Run ") <<hP->Parms.Lfn <<' ' <<hP->Parms.LclNode
-             <<(hP->Parms.Direction == XrdBwmPolicy::Incomming ? " <- ":" -> ")
+             <<(hP->Parms.Direction == XrdBwmPolicy::Incoming ? " <- ":" -> ")
              <<hP->Parms.RmtNode);
        hP->ErrCB->Done(Result, (XrdOucErrInfo *)erP);
        erP = XrdBwmHandleCB::Alloc();
@@ -356,7 +356,7 @@ void XrdBwmHandle::Retire()
        myInfo.CTime   = time(0);
        myInfo.Size    = xSize;
        myInfo.ESec    = xTime;
-       myInfo.Flow    = (Parms.Direction == XrdBwmPolicy::Incomming ? 'I':'O');
+       myInfo.Flow    = (Parms.Direction == XrdBwmPolicy::Incoming ? 'I':'O');
        Policy->Status(myInfo.numqIn, myInfo.numqOut, myInfo.numqXeq);
        Logger->Event(myInfo);
       }

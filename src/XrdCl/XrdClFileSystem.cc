@@ -673,7 +673,7 @@ namespace
         // clean up the arguments
         delete status;
         delete response;
-        // if we wont be continuing with the same handler, it can be deleted
+        // if we won't be continuing with the same handler, it can be deleted
         if( finalrsp )
           delete this;
       }

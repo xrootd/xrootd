@@ -446,7 +446,7 @@ bool XrdCmsBlackList::GetBL(XrdOucTList  *&bList,
          if (!AddBL(bAnchor, hsp, rAnchor, rsp)) aOK = false;
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = blFile.LastError()))
       {Say.Emsg("GetBL", retc, rEmsg, blFN); aOK = false;}

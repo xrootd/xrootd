@@ -213,7 +213,7 @@ int XrdOssSys::StatFS(const char *path, unsigned long long &Opt,
 /******************************************************************************/
 
 /*
-  Function: Return free space information based on a cahe group name.
+  Function: Return free space information based on a cache group name.
 
   Input:    Env         - Is the environment for cgi info.
             path        - Is the path name.

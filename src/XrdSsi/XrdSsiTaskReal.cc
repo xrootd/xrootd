@@ -347,7 +347,7 @@ bool XrdSsiTaskReal::RespErr(XrdCl::XRootDStatus *status)
    std::string eTxt;
    int         eNum = XrdSsiUtils::GetErr(*status, eTxt);
 
-// Indicate we are done and unlock the session. The caller should have defered
+// Indicate we are done and unlock the session. The caller should have deferred
 // the processing of Finished() if this object will continue to be referenced.
 //
    tStat  = isDone;
@@ -375,7 +375,7 @@ void XrdSsiTaskReal::SchedError(XrdSsiErrInfo *eInfo)
 //
    if (eInfo) errInfo = *eInfo;
 
-// Schedule the error to avoid lock clashes. Make sure Finished calls defered.
+// Schedule the error to avoid lock clashes. Make sure Finished calls deferred.
 // The target (SendError) will decrease the defer refcount (ugly but true).
 //
    defer++;
@@ -487,7 +487,7 @@ bool XrdSsiTaskReal::SendRequest(const char *node)
                                 (XrdCl::ResponseHandler *)this, tmOut);
 
 // Determine ending status. If it's bad, schedule an error. Note that calls to
-// Finished() will be defered until the error thread gets control.
+// Finished() will be deferred until the error thread gets control.
 //
    if (!Status.IsOK())
       {XrdSsiUtils::SetErr(Status, errInfo);
@@ -614,7 +614,7 @@ int  XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
    TaskStat Tstat;
    bool last, aOK = status->IsOK();
 
-// Obtain a lock and indicate the any Finish() calls should be defered until
+// Obtain a lock and indicate the any Finish() calls should be deferred until
 // we return from this method. The reason is that any callback that we do here
 // may precipitate a Finish() call not to mention some other thread doing so.
 //
@@ -692,7 +692,7 @@ int  XrdSsiTaskReal::XeqEvent(XrdCl::XRootDStatus *status,
                return 1;
          }
 
-// Handle incomming response data. The session mutex is still locked!
+// Handle incoming response data. The session mutex is still locked!
 //
    if (!aOK || !response)
       {ibRead = -1;
@@ -735,7 +735,7 @@ void XrdSsiTaskReal::XeqEvFin()
    DEBUG("Status="<<statName[tStat]<<" defer=" <<defer<<" mhPend="<<mhPend);
 
 
-// Check if finished has been called while we were defered or if this is an
+// Check if finished has been called while we were deferred or if this is an
 // orphaned task due to a session stop request.
 //
    if (tStat == isDead)

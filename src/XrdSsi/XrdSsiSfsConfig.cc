@@ -203,7 +203,7 @@ bool XrdSsiSfsConfig::Configure(const char *cFN, XrdOucEnv *envP)
             {if (ConfigXeq(var+4)) {cFile->Echo(); NoGo=1;}}
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((retc = cStrm.LastError()))
        NoGo = Log.Emsg("Config", -retc, "read config file", cFN);
@@ -675,7 +675,7 @@ int XrdSsiSfsConfig::Xrole()
    if (roleID == XrdCmsRole::noRole)
       {Log.Emsg("Config", "invalid role -", Tok1, Tok2); rc = 1;}
 
-// Release storage and return if an error occured
+// Release storage and return if an error occurred
 //
    free(Tok1);
    if (Tok2) free(Tok2);

@@ -770,7 +770,7 @@ namespace XrdCl
                                         bool              zip)
   {
     //--------------------------------------------------------------------------
-    // If both files are local we wont be checksumming at all
+    // If both files are local we won't be checksumming at all
     //--------------------------------------------------------------------------
     if( source.IsLocalFile() && !source.IsMetalink() && destination.IsLocalFile() ) return std::string();
 

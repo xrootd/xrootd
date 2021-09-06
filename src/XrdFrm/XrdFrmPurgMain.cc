@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 //
    XrdXrootdTrace = new XrdOucTrace(&Say);
 
-// Display configuration (defered because mum might have been in effect)
+// Display configuration (deferred because mum might have been in effect)
 //
    if (!Config.isOTO || Config.Verbose) XrdFrmPurge::Display();
 

@@ -172,7 +172,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          struct stat infoStat;
          if (GetOss()->Stat(cinfo_path.c_str(), &infoStat) == XrdOssOK)
          {
-            TRACE(Error, err_prefix << "cinfo file alreay exists for '" << file_path << "'. Refusing to overwrite.");
+            TRACE(Error, err_prefix << "cinfo file already exists for '" << file_path << "'. Refusing to overwrite.");
             return;
          }
       }

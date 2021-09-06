@@ -140,7 +140,7 @@ static
 bool  Preload(const char *path,  char *ebuff=0, int eblen=0);
 
 //------------------------------------------------------------------------------
-//! Compare two versions for compatability, optionally printing a warning.
+//! Compare two versions for compatibility, optionally printing a warning.
 //!
 //! @param  vInf1 -> Version information for source.
 //! @param  vInf2 -> Version information for target.

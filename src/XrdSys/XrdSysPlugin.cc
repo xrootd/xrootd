@@ -319,7 +319,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
        return 0;
       }
 
-// Check if we need to verify version compatability
+// Check if we need to verify version compatibility
 //
    if ((cvRC = chkVersion(urInfo, pname, myHandle)) == cvBad) return 0;
 

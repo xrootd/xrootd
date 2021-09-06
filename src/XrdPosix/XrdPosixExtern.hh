@@ -36,14 +36,14 @@
 
 // Use this file directly to define your own macros or interfaces. Note that
 // native types are used to avoid 32/64 bit parameter/return value ambiguities
-// and to enforce shared library compatability (needed by the preload32 code).
+// and to enforce shared library compatibility (needed by the preload32 code).
 
 // Only 64-bit interfaces are directly supported. However, the preload library
 // supports the old 32-bit interfaces. To use this include you must specify
 
 // -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 
-// compilation options. This ensures LP64 compatability which defines:
+// compilation options. This ensures LP64 compatibility which defines:
 //
 // ssize_t ->          long long
 //  size_t -> unsigned long long
