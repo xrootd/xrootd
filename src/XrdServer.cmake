@@ -185,13 +185,18 @@ add_library(
   XrdDig/XrdDigConfig.cc        XrdDig/XrdDigConfig.hh
   XrdDig/XrdDigFS.cc            XrdDig/XrdDigFS.hh )
 
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+  SET(ATOMIC_LIBS -latomic)
+endif()
+
 target_link_libraries(
   XrdServer
   XrdUtils
   ${CMAKE_DL_LIBS}
   pthread
   ${EXTRA_LIBS}
-  ${SOCKET_LIBRARY} )
+  ${SOCKET_LIBRARY}
+  ${ATOMIC_LIBS} )
 
 set_target_properties(
   XrdServer
