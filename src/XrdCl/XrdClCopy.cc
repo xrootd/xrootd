@@ -49,7 +49,8 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //! Constructor
     //--------------------------------------------------------------------------
     ProgressDisplay(): pPrevious(0), pPrintProgressBar(true),
-      pPrintSourceCheckSum(false), pPrintTargetCheckSum(false)
+      pPrintSourceCheckSum(false), pPrintTargetCheckSum(false),
+      pPrintAdditionalCheckSum(false)
     {}
 
     //--------------------------------------------------------------------------
@@ -270,6 +271,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     void PrintProgressBar( bool print )    { pPrintProgressBar    = print; }
     void PrintSourceCheckSum( bool print ) { pPrintSourceCheckSum = print; }
     void PrintTargetCheckSum( bool print ) { pPrintTargetCheckSum = print; }
+    void PrintAdditionalCheckSum( bool print ) { pPrintAdditionalCheckSum = print; }
 
   private:
     struct JobData
@@ -287,6 +289,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     bool                        pPrintProgressBar;
     bool                        pPrintSourceCheckSum;
     bool                        pPrintTargetCheckSum;
+    bool                        pPrintAdditionalCheckSum;
     std::map<uint16_t, JobData> pOngoingJobs;
     XrdSysRecMutex              pMutex;
 };
@@ -574,6 +577,9 @@ int main( int argc, char **argv )
     }
   }
 
+  if( !config.AddCksVal.empty() )
+    progress.PrintAdditionalCheckSum( true );
+
   //----------------------------------------------------------------------------
   // ZIP archive
   //----------------------------------------------------------------------------
@@ -858,6 +864,7 @@ int main( int argc, char **argv )
     properties.Set( "rmOnBadCksum",    rmOnBadCksum           );
     properties.Set( "continue",        continue_              );
     properties.Set( "zipAppend",       zipappend              );
+    properties.Set( "addcksums",       config.AddCksVal );
 
     if( zip )
       properties.Set( "zipSource",     zipFile                );
