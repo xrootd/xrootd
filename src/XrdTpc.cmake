@@ -49,7 +49,7 @@ if( BUILD_TPC )
     XrdUtils
     XrdHttpUtils
     ${CMAKE_DL_LIBS}
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${CURL_LIBRARIES} )
 
   if( MacOSX )

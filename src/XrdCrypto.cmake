@@ -99,7 +99,7 @@ if( BUILD_CRYPTO )
     ${LIB_XRD_CRYPTOSSL}
     XrdCrypto
     XrdUtils
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${OPENSSL_LIBRARIES} )
 
   set_target_properties(

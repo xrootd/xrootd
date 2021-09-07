@@ -52,7 +52,7 @@ target_link_libraries(
   XrdSsiLib
   XrdCl
   XrdUtils
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   XrdSsiLib
@@ -75,7 +75,7 @@ target_link_libraries(
   XrdSsiShMap
   XrdUtils
   ${ZLIB_LIBRARY}
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   XrdSsiShMap

@@ -26,7 +26,7 @@ target_link_libraries(
    XrdUtils
    XrdServer
    dl
-   pthread )
+   ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
    ${LIB_XRD_SCITOKENS}

@@ -19,7 +19,7 @@ target_link_libraries(
   XrdXml
   XrdAppUtils
   dl
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
   
   
 add_executable(
@@ -30,6 +30,6 @@ target_link_libraries(
   xrdsrv-tls
   XrdUtils
   ${OPENSSL_LIBRARIES}
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
   
 endif()
