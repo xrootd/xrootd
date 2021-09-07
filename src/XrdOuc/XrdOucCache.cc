@@ -52,7 +52,7 @@ int XrdOucCacheIO::pgRead(char                  *buff,
 //
    if (bytes > 0 && (opts & forceCS))
        XrdOucPgrwUtils::csCalc((const char *)buff, (ssize_t)offs,
-                               (size_t)rdlen, csvec);
+                               (size_t)bytes, csvec);
 
 // All done
 //
