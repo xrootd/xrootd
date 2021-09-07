@@ -172,7 +172,7 @@ ssize_t XrdOssDF::pgRead(void     *buffer,
 // Calculate checksums if so wanted
 //
    if (bytes > 0 && csvec) 
-      XrdOucPgrwUtils::csCalc((const char *)buffer, offset, rdlen, csvec);
+      XrdOucPgrwUtils::csCalc((const char *)buffer, offset, bytes, csvec);
 
 // All done
 //
