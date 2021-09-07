@@ -74,7 +74,7 @@ XrdSsi/XrdSsiShMat.cc                  XrdSsi/XrdSsiShMat.hh)
 target_link_libraries(
   XrdSsiShMap
   XrdUtils
-  ${ZLIB_LIBRARY}
+  ${ZLIB_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
