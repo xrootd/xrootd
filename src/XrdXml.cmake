@@ -48,7 +48,7 @@ target_link_libraries(
   XrdUtils
   ${TINYXML_LIBRARIES}
   ${XRDXML2_LIBRARIES}
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   XrdXml

@@ -9,15 +9,23 @@ add_library(
   CppUnitXrdHelpers.hh)
 
 target_link_libraries(
- XrdClTestsHelper
-  pthread
+  XrdClTestsHelper
+  ${CMAKE_THREAD_LIBS_INIT}
   ${CPPUNIT_LIBRARIES}
   ${ZLIB_LIBRARY}
   XrdCl
   XrdUtils)
 
-add_executable(test-runner TextRunner.cc PathProcessor.hh)
-target_link_libraries(test-runner ${CMAKE_DL_LIBS} ${CPPUNIT_LIBRARIES} pthread)
+add_executable(
+  test-runner
+  TextRunner.cc
+  PathProcessor.hh)
+
+target_link_libraries(
+  test-runner
+  ${CMAKE_DL_LIBS}
+  ${CPPUNIT_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
 # Install

@@ -43,7 +43,7 @@ if( BUILD_HTTP )
     XrdUtils
     XrdCrypto
     ${CMAKE_DL_LIBS}
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${OPENSSL_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY} )
 

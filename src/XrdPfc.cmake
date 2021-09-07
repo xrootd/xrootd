@@ -37,7 +37,7 @@ target_link_libraries(
   XrdCl
   XrdUtils
   XrdServer
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   ${LIB_XRD_FILECACHE}

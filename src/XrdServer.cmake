@@ -189,7 +189,7 @@ target_link_libraries(
   XrdServer
   XrdUtils
   ${CMAKE_DL_LIBS}
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 

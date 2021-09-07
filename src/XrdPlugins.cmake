@@ -61,7 +61,7 @@ target_link_libraries(
   ${LIB_XRD_BWM}
   XrdServer
   XrdUtils
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   ${LIB_XRD_BWM}
