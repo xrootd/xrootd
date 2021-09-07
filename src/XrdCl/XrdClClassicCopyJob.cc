@@ -230,6 +230,11 @@ namespace
         return XrdCl::XRootDStatus();
       }
 
+      const std::string& GetType()
+      {
+        return pCkSumType;
+      }
+
     private:
 
       //------------------------------------------------------------------------
@@ -349,16 +354,23 @@ namespace
       //------------------------------------------------------------------------
       // Destructor
       //------------------------------------------------------------------------
-      Source( const std::string &checkSumType = "" ) : pCkSumHelper( 0 ),
-                                                       pContinue( false )
+      Source( const std::string &checkSumType = "",
+              const std::vector<std::string> &addcks = std::vector<std::string>() ) :
+                pCkSumHelper( 0 ),
+                pContinue( false )
       {
         if( !checkSumType.empty() )
           pCkSumHelper = new CheckSumHelper( "source", checkSumType );
+
+        for( auto &type : addcks )
+          pAddCksHelpers.push_back( new CheckSumHelper( "source", type ) );
       };
 
       virtual ~Source()
       {
         delete pCkSumHelper;
+        for( auto ptr : pAddCksHelpers )
+          delete ptr;
       }
 
       //------------------------------------------------------------------------
@@ -393,6 +405,11 @@ namespace
                                                std::string &checkSumType ) = 0;
 
       //------------------------------------------------------------------------
+      //! Get additional checksums
+      //------------------------------------------------------------------------
+      virtual std::unordered_map<std::string, std::string> GetAddCks() = 0;
+
+      //------------------------------------------------------------------------
       //! Get extended attributes
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetXAttr( std::vector<XrdCl::xattr_t> &xattrs ) = 0;
@@ -407,8 +424,9 @@ namespace
 
     protected:
 
-      CheckSumHelper    *pCkSumHelper;
-      bool               pContinue;
+      CheckSumHelper               *pCkSumHelper;
+      std::vector<CheckSumHelper*>  pAddCksHelpers;
+      bool                          pContinue;
   };
 
   //----------------------------------------------------------------------------
@@ -552,8 +570,8 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      StdInSource( const std::string &ckSumType, uint32_t chunkSize ):
-        Source( ckSumType ),
+      StdInSource( const std::string &ckSumType, uint32_t chunkSize, const std::vector<std::string> &addcks ):
+        Source( ckSumType, addcks ),
         pCurrentOffset(0),
         pChunkSize( chunkSize )
       {
@@ -636,6 +654,9 @@ namespace
         if( pCkSumHelper )
           pCkSumHelper->Update( buffer, bytesRead );
 
+        for( auto cksHelper : pAddCksHelpers )
+          cksHelper->Update( buffer, bytesRead );
+
         ci = XrdCl::PageInfo( pCurrentOffset, bytesRead, buffer );
         pCurrentOffset += bytesRead;
         return XRootDStatus( stOK, suContinue );
@@ -651,6 +672,22 @@ namespace
         if( pCkSumHelper )
           return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
         return XRootDStatus( stError, errCheckSumError );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get additional checksums
+      //------------------------------------------------------------------------
+      std::unordered_map<std::string, std::string> GetAddCks()
+      {
+        std::unordered_map<std::string, std::string> ret;
+        for( auto cksHelper : pAddCksHelpers )
+        {
+          std::string type = cksHelper->GetType();
+          std::string cks;
+          cksHelper->GetCheckSum( cks, type );
+          ret[type] = cks;
+        }
+        return ret;
       }
 
       //------------------------------------------------------------------------
@@ -730,8 +767,9 @@ namespace
       XRootDSource( const XrdCl::URL *url,
                     uint32_t          chunkSize,
                     uint8_t           parallelChunks,
-                    const std::string &ckSumType ):
-        Source( ckSumType ),
+                    const std::string &ckSumType,
+                    const std::vector<std::string> &addcks ):
+        Source( ckSumType, addcks ),
         pUrl( url ), pFile( new XrdCl::File() ), pSize( -1 ),
         pCurrentOffset( 0 ), pChunkSize( chunkSize ),
         pParallel( parallelChunks ),
@@ -860,6 +898,13 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        return GetCheckSumImpl( pCkSumHelper, checkSum, checkSumType );
+      }
+
+      XrdCl::XRootDStatus GetCheckSumImpl( CheckSumHelper *cksHelper,
+                                           std::string    &checkSum,
+                                           std::string    &checkSumType )
+      {
         if( pUrl->IsMetalink() )
         {
           XrdCl::RedirectorRegistry &registry   = XrdCl::RedirectorRegistry::Instance();
@@ -883,6 +928,21 @@ namespace
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, XrdCl::URL( lastUrl ) );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get additional checksums
+      //------------------------------------------------------------------------
+      std::unordered_map<std::string, std::string> GetAddCks()
+      {
+        std::unordered_map<std::string, std::string> ret;
+        for( auto cksHelper : pAddCksHelpers )
+        {
+          std::string type = cksHelper->GetType();
+          std::string value;
+          GetCheckSumImpl( cksHelper, value, type );
+        }
+        return ret;
       }
 
     private:
@@ -992,8 +1052,14 @@ namespace
 
         ci = std::move( ch->chunk );
         // if it is a local file update the checksum
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
-          pCkSumHelper->Update( ci.GetBuffer(), ci.GetLength() );
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && !pContinue )
+        {
+          if( pCkSumHelper )
+            pCkSumHelper->Update( ci.GetBuffer(), ci.GetLength() );
+
+          for( auto cksHelper : pAddCksHelpers )
+            cksHelper->Update( ci.GetBuffer(), ci.GetLength() );
+        }
 
         return XRootDStatus( stOK, suContinue );
       }
@@ -1070,8 +1136,9 @@ namespace
                        const XrdCl::URL  *archive,
                        uint32_t           chunkSize,
                        uint8_t            parallelChunks,
-                       const std::string &ckSumType ):
-                      XRootDSource( archive, chunkSize, parallelChunks, ckSumType ),
+                       const std::string &ckSumType,
+                       const std::vector<std::string> &addcks ):
+                      XRootDSource( archive, chunkSize, parallelChunks, ckSumType, addcks ),
                       pFilename( filename ),
                       pZipArchive( new XrdCl::ZipArchive() )
       {
@@ -1148,6 +1215,16 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        return GetCheckSumImpl( checkSum, checkSumType, pCkSumHelper );
+      }
+
+      //------------------------------------------------------------------------
+      // Get check sum implementation
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSumImpl( std::string    &checkSum,
+                                                   std::string    &checkSumType,
+                                                   CheckSumHelper *cksHelper )
+      {
         // The ZIP archive by default contains a ZCRC32 checksum
         if( checkSumType == "zcrc32" )
         {
@@ -1177,11 +1254,27 @@ namespace
         }
 
         // if it is a local file we can calculate the checksum ourself
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
-          return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && cksHelper && !pContinue )
+          return cksHelper->GetCheckSum( checkSum, checkSumType );
 
         // if it is a remote file other types of checksum are not supported
         return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get additional checksums
+      //------------------------------------------------------------------------
+      std::unordered_map<std::string, std::string> GetAddCks()
+      {
+        std::unordered_map<std::string, std::string> ret;
+        for( auto cksHelper : pAddCksHelpers )
+        {
+          std::string type = cksHelper->GetType();
+          std::string value;
+          GetCheckSumImpl( value, type, cksHelper );
+          ret[type] = value;
+        }
+        return ret;
       }
 
       //------------------------------------------------------------------------
@@ -1221,8 +1314,9 @@ namespace
       //------------------------------------------------------------------------
       XRootDSourceDynamic( const XrdCl::URL *url,
                            uint32_t          chunkSize,
-                           const std::string &ckSumType ):
-        Source( ckSumType ),
+                           const std::string &ckSumType,
+                           const std::vector<std::string> &addcks ):
+        Source( ckSumType, addcks ),
         pUrl( url ), pFile( new XrdCl::File() ), pCurrentOffset( 0 ),
         pChunkSize( chunkSize ), pDone( false )
       {
@@ -1328,8 +1422,14 @@ namespace
           pDone = true;
 
         // if it is a local file update the checksum
-        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
-          pCkSumHelper->Update( buffer, bytesRead );
+        if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && !pContinue )
+        {
+          if( pCkSumHelper )
+            pCkSumHelper->Update( buffer, bytesRead );
+
+          for( auto cksHelper : pAddCksHelpers )
+            cksHelper->Update( buffer, bytesRead );
+        }
 
         ci = XrdCl::PageInfo( pCurrentOffset, bytesRead, buffer );
         pCurrentOffset += bytesRead;
@@ -1342,6 +1442,13 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
+      {
+        return GetCheckSumImpl( pCkSumHelper, checkSum, checkSumType );
+      }
+
+      XrdCl::XRootDStatus GetCheckSumImpl( CheckSumHelper *cksHelper,
+                                           std::string    &checkSum,
+                                           std::string    &checkSumType )
       {
         if( pUrl->IsMetalink() )
         {
@@ -1357,8 +1464,8 @@ namespace
             // in case of --continue option we have to calculate the checksum from scratch
             return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
 
-          if( pCkSumHelper )
-            return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+          if( cksHelper )
+            return cksHelper->GetCheckSum( checkSum, checkSumType );
 
           return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
         }
@@ -1366,6 +1473,22 @@ namespace
         std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         std::string lastUrl;    pFile->GetProperty( "LastURL",    lastUrl );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType, XrdCl::URL( lastUrl ) );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get additional checksums
+      //------------------------------------------------------------------------
+      std::unordered_map<std::string, std::string> GetAddCks()
+      {
+        std::unordered_map<std::string, std::string> ret;
+        for( auto cksHelper : pAddCksHelpers )
+        {
+          std::string type = cksHelper->GetType();
+          std::string value;
+          GetCheckSumImpl( cksHelper, value, type );
+          ret[type] = value;
+        }
+        return ret;
       }
 
       //------------------------------------------------------------------------
@@ -1514,6 +1637,14 @@ namespace
         }
 
         return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNoMoreReplicas );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get additional checksums
+      //------------------------------------------------------------------------
+      std::unordered_map<std::string, std::string> GetAddCks()
+      {
+        return std::unordered_map<std::string, std::string>();
       }
 
       //------------------------------------------------------------------------
@@ -2404,6 +2535,7 @@ namespace XrdCl
     long long   xRate;
     long long   xRateThreshold;
     uint16_t    cpTimeout;
+    std::vector<std::string> addcksums;
 
     pProperties->Get( "checkSumMode",    checkSumMode );
     pProperties->Get( "checkSumType",    checkSumType );
@@ -2425,6 +2557,7 @@ namespace XrdCl
     pProperties->Get( "continue",        continue_ );
     pProperties->Get( "cpTimeout",       cpTimeout );
     pProperties->Get( "zipAppend",       zipappend );
+    pProperties->Get( "addcksums",       addcksums );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
@@ -2473,15 +2606,15 @@ namespace XrdCl
     if( xcp )
       src.reset( new XRootDSourceXCp( &GetSource(), chunkSize, parallelChunks, nbXcpSources, blockSize ) );
     else if( zip ) // TODO make zip work for xcp
-      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks, checkSumType ) );
+      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks, checkSumType, addcksums ) );
     else if( GetSource().GetProtocol() == "stdio" )
-      src.reset( new StdInSource( checkSumType, chunkSize ) );
+      src.reset( new StdInSource( checkSumType, chunkSize, addcksums ) );
     else
     {
       if( dynamicSource )
-        src.reset( new XRootDSourceDynamic( &GetSource(), chunkSize, checkSumType ) );
+        src.reset( new XRootDSourceDynamic( &GetSource(), chunkSize, checkSumType, addcksums ) );
       else
-        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks, checkSumType ) );
+        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks, checkSumType, addcksums ) );
     }
 
     XRootDStatus st = src->Initialize();
