@@ -115,7 +115,7 @@ target_link_libraries(
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT}
   ${UUID_LIBRARY}
-  z
+  ${ZLIB_LIBRARIES}
   ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS}
   ${OPENSSL_LIBRARIES}
