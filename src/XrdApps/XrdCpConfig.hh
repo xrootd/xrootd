@@ -36,6 +36,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <vector>
 
 struct option;
 class  XrdCks;
@@ -92,6 +93,8 @@ XrdCpFile          *dstFile;        // The destination for the copy
 char               *zipFile;        // The file name if the URL points to a ZIP archive
 
 static XrdSysError *Log;            // -> Error message object
+
+std::vector<std::string> AddCksVal; // -> Additional checksum argument
 
 static const uint64_t    OpCksum        =  'C';  // -adler -MD5 legacy -> DoCksrc
 static const uint64_t    DoCksrc        =  0x0000000000000001LL; // --cksum <type>:source
