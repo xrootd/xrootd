@@ -608,6 +608,17 @@ int XrdCpConfig::a2z(const char *item, long long *val,
   
 int XrdCpConfig::defCks(const char *opval)
 {
+  if( CksVal )
+  {
+    std::string cksum( opval );
+    size_t pos = cksum.find( ':' );
+    std::string mode = cksum.substr( pos + 1 );
+    if( mode != "source" )
+      FMSG("Additional checksum must be of mode 'source'.", 13);
+    AddCksVal.push_back( cksum.substr( 0, pos ) );
+    return 1;
+  }
+
    static XrdVERSIONINFODEF(myVer, xrdcp, XrdVNUMBER, XrdVERSION);
    const char *Colon = index(opval, ':');
    char  csName[XrdCksData::NameSize];
