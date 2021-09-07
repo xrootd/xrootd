@@ -25,7 +25,7 @@ target_link_libraries(
   XrdCl
   XrdPosix
   XrdUtils
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   XrdFfs
@@ -47,7 +47,7 @@ if( BUILD_FUSE )
     xrootdfs
     XrdFfs
     XrdPosix
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${FUSE_LIBRARIES} )
 endif()
 

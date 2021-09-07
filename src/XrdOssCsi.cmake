@@ -31,7 +31,7 @@ target_link_libraries(
   ${LIB_XRD_OSSCSI}
   XrdUtils
   XrdServer
-  pthread )
+  ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
   ${LIB_XRD_OSSCSI}

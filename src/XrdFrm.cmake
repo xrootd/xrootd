@@ -40,7 +40,7 @@ target_link_libraries(
   XrdFrm
   XrdServer
   XrdUtils
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY}
   ${EXTRA_LIBS}
@@ -59,7 +59,7 @@ target_link_libraries(
   XrdFrm
   XrdServer
   XrdUtils
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
@@ -75,7 +75,7 @@ target_link_libraries(
   XrdFrm
   XrdServer
   XrdUtils
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
@@ -91,7 +91,7 @@ target_link_libraries(
   XrdFrm
   XrdServer
   XrdUtils
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 

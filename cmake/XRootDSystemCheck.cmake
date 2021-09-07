@@ -98,6 +98,12 @@ check_include_file( et/com_err.h HAVE_ET_COM_ERR_H )
 compiler_define_if_found( HAVE_ET_COM_ERR_H HAVE_ET_COM_ERR_H )
 
 #-------------------------------------------------------------------------------
+# Check for pthreads
+#-------------------------------------------------------------------------------
+set( THREADS_PREFER_PTHREAD_FLAG TRUE )
+find_package( Threads )
+
+#-------------------------------------------------------------------------------
 # Check for the atomics
 #-------------------------------------------------------------------------------
 if (CMAKE_CROSSCOMPILING)

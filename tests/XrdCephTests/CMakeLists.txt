@@ -8,7 +8,7 @@ add_library(
 
 target_link_libraries(
   XrdCephTests
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${CPPUNIT_LIBRARIES}
   ${ZLIB_LIBRARY}
   XrdCephPosix )

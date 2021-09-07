@@ -113,7 +113,7 @@ target_link_libraries(
   XrdCl
   XrdXml
   XrdUtils
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${UUID_LIBRARY}
   z
   ${EXTRA_LIBS}
@@ -144,7 +144,7 @@ add_executable(
 
 target_link_libraries(
   xrdfs
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   XrdCl
   XrdUtils
   ${READLINE_LIBRARY}

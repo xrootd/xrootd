@@ -28,7 +28,7 @@ if( NOT XRDCL_ONLY )
     xrdadler32
     XrdPosix
     XrdUtils
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${ZLIB_LIBRARY} )
 
 
@@ -66,7 +66,7 @@ if( NOT XRDCL_ONLY )
     XrdAppUtils
     XrdUtils
     ${EXTRA_LIBS}
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${SOCKET_LIBRARY} )
 
   #-----------------------------------------------------------------------------
@@ -79,7 +79,7 @@ if( NOT XRDCL_ONLY )
   target_link_libraries(
     wait41
     XrdUtils
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${EXTRA_LIBS} )
 
   #-----------------------------------------------------------------------------

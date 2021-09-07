@@ -35,7 +35,7 @@ add_library(
 target_link_libraries(
   ${LIB_XRD_SEC}
   XrdUtils
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS} )
 
 set_target_properties(
@@ -57,13 +57,13 @@ if( BUILD_CRYPTO )
   target_link_libraries(
     ${LIB_XRD_SEC_PROT}
     XrdUtils
-    pthread
+    ${CMAKE_THREAD_LIBS_INIT}
     ${OPENSSL_CRYPTO_LIBRARY} )
 else()
   target_link_libraries(
     ${LIB_XRD_SEC_PROT}
     XrdUtils
-    pthread )
+    ${CMAKE_THREAD_LIBS_INIT} )
 endif()
 
 set_target_properties(
@@ -85,7 +85,7 @@ target_link_libraries(
   ${LIB_XRD_SEC_PWD}
   XrdCrypto
   XrdUtils
-  pthread
+  ${CMAKE_THREAD_LIBS_INIT}
   ${CRYPT_LIBRARY} )
 
 set_target_properties(
