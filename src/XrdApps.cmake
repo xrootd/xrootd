@@ -29,7 +29,7 @@ if( NOT XRDCL_ONLY )
     XrdPosix
     XrdUtils
     ${CMAKE_THREAD_LIBS_INIT}
-    ${ZLIB_LIBRARY} )
+    ${ZLIB_LIBRARIES} )
 
 
   #-----------------------------------------------------------------------------
