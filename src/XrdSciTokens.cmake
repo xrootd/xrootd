@@ -25,7 +25,7 @@ target_link_libraries(
    ${SCITOKENS_CPP_LIBRARIES}
    XrdUtils
    XrdServer
-   dl
+   ${CMAKE_DL_LIBS}
    ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties(
