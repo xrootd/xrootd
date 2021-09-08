@@ -129,6 +129,14 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
         PrintCheckSum( d.target, checkSum, size );
       }
 
+      if( pPrintAdditionalCheckSum )
+      {
+        std::vector<std::string> addcksums;
+        results->Get( "additionalCkeckSum", addcksums );
+        for( auto &cks : addcksums )
+          PrintCheckSum( d.source, cks, size );
+      }
+
       pOngoingJobs.erase(it);
     }
 
