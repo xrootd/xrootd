@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <chrono>
 #include <thread>
+#include <vector>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -407,7 +408,7 @@ namespace
       //------------------------------------------------------------------------
       //! Get additional checksums
       //------------------------------------------------------------------------
-      virtual std::unordered_map<std::string, std::string> GetAddCks() = 0;
+      virtual std::vector<std::string> GetAddCks() = 0;
 
       //------------------------------------------------------------------------
       //! Get extended attributes
@@ -592,7 +593,15 @@ namespace
       virtual XrdCl::XRootDStatus Initialize()
       {
         if( pCkSumHelper )
-          return pCkSumHelper->Initialize();
+        {
+          auto st = pCkSumHelper->Initialize();
+          if( !st.IsOK() ) return st;
+          for( auto cksHelper : pAddCksHelpers )
+          {
+            st = cksHelper->Initialize();
+            if( !st.IsOK() ) return st;
+          }
+        }
         return XrdCl::XRootDStatus();
       }
 
@@ -665,27 +674,37 @@ namespace
       //------------------------------------------------------------------------
       //! Get check sum
       //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSumImpl( CheckSumHelper *cksHelper,
+                                                   std::string    &checkSum,
+                                                   std::string    &checkSumType )
+      {
+        using namespace XrdCl;
+        if( cksHelper )
+          return cksHelper->GetCheckSum( checkSum, checkSumType );
+        return XRootDStatus( stError, errCheckSumError );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
-        using namespace XrdCl;
-        if( pCkSumHelper )
-          return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
-        return XRootDStatus( stError, errCheckSumError );
+        return GetCheckSumImpl( pCkSumHelper, checkSum, checkSumType );
       }
 
       //------------------------------------------------------------------------
       //! Get additional checksums
       //------------------------------------------------------------------------
-      std::unordered_map<std::string, std::string> GetAddCks()
+      std::vector<std::string> GetAddCks()
       {
-        std::unordered_map<std::string, std::string> ret;
+        std::vector<std::string> ret;
         for( auto cksHelper : pAddCksHelpers )
         {
           std::string type = cksHelper->GetType();
           std::string cks;
-          cksHelper->GetCheckSum( cks, type );
-          ret[type] = cks;
+          GetCheckSumImpl( cksHelper, cks, type );
+          ret.push_back( type + ":" + cks );
         }
         return ret;
       }
@@ -828,6 +847,12 @@ namespace
         {
           st = pCkSumHelper->Initialize();
           if( !st.IsOK() ) return st;
+
+          for( auto cksHelper : pAddCksHelpers )
+          {
+            st = cksHelper->Initialize();
+            if( !st.IsOK() ) return st;
+          }
         }
 
         if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
@@ -919,8 +944,8 @@ namespace
             // in case of --continue option we have to calculate the checksum from scratch
             return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pUrl->GetPath() );
 
-          if( pCkSumHelper )
-            return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+          if( cksHelper )
+            return cksHelper->GetCheckSum( checkSum, checkSumType );
 
           return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError );
         }
@@ -933,14 +958,15 @@ namespace
       //------------------------------------------------------------------------
       //! Get additional checksums
       //------------------------------------------------------------------------
-      std::unordered_map<std::string, std::string> GetAddCks()
+      std::vector<std::string> GetAddCks()
       {
-        std::unordered_map<std::string, std::string> ret;
+        std::vector<std::string> ret;
         for( auto cksHelper : pAddCksHelpers )
         {
           std::string type = cksHelper->GetType();
-          std::string value;
-          GetCheckSumImpl( cksHelper, value, type );
+          std::string cks;
+          GetCheckSumImpl( cksHelper, cks, type );
+          ret.push_back( cks );
         }
         return ret;
       }
@@ -1188,7 +1214,15 @@ namespace
           return st;
 
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper )
-          return pCkSumHelper->Initialize();
+        {
+          auto st = pCkSumHelper->Initialize();
+          if( !st.IsOK() ) return st;
+          for( auto cksHelper : pAddCksHelpers )
+          {
+            st = cksHelper->Initialize();
+            if( !st.IsOK() ) return st;
+          }
+        }
 
         SetOnDataConnectHandler( pZipArchive );
 
@@ -1264,15 +1298,15 @@ namespace
       //------------------------------------------------------------------------
       //! Get additional checksums
       //------------------------------------------------------------------------
-      std::unordered_map<std::string, std::string> GetAddCks()
+      std::vector<std::string> GetAddCks()
       {
-        std::unordered_map<std::string, std::string> ret;
+        std::vector<std::string> ret;
         for( auto cksHelper : pAddCksHelpers )
         {
           std::string type = cksHelper->GetType();
-          std::string value;
-          GetCheckSumImpl( value, type, cksHelper );
-          ret[type] = value;
+          std::string cks;
+          GetCheckSumImpl( cks, type, cksHelper );
+          ret.push_back( cks );
         }
         return ret;
       }
@@ -1353,7 +1387,15 @@ namespace
           return st;
 
         if( pUrl->IsLocalFile() && !pUrl->IsMetalink() && pCkSumHelper && !pContinue )
-          return pCkSumHelper->Initialize();
+        {
+          auto st = pCkSumHelper->Initialize();
+          if( !st.IsOK() ) return st;
+          for( auto cksHelper : pAddCksHelpers )
+          {
+            st = cksHelper->Initialize();
+            if( !st.IsOK() ) return st;
+          }
+        }
 
         return XRootDStatus();
       }
@@ -1478,15 +1520,15 @@ namespace
       //------------------------------------------------------------------------
       //! Get additional checksums
       //------------------------------------------------------------------------
-      std::unordered_map<std::string, std::string> GetAddCks()
+      std::vector<std::string> GetAddCks()
       {
-        std::unordered_map<std::string, std::string> ret;
+        std::vector<std::string> ret;
         for( auto cksHelper : pAddCksHelpers )
         {
           std::string type = cksHelper->GetType();
-          std::string value;
-          GetCheckSumImpl( cksHelper, value, type );
-          ret[type] = value;
+          std::string cks;
+          GetCheckSumImpl( cksHelper, cks, type );
+          ret.push_back( cks );
         }
         return ret;
       }
@@ -1642,9 +1684,9 @@ namespace
       //------------------------------------------------------------------------
       //! Get additional checksums
       //------------------------------------------------------------------------
-      std::unordered_map<std::string, std::string> GetAddCks()
+      std::vector<std::string> GetAddCks()
       {
-        return std::unordered_map<std::string, std::string>();
+        return std::vector<std::string>();
       }
 
       //------------------------------------------------------------------------
@@ -2846,6 +2888,9 @@ namespace XrdCl
 
         pResults->Set( "sourceCheckSum", sourceCheckSum );
       }
+
+      if( !addcksums.empty() )
+        pResults->Set( "additionalCkeckSum", src->GetAddCks() );
 
       if( cptimer && cptimer->elapsed() > cpTimeout ) // check the CP timeout
         return Result( stError, errOperationExpired, 0, "CPTimeout exceeded." );
