@@ -39,7 +39,7 @@
 #include <memory>
 #include <mutex>
 #include <utility>
-#include <inttypes.h>
+#include <cinttypes>
 #include <stdio.h>
 
 class XrdOssCsiPages
