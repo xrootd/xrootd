@@ -163,7 +163,6 @@ inline void    g2nLock(XrdSysRWLock &gMutex)
                       {refCnt++;         // Keep node alive during transition
                        gMutex.UnLock();  // The lock must have ben held
                        nodeMutex.Lock(); // Downgrade to node lock
-                       refCnt--;         // OK, we have the node lock now
                       }
 
 inline void    n2gLock(XrdSysRWLock &gMutex, bool rdlock=false)
