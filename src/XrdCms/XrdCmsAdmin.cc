@@ -32,7 +32,7 @@
 #include <limits.h>
 #include <string>
 #include <unistd.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <netinet/in.h>
 #include <sys/types.h>
 

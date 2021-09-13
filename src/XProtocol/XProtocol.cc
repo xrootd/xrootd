@@ -50,7 +50,7 @@
 /*    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.    */
 /******************************************************************************/
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <string.h>

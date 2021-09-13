@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <netinet/in.h>
 #include <stdarg.h>
 #include <string.h>

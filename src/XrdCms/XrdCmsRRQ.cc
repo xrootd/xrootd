@@ -31,7 +31,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsNode.hh"

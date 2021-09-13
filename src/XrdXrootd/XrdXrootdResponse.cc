@@ -28,7 +28,7 @@
 /******************************************************************************/
  
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>

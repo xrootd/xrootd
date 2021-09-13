@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <time.h>
 #include <sys/types.h>
 

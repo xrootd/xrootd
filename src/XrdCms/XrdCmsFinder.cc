@@ -42,7 +42,7 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "XrdVersion.hh"
   

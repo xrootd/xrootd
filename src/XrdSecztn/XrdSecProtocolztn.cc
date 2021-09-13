@@ -34,7 +34,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <iostream>
 #include <stdint.h>
 #include <cstdio>
