@@ -30,7 +30,7 @@
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"

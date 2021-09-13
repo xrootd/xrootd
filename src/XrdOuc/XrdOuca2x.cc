@@ -30,7 +30,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <sys/stat.h>
-#include <errno.h>
+#include <cerrno>
 
 #ifdef WIN32
 #include "XrdSys/XrdWin32.hh"

@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <errno.h>
+#include <cerrno>
 #include <netdb.h>
 #include <cstdio>
 #include <unistd.h>

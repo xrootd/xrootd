@@ -32,7 +32,7 @@
 #else
 #include "XrdSys/XrdWin32.hh"
 #endif
-#include <errno.h>
+#include <cerrno>
 #include <ctime>
 #include <cstdio>
 #include "XrdSys/XrdSysTimer.hh"

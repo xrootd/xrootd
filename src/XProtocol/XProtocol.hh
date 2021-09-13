@@ -1312,7 +1312,7 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 /*                   X P r o t o c o l   U t i l i t i e s                    */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 #if defined(WIN32)
 #if !defined(ENOTBLK)
 #  define ENOTBLK 15

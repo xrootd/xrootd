@@ -60,7 +60,7 @@ Where:
   
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
+#include <cerrno>
 #include <cstdint>
 #include <signal.h>
 #include <cstdlib>

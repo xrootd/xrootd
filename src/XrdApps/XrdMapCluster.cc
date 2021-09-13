@@ -38,7 +38,7 @@
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
   
-#include <errno.h>
+#include <cerrno>
 #include <getopt.h>
 #include <cstdlib>
 #include <cstdio>

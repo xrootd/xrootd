@@ -33,7 +33,7 @@
 
 #ifdef HAVE_SSL
 
-#include <errno.h>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <sys/types.h>

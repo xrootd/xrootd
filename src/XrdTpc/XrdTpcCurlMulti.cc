@@ -1,7 +1,7 @@
 
 #include "XrdTpcCurlMulti.hh"
 
-#include <errno.h>
+#include <cerrno>
 #include <sys/select.h>
 
 #ifndef HAVE_CURL_MULTI_WAIT

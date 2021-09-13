@@ -48,7 +48,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 #include <sys/time.h>
 #include <pthread.h>
 #include <pwd.h>

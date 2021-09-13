@@ -36,7 +36,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdVoms.hh"
 #include "XrdVomsFun.hh"

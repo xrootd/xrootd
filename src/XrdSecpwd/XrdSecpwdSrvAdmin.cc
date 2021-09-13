@@ -80,7 +80,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 #include <pwd.h>
 #include <dirent.h>
 

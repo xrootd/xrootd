@@ -37,7 +37,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <cstdio>

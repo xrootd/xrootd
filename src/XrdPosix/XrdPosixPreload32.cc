@@ -42,7 +42,7 @@
 
 #define XRDPOSIXPRELOAD32
 
-#include <errno.h>
+#include <cerrno>
 #include <dirent.h>
 #include <cstdio>
 #include <cstdarg>

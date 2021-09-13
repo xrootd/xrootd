@@ -44,7 +44,7 @@
 #include <link.h>
 #endif
 
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"

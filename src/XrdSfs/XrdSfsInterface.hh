@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <cstring>      // For strlcpy()
-#include <errno.h>
+#include <cerrno>
 #include <cstdint>
 #include <sys/types.h>
 #include <sys/stat.h>

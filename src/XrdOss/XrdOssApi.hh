@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <sys/types.h>
-#include <errno.h>
+#include <cerrno>
 #include "XrdSys/XrdSysHeaders.hh"
 
 #include "XrdOss/XrdOss.hh"

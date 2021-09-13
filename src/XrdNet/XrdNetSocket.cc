@@ -31,7 +31,7 @@
 #ifndef WIN32
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <poll.h>
 #include <cstdio>
@@ -44,7 +44,7 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #else
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <cstdio>
 #include <cstdlib>
