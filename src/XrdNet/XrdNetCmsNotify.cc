@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <sys/param.h>
 
 #include "XrdNet/XrdNetCmsNotify.hh"

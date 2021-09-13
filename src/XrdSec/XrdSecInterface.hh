@@ -35,7 +35,7 @@
 #endif
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdSec/XrdSecEntity.hh"
 

@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #include <unistd.h>
 #include <fcntl.h>

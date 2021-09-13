@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 
 #include "XrdSys/XrdSysFAttr.hh"

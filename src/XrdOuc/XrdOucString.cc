@@ -27,7 +27,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <climits>
 
 #include "XrdOuc/XrdOucString.hh"

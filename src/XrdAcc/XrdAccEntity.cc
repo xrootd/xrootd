@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdAcc/XrdAccEntity.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"

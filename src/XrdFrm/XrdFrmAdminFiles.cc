@@ -32,7 +32,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <time.h>
 #include <unistd.h>
 #include <sys/param.h>

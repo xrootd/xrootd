@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <cstdio>
 #include <signal.h>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 #include <sys/param.h>
 

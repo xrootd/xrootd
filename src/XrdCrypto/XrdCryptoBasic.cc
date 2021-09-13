@@ -34,7 +34,7 @@
 /* ************************************************************************** */
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdSut/XrdSutAux.hh"
 #include "XrdCrypto/XrdCryptoAux.hh"

@@ -31,7 +31,7 @@
 /******************************************************************************/
   
 #include <cstdint>
-#include <string.h>
+#include <cstring>
 #include <time.h>
 
 #include "XrdSecsss/XrdSecsssKT.hh"

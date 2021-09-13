@@ -32,7 +32,7 @@
 
 #include <cstdio>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOuc/XrdOucString.hh"
 

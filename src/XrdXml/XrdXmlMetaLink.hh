@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOuc/XrdOucFileInfo.hh"
 #include "XrdXml/XrdXmlReader.hh"

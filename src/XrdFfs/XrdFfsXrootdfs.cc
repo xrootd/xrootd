@@ -45,7 +45,7 @@
 #include <fuse.h>
 #include <fuse/fuse_opt.h>
 #include <ctype.h>
-#include <string.h>
+#include <cstring>
 #include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>

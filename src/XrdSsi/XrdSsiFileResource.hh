@@ -31,7 +31,7 @@
 
 #include <cstdint>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiResource.hh"

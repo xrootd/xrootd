@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <arpa/inet.h>
 #include <sys/uio.h>
 #include <unistd.h>

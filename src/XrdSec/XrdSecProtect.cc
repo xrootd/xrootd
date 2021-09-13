@@ -30,7 +30,7 @@
 #include <cinttypes>
 #include <netinet/in.h>
 #include <stdarg.h>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/uio.h>
 

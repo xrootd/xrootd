@@ -36,7 +36,7 @@
 //! This object, if supplied, is only supplied server-side.
 //------------------------------------------------------------------------------
 
-#include <string.h>
+#include <cstring>
 
 #define XrdSsiPROTOIDSIZE 8
 

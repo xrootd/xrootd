@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
   
 #include "XrdOfs/XrdOfsTPC.hh"
 #include "XrdSys/XrdSysPthread.hh"

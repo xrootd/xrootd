@@ -32,7 +32,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdBwm/XrdBwmLogger.hh"
 #include "XrdSys/XrdSysError.hh"

@@ -30,7 +30,7 @@
 
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdCms/XrdCmsClient.hh"
 #include "XrdOfs/XrdOfsEvr.hh"

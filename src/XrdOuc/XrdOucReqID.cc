@@ -29,7 +29,7 @@
 
 #include <limits.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #ifndef WIN32
 #include <strings.h>
 #else

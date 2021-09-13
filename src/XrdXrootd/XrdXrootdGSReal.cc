@@ -30,7 +30,7 @@
 
 #include <cstdio>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <sys/uio.h>
 
 #include "Xrd/XrdScheduler.hh"

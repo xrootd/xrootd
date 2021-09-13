@@ -30,7 +30,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #ifndef WIN32
 #include <poll.h>
 #include <unistd.h>

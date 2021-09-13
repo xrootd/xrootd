@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdRmc/XrdRmc.hh"
 #include "XrdRmc/XrdRmcData.hh"

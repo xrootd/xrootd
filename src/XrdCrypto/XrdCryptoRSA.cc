@@ -34,7 +34,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <string.h>
+#include <cstring>
 
 #include "XrdCrypto/XrdCryptoRSA.hh"
 

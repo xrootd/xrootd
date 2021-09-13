@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 //-----------------------------------------------------------------------------
 //! This class defines an abstract interface to a generic shared memory table

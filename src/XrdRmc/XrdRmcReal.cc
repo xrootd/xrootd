@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <cstdio>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>

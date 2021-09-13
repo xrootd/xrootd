@@ -67,7 +67,7 @@
 
 #include <cstdio>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 
 #include "XrdVersion.hh"

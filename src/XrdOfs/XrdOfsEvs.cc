@@ -34,7 +34,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <sys/stat.h>
 
 #include "XrdOfs/XrdOfsEvs.hh"

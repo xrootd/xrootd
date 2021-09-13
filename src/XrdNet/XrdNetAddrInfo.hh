@@ -32,7 +32,7 @@
   
 #include <cinttypes>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/un.h>

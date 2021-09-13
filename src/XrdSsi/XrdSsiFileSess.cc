@@ -30,7 +30,7 @@
 #include <fcntl.h>
 #include <stddef.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/stat.h>

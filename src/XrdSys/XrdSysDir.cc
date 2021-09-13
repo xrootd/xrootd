@@ -45,7 +45,7 @@
 #endif
 
 #include <errno.h>
-#include <string.h>
+#include <cstring>
 
 //______________________________________________________________________________
 XrdSysDir::XrdSysDir(const char *path)

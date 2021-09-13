@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSut/XrdSutBucket.hh"

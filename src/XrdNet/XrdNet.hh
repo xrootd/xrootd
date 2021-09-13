@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #ifndef WIN32
 #include <strings.h>
 #include <unistd.h>

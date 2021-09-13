@@ -30,7 +30,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdVersion.hh"
 

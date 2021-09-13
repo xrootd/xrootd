@@ -35,7 +35,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <cinttypes>

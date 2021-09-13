@@ -32,10 +32,10 @@
 #include <stdlib.h>
 #ifndef WIN32
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #else
-#include <string.h>
+#include <cstring>
 #endif
 
 /******************************************************************************/

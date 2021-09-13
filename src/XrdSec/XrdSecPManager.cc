@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>

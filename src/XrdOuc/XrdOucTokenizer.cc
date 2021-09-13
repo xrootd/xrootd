@@ -32,7 +32,7 @@
 #endif
 #include <ctype.h>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOuc/XrdOucTokenizer.hh"
 

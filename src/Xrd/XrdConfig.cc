@@ -40,7 +40,7 @@
 #include <pwd.h>
 #include <cstdint>
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <cstdio>
 #include <sys/param.h>
 #include <sys/resource.h>

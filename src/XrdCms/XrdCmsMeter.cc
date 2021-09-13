@@ -32,7 +32,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>

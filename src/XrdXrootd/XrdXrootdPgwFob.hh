@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <set>
-#include <string.h>
+#include <cstring>
 
 #include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysPthread.hh"

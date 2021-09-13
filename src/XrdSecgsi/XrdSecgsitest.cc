@@ -32,7 +32,7 @@
 
 #include <cstdio>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include <sys/types.h>
 #include <pwd.h>

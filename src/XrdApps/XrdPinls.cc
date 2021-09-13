@@ -41,7 +41,7 @@
 #include <iostream>
 #include <map>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdVersionPlugin.hh"
 

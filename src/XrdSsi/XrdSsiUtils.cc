@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 
 #include "XProtocol/XProtocol.hh"

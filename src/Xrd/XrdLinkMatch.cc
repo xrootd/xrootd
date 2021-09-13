@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <cstring>
 
 #include "Xrd/XrdLinkMatch.hh"
 #include "XrdSys/XrdSysPlatform.hh"

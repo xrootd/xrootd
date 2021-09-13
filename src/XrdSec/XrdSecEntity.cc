@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <cstring>
 
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSec/XrdSecEntityXtra.hh"
