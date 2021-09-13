@@ -29,7 +29,7 @@
 
 #include <fcntl.h>
 #include <cstdio>
-#include <stdarg.h>
+#include <cstdarg>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>

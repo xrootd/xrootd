@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdarg.h>
+#include <cstdarg>
  
 //-----------------------------------------------------------------------------
 //! The XrdSsiLogger object is used to route messages to the default log file.

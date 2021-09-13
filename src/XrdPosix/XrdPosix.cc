@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdarg.h>
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <sys/param.h>

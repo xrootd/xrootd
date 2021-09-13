@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <sys/types.h>
-#include <stdarg.h>
+#include <cstdarg>
 #include <unistd.h>
 #include <cstdlib>
 
