@@ -55,7 +55,7 @@ Where:
 /******************************************************************************/
   
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <cerrno>
 #include <signal.h>
 #include <cstdlib>

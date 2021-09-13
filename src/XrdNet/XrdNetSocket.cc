@@ -30,7 +30,7 @@
 
 #ifndef WIN32
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <cerrno>
 #include <fcntl.h>
 #include <poll.h>

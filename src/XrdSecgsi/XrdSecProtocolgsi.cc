@@ -27,7 +27,7 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <cerrno>
 #include <cstdlib>
 #include <strings.h>

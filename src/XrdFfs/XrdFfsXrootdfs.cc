@@ -44,7 +44,7 @@
 #ifdef HAVE_FUSE
 #include <fuse.h>
 #include <fuse/fuse_opt.h>
-#include <ctype.h>
+#include <cctype>
 #include <cstring>
 #include <fcntl.h>
 #include <dirent.h>

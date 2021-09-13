@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <ctype.h>
+#include <cctype>
 #include <cinttypes>
 #include <netdb.h>
 #include <cstring>

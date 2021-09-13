@@ -29,7 +29,7 @@
 /*             Based on code developed by Derek Feichtinger, CERN.            */
 /******************************************************************************/
   
-#include <ctype.h>
+#include <cctype>
 #include <cstdarg>
 #include <stddef.h>
 #include <cstdlib>

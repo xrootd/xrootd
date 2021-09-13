@@ -30,7 +30,7 @@
 #ifndef WIN32
 #include <unistd.h>
 #endif
-#include <ctype.h>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 

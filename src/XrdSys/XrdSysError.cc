@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <ctype.h>
+#include <cctype>
 #ifndef WIN32
 #include <unistd.h>
 #include <cstdlib>
