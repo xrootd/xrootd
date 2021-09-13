@@ -32,7 +32,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <sys/file.h>
 #include <sys/mman.h>

@@ -18,7 +18,7 @@
 
 #include <sys/file.h>
 #include <assert.h>
-#include <time.h>
+#include <ctime>
 #include <cstring>
 #include <cstdlib>
 #include <sys/stat.h>

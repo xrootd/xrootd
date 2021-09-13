@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdlib>
-#include <time.h>
+#include <ctime>
 #include <sys/socket.h>
 #include <sys/types.h>
 

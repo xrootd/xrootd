@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include <sstream>
 
-#include <time.h>
+#include <ctime>
 
 #include "macaroons.h"
 

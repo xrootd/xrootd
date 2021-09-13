@@ -30,7 +30,7 @@
   
 #include <limits.h>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/stat.h>

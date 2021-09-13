@@ -30,7 +30,7 @@
 
 #include <errno.h>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <sys/uio.h>
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"

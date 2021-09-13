@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #ifndef WIN32
 #include "XrdSys/XrdSysHeaders.hh"
 #endif

@@ -9,7 +9,7 @@
 #define SRC_XRDCL_XRDCLOPERATIONTIMEOUT_HH_
 
 #include <cstdint>
-#include <time.h>
+#include <ctime>
 #include <exception>
 
 namespace XrdCl

@@ -37,7 +37,7 @@
 //#include <netdb.h>
 #include <pwd.h>
 #include <grp.h>
-#include <time.h>
+#include <ctime>
 #include <pthread.h>
 #include <cstdio>
 #include <syslog.h>

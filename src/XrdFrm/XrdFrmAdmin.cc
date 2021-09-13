@@ -31,7 +31,7 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <cstring>
-#include <time.h>
+#include <ctime>
 #include <pwd.h>
 #include <cstdio>
 #include <unistd.h>

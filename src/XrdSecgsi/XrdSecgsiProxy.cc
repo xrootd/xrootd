@@ -40,7 +40,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <pwd.h>
-#include <time.h>
+#include <ctime>
 
 
 #include "XrdOuc/XrdOucString.hh"

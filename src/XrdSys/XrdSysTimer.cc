@@ -33,7 +33,7 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include <errno.h>
-#include <time.h>
+#include <ctime>
 #include <cstdio>
 #include "XrdSys/XrdSysTimer.hh"
 #include <iostream>

@@ -30,7 +30,7 @@
 
 #include <ctype.h>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <sys/param.h>
 
 #include "XrdVersion.hh"

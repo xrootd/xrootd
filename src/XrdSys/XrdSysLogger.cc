@@ -32,7 +32,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
-#include <time.h>
+#include <ctime>
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifndef WIN32

@@ -32,7 +32,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
   
 // The XrdJob class is a super-class that is inherited by any class that needs
 // to schedule work on behalf of itself. The XrdJob class is optimized for

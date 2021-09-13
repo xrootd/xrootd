@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <cstdio>
 #include <cstdlib>

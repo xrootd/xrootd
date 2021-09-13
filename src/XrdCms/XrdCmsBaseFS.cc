@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <time.h>
+#include <ctime>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <cstdio>

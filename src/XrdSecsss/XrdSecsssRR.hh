@@ -32,7 +32,7 @@
   
 #include <cstdint>
 #include <cstring>
-#include <time.h>
+#include <ctime>
 
 #include "XrdSecsss/XrdSecsssKT.hh"
 

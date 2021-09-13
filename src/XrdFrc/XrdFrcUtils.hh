@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <cstdlib>
-#include <time.h>
+#include <ctime>
 
 #include "XrdFrc/XrdFrcRequest.hh"
 
