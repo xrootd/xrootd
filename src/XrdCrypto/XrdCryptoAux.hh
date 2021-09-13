@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #ifndef WIN32
 #include "XrdSys/XrdSysHeaders.hh"

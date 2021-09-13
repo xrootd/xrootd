@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <sys/types.h>
 

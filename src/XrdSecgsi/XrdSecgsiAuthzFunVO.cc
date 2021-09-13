@@ -65,7 +65,7 @@
                     not touched and is as set by the gsi module.
 */
 
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>

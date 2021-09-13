@@ -40,7 +40,7 @@
 #include "XrdCms/XrdCmsTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include <stdio.h>
+#include <cstdio>
 
 using namespace XrdCms;
 

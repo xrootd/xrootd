@@ -38,7 +38,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/param.h>
 
 #include "XrdNet/XrdNetAddr.hh"

@@ -33,7 +33,7 @@
 #include <string.h>
 #include <time.h>
 #include <pwd.h>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/types.h>

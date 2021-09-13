@@ -30,7 +30,7 @@
 
 #include <ctype.h>
 #include <grp.h>
-#include <stdio.h>
+#include <cstdio>
 
 #ifdef WIN32
 #include <direct.h>

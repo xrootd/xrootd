@@ -30,7 +30,7 @@
 
 #include <ctype.h>
 #include <netdb.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/types.h>
 
 #ifdef HAVE_GETIFADDRS

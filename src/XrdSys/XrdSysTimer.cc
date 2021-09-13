@@ -34,7 +34,7 @@
 #endif
 #include <errno.h>
 #include <time.h>
-#include <stdio.h>
+#include <cstdio>
 #include "XrdSys/XrdSysTimer.hh"
 #include <iostream>
 

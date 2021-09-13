@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #include "XrdCms/XrdCmsClient.hh"

@@ -36,7 +36,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <utime.h>
 #include <sys/file.h>
 #include <sys/stat.h>

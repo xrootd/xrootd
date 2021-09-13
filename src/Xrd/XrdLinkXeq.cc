@@ -30,7 +30,7 @@
 #include <limits.h>
 #include <poll.h>
 #include <signal.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>

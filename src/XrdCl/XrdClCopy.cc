@@ -34,7 +34,7 @@
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <iomanip>
 #include <limits>

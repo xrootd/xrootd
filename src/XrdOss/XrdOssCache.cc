@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <map>
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <strings.h>
 #include <time.h>

@@ -31,7 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
-#include <stdio.h>
+#include <cstdio>
 #include <arpa/inet.h>
 #include <sys/types.h>
 

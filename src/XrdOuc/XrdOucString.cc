@@ -26,7 +26,7 @@
 /*     All Rights Reserved. See XrdInfo.cc for complete License Terms         */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <climits>
 

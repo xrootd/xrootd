@@ -29,7 +29,7 @@
 /******************************************************************************/
   
 #include <limits.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #include <netinet/in.h>
 #include <sys/types.h>

@@ -40,7 +40,7 @@
 #include <mutex>
 #include <utility>
 #include <cinttypes>
-#include <stdio.h>
+#include <cstdio>
 
 class XrdOssCsiPages
 {

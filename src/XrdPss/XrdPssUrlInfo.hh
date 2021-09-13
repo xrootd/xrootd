@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <cstdio>
 
 class XrdOucEnv;
 

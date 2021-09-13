@@ -30,7 +30,7 @@
 //  Test program for XrdSecgsi
 //
 
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 

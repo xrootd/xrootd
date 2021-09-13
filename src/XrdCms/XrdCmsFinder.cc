@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>

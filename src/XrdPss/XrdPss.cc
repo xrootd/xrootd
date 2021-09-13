@@ -37,7 +37,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/file.h>
 #include <sys/param.h>
 #include <sys/stat.h>

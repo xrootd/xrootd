@@ -266,7 +266,7 @@ void XrdFfsDent_cache_destroy()
 }
 
 /*
-#include <stdio.h>
+#include <cstdio>
 
 main() 
 {

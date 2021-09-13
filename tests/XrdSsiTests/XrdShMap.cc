@@ -36,7 +36,7 @@
 #include <errno.h>
 #include <string>
 #include <string.h>
-#include <stdio.h>
+#include <cstdio>
 #include <zlib.h>
 
 #include "XrdSsi/XrdSsiShMap.hh"

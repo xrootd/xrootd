@@ -32,7 +32,7 @@
 
 #include <algorithm>
 #include <errno.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <string.h>
 #include <unistd.h>

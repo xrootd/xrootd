@@ -21,7 +21,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <poll.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #include <openssl/ssl.h>
 #include <openssl/bio.h>

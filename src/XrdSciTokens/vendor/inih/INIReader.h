@@ -21,7 +21,7 @@ https://github.com/benhoyt/inih
 extern "C" {
 #endif
 
-#include <stdio.h>
+#include <cstdio>
 
 /* Typedef for prototype of handler function. */
 typedef int (*ini_handler)(void* user, const char* section,
@@ -109,7 +109,7 @@ https://github.com/benhoyt/inih
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <stdio.h>
+#include <cstdio>
 #include <ctype.h>
 #include <string.h>
 

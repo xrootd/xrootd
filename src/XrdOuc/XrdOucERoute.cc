@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #include "XrdOuc/XrdOucERoute.hh"

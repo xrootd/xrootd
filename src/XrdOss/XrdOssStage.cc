@@ -42,7 +42,7 @@
 #include <errno.h>
 #include <strings.h>
 #include <signal.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #include <sys/param.h>
 #include <sys/stat.h>

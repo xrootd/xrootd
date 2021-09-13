@@ -33,7 +33,7 @@
 #include <fcntl.h>
 
 #include <ctype.h>
-#include <stdio.h>
+#include <cstdio>
 #include <strings.h>
 
 #include "XrdOuc/XrdOucMsubs.hh"

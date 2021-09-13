@@ -40,7 +40,7 @@
 #include <ctype.h>
 #include <iostream>
 #include <map>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #include "XrdVersionPlugin.hh"

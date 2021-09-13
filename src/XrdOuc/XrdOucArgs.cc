@@ -30,7 +30,7 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <strings.h>
 
 #include "XrdOuc/XrdOucArgs.hh"

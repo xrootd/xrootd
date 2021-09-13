@@ -29,7 +29,7 @@
 
 #define _FILE_OFFSET_BITS 64
 #include <errno.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <sys/types.h>
 

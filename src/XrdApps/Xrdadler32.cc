@@ -35,7 +35,7 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>

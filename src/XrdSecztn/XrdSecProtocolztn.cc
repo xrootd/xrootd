@@ -37,7 +37,7 @@
 #include <inttypes.h>
 #include <iostream>
 #include <stdint.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>

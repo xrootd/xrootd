@@ -33,7 +33,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"

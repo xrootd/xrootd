@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #include <sys/param.h>
 

@@ -32,7 +32,7 @@
 #include <iostream>
 #include <limits.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <fcntl.h>
 #include <time.h>
 #include <sys/param.h>
