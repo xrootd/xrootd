@@ -243,7 +243,7 @@
 /******************************************************************************/
 #include "XrdSys/XrdSysHeaders.hh"
 
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <stdarg.h>
 

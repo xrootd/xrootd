@@ -41,7 +41,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>

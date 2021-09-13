@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #include <sys/uio.h>
 #include "Xrd/XrdLink.hh"

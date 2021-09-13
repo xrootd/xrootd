@@ -31,7 +31,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include <cstdio>
 #ifndef WIN32
 #include <poll.h>
 #include <unistd.h>

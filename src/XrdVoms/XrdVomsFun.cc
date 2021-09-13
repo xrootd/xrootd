@@ -33,7 +33,7 @@
 /*                                                                            */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>

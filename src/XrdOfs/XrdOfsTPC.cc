@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <atomic>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string>
 #include <strings.h>

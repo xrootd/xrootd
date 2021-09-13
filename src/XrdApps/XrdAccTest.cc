@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <grp.h>
 #include <arpa/inet.h>
 #include <sys/param.h>

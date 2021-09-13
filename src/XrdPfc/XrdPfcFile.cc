@@ -20,7 +20,7 @@
 #include "XrdPfcFile.hh"
 #include "XrdPfcIO.hh"
 #include "XrdPfcTrace.hh"
-#include <stdio.h>
+#include <cstdio>
 #include <sstream>
 #include <fcntl.h>
 #include <assert.h>

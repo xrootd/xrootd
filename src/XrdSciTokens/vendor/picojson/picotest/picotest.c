@@ -20,7 +20,7 @@
  * IN THE SOFTWARE.
  */
 #include <stdarg.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include "picotest.h"
 

@@ -18,7 +18,7 @@
 
 #include <math.h>
 #include <sstream>
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <assert.h>
 #include <fcntl.h>

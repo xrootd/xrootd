@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/stat.h>
 #include <errno.h>
 

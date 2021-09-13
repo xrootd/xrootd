@@ -33,7 +33,7 @@
 #include <fcntl.h>
 #include <memory.h>
 #include <string.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #include <netdb.h>
 #include <stdlib.h>

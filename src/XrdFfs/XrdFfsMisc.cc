@@ -39,7 +39,7 @@
 #include <grp.h>
 #include <time.h>
 #include <pthread.h>
-#include <stdio.h>
+#include <cstdio>
 #include <syslog.h>
 
 #include "XrdNet/XrdNetAddr.hh"

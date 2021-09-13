@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <strings.h>
 #include <netinet/in.h>
@@ -46,7 +46,7 @@
 #else
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>

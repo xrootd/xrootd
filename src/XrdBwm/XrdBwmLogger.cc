@@ -31,7 +31,7 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #include "XrdBwm/XrdBwmLogger.hh"

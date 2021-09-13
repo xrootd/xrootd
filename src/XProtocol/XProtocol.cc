@@ -55,7 +55,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/stat.h>
 #include <unistd.h>
 

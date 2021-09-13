@@ -9,7 +9,7 @@
 #include <mutex>
 #include <sstream>
 
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>

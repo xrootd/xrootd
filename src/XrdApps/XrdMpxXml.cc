@@ -30,7 +30,7 @@
 
 #include <iostream>
 #include <map>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>

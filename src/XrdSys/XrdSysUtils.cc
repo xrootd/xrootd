@@ -31,7 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>

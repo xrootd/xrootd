@@ -31,7 +31,7 @@
 #include <iostream>
 
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 
 #include <sys/stat.h>

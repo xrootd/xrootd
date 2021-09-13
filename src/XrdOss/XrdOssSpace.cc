@@ -34,7 +34,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stddef.h>
-#include <stdio.h>
+#include <cstdio>
 
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssSpace.hh"

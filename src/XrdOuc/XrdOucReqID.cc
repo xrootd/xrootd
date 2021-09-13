@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <limits.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #ifndef WIN32
 #include <strings.h>

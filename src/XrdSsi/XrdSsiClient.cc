@@ -29,7 +29,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <string.h>
 #include <time.h>

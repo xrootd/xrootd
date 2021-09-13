@@ -29,7 +29,7 @@
 
 #include <fcntl.h>
 #include <stdint.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

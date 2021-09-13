@@ -37,7 +37,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/stat.h>

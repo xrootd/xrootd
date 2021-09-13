@@ -30,7 +30,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdio.h>
+#include <cstdio>
 
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysLogger.hh"

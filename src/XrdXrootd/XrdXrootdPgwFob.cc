@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysError.hh"

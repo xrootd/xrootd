@@ -33,7 +33,7 @@
 #include <fcntl.h>
 #include <map>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #include <sys/param.h>
 #include <sys/stat.h>

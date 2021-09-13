@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #include "XrdVersion.hh"

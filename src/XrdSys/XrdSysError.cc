@@ -31,14 +31,14 @@
 #ifndef WIN32
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #else
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <sys/types.h>
 #include "XrdSys/XrdWin32.hh"

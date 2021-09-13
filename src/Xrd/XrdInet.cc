@@ -30,7 +30,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 #include <sys/types.h>
 

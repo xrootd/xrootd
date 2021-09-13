@@ -36,7 +36,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/param.h>
 #include <pwd.h>
 #include <sys/types.h>

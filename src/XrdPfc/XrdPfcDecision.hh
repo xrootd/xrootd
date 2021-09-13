@@ -20,7 +20,7 @@
 
 #include <string>
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include "XrdOss/XrdOss.hh"
 
 class XrdSysError;

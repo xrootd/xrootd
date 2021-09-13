@@ -72,7 +72,7 @@
 //                                                                        //
 //  Author: G.Ganis, 2005                                                 //
 // ---------------------------------------------------------------------- //
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>

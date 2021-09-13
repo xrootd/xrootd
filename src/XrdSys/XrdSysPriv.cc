@@ -41,7 +41,7 @@
 #include "XrdSys/XrdSysPriv.hh"
 
 #if !defined(WINDOWS)
-#include <stdio.h>
+#include <cstdio>
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include <unistd.h>

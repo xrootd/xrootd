@@ -29,7 +29,7 @@
 
 #include <fcntl.h>
 #include <stddef.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/types.h>

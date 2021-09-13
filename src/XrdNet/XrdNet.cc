@@ -29,7 +29,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #ifndef WIN32
 #include <poll.h>

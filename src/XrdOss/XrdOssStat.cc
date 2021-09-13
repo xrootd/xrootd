@@ -31,7 +31,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <strings.h>
 #include <time.h>
 #include <utime.h>

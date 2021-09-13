@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <strings.h>
 #include <signal.h>
-#include <stdio.h>
+#include <cstdio>
 #include <time.h>
 #if defined(AIX) || defined(__solaris__)
 #include <sys/vnode.h>

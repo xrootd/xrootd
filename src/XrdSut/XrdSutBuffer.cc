@@ -27,7 +27,7 @@
 /******************************************************************************/
 
 #include <inttypes.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 #include <errno.h>
 #include <netinet/in.h>

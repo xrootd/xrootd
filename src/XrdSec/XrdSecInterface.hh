@@ -34,7 +34,7 @@
 #include <sys/param.h>
 #endif
 #include <stdlib.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #include "XrdSec/XrdSecEntity.hh"

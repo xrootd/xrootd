@@ -31,7 +31,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <strings.h>
 #include <sys/param.h>

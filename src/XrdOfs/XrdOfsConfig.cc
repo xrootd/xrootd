@@ -35,7 +35,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <netinet/in.h>
 #include <sys/param.h>
 #include <sys/stat.h>

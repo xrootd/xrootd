@@ -32,7 +32,7 @@
 #include <sys/uio.h>
 #include <netinet/in.h>
 #include <inttypes.h>
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #ifdef WIN32

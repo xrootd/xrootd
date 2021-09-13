@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/uio.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"

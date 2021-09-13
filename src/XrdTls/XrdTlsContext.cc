@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <stdio.h>
+#include <cstdio>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>

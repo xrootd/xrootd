@@ -33,7 +33,7 @@ distribution.
 #endif
 
 #include <ctype.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

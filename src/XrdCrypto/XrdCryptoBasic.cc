@@ -33,7 +33,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <stdio.h>
+#include <cstdio>
 #include <string.h>
 
 #include "XrdSut/XrdSutAux.hh"

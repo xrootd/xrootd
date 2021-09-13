@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <cassert>
-#include <stdio.h>
+#include <cstdio>
 #include <arpa/inet.h>
 
 #include "XrdOuc/XrdOucPgrwUtils.hh"
