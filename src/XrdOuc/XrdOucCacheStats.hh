@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <cstdint>
-#include <string.h>
+#include <cstring>
 
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"

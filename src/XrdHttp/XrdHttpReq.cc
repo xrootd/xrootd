@@ -40,7 +40,7 @@
 #include "XrdHttpReq.hh"
 #include "XrdHttpTrace.hh"
 #include "XrdHttpExtHandler.hh"
-#include <string.h>
+#include <cstring>
 #include <arpa/inet.h>
 #include <sstream>
 #include "XrdSys/XrdSysPlatform.hh"

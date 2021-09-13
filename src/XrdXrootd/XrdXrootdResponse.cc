@@ -30,7 +30,7 @@
 #include <netinet/in.h>
 #include <cinttypes>
 #include <cstdint>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 
 #include "Xrd/XrdLinkCtl.hh"

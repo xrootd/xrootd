@@ -19,7 +19,7 @@
 #include <sys/file.h>
 #include <assert.h>
 #include <time.h>
-#include <string.h>
+#include <cstring>
 #include <stdlib.h>
 #include <sys/stat.h>
 

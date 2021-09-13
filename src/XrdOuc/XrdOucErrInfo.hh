@@ -30,7 +30,7 @@
 /*                                                                            */
 /******************************************************************************/
 
-#include <string.h>      // For strlcpy()
+#include <cstring>      // For strlcpy()
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucBuffer.hh"

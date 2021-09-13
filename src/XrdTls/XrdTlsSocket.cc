@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <string.h>
+#include <cstring>
 #include <errno.h>
 #include <fcntl.h>
 #include <iostream>

@@ -30,7 +30,7 @@
 #define _FILE_OFFSET_BITS 64
 #include <errno.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 
 #if !defined(__solaris__) && !defined(__FreeBSD__)

@@ -31,7 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #include <time.h>
 #include <vector>

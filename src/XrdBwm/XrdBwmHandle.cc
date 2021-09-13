@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdBwm/XrdBwmHandle.hh"
 #include "XrdBwm/XrdBwmLogger.hh"

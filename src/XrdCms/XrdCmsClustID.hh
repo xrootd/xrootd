@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 class XrdLink;
 class XrdCmsNode;

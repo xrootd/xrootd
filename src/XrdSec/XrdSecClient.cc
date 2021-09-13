@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <cstdio>
 #include <iomanip>
 #include <sys/param.h>

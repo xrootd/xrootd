@@ -30,7 +30,7 @@
 
 #include <ctype.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucStream.hh"

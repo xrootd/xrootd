@@ -33,7 +33,7 @@
 /* (OpenSSL, Botan, ...)                                                      */
 /*                                                                            */
 /* ************************************************************************** */
-#include <string.h>
+#include <cstring>
 #include <dlfcn.h>
 
 #include "XrdCrypto/XrdCryptoAux.hh"

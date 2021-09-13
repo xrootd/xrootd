@@ -21,7 +21,7 @@
  */
 #include <stdarg.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include "picotest.h"
 
 struct test_t {

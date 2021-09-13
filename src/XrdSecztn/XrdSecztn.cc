@@ -27,7 +27,7 @@
 
 #include <alloca.h>
 #include <cstdint>
-#include <string.h>
+#include <cstring>
 
 #define WHITESPACE 64
 #define EQUALS 65

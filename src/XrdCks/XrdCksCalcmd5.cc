@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <cstring>
 
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdSys/XrdSysPlatform.hh"

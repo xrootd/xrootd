@@ -31,7 +31,7 @@
 /* GSI utility functions                                                      */
 /*                                                                            */
 /* ************************************************************************** */
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>
 

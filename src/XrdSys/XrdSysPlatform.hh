@@ -35,7 +35,7 @@
 
 #ifdef __linux__
 #include <memory.h>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <byteswap.h>

@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <dirent.h>
-#include <string.h>
+#include <cstring>
 #include <cstdio>
 #include <fcntl.h>
 #include <sys/param.h>

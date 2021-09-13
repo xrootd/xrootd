@@ -53,7 +53,7 @@
 #include <cinttypes>
 #include <netinet/in.h>
 #include <sys/types.h>
-#include <string.h>
+#include <cstring>
 #include <stdlib.h>
 #include <cstdio>
 #include <sys/stat.h>

@@ -21,7 +21,7 @@
 
 #include <XrdCl/XrdClXRootDResponses.hh>
 #include <errno.h>
-#include <string.h>
+#include <cstring>
 
 #define CPPUNIT_ASSERT_XRDST_NOTOK( x, err )         \
 {                                                    \

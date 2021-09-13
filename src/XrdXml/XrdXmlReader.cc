@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <string.h>
+#include <cstring>
 
 #include "XrdXml/XrdXmlRdrTiny.hh"
 

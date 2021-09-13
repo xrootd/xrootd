@@ -31,7 +31,7 @@
 /* OpenSSL implementation of XrdCryptoCipher                                  */
 /*                                                                            */
 /* ************************************************************************** */
-#include <string.h>
+#include <cstring>
 
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"

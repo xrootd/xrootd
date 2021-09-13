@@ -33,7 +33,7 @@
 #include <netinet/in.h>
 #include <cinttypes>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #ifdef WIN32
 #include <direct.h>

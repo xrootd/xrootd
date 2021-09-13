@@ -29,7 +29,7 @@
 
 #include <errno.h>
 #include <cinttypes>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 
 #include "XrdVersion.hh"

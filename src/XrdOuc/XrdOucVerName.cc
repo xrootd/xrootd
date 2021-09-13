@@ -29,7 +29,7 @@
 
 #include <cstdio>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 
 #include "XrdVersionPlugin.hh"

@@ -30,7 +30,7 @@
 
 #include <limits>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 
 #include "XrdNet/XrdNetAddr.hh"

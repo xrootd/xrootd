@@ -32,7 +32,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <strings.h>
-#include <string.h>
+#include <cstring>
 #include <stdlib.h>
 
 #include "XrdVersion.hh"

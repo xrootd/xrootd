@@ -49,7 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOuc/XrdOucUri.hh"
 

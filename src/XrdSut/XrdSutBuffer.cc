@@ -28,7 +28,7 @@
 
 #include <cinttypes>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <errno.h>
 #include <netinet/in.h>
 #include <sys/types.h>

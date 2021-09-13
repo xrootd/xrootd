@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <netinet/in.h>
 #include <sys/uio.h>
 

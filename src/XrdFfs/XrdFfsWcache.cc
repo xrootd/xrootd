@@ -45,7 +45,7 @@
 #endif
 #endif
 
-#include <string.h>
+#include <cstring>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/resource.h>

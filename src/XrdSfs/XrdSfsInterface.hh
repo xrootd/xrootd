@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>      // For strlcpy()
+#include <cstring>      // For strlcpy()
 #include <errno.h>
 #include <cstdint>
 #include <sys/types.h>

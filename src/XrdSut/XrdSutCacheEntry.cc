@@ -27,7 +27,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <time.h>
 
 #include "XrdSutAux.hh"

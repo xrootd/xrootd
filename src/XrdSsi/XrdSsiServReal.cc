@@ -29,7 +29,7 @@
 
 #include <errno.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
   
 #include "XrdSsi/XrdSsiResource.hh"
 #include "XrdSsi/XrdSsiRRAgent.hh"

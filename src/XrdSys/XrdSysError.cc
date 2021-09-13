@@ -32,14 +32,14 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #else
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include "XrdSys/XrdWin32.hh"
 #endif

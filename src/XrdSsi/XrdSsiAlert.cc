@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstddef>
-#include <string.h>
+#include <cstring>
 #include <sys/uio.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"

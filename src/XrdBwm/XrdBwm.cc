@@ -29,7 +29,7 @@
 
 #include <unistd.h>
 #include <errno.h>
-#include <string.h>
+#include <cstring>
 #include <cstdio>
 #include <stdlib.h>
 #include <sys/param.h>

@@ -29,7 +29,7 @@
 
 #include <errno.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #ifndef WIN32
 #include <unistd.h>
 #include <sys/types.h>

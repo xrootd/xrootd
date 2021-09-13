@@ -111,7 +111,7 @@ https://github.com/benhoyt/inih
 
 #include <cstdio>
 #include <ctype.h>
-#include <string.h>
+#include <cstring>
 
 #if !INI_USE_STACK
 #include <stdlib.h>

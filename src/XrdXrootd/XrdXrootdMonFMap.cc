@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 
 #include "XrdSys/XrdSysPlatform.hh"

@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <sys/param.h>
 
 #include "XrdFrc/XrdFrcTrace.hh"

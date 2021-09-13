@@ -42,7 +42,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #include <unistd.h>
 #include <sys/param.h>

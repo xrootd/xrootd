@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #include <utime.h>
 #include <sys/param.h>

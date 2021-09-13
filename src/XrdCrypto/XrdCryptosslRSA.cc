@@ -37,7 +37,7 @@
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 #include "XrdCrypto/XrdCryptosslRSA.hh"
 
-#include <string.h>
+#include <cstring>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>

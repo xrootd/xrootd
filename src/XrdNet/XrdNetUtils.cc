@@ -31,7 +31,7 @@
 #include <ctype.h>
 #include <cinttypes>
 #include <netdb.h>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 
 #include <netinet/in.h>

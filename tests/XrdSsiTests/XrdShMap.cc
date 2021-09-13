@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <cstdio>
 #include <zlib.h>
 

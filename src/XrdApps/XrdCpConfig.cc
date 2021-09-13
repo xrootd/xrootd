@@ -32,7 +32,7 @@
 #include <getopt.h>
 #include <cstdio>
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <sys/stat.h>
 #include <sys/types.h>
 

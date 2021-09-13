@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOfs/XrdOfsChkPnt.hh"
 #include "XrdOfs/XrdOfsConfigCP.hh"

@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "XrdCms/XrdCmsPList.hh"
 #include "XrdCms/XrdCmsRRData.hh"

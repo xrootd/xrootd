@@ -32,7 +32,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <memory.h>
-#include <string.h>
+#include <cstring>
 #include <cstdio>
 #include <time.h>
 #include <netdb.h>
