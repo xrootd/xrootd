@@ -30,7 +30,7 @@
   
 #include <cstdio>
 #include <errno.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdlib.h>

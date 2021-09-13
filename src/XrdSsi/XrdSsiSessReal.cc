@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <cstdio>
 #include <stdlib.h>
 #include <string.h>

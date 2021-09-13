@@ -32,7 +32,7 @@
 
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdSys/XrdSysPlatform.hh"

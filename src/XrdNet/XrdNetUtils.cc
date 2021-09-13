@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>

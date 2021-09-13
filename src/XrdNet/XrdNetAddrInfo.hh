@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <inttypes.h>
+#include <cinttypes>
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>

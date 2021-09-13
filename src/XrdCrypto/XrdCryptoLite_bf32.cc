@@ -38,7 +38,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 
 #include <openssl/blowfish.h>
 
