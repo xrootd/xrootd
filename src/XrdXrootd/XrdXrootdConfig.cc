@@ -28,7 +28,7 @@
 /******************************************************************************/
  
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <fcntl.h>
 #include <string>
 #include <cstring>

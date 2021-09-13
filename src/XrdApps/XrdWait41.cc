@@ -39,7 +39,7 @@
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
   
-#include <ctype.h>
+#include <cctype>
 #include <dirent.h>
 #include <fcntl.h>
 #include <signal.h>

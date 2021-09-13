@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <ctype.h>
+#include <cctype>
 #include <fcntl.h>
 #include <cstdlib>
 #include <cstring>

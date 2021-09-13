@@ -59,7 +59,7 @@ Where:
 /******************************************************************************/
   
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <cerrno>
 #include <cstdint>
 #include <signal.h>

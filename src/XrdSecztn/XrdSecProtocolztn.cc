@@ -31,7 +31,7 @@
 #define __STDC_FORMAT_MACROS 1
 #include <alloca.h>
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <cerrno>
 #include <fcntl.h>
 #include <cinttypes>

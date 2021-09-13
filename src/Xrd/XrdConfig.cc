@@ -35,7 +35,7 @@
 */
   
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <fcntl.h>
 #include <pwd.h>
 #include <cstdint>

@@ -110,7 +110,7 @@ https://github.com/benhoyt/inih
 #endif
 
 #include <cstdio>
-#include <ctype.h>
+#include <cctype>
 #include <cstring>
 
 #if !INI_USE_STACK

@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <alloca.h>
-#include <ctype.h>
+#include <cctype>
 #include <iostream>
 #include <cstdlib>
 #include <cstring>

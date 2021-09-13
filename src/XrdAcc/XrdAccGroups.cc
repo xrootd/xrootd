@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <cerrno>
 #include <limits.h>
 #include <netdb.h>
