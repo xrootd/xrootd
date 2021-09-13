@@ -8,7 +8,7 @@
 #ifndef SRC_XRDCL_XRDCLOPERATIONTIMEOUT_HH_
 #define SRC_XRDCL_XRDCLOPERATIONTIMEOUT_HH_
 
-#include <stdint.h>
+#include <cstdint>
 #include <time.h>
 #include <exception>
 

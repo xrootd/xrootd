@@ -19,7 +19,7 @@
 #ifndef __XRD_CL_JOB_MANAGER_HH__
 #define __XRD_CL_JOB_MANAGER_HH__
 
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 #include <algorithm>
 #include <pthread.h>

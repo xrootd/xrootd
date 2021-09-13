@@ -35,7 +35,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <stdint.h>
+#include <cstdint>
 #include <strings.h>
 #include <cstdio>
 #include <sys/file.h>

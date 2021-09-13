@@ -28,7 +28,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClPropertyList.hh"
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 
 namespace XrdCl

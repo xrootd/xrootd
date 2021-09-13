@@ -19,7 +19,7 @@
 #ifndef __XRD_CL_CONSTANTS_HH__
 #define __XRD_CL_CONSTANTS_HH__
 
-#include <stdint.h>
+#include <cstdint>
 #include <unordered_map>
 #include <string>
 #include <algorithm>

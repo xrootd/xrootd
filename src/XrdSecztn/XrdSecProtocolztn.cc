@@ -36,7 +36,7 @@
 #include <fcntl.h>
 #include <cinttypes>
 #include <iostream>
-#include <stdint.h>
+#include <cstdint>
 #include <cstdio>
 #include <stdlib.h>
 #include <string.h>

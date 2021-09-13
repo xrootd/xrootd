@@ -19,7 +19,7 @@
 #ifndef __XRD_CL_SOCKET_HH__
 #define __XRD_CL_SOCKET_HH__
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <sys/socket.h>
 #include <memory>

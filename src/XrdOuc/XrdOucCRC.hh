@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <stddef.h>
-#include <stdint.h>
+#include <cstdint>
 
 #include "XrdSys/XrdSysPageSize.hh"
 

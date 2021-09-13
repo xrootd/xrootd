@@ -32,7 +32,7 @@
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include <stdint.h>
+#include <cstdint>
 #include <unistd.h>
 #include <vector>
 #include <sys/types.h>

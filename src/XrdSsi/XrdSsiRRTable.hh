@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <map>
-#include <stdint.h>
+#include <cstdint>
 
 #include "XrdSsi/XrdSsiAtomics.hh"
   

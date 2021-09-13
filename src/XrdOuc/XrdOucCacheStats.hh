@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
+#include <cstdint>
 #include <string.h>
 
 #include "XrdSys/XrdSysAtomics.hh"

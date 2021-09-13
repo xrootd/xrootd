@@ -28,7 +28,7 @@
 #include <stdarg.h>
 #include <string>
 #include <map>
-#include <stdint.h>
+#include <cstdint>
 #include "XrdSys/XrdSysPthread.hh"
 
 //------------------------------------------------------------------------------
