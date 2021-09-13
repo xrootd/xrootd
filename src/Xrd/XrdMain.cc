@@ -63,7 +63,7 @@ Where:
 #include <errno.h>
 #include <cstdint>
 #include <signal.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <strings.h>
 #include <cstdio>

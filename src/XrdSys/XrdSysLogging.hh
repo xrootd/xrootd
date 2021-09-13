@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <limits.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/time.h>
 #include <sys/uio.h>
 

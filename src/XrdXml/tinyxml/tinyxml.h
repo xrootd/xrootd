@@ -34,7 +34,7 @@ distribution.
 
 #include <ctype.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <assert.h>
 

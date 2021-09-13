@@ -35,7 +35,7 @@
 
 #include <fcntl.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>

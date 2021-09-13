@@ -32,7 +32,7 @@
 #include <iostream>
 #include <cstdio>
 #include <stddef.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <sys/time.h>
 #include <sys/types.h>

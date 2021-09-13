@@ -30,7 +30,7 @@
 
 #include <atomic>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <string>
 #include <strings.h>
   

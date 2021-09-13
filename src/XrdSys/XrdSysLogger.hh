@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 #ifndef WIN32
 #include <unistd.h>
 #include <cstring>

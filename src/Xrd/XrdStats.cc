@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/time.h>
 #include <sys/resource.h>
   

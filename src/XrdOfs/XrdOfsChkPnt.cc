@@ -30,7 +30,7 @@
 
 #include <fcntl.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>

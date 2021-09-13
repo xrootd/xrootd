@@ -29,7 +29,7 @@
 
 #include <cstdio>
 #include <cstring>
-#include <stdlib.h>
+#include <cstdlib>
 #include <time.h>
 #include <pthread.h>
 

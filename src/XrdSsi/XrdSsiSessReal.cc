@@ -30,7 +30,7 @@
 #include <errno.h>
 #include <cinttypes>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <sys/types.h>

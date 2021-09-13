@@ -31,7 +31,7 @@
 /******************************************************************************/
   
 #include <cinttypes>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>

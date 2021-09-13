@@ -30,7 +30,7 @@
 
 #include <ctype.h>
 #include <stddef.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 

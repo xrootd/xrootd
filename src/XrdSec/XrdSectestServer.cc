@@ -30,7 +30,7 @@
 
 #include <unistd.h>
 #include <ctype.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <strings.h>
 #include <cstdio>
 #include <sys/param.h>

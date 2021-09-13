@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <signal.h>
-#include <stdlib.h>
+#include <cstdlib>
   
 #include "Xrd/XrdLinkCtl.hh"
 #include "Xrd/XrdPollPoll.hh"

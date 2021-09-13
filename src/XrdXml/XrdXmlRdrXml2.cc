@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 

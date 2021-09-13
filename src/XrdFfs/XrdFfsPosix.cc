@@ -44,7 +44,7 @@
 #include <iostream>
 #include <libgen.h>
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <syslog.h>
 #include "XrdFfs/XrdFfsPosix.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"

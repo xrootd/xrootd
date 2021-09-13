@@ -36,7 +36,7 @@
 #include <cstdio>
 #include <time.h>
 #include <netdb.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>

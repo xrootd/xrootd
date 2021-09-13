@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>

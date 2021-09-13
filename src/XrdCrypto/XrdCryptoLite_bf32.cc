@@ -34,7 +34,7 @@
 #ifdef HAVE_SSL
 
 #include <errno.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <sys/types.h>
 #include <netinet/in.h>

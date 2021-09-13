@@ -30,7 +30,7 @@
 
 #include <errno.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFAttr.hh"

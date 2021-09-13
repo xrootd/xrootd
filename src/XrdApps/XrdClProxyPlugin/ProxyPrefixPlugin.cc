@@ -27,7 +27,7 @@
 #include "XrdVersion.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 
 XrdVERSIONINFO(XrdClGetPlugIn, XrdClGetPlugIn)

@@ -31,7 +31,7 @@
 
 // Include stdlib so that ENDIAN macros are defined properly
 //
-#include <stdlib.h>
+#include <cstdlib>
 
 #ifdef __linux__
 #include <memory.h>

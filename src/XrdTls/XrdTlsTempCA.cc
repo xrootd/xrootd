@@ -27,7 +27,7 @@
 /******************************************************************************/
 
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/poll.h>

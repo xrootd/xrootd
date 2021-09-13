@@ -31,7 +31,7 @@
 
 #include <sys/types.h>
 #include <signal.h>
-#include <stdlib.h>
+#include <cstdlib>
 #ifdef WIN32
 #include "XrdSys/XrdWin32.hh"
 #endif

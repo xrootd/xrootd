@@ -30,7 +30,7 @@
 
 #include <stdarg.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>

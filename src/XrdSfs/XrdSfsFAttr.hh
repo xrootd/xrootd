@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 
 //-----------------------------------------------------------------------------
 //! This include file defines control strucres used to drive entended file

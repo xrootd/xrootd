@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdAcc/XrdAccAudit.hh"
 #include "XrdSys/XrdSysError.hh"

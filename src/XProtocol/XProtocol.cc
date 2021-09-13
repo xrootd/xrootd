@@ -54,7 +54,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <cstring>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <sys/stat.h>
 #include <unistd.h>

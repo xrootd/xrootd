@@ -29,7 +29,7 @@
 
 #include <iostream>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 #include <vector>
 #include <sys/syscall.h>
