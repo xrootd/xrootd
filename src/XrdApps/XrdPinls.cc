@@ -37,11 +37,11 @@
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
   
-#include <ctype.h>
+#include <cctype>
 #include <iostream>
 #include <map>
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 #include "XrdVersionPlugin.hh"
 

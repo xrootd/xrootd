@@ -18,9 +18,9 @@
 
 #include <sys/file.h>
 #include <assert.h>
-#include <time.h>
-#include <string.h>
-#include <stdlib.h>
+#include <ctime>
+#include <cstring>
+#include <cstdlib>
 #include <sys/stat.h>
 
 #include "XrdOss/XrdOss.hh"

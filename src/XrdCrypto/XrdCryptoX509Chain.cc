@@ -25,8 +25,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /*                                                                            */
 /******************************************************************************/
-#include <time.h>
-#include <string.h>
+#include <ctime>
+#include <cstring>
 
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include "XrdCrypto/XrdCryptoTrace.hh"

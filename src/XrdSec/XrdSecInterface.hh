@@ -29,13 +29,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 #ifndef WIN32
 #include <sys/param.h>
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
 #include "XrdSec/XrdSecEntity.hh"
 

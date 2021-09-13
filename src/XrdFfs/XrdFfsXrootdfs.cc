@@ -29,8 +29,8 @@
 
 #define FUSE_USE_VERSION 26
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 #include <stddef.h>
 
@@ -44,11 +44,11 @@
 #ifdef HAVE_FUSE
 #include <fuse.h>
 #include <fuse/fuse_opt.h>
-#include <ctype.h>
-#include <string.h>
+#include <cctype>
+#include <cstring>
 #include <fcntl.h>
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 #include <sys/time.h>
 #include <pthread.h>
 #include <pwd.h>

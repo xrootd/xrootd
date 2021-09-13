@@ -39,13 +39,13 @@
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
   
-#include <ctype.h>
+#include <cctype>
 #include <dirent.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <strings.h>
 #include <unistd.h>
 #include <sys/param.h>

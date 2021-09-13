@@ -29,9 +29,9 @@
 /******************************************************************************/
 
 #include <sys/types.h>
-#include <stdarg.h>
+#include <cstdarg>
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixOsDep.hh"

@@ -30,9 +30,9 @@
 //  Test program for XrdCrypto
 //
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "XrdOuc/XrdOucString.hh"
 

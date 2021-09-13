@@ -27,7 +27,7 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-#include <stdint.h>
+#include <cstdint>
 #include <ctime>
 
 #include "XrdCl/XrdClStatus.hh"

@@ -38,7 +38,7 @@
 
 
 
-#include <string.h>
+#include <cstring>
 #include <openssl/hmac.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>

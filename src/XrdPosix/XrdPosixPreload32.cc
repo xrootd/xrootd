@@ -42,14 +42,14 @@
 
 #define XRDPOSIXPRELOAD32
 
-#include <errno.h>
+#include <cerrno>
 #include <dirent.h>
-#include <stdio.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cstdarg>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/param.h>

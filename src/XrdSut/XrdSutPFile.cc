@@ -26,14 +26,14 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <time.h>
+#include <ctime>
 
 #include "XrdSut/XrdSutAux.hh"
 #include "XrdSut/XrdSutPFEntry.hh"

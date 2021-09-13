@@ -28,8 +28,8 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
   
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"

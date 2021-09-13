@@ -28,8 +28,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 #include "XrdOfs/XrdOfsChkPnt.hh"
 #include "XrdOfs/XrdOfsConfigCP.hh"

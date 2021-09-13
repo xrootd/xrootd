@@ -31,8 +31,8 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <strings.h>
 #include <sys/param.h>
 #include <sys/types.h>

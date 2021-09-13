@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <map>
-#include <string.h>
+#include <cstring>
 #include <vector>
 
 #include "XrdSec/XrdSecEntityAttr.hh"

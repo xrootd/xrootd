@@ -28,13 +28,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <ctype.h>
+#include <cctype>
 #include <iostream>
 #include <limits.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <cstdlib>
+#include <cstdio>
 #include <fcntl.h>
-#include <time.h>
+#include <ctime>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>

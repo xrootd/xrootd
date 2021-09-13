@@ -31,9 +31,9 @@
 /* OpenSSL utility functions                                                  */
 /*                                                                            */
 /* ************************************************************************** */
-#include <time.h>
-#include <errno.h>
-#include <stdlib.h>
+#include <ctime>
+#include <cerrno>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
 

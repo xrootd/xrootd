@@ -29,12 +29,12 @@
 /*             Based on code developed by Derek Feichtinger, CERN.            */
 /******************************************************************************/
   
-#include <ctype.h>
-#include <stdarg.h>
+#include <cctype>
+#include <cstdarg>
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <sys/stat.h>
 
 #include "XrdOfs/XrdOfsEvs.hh"

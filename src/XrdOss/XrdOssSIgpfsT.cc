@@ -32,8 +32,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <strings.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"

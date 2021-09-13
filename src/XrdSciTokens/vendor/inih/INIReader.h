@@ -21,7 +21,7 @@ https://github.com/benhoyt/inih
 extern "C" {
 #endif
 
-#include <stdio.h>
+#include <cstdio>
 
 /* Typedef for prototype of handler function. */
 typedef int (*ini_handler)(void* user, const char* section,
@@ -109,12 +109,12 @@ https://github.com/benhoyt/inih
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
+#include <cstdio>
+#include <cctype>
+#include <cstring>
 
 #if !INI_USE_STACK
-#include <stdlib.h>
+#include <cstdlib>
 #endif
 
 #define MAX_SECTION 50

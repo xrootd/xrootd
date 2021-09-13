@@ -35,13 +35,13 @@
 */
   
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <fcntl.h>
 #include <pwd.h>
-#include <stdint.h>
+#include <cstdint>
 #include <string>
-#include <string.h>
-#include <stdio.h>
+#include <cstring>
+#include <cstdio>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/types.h>

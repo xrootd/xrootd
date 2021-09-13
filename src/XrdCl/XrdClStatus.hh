@@ -19,8 +19,8 @@
 #ifndef __XRD_CL_STATUS_HH__
 #define __XRD_CL_STATUS_HH__
 
-#include <stdint.h>
-#include <errno.h>
+#include <cstdint>
+#include <cerrno>
 #include <sstream>
 
 namespace XrdCl

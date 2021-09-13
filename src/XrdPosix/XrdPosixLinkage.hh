@@ -34,9 +34,9 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 
 #include "XrdPosix/XrdPosixOsDep.hh"

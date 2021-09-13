@@ -29,13 +29,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 #ifndef WIN32
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #else
-#include <string.h>
+#include <cstring>
 #include <io.h>
 #include "XrdSys/XrdWin32.hh"
 #endif

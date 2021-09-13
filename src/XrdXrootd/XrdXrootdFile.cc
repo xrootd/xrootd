@@ -27,9 +27,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cinttypes>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>

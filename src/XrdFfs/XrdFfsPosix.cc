@@ -28,9 +28,9 @@
 /******************************************************************************/
 
 #define _FILE_OFFSET_BITS 64
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
 #include <sys/types.h>
 
 #if !defined(__solaris__) && !defined(__FreeBSD__)
@@ -44,7 +44,7 @@
 #include <iostream>
 #include <libgen.h>
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <syslog.h>
 #include "XrdFfs/XrdFfsPosix.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"

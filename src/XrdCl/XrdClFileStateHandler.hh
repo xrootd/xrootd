@@ -40,7 +40,7 @@
 #include <vector>
 
 #include <sys/uio.h>
-#include <stdint.h>
+#include <cstdint>
 
 namespace
 {

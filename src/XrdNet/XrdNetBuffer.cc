@@ -32,7 +32,7 @@
 #include <unistd.h>
 #endif
 #include <sys/types.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdNet/XrdNetBuffer.hh"
 #include "XrdSys/XrdSysPlatform.hh"

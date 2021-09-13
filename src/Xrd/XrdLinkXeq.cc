@@ -30,8 +30,8 @@
 #include <limits.h>
 #include <poll.h>
 #include <signal.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/uio.h>

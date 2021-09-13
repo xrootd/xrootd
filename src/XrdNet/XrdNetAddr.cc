@@ -28,9 +28,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <ctype.h>
+#include <cctype>
 #include <netdb.h>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/types.h>

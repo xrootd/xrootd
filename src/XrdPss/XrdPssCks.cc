@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssCks.hh"

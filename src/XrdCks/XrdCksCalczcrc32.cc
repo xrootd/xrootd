@@ -32,7 +32,7 @@
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdVersion.hh"
-#include <stdint.h>
+#include <cstdint>
 #include <zlib.h>
 
 //------------------------------------------------------------------------------

@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 #ifdef WIN32
 #define HAVE_STRUCT_TIMESPEC 1
 #endif

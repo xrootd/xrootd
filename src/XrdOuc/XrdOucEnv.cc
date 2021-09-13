@@ -30,7 +30,7 @@
 
 #include "string.h"
 #include "stdio.h"
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdOuc/XrdOucEnv.hh"
   

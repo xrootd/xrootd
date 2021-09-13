@@ -29,12 +29,12 @@
 /******************************************************************************/
   
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <fcntl.h>
 #include <map>
 #include <strings.h>
-#include <stdio.h>
-#include <time.h>
+#include <cstdio>
+#include <ctime>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>

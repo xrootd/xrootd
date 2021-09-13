@@ -72,15 +72,15 @@
 //                                                                        //
 //  Author: G.Ganis, 2005                                                 //
 // ---------------------------------------------------------------------- //
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 #include <pwd.h>
 #include <dirent.h>
 

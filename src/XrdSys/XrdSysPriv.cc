@@ -41,12 +41,12 @@
 #include "XrdSys/XrdSysPriv.hh"
 
 #if !defined(WINDOWS)
-#include <stdio.h>
+#include <cstdio>
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include <unistd.h>
 #include <pwd.h>
-#include <errno.h>
+#include <cerrno>
 
 #define NOUC ((uid_t)(-1))
 #define NOGC ((gid_t)(-1))

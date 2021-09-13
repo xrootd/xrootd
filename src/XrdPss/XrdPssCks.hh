@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdCks/XrdCks.hh"
 #include "XrdCks/XrdCksData.hh"

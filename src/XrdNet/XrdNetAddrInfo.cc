@@ -28,10 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <ctype.h>
-#include <errno.h>
+#include <cctype>
+#include <cerrno>
 #include <netdb.h>
-#include <stdio.h>
+#include <cstdio>
 #include <arpa/inet.h>
 #include <sys/types.h>
 

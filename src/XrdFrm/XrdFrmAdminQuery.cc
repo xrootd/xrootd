@@ -29,8 +29,8 @@
 /******************************************************************************/
 
 #include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <strings.h>
 #include <sys/param.h>
 #include <sys/stat.h>

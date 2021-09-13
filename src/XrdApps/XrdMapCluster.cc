@@ -38,11 +38,11 @@
 /*                         i n c l u d e   f i l e s                          */
 /******************************************************************************/
   
-#include <errno.h>
+#include <cerrno>
 #include <getopt.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <strings.h>
 #include <unistd.h>
 #include <sys/param.h>

@@ -29,10 +29,10 @@
 
 #include <fcntl.h>
 #include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifndef WIN32

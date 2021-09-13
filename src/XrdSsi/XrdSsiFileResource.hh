@@ -29,9 +29,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 #include "XrdSsi/XrdSsiEntity.hh"
 #include "XrdSsi/XrdSsiResource.hh"

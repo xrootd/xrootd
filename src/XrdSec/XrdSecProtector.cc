@@ -27,9 +27,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
-#include <inttypes.h>
-#include <string.h>
+#include <cerrno>
+#include <cinttypes>
+#include <cstring>
 #include <sys/types.h>
 
 #include "XrdVersion.hh"

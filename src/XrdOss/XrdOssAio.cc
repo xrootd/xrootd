@@ -29,7 +29,7 @@
 /******************************************************************************/
   
 #include <signal.h>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 #include <fcntl.h>
 #ifdef _POSIX_ASYNCHRONOUS_IO

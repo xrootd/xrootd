@@ -28,10 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <sys/param.h>
 
 #include "XrdCks/XrdCksManager.hh"

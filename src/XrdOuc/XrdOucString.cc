@@ -26,8 +26,8 @@
 /*     All Rights Reserved. See XrdInfo.cc for complete License Terms         */
 /******************************************************************************/
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <climits>
 
 #include "XrdOuc/XrdOucString.hh"

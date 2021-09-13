@@ -30,12 +30,12 @@
 
 #ifndef WIN32
 #include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
+#include <cctype>
+#include <cerrno>
 #include <fcntl.h>
 #include <poll.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <strings.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -44,10 +44,10 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #else
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <Winsock2.h>

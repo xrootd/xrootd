@@ -28,9 +28,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
-#include <stdio.h>
-#include <time.h>
+#include <cerrno>
+#include <cstdio>
+#include <ctime>
 #include <sys/uio.h>
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"

@@ -21,7 +21,7 @@
 
 #include <vector>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <fnmatch.h>
 
 class BlacklistDecision : public XrdPfc::Decision

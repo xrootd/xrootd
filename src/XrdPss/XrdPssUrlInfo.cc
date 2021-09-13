@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <iostream>
-#include <string.h>
+#include <cstring>
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucSid.hh"

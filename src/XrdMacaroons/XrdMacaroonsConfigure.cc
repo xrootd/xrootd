@@ -1,6 +1,6 @@
 
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>

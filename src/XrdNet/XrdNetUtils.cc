@@ -28,10 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <ctype.h>
-#include <inttypes.h>
+#include <cctype>
+#include <cinttypes>
 #include <netdb.h>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 
 #include <netinet/in.h>

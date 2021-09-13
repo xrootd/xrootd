@@ -48,7 +48,7 @@
 #include <vector>
 #include <arpa/inet.h>
 #include <sstream>
-#include <ctype.h>
+#include <cctype>
 #include <sys/stat.h>
 #include <fcntl.h>
 

@@ -29,11 +29,11 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
-#include <stdio.h>
+#include <cstdio>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <utime.h>
 #include <sys/param.h>
 #include <sys/types.h>

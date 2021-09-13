@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <string>
-#include <string.h>
+#include <cstring>
   
 //-----------------------------------------------------------------------------
 //! The XrdSsiErrInfo object is used to hold error information for many ssi

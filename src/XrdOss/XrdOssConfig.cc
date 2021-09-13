@@ -30,12 +30,12 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <dirent.h>
 #include <fcntl.h>
 #include <string>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/stat.h>

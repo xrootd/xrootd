@@ -32,9 +32,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 #include <stddef.h>
-#include <stdio.h>
+#include <cstdio>
 
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssSpace.hh"

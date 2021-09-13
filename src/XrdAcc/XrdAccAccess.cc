@@ -28,9 +28,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <ctype.h>
-#include <stdio.h>
-#include <time.h>
+#include <cctype>
+#include <cstdio>
+#include <ctime>
 #include <sys/param.h>
 
 #include "XrdVersion.hh"

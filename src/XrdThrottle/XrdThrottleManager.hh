@@ -30,7 +30,7 @@
 
 #include <string>
 #include <vector>
-#include <time.h>
+#include <ctime>
 
 #include "XrdSys/XrdSysPthread.hh"
 

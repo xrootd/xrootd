@@ -44,10 +44,10 @@
 #if !defined(__APPLE__) && !defined(__CYGWIN__)
 #include <link.h>
 #endif
-#include <stdio.h>
+#include <cstdio>
 #include <strings.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <cerrno>
 #else
 #include "XrdSys/XrdWin32.hh"
 #endif

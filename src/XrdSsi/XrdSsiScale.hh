@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <cstdint>
-#include <string.h>
+#include <cstring>
 
 #include "XrdSys/XrdSysPthread.hh"
 

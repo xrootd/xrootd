@@ -29,9 +29,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/types.h>
-#include <time.h>
+#include <ctime>
 
 #include "XrdSys/XrdSysPthread.hh"
 

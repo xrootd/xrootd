@@ -30,9 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <cstring>
 #include <strings.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdCms/XrdCmsTypes.hh"
 #include "XrdSys/XrdSysPthread.hh"

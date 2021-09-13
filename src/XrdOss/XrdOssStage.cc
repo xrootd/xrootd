@@ -39,11 +39,11 @@
 */
 
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <strings.h>
 #include <signal.h>
-#include <stdio.h>
-#include <time.h>
+#include <cstdio>
+#include <ctime>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/stat.h>

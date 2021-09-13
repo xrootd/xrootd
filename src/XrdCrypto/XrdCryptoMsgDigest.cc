@@ -34,7 +34,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <string.h>
+#include <cstring>
 
 #include "XrdCrypto/XrdCryptoAux.hh"
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"

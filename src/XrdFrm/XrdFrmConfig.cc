@@ -28,10 +28,10 @@
 /******************************************************************************/
   
 #include <unistd.h>
-#include <ctype.h>
+#include <cctype>
 #include <dirent.h>
-#include <string.h>
-#include <stdio.h>
+#include <cstring>
+#include <cstdio>
 #include <fcntl.h>
 #include <sys/param.h>
 #include <sys/types.h>

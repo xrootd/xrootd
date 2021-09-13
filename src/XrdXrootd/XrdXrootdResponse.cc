@@ -28,9 +28,9 @@
 /******************************************************************************/
  
 #include <netinet/in.h>
-#include <inttypes.h>
-#include <stdint.h>
-#include <string.h>
+#include <cinttypes>
+#include <cstdint>
+#include <cstring>
 #include <sys/types.h>
 
 #include "Xrd/XrdLinkCtl.hh"

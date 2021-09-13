@@ -28,11 +28,11 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <ctype.h>
+#include <cctype>
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
 #include "XrdBwm/XrdBwmLogger.hh"
 #include "XrdSys/XrdSysError.hh"

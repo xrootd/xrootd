@@ -32,7 +32,7 @@
 #include <iostream>
 #include <memory>
 #include <set>
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <unistd.h>
 #include <sys/stat.h>

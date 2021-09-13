@@ -45,12 +45,12 @@
 #endif
 #endif
 
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/resource.h>
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 
 #include <pthread.h>
 

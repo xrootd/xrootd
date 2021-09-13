@@ -31,7 +31,7 @@
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"

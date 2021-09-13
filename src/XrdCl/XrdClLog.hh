@@ -25,10 +25,10 @@
 #ifndef __XRD_CL_LOG_HH__
 #define __XRD_CL_LOG_HH__
 
-#include <stdarg.h>
+#include <cstdarg>
 #include <string>
 #include <map>
-#include <stdint.h>
+#include <cstdint>
 #include "XrdSys/XrdSysPthread.hh"
 
 //------------------------------------------------------------------------------

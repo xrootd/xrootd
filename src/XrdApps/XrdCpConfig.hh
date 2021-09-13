@@ -32,8 +32,8 @@
 
 #include "XrdCks/XrdCksData.hh"
 
-#include <ctype.h>
-#include <stdint.h>
+#include <cctype>
+#include <cstdint>
 
 #include <string>
 #include <vector>

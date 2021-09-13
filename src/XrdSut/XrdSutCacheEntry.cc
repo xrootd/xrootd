@@ -26,9 +26,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
 
 #include "XrdSutAux.hh"
 #include "XrdSutCacheEntry.hh"

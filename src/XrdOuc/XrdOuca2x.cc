@@ -27,10 +27,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <cstdlib>
+#include <cstdio>
 #include <sys/stat.h>
-#include <errno.h>
+#include <cerrno>
 
 #ifdef WIN32
 #include "XrdSys/XrdWin32.hh"

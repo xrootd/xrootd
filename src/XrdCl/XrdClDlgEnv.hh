@@ -8,7 +8,7 @@
 #ifndef SRC_XRDCL_XRDCLDLGENV_HH_
 #define SRC_XRDCL_XRDCLDLGENV_HH_
 
-#include <stdlib.h>
+#include <cstdlib>
 
 
 namespace XrdCl

@@ -26,10 +26,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <inttypes.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
+#include <cinttypes>
+#include <cstdio>
+#include <cstring>
+#include <cerrno>
 #include <netinet/in.h>
 #include <sys/types.h>
 

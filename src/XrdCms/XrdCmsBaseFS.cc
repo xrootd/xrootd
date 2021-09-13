@@ -28,11 +28,11 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
-#include <time.h>
+#include <cerrno>
+#include <ctime>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <stdio.h>
+#include <cstdio>
   
 #include "XProtocol/YProtocol.hh"
 #include "XProtocol/XPtypes.hh"

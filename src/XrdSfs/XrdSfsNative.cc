@@ -32,9 +32,9 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <memory.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/param.h>
 #include <sys/stat.h>
 

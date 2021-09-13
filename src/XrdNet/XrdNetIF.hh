@@ -30,8 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 //------------------------------------------------------------------------------
 //! The XrdNetIF class handles host interfaces. It is used to obtain the

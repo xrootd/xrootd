@@ -19,7 +19,7 @@
 #ifndef __XRD_CL_POST_MASTER_HH__
 #define __XRD_CL_POST_MASTER_HH__
 
-#include <stdint.h>
+#include <cstdint>
 #include <map>
 #include <vector>
 #include <functional>

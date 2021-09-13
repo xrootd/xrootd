@@ -31,17 +31,17 @@
 #define __STDC_FORMAT_MACROS 1
 #include <alloca.h>
 #include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
+#include <cctype>
+#include <cerrno>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <iostream>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <vector>
 #include <arpa/inet.h>
 #include <sys/stat.h>

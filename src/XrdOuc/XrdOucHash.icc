@@ -27,8 +27,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
-#include <string.h>
+#include <cerrno>
+#include <cstring>
 
 /******************************************************************************/
 /*                E x t e r n a l   H a s h   F u n c t i o n                 */

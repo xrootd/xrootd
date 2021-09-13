@@ -31,9 +31,9 @@
 #include <iostream>
 #include <map>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <pwd.h>
 #include <sys/types.h>
 

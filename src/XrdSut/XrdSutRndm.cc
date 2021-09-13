@@ -27,14 +27,14 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <time.h>
+#include <ctime>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSut/XrdSutRndm.hh"

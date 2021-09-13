@@ -32,7 +32,7 @@
 
 #include <set>
 #include <string>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"

@@ -30,10 +30,10 @@
 
 #include <fcntl.h>
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>

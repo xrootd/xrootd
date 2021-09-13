@@ -30,10 +30,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdSys/XrdSysPlatform.hh"

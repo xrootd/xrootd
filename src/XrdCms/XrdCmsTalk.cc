@@ -30,7 +30,7 @@
 
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "XProtocol/YProtocol.hh"
 

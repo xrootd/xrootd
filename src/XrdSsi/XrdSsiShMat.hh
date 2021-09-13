@@ -29,8 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 //-----------------------------------------------------------------------------
 //! This class defines an abstract interface to a generic shared memory table

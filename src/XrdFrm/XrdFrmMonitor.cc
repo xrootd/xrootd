@@ -28,9 +28,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cerrno>
+#include <cstdlib>
+#include <ctime>
 #include <unistd.h>
 #include <sys/types.h>
 

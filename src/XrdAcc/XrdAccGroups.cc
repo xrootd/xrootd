@@ -29,12 +29,12 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
+#include <cctype>
+#include <cerrno>
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <string.h>
+#include <cstring>
 #include <strings.h>
 #include <sys/param.h>
 #include <sys/types.h>

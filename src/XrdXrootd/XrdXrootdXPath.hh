@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <strings.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #define XROOTDXP_OK        1
 #define XROOTDXP_NOLK      2

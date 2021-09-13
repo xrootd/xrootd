@@ -23,7 +23,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <stdint.h>
+#include <cstdint>
 #include <pthread.h>
 
 namespace XrdClTests {

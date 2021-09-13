@@ -28,10 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <limits.h>
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>

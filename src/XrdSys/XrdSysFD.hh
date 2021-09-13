@@ -43,7 +43,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 
 namespace
 {

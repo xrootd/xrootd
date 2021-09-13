@@ -28,14 +28,14 @@
 /******************************************************************************/
 
 #include <limits.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #ifndef WIN32
 #include <strings.h>
 #else
 #include "XrdSys/XrdWin32.hh"
 #endif
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>

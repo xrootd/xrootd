@@ -29,12 +29,12 @@
 /******************************************************************************/
 
 #include <alloca.h>
-#include <ctype.h>
+#include <cctype>
 #include <iostream>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/param.h>
 #include <unistd.h>
 

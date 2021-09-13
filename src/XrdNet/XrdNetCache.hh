@@ -30,8 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
-#include <time.h>
+#include <cstring>
+#include <ctime>
 #include <sys/types.h>
 
 #include "XrdSys/XrdSysPthread.hh"

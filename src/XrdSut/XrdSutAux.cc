@@ -26,12 +26,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
-#include <errno.h>
-#include <time.h>
+#include <cerrno>
+#include <ctime>
 #include <pwd.h>
 #include <sys/types.h>
 #include <sys/stat.h>

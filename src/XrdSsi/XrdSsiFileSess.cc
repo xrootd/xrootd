@@ -29,8 +29,8 @@
 
 #include <fcntl.h>
 #include <stddef.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/stat.h>

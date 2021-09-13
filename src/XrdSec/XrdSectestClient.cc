@@ -34,11 +34,11 @@
 */
   
 #include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
+#include <cctype>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
 #include <sys/param.h>
 
 #include "XrdNet/XrdNetAddr.hh"

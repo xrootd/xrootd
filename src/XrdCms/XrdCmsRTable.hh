@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
+#include <cstring>
 
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsTypes.hh"

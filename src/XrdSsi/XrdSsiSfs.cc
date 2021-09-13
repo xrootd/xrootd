@@ -29,14 +29,14 @@
 
 #include <unistd.h>
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <memory.h>
-#include <string.h>
-#include <stdio.h>
-#include <time.h>
+#include <cstring>
+#include <cstdio>
+#include <ctime>
 #include <netdb.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>

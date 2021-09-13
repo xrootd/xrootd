@@ -29,10 +29,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/types.h>
-#include <string.h>
-#include <time.h>
+#include <cstring>
+#include <ctime>
 
 /*
 Hash_data_is_key - The key and data are the same so when an item is added

@@ -44,8 +44,8 @@
 #include <windows.h>
 #endif
 
-#include <errno.h>
-#include <string.h>
+#include <cerrno>
+#include <cstring>
 
 //______________________________________________________________________________
 XrdSysDir::XrdSysDir(const char *path)

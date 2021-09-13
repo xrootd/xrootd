@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #define _FILE_OFFSET_BITS 64
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 //#include <sys/xattr.h>
 #include <iostream>
@@ -37,9 +37,9 @@
 //#include <netdb.h>
 #include <pwd.h>
 #include <grp.h>
-#include <time.h>
+#include <ctime>
 #include <pthread.h>
-#include <stdio.h>
+#include <cstdio>
 #include <syslog.h>
 
 #include "XrdNet/XrdNetAddr.hh"

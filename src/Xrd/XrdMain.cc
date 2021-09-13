@@ -59,14 +59,14 @@ Where:
 /******************************************************************************/
   
 #include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
-#include <stdint.h>
+#include <cctype>
+#include <cerrno>
+#include <cstdint>
 #include <signal.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/param.h>
 
 #include "Xrd/XrdConfig.hh"

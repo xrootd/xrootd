@@ -32,7 +32,7 @@
 #ifndef WIN32
 #include <sys/time.h>
 #else
-#include <time.h>
+#include <ctime>
 #include <Winsock2.h>
 #include "XrdSys/XrdWin32.hh"
 #endif

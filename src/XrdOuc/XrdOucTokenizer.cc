@@ -30,9 +30,9 @@
 #ifndef WIN32
 #include <unistd.h>
 #endif
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
 
 #include "XrdOuc/XrdOucTokenizer.hh"
 

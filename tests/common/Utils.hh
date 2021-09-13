@@ -20,7 +20,7 @@
 #define UTILS_HH
 
 #include <unistd.h>
-#include <stdint.h>
+#include <cstdint>
 #include <zlib.h>
 #include <string>
 

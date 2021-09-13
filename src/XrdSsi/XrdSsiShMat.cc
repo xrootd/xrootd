@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdSsi/XrdSsiShMat.hh"
 #include "XrdSsi/XrdSsiShMam.hh"

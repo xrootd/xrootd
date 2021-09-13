@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <signal.h>
   
 #include "XrdSys/XrdSysE2T.hh"

@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
  
-#include <stdio.h>
+#include <cstdio>
   
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSsi/XrdSsiStats.hh"

@@ -30,9 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdio.h>
+#include <cstdio>
 #include <strings.h>
-#include <stdlib.h>
+#include <cstdlib>
   
 class XrdOucPList
 {

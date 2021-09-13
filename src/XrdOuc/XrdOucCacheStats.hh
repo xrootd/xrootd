@@ -30,8 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
 
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPthread.hh"

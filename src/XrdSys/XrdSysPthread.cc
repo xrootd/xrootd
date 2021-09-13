@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
  
-#include <errno.h>
+#include <cerrno>
 #include <pthread.h>
 #ifndef WIN32
 #include <unistd.h>
@@ -35,7 +35,7 @@
 #else
 #undef ETIMEDOUT       // Make sure that the definition from Winsock2.h is used ... 
 #include <Winsock2.h>
-#include <time.h>
+#include <ctime>
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include <sys/types.h>

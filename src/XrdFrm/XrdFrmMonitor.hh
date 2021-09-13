@@ -30,8 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <inttypes.h>
-#include <time.h>
+#include <cinttypes>
+#include <ctime>
 #include <sys/types.h>
 
 #include "XrdXrootd/XrdXrootdMonData.hh"

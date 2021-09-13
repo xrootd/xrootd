@@ -26,8 +26,8 @@
 // https://github.com/pokowaka/jwt-cpp
 
 #include <alloca.h>
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
 
 #define WHITESPACE 64
 #define EQUALS 65

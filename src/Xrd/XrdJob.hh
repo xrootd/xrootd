@@ -29,10 +29,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
   
 // The XrdJob class is a super-class that is inherited by any class that needs
 // to schedule work on behalf of itself. The XrdJob class is optimized for

@@ -29,9 +29,9 @@
 /******************************************************************************/
  
 #include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
-#include <stdlib.h>
+#include <cctype>
+#include <cerrno>
+#include <cstdlib>
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"

@@ -30,9 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <stdint.h>
-#include <string.h>
-#include <time.h>
+#include <cstdint>
+#include <cstring>
+#include <ctime>
 
 #include "XrdSecsss/XrdSecsssKT.hh"
 

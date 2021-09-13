@@ -16,13 +16,13 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <string.h>
-#include <errno.h>
+#include <cstring>
+#include <cerrno>
 #include <fcntl.h>
 #include <iostream>
 #include <poll.h>
-#include <stdio.h>
-#include <time.h>
+#include <cstdio>
+#include <ctime>
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>

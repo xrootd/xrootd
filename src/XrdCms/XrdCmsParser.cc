@@ -28,13 +28,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <stdio.h>
-#include <errno.h>
-#include <inttypes.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cerrno>
+#include <cinttypes>
+#include <cstdarg>
 #include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <netinet/in.h>
 #include <sys/types.h>
 

@@ -8,8 +8,8 @@
 #ifndef SRC_XRDCL_XRDCLOPERATIONTIMEOUT_HH_
 #define SRC_XRDCL_XRDCLOPERATIONTIMEOUT_HH_
 
-#include <stdint.h>
-#include <time.h>
+#include <cstdint>
+#include <ctime>
 #include <exception>
 
 namespace XrdCl

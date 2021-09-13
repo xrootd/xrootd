@@ -52,11 +52,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 #include <unistd.h>
 
 #if __cplusplus < 201103L
-#include <time.h>
+#include <ctime>
 #endif
 
 namespace

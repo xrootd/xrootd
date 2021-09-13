@@ -29,8 +29,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>      // For strlcpy()
-#include <errno.h>
+#include <cstring>      // For strlcpy()
+#include <cerrno>
 #include <cstdint>
 #include <sys/types.h>
 #include <sys/stat.h>

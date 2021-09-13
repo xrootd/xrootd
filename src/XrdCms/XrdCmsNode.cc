@@ -29,8 +29,8 @@
 /******************************************************************************/
   
 #include <limits.h>
-#include <stdio.h>
-#include <time.h>
+#include <cstdio>
+#include <ctime>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/stat.h>

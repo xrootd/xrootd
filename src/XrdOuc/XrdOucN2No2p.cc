@@ -31,10 +31,10 @@
 /******************************************************************************/
 
 #include <algorithm>
-#include <errno.h>
-#include <stdio.h>
+#include <cerrno>
+#include <cstdio>
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 
 #include "XrdVersion.hh"

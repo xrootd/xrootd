@@ -32,11 +32,11 @@
 /******************************************************************************/
   
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <signal.h>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>

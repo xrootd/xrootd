@@ -39,7 +39,7 @@
 #include <limits>
 
 #include <unistd.h>
-#include <stdio.h>
+#include <cstdio>
 #include <ftw.h>
 #include <sys/stat.h>
 #include <sys/types.h>

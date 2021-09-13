@@ -29,10 +29,10 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <ctype.h>
-#include <stdlib.h>
+#include <cctype>
+#include <cstdlib>
 #include <strings.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/param.h>
 
 #include "XrdNet/XrdNetAddr.hh"

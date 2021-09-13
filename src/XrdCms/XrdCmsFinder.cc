@@ -28,13 +28,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cerrno>
 #include <fcntl.h>
 #include <limits.h>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/times.h>
@@ -42,7 +42,7 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "XrdVersion.hh"
   

@@ -28,9 +28,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <ctype.h>
+#include <cctype>
 #include <netdb.h>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/types.h>
 
 #ifdef HAVE_GETIFADDRS

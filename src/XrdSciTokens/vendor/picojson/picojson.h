@@ -76,8 +76,8 @@ extern "C" {
 // experimental support for int64_t (see README.mkdn for detail)
 #ifdef PICOJSON_USE_INT64
 #define __STDC_FORMAT_MACROS
-#include <errno.h>
-#include <inttypes.h>
+#include <cerrno>
+#include <cinttypes>
 #endif
 
 // to disable the use of localeconv(3), set PICOJSON_USE_LOCALE to 0
