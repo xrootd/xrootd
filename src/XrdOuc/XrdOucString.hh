@@ -245,7 +245,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <stdarg.h>
+#include <cstdarg>
 
 using namespace std;
 

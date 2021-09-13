@@ -30,7 +30,7 @@
 /******************************************************************************/
   
 #include <ctype.h>
-#include <stdarg.h>
+#include <cstdarg>
 #include <stddef.h>
 #include <cstdlib>
 #include <cstdio>

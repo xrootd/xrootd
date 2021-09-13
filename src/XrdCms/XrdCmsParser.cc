@@ -31,7 +31,7 @@
 #include <cstdio>
 #include <errno.h>
 #include <cinttypes>
-#include <stdarg.h>
+#include <cstdarg>
 #include <stddef.h>
 #include <cstdlib>
 #include <cstring>
