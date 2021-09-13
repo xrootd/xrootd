@@ -23,7 +23,7 @@
 #include <set>
 #include <list>
 #include <string>
-#include <stdint.h>
+#include <cstdint>
 #include <pthread.h>
 #include "XrdSys/XrdSysPthread.hh"
 

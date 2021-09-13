@@ -19,7 +19,7 @@
 #ifndef __XRD_CL_POST_CHANNEL_HH__
 #define __XRD_CL_POST_CHANNEL_HH__
 
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 #include <ctime>
 #include <functional>

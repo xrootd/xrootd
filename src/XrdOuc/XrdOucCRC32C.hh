@@ -4,7 +4,7 @@
 // Copyright (C) 2015 Mark Adler
 // See crc32c.c for the license.
 
-#include <stdint.h>
+#include <cstdint>
 
 // Return the CRC-32C of buf[0..len-1] given the starting CRC crc.  This can be
 // used to calculate the CRC of a sequence of bytes a chunk at a time, using

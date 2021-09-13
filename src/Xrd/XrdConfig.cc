@@ -38,7 +38,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <pwd.h>
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <string.h>
 #include <cstdio>

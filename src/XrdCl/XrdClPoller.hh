@@ -19,7 +19,7 @@
 #ifndef __XRD_CL_POLLER_HH__
 #define __XRD_CL_POLLER_HH__
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 
 namespace XrdCl

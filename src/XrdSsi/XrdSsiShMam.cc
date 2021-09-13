@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <fcntl.h>
-#include <stdint.h>
+#include <cstdint>
 #include <cstdio>
 #include <stdlib.h>
 #include <string.h>

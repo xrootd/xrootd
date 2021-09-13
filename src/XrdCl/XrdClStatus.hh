@@ -19,7 +19,7 @@
 #ifndef __XRD_CL_STATUS_HH__
 #define __XRD_CL_STATUS_HH__
 
-#include <stdint.h>
+#include <cstdint>
 #include <errno.h>
 #include <sstream>
 

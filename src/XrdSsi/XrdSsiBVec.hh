@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <set>
-#include <stdint.h>
+#include <cstdint>
   
 class XrdSsiBVec
 {

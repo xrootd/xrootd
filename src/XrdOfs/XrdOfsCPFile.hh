@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdint.h>
+#include <cstdint>
 #include <time.h>
   
 struct stat;

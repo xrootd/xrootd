@@ -32,7 +32,7 @@
 
 #include <dirent.h>
 #include <errno.h>
-#include <stdint.h>
+#include <cstdint>
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/time.h>

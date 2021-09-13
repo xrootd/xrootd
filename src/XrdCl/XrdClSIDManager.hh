@@ -24,7 +24,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
-#include <stdint.h>
+#include <cstdint>
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"

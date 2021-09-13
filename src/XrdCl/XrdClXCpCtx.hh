@@ -29,7 +29,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include <stdint.h>
+#include <cstdint>
 #include <iostream>
 
 namespace XrdCl

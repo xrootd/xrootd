@@ -29,7 +29,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClOptional.hh"
 #include "XrdOuc/XrdOucCompiler.hh"
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <sys/uio.h>

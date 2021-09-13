@@ -28,7 +28,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 #include <string>
-#include <stdint.h>
+#include <cstdint>
 #include <memory>
 
 namespace XrdCl
