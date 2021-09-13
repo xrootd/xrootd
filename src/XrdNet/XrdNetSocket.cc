@@ -35,7 +35,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <strings.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -47,7 +47,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <Winsock2.h>

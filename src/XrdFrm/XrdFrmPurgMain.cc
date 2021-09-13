@@ -78,7 +78,7 @@ Where:
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <strings.h>
 #include <cstdio>

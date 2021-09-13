@@ -114,7 +114,7 @@ https://github.com/benhoyt/inih
 #include <cstring>
 
 #if !INI_USE_STACK
-#include <stdlib.h>
+#include <cstdlib>
 #endif
 
 #define MAX_SECTION 50

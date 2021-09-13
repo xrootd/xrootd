@@ -34,7 +34,7 @@
    appropriate size (yes, that means dbx has a tough time).
 */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSys/XrdSysPthread.hh"

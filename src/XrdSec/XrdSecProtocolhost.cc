@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <strings.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdSec/XrdSecProtocolhost.hh"
 

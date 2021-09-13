@@ -30,7 +30,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucUtils.hh"

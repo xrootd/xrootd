@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <cinttypes>
-#include <stdlib.h>
+#include <cstdlib>
 #include <time.h>
 #include <netinet/in.h>
 #include <sys/types.h>

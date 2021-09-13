@@ -432,7 +432,7 @@ uint32_t crc32c_sw(uint32_t crc, void const *buf, size_t len) {
 #ifdef TEST
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include "load.h"
 
 int main(int argc, char **argv) {

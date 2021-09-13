@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
   
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysFD.hh"

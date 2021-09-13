@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <cinttypes>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <unistd.h>
 #include <netinet/in.h>

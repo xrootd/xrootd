@@ -32,7 +32,7 @@
 #include <map>
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <pwd.h>
 #include <sys/types.h>

@@ -32,7 +32,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <sys/stat.h>

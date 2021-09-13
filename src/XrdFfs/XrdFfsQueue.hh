@@ -31,7 +31,7 @@
   extern "C" {
 #endif
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <pthread.h>
 
 struct XrdFfsQueueTasks {

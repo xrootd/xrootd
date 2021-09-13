@@ -31,7 +31,7 @@
 //
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 
 #include "XrdOuc/XrdOucString.hh"

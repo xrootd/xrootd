@@ -244,7 +244,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <stdarg.h>
 
 using namespace std;

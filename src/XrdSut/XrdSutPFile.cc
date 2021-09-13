@@ -29,7 +29,7 @@
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

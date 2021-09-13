@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <cstdint>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 
 #include "XrdSsi/XrdSsiAtomics.hh"

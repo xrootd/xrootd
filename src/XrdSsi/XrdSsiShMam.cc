@@ -30,7 +30,7 @@
 #include <fcntl.h>
 #include <cstdint>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <time.h>
 #include <unistd.h>

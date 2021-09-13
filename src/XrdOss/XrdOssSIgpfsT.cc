@@ -33,7 +33,7 @@
 #include <unistd.h>
 #include <strings.h>
 #include <cstring>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"

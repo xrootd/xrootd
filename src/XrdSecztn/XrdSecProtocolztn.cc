@@ -38,7 +38,7 @@
 #include <iostream>
 #include <cstdint>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <strings.h>
 #include <time.h>

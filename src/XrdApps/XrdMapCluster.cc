@@ -40,7 +40,7 @@
   
 #include <errno.h>
 #include <getopt.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <strings.h>

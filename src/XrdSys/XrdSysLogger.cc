@@ -29,7 +29,7 @@
 
 #include <fcntl.h>
 #include <signal.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <time.h>

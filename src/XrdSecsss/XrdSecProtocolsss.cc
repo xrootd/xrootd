@@ -31,7 +31,7 @@
 #include <alloca.h>
 #include <ctype.h>
 #include <iostream>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <strings.h>
 #include <cstdio>

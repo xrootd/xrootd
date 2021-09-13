@@ -41,7 +41,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 
 

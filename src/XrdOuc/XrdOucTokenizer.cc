@@ -31,7 +31,7 @@
 #include <unistd.h>
 #endif
 #include <ctype.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 
 #include "XrdOuc/XrdOucTokenizer.hh"

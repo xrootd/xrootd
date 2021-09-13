@@ -31,7 +31,7 @@
 #include <ctype.h>
 #include <iostream>
 #include <limits.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <fcntl.h>
 #include <time.h>

@@ -30,7 +30,7 @@
 #define FUSE_USE_VERSION 26
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 #include <stddef.h>
 

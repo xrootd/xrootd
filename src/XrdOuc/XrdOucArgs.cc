@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #include <stdarg.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <strings.h>
 

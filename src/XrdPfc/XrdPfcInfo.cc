@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <time.h>
 #include <cstring>
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/stat.h>
 
 #include "XrdOss/XrdOss.hh"

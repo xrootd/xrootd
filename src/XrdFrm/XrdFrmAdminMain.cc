@@ -58,7 +58,7 @@ Where:
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <strings.h>
 #include <cstdio>

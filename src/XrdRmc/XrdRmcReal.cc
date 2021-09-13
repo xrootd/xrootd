@@ -30,7 +30,7 @@
 
 #include <errno.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <unistd.h>
 #include <sys/mman.h>

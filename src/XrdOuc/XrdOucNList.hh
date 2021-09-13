@@ -34,7 +34,7 @@
 #else
 #include "XrdSys/XrdWin32.hh"
 #endif
-#include <stdlib.h>
+#include <cstdlib>
 #include "XrdSys/XrdSysPthread.hh"
   
 class XrdOucNList

@@ -34,7 +34,7 @@
 /******************************************************************************/
 
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <errno.h>
 

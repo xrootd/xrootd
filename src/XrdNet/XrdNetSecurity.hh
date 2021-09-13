@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
-#include <stdlib.h>
+#include <cstdlib>
   
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucNList.hh"

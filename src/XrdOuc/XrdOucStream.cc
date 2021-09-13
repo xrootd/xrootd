@@ -29,7 +29,7 @@
 
 #include <ctype.h>
 #include <fcntl.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #ifndef WIN32

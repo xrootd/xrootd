@@ -32,7 +32,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #include <iomanip>

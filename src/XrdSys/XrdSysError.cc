@@ -30,14 +30,14 @@
 #include <ctype.h>
 #ifndef WIN32
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #else
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <sys/types.h>

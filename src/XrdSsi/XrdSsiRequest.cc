@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 
 #include "XrdSsi/XrdSsiRespInfo.hh"

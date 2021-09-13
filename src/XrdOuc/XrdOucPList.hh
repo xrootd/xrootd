@@ -32,7 +32,7 @@
 
 #include <cstdio>
 #include <strings.h>
-#include <stdlib.h>
+#include <cstdlib>
   
 class XrdOucPList
 {

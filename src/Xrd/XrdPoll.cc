@@ -29,7 +29,7 @@
 
 #include <unistd.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
   
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"

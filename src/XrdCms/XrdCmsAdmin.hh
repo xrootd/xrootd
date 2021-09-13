@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <sys/uio.h>
 
 #include "XrdCms/XrdCmsProtocol.hh"
