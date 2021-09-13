@@ -30,7 +30,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
-#include <time.h>
+#include <ctime>
 #include <pthread.h>
 
 #ifndef _GNU_SOURCE

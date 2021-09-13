@@ -30,7 +30,7 @@
 
 #include <errno.h>
 #include <cstdlib>
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <sys/types.h>
 

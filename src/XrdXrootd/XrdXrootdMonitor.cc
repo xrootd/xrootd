@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <cstdio>
 #include <cstdlib>
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <sys/types.h>
 

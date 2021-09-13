@@ -32,7 +32,7 @@
 #include <cstdlib>
 #include <sys/types.h>
 #include <cstring>
-#include <time.h>
+#include <ctime>
 
 /*
 Hash_data_is_key - The key and data are the same so when an item is added

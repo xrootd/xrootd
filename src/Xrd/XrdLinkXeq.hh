@@ -31,7 +31,7 @@
 
 #include <sys/types.h>
 #include <fcntl.h>
-#include <time.h>
+#include <ctime>
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdLinkInfo.hh"

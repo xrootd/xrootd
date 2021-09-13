@@ -43,7 +43,7 @@
 #include <strings.h>
 #include <signal.h>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/stat.h>

@@ -22,7 +22,7 @@
 #include <iostream>
 #include <poll.h>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>

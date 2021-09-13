@@ -31,7 +31,7 @@
 
 #include <cstdlib>
 #include <sys/types.h>
-#include <time.h>
+#include <ctime>
 
 #include "XrdSys/XrdSysPthread.hh"
 

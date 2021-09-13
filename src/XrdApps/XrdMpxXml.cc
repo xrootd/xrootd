@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <time.h>
+#include <ctime>
 
 #include "XrdApps/XrdMpxXml.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"

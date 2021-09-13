@@ -27,7 +27,7 @@
 /******************************************************************************/
 
 #include <cstring>
-#include <time.h>
+#include <ctime>
 
 #include "XrdCrypto/XrdCryptoFactory.hh"
 #include "XrdCrypto/XrdCryptogsiX509Chain.hh"

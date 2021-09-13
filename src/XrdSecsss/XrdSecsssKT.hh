@@ -31,7 +31,7 @@
 /******************************************************************************/
   
 #include <cstring>
-#include <time.h>
+#include <ctime>
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucErrInfo;

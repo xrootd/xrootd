@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>

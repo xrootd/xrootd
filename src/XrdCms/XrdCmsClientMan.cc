@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <time.h>
+#include <ctime>
 
 #include "XrdCms/XrdCmsClientMan.hh"
 #include "XrdCms/XrdCmsClientMsg.hh"

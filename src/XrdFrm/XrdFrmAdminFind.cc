@@ -31,7 +31,7 @@
 #include <cstdio>
 #include <cstring>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <sys/param.h>
 
 #include "XrdCks/XrdCksManager.hh"

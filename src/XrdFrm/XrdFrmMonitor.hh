@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <cinttypes>
-#include <time.h>
+#include <ctime>
 #include <sys/types.h>
 
 #include "XrdXrootd/XrdXrootdMonData.hh"

@@ -29,7 +29,7 @@
   
 #include <sys/types.h>
 #include <fcntl.h>
-#include <time.h>
+#include <ctime>
 
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLinkCtl.hh"

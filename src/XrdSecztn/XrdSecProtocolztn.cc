@@ -41,7 +41,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <vector>
 #include <arpa/inet.h>
 #include <sys/stat.h>

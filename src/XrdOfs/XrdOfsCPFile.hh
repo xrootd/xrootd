@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <cstdint>
-#include <time.h>
+#include <ctime>
   
 struct stat;
 class  XrdOucIOVec;

@@ -28,7 +28,7 @@
 
 #include <cstdio>
 #include <cstring>
-#include <time.h>
+#include <ctime>
 
 #include "XrdSutAux.hh"
 #include "XrdSutCacheEntry.hh"

@@ -34,7 +34,7 @@
 #include <strings.h>
 #include <signal.h>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #if defined(AIX) || defined(__solaris__)
 #include <sys/vnode.h>
 #include <sys/mode.h>

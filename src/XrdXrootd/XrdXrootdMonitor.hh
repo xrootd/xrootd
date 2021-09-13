@@ -32,7 +32,7 @@
 
 #include <cinttypes>
 #include <cstdlib>
-#include <time.h>
+#include <ctime>
 #include <netinet/in.h>
 #include <sys/types.h>
 

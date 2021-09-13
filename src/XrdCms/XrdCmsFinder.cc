@@ -34,7 +34,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/times.h>

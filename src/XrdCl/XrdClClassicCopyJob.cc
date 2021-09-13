@@ -56,7 +56,7 @@
 #include <unistd.h>
 
 #if __cplusplus < 201103L
-#include <time.h>
+#include <ctime>
 #endif
 
 namespace

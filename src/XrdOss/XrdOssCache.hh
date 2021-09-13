@@ -30,7 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <time.h>
+#include <ctime>
 #include <sys/stat.h>
 #include "XrdOuc/XrdOucDLlist.hh"
 #include "XrdOss/XrdOssVS.hh"

@@ -34,7 +34,7 @@
 #include <memory.h>
 #include <cstring>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <netdb.h>
 #include <cstdlib>
 #include <sys/param.h>

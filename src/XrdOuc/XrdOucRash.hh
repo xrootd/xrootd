@@ -47,7 +47,7 @@
 //          mutex when used in a multi-threaded environment.
  
 #include <sys/types.h>
-#include <time.h>
+#include <ctime>
 
 enum XrdOucRash_Options {Rash_default     = 0x0000,
                          Rash_replace     = 0x0002,

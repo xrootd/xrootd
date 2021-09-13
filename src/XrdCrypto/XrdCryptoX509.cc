@@ -36,7 +36,7 @@
 /* (OpenSSL, Botan, ...)                                                      */
 /*                                                                            */
 /* ************************************************************************** */
-#include <time.h>
+#include <ctime>
 
 #include "XrdCrypto/XrdCryptoX509.hh"
 #include "XrdCrypto/XrdCryptoTrace.hh"

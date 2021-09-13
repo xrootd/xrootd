@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <cstring>
-#include <time.h>
+#include <ctime>
 #include <sys/types.h>
 
 #include "XrdSys/XrdSysPthread.hh"

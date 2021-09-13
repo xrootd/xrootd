@@ -34,7 +34,7 @@
 #include <map>
 #include <strings.h>
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>

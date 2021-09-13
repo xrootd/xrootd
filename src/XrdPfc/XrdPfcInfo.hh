@@ -19,7 +19,7 @@
 //----------------------------------------------------------------------------------
 
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 #include <assert.h>
 #include <vector>
 

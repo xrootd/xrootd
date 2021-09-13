@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <cstring>
-#include <time.h>
+#include <ctime>
 #include <cstdio>
 #include <unistd.h>
 #include <sys/mman.h>

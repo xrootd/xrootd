@@ -31,7 +31,7 @@
 
 #include <cstring>
 #include <strings.h>
-#include <time.h>
+#include <ctime>
 #include <sys/types.h>
 
 #include "Xrd/XrdJob.hh"
