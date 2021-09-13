@@ -28,7 +28,7 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>

@@ -29,7 +29,7 @@
 /******************************************************************************/
   
 #include <ctype.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <cstdio>
 #include <cstring>

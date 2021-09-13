@@ -32,7 +32,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 #include <ctime>
-#include <errno.h>
+#include <cerrno>
 #include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>

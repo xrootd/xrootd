@@ -44,7 +44,7 @@
 #include <windows.h>
 #endif
 
-#include <errno.h>
+#include <cerrno>
 #include <cstring>
 
 //______________________________________________________________________________

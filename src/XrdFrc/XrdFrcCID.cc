@@ -33,7 +33,7 @@
 #include <cstdio>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>

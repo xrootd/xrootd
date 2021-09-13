@@ -34,7 +34,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <ctime>
 
 #include "XrdCrypto/XrdCryptosslRSA.hh"

@@ -20,7 +20,7 @@
 #define __CPPUNIT_XRD_HELPERS_HH__
 
 #include <XrdCl/XrdClXRootDResponses.hh>
-#include <errno.h>
+#include <cerrno>
 #include <cstring>
 
 #define CPPUNIT_ASSERT_XRDST_NOTOK( x, err )         \

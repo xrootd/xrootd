@@ -17,7 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include <cstring>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <iostream>
 #include <poll.h>

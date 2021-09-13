@@ -33,7 +33,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdVersion.hh"
 #include "XrdVersionPlugin.hh"

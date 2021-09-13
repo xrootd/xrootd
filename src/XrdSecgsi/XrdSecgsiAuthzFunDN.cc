@@ -35,7 +35,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdVersion.hh"
 

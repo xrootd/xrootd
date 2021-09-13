@@ -29,7 +29,7 @@
 /******************************************************************************/
   
 #include <cstdio>
-#include <errno.h>
+#include <cerrno>
 #include <cinttypes>
 #include <cstdarg>
 #include <stddef.h>

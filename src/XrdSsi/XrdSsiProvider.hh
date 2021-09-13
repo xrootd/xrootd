@@ -76,7 +76,7 @@
 //! Warning! All methods (except Init()) in this class must be thread-safe.
 //-----------------------------------------------------------------------------
 
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdSsi/XrdSsiErrInfo.hh"
 #include "XrdSsi/XrdSsiResource.hh"

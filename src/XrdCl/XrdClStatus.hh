@@ -20,7 +20,7 @@
 #define __XRD_CL_STATUS_HH__
 
 #include <cstdint>
-#include <errno.h>
+#include <cerrno>
 #include <sstream>
 
 namespace XrdCl

@@ -31,7 +31,7 @@
 /******************************************************************************/
 
 #include <dirent.h>
-#include <errno.h>
+#include <cerrno>
 #include <cstdint>
 #include <strings.h>
 #include <sys/stat.h>

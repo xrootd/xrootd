@@ -30,7 +30,7 @@
 
 #include <cstdlib>
 #include <cstdio>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <limits.h>
 #include <strings.h>

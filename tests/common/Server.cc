@@ -22,7 +22,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "TestEnv.hh"
 
-#include <errno.h>
+#include <cerrno>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <arpa/inet.h>

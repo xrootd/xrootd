@@ -47,7 +47,7 @@
 #include <cstdio>
 #include <strings.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <cerrno>
 #else
 #include "XrdSys/XrdWin32.hh"
 #endif

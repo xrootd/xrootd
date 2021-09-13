@@ -31,7 +31,7 @@
 // This file implements an instance of the XrdOucName2Name and the
 // XrdOucName2NameVec abstract classes.
 
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"

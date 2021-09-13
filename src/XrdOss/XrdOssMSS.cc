@@ -30,7 +30,7 @@
 
 #include <dirent.h>
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <strings.h>
 #include <signal.h>
 #include <cstdio>

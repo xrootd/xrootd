@@ -34,7 +34,7 @@
 #include <sys/stat.h>
 #include <ctime>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSut/XrdSutRndm.hh"

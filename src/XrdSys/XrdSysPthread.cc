@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
  
-#include <errno.h>
+#include <cerrno>
 #include <pthread.h>
 #ifndef WIN32
 #include <unistd.h>

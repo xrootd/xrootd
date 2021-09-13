@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <errno.h>
+#include <cerrno>
 
 //-----------------------------------------------------------------------------
 //! Convert error number to string in a thread-safe way.

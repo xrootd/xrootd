@@ -29,7 +29,7 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstring>
-#include <errno.h>
+#include <cerrno>
 #include <netinet/in.h>
 #include <sys/types.h>
 
