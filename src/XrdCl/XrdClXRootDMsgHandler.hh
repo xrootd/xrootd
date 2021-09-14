@@ -433,9 +433,11 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Take down the timeout fence after oksofar response has been handled
+      //! Bookkeeping after partial response has been received:
+      //! - take down the timeout fence after oksofar response has been handled
+      //! - reset status-response-body marshaled flag
       //------------------------------------------------------------------------
-      void TakeDownTimeoutFence();
+      void PartialReceived();
 
     private:
 
