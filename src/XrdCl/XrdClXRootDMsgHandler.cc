@@ -1628,11 +1628,12 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Take down the timeout fence
+  // Bookkeeping after partial response has been received.
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::TakeDownTimeoutFence()
+  void XRootDMsgHandler::PartialReceived()
   {
-    pTimeoutFence.store( false, std::memory_order_relaxed );
+    pTimeoutFence.store( false, std::memory_order_relaxed ); // Take down the timeout fence
+    pRspStatusBodyUnMarshaled = false;
   }
 
   //----------------------------------------------------------------------------
