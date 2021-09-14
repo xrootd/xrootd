@@ -46,7 +46,6 @@
 #include <array>
 #include <list>
 #include <memory>
-
 #include <atomic>
 
 namespace XrdCl
@@ -493,9 +492,10 @@ namespace XrdCl
         {
           uint32_t btsRead = 0;
           Status st = ReadPageAsync( socket, btsRead );
-          if( !st.IsOK() || st.code == suRetry ) return st;
+          if( !st.IsOK() ) return st;
           bytesRead += btsRead;
           toBeRead  -= btsRead;
+          if( st.code == suRetry ) return st;
         }
 
         return Status();
