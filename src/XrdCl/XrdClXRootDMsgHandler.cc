@@ -1519,16 +1519,21 @@ namespace XrdCl
           char*    dgstbuf = pPgWrtCksumBuff.GetBufferAtCursor();
           int btswrt = 0;
           Status st = socket->Send( dgstbuf, dgstlen, btswrt );
-          if( !st.IsOK() || st.code == suRetry ) return st;
+          if( !st.IsOK() ) return st;
+          bytesWritten += btswrt;
           pPgWrtCksumBuff.AdvanceCursor( btswrt );
+          if( st.code == suRetry ) return st;
         }
         // then write the raw data (one page)
         int btswrt = 0;
         Status st = socket->Send( pgbuf, pglen, btswrt );
-        if( !st.IsOK() || st.code == suRetry ) return st;
-        pgbuf   += btswrt;
-        pglen   -= btswrt;
-        btsLeft -= btswrt;
+        if( !st.IsOK() ) return st;
+        pgbuf        += btswrt;
+        pglen        -= btswrt;
+        btsLeft      -= btswrt;
+        bytesWritten += btswrt;
+        pAsyncOffset += btswrt; // update the offset to the raw data
+        if( st.code == suRetry ) return st;
         // if we managed to write all the data ...
         if( pglen == 0 )
         {
@@ -1550,8 +1555,7 @@ namespace XrdCl
         else
           // otherwise just adjust the offset in the current page
           pPgWrtCurrentPageOffset += btswrt;
-        // and finally update the offset to the raw data
-        pAsyncOffset += btswrt;
+
       }
     }
     else if( !pChunkList->empty() )
