@@ -524,7 +524,7 @@ namespace XrdCl
       if( IsPartial( msg ) )
       {
         XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( mh.handler );
-        if( xrdHandler ) xrdHandler->TakeDownTimeoutFence();
+        if( xrdHandler ) xrdHandler->PartialReceived();
       }
 
       bool delit = ( mh.action & IncomingMsgHandler::Ignore );
