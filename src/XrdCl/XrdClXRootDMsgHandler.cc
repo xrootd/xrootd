@@ -1088,7 +1088,7 @@ namespace XrdCl
       pAsyncOffset     = 0;
       pAsyncReadSize   = pAsyncMsgSize;
       pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
-      size_t rawDataSize      = pAsyncMsgSize - XrdOucPgrwUtils::csNum( pPgReadOffset, pPgReadLength ) * CksumSize;
+      size_t rawDataSize      = pAsyncMsgSize - NbPgPerRsp( pPgReadOffset, pPgReadLength ) * CksumSize;
 
       if( pReadRawCurrentOffset + rawDataSize > chunk.length )
       {
@@ -2167,11 +2167,13 @@ namespace XrdCl
         char      *cursor        = (char*)chunk.buffer;
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
-          ServerResponseStatus      *part  = (ServerResponseStatus*)pPartialResps[i]->GetBuffer();
+          ServerResponseV2 *part  = (ServerResponseV2*)pPartialResps[i]->GetBuffer();
+
           //--------------------------------------------------------------------
           // the actual size of the raw data without the crc32c checksums
           //--------------------------------------------------------------------
-          size_t datalen = part->bdy.dlen - NbPages( part->bdy.dlen ) * CksumSize;
+          size_t datalen = part->status.bdy.dlen - NbPgPerRsp( part->info.pgread.offset,
+                           part->status.bdy.dlen ) * CksumSize;
 
           if( currentOffset + datalen > chunk.length )
           {
@@ -2183,8 +2185,9 @@ namespace XrdCl
           cursor        += datalen;
         }
 
-        ServerResponseStatus *rspst = (ServerResponseStatus*)pResponse->GetBuffer();
-        size_t datalen = rspst->bdy.dlen - NbPages( rspst->bdy.dlen ) * CksumSize;
+        ServerResponseV2 *rspst = (ServerResponseV2*)pResponse->GetBuffer();
+        size_t datalen = rspst->status.bdy.dlen - NbPgPerRsp( rspst->info.pgread.offset,
+                         rspst->status.bdy.dlen ) * CksumSize;
         if( currentOffset + datalen <= chunk.length )
           currentOffset += datalen;
         else
