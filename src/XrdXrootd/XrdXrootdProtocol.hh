@@ -527,10 +527,11 @@ int                        myBlast;
 
 struct GetDataCtl
 {
-int                        lenPart;
+int                        iovNum;
 int                        iovNow;
-union {int                 iovNum;
+union {int                 iovAdj;
        int                 BuffLen;
+       int                 DumpLen;
       };
 bool                       useCB;
 char                       Status;
