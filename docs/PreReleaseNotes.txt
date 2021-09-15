@@ -17,6 +17,7 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Xcache]** Extend pgread API to return number of corrected checksum errors.
   **[cmsd]** Allow more parallelism during data server selection.
   **[Utils]** Add utility class to handle url encoding and decoding.
   **[Utils]** Add generic port specification to port number utility.
