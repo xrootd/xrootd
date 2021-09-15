@@ -40,7 +40,8 @@ int XrdOucCacheIO::pgRead(char                  *buff,
                           long long              offs,
                           int                    rdlen,
                           std::vector<uint32_t> &csvec,
-                          uint64_t               opts)
+                          uint64_t               opts,
+                          int                   *csfix)
 {
    int bytes;
 
@@ -67,7 +68,8 @@ int XrdOucCacheIO::pgWrite(char                  *buff,
                            long long              offs,
                            int                    wrlen,
                            std::vector<uint32_t> &csvec,
-                           uint64_t               opts)
+                           uint64_t               opts,
+                           int                   *csfix)
 {
 // Now just return the result of a plain write
 //

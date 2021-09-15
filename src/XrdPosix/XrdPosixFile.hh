@@ -83,24 +83,26 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        bool          Close(XrdCl::XRootDStatus &Status);
 
-       bool          Detach(XrdOucCacheIOCD &cdP) {(void)cdP; return true;}
+       bool          Detach(XrdOucCacheIOCD &cdP) override
+                           {(void)cdP; return true;}
 
-       void          DetachDone() {unRef();}
+       void          DetachDone() override {unRef();}
 
        bool          Finalize(XrdCl::XRootDStatus *Status);
 
-       long long     FSize() {AtomicBeg(updMutex);
-                              long long retSize = AtomicGet(mySize);
-                              AtomicEnd(updMutex);
-                              return retSize;
-                             }
+       long long     FSize() override
+                          {AtomicBeg(updMutex);
+                           long long retSize = AtomicGet(mySize);
+                           AtomicEnd(updMutex);
+                           return retSize;
+                          }
 
-       int           Fstat(struct stat &buf);
+       int           Fstat(struct stat &buf) override;
 
-       const char   *Location(bool refresh=false);
+       const char   *Location(bool refresh=false) override;
 
        void          HandleResponse(XrdCl::XRootDStatus *status,
-                                    XrdCl::AnyObject    *response);
+                                    XrdCl::AnyObject    *response) override;
 
        void          updLock()   {updMutex.Lock();}
 
@@ -110,33 +112,37 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        const char   *Origin() {return fOpen;}
 
-       const char   *Path() {return fPath;}
+       const char   *Path() override {return fPath;}
 
        int           pgRead(char *buff, long long offs, int rdlen,
-                            std::vector<uint32_t> &csvec, uint64_t opts=0);
+                            std::vector<uint32_t> &csvec, uint64_t opts=0,
+                            int *csfix=0) override;
 
        void          pgRead(XrdOucCacheIOCB &iocb,
                             char *buff, long long offs, int rdlen,
-                            std::vector<uint32_t> &csvec, uint64_t opts=0);
+                            std::vector<uint32_t> &csvec, uint64_t opts=0,
+                            int *csfix=0) override;
 
         int          pgWrite(char *buff, long long offs, int wrlen,
-                             std::vector<uint32_t> &csvec, uint64_t opts=0);
+                             std::vector<uint32_t> &csvec, uint64_t opts=0,
+                             int *csfix=0) override;
 
         void         pgWrite(XrdOucCacheIOCB &iocb,
                              char *buff, long long offs, int wrlen,
-                             std::vector<uint32_t> &csvec, uint64_t opts=0);
+                             std::vector<uint32_t> &csvec, uint64_t opts=0,
+                             int *csfix=0) override;
 
-       int           Read (char *Buff, long long Offs, int Len);
+       int           Read (char *Buff, long long Offs, int Len) override;
 
        void          Read (XrdOucCacheIOCB &iocb, char *buff, long long offs,
-                           int rlen);
+                           int rlen) override;
 
-       int           ReadV (const XrdOucIOVec *readV, int n);
+       int           ReadV (const XrdOucIOVec *readV, int n) override;
 
        void          ReadV (XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV,
-                            int n);
+                            int n) override;
 
-       long long     setOffset(long long offs)
+inline long long     setOffset(long long offs)
                               {updMutex.Lock();
                                currOffset = offs;
                                updMutex.UnLock();
@@ -145,13 +151,13 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        bool          Stat(XrdCl::XRootDStatus &Status, bool force=false);
 
-       int           Sync();
+       int           Sync() override;
 
-       void          Sync(XrdOucCacheIOCB &iocb);
+       void          Sync(XrdOucCacheIOCB &iocb) override;
 
-       int           Trunc(long long Offset);
+       int           Trunc(long long Offset) override;
 
-       void          UpdtSize(size_t newsz)
+inline void          UpdtSize(size_t newsz)
                               {updMutex.Lock();
                                if (newsz > mySize) mySize = newsz;
                                updMutex.UnLock();
@@ -159,13 +165,13 @@ static void          DelayedDestroy(XrdPosixFile *fp);
 
        using         XrdPosixObject::Who;
 
-       bool          Who(XrdPosixFile **fileP)
+inline bool          Who(XrdPosixFile **fileP)
                           {*fileP = this; return true;}
 
-       int           Write(char *Buff, long long Offs, int Len);
+       int           Write(char *Buff, long long Offs, int Len) override;
 
        void          Write(XrdOucCacheIOCB &iocb, char *buff, long long offs,
-                           int wlen);
+                           int wlen) override;
 
        size_t        mySize;
        time_t        myAtime;

@@ -137,6 +137,7 @@ void XrdPosixFileRH::HandleResponse(XrdCl::XRootDStatus *status,
                             }
                     csVec = 0;
                    }
+                if (csfix) *csfix = pInfo->GetNbRepair();
                } else {
                 result = 0;
                 if (csVec) {csVec->clear(); csVec = 0;}
