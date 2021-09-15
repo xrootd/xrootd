@@ -451,12 +451,13 @@ int XrdPosixFile::pgRead(char                  *buff,
                          long long              offs,
                          int                    rlen,
                          std::vector<uint32_t> &csvec,
-                         uint64_t               opts)
+                         uint64_t               opts,
+                         int                   *csfix)
 {
 // Do a sync call using the async interface
 //
    pgioCB pgrCB("Posix pgRead CB");
-   pgRead(pgrCB, buff, offs, rlen, csvec, opts);
+   pgRead(pgrCB, buff, offs, rlen, csvec, opts, csfix);
    return pgrCB.Wait4PGIO();
 }
   
@@ -467,7 +468,8 @@ void XrdPosixFile::pgRead(XrdOucCacheIOCB       &iocb,
                           long long              offs,
                           int                    rlen,
                           std::vector<uint32_t> &csvec,
-                          uint64_t               opts)
+                          uint64_t               opts,
+                          int                   *csfix)
 {
    XrdCl::XRootDStatus Status;
    XrdPosixFileRH *rhP;
@@ -479,7 +481,8 @@ void XrdPosixFile::pgRead(XrdOucCacheIOCB       &iocb,
 
 // Set the destination checksum vector
 //
-   rhP->setCSVec(&csvec, (opts & XrdOucCacheIO::forceCS) != 0);
+   if (csfix) *csfix = 0;
+   rhP->setCSVec(&csvec, csfix, (opts & XrdOucCacheIO::forceCS) != 0);
 
 // Issue read
 //
@@ -502,9 +505,14 @@ int XrdPosixFile::pgWrite(char                  *buff,
                           long long              offs,
                           int                    wlen,
                           std::vector<uint32_t> &csvec,
-                          uint64_t               opts)
+                          uint64_t               opts,
+                          int                   *csfix)
 {
    XrdCl::XRootDStatus Status;
+
+// Preset checksum error count
+//
+   if (csfix) *csfix = 0;
 
 // Issue write and return appropriately
 //
@@ -522,7 +530,8 @@ void XrdPosixFile::pgWrite(XrdOucCacheIOCB       &iocb,
                            long long              offs,
                            int                    wlen,
                            std::vector<uint32_t> &csvec,
-                           uint64_t               opts)
+                           uint64_t               opts,
+                           int                   *csfix)
 {
    XrdCl::XRootDStatus Status;
    XrdPosixFileRH *rhP;
@@ -531,6 +540,13 @@ void XrdPosixFile::pgWrite(XrdOucCacheIOCB       &iocb,
 // as far as the response handler is concerned.
 //
    rhP = XrdPosixFileRH::Alloc(&iocb,this,offs,wlen,XrdPosixFileRH::isWrite);
+
+// Set checksum info
+//
+   if (csfix)
+      {*csfix = 0;
+       rhP->setCSVec(0, csfix);
+      }
 
 // Issue write
 //

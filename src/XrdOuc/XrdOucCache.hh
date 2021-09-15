@@ -179,6 +179,7 @@ const char  *Path() = 0;
 //!               If a zero length vector is returned, checksums are not present.
 //! @param  opts  Processing options:
 //!               forceCS - always return checksums even when not available.
+//! @param  csfix When not nil, returns the number of corrected checksum errs.
 //!
 //! @return >= 0      The number of bytes placed in buffer.
 //! @return -errno    File could not be read, return value is the reason.
@@ -190,7 +191,8 @@ virtual int  pgRead(char                  *buff,
                     long long              offs,
                     int                    rdlen,
                     std::vector<uint32_t> &csvec,
-                    uint64_t               opts=0);
+                    uint64_t               opts=0,
+                    int                   *csfix=0);
 
 //-----------------------------------------------------------------------------
 //! Read file pages and checksums using asynchronous I/O (default sync).
@@ -206,6 +208,7 @@ virtual int  pgRead(char                  *buff,
 //!               CRC32C checksum for each page or page segment.
 //! @param  opts  Processing options:
 //!               forceCS - always return checksums even when not available.
+//! @param  csfix When not nil, returns the number of corrected checksum errs.
 //-----------------------------------------------------------------------------
 
 virtual void pgRead(XrdOucCacheIOCB       &iocb,
@@ -213,8 +216,9 @@ virtual void pgRead(XrdOucCacheIOCB       &iocb,
                     long long              offs,
                     int                    rdlen,
                     std::vector<uint32_t> &csvec,
-                    uint64_t               opts=0)
-                   {iocb.Done(pgRead(buff, offs, rdlen, csvec, opts));}
+                    uint64_t               opts=0,
+                    int                   *csfix=0)
+                   {iocb.Done(pgRead(buff, offs, rdlen, csvec, opts, csfix));}
 
 //-----------------------------------------------------------------------------
 //! Write file pages from a buffer and corresponding verified checksums.
@@ -226,6 +230,7 @@ virtual void pgRead(XrdOucCacheIOCB       &iocb,
 //! @param  csvec A vector of that holds the corresponding verified CRC32C
 //!               checksum for each page or page segment.
 //! @param  opts  Processing options.
+//! @param  csfix When not nil, returns the number of corrected checksum errs.
 //!
 //! @return >= 0      The number of bytes written.
 //! @return -errno    File could not be written, returned value is the reason.
@@ -235,7 +240,8 @@ virtual int  pgWrite(char                  *buff,
                      long long              offs,
                      int                    wrlen,
                      std::vector<uint32_t> &csvec,
-                     uint64_t               opts=0);
+                     uint64_t               opts=0,
+                     int                   *csfix=0);
 
 //-----------------------------------------------------------------------------
 //! Write file pages and checksums using asynchronous I/O (default sync).
@@ -250,6 +256,7 @@ virtual int  pgWrite(char                  *buff,
 //! @param  csvec A vector of that holds the corresponding verified CRC32C
 //!               checksum for each page or page segment.
 //! @param  opts  Processing options.
+//! @param  csfix When not nil, returns the number of corrected checksum errs.
 //-----------------------------------------------------------------------------
 
 virtual void pgWrite(XrdOucCacheIOCB       &iocb,
@@ -257,8 +264,9 @@ virtual void pgWrite(XrdOucCacheIOCB       &iocb,
                      long long              offs,
                      int                    wrlen,
                      std::vector<uint32_t> &csvec,
-                     uint64_t               opts=0)
-                    {iocb.Done(pgWrite(buff, offs, wrlen, csvec, opts));}
+                     uint64_t               opts=0,
+                     int                   *csfix=0)
+                    {iocb.Done(pgWrite(buff, offs, wrlen, csvec, opts, csfix));}
 
 //------------------------------------------------------------------------------
 //! Perform an asynchronous preread (may be ignored).

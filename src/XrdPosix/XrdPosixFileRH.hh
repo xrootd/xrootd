@@ -62,15 +62,16 @@ static XrdPosixFileRH  *Alloc(XrdOucCacheIOCB *cbp, XrdPosixFile *fp,
 
         void            Recycle();
 
-        void            setCSVec(std::vector<uint32_t> *csv, bool fcs=false)
-                                {csVec = csv; csFrc = fcs;}
+inline  void            setCSVec(std::vector<uint32_t> *csv, int *csf,
+                                 bool fcs=false)
+                                {csVec = csv; csfix = csf; csFrc = fcs;}
 
 static  void            SetMax(int mval) {maxFree = mval;}
 
         void            Sched(int result);
 
 private:
-             XrdPosixFileRH() : theCB(0), theFile(0), csVec(0),
+             XrdPosixFileRH() : theCB(0), theFile(0), csVec(0), csfix(0),
                                 result(0),typeIO(nonIO), csFrc(false) {}
 virtual     ~XrdPosixFileRH() {}
 
@@ -84,6 +85,7 @@ union  {XrdOucCacheIOCB *theCB;
        };
 XrdPosixFile            *theFile;
 std::vector<uint32_t>   *csVec;
+int                     *csfix;
 long long                offset;
 int                      result;
 ioType                   typeIO;
