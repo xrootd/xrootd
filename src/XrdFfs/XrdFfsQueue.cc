@@ -28,6 +28,7 @@
 /******************************************************************************/
 
 #include "XrdFfs/XrdFfsQueue.hh"
+#include <cstdlib>
 
 /* queue operation */
  
