@@ -26,6 +26,8 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
+
+#include <poll.h>
  
 #include "XrdVersion.hh"
 
@@ -1122,6 +1124,7 @@ int XrdXrootdProtocol::getData(XrdXrootd::gdCallBack *cbP,
 }
 
 /******************************************************************************/
+namespace {int consumed = 0;}
   
 int XrdXrootdProtocol::getData(XrdXrootd::gdCallBack *cbP,
                                const char *dtype, struct iovec *iov, int iovn)
@@ -1144,6 +1147,7 @@ int XrdXrootdProtocol::getData(XrdXrootd::gdCallBack *cbP,
       {gdCtl.useCB = true;
        return 1;
       }
+consumed = 0;
    return getDataIovCont();
 }
 
@@ -1242,37 +1246,36 @@ int XrdXrootdProtocol::getDataIovCont()
 // I/O continuations may occur either via entry or an attempt to continue a new
 // operation via the callback. This takes care of it here.
 //
-do{struct iovec old_iov, *ioV = &gdCtl.iovVec[gdCtl.iovNow];
-   int i, rlen, iovN = gdCtl.iovNum - gdCtl.iovNow;
-
-// Check if we have a fragment to fill out in an iovec element. If we do, we
-// save it's contents and adjust to receive unread data. We will restore it.
-//
-   if (gdCtl.lenPart)
-      {old_iov = ioV[0];
-       ioV[0].iov_base  = ((char *)ioV[0].iov_base) + gdCtl.lenPart;
-       ioV[0].iov_len  -= gdCtl.lenPart;
-      } else old_iov.iov_base = 0;
+do{struct iovec *ioV = gdCtl.iovVec;
+   int i, rlen, iovN = gdCtl.iovNum, iNow = gdCtl.iovNow;
 
 // Read as much data as we can. Handle any link error. Note that when a link
 // error occurs we return failure whether or not the callback wants to do more.
 //
-   rlen = Link->Recv(ioV, iovN, readWait);
+   rlen = Link->Recv(&ioV[iNow], iovN - iNow, readWait);
    if (rlen  < 0)
       {if (rlen != -ENOMSG) Link->setEtext("link read error");
-       if (old_iov.iov_base) ioV[0] = old_iov;
+       if (gdCtl.iovAdj)
+          {ioV[iNow].iov_base = ((char *)ioV[iNow].iov_base) - gdCtl.iovAdj;
+           ioV[iNow].iov_len += gdCtl.iovAdj;
+           gdCtl.iovAdj = 0;
+          }
        rc = -1;
        break;
       }
 
 // Compute where we finished in the iovec.
 //
-   for (i = 0; i < iovN && (int)ioV[i].iov_len <= rlen; i++)
+   for (i = iNow; i < iovN && (int)ioV[i].iov_len <= rlen; i++)
        rlen -= ioV[i].iov_len;
 
-// Before proceeding, restore any changes we made to the iovec
+// Before proceeding, restore any changes we made to a completed iovec element
 //
-   if (old_iov.iov_base) ioV[0] = old_iov;
+   if (i != iNow && gdCtl.iovAdj)
+      {ioV[iNow].iov_base = ((char *)ioV[iNow].iov_base) - gdCtl.iovAdj;
+       ioV[iNow].iov_len += gdCtl.iovAdj;
+       gdCtl.iovAdj = 0;
+      }
 
 // If the vector is complete then effect the callback unless this was the
 // initial call, we simply return to prevent recursive continuations by
@@ -1298,12 +1301,20 @@ do{struct iovec old_iov, *ioV = &gdCtl.iovVec[gdCtl.iovNow];
        break;
       }
 
-// Record where we stopped and setup to resume here when more data arrives. We
-// must set myBlen to zero to avoid calling the other GetData() method. We want
-// to resume and perform the GetData() function here.
+// Record where we stopped and adjust the iovec element address and length if
+// needed. Record the change made so that it can be undone as we progress.
 //
-   gdCtl.lenPart = rlen;
-   gdCtl.iovNow  = gdCtl.iovNow + i;
+   gdCtl.iovNow = i;
+   if (rlen)
+      {if (gdCtl.iovAdj == 0) gdCtl.iovNow = i;
+       gdCtl.iovAdj += rlen;
+       ioV[i].iov_base = ((char *)ioV[i].iov_base) + rlen;
+       ioV[i].iov_len -= rlen;
+      }
+
+// Setup to resume here when more data arrives. We must set myBlen to zero to
+// avoid calling the other GetData() method as we want to resume here.
+//
    Resume = &XrdXrootdProtocol::getDataIovCont;
    myBlen = 0;
    gdCtl.useCB    = true;
@@ -1339,7 +1350,7 @@ int XrdXrootdProtocol::getDump(const char *dtype, int dlen)
 // Setup the control information to direct the vector read
 //
    memset((char *)&gdCtl, 0, sizeof(gdCtl));
-   gdCtl.lenPart = dlen;     // Bytes left to drain
+   gdCtl.DumpLen = dlen;     // Bytes left to drain
    gdCtl.ioDType = dtype;    // Name of the data being read for tracing
    gdCtl.Status  = GetDataCtl::inDump;
 
@@ -1358,21 +1369,21 @@ int XrdXrootdProtocol::getDumpCont()
     int  rlen = 0, rwant;
     char buff[65536];
 
-   TRACEP(REQ, gdCtl.ioDType<<" discarding "<<gdCtl.lenPart<<" bytes.");
+   TRACEP(REQ, gdCtl.ioDType<<" discarding "<<gdCtl.DumpLen<<" bytes.");
 
 // Read data and discard it
 //
-   while(gdCtl.lenPart > 0)
-        {if (gdCtl.lenPart <= (int)sizeof(buff)) rwant = gdCtl.lenPart;
+   while(gdCtl.DumpLen > 0)
+        {if (gdCtl.DumpLen <= (int)sizeof(buff)) rwant = gdCtl.DumpLen;
             else rwant = sizeof(buff);
          if ((rlen = Link->Recv(buff, rwant, readWait)) <= 0) break;
-         gdCtl.lenPart -= rlen;
+         gdCtl.DumpLen -= rlen;
         }
 
 // Check if we failed
 //
-   if (rlen < 0 || gdCtl.lenPart < 0)
-      {if (gdCtl.lenPart < 0) Link->setEtext("link read overrun error");
+   if (rlen < 0 || gdCtl.DumpLen < 0)
+      {if (gdCtl.DumpLen < 0) Link->setEtext("link read overrun error");
           else if (rlen != -ENOMSG) Link->setEtext("link read error");
        gdCtl.Status = GetDataCtl::inNone;
        return -1;
@@ -1380,7 +1391,7 @@ int XrdXrootdProtocol::getDumpCont()
 
 // Check if we completed
 //
-   if (gdCtl.lenPart == 0)
+   if (gdCtl.DumpLen == 0)
       {gdCtl.Status = GetDataCtl::inNone;
        return 0;
       }
@@ -1390,7 +1401,7 @@ int XrdXrootdProtocol::getDumpCont()
    Resume = &XrdXrootdProtocol::getDumpCont;
    myBlen = 0;
 
-   TRACEP(REQ, gdCtl.ioDType<<" read timeout; "<<gdCtl.lenPart
+   TRACEP(REQ, gdCtl.ioDType<<" read timeout; "<<gdCtl.DumpLen
              <<" bytes left to discard");
    return 1;
 }
