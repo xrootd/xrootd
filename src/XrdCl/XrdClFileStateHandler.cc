@@ -1405,9 +1405,12 @@ namespace XrdCl
 
       ~pgwrt_t()
       {
-        // if all retries were succesful no error status was set
-        if( !status ) status = new XRootDStatus();
-        handler->HandleResponse( status, nullptr );
+        if( handler )
+        {
+          // if all retries were successful no error status was set
+          if( !status ) status = new XRootDStatus();
+          handler->HandleResponse( status, nullptr );
+        }
       }
 
       static size_t GetPgNb( uint64_t pgoff, uint64_t offset, uint32_t fstpglen )
@@ -1490,7 +1493,15 @@ namespace XrdCl
           }
         } );
 
-    return PgWriteImpl( offset, size, buffer, cksums, 0, h, timeout );
+    // in case of failure we will leak h
+
+    auto st = PgWriteImpl( offset, size, buffer, cksums, 0, h, timeout );
+    if( !st.IsOK() )
+    {
+      pgwrt->handler = nullptr;
+      delete h;
+    }
+    return st;
   }
 
   //------------------------------------------------------------------------
