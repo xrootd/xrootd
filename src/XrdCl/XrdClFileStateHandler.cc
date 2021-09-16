@@ -1380,6 +1380,16 @@ namespace XrdCl
                                           uint16_t               timeout )
   {
     //--------------------------------------------------------------------------
+    // Resolve timeout value
+    //--------------------------------------------------------------------------
+    if( timeout == 0 )
+    {
+      int val = DefaultRequestTimeout;
+      XrdCl::DefaultEnv::GetEnv()->GetInt( "RequestTimeout", val );
+      timeout = val;
+    }
+
+    //--------------------------------------------------------------------------
     // Validate the digest vector size
     //--------------------------------------------------------------------------
     if( cksums.empty() )
@@ -1415,7 +1425,7 @@ namespace XrdCl
 
       static size_t GetPgNb( uint64_t pgoff, uint64_t offset, uint32_t fstpglen )
       {
-        if( pgoff == offset ) return 0; // we need this if statment because we operate on unsigned integers
+        if( pgoff == offset ) return 0; // we need this if statement because we operate on unsigned integers
         return ( pgoff - ( offset + fstpglen ) ) / XrdSys::PageSize + 1;
       }
 
@@ -1485,15 +1495,25 @@ namespace XrdCl
                   RetryInfo *inf = nullptr;
                   r->Get( inf );
                   if( inf->NeedRetry() ) // so we failed in the end
+                  {
+                    DefaultEnv::GetLog()->Warning( FileMsg, "[0x%x@%s] Failed retransmitting corrupted "
+                                                   "page: pgoff=%llu, pglen=%du, pgdigest=%du", this,
+                                                   pFileUrl->GetURL().c_str(), pgoff, pglen, pgdigest );
                     pgwrt->SetStatus( new XRootDStatus( stError, errDataError, 0,
                                       "Failed to retransmit corrupted page" ) );
+                  }
+                  else
+                    DefaultEnv::GetLog()->Info( FileMsg, "[0x%x@%s] Succesfuly retransmitted corrupted "
+                                                "page: pgoff=%llu, pglen=%du, pgdigest=%du", this,
+                                                pFileUrl->GetURL().c_str(), pgoff, pglen, pgdigest );
                 } );
             auto st = this->PgWriteRetry( pgoff, pglen, pgbuf, pgdigest, h, timeout );
             if( !st.IsOK() ) pgwrt->SetStatus( new XRootDStatus( st ) );
+            DefaultEnv::GetLog()->Info( FileMsg, "[0x%x@%s] Retransmitting corrupted page: "
+                                        "pgoff=%llu, pglen=%du, pgdigest=%du", this,
+                                        pFileUrl->GetURL().c_str(), pgoff, pglen, pgdigest );
           }
         } );
-
-    // in case of failure we will leak h
 
     auto st = PgWriteImpl( offset, size, buffer, cksums, 0, h, timeout );
     if( !st.IsOK() )
