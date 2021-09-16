@@ -329,23 +329,6 @@ namespace
     return XrdCl::XRootDStatus();
   }
 
-  inline bool HasXAttr( const XrdCl::URL &url )
-  {
-    if( url.IsLocalFile() ) return true;
-    XrdCl::AnyObject  qryResult;
-    XrdCl::XRootDStatus st = XrdCl::DefaultEnv::GetPostMaster()->
-        QueryTransport( url, XrdCl::XRootDQuery::ProtocolVersion, qryResult );
-    if( st.IsOK() )
-    {
-      int *protver = 0;
-      qryResult.Get( protver );
-      bool result = ( *protver == kXR_PROTXATTVERSION );
-      delete protver;
-      return result;
-    }
-    return false;
-  }
-
   //----------------------------------------------------------------------------
   //! Abstract chunk source
   //----------------------------------------------------------------------------
@@ -792,15 +775,11 @@ namespace
         pUrl( url ), pFile( new XrdCl::File() ), pSize( -1 ),
         pCurrentOffset( 0 ), pChunkSize( chunkSize ),
         pParallel( parallelChunks ),
-        pNbConn( 0 )
+        pNbConn( 0 ), pUsePgRead( false )
       {
         int val = XrdCl::DefaultSubStreamsPerChannel;
         XrdCl::DefaultEnv::GetEnv()->GetInt( "SubStreamsPerChannel", val );
         pMaxNbConn = val - 1; // account for the control stream
-
-        val = XrdCl::DefaultCpUsePgWrtRd;
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
-        pUsePgRead = !url->IsLocalFile() && ( val == 1 );
       }
 
       //------------------------------------------------------------------------
@@ -856,7 +835,15 @@ namespace
         }
 
         if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
+        {
           pFile->GetProperty( "DataServer", pDataServer );
+          //--------------------------------------------------------------------
+          // Decide whether we can use PgRead
+          //--------------------------------------------------------------------
+          int val = XrdCl::DefaultCpUsePgWrtRd;
+          XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
+          pUsePgRead = XrdCl::Utils::HasPgRW( pDataServer ) && ( val == 1 );
+        }
 
         SetOnDataConnectHandler( pFile );
 
@@ -1224,6 +1211,17 @@ namespace
           }
         }
 
+        if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
+        {
+          pZipArchive->GetProperty( "DataServer", pDataServer );
+          //--------------------------------------------------------------------
+          // Decide whether we can use PgRead
+          //--------------------------------------------------------------------
+          int val = XrdCl::DefaultCpUsePgWrtRd;
+          XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
+          pUsePgRead = XrdCl::Utils::HasPgRW( pDataServer ) && ( val == 1 );
+        }
+
         SetOnDataConnectHandler( pZipArchive );
 
         return XrdCl::XRootDStatus();
@@ -1352,11 +1350,8 @@ namespace
                            const std::vector<std::string> &addcks ):
         Source( ckSumType, addcks ),
         pUrl( url ), pFile( new XrdCl::File() ), pCurrentOffset( 0 ),
-        pChunkSize( chunkSize ), pDone( false )
+        pChunkSize( chunkSize ), pDone( false ), pUsePgRead( false )
       {
-        int val = XrdCl::DefaultCpUsePgWrtRd;
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
-        pUsePgRead = !url->IsLocalFile() && ( val == 1 );
       }
 
       //------------------------------------------------------------------------
@@ -1395,6 +1390,18 @@ namespace
             st = cksHelper->Initialize();
             if( !st.IsOK() ) return st;
           }
+        }
+
+        if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
+        {
+          std::string datasrv;
+          pFile->GetProperty( "DataServer", datasrv );
+          //--------------------------------------------------------------------
+          // Decide whether we can use PgRead
+          //--------------------------------------------------------------------
+          int val = XrdCl::DefaultCpUsePgWrtRd;
+          XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
+          pUsePgRead = XrdCl::Utils::HasPgRW( datasrv ) && ( val == 1 );
         }
 
         return XRootDStatus();
@@ -1856,11 +1863,8 @@ namespace
                          const std::string &ckSumType ):
         Destination( ckSumType ),
         pUrl( url ), pFile( new XrdCl::File( XrdCl::File::DisableVirtRedirect ) ),
-        pParallel( parallelChunks ), pSize( -1 )
+        pParallel( parallelChunks ), pSize( -1 ), pUsePgWrt( false )
       {
-        int val = XrdCl::DefaultCpUsePgWrtRd;
-        XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
-        pUsePgWrt = !url.IsLocalFile() && ( val == 1 );
       }
 
       //------------------------------------------------------------------------
@@ -1935,6 +1939,18 @@ namespace
         XrdCl::XRootDStatus st = pFile->Open( pUrl.GetURL(), flags, mode );
         if( !st.IsOK() )
           return st;
+
+        if( !pUrl.IsLocalFile() || ( pUrl.IsLocalFile() && pUrl.IsMetalink() ) )
+        {
+          std::string datasrv;
+          pFile->GetProperty( "DataServer", datasrv );
+          //--------------------------------------------------------------------
+          // Decide whether we can use PgRead
+          //--------------------------------------------------------------------
+          int val = XrdCl::DefaultCpUsePgWrtRd;
+          XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
+          pUsePgWrt = XrdCl::Utils::HasPgRW( datasrv ) && ( val == 1 );
+        }
 
         std::string cptarget = XrdCl::DefaultCpTarget;
         XrdCl::DefaultEnv::GetEnv()->GetString( "CpTarget", cptarget );
@@ -2820,7 +2836,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Copy extended attributes
     //--------------------------------------------------------------------------
-    if( preserveXAttr && HasXAttr( GetSource() ) && HasXAttr( GetTarget() ) )
+    if( preserveXAttr && Utils::HasXAttr( GetSource() ) && Utils::HasXAttr( GetTarget() ) )
     {
       std::vector<xattr_t> xattrs;
       st = src->GetXAttr( xattrs );

@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include <cmath>
 #include <cstdlib>
@@ -107,11 +108,8 @@ class ChunkHandler: public ResponseHandler
 XCpSrc::XCpSrc( uint32_t chunkSize, uint8_t parallel, int64_t fileSize, XCpCtx *ctx ) :
   pChunkSize( chunkSize ), pParallel( parallel ), pFileSize( fileSize ), pThread(),
   pCtx( ctx->Self() ), pFile( 0 ), pCurrentOffset( 0 ), pBlkEnd( 0 ), pDataTransfered( 0 ), pRefCount( 1 ),
-  pRunning( false ), pStartTime( 0 ), pTransferTime( 0 )
+  pRunning( false ), pStartTime( 0 ), pTransferTime( 0 ), pUsePgRead( false )
 {
-  int val = XrdCl::DefaultCpUsePgWrtRd;
-  XrdCl::DefaultEnv::GetEnv()->GetInt( "UsePgWrtRd", val );
-  pUsePgRead = ( val == 1 );
 }
 
 XCpSrc::~XCpSrc()
@@ -253,6 +251,19 @@ XRootDStatus XCpSrc::Initialize()
       continue;
     }
 
+    URL url( pUrl );
+    if( url.IsLocalFile() || ( url.IsLocalFile() && url.IsMetalink() ) )
+    {
+      std::string datasrv;
+      pFile->GetProperty( "DataServer", datasrv );
+      //--------------------------------------------------------------------
+      // Decide whether we can use PgRead
+      //--------------------------------------------------------------------
+      int val = XrdCl::DefaultCpUsePgWrtRd;
+      XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
+      pUsePgRead = XrdCl::Utils::HasPgRW( datasrv ) && ( val == 1 );
+    }
+
     if( pFileSize < 0 )
     {
       StatInfo *statInfo = 0;
@@ -303,6 +314,19 @@ XRootDStatus XCpSrc::Recover()
     {
       DeletePtr( pFile );
       log->Warning( UtilityMsg, "Failed to open %s for reading: %s", pUrl.c_str(), st.GetErrorMessage().c_str() );
+    }
+
+    URL url( pUrl );
+    if( url.IsLocalFile() || ( url.IsLocalFile() && url.IsMetalink() ) )
+    {
+      std::string datasrv;
+      pFile->GetProperty( "DataServer", datasrv );
+      //--------------------------------------------------------------------
+      // Decide whether we can use PgRead
+      //--------------------------------------------------------------------
+      int val = XrdCl::DefaultCpUsePgWrtRd;
+      XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
+      pUsePgRead = XrdCl::Utils::HasPgRW( datasrv ) && ( val == 1 );
     }
   }
   while( !st.IsOK() );

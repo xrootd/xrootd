@@ -299,8 +299,8 @@ namespace XrdCl
       while( leftToBeRead )
       {
         int bytesRead = 0;
-        XRootDStatus status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
-
+        XRootDStatus status = socket->Read( message->GetBufferAtCursor(),
+                                            leftToBeRead, bytesRead );
         if( !status.IsOK() || status.code == suRetry )
           return status;
 
