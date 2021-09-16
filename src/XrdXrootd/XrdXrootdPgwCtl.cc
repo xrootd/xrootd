@@ -169,7 +169,7 @@ const char *XrdXrootdPgwCtl::Setup(XrdBuffer *buffP, kXR_int64 fOffs, int totlen
    iovRem = csNum<<1;
    if (iovRem > iovMax)
       {iovNum  = iovMax;
-       iovLen  = layout.fLen + ((iovMax-1)*pgPageSize) + (iovMax*crcSZ);
+       iovLen  = layout.fLen + ((iovMax/2-1)*pgPageSize) + (iovMax/2*crcSZ);
        endLen  = layout.lLen;
       } else {
        iovNum  = iovRem;

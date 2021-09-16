@@ -526,6 +526,7 @@ do{if (isFresh)
 // Update offset and advance to next frame
 //
    IO.Offset += Quantum;
+   isFresh = true;
 
   } while(pgwCtl->Advance());
 
