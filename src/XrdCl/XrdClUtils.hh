@@ -28,6 +28,8 @@
 #include "XrdCl/XrdClPropertyList.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
 #include <sys/time.h>
@@ -234,6 +236,53 @@ namespace XrdCl
       //! Check if this client can support given EC redirect
       //------------------------------------------------------------------------
       static bool CheckEC( const Message *req, const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Get protocol version of the given server
+      //! @param url     : URL pointing to the server
+      //! @param protver : protocol version (output parameter)
+      //! @return        : operation status
+      //------------------------------------------------------------------------
+      inline static XrdCl::XRootDStatus GetProtocolVersion( const XrdCl::URL url, int &protver )
+      {
+        XrdCl::AnyObject  qryResult;
+        XrdCl::XRootDStatus st = XrdCl::DefaultEnv::GetPostMaster()->
+            QueryTransport( url, XrdCl::XRootDQuery::ProtocolVersion, qryResult );
+        if( !st.IsOK() ) return st;
+        int *tmp = 0;
+        qryResult.Get( tmp );
+        protver = *tmp;
+        delete tmp;
+        return XrdCl::XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Check if given server supports extended file attributes
+      //! @param url : URL pointing to the server
+      //! @return    : true if yes, false otherwise
+      //------------------------------------------------------------------------
+      inline static bool HasXAttr( const XrdCl::URL &url )
+      {
+        if( url.IsLocalFile() ) return true;
+        int protver = 0;
+        auto st = GetProtocolVersion( url, protver );
+        if( !st.IsOK() ) return false;
+        return protver >= kXR_PROTXATTVERSION;
+      }
+
+      //------------------------------------------------------------------------
+      //! Check if given server supports pgread/pgwrite
+      //! @param url : URL pointing to the server
+      //! @return    : true if yes, false otherwise
+      //------------------------------------------------------------------------
+      inline static bool HasPgRW( const XrdCl::URL &url )
+      {
+        if( url.IsLocalFile() ) return false;
+        int protver = 0;
+        auto st = GetProtocolVersion( url, protver );
+        if( !st.IsOK() ) return false;
+        return protver >= kXR_PROTPGRWVERSION;
+      }
   };
 
   //----------------------------------------------------------------------------
