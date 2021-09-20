@@ -38,6 +38,7 @@
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdClXCpCtx.hh"
+#include "XrdCl/XrdClCheckSumHelper.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -126,155 +127,6 @@ namespace
   using timer_sec_t  = mytimer_t<>;
   using timer_nsec_t = mytimer_t<std::nano>;
 
-  //----------------------------------------------------------------------------
-  //! Check sum helper for stdio
-  //----------------------------------------------------------------------------
-  class CheckSumHelper
-  {
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      CheckSumHelper( const std::string &name,
-                      const std::string &ckSumType ):
-        pName( name ),
-        pCkSumType( ckSumType ),
-        pCksCalcObj( 0 )
-      {};
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~CheckSumHelper()
-      {
-        delete pCksCalcObj;
-      }
-
-      //------------------------------------------------------------------------
-      //! Initialize
-      //------------------------------------------------------------------------
-      XrdCl::XRootDStatus Initialize()
-      {
-        using namespace XrdCl;
-        if( pCkSumType.empty() )
-          return XRootDStatus();
-
-        Log             *log    = DefaultEnv::GetLog();
-        CheckSumManager *cksMan = DefaultEnv::GetCheckSumManager();
-
-        if( !cksMan )
-        {
-          log->Error( UtilityMsg, "Unable to get the checksum manager" );
-          return XRootDStatus( stError, errInternal );
-        }
-
-        pCksCalcObj = cksMan->GetCalculator( pCkSumType );
-        if( !pCksCalcObj )
-        {
-          log->Error( UtilityMsg, "Unable to get a calculator for %s",
-                      pCkSumType.c_str() );
-          return XRootDStatus( stError, errCheckSumError );
-        }
-
-        return XRootDStatus();
-      }
-
-      //------------------------------------------------------------------------
-      // Update the checksum
-      //------------------------------------------------------------------------
-      void Update( const void *buffer, uint32_t size )
-      {
-        if( pCksCalcObj )
-          pCksCalcObj->Update( (const char *)buffer, size );
-      }
-
-      //------------------------------------------------------------------------
-      // Get checksum
-      //------------------------------------------------------------------------
-      XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
-                                       std::string &checkSumType )
-      {
-        using namespace XrdCl;
-        Log *log = DefaultEnv::GetLog();
-
-        int calcSize = 0;
-        auto st = GetCheckSumImpl( checkSumType, calcSize );
-        if( !st.IsOK() ) return st;
-
-        //----------------------------------------------------------------------
-        // Response
-        //----------------------------------------------------------------------
-        XrdCksData ckSum;
-        ckSum.Set( checkSumType.c_str() );
-        ckSum.Set( (void*)pCksCalcObj->Final(), calcSize );
-        char *cksBuffer = new char[265];
-        ckSum.Get( cksBuffer, 256 );
-        checkSum  = checkSumType + ":";
-        checkSum += Utils::NormalizeChecksum( checkSumType, cksBuffer );
-        delete [] cksBuffer;
-
-        log->Dump( UtilityMsg, "Checksum for %s is: %s", pName.c_str(),
-                   checkSum.c_str() );
-        return XrdCl::XRootDStatus();
-      }
-
-      template<typename T>
-      XrdCl::XRootDStatus GetRawCheckSum( const std::string &checkSumType, T &value )
-      {
-        int calcSize = 0;
-        auto st = GetCheckSumImpl( checkSumType, calcSize );
-        if( !st.IsOK() ) return st;
-        if( sizeof( T ) != calcSize )
-          return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidArgs, 0,
-                                      "checksum size mismatch" );
-        value = *reinterpret_cast<T*>( pCksCalcObj->Final() );
-        return XrdCl::XRootDStatus();
-      }
-
-      const std::string& GetType()
-      {
-        return pCkSumType;
-      }
-
-    private:
-
-      //------------------------------------------------------------------------
-      // Get checksum
-      //------------------------------------------------------------------------
-      inline
-      XrdCl::XRootDStatus GetCheckSumImpl( const std::string  &checkSumType,
-                                           int                &calcSize )
-      {
-        using namespace XrdCl;
-        Log *log = DefaultEnv::GetLog();
-
-        //----------------------------------------------------------------------
-        // Sanity check
-        //----------------------------------------------------------------------
-        if( !pCksCalcObj )
-        {
-          log->Error( UtilityMsg, "Calculator for %s was not initialized",
-                      pCkSumType.c_str() );
-          return XRootDStatus( stError, errCheckSumError );
-        }
-
-        std::string  calcType = pCksCalcObj->Type( calcSize );
-
-        if( calcType != checkSumType )
-        {
-          log->Error( UtilityMsg, "Calculated checksum: %s, requested "
-                      "checksum: %s", pCkSumType.c_str(),
-                      checkSumType.c_str() );
-          return XRootDStatus( stError, errCheckSumError );
-        }
-
-        return XrdCl::XRootDStatus();
-      }
-
-      std::string  pName;
-      std::string  pCkSumType;
-      XrdCksCalc  *pCksCalcObj;
-  };
 
   inline XrdCl::XRootDStatus Translate( std::vector<XrdCl::XAttr>   &in,
                                            std::vector<XrdCl::xattr_t> &out )
@@ -344,10 +196,10 @@ namespace
                 pContinue( false )
       {
         if( !checkSumType.empty() )
-          pCkSumHelper = new CheckSumHelper( "source", checkSumType );
+          pCkSumHelper = new XrdCl::CheckSumHelper( "source", checkSumType );
 
         for( auto &type : addcks )
-          pAddCksHelpers.push_back( new CheckSumHelper( "source", type ) );
+          pAddCksHelpers.push_back( new XrdCl::CheckSumHelper( "source", type ) );
       };
 
       virtual ~Source()
@@ -408,9 +260,9 @@ namespace
 
     protected:
 
-      CheckSumHelper               *pCkSumHelper;
-      std::vector<CheckSumHelper*>  pAddCksHelpers;
-      bool                          pContinue;
+      XrdCl::CheckSumHelper               *pCkSumHelper;
+      std::vector<XrdCl::CheckSumHelper*>  pAddCksHelpers;
+      bool                                 pContinue;
   };
 
   //----------------------------------------------------------------------------
@@ -427,7 +279,7 @@ namespace
         pContinue( false ), pCkSumHelper( 0 )
       {
         if( !checkSumType.empty() )
-          pCkSumHelper = new CheckSumHelper( "destination", checkSumType );
+          pCkSumHelper = new XrdCl::CheckSumHelper( "destination", checkSumType );
       }
 
       //------------------------------------------------------------------------
@@ -542,7 +394,7 @@ namespace
       bool pMakeDir;
       bool pContinue;
 
-      CheckSumHelper    *pCkSumHelper;
+      XrdCl::CheckSumHelper    *pCkSumHelper;
   };
 
   //----------------------------------------------------------------------------
@@ -657,9 +509,9 @@ namespace
       //------------------------------------------------------------------------
       //! Get check sum
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetCheckSumImpl( CheckSumHelper *cksHelper,
-                                                   std::string    &checkSum,
-                                                   std::string    &checkSumType )
+      virtual XrdCl::XRootDStatus GetCheckSumImpl( XrdCl::CheckSumHelper *cksHelper,
+                                                   std::string           &checkSum,
+                                                   std::string           &checkSumType )
       {
         using namespace XrdCl;
         if( cksHelper )
@@ -913,9 +765,9 @@ namespace
         return GetCheckSumImpl( pCkSumHelper, checkSum, checkSumType );
       }
 
-      XrdCl::XRootDStatus GetCheckSumImpl( CheckSumHelper *cksHelper,
-                                           std::string    &checkSum,
-                                           std::string    &checkSumType )
+      XrdCl::XRootDStatus GetCheckSumImpl( XrdCl::CheckSumHelper *cksHelper,
+                                           std::string           &checkSum,
+                                           std::string           &checkSumType )
       {
         if( pUrl->IsMetalink() )
         {
@@ -1253,9 +1105,9 @@ namespace
       //------------------------------------------------------------------------
       // Get check sum implementation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus GetCheckSumImpl( std::string    &checkSum,
-                                                   std::string    &checkSumType,
-                                                   CheckSumHelper *cksHelper )
+      virtual XrdCl::XRootDStatus GetCheckSumImpl( std::string           &checkSum,
+                                                   std::string           &checkSumType,
+                                                   XrdCl::CheckSumHelper *cksHelper )
       {
         // The ZIP archive by default contains a ZCRC32 checksum
         if( checkSumType == "zcrc32" )
@@ -1495,9 +1347,9 @@ namespace
         return GetCheckSumImpl( pCkSumHelper, checkSum, checkSumType );
       }
 
-      XrdCl::XRootDStatus GetCheckSumImpl( CheckSumHelper *cksHelper,
-                                           std::string    &checkSum,
-                                           std::string    &checkSumType )
+      XrdCl::XRootDStatus GetCheckSumImpl( XrdCl::CheckSumHelper *cksHelper,
+                                           std::string           &checkSum,
+                                           std::string           &checkSumType )
       {
         if( pUrl->IsMetalink() )
         {
