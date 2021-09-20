@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCks/XrdCksCalc.hh"
+#include "XrdCl/XrdClCheckSumManager.hh"
 
 #include <string>
 
