@@ -10,6 +10,7 @@
 
 #include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClCheckSumHelper.hh"
 
 #include "XrdEc/XrdEcReader.hh"
 #include "XrdEc/XrdEcStrmWriter.hh"
@@ -21,15 +22,13 @@ namespace XrdCl
   class EcHandler : public FilePlugIn
   {
     public:
-      EcHandler( const URL         &redir,
-                 XrdEc::ObjCfg     *objcfg,
-                 bool               cosc,
-                 const std::string &ckstype ) : redir( redir ),
-                                                fs( redir ),
-                                                objcfg( objcfg ),
-                                                curroff( 0 ),
-                                                cosc( cosc ),
-                                                ckstype( ckstype )
+      EcHandler( const URL                       &redir,
+                 XrdEc::ObjCfg                   *objcfg,
+                 std::unique_ptr<CheckSumHelper>  cksHelper ) : redir( redir ),
+                                                                fs( redir ),
+                                                                objcfg( objcfg ),
+                                                                curroff( 0 ),
+                                                                cksHelper( std::move( cksHelper ) )
       {
       }
 
@@ -77,11 +76,23 @@ namespace XrdCl
           writer->Close( XrdCl::ResponseHandler::Wrap( [this, handler]( XrdCl::XRootDStatus *st, XrdCl::AnyObject *rsp )
             {
               writer.reset();
-              if( st->IsOK() && cosc )
+              if( st->IsOK() && bool( cksHelper ) )
               {
                 std::string commit =  redir.GetPath()
                                    + "?xrdec.objid=" + objcfg->obj
                                    + "&xrdec.close=true&xrdec.size=" + std::to_string( curroff );
+                if( cksHelper )
+                {
+                  std::string ckstype = cksHelper->GetType();
+                  std::string cksval;
+                  auto st = cksHelper->GetCheckSum( cksval, ckstype );
+                  if( !st.IsOK() )
+                  {
+                    handler->HandleResponse( new XRootDStatus( st ), nullptr );
+                    return;
+                  }
+                  commit += "&xrdec.cksum=" + cksval;
+                }
                 Buffer arg; arg.FromString( commit );
                 auto st = fs.Query( QueryCode::OpaqueFile, arg, handler );
                 if( !st.IsOK() ) handler->HandleResponse( new XRootDStatus( st ), nullptr );
@@ -112,7 +123,6 @@ namespace XrdCl
                                 XrdCl::ResponseHandler *handler,
                                 uint16_t                timeout )
       {
-        if( !cosc ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
         return fs.Stat( redir.GetPath(), handler, timeout );
       }
 
@@ -140,7 +150,8 @@ namespace XrdCl
                                  XrdCl::ResponseHandler *handler,
                                  uint16_t                timeout )
       {
-        // TODO the the checksumming in here !!!
+        if( cksHelper )
+          cksHelper->Update( buffer, size );
 
         if( !writer ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal );
         if( offset != curroff ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
@@ -165,8 +176,8 @@ namespace XrdCl
       std::unique_ptr<XrdEc::StrmWriter> writer;
       std::unique_ptr<XrdEc::Reader>     reader;
       uint64_t                           curroff;
-      bool                               cosc;
-      std::string                        ckstype;
+      std::unique_ptr<CheckSumHelper>    cksHelper;
+
   };
 
   EcHandler* GetEcHandler( const URL &headnode, const URL &redirurl )
@@ -230,7 +241,15 @@ namespace XrdCl
     objcfg->plgr    = std::move( plgr );
     objcfg->dtacgi  = std::move( dtacgi );
     objcfg->mdtacgi = std::move( mdtacgi );
-    return new EcHandler( headnode, objcfg, cosc, ckstype );
+
+    std::unique_ptr<CheckSumHelper> cksHelper( cosc ? new CheckSumHelper( "", ckstype ) : nullptr );
+    if( cksHelper )
+    {
+      auto st = cksHelper->Initialize();
+      if( !st.IsOK() ) return nullptr;
+    }
+
+    return new EcHandler( headnode, objcfg, std::move( cksHelper ) );
   }
 
 } /* namespace XrdCl */
