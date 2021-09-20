@@ -84,7 +84,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void Open( XrdCl::ResponseHandler *handler );
+      void Open( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Write data to the data object
@@ -100,7 +100,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void Close( XrdCl::ResponseHandler *handler );
+      void Close( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
 
     private:
 
@@ -152,7 +152,7 @@ namespace XrdEc
         //---------------------------------------------------------------------
         // Indicate that the user issued close
         //---------------------------------------------------------------------
-        void issue_close( XrdCl::ResponseHandler *handler )
+        void issue_close( XrdCl::ResponseHandler *handler, uint16_t timeout )
         {
           std::unique_lock<std::recursive_mutex> lck( mtx );
           //-------------------------------------------------------------------
@@ -163,7 +163,7 @@ namespace XrdEc
           // If there are no outstanding writes, we can simply call the close
           // routine
           //-------------------------------------------------------------------
-          if( bytesleft == 0 ) return writer->CloseImpl( handler );
+          if( bytesleft == 0 ) return writer->CloseImpl( handler, timeout );
           //-------------------------------------------------------------------
           // Otherwise we save the handler for later
           //-------------------------------------------------------------------
@@ -263,7 +263,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void CloseImpl( XrdCl::ResponseHandler *handler );
+      void CloseImpl( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
 
       const ObjCfg                                    &objcfg;
       std::unique_ptr<WrtBuff>                         wrtbuff;            //< current write buffer

@@ -142,13 +142,15 @@ namespace XrdEc
     // @param usrbuff  : user buffer for the data
     // @param usrcb    : user callback to be notified when the read operation
     //                   has been resolved
+    // @param timeout  : operation timeout
     //-----------------------------------------------------------------------
     static void read( std::shared_ptr<block_t> &self,
                       size_t                    strpid,
                       uint64_t                  offset,
                       uint32_t                  size,
                       char                     *usrbuff,
-                      callback_t                usrcb )
+                      callback_t                usrcb,
+                      uint16_t                  timeout )
     {
       std::unique_lock<std::mutex> lck( self->mtx );
 
@@ -158,7 +160,7 @@ namespace XrdEc
       if( self->state[strpid] == Empty )
       {
         self->reader.Read( self->blkid, strpid, self->stripes[strpid],
-                           read_callback( self, strpid ) );
+                           read_callback( self, strpid ), timeout );
         self->state[strpid] = Loading;
       }
       //---------------------------------------------------------------------
@@ -422,7 +424,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Open the erasure coded / striped object
   //---------------------------------------------------------------------------
-  void Reader::Open( XrdCl::ResponseHandler *handler )
+  void Reader::Open( XrdCl::ResponseHandler *handler, uint16_t timeout )
   {
     const size_t size = objcfg.plgr.size();
     std::vector<XrdCl::Pipeline> opens; opens.reserve( size );
@@ -458,7 +460,7 @@ namespace XrdEc
                             if( handler )
                               handler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
                           };
-    XrdCl::Async( std::move( p ) );
+    XrdCl::Async( std::move( p ), timeout );
   }
 
   //-----------------------------------------------------------------------
@@ -467,7 +469,8 @@ namespace XrdEc
   void Reader::Read( uint64_t                offset,
                      uint32_t                length,
                      void                   *buffer,
-                     XrdCl::ResponseHandler *handler )
+                     XrdCl::ResponseHandler *handler,
+                     uint16_t                timeout )
   {
     char *usrbuff = reinterpret_cast<char*>( buffer );
     typedef std::tuple<uint64_t, uint32_t,
@@ -532,7 +535,7 @@ namespace XrdEc
       //-------------------------------------------------------------------
       // Read data from a stripe
       //-------------------------------------------------------------------
-      block_t::read( block, strpid, rdoff, rdsize, usrbuff, callback );
+      block_t::read( block, strpid, rdoff, rdsize, usrbuff, callback, timeout );
       //-------------------------------------------------------------------
       // Update absolute offset, read length, and user buffer
       //-------------------------------------------------------------------
@@ -545,7 +548,7 @@ namespace XrdEc
   //-----------------------------------------------------------------------
   // Close the data object
   //-----------------------------------------------------------------------
-  void Reader::Close( XrdCl::ResponseHandler *handler )
+  void Reader::Close( XrdCl::ResponseHandler *handler, uint16_t timeout )
   {
     //---------------------------------------------------------------------
     // prepare the pipelines ...
@@ -567,13 +570,13 @@ namespace XrdEc
     // if there is nothing to close just schedule the handler
     if( closes.empty() ) ScheduleHandler( handler );
     // otherwise close the archives
-    else XrdCl::Async( XrdCl::Parallel( closes ) >> handler );
+    else XrdCl::Async( XrdCl::Parallel( closes ) >> handler, timeout );
   }
 
   //-------------------------------------------------------------------------
   // on-definition is not allowed here beforeiven stripes from given block
   //-------------------------------------------------------------------------
-  void Reader::Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb )
+  void Reader::Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout )
   {
     // generate the file name (blknb/strpnb)
     std::string fn = objcfg.GetFileName( blknb, strpnb );
@@ -642,7 +645,7 @@ namespace XrdEc
                       // All is good, we can call now the user callback
                       //---------------------------------------------------
                       cb( XrdCl::XRootDStatus(), ch.length );
-                    } );
+                    }, timeout );
   }
 
   //-----------------------------------------------------------------------
