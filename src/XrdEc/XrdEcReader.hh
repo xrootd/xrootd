@@ -80,7 +80,7 @@ namespace XrdEc
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
-      void Open( XrdCl::ResponseHandler *handler );
+      void Open( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Read data from the data object
@@ -93,24 +93,26 @@ namespace XrdEc
       void Read( uint64_t                offset,
                  uint32_t                length,
                  void                   *buffer,
-                 XrdCl::ResponseHandler *handler );
+                 XrdCl::ResponseHandler *handler,
+                 uint16_t                timeout );
 
       //-----------------------------------------------------------------------
       //! Close the data object
       //-----------------------------------------------------------------------
-      void Close( XrdCl::ResponseHandler *handler );
+      void Close( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
 
     private:
 
       //-----------------------------------------------------------------------
       //! Read data from given stripes from given block
       //!
-      //! @param blknb  : number of the block
-      //! @param strpnb : number of stripe in the block
-      //! @param buffer : buffer for the data
-      //! @param cb     : callback
+      //! @param blknb   : number of the block
+      //! @param strpnb  : number of stripe in the block
+      //! @param buffer  : buffer for the data
+      //! @param cb      : callback
+      //! @param timeout : operation timeout
       //-----------------------------------------------------------------------
-      void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb );
+      void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Read metadata for the object

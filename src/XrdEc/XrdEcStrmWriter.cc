@@ -41,7 +41,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Open the data object for writting
   //---------------------------------------------------------------------------
-  void StrmWriter::Open( XrdCl::ResponseHandler *handler )
+  void StrmWriter::Open( XrdCl::ResponseHandler *handler, uint16_t timeout )
   {
     const size_t size = objcfg.plgr.size();
 
@@ -64,7 +64,7 @@ namespace XrdEc
                   {
                     if( !st.IsOK() ) global_status.report_open( st );
                     handler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
-                  } );
+                  }, timeout );
   }
 
   //---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Close the data object
   //---------------------------------------------------------------------------
-  void StrmWriter::Close( XrdCl::ResponseHandler *handler )
+  void StrmWriter::Close( XrdCl::ResponseHandler *handler, uint16_t timeout )
   {
     //-------------------------------------------------------------------------
     // First, check the global status, if we are in an error state just
@@ -120,7 +120,7 @@ namespace XrdEc
     //-------------------------------------------------------------------------
     // Let the global status handle the close
     //-------------------------------------------------------------------------
-    global_status.issue_close( handler );
+    global_status.issue_close( handler, timeout );
   }
 
   //---------------------------------------------------------------------------
@@ -273,7 +273,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   // Close the data object (implementation)
   //---------------------------------------------------------------------------
-  void StrmWriter::CloseImpl( XrdCl::ResponseHandler *handler )
+  void StrmWriter::CloseImpl( XrdCl::ResponseHandler *handler, uint16_t timeout )
   {
     //-------------------------------------------------------------------------
     // First, check the global status, if we are in an error state just
@@ -323,6 +323,6 @@ namespace XrdEc
         XrdCl::Parallel( closes ).AtLeast( objcfg.nbchunks ),
         XrdCl::Parallel( save_metadata ).AtLeast( objcfg.nbparity + 1 )
       ) >> handler;
-    XrdCl::Async( std::move( p ) );
+    XrdCl::Async( std::move( p ), timeout );
   }
 }

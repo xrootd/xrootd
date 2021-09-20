@@ -21,11 +21,15 @@ namespace XrdCl
   class EcHandler : public FilePlugIn
   {
     public:
-      EcHandler( const URL &redir, XrdEc::ObjCfg *objcfg, bool cosc ) : redir( redir ),
-                                                                        fs( redir ),
-                                                                        objcfg( objcfg ),
-                                                                        curroff( 0 ),
-                                                                        cosc( cosc )
+      EcHandler( const URL         &redir,
+                 XrdEc::ObjCfg     *objcfg,
+                 bool               cosc,
+                 const std::string &ckstype ) : redir( redir ),
+                                                fs( redir ),
+                                                objcfg( objcfg ),
+                                                curroff( 0 ),
+                                                cosc( cosc ),
+                                                ckstype( ckstype )
       {
       }
 
@@ -45,7 +49,7 @@ namespace XrdCl
             return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
     
           writer.reset( new XrdEc::StrmWriter( *objcfg ) );
-          writer->Open( handler ); // TODO impl timeout
+          writer->Open( handler, timeout );
           return XrdCl::XRootDStatus();
         } 
     
@@ -55,7 +59,7 @@ namespace XrdCl
             return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
     
           reader.reset( new XrdEc::Reader( *objcfg ) );
-          reader->Open( handler );
+          reader->Open( handler, timeout );
           return XrdCl::XRootDStatus(); 
         }
     
@@ -84,7 +88,7 @@ namespace XrdCl
                 return;
               }
               handler->HandleResponse( st, rsp );
-            } ) );
+            } ), timeout );
           return XrdCl::XRootDStatus();
         }
     
@@ -94,7 +98,7 @@ namespace XrdCl
             {
               reader.reset();
               handler->HandleResponse( st, rsp );
-            } ) );
+            } ), timeout );
           return XrdCl::XRootDStatus();
         }
     
@@ -123,7 +127,7 @@ namespace XrdCl
       {
         if( !reader ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal );
     
-        reader->Read( offset, size, buffer, handler );
+        reader->Read( offset, size, buffer, handler, timeout );
         return XrdCl::XRootDStatus();
       }
     
@@ -136,6 +140,8 @@ namespace XrdCl
                                  XrdCl::ResponseHandler *handler,
                                  uint16_t                timeout )
       {
+        // TODO the the checksumming in here !!!
+
         if( !writer ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal );
         if( offset != curroff ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
         writer->Write( size, buffer, handler );
@@ -160,6 +166,7 @@ namespace XrdCl
       std::unique_ptr<XrdEc::Reader>     reader;
       uint64_t                           curroff;
       bool                               cosc;
+      std::string                        ckstype;
   };
 
   EcHandler* GetEcHandler( const URL &headnode, const URL &redirurl )
@@ -215,12 +222,15 @@ namespace XrdCl
     if( cosc_str != "true" && cosc_str != "false" ) return nullptr;
     bool cosc = cosc_str == "true";
 
+    itr = params.find( "xrdec.cksum" );
+    if( cosc && itr == params.end() ) return nullptr;
+    std::string ckstype = itr->second;
+
     XrdEc::ObjCfg *objcfg = new XrdEc::ObjCfg( objid, nbdta, nbprt, blksz / nbdta );
     objcfg->plgr    = std::move( plgr );
     objcfg->dtacgi  = std::move( dtacgi );
     objcfg->mdtacgi = std::move( mdtacgi );
-
-    return new EcHandler( headnode, objcfg, cosc );
+    return new EcHandler( headnode, objcfg, cosc, ckstype );
   }
 
 } /* namespace XrdCl */

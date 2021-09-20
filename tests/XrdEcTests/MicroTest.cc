@@ -314,7 +314,7 @@ void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
   do
   {
     XrdCl::SyncResponseHandler h;
-    reader.Read( rdoff, rdsize, rdbuff, &h );
+    reader.Read( rdoff, rdsize, rdbuff, &h, 0 );
     h.WaitForResponse();
     status = h.GetStatus();
     CPPUNIT_ASSERT_XRDST( *status );
@@ -369,7 +369,7 @@ void MicroTest::RandomReadVerify()
   // read the data
   char *rdbuff = new char[rdlen];
   XrdCl::SyncResponseHandler h;
-  reader.Read( rdoff, rdlen, rdbuff, &h );
+  reader.Read( rdoff, rdlen, rdbuff, &h, 0 );
   h.WaitForResponse();
   status = h.GetStatus();
   CPPUNIT_ASSERT_XRDST( *status );
@@ -417,7 +417,7 @@ void MicroTest::Corrupted1stBlkReadVerify()
   // read the data
   char *rdbuff = new char[rdlen];
   XrdCl::SyncResponseHandler h;
-  reader.Read( rdoff, rdlen, rdbuff, &h );
+  reader.Read( rdoff, rdlen, rdbuff, &h, 0 );
   h.WaitForResponse();
   status = h.GetStatus();
   CPPUNIT_ASSERT( status->status == XrdCl::stError &&
