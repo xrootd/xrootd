@@ -686,7 +686,8 @@ namespace
           }
         }
 
-        if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
+        if( ( !pUrl->IsLocalFile() && !pFile->IsSecure() ) ||
+            ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
         {
           pFile->GetProperty( "DataServer", pDataServer );
           //--------------------------------------------------------------------
@@ -1063,7 +1064,8 @@ namespace
           }
         }
 
-        if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
+        if( ( !pUrl->IsLocalFile() && !pZipArchive->IsSecure() ) ||
+            ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
         {
           pZipArchive->GetProperty( "DataServer", pDataServer );
           //--------------------------------------------------------------------
@@ -1244,7 +1246,8 @@ namespace
           }
         }
 
-        if( !pUrl->IsLocalFile() || ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
+        if( ( !pUrl->IsLocalFile() && !pFile->IsSecure() ) ||
+            ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
         {
           std::string datasrv;
           pFile->GetProperty( "DataServer", datasrv );
@@ -1792,7 +1795,8 @@ namespace
         if( !st.IsOK() )
           return st;
 
-        if( !pUrl.IsLocalFile() || ( pUrl.IsLocalFile() && pUrl.IsMetalink() ) )
+        if( ( !pUrl.IsLocalFile() && !pFile->IsSecure() ) ||
+            ( pUrl.IsLocalFile() && pUrl.IsMetalink() ) )
         {
           std::string datasrv;
           pFile->GetProperty( "DataServer", datasrv );
