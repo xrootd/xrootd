@@ -830,6 +830,16 @@ namespace XrdCl
     return pStateHandler->IsOpen();
   }
 
+  //------------------------------------------------------------------------
+  //! Check if the file is using an encrypted connection
+  //------------------------------------------------------------------------
+  bool File::IsSecure() const
+  {
+    if( pPlugIn )
+      return false;
+    return pStateHandler->IsSecure();
+  }
+
   //----------------------------------------------------------------------------
   // Set file property
   //----------------------------------------------------------------------------

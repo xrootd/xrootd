@@ -759,6 +759,11 @@ namespace XrdCl
       bool IsOpen() const;
 
       //------------------------------------------------------------------------
+      //! Check if the file is using an encrypted connection
+      //------------------------------------------------------------------------
+      bool IsSecure() const;
+
+      //------------------------------------------------------------------------
       //! Set file property
       //!
       //! File properties:
