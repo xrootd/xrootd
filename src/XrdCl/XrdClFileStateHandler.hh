@@ -623,6 +623,14 @@ namespace XrdCl
       bool IsOpen() const;
 
       //------------------------------------------------------------------------
+      //! Check if the file is using an encrypted connection
+      //------------------------------------------------------------------------
+      inline bool IsSecure() const
+      {
+        return pIsChannelEncrypted;
+      }
+
+      //------------------------------------------------------------------------
       //! Set file property
       //!
       //! @see File::GetProperty for propert list
