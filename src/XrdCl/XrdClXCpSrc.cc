@@ -252,7 +252,8 @@ XRootDStatus XCpSrc::Initialize()
     }
 
     URL url( pUrl );
-    if( url.IsLocalFile() || ( url.IsLocalFile() && url.IsMetalink() ) )
+    if( ( !url.IsLocalFile() && !pFile->IsSecure() ) ||
+        ( url.IsLocalFile() && url.IsMetalink() ) )
     {
       std::string datasrv;
       pFile->GetProperty( "DataServer", datasrv );
@@ -317,7 +318,8 @@ XRootDStatus XCpSrc::Recover()
     }
 
     URL url( pUrl );
-    if( url.IsLocalFile() || ( url.IsLocalFile() && url.IsMetalink() ) )
+    if( ( !url.IsLocalFile() && pFile->IsSecure() ) ||
+        ( url.IsLocalFile() && url.IsMetalink() ) )
     {
       std::string datasrv;
       pFile->GetProperty( "DataServer", datasrv );

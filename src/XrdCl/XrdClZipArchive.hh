@@ -320,6 +320,14 @@ namespace XrdCl
         return openstage == Done;
       }
 
+      //------------------------------------------------------------------------
+      //! Check if the underlying file is using an encrypted connection
+      //------------------------------------------------------------------------
+      inline bool IsSecure()
+      {
+        return archive.IsSecure();
+      }
+
       //-----------------------------------------------------------------------
       //! Set property on the underlying File object
       //-----------------------------------------------------------------------
