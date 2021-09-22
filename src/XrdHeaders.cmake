@@ -130,6 +130,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
   XrdOuc/XrdOucN2NLoader.hh
+  XrdPosix/XrdPosixMap.hh
   XrdZip/XrdZipCDFH.hh
   XrdZip/XrdZipEOCD.hh
   XrdZip/XrdZipExtra.hh
