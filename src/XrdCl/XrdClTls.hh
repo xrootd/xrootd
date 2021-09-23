@@ -61,6 +61,12 @@ namespace XrdCl
       XRootDStatus Read( char *buffer, size_t size, int &bytesRead );
 
       //------------------------------------------------------------------------
+      //! (Fake) ReadV through the TLS layer from the socket
+      //! If necessary, will establish a TLS/SSL session.
+      //------------------------------------------------------------------------
+      XRootDStatus ReadV( iovec *iov, int iocnt, int &bytesRead );
+
+      //------------------------------------------------------------------------
       //! Write through the TLS layer to the socket
       //! If necessary, will establish a TLS/SSL session.
       //------------------------------------------------------------------------

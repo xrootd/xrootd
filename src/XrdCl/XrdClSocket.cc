@@ -717,6 +717,27 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //----------------------------------------------------------------------------
+  // ReadV helper for raw socket
+  //----------------------------------------------------------------------------
+  XRootDStatus Socket::ReadV( iovec *iov, int iocnt, int &bytesRead )
+  {
+    if( pTls ) return XRootDStatus( stError, errNotSupported );
+
+    int status = ::readv( pSocket, iov, iocnt );
+
+    // if the server shut down the socket declare a socket error (it
+    // will trigger a re-connect)
+    if( status == 0 )
+      return XRootDStatus( stError, errSocketError, errno );
+
+    if( status < 0 )
+      return ClassifyErrno( errno );
+
+    bytesRead = status;
+    return XRootDStatus();
+  }
+
   //------------------------------------------------------------------------
   // Cork the underlying socket
   //------------------------------------------------------------------------
