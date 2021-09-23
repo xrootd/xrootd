@@ -186,6 +186,19 @@ namespace XrdCl
       //----------------------------------------------------------------------------
       XRootDStatus Read( char *buffer, size_t size, int &bytesRead );
 
+      //----------------------------------------------------------------------------
+      //! ReadV helper for raw socket
+      //!
+      //! @param iov       : the buffers for the data
+      //! @param iocnt     : number of buffers
+      //! @param bytesRead : number of bytes actually written into the sink
+      //! @return          : success     : ( stOK )
+      //!                    EAGAIN      : ( stOK,    suRetry )
+      //!                    EWOULDBLOCK : ( stOK,    suRetry )
+      //!                    other error : ( stError, errSocketError )
+      //----------------------------------------------------------------------------
+      XRootDStatus ReadV( iovec *iov, int iocnt, int &bytesRead );
+
       //------------------------------------------------------------------------
       //! Get the file descriptor
       //------------------------------------------------------------------------
