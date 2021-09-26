@@ -42,6 +42,9 @@
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
@@ -64,6 +67,22 @@ static void RSA_get0_key(const RSA *r,
 }
 #endif
 
+static int XrdCheckRSA (EVP_PKEY *pkey) {
+   int rc;
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
+   if (rsa)
+      rc = RSA_check_key(rsa);
+   else
+      rc = -2;
+#else
+   EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
+   rc = EVP_PKEY_check(ckctx);
+   EVP_PKEY_CTX_free(ckctx);
+#endif
+   return rc;
+}
+
 //_____________________________________________________________________________
 XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
 {
@@ -76,12 +95,6 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
    publen = -1;
    prilen = -1;
 
-   // Create container, first
-   if (!(fEVP = EVP_PKEY_new())) {
-      DEBUG("cannot allocate new public key container");
-      return;
-   }
-
    // Minimum is XrdCryptoMinRSABits
    bits = (bits >= XrdCryptoMinRSABits) ? bits : XrdCryptoMinRSABits;
 
@@ -92,38 +105,39 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
    DEBUG("bits: "<<bits<<", exp: "<<exp);
 
    // Try Key Generation
-   RSA *fRSA = RSA_new();
-   if (!fRSA) {
-      DEBUG("cannot allocate new public key");
-      return;
-   }
-
    BIGNUM *e = BN_new();
    if (!e) {
       DEBUG("cannot allocate new exponent");
-      RSA_free(fRSA);
       return;
    }
 
    BN_set_word(e, exp);
 
+   EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, 0);
+   EVP_PKEY_keygen_init(pkctx);
+   EVP_PKEY_CTX_set_rsa_keygen_bits(pkctx, bits);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   EVP_PKEY_CTX_set1_rsa_keygen_pubexp(pkctx, e);
+   BN_free(e);
+#else
+   EVP_PKEY_CTX_set_rsa_keygen_pubexp(pkctx, e);
+#endif
+   EVP_PKEY_keygen(pkctx, &fEVP);
+   EVP_PKEY_CTX_free(pkctx);
+
    // Update status flag
-   if (RSA_generate_key_ex(fRSA, bits, e, NULL) == 1) {
-      if (RSA_check_key(fRSA) != 0) {
+   if (fEVP) {
+      if (XrdCheckRSA(fEVP) == 1) {
          status = kComplete;
-         DEBUG("basic length: "<<RSA_size(fRSA)<<" bytes");
+         DEBUG("basic length: "<<EVP_PKEY_size(fEVP)<<" bytes");
          // Set the key
-         EVP_PKEY_assign_RSA(fEVP, fRSA);
       } else {
          DEBUG("WARNING: generated key is invalid");
          // Generated an invalid key: cleanup
-         RSA_free(fRSA);
+         EVP_PKEY_free(fEVP);
+         fEVP = 0;
       }
-   } else {
-      RSA_free(fRSA);
    }
-
-   BN_free(e);
 }
 
 //_____________________________________________________________________________
@@ -161,7 +175,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(EVP_PKEY *key, bool check)
 
    if (check) {
       // Check consistency
-      if (RSA_check_key(EVP_PKEY_get0_RSA(key)) != 0) {
+      if (XrdCheckRSA(key) == 1) {
          fEVP = key;
          // Update status
          status = kComplete;
@@ -193,9 +207,16 @@ XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r) : XrdCryptoRSA()
    }
 
    // If the given key is set, copy it via a bio
-   const BIGNUM *d;
-   RSA_get0_key(EVP_PKEY_get0_RSA(r.fEVP), NULL, NULL, &d);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   BIGNUM *d = BN_new();
+   bool publiconly =
+     (EVP_PKEY_get_bn_param(r.fEVP, OSSL_PKEY_PARAM_RSA_D, &d) != 1);
+   BN_free(d);
+#else
+   const BIGNUM *d = 0;
+   RSA_get0_key(EVP_PKEY_get0_RSA(r.fEVP), 0, 0, &d);
    bool publiconly = (d == 0);
+#endif
    //
    // Bio for exporting the pub key
    BIO *bcpy = BIO_new(BIO_s_mem());
@@ -217,7 +238,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r) : XrdCryptoRSA()
           } else {
             if ((fEVP = PEM_read_bio_PrivateKey(bcpy,0,0,0))) {
                // Check consistency
-               if (RSA_check_key(EVP_PKEY_get0_RSA(fEVP)) != 0) {
+               if (XrdCheckRSA(fEVP) == 1) {
                   // Update status
                   status = kComplete;
                }
@@ -245,9 +266,9 @@ int XrdCryptosslRSA::GetOutlen(int lin)
 {
    // Get minimal length of output buffer
 
-   int lcmax = RSA_size(EVP_PKEY_get0_RSA(fEVP)) - 42;
+   int lcmax = EVP_PKEY_size(fEVP) - 42;
 
-   return ((lin / lcmax) + 1) * RSA_size(EVP_PKEY_get0_RSA(fEVP));
+   return ((lin / lcmax) + 1) * EVP_PKEY_size(fEVP);
 }
 
 //_____________________________________________________________________________
@@ -493,17 +514,20 @@ int XrdCryptosslRSA::EncryptPrivate(const char *in, int lin, char *out, int lout
 
    //
    // Private encoding ...
-   int lcmax = RSA_size(EVP_PKEY_get0_RSA(fEVP)) - 11;  // Magic number (= 2*sha1_outlen + 2)
-   int lout = 0;
-   int len = lin;
+   size_t lcmax = EVP_PKEY_size(fEVP) - 11;  // Magic number (= 2*sha1_outlen + 2)
+   size_t lout = 0;
+   size_t len = lin;
    int kk = 0;
    int ke = 0;
 
-   while (len > 0 && ke <= (loutmax - lout)) {
-      int lc = (len > lcmax) ? lcmax : len ;
-      if ((lout = RSA_private_encrypt(lc, (unsigned char *)&in[kk],
-                                          (unsigned char *)&out[ke],
-                                      EVP_PKEY_get0_RSA(fEVP), RSA_PKCS1_PADDING)) < 0) {
+   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(fEVP, 0);
+   EVP_PKEY_sign_init(ctx);
+   EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
+   while (len > 0 && ke <= int(loutmax - lout)) {
+      size_t lc = (len > lcmax) ? lcmax : len;
+      if (EVP_PKEY_sign(ctx, (unsigned char *)&out[ke], &lout,
+                             (unsigned char *)&in[kk], lc) <= 0) {
+         EVP_PKEY_CTX_free(ctx);
          char serr[120];
          ERR_error_string(ERR_get_error(), serr);
          DEBUG("error: " <<serr);
@@ -513,11 +537,11 @@ int XrdCryptosslRSA::EncryptPrivate(const char *in, int lin, char *out, int lout
       ke += lout;
       len -= lc;
    }
-   if (len > 0 && ke > (loutmax - lout))
+   EVP_PKEY_CTX_free(ctx);
+   if (len > 0 && ke > int(loutmax - lout))
       DEBUG("buffer truncated");
    lout = ke;
 
-   // Return   
    return lout;
 }
 
@@ -544,17 +568,20 @@ int XrdCryptosslRSA::EncryptPublic(const char *in, int lin, char *out, int loutm
 
    //
    // Public encoding ...
-   int lcmax = RSA_size(EVP_PKEY_get0_RSA(fEVP)) - 42;  // Magic number (= 2*sha1_outlen + 2)
-   int lout = 0;
-   int len = lin;
+   size_t lcmax = EVP_PKEY_size(fEVP) - 42;  // Magic number (= 2*sha1_outlen + 2)
+   size_t lout = 0;
+   size_t len = lin;
    int kk = 0;
    int ke = 0;
 
-   while (len > 0 && ke <= (loutmax - lout)) {
-      int lc = (len > lcmax) ? lcmax : len ;
-      if ((lout = RSA_public_encrypt(lc, (unsigned char *)&in[kk],
-                                         (unsigned char *)&out[ke],
-                                     EVP_PKEY_get0_RSA(fEVP), RSA_PKCS1_OAEP_PADDING)) < 0) {
+   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(fEVP, 0);
+   EVP_PKEY_encrypt_init(ctx);
+   EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING);
+   while (len > 0 && ke <= int(loutmax - lout)) {
+      size_t lc = (len > lcmax) ? lcmax : len;
+      if (EVP_PKEY_encrypt(ctx, (unsigned char *)&out[ke], &lout,
+                                (unsigned char *)&in[kk], lc) <= 0) {
+         EVP_PKEY_CTX_free(ctx);
          char serr[120];
          ERR_error_string(ERR_get_error(), serr);
          DEBUG("error: " <<serr);
@@ -564,11 +591,11 @@ int XrdCryptosslRSA::EncryptPublic(const char *in, int lin, char *out, int loutm
       ke += lout;
       len -= lc;
    }
-   if (len > 0 && ke > (loutmax - lout))
+   EVP_PKEY_CTX_free(ctx);
+   if (len > 0 && ke > int(loutmax - lout))
       DEBUG("buffer truncated");
    lout = ke;
 
-   // Return   
    return lout;
 }
 
@@ -593,18 +620,21 @@ int XrdCryptosslRSA::DecryptPrivate(const char *in, int lin, char *out, int lout
       return -1;
    }
 
-   int lout = 0;
-   int len = lin;
-   int lcmax = RSA_size(EVP_PKEY_get0_RSA(fEVP));
+   size_t lout = 0;
+   size_t len = lin;
+   size_t lcmax = EVP_PKEY_size(fEVP);
    int kk = 0;
    int ke = 0;
 
    //
    // Private decoding ...
-   while (len > 0 && ke <= (loutmax - lout)) {
-      if ((lout = RSA_private_decrypt(lcmax, (unsigned char *)&in[kk],
-                                             (unsigned char *)&out[ke],
-                                      EVP_PKEY_get0_RSA(fEVP), RSA_PKCS1_OAEP_PADDING)) < 0) {
+   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(fEVP, 0);
+   EVP_PKEY_decrypt_init(ctx);
+   EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING);
+   while (len > 0 && ke <= int(loutmax - lout)) {
+      if (EVP_PKEY_decrypt(ctx, (unsigned char *)&out[ke], &lout,
+                                (unsigned char *)&in[kk], lcmax) <= 0) {
+         EVP_PKEY_CTX_free(ctx);
          char serr[120];
          ERR_error_string(ERR_get_error(), serr);
          DEBUG("error: " <<serr);
@@ -614,7 +644,8 @@ int XrdCryptosslRSA::DecryptPrivate(const char *in, int lin, char *out, int lout
       len -= lcmax;
       ke += lout;
    }
-   if (len > 0 && ke > (loutmax - lout))
+   EVP_PKEY_CTX_free(ctx);
+   if (len > 0 && ke > int(loutmax - lout))
       PRINT("buffer truncated");
    lout = ke;
    
@@ -642,18 +673,21 @@ int XrdCryptosslRSA::DecryptPublic(const char *in, int lin, char *out, int loutm
       return -1;
    }
 
-   int lout = 0;
-   int len = lin;
-   int lcmax = RSA_size(EVP_PKEY_get0_RSA(fEVP));
+   size_t lout = 0;
+   size_t len = lin;
+   size_t lcmax = EVP_PKEY_size(fEVP);
    int kk = 0;
    int ke = 0;
 
    //
    // Private decoding ...
-   while (len > 0 && ke <= (loutmax - lout)) {
-      if ((lout = RSA_public_decrypt(lcmax, (unsigned char *)&in[kk],
-                                            (unsigned char *)&out[ke],
-                                     EVP_PKEY_get0_RSA(fEVP), RSA_PKCS1_PADDING)) < 0) {
+   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(fEVP, 0);
+   EVP_PKEY_verify_recover_init(ctx);
+   EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
+   while (len > 0 && ke <= int(loutmax - lout)) {
+      if (EVP_PKEY_verify_recover(ctx, (unsigned char *)&out[ke], &lout,
+                                       (unsigned char *)&in[kk], lcmax) <= 0) {
+         EVP_PKEY_CTX_free(ctx);
          char serr[120];
          ERR_error_string(ERR_get_error(), serr);
          PRINT("error: " <<serr);
@@ -663,7 +697,8 @@ int XrdCryptosslRSA::DecryptPublic(const char *in, int lin, char *out, int loutm
       len -= lcmax;
       ke += lout;
    }
-   if (len > 0 && ke > (loutmax - lout))
+   EVP_PKEY_CTX_free(ctx);
+   if (len > 0 && ke > int(loutmax - lout))
       PRINT("buffer truncated");
    lout = ke;
    

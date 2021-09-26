@@ -115,6 +115,22 @@ static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
 }
 #endif
 
+static int XrdCheckRSA (EVP_PKEY *pkey) {
+   int rc;
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
+   if (rsa)
+      rc = RSA_check_key(rsa);
+   else
+      rc = -2;
+#else
+   EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
+   rc = EVP_PKEY_check(ckctx);
+   EVP_PKEY_CTX_free(ckctx);
+#endif
+   return rc;
+}
+
 int XrdCryptosslX509Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
 int XrdCryptosslX509FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length);
 int XrdCryptosslX509FillVOMS(XRDGSI_CONST unsigned char **pp,
@@ -303,7 +319,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    }
    fclose(fk);
    // Check key consistency
-   if ((RSA_check_key(EVP_PKEY_get0_RSA(ekEEC)) == 0)) {
+   if (XrdCheckRSA(ekEEC) != 1) {
       PRINT("inconsistent key loaded");
       EVP_PKEY_free(ekEEC);
       X509_free(xEEC);
@@ -320,42 +336,32 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    }
    //
    // Create the new PKI for the proxy (exponent 65537)
-   RSA *kPX = RSA_new();
-   if (!kPX) {
-      PRINT("proxy key could not be generated - return");
-      EVP_PKEY_free(ekEEC);
-      X509_free(xEEC);
-      return -kErrPX_GenerateKey;
-   }
    BIGNUM *e = BN_new();
    if (!e) {
       PRINT("proxy key could not be generated - return");
-      RSA_free(kPX);
       EVP_PKEY_free(ekEEC);
       X509_free(xEEC);
       return -kErrPX_GenerateKey;
    }
    BN_set_word(e, 0x10001);
-   if (RSA_generate_key_ex(kPX, bits, e, NULL) != 1) {
+   EVP_PKEY *ekPX = 0;
+   EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, 0);
+   EVP_PKEY_keygen_init(pkctx);
+   EVP_PKEY_CTX_set_rsa_keygen_bits(pkctx, bits);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   EVP_PKEY_CTX_set1_rsa_keygen_pubexp(pkctx, e);
+   BN_free(e);
+#else
+   EVP_PKEY_CTX_set_rsa_keygen_pubexp(pkctx, e);
+#endif
+   EVP_PKEY_keygen(pkctx, &ekPX);
+   EVP_PKEY_CTX_free(pkctx);
+   if (!ekPX) {
       PRINT("proxy key could not be generated - return");
-      BN_free(e);
-      RSA_free(kPX);
       EVP_PKEY_free(ekEEC);
       X509_free(xEEC);
       return -kErrPX_GenerateKey;
    }
-   BN_free(e);
-   //
-   // Set the key into the request
-   EVP_PKEY *ekPX = EVP_PKEY_new();
-   if (!ekPX) {
-      PRINT("could not create a EVP_PKEY * instance - return");
-      RSA_free(kPX);
-      EVP_PKEY_free(ekEEC);
-      X509_free(xEEC);
-      return -kErrPX_NoResources;
-   }
-   EVP_PKEY_assign_RSA(ekPX, kPX);
    X509_REQ_set_pubkey(preq, ekPX);
    //
    // Generate a serial number. Specification says that this *should*
@@ -597,7 +603,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
          fclose(fp);
          rc = -kErrPX_ProxyFile;
       }
-      else if (!rc && PEM_write_RSAPrivateKey(fp, kPX, 0, 0, 0, 0, 0) != 1) {
+      else if (!rc && PEM_write_PrivateKey(fp, ekPX, 0, 0, 0, 0, 0) != 1) {
          PRINT("error while writing proxy private key");
          fclose(fp);
          rc = -kErrPX_ProxyFile;
@@ -664,33 +670,30 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    bits = (bits < 512) ? 512 : bits;
    //
    // Create the new PKI for the proxy (exponent 65537)
-   RSA *kro = RSA_new();
-   if (!kro) {
-      PRINT("proxy key could not be generated - return");
-      return -kErrPX_GenerateKey;
-   }
    BIGNUM *e = BN_new();
    if (!e) {
       PRINT("proxy key could not be generated - return");
-      RSA_free(kro);
       return -kErrPX_GenerateKey;
    }
    BN_set_word(e, 0x10001);
-   if (RSA_generate_key_ex(kro, bits, e, NULL) != 1) {
-      RSA_free(kro);
-      BN_free(e);
+   EVP_PKEY *ekro = 0;
+   EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, 0);
+   EVP_PKEY_keygen_init(pkctx);
+   EVP_PKEY_CTX_set_rsa_keygen_bits(pkctx, bits);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   EVP_PKEY_CTX_set1_rsa_keygen_pubexp(pkctx, e);
+   BN_free(e);
+#else
+   EVP_PKEY_CTX_set_rsa_keygen_pubexp(pkctx, e);
+#endif
+   EVP_PKEY_keygen(pkctx, &ekro);
+   EVP_PKEY_CTX_free(pkctx);
+   //
+   // Set the key into the request
+   if (!ekro) {
       PRINT("proxy key could not be generated - return");
       return -kErrPX_GenerateKey;
    }
-   BN_free(e);
-   //
-   // Set the key into the request
-   EVP_PKEY *ekro = EVP_PKEY_new();
-   if (!ekro) {
-      PRINT("could not create a EVP_PKEY * instance - return");
-      return -kErrPX_NoResources;
-   }
-   EVP_PKEY_assign_RSA(ekro, kro);
    X509_REQ_set_pubkey(xro, ekro);
    //
    // Generate a serial number. Specification says that this *should*
@@ -898,6 +901,13 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       return -kErrPX_BadEECkey;
    }
    // Point to the cerificate
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   EVP_PKEY *ekpi = EVP_PKEY_dup((EVP_PKEY *)(kcpi->Opaque()));
+   if (!ekpi) {
+      PRINT("could not create a EVP_PKEY * instance - return");
+      return -kErrPX_NoResources;
+   }
+#else
    RSA *kpi = EVP_PKEY_get0_RSA((EVP_PKEY *)(kcpi->Opaque()));
    //
    // Set the key into the request
@@ -907,6 +917,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       return -kErrPX_NoResources;
    }
    EVP_PKEY_set1_RSA(ekpi, kpi);
+#endif
 
    // Get request in raw form
    X509_REQ *xri = (X509_REQ *)(xcri->Opaque());

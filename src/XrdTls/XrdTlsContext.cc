@@ -387,7 +387,9 @@ void InitTLS() // This is strictly a one-time call!
    OpenSSL_add_all_algorithms();
    SSL_load_error_strings();
    OpenSSL_add_all_ciphers();
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
    ERR_load_BIO_strings();
+#endif
    ERR_load_crypto_strings();
 
 // Set callbacks if we need to do this

@@ -53,6 +53,22 @@ static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
 }
 #endif
 
+static int XrdCheckRSA (EVP_PKEY *pkey) {
+   int rc;
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
+   if (rsa)
+      rc = RSA_check_key(rsa);
+   else
+      rc = -2;
+#else
+   EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
+   rc = EVP_PKEY_check(ckctx);
+   EVP_PKEY_CTX_free(ckctx);
+#endif
+   return rc;
+}
+
 #define BIO_PRINT(b,c) \
    BUF_MEM *bptr; \
    BIO_get_mem_ptr(b, &bptr); \
@@ -159,7 +175,7 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
       if ((evpp = PEM_read_PrivateKey(fk,0,0,0))) {
          DEBUG("RSA key completed ");
          // Test consistency
-         if (RSA_check_key(EVP_PKEY_get0_RSA(evpp)) != 0) {
+         if (XrdCheckRSA(evpp) == 1) {
             // Save it in pki
             pki = new XrdCryptosslRSA(evpp);
          }

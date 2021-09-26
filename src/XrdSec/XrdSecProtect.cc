@@ -38,7 +38,8 @@
 #define COMMON_DIGEST_FOR_OPENSSL
 #include "CommonCrypto/CommonDigest.h"
 #else
-#include "openssl/sha.h"
+#include <openssl/evp.h>
+#include <openssl/sha.h>
 #endif
 
 #include "XrdVersion.hh"
@@ -52,6 +53,21 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static EVP_MD_CTX* EVP_MD_CTX_new() {
+  EVP_MD_CTX *ctx = (EVP_MD_CTX *)OPENSSL_malloc(sizeof(EVP_MD_CTX));
+  if (ctx) EVP_MD_CTX_init(ctx);
+  return ctx;
+}
+
+static void EVP_MD_CTX_free(EVP_MD_CTX *ctx) {
+  if (ctx) {
+    EVP_MD_CTX_cleanup(ctx);
+    OPENSSL_free(ctx);
+  }
+}
+#endif
+
 /******************************************************************************/
 /*                      S t r u c t   X r d S e c R e q                       */
 /******************************************************************************/
@@ -146,22 +162,30 @@ kXR_write,     kXR_signIgnore, kXR_signIgnore, kXR_signNeeded, kXR_signNeeded,
 
 bool XrdSecProtect::GetSHA2(unsigned char *hBuff, struct iovec *iovP, int iovN)
 {
-   SHA256_CTX sha256;
+   bool ret = false;
+   EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+   const EVP_MD *md = EVP_get_digestbyname("sha256");
 
 // Initialize the hash calculattion
 //
-   if (0 == SHA256_Init(&sha256)) return false;
+   if (1 != EVP_DigestInit_ex(mdctx, md, 0)) goto err;
 
 // Go through the iovec updating the hash
 //
    for (int i = 0; i < iovN; i++)
-       {if (1 != SHA256_Update(&sha256, iovP[i].iov_base, iovP[i].iov_len))
-           return false;
-       }
+   {
+      if (1 != EVP_DigestUpdate(mdctx, iovP[i].iov_base, iovP[i].iov_len))
+         goto err;
+   }
 
 // Compute final hash and return result
 //
-  return (1 == SHA256_Final(hBuff, &sha256));
+   if (1 != EVP_DigestFinal_ex(mdctx, hBuff, 0)) goto err;
+
+   ret = true;
+ err:
+   EVP_MD_CTX_free (mdctx);
+   return ret;
 }
 
 /******************************************************************************/
