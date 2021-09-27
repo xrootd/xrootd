@@ -32,6 +32,7 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClAsyncPageReader.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPageSize.hh"
@@ -157,10 +158,10 @@ namespace XrdCl
         pReadRawStarted( false ),
         pReadRawCurrentOffset( 0 ),
 
-        pPgReadCksumBuff( 4 ),
-        pPgReadOffset( 0 ),
-        pPgReadLength( 0 ),
-        pPgReadCurrentPageSize( 0 ),
+//        pPgReadCksumBuff( 4 ),
+//        pPgReadOffset( 0 ),
+//        pPgReadLength( 0 ),
+//        pPgReadCurrentPageSize( 0 ),
 
         pPgWrtCksumBuff( 4 ),
         pPgWrtCurrentPageOffset( 0 ),
@@ -448,12 +449,12 @@ namespace XrdCl
                           Socket   *socket,
                           uint32_t &bytesRead );
 
-      //------------------------------------------------------------------------
-      //! Handle a kXR_pgread in raw mode
-      //------------------------------------------------------------------------
-      Status ReadRawPgRead( Message  *msg,
-                            Socket   *socket,
-                            uint32_t &bytesRead );
+//      //------------------------------------------------------------------------
+//      //! Handle a kXR_pgread in raw mode
+//      //------------------------------------------------------------------------
+//      Status ReadRawPgRead( Message  *msg,
+//                            Socket   *socket,
+//                            uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Handle a kXR_readv in raw mode
@@ -483,31 +484,31 @@ namespace XrdCl
         return st;
       }
 
-      //------------------------------------------------------------------------
-      //! Read all page asynchronously - depends on pAsyncBuffer,
-      //! pAsyncSize and pAsyncOffset
-      //------------------------------------------------------------------------
-      inline Status ReadPagesAsync( Socket *socket, uint32_t &bytesRead )
-      {
-        uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
-        while( toBeRead > 0 )
-        {
-          uint32_t btsRead = 0;
-          Status st = ReadPageAsync( socket, btsRead );
-          if( !st.IsOK() ) return st;
-          bytesRead += btsRead;
-          toBeRead  -= btsRead;
-          if( st.code == suRetry ) return st;
-        }
-
-        return Status();
-      }
+//      //------------------------------------------------------------------------
+//      //! Read all page asynchronously - depends on pAsyncBuffer,
+//      //! pAsyncSize and pAsyncOffset
+//      //------------------------------------------------------------------------
+//      inline Status ReadPagesAsync( Socket *socket, uint32_t &bytesRead )
+//      {
+//        uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
+//        while( toBeRead > 0 )
+//        {
+//          uint32_t btsRead = 0;
+//          Status st = ReadPageAsync( socket, btsRead );
+//          if( !st.IsOK() ) return st;
+//          bytesRead += btsRead;
+//          toBeRead  -= btsRead;
+//          if( st.code == suRetry ) return st;
+//        }
+//
+//        return Status();
+//      }
 
       //------------------------------------------------------------------------
       //! Read a single page asynchronously - depends on pAsyncBuffer,
       //! pAsyncSize and pAsyncOffset
       //------------------------------------------------------------------------
-      Status ReadPageAsync( Socket *socket, uint32_t &bytesRead );
+//      Status ReadPageAsync( Socket *socket, uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Read a buffer asynchronously
@@ -749,10 +750,11 @@ namespace XrdCl
       bool                            pReadRawStarted;
       uint32_t                        pReadRawCurrentOffset;
 
-      Buffer                          pPgReadCksumBuff;
-      uint64_t                        pPgReadOffset;
-      uint32_t                        pPgReadLength;
-      uint32_t                        pPgReadCurrentPageSize;
+//      Buffer                          pPgReadCksumBuff;
+//      uint64_t                        pPgReadOffset;
+//      uint32_t                        pPgReadLength;
+//      uint32_t                        pPgReadCurrentPageSize;
+      std::unique_ptr<AsyncPageReader> pPageReader;
 
       Buffer                          pPgWrtCksumBuff;
       uint32_t                        pPgWrtCurrentPageOffset;
