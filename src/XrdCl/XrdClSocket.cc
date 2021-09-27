@@ -720,11 +720,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // ReadV helper for raw socket
   //----------------------------------------------------------------------------
-  XRootDStatus Socket::ReadV( iovec *iov, int iocnt, int &bytesRead )
+  XRootDStatus Socket::ReadV( iovec *iov, int iovcnt, int &bytesRead )
   {
-    if( pTls ) return XRootDStatus( stError, errNotSupported );
+    if( pTls ) return pTls->ReadV( iov, iovcnt, bytesRead );
 
-    int status = ::readv( pSocket, iov, iocnt );
+    int status = ::readv( pSocket, iov, iovcnt );
 
     // if the server shut down the socket declare a socket error (it
     // will trigger a re-connect)
