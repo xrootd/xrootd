@@ -782,11 +782,12 @@ XrdSfsXferSize XrdSsiFileSess::writeAdd(const char     *buff,      // In
        if (!NewRequest(rid, oucBuff, 0, reqSize))
           return XrdSsiUtils::Emsg(epname, ENOMEM, "write", gigID, *eInfo);
        oucBuff = 0;
+      } else {
+       dlen += blen;
+       oucBuff->SetLen(dlen, dlen);
       }
 
 // Return how much we appended
 //
-   dlen += blen;
-   oucBuff->SetLen(dlen, dlen);
    return blen;
 }
