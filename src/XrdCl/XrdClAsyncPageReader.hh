@@ -223,6 +223,16 @@ class AsyncPageReader
     }
 
     //--------------------------------------------------------------------------
+    //! Shift buffer by a number of bytes
+    //--------------------------------------------------------------------------
+    inline void shift( void *&buffer, size_t nbbts )
+    {
+      char *buf = static_cast<char*>( buffer );
+      buf += nbbts;
+      buffer = buf;
+    }
+
+    //--------------------------------------------------------------------------
     //! shift digest buffer by `btsread`
     //! @param btsread : total number of bytes read (will be decremented by bytes
     //!                  shifted in buffer)
@@ -232,6 +242,7 @@ class AsyncPageReader
       if( iov[iovindex].iov_len > btsread )
       {
         iov[iovindex].iov_len -= btsread;
+        shift( iov[iovindex].iov_base, btsread );
         dgoff += btsread;
         btsread = 0;
         return;
@@ -256,6 +267,7 @@ class AsyncPageReader
       if( iov[iovindex].iov_len > btsread )
       {
         iov[iovindex].iov_len -= btsread;
+        shift( iov[iovindex].iov_base, btsread );
         choff += btsread;
         btsread = 0;
         return;
