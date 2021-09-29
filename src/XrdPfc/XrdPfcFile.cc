@@ -584,7 +584,8 @@ void File::ProcessBlockRequest(Block *b)
    BlockResponseHandler* oucCB = new BlockResponseHandler(b);
    if (b->req_cksum_net())
    {
-      b->get_io()->GetInput()->pgRead(*oucCB, b->get_buff(), b->get_offset(), b->get_req_size(), b->ref_cksum_vec());
+      b->get_io()->GetInput()->pgRead(*oucCB, b->get_buff(), b->get_offset(), b->get_req_size(),
+                                      b->ref_cksum_vec(), 0, b->ptr_n_cksum_errors());
    } else {
       b->get_io()->GetInput()->  Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
    }
@@ -1229,7 +1230,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
       if ( ! m_in_shutdown)
       {
          inc_ref_count(b);
-         m_stats.AddBytesWritten(b->get_size());
+         m_stats.AddWriteStats(b->get_size(), b->get_n_cksum_errors());
          cache()->AddWriteTask(b, true);
       }
    }
