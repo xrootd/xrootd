@@ -73,11 +73,12 @@ public:
    bool                m_prefetch;
    bool                m_req_cksum_net;
    vCkSum_t            m_cksum_vec;
+   int                 m_n_cksum_errors;
 
    Block(File *f, IO *io, char *buf, long long off, int size, int rsize, bool m_prefetch, bool cks_net) :
       m_file(f), m_io(io), m_buff(buf), m_offset(off), m_size(size), m_req_size(rsize),
       m_refcnt(0), m_errno(0), m_downloaded(false), m_prefetch(m_prefetch),
-      m_req_cksum_net(cks_net)
+      m_req_cksum_net(cks_net), m_n_cksum_errors(0)
    {}
 
    char*     get_buff()     { return m_buff;     }
@@ -103,6 +104,9 @@ public:
    bool      req_cksum_net() const { return m_req_cksum_net; }
    bool      has_cksums()    const { return ! m_cksum_vec.empty(); }
    vCkSum_t& ref_cksum_vec()       { return m_cksum_vec; }
+   int       get_n_cksum_errors()  { return m_n_cksum_errors; }
+   int*      ptr_n_cksum_errors()  { return &m_n_cksum_errors; }
+
 };
 
 // ================================================================
@@ -234,6 +238,7 @@ public:
    int                GetBlockSize()         const { return m_cfi.GetBufferSize(); }
    int                GetNBlocks()           const { return m_cfi.GetNBlocks(); }
    int                GetNDownloadedBlocks() const { return m_cfi.GetNDownloadedBlocks(); }
+   const Stats&       RefStats()             const { return m_stats; }
 
    // These three methods are called under Cache's m_active lock
    int get_ref_cnt() { return   m_ref_cnt; }
