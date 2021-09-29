@@ -77,6 +77,7 @@ public:
   XrdOss *theSS;
   bool readOnlyredirect;
   bool httpRedirect;
+  std::string localroot;
 };
 
 #endif // XRDCMSREDIRPLUGIN_HH_

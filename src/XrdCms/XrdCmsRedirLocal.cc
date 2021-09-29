@@ -85,6 +85,11 @@ void XrdCmsRedirLocal::loadConfig(const char *filename) {
         httpRedirect = false;
       }
     }
+    // search for localroot,
+    // which manually sets localroot to prepend
+    else if (strcmp(word, "xrdcmsredirlocal.localroot") == 0){
+      localroot = std::string(Config.GetWord(true));//to lower case
+    }
   }
   Config.Close();
 }
@@ -161,13 +166,8 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
         return rcode;
     }
     // passed all checks, now to actual business
-    // build a buffer with a total acceptable buffer length,
-    // which must have a larger capacity than localroot and filename concatenated
-    int rc = 0;
-    int maxPathLength = 4096;
-    char *buff = new char[maxPathLength];
-    // prepend oss.localroot
-    std::string ppath = "file://" + std::string(theSS->Lfn2Pfn(path, buff, maxPathLength, rc));
+    // prepend manually configured localroot
+    std::string ppath = "file://" + localroot + path;
     if (strncmp(dialect.c_str(), "http", 4) == 0)
     {
       // set info which will be sent to client
@@ -178,7 +178,6 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
       // set info which will be sent to client
       Resp.setErrInfo(-1, ppath.c_str());
     }
-    delete[] buff;
     return SFS_REDIRECT;
   }
   return rcode;
