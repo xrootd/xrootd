@@ -20,7 +20,6 @@ if( XrdClPipelines )
        XrdClParallelOperation.hh
        XrdClFileOperations.hh
        XrdClFileSystemOperations.hh
-       XrdClZipArchive.cc            XrdClZipArchive.hh
        XrdClZipOperations.hh
   )
 endif()
@@ -103,6 +102,7 @@ add_library(
   XrdClLocalFileHandler.cc       XrdClLocalFileHandler.hh
   XrdClLocalFileTask.cc          XrdClLocalFileTask.hh
   XrdClZipListHandler.cc         XrdClZipListHandler.hh
+  XrdClZipArchive.cc            XrdClZipArchive.hh
   
   ${XrdClPipelineSources}
 
@@ -212,16 +212,18 @@ install(
     XrdClResponseJob.hh
     XrdClZipArchive.hh
     XrdClZipCache.hh
+    # Declarative operations
     XrdClOperations.hh
     XrdClOperationHandlers.hh
-    # Declarative operations
+    XrdClOperationTimeout.hh
     XrdClArg.hh
     XrdClCtx.hh
     XrdClFwd.hh
     XrdClParallelOperation.hh
     XrdClFileOperations.hh
     XrdClFileSystemOperations.hh
-    XrdClZipOperations.hh
+    XrdClFinalOperation.hh
+    XrdClZipOperations.hh 
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/private/XrdCl )
 
 if( NOT XRDCL_LIB_ONLY )
