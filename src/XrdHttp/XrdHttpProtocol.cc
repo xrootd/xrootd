@@ -1415,19 +1415,39 @@ void XrdHttpProtocol::BuffConsume(int blen) {
 /******************************************************************************/
   
 /// Get a pointer, valid for up to blen bytes from the buffer. Returns the n
-/// of bytes that one is allowed to read
-
+/// of bytes that one is allowed to use in the *data block
+/// If wait = true then the call may wait for the data to come from the socket
+/// If wait = false then the call returns:
+///   - what's in the buffer if there's anything in the buffer
+///   - what can be read from the socket without waiting
+///   In this case an error will return -1, instead the absence of data
+///   will return 0
 int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   int rlen;
 
   TRACE(DEBUG, "BuffgetData: requested " << blen << " bytes");
-  
-  if (wait && (blen > BuffUsed())) {
-    TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
-    if ( getDataOneShot(blen - BuffUsed(), true) ) return 0;
+ 
+
+  if (wait) {
+    // If there's not enough data in the buffer then wait on the socket until it comes
+    if  (blen > BuffUsed()) {
+      TRACE(REQ, "BuffgetData: need to read " << blen - BuffUsed() << " bytes");
+      if ( getDataOneShot(blen - BuffUsed(), true) )
+        // The wanted data could not be read. Either timeout of connection closed
+        return 0;
+    }
+  } else {
+    // Get a peek at the socket, without waiting, if we have no data in the buffer
+    if ( !BuffUsed() ) {
+      if ( getDataOneShot(blen, false) )
+        // The wanted data could not be read. Either timeout of connection closed
+        return -1;
+    }
   }
 
-  if (myBuffStart < myBuffEnd) {
+  // And now make available the data taken from the buffer. Note that the buffer
+  // may be empty...
+  if (myBuffStart <= myBuffEnd) {
     rlen = min( (long) blen, (long)(myBuffEnd - myBuffStart) );
 
   } else
