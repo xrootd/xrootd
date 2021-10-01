@@ -234,7 +234,7 @@ namespace XrdEc
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     for( size_t i = 0; i < cdcnt; ++i )
     {
-      std::string fn = objcfg.GetDataUrl( i );                  // file name (URL of the data archive)
+      std::string fn = std::to_string( i );                     // file name (URL of the data archive)
       buffer_t buff( dataarchs[i]->GetCD() );                   // raw data buffer (central directory of the data archive)
       uint32_t cksum = crc32c( 0, buff.data(), buff.size() );   // crc32c of the buffer
       lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );   // LFH record for the buffer
