@@ -738,7 +738,8 @@ namespace XrdEc
       uint32_t crc32val = crc32c( 0, buffer, lfh.uncompressedSize );
       if( crc32val != lfh.ZCRC32 ) return false;
       // keep the metadata
-      metadata.emplace( lfh.filename, buffer_t( buffer, buffer + lfh.uncompressedSize ) );
+      std::string url = objcfg.GetDataUrl( std::stoull( lfh.filename ) );
+      metadata.emplace( url, buffer_t( buffer, buffer + lfh.uncompressedSize ) );
       buffer += lfh.uncompressedSize;
       length -= lfh.uncompressedSize;
     }
