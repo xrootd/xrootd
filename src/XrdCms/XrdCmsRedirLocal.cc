@@ -118,6 +118,31 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                         XrdOucEnv *EnvInfo) {
   int rcode = 0;
   if (nativeCmsFinder) {
+    // check if path contains localroot to know if potential redirection loop
+    // is happening. If yes, remove localroot from path, then rerun default
+    // locate with regular path and return to client
+    // localroot must be larger than 1 to avoid always being triggered by "/"
+    if (localroot.size() > 1 && strncmp(path, localroot.c_str(), localroot.size()) == 0)
+    {
+      // now check if localhost was tried before, to make sure we're handling
+      // the redirection loop
+      int param = 0; // need it to get Env
+      std::string envInfo(EnvInfo->Env(param)); // get already tried hosts
+      std::string searchPattern = "&tried=localhost"; //search for this pattern
+      if(strncmp(envInfo.c_str(), searchPattern.c_str(), searchPattern.size()) == 0)
+      {
+        std::string newPath(path);
+        // remove localroot
+        newPath = "//" + newPath.substr(localroot.size());
+        // get regular target host
+        rcode = nativeCmsFinder->Locate(Resp, newPath.c_str(), flags, EnvInfo);
+        // set new error message to full url:port//newPath
+        auto errText = string(Resp.getErrText()) + ":" + to_string(Resp.getErrInfo()) + newPath;
+        Resp.setErrInfo(0, errText.c_str());
+        // now have normal redirection to dataserver at url:port
+        return rcode;
+      }
+    }
     std::string dialect = EnvInfo->secEnv()->addrInfo->Dialect();
     // get regular target host
     rcode = nativeCmsFinder->Locate(Resp, path, flags, EnvInfo);
