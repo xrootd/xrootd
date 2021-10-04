@@ -35,7 +35,7 @@
 
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
-#include "XrdCrypto/XrdCryptosslCipher.hh"
+#include "XrdCrypto/openssl3/XrdCryptosslCipher.hh"
 
 //#include <openssl/dsa.h>
 #include <openssl/bio.h>
