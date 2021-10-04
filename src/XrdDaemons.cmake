@@ -61,6 +61,10 @@ target_link_libraries(
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
+if( CMAKE_COMPILER_IS_GNUCXX )
+  target_compile_options(cmsd INTERFACE -msse4.2)
+endif()
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
