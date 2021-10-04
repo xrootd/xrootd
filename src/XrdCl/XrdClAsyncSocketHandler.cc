@@ -797,6 +797,8 @@ namespace XrdCl
     if( done )
     {
       delete pHandShakeData;
+      pHandShakeData = nullptr;
+      hswriter.reset();
       XRootDStatus st;
       if( !(st = EnableUplink()).IsOK() )
       {
