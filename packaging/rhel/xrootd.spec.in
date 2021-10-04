@@ -31,9 +31,9 @@
         %define use_systemd 0
     %endif
     # we only build python3 bindings for fedora
-	%define python2only 0
-	%define python3only 1
-	%define python2and3 0
+    %define python2only 0
+    %define python3only 1
+    %define python2and3 0
 %endif
 
 
@@ -554,6 +554,9 @@ cmake  \
 %endif
 %if %{?_with_isal:1}%{!?_with_isal:0}
       -DENABLE_XRDEC=TRUE \
+%endif
+%if %{?_with_openssl3:1}%{!?_with_openssl3:0}
+      -DWITH_OPENSSL3=TRUE \
 %endif
 %if %{python3only}
       -DXRD_PYTHON_REQ_VERSION=%{python3_pkgversion} \
