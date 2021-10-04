@@ -11,6 +11,7 @@ Prerelease Notes
   **[cmsd]** Allow flexible path consideration when determining affinity.
 
 + **Major bug fixes**
+  **[HTTP]** Use correct flag to request creation of directory path in MKCOL.
   **[Server]** Avoid SEGV when previous monitory directive overridden.
   **[TLS]** Avoid SEGV when a refresh context cannot be cloned (rare).
 
