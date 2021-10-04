@@ -730,6 +730,7 @@ int main( int argc, char **argv )
     XRootDStatus st( stError, errInvalidOp, EEXIST );
     // Unable to create /tmp/test.txt; file exists
     log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
+    std::cerr << "Run: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
 

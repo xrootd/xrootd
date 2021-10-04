@@ -387,13 +387,11 @@ namespace XrdCl
       //----------------------------------------------------------------------
       // The message contains only Status header and body but no raw data
       //----------------------------------------------------------------------
-      ServerResponseBody_pgRead *pgrdBody = (ServerResponseBody_pgRead*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
       pReadRawStarted = false;
       pAsyncMsgSize   = rspst->bdy.dlen;
-      pPgReadLength   = rspst->bdy.dlen;
-      pPgReadOffset   = pgrdBody->offset;
-      // now calculate the size of the first page
-      pPgReadCurrentPageSize = XrdSys::PageSize - pPgReadOffset % XrdSys::PageSize;
+      if( !pPageReader )
+        pPageReader.reset( new AsyncPageReader( *pChunkList, pCrc32cDigests ) );
+      pPageReader->SetMsgDlen( rspst->bdy.dlen );
 
       action |= Raw;
 
@@ -992,7 +990,7 @@ namespace XrdCl
       return ReadRawReadV( msg, socket, bytesRead );
 
     if( reqId == kXR_pgread )
-      return ReadRawPgRead( msg, socket, bytesRead );
+      return pPageReader->Read( *socket, bytesRead );
 
     return ReadRawOther( msg, socket, bytesRead );
   }
@@ -1069,56 +1067,56 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  //------------------------------------------------------------------------
-  // Handle a kXR_pgread in raw mode
-  //------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadRawPgRead( Message  *msg,
-                                          Socket   *socket,
-                                          uint32_t &bytesRead )
-  {
-    Log *log = DefaultEnv::GetLog();
-
-    //--------------------------------------------------------------------------
-    // We need to check if we have and overflow, before we start reading
-    // anything
-    //--------------------------------------------------------------------------
-    if( !pReadRawStarted )
-    {
-      ChunkInfo chunk  = pChunkList->front();
-      pAsyncOffset     = 0;
-      pAsyncReadSize   = pAsyncMsgSize;
-      pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
-      size_t rawDataSize      = pAsyncMsgSize - NbPgPerRsp( pPgReadOffset, pPgReadLength ) * CksumSize;
-
-      if( pReadRawCurrentOffset + rawDataSize > chunk.length )
-      {
-        log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
-                    ": expected: %d, got %d bytes",
-                   pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-                   chunk.length, pReadRawCurrentOffset + rawDataSize );
-
-        pChunkStatus.front().sizeError = true;
-        pOtherRawStarted               = false;
-      }
-      else
-      {
-        pReadRawCurrentOffset += rawDataSize;
-      }
-      pReadRawStarted = true;
-    }
-
-    //--------------------------------------------------------------------------
-    // If we have an overflow we discard all the incoming data. We do this
-    // instead of just quitting in order to keep the stream sane.
-    //--------------------------------------------------------------------------
-    if( pChunkStatus.front().sizeError )
-      return ReadRawOther( msg, socket, bytesRead );
-
-    //--------------------------------------------------------------------------
-    // Read the data
-    //--------------------------------------------------------------------------
-    return ReadPagesAsync( socket, bytesRead );
-  }
+//  //------------------------------------------------------------------------
+//  // Handle a kXR_pgread in raw mode
+//  //------------------------------------------------------------------------
+//  Status XRootDMsgHandler::ReadRawPgRead( Message  *msg,
+//                                          Socket   *socket,
+//                                          uint32_t &bytesRead )
+//  {
+//    Log *log = DefaultEnv::GetLog();
+//
+//    //--------------------------------------------------------------------------
+//    // We need to check if we have and overflow, before we start reading
+//    // anything
+//    //--------------------------------------------------------------------------
+//    if( !pReadRawStarted )
+//    {
+//      ChunkInfo chunk  = pChunkList->front();
+//      pAsyncOffset     = 0;
+//      pAsyncReadSize   = pAsyncMsgSize;
+//      pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
+//      size_t rawDataSize      = pAsyncMsgSize - NbPgPerRsp( pPgReadOffset, pPgReadLength ) * CksumSize;
+//
+//      if( pReadRawCurrentOffset + rawDataSize > chunk.length )
+//      {
+//        log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
+//                    ": expected: %d, got %d bytes",
+//                   pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
+//                   chunk.length, pReadRawCurrentOffset + rawDataSize );
+//
+//        pChunkStatus.front().sizeError = true;
+//        pOtherRawStarted               = false;
+//      }
+//      else
+//      {
+//        pReadRawCurrentOffset += rawDataSize;
+//      }
+//      pReadRawStarted = true;
+//    }
+//
+//    //--------------------------------------------------------------------------
+//    // If we have an overflow we discard all the incoming data. We do this
+//    // instead of just quitting in order to keep the stream sane.
+//    //--------------------------------------------------------------------------
+//    if( pChunkStatus.front().sizeError )
+//      return ReadRawOther( msg, socket, bytesRead );
+//
+//    //--------------------------------------------------------------------------
+//    // Read the data
+//    //--------------------------------------------------------------------------
+//    return ReadPagesAsync( socket, bytesRead );
+//  }
 
   //----------------------------------------------------------------------------
   // Handle a kXR_readv in raw mode
@@ -1342,58 +1340,58 @@ namespace XrdCl
     return st;
   }
 
-  //--------------------------------------------------------------------------
-  // Read a single page asynchronously - depends on pAsyncBuffer, pAsyncSize
-  // and pAsyncOffset
-  //--------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadPageAsync( Socket *socket, uint32_t &bytesRead )
-  {
-    uint32_t totalToBeRead = pAsyncReadSize - pAsyncOffset;
-    if( totalToBeRead == 0 )  return Status();
-
-    if( pPgReadCksumBuff.GetCursor() == 0 ) // we are reading the checksum
-    {
-      uint32_t toBeRead = CksumSize - pPgReadCksumBuff.GetCursor();
-      uint32_t btsRead = 0;
-      char *buffer = pPgReadCksumBuff.GetBufferAtCursor();
-      Status st = ReadBytesAsync( socket, buffer, toBeRead, btsRead );
-      pAsyncOffset  += btsRead;
-      bytesRead     += btsRead;
-      totalToBeRead -= btsRead;
-      pPgReadCksumBuff.AdvanceCursor( btsRead );
-      if( !st.IsOK() || st.code == suRetry ) return st;
-
-      // now check if we have the full checksum
-      if( pPgReadCksumBuff.GetCursor() == CksumSize )
-      {
-        uint32_t crc32c = 0;
-        memcpy( &crc32c, pPgReadCksumBuff.GetBuffer(), CksumSize );
-        pCrc32cDigests.push_back( ntohl( crc32c ) );
-      }
-      else return Status();
-    }
-
-    // we are reading the page
-    uint32_t toBeRead = pPgReadCurrentPageSize;
-    if( toBeRead > totalToBeRead ) toBeRead = totalToBeRead;
-    uint32_t btsRead = 0;
-    Status st = ReadBytesAsync( socket, pAsyncReadBuffer, toBeRead, btsRead );
-    pAsyncOffset  += btsRead;
-    bytesRead     += btsRead;
-
-    //------------------------------------------------------------------------
-    // If we have read the whole page reset pPgReadCksumBuff &
-    // pPgReadCurrentPageSize in order to read the next page
-    //------------------------------------------------------------------------
-    pPgReadCurrentPageSize -= btsRead;
-    if( pPgReadCurrentPageSize == 0 )
-    {
-      pPgReadCksumBuff.SetCursor( 0 );
-      pPgReadCurrentPageSize = XrdSys::PageSize;
-    }
-
-    return st;
-  }
+//  //--------------------------------------------------------------------------
+//  // Read a single page asynchronously - depends on pAsyncBuffer, pAsyncSize
+//  // and pAsyncOffset
+//  //--------------------------------------------------------------------------
+//  Status XRootDMsgHandler::ReadPageAsync( Socket *socket, uint32_t &bytesRead )
+//  {
+//    uint32_t totalToBeRead = pAsyncReadSize - pAsyncOffset;
+//    if( totalToBeRead == 0 )  return Status();
+//
+//    if( pPgReadCksumBuff.GetCursor() == 0 ) // we are reading the checksum
+//    {
+//      uint32_t toBeRead = CksumSize - pPgReadCksumBuff.GetCursor();
+//      uint32_t btsRead = 0;
+//      char *buffer = pPgReadCksumBuff.GetBufferAtCursor();
+//      Status st = ReadBytesAsync( socket, buffer, toBeRead, btsRead );
+//      pAsyncOffset  += btsRead;
+//      bytesRead     += btsRead;
+//      totalToBeRead -= btsRead;
+//      pPgReadCksumBuff.AdvanceCursor( btsRead );
+//      if( !st.IsOK() || st.code == suRetry ) return st;
+//
+//      // now check if we have the full checksum
+//      if( pPgReadCksumBuff.GetCursor() == CksumSize )
+//      {
+//        uint32_t crc32c = 0;
+//        memcpy( &crc32c, pPgReadCksumBuff.GetBuffer(), CksumSize );
+//        pCrc32cDigests.push_back( ntohl( crc32c ) );
+//      }
+//      else return Status();
+//    }
+//
+//    // we are reading the page
+//    uint32_t toBeRead = pPgReadCurrentPageSize;
+//    if( toBeRead > totalToBeRead ) toBeRead = totalToBeRead;
+//    uint32_t btsRead = 0;
+//    Status st = ReadBytesAsync( socket, pAsyncReadBuffer, toBeRead, btsRead );
+//    pAsyncOffset  += btsRead;
+//    bytesRead     += btsRead;
+//
+//    //------------------------------------------------------------------------
+//    // If we have read the whole page reset pPgReadCksumBuff &
+//    // pPgReadCurrentPageSize in order to read the next page
+//    //------------------------------------------------------------------------
+//    pPgReadCurrentPageSize -= btsRead;
+//    if( pPgReadCurrentPageSize == 0 )
+//    {
+//      pPgReadCksumBuff.SetCursor( 0 );
+//      pPgReadCurrentPageSize = XrdSys::PageSize;
+//    }
+//
+//    return st;
+//  }
 
   //--------------------------------------------------------------------------
   // Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize

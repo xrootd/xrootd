@@ -33,22 +33,23 @@ public:
    int       m_NumIos;          //!< number of IO objects attached during this access
    int       m_Duration;        //!< total duration of all IOs attached
    long long m_BytesHit;        //!< number of bytes served from disk
-   long long m_BytesMissed;     //!< number of bytes served from RAM
+   long long m_BytesMissed;     //!< number of bytes served from remote and cached
    long long m_BytesBypassed;   //!< number of bytes served directly through XrdCl
    long long m_BytesWritten;    //!< number of bytes written to disk
+   int       m_NCksumErrors;    //!< number of checksum errors while getting data from remote
 
    //----------------------------------------------------------------------
 
    Stats() :
       m_NumIos  (0), m_Duration(0),
       m_BytesHit(0), m_BytesMissed(0), m_BytesBypassed(0),
-      m_BytesWritten(0)
+      m_BytesWritten(0), m_NCksumErrors(0)
    {}
 
    Stats(const Stats& s) :
       m_NumIos  (s.m_NumIos),   m_Duration(s.m_Duration),
       m_BytesHit(s.m_BytesHit), m_BytesMissed(s.m_BytesMissed), m_BytesBypassed(s.m_BytesBypassed),
-      m_BytesWritten(s.m_BytesWritten)
+      m_BytesWritten(s.m_BytesWritten), m_NCksumErrors(s.m_NCksumErrors)
    {}
 
    Stats& operator=(const Stats&) = default;
@@ -64,11 +65,12 @@ public:
       m_BytesBypassed += s.m_BytesBypassed;
    }
 
-   void AddBytesWritten(long long bw)
+   void AddWriteStats(long long bytes_written, int n_cks_errs)
    {
       XrdSysMutexHelper _lock(&m_Mutex);
 
-      m_BytesWritten += bw;
+      m_BytesWritten += bytes_written;
+      m_NCksumErrors += n_cks_errs;
    }
 
    void IoAttach()
@@ -103,6 +105,7 @@ public:
       m_BytesMissed   = ref.m_BytesMissed   - m_BytesMissed;
       m_BytesBypassed = ref.m_BytesBypassed - m_BytesBypassed;
       m_BytesWritten  = ref.m_BytesWritten  - m_BytesWritten;
+      m_NCksumErrors  = ref.m_NCksumErrors  - m_NCksumErrors;
    }
 
    void AddUp(const Stats& s)
@@ -114,6 +117,7 @@ public:
       m_BytesMissed   += s.m_BytesMissed;
       m_BytesBypassed += s.m_BytesBypassed;
       m_BytesWritten  += s.m_BytesWritten;
+      m_NCksumErrors  += s.m_NCksumErrors;
    }
 
    void Reset()
@@ -125,6 +129,7 @@ public:
       m_BytesMissed   = 0;
       m_BytesBypassed = 0;
       m_BytesWritten  = 0;
+      m_NCksumErrors  = 0;
    }
 
 private:

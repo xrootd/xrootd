@@ -242,6 +242,25 @@ namespace XrdCl
     return status;
   }
 
+  //------------------------------------------------------------------------
+  //! (Fake) ReadV through the TLS layer from the socket
+  //! If necessary, will establish a TLS/SSL session.
+  //------------------------------------------------------------------------
+  XRootDStatus Tls::ReadV( iovec *iov, int iocnt, int &bytesRead )
+  {
+    bytesRead = 0;
+    for( int i = 0; i < iocnt; ++i )
+    {
+      int btsread = 0;
+      auto st = Read( static_cast<char*>( iov[i].iov_base ),
+                      iov[i].iov_len, btsread );
+      if( !st.IsOK() ) return st;
+      bytesRead += btsread;
+      if( st.code == suRetry ) return st;
+    }
+    return XRootDStatus();
+  }
+
   XRootDStatus Tls::Send( const char *buffer, size_t size, int &bytesWritten )
   {
     //--------------------------------------------------------------------------
