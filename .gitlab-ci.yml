@@ -132,7 +132,7 @@ build:fedorai-35:
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_ceph11 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_ceph11 1" --define "_with_openssl3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir fc-35/
     - cp packaging/*.src.rpm fc-35
