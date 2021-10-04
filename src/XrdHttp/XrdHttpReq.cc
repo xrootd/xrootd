@@ -1692,7 +1692,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       xrdreq.mkdir.requestid = htons(kXR_mkdir);
 
       string s = resourceplusopaque.c_str();
-      xrdreq.mkdir.options[0] = (kXR_char) kXR_mkpath;
+      xrdreq.mkdir.options[0] = (kXR_char) kXR_mkdirpath;
 
       l = s.length() + 1;
       xrdreq.mkdir.dlen = htonl(l);
