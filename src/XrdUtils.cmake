@@ -12,18 +12,18 @@ set( XRD_ZCRC32_SOVERSION 3 )
 #-------------------------------------------------------------------------------
 # The XrdUtils library
 #-------------------------------------------------------------------------------
-add_library(
-  XrdUtils
-  SHARED
 
   #-----------------------------------------------------------------------------
   # XProtocol
   #-----------------------------------------------------------------------------
+set ( XProtocolSources
   XProtocol/XProtocol.cc        XProtocol/XProtocol.hh
+)
 
   #-----------------------------------------------------------------------------
   # XrdSys
   #-----------------------------------------------------------------------------
+set ( XrdSysSources
                                 XrdSys/XrdSysAtomics.hh
   XrdSys/XrdSysDir.cc           XrdSys/XrdSysDir.hh
   XrdSys/XrdSysE2T.cc           XrdSys/XrdSysE2T.hh
@@ -55,40 +55,77 @@ add_library(
   XrdSys/XrdSysUtils.cc         XrdSys/XrdSysUtils.hh
   XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.cc        XrdSys/XrdSysXSLock.hh
+)
 
   #-----------------------------------------------------------------------------
   # XrdTls
   #-----------------------------------------------------------------------------
-  XrdTls/XrdTls.cc              XrdTls/XrdTls.hh
-  XrdTls/XrdTlsContext.cc       XrdTls/XrdTlsContext.hh
-  XrdTls/XrdTlsHostcheck.icc    XrdTls/XrdTlsHostcheck.hh
-  XrdTls/XrdTlsNotary.cc        XrdTls/XrdTlsNotary.hh
-  XrdTls/XrdTlsNotaryUtils.icc  XrdTls/XrdTlsNotaryUtils.hh
-  XrdTls/XrdTlsPeerCerts.cc     XrdTls/XrdTlsPeerCerts.hh
-  XrdTls/XrdTlsSocket.cc        XrdTls/XrdTlsSocket.hh
-  XrdTls/XrdTlsTempCA.cc        XrdTls/XrdTlsTempCA.hh
+if ( WITH_OPENSSL3 )
+  set ( XrdTlsSources
+    XrdTls/XrdTls.cc                  XrdTls/XrdTls.hh
+    XrdTls/openssl3/XrdTlsContext.cc  XrdTls/XrdTlsContext.hh
+    XrdTls/XrdTlsHostcheck.icc        XrdTls/XrdTlsHostcheck.hh
+    XrdTls/XrdTlsNotary.cc            XrdTls/XrdTlsNotary.hh
+    XrdTls/XrdTlsNotaryUtils.icc      XrdTls/XrdTlsNotaryUtils.hh
+    XrdTls/XrdTlsPeerCerts.cc         XrdTls/XrdTlsPeerCerts.hh
+    XrdTls/XrdTlsSocket.cc            XrdTls/XrdTlsSocket.hh
+    XrdTls/XrdTlsTempCA.cc            XrdTls/XrdTlsTempCA.hh
+  )
+else()
+  set ( XrdTlsSources
+    XrdTls/XrdTls.cc                  XrdTls/XrdTls.hh
+    XrdTls/XrdTlsContext.cc           XrdTls/XrdTlsContext.hh
+    XrdTls/XrdTlsHostcheck.icc        XrdTls/XrdTlsHostcheck.hh
+    XrdTls/XrdTlsNotary.cc            XrdTls/XrdTlsNotary.hh
+    XrdTls/XrdTlsNotaryUtils.icc      XrdTls/XrdTlsNotaryUtils.hh
+    XrdTls/XrdTlsPeerCerts.cc         XrdTls/XrdTlsPeerCerts.hh
+    XrdTls/XrdTlsSocket.cc            XrdTls/XrdTlsSocket.hh
+    XrdTls/XrdTlsTempCA.cc            XrdTls/XrdTlsTempCA.hh
+  )
+endif()
 
   #-----------------------------------------------------------------------------
   # XrdCrypto: linking against a few functions that are useful for XrdTls; avoids
   # linking against all of libXrdCryptossl in XrdUtils
   #-----------------------------------------------------------------------------
-  XrdCrypto/XrdCryptosslAux.cc     XrdCrypto/XrdCryptosslAux.hh
-  XrdCrypto/XrdCryptosslX509.cc    XrdCrypto/XrdCryptosslX509.hh
-  XrdCrypto/XrdCryptoX509.cc       XrdCrypto/XrdCryptoX509.hh
-  XrdCrypto/XrdCryptoX509Chain.cc  XrdCrypto/XrdCryptoX509Chain.hh
-  XrdCrypto/XrdCryptosslRSA.cc     XrdCrypto/XrdCryptosslRSA.hh
-  XrdCrypto/XrdCryptoRSA.cc        XrdCrypto/XrdCryptoRSA.hh
-  XrdCrypto/XrdCryptosslgsiAux.hh  XrdCrypto/XrdCryptosslgsiAux.cc
-  XrdCrypto/XrdCryptosslX509Req.cc XrdCrypto/XrdCryptosslX509Req.hh
-  XrdCrypto/XrdCryptoX509Req.cc    XrdCrypto/XrdCryptoX509Req.hh
-  XrdCrypto/XrdCryptoAux.cc        XrdCrypto/XrdCryptoAux.hh
-  XrdCrypto/XrdCryptosslX509Crl.cc XrdCrypto/XrdCryptosslX509Crl.hh
-  XrdCrypto/XrdCryptoX509Crl.cc    XrdCrypto/XrdCryptoX509Crl.hh
-  XrdCrypto/XrdCryptoTrace.hh
+if ( WITH_OPENSSL3 )
+  set ( XrdCryptoSources
+    XrdCrypto/openssl3/XrdCryptosslAux.cc     XrdCrypto/XrdCryptosslAux.hh
+    XrdCrypto/openssl3/XrdCryptosslX509.cc    XrdCrypto/XrdCryptosslX509.hh
+    XrdCrypto/XrdCryptoX509.cc                XrdCrypto/XrdCryptoX509.hh
+    XrdCrypto/XrdCryptoX509Chain.cc           XrdCrypto/XrdCryptoX509Chain.hh
+    XrdCrypto/openssl3/XrdCryptosslRSA.cc     XrdCrypto/XrdCryptosslRSA.hh
+    XrdCrypto/XrdCryptoRSA.cc                 XrdCrypto/XrdCryptoRSA.hh
+    XrdCrypto/openssl3/XrdCryptosslgsiAux.cc  XrdCrypto/XrdCryptosslgsiAux.hh
+    XrdCrypto/XrdCryptosslX509Req.cc          XrdCrypto/XrdCryptosslX509Req.hh
+    XrdCrypto/XrdCryptoX509Req.cc             XrdCrypto/XrdCryptoX509Req.hh
+    XrdCrypto/XrdCryptoAux.cc                 XrdCrypto/XrdCryptoAux.hh
+    XrdCrypto/XrdCryptosslX509Crl.cc          XrdCrypto/XrdCryptosslX509Crl.hh
+    XrdCrypto/XrdCryptoX509Crl.cc             XrdCrypto/XrdCryptoX509Crl.hh
+                                              XrdCrypto/XrdCryptoTrace.hh
+  )
+else()
+  set ( XrdCryptoSources
+    XrdCrypto/XrdCryptosslAux.cc              XrdCrypto/XrdCryptosslAux.hh
+    XrdCrypto/XrdCryptosslX509.cc             XrdCrypto/XrdCryptosslX509.hh
+    XrdCrypto/XrdCryptoX509.cc                XrdCrypto/XrdCryptoX509.hh
+    XrdCrypto/XrdCryptoX509Chain.cc           XrdCrypto/XrdCryptoX509Chain.hh
+    XrdCrypto/XrdCryptosslRSA.cc              XrdCrypto/XrdCryptosslRSA.hh
+    XrdCrypto/XrdCryptoRSA.cc                 XrdCrypto/XrdCryptoRSA.hh
+    XrdCrypto/XrdCryptosslgsiAux.cc           XrdCrypto/XrdCryptosslgsiAux.hh
+    XrdCrypto/XrdCryptosslX509Req.cc          XrdCrypto/XrdCryptosslX509Req.hh
+    XrdCrypto/XrdCryptoX509Req.cc             XrdCrypto/XrdCryptoX509Req.hh
+    XrdCrypto/XrdCryptoAux.cc                 XrdCrypto/XrdCryptoAux.hh
+    XrdCrypto/XrdCryptosslX509Crl.cc          XrdCrypto/XrdCryptosslX509Crl.hh
+    XrdCrypto/XrdCryptoX509Crl.cc             XrdCrypto/XrdCryptoX509Crl.hh
+                                              XrdCrypto/XrdCryptoTrace.hh
+  )
+endif()
 
   #-----------------------------------------------------------------------------
   # XrdOuc
   #-----------------------------------------------------------------------------
+set ( XrdOucSources
   XrdOuc/XrdOuca2x.cc           XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucArgs.cc          XrdOuc/XrdOucArgs.hh
   XrdOuc/XrdOucBackTrace.cc     XrdOuc/XrdOucBackTrace.hh
@@ -146,10 +183,12 @@ add_library(
                                 XrdOuc/XrdOucTList.hh
                                 XrdOuc/XrdOucXAttr.hh
                                 XrdOuc/XrdOucEnum.hh
+)
 
   #-----------------------------------------------------------------------------
   # XrdNet
   #-----------------------------------------------------------------------------
+set ( XrdNetSources
   XrdNet/XrdNet.cc              XrdNet/XrdNet.hh
                                 XrdNet/XrdNetOpts.hh
                                 XrdNet/XrdNetPeer.hh
@@ -166,10 +205,12 @@ add_library(
   XrdNet/XrdNetSecurity.cc      XrdNet/XrdNetSecurity.hh
   XrdNet/XrdNetSocket.cc        XrdNet/XrdNetSocket.hh
   XrdNet/XrdNetUtils.cc         XrdNet/XrdNetUtils.hh
+)
 
   #-----------------------------------------------------------------------------
   # XrdSut
   #-----------------------------------------------------------------------------
+set ( XrdSutSources
   XrdSut/XrdSutAux.cc           XrdSut/XrdSutAux.hh
   XrdSut/XrdSutPFCache.cc       XrdSut/XrdSutPFCache.hh
   XrdSut/XrdSutBucket.cc        XrdSut/XrdSutBucket.hh
@@ -180,10 +221,12 @@ add_library(
   XrdSut/XrdSutPFEntry.cc       XrdSut/XrdSutPFEntry.hh
   XrdSut/XrdSutRndm.cc          XrdSut/XrdSutRndm.hh
   XrdSut/XrdSutTrace.hh
+)
 
   #-----------------------------------------------------------------------------
   # Xrd
   #-----------------------------------------------------------------------------
+set ( XrdSources
   Xrd/XrdBuffer.cc              Xrd/XrdBuffer.hh
   Xrd/XrdBuffXL.cc              Xrd/XrdBuffXL.hh
   Xrd/XrdInet.cc                Xrd/XrdInet.hh
@@ -206,10 +249,12 @@ add_library(
   Xrd/XrdScheduler.cc           Xrd/XrdScheduler.hh
   Xrd/XrdSendQ.cc               Xrd/XrdSendQ.hh
                                 Xrd/XrdTrace.hh
+)
 
   #-----------------------------------------------------------------------------
   # XrdCks
   #-----------------------------------------------------------------------------
+set ( XrdCksSources
   XrdCks/XrdCksAssist.cc           XrdCks/XrdCksAssist.hh
   XrdCks/XrdCksCalccrc32.cc        XrdCks/XrdCksCalccrc32.hh
   XrdCks/XrdCksCalcmd5.cc          XrdCks/XrdCksCalcmd5.hh
@@ -222,18 +267,22 @@ add_library(
                                    XrdCks/XrdCksData.hh
                                    XrdCks/XrdCks.hh
                                    XrdCks/XrdCksXAttr.hh
+)
 
   #-----------------------------------------------------------------------------
   # XrdRmc
   #-----------------------------------------------------------------------------
+set ( XrdRmcSources
   XrdRmc/XrdRmc.cc                 XrdRmc/XrdRmc.hh
   XrdRmc/XrdRmcData.cc             XrdRmc/XrdRmcData.hh
   XrdRmc/XrdRmcReal.cc             XrdRmc/XrdRmcReal.hh
                                    XrdRmc/XrdRmcSlot.hh
+)
 
   #-----------------------------------------------------------------------------
   # XrdSec
   #-----------------------------------------------------------------------------
+set ( XrdSecSources
   XrdSec/XrdSecEntity.cc           XrdSec/XrdSecEntity.hh
   XrdSec/XrdSecEntityAttr.cc       XrdSec/XrdSecEntityAttr.hh
   XrdSec/XrdSecEntityXtra.cc       XrdSec/XrdSecEntityXtra.hh
@@ -243,7 +292,22 @@ add_library(
   XrdSecsss/XrdSecsssID.cc         XrdSecsss/XrdSecsssID.hh
   XrdSecsss/XrdSecsssKT.cc         XrdSecsss/XrdSecsssKT.hh
                                    XrdSecsss/XrdSecsssMap.hh
+)
 
+add_library(
+  XrdUtils
+  SHARED
+  ${XProtocolSources}
+  ${XrdSysSources}
+  ${XrdTlsSources}
+  ${XrdCryptoSources}
+  ${XrdOucSources}
+  ${XrdNetSources}
+  ${XrdSutSources}
+  ${XrdSources}
+  ${XrdCksSources}
+  ${XrdRmcSources}
+  ${XrdSecSources}
 )
 
 target_link_libraries(
