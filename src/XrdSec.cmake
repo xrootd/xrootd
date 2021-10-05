@@ -47,11 +47,20 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # The XrdSecpwd module
 #-------------------------------------------------------------------------------
+if( WITH_OPENSSL3 )
+  set( XrdSecProtectSources
+    XrdSec/openssl3/XrdSecProtect.cc    XrdSec/XrdSecProtect.hh
+    XrdSec/XrdSecProtector.cc           XrdSec/XrdSecProtector.hh )
+else()
+  set( XrdSecProtectSources
+    XrdSec/XrdSecProtect.cc             XrdSec/XrdSecProtect.hh
+    XrdSec/XrdSecProtector.cc           XrdSec/XrdSecProtector.hh )
+endif()
+
 add_library(
   ${LIB_XRD_SEC_PROT}
   MODULE
-  XrdSec/XrdSecProtect.cc             XrdSec/XrdSecProtect.hh
-  XrdSec/XrdSecProtector.cc           XrdSec/XrdSecProtector.hh )
+  ${XrdSecProtectSources} )
 
 if( BUILD_CRYPTO )
   target_link_libraries(

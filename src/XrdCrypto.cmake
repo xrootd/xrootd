@@ -73,7 +73,7 @@ set_target_properties(
 if( WITH_OPENSSL3 )
   set( XrdCryptoLiteSources
        XrdCrypto/XrdCryptoLite.cc   XrdCrypto/XrdCryptoLite.hh
-       openssl/XrdCrypto/XrdCryptoLite_bf32.cc )
+       XrdCrypto/openssl3/XrdCryptoLite_bf32.cc )
 else()
   set( XrdCryptoLiteSources
        XrdCrypto/XrdCryptoLite.cc   XrdCrypto/XrdCryptoLite.hh
@@ -83,8 +83,7 @@ endif()
 add_library(
   XrdCryptoLite
   SHARED
-  XrdCrypto/XrdCryptoLite.cc              XrdCrypto/XrdCryptoLite.hh
-  XrdCrypto/XrdCryptoLite_bf32.cc )
+  ${XrdCryptoLiteSources} )
 
 if( BUILD_CRYPTO )
   target_link_libraries(
