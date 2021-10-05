@@ -17,20 +17,35 @@ if( BUILD_HTTP )
   # The XrdHttp library
   #-----------------------------------------------------------------------------
   include_directories( ${OPENSSL_INCLUDE_DIR} )
-  
+
+  if( WITH_OPENSSL3 )
+    set( XrdHttpSources
+      XrdHttp/XrdHttpProtocol.cc        XrdHttp/XrdHttpProtocol.hh
+      XrdHttp/XrdHttpSecurity.cc
+      XrdHttp/XrdHttpReq.cc             XrdHttp/XrdHttpReq.hh
+                                        XrdHttp/XrdHttpSecXtractor.hh
+      XrdHttp/XrdHttpExtHandler.cc      XrdHttp/XrdHttpExtHandler.hh
+                                        XrdHttp/XrdHttpStatic.hh
+                                        XrdHttp/XrdHttpTrace.hh
+      XrdHttp/openssl3/XrdHttpUtils.cc  XrdHttp/XrdHttpUtils.hh )
+  else()
+    set( XrdHttpSources
+      XrdHttp/XrdHttpProtocol.cc        XrdHttp/XrdHttpProtocol.hh
+      XrdHttp/XrdHttpSecurity.cc
+      XrdHttp/XrdHttpReq.cc             XrdHttp/XrdHttpReq.hh
+                                        XrdHttp/XrdHttpSecXtractor.hh
+      XrdHttp/XrdHttpExtHandler.cc      XrdHttp/XrdHttpExtHandler.hh
+                                        XrdHttp/XrdHttpStatic.hh
+                                        XrdHttp/XrdHttpTrace.hh
+      XrdHttp/XrdHttpUtils.cc           XrdHttp/XrdHttpUtils.hh )
+  endif()
+
   # Note this is marked as a shared library as XrdHttp plugins are expected to
   # link against this for the XrdHttpExt class implementations.
   add_library(
     ${LIB_XRD_HTTP_UTILS}
     SHARED
-    XrdHttp/XrdHttpProtocol.cc    XrdHttp/XrdHttpProtocol.hh
-    XrdHttp/XrdHttpSecurity.cc
-    XrdHttp/XrdHttpReq.cc         XrdHttp/XrdHttpReq.hh
-                                  XrdHttp/XrdHttpSecXtractor.hh
-    XrdHttp/XrdHttpExtHandler.cc  XrdHttp/XrdHttpExtHandler.hh
-                                  XrdHttp/XrdHttpStatic.hh
-                                  XrdHttp/XrdHttpTrace.hh
-    XrdHttp/XrdHttpUtils.cc       XrdHttp/XrdHttpUtils.hh )
+    ${XrdHttpSources} )
 
   add_library(
     ${MOD_XRD_HTTP}
