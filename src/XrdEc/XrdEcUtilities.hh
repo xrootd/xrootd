@@ -244,6 +244,17 @@ namespace XrdEc
       std::atomic<bool>       interrupted; //< a flag, true if all `dequeue` routines
                                            //< should be interrupted
   };
+
+  //---------------------------------------------------------------------------
+  // Extract the block ID from the chunk file name
+  //---------------------------------------------------------------------------
+  inline static size_t fntoblk( const std::string &fn )
+  {
+    size_t end = fn.rfind( '.' );
+    size_t begin = fn.rfind( '.', end - 1 ) + 1;
+    size_t len = end - begin;
+    return std::stoul( fn.substr( begin,  len ) );
+  }
 }
 
 #endif /* SRC_XRDEC_XRDECUTILITIES_HH_ */

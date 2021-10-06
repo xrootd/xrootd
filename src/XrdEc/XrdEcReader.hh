@@ -66,7 +66,7 @@ namespace XrdEc
       //! @param objcfg : configuration for the data object (e.g. number of
       //!                 data and parity stripes)
       //-----------------------------------------------------------------------
-      Reader( ObjCfg &objcfg ) : objcfg( objcfg )
+      Reader( ObjCfg &objcfg ) : objcfg( objcfg ), lstblk( 0 )
       {
       }
 
@@ -135,6 +135,11 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       void AddMissing( const buffer_t &cdbuff );
 
+      //-----------------------------------------------------------------------
+      //! Check if chunk file name is missing
+      //-----------------------------------------------------------------------
+      bool IsMissing( const std::string &fn );
+
       typedef std::unordered_map<std::string, std::shared_ptr<XrdCl::ZipArchive>> dataarchs_t;
       typedef std::unordered_map<std::string, buffer_t> metadata_t;
       typedef std::unordered_map<std::string, std::string> urlmap_t;
@@ -146,6 +151,7 @@ namespace XrdEc
       urlmap_t                  urlmap;    //> map blknb/strpnb (data chunk) to URL
       missing_t                 missing;   //> set of missing stripes
       std::shared_ptr<block_t>  block;     //> cache for the block we are reading from
+      size_t                    lstblk;    //> last block number
   };
 
 } /* namespace XrdEc */
