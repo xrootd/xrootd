@@ -377,15 +377,8 @@ namespace XrdCl
       inline static void Schedule( ResponseHandler *handler, XRootDStatus *st, Response *rsp = nullptr )
       {
         if( !handler ) return Free( st, rsp );
-        JobManager *jobMgr = DefaultEnv::GetPostMaster()->GetJobManager();
-        if( jobMgr->IsWorker() )
-          // this is a worker thread so we can simply call the handler
-          handler->HandleResponse( st, PkgRsp( rsp ) );
-        else
-        {
-          ResponseJob *job = new ResponseJob( handler, st, PkgRsp( rsp ), 0 );
-          DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
-        }
+        ResponseJob *job = new ResponseJob( handler, st, PkgRsp( rsp ), 0 );
+        DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
       }
 
       //-----------------------------------------------------------------------
