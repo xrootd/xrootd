@@ -53,6 +53,8 @@ private:
                          streams( 1 ),
                          bytes_transferred( -1 )
         {
+          sTOD.tv_sec = 0; sTOD.tv_usec = 0;
+          eTOD.tv_sec = 0; eTOD.tv_usec = 0;
         }
 
         std::string log_prefix;
@@ -63,6 +65,8 @@ private:
         int tpc_status;
         unsigned streams;
         off_t bytes_transferred;
+        timeval sTOD;
+        timeval eTOD;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);
@@ -118,7 +122,7 @@ private:
     bool ConfigureLogger(XrdOucStream &Config);
 
     // Generate a consistently-formatted log message.
-    void logTransferEvent(LogMask lvl, const TPCLogRecord &record,
+    void logTransferEvent(LogMask lvl, TPCLogRecord &record,
         const std::string &event, const std::string &message="");
 
     static int m_marker_period;
@@ -130,6 +134,8 @@ private:
                          // Unless explicitly specified, this is 2x the timeout interval.
     std::string m_cadir;  // The directory to use for CAs.
     std::string m_cafile; // The file to use for CAs in libcurl
+    timeval connStart;
+    timeval connDone;
     static XrdSysMutex m_monid_mutex;
     static uint64_t m_monid;
     XrdSysError m_log;

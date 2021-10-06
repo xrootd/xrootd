@@ -10,6 +10,7 @@
 
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <sys/time.h>
 
 #include <algorithm>
 #include <memory>
@@ -619,6 +620,9 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     rec.remote = resource;
     char *name = req.GetSecEntity().name;
     if (name) rec.name = name;
+    connStart.tv_sec = 0; connStart.tv_usec = 0;
+    gettimeofday( &connStart, 0 );
+    rec.sTOD = connStart;
     logTransferEvent(LogMask::Info, rec, "PUSH_START", "Starting a push request");
 
     ManagedCurlHandle curlPtr(curl_easy_init());
@@ -692,6 +696,9 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     rec.remote = resource;
     char *name = req.GetSecEntity().name;
     if (name) rec.name = name;
+    connStart.tv_sec = 0; connStart.tv_usec = 0;
+    gettimeofday( &connStart, 0 );
+    rec.sTOD = connStart;
     logTransferEvent(LogMask::Info, rec, "PULL_START", "Starting a push request");
 
     ManagedCurlHandle curlPtr(curl_easy_init());
@@ -779,13 +786,16 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
 }
 
 
-void TPCHandler::logTransferEvent(LogMask mask, const TPCLogRecord &rec,
+void TPCHandler::logTransferEvent(LogMask mask, TPCLogRecord &rec,
         const std::string &event, const std::string &message)
 {
     if (!(m_log.getMsgMask() & mask)) {return;}
-
+    connDone.tv_sec = 0; connDone.tv_usec = 0;
+    gettimeofday( &connDone, 0 );
+    rec.eTOD = connDone;
     std::stringstream ss;
     ss << "event=" << event << ", local=" << rec.local << ", remote=" << rec.remote;
+    ss << ", stTime=" << rec.sTOD.tv_sec << ", enTime=" << rec.eTOD.tv_sec;
     if (rec.name.empty())
        ss << ", user=(anonymous)";
     else
