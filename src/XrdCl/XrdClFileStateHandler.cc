@@ -1445,7 +1445,7 @@ namespace XrdCl
     uint32_t fstpglen = fLen;
 
     time_t start = ::time( nullptr );
-    auto h = ResponseHandler::Wrap( [=]( auto* s, auto* r ) mutable
+    auto h = ResponseHandler::Wrap( [=]( XrdCl::XRootDStatus *s, XrdCl::AnyObject *r ) mutable
         {
           std::unique_ptr<AnyObject> scoped( r );
           // if the request failed simply pass the status to the
@@ -1481,7 +1481,7 @@ namespace XrdCl
             uint32_t    pglen = std::get<1>( tpl );
             const void *pgbuf = static_cast<const char*>( buffer ) + ( pgoff - offset );
             uint32_t pgdigest = cksums[pgwrt_t::GetPgNb( pgoff, offset, fstpglen )];
-            auto h = ResponseHandler::Wrap( [=]( auto *s, auto *r ) mutable
+            auto h = ResponseHandler::Wrap( [=]( XrdCl::XRootDStatus *s, XrdCl::AnyObject *r ) mutable
                 {
                   std::unique_ptr<AnyObject> scoped( r );
                   // if we failed simply set the status
