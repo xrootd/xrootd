@@ -33,7 +33,7 @@ namespace XrdEc
   {
       ObjCfg() = delete;
 
-      ObjCfg( const std::string &obj, uint8_t nbdata, uint8_t nbparity, uint64_t chunksize, bool usecrc32c ) :
+      ObjCfg( const std::string &obj, uint8_t nbdata, uint8_t nbparity, uint64_t chunksize, bool usecrc32c, bool nomtfile = false ) :
         obj( obj ),
         nbchunks( nbdata + nbparity ),
         nbparity( nbparity ),
@@ -41,7 +41,8 @@ namespace XrdEc
         datasize( nbdata * chunksize ),
         chunksize( chunksize ),
         paritysize( nbparity * chunksize ),
-        blksize( datasize + paritysize )
+        blksize( datasize + paritysize ),
+        nomtfile( nomtfile )
       {
         digest = usecrc32c ? crc32c : isal_crc32;
       }
@@ -55,7 +56,8 @@ namespace XrdEc
                                        paritysize( objcfg.paritysize ),
                                        blksize( objcfg.blksize ),
                                        plgr( objcfg.plgr ),
-                                       digest( objcfg.digest )
+                                       digest( objcfg.digest ),
+                                       nomtfile( objcfg.nomtfile )
       {
       }
 
@@ -92,6 +94,8 @@ namespace XrdEc
       std::vector<std::string> mdtacgi;
 
       uint32_t (*digest)(uint32_t, void const*, size_t);
+
+      bool nomtfile;
   };
 }
 

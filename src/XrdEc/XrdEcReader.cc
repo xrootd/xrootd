@@ -436,30 +436,41 @@ namespace XrdEc
       dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>(
           Config::Instance().enable_plugins ) );
       // open the archive
-      opens.emplace_back( OpenOnly( *dataarchs[url], url, false ) );
+      if( objcfg.nomtfile )
+        opens.emplace_back( OpenArchive( *dataarchs[url], url, XrdCl::OpenFlags::Read ) );
+      else
+        opens.emplace_back( OpenOnly( *dataarchs[url], url, false ) );
     }
+
+    auto pipehndl = [=]( XrdCl::XRootDStatus &st )
+                    { // set the central directories in ZIP archives (if we use metadata files)
+                      auto itr = dataarchs.begin();
+                      for( ; itr != dataarchs.end() ; ++itr )
+                      {
+                        const std::string &url    = itr->first;
+                        auto              &zipptr = itr->second;
+                        if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
+                          zipptr->SetCD( metadata[url] );
+                        else if( zipptr->openstage != XrdCl::ZipArchive::Done && !metadata.empty() )
+                          AddMissing( metadata[url] );
+                        auto itr = zipptr->cdmap.begin();
+                        for( ; itr != zipptr->cdmap.end() ; ++itr )
+                        {
+                          urlmap.emplace( itr->first, url );
+                          size_t blknb = fntoblk( itr->first );
+                          if( blknb > lstblk ) lstblk = blknb;
+                        }
+                      }
+                      metadata.clear();
+                      // call user handler
+                      if( handler )
+                        handler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
+                    };
     // in parallel open the data files and read the metadata
-    XrdCl::Pipeline p = XrdCl::Parallel( ReadMetadata( 0 ), XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) ).AtLeast( 2 ) >>
-                          [=]( XrdCl::XRootDStatus &st )
-                          { // set the central directories in ZIP archives
-                            auto itr = dataarchs.begin();
-                            for( ; itr != dataarchs.end() ; ++itr )
-                            {
-                              const std::string &url    = itr->first;
-                              auto              &zipptr = itr->second;
-                              if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
-                                zipptr->SetCD( metadata[url] );
-                              else
-                                AddMissing( metadata[url] );
-                              auto itr = zipptr->cdmap.begin();
-                              for( ; itr != zipptr->cdmap.end() ; ++itr )
-                                urlmap.emplace( itr->first, url );
-                            }
-                            metadata.clear();
-                            // call user handler
-                            if( handler )
-                              handler->HandleResponse( new XrdCl::XRootDStatus( st ), nullptr );
-                          };
+    XrdCl::Pipeline p = objcfg.nomtfile
+                      ? XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) >> pipehndl
+                      : XrdCl::Parallel( ReadMetadata( 0 ),
+                                         XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) ) >> pipehndl;
     XrdCl::Async( std::move( p ), timeout );
   }
 
@@ -584,7 +595,7 @@ namespace XrdEc
     auto itr = urlmap.find( fn );
     if( itr == urlmap.end() )
     {
-      auto st = !missing.count( fn ) ? XrdCl::XRootDStatus() :
+      auto st = !IsMissing( fn ) ? XrdCl::XRootDStatus() :
                 XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
       ThreadPool::Instance().Execute( cb, st, 0 );
       return;
@@ -764,6 +775,20 @@ namespace XrdEc
       XrdZip::CDFH &cdfh = **itr;
       missing.insert( cdfh.filename );
     }
+  }
+
+  //-----------------------------------------------------------------------
+  //! Check if chunk file name is missing
+  //-----------------------------------------------------------------------
+  bool Reader::IsMissing( const std::string &fn )
+  {
+    // if the chunk is in the missing set return true
+    if( missing.count( fn ) ) return true;
+    // if we don't have a metadata file and the chunk exceeds last chunk
+    // also return true
+    if( objcfg.nomtfile && fntoblk( fn ) <= lstblk ) return true;
+    // otherwise return false
+    return false;
   }
 
 } /* namespace XrdEc */

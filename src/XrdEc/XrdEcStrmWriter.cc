@@ -286,7 +286,8 @@ namespace XrdEc
     //-------------------------------------------------------------------------
     // prepare the metadata (the Central Directory of each data ZIP)
     //-------------------------------------------------------------------------
-    auto zipbuff = std::make_shared<XrdZip::buffer_t>( GetMetadataBuffer() );
+    auto zipbuff = objcfg.nomtfile ? nullptr :
+                   std::make_shared<XrdZip::buffer_t>( GetMetadataBuffer() );
     //-------------------------------------------------------------------------
     // prepare the pipelines ...
     //-------------------------------------------------------------------------
@@ -303,15 +304,29 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       // replicate the metadata
       //-----------------------------------------------------------------------
-      std::string url = objcfg.GetMetadataUrl( i );
-      metadataarchs.emplace_back( std::make_shared<XrdCl::File>(
-          Config::Instance().enable_plugins ) );
-      XrdCl::Pipeline p = XrdCl::Open( *metadataarchs[i], url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write )
-                        | XrdCl::Write( *metadataarchs[i], 0, zipbuff->size(), zipbuff->data() )
-                        | XrdCl::Close( *metadataarchs[i] )
-                        | XrdCl::Final( [zipbuff]( const XrdCl::XRootDStatus& ){ } );
+      if( zipbuff )
+      {
+        std::string url = objcfg.GetMetadataUrl( i );
+        metadataarchs.emplace_back( std::make_shared<XrdCl::File>(
+            Config::Instance().enable_plugins ) );
+        XrdCl::Pipeline p = XrdCl::Open( *metadataarchs[i], url, XrdCl::OpenFlags::New | XrdCl::OpenFlags::Write )
+                          | XrdCl::Write( *metadataarchs[i], 0, zipbuff->size(), zipbuff->data() )
+                          | XrdCl::Close( *metadataarchs[i] )
+                          | XrdCl::Final( [zipbuff]( const XrdCl::XRootDStatus& ){ } );
 
-      save_metadata.emplace_back( std::move( p ) );
+        save_metadata.emplace_back( std::move( p ) );
+      }
+    }
+
+    //-------------------------------------------------------------------------
+    // If we were instructed not to create the the additional metadata file
+    // do the simplified close
+    //-------------------------------------------------------------------------
+    if( save_metadata.empty() )
+    {
+      XrdCl::Pipeline p = XrdCl::Parallel( closes ).AtLeast( objcfg.nbchunks ) >> handler;
+      XrdCl::Async( std::move( p ), timeout );
+      return;
     }
 
     //-------------------------------------------------------------------------
