@@ -58,11 +58,11 @@ class MicroTest: public CppUnit::TestCase
       CPPUNIT_TEST( BigWriteTest );
       CPPUNIT_TEST( AlignedWrite1MissingTest );
       CPPUNIT_TEST( AlignedWrite2MissingTest );
-      CPPUNIT_TEST( AlignedWriteTestIsalCrc );
-      CPPUNIT_TEST( SmallWriteTestIsalCrc );
-      CPPUNIT_TEST( BigWriteTestIsalCrc );
-      CPPUNIT_TEST( AlignedWrite1MissingTestIsalCrc );
-      CPPUNIT_TEST( AlignedWrite2MissingTestIsalCrc );
+      CPPUNIT_TEST( AlignedWriteTestIsalCrcNoMt );
+      CPPUNIT_TEST( SmallWriteTestIsalCrcNoMt );
+      CPPUNIT_TEST( BigWriteTestIsalCrcNoMt );
+      CPPUNIT_TEST( AlignedWrite1MissingTestIsalCrcNoMt );
+      CPPUNIT_TEST( AlignedWrite2MissingTestIsalCrcNoMt );
     CPPUNIT_TEST_SUITE_END();
 
     void Init( bool usecrc32c );
@@ -84,7 +84,7 @@ class MicroTest: public CppUnit::TestCase
       AlignedWriteTestImpl( true );
     }
 
-    inline void AlignedWriteTestIsalCrc()
+    inline void AlignedWriteTestIsalCrcNoMt()
     {
       AlignedWriteTestImpl( false );
     }
@@ -108,7 +108,7 @@ class MicroTest: public CppUnit::TestCase
       AlignedWrite1MissingTestImpl( true );
     }
 
-    inline void AlignedWrite1MissingTestIsalCrc()
+    inline void AlignedWrite1MissingTestIsalCrcNoMt()
     {
       AlignedWrite1MissingTestImpl( false );
     }
@@ -134,7 +134,7 @@ class MicroTest: public CppUnit::TestCase
       AlignedWrite2MissingTestImpl( true );
     }
 
-    inline void AlignedWrite2MissingTestIsalCrc()
+    inline void AlignedWrite2MissingTestIsalCrcNoMt()
     {
       AlignedWrite2MissingTestImpl( false );
     }
@@ -146,7 +146,7 @@ class MicroTest: public CppUnit::TestCase
       VarlenWriteTest( 7, true );
     }
 
-    inline void SmallWriteTestIsalCrc()
+    inline void SmallWriteTestIsalCrcNoMt()
     {
       VarlenWriteTest( 7, false );
     }
@@ -156,7 +156,7 @@ class MicroTest: public CppUnit::TestCase
       VarlenWriteTest( 77, true );
     }
 
-    void BigWriteTestIsalCrc()
+    void BigWriteTestIsalCrcNoMt()
     {
       VarlenWriteTest( 77, false );
     }
@@ -242,7 +242,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( MicroTest );
 
 void MicroTest::Init( bool usecrc32c )
 {
-  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, usecrc32c ) );
+  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, usecrc32c, !usecrc32c ) );
   rawdata.clear();
 
   char cwdbuff[1024];
