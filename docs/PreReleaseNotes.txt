@@ -16,6 +16,7 @@ Prerelease Notes
   **[TLS]** Avoid SEGV when a refresh context cannot be cloned (rare).
 
 + **Minor bug fixes**
+  **[Server]** Close race condition between bind and the use of that bind.
 
 + **Miscellaneous**
   **[Xcache]** Extend pgread API to return number of corrected checksum errors.
