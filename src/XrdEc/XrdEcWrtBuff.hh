@@ -267,7 +267,7 @@ namespace XrdEc
         for( uint8_t strpnb = 0; strpnb < objcfg.nbchunks; ++strpnb )
         {
           size_t chunksize = GetStrpSize( strpnb );
-          std::future<uint32_t> ftr = ThreadPool::Instance().Execute( crc32c, 0, stripes[strpnb].buffer, chunksize );
+          std::future<uint32_t> ftr = ThreadPool::Instance().Execute( objcfg.digest, 0, stripes[strpnb].buffer, chunksize );
           cksums.emplace_back( std::move( ftr ) );
         }
       }

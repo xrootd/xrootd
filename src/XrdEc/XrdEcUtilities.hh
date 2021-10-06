@@ -26,10 +26,8 @@
 #define SRC_XRDEC_XRDECUTILITIES_HH_
 
 #include "XrdEc/XrdEcObjCfg.hh"
-
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClFileSystem.hh"
-
 #include "XrdCl/XrdClUtils.hh"
 
 #include <exception>

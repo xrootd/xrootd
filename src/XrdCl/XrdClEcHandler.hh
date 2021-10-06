@@ -237,7 +237,15 @@ namespace XrdCl
     if( cosc && itr == params.end() ) return nullptr;
     std::string ckstype = itr->second;
 
-    XrdEc::ObjCfg *objcfg = new XrdEc::ObjCfg( objid, nbdta, nbprt, blksz / nbdta );
+    std::string chdigest;
+    itr = params.find( "xrdec.chdigest" );
+    if( itr == params.end() )
+      chdigest = "crc32c";
+    else
+      chdigest = itr->second;
+    bool usecrc32c = ( chdigest == "crc32c" );
+
+    XrdEc::ObjCfg *objcfg = new XrdEc::ObjCfg( objid, nbdta, nbprt, blksz / nbdta, usecrc32c );
     objcfg->plgr    = std::move( plgr );
     objcfg->dtacgi  = std::move( dtacgi );
     objcfg->mdtacgi = std::move( mdtacgi );

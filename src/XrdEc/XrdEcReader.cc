@@ -607,7 +607,7 @@ namespace XrdEc
     buffer.resize( rdsize );
     // issue the read request
     XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, buffer.size(), buffer.data() ) >>
-                    [zipptr, fn, cb]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
+                    [zipptr, fn, cb, this]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
                     {
                       //---------------------------------------------------
                       // If read failed there's nothing to do, just pass the
@@ -635,7 +635,7 @@ namespace XrdEc
                       //---------------------------------------------------
                       // Verify data integrity
                       //---------------------------------------------------
-                      uint32_t cksum = crc32c( 0, ch.buffer, ch.length );
+                      uint32_t cksum = objcfg.digest( 0, ch.buffer, ch.length );
                       if( orgcksum != cksum )
                       {
                         cb( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError ), 0 );
@@ -735,7 +735,7 @@ namespace XrdEc
       buffer += lfh.lfhSize;
       length -= lfh.lfhSize;
       // verify the checksum
-      uint32_t crc32val = crc32c( 0, buffer, lfh.uncompressedSize );
+      uint32_t crc32val = objcfg.digest( 0, buffer, lfh.uncompressedSize );
       if( crc32val != lfh.ZCRC32 ) return false;
       // keep the metadata
       std::string url = objcfg.GetDataUrl( std::stoull( lfh.filename ) );

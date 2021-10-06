@@ -4,6 +4,7 @@
 // Copyright (C) 2015 Mark Adler
 // See crc32c.c for the license.
 
+#include <cstddef>
 #include <cstdint>
 
 // Return the CRC-32C of buf[0..len-1] given the starting CRC crc.  This can be

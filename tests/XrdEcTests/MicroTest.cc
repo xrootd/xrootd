@@ -197,7 +197,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( MicroTest );
 
 void MicroTest::Init()
 {
-  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize ) );
+  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, true ) );
   rawdata.clear();
 
   char cwdbuff[1024];
