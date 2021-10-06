@@ -300,6 +300,11 @@ int XrdXrootdProtocol::do_Bind()
        return Response.Send(kXR_NotAuthorized, "cross-host bind not allowed");
       }
 
+// We need to hold the parent's stream mutex to prevent inspection or
+// modification of other parallel binds that may occur
+//
+   XrdSysMutexHelper smHelper(pp->streamMutex);
+
 // Find a slot for this path in parent protocol
 //
    for (i = 1; i < maxStreams && pp->Stream[i]; i++) {}
@@ -313,8 +318,6 @@ int XrdXrootdProtocol::do_Bind()
    pp->Stream[i] = this;
    Stream[0]     = pp;
    PathID        = i;
-   sprintf(buff, "FD %d#%d bound", Link->FDnum(), i);
-   eDest.Log(SYS_LOG_01, "Xeq", buff, lp->ID);
 
 // Construct a login name for this bind session
 //
@@ -327,6 +330,12 @@ int XrdXrootdProtocol::do_Bind()
    CapVer = pp->CapVer;
    Status = XRD_BOUNDPATH;
    clientPV = pp->clientPV;
+
+// Document the bind
+//
+   smHelper.UnLock();
+   sprintf(buff, "FD %d#%d bound", Link->FDnum(), i);
+   eDest.Log(SYS_LOG_01, "Xeq", buff, lp->ID);
 
 // Get the required number of parallel I/O objects
 //
