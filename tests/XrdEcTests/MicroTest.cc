@@ -58,14 +58,19 @@ class MicroTest: public CppUnit::TestCase
       CPPUNIT_TEST( BigWriteTest );
       CPPUNIT_TEST( AlignedWrite1MissingTest );
       CPPUNIT_TEST( AlignedWrite2MissingTest );
+      CPPUNIT_TEST( AlignedWriteTestIsalCrc );
+      CPPUNIT_TEST( SmallWriteTestIsalCrc );
+      CPPUNIT_TEST( BigWriteTestIsalCrc );
+      CPPUNIT_TEST( AlignedWrite1MissingTestIsalCrc );
+      CPPUNIT_TEST( AlignedWrite2MissingTestIsalCrc );
     CPPUNIT_TEST_SUITE_END();
 
-    void Init();
+    void Init( bool usecrc32c );
 
-    inline void AlignedWriteTest()
+    inline void AlignedWriteTestImpl( bool usecrc32c )
     {
       // create the data and stripe directories
-      Init();
+      Init( usecrc32c );
       // run the test
       AlignedWriteRaw();
       // verify that we wrote the data correctly
@@ -74,10 +79,20 @@ class MicroTest: public CppUnit::TestCase
       CleanUp();
     }
 
-    inline void AlignedWrite1MissingTest()
+    inline void AlignedWriteTest()
+    {
+      AlignedWriteTestImpl( true );
+    }
+
+    inline void AlignedWriteTestIsalCrc()
+    {
+      AlignedWriteTestImpl( false );
+    }
+
+    inline void AlignedWrite1MissingTestImpl( bool usecrc32c )
     {
       // initialize directories
-      Init();
+      Init( usecrc32c );
       UrlNotReachable( 2 );
       // run the test
       AlignedWriteRaw();
@@ -88,10 +103,20 @@ class MicroTest: public CppUnit::TestCase
       CleanUp();
     }
 
-    inline void AlignedWrite2MissingTest()
+    inline void AlignedWrite1MissingTest()
+    {
+      AlignedWrite1MissingTestImpl( true );
+    }
+
+    inline void AlignedWrite1MissingTestIsalCrc()
+    {
+      AlignedWrite1MissingTestImpl( false );
+    }
+
+    inline void AlignedWrite2MissingTestImpl( bool usecrc32c )
     {
       // initialize directories
-      Init();
+      Init( usecrc32c );
       UrlNotReachable( 2 );
       UrlNotReachable( 3 );
       // run the test
@@ -104,16 +129,36 @@ class MicroTest: public CppUnit::TestCase
       CleanUp();
     }
 
-    void VarlenWriteTest( uint32_t wrtlen );
+    inline void AlignedWrite2MissingTest()
+    {
+      AlignedWrite2MissingTestImpl( true );
+    }
+
+    inline void AlignedWrite2MissingTestIsalCrc()
+    {
+      AlignedWrite2MissingTestImpl( false );
+    }
+
+    void VarlenWriteTest( uint32_t wrtlen, bool usecrc32c );
 
     inline void SmallWriteTest()
     {
-      VarlenWriteTest( 7 );
+      VarlenWriteTest( 7, true );
+    }
+
+    inline void SmallWriteTestIsalCrc()
+    {
+      VarlenWriteTest( 7, false );
     }
 
     void BigWriteTest()
     {
-      VarlenWriteTest( 77 );
+      VarlenWriteTest( 77, true );
+    }
+
+    void BigWriteTestIsalCrc()
+    {
+      VarlenWriteTest( 77, false );
     }
 
     void Verify()
@@ -195,9 +240,9 @@ class MicroTest: public CppUnit::TestCase
 CPPUNIT_TEST_SUITE_REGISTRATION( MicroTest );
 
 
-void MicroTest::Init()
+void MicroTest::Init( bool usecrc32c )
 {
-  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, true ) );
+  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, usecrc32c ) );
   rawdata.clear();
 
   char cwdbuff[1024];
@@ -473,10 +518,10 @@ void MicroTest::AlignedWriteRaw()
   delete status;
 }
 
-void MicroTest::VarlenWriteTest( uint32_t wrtlen )
+void MicroTest::VarlenWriteTest( uint32_t wrtlen, bool usecrc32c )
 {
   // create the data and stripe directories
-  Init();
+  Init( usecrc32c );
   // open the data object
   StrmWriter writer( *objcfg );
   XrdCl::SyncResponseHandler handler1;
