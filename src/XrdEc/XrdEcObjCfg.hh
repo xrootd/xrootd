@@ -8,6 +8,10 @@
 #ifndef SRC_XRDEC_XRDECOBJCFG_HH_
 #define SRC_XRDEC_XRDECOBJCFG_HH_
 
+#include "XrdOuc/XrdOucCRC32C.hh"
+
+#include "isa-l/crc.h"
+
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -16,11 +20,20 @@
 
 namespace XrdEc
 {
+  //---------------------------------------------------------------------------
+  //! ISAL crc32 implementation
+  //---------------------------------------------------------------------------
+  inline static uint32_t isal_crc32(uint32_t crc, void const *buf, size_t len)
+  {
+    const unsigned char* buffer = reinterpret_cast<const unsigned char*>( buf );
+    return crc32_gzip_refl( crc, buffer, len );
+  }
+
   struct ObjCfg
   {
       ObjCfg() = delete;
 
-      ObjCfg( const std::string &obj, uint8_t nbdata, uint8_t nbparity, uint64_t chunksize ) :
+      ObjCfg( const std::string &obj, uint8_t nbdata, uint8_t nbparity, uint64_t chunksize, bool usecrc32c ) :
         obj( obj ),
         nbchunks( nbdata + nbparity ),
         nbparity( nbparity ),
@@ -30,7 +43,7 @@ namespace XrdEc
         paritysize( nbparity * chunksize ),
         blksize( datasize + paritysize )
       {
-
+        digest = usecrc32c ? crc32c : isal_crc32;
       }
 
       ObjCfg( const ObjCfg &objcfg ) : obj( objcfg.obj ),
@@ -41,7 +54,8 @@ namespace XrdEc
                                        chunksize( objcfg.chunksize ),
                                        paritysize( objcfg.paritysize ),
                                        blksize( objcfg.blksize ),
-                                       plgr( objcfg.plgr )
+                                       plgr( objcfg.plgr ),
+                                       digest( objcfg.digest )
       {
       }
 
@@ -76,6 +90,8 @@ namespace XrdEc
       std::vector<std::string> plgr;
       std::vector<std::string> dtacgi;
       std::vector<std::string> mdtacgi;
+
+      uint32_t (*digest)(uint32_t, void const*, size_t);
   };
 }
 

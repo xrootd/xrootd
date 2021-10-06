@@ -234,15 +234,15 @@ namespace XrdEc
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     for( size_t i = 0; i < cdcnt; ++i )
     {
-      std::string fn = std::to_string( i );                     // file name (URL of the data archive)
-      buffer_t buff( dataarchs[i]->GetCD() );                   // raw data buffer (central directory of the data archive)
-      uint32_t cksum = crc32c( 0, buff.data(), buff.size() );   // crc32c of the buffer
-      lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );   // LFH record for the buffer
+      std::string fn = std::to_string( i );                          // file name (URL of the data archive)
+      buffer_t buff( dataarchs[i]->GetCD() );                        // raw data buffer (central directory of the data archive)
+      uint32_t cksum = objcfg.digest( 0, buff.data(), buff.size() ); // digest (crc) of the buffer
+      lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );        // LFH record for the buffer
       LFH &lfh = lfhs.back();
-      cdfhs.emplace_back( &lfh, mode, offset );                 // CDFH record for the buffer
-      offset += LFH::lfhBaseSize + fn.size() + buff.size();     // shift the offset
-      cdsize += cdfhs.back().cdfhSize;                          // update central directory size
-      buffs.emplace_back( std::move( buff ) );                  // keep the buffer for later
+      cdfhs.emplace_back( &lfh, mode, offset );                      // CDFH record for the buffer
+      offset += LFH::lfhBaseSize + fn.size() + buff.size();          // shift the offset
+      cdsize += cdfhs.back().cdfhSize;                               // update central directory size
+      buffs.emplace_back( std::move( buff ) );                       // keep the buffer for later
     }
 
     uint64_t zipsize = offset + cdsize + EOCD::eocdBaseSize;
