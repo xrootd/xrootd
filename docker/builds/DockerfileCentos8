@@ -1,0 +1,16 @@
+FROM centos:8
+MAINTAINER Michal Simon <michal.simon@cern.ch>, CERN, 2015
+
+USER root
+RUN dnf install -y epel-release
+RUN dnf install -y gcc-c++ rpm-build which git python-srpm-macros vim dnf-plugins-core
+RUN dnf config-manager --set-enabled powertools
+RUN git clone https://github.com/xrootd/xrootd
+WORKDIR /xrootd/packaging
+RUN ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1"
+RUN dnf builddep -y *.src.rpm
+RUN dnf -y update libarchive
+RUN rm -f *src.rpm
+WORKDIR /xrootd/build
+ENTRYPOINT bash
+
