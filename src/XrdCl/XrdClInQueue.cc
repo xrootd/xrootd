@@ -85,8 +85,7 @@ namespace XrdCl
       if( action & IncomingMsgHandler::RemoveHandler )
         pHandlers.erase( it );
     }
-
-    if( !(action & IncomingMsgHandler::Take) )
+    else
       pMessages[msgSid] = msg;
 
     pMutex.UnLock();
@@ -111,13 +110,11 @@ namespace XrdCl
     {
       action = handler->Examine( it->second );
 
-      if( action & IncomingMsgHandler::Take )
-      {
-        if( !(action & IncomingMsgHandler::NoProcess ) )
+      if( !(action & IncomingMsgHandler::Ignore) &&
+          !(action & IncomingMsgHandler::NoProcess ) )
           handler->Process();
 
-        pMessages.erase( it );
-      }
+      pMessages.erase( it );
     }
 
     if( !(action & IncomingMsgHandler::RemoveHandler) )

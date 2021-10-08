@@ -197,7 +197,7 @@ namespace XrdCl
       case kXR_error:
       case kXR_redirect:
       case kXR_wait:
-        return Take | RemoveHandler;
+        return RemoveHandler;
 
       case kXR_waitresp:
       {
@@ -206,7 +206,7 @@ namespace XrdCl
                    pRequest->GetDescription().c_str() );
 
         pResponse.reset();
-        return Take | Ignore; // This must be handled synchronously!
+        return Ignore; // This must be handled synchronously!
       }
 
       //------------------------------------------------------------------------
@@ -223,7 +223,7 @@ namespace XrdCl
         {
           pReadRawStarted = false;
           pAsyncMsgSize   = dlen;
-          return Take | Raw | RemoveHandler;
+          return Raw | RemoveHandler;
         }
 
         //----------------------------------------------------------------------
@@ -233,13 +233,13 @@ namespace XrdCl
         {
           pAsyncMsgSize      = dlen;
           pReadVRawMsgOffset = 0;
-          return Take | Raw | RemoveHandler;
+          return Raw | RemoveHandler;
         }
 
         //----------------------------------------------------------------------
         // For everything else we just take what we got
         //----------------------------------------------------------------------
-        return Take | RemoveHandler;
+        return RemoveHandler;
       }
 
       //------------------------------------------------------------------------
@@ -270,12 +270,12 @@ namespace XrdCl
             pReadRawStarted = false;
             pAsyncMsgSize   = dlen;
             pTimeoutFence.store( true, std::memory_order_relaxed );
-            return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
+            return Raw | ( pOksofarAsAnswer ? None : NoProcess );
           }
           else
           {
             pReadRawCurrentOffset += dlen;
-            return Take | ( pOksofarAsAnswer ? 0 : NoProcess );
+            return ( pOksofarAsAnswer ? None : NoProcess );
           }
         }
 
@@ -289,13 +289,13 @@ namespace XrdCl
             pAsyncMsgSize      = dlen;
             pReadVRawMsgOffset = 0;
             pTimeoutFence.store( true, std::memory_order_relaxed );
-            return Take | Raw | ( pOksofarAsAnswer ? 0 : NoProcess );
+            return Raw | ( pOksofarAsAnswer ? None : NoProcess );
           }
           else
-            return Take | ( pOksofarAsAnswer ? 0 : NoProcess );
+            return ( pOksofarAsAnswer ? None : NoProcess );
         }
 
-        return Take | ( pOksofarAsAnswer ? 0 : NoProcess );
+        return ( pOksofarAsAnswer ? None : NoProcess );
       }
 
       case kXR_status:
@@ -309,16 +309,16 @@ namespace XrdCl
         // we can handle the raw data (if any) only after we have the whole
         // kXR_status body
         //----------------------------------------------------------------------
-        return Take;
+        return None;
       }
 
       //------------------------------------------------------------------------
       // Default
       //------------------------------------------------------------------------
       default:
-        return Take | RemoveHandler;
+        return RemoveHandler;
     }
-    return Take | RemoveHandler;
+    return RemoveHandler;
   }
 
   //----------------------------------------------------------------------------

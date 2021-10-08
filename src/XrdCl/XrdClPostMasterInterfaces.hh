@@ -78,7 +78,7 @@ namespace XrdCl
       enum Action
       {
         None          = 0x0000,
-        Take          = 0x0001,    //!< Take ownership over the message
+        Nop           = 0x0001,    //!< A place holder
         Ignore        = 0x0002,    //!< Ignore the message
         RemoveHandler = 0x0004,    //!< Remove the handler from the notification
                                    //!< list
