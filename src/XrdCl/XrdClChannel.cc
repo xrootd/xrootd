@@ -67,7 +67,7 @@ namespace
         if( pFilter->Filter( msg ) )
         {
           pMsg = msg;
-          return Take | RemoveHandler;
+          return RemoveHandler;
         }
         return Ignore;
       }
