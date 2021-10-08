@@ -6,7 +6,7 @@ xrdpfc_print - print content of ProxyFileCache meta data
 
 \fBxrdpfc_print\fR [\fIoptions\fR] \fRpath ...\fR
 
-\fIoptions\fR: [\fB--config\fR \fIargs\fR] [\fB--verbose\fR] [\fB--help\fR]
+\fIoptions\fR: [\fB--config\fR \fIargs\fR] [\fB--json\fR] [\fB--verbose\fR] [\fB--help\fR]
 
 .fi
 .br
@@ -23,6 +23,11 @@ xrootd configuration file. Used to load non-default file system (directive ofs.o
 \fB-v\fR | \fB--verbose\fR
 .RS 5
 prints additional info for each downloaded file block
+
+.RE
+\fB-j\fR | \fB--json\fR
+.RS 5
+prints output in json format
 
 .RE
 \fB-h\fR | \fB--help\fR

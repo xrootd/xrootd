@@ -75,6 +75,7 @@ add_executable(
 
 target_link_libraries(
   xrdpfc_print
+  ${JSON_LIBRARIES}
   XrdServer
   XrdCl
   XrdUtils )
