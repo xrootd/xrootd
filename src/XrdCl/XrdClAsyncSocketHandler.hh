@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClAsyncWriter.hh"
+#include "XrdCl/XrdClAsyncMsgReader.hh"
 
 namespace XrdCl
 {
@@ -277,7 +278,6 @@ namespace XrdCl
       Stream                        *pStream;
       std::string                    pStreamName;
       Socket                        *pSocket;
-      Message                       *pIncoming;
       Message                       *pHSIncoming;
       Message                       *pOutgoing;
       Message                       *pSignature;
@@ -288,16 +288,15 @@ namespace XrdCl
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
       bool                           pHeaderDone;
-      // true means the handler owns the server response
-      std::pair<IncomingMsgHandler*, bool> pIncHandler;
       bool                           pOutMsgDone;
       OutgoingMsgHandler            *pOutHandler;
-      uint32_t                       pIncMsgSize;
       uint32_t                       pOutMsgSize;
       time_t                         pLastActivity;
       URL                            pUrl;
       bool                           pTlsHandShakeOngoing;
-      std::unique_ptr<MsgWriter>     hswriter;
+
+      std::unique_ptr<MsgWriter>      hswriter;
+      std::unique_ptr<AsyncMsgReader> rspreader;
   };
 }
 

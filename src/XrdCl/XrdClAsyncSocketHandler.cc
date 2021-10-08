@@ -45,7 +45,6 @@ namespace XrdCl
     pStream( strm ),
     pStreamName( ToStreamName( strm, subStreamNum ) ),
     pSocket( new Socket() ),
-    pIncoming( 0 ),
     pHSIncoming( 0 ),
     pOutgoing( 0 ),
     pSignature( 0 ),
@@ -56,7 +55,6 @@ namespace XrdCl
     pHeaderDone( false ),
     pOutMsgDone( false ),
     pOutHandler( 0 ),
-    pIncMsgSize( 0 ),
     pOutMsgSize( 0 ),
     pUrl( url ),
     pTlsHandShakeOngoing( false )
@@ -68,7 +66,6 @@ namespace XrdCl
     pTimeoutResolution = timeoutResolution;
 
     pSocket->SetChannelID( pChannelData );
-    pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
     pLastActivity = time(0);
   }
 
@@ -200,11 +197,7 @@ namespace XrdCl
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
-
-    if( !pIncHandler.second )
-      delete pIncoming;
-
-    pIncoming = 0;
+    rspreader->Reset();
     return XRootDStatus();
   }
 
@@ -325,6 +318,7 @@ namespace XrdCl
     }
     pSocket->SetStatus( Socket::Connected );
     hswriter.reset( new MsgWriter( *pSocket, pStreamName ) );
+    rspreader.reset( new AsyncMsgReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
 
     //--------------------------------------------------------------------------
     // Cork the socket
@@ -562,122 +556,46 @@ namespace XrdCl
   void AsyncSocketHandler::OnRead()
   {
     //--------------------------------------------------------------------------
-    // There is no incoming message currently being processed so we create
-    // a new one
+    // Make sure the response reader object exists
     //--------------------------------------------------------------------------
-    if( !pIncoming )
+    if( !rspreader )
     {
-      pHeaderDone  = false;
-      pIncoming    = new Message();
-      pIncHandler  = std::make_pair( (IncomingMsgHandler*)0, false );
-      pIncMsgSize  = 0;
+      OnFault( XRootDStatus( stError, errInternal, 0, "Response reader is null." ) );
+      return;
     }
 
-    XRootDStatus  st;
-    Log    *log = DefaultEnv::GetLog();
+    //--------------------------------------------------------------------------
+    // Readout the data from the socket
+    //--------------------------------------------------------------------------
+    XRootDStatus st =rspreader->Read();
 
     //--------------------------------------------------------------------------
-    // We need to read the header first
+    // Handler header corruption
     //--------------------------------------------------------------------------
-    if( !pHeaderDone )
+    if( !st.IsOK() && st.code == errCorruptedHeader )
     {
-      st = pTransport->GetHeader( pIncoming, pSocket );
-      if( !st.IsOK() )
-      {
-        OnFault( st );
-        return;
-      }
-
-      if( st.code == suRetry )
-        return;
-
-      log->Dump( AsyncSockMsg, "[%s] Received message header for 0x%x size: %d",
-                pStreamName.c_str(), pIncoming, pIncoming->GetCursor() );
-      pIncMsgSize = pIncoming->GetCursor();
-      pHeaderDone = true;
-      std::pair<IncomingMsgHandler *, bool> raw;
-      pIncHandler = pStream->InstallIncHandler( pIncoming, pSubStreamNum );
-
-      if( pIncHandler.first )
-      {
-        log->Dump( AsyncSockMsg, "[%s] Will use the raw handler to read body "
-                   "of message 0x%x", pStreamName.c_str(), pIncoming );
-      }
+      OnHeaderCorruption();
+      return;
     }
 
-    bool repeat;
-    do
+    //--------------------------------------------------------------------------
+    // Handler other errors
+    //--------------------------------------------------------------------------
+    if( !st.IsOK() )
     {
-      repeat = false;
-      //--------------------------------------------------------------------------
-      // We need to call a raw message handler to get the data from the socket
-      //--------------------------------------------------------------------------
-      if( pIncHandler.first )
-      {
-        uint32_t bytesRead = 0;
-        st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket, bytesRead );
-        if( !st.IsOK() )
-        {
-          OnFault( st );
-          return;
-        }
-        pIncMsgSize += bytesRead;
-
-        if( st.code == suRetry )
-          return;
-      }
-      //--------------------------------------------------------------------------
-      // No raw handler, so we read the message to the buffer
-      //--------------------------------------------------------------------------
-      else
-      {
-        st = pTransport->GetBody( pIncoming, pSocket );
-        if( !st.IsOK() )
-        {
-          OnFault( st );
-          return;
-        }
-
-        if( st.code == suRetry )
-          return;
-
-        pIncMsgSize = pIncoming->GetSize();
-      }
-
-      //--------------------------------------------------------------------------
-      // Now check if there are some additional raw data to be read
-      //--------------------------------------------------------------------------
-      if( !pIncHandler.first )
-      {
-        uint16_t action = pStream->InspectStatusRsp( pIncoming, pSubStreamNum,
-                                                     pIncHandler.first );
-
-        if( action & IncomingMsgHandler::Corrupted )
-        {
-          OnHeaderCorruption();
-          return;
-        }
-
-        if( action & IncomingMsgHandler::Raw )
-        {
-          pIncHandler.second = true;
-          repeat = true;
-        }
-
-        if( action & IncomingMsgHandler::More )
-          repeat = true; // for pgwrite we might have additional non-raw data
-      }
+      OnFault( st );
+      return;
     }
-    while( repeat );
 
     //--------------------------------------------------------------------------
-    // Report the incoming message
+    // We are not done yet
     //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Received message 0x%x of %d bytes",
-               pStreamName.c_str(), pIncoming, pIncMsgSize );
+    if( st.code == suRetry ) return;
 
-    pStream->OnIncoming( pSubStreamNum, pIncoming, pIncMsgSize );
-    pIncoming = 0;
+    //--------------------------------------------------------------------------
+    // We are done, reset the response reader so we can read out next message
+    //--------------------------------------------------------------------------
+    rspreader->Reset();
   }
 
   //----------------------------------------------------------------------------
@@ -862,10 +780,7 @@ namespace XrdCl
     log->Error( AsyncSockMsg, "[%s] Socket error encountered: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
 
-    if( !pIncHandler.second )
-      delete pIncoming;
-
-    pIncoming   = 0;
+    rspreader->Reset();
     pOutgoing   = 0;
     pOutHandler = 0;
 
@@ -909,10 +824,7 @@ namespace XrdCl
       // called from inside of Stream::OnReadTimeout, this
       // in turn means that the ownership of following
       // pointers, has been transferred to the inQueue
-      if( !pIncHandler.second )
-        delete pIncoming;
-
-      pIncoming   = 0;
+      rspreader->Reset();
       pOutgoing   = 0;
       pOutHandler = 0;
     }
@@ -939,10 +851,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     pStream->ForceError( XRootDStatus( stError, errSocketError ) );
 
-    if( !pIncHandler.second )
-      delete pIncoming;
-
-    pIncoming   = 0;
+    rspreader->Reset();
     pOutgoing   = 0;
     pOutHandler = 0;
   }

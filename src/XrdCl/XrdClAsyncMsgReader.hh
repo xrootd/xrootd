@@ -71,7 +71,10 @@ namespace XrdCl
       inline void Reset()
       {
         readstage = ReadStart;
-        incmsg.reset();
+        if( inchandler.second ) // TODO
+          incmsg.reset();
+        else
+          incmsg.release();
         incmsgsize = 0;
         inchandler = std::make_pair( nullptr, false );
       }
@@ -210,9 +213,8 @@ namespace XrdCl
         }
 
         //----------------------------------------------------------------------
-        // We are done, so now reset the state so we can read next response
+        // We are done
         //----------------------------------------------------------------------
-        Reset();
         return XRootDStatus();
       }
 
@@ -250,7 +252,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::unique_ptr<Message>             incmsg;
       uint32_t                             incmsgsize;
-      std::pair<IncomingMsgHandler*, bool> inchandler;
+      std::pair<IncomingMsgHandler*, bool> inchandler; //< true means the handler owns the server response
 
   };
 
