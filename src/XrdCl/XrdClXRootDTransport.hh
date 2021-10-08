@@ -79,7 +79,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual XRootDStatus GetHeader( Message *message, Socket *socket );
+      virtual XRootDStatus GetHeader( Message &message, Socket *socket );
 
       //------------------------------------------------------------------------
       //! Read the message body from the socket, the socket is non-blocking,
@@ -91,7 +91,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual XRootDStatus GetBody( Message *message, Socket *socket );
+      virtual XRootDStatus GetBody( Message &message, Socket *socket );
 
       //------------------------------------------------------------------------
       //! Initialize channel
@@ -195,17 +195,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Unmarshall the body of the status response
       //------------------------------------------------------------------------
-      static XRootDStatus UnMarshalStatusBody( Message *msg, uint16_t reqType );
+      static XRootDStatus UnMarshalStatusBody( Message &msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
       //! Unmarshall the correction-segment of the status response for pgwrite
       //------------------------------------------------------------------------
-      static XRootDStatus UnMarchalStatusCSE( Message *msg );
+      static XRootDStatus UnMarchalStatusCSE( Message &msg );
 
       //------------------------------------------------------------------------
       //! Unmarshall the header incoming message
       //------------------------------------------------------------------------
-      static void UnMarshallHeader( Message *msg );
+      static void UnMarshallHeader( Message &msg );
 
       //------------------------------------------------------------------------
       //! Log server error response
@@ -249,7 +249,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual uint32_t MessageReceived( Message   *msg,
+      virtual uint32_t MessageReceived( Message   &msg,
                                         uint16_t   subStream,
                                         AnyObject &channelData );
 

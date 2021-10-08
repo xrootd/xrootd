@@ -114,7 +114,7 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     //! Count how many replicas do we have left to try for given request
     //----------------------------------------------------------------------------
-    virtual int Count( Message *req ) const;
+    virtual int Count( Message &req ) const;
 
   private:
 
@@ -143,12 +143,12 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     //! Generates redirect response for the given request
     //----------------------------------------------------------------------------
-    Message* GetResponse( const Message *msg ) const;
+    std::shared_ptr<Message> GetResponse( const Message *msg ) const;
 
     //----------------------------------------------------------------------------
     //! Generates error response for the given request
     //----------------------------------------------------------------------------
-    Message* GetErrorMsg( const Message *msg, const std::string &errMsg, XErrorCode code ) const;
+    std::shared_ptr<Message> GetErrorMsg( const Message *msg, const std::string &errMsg, XErrorCode code ) const;
 
     //----------------------------------------------------------------------------
     //! Initializes checksum map
@@ -163,12 +163,12 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     //! Get the next replica for the given message
     //----------------------------------------------------------------------------
-    XRootDStatus GetReplica( const Message *msg, std::string &replica ) const;
+    XRootDStatus GetReplica( const Message &msg, std::string &replica ) const;
 
     //----------------------------------------------------------------------------
     //! Extracts an element from URL cgi
     //----------------------------------------------------------------------------
-    XRootDStatus GetCgiInfo( const Message *msg, const std::string &key, std::string &out ) const;
+    XRootDStatus GetCgiInfo( const Message &msg, const std::string &key, std::string &out ) const;
 
     typedef std::list< std::pair<const Message*, IncomingMsgHandler*> > RedirectList;
     typedef std::map<std::string, std::string>                          CksumMap;
@@ -177,7 +177,7 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     //! Get the next replica for the given message
     //----------------------------------------------------------------------------
-    ReplicaList::const_iterator GetReplica( const Message *msg ) const;
+    ReplicaList::const_iterator GetReplica( const Message &msg ) const;
 
     RedirectList     pPendingRedirects;
     std::string      pUrl;

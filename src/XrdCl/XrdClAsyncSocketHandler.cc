@@ -750,7 +750,7 @@ namespace XrdCl
     Log    *log = DefaultEnv::GetLog();
     if( !pHeaderDone )
     {
-      st = pTransport->GetHeader( toRead, pSocket );
+      st = pTransport->GetHeader( *toRead, pSocket );
       if( st.IsOK() && st.code == suDone )
       {
         log->Dump( AsyncSockMsg,
@@ -762,7 +762,7 @@ namespace XrdCl
         return st;
     }
 
-    st = pTransport->GetBody( toRead, pSocket );
+    st = pTransport->GetBody( *toRead, pSocket );
     if( st.IsOK() && st.code == suDone )
     {
       log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",

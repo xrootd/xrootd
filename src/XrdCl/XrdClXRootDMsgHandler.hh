@@ -48,6 +48,7 @@
 #include <list>
 #include <memory>
 #include <atomic>
+#include <memory>
 
 namespace XrdCl
 {
@@ -131,7 +132,6 @@ namespace XrdCl
                         std::shared_ptr<SIDManager>  sidMgr,
                         LocalFileHandler            *lFileHandler):
         pRequest( msg ),
-        pResponse( 0 ),
         pResponseHandler( respHandler ),
         pUrl( *url ),
         pEffectiveDataServerUrl( 0 ),
@@ -224,15 +224,9 @@ namespace XrdCl
 
         if( !pHasSessionId )
           delete pRequest;
-        delete pResponse;
-        std::vector<Message *>::iterator it;
-        for( it = pPartialResps.begin(); it != pPartialResps.end(); ++it )
-          delete *it;
-
         delete pEffectiveDataServerUrl;
 
         pRequest                = reinterpret_cast<Message*>( 0xDEADBEEF );
-        pResponse               = reinterpret_cast<Message*>( 0xDEADBEEF );
         pResponseHandler        = reinterpret_cast<ResponseHandler*>( 0xDEADBEEF );
         pPostMaster             = reinterpret_cast<PostMaster*>( 0xDEADBEEF );
         pLFileHandler           = reinterpret_cast<LocalFileHandler*>( 0xDEADBEEF );
@@ -252,7 +246,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t Examine( Message *msg  );
+      virtual uint16_t Examine( std::shared_ptr<Message> &msg  );
 
       //------------------------------------------------------------------------
       //! Reexamine the incoming message, and decide on the action to be taken
@@ -264,7 +258,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t InspectStatusRsp( Message *msg );
+      virtual uint16_t InspectStatusRsp( Message &msg );
 
       //------------------------------------------------------------------------
       //! Get handler sid
@@ -278,7 +272,7 @@ namespace XrdCl
       //!
       //! @param msg the message to be processed
       //------------------------------------------------------------------------
-      virtual void Process( Message *msg );
+      virtual void Process();
 
       //------------------------------------------------------------------------
       //! Read message body directly from a socket - called if Examine returns
@@ -449,13 +443,6 @@ namespace XrdCl
                           Socket   *socket,
                           uint32_t &bytesRead );
 
-//      //------------------------------------------------------------------------
-//      //! Handle a kXR_pgread in raw mode
-//      //------------------------------------------------------------------------
-//      Status ReadRawPgRead( Message  *msg,
-//                            Socket   *socket,
-//                            uint32_t &bytesRead );
-
       //------------------------------------------------------------------------
       //! Handle a kXR_readv in raw mode
       //------------------------------------------------------------------------
@@ -484,32 +471,6 @@ namespace XrdCl
         return st;
       }
 
-//      //------------------------------------------------------------------------
-//      //! Read all page asynchronously - depends on pAsyncBuffer,
-//      //! pAsyncSize and pAsyncOffset
-//      //------------------------------------------------------------------------
-//      inline Status ReadPagesAsync( Socket *socket, uint32_t &bytesRead )
-//      {
-//        uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
-//        while( toBeRead > 0 )
-//        {
-//          uint32_t btsRead = 0;
-//          Status st = ReadPageAsync( socket, btsRead );
-//          if( !st.IsOK() ) return st;
-//          bytesRead += btsRead;
-//          toBeRead  -= btsRead;
-//          if( st.code == suRetry ) return st;
-//        }
-//
-//        return Status();
-//      }
-
-      //------------------------------------------------------------------------
-      //! Read a single page asynchronously - depends on pAsyncBuffer,
-      //! pAsyncSize and pAsyncOffset
-      //------------------------------------------------------------------------
-//      Status ReadPageAsync( Socket *socket, uint32_t &bytesRead );
-
       //------------------------------------------------------------------------
       //! Read a buffer asynchronously
       //------------------------------------------------------------------------
@@ -519,7 +480,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Recover error
       //------------------------------------------------------------------------
-      void HandleError( XRootDStatus status, Message *msg = 0 );
+      void HandleError( XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! Retry the request at another server
@@ -567,7 +528,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Unpack a single readv response
       //------------------------------------------------------------------------
-      Status UnPackReadVResponse( Message *msg );
+      Status UnPackReadVResponse( Message &msg );
 
       //------------------------------------------------------------------------
       //! Update the "tried=" part of the CGI of the current message
@@ -596,7 +557,7 @@ namespace XrdCl
       //! @param   reuqest : the request in question
       //! @return          : true if yes, false if no
       //------------------------------------------------------------------------
-      bool IsRetriable( Message *request );
+      bool IsRetriable();
 
       //------------------------------------------------------------------------
       //! Check if for given request and Metalink redirector  it is OK to omit
@@ -606,7 +567,7 @@ namespace XrdCl
       //! @param   url     : metalink URL
       //! @return          : true if yes, false if no
       //------------------------------------------------------------------------
-      bool OmitWait( Message *request, const URL &url );
+      bool OmitWait( Message &request, const URL &url );
 
       //------------------------------------------------------------------------
       //! Checks if the given error returned by server is retriable.
@@ -715,8 +676,8 @@ namespace XrdCl
       }
 
       Message                        *pRequest;
-      Message                        *pResponse;
-      std::vector<Message *>          pPartialResps;
+      std::shared_ptr<Message>        pResponse; //< the ownership is shared with MsgReader
+      std::vector<std::shared_ptr<Message>> pPartialResps; //< the ownership is shared with MsgReader
       ResponseHandler                *pResponseHandler;
       URL                             pUrl;
       URL                            *pEffectiveDataServerUrl;

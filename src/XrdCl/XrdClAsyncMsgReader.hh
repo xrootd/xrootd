@@ -56,7 +56,7 @@ namespace XrdCl
                                                        strm( strm ),
                                                        substrmnb( substrmnb ),
                                                        incmsgsize( 0 ),
-                                                       inchandler( std::make_pair( nullptr, false ) )
+                                                       inchandler( nullptr )
       {
       }
 
@@ -71,12 +71,9 @@ namespace XrdCl
       inline void Reset()
       {
         readstage = ReadStart;
-        if( inchandler.second ) // TODO
-          incmsg.reset();
-        else
-          incmsg.release();
+        incmsg.reset();
         incmsgsize = 0;
-        inchandler = std::make_pair( nullptr, false );
+        inchandler = nullptr;
       }
 
       //------------------------------------------------------------------------
@@ -96,7 +93,7 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadStart:
             {
-              incmsg.reset( new Message() );
+              incmsg = std::make_shared<Message>();
               //----------------------------------------------------------------
               // The next step is to read the header
               //----------------------------------------------------------------
@@ -108,16 +105,16 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadHeader:
             {
-              XRootDStatus st = xrdTransport.GetHeader( incmsg.get(), &socket );
+              XRootDStatus st = xrdTransport.GetHeader( *incmsg, &socket );
               if( !st.IsOK() || st.code == suRetry ) return st;
 
 
               log->Dump( AsyncSockMsg, "[%s] Received message header for 0x%x size: %d",
                         strmname.c_str(), incmsg.get(), incmsg->GetCursor() );
               incmsgsize = incmsg->GetCursor();
-              inchandler = strm.InstallIncHandler( incmsg.get(), substrmnb );
+              inchandler = strm.InstallIncHandler( incmsg, substrmnb );
 
-              if( inchandler.first )
+              if( inchandler )
               {
                 log->Dump( AsyncSockMsg, "[%s] Will use the raw handler to read body "
                            "of message 0x%x", strmname.c_str(), incmsg.get() );
@@ -140,7 +137,7 @@ namespace XrdCl
             case ReadRawData:
             {
               uint32_t bytesRead = 0;
-              XRootDStatus st = inchandler.first->ReadMessageBody( incmsg.get(), &socket, bytesRead );
+              XRootDStatus st = inchandler->ReadMessageBody( incmsg.get(), &socket, bytesRead );
               if( !st.IsOK() ) return st;
               incmsgsize += bytesRead;
               if( st.code == suRetry ) return st;
@@ -155,24 +152,23 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadMsgBody:
             {
-              XRootDStatus st = xrdTransport.GetBody( incmsg.get(), &socket );
+              XRootDStatus st = xrdTransport.GetBody( *incmsg, &socket );
               if( !st.IsOK() || st.code == suRetry ) return st;
               incmsgsize = incmsg->GetCursor();
 
               //----------------------------------------------------------------
               // Now check if there are some additional raw data to be read
               //----------------------------------------------------------------
-              if( !inchandler.first )
+              if( !inchandler )
               {
-                uint16_t action = strm.InspectStatusRsp( incmsg.get(), substrmnb,
-                                                         inchandler.first );
+                uint16_t action = strm.InspectStatusRsp( *incmsg, substrmnb,
+                                                         inchandler );
 
                 if( action & IncomingMsgHandler::Corrupted )
                   return XRootDStatus( stError, errCorruptedHeader );
 
                 if( action & IncomingMsgHandler::Raw )
                 {
-                  inchandler.second = true;
                   //------------------------------------------------------------
                   // The next step is to read the raw data
                   //------------------------------------------------------------
@@ -205,7 +201,7 @@ namespace XrdCl
               log->Dump( AsyncSockMsg, "[%s] Received message 0x%x of %d bytes",
                          strmname.c_str(), incmsg.get(), incmsgsize );
 
-              strm.OnIncoming( substrmnb, incmsg.release(), incmsgsize );
+              strm.OnIncoming( substrmnb, std::move( incmsg ), incmsgsize );
             }
           }
 
@@ -250,9 +246,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // The internal state of the the reader
       //------------------------------------------------------------------------
-      std::unique_ptr<Message>             incmsg;
-      uint32_t                             incmsgsize;
-      std::pair<IncomingMsgHandler*, bool> inchandler; //< true means the handler owns the server response
+      std::shared_ptr<Message>  incmsg; //< the ownership is shared with MsgHandler
+      uint32_t                  incmsgsize;
+      IncomingMsgHandler       *inchandler;
 
   };
 
