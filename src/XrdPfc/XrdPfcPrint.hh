@@ -30,18 +30,24 @@ public:
    //------------------------------------------------------------------------
    //! Constructor.
    //------------------------------------------------------------------------
-   Print(XrdOss* oss, bool v, const char* path);
+   Print(XrdOss* oss, bool v, bool j, const char* path);
 
 private:
    XrdOss*     m_oss;      //! file system
    XrdOucEnv   m_env;      //! env used by file system
    bool        m_verbose;  //! print each block
+   bool        m_json;     //! print in json format
    const char* m_ossUser;  //! file system user
 
    //---------------------------------------------------------------------
    //! Check file ends with *.cinfo suffix
    //---------------------------------------------------------------------
    bool isInfoFile(const char* path);
+
+   //---------------------------------------------------------------------
+   //! Print information in meta-data file in json format
+   //---------------------------------------------------------------------
+   void printFileJson(const std::string& path);
 
    //---------------------------------------------------------------------
    //! Print information in meta-data file
@@ -51,7 +57,7 @@ private:
    //---------------------------------------------------------------------
    //! Print information in meta-data file recursivly
    //---------------------------------------------------------------------
-   void printDir(XrdOssDF* iOssDF, const std::string& path);
+   void printDir(XrdOssDF* iOssDF, const std::string& path, bool m_json);
 };
 }
 
