@@ -100,6 +100,7 @@ namespace XrdCl
   const uint16_t errNotFound             = 304;
   const uint16_t errCheckSumError        = 305;
   const uint16_t errRedirectLimit        = 306;
+  const uint16_t errCorruptedHeader      = 307;
 
   const uint16_t errErrorResponse        = 400;
   const uint16_t errRedirect             = 401;
