@@ -75,7 +75,7 @@ namespace
       //------------------------------------------------------------------------
       //! Reexamine the incoming message, and decide on the action to be taken
       //------------------------------------------------------------------------
-      virtual uint16_t InspectStatusRsp( XrdCl::Message &msg )
+      virtual uint16_t InspectStatusRsp()
       {
         return 0;
       }

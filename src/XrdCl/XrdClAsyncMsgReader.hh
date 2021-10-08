@@ -161,7 +161,7 @@ namespace XrdCl
               //----------------------------------------------------------------
               if( !inchandler )
               {
-                uint16_t action = strm.InspectStatusRsp( *incmsg, substrmnb,
+                uint16_t action = strm.InspectStatusRsp( substrmnb,
                                                          inchandler );
 
                 if( action & IncomingMsgHandler::Corrupted )
