@@ -130,7 +130,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t InspectStatusRsp( Message &msg ) = 0;
+      virtual uint16_t InspectStatusRsp() = 0;
 
       //------------------------------------------------------------------------
       //! Get handler sid

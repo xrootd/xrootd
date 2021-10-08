@@ -324,10 +324,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Reexamine the incoming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
-  uint16_t XRootDMsgHandler::InspectStatusRsp( Message &msg )
+  uint16_t XRootDMsgHandler::InspectStatusRsp()
   {
     Log *log = DefaultEnv::GetLog();
-    ServerResponse *rsp = (ServerResponse *)msg.GetBuffer();
+    ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
 
     //--------------------------------------------------------------------------
     // Additional action is only required for kXR_status
@@ -337,7 +337,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Ignore malformed status response
     //--------------------------------------------------------------------------
-    if( msg.GetSize() < sizeof( ServerResponseStatus ) )
+    if( pResponse->GetSize() < sizeof( ServerResponseStatus ) )
       return Ignore;
 
     ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
@@ -347,7 +347,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pRspStatusBodyUnMarshaled )
     {
-      XRootDStatus st = XRootDTransport::UnMarshalStatusBody( msg, reqId );
+      XRootDStatus st = XRootDTransport::UnMarshalStatusBody( *pResponse, reqId );
 
       if( !st.IsOK() && st.code == errDataError )
       {
@@ -370,7 +370,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Common handling for partial results
     //--------------------------------------------------------------------------
-    ServerResponseStatus *rspst   = (ServerResponseStatus*)msg.GetBuffer();
+    ServerResponseStatus *rspst   = (ServerResponseStatus*)pResponse->GetBuffer();
     if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
     {
       pPartialResps.push_back( std::move( pResponse ) );
@@ -407,12 +407,12 @@ namespace XrdCl
       // send some additional data pointing to the pages that need to be
       // retransmitted
       if( size_t( sizeof( ServerResponseHeader ) + rspst->hdr.dlen + rspst->bdy.dlen ) >
-          msg.GetCursor() )
+        pResponse->GetCursor() )
         action |= More;
       // if we already have this data we need to unmarshal it
       else if( !pRspPgWrtRetrnsmReqUnMarshalled )
       {
-        XRootDStatus st = XRootDTransport::UnMarchalStatusCSE( msg );
+        XRootDStatus st = XRootDTransport::UnMarchalStatusCSE( *pResponse );
         if( !st.IsOK() && st.code == errDataError )
         {
           log->Error( XRootDMsg, "[%s] %s", pUrl.GetHostId().c_str(),

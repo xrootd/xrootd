@@ -1115,14 +1115,13 @@ namespace XrdCl
   //!
   //! @return : a IncomingMsgHandler in case we need to read out raw data
   //----------------------------------------------------------------------------
-  uint16_t Stream::InspectStatusRsp( Message             &msg,
-                                     uint16_t             stream,
+  uint16_t Stream::InspectStatusRsp( uint16_t             stream,
                                      IncomingMsgHandler *&incHandler )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
     if( !mh.handler ) return false;
 
-    uint16_t action = mh.handler->InspectStatusRsp( msg );
+    uint16_t action = mh.handler->InspectStatusRsp();
     mh.action |= action;
 
     if( action & IncomingMsgHandler::RemoveHandler )
