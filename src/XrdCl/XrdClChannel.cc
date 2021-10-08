@@ -62,24 +62,26 @@ namespace
       //------------------------------------------------------------------------
       // Message handler
       //------------------------------------------------------------------------
-      virtual uint16_t Examine( XrdCl::Message *msg )
+      virtual uint16_t Examine( std::shared_ptr<XrdCl::Message> &msg )
       {
         if( pFilter->Filter( msg ) )
+        {
+          pMsg = msg;
           return Take | RemoveHandler;
+        }
         return Ignore;
       }
 
       //------------------------------------------------------------------------
       //! Reexamine the incoming message, and decide on the action to be taken
       //------------------------------------------------------------------------
-      virtual uint16_t InspectStatusRsp( XrdCl::Message *msg )
+      virtual uint16_t InspectStatusRsp( XrdCl::Message &msg )
       {
         return 0;
       }
 
-      virtual void Process( XrdCl::Message *msg )
+      virtual void Process()
       {
-        pMsg = msg;
         pSem->Post();
       }
 
@@ -110,7 +112,7 @@ namespace
       //------------------------------------------------------------------------
       XrdCl::Message *GetMessage()
       {
-        return pMsg;
+        return pMsg.get();
       }
 
       //------------------------------------------------------------------------
@@ -128,10 +130,10 @@ namespace
       FilterHandler(const FilterHandler &other);
       FilterHandler &operator = (const FilterHandler &other);
 
-      XrdSysSemaphore      *pSem;
-      XrdCl::MessageFilter *pFilter;
-      XrdCl::Message       *pMsg;
-      XrdCl::XRootDStatus   pStatus;
+      XrdSysSemaphore                 *pSem;
+      XrdCl::MessageFilter            *pFilter;
+      std::shared_ptr<XrdCl::Message>  pMsg;
+      XrdCl::XRootDStatus              pStatus;
   };
 
   //----------------------------------------------------------------------------

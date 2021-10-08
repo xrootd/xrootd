@@ -21,6 +21,7 @@
 
 #include <XrdSys/XrdSysPthread.hh>
 #include <map>
+#include <memory>
 #include <utility>
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
@@ -38,7 +39,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Add a fully reconstructed message to the queue
       //------------------------------------------------------------------------
-      bool AddMessage( Message *msg );
+      bool AddMessage( std::shared_ptr<Message> msg );
 
       //------------------------------------------------------------------------
       //! Add a listener that should be notified about incoming messages
@@ -58,9 +59,9 @@ namespace XrdCl
       //!
       //! @return handler or 0 if none is interested
       //------------------------------------------------------------------------
-      IncomingMsgHandler *GetHandlerForMessage( Message  *msg,
-                                                time_t   &expires,
-                                                uint16_t &action );
+      IncomingMsgHandler *GetHandlerForMessage( std::shared_ptr<Message> &msg,
+                                                time_t                   &expires,
+                                                uint16_t                 &action );
 
       //------------------------------------------------------------------------
       //! Re-insert the handler without scanning the cached messages
@@ -95,11 +96,11 @@ namespace XrdCl
       //!
       //! @return true if message discarded, otherwise false
       //------------------------------------------------------------------------
-      bool DiscardMessage(Message* msg, uint16_t& sid) const;
+      bool DiscardMessage(Message& msg, uint16_t& sid) const;
 
       typedef std::pair<IncomingMsgHandler *, time_t> HandlerAndExpire;
       typedef std::map<uint16_t, HandlerAndExpire> HandlerMap;
-      typedef std::map<uint16_t, Message*> MessageMap;
+      typedef std::map<uint16_t, std::shared_ptr<Message>> MessageMap;
       MessageMap pMessages;
       HandlerMap pHandlers;
       XrdSysRecMutex pMutex;

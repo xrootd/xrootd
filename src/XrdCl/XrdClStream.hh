@@ -33,6 +33,7 @@
 #include <list>
 #include <vector>
 #include <functional>
+#include <memory>
 
 namespace XrdCl
 {
@@ -104,8 +105,6 @@ namespace XrdCl
       void SetIncomingQueue( InQueue *incomingQueue )
       {
         pIncomingQueue = incomingQueue;
-        delete pQueueIncMsgJob;
-        pQueueIncMsgJob = new QueueIncMsgJob( incomingQueue );
       }
 
       //------------------------------------------------------------------------
@@ -180,7 +179,7 @@ namespace XrdCl
       //! Call back when a message has been reconstructed
       //------------------------------------------------------------------------
       void OnIncoming( uint16_t  subStream,
-                       Message  *msg,
+                       std::shared_ptr<Message> msg,
                        uint32_t  bytesReceived );
 
       //------------------------------------------------------------------------
@@ -246,15 +245,15 @@ namespace XrdCl
       //! @param stream stream concerned
       //! @return       a pair containing the handler and ownership flag
       //------------------------------------------------------------------------
-      std::pair<IncomingMsgHandler *, bool>
-        InstallIncHandler( Message *msg, uint16_t stream );
+      IncomingMsgHandler*
+        InstallIncHandler( std::shared_ptr<Message> &msg, uint16_t stream );
 
       //------------------------------------------------------------------------
       //! In case the message is a kXR_status response it needs further attention
       //!
       //! @return : a IncomingMsgHandler in case we need to read out raw data
       //------------------------------------------------------------------------
-      uint16_t InspectStatusRsp( Message *msg, uint16_t stream, IncomingMsgHandler *&incHandler );
+      uint16_t InspectStatusRsp( Message &msg, uint16_t stream, IncomingMsgHandler *&incHandler );
 
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
@@ -275,7 +274,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Check if message is a partial response
       //------------------------------------------------------------------------
-      static bool IsPartial( Message *msg );
+      static bool IsPartial( Message &msg );
 
       //------------------------------------------------------------------------
       //! Check if addresses contains given address
@@ -298,15 +297,15 @@ namespace XrdCl
       class QueueIncMsgJob: public Job
       {
         public:
-          QueueIncMsgJob( InQueue *queue ): pQueue( queue ) {};
+          QueueIncMsgJob( InQueue &queue, std::shared_ptr<Message> msg ): pQueue( queue ), msg( std::move( msg ) ) {};
           virtual ~QueueIncMsgJob() {};
-          virtual void Run( void *arg )
+          virtual void Run( void* )
           {
-            Message *msg = (Message *)arg;
-            pQueue->AddMessage( msg );
+            pQueue.AddMessage( std::move( msg ) );
           }
         private:
-          InQueue *pQueue;
+          InQueue &pQueue;
+          std::shared_ptr<Message> msg;
       };
 
       //------------------------------------------------------------------------
@@ -317,10 +316,9 @@ namespace XrdCl
         public:
           HandleIncMsgJob( IncomingMsgHandler *handler ): pHandler( handler ) {};
           virtual ~HandleIncMsgJob() {};
-          virtual void Run( void *arg )
+          virtual void Run( void* )
           {
-            Message *msg = (Message *)arg;
-            pHandler->Process( msg );
+            pHandler->Process();
             delete this;
           }
         private:
@@ -342,7 +340,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Send close after an open request timed out
       //------------------------------------------------------------------------
-      XRootDStatus RequestClose( Message  *resp );
+      XRootDStatus RequestClose( Message  &resp );
 
       typedef std::vector<SubStreamData*> SubStreamList;
 
@@ -371,11 +369,6 @@ namespace XrdCl
       Utils::AddressType             pAddressType;
       ChannelHandlerList             pChannelEvHandlers;
       uint64_t                       pSessionId;
-
-      //------------------------------------------------------------------------
-      // Jobs
-      //------------------------------------------------------------------------
-      QueueIncMsgJob                *pQueueIncMsgJob;
 
       //------------------------------------------------------------------------
       // Monitoring info

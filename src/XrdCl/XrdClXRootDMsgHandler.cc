@@ -104,7 +104,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Examine an incoming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
-  uint16_t XRootDMsgHandler::Examine( Message *msg )
+  uint16_t XRootDMsgHandler::Examine( std::shared_ptr<Message> &msg )
   {
     //--------------------------------------------------------------------------
     // if the MsgHandler is already being used to process another request
@@ -113,7 +113,7 @@ namespace XrdCl
     if( pOksofarAsAnswer )
     {
       XrdSysCondVarHelper lck( pCV );
-      while( pResponse != 0 ) pCV.Wait();
+      while( pResponse ) pCV.Wait();
     }
     else
     {
@@ -205,7 +205,7 @@ namespace XrdCl
                    "message %s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
-        pResponse = 0;
+        pResponse.reset();
         return Take | Ignore; // This must be handled synchronously!
       }
 
@@ -254,8 +254,7 @@ namespace XrdCl
 
         if( !pOksofarAsAnswer )
         {
-          pResponse = 0;
-          pPartialResps.push_back( msg );
+          pPartialResps.emplace_back( std::move( pResponse ) );
         }
 
         //----------------------------------------------------------------------
@@ -325,10 +324,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Reexamine the incoming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
-  uint16_t XRootDMsgHandler::InspectStatusRsp( Message *msg )
+  uint16_t XRootDMsgHandler::InspectStatusRsp( Message &msg )
   {
     Log *log = DefaultEnv::GetLog();
-    ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+    ServerResponse *rsp = (ServerResponse *)msg.GetBuffer();
 
     //--------------------------------------------------------------------------
     // Additional action is only required for kXR_status
@@ -338,7 +337,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Ignore malformed status response
     //--------------------------------------------------------------------------
-    if( msg->GetSize() < sizeof( ServerResponseStatus ) )
+    if( msg.GetSize() < sizeof( ServerResponseStatus ) )
       return Ignore;
 
     ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
@@ -371,11 +370,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Common handling for partial results
     //--------------------------------------------------------------------------
-    ServerResponseStatus *rspst   = (ServerResponseStatus*)msg->GetBuffer();
+    ServerResponseStatus *rspst   = (ServerResponseStatus*)msg.GetBuffer();
     if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
     {
-      pResponse = 0;
-      pPartialResps.push_back( msg );
+      pPartialResps.push_back( std::move( pResponse ) );
     }
 
     //--------------------------------------------------------------------------
@@ -409,7 +407,7 @@ namespace XrdCl
       // send some additional data pointing to the pages that need to be
       // retransmitted
       if( size_t( sizeof( ServerResponseHeader ) + rspst->hdr.dlen + rspst->bdy.dlen ) >
-          msg->GetCursor() )
+          msg.GetCursor() )
         action |= More;
       // if we already have this data we need to unmarshal it
       else if( !pRspPgWrtRetrnsmReqUnMarshalled )
@@ -449,11 +447,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Process the message if it was "taken" by the examine action
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::Process( Message *msg )
+  void XRootDMsgHandler::Process()
   {
     Log *log = DefaultEnv::GetLog();
 
-    ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+    ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
 
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
 
@@ -466,12 +464,11 @@ namespace XrdCl
                  "processing it", pUrl.GetHostId().c_str(),
                  pRequest->GetDescription().c_str() );
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
-      embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
-      std::unique_ptr<Message> msgPtr( msg );
-      pResponse = embededMsg; // this can never happen for oksofars
+      embededMsg->Append( pResponse->GetBuffer( 16 ), rsp->hdr.dlen-8 );
+      pResponse.reset( embededMsg ); // this can never happen for oksofars
 
       // we need to unmarshall the header by hand
-      XRootDTransport::UnMarshallHeader( embededMsg );
+      XRootDTransport::UnMarshallHeader( *embededMsg );
 
       //------------------------------------------------------------------------
       // Check if the dlen field of the embedded message is consistent with
@@ -490,7 +487,7 @@ namespace XrdCl
         return;
       }
 
-      Process( embededMsg );
+      Process();
       return;
     }
 
@@ -518,7 +515,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Process the message
     //--------------------------------------------------------------------------
-    Status st = XRootDTransport::UnMarshallBody( msg, req->header.requestid );
+    Status st = XRootDTransport::UnMarshallBody( pResponse.get(), req->header.requestid );
     if( !st.IsOK() )
     {
       pStatus = Status( stFatal, errInvalidMessage );
@@ -589,8 +586,7 @@ namespace XrdCl
                    errmsg );
         delete [] errmsg;
 
-        HandleError( Status(stError, errErrorResponse, rsp->body.error.errnum),
-                     pResponse );
+        HandleError( Status(stError, errErrorResponse, rsp->body.error.errnum) );
         return;
       }
 
@@ -599,9 +595,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_redirect:
       {
-        std::unique_ptr<Message> msgPtr( pResponse );
-        pResponse = 0;
-
         if( rsp->hdr.dlen <= 4 )
         {
           log->Error( XRootDMsg, "[%s] Got invalid redirect response.",
@@ -794,7 +787,6 @@ namespace XrdCl
         if( pRedirectAsAnswer )
         {
           pStatus   = Status( stError, errRedirect );
-          pResponse = msgPtr.release();
           HandleResponse();
           return;
         }
@@ -830,8 +822,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_wait:
       {
-        std::unique_ptr<Message> msgPtr( pResponse );
-        pResponse = 0;
         uint32_t waitSeconds = 0;
 
         if( rsp->hdr.dlen >= 4 )
@@ -858,7 +848,7 @@ namespace XrdCl
         // We need a special case if the data node comes from metalink
         // redirector. In this case it might make more sense to try the
         // next entry in the Metalink than wait.
-        if( OmitWait( pRequest, pLoadBalancer.url ) )
+        if( OmitWait( *pRequest, pLoadBalancer.url ) )
         {
           int maxWait = DefaultMaxMetalinkWait;
           DefaultEnv::GetEnv()->GetInt( "MaxMetalinkWait", maxWait );
@@ -916,9 +906,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_waitresp:
       {
-        std::unique_ptr<Message> msgPtr( pResponse );
-        pResponse = 0;
-
         if( rsp->hdr.dlen < 4 )
         {
           log->Error( XRootDMsg, "[%s] Got invalid waitresp response.",
@@ -940,8 +927,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       default:
       {
-        std::unique_ptr<Message> msgPtr( pResponse );
-        pResponse = 0;
         log->Dump( XRootDMsg, "[%s] Got unrecognized response %d to "
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->hdr.status, pRequest->GetDescription().c_str() );
@@ -970,7 +955,7 @@ namespace XrdCl
     if( pTimeoutFence.load( std::memory_order_relaxed ) )
       return 0;
 
-    HandleError( status, 0 );
+    HandleError( status );
     return RemoveHandler;
   }
 
@@ -1449,7 +1434,7 @@ namespace XrdCl
     log->Error( XRootDMsg, "[%s] Impossible to send message %s. Trying to "
                 "recover.", pUrl.GetHostId().c_str(),
                 message->GetDescription().c_str() );
-    HandleError( status, 0 );
+    HandleError( status );
   }
 
   //----------------------------------------------------------------------------
@@ -1714,8 +1699,7 @@ namespace XrdCl
     else
     {
       XrdSysCondVarHelper lck( pCV );
-      delete pResponse;
-      pResponse = 0;
+      pResponse.reset();
       pTimeoutFence.store( false, std::memory_order_relaxed );
       pCV.Broadcast();
     }
@@ -2557,10 +2541,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     for( uint32_t i = 0; i < pPartialResps.size(); ++i )
       if( pPartialResps[i]->GetSize() != 8 )
-        UnPackReadVResponse( pPartialResps[i] );
+        UnPackReadVResponse( *pPartialResps[i] );
 
     if( pResponse->GetSize() != 8 )
-      UnPackReadVResponse( pResponse );
+      UnPackReadVResponse( *pResponse );
 
     //--------------------------------------------------------------------------
     // See if all the chunks are OK and put them in the response
@@ -2584,7 +2568,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Unpack a single readv response
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::UnPackReadVResponse( Message *msg )
+  Status XRootDMsgHandler::UnPackReadVResponse( Message &msg )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( XRootDMsg, "[%s] Handling response to %s: unpacking "
@@ -2592,9 +2576,9 @@ namespace XrdCl
                pRequest->GetDescription().c_str() );
 
     uint32_t  offset       = 0;
-    uint32_t  len          = msg->GetSize()-8;
+    uint32_t  len          = msg.GetSize()-8;
     uint32_t  currentChunk = 0;
-    char     *cursor       = msg->GetBuffer(8);
+    char     *cursor       = msg.GetBuffer(8);
 
     while( 1 )
     {
@@ -2668,7 +2652,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Recover error
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::HandleError( XRootDStatus status, Message *msg )
+  void XRootDMsgHandler::HandleError( XRootDStatus status )
   {
     //--------------------------------------------------------------------------
     // If there was no error then do nothing
@@ -2717,8 +2701,6 @@ namespace XrdCl
         UpdateTriedCGI(status.errNo);
         if( status.errNo == kXR_NotFound || status.errNo == kXR_Overloaded )
           SwitchOnRefreshFlag();
-        delete pResponse;
-        pResponse = 0;
         HandleError( RetryAtServer( pLoadBalancer.url, RedirectEntry::EntryRetry ) );
         return;
       }
@@ -2761,7 +2743,7 @@ namespace XrdCl
     }
     else
     {
-      if( !status.IsFatal() && IsRetriable( pRequest ) )
+      if( !status.IsFatal() && IsRetriable() )
       {
         log->Info( XRootDMsg, "[%s] Retrying request: %s.",
                    pUrl.GetHostId().c_str(),
@@ -2782,6 +2764,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RetryAtServer( const URL &url, RedirectEntry::Type entryType )
   {
+    pResponse.reset();
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
@@ -2989,7 +2972,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Check if it is OK to retry this request
   //------------------------------------------------------------------------
-  bool XRootDMsgHandler::IsRetriable( Message *request )
+  bool XRootDMsgHandler::IsRetriable()
   {
     std::string value;
     DefaultEnv::GetEnv()->GetString( "OpenRecovery", value );
@@ -3021,7 +3004,7 @@ namespace XrdCl
   // Check if for given request and Metalink redirector  it is OK to omit
   // the kXR_wait and proceed straight to the next entry in the Metalink file
   //------------------------------------------------------------------------
-  bool XRootDMsgHandler::OmitWait( Message *request, const URL &url )
+  bool XRootDMsgHandler::OmitWait( Message &request, const URL &url )
   {
     // we can omit kXR_wait only if we have a Metalink redirector
     if( !url.IsMetalink() )
@@ -3029,7 +3012,7 @@ namespace XrdCl
 
     // we can omit kXR_wait only for requests that can be redirected
     // (kXR_read is the only stateful request that can be redirected)
-    ClientRequest *req = reinterpret_cast<ClientRequest*>( request->GetBuffer() );
+    ClientRequest *req = reinterpret_cast<ClientRequest*>( request.GetBuffer() );
     if( pStateful && req->header.requestid != kXR_read )
       return false;
 

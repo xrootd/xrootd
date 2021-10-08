@@ -29,6 +29,7 @@
 
 #include <cstdint>
 #include <ctime>
+#include <memory>
 
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClAnyObject.hh"
@@ -55,7 +56,7 @@ namespace XrdCl
       //! Examine the message and return true if the message should be picked
       //! up (usually removed from the queue and to the caller)
       //------------------------------------------------------------------------
-      virtual bool Filter( const Message *msg ) = 0;
+      virtual bool Filter( const std::shared_ptr<Message> msg ) = 0;
 
       //------------------------------------------------------------------------
       //! Get sid of the filter
@@ -117,7 +118,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t Examine( Message *msg ) = 0;
+      virtual uint16_t Examine( std::shared_ptr<Message> &msg ) = 0;
 
       //------------------------------------------------------------------------
       //! Reexamine the incoming message, and decide on the action to be taken
@@ -129,7 +130,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint16_t InspectStatusRsp( Message *msg ) = 0;
+      virtual uint16_t InspectStatusRsp( Message &msg ) = 0;
 
       //------------------------------------------------------------------------
       //! Get handler sid
@@ -143,7 +144,7 @@ namespace XrdCl
       //!
       //! @param msg the message to be processed
       //------------------------------------------------------------------------
-      virtual void Process( Message *msg ) { (void)msg; };
+      virtual void Process() {};
 
       //------------------------------------------------------------------------
       //! Read message body directly from a socket - called if Examine returns
@@ -352,7 +353,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual XRootDStatus GetHeader( Message *message, Socket *socket ) = 0;
+      virtual XRootDStatus GetHeader( Message &message, Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Read the message body from the socket, the socket is non-blocking,
@@ -364,7 +365,7 @@ namespace XrdCl
       //!                stOK & suRetry if more data is needed
       //!                stError on failure
       //------------------------------------------------------------------------
-      virtual XRootDStatus GetBody( Message *message, Socket *socket ) = 0;
+      virtual XRootDStatus GetBody( Message &message, Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Initialize channel
@@ -446,7 +447,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual uint32_t MessageReceived( Message   *msg,
+      virtual uint32_t MessageReceived( Message   &msg,
                                         uint16_t   subStream,
                                         AnyObject &channelData ) = 0;
 

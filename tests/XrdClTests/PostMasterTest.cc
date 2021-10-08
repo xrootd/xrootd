@@ -88,7 +88,7 @@ class XrdFilter: public XrdCl::MessageFilter
       streamId[1] = id1;
     }
 
-    virtual bool Filter( const XrdCl::Message *msg )
+    virtual bool Filter( const std::shared_ptr<XrdCl::Message> msg )
     {
       ServerResponse *resp = (ServerResponse *)msg->GetBuffer();
       if( resp->hdr.streamid[0] == streamId[0] &&

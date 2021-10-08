@@ -28,27 +28,27 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Filter messages
   //----------------------------------------------------------------------------
-  bool InQueue::DiscardMessage(Message* msg, uint16_t& sid) const
+  bool InQueue::DiscardMessage( Message& msg, uint16_t& sid) const
   {
-    if( msg->GetSize() < 8 )
+    if( msg.GetSize() < 8 )
       return true;
 
-    ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+    ServerResponse *rsp = (ServerResponse *)msg.GetBuffer();
 
     // We got an async message
     if( rsp->hdr.status == kXR_attn )
     {
-      if( msg->GetSize() < 12 )
-	return true;
+      if( msg.GetSize() < 12 )
+        return true;
 
       // We only care about async responses
       if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
-	return true;
+        return true;
 
-      if( msg->GetSize() < 24 )
-	return true;
+      if( msg.GetSize() < 24 )
+        return true;
 
-      ServerResponse *embRsp = (ServerResponse*)msg->GetBuffer(16);
+      ServerResponse *embRsp = (ServerResponse*)msg.GetBuffer(16);
       sid = ((uint16_t)embRsp->hdr.streamid[1] << 8) | (uint16_t)embRsp->hdr.streamid[0];
     }
     else
@@ -62,13 +62,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Add a message to the queue
   //----------------------------------------------------------------------------
-  bool InQueue::AddMessage( Message *msg )
+  bool InQueue::AddMessage( std::shared_ptr<Message> msg )
   {
     uint16_t            action  = 0;
     IncomingMsgHandler* handler = 0;
     uint16_t msgSid = 0;
 
-    if (DiscardMessage(msg, msgSid))
+    if (DiscardMessage(*msg, msgSid))
     {
       return true;
     }
@@ -92,7 +92,7 @@ namespace XrdCl
     pMutex.UnLock();
 
     if( handler && !(action & IncomingMsgHandler::NoProcess) )
-      handler->Process( msg );
+      handler->Process();
 
     return true;
   }
@@ -114,7 +114,7 @@ namespace XrdCl
       if( action & IncomingMsgHandler::Take )
       {
         if( !(action & IncomingMsgHandler::NoProcess ) )
-          handler->Process( it->second );
+          handler->Process();
 
         pMessages.erase( it );
       }
@@ -128,16 +128,16 @@ namespace XrdCl
   // Get a message handler interested in receiving message whose header
   // is stored in msg
   //----------------------------------------------------------------------------
-  IncomingMsgHandler *InQueue::GetHandlerForMessage( Message  *msg,
-						     time_t   &expires,
-						     uint16_t &action )
+  IncomingMsgHandler *InQueue::GetHandlerForMessage( std::shared_ptr<Message> &msg,
+						                                         time_t                   &expires,
+						                                         uint16_t                 &action )
   {
     time_t   exp = 0;
     uint16_t act = 0;
     uint16_t msgSid = 0;
     IncomingMsgHandler* handler = 0;
 
-    if (DiscardMessage(msg, msgSid))
+    if (DiscardMessage(*msg, msgSid))
     {
       return handler;
     }

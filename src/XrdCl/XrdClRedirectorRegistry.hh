@@ -33,7 +33,7 @@ class RedirectJob: public Job
     //------------------------------------------------------------------------
     //! Constructor
     //------------------------------------------------------------------------
-    RedirectJob( IncomingMsgHandler *handler ) : pHandler( handler )
+    RedirectJob( IncomingMsgHandler *handler, std::shared_ptr<Message> msg ) : pHandler( handler ), msg( msg )
     {
     }
 
@@ -51,6 +51,7 @@ class RedirectJob: public Job
 
   private:
     IncomingMsgHandler *pHandler;
+    std::shared_ptr<Message> msg;
 };
 
 //--------------------------------------------------------------------------------
@@ -109,7 +110,7 @@ class VirtualRedirector
     //----------------------------------------------------------------------------
     //! Count how many replicas do we have left to try for given request
     //----------------------------------------------------------------------------
-    virtual int Count( Message *req ) const = 0;
+    virtual int Count( Message &req ) const = 0;
 };
 
 //--------------------------------------------------------------------------------

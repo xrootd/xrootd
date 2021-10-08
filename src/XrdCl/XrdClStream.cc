@@ -122,7 +122,6 @@ namespace XrdCl
     pConnectionInitTime( 0 ),
     pAddressType( Utils::IPAll ),
     pSessionId( 0 ),
-    pQueueIncMsgJob(0),
     pBytesSent( 0 ),
     pBytesReceived( 0 )
   {
@@ -168,8 +167,6 @@ namespace XrdCl
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       delete *it;
-
-    delete pQueueIncMsgJob;
   }
 
   //----------------------------------------------------------------------------
@@ -430,9 +427,9 @@ namespace
 
 namespace XrdCl
 {
-  XRootDStatus Stream::RequestClose( Message *response )
+  XRootDStatus Stream::RequestClose( Message &response )
   {
-    ServerResponse *rsp = reinterpret_cast<ServerResponse*>( response->GetBuffer() );
+    ServerResponse *rsp = reinterpret_cast<ServerResponse*>( response.GetBuffer() );
     if( rsp->hdr.dlen < 4 ) return XRootDStatus( stError );
     Message            *msg;
     ClientCloseRequest *req;
@@ -453,15 +450,15 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Check if message is a partial response
   //------------------------------------------------------------------------
-  bool Stream::IsPartial( Message *msg )
+  bool Stream::IsPartial( Message &msg )
   {
-    ServerResponseHeader *rsphdr = (ServerResponseHeader*)msg->GetBuffer();
+    ServerResponseHeader *rsphdr = (ServerResponseHeader*)msg.GetBuffer();
     if( rsphdr->status == kXR_oksofar )
       return true;
 
     if( rsphdr->status == kXR_status )
     {
-      ServerResponseStatus *rspst = (ServerResponseStatus*)msg->GetBuffer();
+      ServerResponseStatus *rspst = (ServerResponseStatus*)msg.GetBuffer();
       if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
         return true;
     }
@@ -473,21 +470,20 @@ namespace XrdCl
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
   void Stream::OnIncoming( uint16_t subStream,
-                           Message  *msg,
+                           std::shared_ptr<Message>  msg,
                            uint32_t  bytesReceived )
   {
     msg->SetSessionId( pSessionId );
     pBytesReceived += bytesReceived;
 
-    uint32_t streamAction = pTransport->MessageReceived( msg, subStream,
+    uint32_t streamAction = pTransport->MessageReceived( *msg, subStream,
                                                          *pChannelData );
     if( streamAction & TransportHandler::DigestMsg )
       return;
 
     if( streamAction & TransportHandler::RequestClose )
     {
-      RequestClose( msg );
-      delete msg;
+      RequestClose( *msg );
       return;
     }
 
@@ -500,9 +496,10 @@ namespace XrdCl
     if( !mh.handler )
     {
       log->Dump( PostMasterMsg, "[%s] Queuing received message: 0x%x.",
-                 pStreamName.c_str(), msg );
+                 pStreamName.c_str(), msg.get() );
 
-      pJobManager->QueueJob( pQueueIncMsgJob, msg );
+      Job *job = new QueueIncMsgJob( *pIncomingQueue, std::move( msg ) );
+      pJobManager->QueueJob( job );
       return;
     }
 
@@ -510,7 +507,7 @@ namespace XrdCl
     // We have a handler, so we call the callback
     //--------------------------------------------------------------------------
     log->Dump( PostMasterMsg, "[%s] Handling received message: 0x%x.",
-               pStreamName.c_str(), msg );
+               pStreamName.c_str(), msg.get() );
 
     if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
       pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
@@ -521,22 +518,19 @@ namespace XrdCl
                  pStreamName.c_str(), msg->GetDescription().c_str() );
 
       // if we are handling partial response we have to take down the timeout fence
-      if( IsPartial( msg ) )
+      if( IsPartial( *msg ) )
       {
         XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( mh.handler );
         if( xrdHandler ) xrdHandler->PartialReceived();
       }
 
-      bool delit = ( mh.action & IncomingMsgHandler::Ignore );
       mh.Reset();
-      if (delit) delete msg;
-
       return;
     }
 
     Job *job = new HandleIncMsgJob( mh.handler );
     mh.Reset();
-    pJobManager->QueueJob( job, msg );
+    pJobManager->QueueJob( job );
   }
 
   //----------------------------------------------------------------------------
@@ -1099,8 +1093,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Install a incoming message handler
   //----------------------------------------------------------------------------
-  std::pair<IncomingMsgHandler *, bool>
-        Stream::InstallIncHandler( Message *msg, uint16_t stream )
+  IncomingMsgHandler*
+        Stream::InstallIncHandler( std::shared_ptr<Message> &msg, uint16_t stream )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
     if( !mh.handler )
@@ -1109,12 +1103,11 @@ namespace XrdCl
                                                          mh.action );
 
     if( !mh.handler )
-      return std::make_pair( (IncomingMsgHandler*)0, false );
+      return nullptr;
 
-    bool ownership = mh.action & IncomingMsgHandler::Take;
     if( mh.action & IncomingMsgHandler::Raw )
-      return std::make_pair( mh.handler, ownership );
-    return std::make_pair( (IncomingMsgHandler*)0, ownership );
+      return mh.handler;
+    return nullptr;
   }
 
   //----------------------------------------------------------------------------
@@ -1122,7 +1115,7 @@ namespace XrdCl
   //!
   //! @return : a IncomingMsgHandler in case we need to read out raw data
   //----------------------------------------------------------------------------
-  uint16_t Stream::InspectStatusRsp( Message             *msg,
+  uint16_t Stream::InspectStatusRsp( Message             &msg,
                                      uint16_t             stream,
                                      IncomingMsgHandler *&incHandler )
   {

@@ -282,37 +282,37 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read message header from socket
   //----------------------------------------------------------------------------
-  XRootDStatus XRootDTransport::GetHeader( Message *message, Socket *socket )
+  XRootDStatus XRootDTransport::GetHeader( Message &message, Socket *socket )
   {
     //--------------------------------------------------------------------------
     // A new message - allocate the space needed for the header
     //--------------------------------------------------------------------------
-    if( message->GetCursor() == 0 && message->GetSize() < 8 )
-      message->Allocate( 8 );
+    if( message.GetCursor() == 0 && message.GetSize() < 8 )
+      message.Allocate( 8 );
 
     //--------------------------------------------------------------------------
     // Read the message header
     //--------------------------------------------------------------------------
-    if( message->GetCursor() < 8 )
+    if( message.GetCursor() < 8 )
     {
-      size_t leftToBeRead = 8 - message->GetCursor();
+      size_t leftToBeRead = 8 - message.GetCursor();
       while( leftToBeRead )
       {
         int bytesRead = 0;
-        XRootDStatus status = socket->Read( message->GetBufferAtCursor(),
+        XRootDStatus status = socket->Read( message.GetBufferAtCursor(),
                                             leftToBeRead, bytesRead );
         if( !status.IsOK() || status.code == suRetry )
           return status;
 
         leftToBeRead -= bytesRead;
-        message->AdvanceCursor( bytesRead );
+        message.AdvanceCursor( bytesRead );
       }
       UnMarshallHeader( message );
 
-      uint32_t bodySize = *(uint32_t*)(message->GetBuffer(4));
+      uint32_t bodySize = *(uint32_t*)(message.GetBuffer(4));
       Log *log = DefaultEnv::GetLog();
       log->Dump( XRootDTransportMsg, "[msg: 0x%x] Expecting %d bytes of message "
-                 "body", message, bodySize );
+                 "body", &message, bodySize );
 
       return XRootDStatus( stOK, suDone );
     }
@@ -322,43 +322,43 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read message body from socket
   //----------------------------------------------------------------------------
-  XRootDStatus XRootDTransport::GetBody( Message *message, Socket *socket )
+  XRootDStatus XRootDTransport::GetBody( Message &message, Socket *socket )
   {
     //--------------------------------------------------------------------------
     // Retrieve the body
     //--------------------------------------------------------------------------
     size_t   leftToBeRead = 0;
     uint32_t bodySize = 0;
-    ServerResponseHeader* rsphdr = (ServerResponseHeader*)message->GetBuffer();
+    ServerResponseHeader* rsphdr = (ServerResponseHeader*)message.GetBuffer();
     if( rsphdr->status != kXR_status )
       bodySize = rsphdr->dlen;
     else
     {
       size_t stlen = sizeof( ServerResponseStatus ); // we read everything up to the offset
-      if( message->GetCursor() < stlen )
+      if( message.GetCursor() < stlen )
         bodySize = rsphdr->dlen;
       else
       {
-        ServerResponseStatus *rspst = (ServerResponseStatus*)message->GetBuffer();
+        ServerResponseStatus *rspst = (ServerResponseStatus*)message.GetBuffer();
         bodySize = rspst->hdr.dlen + rspst->bdy.dlen;
       }
 
     }
 
-    if( message->GetSize() < bodySize + 8 )
-      message->ReAllocate( bodySize + 8 );
+    if( message.GetSize() < bodySize + 8 )
+      message.ReAllocate( bodySize + 8 );
 
-    leftToBeRead = bodySize-(message->GetCursor()-8);
+    leftToBeRead = bodySize-(message.GetCursor()-8);
     while( leftToBeRead )
     {
       int bytesRead = 0;
-      XRootDStatus status = socket->Read( message->GetBufferAtCursor(), leftToBeRead, bytesRead );
+      XRootDStatus status = socket->Read( message.GetBufferAtCursor(), leftToBeRead, bytesRead );
 
       if( !status.IsOK() || status.code == suRetry )
         return status;
 
       leftToBeRead -= bytesRead;
-      message->AdvanceCursor( bytesRead );
+      message.AdvanceCursor( bytesRead );
     }
 
     return XRootDStatus( stOK, suDone );
@@ -1230,13 +1230,13 @@ namespace XrdCl
   //------------------------------------------------------------------------
   //! Unmarshall the body of the status response
   //------------------------------------------------------------------------
-  XRootDStatus XRootDTransport::UnMarshalStatusBody( Message *msg, uint16_t reqType )
+  XRootDStatus XRootDTransport::UnMarshalStatusBody( Message &msg, uint16_t reqType )
   {
     //--------------------------------------------------------------------------
     // Calculate the crc32c before the unmarshaling the body!
     //--------------------------------------------------------------------------
-    ServerResponseStatus *rspst   = (ServerResponseStatus*)msg->GetBuffer();
-    char   *buffer = msg->GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
+    ServerResponseStatus *rspst   = (ServerResponseStatus*)msg.GetBuffer();
+    char   *buffer = msg.GetBuffer( 8 + sizeof( rspst->bdy.crc32c ) );
     size_t  length = rspst->hdr.dlen - sizeof( rspst->bdy.crc32c );
     uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
 
@@ -1256,7 +1256,7 @@ namespace XrdCl
       }
     }
 
-    if( msg->GetSize() < stlen ) return XRootDStatus( stError, errInvalidMessage, 0,
+    if( msg.GetSize() < stlen ) return XRootDStatus( stError, errInvalidMessage, 0,
                                                       "kXR_status: invalid message size." );
 
     rspst->bdy.crc32c = ntohl( rspst->bdy.crc32c );
@@ -1266,14 +1266,14 @@ namespace XrdCl
     {
       case kXR_pgread:
       {
-        ServerResponseBody_pgRead *pgrdbdy = (ServerResponseBody_pgRead*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
+        ServerResponseBody_pgRead *pgrdbdy = (ServerResponseBody_pgRead*)msg.GetBuffer( sizeof( ServerResponseStatus ) );
         pgrdbdy->offset = ntohll( pgrdbdy->offset );
         break;
       }
 
       case kXR_pgwrite:
       {
-        ServerResponseBody_pgWrite *pgwrtbdy = (ServerResponseBody_pgWrite*)msg->GetBuffer( sizeof( ServerResponseStatus ) );
+        ServerResponseBody_pgWrite *pgwrtbdy = (ServerResponseBody_pgWrite*)msg.GetBuffer( sizeof( ServerResponseStatus ) );
         pgwrtbdy->offset = ntohll( pgwrtbdy->offset );
         break;
       }
@@ -1309,9 +1309,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Unmarshall the correction-segment of the status response for pgwrite
   //----------------------------------------------------------------------------
-  XRootDStatus XRootDTransport::UnMarchalStatusCSE( Message *msg )
+  XRootDStatus XRootDTransport::UnMarchalStatusCSE( Message &msg )
   {
-    ServerResponseV2 *rsp = (ServerResponseV2*)msg->GetBuffer();
+    ServerResponseV2 *rsp = (ServerResponseV2*)msg.GetBuffer();
     //--------------------------------------------------------------------------
     // If there's no additional data there's nothing to unmarshal
     //--------------------------------------------------------------------------
@@ -1326,10 +1326,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Calculate the crc32c for the additional data
     //--------------------------------------------------------------------------
-    ServerResponseBody_pgWrCSE *cse = (ServerResponseBody_pgWrCSE*)msg->GetBuffer( sizeof( ServerResponseV2 ) );
+    ServerResponseBody_pgWrCSE *cse = (ServerResponseBody_pgWrCSE*)msg.GetBuffer( sizeof( ServerResponseV2 ) );
     cse->cseCRC = ntohl( cse->cseCRC );
     size_t length = rsp->status.bdy.dlen - sizeof( uint32_t );
-    void*  buffer = msg->GetBuffer( sizeof( ServerResponseV2 ) + sizeof( uint32_t ) );
+    void*  buffer = msg.GetBuffer( sizeof( ServerResponseV2 ) + sizeof( uint32_t ) );
     uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
 
     //--------------------------------------------------------------------------
@@ -1346,7 +1346,7 @@ namespace XrdCl
 
     size_t pgcnt = ( rsp->status.bdy.dlen  - sizeof( ServerResponseBody_pgWrCSE ) ) /
                    sizeof( kXR_int64 );
-    kXR_int64 *pgoffs = (kXR_int64*)msg->GetBuffer( sizeof( ServerResponseV2 ) +
+    kXR_int64 *pgoffs = (kXR_int64*)msg.GetBuffer( sizeof( ServerResponseV2 ) +
                                                     sizeof( ServerResponseBody_pgWrCSE ) );
 
     for( size_t i = 0; i < pgcnt; ++i )
@@ -1358,9 +1358,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Unmarshall the header of the incoming message
   //----------------------------------------------------------------------------
-  void XRootDTransport::UnMarshallHeader( Message *msg )
+  void XRootDTransport::UnMarshallHeader( Message &msg )
   {
-    ServerResponseHeader *header = (ServerResponseHeader *)msg->GetBuffer();
+    ServerResponseHeader *header = (ServerResponseHeader *)msg.GetBuffer();
     header->status = ntohs( header->status );
     header->dlen   = ntohl( header->dlen );
   }
@@ -1475,7 +1475,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check whether the transport can hijack the message
   //----------------------------------------------------------------------------
-  uint32_t XRootDTransport::MessageReceived( Message   *msg,
+  uint32_t XRootDTransport::MessageReceived( Message   &msg,
                                              uint16_t   subStream,
                                              AnyObject &channelData )
   {
@@ -1493,19 +1493,19 @@ namespace XrdCl
     // Check whether this message is a response to a request that has
     // timed out, and if so, drop it
     //--------------------------------------------------------------------------
-    ServerResponse *rsp = (ServerResponse*)msg->GetBuffer();
+    ServerResponse *rsp = (ServerResponse*)msg.GetBuffer();
     if( rsp->hdr.status == kXR_attn )
     {
       if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
         return NoAction;
-      rsp = (ServerResponse*)msg->GetBuffer(16);
+      rsp = (ServerResponse*)msg.GetBuffer(16);
     }
 
     if( info->sidManager->IsTimedOut( rsp->hdr.streamid ) )
     {
       log->Error( XRootDTransportMsg, "Message 0x%x, stream [%d, %d] is a "
                   "response that we're no longer interested in (timed out)",
-                  msg, rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
+                  &msg, rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
       //------------------------------------------------------------------------
       // If it is kXR_waitresp there will be another one,
       // so we don't release the sid yet
@@ -1523,7 +1523,6 @@ namespace XrdCl
         info->sentOpens.erase( sidIt );
         if( rsp->hdr.status == kXR_ok ) return RequestClose;
       }
-      delete msg;
       return DigestMsg;
     }
 

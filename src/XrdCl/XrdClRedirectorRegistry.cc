@@ -17,12 +17,11 @@
 namespace XrdCl
 {
 
-void RedirectJob::Run( void *arg )
+void RedirectJob::Run( void* )
 {
-  Message *msg = reinterpret_cast<Message*>( arg );
   // this makes sure the handler takes ownership of the new message
   if( pHandler->Examine( msg ) != IncomingMsgHandler::Action::Ignore )
-    pHandler->Process( msg );
+    pHandler->Process();
   delete this;
 }
 
