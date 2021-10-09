@@ -146,6 +146,7 @@ set ( XrdOucSources
   XrdOuc/XrdOucFileInfo.cc      XrdOuc/XrdOucFileInfo.hh
   XrdOuc/XrdOucGMap.cc          XrdOuc/XrdOucGMap.hh
   XrdOuc/XrdOucHashVal.cc
+                                XrdOuc/XrdOucJson.hh
   XrdOuc/XrdOucLogging.cc       XrdOuc/XrdOucLogging.hh
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
   XrdOuc/XrdOucName2Name.cc     XrdOuc/XrdOucName2Name.hh
