@@ -19,15 +19,15 @@
 #include <iostream>
 #include <fcntl.h>
 #include <vector>
-#include "json.h"
 #include "XrdPfcPrint.hh"
+#include "XrdPfcInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucArgs.hh"
+#include "XrdOuc/XrdOucJson.hh"
 #include "XrdSys/XrdSysTrace.hh"
 #include "XrdOfs/XrdOfsConfigPI.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdPfcInfo.hh"
 #include "XrdOss/XrdOss.hh"
 
 using namespace XrdPfc;
@@ -46,6 +46,7 @@ Print::Print(XrdOss* oss, bool v, bool j, const char* path) : m_oss(oss), m_verb
        {
           printDir(dh, path, m_json);
        }
+       delete dh;
    }
 }
 
@@ -63,11 +64,6 @@ bool Print::isInfoFile(const char* path)
 void Print::printFileJson(const std::string& path)
 {
    printf("FILE: %s\n", path.c_str());
-   struct json_object *jobj;
-   jobj = json_object_new_object();
-
-   // Filename
-   json_object_object_add(jobj, "file", json_object_new_string(path.c_str()));
 
    XrdOssDF* fh = m_oss->newFile(m_ossUser);
    fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
@@ -77,7 +73,6 @@ void Print::printFileJson(const std::string& path)
 
    if ( ! cfi.Read(fh, path.c_str()))
    {
-      json_object_put(jobj); // Delete the json object
       return;
    }
 
@@ -90,47 +85,42 @@ void Print::printFileJson(const std::string& path)
    char  timeBuff[128];
    strftime(timeBuff, 128, "%c", localtime(&store.m_creationTime));
 
-   json_object_object_add(jobj, "version", json_object_new_int(cfi.GetVersion()));
-   json_object_object_add(jobj, "created", json_object_new_string(timeBuff));
-   json_object_object_add(jobj, "cksum", json_object_new_string(cfi.GetCkSumStateAsText()));
+   nlohmann::json jobj = {
+      { "file",             path },
+      { "version",          cfi.GetVersion() },
+      { "created",          timeBuff },
+      { "cksum",            cfi.GetCkSumStateAsText() },
+      { "file_size",        cfi.GetFileSize() >> 10 },
+      { "buffer_size",      cfi.GetBufferSize() >> 10 },
+      { "n_blocks",         cfi.GetNBlocks() },
+      { "state_complete",   cntd < cfi.GetNBlocks() ? "incomplete" : "complete" },
+      { "state_percentage", 100.0 * cntd / cfi.GetNBlocks() },
+      { "n_acc_total",      store.m_accessCnt }
+   };
 
    if (cfi.HasNoCkSumTime()) {
       strftime(timeBuff,  128, "%c", localtime(&store.m_noCkSumTime));
-      json_object_object_add(jobj, "no-cksum-time", json_object_new_string(timeBuff));
+      jobj["no-cksum-time"] = timeBuff;
    }
-
-   //json_object_object_add(jobj, "version", json_object_new_string( ));
-   json_object_object_add(jobj, "file_size", json_object_new_int(cfi.GetFileSize() >> 10));
-   json_object_object_add(jobj, "buffer_size", json_object_new_int(cfi.GetBufferSize() >> 10));
-   json_object_object_add(jobj, "n_blocks", json_object_new_int(cfi.GetNBlocks()));
-   json_object_object_add(jobj, "state_complete", json_object_new_string((cntd < cfi.GetNBlocks()) ? "incomplete" : "complete"));
-   json_object_object_add(jobj, "state_percentage", json_object_new_double(100.0 * cntd / cfi.GetNBlocks()));
 
    // verbose needed in json?
    if (m_verbose)
    {
-      struct json_object *block_array;
-      block_array = json_object_new_array();
+      nlohmann::json jarr = nlohmann::json::array();
       for (int i = 0; i < cfi.GetNBlocks(); ++i)
       {
-         json_object_array_add(block_array, json_object_new_int(cfi.TestBitWritten(i) ? 1 : 0));
+         jarr.push_back(cfi.TestBitWritten(i) ? 1 : 0);
       }
-      json_object_object_add(jobj, "block_array", json_object_get(block_array));
-      json_object_put(block_array); // Delete the json object
+      jobj["block_array"] = jarr;
    }
-
-   json_object_object_add(jobj, "n_acc_total", json_object_new_int(store.m_accessCnt));
 
    int idx = 1;
    const std::vector<Info::AStat> &astats = cfi.RefAStats();
-   struct json_object *access_array;
-   access_array = json_object_new_array();
+   nlohmann::json acc_arr = nlohmann::json::array();
    for (std::vector<Info::AStat>::const_iterator it = astats.begin(); it != astats.end(); ++it)
    {
       const int MM = 128;
       char s[MM];
-      struct json_object *obj1;
-      obj1 = json_object_new_object();
 
       strftime(s, MM, "%y%m%d:%H%M%S", localtime(&(it->AttachTime)));
       std::string at = s;
@@ -143,25 +133,25 @@ void Print::printFileJson(const std::string& path)
          snprintf(s, MM, "%d:%02d:%02d", hours, min, sec);
       }
       std::string dur = s;
-      json_object_object_add(obj1, "record", json_object_new_int(idx++));
-      json_object_object_add(obj1, "attach", json_object_new_string(at.c_str()));
-      json_object_object_add(obj1, "detach", json_object_new_string(dt.c_str()));
-      json_object_object_add(obj1, "duration", json_object_new_string(dur.c_str()));
-      json_object_object_add(obj1, "n_ios", json_object_new_int(it->NumIos));
-      json_object_object_add(obj1, "n_mrg", json_object_new_int(it->NumMerged));
-      json_object_object_add(obj1, "B_hit[kB]", json_object_new_int(it->BytesHit >> 10));
-      json_object_object_add(obj1, "B_miss[kB]", json_object_new_int(it->BytesMissed >> 10));
-      json_object_object_add(obj1, "B_bypass[kB]", json_object_new_int(it->BytesBypassed >> 10));
-      json_object_array_add(access_array, json_object_get(obj1));
-      json_object_put(obj1); // Delete the json object
-   }
-   json_object_object_add(jobj, "accesses", access_array);
 
-   printf(json_object_to_json_string(jobj));
-   printf("\n");
+      nlohmann::json acc = {
+         { "record",       idx++ },
+         { "attach",       at },
+         { "detach",       dt },
+         { "duration",     dur },
+         { "n_ios",        it->NumIos },
+         { "n_mrg",        it->NumMerged },
+         { "B_hit[kB]",    it->BytesHit >> 10 },
+         { "B_miss[kB]",   it->BytesMissed >> 10 },
+         { "B_bypass[kB]", it->BytesBypassed >> 10 }
+      };
+      acc_arr.push_back(acc);
+   }
+   jobj["accesses"] = acc_arr;
+
+   std::cout << jobj.dump() << "\n";
+
    delete fh;
-   json_object_put(access_array); // Delete the json object
-   json_object_put(jobj); // Delete the json object
 }
 
 
