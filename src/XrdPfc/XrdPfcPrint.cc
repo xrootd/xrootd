@@ -32,7 +32,8 @@
 
 using namespace XrdPfc;
 
-Print::Print(XrdOss* oss, bool v, bool j, const char* path) : m_oss(oss), m_verbose(v), m_json(j), m_ossUser("nobody")
+Print::Print(XrdOss* oss, bool v, bool j, int i, const char* path) :
+   m_oss(oss), m_verbose(v), m_json(j), m_indent(i), m_ossUser("nobody")
 {
    if (isInfoFile(path))
    {
@@ -44,7 +45,7 @@ Print::Print(XrdOss* oss, bool v, bool j, const char* path) : m_oss(oss), m_verb
        XrdOssDF* dh = m_oss->newDir(m_ossUser);
        if ( dh->Opendir(path, m_env)  >= 0 )
        {
-          printDir(dh, path, m_json);
+          printDir(dh, path);
        }
        delete dh;
    }
@@ -54,7 +55,7 @@ bool Print::isInfoFile(const char* path)
 {
    if (strncmp(&path[strlen(path)-6], ".cinfo", 6))
    {
-      printf("%s is not cinfo file.\n\n", path);
+      // printf("%s is not cinfo file.\n\n", path);
       return false;
    }
    return true;
@@ -63,8 +64,6 @@ bool Print::isInfoFile(const char* path)
 
 void Print::printFileJson(const std::string& path)
 {
-   printf("FILE: %s\n", path.c_str());
-
    XrdOssDF* fh = m_oss->newFile(m_ossUser);
    fh->Open((path).c_str(),O_RDONLY, 0600, m_env);
 
@@ -149,7 +148,7 @@ void Print::printFileJson(const std::string& path)
    }
    jobj["accesses"] = acc_arr;
 
-   std::cout << jobj.dump() << "\n";
+   std::cout << jobj.dump(m_indent) << "\n";
 
    delete fh;
 }
@@ -241,7 +240,7 @@ void Print::printFile(const std::string& path)
    delete fh;
 }
 
-void Print::printDir(XrdOssDF* iOssDF, const std::string& path, bool m_json)
+void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
 {
    // printf("---------> print dir %s \n", path.c_str());
 
@@ -261,19 +260,22 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path, bool m_json)
          std::string np = path + "/" + std::string(&buff[0]);
          if (isInfoFile(buff))
          {
-           if (first) first = false;
-           else       printf("\n");
-           if (m_json) printFileJson(np);
-           else        printFile(np);
+            if (m_json) {
+               printFileJson(np);
+            } else {
+               if (first) first = false;
+               else       printf("\n");
+               printFile(np);
+            }
          }
          else
          {
             XrdOssDF* dh = m_oss->newDir(m_ossUser);
             if (dh->Opendir(np.c_str(), m_env) >= 0)
             {
-               printDir(dh, np, m_json);
+               printDir(dh, np);
             }
-            delete dh; dh = 0;
+            delete dh;
          }
       }
    }
@@ -284,9 +286,10 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path, bool m_json)
 
 int main(int argc, char *argv[])
 {
-   static const char* usage = "Usage: pfc_print [-c config_file] [-v] [-j] path\n\n";
+   static const char* usage = "Usage: pfc_print [-h] [-c config_file] [-v] [-j] [-i indent] path\n\n";
    bool verbose = false;
    bool json = false;
+   int indent = -1;
    const char* cfgn = 0;
 
    XrdOucEnv myEnv;
@@ -296,9 +299,11 @@ int main(int argc, char *argv[])
 
    XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
    XrdOucArgs   Spec(&err, "xrdpfc_print: ", "",
+                     "help",         1, "h",
                      "verbose",      1, "v",
-                     "config",       1, "c",
+                     "config",       1, "c:",
                      "json",         1, "j",
+                     "indent",       1, "i:",
                      (const char *) 0);
 
    Spec.Set(argc-1, &argv[1]);
@@ -306,27 +311,29 @@ int main(int argc, char *argv[])
 
    while ((theOpt = Spec.getopt()) != (char)-1)
    {
+      // printf("GETOPT %c -- arg=%s\n", theOpt, Spec.argval);
       switch (theOpt)
       {
-      case 'c':
-      {
-         cfgn = Spec.getarg();
+      case 'c': {
+         cfgn = Spec.argval;
          int fd = open(cfgn, O_RDONLY, 0);
          Config.Attach(fd);
          break;
       }
-      case 'v':
-      {
+      case 'v': {
          verbose = true;
          break;
       }
-      case 'j':
-      {
+      case 'j': {
          json = true;
          break;
       }
-      default:
-      {
+      case 'i': {
+         indent = std::stoi(Spec.argval);
+         break;
+      }
+      case 'h':
+      default: {
          printf("%s", usage);
          exit(1);
       }
@@ -373,13 +380,13 @@ int main(int argc, char *argv[])
                std::string tmp = Config.GetWord();
                tmp += &path[6];
                // printf("Absolute path %s \n", tmp.c_str());
-               XrdPfc::Print p(oss, verbose, json, tmp.c_str());
+               XrdPfc::Print p(oss, verbose, json, indent, tmp.c_str());
             }
          }
       }
       else
       {
-         XrdPfc::Print p(oss, verbose, json, path);
+         XrdPfc::Print p(oss, verbose, json, indent, path);
       }
    }
 
