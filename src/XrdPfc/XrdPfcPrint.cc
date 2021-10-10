@@ -32,9 +32,23 @@
 
 using namespace XrdPfc;
 
-Print::Print(XrdOss* oss, bool v, bool j, int i, const char* path) :
+Print::Print(XrdOss* oss, char u, bool v, bool j, int i, const char* path) :
    m_oss(oss), m_verbose(v), m_json(j), m_indent(i), m_ossUser("nobody")
 {
+   if (u == 'k') {
+      m_unit_shift = 10;
+      m_unit_width = 12;
+      m_unit[0] = u; m_unit[1] = 'B'; m_unit[2] = 0;
+   } else if (u == 'M') {
+      m_unit_shift = 20;
+      m_unit_width = 12; // need 12 chars for header
+      m_unit[0] = u; m_unit[1] = 'B'; m_unit[2] = 0;
+   } else {
+      m_unit_shift = 0;
+      m_unit_width = 15;
+      m_unit[0] = 'B'; m_unit[1] = 0;
+   }
+
    if (isInfoFile(path))
    {
        if (m_json) printFileJson(std::string(path));
@@ -89,8 +103,8 @@ void Print::printFileJson(const std::string& path)
       { "version",          cfi.GetVersion() },
       { "created",          timeBuff },
       { "cksum",            cfi.GetCkSumStateAsText() },
-      { "file_size",        cfi.GetFileSize() >> 10 },
-      { "buffer_size",      cfi.GetBufferSize() >> 10 },
+      { "file_size",        cfi.GetFileSize() },
+      { "buffer_size",      cfi.GetBufferSize() },
       { "n_blocks",         cfi.GetNBlocks() },
       { "state_complete",   cntd < cfi.GetNBlocks() ? "incomplete" : "complete" },
       { "state_percentage", 100.0 * cntd / cfi.GetNBlocks() },
@@ -134,15 +148,15 @@ void Print::printFileJson(const std::string& path)
       std::string dur = s;
 
       nlohmann::json acc = {
-         { "record",       idx++ },
-         { "attach",       at },
-         { "detach",       dt },
-         { "duration",     dur },
-         { "n_ios",        it->NumIos },
-         { "n_mrg",        it->NumMerged },
-         { "B_hit[kB]",    it->BytesHit >> 10 },
-         { "B_miss[kB]",   it->BytesMissed >> 10 },
-         { "B_bypass[kB]", it->BytesBypassed >> 10 }
+         { "record",   idx++ },
+         { "attach",   at },
+         { "detach",   dt },
+         { "duration", dur },
+         { "n_ios",    it->NumIos },
+         { "n_mrg",    it->NumMerged },
+         { "B_hit",    it->BytesHit },
+         { "B_miss",   it->BytesMissed },
+         { "B_bypass", it->BytesBypassed }
       };
       acc_arr.push_back(acc);
    }
@@ -183,8 +197,10 @@ void Print::printFile(const std::string& path)
       printf(", no-cksum-time %s\n", timeBuff);
    } else printf("\n");
 
-   printf("file_size %lld kB, buffer_size %lld kB, n_blocks %d, n_downloaded %d, state %scomplete [%.3f%%]\n",
-          cfi.GetFileSize() >> 10, cfi.GetBufferSize() >> 10, cfi.GetNBlocks(), cntd,
+   printf("file_size %lld %s, buffer_size %lld %s, n_blocks %d, n_downloaded %d, state %scomplete [%.3f%%]\n",
+          cfi.GetFileSize() >> m_unit_shift, m_unit,
+          cfi.GetBufferSize() >> (m_unit[0] == 'M' ? 10 : m_unit_shift), m_unit[0] == 'M' ? "kB" : m_unit,
+          cfi.GetNBlocks(), cntd,
           (cntd < cfi.GetNBlocks()) ? "in" : "", 100.0 * cntd / cfi.GetNBlocks());
 
    if (m_verbose)
@@ -208,10 +224,12 @@ void Print::printFile(const std::string& path)
       printf("\n");
    }
 
+   int ww = m_unit_width - 2 - strlen(m_unit);
    printf("Access records (N_acc_total=%llu):\n"
-          "%-6s %-13s  %-13s  %-12s %-5s %-5s %12s %12s %12s\n",
+          "%-6s %-13s  %-13s  %-12s %-5s %-5s %*s[%s] %*s[%s] %*s[%s]\n",
           (unsigned long long) store.m_accessCnt,
-          "Record", "Attach", "Detach", "Duration", "N_ios", "N_mrg", "B_hit[kB]", "B_miss[kB]", "B_bypass[kB]");
+          "Record", "Attach", "Detach", "Duration", "N_ios", "N_mrg",
+          ww, "B_hit", m_unit, ww, "B_miss", m_unit, ww, "B_bypass", m_unit);
 
    int idx = 1;
    const std::vector<Info::AStat> &astats = cfi.RefAStats();
@@ -232,9 +250,11 @@ void Print::printFile(const std::string& path)
       }
       std::string dur = s;
 
-      printf("%-6d %-13s  %-13s  %-12s %5d %5d %12lld %12lld %12lld\n", idx++,
+      printf("%-6d %-13s  %-13s  %-12s %5d %5d %*lld %*lld %*lld\n", idx++,
              at.c_str(), dt.c_str(), dur.c_str(), it->NumIos, it->NumMerged,
-             it->BytesHit >> 10, it->BytesMissed >> 10, it->BytesBypassed >> 10);
+             m_unit_width, it->BytesHit >> m_unit_shift,
+             m_unit_width, it->BytesMissed >> m_unit_shift,
+             m_unit_width, it->BytesBypassed >> m_unit_shift);
    }
 
    delete fh;
@@ -286,7 +306,8 @@ void Print::printDir(XrdOssDF* iOssDF, const std::string& path)
 
 int main(int argc, char *argv[])
 {
-   static const char* usage = "Usage: pfc_print [-h] [-c config_file] [-v] [-j] [-i indent] path\n\n";
+   static const char* usage = "Usage: pfc_print [-h] [-c config_file] [-u B|kB|MB] [-v] [-j] [-i indent] path ...\n";
+   char unit = 'k';
    bool verbose = false;
    bool json = false;
    int indent = -1;
@@ -300,8 +321,9 @@ int main(int argc, char *argv[])
    XrdOucStream Config(&err, getenv("XRDINSTANCE"), &myEnv, "=====> ");
    XrdOucArgs   Spec(&err, "xrdpfc_print: ", "",
                      "help",         1, "h",
-                     "verbose",      1, "v",
                      "config",       1, "c:",
+                     "unit",         1, "u:",
+                     "verbose",      1, "v",
                      "json",         1, "j",
                      "indent",       1, "i:",
                      (const char *) 0);
@@ -318,6 +340,14 @@ int main(int argc, char *argv[])
          cfgn = Spec.argval;
          int fd = open(cfgn, O_RDONLY, 0);
          Config.Attach(fd);
+         break;
+      }
+      case 'u': {
+         if (strcmp(Spec.argval,"B") && strcmp(Spec.argval,"kB") && strcmp(Spec.argval,"MB")) {
+            printf("%s  Error: -unit argument can only be B, kB or MB\n", usage);
+            exit(1);
+         }
+         unit = Spec.argval[0];
          break;
       }
       case 'v': {
@@ -380,13 +410,13 @@ int main(int argc, char *argv[])
                std::string tmp = Config.GetWord();
                tmp += &path[6];
                // printf("Absolute path %s \n", tmp.c_str());
-               XrdPfc::Print p(oss, verbose, json, indent, tmp.c_str());
+               XrdPfc::Print p(oss, unit, verbose, json, indent, tmp.c_str());
             }
          }
       }
       else
       {
-         XrdPfc::Print p(oss, verbose, json, indent, path);
+         XrdPfc::Print p(oss, unit, verbose, json, indent, path);
       }
    }
 

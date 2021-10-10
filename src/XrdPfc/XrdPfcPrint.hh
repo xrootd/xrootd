@@ -30,11 +30,14 @@ public:
    //------------------------------------------------------------------------
    //! Constructor.
    //------------------------------------------------------------------------
-   Print(XrdOss* oss, bool v, bool j, int i, const char* path);
+   Print(XrdOss* oss, char u, bool v, bool j, int i, const char* path);
 
 private:
    XrdOss*     m_oss;      //! file system
    XrdOucEnv   m_env;      //! env used by file system
+   int         m_unit_shift; //! bitshift for byte-size fields
+   int         m_unit_width; //! width of byte-size fields
+   char        m_unit[3];    //! unit for regular printout (not JSON)
    bool        m_verbose;  //! print each block
    bool        m_json;     //! print in json format
    int         m_indent;   //! indent for json dump
