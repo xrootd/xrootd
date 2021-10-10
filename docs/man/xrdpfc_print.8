@@ -1,38 +1,54 @@
 .TH xrdpfc_print 8 "__VERSION__"
 .SH NAME
-xrdpfc_print - print content of ProxyFileCache meta data
+xrdpfc_print - print content of XRootd ProxyFileCache meta data
 .SH SYNOPSIS
 .nf
 
 \fBxrdpfc_print\fR [\fIoptions\fR] \fRpath ...\fR
 
-\fIoptions\fR: [\fB--config\fR \fIargs\fR] [\fB--json\fR] [\fB--verbose\fR] [\fB--help\fR]
+\fIoptions\fR: [\fB-config\fR \fIfile\fR] [\fB-unit\fR \fIB|kB|MB\fR] [\fB-json\fR] [\fB-indent\fR \fIchars\fR] [\fB-verbose\fR] [\fB-help\fR]
 
 .fi
 .br
 .ad l
 .SH DESCRIPTION
-The \fBxrdpfc_print\fR prints status of downloaded file blocks and access statistics of cached files
+The \fBxrdpfc_print\fR prints status of downloaded file blocks and access statistics of cached files.
 .SH OPTIONS
 
-\fB-c\fR | \fB--config\fR
+\fB-c\fR | \fB-config <file-name>\fR
 .RS 5
-xrootd configuration file. Used to load non-default file system (directive ofs.osslib) and prefix for the location of cached files (directive oss.localroot)
+Xrootd configuration file. Used to load non-default file system (directive
+ofs.osslib) and prefix for the location of cached files (directive
+oss.localroot).
 
 .RE
-\fB-v\fR | \fB--verbose\fR
+\fB-v\fR | \fB-verbose\fR
 .RS 5
-prints additional info for each downloaded file block
+Prints state bit for each file block.
 
 .RE
-\fB-j\fR | \fB--json\fR
+\fB-u\fR | \fB-unit <B|kB|MB>\fR
 .RS 5
-prints output in json format
+Specify unit for file-size and access byte-counts; buffer/block size is
+printed at most as kB. Downward rounding occurs for kB and MB. kB is the
+default.
+.br
+This option does NOT apply to JSON output format, there the unit is always B.
 
 .RE
-\fB-h\fR | \fB--help\fR
+\fB-j\fR | \fB-json\fR
 .RS 5
-displays usage information.
+Prints output in JSON format.
+
+.RE
+\fB-i\fR | \fB-indent <int>\fR
+.RS 5
+Specify alignment for JSON format. Default is -1: single line without any white-space.
+
+.RE
+\fB-h\fR | \fB-help\fR
+.RS 5
+Displays usage information.
 
 .RE
 
@@ -41,7 +57,11 @@ displays usage information.
 .SH OPERANDS
 \fRpath\fR
 .RS 5
-Path to a file or directory for which the information is to be printed. Path can be relative or absolute. If the path begins with root:/ the path is assumed to be a LFN and gets translated via the standard OSS rules (in the least, it gets prefixed by the oss.localroot). In this case --config option is mandatory.
+Path to a cinfo file or directory for which the information is to be
+printed. Path can be relative or absolute. If the path begins with root:/ the
+path is assumed to be a LFN and gets translated via the standard OSS rules (in
+the least, it gets prefixed by the oss.localroot). In this case -config option
+is mandatory.
 
 .RE
 
