@@ -75,7 +75,7 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadStart:
             {
-              incmsg.reset( new Message() );
+              inmsg.reset( new Message() );
               //----------------------------------------------------------------
               // The next step is to read the header
               //----------------------------------------------------------------
@@ -87,11 +87,11 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadHeader:
             {
-              XRootDStatus st = xrdTransport.GetHeader( *incmsg, &socket );
+              XRootDStatus st = xrdTransport.GetHeader( *inmsg, &socket );
               if( !st.IsOK() || st.code == suRetry ) return st;
               log->Dump( AsyncSockMsg,
                         "[%s] Received message header, size: %d",
-                        strmname.c_str(), incmsg->GetCursor() );
+                        strmname.c_str(), inmsg->GetCursor() );
               //----------------------------------------------------------------
               // The next step is to read the message body
               //----------------------------------------------------------------
@@ -103,17 +103,23 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadMsgBody:
             {
-              XRootDStatus st = xrdTransport.GetBody( *incmsg, &socket );
+              XRootDStatus st = xrdTransport.GetBody( *inmsg, &socket );
               if( !st.IsOK() || st.code == suRetry ) return st;
               log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
-                         strmname.c_str(), incmsg->GetSize() );
+                         strmname.c_str(), inmsg->GetSize() );
               readstage = ReadDone;
               return st;
             }
 
             case ReadDone: return XRootDStatus();
           }
+          // just in case ...
+          break;
         }
+        //----------------------------------------------------------------------
+        // We are done
+        //----------------------------------------------------------------------
+        return XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -122,7 +128,7 @@ namespace XrdCl
       std::unique_ptr<Message> ReleaseMsg()
       {
         readstage = ReadStart;
-        return std::move( incmsg );
+        return std::move( inmsg );
       }
 
       //------------------------------------------------------------------------
@@ -131,7 +137,7 @@ namespace XrdCl
       inline void Reset()
       {
         readstage = ReadStart;
-        incmsg.reset();
+        inmsg.reset();
       }
 
     private:
@@ -164,7 +170,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // The internal state of the the reader
       //------------------------------------------------------------------------
-      std::unique_ptr<Message>  incmsg;
+      std::unique_ptr<Message>  inmsg;
   };
 }
 

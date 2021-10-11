@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClAsyncWriter.hh"
 #include "XrdCl/XrdClAsyncMsgReader.hh"
 #include "XrdCl/XrdClAsyncHSReader.hh"
+#include "XrdCl/XrdClAsyncMsgWriter.hh"
 
 namespace XrdCl
 {
@@ -171,16 +172,6 @@ namespace XrdCl
       void OnWriteWhileHandshaking();
 
       //------------------------------------------------------------------------
-      // Write the message and it's signature in one go with writev
-      //------------------------------------------------------------------------
-      XRootDStatus WriteMessageAndRaw( Message *toWrite, Message *&sign );
-
-      //------------------------------------------------------------------------
-      // Write the current message
-      //------------------------------------------------------------------------
-      XRootDStatus WriteCurrentMessage( Message *toWrite );
-
-      //------------------------------------------------------------------------
       // Got a read readiness event
       //------------------------------------------------------------------------
       void OnRead();
@@ -274,17 +265,12 @@ namespace XrdCl
       Stream                        *pStream;
       std::string                    pStreamName;
       Socket                        *pSocket;
-      Message                       *pOutgoing;
-      Message                       *pSignature;
       XrdNetAddr                     pSockAddr;
       HandShakeData                 *pHandShakeData;
       bool                           pHandShakeDone;
       uint16_t                       pTimeoutResolution;
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
-      bool                           pOutMsgDone;
-      OutgoingMsgHandler            *pOutHandler;
-      uint32_t                       pOutMsgSize;
       time_t                         pLastActivity;
       URL                            pUrl;
       bool                           pTlsHandShakeOngoing;
@@ -292,6 +278,7 @@ namespace XrdCl
       std::unique_ptr<MsgWriter>      hswriter;
       std::unique_ptr<AsyncMsgReader> rspreader;
       std::unique_ptr<AsyncHSReader>  hsreader;
+      std::unique_ptr<AsyncMsgWriter> reqwriter;
   };
 }
 
