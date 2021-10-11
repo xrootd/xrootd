@@ -45,14 +45,12 @@ namespace XrdCl
     pStream( strm ),
     pStreamName( ToStreamName( strm, subStreamNum ) ),
     pSocket( new Socket() ),
-    pHSIncoming( 0 ),
     pOutgoing( 0 ),
     pSignature( 0 ),
     pHandShakeData( 0 ),
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
-    pHeaderDone( false ),
     pOutMsgDone( false ),
     pOutHandler( 0 ),
     pOutMsgSize( 0 ),
@@ -319,6 +317,7 @@ namespace XrdCl
     pSocket->SetStatus( Socket::Connected );
     hswriter.reset( new MsgWriter( *pSocket, pStreamName ) );
     rspreader.reset( new AsyncMsgReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
+    hsreader.reset( new AsyncHSReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
 
     //--------------------------------------------------------------------------
     // Cork the socket
@@ -604,10 +603,19 @@ namespace XrdCl
   void AsyncSocketHandler::OnReadWhileHandshaking()
   {
     //--------------------------------------------------------------------------
+    // Make sure the response reader object exists
+    //--------------------------------------------------------------------------
+    if( !hsreader )
+    {
+      OnFault( XRootDStatus( stError, errInternal, 0, "Hand-shake reader is null." ) );
+      return;
+    }
+
+    //--------------------------------------------------------------------------
     // Read the message and let the transport handler look at it when
     // reading has finished
     //--------------------------------------------------------------------------
-    XRootDStatus st = ReadMessage( pHSIncoming );
+    XRootDStatus st = hsreader->Read();
     if( !st.IsOK() )
     {
       OnFaultWhileHandshaking( st );
@@ -617,19 +625,18 @@ namespace XrdCl
     if( st.code != suDone )
       return;
 
-    HandleHandShake();
+    HandleHandShake( hsreader->ReleaseMsg() );
   }
 
   //------------------------------------------------------------------------
   // Handle the handshake message
   //------------------------------------------------------------------------
-  void AsyncSocketHandler::HandleHandShake()
+  void AsyncSocketHandler::HandleHandShake( std::unique_ptr<Message> msg )
   {
     //--------------------------------------------------------------------------
     // OK, we have a new message, let's deal with it;
     //--------------------------------------------------------------------------
-    pHandShakeData->in = pHSIncoming;
-    pHSIncoming = 0;
+    pHandShakeData->in = msg.release();
     XRootDStatus st = pTransport->HandShake( pHandShakeData, *pChannelData );
 
     //--------------------------------------------------------------------------
@@ -736,42 +743,6 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Read a message
-  //----------------------------------------------------------------------------
-  XRootDStatus AsyncSocketHandler::ReadMessage( Message *&toRead )
-  {
-    if( !toRead )
-    {
-      pHeaderDone = false;
-      toRead      = new Message();
-    }
-
-    XRootDStatus  st;
-    Log    *log = DefaultEnv::GetLog();
-    if( !pHeaderDone )
-    {
-      st = pTransport->GetHeader( *toRead, pSocket );
-      if( st.IsOK() && st.code == suDone )
-      {
-        log->Dump( AsyncSockMsg,
-                  "[%s] Received message header, size: %d",
-                  pStreamName.c_str(), toRead->GetCursor() );
-        pHeaderDone = true;
-      }
-      else
-        return st;
-    }
-
-    st = pTransport->GetBody( *toRead, pSocket );
-    if( st.IsOK() && st.code == suDone )
-    {
-      log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
-                 pStreamName.c_str(), toRead->GetSize() );
-    }
-    return st;
-  }
-
-  //----------------------------------------------------------------------------
   // Handle fault
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnFault( XRootDStatus st )
@@ -795,8 +766,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Error( AsyncSockMsg, "[%s] Socket error while handshaking: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
-    delete pHSIncoming;
-    pHSIncoming = 0;
+    if( hsreader ) hsreader->Reset();
     if( hswriter ) hswriter->Reset();
 
     pStream->OnConnectError( pSubStreamNum, st );
