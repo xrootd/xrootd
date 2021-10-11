@@ -45,15 +45,10 @@ namespace XrdCl
     pStream( strm ),
     pStreamName( ToStreamName( strm, subStreamNum ) ),
     pSocket( new Socket() ),
-    pOutgoing( 0 ),
-    pSignature( 0 ),
     pHandShakeData( 0 ),
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
-    pOutMsgDone( false ),
-    pOutHandler( 0 ),
-    pOutMsgSize( 0 ),
     pUrl( url ),
     pTlsHandShakeOngoing( false )
   {
@@ -74,7 +69,6 @@ namespace XrdCl
   {
     Close();
     delete pSocket;
-    delete pSignature;
   }
 
   //----------------------------------------------------------------------------
@@ -318,6 +312,7 @@ namespace XrdCl
     hswriter.reset( new MsgWriter( *pSocket, pStreamName ) );
     rspreader.reset( new AsyncMsgReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
     hsreader.reset( new AsyncHSReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
+    reqwriter.reset( new AsyncMsgWriter( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum, *pChannelData ) );
 
     //--------------------------------------------------------------------------
     // Cork the socket
@@ -375,61 +370,28 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnWrite()
   {
-    //--------------------------------------------------------------------------
-    // Pick up a message if we're not in process of writing something
-    //--------------------------------------------------------------------------
-    if( !pOutgoing )
+    if( !reqwriter )
     {
-      pOutMsgDone = false;
-      std::pair<Message *, OutgoingMsgHandler *> toBeSent;
-      toBeSent = pStream->OnReadyToWrite( pSubStreamNum );
-      pOutgoing = toBeSent.first; pOutHandler = toBeSent.second;
-
-      if( !pOutgoing )
-        return;
-
-      pOutgoing->SetCursor( 0 );
-      pOutMsgSize = pOutgoing->GetSize();
-
-      //------------------------------------------------------------------------
-      // Secure the message if necessary
-      //------------------------------------------------------------------------
-      delete pSignature; pSignature = 0;
-      XRootDStatus st = pTransport->GetSignature( pOutgoing, pSignature, *pChannelData );
-      if( !st.IsOK() )
-      {
-        OnFault( st );
-        return;
-      }
-
-      if( pSignature )
-        pOutMsgSize += pSignature->GetSize();
+      OnFault( XRootDStatus( stError, errInternal, 0, "Request writer is null." ) );
+      return;
     }
-
     //--------------------------------------------------------------------------
-    // Write everything at once: signature, request and raw data
+    // We failed
     //--------------------------------------------------------------------------
-    XRootDStatus st = WriteMessageAndRaw( pOutgoing, pSignature );
+    XRootDStatus st = reqwriter->Write();
     if( !st.IsOK() )
     {
       OnFault( st );
       return;
     }
-
-    if( st.code == suRetry )
-      return;
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( AsyncSockMsg, "[%s] Successfully sent message: %s (0x%x).",
-               pStreamName.c_str(), pOutgoing->GetDescription().c_str(),
-               pOutgoing );
-
-    pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );
-    pOutgoing = 0;
-
+    //--------------------------------------------------------------------------
+    // We are not done yet
+    //--------------------------------------------------------------------------
+    if( st.code == suRetry) return;
     //--------------------------------------------------------------------------
     // Disable the respective substream if empty
     //--------------------------------------------------------------------------
+    reqwriter->Reset();
     pStream->DisableIfEmpty( pSubStreamNum );
   }
 
@@ -469,87 +431,6 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Write the current message
-  //----------------------------------------------------------------------------
-  XRootDStatus AsyncSocketHandler::WriteCurrentMessage( Message *toWrite )
-  {
-    Log *log = DefaultEnv::GetLog();
-
-    //--------------------------------------------------------------------------
-    // Try to write down the current message
-    //--------------------------------------------------------------------------
-    Message  *msg             = toWrite;
-    size_t    leftToBeWritten = msg->GetSize()-msg->GetCursor();
-    if( !leftToBeWritten ) return XRootDStatus();
-
-    while( leftToBeWritten )
-    {
-      int bytesWritten = 0;
-      XRootDStatus st = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten, bytesWritten );
-
-      if( !st.IsOK() )
-      {
-        toWrite->SetCursor( 0 );
-        return st;
-      }
-
-      if( st.code == suRetry ) return st;
-
-      msg->AdvanceCursor( bytesWritten );
-      leftToBeWritten -= bytesWritten;
-    }
-
-    //--------------------------------------------------------------------------
-    // We have written the message successfully
-    //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
-               pStreamName.c_str(), toWrite->GetDescription().c_str(),
-               toWrite, toWrite->GetSize() );
-    return XRootDStatus();
-  }
-
-  //----------------------------------------------------------------------------
-  // Write the message and its signature
-  //----------------------------------------------------------------------------
-  XRootDStatus AsyncSocketHandler::WriteMessageAndRaw( Message *toWrite, Message *&sign )
-  {
-    XRootDStatus st;
-    Log *log = DefaultEnv::GetLog();
-
-    if( sign )
-    {
-      st = WriteCurrentMessage( sign );
-      if( !st.IsOK() || st.code == suRetry )
-        return st;
-    }
-
-    st = WriteCurrentMessage( toWrite );
-    if( !st.IsOK() || st.code == suRetry )
-      return st;
-
-    if( pOutHandler->IsRaw() )
-    {
-      uint32_t bytesWritten = 0;
-      st = pOutHandler->WriteMessageBody( pSocket, bytesWritten );
-      pOutMsgSize += bytesWritten;
-      log->Dump( AsyncSockMsg, "[%s] Wrote %d bytes of message (0x%x) body.",
-                 pStreamName.c_str(), bytesWritten, toWrite );
-      if( !st.IsOK() || st.code == suRetry )
-        return st;
-    }
-
-    st = pSocket->Flash();
-    if( !st.IsOK() )
-    {
-      Log *log = DefaultEnv::GetLog();
-      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
-                  pStreamName.c_str(), XrdSysE2T( st.errNo ) );
-    }
-
-    return st;
-  }
-
-  //----------------------------------------------------------------------------
   // Got a read readiness event
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnRead()
@@ -566,7 +447,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Readout the data from the socket
     //--------------------------------------------------------------------------
-    XRootDStatus st =rspreader->Read();
+    XRootDStatus st = rspreader->Read();
 
     //--------------------------------------------------------------------------
     // Handler header corruption
@@ -752,8 +633,7 @@ namespace XrdCl
                 pStreamName.c_str(), st.ToString().c_str() );
 
     rspreader->Reset();
-    pOutgoing   = 0;
-    pOutHandler = 0;
+    reqwriter->Reset();
 
     pStream->OnError( pSubStreamNum, st );
   }
@@ -795,8 +675,7 @@ namespace XrdCl
       // in turn means that the ownership of following
       // pointers, has been transferred to the inQueue
       rspreader->Reset();
-      pOutgoing   = 0;
-      pOutHandler = 0;
+      reqwriter->Reset();
     }
   }
 
@@ -822,8 +701,7 @@ namespace XrdCl
     pStream->ForceError( XRootDStatus( stError, errSocketError ) );
 
     rspreader->Reset();
-    pOutgoing   = 0;
-    pOutHandler = 0;
+    reqwriter->Reset();
   }
 
   //------------------------------------------------------------------------
