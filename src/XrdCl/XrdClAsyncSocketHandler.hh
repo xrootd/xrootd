@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClAsyncWriter.hh"
 #include "XrdCl/XrdClAsyncMsgReader.hh"
+#include "XrdCl/XrdClAsyncHSReader.hh"
 
 namespace XrdCl
 {
@@ -192,17 +193,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Handle the handshake message
       //------------------------------------------------------------------------
-      void HandleHandShake();
+      void HandleHandShake( std::unique_ptr<Message> msg );
 
       //------------------------------------------------------------------------
       // Prepare the next step of the hand-shake procedure
       //------------------------------------------------------------------------
       void HandShakeNextStep( bool done );
-
-      //------------------------------------------------------------------------
-      // Read a message
-      //------------------------------------------------------------------------
-      XRootDStatus ReadMessage( Message *&toRead );
 
       //------------------------------------------------------------------------
       // Handle fault
@@ -278,7 +274,6 @@ namespace XrdCl
       Stream                        *pStream;
       std::string                    pStreamName;
       Socket                        *pSocket;
-      Message                       *pHSIncoming;
       Message                       *pOutgoing;
       Message                       *pSignature;
       XrdNetAddr                     pSockAddr;
@@ -287,7 +282,6 @@ namespace XrdCl
       uint16_t                       pTimeoutResolution;
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
-      bool                           pHeaderDone;
       bool                           pOutMsgDone;
       OutgoingMsgHandler            *pOutHandler;
       uint32_t                       pOutMsgSize;
@@ -297,6 +291,7 @@ namespace XrdCl
 
       std::unique_ptr<MsgWriter>      hswriter;
       std::unique_ptr<AsyncMsgReader> rspreader;
+      std::unique_ptr<AsyncHSReader>  hsreader;
   };
 }
 
