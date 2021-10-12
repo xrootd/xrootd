@@ -58,3 +58,5 @@ xrootd.spec
 dist
 *.egg-info
 bindings/python/VERSION
+cmake-*
+.idea/
