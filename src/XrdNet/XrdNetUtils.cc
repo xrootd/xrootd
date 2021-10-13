@@ -39,6 +39,7 @@
 #include <sys/types.h>
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetRegistry.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -48,7 +49,7 @@
 #ifndef HAVE_PROTOR
 #include "XrdSys/XrdSysPthread.hh"
 #endif
-
+  
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -480,7 +481,7 @@ const char *XrdNetUtils::GetHostPort(XrdNetSpace::hpSpec &aInfo,
 //
    return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 H o s t s                                  */
 /******************************************************************************/
@@ -613,20 +614,12 @@ bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
   
 char *XrdNetUtils::MyHostName(const char *eName, const char **eText)
 {
-   XrdNetAddr myAddr;
-   const char *etext, *myName;
-   char buff[1024];
+   const char *fqn = XrdNetIdentity::FQN(eText);
 
-// Get our host name and initialize this object with it
+// Return the appropriate result
 //
-   gethostname(buff, sizeof(buff));
-   if ((etext = myAddr.Set(buff,0))) myName = eName;
-      else myName = myAddr.Name(eName, &etext);
-
-// Return result, we will always have something
-//
-   if (eText) *eText = etext;
-   return (myName ? strdup(myName) : 0);
+   if (!fqn) fqn = eName;
+   return (fqn ? strdup(fqn) : 0);
 }
 
 /******************************************************************************/

@@ -202,6 +202,7 @@ set ( XrdNetSources
   XrdNet/XrdNetCache.cc         XrdNet/XrdNetCache.hh
   XrdNet/XrdNetCmsNotify.cc     XrdNet/XrdNetCmsNotify.hh
   XrdNet/XrdNetConnect.cc       XrdNet/XrdNetConnect.hh
+  XrdNet/XrdNetIdentity.cc      XrdNet/XrdNetIdentity.hh
   XrdNet/XrdNetIF.cc            XrdNet/XrdNetIF.hh
   XrdNet/XrdNetMsg.cc           XrdNet/XrdNetMsg.hh
   XrdNet/XrdNetRegistry.cc      XrdNet/XrdNetRegistry.hh

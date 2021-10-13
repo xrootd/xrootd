@@ -37,6 +37,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetCache.hh"
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
@@ -90,15 +91,15 @@ bool               XrdNetAddr::dynDNS       = false;
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
+
 XrdNetAddr::XrdNetAddr(int port) : XrdNetAddrInfo()
 {
-   char buff[1024];
+   const char *fqn = XrdNetIdentity::FQN();
 
-// Get our host name and initialize this object with it
+// Otherwise, we cannot initialize this object so force an error!
 //
-   gethostname(buff, sizeof(buff));
-   Set(buff, port);
+   if (!fqn) fqn = "No_DNS_Name!";
+   Set(fqn, port);
 }
 
 /******************************************************************************/

@@ -422,6 +422,8 @@ const char *GetAInfo(XrdNetSpace::hpSpec &aBuff);
 static void GetHints(XrdNetSpace::hpSpec &aBuff, AddrOpts opts);
 static
 const char *GetHostPort(XrdNetSpace::hpSpec &aBuff, const char *hSpec, int pNum);
+static
+const char *getMyFQN(const char *&myDom);
 static int setET(const char **errtxt, int rc);
 static int autoFamily;
 static int autoHints;
