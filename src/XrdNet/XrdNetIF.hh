@@ -402,10 +402,10 @@ struct ifAddrs
 bool  GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src);
 bool  GenAddrs(ifAddrs &ifTab, const char *hName, bool wantV6);
 bool  GenIF(XrdNetAddrInfo **src, int srcnum, const char *xName=0);
+static const
+char *GetDomain();
 static
 bool  IsOkName(const char *ifn, short &ifIdx);
-static
-char *SetDomain();
 void  SetIFPP();
 bool  SetIF64(bool retVal);
 static
@@ -437,7 +437,8 @@ char           ifAvail;
 
 static
 XrdSysError   *eDest;
-static char   *myDomain;
+static
+const char    *myDomain;
 static char   *ifCfg[2];
 static
 const char    *ifTName[ifMax];
