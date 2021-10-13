@@ -41,6 +41,7 @@
 
 #include "XrdOuc/XrdOucString.hh"
 
+#include "XrdSys/XrdSysError.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 
@@ -98,6 +99,9 @@ private:
 
   void getfhandle();
 
+  std::string EnumToString( int enumVal );
+  void logTransferEvent(const int debug, const int retval, const char *message);
+
   // Process the checksum response and return a header that should
   // be included in the response.
   int PostProcessChecksum(std::string &digest_header);
@@ -113,6 +117,7 @@ private:
   void parseResource(char *url);
   // Map an XRootD error code to an appropriate HTTP status code and message
   void mapXrdErrorToHttpStatus();
+
 public:
 
   XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {

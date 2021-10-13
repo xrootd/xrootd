@@ -622,6 +622,8 @@ bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
   
   
   int r = PostProcessHTTPReq(true);
+  // Always report final state at TRACE_STATS Debug Level
+  logTransferEvent(TRACE_STATS, -1, "FINISH-DONE-OK");
   // Beware, we don't have to reset() if the result is 0
   if (r) reset();
   if (r < 0) return false; 
@@ -648,6 +650,8 @@ bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
 
   if (PostProcessHTTPReq()) reset();
 
+  // Always report final state at TRACE_STATS Debug Level
+  logTransferEvent(TRACE_STATS, -1, "FINISH-DONE-ERROR");
   // Second part of the ugly hack on stat()
   if ((request == rtGET) && (xrdreq.header.requestid == ntohs(kXR_stat)))
     return true;
@@ -740,6 +744,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   
   TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << redirdest.c_str());
 
+  logTransferEvent(TRACE_STATS, 302, (char *) redirdest.c_str());
   prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
 
   reset();
@@ -1014,6 +1019,19 @@ int XrdHttpReq::ProcessHTTPReq() {
   }
 
   //
+  // Set log information only if not set
+  //
+  if (!prot->rec.paramsSet) {
+    prot->rec.paramsSet = true;
+    prot->rec.filename = &resource;
+    prot->rec.remote = prot->SecEntity.host;
+    if (prot->SecEntity.name) prot->rec.name = prot->SecEntity.name;
+    else prot->rec.name = "unknown";
+  }
+  // Can it be that reqtype/reqstate changes for same conn?
+  prot->rec.reqtype = EnumToString(request);
+  prot->rec.reqstate = reqstate;
+  //
   // Here we process the request locally
   //
 
@@ -1021,12 +1039,14 @@ int XrdHttpReq::ProcessHTTPReq() {
     case XrdHttpReq::rtUnset:
     case XrdHttpReq::rtUnknown:
     {
+      logTransferEvent(TRACE_STATSALL, 400, (char *) "Request unknown");
       prot->SendSimpleResp(400, NULL, NULL, (char *) "Request unknown", 0, false);
       reset();
       return -1;
     }
     case XrdHttpReq::rtMalformed:
     {
+      logTransferEvent(TRACE_STATSALL, 400, (char *) "Request malformed");
       prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed", 0, false);
       reset();
       return -1;
@@ -1036,6 +1056,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       if (reqstate == 0) {
         // Always start with Stat; in the case of a checksum request, we'll have a follow-up query
         if (prot->doStat((char *) resourceplusopaque.c_str())) {
+          logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run request.");
           prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
           return -1;
         }
@@ -1053,6 +1074,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         }
         if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
+          logTransferEvent(TRACE_STATSALL, 500, (char *) "Failed to create initial checksum request.");
           prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to create initial checksum request.", 0, false);
           return -1;
         }
@@ -1077,11 +1099,13 @@ int XrdHttpReq::ProcessHTTPReq() {
 
                 // Default case: the icon and the css of the HTML rendering of XrdHttp
                 if (resource == "/static/css/xrdhttp.css") {
+                    logTransferEvent(TRACE_STATSALL, 200, "STATIC_CSS_OK");
                     prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len, keepalive);
                     reset();
                     return keepalive ? 1 : -1;
                   }
                 if (resource == "/static/icons/xrdhttp.ico") {
+                    logTransferEvent(TRACE_STATSALL, 200, "STATIC_ICO_OK");
                     prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len, keepalive);
                     reset();
                     return keepalive ? 1 : -1;
@@ -1102,6 +1126,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                   s.append(resource);
                   appendOpaque(s, 0, 0, 0);
 
+                  logTransferEvent(TRACE_STATS, 302, (char *) s.c_str());
                   prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0, false);
                   return -1;
 
@@ -1112,6 +1137,7 @@ int XrdHttpReq::ProcessHTTPReq() {
                   if (prot->staticpreload) {
                     XrdHttpProtocol::StaticPreloadInfo *mydata = prot->staticpreload->Find(resource.c_str());
                     if (mydata) {
+                      logTransferEvent(TRACE_STATSALL, 200, "STATIC_DATA_OK");
                       prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len, keepalive);
                       reset();
                       return keepalive ? 1 : -1;
@@ -1130,15 +1156,18 @@ int XrdHttpReq::ProcessHTTPReq() {
           if (prot->doStat((char *) resourceplusopaque.c_str())) {
             XrdOucString errmsg = "Error stating";
             errmsg += resource.c_str();
+            logTransferEvent(TRACE_STATSALL, 404,(char *) errmsg.c_str());
             prot->SendSimpleResp(404, NULL, NULL, (char *) errmsg.c_str(), 0, false);
             return -1;
           }
 
+          logTransferEvent(TRACE_STATSALL, 200,(char *) "STAT");
           return 0;
         case 1: // Open() or dirlist
         {
 
           if (!prot->Bridge) {
+              logTransferEvent(TRACE_STATSALL, 500, (char *) "prot->Bridge is NULL.");
               prot->SendSimpleResp(500, NULL, NULL, (char *) "prot->Bridge is NULL.", 0, false);
               return -1;
             }
@@ -1146,6 +1175,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           if (fileflags & kXR_isDir) {
 
             if (prot->listdeny) {
+              logTransferEvent(TRACE_STATSALL, 503, (char *) "Listings are disabled.");
               prot->SendSimpleResp(503, NULL, NULL, (char *) "Listings are disabled.", 0, false);
               return -1;
             }
@@ -1160,6 +1190,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               s.append(resource);
               appendOpaque(s, 0, 0, 0);
 
+              logTransferEvent(TRACE_STATS, 302, (char *) s.c_str());
               prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0, false);
               return -1;
             }
@@ -1177,10 +1208,12 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.dirlist.dlen = htonl(l);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) res.c_str(), l)) {
+              logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run request.");
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
               return -1;
             }
 
+            logTransferEvent(TRACE_STATSALL, 200, "DIRLIST");
             // We don't want to be invoked again after this request is finished
             return 1;
 
@@ -1197,9 +1230,11 @@ int XrdHttpReq::ProcessHTTPReq() {
               m_resource_with_digest += convert_digest_name(m_req_digest);
             }
             if (prot->doChksum(m_resource_with_digest) < 0) {
+              logTransferEvent(TRACE_STATSALL, 500, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.");
               prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
               return -1;
             }
+            logTransferEvent(TRACE_STATS, 200, "OPEN");
             return 0;
           }
           else {
@@ -1214,13 +1249,15 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.open.options = htons(kXR_retstat | kXR_open_read);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
+              logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run request.");
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
               return -1;
             }
 
             // Prepare to chunk up the request
             writtenbytes = 0;
-            
+
+            logTransferEvent(TRACE_STATS, 200, "OPEN");
             // We want to be invoked again after this request is finished
             return 0;
           }
@@ -1239,6 +1276,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.open.options = htons(kXR_retstat | kXR_open_read);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
+              logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run request.");
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
               return -1;
             }
@@ -1246,6 +1284,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             // Prepare to chunk up the request
             writtenbytes = 0;
 
+            logTransferEvent(TRACE_STATS, 200, "OPEN_W_CHECKSUM");
             // We want to be invoked again after this request is finished
             return 0;
           }
@@ -1253,7 +1292,6 @@ int XrdHttpReq::ProcessHTTPReq() {
         // fallthrough
         default: // Read() or Close()
         {
-
           if ( ((reqstate == 3 || (!m_req_digest.empty() && (reqstate == 4))) && (rwOps.size() > 1)) ||
             (writtenbytes >= length) ) {
 
@@ -1266,11 +1304,13 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.close.fhandle, fhandle, 4);
 
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
+              logTransferEvent(TRACE_STATSALL, 404, "Could not run request.");
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
               return -1;
             }
 
             // We have finished
+            logTransferEvent(TRACE_STATS, 200, "OPEN-FINISH");
             return 1;
 
           }
@@ -1310,10 +1350,12 @@ int XrdHttpReq::ProcessHTTPReq() {
             
             if (l <= 0) {
               if (l < 0) {
+                logTransferEvent(TRACE_STATSALL, 400, (char *) "Data sizes mismatch.");
                 TRACE(ALL, " Data sizes mismatch.");
                 return -1;
               }
               else {
+                logTransferEvent(TRACE_STATSALL, 400, (char *) "No more bytes to send.");
                 TRACE(ALL, " No more bytes to send.");
                 reset();
                 return 1;
@@ -1328,6 +1370,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             }
             
             if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
+              logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run read request.");
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
               return -1;
             }
@@ -1337,6 +1380,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             length = ReqReadV();
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) ralist, length)) {
+              logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run read request.");
               prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run read request.", 0, false);
               return -1;
             }
@@ -1370,11 +1414,13 @@ int XrdHttpReq::ProcessHTTPReq() {
         xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_delete);
 
         if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
+          logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run read request.");
           prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, keepalive);
           return -1;
         }
 
 
+        logTransferEvent(TRACE_STATS, 200, "OPEN");
         // We want to be invoked again after this request is finished
         // Only if there is data to fetch from the socket or there will
         // never be more data
@@ -1391,6 +1437,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             // Note that we don't support trailer headers.
             if (prot->BuffUsed() < 2) return 1;
             if (prot->myBuffStart[0] != '\r' || prot->myBuffStart[1] != '\n') {
+              logTransferEvent(TRACE_STATSALL, 400, (char *) "Invalid trailing chunk encoding.");
               prot->SendSimpleResp(400, NULL, NULL, (char *) "Invalid trailing chunk encoding.", 0, keepalive);
               return -1;
             }
@@ -1420,6 +1467,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               }
             }
             if ((idx == 0) || prot->myBuffStart[idx-1] != '\r') {
+              logTransferEvent(TRACE_STATSALL, 400, (char *) "Invalid chunked encoding.");
               prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
               return -1;
             }
@@ -1429,6 +1477,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               long long chunk_contents = strtol(line_contents.c_str(), &endptr, 16);
                 // Chunk sizes can be followed by trailer information or CRLF
               if (*endptr != ';' && *endptr != '\r') {
+                logTransferEvent(TRACE_STATSALL, 400, (char *) "Invalid chunked encoding.");
                 prot->SendSimpleResp(400, NULL, NULL, (char *)"Invalid chunked encoding", 0, false);
                 return -1;
               }
@@ -1460,6 +1509,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
             TRACEI(REQ, "Writing chunk of size " << bytes_to_write << " starting with '" << *(prot->myBuffStart) << "'");
             if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_write)) {
+              logTransferEvent(TRACE_STATSALL, 500, (char *) "Could not run write request.");
               prot->SendSimpleResp(500, NULL, NULL, (char *) "Could not run write request.", 0, false);
               return -1;
             }
@@ -1483,6 +1533,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           TRACEI(REQ, "Writing " << bytes_to_read);
           if (!prot->Bridge->Run((char *) &xrdreq, prot->myBuffStart, bytes_to_read)) {
+              logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run write request.");
             prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run write request.", 0, false);
             return -1;
           }
@@ -1506,6 +1557,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
           if (!prot->Bridge->Run((char *) &xrdreq, 0, 0)) {
+            logTransferEvent(TRACE_STATSALL, 404, (char *) "Could not run close request.");
             prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run close request.", 0, false);
             return -1;
           }
@@ -1522,6 +1574,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtOPTIONS:
     {
+      logTransferEvent(TRACE_STATSALL, 200, "GET_OPTS");
       prot->SendSimpleResp(200, NULL, (char *) "DAV: 1\r\nDAV: <http://apache.org/dav/propset/fs/1>\r\nAllow: HEAD,GET,PUT,PROPFIND,DELETE,OPTIONS", NULL, 0, keepalive);
       reset();
       return  keepalive ? 1 : -1;
@@ -1546,6 +1599,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.stat.dlen = htonl(l);
 
           if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
+            logTransferEvent(TRACE_STATSALL, 501, "Could not run request.");
             prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
             return -1;
           }
@@ -1566,6 +1620,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.rmdir.dlen = htonl(l);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
+              logTransferEvent(TRACE_STATSALL, 501, "Could not run rmdir request.");
               prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run rmdir request.", 0, false);
               return -1;
             }
@@ -1580,6 +1635,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.rm.dlen = htonl(l);
 
             if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
+              logTransferEvent(TRACE_STATSALL, 501, "Could not run rm request.");
               prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run rm request.", 0, false);
               return -1;
             }
@@ -1596,6 +1652,7 @@ int XrdHttpReq::ProcessHTTPReq() {
     }
     case XrdHttpReq::rtPATCH:
     {
+      logTransferEvent(TRACE_STATSALL, 501, "Request not supported yet.");
       prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported yet.", 0, false);
 
       return -1;
@@ -1616,11 +1673,13 @@ int XrdHttpReq::ProcessHTTPReq() {
             // We have to specifically read all the request body
 
             if (prot->BuffgetData(length, &p, true) < length) {
+              logTransferEvent(TRACE_STATSALL, 501, "Error in getting the PROPFIND request body.");
               prot->SendSimpleResp(501, NULL, NULL, (char *) "Error in getting the PROPFIND request body.", 0, false);
               return -1;
             }
 
             if ((depth > 1) || (depth < 0)) {
+              logTransferEvent(TRACE_STATSALL, 501, "Invalid depth value.");
               prot->SendSimpleResp(501, NULL, NULL, (char *) "Invalid depth value.", 0, false);
               return -1;
             }
@@ -1640,6 +1699,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.stat.dlen = htonl(l);
 
           if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
+            logTransferEvent(TRACE_STATSALL, 501, "Could not run request.");
             prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
             return -1;
           }
@@ -1672,6 +1732,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.dirlist.dlen = htonl(l);
 
           if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
+            logTransferEvent(TRACE_STATSALL, 501, "Could not run request.");
             prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
             return -1;
           }
@@ -1698,6 +1759,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       xrdreq.mkdir.dlen = htonl(l);
 
       if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
+        logTransferEvent(TRACE_STATSALL, 501, "Could not run request.");
         prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
         return -1;
       }
@@ -1719,6 +1781,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       char *ppath;
       int port = 0;
       if (parseURL((char *) destination.c_str(), buf, port, &ppath)) {
+        logTransferEvent(TRACE_STATSALL, 501, "Cannot parse destination url.");
         prot->SendSimpleResp(501, NULL, NULL, (char *) "Cannot parse destination url.", 0, false);
         return -1;
       }
@@ -1734,6 +1797,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       // If we are a data server instead we cannot enforce anything, we will
       // just ignore the host part of the destination
       if ((prot->myRole == kXR_isManager) && strcmp(buf, buf2)) {
+        logTransferEvent(TRACE_STATSALL, 501, "Only in-place renaming is supported for MOVE.");
         prot->SendSimpleResp(501, NULL, NULL, (char *) "Only in-place renaming is supported for MOVE.", 0, false);
         return -1;
       }
@@ -1748,6 +1812,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       xrdreq.mv.arg1len = htons(resourceplusopaque.length());
       
       if (!prot->Bridge->Run((char *) &xrdreq, (char *) s.c_str(), l)) {
+        logTransferEvent(TRACE_STATSALL, 501, "Could not run request.");
         prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run request.", 0, false);
         return -1;
       }
@@ -1756,8 +1821,19 @@ int XrdHttpReq::ProcessHTTPReq() {
       return 1;
 
     }
+    case XrdHttpReq::rtPOST:
+    {
+      // Seems every GET/PUT/DELETE call's with unsupported request for 2 times
+      // using gfal-copy before real transfer process starts.
+      logTransferEvent(TRACE_STATSALL, 501, "Request not supported.");
+      prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported.", 0, false);
+      return -1;
+    }
     default:
     {
+      // Seems every GET/POST/DELETE call's with unsupported request for 2 times
+      // before real transfer process starts.
+      logTransferEvent(TRACE_STATSALL, 501, "Request not supported.");
       prot->SendSimpleResp(501, NULL, NULL, (char *) "Request not supported.", 0, false);
       return -1;
     }
@@ -1772,7 +1848,8 @@ int
 XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
   if (iovN > 0) {
     if (xrdresp == kXR_error) {
-      prot->SendSimpleResp(httpStatusCode, NULL, NULL, "Failed to determine checksum", 0, false);
+      logTransferEvent(TRACE_STATSALL, httpStatusCode, "Failed to determine checksum.");
+      prot->SendSimpleResp(httpStatusCode, NULL, NULL, "Failed to determine checksum.", 0, false);
       return -1;
     }
 
@@ -1787,6 +1864,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
       size_t digest_length = strlen(digest_value);
       unsigned char *digest_binary_value = (unsigned char *)malloc(digest_length);
       if (!Fromhexdigest(reinterpret_cast<unsigned char *>(digest_value), digest_length, digest_binary_value)) {
+        logTransferEvent(TRACE_STATSALL, 500, "Failed to convert checksum hexdigest to base64.");
         prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to convert checksum hexdigest to base64.", 0, false);
         free(digest_binary_value);
         return -1;
@@ -1805,6 +1883,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
     if (convert_to_base64) {free(digest_value);}
     return 0;
   } else {
+    logTransferEvent(TRACE_STATSALL, 500, "Underlying filesystem failed to calculate checksum.");
     prot->SendSimpleResp(500, NULL, NULL, "Underlying filesystem failed to calculate checksum.", 0, false);
     return -1;
   }
@@ -1821,18 +1900,21 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
   switch (request) {
     case XrdHttpReq::rtUnknown:
     {
-      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed 1", 0, false);
+      logTransferEvent(TRACE_STATSALL, 400, "Request malformed.");
+      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed.", 0, false);
       return -1;
     }
     case XrdHttpReq::rtMalformed:
     {
-      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed 2", 0, false);
+      logTransferEvent(TRACE_STATSALL, 400, "Request malformed.");
+      prot->SendSimpleResp(400, NULL, NULL, (char *) "Request malformed.", 0, false);
       return -1;
     }
     case XrdHttpReq::rtHEAD:
     {
       if (xrdresp != kXR_ok) {
         // NOTE that HEAD MUST NOT return a body, even in the case of failure.
+        logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
         prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0, false);
         return -1;
       } else if (reqstate == 0) {
@@ -1852,11 +1934,13 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           if (m_req_digest.size()) {
             return 0;
           } else {
+            logTransferEvent(TRACE_STATSALL, 200, "");
             prot->SendSimpleResp(200, NULL, NULL, NULL, filesize, keepalive);
             return keepalive ? 1 : -1;
           }
         }
 
+        logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
         prot->SendSimpleResp(httpStatusCode, NULL, NULL, NULL, 0, keepalive);
         reset();
         return keepalive ? 1 : -1;
@@ -1867,9 +1951,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           if (-1 == response) {
                 return -1;
           }
+          logTransferEvent(TRACE_STATSALL, 200, "");
           prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize, keepalive);
           return keepalive ? 1 : -1;
         } else {
+          logTransferEvent(TRACE_STATSALL, 500, "Underlying filesystem failed to calculate checksum.");
+
           prot->SendSimpleResp(500, NULL, NULL, "Underlying filesystem failed to calculate checksum.", 0, false);
           return -1;
         }
@@ -1882,6 +1969,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
 
         if (xrdresp == kXR_error) {
+          logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                httpStatusText.c_str(), httpStatusText.length(), false);
           return -1;
@@ -2077,7 +2165,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           stringresp += "<p>Powered by XrdHTTP ";
           stringresp += XrdVSTRING;
           stringresp += " (CERN IT-SDC)</p>\n";
-          
+
+          logTransferEvent(TRACE_STATSALL, 200, "");
           prot->SendSimpleResp(200, NULL, NULL, (char *) stringresp.c_str(), 0, keepalive);
           stringresp.clear();
           return keepalive ? 1 : -1;
@@ -2125,6 +2214,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // We are here if the request failed
             
             if (prot->myRole == kXR_isManager) {
+              logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                    httpStatusText.c_str(), httpStatusText.length(), false);
               return -1;
@@ -2176,7 +2266,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               
               if (rwOps.size() == 0) {
                 // Full file.
-                
+
+                logTransferEvent(TRACE_STATSALL, 200, m_digest_header.empty() ? "FINISHED" : m_digest_header.c_str());
                 prot->SendSimpleResp(200, NULL, m_digest_header.empty() ? NULL : m_digest_header.c_str(), NULL, filesize, keepalive);
                 return 0;
               } else
@@ -2192,7 +2283,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   s += "\n";
                   s += m_digest_header.c_str();
                 }
-
+                logTransferEvent(TRACE_STATSALL, 206, (char *)s.c_str());
                 prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
                 return 0;
               } else
@@ -2218,7 +2309,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   header += "\n";
                   header += m_digest_header;
                 }
-
+                logTransferEvent(TRACE_STATSALL, 206, header.c_str());
                 prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
                 return 0;
               }
@@ -2233,6 +2324,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               //  reqstate--;
               //  return 0;
               //}
+              logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                    httpStatusText.c_str(), httpStatusText.length(), false);
               return -1;
@@ -2338,7 +2430,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
       if (!fopened) {
 
         if (xrdresp != kXR_ok) {
-
+          logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                httpStatusText.c_str(), httpStatusText.length(), keepalive);
           return -1;
@@ -2351,6 +2443,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         prot->ResumeBytes = min(length - writtenbytes, (long long) prot->BuffAvailable());
 
         if (sendcontinue) {
+          logTransferEvent(TRACE_STATSALL, 100, "Continue");
           prot->SendSimpleResp(100, NULL, NULL, 0, 0, keepalive);
           return 0;
         }
@@ -2382,9 +2475,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
         if (ntohs(xrdreq.header.requestid) == kXR_close) {
           if (xrdresp == kXR_ok) {
+            logTransferEvent(TRACE_STATSALL, 200, ":-)");
             prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0, keepalive);
             return keepalive ? 1 : -1;
           } else {
+            logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
             prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                  httpStatusText.c_str(), httpStatusText.length(), keepalive);
             return -1;
@@ -2407,6 +2502,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
+        logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                              httpStatusText.c_str(), httpStatusText.length(), keepalive);
         return -1;
@@ -2438,9 +2534,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         default: // response to rm
         {
           if (xrdresp == kXR_ok) {
+            logTransferEvent(TRACE_STATSALL, 200, ":-)");
             prot->SendSimpleResp(200, NULL, NULL, (char *) ":-)", 0, keepalive);
             return keepalive ? 1 : -1;
           }
+          logTransferEvent(TRACE_STATSALL, httpStatusCode, "DELETE-DEFAULT");
           prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                httpStatusText.c_str(), httpStatusText.length(), keepalive);
           return -1;
@@ -2454,6 +2552,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp == kXR_error) {
+        logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                              httpStatusText.c_str(), httpStatusText.length(), false);
         return -1;
@@ -2543,6 +2642,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
+            logTransferEvent(TRACE_STATSALL, 207, "");
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",
                     (char *) stringresp.c_str(), stringresp.length(), keepalive);
             stringresp.clear();
@@ -2667,6 +2767,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
+            logTransferEvent(TRACE_STATSALL, 207, "");
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",
                     (char *) stringresp.c_str(), stringresp.length(), keepalive);
             stringresp.clear();
@@ -2686,11 +2787,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
+        logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
         prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                              httpStatusText.c_str(), httpStatusText.length(), false);
         return -1;
       }
-
+      logTransferEvent(TRACE_STATSALL, 201, ":-)");
       prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0, keepalive);
       return keepalive ? 1 : -1;
 
@@ -2699,10 +2801,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
+        logTransferEvent(TRACE_STATSALL, 409, (char *) etext.c_str());
         prot->SendSimpleResp(409, NULL, NULL, (char *) etext.c_str(), 0, false);
         return -1;
       }
-
+      logTransferEvent(TRACE_STATSALL, 201, ":-)");
       prot->SendSimpleResp(201, NULL, NULL, (char *) ":-)", 0, keepalive);
       return keepalive ? 1 : -1;
 
@@ -2716,6 +2819,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
   switch (xrdresp) {
     case kXR_error:
+      logTransferEvent(TRACE_STATSALL, httpStatusCode, "");
       prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                            httpStatusText.c_str(), httpStatusText.length(), false);
       return -1;
@@ -2813,3 +2917,66 @@ void XrdHttpReq::getfhandle() {
           (int) fhandle[0] << ":" << (int) fhandle[1] << ":" << (int) fhandle[2] << ":" << (int) fhandle[3]);
 
 }
+
+std::string XrdHttpReq::EnumToString( int enumVal )
+{
+  switch(enumVal)
+  {
+    case XrdHttpReq::rtUnset:
+        return "Unset";
+    case XrdHttpReq::rtUnknown:
+        return "Unknown";
+    case XrdHttpReq::rtMalformed:
+        return "Malformed";
+    case XrdHttpReq::rtGET:
+        return "GET";
+    case XrdHttpReq::rtHEAD:
+        return "HEAD";
+    case XrdHttpReq::rtPUT:
+        return "PUT";
+    case XrdHttpReq::rtOPTIONS:
+        return "OPTIONS";
+    case XrdHttpReq::rtPATCH:
+        return "PATCH";
+    case XrdHttpReq::rtDELETE:
+        return "DELETE";
+    case XrdHttpReq::rtPROPFIND:
+        return "PROPFIND";
+    case XrdHttpReq::rtMKCOL:
+        return "MKCOL";
+    case XrdHttpReq::rtMOVE:
+        return "MOVE";
+    case XrdHttpReq::rtPOST:
+        return "POST";
+    default:
+        return "NOT_RECOGNIZED";
+  }
+}
+
+
+void XrdHttpReq::logTransferEvent(const int debug, const int retval, const char *message)
+{
+  if (TRACE_STATS or TRACE_STATSALL or TRACE_DEBUG) {
+    if (retval != -1)
+      prot->rec.status = retval;
+    std::stringstream ss;
+    ss << "retval="<< prot->rec.status << ", filename=" << prot->rec.filename;
+    ss << ", user=" << prot->rec.name << ", reqtype=" << prot->rec.reqtype;
+    ss << ", reqstate=" << prot->rec.reqstate;
+    ss << ", remote=" << prot->rec.remote << "; " << message;
+
+    switch (debug) {
+      case TRACE_STATS:
+        TRACE(STATS, "STATS_REPORT: " << ss.str().c_str());
+        break;
+      case TRACE_STATSALL:
+        TRACE(STATSALL, "ALL_STATS_REPORT: " << ss.str().c_str());
+        break;
+      default:
+        //Should not be here...
+        TRACE(DEBUG, "DEBUG_STATS_REPORT: " << ss.str().c_str());
+        break;
+    }
+  }
+}
+

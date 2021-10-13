@@ -184,6 +184,19 @@ private:
                  : extHName(hName), extHPath(hPath), extHParm(hParm) {}
         ~extHInfo() {}
   };
+
+  struct LogRecord {
+       bool paramsSet;
+       std::string log_prefix;
+       XrdOucString* filename;
+       std::string remote;
+       std::string name;
+       std::string reqtype;
+       int reqstate{-1};
+       int status{-1};
+  };
+  LogRecord rec;
+
   /// Functions related to the configuration
   static int Config(const char *fn, XrdOucEnv *myEnv);
   static const char *Configed();

@@ -47,6 +47,8 @@
 #define TRACE_ALL       0x0fff
 #define TRACE_AUTH      0x0001
 #define TRACE_DEBUG     0x0002
+#define TRACE_STATS     0x0004
+#define TRACE_STATSALL  0x0008
 #define TRACE_MEM       0x0010
 #define TRACE_REQ       0x0020
 #define TRACE_REDIR     0x0040

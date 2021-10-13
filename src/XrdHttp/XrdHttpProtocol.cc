@@ -652,7 +652,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         CurrentReq.opaque = 0;
       }
 
-      TRACEI(REQ, " rc:" << rc << " self-redirecting to http with security token.");
+      TRACEI(REDIR, " rc:" << rc << " self-redirecting to http with security token.");
 
       XrdOucString dest = "Location: http://";
       // Here I should put the IP addr of the server
@@ -694,7 +694,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         dest += ":";
         dest += Port_str;
         dest += CurrentReq.resource.c_str();
-        TRACEI(REQ," rc:"<<rc<<" self-redirecting to http with security token: '"
+        TRACEI(REDIR," rc:"<<rc<<" self-redirecting to http with security token: '"
                    << dest.c_str() << "'");
 
         
@@ -704,7 +704,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         return -1;
       }
       
-      TRACEI(REQ, " rc:" << rc << " Can't perform self-redirection.");
+      TRACEI(REDIR, " rc:" << rc << " Can't perform self-redirection.");
       
     }
     else {
@@ -726,11 +726,11 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
         char * t = CurrentReq.opaque->Get("xrdhttptime");
         if (t) tim = atoi(t);
         if (!t) {
-          TRACEI(REQ, " xrdhttptime not specified. Authentication failed.");
+          TRACEI(AUTH, " xrdhttptime not specified. Authentication failed.");
           return -1;
         }
         if (abs(time(0) - tim) > XRHTTP_TK_GRACETIME) {
-          TRACEI(REQ, " Token expired. Authentication failed.");
+          TRACEI(AUTH, " Token expired. Authentication failed.");
           return -1;
         }
 
@@ -815,7 +815,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
                 secretkey);
 
         if (compareHash(hash, tk)) {
-          TRACEI(REQ, " Invalid tk '" << tk << "' != '" << hash << "'(calculated). Authentication failed.");
+          TRACEI(AUTH, " Invalid tk '" << tk << "' != '" << hash << "'(calculated). Authentication failed.");
           return -1;
         }
 
@@ -850,7 +850,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", ishttps ? "https" : "http");
       
     if (!Bridge) {
-      TRACEI(REQ, " Authorization failed.");
+      TRACEI(AUTH, " Authorization failed.");
       return -1;
     }
 
@@ -1786,6 +1786,7 @@ void XrdHttpProtocol::Reset() {
   ResumeBytes = 0;
   Resume = 0;
 
+  rec = LogRecord();
   //
   //  numReads = 0;
   //  numReadP = 0;
@@ -2721,6 +2722,8 @@ int XrdHttpProtocol::xtrace(XrdOucStream & Config) {
   } tropts[] = {
     {"all", TRACE_ALL},
     {"auth", TRACE_AUTH},
+    {"stats", TRACE_STATS},
+    {"statsall", TRACE_STATSALL},
     {"debug", TRACE_DEBUG},
     {"mem", TRACE_MEM},
     {"redirect", TRACE_REDIR},
@@ -2733,6 +2736,7 @@ int XrdHttpProtocol::xtrace(XrdOucStream & Config) {
     eDest.Emsg("config", "trace option not specified");
     return 1;
   }
+  // It does not support inline comments. How come?!
   while (val) {
     if (!strcmp(val, "off")) trval = 0;
     else {
