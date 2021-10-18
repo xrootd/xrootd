@@ -189,7 +189,6 @@ namespace XrdCl
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
-    rspreader->Reset();
     return XRootDStatus();
   }
 
