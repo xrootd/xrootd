@@ -326,6 +326,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   uint16_t XRootDMsgHandler::InspectStatusRsp()
   {
+    if( !pResponse ) return 0;
+
     Log *log = DefaultEnv::GetLog();
     ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
 
