@@ -12,6 +12,8 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include <string>
 
