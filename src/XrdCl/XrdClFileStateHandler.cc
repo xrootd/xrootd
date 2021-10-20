@@ -2711,7 +2711,7 @@ namespace XrdCl
   bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
   {
     if( status.code == errSocketError || status.code == errInvalidSession ||
-        status.code == errTlsError )
+        status.code == errTlsError || status.code == errSocketTimeout )
     {
       if( IsReadOnly() && !pDoRecoverRead )
         return false;
