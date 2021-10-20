@@ -308,7 +308,7 @@ namespace XrdCl
       return;
     }
     pSocket->SetStatus( Socket::Connected );
-    hswriter.reset( new MsgWriter( *pSocket, pStreamName ) );
+    hswriter.reset( new AsyncHSWriter( *pSocket, pStreamName ) );
     rspreader.reset( new AsyncMsgReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
     hsreader.reset( new AsyncHSReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
     reqwriter.reset( new AsyncMsgWriter( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum, *pChannelData ) );
@@ -375,11 +375,14 @@ namespace XrdCl
       return;
     }
     //--------------------------------------------------------------------------
-    // We failed
+    // Let's do the writing ...
     //--------------------------------------------------------------------------
     XRootDStatus st = reqwriter->Write();
     if( !st.IsOK() )
     {
+      //------------------------------------------------------------------------
+      // We failed
+      //------------------------------------------------------------------------
       OnFault( st );
       return;
     }
@@ -406,25 +409,26 @@ namespace XrdCl
         OnFaultWhileHandshaking( st );
       return;
     }
-
-    if( !( st = hswriter->Write() ).IsOK() )
+    //--------------------------------------------------------------------------
+    // Let's do the writing ...
+    //--------------------------------------------------------------------------
+    st = hswriter->Write();
+    if( !st.IsOK() )
     {
+      //------------------------------------------------------------------------
+      // We failed
+      //------------------------------------------------------------------------
       OnFaultWhileHandshaking( st );
       return;
     }
-
+    //--------------------------------------------------------------------------
+    // We are not done yet
+    //--------------------------------------------------------------------------
     if( st.code == suRetry ) return;
+    //--------------------------------------------------------------------------
+    // Bookkeeping ...
+    //--------------------------------------------------------------------------
     hswriter->Reset();
-
-    st = pSocket->Flash();
-    if( !st.IsOK() )
-    {
-      Log *log = DefaultEnv::GetLog();
-      log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
-                  pStreamName.c_str(), XrdSysE2T( st.errNo ) );
-      OnFaultWhileHandshaking( st );
-    }
-
     if( !(st = DisableUplink()).IsOK() )
       OnFaultWhileHandshaking( st );
   }
