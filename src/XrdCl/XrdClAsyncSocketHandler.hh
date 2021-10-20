@@ -26,10 +26,10 @@
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClAsyncWriter.hh"
 #include "XrdCl/XrdClAsyncMsgReader.hh"
 #include "XrdCl/XrdClAsyncHSReader.hh"
 #include "XrdCl/XrdClAsyncMsgWriter.hh"
+#include "XrdCl/XrdClAsyncHSWriter.hh"
 
 namespace XrdCl
 {
@@ -275,7 +275,7 @@ namespace XrdCl
       URL                            pUrl;
       bool                           pTlsHandShakeOngoing;
 
-      std::unique_ptr<MsgWriter>      hswriter;
+      std::unique_ptr<AsyncHSWriter>  hswriter;
       std::unique_ptr<AsyncMsgReader> rspreader;
       std::unique_ptr<AsyncHSReader>  hsreader;
       std::unique_ptr<AsyncMsgWriter> reqwriter;
