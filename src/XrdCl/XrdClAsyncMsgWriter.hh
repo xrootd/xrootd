@@ -32,7 +32,7 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
-  //! Utility class encapsulating writing hand-shake request logic
+  //! Utility class encapsulating writing request logic
   //----------------------------------------------------------------------------
   class AsyncMsgWriter
   {
@@ -177,7 +177,6 @@ namespace XrdCl
               XRootDStatus st = socket.Flash();
               if( !st.IsOK() )
               {
-                Log *log = DefaultEnv::GetLog();
                 log->Error( AsyncSockMsg, "[%s] Unable to flash the socket: %s",
                             strmname.c_str(), XrdSysE2T( st.errNo ) );
                 return st;
