@@ -5,8 +5,6 @@ cmake_minimum_required( VERSION 3.1 )
 
 project( XRootD )
 
-# force test too
-set(ENABLE_TESTS 1)
 
 set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
@@ -31,6 +29,10 @@ CheckBuildDirectory()
 include( XRootDOSDefs )
 include( XRootDDefaults )
 include( XRootDSystemCheck )
+
+
+# force test too
+set(ENABLE_TESTS 1)
 include( XRootDFindLibs )
 
 add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
@@ -120,3 +122,7 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
+
+
+
+add_subdirectory(XrdObjectStorageOss)

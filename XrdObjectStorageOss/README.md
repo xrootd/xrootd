@@ -48,37 +48,28 @@ For Windows WSL2 only, and if you are debugging:
 ```
 cd ~/.vs/xrootd
 export PATH=./out/build/linux-default/src:./out/build/linux-default/src/XrdCl/:$PATH
-```
+SERVER_DIR=/tmp
+XROOTD_SERVER=root://$(hostname --fqdn):8094/$SERVER_DIR
 
-Then create a new file, run a XrootD server
+cat << EOF > /home/scrgiorgio/xrootd.config
 
-```
-# by default XrootD uses the `/tmp` directory
-FILENAME=$(date +"%Y_%m_%d_%I_%M_%p").txt
-touch /tmp/$FILENAME
+# listening port
+xrd.port 8094
+
+# directory to serve
+xrootd.export $SERVER_DIR
+EOF
 
 # run the server
-xrootd -p 8094
+touch $SERVER_DIR/~test.bin
+xrootd -c /home/scrgiorgio/xrootd.config
 
-# this is the address to reach the server remotely (change as needed)
-XROOTD_SERVER=root://$(hostname --fqdn):8094//tmp
-```
+# Copy a file from the server to local (i.e. reading)
+rm -f ~test.bin
+xrdcp $XROOTD_SERVER/~test.bin ~test.bin
 
-Copy a file from the server to local (i.e. reading)
-
-```
-xrdcp $XROOTD_SERVER/$FILENAME  $FILENAME   
-```
-Copy a file from local to the server (i.e. writing):
-
-```
-xrdcp $FILENAME $XROOTD_SERVER/$FILENAME.copy 
-```
-
-Test if the file was really written (i.e. read back)
-
-``` 
-xrdcp $XROOTD_SERVER/$FILENAME.copy $FILENAME.copy 
+# Copy a file from local to the server (i.e. writing):x
+xrdcp -f ~test.bin $XROOTD_SERVER/~test.bin
 ```
 
 Or you can mount the XrootD server directory as a FUSE file system.
@@ -98,4 +89,34 @@ Now from another shell you should be able to do:
 ```
 ls $LOCAL_DIR
 ```
+
+# XrdObjectStorageOss
+
+Force the use of our plugin:
+
+```
+cat << EOF > /home/scrgiorgio/xrootd.object_storage.config
+
+# port
+xrd.port 8094
+
+# directory to 'server'
+xrootd.export $SERVER_DIR
+
+# tell where the plugin is
+ofs.osslib /home/scrgiorgio/.vs/xrootd/out/build/linux-default/XrdObjectStorageOss/libXrdObjectStorageOss.so
+
+# probably this is the string for object storage connection
+xrdobjectstorageoss.connection_string whatever_you_need_here
+
+EOF
+
+# run the server
+touch $SERVER_DIR/~test.bin
+xrootd -c /home/scrgiorgio/xrootd.object_storage.config
+
+```
+
+
+
 
