@@ -38,3 +38,64 @@ From `Project menu` select `Configure xrootd`:
 ```
 
 Then switch the "Solution Explored View" to "CMake Target" View and `Build All`
+
+# Test
+
+See http://fmatrm.if.usp.br/cgi-bin/man/man2html?xrootd+1
+
+For Windows WSL2 only, and if you are debugging:
+
+```
+cd ~/.vs/xrootd
+export PATH=./out/build/linux-default/src:./out/build/linux-default/src/XrdCl/:$PATH
+```
+
+Then create a new file, run a XrootD server
+
+```
+# by default XrootD uses the `/tmp` directory
+FILENAME=$(date +"%Y_%m_%d_%I_%M_%p").txt
+touch /tmp/$FILENAME
+
+# run the server
+xrootd -p 8094
+
+# this is the address to reach the server remotely (change as needed)
+XROOTD_SERVER=root://$(hostname --fqdn):8094//tmp
+```
+
+Copy a file from the server to local (i.e. reading)
+
+```
+xrdcp $XROOTD_SERVER/$FILENAME  $FILENAME   
+```
+Copy a file from local to the server (i.e. writing):
+
+```
+xrdcp $FILENAME $XROOTD_SERVER/$FILENAME.copy 
+```
+
+Test if the file was really written (i.e. read back)
+
+``` 
+xrdcp $XROOTD_SERVER/$FILENAME.copy $FILENAME.copy 
+```
+
+Or you can mount the XrootD server directory as a FUSE file system.
+
+```
+sudo nano /etc/fuse.conf
+# enable the `user_allow_other` option by uncommenting the first # character from its line
+
+LOCAL_DIR=/mnt/test
+sudo mkdir -p $LOCAL_DIR
+sudo chmod a+rwX -R $LOCAL_DIR
+xrootdfs -d -o rdr=$XROOTD_SERVER,uid=daemon $LOCAL_DIR
+```
+
+Now from another shell you should be able to do:
+
+```
+ls $LOCAL_DIR
+```
+
