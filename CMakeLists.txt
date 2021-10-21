@@ -5,6 +5,9 @@ cmake_minimum_required( VERSION 3.1 )
 
 project( XRootD )
 
+# force test too
+set(ENABLE_TESTS 1)
+
 set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
@@ -52,11 +55,18 @@ add_custom_target(
 macro( add_library _target )
   _add_library( ${_target} ${ARGN} )
   add_dependencies( ${_target} XrdVersion.hh )
+  
+  # useful for Visual Studio to organize projects
+  set_target_properties(${_target} PROPERTIES FOLDER "Libraries")
 endmacro()
 
 macro( add_executable _target )
   _add_executable( ${_target} ${ARGN} )
   add_dependencies( ${_target} XrdVersion.hh )
+
+  # useful for Visual Studio to organize projects
+  set_target_properties(${_target} PROPERTIES FOLDER "Executables")
+
 endmacro()
 
 #-------------------------------------------------------------------------------
