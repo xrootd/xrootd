@@ -363,7 +363,9 @@ namespace XrdCl
       if( it != pParams.begin() ) o << "&";
       o << it->first << "=" << it->second;
     }
-    return o.str();
+    std::string ret = o.str();
+    if( ret == "?" ) ret.clear();
+    return ret;
   }
 
   //------------------------------------------------------------------------
