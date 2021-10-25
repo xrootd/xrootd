@@ -3,21 +3,21 @@
 
 #include <XrdOss/XrdOss.hh>
 #include <stdio.h>
-
 #include <string>
-
-
 
 //////////////////////////////////////////////////////////////////////////////////
 class XrdObjectStorageOss : public XrdOss
 {
 public:
 
+	class Pimpl;
+	Pimpl* pimpl = nullptr;
+
 	XrdSysError* eDest = nullptr;
+	std::string export_dir;
 	std::string config_filename;
 	std::string connection_string;
-
-	class Pimpl;
+	int num_connections = 8;
 
 	//constructor
 	XrdObjectStorageOss();
@@ -45,9 +45,6 @@ public:
 
 private:
 
-	Pimpl* pimpl=nullptr;
-
-
 };
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -56,9 +53,10 @@ class XrdObjectStorageOssDir : public XrdOssDF
 public:
 
 	class Pimpl;
+	Pimpl* pimpl;
 
 	//constructor
-	XrdObjectStorageOssDir(XrdObjectStorageOss* oss);
+	XrdObjectStorageOssDir(XrdObjectStorageOss* owner);
 
 	//destructor
 	virtual ~XrdObjectStorageOssDir();
@@ -70,10 +68,7 @@ public:
 
 private:
 
-	XrdObjectStorageOss* oss;
-	Pimpl* pimpl=nullptr;
-	std::string path;
-	int cursor = 0;
+	XrdObjectStorageOss* owner;
 };
 
 
@@ -83,9 +78,10 @@ class XrdObjectStorageOssFile : public XrdOssDF
 public:
 
 	class Pimpl;
+	Pimpl* pimpl = nullptr;
 
 	//constructor
-	XrdObjectStorageOssFile(XrdObjectStorageOss* oss);
+	XrdObjectStorageOssFile(XrdObjectStorageOss* owner);
 
 	//destructor
 	virtual ~XrdObjectStorageOssFile();
@@ -100,9 +96,7 @@ public:
 	virtual int     getFD() { return fd; }
 
 private:
-	XrdObjectStorageOss* oss;
-	Pimpl* pimpl=nullptr;
-	std::string filename;
+	XrdObjectStorageOss* owner;
 };
 
 

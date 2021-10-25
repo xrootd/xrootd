@@ -43,36 +43,58 @@ Then switch the "Solution Explored View" to "CMake Target" View and `Build All`
 
 See http://fmatrm.if.usp.br/cgi-bin/man/man2html?xrootd+1
 
-For Windows WSL2 only, and if you are debugging:
+Example for Windows WSL2:
 
 ```
 cd ~/.vs/xrootd
-export PATH=./out/build/linux-default/src:./out/build/linux-default/src/XrdCl/:$PATH
+export PATH=./out/build/linux-default/src:./out/build/linux-default/src/XrdCl/:./out/build/linux-default/src/XrdCl/:$PATH
 SERVER_DIR=/tmp
 XROOTD_SERVER=root://$(hostname --fqdn):8094/$SERVER_DIR
+```
 
+Create a normal configuration:
+
+```
 cat << EOF > /home/scrgiorgio/xrootd.config
-
-# listening port
 xrd.port 8094
-
-# directory to serve
 xrootd.export $SERVER_DIR
 EOF
 
-# run the server
-touch $SERVER_DIR/~test.bin
-xrootd -c /home/scrgiorgio/xrootd.config
-
-# Copy a file from the server to local (i.e. reading)
-rm -f ~test.bin
-xrdcp $XROOTD_SERVER/~test.bin ~test.bin
-
-# Copy a file from local to the server (i.e. writing):x
-xrdcp -f ~test.bin $XROOTD_SERVER/~test.bin
 ```
 
-Or you can mount the XrootD server directory as a FUSE file system.
+Create an object storage configuration:
+
+```
+cat << EOF > /home/scrgiorgio/xrootd.object_storage.config
+xrd.port 8094
+xrootd.export $SERVER_DIR
+ofs.osslib /home/scrgiorgio/.vs/xrootd/out/build/linux-default/XrdObjectStorageOss/libXrdObjectStorageOss.so
+xrdobjectstorageoss.connection_string https://bucket_name_here.s3.amazonaws.com?username=XXXXX&password=YYYYY
+xrdobjectstorageoss.num_connections 8
+EOF
+```
+Run the server:
+
+```
+xrootd -c /home/scrgiorgio/xrootd.config
+xrootd -c /home/scrgiorgio/xrootd.object_storage.config
+```
+
+Use xrootd command utils:
+
+```
+# Copy a file
+xrdcp $XROOTD_SERVER/nsdf.png .      
+
+# List files 
+xrdfs $XROOTD_SERVER ls $SERVER_DIR  
+```
+
+
+
+# XrootD as a FUSE file system
+
+Example:
 
 ```
 sudo nano /etc/fuse.conf
@@ -81,42 +103,5 @@ sudo nano /etc/fuse.conf
 LOCAL_DIR=/mnt/test
 sudo mkdir -p $LOCAL_DIR
 sudo chmod a+rwX -R $LOCAL_DIR
-xrootdfs -d -o rdr=$XROOTD_SERVER,uid=daemon $LOCAL_DIR
+xrootdfs -d -o rdr=$XROOTD_SERVER,uid=daemon $LOCAL_DIR 
 ```
-
-Now from another shell you should be able to do:
-
-```
-ls $LOCAL_DIR
-```
-
-# XrdObjectStorageOss
-
-Force the use of our plugin:
-
-```
-cat << EOF > /home/scrgiorgio/xrootd.object_storage.config
-
-# port
-xrd.port 8094
-
-# directory to 'server'
-xrootd.export $SERVER_DIR
-
-# tell where the plugin is
-ofs.osslib /home/scrgiorgio/.vs/xrootd/out/build/linux-default/XrdObjectStorageOss/libXrdObjectStorageOss.so
-
-# probably this is the string for object storage connection
-xrdobjectstorageoss.connection_string whatever_you_need_here
-
-EOF
-
-# run the server
-touch $SERVER_DIR/~test.bin
-xrootd -c /home/scrgiorgio/xrootd.object_storage.config
-
-```
-
-
-
-
