@@ -1,0 +1,4 @@
+namespace mg {
+
+} // namespace mg
+

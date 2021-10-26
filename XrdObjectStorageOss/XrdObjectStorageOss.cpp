@@ -1,149 +1,28 @@
-#include <XrdSys/XrdSysError.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucStream.hh>
-#include <XrdOss/XrdOssError.hh>
-#include <XrdOuc/XrdOucEnv.hh>
-#include <XrdSys/XrdSysPlatform.hh>
-
-#include <XrdVersion.hh>
-
 #include "XrdObjectStorageOss.h"
-
-#include <fcntl.h>
-#include <assert.h>
-
-#include "Kernel.h"
-#include "CloudStorage.h"
-
-using namespace Visus;
 
 extern XrdSysError OssEroute;
 
-//in general unsupported when we want to create/write somethig
-#define Unsupported -ENOTSUP
-
 ////////////////////////////////////////////////////////
-class XrdObjectStorageOss::Pimpl
-{
-public:
+int NotSupported(String error_message) {
+	PrintInfo("***** Error", error_message);
+	return -ENOTSUP;
+}
 
-	XrdObjectStorageOss* owner;
-	SharedPtr<NetService> service;
-	SharedPtr<CloudStorage> cloud;
+int InputOutputError(String error_message) {
+	PrintInfo("***** Error", error_message);
+	return -EIO;
+}
 
-	//constructor
-	Pimpl(XrdObjectStorageOss* owner_) : owner(owner_) {
-
-		KernelModule::attach();
-	}
-
-	~Pimpl()
-	{
-		KernelModule::detach();
-	}
-
-	//init
-	void init()
-	{
-		this->service = std::make_shared<NetService>(owner->num_connections);
-		this->cloud = CloudStorage::createInstance(owner->connection_string);
-	}
-
-	//stat
-	SharedPtr<CloudStorageItem> stat(String fullname, Aborted aborted = Aborted())
-	{
-		PrintInfo("stat", fullname);
-		fullname = correctFullName(fullname);
-
-		if (auto ret = getFromCache(fullname))
-			return ret;
-
-		auto ret = cloud->getBlob(service, fullname, /*head*/true, aborted).get(); 
-		if (ret)
-			return addToCache(ret);
-
-		ret = cloud->getDir(service, fullname, aborted).get();
-		if (ret) 
-			return addToCache(ret);
-
-		return SharedPtr<CloudStorageItem>(); //add failed
-	}
+int NoEntity(String error_message) {
+	PrintInfo("***** Error", error_message);
+	return -ENOENT;
+}
 
 
-	//getBlob
-	SharedPtr<CloudStorageItem> getBlob(String fullname, Aborted aborted=Aborted())
-	{
-		PrintInfo("getBlob", fullname);
-		fullname = correctFullName(fullname);
-
-		if (auto ret = getFromCache(fullname))
-		{
-			if (ret->is_directory)
-				return SharedPtr<CloudStorageItem>();
-			
-			if (ret->body)
-				return ret;
-
-			// I need to retried the body again, since it was probably evicted from cache
-		}
-
-		auto ret =cloud->getBlob(service, fullname, /*head*/false, aborted).get(); //I want the body so I need to requery
-		return ret ? addToCache(ret) : SharedPtr<CloudStorageItem>();
-	}
-
-	//getDir
-	SharedPtr<CloudStorageItem>  getDir(String fullname, Aborted aborted = Aborted())
-	{
-		PrintInfo("getDir", fullname);
-
-		fullname = correctFullName(fullname);
-
-		if (auto ret = getFromCache(fullname))
-			return ret && ret->is_directory? ret : SharedPtr<CloudStorageItem>();
-
-		auto ret = cloud->getDir(service, fullname, aborted).get();
-		if (!ret)
-			return SharedPtr<CloudStorageItem>();
-
-		//this are useful for stat (speed up things)
-		addToCache(ret);
-		for (auto child : ret->childs)
-			addToCache(child);
-
-		return ret;
-	}
-
-private:
-
-	std::map<String, SharedPtr<CloudStorageItem> > cache;
-
-	//addToCache
-	SharedPtr<CloudStorageItem> addToCache(SharedPtr<CloudStorageItem> item)
-	{
-		VisusReleaseAssert(item);
-		auto cached = std::make_shared<CloudStorageItem>(*item);
-		cached->body.reset(); //caching (but non the body)
-		cache[cached->fullname] = cached;
-		return item;
-	}
-
-	//getFromCache
-	SharedPtr<CloudStorageItem> getFromCache(String fullname)
-	{
-		auto it = cache.find(fullname);
-		return it != cache.end()? it->second : SharedPtr<CloudStorageItem>();
-	}
-
-	//correctFullName (example: /mnt/tmp/visus.idx -> /visus.idx)
-	String correctFullName(String fullname)
-	{
-		VisusReleaseAssert(StringUtils::startsWith(fullname, owner->export_dir));
-		fullname = fullname.substr(owner->export_dir.size());
-		if (fullname.empty() || fullname[0] != '/') fullname = "/" + fullname;
-		return fullname;
-	}
-};
-
+int Ok() {
+	PrintInfo("***** OK");
+	return XrdOssOK;
+}
 
 ////////////////////////////////////////////////////////
 extern "C" XrdOss* XrdOssGetStorageSystem(XrdOss* native_oss, XrdSysLogger* logger, const char* config_fn, const char* parms)
@@ -166,7 +45,6 @@ extern "C" XrdOss* XrdOssGetStorageSystem(XrdOss* native_oss, XrdSysLogger* logg
 }
 
 
-
 //-----------------------------------------------------------------------------
 //! Initialize the storage system V2.
 //!
@@ -178,10 +56,11 @@ extern "C" XrdOss* XrdOssGetStorageSystem(XrdOss* native_oss, XrdSysLogger* logg
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Init(XrdSysLogger* logger, const char* configFn)
 {
-	PrintInfo("XrdObjectStorageOss::Init", "Oct-2021, NSDF-fabric");
+	PrintInfo("***** Init", "Oct-2021, NSDF-fabric");
 
-	this->config_filename = configFn;
-	this->export_dir = "";
+	String config_filename = configFn;
+	String connection_string = "";
+	int num_connections;
 
 	//get the connection string
 	XrdOucStream Config;
@@ -195,22 +74,21 @@ int XrdObjectStorageOss::Init(XrdSysLogger* logger, const char* configFn)
 
 		if (key == "xrdobjectstorageoss.connection_string")
 		{
-			PrintInfo("xrdobjectstorageoss.connection_string ", value);
-			this->connection_string = value;
+			PrintInfo("***** xrdobjectstorageoss.connection_string ", value);
+			connection_string = value;
 			continue;
 		}
 
-
 		if (key == "xrdobjectstorageoss.num_connections")
 		{
-			PrintInfo("xrdobjectstorageoss.num_connections ", value);
-			this->num_connections = cint(value);
+			PrintInfo("***** xrdobjectstorageoss.num_connections ", value);
+			num_connections = cint(value);
 			continue;
 		}
 
 		if (key == "xrootd.export")
 		{
-			PrintInfo("xrootd.export", value);
+			PrintInfo("***** xrootd.export", value);
 			this->export_dir = value;
 			continue;
 		}
@@ -221,61 +99,16 @@ int XrdObjectStorageOss::Init(XrdSysLogger* logger, const char* configFn)
 	Config.Close();
 	close(fd);
 
-	pimpl->init();
+	this->net = std::make_shared<NetService>(num_connections);
+	this->cloud = CloudStorage::createInstance(connection_string);
 
-	return XrdOssOK;
+	// could be bucket + something, I need to preverve it
+	// example /tmp/filename.bin == /bucket/some/prefix/filename.bin
+	this->prefix = StringUtils::rtrim(Url(connection_string).getPath(), "/");
+
+	return Ok();
 }
 
-
-
-////////////////////////////////////////////////////////
-XrdObjectStorageOss::XrdObjectStorageOss()
-{
-	this->pimpl = new Pimpl(this);
-
-}
-
-////////////////////////////////////////////////////////
-XrdObjectStorageOss::~XrdObjectStorageOss()
-{
-	delete pimpl;
-}
-
-////////////////////////////////////////////////////////
-void XrdObjectStorageOss::printLine(std::string file, int line, std::string msg)
-{
-	msg = cstring(file, line, msg);
-	eDest->Say(msg.c_str());
-}
-
-
-//-----------------------------------------------------------------------------
-//! Obtain a new director object to be used for future directory requests.
-//!
-//! @param  tident - The trace identifier.
-//!
-//! @return pointer- Pointer to an XrdOssDF object.
-//! @return nil    - Insufficient memory to allocate an object.
-//-----------------------------------------------------------------------------
-XrdOssDF* XrdObjectStorageOss::newDir(const char* tident)
-{
-	//Obtain a new director object to be used for future directory requests.
-	return new XrdObjectStorageOssDir(this);
-}
-
-//-----------------------------------------------------------------------------
-//! Obtain a new file object to be used for a future file requests.
-//!
-//! @param  tident - The trace identifier.
-//!
-//! @return pointer- Pointer to an XrdOssDF object.
-//! @return nil    - Insufficient memory to allocate an object.
-//-----------------------------------------------------------------------------
-XrdOssDF* XrdObjectStorageOss::newFile(const char* tident)
-{
-	//Obtain a new file object to be used for a future file requests. 
-	return new XrdObjectStorageOssFile(this);
-}
 
 //-----------------------------------------------------------------------------
 //! Change file mode settings.
@@ -288,7 +121,8 @@ XrdOssDF* XrdObjectStorageOss::newFile(const char* tident)
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Chmod(const char* path, mode_t mode, XrdOucEnv* envP)
 {
-	return Unsupported;
+	PrintInfo("***** Chmod", path, mode);
+	return Ok(); //pretend it's ok
 }
 
 //-----------------------------------------------------------------------------
@@ -308,7 +142,9 @@ int XrdObjectStorageOss::Chmod(const char* path, mode_t mode, XrdOucEnv* envP)
 ////////////////////////////////////////////////////////
 int XrdObjectStorageOss::Create(const char* tident, const char* path, mode_t access_mode, XrdOucEnv& env, int Opts)
 {
-	return Unsupported;
+	//it's like a 'touch' for a file I'm going to open for writing later
+	PrintInfo("***** Create", path, access_mode); 
+	return Ok(); //pretend it's ok
 }
 
 
@@ -324,10 +160,9 @@ int XrdObjectStorageOss::Create(const char* tident, const char* path, mode_t acc
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Mkdir(const char* path, mode_t mode, int mkpath, XrdOucEnv* envP)
 {
-	PrintInfo("XrdObjectStorageOss::Mkdir", path);
-	return Unsupported;
+	PrintInfo("***** Mkdir", path);
+	return Ok(); //pretend it's ok (on object storage there are no really directories)
 }
-
 
 //-----------------------------------------------------------------------------
 //! Remove a directory.
@@ -342,9 +177,11 @@ int XrdObjectStorageOss::Mkdir(const char* path, mode_t mode, int mkpath, XrdOuc
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Remdir(const char* path, int Opts, XrdOucEnv* eP)
 {
-	PrintInfo("XrdObjectStorageOss::Remdir", path);
-	return Unsupported;
+	PrintInfo("***** Remdir", path);
+	return Ok(); //pretend it's ok (on object storage there are no really directories)
 }
+
+
 
 //-----------------------------------------------------------------------------
 //! Rename a file or directory.
@@ -358,8 +195,8 @@ int XrdObjectStorageOss::Remdir(const char* path, int Opts, XrdOucEnv* eP)
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Rename(const char* from, const char* to, XrdOucEnv* eP1, XrdOucEnv* eP2)
 {
-	PrintInfo("XrdObjectStorageOss::Rename",from,to);
-	return Unsupported;
+	PrintInfo("***** Rename",from,to);
+	return NotSupported("rename not supported");
 }
 
 //-----------------------------------------------------------------------------
@@ -377,11 +214,12 @@ int XrdObjectStorageOss::Rename(const char* from, const char* to, XrdOucEnv* eP1
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Stat(const char* path, struct stat* buf, int opts, XrdOucEnv* env)
 {
-	PrintInfo("XrdObjectStorageOss::Stat", path);
+	auto fullname = mapName(path);
+	PrintInfo("***** Stat", path, fullname);
 
-	auto item = pimpl->stat(path);
+	auto item = statItem(fullname);
 	if (!item)
-		return -ENOENT;
+		return NoEntity("the item is not a blob or director");
 
 	//ID of device containing file
 	buf->st_dev = 0;
@@ -413,7 +251,7 @@ int XrdObjectStorageOss::Stat(const char* path, struct stat* buf, int opts, XrdO
 	//Time of last status change
 	buf->st_ctime = 0;
 
-	return XrdOssOK;
+	return Ok();
 }
 
 //-----------------------------------------------------------------------------
@@ -427,8 +265,8 @@ int XrdObjectStorageOss::Stat(const char* path, struct stat* buf, int opts, XrdO
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Truncate(const char* path, unsigned long long size, XrdOucEnv* envP)
 {
-	PrintInfo("XrdObjectStorageOss::Truncate", path);
-	return Unsupported;
+	PrintInfo("***** Truncate", path);
+	return NotSupported("truncate not supported");
 }
 
 //-----------------------------------------------------------------------------
@@ -445,34 +283,11 @@ int XrdObjectStorageOss::Truncate(const char* path, unsigned long long size, Xrd
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOss::Unlink(const char* path, int Opts, XrdOucEnv* eP)
 {
-	PrintInfo("XrdObjectStorageOss::Unlink", path);
-	return Unsupported;
+	auto fullname = mapName(path);
+	PrintInfo("***** Unlink", path, fullname);
+	return deleteBlob(fullname)? Ok() : InputOutputError("deleteBlob failed");
 }
 
-/////////////////////////////////////////////////////
-class XrdObjectStorageOssDir::Pimpl
-{
-public:
-
-	SharedPtr<CloudStorageItem> dir;
-	int cursor = 0;
-
-	Pimpl() {}
-
-};
-
-////////////////////////////////////////////////////////
-XrdObjectStorageOssDir::XrdObjectStorageOssDir(XrdObjectStorageOss* owner_) : owner(owner_)
-{
-	this->pimpl = new Pimpl();
-}
-
-////////////////////////////////////////////////////////
-XrdObjectStorageOssDir::~XrdObjectStorageOssDir()
-{
-	Close();
-	delete pimpl;
-}
 
 //-----------------------------------------------------------------------------
 //! Open a directory.
@@ -484,24 +299,26 @@ XrdObjectStorageOssDir::~XrdObjectStorageOssDir()
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOssDir::Opendir(const char* path, XrdOucEnv& env)
 {
-	PrintInfo("XrdObjectStorageOssDir::Opendir", path);
+	auto fullname = owner->mapName(path);
+	PrintInfo("***** Opendir", path, fullname);
 
-	auto dir = owner->pimpl->getDir(path);
-	if (!dir || !dir->is_directory)
-		return -ENOENT; //error
+	if (auto dir = owner->getDir(fullname))
+	{
+		this->dir = dir;
+		this->cursor = 0;
+		return Ok();
+	}
 
-	pimpl->dir = dir;
-	pimpl->cursor = 0;
-	return XrdOssOK;
+	return NoEntity("the directory does not exist");
 }
 
 ////////////////////////////////////////////////////////
 int XrdObjectStorageOssDir::Close(long long* retsz)
 {
-	PrintInfo("XrdObjectStorageOssDir::Close");
-	pimpl->dir.reset();
-	pimpl->cursor = 0;
-	return XrdOssOK;
+	PrintInfo("***** Close");
+	this->dir.reset();
+	this->cursor = 0;
+	return Ok();
 }
 
 
@@ -517,47 +334,28 @@ int XrdObjectStorageOssDir::Close(long long* retsz)
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOssDir::Readdir(char* buff, int blen)
 {
-	PrintInfo("XrdObjectStorageOssDir::Readdir", blen, pimpl->cursor);
+	PrintInfo("***** Readdir", blen, this->cursor);
 
 	//finished
-	if (pimpl->cursor >= pimpl->dir->childs.size())
+	if (this->cursor >= this->dir->childs.size())
 	{
 		buff[0] = 0;
-		return 0;
+		return Ok();
 	}
 	
-	auto FULLNAME = pimpl->dir->fullname;
-	auto fullname = pimpl->dir->childs[pimpl->cursor]->fullname;
+	auto FULLNAME = this->dir->fullname;
+	auto fullname = this->dir->childs[this->cursor]->fullname;
 	VisusReleaseAssert(StringUtils::startsWith(fullname,FULLNAME));
 	auto name = fullname.substr(FULLNAME.size());
 	if (name[0] == '/') name = name.substr(1); //example "/aaaa" "aaaa/bbbb" -> "/bbbb" but I want bbbb
 
 	strlcpy(buff, &name[0], blen);
 
-	pimpl->cursor++;
-	return XrdOssOK;
+	this->cursor++;
+	return Ok();
 }
 
 
-class XrdObjectStorageOssFile::Pimpl
-{
-public:
-	SharedPtr<CloudStorageItem> blob;
-};
-
-////////////////////////////////////////////////////////
-XrdObjectStorageOssFile::XrdObjectStorageOssFile(XrdObjectStorageOss* owner_) : owner(owner_)
-{
-	this->fd = 0;
-	this->pimpl = new Pimpl();
-}
-
-////////////////////////////////////////////////////////
-XrdObjectStorageOssFile::~XrdObjectStorageOssFile()
-{
-	Close();
-	delete pimpl;
-}
 
 //-----------------------------------------------------------------------------
 //! Open a file.
@@ -571,24 +369,74 @@ XrdObjectStorageOssFile::~XrdObjectStorageOssFile()
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
 {
-	PrintInfo("XrdObjectStorageOssFile::Open", path);
+	auto fullname = owner->mapName(path);
 
-	auto blob = owner->pimpl->getBlob(path);
-	if (!blob || blob->is_directory || !blob->body || !blob->getContentLength())
-		return -ENOENT;
+	std::ostringstream out;
 
-	pimpl->blob = blob;
-	return XrdOssOK;
+#define DebugFlag(__name__) if (flags & __name__) out<<#__name__<<" ";
+	DebugFlag(O_RDONLY);
+	DebugFlag(O_WRONLY);
+	DebugFlag(O_RDWR);
+	DebugFlag(O_APPEND);
+	DebugFlag(O_ASYNC);
+	DebugFlag(O_CLOEXEC);
+	DebugFlag(O_CREAT);
+	DebugFlag(O_DIRECT);
+	DebugFlag(O_DIRECTORY);
+	DebugFlag(O_DSYNC);
+	DebugFlag(O_EXCL);
+	DebugFlag(O_LARGEFILE);
+	DebugFlag(O_NOATIME);
+	DebugFlag(O_NOCTTY);
+	DebugFlag(O_NOFOLLOW);
+	DebugFlag(O_NONBLOCK);
+	DebugFlag(O_PATH);
+	DebugFlag(O_SYNC);
+	DebugFlag(O_TMPFILE);
+	DebugFlag(O_TRUNC);
+
+	PrintInfo("***** Open", path, fullname, mode, out.str());
+
+	//I am collecting all the writes (reading not allowed) and at the end I will upload the file
+	if ((flags & O_WRONLY) || (flags & O_RDWR))
+	{
+		VisusReleaseAssert(flags && O_TRUNC);
+		this->writing = CloudStorageItem::createBlob(fullname, std::make_shared<HeapMemory>());
+		return Ok();
+	}
+	else
+	{
+		//assume it's reading (it seems O_RDONLY is not set)
+		if (auto reading = owner->getBlob(fullname))
+		{
+			this->reading = reading;
+			return Ok();
+		}
+
+		return NoEntity("the blob does not exist");
+	}
+
 }
 
 ////////////////////////////////////////////////////////
 int XrdObjectStorageOssFile::Close(long long* retsz)
 {
-	PrintInfo("XrdObjectStorageOssFile::Close");
-	pimpl->blob.reset();
-	return XrdOssOK;
-}
+	PrintInfo("***** Close");
 
+	if (this->reading)
+	{ 
+		this->reading.reset();
+		return Ok();
+	}
+	else if (this->writing)
+	{
+		bool bOk = owner->addBlob(writing);
+		this->writing.reset();
+		return bOk? Ok() : InputOutputError("addBlob failed");
+	}
+
+	return Ok();
+}
 
 
 //-----------------------------------------------------------------------------
@@ -601,8 +449,8 @@ int XrdObjectStorageOssFile::Close(long long* retsz)
 //-----------------------------------------------------------------------------
 ssize_t XrdObjectStorageOssFile::Read(off_t offset, size_t blen)
 {
-	PrintInfo("XrdObjectStorageOssFile::(PRE)Read", (int)offset, (int)blen);
-	return Unsupported;
+	PrintInfo("***** (PRE)Read", (int)offset, (int)blen);
+	return NotSupported("preread not supported");
 }
 
 //-----------------------------------------------------------------------------
@@ -617,23 +465,60 @@ ssize_t XrdObjectStorageOssFile::Read(off_t offset, size_t blen)
 //-----------------------------------------------------------------------------
 ssize_t XrdObjectStorageOssFile::Read(void* buff, off_t offset, size_t blen)
 {
-	PrintInfo("XrdObjectStorageOssFile::Read", offset, blen);
+	PrintInfo("***** Read", (int)offset, (int)blen);
 
-	if (!pimpl->blob)
-		return -ENOENT;
-
-	blen = std::min((Int64)blen, pimpl->blob->getContentLength()-offset);
-
-	memcpy(buff, pimpl->blob->body->c_ptr() + offset, blen);
-	return blen;
+	if (this->reading)
+	{
+		blen = std::min((Int64)blen, this->reading->getContentLength() - offset);
+		memcpy(buff, this->reading->body->c_ptr() + offset, blen);
+		PrintInfo("***** returning blen",blen);
+		return blen;
+	}
+	else if (this->writing)
+	{
+		this->writing.reset();
+		return NotSupported("cannot read while writing");
+	}
+	else
+	{
+		return NotSupported("read failed (neither reading or writing)");
+	}
 }
 
 
-////////////////////////////////////////////////////////
+//-----------------------------------------------------------------------------
+//! Write file bytes from a buffer.
+//!
+//! @param  buffer  - pointer to buffer where the bytes reside.
+//! @param  offset  - The offset where the write is to start.
+//! @param  size    - The number of bytes to write.
+//!
+//! @return >= 0      The number of bytes that were written.
+//! @return <  0      -errno or -osserr upon failure (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
 ssize_t XrdObjectStorageOssFile::Write(const void* buff, off_t offset, size_t blen)
 {
-	PrintInfo("XrdObjectStorageOssFile::Write", offset, blen);
-	return Unsupported;
+	PrintInfo("***** Write", (int)offset, (int)blen);
+
+	if (this->reading)
+	{
+		this->reading.reset();
+		return NotSupported("cannto write while reading");
+	}
+	else if (this->writing)
+	{
+		if (offset != writing->body->c_size())
+			return InputOutputError("offset is not at the end of the body");
+
+		if (!writing->body->resize(offset + blen, __FILE__, __LINE__))
+			return InputOutputError("body resize failed");
+
+		memcpy(writing->body->c_ptr() + offset, buff, blen);
+		PrintInfo("***** returning blen", blen);
+		return blen;
+	}
+
+	return NotSupported("tried a write wile not writing");
 }
 
 //-----------------------------------------------------------------------------
@@ -645,10 +530,10 @@ ssize_t XrdObjectStorageOssFile::Write(const void* buff, off_t offset, size_t bl
 //-----------------------------------------------------------------------------
 int XrdObjectStorageOssFile::Fstat(struct stat* buf)
 {
-	PrintInfo("XrdObjectStorageOssFile::Fstat");
+	PrintInfo("***** Fstat");
 
-	if (!pimpl->blob)
-		return -ENOENT;
+	if (!this->reading && !this->writing)
+		return NotSupported("cannot stat");
 
 	//ID of device containing file
 	buf->st_dev = 0;
@@ -669,7 +554,7 @@ int XrdObjectStorageOssFile::Fstat(struct stat* buf)
 	buf->st_gid = getgid();
 
 	//Total size, in bytes
-	buf->st_size = pimpl->blob->getContentLength();
+	buf->st_size = reading? reading->getContentLength() : writing->body->c_size();
 
 	//Time of last access
 	buf->st_atime = 0;
@@ -680,7 +565,7 @@ int XrdObjectStorageOssFile::Fstat(struct stat* buf)
 	//Time of last status change
 	buf->st_ctime = 0;
 
-	return XrdOssOK;
+	return Ok();
 }
 
 
