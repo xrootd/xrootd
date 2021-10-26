@@ -2939,23 +2939,24 @@ namespace XrdCl
         unsigned char *fhandle = 0;
         o << "kXR_readv (";
 
-        readahead_list *dataChunk = (readahead_list*)(msg + 24 );
-        uint64_t size      = 0;
-        uint32_t numChunks = 0;
-        for( size_t i = 0; i < req->dlen/sizeof(readahead_list); ++i )
-        {
-          fhandle = dataChunk[i].fhandle;
-          size += dataChunk[i].rlen;
-          ++numChunks;
-        }
         o << "handle: ";
+        readahead_list *dataChunk = (readahead_list*)(msg + 24 );
+        fhandle = dataChunk[0].fhandle;
         if( fhandle )
           o << FileHandleToStr( fhandle );
         else
           o << "unknown";
         o << ", ";
         o << std::setbase(10);
-        o << "chunks: " << numChunks << ", ";
+        o << "chunks: [";
+        uint64_t size      = 0;
+        for( size_t i = 0; i < req->dlen/sizeof(readahead_list); ++i )
+        {
+          size += dataChunk[i].rlen;
+          o << "(offset: " << dataChunk[i].offset;
+          o << ", size: " << dataChunk[i].rlen << "); ";
+        }
+        o << "], ";
         o << "total size: " << size << ")";
         break;
       }

@@ -497,6 +497,44 @@ namespace XrdCl
     return XRootDStatus();
   }
 
+  //------------------------------------------------------------------------
+  // Write message to the socket
+  //------------------------------------------------------------------------
+  XRootDStatus Socket::Send( Message &msg, const std::string &strmname )
+  {
+    //----------------------------------------------------------------------
+    // Try to write down the current message
+    //----------------------------------------------------------------------
+    size_t btsleft = msg.GetSize() - msg.GetCursor();
+    if( !btsleft ) return XRootDStatus();
+
+    while( btsleft )
+    {
+      int wrtcnt = 0;
+      XRootDStatus st = Send( msg.GetBufferAtCursor(), btsleft, wrtcnt );
+
+      if( !st.IsOK() )
+      {
+        msg.SetCursor( 0 );
+        return st;
+      }
+
+      if( st.code == suRetry ) return st;
+
+      msg.AdvanceCursor( wrtcnt );
+      btsleft -= wrtcnt;
+    }
+
+    //----------------------------------------------------------------------
+    // We have written the message successfully
+    //----------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
+               strmname.c_str(), msg.GetDescription().c_str(),
+               &msg, msg.GetSize() );
+    return XRootDStatus();
+  }
+
   //----------------------------------------------------------------------------
   // Poll the descriptor
   //----------------------------------------------------------------------------

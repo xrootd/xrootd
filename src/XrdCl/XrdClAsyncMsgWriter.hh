@@ -127,7 +127,7 @@ namespace XrdCl
               //----------------------------------------------------------------
               if( outsign )
               {
-                XRootDStatus st = WriteCurrentMessage( *outsign );
+                XRootDStatus st = socket.Send( *outsign, strmname );
                 if( !st.IsOK() || st.code == suRetry ) return st;
               }
               //----------------------------------------------------------------
@@ -141,7 +141,7 @@ namespace XrdCl
             //------------------------------------------------------------------
             case WriteRequest:
             {
-              XRootDStatus st = WriteCurrentMessage( *outmsg );
+              XRootDStatus st = socket.Send( *outmsg, strmname );
               if( !st.IsOK() || st.code == suRetry ) return st;
               //----------------------------------------------------------------
               // The next step is to write the signature
@@ -199,41 +199,6 @@ namespace XrdCl
       }
 
     private:
-
-      XRootDStatus WriteCurrentMessage( Message &msg )
-      {
-        Log *log = DefaultEnv::GetLog();
-        //----------------------------------------------------------------------
-        // Try to write down the current message
-        //----------------------------------------------------------------------
-        size_t btsleft = msg.GetSize() - msg.GetCursor();
-        if( !btsleft ) return XRootDStatus();
-
-        while( btsleft )
-        {
-          int wrtcnt = 0;
-          XRootDStatus st = socket.Send( msg.GetBufferAtCursor(), btsleft, wrtcnt );
-
-          if( !st.IsOK() )
-          {
-            msg.SetCursor( 0 );
-            return st;
-          }
-
-          if( st.code == suRetry ) return st;
-
-          msg.AdvanceCursor( wrtcnt );
-          btsleft -= wrtcnt;
-        }
-
-        //----------------------------------------------------------------------
-        // We have written the message successfully
-        //----------------------------------------------------------------------
-        log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
-                   strmname.c_str(), msg.GetDescription().c_str(),
-                   &msg, msg.GetSize() );
-        return XRootDStatus();
-      }
 
       //------------------------------------------------------------------------
       //! Stages of reading out a response from the socket

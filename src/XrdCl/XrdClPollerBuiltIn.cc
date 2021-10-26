@@ -232,10 +232,11 @@ namespace XrdCl
     for( it = pSocketMap.begin(); it != pSocketMap.end(); ++it )
     {
       PollerHelper *helper = (PollerHelper*)it->second;
-      Socket       *socket = it->first;
+      if( !helper->channel ) continue;
       bool status = helper->channel->Disable( Channel::allEvents, &errMsg );
       if( !status )
       {
+        Socket *socket = it->first;
         log->Error( PollerMsg, "%s Unable to disable write notifications: %s",
                     socket->GetName().c_str(), errMsg );
       }

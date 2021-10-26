@@ -608,6 +608,7 @@ namespace XrdCl
       delete pHandShakeData;
       pHandShakeData = nullptr;
       hswriter.reset();
+      hsreader.reset();
       XRootDStatus st;
       if( !(st = EnableUplink()).IsOK() )
       {

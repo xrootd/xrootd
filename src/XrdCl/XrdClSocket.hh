@@ -34,6 +34,7 @@ namespace XrdCl
   class AnyObject;
   class Tls;
   class AsyncSocketHandler;
+  class Message;
 
   //----------------------------------------------------------------------------
   //! A network socket
@@ -172,6 +173,15 @@ namespace XrdCl
       //! @return      : the amount of data actually written
       //------------------------------------------------------------------------
       XRootDStatus Send( XrdSys::KernelBuffer &kbuff, int &bytesWritten );
+
+      //------------------------------------------------------------------------
+      //! Write message to the socket
+      //!
+      //! @param msg      : message (request) to be sent
+      //! @param strmname : stream name (for logging purposes)
+      //! @return         : the amount of data actually written
+      //------------------------------------------------------------------------
+      XRootDStatus Send( Message &msg, const std::string &strmname );
 
       //----------------------------------------------------------------------------
       //! Read helper for raw socket
