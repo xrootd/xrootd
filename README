@@ -62,7 +62,7 @@ handling the perl libraries, therefore version 2.8 or newer is recommended.
 
 2.3 Build steps
 
-  * on REHL7 only: scl enable devtoolset-7 /bin/bash
+  * on RHEL7 only: scl enable devtoolset-7 /bin/bash
 
   * Create an empty build directory:
 
