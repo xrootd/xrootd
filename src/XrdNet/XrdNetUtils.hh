@@ -181,6 +181,30 @@ const char  *GetAddrs(std::vector<std::string> &hSVec,
                       unsigned int rotNum=0, bool force=false);
 
 //------------------------------------------------------------------------------
+//! Obtain connection information from a socket.
+//!
+//! @param  fd       The file descriptor of the socket whose address is to be
+//!                  converted. The sign of the fd indicates which address:
+//!                  fd > 0 the peer  address is used (i.e. getpeername)
+//!                  fd < 0 the local address is used (i.e. getsockname)
+//! @param  theAddr  pointer to a buffer of theAlen bytes where the text
+//!                  version of the IP address is to be returned. The text
+//!                  uses the actual native address format. If theAddr is
+//!                  nil or theAlen is not positive, only the port and
+//!                  address type are returned.
+//! @param  theALen  length of the theAddr buffer.
+//! @param  theType  either the character 4 (IPv4) or 6 (IPv6) is returned.
+//!                  corrresponding to the address family. Note that should
+//!                  be AF_INET6 but the address is mapped, '4' is returned.
+//!
+//! @return Success: >= 0 corresponding to the port number.
+//! @return Failure: <  0 corresponding to -errno.
+//------------------------------------------------------------------------------
+
+static
+int          GetSokInfo(int fd, char *theAddr, int theALen, char &theType);
+
+//------------------------------------------------------------------------------
 //! Obtain an easily digestable list of hosts. This is the list of up to eight
 //! unique aliases (i.e. with different addresses) assigned to a base hostname.
 //!

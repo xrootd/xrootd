@@ -356,7 +356,7 @@ const char *XrdNetUtils::GetAddrs(std::vector<std::string> &hSVec,
   
 const char *XrdNetUtils::GetAInfo(XrdNetSpace::hpSpec &aInfo)
 {
-   struct addrinfo *xP = 0, *rP = 0, *nP;
+   struct addrinfo *last4 = 0, *last6 = 0, *xP = 0, *rP = 0, *nP;
    unsigned short pNum = static_cast<unsigned short>(aInfo.port);
 
 // Get all of the addresses
@@ -367,7 +367,8 @@ const char *XrdNetUtils::GetAInfo(XrdNetSpace::hpSpec &aInfo)
        return (rc ? gai_strerror(rc) : "host not found");
       }
 
-// Count the number of entries we will return and chain the entries
+// Count the number of entries we will return and chain the entries. We will
+// never return link local addresses which may be returned (shouldn't but does)
 //
    do {nP = rP->ai_next;
        if (rP->ai_family == AF_INET6 || rP->ai_family == AF_INET)
@@ -375,17 +376,22 @@ const char *XrdNetUtils::GetAInfo(XrdNetSpace::hpSpec &aInfo)
            bool v4mapped = false;
            if (rP->ai_family == AF_INET6)
               {struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)rP->ai_addr;
+               if (IN6_IS_ADDR_LINKLOCAL(&ipv6->sin6_addr))
+                  {rP->ai_next = xP; xP = rP; continue;}
                v4mapped = IN6_IS_ADDR_V4MAPPED(&ipv6->sin6_addr);
               }
            if (aInfo.noOrder || rP->ai_family == AF_INET ||  v4mapped)
-              {rP->ai_next = aInfo.aiP4;
-               aInfo.aiP4 = rP;
+              {if (last4) last4->ai_next = rP;
+                  else aInfo.aiP4 = rP;
+               last4 = rP;
                aInfo.aNum4++;
               } else {
-               rP->ai_next = aInfo.aiP6;
-               aInfo.aiP6 = rP;
+               if (last6) last6->ai_next = rP;
+                  else aInfo.aiP6 = rP;
+               last6 = rP;
                aInfo.aNum6++;
               }
+           rP->ai_next = 0;
           } else {rP->ai_next = xP; xP = rP;}
       } while((rP = nP));
 
@@ -482,6 +488,49 @@ const char *XrdNetUtils::GetHostPort(XrdNetSpace::hpSpec &aInfo,
    return 0;
 }
 
+/******************************************************************************/
+/*                            g e t S o k I n f o                             */
+/******************************************************************************/
+
+int XrdNetUtils::GetSokInfo(int fd, char *theAddr, int theALen, char &theType)
+{
+   XrdNetSockAddr theIP;
+   XrdNetAddr ipAddr;
+   static const int fmtopts = XrdNetAddrInfo::noPortRaw
+                            | XrdNetAddrInfo::prefipv4;
+   SOCKLEN_t addrSize = sizeof(theIP);
+   int rc;
+   unsigned short thePort;
+
+// The the address wanted
+//
+   rc = (fd > 0 ? getpeername( fd, &theIP.Addr, &addrSize)
+                : getsockname(-fd, &theIP.Addr, &addrSize));
+   if (rc) return -errno;
+
+// Set the address
+//
+   if (ipAddr.Set(&theIP.Addr)) return -EAFNOSUPPORT;
+
+// Establis the type of address we have
+//
+   if (ipAddr.isIPType(XrdNetAddrInfo::IPv4) || ipAddr.isMapped()) theType='4';
+      else theType = '6';
+
+// Now format the address
+//
+   if (theAddr && theALen > 0
+   &&  !ipAddr.Format(theAddr, theALen, XrdNetAddrInfo::fmtAddr, fmtopts))
+      return -EINVAL;
+
+// Get the port number and return it.
+//
+   thePort = htons((theIP.Addr.sa_family == AF_INET
+                   ? theIP.v4.sin_port : theIP.v6.sin6_port));
+   return static_cast<int>(thePort);
+}
+
+  
 /******************************************************************************/
 /*                                 H o s t s                                  */
 /******************************************************************************/
