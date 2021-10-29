@@ -162,6 +162,29 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *argV[], int argC,
 }
 
 /******************************************************************************/
+  
+int XrdOucProg::Run(const char *argV[], int argC, const char *envV[])
+{
+   XrdOucStream cmd;
+   char *lp;
+   int rc;
+
+// Execute the command
+//
+   rc = Run(&cmd, argV, argC, envV);
+   if (rc) return rc;
+
+// Drain all output
+//
+   while((lp = cmd.GetLine()))
+        if (eDest && *lp) eDest->Emsg("Run", lp);
+
+// All done
+//
+   return RunDone(cmd);
+}
+
+/******************************************************************************/
 
 int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
                                       const char *arg3, const char *arg4)

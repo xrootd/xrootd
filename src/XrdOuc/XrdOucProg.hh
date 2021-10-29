@@ -71,9 +71,12 @@ XrdOucStream *getStream() {return myStream;}
 // additional arguments to be appended to the existing ones. The
 // method also allows envars to be set in forked process via envV vector
 // which contains strings "var=val" and terminaes with a null pointer.
+// When using the form without a stream pointer, command output is thrown away.
 //
-int         Run(XrdOucStream *Sp, const char *argV[], int argc=0,
-                                  const char *envV[]=0);
+int          Run(XrdOucStream *Sp, const char *argV[], int argc=0,
+                                   const char *envV[]=0);
+
+int          Run(const char *argV[], int argC, const char *envV[]=0);
 
 // Run executes the command that was passed via Setup(). You may pass
 // up to four additional arguments that will be added to the end of any
