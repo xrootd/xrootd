@@ -298,6 +298,42 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 }
 
 /******************************************************************************/
+/*                               f i n d P g m                                */
+/******************************************************************************/
+
+bool XrdOucUtils::findPgm(const char *pgm, XrdOucString& path)
+{
+   struct stat Stat;
+
+// Check if only executable bit needs to be checked
+//
+   if (*pgm == '/')
+      {if (stat(pgm, &Stat) || !(Stat.st_mode & S_IXOTH)) return false;
+       path = pgm;
+       return true;
+      }
+
+// Make sure we have the paths to check
+//
+   const char *pEnv = getenv("PATH");
+   if (!pEnv) return false;
+
+// Setup to find th executable
+//
+   XrdOucString prog, pList(pEnv);
+   int from = 0;;
+   prog += '/'; prog += pgm;
+
+// Find it!
+//
+   while((from = pList.tokenize(path, from, ':')) != -1)
+        {path += prog;
+         if (!stat(path.c_str(), &Stat) && Stat.st_mode & S_IXOTH) return true;
+        }
+   return false;
+}
+  
+/******************************************************************************/
 /*                              f m t B y t e s                               */
 /******************************************************************************/
   
@@ -361,6 +397,63 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
          if (psfx[j-1] != '/') strcat(buff, "/");
         }
     return 0;
+}
+
+/******************************************************************************/
+/*                               g e t F i l e                                */
+/******************************************************************************/
+
+char *XrdOucUtils::getFile(const char *path, int &rc, int maxsz, bool notempty)
+{
+   struct stat Stat;
+   struct fdHelper
+         {int fd = -1;
+              fdHelper() {}
+             ~fdHelper() {if (fd >= 0) close(fd);}
+         } file;
+   char *buff;
+   int   flen;
+
+// Preset RC
+//
+   rc = 0;
+
+// Open the file in read mode
+//
+   if ((file.fd = open(path, O_RDONLY)) < 0) {rc = errno; return 0;}
+
+// Get the size of the file
+//
+   if (fstat(file.fd, &Stat)) {rc = errno; return 0;}
+
+// Check if the size exceeds the maximum allowed
+//
+   if (Stat.st_size > maxsz) {rc = EFBIG; return 0;}
+
+// Make sure the file is not empty is empty files are disallowed
+//
+   if (Stat.st_size == 0 && notempty) {rc = ENODATA; return 0;}
+
+// Allocate a buffer
+//
+   if ((buff = (char *)malloc(Stat.st_size+1)) == 0)
+      {rc = errno; return 0;}
+
+// Read the contents of the file into the buffer
+//
+   if (Stat.st_size)
+      {if ((flen = read(file.fd, buff, Stat.st_size)) < 0)
+          {rc = errno; free(buff); return 0;}
+      } else flen = 0;
+
+// Add null byte. recall the buffer is bigger by one byte
+//
+   buff[flen] = 0;
+
+// Return the size aand the buffer
+//
+   rc = flen;
+   return buff;
 }
 
 /******************************************************************************/
@@ -483,6 +576,28 @@ int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
    return glen;
 }
 
+/******************************************************************************/
+/*                                i 2 b s t r                                 */
+/******************************************************************************/
+
+const char *XrdOucUtils::i2bstr(char *buff, int blen, int val, bool pad)
+{
+   char zo[2] = {'0', '1'};
+
+   if (blen < 2) return "";
+
+   buff[--blen] = 0;
+   if (!val) buff[blen--] = '0';
+      else while(val && blen >= 0)
+                {buff[blen--] = zo[val & 0x01];
+                 val >>= 1;
+                }
+
+   if (blen >= 0 && pad) while(blen >= 0) buff[blen--] = '0';
+
+   return &buff[blen+1];
+}
+  
 /******************************************************************************/
 /*                                 I d e n t                                  */
 /******************************************************************************/
