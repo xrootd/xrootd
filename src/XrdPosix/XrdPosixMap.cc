@@ -44,6 +44,10 @@
 #define ENOSR ENOSPC
 #endif
 
+#ifndef ECHRNG
+#define ECHRNG EINVAL
+#endif
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -79,10 +83,6 @@ mode_t XrdPosixMap::Flags2Mode(dev_t *rdv, uint32_t flags)
 /******************************************************************************/
 /* Private:                      m a p C o d e                                */
 /******************************************************************************/
-
-#ifndef ECHRNG
-#define ECHRNG 44
-#endif
 
 int XrdPosixMap::mapCode(int rc)
 {
