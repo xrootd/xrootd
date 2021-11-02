@@ -266,7 +266,7 @@ namespace XrdCl
       std::string                    pStreamName;
       Socket                        *pSocket;
       XrdNetAddr                     pSockAddr;
-      HandShakeData                 *pHandShakeData;
+      std::unique_ptr<HandShakeData> pHandShakeData;
       bool                           pHandShakeDone;
       uint16_t                       pTimeoutResolution;
       time_t                         pConnectionStarted;
