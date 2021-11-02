@@ -138,7 +138,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // The internal state of the the reader
       //------------------------------------------------------------------------
-      std::unique_ptr<Message>  outmsg; //< we don't own the message
+      std::unique_ptr<Message>  outmsg;
       uint32_t                  outmsgsize;
   };
 }

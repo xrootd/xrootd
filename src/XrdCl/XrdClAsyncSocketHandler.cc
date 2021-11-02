@@ -308,10 +308,6 @@ namespace XrdCl
       return;
     }
     pSocket->SetStatus( Socket::Connected );
-    hswriter.reset( new AsyncHSWriter( *pSocket, pStreamName ) );
-    rspreader.reset( new AsyncMsgReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
-    hsreader.reset( new AsyncHSReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
-    reqwriter.reset( new AsyncMsgWriter( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum, *pChannelData ) );
 
     //--------------------------------------------------------------------------
     // Cork the socket
@@ -345,6 +341,12 @@ namespace XrdCl
       ++pHandShakeData->step;
 
     //--------------------------------------------------------------------------
+    // Initialize the hand-shake reader and writer
+    //--------------------------------------------------------------------------
+    hswriter.reset( new AsyncHSWriter( *pSocket, pStreamName ) );
+    hsreader.reset( new AsyncHSReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
+
+    //--------------------------------------------------------------------------
     // Transport has given us something to send
     //--------------------------------------------------------------------------
     if( pHandShakeData->out )
@@ -358,6 +360,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pPoller->EnableReadNotification( pSocket, true, pTimeoutResolution ) )
     {
+      hswriter.reset();
+      hsreader.reset();
       pStream->OnConnectError( pSubStreamNum,
                                XRootDStatus( stFatal, errPollerError ) );
       return;
@@ -609,6 +613,11 @@ namespace XrdCl
       pHandShakeData = nullptr;
       hswriter.reset();
       hsreader.reset();
+      //------------------------------------------------------------------------
+      // Initialize the request writer & reader
+      //------------------------------------------------------------------------
+      reqwriter.reset( new AsyncMsgWriter( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum, *pChannelData ) );
+      rspreader.reset( new AsyncMsgReader( *pTransport, *pSocket, pStreamName, *pStream, pSubStreamNum ) );
       XRootDStatus st;
       if( !(st = EnableUplink()).IsOK() )
       {
@@ -636,8 +645,8 @@ namespace XrdCl
     log->Error( AsyncSockMsg, "[%s] Socket error encountered: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
 
-    rspreader->Reset();
-    reqwriter->Reset();
+    rspreader.reset();
+    reqwriter.reset();
 
     pStream->OnError( pSubStreamNum, st );
   }
@@ -650,8 +659,8 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Error( AsyncSockMsg, "[%s] Socket error while handshaking: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
-    if( hsreader ) hsreader->Reset();
-    if( hswriter ) hswriter->Reset();
+    hsreader.reset();
+    hswriter.reset();
 
     pStream->OnConnectError( pSubStreamNum, st );
   }
@@ -674,12 +683,8 @@ namespace XrdCl
 
     if( isBroken )
     {
-      // if we are here it means Stream::OnError has been
-      // called from inside of Stream::OnReadTimeout, this
-      // in turn means that the ownership of following
-      // pointers, has been transferred to the inQueue
-      rspreader->Reset();
-      reqwriter->Reset();
+      rspreader.reset();
+      reqwriter.reset();
     }
   }
 
@@ -704,8 +709,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     pStream->ForceError( XRootDStatus( stError, errSocketError ) );
 
-    rspreader->Reset();
-    reqwriter->Reset();
+    rspreader.reset();
+    reqwriter.reset();
   }
 
   //------------------------------------------------------------------------
