@@ -140,7 +140,6 @@ namespace XrdCl
         pExpiration( 0 ),
         pRedirectAsAnswer( false ),
         pOksofarAsAnswer( false ),
-        pHosts( 0 ),
         pHasLoadBalancer( false ),
         pHasSessionId( false ),
         pChunkList( 0 ),
@@ -230,7 +229,6 @@ namespace XrdCl
         pResponseHandler        = reinterpret_cast<ResponseHandler*>( 0xDEADBEEF );
         pPostMaster             = reinterpret_cast<PostMaster*>( 0xDEADBEEF );
         pLFileHandler           = reinterpret_cast<LocalFileHandler*>( 0xDEADBEEF );
-        pHosts                  = reinterpret_cast<HostList*>( 0xDEADBEEF );
         pChunkList              = reinterpret_cast<ChunkList*>( 0xDEADBEEF );
         pEffectiveDataServerUrl = reinterpret_cast<URL*>( 0xDEADBEEF );
 
@@ -380,8 +378,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetHostList( HostList *hostList )
       {
-        delete pHosts;
-        pHosts = hostList;
+        pHosts.reset( hostList );
       }
 
       //------------------------------------------------------------------------
@@ -689,7 +686,7 @@ namespace XrdCl
       time_t                          pExpiration;
       bool                            pRedirectAsAnswer;
       bool                            pOksofarAsAnswer;
-      HostList                       *pHosts;
+      std::unique_ptr<HostList>       pHosts;
       bool                            pHasLoadBalancer;
       HostInfo                        pLoadBalancer;
       bool                            pHasSessionId;

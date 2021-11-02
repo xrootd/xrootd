@@ -1683,9 +1683,9 @@ namespace XrdCl
         pSidMgr->ReleaseSID( req->header.streamid );
     }
 
-    HostList *hosts = pHosts;
+    HostList *hosts = pHosts.release();
     if( !finalrsp )
-      pHosts = new HostList( *hosts );
+      pHosts.reset( new HostList( *hosts ) );
 
     pResponseHandler->HandleResponseWithHosts( status, response, hosts );
 
@@ -2965,7 +2965,7 @@ namespace XrdCl
 
     pResponseHandler->HandleResponseWithHosts( new XRootDStatus(),
                                                resp,
-                                               pHosts );
+                                               pHosts.release() );
     delete this;
 
     return;
