@@ -111,7 +111,13 @@ namespace XrdCl
       msgHandler->SetLoadBalancer( sendParams.loadBalancer );
 
     HostList *list = 0;
-    list = new HostList();
+    if( sendParams.hostList )
+    {
+      list = sendParams.hostList;
+      sendParams.hostList = nullptr;
+    }
+    else
+      list = new HostList();
     list->push_back( url );
     msgHandler->SetHostList( list );
 
