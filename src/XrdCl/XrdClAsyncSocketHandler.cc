@@ -45,7 +45,6 @@ namespace XrdCl
     pStream( strm ),
     pStreamName( ToStreamName( strm, subStreamNum ) ),
     pSocket( new Socket() ),
-    pHandShakeData( 0 ),
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
@@ -322,13 +321,13 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Initialize the handshake
     //--------------------------------------------------------------------------
-    pHandShakeData = new HandShakeData( pStream->GetURL(),
-                                        pSubStreamNum );
+    pHandShakeData.reset( new HandShakeData( pStream->GetURL(),
+                                        pSubStreamNum ) );
     pHandShakeData->serverAddr = pSocket->GetServerAddress();
     pHandShakeData->clientName = pSocket->GetSockName();
     pHandShakeData->streamName = pStreamName;
 
-    st = pTransport->HandShake( pHandShakeData, *pChannelData );
+    st = pTransport->HandShake( pHandShakeData.get(), *pChannelData );
     if( !st.IsOK() )
     {
       log->Error( AsyncSockMsg, "[%s] Connection negotiation failed",
@@ -525,7 +524,7 @@ namespace XrdCl
     // OK, we have a new message, let's deal with it;
     //--------------------------------------------------------------------------
     pHandShakeData->in = msg.release();
-    XRootDStatus st = pTransport->HandShake( pHandShakeData, *pChannelData );
+    XRootDStatus st = pTransport->HandShake( pHandShakeData.get(), *pChannelData );
 
     //--------------------------------------------------------------------------
     // Deal with wait responses
@@ -582,7 +581,7 @@ namespace XrdCl
     // If now is the time to enable encryption
     //--------------------------------------------------------------------------
     if( !pSocket->IsEncrypted() &&
-         pTransport->NeedEncryption( pHandShakeData, *pChannelData ) )
+         pTransport->NeedEncryption( pHandShakeData.get(), *pChannelData ) )
     {
       XRootDStatus st = DoTlsHandShake();
       if( !st.IsOK() || st.code == suRetry ) return;
@@ -609,8 +608,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( done )
     {
-      delete pHandShakeData;
-      pHandShakeData = nullptr;
+      pHandShakeData.reset();
       hswriter.reset();
       hsreader.reset();
       //------------------------------------------------------------------------
@@ -749,7 +747,7 @@ namespace XrdCl
     XRootDStatus st = DoTlsHandShake();
     if( !st.IsOK() || st.code == suRetry ) return;
 
-    HandShakeNextStep( pTransport->HandShakeDone( pHandShakeData,
+    HandShakeNextStep( pTransport->HandShakeDone( pHandShakeData.get(),
                                                   *pChannelData ) );
   }
 
