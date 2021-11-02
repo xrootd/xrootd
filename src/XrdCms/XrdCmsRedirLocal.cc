@@ -32,11 +32,12 @@ extern "C" XrdCmsClient *XrdCmsGetClient(XrdSysLogger *Logger, int opMode,
 //! Constructor
 //------------------------------------------------------------------------------
 XrdCmsRedirLocal::XrdCmsRedirLocal(XrdSysLogger *Logger, int opMode, int myPort,
-                         XrdOss *theSS) : XrdCmsClient(amLocal) {
-  nativeCmsFinder = new XrdCmsFinderRMT(Logger, opMode, myPort);
-  this->theSS = theSS;
-  readOnlyredirect = true;
-  httpRedirect = true;
+                         XrdOss *theSS) : XrdCmsClient(amLocal),
+                         nativeCmsFinder(new XrdCmsFinderRMT(Logger, opMode, myPort)),
+                         readOnlyredirect(true),
+                         httpRedirect(false),
+                         Say(0,"cms_") {
+  Say.logger(Logger);
 }
 //------------------------------------------------------------------------------
 //! Destructor
@@ -48,9 +49,20 @@ XrdCmsRedirLocal::~XrdCmsRedirLocal() { delete nativeCmsFinder; }
 //------------------------------------------------------------------------------
 int XrdCmsRedirLocal::Configure(const char *cfn, char *Parms, XrdOucEnv *EnvInfo) {
   loadConfig(cfn);
+  if(localroot.empty())
+  {
+    Say.Emsg("RedirLocal", "oss.localroot (replaced by xrdcmsredirlocal for localredirect) " \
+    "and xrdcmsredirlocal.localroot are undefined, define xrdcmsredirlocal.localroot");
+    return 0;
+  }
+  if(localroot[0] != '/')
+  {
+    Say.Emsg("RedirLocal", "oss.localroot or xrdcmsredirlocal.localroot needs to be an absolute path");
+    return 0;
+  }
   if (nativeCmsFinder)
     return nativeCmsFinder->Configure(cfn, Parms, EnvInfo);
-  return 0;
+  return 0; // means false
 }
 
 void XrdCmsRedirLocal::loadConfig(const char *filename) {
@@ -66,29 +78,22 @@ void XrdCmsRedirLocal::loadConfig(const char *filename) {
     // search for readonlyredirect,
     // which only allows read calls to be redirected to local
     if (strcmp(word, "xrdcmsredirlocal.readonlyredirect") == 0){
-      std::string readWord = std::string(Config.GetWord(true));//to lower case
-      if (readWord.find("true") != std::string::npos){
-        readOnlyredirect = true;
-      }
-      else {
-        readOnlyredirect = false;
-      }
+      readOnlyredirect = std::string(Config.GetWord(true)).find("true") != std::string::npos;
     }
     // search for httpredirect,
     // which allows http(s) calls to be redirected to local
     else if (strcmp(word, "xrdcmsredirlocal.httpredirect") == 0){
-      std::string readWord = std::string(Config.GetWord(true));//to lower case
-      if(readWord.find("true") != std::string::npos){
-        httpRedirect = true;
-      }
-      else {
-        httpRedirect = false;
-      }
+      httpRedirect = std::string(Config.GetWord(true)).find("true") != std::string::npos;
     }
-    // search for localroot,
+    // search for newer localroot, overwrite given oss.localroot if defined,
     // which manually sets localroot to prepend
     else if (strcmp(word, "xrdcmsredirlocal.localroot") == 0){
-      localroot = std::string(Config.GetWord(true));//to lower case
+      localroot = std::string(Config.GetWord(false));
+    }
+    // search for oss.localroot,
+    // which manually sets localroot to prepend
+    else if (strcmp(word, "oss.localroot") == 0 && localroot.empty()){
+      localroot = std::string(Config.GetWord(false));
     }
   }
   Config.Close();
@@ -127,9 +132,8 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
       // now check if localhost was tried before, to make sure we're handling
       // the redirection loop
       int param = 0; // need it to get Env
-      std::string envInfo(EnvInfo->Env(param)); // get already tried hosts
-      std::string searchPattern = "&tried=localhost"; //search for this pattern
-      if(strncmp(envInfo.c_str(), searchPattern.c_str(), searchPattern.size()) == 0)
+      //EnvInfo->Env(param) gets already tried hosts
+      if(strstr(EnvInfo->Env(param), "tried=localhost") != nullptr)
       {
         std::string newPath(path);
         // remove localroot
@@ -137,7 +141,7 @@ int XrdCmsRedirLocal::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
         // get regular target host
         rcode = nativeCmsFinder->Locate(Resp, newPath.c_str(), flags, EnvInfo);
         // set new error message to full url:port//newPath
-        auto errText = string(Resp.getErrText()) + ":" + to_string(Resp.getErrInfo()) + newPath;
+        const std::string errText { std::string(Resp.getErrText()) + ':' + to_string(Resp.getErrInfo()) + newPath};
         Resp.setErrInfo(0, errText.c_str());
         // now have normal redirection to dataserver at url:port
         return rcode;
