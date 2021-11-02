@@ -32,7 +32,7 @@ File::File(const char                     *user,
      m_sfs(sfs),
 #endif
      m_uid(0),
-     m_user(user),
+     m_user(user ? user : ""),
      m_throttle(throttle),
      m_eroute(eroute)
 {}
