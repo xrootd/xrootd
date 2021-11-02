@@ -116,7 +116,7 @@ const char      *iName;
 short            dPnt;
 short            dFree;
 short            vPnt;
-char             doHex;
+signed char      doHex;
 struct iovec     ioVec[iovMax];
 char             pBuff[pfxMax];
 char             dBuff[txtMax];
