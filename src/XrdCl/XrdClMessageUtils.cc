@@ -139,7 +139,6 @@ namespace XrdCl
       // Release the SID as the request was never send
       sidMgr->ReleaseSID( req->streamid );
       delete msgHandler;
-      delete list;
       return st;
     }
     return XRootDStatus();
