@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClEcHandler.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
 
@@ -325,7 +326,7 @@ namespace XrdCl
 
       pg = LoadFactory( lib, config );
 
-      if( !pg.first )
+      if( !pg.second )
         return;
     }
     else
@@ -346,6 +347,29 @@ namespace XrdCl
     const std::string &lib, const std::map<std::string, std::string> &config )
   {
     Log *log = DefaultEnv::GetLog();
+
+    if( lib == "XrdEcDefault" )
+    {
+      auto itr = config.find( "nbdta" );
+      if( itr == config.end() )
+        return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, nullptr );
+      uint8_t nbdta = std::stoul( itr->second );
+      itr = config.find( "nbprt" );
+      if( itr == config.end() )
+        return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, nullptr );
+      uint8_t nbprt = std::stoul( itr->second );
+      itr = config.find( "chsz" );
+      if( itr == config.end() )
+        return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, nullptr );
+      uint64_t chsz = std::stoul( itr->second );
+      std::vector<std::string> plgr;
+      itr = config.find( "plgr" );
+      if( itr != config.end() )
+        Utils::splitString( plgr, itr->second, "," );
+
+      EcPlugInFactory *ecHandler = new EcPlugInFactory( nbdta, nbprt, chsz, std::move( plgr ) );
+      return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, ecHandler );
+    }
 
     char errorBuff[1024];
     XrdOucPinLoader *pgHandler = new XrdOucPinLoader( errorBuff, 1024,
