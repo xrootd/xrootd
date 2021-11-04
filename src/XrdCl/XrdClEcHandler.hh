@@ -25,11 +25,12 @@ namespace XrdCl
       EcHandler( const URL                       &redir,
                  XrdEc::ObjCfg                   *objcfg,
                  std::unique_ptr<CheckSumHelper>  cksHelper ) : redir( redir ),
-                                                                fs( redir ),
+                                                                fs( redir, false ),
                                                                 objcfg( objcfg ),
                                                                 curroff( 0 ),
                                                                 cksHelper( std::move( cksHelper ) )
       {
+        XrdEc::Config::Instance().enable_plugins = false;
       }
 
       virtual ~EcHandler()
@@ -40,14 +41,28 @@ namespace XrdCl
                          XrdCl::ResponseHandler   *handler,
                          uint16_t                  timeout )
       {
-        // TODO if plgr is empty issue locate to figure out the plgr
+        if( objcfg->plgr.empty() )
+        {
+          LocationInfo *info = nullptr;
+          XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, info );
+          std::unique_ptr<LocationInfo> ptr( info );
+          if( !st.IsOK() ) return st;
+          if( info->GetSize() < objcfg->nbchunks ) return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
+          unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+          shuffle (info->Begin(), info->End(), std::default_random_engine(seed));
+          for( size_t i = 0; i < objcfg->nbchunks; ++i )
+          {
+            auto &location = info->At( i );
+            objcfg->plgr.emplace_back( "root://" + location.GetAddress() + '/' );
+          }
+        }
 
         if( ( flags & XrdCl::OpenFlags::Write ) || ( flags & XrdCl::OpenFlags::Update ) )
         {
           if( !( flags & XrdCl::OpenFlags::New )    || // it has to be a new file
                ( flags & XrdCl::OpenFlags::Delete ) || // truncation is not supported
                ( flags & XrdCl::OpenFlags::Read ) )    // write + read is not supported
-            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported ); // TODO call handler
+            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
           writer.reset( new XrdEc::StrmWriter( *objcfg ) );
           writer->Open( handler, timeout );
           return XrdCl::XRootDStatus();
@@ -56,14 +71,14 @@ namespace XrdCl
         if( flags & XrdCl::OpenFlags::Read )
         {
           if( flags & XrdCl::OpenFlags::Write )
-            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported ); // TODO call handler
+            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
     
           reader.reset( new XrdEc::Reader( *objcfg ) );
           reader->Open( handler, timeout );
           return XrdCl::XRootDStatus(); 
         }
 
-        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported ); // TODO call handler
+        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
       }
 
       XRootDStatus Open( const std::string &url,
