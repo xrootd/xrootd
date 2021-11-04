@@ -96,11 +96,19 @@ namespace XrdEc
       void Write( uint32_t size, const void *buff, XrdCl::ResponseHandler *handler );
 
       //-----------------------------------------------------------------------
-      //! Close the data objectA
+      //! Close the data object
       //!
       //! @param handler : user callback
       //-----------------------------------------------------------------------
       void Close( XrdCl::ResponseHandler *handler, uint16_t timeout = 0 );
+
+      //-----------------------------------------------------------------------
+      //! @return : get file size
+      //-----------------------------------------------------------------------
+      uint64_t GetSize()
+      {
+        return global_status.get_btswritten();
+      }
 
     private:
 
@@ -113,7 +121,8 @@ namespace XrdEc
         // Constructor
         //---------------------------------------------------------------------
         global_status_t( StrmWriter *writer ) : writer( writer ),
-                                                bytesleft( 0 ),
+                                                btsleft( 0 ),
+                                                btswritten( 0 ),
                                                 stopped_writing( false ),
                                                 closeHandler( 0 )
         {
@@ -128,13 +137,14 @@ namespace XrdEc
           //-------------------------------------------------------------------
           // Update the global status
           //-------------------------------------------------------------------
-          bytesleft -= wrtsize;
+          btsleft -= wrtsize;
           if( !st.IsOK() ) status = st;
+          else btswritten += wrtsize;
 
           //-------------------------------------------------------------------
           // check if we are done, and if yes call the close implementation
           //-------------------------------------------------------------------
-          if( bytesleft == 0 && stopped_writing )
+          if( btsleft == 0 && stopped_writing )
           {
             lck.unlock();
             writer->CloseImpl( closeHandler );
@@ -163,7 +173,7 @@ namespace XrdEc
           // If there are no outstanding writes, we can simply call the close
           // routine
           //-------------------------------------------------------------------
-          if( bytesleft == 0 ) return writer->CloseImpl( handler, timeout );
+          if( btsleft == 0 ) return writer->CloseImpl( handler, timeout );
           //-------------------------------------------------------------------
           // Otherwise we save the handler for later
           //-------------------------------------------------------------------
@@ -182,13 +192,19 @@ namespace XrdEc
         inline void issue_write( uint64_t wrtsize )
         {
           std::unique_lock<std::recursive_mutex> lck( mtx );
-          bytesleft += wrtsize;
+          btsleft += wrtsize;
+        }
+
+        inline uint64_t get_btswritten()
+        {
+          return btswritten;
         }
 
         private:
           mutable std::recursive_mutex  mtx;
           StrmWriter                   *writer;          //> pointer to the StrmWriter
-          uint64_t                      bytesleft;       //> bytes left to be written
+          uint64_t                      btsleft;         //> bytes left to be written
+          uint64_t                      btswritten;      //> total number of bytes written
           bool                          stopped_writing; //> true, if user called close
           XrdCl::XRootDStatus           status;          //> the global status
           XrdCl::ResponseHandler       *closeHandler;    //> user close handler

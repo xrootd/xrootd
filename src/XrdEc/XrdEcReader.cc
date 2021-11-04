@@ -584,6 +584,27 @@ namespace XrdEc
     else XrdCl::Async( XrdCl::Parallel( closes ) >> handler, timeout );
   }
 
+  //-----------------------------------------------------------------------
+  // Get file size
+  //-----------------------------------------------------------------------
+  uint64_t Reader::GetSize()
+  {
+    uint64_t ret = 0;
+    for( auto &p : dataarchs )
+    {
+      XrdCl::DirectoryList *lst = nullptr;
+      XrdCl::XRootDStatus st = p.second->List( lst );
+      if( !st.IsOK() ) continue;
+      for( auto itr = lst->Begin(); itr != lst->End(); ++itr )
+      {
+        XrdCl::DirectoryList::ListEntry *ent = *itr;
+        ret += ent->GetStatInfo()->GetSize();
+      }
+      delete lst;
+    }
+    return ret;
+  }
+
   //-------------------------------------------------------------------------
   // on-definition is not allowed here beforeiven stripes from given block
   //-------------------------------------------------------------------------
