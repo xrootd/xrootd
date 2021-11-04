@@ -35,6 +35,7 @@ if( BUILD_XRDEC )
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcUtilities.cc
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcStrmWriter.cc
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcReader.cc
+       XrdClEcHandler.cc
   )
   set( ISAL_LIB isal )
   add_compile_definitions( WITH_XRDEC )
@@ -102,7 +103,7 @@ add_library(
   XrdClLocalFileHandler.cc       XrdClLocalFileHandler.hh
   XrdClLocalFileTask.cc          XrdClLocalFileTask.hh
   XrdClZipListHandler.cc         XrdClZipListHandler.hh
-  XrdClZipArchive.cc            XrdClZipArchive.hh
+  XrdClZipArchive.cc             XrdClZipArchive.hh
   
   ${XrdClPipelineSources}
 
