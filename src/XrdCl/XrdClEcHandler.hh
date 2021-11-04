@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClPlugInInterface.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCheckSumHelper.hh"
+#include "XrdCl/XrdClResponseJob.hh"
 
 #include "XrdEc/XrdEcReader.hh"
 #include "XrdEc/XrdEcStrmWriter.hh"
@@ -38,7 +39,7 @@ namespace XrdCl
       }
 
       XRootDStatus Open( uint16_t                  flags,
-                         XrdCl::ResponseHandler   *handler,
+                         ResponseHandler   *handler,
                          uint16_t                  timeout )
       {
         if( objcfg->plgr.empty() )
@@ -57,28 +58,28 @@ namespace XrdCl
           }
         }
 
-        if( ( flags & XrdCl::OpenFlags::Write ) || ( flags & XrdCl::OpenFlags::Update ) )
+        if( ( flags & OpenFlags::Write ) || ( flags & OpenFlags::Update ) )
         {
-          if( !( flags & XrdCl::OpenFlags::New )    || // it has to be a new file
-               ( flags & XrdCl::OpenFlags::Delete ) || // truncation is not supported
-               ( flags & XrdCl::OpenFlags::Read ) )    // write + read is not supported
-            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+          if( !( flags & OpenFlags::New )    || // it has to be a new file
+               ( flags & OpenFlags::Delete ) || // truncation is not supported
+               ( flags & OpenFlags::Read ) )    // write + read is not supported
+            return XRootDStatus( stError, errNotSupported );
           writer.reset( new XrdEc::StrmWriter( *objcfg ) );
           writer->Open( handler, timeout );
-          return XrdCl::XRootDStatus();
+          return XRootDStatus();
         } 
     
-        if( flags & XrdCl::OpenFlags::Read )
+        if( flags & OpenFlags::Read )
         {
-          if( flags & XrdCl::OpenFlags::Write )
-            return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+          if( flags & OpenFlags::Write )
+            return XRootDStatus( stError, errNotSupported );
     
           reader.reset( new XrdEc::Reader( *objcfg ) );
           reader->Open( handler, timeout );
-          return XrdCl::XRootDStatus(); 
+          return XRootDStatus();
         }
 
-        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+        return XRootDStatus( stError, errNotSupported );
       }
 
       XRootDStatus Open( const std::string &url,
@@ -95,12 +96,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //!
       //------------------------------------------------------------------------
-      XrdCl::XRootDStatus Close( XrdCl::ResponseHandler *handler,
+      XRootDStatus Close( ResponseHandler *handler,
                                  uint16_t                timeout )
       {
         if( writer )
         {
-          writer->Close( XrdCl::ResponseHandler::Wrap( [this, handler]( XrdCl::XRootDStatus *st, XrdCl::AnyObject *rsp )
+          writer->Close( ResponseHandler::Wrap( [this, handler]( XRootDStatus *st, AnyObject *rsp )
             {
               writer.reset();
               if( st->IsOK() && bool( cksHelper ) )
@@ -127,64 +128,93 @@ namespace XrdCl
               }
               handler->HandleResponse( st, rsp );
             } ), timeout );
-          return XrdCl::XRootDStatus();
+          return XRootDStatus();
         }
     
         if( reader )
         {
-          reader->Close( XrdCl::ResponseHandler::Wrap( [this, handler]( XrdCl::XRootDStatus *st, XrdCl::AnyObject *rsp )
+          reader->Close( ResponseHandler::Wrap( [this, handler]( XRootDStatus *st, AnyObject *rsp )
             {
               reader.reset();
               handler->HandleResponse( st, rsp );
             } ), timeout );
-          return XrdCl::XRootDStatus();
+          return XRootDStatus();
         }
     
-        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+        return XRootDStatus( stError, errNotSupported );
       }
 
       //------------------------------------------------------------------------
       //!
       //------------------------------------------------------------------------
-      XrdCl::XRootDStatus Stat( bool                    force,
-                                XrdCl::ResponseHandler *handler,
-                                uint16_t                timeout )
+      XRootDStatus Stat( bool             force,
+                         ResponseHandler *handler,
+                         uint16_t         timeout )
       {
-        return fs.Stat( redir.GetPath(), handler, timeout );
+
+        if( !objcfg->nomtfile )
+          return fs.Stat( redir.GetPath(), handler, timeout );
+
+        if( !force && statcache )
+        {
+          auto rsp = StatRsp( statcache->GetSize() );
+          Schedule( handler, rsp );
+          return XRootDStatus();
+        }
+
+        if( writer )
+        {
+          statcache.reset( new StatInfo() );
+          statcache->SetSize( writer->GetSize() );
+          auto rsp = StatRsp( statcache->GetSize() );
+          Schedule( handler, rsp );
+          return XRootDStatus();
+        }
+
+        if( reader )
+        {
+          statcache.reset( new StatInfo() );
+          statcache->SetSize( reader->GetSize() );
+          auto rsp = StatRsp( statcache->GetSize() );
+          Schedule( handler, rsp );
+          return XRootDStatus();
+        }
+
+        return XRootDStatus( stError, errInvalidOp, 0, "File not open." );
       }
 
       //------------------------------------------------------------------------
       //!
       //------------------------------------------------------------------------
-      XrdCl::XRootDStatus Read( uint64_t                offset,
+      XRootDStatus Read( uint64_t                offset,
                                 uint32_t                size,
                                 void                   *buffer,
-                                XrdCl::ResponseHandler *handler,
+                                ResponseHandler *handler,
                                 uint16_t                timeout )
       {
-        if( !reader ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal );
+        if( !reader ) return XRootDStatus( stError, errInternal );
     
         reader->Read( offset, size, buffer, handler, timeout );
-        return XrdCl::XRootDStatus();
+        return XRootDStatus();
       }
     
       //------------------------------------------------------------------------
-      //! @see XrdCl::File::Write
+      //! @see File::Write
       //------------------------------------------------------------------------
-      XrdCl::XRootDStatus Write( uint64_t                offset,
+      XRootDStatus Write( uint64_t                offset,
                                  uint32_t                size,
                                  const void             *buffer,
-                                 XrdCl::ResponseHandler *handler,
+                                 ResponseHandler *handler,
                                  uint16_t                timeout )
       {
         if( cksHelper )
           cksHelper->Update( buffer, size );
 
-        if( !writer ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInternal );
-        if( offset != curroff ) return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+        if( !writer ) return XRootDStatus( stError, errInternal );
+        if( offset != curroff ) return XRootDStatus( stError, errNotSupported );
         writer->Write( size, buffer, handler );
         curroff += size;
-        return XrdCl::XRootDStatus();
+        return XRootDStatus();
       }
     
       //------------------------------------------------------------------------
@@ -197,6 +227,21 @@ namespace XrdCl
 
     private:
 
+      inline static AnyObject* StatRsp( uint64_t size )
+      {
+        StatInfo *info = new StatInfo();
+        info->SetSize( size );
+        AnyObject *rsp = new AnyObject();
+        rsp->Set( info );
+        return rsp;
+      }
+
+      inline static void Schedule( ResponseHandler *handler, AnyObject *rsp )
+      {
+        ResponseJob *job = new ResponseJob( handler, new XRootDStatus(), rsp, nullptr );
+        XrdCl::DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( job );
+      }
+
       URL                                redir;
       FileSystem                         fs;
       std::unique_ptr<XrdEc::ObjCfg>     objcfg;
@@ -204,6 +249,7 @@ namespace XrdCl
       std::unique_ptr<XrdEc::Reader>     reader;
       uint64_t                           curroff;
       std::unique_ptr<CheckSumHelper>    cksHelper;
+      std::unique_ptr<StatInfo>          statcache;
 
   };
 
