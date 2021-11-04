@@ -28,9 +28,12 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClEcHandler.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
+
+#ifdef WITH_XRDEC
+#include "XrdCl/XrdClEcHandler.hh"
+#endif
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -348,6 +351,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
+#ifdef WITH_XRDEC
     if( lib == "XrdEcDefault" )
     {
       auto itr = config.find( "nbdta" );
@@ -370,6 +374,7 @@ namespace XrdCl
       EcPlugInFactory *ecHandler = new EcPlugInFactory( nbdta, nbprt, chsz, std::move( plgr ) );
       return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, ecHandler );
     }
+#endif
 
     char errorBuff[1024];
     XrdOucPinLoader *pgHandler = new XrdOucPinLoader( errorBuff, 1024,
