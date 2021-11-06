@@ -17,6 +17,7 @@ Prerelease Notes
   **[TLS]** Avoid SEGV when a refresh context cannot be cloned (rare).
 
 + **Minor bug fixes**
+  **[Server]** Correct notify option handling for kXR_prepare.
   **[Server]** Close race condition between bind and the use of that bind.
 
 + **Miscellaneous**
