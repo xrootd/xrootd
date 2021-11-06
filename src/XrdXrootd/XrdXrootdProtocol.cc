@@ -474,7 +474,9 @@ int XrdXrootdProtocol::Process2()
 
 // Help the compiler, select the the high activity requests (the ones with
 // file handles) in a separate switch statement. A special case exists for
-// sync() which return with a callback, so handle it here.
+// sync() which return with a callback, so handle it here. Note that stat(fh)
+// normally never does a callback but historically we allowed it to do so.
+// We maintain that capability even when it's likely never used.
 //
    switch(Request.header.requestid)   // First, the ones with file handles
          {case kXR_read:     return do_Read();
@@ -487,7 +489,10 @@ int XrdXrootdProtocol::Process2()
                              return do_Sync();
           case kXR_close:    ReqID.setID(Request.header.streamid);
                              return do_Close();
-          case kXR_stat:     if (!Request.header.dlen) return do_Stat();
+          case kXR_stat:     if (!Request.header.dlen)
+                                {ReqID.setID(Request.header.streamid);
+                                 return do_Stat();
+                                }
                              break;
           case kXR_truncate: ReqID.setID(Request.header.streamid);
                              if (!Request.header.dlen) return do_Truncate();
