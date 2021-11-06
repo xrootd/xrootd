@@ -35,8 +35,11 @@
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
-#include "XrdOuc/XrdOucStream.hh"
+#include "XrdNet/XrdNetIF.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecProtect.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
@@ -149,9 +152,12 @@ bool                  XrdXrootdProtocol::PrepareAlt = false;
 bool                  XrdXrootdProtocol::LimitError = true;
 
 struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[RD_Num];
+struct XrdXrootdProtocol::RC_Table XrdXrootdProtocol::RouteClient;
 int                   XrdXrootdProtocol::OD_Stall = 33;
 bool                  XrdXrootdProtocol::OD_Bypass= false;
 bool                  XrdXrootdProtocol::OD_Redir = false;
+
+bool                  XrdXrootdProtocol::CL_Redir = false;
 
 bool                  XrdXrootdProtocol::isProxy  = false;
 
@@ -481,6 +487,8 @@ int XrdXrootdProtocol::Process2()
                              return do_Sync();
           case kXR_close:    ReqID.setID(Request.header.streamid);
                              return do_Close();
+          case kXR_stat:     if (!Request.header.dlen) return do_Stat();
+                             break;
           case kXR_truncate: ReqID.setID(Request.header.streamid);
                              if (!Request.header.dlen) return do_Truncate();
                              break;
@@ -518,8 +526,7 @@ int XrdXrootdProtocol::Process2()
 // Process items that don't need arguments but may have them
 //
    switch(Request.header.requestid)
-         {case kXR_stat:      return do_Stat();
-          case kXR_endsess:   return do_Endsess();
+         {case kXR_endsess:   return do_Endsess();
           default:            break;
          }
 
@@ -528,6 +535,29 @@ int XrdXrootdProtocol::Process2()
    if (!argp || !Request.header.dlen)
       {Response.Send(kXR_ArgMissing, "Required argument not present");
        return 0;
+      }
+
+// All of the subsequent requests can be redirected and are subject to
+// prefunctory redirection which we check here.
+//
+   if (CL_Redir && !Link->hasBridge())
+      {bool doRdr = false;
+       if (Link->AddrInfo()->isPrivate()) rdType = 1;
+            if (RouteClient.pvtIP && rdType) doRdr = true;
+       else if (RouteClient.lclDom && XrdNetIF::InDomain( Link->AddrInfo()))
+               doRdr = true;
+       else if (RouteClient.DomCnt)
+               {XrdOucString hName = Link->Host();
+                for (int i = 0; i < RouteClient.DomCnt; i++)
+                    {if (hName.endswith(RouteClient.Domain[i]))
+                        {doRdr = true; break;}
+                    }
+               }
+       if (doRdr)
+          {Response.Send(kXR_redirect,Route[RD_client].Port[rdType],
+                                      Route[RD_client].Host[rdType]);
+           return -1;
+          }
       }
 
 // Process items that keep own statistics
@@ -556,6 +586,7 @@ int XrdXrootdProtocol::Process2()
           case kXR_rm:        return do_Rm();
           case kXR_rmdir:     return do_Rmdir();
           case kXR_set:       return do_Set();
+          case kXR_stat:      return do_Stat();
           case kXR_statx:     return do_Statx();
           case kXR_truncate:  return do_Truncate();
           default:            break;

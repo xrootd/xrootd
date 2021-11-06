@@ -235,7 +235,7 @@ private:
 //
 enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
               RD_mv,        RD_prepare, RD_prepstg, RD_rm,     RD_rmdir,
-              RD_stat,      RD_trunc,   RD_ovld,
+              RD_stat,      RD_trunc,   RD_ovld,    RD_client,
               RD_open1,     RD_open2,   RD_open3,   RD_open4,  RD_Num};
 
        int   do_Auth();
@@ -349,6 +349,7 @@ static int   xmongs(XrdOucStream &Config);
 static bool  xmongsend(XrdOucStream &Config, char *val, char *&dest,
                        int &opt, int &fmt, int &hdr);
 static int   xred(XrdOucStream &Config);
+static int   xred_clnt(XrdOucStream &Config, char *hP[2], int rPort[2]);
 static bool  xred_php(char *val, char *hP[2], int rPort[2], const char *what,
                       bool optport=false);
 static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
@@ -432,9 +433,17 @@ static uint64_t            fsFeatures;
 static struct RD_Table {char          *Host[2];
                         unsigned short Port[2];
                                  short RDSz[2];} Route[RD_Num];
+
+static struct RC_Table {char          *Domain[4];
+                        short          DomCnt;
+                        bool           pvtIP;
+                        bool           lclDom;}  RouteClient;
+
 static int    OD_Stall;
 static bool   OD_Bypass;
 static bool   OD_Redir;
+
+static bool   CL_Redir;
 
 static bool   isProxy;
 
