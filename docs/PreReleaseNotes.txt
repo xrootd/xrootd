@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Allow prefunctory redirect based on client's net attributes.
   **[Net]** Accommodate K8s network namespaces.
   **[Server]** Allow embedded spaces in auth id's and paths (acc.encoding).
   **[Server]** Allow specification of preferred bind interfaces.
