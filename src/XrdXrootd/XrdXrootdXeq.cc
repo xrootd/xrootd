@@ -1767,7 +1767,7 @@ int XrdXrootdProtocol::do_Prepare(bool isQuery)
                             nprot, Link->Host(), ntohs(Request.prepare.port));
           } else sprintf(nidbuff, Notify, nprot, Link->FDnum(), Link->ID);
        if (fsprep.notify)
-          fsprep.opts = (opts & kXR_noerrs ? Prep_SENDAOK : Prep_SENDACK);
+          fsprep.opts |= (opts & kXR_noerrs ? Prep_SENDAOK : Prep_SENDACK);
       }
 
 // Complete prepare options
