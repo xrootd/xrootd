@@ -1489,7 +1489,8 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
 /* Function: xred
 
    Purpose:  To parse the directive: redirect <host>:<port>[%<prvhost>:<port>]
-                                              {<funcs>|[?]<path>}
+                                              {<funcs>|[?]<path>} |
+                                              client <domlist>
 
              <funcs>   are one or more of the following functions that will
                        be immediately redirected to <host>:<port>. Each function
@@ -1547,6 +1548,10 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest.Emsg("config", "redirect option not specified"); return 1;}
 
+// Handle the client option
+//
+   if (!strcmp("client", val)) return xred_clnt(Config, hP, rPort);
+
     if (*val == '/' || (isQ = ((*val == '?') || !strcmp(val,"enoent"))))
        {if (isQ)
            {RQLxist = 1;
@@ -1592,6 +1597,55 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
                   }
           val = Config.GetWord();
          }
+   return 0;
+}
+
+/******************************************************************************/
+
+int XrdXrootdProtocol::xred_clnt(XrdOucStream &Config,char *hP[2],int rPort[2])
+{
+   static const int maxDom = sizeof(RouteClient.Domain)/sizeof(char*);
+   char *val;
+
+// Reset values
+//
+   if (CL_Redir)
+      {for (int i = 0; i < RouteClient.DomCnt; i++)
+           {if (RouteClient.Domain[i]) free(RouteClient.Domain[i]);}
+      }
+   for (int i = 0; i < maxDom; i++) RouteClient.Domain[i] = 0;
+   RouteClient.DomCnt = 0;
+   RouteClient.pvtIP  = false;
+   RouteClient.lclDom = false;
+   CL_Redir = true;
+
+// Process arguments
+//
+   if (!(val = Config.GetWord()))
+      {eDest.Emsg("Config", "redirect client argument not specified.");
+       return 1;
+      }
+
+   while(val)
+        {     if (!strcmp("private", val)) RouteClient.pvtIP  = true;
+         else if (!strcmp("local",   val)) RouteClient.lclDom = true;
+         else if (*val == '.')
+                 {if (RouteClient.DomCnt >= maxDom)
+                     {eDest.Emsg("Config",
+                                 "Too many redirect client domains specified.");
+                      return 1;
+                     }
+                  RouteClient.Domain[RouteClient.DomCnt++] = strdup(val);
+                 }
+         else {eDest.Emsg("Config", "Invalid redirect client domain -", val);
+               return 1;
+              }
+         val = Config.GetWord();
+        }
+
+// Set the host parameters
+//
+   xred_set(RD_client, hP, rPort);
    return 0;
 }
 
