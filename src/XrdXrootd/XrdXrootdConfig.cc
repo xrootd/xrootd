@@ -377,6 +377,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (fsFeatures & XrdSfs::hasPRXY) myRole |= kXR_attrProxy;
    myRole |= tlsFlags;
 
+// Turn off client redirects if we are neither a redirector nor a proxy server
+//
+   if (CL_Redir && !isRedir && !isProxy)
+      {CL_Redir = false;
+       eDest.Say("Config warning: 'redirect client' ignored; "
+                 "not a redirector nor a proxy server");
+      }
+
 // Check if we are redirecting anything
 //
    if ((xp = RPList.Next()))
@@ -1503,6 +1511,8 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
                        combinations may be specified. When prefixed by "?"
                        then the redirect applies to any operation on the path
                        that results in an ENOENT error.
+
+             <domlist> {private | local | .<domain>} [<domlist>]
 
   Output: 0 upon success or !0 upon failure.
 */
