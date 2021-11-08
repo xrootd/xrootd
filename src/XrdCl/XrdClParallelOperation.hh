@@ -311,13 +311,12 @@ namespace XrdCl
           // update number of pending operations
           size_t pending = pending_cnt.fetch_sub( 1, std::memory_order_relaxed ) - 1;
           // although we might have the minimum to succeed we wait for the rest
-          if( status.IsOK() ) return false;
+          if( status.IsOK() ) return ( pending == 0 );
           size_t nb = failed_cnt.fetch_add( 1, std::memory_order_relaxed );
           if( nb == failed_threshold ) res = status; // we dropped bellow the threshold
-          // all done ...
-          if( pending == 0 ) return true;
-          // we still have to wait for some pending operations
-          return false;
+          // if we still have to wait for pending operations return false,
+          // otherwise all is done, return true
+          return ( pending == 0 );
         }
 
         XRootDStatus Result()
