@@ -598,7 +598,10 @@ namespace XrdEc
       for( auto itr = lst->Begin(); itr != lst->End(); ++itr )
       {
         XrdCl::DirectoryList::ListEntry *ent = *itr;
-        ret += ent->GetStatInfo()->GetSize();
+        size_t pos = ent->GetName().rfind( '.' );
+        size_t chnb = std::stoul( ent->GetName().c_str() + pos + 1 );
+        if( chnb < objcfg.nbdata ) // discard parities
+          ret += ent->GetStatInfo()->GetSize();
       }
       delete lst;
     }
