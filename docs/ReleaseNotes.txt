@@ -7,6 +7,45 @@ Release Notes
 
 
 --------------
+Version 5.3.2
+--------------
+
++ **Major bug fixes**
+  **[HTTP]** Use correct flag to request creation of directory path in MKCOL.
+  **[Server]** Avoid SEGV when previous monitory directive overridden.
+  **[TLS]** Avoid SEGV when a refresh context cannot be cloned (rare).
+  **[XrdCl]** Avoid calls to PostMaster for local files.
+  **[XrdCl]** TPC: normalize preset checksum.
+  **[XrdCl]** Make sure small compressed ZIPs are extracted at the right offset.
+  **[XrdCl]** Add missing err msg if force isn't used and destination exits.
+  **[SSI]** Avoid SEGV when request spans more than 1 buffer. Fixes #1518
+
++ **Minor bug fixes**
+  **[Server]** Close race condition between bind and the use of that bind.
+  **[HTTP]** XML-quote error messages sent through XrdHttp.
+  **[HTTP]** BuffGetData: better handle the case of wait=false.
+  **[Python]** Don't use PyEval_ThreadsInitialized for python >= 3.7.
+  **[Python]** Catch ReferenceError error when finalizing File's.
+  **[XrdCl]** Make sure lambda wrapper does not use status obj after it's deleted.
+  **[XrdCl]** Fix memory leak in xrdfs ls.
+  **[XrdCl]** ZipArchive: always execute callbacks in fresh exec ctx.
+  **[XrdCl]** Do read/write recovery on errSocketTimeout.
+  **[XrdCl]** Avoid segv on fork prepare.
+  **[XrdMacaroons]** Add missing includes, fixes #1468.
+  **[CMake]** Correct the variable name from ${ZLIB_LIBRARY} to ${ZLIB_LIBRARIES}.
+  **[CMake]** Install in private-devel XrdClOperationTimeout.hh &
+              XrdClFinalOperation.hh, closes #1519
+  **[Server]** Fix an include in OssCsi.
+
++ **Miscellaneous**
+  **[CMake]** Find pthreads using the CMake Thread module Prefer -pthread over
+              -lpthread if supported by the compiler.
+  **[CMake]** Use ${CMAKE_DL_LIBS} consistently.
+  **[CMake]** Add XrdPosixMap.hh to private headers (i.e. developers only).
+  **[CMake]** Build openssl3 files only if WITH_OPENSSL3=TRUE.
+  **[Docker]** Add docker imgs with centos 7/8 build env.
+
+--------------
 Version 5.3.1
 --------------
 
