@@ -13,13 +13,9 @@ Prerelease Notes
   **[cmsd]** Allow flexible path consideration when determining affinity.
 
 + **Major bug fixes**
-  **[HTTP]** Use correct flag to request creation of directory path in MKCOL.
-  **[Server]** Avoid SEGV when previous monitory directive overridden.
-  **[TLS]** Avoid SEGV when a refresh context cannot be cloned (rare).
 
 + **Minor bug fixes**
   **[Server]** Correct notify option handling for kXR_prepare.
-  **[Server]** Close race condition between bind and the use of that bind.
 
 + **Miscellaneous**
   **[Xcache]** Extend pgread API to return number of corrected checksum errors.
