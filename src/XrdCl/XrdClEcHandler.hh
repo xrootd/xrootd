@@ -38,32 +38,22 @@ namespace XrdCl
       {
       }
 
-      XRootDStatus Open( uint16_t                  flags,
+      XRootDStatus Open( uint16_t           flags,
                          ResponseHandler   *handler,
-                         uint16_t                  timeout )
+                         uint16_t           timeout )
       {
-        if( objcfg->plgr.empty() )
-        {
-          LocationInfo *info = nullptr;
-          XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, info );
-          std::unique_ptr<LocationInfo> ptr( info );
-          if( !st.IsOK() ) return st;
-          if( info->GetSize() < objcfg->nbchunks ) return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
-          unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-          shuffle (info->Begin(), info->End(), std::default_random_engine(seed));
-          for( size_t i = 0; i < objcfg->nbchunks; ++i )
-          {
-            auto &location = info->At( i );
-            objcfg->plgr.emplace_back( "root://" + location.GetAddress() + '/' );
-          }
-        }
-
         if( ( flags & OpenFlags::Write ) || ( flags & OpenFlags::Update ) )
         {
           if( !( flags & OpenFlags::New )    || // it has to be a new file
                ( flags & OpenFlags::Delete ) || // truncation is not supported
                ( flags & OpenFlags::Read ) )    // write + read is not supported
             return XRootDStatus( stError, errNotSupported );
+
+          if( objcfg->plgr.empty() )
+          {
+            XRootDStatus st = LoadPlacement( "*" );
+            if( !st.IsOK() ) return st;
+          }
           writer.reset( new XrdEc::StrmWriter( *objcfg ) );
           writer->Open( handler, timeout );
           return XRootDStatus();
@@ -73,7 +63,12 @@ namespace XrdCl
         {
           if( flags & OpenFlags::Write )
             return XRootDStatus( stError, errNotSupported );
-    
+
+          if( objcfg->plgr.empty() )
+          {
+            XRootDStatus st = LoadPlacement( redir.GetPath() );
+            if( !st.IsOK() ) return st;
+          }
           reader.reset( new XrdEc::Reader( *objcfg ) );
           reader->Open( handler, timeout );
           return XRootDStatus();
@@ -83,10 +78,10 @@ namespace XrdCl
       }
 
       XRootDStatus Open( const std::string &url,
-                                 OpenFlags::Flags   flags,
-                                 Access::Mode       mode,
-                                 ResponseHandler   *handler,
-                                 uint16_t           timeout )
+                         OpenFlags::Flags   flags,
+                         Access::Mode       mode,
+                         ResponseHandler   *handler,
+                         uint16_t           timeout )
       {
         (void)url; (void)mode;
         return Open( flags, handler, timeout );
@@ -226,6 +221,40 @@ namespace XrdCl
       }  
 
     private:
+
+      inline XRootDStatus LoadPlacement()
+      {
+        LocationInfo *info = nullptr;
+        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, info );
+        std::unique_ptr<LocationInfo> ptr( info );
+        if( !st.IsOK() ) return st;
+        if( info->GetSize() < objcfg->nbchunks )
+          return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
+        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        shuffle (info->Begin(), info->End(), std::default_random_engine(seed));
+        for( size_t i = 0; i < objcfg->nbchunks; ++i )
+        {
+          auto &location = info->At( i );
+          objcfg->plgr.emplace_back( "root://" + location.GetAddress() + '/' );
+        }
+        return XRootDStatus();
+      }
+
+      inline XRootDStatus LoadPlacement( const std::string &path )
+      {
+        LocationInfo *info = nullptr;
+        XRootDStatus st = fs.DeepLocate( path, OpenFlags::None, info );
+        std::unique_ptr<LocationInfo> ptr( info );
+        if( !st.IsOK() ) return st;
+        if( info->GetSize() < objcfg->nbdata )
+          return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
+        for( size_t i = 0; i < info->GetSize(); ++i )
+        {
+          auto &location = info->At( i );
+          objcfg->plgr.emplace_back( "root://" + location.GetAddress() + '/' );
+        }
+        return XRootDStatus();
+      }
 
       inline static AnyObject* StatRsp( uint64_t size )
       {
