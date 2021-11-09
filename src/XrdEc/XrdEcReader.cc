@@ -639,9 +639,9 @@ namespace XrdEc
     uint32_t rdsize = info->GetSize();
     delete info;
     // create a buffer for the data
-    buffer.resize( rdsize );
+    buffer.resize( objcfg.chunksize );
     // issue the read request
-    XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, buffer.size(), buffer.data() ) >>
+    XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, rdsize, buffer.data() ) >>
                     [zipptr, fn, cb, this]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
                     {
                       //---------------------------------------------------
