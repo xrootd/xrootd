@@ -47,6 +47,7 @@
 
 #include <sstream>
 #include <vector>
+#include <atomic>
 
 namespace {
     
@@ -138,7 +139,8 @@ class CRLSet {
 public:
     CRLSet(int output_fd, XrdSysError &err)
     : m_log(err),
-      m_output_fd(output_fd)
+      m_output_fd(output_fd),
+      m_atLeastOneValidCRLFound(false)
     {}
 
     /**
@@ -153,6 +155,12 @@ public:
      * Returns true on success.
      */
     bool processFile(file_smart_ptr &fd, const std::string &fname);
+    /**
+     * Returns true if a valid CRL file has been
+     * found during the execution of the
+     * processFile(...) method, false otherwise
+     */
+    bool atLeastOneValidCRLFound() const;
 
 private:
     XrdSysError &m_log;
@@ -162,12 +170,14 @@ private:
         // one only once.
     std::unordered_set<std::string> m_known_crls;
     const int m_output_fd;
+    std::atomic<bool> m_atLeastOneValidCRLFound;
 };
 
 
 bool
 CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 {
+    bool atLeastOneValidCRLFound = false;
     file_smart_ptr outputfp(fdopen(dup(m_output_fd), "w"), &fclose);
     if (!outputfp.get()) {
         m_log.Emsg("CAset", "Failed to reopen file for output", fname.c_str());
@@ -184,6 +194,7 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
         if (!hash_ptr) {
             continue;
         }
+        atLeastOneValidCRLFound = true;
         auto iter = m_known_crls.find(hash_ptr);
         if (iter != m_known_crls.end()) {
             //m_log.Emsg("CRLset", "Skipping known CRL with hash", fname.c_str(), hash_ptr);
@@ -198,9 +209,15 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
             return false;
         }
     }
+    if(!m_atLeastOneValidCRLFound)
+        m_atLeastOneValidCRLFound = atLeastOneValidCRLFound;
     fflush(outputfp.get());
 
     return true;
+}
+
+bool CRLSet::atLeastOneValidCRLFound() const {
+    return m_atLeastOneValidCRLFound;
 }
 
 }
@@ -411,6 +428,7 @@ XrdTlsTempCA::Maintenance()
     //    new_file->getCRLFilename().c_str());
     m_ca_file.reset(new std::string(new_file->getCAFilename()));
     m_crl_file.reset(new std::string(new_file->getCRLFilename()));
+    m_atLeastOneCRLFound = crl_builder.atLeastOneValidCRLFound();
     return true;
 }
 

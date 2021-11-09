@@ -119,8 +119,12 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
         //Indeed, an empty CRL file will make curl unhappy and therefore will fail
         //all HTTP TPC transfers (https://github.com/xrootd/xrootd/issues/1543)
         std::ifstream in(crl_filename, std::ifstream::ate | std::ifstream::binary);
-        if(in.tellg()){
+        if(m_ca_file->atLeastOneValidCRLFound() && in.tellg()){
             curl_easy_setopt(curl, CURLOPT_CRLFILE, crl_filename.c_str());
+        } else {
+            std::ostringstream oss;
+            oss << "No valid CRL file has been found in the file " << crl_filename << ". Disabling CRL checking.";
+            m_log.Log(Warning,"TpcHandler",oss.str().c_str());
         }
     }
     else if (!m_cadir.empty()) {
