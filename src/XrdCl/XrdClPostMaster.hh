@@ -243,6 +243,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void DecFileInstCnt( const URL &url );
 
+      //------------------------------------------------------------------------
+      //! @return : true if underlying threads are running, false otherwise
+      //------------------------------------------------------------------------
+      bool IsRunning();
+
     private:
       Channel *GetChannel( const URL &url );
 

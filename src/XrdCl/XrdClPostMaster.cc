@@ -57,7 +57,7 @@ namespace XrdCl
 
   struct PostMasterImpl
   {
-    PostMasterImpl() : pPoller( 0 ), pInitialized( false )
+    PostMasterImpl() : pPoller( 0 ), pInitialized( false ), pRunning( false )
     {
       Env *env = DefaultEnv::GetEnv();
       int workerThreads = DefaultWorkerThreads;
@@ -81,6 +81,7 @@ namespace XrdCl
     ChannelMap            pChannelMap;
     XrdSysMutex           pChannelMapMutex;
     bool                  pInitialized;
+    bool                  pRunning;
     JobManager           *pJobManager;
 
     XrdSysMutex           pMtx;
@@ -177,6 +178,7 @@ namespace XrdCl
       return false;
     }
 
+    pImpl->pRunning = true;
     return true;
   }
 
@@ -194,6 +196,7 @@ namespace XrdCl
       return false;
     if( !pImpl->pPoller->Stop() )
       return false;
+    pImpl->pRunning = false;
     return true;
   }
 
@@ -497,6 +500,14 @@ namespace XrdCl
     if( !channel ) return;
 
     return channel->DecFileInstCnt();
+  }
+
+  //------------------------------------------------------------------------
+  //true if underlying threads are running, false otherwise
+  //------------------------------------------------------------------------
+  bool PostMaster::IsRunning()
+  {
+    return pImpl->pRunning;
   }
 
   //----------------------------------------------------------------------------

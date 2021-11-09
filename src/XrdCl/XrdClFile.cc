@@ -55,9 +55,9 @@ namespace XrdCl
     pStateHandler = new FileStateHandler( virtRedirect == EnableVirtRedirect, pPlugIn );
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Destructor
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   File::~File()
   {
     //--------------------------------------------------------------------------
@@ -66,8 +66,11 @@ namespace XrdCl
     // its garbage collector, from its __cxa_finalize, ie. after the XrdCl lib
     // has been finalized by the linker. So, if we don't have the log object
     // at this point we just give up the hope.
+    // Also, make sure the PostMaster threads are running - if not the Close
+    // will hang forever (this could happen when Python interpreter exits).
     //--------------------------------------------------------------------------
-    if ( DefaultEnv::GetLog() && IsOpen() ) {XRootDStatus status = Close();}
+    if ( DefaultEnv::GetLog() && DefaultEnv::GetPostMaster()->IsRunning() && IsOpen() )
+      XRootDStatus status = Close();
     delete pStateHandler;
     delete pPlugIn;
   }
