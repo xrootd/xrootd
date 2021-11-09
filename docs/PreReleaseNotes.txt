@@ -6,25 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
-  **[Server]** Add new class for gathering config data from config file.`
-  **[Server]** Implement firefly network flow monitoring.
-  **[Server]** Allow prefunctory redirect based on client's net attributes.
-  **[Net]** Accommodate K8s network namespaces.
-  **[Server]** Allow embedded spaces in auth id's and paths (acc.encoding).
-  **[Server]** Allow specification of preferred bind interfaces.
-  **[cmsd]** Allow flexible path consideration when determining affinity.
 
 + **Major bug fixes**
 
 + **Minor bug fixes**
-  **[Server]** Correct notify option handling for kXR_prepare.
 
 + **Miscellaneous**
-  **[Xcache]** Extend pgread API to return number of corrected checksum errors.
-  **[cmsd]** Allow more parallelism during data server selection.
-  **[Utils]** Add utility class to handle url encoding and decoding.
-  **[Utils]** Add generic port specification to port number utility.
-  **[Apps]** Provide cli to compute crc32c checksum (i.e. xrdcrc32c).
-  **[Server]** Replace XrdOucTrace by XrdSysTrace, part 1 (internal change).
-  **[Server]** Use RAtomics to enhance performance where needed.
-  **[Misc]** Implement RAtomics object all of whose operations use relaxed mem order.
