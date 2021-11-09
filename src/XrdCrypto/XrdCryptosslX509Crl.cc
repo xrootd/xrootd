@@ -44,7 +44,6 @@
 
 #include <openssl/bn.h>
 #include <openssl/pem.h>
-#include <sstream>
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #define X509_REVOKED_get0_revocationDate(x) (x)->revocationDate
