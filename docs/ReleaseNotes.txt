@@ -7,6 +7,71 @@ Release Notes
 
 
 --------------
+Version 5.4.0
+--------------
+
++ **New Features**
+  **[Server]** Add new class for gathering config data from config file.
+  **[Server]** Implement firefly network flow monitoring.
+  **[Server]** Allow prefunctory redirect based on client's net attributes.
+  **[Server]** Allow embedded spaces in auth id's and paths (acc.encoding).
+  **[Server]** Allow specification of preferred bind interfaces.
+  **[Net]** Accommodate K8s network namespaces.
+  **[Net]** Accommodate K8s network namespaces.
+  **[cmsd]** Allow flexible path consideration when determining affinity.
+  **[XrdCl]** Support unaligned PgReads.
+  **[XrdCl]** Implement PgWrite.
+  **[XrdCl]** Implement declarative PgRead.
+  **[XrdCl]** Implement ZipArchive::PgRead.
+  **[XrdCl]** xrdcp: enables in-fly error correction of corrupted pages
+              (pgread/pgwrite).
+  **[XrdCl]** xrdcp: allow multiple --cksum options.
+  **[XrdCl]** Add checksumming capability to default EC plugin.
+  **[XrdCl]** SocketHandler: encapsulate the reads/writes operation in
+              a separate class.
+  **[XrdCl]** Allow loading XrdEc default plug-in based on cfg file.
+  **[XrdCl/XrdEc]** Use locate to obtain EC placement gr if empty.
+  **[XrdEc]** Allow specifying operation t/o.
+  **[XrdEc]** Make the metadata files relocable.
+  **[XrdEc]** Allow using the EC lib without metadata files.
+  **[Xrdpfc]** New cmd line option. Print in json format.
+
++ **Major bug fixes**
+  **[XrdCl]** ZipArchive: always execute callbacks in fresh exec ctx.
+  **[XrdCl]** Don't issue a close in ~File if the thread-pool has been stopped.
+
++ **Minor bug fixes**
+  **[Server]** Correct notify option handling for kXR_prepare.
+  **[XrdCl]** Adjust timeout before retransmitting corrupted pages.
+  **[XrdCl]** Make sure XCpSrc does not leak.
+  **[XrdCl]** Add missing err msg if force isn't used and destination exits.
+  **[XrdCl]** Make sure the path on kXR_open does not inlude '?' if there is no cgi.
+  **[XrdCl]** ParallelOperation: fix race condition in AtLeast policy.
+  **[CMake]** Install in private-devel XrdClOperationTimeout.hh &
+              XrdClFinalOperation.hh
+
++ **Miscellaneous**
+  **[Xcache]** Extend pgread API to return number of corrected checksum errors.
+  **[cmsd]** Allow more parallelism during data server selection.
+  **[Utils]** Add utility class to handle url encoding and decoding.
+  **[Utils]** Add generic port specification to port number utility.
+  **[Apps]** Provide cli to compute crc32c checksum (i.e. xrdcrc32c).
+  **[Server]** Replace XrdOucTrace by XrdSysTrace, part 1 (internal change).
+  **[Server]** Use RAtomics to enhance performance where needed.
+  **[Misc]** Implement RAtomics object all of whose operations use relaxed mem order.
+  **[Misc]** Add XrdPosixMap.hh to private hears (i.e. developers only).
+  **[XrdHttp]** Add func to obfuscate paths hidden into strings.
+  **[XrdHttp]** BuffGetData: better handle the case of wait=false.
+  **[XrdCl]** Avoid calls to PostMaster for local files.
+  **[XrdCl]** Do read/write recovery on errSocketTimeout.
+  **[XrdCl]** Include all chunk details in kXR_readv descripsion.
+  **[CMake]** Find pthreads using the CMake Thread module Prefer -pthread over
+              -lpthread if supported by the compiler.
+  **[CMake]** Enable SSE4.2 for cmsd.
+  **[CMake]** Add an option to build with asan.
+  **[Docker]** Add docker imgs with centos 7/8 build env.
+
+--------------
 Version 5.3.2
 --------------
 
