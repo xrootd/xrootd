@@ -51,7 +51,7 @@ namespace XrdCl
 
           if( objcfg->plgr.empty() )
           {
-            XRootDStatus st = LoadPlacement( "*" );
+            XRootDStatus st = LoadPlacement();
             if( !st.IsOK() ) return st;
           }
           writer.reset( new XrdEc::StrmWriter( *objcfg ) );
