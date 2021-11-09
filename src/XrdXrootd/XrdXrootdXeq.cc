@@ -331,6 +331,14 @@ int XrdXrootdProtocol::do_Bind()
    Status = XRD_BOUNDPATH;
    clientPV = pp->clientPV;
 
+// Check if we need to enable packet marking for this stream
+//
+   if (pp->pmDone)
+      {pmDone = true;
+       if (pp->pmHandle) pmHandle = PMark->Begin(*(Link->AddrInfo()),
+                                                 *(pp->pmHandle), Link->ID);
+      }
+
 // Document the bind
 //
    smHelper.UnLock();
@@ -1569,6 +1577,25 @@ int XrdXrootdProtocol::do_Open()
 //
    memcpy((void *)myResp.fhandle,(const void *)&fhandle,sizeof(myResp.fhandle));
    numFiles++;
+
+// If packet marking is enabled, notify that we have potentially started data.
+// We also need to extend the marking to any associated streams.
+//
+   if (PMark && !pmDone)
+      {streamMutex.Lock();
+       pmDone = true;
+       if ((pmHandle = PMark->Begin(*Client, fn, opaque, AppName)))
+          for (int i = 1; i < maxStreams; i++)
+              {if (Stream[i] && !(Stream[i]->pmDone))
+                  {Stream[i]->pmDone = true;
+                   Stream[i]->pmHandle = 
+                       PMark->Begin(*(Stream[i]->Link->AddrInfo()),
+                                    *pmHandle, Stream[i]->Link->ID);
+                  }
+              }
+       streamMutex.UnLock();
+      }
+
 
 // Respond (failure is not an option now)
 //

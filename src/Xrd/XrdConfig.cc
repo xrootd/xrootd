@@ -64,6 +64,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetIF.hh"
+#include "XrdNet/XrdNetPMarkCfg.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
@@ -730,6 +731,15 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if (!NoGo) Manifest(pidFN);
 
+// Initialize the packet marking framework if configured
+//
+   if (!NoGo)
+      {bool bad = false;
+       XrdNetPMark *pmark = XrdNetPMarkCfg::Config(&Log,&Sched,&XrdTrace,bad);
+       if (pmark) theEnv.PutPtr("XrdNetPMark*", pmark);
+          else if (bad) NoGo = 1;
+      }
+
 // Now initialize the protocols and other stuff
 //
    if (!NoGo) NoGo = Setup(dfltProt, libProt);
@@ -804,6 +814,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("allow",         xallow);
    TS_Xeq("homepath",      xhpath);
    TS_Xeq("pidpath",       xpidf);
+   TS_Xeq("pmark",         XrdNetPMarkCfg::Parse);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("report",        xrep);

@@ -272,6 +272,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (pi->theEnv) xrootdEnv.PutPtr("xrdEnv*", pi->theEnv);
 
+// If packet marking was enabled, record the environment
+//
+   PMark = (XrdNetPMark*)(pi->theEnv->GetPtr("XrdNetPMark*"));
+
 // Initialize monitoring (it won't do anything if it wasn't enabled). This
 // needs to be done before we load any plugins as plugins may need monitoring.
 //

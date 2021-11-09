@@ -89,6 +89,7 @@ XrdTlsContext        *XrdXrootdProtocol::tlsCtx   = 0;
 XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
 XrdSysError          &XrdXrootdProtocol::eDest = XrdXrootd::eLog;
+XrdNetPMark          *XrdXrootdProtocol::PMark    = 0;
 XrdXrootdStats       *XrdXrootdProtocol::SI;
 XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;
 char                 *XrdXrootdProtocol::JobCKT   = 0;
@@ -1058,6 +1059,9 @@ void XrdXrootdProtocol::Cleanup()
        streamMutex.UnLock();
       }
 
+// Handle packet parking (needs to be done before deleting other stuff)
+//
+   if (pmHandle) delete pmHandle;
 
 // Release any internal monitoring information
 //
@@ -1452,6 +1456,7 @@ void XrdXrootdProtocol::Reset()
    argp               = 0;
    Link               = 0;
    FTab               = 0;
+   pmHandle           = 0;
    ResumePio          = 0;
    Resume             = 0;
    myBuff             = (char *)&Request;
@@ -1486,6 +1491,7 @@ void XrdXrootdProtocol::Reset()
    CapVer             = 0;
    clientPV           = 0;
    clientRN           = 0;
+   pmDone             = false;
    reTry              = 0;
    endNote            = 0;
    PathID             = 0;
