@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#include "XrdNet/XrdNetPMark.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysRAtomic.hh"
@@ -390,6 +391,7 @@ static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
 static XrdSysError          &eDest;     // Error message handler
+static XrdNetPMark          *PMark;     // Packet marking API
 static const char           *myInst;
 static const char           *TraceID;
 static int                   RQLxist;   // Something is present in RQList
@@ -497,9 +499,11 @@ XrdLink                   *Link;
 XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdXrootdMonitor::User     Monitor;
+XrdNetPMark::Handle       *pmHandle;
 int                        clientPV; // Protocol version + capabilities
 int                        clientRN; // Release as maj.min.patch (1 byte each).
-int                        reserved;
+bool                       pmDone;   // Packet marking has been enabled
+char                       reserved[3];
 short                      rdType;
 char                       Status;
 unsigned char              CapVer;

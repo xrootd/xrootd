@@ -138,16 +138,17 @@ set ( XrdOucSources
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCRC32C.cc        XrdOuc/XrdOucCRC32C.hh
   XrdOuc/XrdOucEnv.cc           XrdOuc/XrdOucEnv.hh
-                                XrdOuc/XrdOucHash.hh
-                                XrdOuc/XrdOucHash.icc
   XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
                                 XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucFileInfo.cc      XrdOuc/XrdOucFileInfo.hh
   XrdOuc/XrdOucGMap.cc          XrdOuc/XrdOucGMap.hh
+                                XrdOuc/XrdOucHash.hh
+                                XrdOuc/XrdOucHash.icc
   XrdOuc/XrdOucHashVal.cc
                                 XrdOuc/XrdOucJson.hh
   XrdOuc/XrdOucLogging.cc       XrdOuc/XrdOucLogging.hh
+                                XrdOuc/XrdOucMapP2X.hh
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
   XrdOuc/XrdOucName2Name.cc     XrdOuc/XrdOucName2Name.hh
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh
@@ -205,6 +206,9 @@ set ( XrdNetSources
   XrdNet/XrdNetIdentity.cc      XrdNet/XrdNetIdentity.hh
   XrdNet/XrdNetIF.cc            XrdNet/XrdNetIF.hh
   XrdNet/XrdNetMsg.cc           XrdNet/XrdNetMsg.hh
+                                XrdNet/XrdNetPMark.hh
+  XrdNet/XrdNetPMarkCfg.cc      XrdNet/XrdNetPMarkCfg.hh
+  XrdNet/XrdNetPMarkFF.cc       XrdNet/XrdNetPMarkFF.hh
   XrdNet/XrdNetRegistry.cc      XrdNet/XrdNetRegistry.hh
   XrdNet/XrdNetSecurity.cc      XrdNet/XrdNetSecurity.hh
   XrdNet/XrdNetSocket.cc        XrdNet/XrdNetSocket.hh
