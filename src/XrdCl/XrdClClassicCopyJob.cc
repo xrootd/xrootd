@@ -841,7 +841,7 @@ namespace
             chunkSize = pSize - pCurrentOffset;
 
           char *buffer = new char[chunkSize];
-          ChunkHandler *ch = new ChunkHandler( pUsePgRead );
+          ChunkHandler *ch = new ChunkHandler();
           ch->status = pUsePgRead
                      ? reader->PgRead( pCurrentOffset, chunkSize, buffer, ch )
                      : reader->Read( pCurrentOffset, chunkSize, buffer, ch );
@@ -936,7 +936,7 @@ namespace
       class ChunkHandler: public XrdCl::ResponseHandler
       {
         public:
-          ChunkHandler( bool usepgrd ): sem( new XrdSysSemaphore(0) ), usepgrd(usepgrd) {}
+          ChunkHandler(): sem( new XrdSysSemaphore(0) ) {}
           virtual ~ChunkHandler() { delete sem; }
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    *response )
@@ -953,7 +953,7 @@ namespace
 
           XrdCl::PageInfo ToChunk( XrdCl::AnyObject *response )
           {
-            if( usepgrd )
+            if( response->Has<XrdCl::PageInfo>() )
             {
               XrdCl::PageInfo *resp = nullptr;
               response->Get( resp );
@@ -971,7 +971,6 @@ namespace
         XrdSysSemaphore     *sem;
         XrdCl::PageInfo      chunk;
         XrdCl::XRootDStatus  status;
-        bool                 usepgrd;
       };
 
       const XrdCl::URL          *pUrl;
