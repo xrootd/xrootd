@@ -110,9 +110,9 @@ namespace
       //------------------------------------------------------------------------
       // Wait for the arrival of the message
       //------------------------------------------------------------------------
-      XrdCl::Message *GetMessage()
+      std::shared_ptr<XrdCl::Message> GetMessage()
       {
-        return pMsg.get();
+        return pMsg;
       }
 
       //------------------------------------------------------------------------
@@ -319,9 +319,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Synchronously receive a message - blocks until a message matching
   //----------------------------------------------------------------------------
-  Status Channel::Receive( Message       *&msg,
-                           MessageFilter  *filter,
-                           time_t          expires )
+  Status Channel::Receive( std::shared_ptr<Message> &msg,
+                           MessageFilter            *filter,
+                           time_t                    expires )
   {
     FilterHandler fh( filter );
     Status sc = Receive( &fh, expires );
