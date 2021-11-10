@@ -257,10 +257,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Synchronously receive a message
   //----------------------------------------------------------------------------
-  Status PostMaster::Receive( const URL      &url,
-                              Message       *&msg,
-                              MessageFilter  *filter,
-                              time_t          expires )
+  Status PostMaster::Receive( const URL                &url,
+                              std::shared_ptr<Message> &msg,
+                              MessageFilter            *filter,
+                              time_t                    expires )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
     Channel *channel = GetChannel( url );

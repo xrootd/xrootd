@@ -154,14 +154,13 @@ void *TestThreadFunc( void *arg )
   //----------------------------------------------------------------------------
   for( int i = 0; i < 100; ++i )
   {
-    Message *m = 0;
+    std::shared_ptr<Message> m;
     f.streamId[1] = i;
     CPPUNIT_ASSERT_XRDST( a->pm->Receive( host, m, &f, expires ) );
     ServerResponse *resp = (ServerResponse *)m->GetBuffer();
     CPPUNIT_ASSERT( resp != 0 );
     CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
     CPPUNIT_ASSERT( m->GetSize() == 8 );
-    delete m;
   }
   return 0;
 }
@@ -218,7 +217,8 @@ void PostMasterTest::FunctionalTest()
   // Send a message and wait for the answer
   //----------------------------------------------------------------------------
   time_t    expires = ::time(0)+1200;
-  Message   m1, *m2 = 0;
+  Message   m1;
+  std::shared_ptr<Message> m2;
   XrdFilter f1( 1, 2 );
   URL       host( address );
 
@@ -285,7 +285,7 @@ void PostMasterTest::FunctionalTest()
   postMaster.Initialize();
   postMaster.Start();
 
-  m2 = 0;
+  m2.reset();
   m1.Zero();
 
   request = (ClientPingRequest *)m1.GetBuffer();
@@ -454,7 +454,7 @@ void PostMasterTest::MultiIPConnectionTest()
   //----------------------------------------------------------------------------
   // Try on a good one
   //----------------------------------------------------------------------------
-  Message   *m2 = 0;
+  std::shared_ptr<Message> m2 = 0;
   XrdFilter  f1( 1, 2 );
 
   CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, false, expires ) );

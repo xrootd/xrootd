@@ -144,10 +144,10 @@ namespace XrdCl
       //! @return        success when the message has been received
       //!                successfully, failure otherwise
       //------------------------------------------------------------------------
-      Status Receive( const URL      &url,
-                      Message       *&msg,
-                      MessageFilter *filter,
-                      time_t         expires );
+      Status Receive( const URL                &url,
+                      std::shared_ptr<Message> &msg,
+                      MessageFilter            *filter,
+                      time_t                    expires );
 
       //------------------------------------------------------------------------
       //! Listen to incoming messages, the listener is notified when a new
