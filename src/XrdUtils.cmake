@@ -142,6 +142,7 @@ set ( XrdOucSources
                                 XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucFileInfo.cc      XrdOuc/XrdOucFileInfo.hh
+  XrdOuc/XrdOucGatherConf.cc    XrdOuc/XrdOucGatherConf.hh
   XrdOuc/XrdOucGMap.cc          XrdOuc/XrdOucGMap.hh
                                 XrdOuc/XrdOucHash.hh
                                 XrdOuc/XrdOucHash.icc

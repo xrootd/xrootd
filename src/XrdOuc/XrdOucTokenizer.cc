@@ -30,9 +30,9 @@
 #ifndef WIN32
 #include <unistd.h>
 #endif
-#include <cctype>
-#include <cstdlib>
-#include <cstring>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "XrdOuc/XrdOucTokenizer.hh"
 
@@ -58,7 +58,7 @@ char *XrdOucTokenizer::GetLine()
 
 // Check if end of buffer has been reached.
 //
-   if (*buff == '\0') return (char *)NULL;
+   if (!buff || *buff == '\0') return (char *)NULL;
 
 // Find the next record in the buffer
 //

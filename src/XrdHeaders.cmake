@@ -128,6 +128,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdSecsss/XrdSecsssID.hh
   XrdSys/XrdSysPriv.hh
   XrdOuc/XrdOucExport.hh
+  XrdOuc/XrdOucGatherConf.hh
   XrdOuc/XrdOucPList.hh
   XrdOuc/XrdOucN2NLoader.hh
   XrdPosix/XrdPosixMap.hh
