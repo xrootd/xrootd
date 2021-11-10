@@ -86,7 +86,10 @@ class ChunkHandler: public ResponseHandler
     void ToPgInfo( AnyObject *response, PageInfo *&chunk )
     {
       if( pUsePgRead )
+      {
         response->Get( chunk );
+        response->Set( ( int* )0 );
+      }
       else
       {
         ChunkInfo *rsp = nullptr;
