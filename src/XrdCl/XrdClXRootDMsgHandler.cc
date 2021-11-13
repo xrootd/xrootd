@@ -957,6 +957,12 @@ namespace XrdCl
     if( pTimeoutFence.load( std::memory_order_relaxed ) )
       return 0;
 
+    if( event == Timeout && pMsgInFly && pSidMgr )
+    {
+      ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
+      pSidMgr->TimeOutSID( req->header.streamid );
+    }
+
     HandleError( status );
     return RemoveHandler;
   }
