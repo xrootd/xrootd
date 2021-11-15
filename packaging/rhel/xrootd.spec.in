@@ -149,7 +149,9 @@ BuildRequires: clang
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
 BuildRequires: libasan
+BuildRequires: devtoolset-7-libasan-devel
 Requires: libasan
+Requires: devtoolset-7-libasan
 %endif
 
 %if %{?_with_scitokens:1}%{!?_with_scitokens:0}
@@ -527,10 +529,6 @@ export CC=clang
 export CXX=clang++
 %endif
 
-%if %{?_with_asan:1}%{!?_with_asan:0}
-export CXXFLAGS='-fsanitize=address'
-%endif
-
 mkdir build
 pushd build
 
@@ -545,6 +543,9 @@ cmake  \
       -DENABLE_TESTS=TRUE \
 %else
       -DENABLE_TESTS=FALSE \
+%endif
+%if %{?_with_asan:1}%{!?_with_asan:0}
+      -DENABLE_ASAN=TRUE \
 %endif
 %if %{?_with_ceph:1}%{!?_with_ceph:0}
       -DXRDCEPH_SUBMODULE=TRUE \
