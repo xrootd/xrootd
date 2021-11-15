@@ -1016,8 +1016,8 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
       //
       // No proxy options
-      if (opt.nopxy) {
-         PxyReqOpts |= kOptsNoPxy;
+      if (opt.createpxy) {
+         PxyReqOpts |= kOptsCreatePxy;
       }
       //
       // Define valid CNs for the server certificates; default is null, which means that
@@ -1033,8 +1033,8 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       TRACE(Authen, "proxy: depth of signature path: "<<DepLength);
       TRACE(Authen, "proxy: bits in key:             "<<DefBits);
       TRACE(Authen, "server cert: allowed names:     "<<SrvAllowedNames);
-      if (PxyReqOpts & kOptsNoPxy) {
-         TRACE(Authen, "forcing 'no proxy' cert/key authentication ");
+      if (!(PxyReqOpts & kOptsCreatePxy)) {
+         TRACE(Authen, "allowing for pure cert/key authentication (no proxy) ");
       }
 
       // We are done
@@ -2299,7 +2299,7 @@ void gsiOptions::Print(XrdOucTrace *t)
       POPTS(t, " Proxy bits: " << bits);
       POPTS(t, " Proxy sign option: "<< sigpxy);
       POPTS(t, " Proxy delegation option: "<< dlgpxy);
-      if (nopxy) POPTS(t, " Cert/Key authentication enforced");
+      if (createpxy) POPTS(t, " Pure Cert/Key authentication allowed");
       POPTS(t, " Allowed server names: "<< (srvnames ? srvnames : "[*/]<target host name>[/*]"));
    } else {
       POPTS(t, " Certificate: " << (cert ? cert : XrdSecProtocolgsi::SrvCert));
@@ -2413,8 +2413,9 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                     0 deny; 1 sign request created
       //                                     by server; 2 forward local proxy
       //                                     (include private key) [1]
-      //             "XrdSecGSINOPROXY"      Controls use of proxy:
-      //                                     0 use proxy; 1 use certificate+key [0]
+      //             "XrdSecGSICREATEPROXY"  Controls use of proxy [1]:
+      //                                       1 auto-generate proxy from the cert/key pair if no one is not found
+      //                                       0 a proxy is used if present; else, the cert/key pair is used if present.
       //             "XrdSecGSISRVNAMES"     Server names allowed: if the server CN
       //                                     does not match any of these, or it is
       //                                     explicitely denied by these, or it is
@@ -2505,9 +2506,9 @@ char *XrdSecProtocolgsiInit(const char mode,
          opts.dlgpxy = atoi(cenv);
 
       // No proxy
-      cenv = getenv("XrdSecGSINOPROXY");
+      cenv = getenv("XrdSecGSICREATEPROXY");
       if (cenv)
-         opts.nopxy = atoi(cenv);
+         opts.createpxy = atoi(cenv);
 
       // Allowed server name formats
       cenv = getenv("XrdSecGSISRVNAMES");
@@ -3041,7 +3042,7 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
 
    //
    // Extract no proxy option, if any
-   bool nopxy = (PxyReqOpts & kOptsNoPxy) ? 1 : 0;
+   bool createpxy = (PxyReqOpts & kOptsCreatePxy) ? 1 : 0;
 
    //
    // Resolve place-holders in cert, key and proxy file paths, if any
@@ -3055,7 +3056,7 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    //
    // In the standard case we need to resolve also the proxy file path
-   if (!nopxy) {
+   if (createpxy) {
       // Get the proxy path
       if (XrdSutResolve(UsrProxy, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
          PRINT("Problems resolving templates in "<<UsrProxy);
@@ -3066,7 +3067,7 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Load / Attach-to user proxies
    ProxyIn_t pi = {UsrCert.c_str(), UsrKey.c_str(), CAdir.c_str(),
                    UsrProxy.c_str(), PxyValid.c_str(),
-                   DepLength, DefBits, nopxy};
+                   DepLength, DefBits, createpxy};
    ProxyOut_t po = {hs->PxyChain, sessionKsig, hs->Cbck };
    if (QueryProxy(1, &cachePxy, UsrProxy.c_str(),
                   sessionCF, hs->TimeStamp, &pi, &po) != 0) {
@@ -3808,12 +3809,12 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       return -1;
    }
    // Parse bucket
-   int ncimin = (hs->Options & kOptsNoPxy) ? 1 : 2;
+   int ncimin = (hs->Options & kOptsCreatePxy) ? 2 : 1;
    int nci = (*ParseBucket)(bck, hs->Chain);
    if (nci < ncimin) {
       cmsg = "wrong number of certificates in received bucket (";
       cmsg += nci;
-      cmsg += " > ";
+      cmsg += " < ";
       cmsg += ncimin;
       cmsg += " expected)";
       return -1;
@@ -5056,7 +5057,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
    while (!hasproxy && ntry > 0) {
 
       // Try init as last option if not in pure cert/key mode
-      if (ntry == 1 && !pi->nopxy) {
+      if (ntry == 1 && pi->createpxy) {
 
          // Cleanup the chain
          po->chain->Cleanup();
@@ -5111,7 +5112,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                   continue;
                }
             }
-            if (pi->nopxy) {
+            if (!pi->createpxy) {
                // Parse the cert file
                int nci = (*ParseFile)(pi->cert, po->chain, pi->key);
                if (nci < 1) {
