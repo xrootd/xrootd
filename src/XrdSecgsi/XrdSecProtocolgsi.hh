@@ -109,7 +109,7 @@ enum kgsiHandshakeOpts {
    kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
    kOptsDelChn     = 32,     // 0x0020: Delete chain
    kOptsPxCred     = 64,     // 0x0040: Save delegated proxies as credentials
-   kOptsNoPxy      = 128     // 0x0080: Do not request a proxy (no client signature)
+   kOptsCreatePxy  = 128     // 0x0080: Request a client proxy
 };
 
 // Error codes
@@ -197,7 +197,7 @@ public:
    int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy; default 0
                   // [s] ask client for proxies; default: do not accept delegated proxies
    int    sigpxy; // [c] accept delegated proxy requests
-   int    nopxy; // [c] force pure cert/key client authentications
+   int    createpxy; // [c] force client proxy authentications
    char  *srvnames;// [c] '|' separated list of allowed server names
    char  *exppxy; // [s] template for the exported file with proxies
    int    authzpxy; // [s] if 1 make proxy available in exported form in the 'endorsement'
@@ -220,7 +220,7 @@ public:
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
                   vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0;
-                  hashcomp = 1; trustdns = true; nopxy = 0;}
+                  hashcomp = 1; trustdns = true; createpxy = 1;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -244,7 +244,7 @@ typedef struct {
    const char *valid;
    int         deplen;
    int         bits;
-   bool        nopxy;
+   bool        createpxy;
 } ProxyIn_t;
 
 template<class T>
