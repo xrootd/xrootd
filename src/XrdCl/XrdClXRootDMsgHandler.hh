@@ -157,11 +157,6 @@ namespace XrdCl
         pReadRawStarted( false ),
         pReadRawCurrentOffset( 0 ),
 
-//        pPgReadCksumBuff( 4 ),
-//        pPgReadOffset( 0 ),
-//        pPgReadLength( 0 ),
-//        pPgReadCurrentPageSize( 0 ),
-
         pPgWrtCksumBuff( 4 ),
         pPgWrtCurrentPageOffset( 0 ),
         pPgWrtCurrentPageNb( 0 ),
@@ -708,10 +703,6 @@ namespace XrdCl
       bool                            pReadRawStarted;
       uint32_t                        pReadRawCurrentOffset;
 
-//      Buffer                          pPgReadCksumBuff;
-//      uint64_t                        pPgReadOffset;
-//      uint32_t                        pPgReadLength;
-//      uint32_t                        pPgReadCurrentPageSize;
       std::unique_ptr<AsyncPageReader> pPageReader;
 
       Buffer                          pPgWrtCksumBuff;

@@ -1060,57 +1060,6 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-//  //------------------------------------------------------------------------
-//  // Handle a kXR_pgread in raw mode
-//  //------------------------------------------------------------------------
-//  Status XRootDMsgHandler::ReadRawPgRead( Message  *msg,
-//                                          Socket   *socket,
-//                                          uint32_t &bytesRead )
-//  {
-//    Log *log = DefaultEnv::GetLog();
-//
-//    //--------------------------------------------------------------------------
-//    // We need to check if we have and overflow, before we start reading
-//    // anything
-//    //--------------------------------------------------------------------------
-//    if( !pReadRawStarted )
-//    {
-//      ChunkInfo chunk  = pChunkList->front();
-//      pAsyncOffset     = 0;
-//      pAsyncReadSize   = pAsyncMsgSize;
-//      pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
-//      size_t rawDataSize      = pAsyncMsgSize - NbPgPerRsp( pPgReadOffset, pPgReadLength ) * CksumSize;
-//
-//      if( pReadRawCurrentOffset + rawDataSize > chunk.length )
-//      {
-//        log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
-//                    ": expected: %d, got %d bytes",
-//                   pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-//                   chunk.length, pReadRawCurrentOffset + rawDataSize );
-//
-//        pChunkStatus.front().sizeError = true;
-//        pOtherRawStarted               = false;
-//      }
-//      else
-//      {
-//        pReadRawCurrentOffset += rawDataSize;
-//      }
-//      pReadRawStarted = true;
-//    }
-//
-//    //--------------------------------------------------------------------------
-//    // If we have an overflow we discard all the incoming data. We do this
-//    // instead of just quitting in order to keep the stream sane.
-//    //--------------------------------------------------------------------------
-//    if( pChunkStatus.front().sizeError )
-//      return ReadRawOther( msg, socket, bytesRead );
-//
-//    //--------------------------------------------------------------------------
-//    // Read the data
-//    //--------------------------------------------------------------------------
-//    return ReadPagesAsync( socket, bytesRead );
-//  }
-
   //----------------------------------------------------------------------------
   // Handle a kXR_readv in raw mode
   //----------------------------------------------------------------------------
@@ -1122,151 +1071,184 @@ namespace XrdCl
       return Status( stOK, suDone );
 
     Log *log = DefaultEnv::GetLog();
-
-    //--------------------------------------------------------------------------
-    // We've had an error and we are in the discarding mode
-    //--------------------------------------------------------------------------
-    if( pReadVRawMsgDiscard )
+    while( pReadVRawMsgOffset < pAsyncMsgSize )
     {
-      Status st = ReadAsync( socket, bytesRead );
+      //--------------------------------------------------------------------------
+      // We've had an error and we are in the discarding mode
+      //--------------------------------------------------------------------------
+      if( pReadVRawMsgDiscard )
+      {
+        Status st = ReadAsync( socket, bytesRead );
 
+        if( st.IsOK() && st.code == suDone )
+        {
+          pReadVRawMsgOffset          += pAsyncReadSize;
+          pReadVRawChunkHeaderDone    = false;
+          pReadVRawChunkHeaderStarted = false;
+          pReadVRawMsgDiscard         = false;
+          delete [] pAsyncReadBuffer;
+
+          if( pReadVRawMsgOffset != pAsyncMsgSize )
+            st.code = suRetry;
+
+          log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes, "
+                     "current offset: %d/%d", pUrl.GetHostId().c_str(),
+                     pAsyncReadSize, pReadVRawMsgOffset, pAsyncMsgSize );
+        }
+        return st;
+      }
+
+      //--------------------------------------------------------------------------
+      // Handle chunk header
+      //--------------------------------------------------------------------------
+      if( !pReadVRawChunkHeaderDone )
+      {
+
+        //------------------------------------------------------------------------
+        // Set up the header reading
+        //------------------------------------------------------------------------
+        if( !pReadVRawChunkHeaderStarted )
+        {
+          pReadVRawChunkHeaderStarted = true;
+
+          //----------------------------------------------------------------------
+          // We cannot afford to read the next header from the stream because
+          // we will cross the message boundary
+          //----------------------------------------------------------------------
+          if( pReadVRawMsgOffset + 16 > pAsyncMsgSize )
+          {
+            uint32_t discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
+            log->Error( XRootDMsg, "[%s] ReadRawReadV: No enough data to read "
+                        "another chunk header. Discarding %d bytes.",
+                        pUrl.GetHostId().c_str(), discardSize );
+
+            pReadVRawMsgDiscard = true;
+            pAsyncOffset        = 0;
+            pAsyncReadSize      = discardSize;
+            pAsyncReadBuffer    = new char[discardSize];
+            return Status( stOK, suRetry );
+          }
+
+          //----------------------------------------------------------------------
+          // We set up reading of the next header
+          //----------------------------------------------------------------------
+          pAsyncOffset     = 0;
+          pAsyncReadSize   = 16;
+          pAsyncReadBuffer = (char*)&pReadVRawChunkHeader;
+        }
+
+        //------------------------------------------------------------------------
+        // Do the reading
+        //------------------------------------------------------------------------
+        Status st = ReadAsync( socket, bytesRead );
+
+        //------------------------------------------------------------------------
+        // Finalize the header and set everything up for the actual buffer
+        //------------------------------------------------------------------------
+        if( st.IsOK() && st.code == suDone )
+        {
+          pReadVRawChunkHeaderDone =  true;
+          pReadVRawMsgOffset       += 16;
+
+          pReadVRawChunkHeader.rlen   = ntohl( pReadVRawChunkHeader.rlen );
+          pReadVRawChunkHeader.offset = ntohll( pReadVRawChunkHeader.offset );
+
+          //----------------------------------------------------------------------
+          // Find the buffer corresponding to the chunk
+          //----------------------------------------------------------------------
+          bool chunkFound = false;
+          for( int i = pReadVRawChunkIndex; i < (int)pChunkList->size(); ++i )
+          {
+            if( (*pChunkList)[i].offset == (uint64_t)pReadVRawChunkHeader.offset &&
+                (*pChunkList)[i].length == (uint32_t)pReadVRawChunkHeader.rlen )
+            {
+              chunkFound = true;
+              pReadVRawChunkIndex = i;
+              break;
+            }
+          }
+
+          //----------------------------------------------------------------------
+          // If the chunk was no found we discard the chunk
+          //----------------------------------------------------------------------
+          if( !chunkFound )
+          {
+            log->Error( XRootDMsg, "[%s] ReadRawReadV: Impossible to find chunk "
+                        "buffer corresponding to %d bytes at %ld",
+                        pUrl.GetHostId().c_str(), pReadVRawChunkHeader.rlen,
+                        pReadVRawChunkHeader.offset );
+
+            uint32_t discardSize = pReadVRawChunkHeader.rlen;
+            if( pReadVRawMsgOffset + discardSize > pAsyncMsgSize )
+              discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
+            pReadVRawMsgDiscard = true;
+            pAsyncOffset        = 0;
+            pAsyncReadSize      = discardSize;
+            pAsyncReadBuffer    = new char[discardSize];
+
+            log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarding %d bytes",
+                       pUrl.GetHostId().c_str(), discardSize );
+            return Status( stOK, suRetry );
+          }
+
+          //----------------------------------------------------------------------
+          // The chunk was found, but reading all the data will cross the message
+          // boundary
+          //----------------------------------------------------------------------
+          if( pReadVRawMsgOffset + pReadVRawChunkHeader.rlen > pAsyncMsgSize )
+          {
+            uint32_t discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
+
+            log->Error( XRootDMsg, "[%s] ReadRawReadV: Malformed chunk header: "
+                        "reading %d bytes from message would cross the message "
+                        "boundary, discarding %d bytes.", pUrl.GetHostId().c_str(),
+                        pReadVRawChunkHeader.rlen, discardSize );
+
+            pReadVRawMsgDiscard = true;
+            pAsyncOffset        = 0;
+            pAsyncReadSize      = discardSize;
+            pAsyncReadBuffer    = new char[discardSize];
+            pChunkStatus[pReadVRawChunkIndex].sizeError = true;
+            return Status( stOK, suRetry );
+          }
+
+          //----------------------------------------------------------------------
+          // We're good
+          //----------------------------------------------------------------------
+          pAsyncOffset     = 0;
+          pAsyncReadSize   = pReadVRawChunkHeader.rlen;
+          pAsyncReadBuffer = (char*)(*pChunkList)[pReadVRawChunkIndex].buffer;
+        }
+
+        //------------------------------------------------------------------------
+        // We've seen a reading error
+        //------------------------------------------------------------------------
+        if( !st.IsOK() )
+          return st;
+
+        //------------------------------------------------------------------------
+        // If we are not done reading the header, return back to the event loop.
+        //------------------------------------------------------------------------
+        if( st.IsOK() && st.code != suDone )
+          return st;
+      }
+
+      //--------------------------------------------------------------------------
+      // Read the body
+      //--------------------------------------------------------------------------
+      Status st = ReadAsync( socket, bytesRead );
       if( st.IsOK() && st.code == suDone )
       {
+
         pReadVRawMsgOffset          += pAsyncReadSize;
         pReadVRawChunkHeaderDone    = false;
         pReadVRawChunkHeaderStarted = false;
-        pReadVRawMsgDiscard         = false;
-        delete [] pAsyncReadBuffer;
+        pChunkStatus[pReadVRawChunkIndex].done = true;
 
-        if( pReadVRawMsgOffset != pAsyncMsgSize )
-          st.code = suRetry;
-
-        log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes, "
-                   "current offset: %d/%d", pUrl.GetHostId().c_str(),
-                   pAsyncReadSize, pReadVRawMsgOffset, pAsyncMsgSize );
-      }
-      return st;
-    }
-
-    //--------------------------------------------------------------------------
-    // Handle chunk header
-    //--------------------------------------------------------------------------
-    if( !pReadVRawChunkHeaderDone )
-    {
-      //------------------------------------------------------------------------
-      // Set up the header reading
-      //------------------------------------------------------------------------
-      if( !pReadVRawChunkHeaderStarted )
-      {
-        pReadVRawChunkHeaderStarted = true;
-
-        //----------------------------------------------------------------------
-        // We cannot afford to read the next header from the stream because
-        // we will cross the message boundary
-        //----------------------------------------------------------------------
-        if( pReadVRawMsgOffset + 16 > pAsyncMsgSize )
-        {
-          uint32_t discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
-          log->Error( XRootDMsg, "[%s] ReadRawReadV: No enough data to read "
-                      "another chunk header. Discarding %d bytes.",
-                      pUrl.GetHostId().c_str(), discardSize );
-
-          pReadVRawMsgDiscard = true;
-          pAsyncOffset        = 0;
-          pAsyncReadSize      = discardSize;
-          pAsyncReadBuffer    = new char[discardSize];
-          return Status( stOK, suRetry );
-        }
-
-        //----------------------------------------------------------------------
-        // We set up reading of the next header
-        //----------------------------------------------------------------------
-        pAsyncOffset     = 0;
-        pAsyncReadSize   = 16;
-        pAsyncReadBuffer = (char*)&pReadVRawChunkHeader;
-      }
-
-      //------------------------------------------------------------------------
-      // Do the reading
-      //------------------------------------------------------------------------
-      Status st = ReadAsync( socket, bytesRead );
-
-      //------------------------------------------------------------------------
-      // Finalize the header and set everything up for the actual buffer
-      //------------------------------------------------------------------------
-      if( st.IsOK() && st.code == suDone )
-      {
-        pReadVRawChunkHeaderDone =  true;
-        pReadVRawMsgOffset       += 16;
-
-        pReadVRawChunkHeader.rlen   = ntohl( pReadVRawChunkHeader.rlen );
-        pReadVRawChunkHeader.offset = ntohll( pReadVRawChunkHeader.offset );
-
-        //----------------------------------------------------------------------
-        // Find the buffer corresponding to the chunk
-        //----------------------------------------------------------------------
-        bool chunkFound = false;
-        for( int i = pReadVRawChunkIndex; i < (int)pChunkList->size(); ++i )
-        {
-          if( (*pChunkList)[i].offset == (uint64_t)pReadVRawChunkHeader.offset &&
-              (*pChunkList)[i].length == (uint32_t)pReadVRawChunkHeader.rlen )
-          {
-            chunkFound = true;
-            pReadVRawChunkIndex = i;
-            break;
-          }
-        }
-
-        //----------------------------------------------------------------------
-        // If the chunk was no found we discard the chunk
-        //----------------------------------------------------------------------
-        if( !chunkFound )
-        {
-          log->Error( XRootDMsg, "[%s] ReadRawReadV: Impossible to find chunk "
-                      "buffer corresponding to %d bytes at %ld",
-                      pUrl.GetHostId().c_str(), pReadVRawChunkHeader.rlen,
-                      pReadVRawChunkHeader.offset );
-
-          uint32_t discardSize = pReadVRawChunkHeader.rlen;
-          if( pReadVRawMsgOffset + discardSize > pAsyncMsgSize )
-            discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
-          pReadVRawMsgDiscard = true;
-          pAsyncOffset        = 0;
-          pAsyncReadSize      = discardSize;
-          pAsyncReadBuffer    = new char[discardSize];
-
-          log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarding %d bytes",
-                     pUrl.GetHostId().c_str(), discardSize );
-          return Status( stOK, suRetry );
-        }
-
-        //----------------------------------------------------------------------
-        // The chunk was found, but reading all the data will cross the message
-        // boundary
-        //----------------------------------------------------------------------
-        if( pReadVRawMsgOffset + pReadVRawChunkHeader.rlen > pAsyncMsgSize )
-        {
-          uint32_t discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
-
-          log->Error( XRootDMsg, "[%s] ReadRawReadV: Malformed chunk header: "
-                      "reading %d bytes from message would cross the message "
-                      "boundary, discarding %d bytes.", pUrl.GetHostId().c_str(),
-                      pReadVRawChunkHeader.rlen, discardSize );
-
-          pReadVRawMsgDiscard = true;
-          pAsyncOffset        = 0;
-          pAsyncReadSize      = discardSize;
-          pAsyncReadBuffer    = new char[discardSize];
-          pChunkStatus[pReadVRawChunkIndex].sizeError = true;
-          return Status( stOK, suRetry );
-        }
-
-        //----------------------------------------------------------------------
-        // We're good
-        //----------------------------------------------------------------------
-        pAsyncOffset     = 0;
-        pAsyncReadSize   = pReadVRawChunkHeader.rlen;
-        pAsyncReadBuffer = (char*)(*pChunkList)[pReadVRawChunkIndex].buffer;
+        log->Dump( XRootDMsg, "[%s] ReadRawReadV: read buffer for chunk %d@%ld",
+                   pUrl.GetHostId().c_str(),
+                   pReadVRawChunkHeader.rlen, pReadVRawChunkHeader.offset,
+                   pReadVRawMsgOffset, pAsyncMsgSize );
       }
 
       //------------------------------------------------------------------------
@@ -1276,34 +1258,13 @@ namespace XrdCl
         return st;
 
       //------------------------------------------------------------------------
-      // If we are not done reading the header, return back to the event loop.
+      // If we are not done reading the raw data, return back to the event loop.
       //------------------------------------------------------------------------
       if( st.IsOK() && st.code != suDone )
         return st;
     }
 
-    //--------------------------------------------------------------------------
-    // Read the body
-    //--------------------------------------------------------------------------
-    Status st = ReadAsync( socket, bytesRead );
-
-    if( st.IsOK() && st.code == suDone )
-    {
-
-      pReadVRawMsgOffset          += pAsyncReadSize;
-      pReadVRawChunkHeaderDone    = false;
-      pReadVRawChunkHeaderStarted = false;
-      pChunkStatus[pReadVRawChunkIndex].done = true;
-
-      log->Dump( XRootDMsg, "[%s] ReadRawReadV: read buffer for chunk %d@%ld",
-                 pUrl.GetHostId().c_str(),
-                 pReadVRawChunkHeader.rlen, pReadVRawChunkHeader.offset,
-                 pReadVRawMsgOffset, pAsyncMsgSize );
-
-      if( pReadVRawMsgOffset < pAsyncMsgSize )
-        st.code = suRetry;
-    }
-    return st;
+    return Status();
   }
 
   //----------------------------------------------------------------------------
@@ -1332,59 +1293,6 @@ namespace XrdCl
 
     return st;
   }
-
-//  //--------------------------------------------------------------------------
-//  // Read a single page asynchronously - depends on pAsyncBuffer, pAsyncSize
-//  // and pAsyncOffset
-//  //--------------------------------------------------------------------------
-//  Status XRootDMsgHandler::ReadPageAsync( Socket *socket, uint32_t &bytesRead )
-//  {
-//    uint32_t totalToBeRead = pAsyncReadSize - pAsyncOffset;
-//    if( totalToBeRead == 0 )  return Status();
-//
-//    if( pPgReadCksumBuff.GetCursor() == 0 ) // we are reading the checksum
-//    {
-//      uint32_t toBeRead = CksumSize - pPgReadCksumBuff.GetCursor();
-//      uint32_t btsRead = 0;
-//      char *buffer = pPgReadCksumBuff.GetBufferAtCursor();
-//      Status st = ReadBytesAsync( socket, buffer, toBeRead, btsRead );
-//      pAsyncOffset  += btsRead;
-//      bytesRead     += btsRead;
-//      totalToBeRead -= btsRead;
-//      pPgReadCksumBuff.AdvanceCursor( btsRead );
-//      if( !st.IsOK() || st.code == suRetry ) return st;
-//
-//      // now check if we have the full checksum
-//      if( pPgReadCksumBuff.GetCursor() == CksumSize )
-//      {
-//        uint32_t crc32c = 0;
-//        memcpy( &crc32c, pPgReadCksumBuff.GetBuffer(), CksumSize );
-//        pCrc32cDigests.push_back( ntohl( crc32c ) );
-//      }
-//      else return Status();
-//    }
-//
-//    // we are reading the page
-//    uint32_t toBeRead = pPgReadCurrentPageSize;
-//    if( toBeRead > totalToBeRead ) toBeRead = totalToBeRead;
-//    uint32_t btsRead = 0;
-//    Status st = ReadBytesAsync( socket, pAsyncReadBuffer, toBeRead, btsRead );
-//    pAsyncOffset  += btsRead;
-//    bytesRead     += btsRead;
-//
-//    //------------------------------------------------------------------------
-//    // If we have read the whole page reset pPgReadCksumBuff &
-//    // pPgReadCurrentPageSize in order to read the next page
-//    //------------------------------------------------------------------------
-//    pPgReadCurrentPageSize -= btsRead;
-//    if( pPgReadCurrentPageSize == 0 )
-//    {
-//      pPgReadCksumBuff.SetCursor( 0 );
-//      pPgReadCurrentPageSize = XrdSys::PageSize;
-//    }
-//
-//    return st;
-//  }
 
   //--------------------------------------------------------------------------
   // Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
