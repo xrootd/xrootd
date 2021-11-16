@@ -991,7 +991,7 @@ void XrdCpConfig::Usage(int rc)
    "-V | --version                prints the version number\n"
    "-X | --xrate <rate>           limits the transfer to the specified rate. You can\n"
    "                              suffix the value with 'k', 'm', or 'g'\n"
-   "     --xrate-threshold <rate> If the transfer rate drops bellow given threshold force\n"
+   "     --xrate-threshold <rate> If the transfer rate drops below given threshold force\n"
    "                              the client to use different source or if no more sources\n"
    "                              are available fail the transfer. You can suffix the value\n"
    "                              with 'k', 'm', or 'g'\n"

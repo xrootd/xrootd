@@ -373,7 +373,7 @@ void XrdLink::Serialize()
 {
 
 // This is meant to make sure that no protocol objects are refering to this
-// link so that we can safely run in psuedo single thread mode for critical
+// link so that we can safely run in pseudo single thread mode for critical
 // functions.
 //
    linkXQ.LinkInfo.opMutex.Lock();
