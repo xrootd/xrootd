@@ -135,7 +135,7 @@ int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
    temp = XrdOucUtils::genPath(CMSPath, (const char *)0, ".olb");
    free(CMSPath); CMSPath = temp;
    XrdOucEnv::Export("XRDCMSPATH", temp);
-   XrdOucEnv::Export("XRDOLBPATH", temp); //Compatability
+   XrdOucEnv::Export("XRDOLBPATH", temp); //Compatibility
 
 // Determine what type of role we are playing
 //
@@ -246,7 +246,7 @@ int XrdCmsClientConfig::ConfigProc(const char *ConfigFN)
 //
    while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, "cms.", 4)
-         ||  !strncmp(var, "odc.", 4)      // Compatability
+         ||  !strncmp(var, "odc.", 4)      // Compatibility
          ||  !strcmp(var, "all.manager")
          ||  !strcmp(var, "all.adminpath")
          ||  !strcmp(var, "olb.adminpath"))

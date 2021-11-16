@@ -139,7 +139,7 @@ int XrdXrootdProtocol::do_ChkPntXeq()
    if (Request.header.requestid == kXR_chkpoint)
       {ClientRequestHdr *Subject = (ClientRequestHdr *)(argp->buff);
        if (memcmp(Request.header.streamid, Subject->streamid, sidSZ))
-          {Response.Send(kXR_ArgInvalid, "Request streamid missmatch");
+          {Response.Send(kXR_ArgInvalid, "Request streamid mismatch");
            return -1;
           }
        if (Request.header.dlen != sizeof(Request.header))

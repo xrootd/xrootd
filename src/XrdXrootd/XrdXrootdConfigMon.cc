@@ -284,7 +284,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                   {char bName[16], bType = *val;
                    snprintf(bName,sizeof(bName),"monitor %s",val);
                    if (!(val = Config.GetWord()))
-                      {eDest.Emsg("Config", "value not specifed"); return 1;}
+                      {eDest.Emsg("Config", "value not specified"); return 1;}
                    if (XrdOuca2x::a2sz(eDest,bName,val,&tempval,1024,65535))
                       return 1;
                    int bVal = static_cast<int>(tempval);

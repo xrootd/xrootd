@@ -1,6 +1,6 @@
 # XrdClProxyPrefix Plugin
 
-This XRootD Client Plugin can be used to tunnel traffic through an XRootD Proxy machine. The proxy endpoint is specifed as an environment variable. To enable this plugin the **XRD_PLUGIN** environment variable needs to point to the **libXrdClProxyPlugin.so** library.
+This XRootD Client Plugin can be used to tunnel traffic through an XRootD Proxy machine. The proxy endpoint is specified as an environment variable. To enable this plugin the **XRD_PLUGIN** environment variable needs to point to the **libXrdClProxyPlugin.so** library.
 
 For example:
 

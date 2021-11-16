@@ -250,7 +250,7 @@ int XrdOssCsiPages::VerifyRange(XrdOssDF *const fd, const void *buff, const off_
 
    if (offset+blen > static_cast<size_t>(trackinglen))
    {
-      TRACE(Warn, "Verify request for " << (offset+blen-trackinglen) << " bytes from " << fn_ << " beyond tracked lengh");
+      TRACE(Warn, "Verify request for " << (offset+blen-trackinglen) << " bytes from " << fn_ << " beyond tracked length");
       return -EDOM;
    }
 
@@ -663,7 +663,7 @@ int XrdOssCsiPages::FetchRange(
 
    if (offset+blen > static_cast<size_t>(trackinglen))
    {
-      TRACE(Warn, "Fetch request for " << (offset+blen-trackinglen) << " bytes from " << fn_ << " beyond tracked lengh");
+      TRACE(Warn, "Fetch request for " << (offset+blen-trackinglen) << " bytes from " << fn_ << " beyond tracked length");
       return -EDOM;
    }
 

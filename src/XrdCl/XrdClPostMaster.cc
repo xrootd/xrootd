@@ -477,7 +477,7 @@ namespace XrdCl
     }
 
     Log *log = DefaultEnv::GetLog();
-    log->Info( PostMasterMsg, "Lable channel %s with alias %s.",
+    log->Info( PostMasterMsg, "Label channel %s with alias %s.",
                url.GetHostId().c_str(), alias.GetHostId().c_str() );
 
     Channel *active = new Channel( alias, pImpl->pPoller, trHandler,

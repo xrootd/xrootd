@@ -131,7 +131,7 @@ static void SHAKE_Update(sha3_ctx_t *c, const void *data, size_t len)
 //-----------------------------------------------------------------------------
 //! Return final message digest of desired length. This function may be called
 //! iteratively to get as many bits as needed. Bits beyound MDLen form a
-//! psuedo-random sequence (i.e. are repeatable with the same input).
+//! pseudo-random sequence (i.e. are repeatable with the same input).
 //!
 //! @param  c       Pointer to context.
 //! @param  out     Pointer to buffer of size len to receive result.

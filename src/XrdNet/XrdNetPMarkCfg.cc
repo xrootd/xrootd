@@ -214,7 +214,7 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdNetAddrInfo      &addrInfo,
           }
       }
 
-// If we are allowed to use the flow label set on the incomming connection
+// If we are allowed to use the flow label set on the incoming connection
 // then try to do so. This is only valid for IPv6 connections. Currently,
 // this is not implemented.
 //

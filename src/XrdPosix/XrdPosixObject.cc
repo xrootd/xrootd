@@ -310,7 +310,7 @@ void XrdPosixObject::Shutdown()
    XrdPosixObject *oP;
    int i;
 
-// Destory all files and static data
+// Destroy all files and static data
 //
    fdMutex.Lock();
    if (myFiles)

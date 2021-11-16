@@ -232,7 +232,7 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
    char *cgrp, cgbuff[XrdOssSpace::minSNbsz];
    int retc;
 
-// We provide psuedo support whould be not have a cache
+// We provide pseudo support whould be not have a cache
 //
    if (!XrdOssCache_Group::fsgroups)
       {unsigned long long Opt;
@@ -244,7 +244,7 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
        return XrdOssOK;
       }
 
-// Find the cache group. We provide psuedo support should we not have a cache
+// Find the cache group. We provide pseudo support should we not have a cache
 //
    if (!(cgrp = env.Get(OSS_CGROUP)))
       {if ((retc = getCname(path, &sbuff, cgbuff))) return retc;
