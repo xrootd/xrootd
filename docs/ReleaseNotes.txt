@@ -7,6 +7,14 @@ Release Notes
 
 
 --------------
+Version 5.3.3
+--------------
+
++ **Major bug fixes**
+  **[Server]** Use length returned by read and fix an alignment check in pgRead.
+  **[XrdCl] Make sure timed-out responses don't end up in the in-queue.
+
+--------------
 Version 5.3.2
 --------------
 
