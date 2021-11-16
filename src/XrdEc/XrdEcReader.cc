@@ -437,7 +437,15 @@ namespace XrdEc
           Config::Instance().enable_plugins ) );
       // open the archive
       if( objcfg.nomtfile )
-        opens.emplace_back( OpenArchive( *dataarchs[url], url, XrdCl::OpenFlags::Read ) );
+      {
+        opens.emplace_back( XrdCl::OpenArchive( *dataarchs[url], url, XrdCl::OpenFlags::Read ) |
+                            XrdCl::GetXAttr( dataarchs[url]->GetFile(), "xrdec.filesize" ) >>
+                              [this]( XrdCl::XRootDStatus &st, std::string &size)
+                              {
+                                if( !st.IsOK() ) return;
+                                filesize = std::stoull( size );
+                              } ) ;
+      }
       else
         opens.emplace_back( OpenOnly( *dataarchs[url], url, false ) );
     }
@@ -582,30 +590,6 @@ namespace XrdEc
     if( closes.empty() ) ScheduleHandler( handler );
     // otherwise close the archives
     else XrdCl::Async( XrdCl::Parallel( closes ) >> handler, timeout );
-  }
-
-  //-----------------------------------------------------------------------
-  // Get file size
-  //-----------------------------------------------------------------------
-  uint64_t Reader::GetSize()
-  {
-    uint64_t ret = 0;
-    for( auto &p : dataarchs )
-    {
-      XrdCl::DirectoryList *lst = nullptr;
-      XrdCl::XRootDStatus st = p.second->List( lst );
-      if( !st.IsOK() ) continue;
-      for( auto itr = lst->Begin(); itr != lst->End(); ++itr )
-      {
-        XrdCl::DirectoryList::ListEntry *ent = *itr;
-        size_t pos = ent->GetName().rfind( '.' );
-        size_t chnb = std::stoul( ent->GetName().c_str() + pos + 1 );
-        if( chnb < objcfg.nbdata ) // discard parities
-          ret += ent->GetStatInfo()->GetSize();
-      }
-      delete lst;
-    }
-    return ret;
   }
 
   //-------------------------------------------------------------------------

@@ -65,7 +65,7 @@ namespace XrdCl
     friend class ::MicroTest;
 
     template<typename RSP>
-    friend XRootDStatus ReadFromImpl( ZipArchive &me, const std::string&, uint64_t, uint32_t, void*, ResponseHandler*, uint16_t );
+    friend XRootDStatus ReadFromImpl( ZipArchive&, const std::string&, uint64_t, uint32_t, void*, ResponseHandler*, uint16_t );
 
     public:
       //-----------------------------------------------------------------------
@@ -342,6 +342,14 @@ namespace XrdCl
       inline bool GetProperty( const std::string &name, std::string &value )
       {
         return archive.GetProperty( name, value );
+      }
+
+      //-----------------------------------------------------------------------
+      //! Get the underlying File object
+      //-----------------------------------------------------------------------
+      inline File& GetFile()
+      {
+        return archive;
       }
 
     private:

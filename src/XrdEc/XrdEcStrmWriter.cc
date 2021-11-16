@@ -300,7 +300,12 @@ namespace XrdEc
       // close ZIP archives with data
       //-----------------------------------------------------------------------
       if( dataarchs[i]->IsOpen() )
-        closes.emplace_back( XrdCl::CloseArchive( *dataarchs[i] ) );
+      {
+        std::string size( std::to_string( GetSize() ) );
+        XrdCl::Pipeline p = XrdCl::SetXAttr( dataarchs[i]->GetFile(), "xrdec.filesize", size )
+                          | XrdCl::CloseArchive( *dataarchs[i] );
+        closes.emplace_back( std::move( p ) );
+      }
       //-----------------------------------------------------------------------
       // replicate the metadata
       //-----------------------------------------------------------------------
