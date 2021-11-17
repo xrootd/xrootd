@@ -49,8 +49,7 @@ namespace XrdCl
                      const std::string &strmname ) : writestage( WriteRequest ),
                                                      socket( socket ),
                                                      strmname( strmname ),
-                                                     outmsg( nullptr ),
-                                                     outmsgsize( 0 )
+                                                     outmsg( nullptr )
       {
       }
 
@@ -61,7 +60,16 @@ namespace XrdCl
       {
         writestage = WriteRequest;
         outmsg.reset( msg );
-        outmsgsize = 0;
+      }
+
+      //------------------------------------------------------------------------
+      //! Replay the message that has been sent
+      //------------------------------------------------------------------------
+      inline void Replay()
+      {
+        if( !outmsg ) return;
+        writestage = WriteRequest;
+        outmsg->SetCursor( 0 );
       }
 
       //------------------------------------------------------------------------
@@ -139,7 +147,6 @@ namespace XrdCl
       // The internal state of the the reader
       //------------------------------------------------------------------------
       std::unique_ptr<Message>  outmsg;
-      uint32_t                  outmsgsize;
   };
 }
 
