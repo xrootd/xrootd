@@ -576,6 +576,10 @@ namespace XrdCl
           //--------------------------------------------------------------------
           // We need to wait before replaying the request
           //--------------------------------------------------------------------
+          Log *log = DefaultEnv::GetLog();
+          log->Debug( AsyncSockMsg, "[%s] Received a wait response to endsess request, "
+                      "will wait for %d seconds before replaying the endsess request",
+                      waitSeconds );
           pHSWaitStarted = time( 0 );
           pHSWaitSeconds = waitSeconds;
         }
@@ -790,11 +794,6 @@ namespace XrdCl
     else
       hswriter->Replay();
     //--------------------------------------------------------------------------
-    // Make sure the wait state is reset
-    //--------------------------------------------------------------------------
-    pHSWaitSeconds = 0;
-    pHSWaitStarted = 0;
-    //--------------------------------------------------------------------------
     // Enable writing so we can replay the HS message
     //--------------------------------------------------------------------------
     XRootDStatus st;
@@ -816,13 +815,23 @@ namespace XrdCl
     return waitSeconds;
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Check if HS wait time elapsed
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void AsyncSocketHandler::CheckHSWait()
   {
     time_t now = time( 0 );
     if( now - pHSWaitStarted >= pHSWaitSeconds )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Debug( AsyncSockMsg, "[%s] The hand-shake wait time elapsed, will "
+                  "replay the endsess request.", pStreamName.c_str() );
       SendHSMsg();
+      //------------------------------------------------------------------------
+      // Make sure the wait state is reset
+      //------------------------------------------------------------------------
+      pHSWaitSeconds = 0;
+      pHSWaitStarted = 0;
+    }
   }
 }
