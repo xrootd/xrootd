@@ -7,12 +7,19 @@ Release Notes
 
 
 --------------
+Version 5.3.4
+--------------
++ **Major bug fixes**
+  **[XrdCl]** Use t/o events to measure lapsed time in order to replay
+              HS requests. 
+
+--------------
 Version 5.3.3
 --------------
 
 + **Major bug fixes**
   **[Server]** Use length returned by read and fix an alignment check in pgRead.
-  **[XrdCl] Make sure timed-out responses don't end up in the in-queue.
+  **[XrdCl]** Make sure timed-out responses don't end up in the in-queue.
 
 --------------
 Version 5.3.2
@@ -27,7 +34,8 @@ Version 5.3.2
   **[XrdCl]** Make sure small compressed ZIPs are extracted at the right offset.
   **[XrdCl]** Add missing err msg if force isn't used and destination exits.
   **[SSI]** Avoid SEGV when request spans more than 1 buffer. Fixes #1518
-
+jor bug fixes**
+  **[Server]** 
 + **Minor bug fixes**
   **[Server]** Close race condition between bind and the use of that bind.
   **[HTTP]** XML-quote error messages sent through XrdHttp.
