@@ -48,6 +48,8 @@ namespace XrdCl
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
+    pHSWaitStarted( 0 ),
+    pHSWaitSeconds( 0 ),
     pUrl( url ),
     pTlsHandShakeOngoing( false )
   {
@@ -234,6 +236,9 @@ namespace XrdCl
         OnReadTimeout();
       else
         OnTimeoutWhileHandshaking();
+
+      if( pHSWaitSeconds )
+        CheckHSWait();
     }
 
     //--------------------------------------------------------------------------
@@ -244,12 +249,18 @@ namespace XrdCl
       pLastActivity = time(0);
       if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
         OnConnectionReturn();
-      else if( unlikely( pTlsHandShakeOngoing ) )
-        OnTLSHandShake();
-      else if( likely( pHandShakeDone ) )
-        OnWrite();
-      else
-        OnWriteWhileHandshaking();
+      //------------------------------------------------------------------------
+      // Make sure we are not writing anything if we have been told to wait.
+      //------------------------------------------------------------------------
+      else if( pHSWaitSeconds == 0 )
+      {
+        if( unlikely( pTlsHandShakeOngoing ) )
+          OnTLSHandShake();
+        else if( likely( pHandShakeDone ) )
+          OnWrite();
+        else
+          OnWriteWhileHandshaking();
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -429,9 +440,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( st.code == suRetry ) return;
     //--------------------------------------------------------------------------
-    // Bookkeeping ...
+    // Disable the uplink
+    // Note: at this point we don't deallocate the HS message as we might need
+    //       to re-send it in case of a kXR_wait response
     //--------------------------------------------------------------------------
-    hswriter->Reset();
     if( !(st = DisableUplink()).IsOK() )
       OnFaultWhileHandshaking( st );
   }
@@ -540,12 +552,12 @@ namespace XrdCl
       return;
     }
 
-    //--------------------------------------------------------------------------
-    // We are handling a wait response and the transport handler told
-    // as to retry the request
-    //--------------------------------------------------------------------------
     if( st.code == suRetry )
     {
+      //------------------------------------------------------------------------
+      // We are handling a wait response and the transport handler told
+      // as to retry the request
+      //------------------------------------------------------------------------
       if( waitSeconds >=0 )
       {
         time_t resendTime = ::time( 0 ) + waitSeconds;
@@ -561,15 +573,17 @@ namespace XrdCl
         }
         else
         {
-          TaskManager *taskMgr = DefaultEnv::GetPostMaster()->GetTaskManager();
-          WaitTask *task = new WaitTask( this );
-          taskMgr->RegisterTask( task, resendTime );
+          //--------------------------------------------------------------------
+          // We need to wait before replaying the request
+          //--------------------------------------------------------------------
+          pHSWaitStarted = time( 0 );
+          pHSWaitSeconds = waitSeconds;
         }
         return;
       }
-      //--------------------------------------------------------------------------
+      //------------------------------------------------------------------------
       // We are re-sending a protocol request
-      //--------------------------------------------------------------------------
+      //------------------------------------------------------------------------
       else if( pHandShakeData->out )
       {
         SendHSMsg();
@@ -711,9 +725,9 @@ namespace XrdCl
     reqwriter.reset();
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Carry out the TLS hand-shake
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   XRootDStatus AsyncSocketHandler::DoTlsHandShake()
   {
     Log *log = DefaultEnv::GetLog();
@@ -739,9 +753,9 @@ namespace XrdCl
     return st;
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Handle read/write event if we are in the middle of a TLS hand-shake
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   inline void AsyncSocketHandler::OnTLSHandShake()
   {
     XRootDStatus st = DoTlsHandShake();
@@ -751,6 +765,9 @@ namespace XrdCl
                                                   *pChannelData ) );
   }
 
+  //----------------------------------------------------------------------------
+  // Prepare a HS writer for sending and enable uplink
+  //----------------------------------------------------------------------------
   void AsyncSocketHandler::SendHSMsg()
   {
     if( !hswriter )
@@ -759,8 +776,27 @@ namespace XrdCl
                                              "HS writer object missing!" ) );
       return;
     }
-    hswriter->Reset( pHandShakeData->out );
-    pHandShakeData->out = nullptr;
+    //--------------------------------------------------------------------------
+    // We only set a new HS message if this is not a replay due to kXR_wait
+    //--------------------------------------------------------------------------
+    if( !pHSWaitSeconds )
+    {
+      hswriter->Reset( pHandShakeData->out );
+      pHandShakeData->out = nullptr;
+    }
+    //--------------------------------------------------------------------------
+    // otherwise we replay the kXR_endsess request
+    //--------------------------------------------------------------------------
+    else
+      hswriter->Replay();
+    //--------------------------------------------------------------------------
+    // Make sure the wait state is reset
+    //--------------------------------------------------------------------------
+    pHSWaitSeconds = 0;
+    pHSWaitStarted = 0;
+    //--------------------------------------------------------------------------
+    // Enable writing so we can replay the HS message
+    //--------------------------------------------------------------------------
     XRootDStatus st;
     if( !(st = EnableUplink()).IsOK() )
     {
@@ -778,5 +814,15 @@ namespace XrdCl
     if( rsp->hdr.status == kXR_wait )
       waitSeconds = rsp->body.wait.seconds;
     return waitSeconds;
+  }
+
+  //------------------------------------------------------------------------
+  // Check if HS wait time elapsed
+  //------------------------------------------------------------------------
+  void AsyncSocketHandler::CheckHSWait()
+  {
+    time_t now = time( 0 );
+    if( now - pHSWaitStarted >= pHSWaitSeconds )
+      SendHSMsg();
   }
 }

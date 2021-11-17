@@ -41,31 +41,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class AsyncSocketHandler: public SocketHandler
   {
-      //------------------------------------------------------------------------
-      // We need an extra task for rescheduling of HS request that received
-      // a wait response.
-      //------------------------------------------------------------------------
-      class WaitTask: public XrdCl::Task
-      {
-        public:
-          WaitTask( XrdCl::AsyncSocketHandler *handler ):
-            pHandler( handler )
-          {
-            std::ostringstream o;
-            o << "WaitTask for: 0x" << handler->pHandShakeData->out;
-            SetName( o.str() );
-          }
-
-          virtual time_t Run( time_t now )
-          {
-            pHandler->SendHSMsg();
-            return 0;
-          }
-
-        private:
-          XrdCl::AsyncSocketHandler *pHandler;
-      };
-
     public:
       //------------------------------------------------------------------------
       //! Constructor
@@ -242,7 +217,7 @@ namespace XrdCl
       void OnTLSHandShake();
 
       //------------------------------------------------------------------------
-      // Retry hand shake message
+      // Prepare a HS writer for sending and enable uplink
       //------------------------------------------------------------------------
       void SendHSMsg();
 
@@ -254,6 +229,11 @@ namespace XrdCl
       //              otherwise -1
       //------------------------------------------------------------------------
       inline kXR_int32 HandleWaitRsp( Message *rsp );
+
+      //------------------------------------------------------------------------
+      // Check if HS wait time elapsed
+      //------------------------------------------------------------------------
+      void CheckHSWait();
 
       //------------------------------------------------------------------------
       // Data members
@@ -272,6 +252,8 @@ namespace XrdCl
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
       time_t                         pLastActivity;
+      time_t                         pHSWaitStarted;
+      time_t                         pHSWaitSeconds;
       URL                            pUrl;
       bool                           pTlsHandShakeOngoing;
 
