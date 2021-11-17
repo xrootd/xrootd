@@ -77,6 +77,13 @@ namespace XrdCl
         status = Status( stOK, suNotStarted );
       }
 
+      void Replay()
+      {
+        if( !msg ) return;
+        msg->SetCursor( 0 );
+        status = Status( stOK, suNotStarted );
+      }
+
       Status WriteImpl()
       {
         if( !msg ) return status;

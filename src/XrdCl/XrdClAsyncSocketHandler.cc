@@ -58,6 +58,8 @@ namespace XrdCl
     pOutHandler( 0 ),
     pIncMsgSize( 0 ),
     pOutMsgSize( 0 ),
+    pHSWaitStarted( 0 ),
+    pHSWaitSeconds( 0 ),
     pUrl( url ),
     pTlsHandShakeOngoing( false )
   {
@@ -251,6 +253,9 @@ namespace XrdCl
         OnReadTimeout();
       else
         OnTimeoutWhileHandshaking();
+
+      if( pHSWaitSeconds )
+        CheckHSWait();
     }
 
     //--------------------------------------------------------------------------
@@ -261,12 +266,15 @@ namespace XrdCl
       pLastActivity = time(0);
       if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
         OnConnectionReturn();
-      else if( unlikely( pTlsHandShakeOngoing ) )
-        OnTLSHandShake();
-      else if( likely( pHandShakeDone ) )
-        OnWrite();
-      else
-        OnWriteWhileHandshaking();
+      else if( pHSWaitSeconds == 0 )
+      {
+        if( unlikely( pTlsHandShakeOngoing ) )
+          OnTLSHandShake();
+        else if( likely( pHandShakeDone ) )
+          OnWrite();
+        else
+          OnWriteWhileHandshaking();
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -460,7 +468,6 @@ namespace XrdCl
     }
 
     if( st.code == suRetry ) return;
-    hswriter->Reset();
 
     st = pSocket->Flash();
     if( !st.IsOK() )
@@ -747,9 +754,11 @@ namespace XrdCl
         }
         else
         {
-          TaskManager *taskMgr = DefaultEnv::GetPostMaster()->GetTaskManager();
-          WaitTask *task = new WaitTask( this );
-          taskMgr->RegisterTask( task, resendTime );
+          //--------------------------------------------------------------------
+          // We need to wait before replaying the request
+          //--------------------------------------------------------------------
+          pHSWaitStarted = time( 0 );
+          pHSWaitSeconds = waitSeconds;
         }
         return;
       }
@@ -993,8 +1002,21 @@ namespace XrdCl
                                              "HS writer object missing!" ) );
       return;
     }
-    hswriter->Reset( pHandShakeData->out );
-    pHandShakeData->out = nullptr;
+    if( !pHSWaitSeconds )
+    {
+      hswriter->Reset( pHandShakeData->out );
+      pHandShakeData->out = nullptr;
+    }
+    else
+      hswriter->Replay();
+    //--------------------------------------------------------------------------
+    // Make sure the wait state is reset
+    //--------------------------------------------------------------------------
+    pHSWaitSeconds = 0;
+    pHSWaitStarted = 0;
+    //--------------------------------------------------------------------------
+    // Enable writing so we can replay the HS message
+    //--------------------------------------------------------------------------
     XRootDStatus st;
     if( !(st = EnableUplink()).IsOK() )
     {
@@ -1012,5 +1034,15 @@ namespace XrdCl
     if( rsp->hdr.status == kXR_wait )
       waitSeconds = rsp->body.wait.seconds;
     return waitSeconds;
+  }
+
+  //------------------------------------------------------------------------
+  // Check if HS wait time elapsed
+  //------------------------------------------------------------------------
+  void AsyncSocketHandler::CheckHSWait()
+  {
+    time_t now = time( 0 );
+    if( now - pHSWaitStarted >= pHSWaitSeconds )
+      SendHSMsg();
   }
 }
