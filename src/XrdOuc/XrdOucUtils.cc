@@ -107,6 +107,45 @@ int LookUp(idMap_t &idMap, unsigned int id, char *buff, int blen)
 }
   
 /******************************************************************************/
+/*                               a r g L i s t                                */
+/******************************************************************************/
+
+int XrdOucUtils::argList(char *args, char **argV, int argC)
+{
+   char *aP = args;
+   int j;
+
+// Construct the argv array based on passed command line.
+//
+for (j = 0; j < argC; j++)
+    {while(*aP == ' ') aP++;
+     if (!(*aP)) break;
+
+     if (*aP == '"' || *aP == '\'')
+        {argV[j] = aP+1;
+         aP = index(aP+1, *aP);
+         if (!aP || (*(aP+1) != ' ' && *(aP+1)))
+            {if (!j) argV[0] = 0; return -EINVAL;}
+         *aP++ = '\0';
+        } else {
+         argV[j] = aP;
+         if ((aP = index(aP+1, ' '))) *aP++ = '\0';
+            else {j++; break;}
+        }
+
+    }
+
+// Make sure we did not overflow the vector
+//
+   if (j > argC-1) return -E2BIG;
+
+// End list with a null pointer and return the actual number of arguments
+//
+   argV[j] = 0;
+   return j;
+}
+  
+/******************************************************************************/
 /*                               b i n 2 h e x                                */
 /******************************************************************************/
   
