@@ -957,7 +957,9 @@ namespace XrdCl
     if( pTimeoutFence.load( std::memory_order_relaxed ) )
       return 0;
 
-    if( event == Timeout && pMsgInFly && pSidMgr )
+    if( pSidMgr && pMsgInFly && ( event == Timeout
+        || status.code == errOperationExpired
+        || status.code == errOperationInterrupted ) )
     {
       ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
       pSidMgr->TimeOutSID( req->header.streamid );
