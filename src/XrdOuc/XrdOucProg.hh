@@ -44,7 +44,7 @@ public:
 //
             XrdOucProg(XrdSysError *errobj=0, int efd=-1)
                       : eDest(errobj), myStream(0), myProc(0), ArgBuff(0),
-                        numArgs(0), theEFD(efd) {Arg[0] = 0;}
+                        Arg(&ArgBuff), numArgs(0), theEFD(efd) {}
 
            ~XrdOucProg();
 
@@ -118,14 +118,14 @@ int          Setup(const char *prog,
 /******************************************************************************/
   
 private:
+  void          Reset();
   int           Restart();
   XrdSysError  *eDest;
   XrdOucStream *myStream;
   int           (*myProc)(XrdOucStream *, char **, int);
   char         *ArgBuff;
-  char         *Arg[64];
+  char        **Arg;
   int           numArgs;
-  int           lenArgs;
   int           theEFD;
 };
 #endif

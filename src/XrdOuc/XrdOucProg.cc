@@ -42,6 +42,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -51,7 +52,7 @@
   
 XrdOucProg::~XrdOucProg()
 {
-   if (ArgBuff) free(ArgBuff);
+   Reset();
    if (myStream) delete myStream;
 }
 
@@ -107,9 +108,8 @@ int XrdOucProg::Feed(const char *data[], const int dlen[])
 int XrdOucProg::Run(XrdOucStream *Sp, const char *argV[], int argC,
                                       const char *envV[])
 {
-   const int maxArgs = sizeof(Arg)/sizeof(Arg[0])+4;
-   char *myArgs[maxArgs+1];
-   int rc, j = numArgs;
+   char **myArgs;
+   int rc, totArgs = numArgs + argC;
 
 // If we have no program, return an error
 //
@@ -118,26 +118,16 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *argV[], int argC,
        return -ENOEXEC;
       }
 
-// Copy the arglist to our private area
+// Copy arguments to stack storage (we could avoid this but not with the stack).
 //
-   memcpy((void *)myArgs, (const void *)Arg, lenArgs);
-
-// Append additional arguments as needed
-//
-   for (int i = 0; i < argC && j < maxArgs; i++)
-       if (argV[i]) myArgs[j++] = (char *)argV[i];
-
-// Make sure we don't have too many
-//
-   if (j >= maxArgs) 
-      {if (eDest) eDest->Emsg("Run", E2BIG, "execute", Arg[0]);
-       return -E2BIG;
-      }
-   myArgs[j] = (char *)0;
+   myArgs = (char**)alloca(sizeof(char *) * (totArgs + 1));
+   if (numArgs) memcpy(myArgs, Arg, sizeof(char*)*numArgs);
+   if (argC)    memcpy(&myArgs[numArgs], argV, sizeof(char*)*argC);
+   myArgs[totArgs] = 0;
 
 // If this is a local process then just execute it inline on this thread
 //
-   if (myProc) return (*myProc)(Sp, myArgs, j);
+   if (myProc) return (*myProc)(Sp, myArgs, totArgs);
 
 // Execute the command, possibly setting an environment.
 //
@@ -306,36 +296,36 @@ int XrdOucProg::RunDone(XrdOucStream &cmd)
 int XrdOucProg::Setup(const char *prog, XrdSysError *errP,
                       int (*Proc)(XrdOucStream *, char **, int))
 {
-   const int maxArgs = sizeof(Arg)/sizeof(Arg[0]);
-   char *pp;
-   int j;
+   static const int maxArgs = 65;
+   char *argV[maxArgs];
+   int rc;
 
 // Prepare to handle the program
 //
-   if (ArgBuff) free(ArgBuff);
-   pp = ArgBuff = strdup(prog);
+   Reset();
    if (!errP) errP = eDest;
+   myProc = 0;
+   ArgBuff = strdup(prog);
   
 // Construct the argv array based on passed command line.
 //
-for (j = 0; j < maxArgs-1 && *pp; j++)
-    {while(*pp == ' ') pp++;
-     if (!(*pp)) break;
-     Arg[j] = pp;
-     while(*pp && *pp != ' ') pp++;
-     if (*pp) {*pp = '\0'; pp++;}
-    }
-
-// Make sure we did not overflow the buffer
-//
-   if (j == maxArgs-1 && *pp) 
-      {if (errP) errP->Emsg("Run", E2BIG, "set up", Arg[0]);
-       free(ArgBuff); ArgBuff = 0;
-       return -E2BIG;
+   rc = XrdOucUtils::argList(ArgBuff, argV, maxArgs);
+   if (rc <= 0)
+      {if (errP)
+          {if (!rc || !argV[0])
+              {const char *pgm =  (Proc ? "proceedure" : "program");
+               errP->Emsg("Run", pgm, "name not specified.");
+              } else errP->Emsg("Run", rc, "set up", argV[0]);
+          }
+       return (rc ? rc : -EINVAL);
       }
-   Arg[j] = (char *)0;
-   numArgs= j;
-   lenArgs = sizeof(Arg[0]) * numArgs;
+
+// Record the arguments including the phamtom null pointer. We must have
+// atleast one, the program or proceedure name.
+//
+   numArgs = rc;
+   Arg = new char*[rc+1];
+   memcpy(Arg, argV, sizeof(char *) * (rc+1));
 
 // If this is a local process then just record its address
 //
@@ -344,9 +334,9 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
 // Make sure the program is really executable
 //
    if (access(Arg[0], X_OK))
-      {int rc = errno;
+      {rc = errno;
        if (errP) errP->Emsg("Run", rc, "set up", Arg[0]);
-       free(ArgBuff); ArgBuff = 0;
+       Reset();
        return rc;
       }
    return 0;
@@ -373,6 +363,19 @@ int XrdOucProg::Start()
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                                 R e s e t                                  */
+/******************************************************************************/
+
+void XrdOucProg::Reset()
+{
+
+   if (ArgBuff) {free(ArgBuff); ArgBuff = 0;}
+   if (numArgs) delete [] Arg;
+   Arg = &ArgBuff;
+   numArgs = 0;
+}
+  
 /******************************************************************************/
 /*                               R e s t a r t                                */
 /******************************************************************************/
