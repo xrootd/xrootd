@@ -20,6 +20,8 @@ Prerelease Notes
   **[Server]** Correct notify option handling for kXR_prepare.
 
 + **Miscellaneous**
+  **[Server]** Remove limit on number of args passed to a forked exec.
+  **[Server[(( Add method to create an argv list from a string.
   **[Xcache]** Extend pgread API to return number of corrected checksum errors.
   **[cmsd]** Allow more parallelism during data server selection.
   **[Utils]** Add utility class to handle url encoding and decoding.
