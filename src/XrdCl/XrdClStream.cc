@@ -471,18 +471,17 @@ namespace XrdCl
       return;
     }
 
-    //--------------------------------------------------------------------------
-    // No handler, we cache and see what comes later
-    //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
 
+    //--------------------------------------------------------------------------
+    // No handler, we discard the message ...
+    //--------------------------------------------------------------------------
     if( !mh.handler )
     {
-      log->Dump( PostMasterMsg, "[%s] Queuing received message: 0x%x.",
-                 pStreamName.c_str(), msg );
-
-      pJobManager->QueueJob( pQueueIncMsgJob, msg );
+      log->Dump( PostMasterMsg, "[%s] Discarding received message: 0x%x, no "
+                 "MsgHandler found.", pStreamName.c_str(), msg );
+      delete msg;
       return;
     }
 
