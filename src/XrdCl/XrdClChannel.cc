@@ -40,7 +40,7 @@ namespace
   //----------------------------------------------------------------------------
   // Filter handler
   //----------------------------------------------------------------------------
-  class FilterHandler: public XrdCl::IncomingMsgHandler
+  class FilterHandler: public XrdCl::MsgHandler
   {
     public:
       //------------------------------------------------------------------------
@@ -73,7 +73,7 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      //! Reexamine the incoming message, and decide on the action to be taken
+      // Reexamine the incoming message, and decide on the action to be taken
       //------------------------------------------------------------------------
       virtual uint16_t InspectStatusRsp()
       {
@@ -120,10 +120,26 @@ namespace
       //------------------------------------------------------------------------
       uint16_t GetSid() const
       {
-	if (pFilter)
-	  return pFilter->GetSid();
+        if (pFilter)
+          return pFilter->GetSid();
 
-	return 0;
+        return 0;
+      }
+
+      //------------------------------------------------------------------------
+      // The requested action has been performed and the status is available
+      //------------------------------------------------------------------------
+      virtual void OnStatusReady( const XrdCl::Message *message,
+                                  XrdCl::XRootDStatus   status )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      // Get a timestamp after which we give up
+      //------------------------------------------------------------------------
+      virtual time_t GetExpiration()
+      {
+        return 0;
       }
 
     private:
@@ -139,7 +155,7 @@ namespace
   //----------------------------------------------------------------------------
   // Status handler
   //----------------------------------------------------------------------------
-  class StatusHandler: public XrdCl::OutgoingMsgHandler
+  class StatusHandler: public XrdCl::MsgHandler
   {
     public:
       //------------------------------------------------------------------------
@@ -155,6 +171,29 @@ namespace
       virtual ~StatusHandler()
       {
         delete pSem;
+      }
+
+      virtual uint16_t Examine( std::shared_ptr<XrdCl::Message> &msg )
+      {
+        return MsgHandler::Action::None;
+      }
+
+      //------------------------------------------------------------------------
+      // Reexamine the incoming message, and decide on the action to be taken
+      //------------------------------------------------------------------------
+      virtual uint16_t InspectStatusRsp()
+      {
+        return MsgHandler::Action::None;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get handler sid
+      //!
+      //! return sid of the corresponding request, otherwise 0
+      //------------------------------------------------------------------------
+      virtual uint16_t GetSid() const
+      {
+        return 0;
       }
 
       //------------------------------------------------------------------------
@@ -177,6 +216,14 @@ namespace
         return pStatus;
       }
       
+      //------------------------------------------------------------------------
+      // Get a timestamp after which we give up
+      //------------------------------------------------------------------------
+      virtual time_t GetExpiration()
+      {
+        return 0;
+      }
+
     private:
       StatusHandler(const StatusHandler &other);
       StatusHandler &operator = (const StatusHandler &other);
@@ -308,7 +355,7 @@ namespace XrdCl
   // Send the message asynchronously
   //----------------------------------------------------------------------------
   XRootDStatus Channel::Send( Message              *msg,
-                              OutgoingMsgHandler   *handler,
+                              MsgHandler   *handler,
                               bool                  stateful,
                               time_t                expires )
 
@@ -337,7 +384,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Listen to incoming messages
   //----------------------------------------------------------------------------
-  Status Channel::Receive( IncomingMsgHandler *handler, time_t expires )
+  Status Channel::Receive( MsgHandler *handler, time_t expires )
   {
     pIncoming.AddMessageHandler( handler, expires );
     return Status();

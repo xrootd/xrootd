@@ -20,7 +20,7 @@ namespace XrdCl
 void RedirectJob::Run( void* )
 {
   // this makes sure the handler takes ownership of the new message
-  if( pHandler->Examine( msg ) != IncomingMsgHandler::Action::Ignore )
+  if( pHandler->Examine( msg ) != MsgHandler::Action::Ignore )
     pHandler->Process();
   delete this;
 }

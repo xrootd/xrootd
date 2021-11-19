@@ -301,7 +301,7 @@ namespace XrdCl
     while( !pPendingRedirects.empty() )
     {
       const Message *msg = pPendingRedirects.front().first;
-      IncomingMsgHandler *handler = pPendingRedirects.front().second;
+      MsgHandler *handler = pPendingRedirects.front().second;
       pPendingRedirects.pop_front();
       if( !handler || !msg )
         continue;
@@ -364,7 +364,7 @@ namespace XrdCl
   // The virtual response is being handled by the given handler.
   //----------------------------------------------------------------------------
   XRootDStatus MetalinkRedirector::HandleRequestImpl( const Message *msg,
-      IncomingMsgHandler *handler )
+      MsgHandler *handler )
   {
     auto resp = GetResponse( msg );
     JobManager *jobMan = DefaultEnv::GetPostMaster()->GetJobManager();
@@ -379,7 +379,7 @@ namespace XrdCl
   // is done.
   //----------------------------------------------------------------------------
   XRootDStatus MetalinkRedirector::HandleRequest( const Message *msg,
-      IncomingMsgHandler *handler )
+      MsgHandler *handler )
   {
     XrdSysMutexHelper scopedLck( pMutex );
     // if the metalink data haven't been loaded yet, make it pending

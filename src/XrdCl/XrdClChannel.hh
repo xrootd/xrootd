@@ -105,7 +105,7 @@ namespace XrdCl
       //!                into the send queues, failure otherwise
       //------------------------------------------------------------------------
       XRootDStatus Send( Message              *msg,
-                         OutgoingMsgHandler   *handler,
+                         MsgHandler   *handler,
                          bool                  stateful,
                          time_t                expires );
 
@@ -130,7 +130,7 @@ namespace XrdCl
       //! @param expires expiration timestamp
       //! @return        success when the handler has been registered correctly
       //------------------------------------------------------------------------
-      Status Receive( IncomingMsgHandler *handler, time_t expires );
+      Status Receive( MsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Query the transport handler

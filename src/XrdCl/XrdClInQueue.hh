@@ -47,7 +47,7 @@ namespace XrdCl
       //! @param handler message handler
       //! @param expires time when the message handler expires
       //------------------------------------------------------------------------
-      void AddMessageHandler( IncomingMsgHandler *handler, time_t expires );
+      void AddMessageHandler( MsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Get a message handler interested in receiving message whose header
@@ -59,24 +59,24 @@ namespace XrdCl
       //!
       //! @return handler or 0 if none is interested
       //------------------------------------------------------------------------
-      IncomingMsgHandler *GetHandlerForMessage( std::shared_ptr<Message> &msg,
+      MsgHandler *GetHandlerForMessage( std::shared_ptr<Message> &msg,
                                                 time_t                   &expires,
                                                 uint16_t                 &action );
 
       //------------------------------------------------------------------------
       //! Re-insert the handler without scanning the cached messages
       //------------------------------------------------------------------------
-      void ReAddMessageHandler( IncomingMsgHandler *handler, time_t expires );
+      void ReAddMessageHandler( MsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Remove a listener
       //------------------------------------------------------------------------
-      void RemoveMessageHandler( IncomingMsgHandler *handler );
+      void RemoveMessageHandler( MsgHandler *handler );
 
       //------------------------------------------------------------------------
       //! Report an event to the handlers
       //------------------------------------------------------------------------
-      void ReportStreamEvent( IncomingMsgHandler::StreamEvent event,
+      void ReportStreamEvent( MsgHandler::StreamEvent event,
                               XRootDStatus                    status );
 
       //------------------------------------------------------------------------
@@ -98,7 +98,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       bool DiscardMessage(Message& msg, uint16_t& sid) const;
 
-      typedef std::pair<IncomingMsgHandler *, time_t> HandlerAndExpire;
+      typedef std::pair<MsgHandler *, time_t> HandlerAndExpire;
       typedef std::map<uint16_t, HandlerAndExpire> HandlerMap;
       typedef std::map<uint16_t, std::shared_ptr<Message>> MessageMap;
       MessageMap pMessages;

@@ -24,10 +24,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Add a message to the back of the queue
   //----------------------------------------------------------------------------
-  void OutQueue::PushBack( Message              *msg,
-                           OutgoingMsgHandler   *handler,
-                           time_t                expires,
-                           bool                  stateful )
+  void OutQueue::PushBack( Message      *msg,
+                           MsgHandler   *handler,
+                           time_t        expires,
+                           bool          stateful )
   {
     pMessages.push_back( MsgHelper( msg, handler, expires, stateful ) );
   }
@@ -35,10 +35,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Add a message to the front the queue
   //----------------------------------------------------------------------------
-  void OutQueue::PushFront( Message              *msg,
-                            OutgoingMsgHandler   *handler,
-                            time_t                expires,
-                            bool                  stateful )
+  void OutQueue::PushFront( Message      *msg,
+                            MsgHandler   *handler,
+                            time_t        expires,
+                            bool          stateful )
   {
     pMessages.push_front( MsgHelper( msg, handler, expires, stateful ) );
   }
@@ -46,9 +46,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Get a message from the front of the queue
   //----------------------------------------------------------------------------
-  Message *OutQueue::PopMessage( OutgoingMsgHandler   *&handler,
-                                 time_t                &expires,
-                                 bool                  &stateful )
+  Message *OutQueue::PopMessage( MsgHandler   *&handler,
+                                 time_t        &expires,
+                                 bool          &stateful )
   {
     if( pMessages.empty() )
       return 0;

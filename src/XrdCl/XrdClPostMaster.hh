@@ -119,18 +119,18 @@ namespace XrdCl
       //! @return              success if the message was successfully inserted
       //!                      into the send queues, failure otherwise
       //------------------------------------------------------------------------
-      XRootDStatus Send( const URL            &url,
-                         Message              *msg,
-                         OutgoingMsgHandler   *handler,
-                         bool                  stateful,
-                         time_t                expires );
+      XRootDStatus Send( const URL    &url,
+                         Message      *msg,
+                         MsgHandler   *handler,
+                         bool          stateful,
+                         time_t        expires );
 
       //------------------------------------------------------------------------
       //!
       //------------------------------------------------------------------------
-      Status Redirect( const URL          &url,
-                       Message            *msg,
-                       IncomingMsgHandler *handler);
+      Status Redirect( const URL  &url,
+                       Message    *msg,
+                       MsgHandler *handler);
 
       //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message matching
@@ -158,9 +158,9 @@ namespace XrdCl
       //! @param expires expiration timestamp
       //! @return        success when the listener has been inserted correctly
       //------------------------------------------------------------------------
-      Status Receive( const URL          &url,
-                      IncomingMsgHandler *handler,
-                      time_t              expires );
+      Status Receive( const URL  &url,
+                      MsgHandler *handler,
+                      time_t      expires );
 
       //------------------------------------------------------------------------
       //! Query the transport handler for a given URL

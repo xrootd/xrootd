@@ -45,43 +45,23 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
-  // Outgoing message helper
-  //----------------------------------------------------------------------------
-  struct OutMessageHelper
-  {
-    OutMessageHelper( Message              *message = 0,
-                      OutgoingMsgHandler   *hndlr   = 0,
-                      time_t                expir   = 0,
-                      bool                  statefu = 0 ):
-      msg( message ), handler( hndlr ), expires( expir ), stateful( statefu ) {}
-    void Reset()
-    {
-      msg = 0; handler = 0; expires = 0; stateful = 0;
-    }
-    Message              *msg;
-    OutgoingMsgHandler   *handler;
-    time_t                expires;
-    bool                  stateful;
-  };
-
-  //----------------------------------------------------------------------------
   // Incoming message helper
   //----------------------------------------------------------------------------
   struct InMessageHelper
   {
-    InMessageHelper( Message              *message = 0,
-                     IncomingMsgHandler   *hndlr   = 0,
-                     time_t                expir   = 0,
-                     uint16_t              actio   = 0 ):
+    InMessageHelper( Message      *message = 0,
+                     MsgHandler   *hndlr   = 0,
+                     time_t        expir   = 0,
+                     uint16_t      actio   = 0 ):
       msg( message ), handler( hndlr ), expires( expir ), action( actio ) {}
     void Reset()
     {
       msg = 0; handler = 0; expires = 0; action = 0;
     }
-    Message              *msg;
-    IncomingMsgHandler   *handler;
-    time_t                expires;
-    uint16_t              action;
+    Message      *msg;
+    MsgHandler   *handler;
+    time_t        expires;
+    uint16_t      action;
   };
 
   //----------------------------------------------------------------------------
@@ -100,7 +80,7 @@ namespace XrdCl
     }
     AsyncSocketHandler   *socket;
     OutQueue             *outQueue;
-    OutMessageHelper      outMsgHelper;
+    OutQueue::MsgHelper   outMsgHelper;
     InMessageHelper       inMsgHelper;
     Socket::SocketStatus  status;
   };
@@ -298,10 +278,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Queue the message for sending
   //----------------------------------------------------------------------------
-  XRootDStatus Stream::Send( Message              *msg,
-                             OutgoingMsgHandler   *handler,
-                             bool                  stateful,
-                             time_t                expires )
+  XRootDStatus Stream::Send( Message      *msg,
+                             MsgHandler   *handler,
+                             bool          stateful,
+                             time_t        expires )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -509,10 +489,10 @@ namespace XrdCl
     log->Dump( PostMasterMsg, "[%s] Handling received message: 0x%x.",
                pStreamName.c_str(), msg.get() );
 
-    if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
+    if( !(mh.action & MsgHandler::RemoveHandler) )
       pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
 
-    if( mh.action & (IncomingMsgHandler::NoProcess|IncomingMsgHandler::Ignore) )
+    if( mh.action & (MsgHandler::NoProcess|MsgHandler::Ignore) )
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
@@ -536,7 +516,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call when one of the sockets is ready to accept a new message
   //----------------------------------------------------------------------------
-  std::pair<Message *, OutgoingMsgHandler *>
+  std::pair<Message *, MsgHandler *>
     Stream::OnReadyToWrite( uint16_t subStream )
   {
     XrdSysMutexHelper scopedLock( pMutex );
@@ -547,10 +527,10 @@ namespace XrdCl
                  pSubStreams[subStream]->socket->GetStreamName().c_str() );
 
       pSubStreams[subStream]->socket->DisableUplink();
-      return std::make_pair( (Message *)0, (OutgoingMsgHandler *)0 );
+      return std::make_pair( (Message *)0, (MsgHandler *)0 );
     }
 
-    OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
+    OutQueue::MsgHelper &h = pSubStreams[subStream]->outMsgHelper;
     h.msg = pSubStreams[subStream]->outQueue->PopMessage( h.handler,
                                                           h.expires,
                                                           h.stateful );
@@ -582,10 +562,13 @@ namespace XrdCl
   {
     pTransport->MessageSent( msg, subStream, bytesSent,
                              *pChannelData );
-    OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
+    OutQueue::MsgHelper &h = pSubStreams[subStream]->outMsgHelper;
     pBytesSent += bytesSent;
     if( h.handler )
+    {
       h.handler->OnStatusReady( msg, XRootDStatus() );
+      pIncomingQueue->AddMessageHandler( h.handler, h.handler->GetExpiration() );
+    }
     pSubStreams[subStream]->outMsgHelper.Reset();
   }
 
@@ -803,7 +786,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pSubStreams[subStream]->outMsgHelper.msg )
     {
-      OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
+      OutQueue::MsgHelper &h = pSubStreams[subStream]->outMsgHelper;
       pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
                                                    h.stateful );
       pSubStreams[subStream]->outMsgHelper.Reset();
@@ -881,7 +864,7 @@ namespace XrdCl
       scopedLock.UnLock();
 
       q.Report( status );
-      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken, status );
+      pIncomingQueue->ReportStreamEvent( MsgHandler::Broken, status );
       pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
       return;
     }
@@ -907,7 +890,7 @@ namespace XrdCl
       //--------------------------------------------------------------------
       if( pSubStreams[substream]->outMsgHelper.msg )
       {
-        OutMessageHelper &h = pSubStreams[substream]->outMsgHelper;
+        OutQueue::MsgHelper &h = pSubStreams[substream]->outMsgHelper;
         pSubStreams[substream]->outQueue->PushFront( h.msg, h.handler, h.expires,
                                                      h.stateful );
         pSubStreams[substream]->outMsgHelper.Reset();
@@ -940,7 +923,7 @@ namespace XrdCl
 
       q.Report( status );
 
-      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken, status );
+      pIncomingQueue->ReportStreamEvent( MsgHandler::Broken, status );
       pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
     }
   }
@@ -976,7 +959,7 @@ namespace XrdCl
 
     status.status = stFatal;
     q.Report( status );
-    pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::FatalError, status );
+    pIncomingQueue->ReportStreamEvent( MsgHandler::FatalError, status );
     pChannelEvHandlers.ReportEvent( ChannelEventHandler::FatalError, status );
 
   }
@@ -1093,7 +1076,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Install a incoming message handler
   //----------------------------------------------------------------------------
-  IncomingMsgHandler*
+  MsgHandler*
         Stream::InstallIncHandler( std::shared_ptr<Message> &msg, uint16_t stream )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
@@ -1105,7 +1088,7 @@ namespace XrdCl
     if( !mh.handler )
       return nullptr;
 
-    if( mh.action & IncomingMsgHandler::Raw )
+    if( mh.action & MsgHandler::Raw )
       return mh.handler;
     return nullptr;
   }
@@ -1113,10 +1096,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! In case the message is a kXR_status response it needs further attention
   //!
-  //! @return : a IncomingMsgHandler in case we need to read out raw data
+  //! @return : a MsgHandler in case we need to read out raw data
   //----------------------------------------------------------------------------
-  uint16_t Stream::InspectStatusRsp( uint16_t             stream,
-                                     IncomingMsgHandler *&incHandler )
+  uint16_t Stream::InspectStatusRsp( uint16_t     stream,
+                                     MsgHandler *&incHandler )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
     if( !mh.handler ) return false;
@@ -1124,22 +1107,22 @@ namespace XrdCl
     uint16_t action = mh.handler->InspectStatusRsp();
     mh.action |= action;
 
-    if( action & IncomingMsgHandler::RemoveHandler )
+    if( action & MsgHandler::RemoveHandler )
       pIncomingQueue->RemoveMessageHandler( mh.handler );
 
-    if( action & IncomingMsgHandler::Raw )
+    if( action & MsgHandler::Raw )
     {
       incHandler = mh.handler;
-      return IncomingMsgHandler::Raw;
+      return MsgHandler::Raw;
     }
 
-    if( action & IncomingMsgHandler::Corrupted )
-      return IncomingMsgHandler::Corrupted;
+    if( action & MsgHandler::Corrupted )
+      return MsgHandler::Corrupted;
 
-    if( action & IncomingMsgHandler::More )
-      return IncomingMsgHandler::More;
+    if( action & MsgHandler::More )
+      return MsgHandler::More;
 
-    return IncomingMsgHandler::None;
+    return MsgHandler::None;
   }
 
   //----------------------------------------------------------------------------
