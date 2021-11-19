@@ -382,7 +382,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Channel::Receive( MsgHandler *handler, time_t expires )
   {
-    pIncoming.AddMessageHandler( handler, expires );
+    bool rmMsg;
+    pIncoming.AddMessageHandler( handler, expires, rmMsg );
     return Status();
   }
 

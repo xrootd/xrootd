@@ -572,9 +572,15 @@ namespace XrdCl
     pBytesSent += bytesSent;
     if( h.handler )
     {
-      time_t expires = h.handler->GetExpiration();
-      pIncomingQueue->AddMessageHandler( h.handler, expires );
       h.handler->OnStatusReady( msg, XRootDStatus() );
+      bool rmMsg = false;
+      pIncomingQueue->AddMessageHandler( h.handler, h.handler->GetExpiration(), rmMsg );
+      if( rmMsg )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Warning( PostMasterMsg, "[%s] Removed a leftover msg from the in-queue.",
+                      pStreamName.c_str(), subStream );
+      }
     }
     pSubStreams[subStream]->outMsgHelper.Reset();
   }
