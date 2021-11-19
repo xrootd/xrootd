@@ -70,7 +70,7 @@ namespace XrdCl
     pTimeoutResolution = timeoutResolution;
 
     pSocket->SetChannelID( pChannelData );
-    pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
+    pIncHandler = std::make_pair( (MsgHandler*)0, false );
     pLastActivity = time(0);
   }
 
@@ -396,7 +396,7 @@ namespace XrdCl
     if( !pOutgoing )
     {
       pOutMsgDone = false;
-      std::pair<Message *, OutgoingMsgHandler *> toBeSent;
+      std::pair<Message *, MsgHandler *> toBeSent;
       toBeSent = pStream->OnReadyToWrite( pSubStreamNum );
       pOutgoing = toBeSent.first; pOutHandler = toBeSent.second;
 
@@ -576,7 +576,7 @@ namespace XrdCl
     {
       pHeaderDone  = false;
       pIncoming    = new Message();
-      pIncHandler  = std::make_pair( (IncomingMsgHandler*)0, false );
+      pIncHandler  = std::make_pair( (MsgHandler*)0, false );
       pIncMsgSize  = 0;
     }
 
@@ -602,7 +602,7 @@ namespace XrdCl
                 pStreamName.c_str(), pIncoming, pIncoming->GetCursor() );
       pIncMsgSize = pIncoming->GetCursor();
       pHeaderDone = true;
-      std::pair<IncomingMsgHandler *, bool> raw;
+      std::pair<MsgHandler *, bool> raw;
       pIncHandler = pStream->InstallIncHandler( pIncoming, pSubStreamNum );
 
       if( pIncHandler.first )
@@ -660,13 +660,13 @@ namespace XrdCl
         uint16_t action = pStream->InspectStatusRsp( pIncoming, pSubStreamNum,
                                                      pIncHandler.first );
 
-        if( action & IncomingMsgHandler::Corrupted )
+        if( action & MsgHandler::Corrupted )
         {
           OnHeaderCorruption();
           return;
         }
 
-        if( action & IncomingMsgHandler::Raw )
+        if( action & MsgHandler::Raw )
         {
           pIncHandler.second = true;
           repeat = true;

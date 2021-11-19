@@ -77,10 +77,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Queue the message for sending
       //------------------------------------------------------------------------
-      XRootDStatus Send( Message              *msg,
-                         OutgoingMsgHandler   *handler,
-                         bool                  stateful,
-                         time_t                expires );
+      XRootDStatus Send( Message      *msg,
+                         MsgHandler   *handler,
+                         bool          stateful,
+                         time_t        expires );
 
       //------------------------------------------------------------------------
       //! Set the transport
@@ -186,7 +186,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Call when one of the sockets is ready to accept a new message
       //------------------------------------------------------------------------
-      std::pair<Message *, OutgoingMsgHandler *>
+      std::pair<Message *, MsgHandler *>
         OnReadyToWrite( uint16_t subStream );
 
       //------------------------------------------------------------------------
@@ -246,15 +246,15 @@ namespace XrdCl
       //! @param stream stream concerned
       //! @return       a pair containing the handler and ownership flag
       //------------------------------------------------------------------------
-      std::pair<IncomingMsgHandler *, bool>
+      std::pair<MsgHandler *, bool>
         InstallIncHandler( Message *msg, uint16_t stream );
 
       //------------------------------------------------------------------------
       //! In case the message is a kXR_status response it needs further attention
       //!
-      //! @return : a IncomingMsgHandler in case we need to read out raw data
+      //! @return : a MsgHandler in case we need to read out raw data
       //------------------------------------------------------------------------
-      uint16_t InspectStatusRsp( Message *msg, uint16_t stream, IncomingMsgHandler *&incHandler );
+      uint16_t InspectStatusRsp( Message *msg, uint16_t stream, MsgHandler *&incHandler );
 
       //------------------------------------------------------------------------
       //! Set the on-connect handler for data streams
@@ -315,7 +315,7 @@ namespace XrdCl
       class HandleIncMsgJob: public Job
       {
         public:
-          HandleIncMsgJob( IncomingMsgHandler *handler ): pHandler( handler ) {};
+          HandleIncMsgJob( MsgHandler *handler ): pHandler( handler ) {};
           virtual ~HandleIncMsgJob() {};
           virtual void Run( void *arg )
           {
@@ -324,7 +324,7 @@ namespace XrdCl
             delete this;
           }
         private:
-          IncomingMsgHandler *pHandler;
+          MsgHandler *pHandler;
       };
 
       //------------------------------------------------------------------------

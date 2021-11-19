@@ -21,7 +21,7 @@ void RedirectJob::Run( void *arg )
 {
   Message *msg = reinterpret_cast<Message*>( arg );
   // this makes sure the handler takes ownership of the new message
-  if( pHandler->Examine( msg ) != IncomingMsgHandler::Action::Ignore )
+  if( pHandler->Examine( msg ) != MsgHandler::Action::Ignore )
     pHandler->Process( msg );
   delete this;
 }

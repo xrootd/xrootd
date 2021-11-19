@@ -225,11 +225,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send the message asynchronously
   //----------------------------------------------------------------------------
-  XRootDStatus PostMaster::Send( const URL            &url,
-                                 Message              *msg,
-                                 OutgoingMsgHandler   *handler,
-                                 bool                  stateful,
-                                 time_t                expires )
+  XRootDStatus PostMaster::Send( const URL    &url,
+                                 Message      *msg,
+                                 MsgHandler   *handler,
+                                 bool          stateful,
+                                 time_t        expires )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
     Channel *channel = GetChannel( url );
@@ -240,9 +240,9 @@ namespace XrdCl
     return channel->Send( msg, handler, stateful, expires );
   }
 
-  Status PostMaster::Redirect( const URL          &url,
-                               Message            *msg,
-                               IncomingMsgHandler *inHandler )
+  Status PostMaster::Redirect( const URL  &url,
+                               Message    *msg,
+                               MsgHandler *inHandler )
   {
     RedirectorRegistry &registry  = RedirectorRegistry::Instance();
     VirtualRedirector *redirector = registry.Get( url );
@@ -271,9 +271,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Listen to incoming messages
   //----------------------------------------------------------------------------
-  Status PostMaster::Receive( const URL          &url,
-                              IncomingMsgHandler *handler,
-                              time_t              expires )
+  Status PostMaster::Receive( const URL  &url,
+                              MsgHandler *handler,
+                              time_t      expires )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
     Channel *channel = GetChannel( url );

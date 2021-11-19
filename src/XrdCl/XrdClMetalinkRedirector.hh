@@ -56,7 +56,7 @@ class MetalinkRedirector : public VirtualRedirector
     //! redirect response, otherwise queues the request until initialization
     //! is done.
     //----------------------------------------------------------------------------
-    XRootDStatus HandleRequest( const Message *msg, IncomingMsgHandler *handler );
+    XRootDStatus HandleRequest( const Message *msg, MsgHandler *handler );
 
     //----------------------------------------------------------------------------
     //! Gets the file name as specified in the metalink
@@ -124,7 +124,7 @@ class MetalinkRedirector : public VirtualRedirector
     //! The virtual response is being handled by the given handler
     //! in the thread-pool.
     //----------------------------------------------------------------------------
-    XRootDStatus HandleRequestImpl( const Message *msg, IncomingMsgHandler *handler );
+    XRootDStatus HandleRequestImpl( const Message *msg, MsgHandler *handler );
 
     //----------------------------------------------------------------------------
     //! Parses the metalink file
@@ -170,7 +170,7 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     XRootDStatus GetCgiInfo( const Message *msg, const std::string &key, std::string &out ) const;
 
-    typedef std::list< std::pair<const Message*, IncomingMsgHandler*> > RedirectList;
+    typedef std::list< std::pair<const Message*, MsgHandler*> > RedirectList;
     typedef std::map<std::string, std::string>                          CksumMap;
     typedef std::vector<std::string>                                    ReplicaList;
 

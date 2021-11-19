@@ -21,8 +21,7 @@ namespace XrdCl
 {
 
 class Message;
-class IncomingMsgHandler;
-class OutgoingMsgHandler;
+class MsgHandler;
 
 //--------------------------------------------------------------------------------
 //! A job class for redirect handling in the thread-pool
@@ -33,7 +32,7 @@ class RedirectJob: public Job
     //------------------------------------------------------------------------
     //! Constructor
     //------------------------------------------------------------------------
-    RedirectJob( IncomingMsgHandler *handler ) : pHandler( handler )
+    RedirectJob( MsgHandler *handler ) : pHandler( handler )
     {
     }
 
@@ -50,7 +49,7 @@ class RedirectJob: public Job
     virtual void Run( void *arg );
 
   private:
-    IncomingMsgHandler *pHandler;
+    MsgHandler *pHandler;
 };
 
 //--------------------------------------------------------------------------------
@@ -71,7 +70,7 @@ class VirtualRedirector
     //! in the thread-pool.
     //----------------------------------------------------------------------------
     virtual XRootDStatus HandleRequest( const Message *msg,
-                                        IncomingMsgHandler *handler ) = 0;
+                                        MsgHandler *handler ) = 0;
 
     //----------------------------------------------------------------------------
     //! Initializes the object with the content of the metalink file
