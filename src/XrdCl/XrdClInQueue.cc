@@ -99,26 +99,21 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Add a listener that should be notified about incoming messages
   //----------------------------------------------------------------------------
-  void InQueue::AddMessageHandler( MsgHandler *handler, time_t expires )
+  void InQueue::AddMessageHandler( MsgHandler *handler, time_t expires, bool &rmMsg )
   {
-    uint16_t action = 0;
     uint16_t handlerSid = handler->GetSid();
     XrdSysMutexHelper scopedLock( pMutex );
     MessageMap::iterator it = pMessages.find(handlerSid);
 
-    if (it != pMessages.end())
-    {
-      action = handler->Examine( it->second );
-
-      if( !(action & MsgHandler::Ignore) &&
-          !(action & MsgHandler::NoProcess ) )
-          handler->Process();
-
+    //--------------------------------------------------------------------------
+    // If there is a leftover message in the in-queue simply remove it, there's
+    // no way this is the actual message we are waiting for as we just send it
+    // over the wire and we are still occupying the event-loop thread
+    //--------------------------------------------------------------------------
+    if( ( rmMsg = it != pMessages.end() ) )
       pMessages.erase( it );
-    }
 
-    if( !(action & MsgHandler::RemoveHandler) )
-      pHandlers[handlerSid] = HandlerAndExpire( handler, expires );
+    pHandlers[handlerSid] = HandlerAndExpire( handler, expires );
   }
 
   //----------------------------------------------------------------------------

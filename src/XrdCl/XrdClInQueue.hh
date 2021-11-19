@@ -46,8 +46,10 @@ namespace XrdCl
       //!
       //! @param handler message handler
       //! @param expires time when the message handler expires
+      //! @param rmMsg   will be set to true if a left over message matching the
+      //!                request has been removed from the queue
       //------------------------------------------------------------------------
-      void AddMessageHandler( MsgHandler *handler, time_t expires );
+      void AddMessageHandler( MsgHandler *handler, time_t expires, bool &rmMsg );
 
       //------------------------------------------------------------------------
       //! Get a message handler interested in receiving message whose header
