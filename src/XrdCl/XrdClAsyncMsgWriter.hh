@@ -91,7 +91,7 @@ namespace XrdCl
             //------------------------------------------------------------------
             case WriteStart:
             {
-              std::pair<Message *, OutgoingMsgHandler *> toBeSent;
+              std::pair<Message *, MsgHandler *> toBeSent;
               toBeSent = strm.OnReadyToWrite( substrmnb );
               outmsg = toBeSent.first;
               outhandler = toBeSent.second;
@@ -232,7 +232,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Message                  *outmsg; //< we don't own the message
       uint32_t                  outmsgsize;
-      OutgoingMsgHandler       *outhandler;
+      MsgHandler               *outhandler;
       std::unique_ptr<Message>  outsign;
   };
 

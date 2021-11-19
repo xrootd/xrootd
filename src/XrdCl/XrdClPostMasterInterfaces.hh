@@ -69,7 +69,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Message handler
   //----------------------------------------------------------------------------
-  class IncomingMsgHandler
+  class MsgHandler
   {
     public:
       //------------------------------------------------------------------------
@@ -109,7 +109,7 @@ namespace XrdCl
       //! Event types that the message handler may receive
       //------------------------------------------------------------------------
 
-      virtual ~IncomingMsgHandler() {}
+      virtual ~MsgHandler() {}
 
       //------------------------------------------------------------------------
       //! Examine an incoming message, and decide on the action to be taken
@@ -178,15 +178,6 @@ namespace XrdCl
         (void)event; (void)status;
         return 0;
       };
-  };
-
-  //----------------------------------------------------------------------------
-  //! Message status handler
-  //----------------------------------------------------------------------------
-  class OutgoingMsgHandler
-  {
-    public:
-      virtual ~OutgoingMsgHandler() {}
 
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
@@ -230,6 +221,8 @@ namespace XrdCl
         (void)socket; (void)bytesWritten;
         return Status();
       }
+
+      virtual time_t GetExpiration() = 0;
   };
 
   //----------------------------------------------------------------------------

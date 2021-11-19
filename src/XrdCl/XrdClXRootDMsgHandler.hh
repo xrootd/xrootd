@@ -110,8 +110,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Handle/Process/Forward XRootD messages
   //----------------------------------------------------------------------------
-  class XRootDMsgHandler: public IncomingMsgHandler,
-                          public OutgoingMsgHandler
+  class XRootDMsgHandler: public MsgHandler
   {
       friend class HandleRspJob;
 
@@ -329,6 +328,14 @@ namespace XrdCl
       void SetExpiration( time_t expiration )
       {
         pExpiration = expiration;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get a timestamp after which we give up
+      //------------------------------------------------------------------------
+      time_t GetExpiration()
+      {
+        return pExpiration;
       }
 
       //------------------------------------------------------------------------

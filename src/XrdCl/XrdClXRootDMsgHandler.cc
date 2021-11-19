@@ -1338,12 +1338,7 @@ namespace XrdCl
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetDescription().c_str() );
 
-      Status st = pPostMaster->Receive( pUrl, this, pExpiration );
-      if( st.IsOK() )
-      {
-        pMsgInFly = true;
-        return;
-      }
+      pMsgInFly = true;
     }
 
     //--------------------------------------------------------------------------

@@ -26,7 +26,7 @@
 namespace XrdCl
 {
   class Message;
-  class OutgoingMsgHandler;
+  class MsgHandler;
 
   //----------------------------------------------------------------------------
   //! A synchronized queue for the outgoing data
@@ -46,7 +46,7 @@ namespace XrdCl
       //!                 wil be re-attempted
       //------------------------------------------------------------------------
       void PushBack( Message              *msg,
-                     OutgoingMsgHandler   *handler,
+                     MsgHandler   *handler,
                      time_t                expires,
                      bool                  stateful );
 
@@ -62,7 +62,7 @@ namespace XrdCl
       //!                 wil be re-attempted
       //------------------------------------------------------------------------
       void PushFront( Message              *msg,
-                      OutgoingMsgHandler   *handler,
+                      MsgHandler   *handler,
                       time_t                expires,
                       bool                  stateful );
 
@@ -71,7 +71,7 @@ namespace XrdCl
       //!
       //! @return 0 if there is no message message
       //------------------------------------------------------------------------
-      Message *PopMessage( OutgoingMsgHandler   *&handler,
+      Message *PopMessage( MsgHandler   *&handler,
                            time_t                &expires,
                            bool                  &stateful );
 
@@ -130,20 +130,26 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void GrabItems( OutQueue &queue );
 
-    private:
       //------------------------------------------------------------------------
       // Helper struct holding all the message data
       //------------------------------------------------------------------------
       struct MsgHelper
       {
-        MsgHelper( Message *m, OutgoingMsgHandler *h, time_t r, bool s ):
+        MsgHelper( Message *m = nullptr, MsgHandler *h = nullptr, time_t r = 0, bool s = false ):
           msg( m ), handler( h ), expires( r ), stateful( s ) {}
 
-        Message              *msg;
-        OutgoingMsgHandler   *handler;
-        time_t                expires;
-        bool                  stateful;
+        void Reset()
+        {
+          msg = 0; handler = 0; expires = 0; stateful = 0;
+        }
+
+        Message      *msg;
+        MsgHandler   *handler;
+        time_t        expires;
+        bool          stateful;
       };
+
+    private:
 
       typedef std::list<MsgHelper> MessageList;
       MessageList pMessages;

@@ -164,10 +164,10 @@ namespace XrdCl
                 uint16_t action = strm.InspectStatusRsp( substrmnb,
                                                          inhandler );
 
-                if( action & IncomingMsgHandler::Corrupted )
+                if( action & MsgHandler::Corrupted )
                   return XRootDStatus( stError, errCorruptedHeader );
 
-                if( action & IncomingMsgHandler::Raw )
+                if( action & MsgHandler::Raw )
                 {
                   //------------------------------------------------------------
                   // The next step is to read the raw data
@@ -176,7 +176,7 @@ namespace XrdCl
                   continue;
                 }
 
-                if( action & IncomingMsgHandler::More )
+                if( action & MsgHandler::More )
                 {
                   //------------------------------------------------------------
                   // The next step is to read the additional data in the message
@@ -248,7 +248,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::shared_ptr<Message>  inmsg; //< the ownership is shared with MsgHandler
       uint32_t                  inmsgsize;
-      IncomingMsgHandler       *inhandler;
+      MsgHandler               *inhandler;
 
   };
 
