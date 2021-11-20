@@ -172,11 +172,29 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdSecEntity &client,
                                            const char   *cgi,
                                            const char   *app)
 {
-   EPName("Begin");
+   EPName("PMBegin");
    int eCode, aCode;
 
-// The first step is to get the experiment and activity code. If we can't get
-// those, then proceed without marking the flow.
+// If we need to screen out domains, do that
+//
+   if (chkDom)
+      {XrdNetAddrInfo &addrInfo = *client.addrInfo;
+       char domType = (addrInfo.isPrivate() ? domLcl : domRmt);
+       if (domType == domRmt && *myDomain)
+          {const char *urName = addrInfo.Name();
+           if (urName && XrdNetAddrInfo::isHostName(urName))
+              {const char *dot = index(urName, '.');
+               if (dot && !strcmp(dot+1, myDomain)) domType = domLcl;
+              }
+          }
+       if (domType != chkDom)
+          {DBGID(client.tident, "Skipping sending flow info; unwanted domain");
+           return 0;
+          }
+      }
+
+// Now get the experiment and activity code. If we can't get at least the
+// experiment code, then proceed without marking the flow.
 //
    if (!getCodes(client, path, cgi, eCode, aCode))
       {TRACE("Unable to determine experiment; flow not marked.");
@@ -195,24 +213,6 @@ XrdNetPMark::Handle *XrdNetPMarkCfg::Begin(XrdNetAddrInfo      &addrInfo,
                                            XrdNetPMark::Handle &handle,
                                            const char          *tident)
 {
-   EPName("PM_Begin");
-
-// If we need to screen out domains, do that
-//
-   if (chkDom)
-      {char domType = (addrInfo.isPrivate() ? domLcl : domRmt);
-       if (domType == domRmt && *myDomain)
-          {const char *urName = addrInfo.Name();
-           if (urName && XrdNetAddrInfo::isHostName(urName))
-              {const char *dot = index(urName, '.');
-               if (dot && !strcmp(dot+1, myDomain)) domType = domLcl;
-              }
-          }
-       if (domType != chkDom)
-          {DBGID(tident, "Skipping sending flow info; unwanted domain");
-           return 0;
-          }
-      }
 
 // If we are allowed to use the flow label set on the incomming connection
 // then try to do so. This is only valid for IPv6 connections. Currently,
@@ -644,6 +644,26 @@ void XrdNetPMarkCfg::Display()
 }
   
 /******************************************************************************/
+/* Private:                      E x t r a c t                                */
+/******************************************************************************/
+
+const char *XrdNetPMarkCfg::Extract(const char *sVec, char *buff, int blen)
+{
+   const char *space;
+
+// If there is only one token in sVec then return it.
+//
+  if (!(space = index(sVec, ' '))) return sVec;
+
+// Extract out the token using the supplied buffer
+//
+   int n = space - sVec;
+   if (!n || n >= blen) return 0;
+   snprintf(buff, blen, "%.*s", n, sVec);
+   return buff;
+}
+  
+/******************************************************************************/
 /* Private:                    F e t c h F i l e                              */
 /******************************************************************************/
 
@@ -736,7 +756,9 @@ bool XrdNetPMarkCfg::getCodes(XrdSecEntity &client, const char *path,
 //
    if (!expP && tryVO && client.vorg)
       {std::map<std::string, ExpInfo*>::iterator itV;
-       if ((itV = v2eMap.find(std::string(client.vorg))) != v2eMap.end())
+       char voBuff[256];
+       const char *VO = Extract(client.vorg, voBuff, sizeof(voBuff));
+       if (VO && (itV = v2eMap.find(std::string(client.vorg))) != v2eMap.end())
           expP = itV->second;
       }
 
@@ -764,10 +786,14 @@ bool XrdNetPMarkCfg::getCodes(XrdSecEntity &client, const char *path,
 //
    if (expP->Roles && client.role)
       {std::map<std::string, MapInfo>::iterator itR;
-       itR = expP->r2aMap.find(std::string(client.role));
-       if (itR != expP->r2aMap.end())
-          {acode = itR->second.Code;
-           return true;
+       char roBuff[256];
+       const char *RO = Extract(client.role, roBuff, sizeof(roBuff));
+       if (RO)
+          {itR = expP->r2aMap.find(std::string(client.role));
+           if (itR != expP->r2aMap.end())
+              {acode = itR->second.Code;
+               return true;
+              }
           }
       }
 
