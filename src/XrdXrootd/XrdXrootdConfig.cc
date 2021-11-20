@@ -49,6 +49,7 @@
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetPMarkCfg.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -226,6 +227,17 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (rdf && Config(rdf)) return 0;
    if (pi->DebugON) XrdXrootdTrace.What = TRACE_ALL;
 
+// Initialize the packet marking framework if configured. We do that here as
+// nothing else following this code can fail but we can so be consistent.
+//
+   bool bad = false;
+   PMark = XrdNetPMarkCfg::Config(&eDest, pi->Sched, &XrdXrootdTrace, bad);
+   if (PMark)
+      {if (pi->theEnv) pi->theEnv->PutPtr("XrdNetPMark*", PMark);
+       xrootdEnv.PutPtr("XrdNetPMark*", PMark);
+      }
+      else if (bad) return 0;
+
 // Check if we are exporting a generic object name
 //
    if (XPList.Opts() & XROOTDXP_NOSLASH)
@@ -271,10 +283,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Copy over the xrd environment which contains plugin argv's
 //
    if (pi->theEnv) xrootdEnv.PutPtr("xrdEnv*", pi->theEnv);
-
-// If packet marking was enabled, record the environment
-//
-   PMark = (XrdNetPMark*)(pi->theEnv->GetPtr("XrdNetPMark*"));
 
 // Initialize monitoring (it won't do anything if it wasn't enabled). This
 // needs to be done before we load any plugins as plugins may need monitoring.
@@ -503,6 +511,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 /******************************************************************************/
   
 #define TS_Xeq(x,m) (!strcmp(x,var)) GoNo = m(Config)
+#define TS_Zeq(x,m) (!strcmp(x,var)) GoNo = m(&eDest, Config)
 
 int XrdXrootdProtocol::Config(const char *ConfigFN)
 {
@@ -541,6 +550,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("log",           xlog);
              else if TS_Xeq("mongstream",    xmongs);
              else if TS_Xeq("monitor",       xmon);
+             else if TS_Zeq("pmark",         XrdNetPMarkCfg::Parse);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
