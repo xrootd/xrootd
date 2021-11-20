@@ -76,6 +76,8 @@ static bool ConfigDefs();
 static bool ConfigPV2E(char *info);
 static bool ConfigRU2A(char *info);
 static void Display();
+static
+const char *Extract(const char *sVec, char *buff, int blen);
 static bool FetchFile();
 static bool getCodes(XrdSecEntity &client, const char *path,
                      const char *cgi, int &ecode, int &acode);
