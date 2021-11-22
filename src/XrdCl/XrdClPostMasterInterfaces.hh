@@ -45,28 +45,6 @@ namespace XrdCl
   class Socket;
 
   //----------------------------------------------------------------------------
-  //! Message filter
-  //----------------------------------------------------------------------------
-  class MessageFilter
-  {
-    public:
-      virtual ~MessageFilter() {}
-
-      //------------------------------------------------------------------------
-      //! Examine the message and return true if the message should be picked
-      //! up (usually removed from the queue and to the caller)
-      //------------------------------------------------------------------------
-      virtual bool Filter( const std::shared_ptr<Message> msg ) = 0;
-
-      //------------------------------------------------------------------------
-      //! Get sid of the filter
-      //!
-      //! @return filter sid if exists, otherwise 0
-      //------------------------------------------------------------------------
-      virtual uint16_t GetSid() const = 0;
-  };
-
-  //----------------------------------------------------------------------------
   //! Message handler
   //----------------------------------------------------------------------------
   class MsgHandler
