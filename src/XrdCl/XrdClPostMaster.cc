@@ -206,23 +206,6 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Send a message synchronously
-  //----------------------------------------------------------------------------
-  XRootDStatus PostMaster::Send( const URL &url,
-                                 Message   *msg,
-                                 bool       stateful,
-                                 time_t     expires )
-  {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
-
-    if( !channel )
-      return XRootDStatus( stError, errNotSupported );
-
-    return channel->Send( msg, stateful, expires );
-  }
-
-  //----------------------------------------------------------------------------
   // Send the message asynchronously
   //----------------------------------------------------------------------------
   XRootDStatus PostMaster::Send( const URL    &url,
@@ -249,39 +232,6 @@ namespace XrdCl
     if( !redirector )
       return Status( stError, errInvalidOp );
     return redirector->HandleRequest( msg, inHandler );
-  }
-
-  //----------------------------------------------------------------------------
-  // Synchronously receive a message
-  //----------------------------------------------------------------------------
-  Status PostMaster::Receive( const URL      &url,
-                              Message       *&msg,
-                              MessageFilter  *filter,
-                              time_t          expires )
-  {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
-
-    if( !channel )
-      return Status( stError, errNotSupported );
-
-    return channel->Receive( msg, filter, expires );
-  }
-
-  //----------------------------------------------------------------------------
-  // Listen to incoming messages
-  //----------------------------------------------------------------------------
-  Status PostMaster::Receive( const URL  &url,
-                              MsgHandler *handler,
-                              time_t      expires )
-  {
-    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
-
-    if( !channel )
-      return Status( stError, errNotSupported );
-
-    return channel->Receive( handler, expires );
   }
 
   //----------------------------------------------------------------------------
