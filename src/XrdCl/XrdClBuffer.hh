@@ -244,7 +244,7 @@ namespace XrdCl
         return buffer;
       }
 
-    private:
+    protected:
 
       void Steal( Buffer &&buffer )
       {
@@ -257,6 +257,8 @@ namespace XrdCl
         pCursor = buffer.pCursor;
         buffer.pCursor = 0;
       }
+
+    private:
 
       Buffer( const Buffer& );
       Buffer& operator=( const Buffer& );
