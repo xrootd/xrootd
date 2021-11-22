@@ -110,6 +110,7 @@ extern XrdSysTrace  *Trace;
 
 extern char         *ffDest;
 extern int           ffEcho;
+extern bool          doDuplx;
 extern bool          doDebug;
 extern bool          doTrace;
 
@@ -186,9 +187,9 @@ bool XrdNetPMarkFF::Start(XrdNetAddrInfo &addr)
        return false;
       }
 
-// Format the base firefly template. We need to do this twice to permute the
-// source and destination IP addresses so the flow is registered as symmetric.
-// In either direction the client determins the address family being used.
+// Format the base firefly template. We may need to do this twice to permute
+// the source and destination IP addresses so the flow is registered as
+// mmetric. However, the client determines the address family being used.
 //
    char utcBuff[40], bseg0[512];
    int len0 = snprintf(bseg0, sizeof(bseg0), ffFmt0, myHostName,
@@ -253,12 +254,15 @@ bool XrdNetPMarkFF::Emit(const char *state, const char *cT, const char *eT)
        ffTailSsz = 0;
        return false;
       }
-   memcpy(msgBuff+n, ffTailC, ffTailCsz+1);
 
-   DEBUG("Sending pmark c-msg: " <<msgBuff);
-   if (netMsg->Send(msgBuff, n+ffTailCsz) < 0)
-      {ffTailSsz = 0;
-       return false;
+   if (doDuplx)
+      {memcpy(msgBuff+n, ffTailC, ffTailCsz+1);
+
+       DEBUG("Sending pmark c-msg: " <<msgBuff);
+       if (netMsg->Send(msgBuff, n+ffTailCsz) < 0)
+          {ffTailSsz = 0;
+           return false;
+          }
       }
 
    memcpy(msgBuff+n, ffTailS, ffTailSsz+1);

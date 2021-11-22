@@ -136,6 +136,7 @@ char          useFFly = -1;
 bool          addFLFF = false;
 bool          useSTag = true;
 
+bool          doDuplx = false;
 bool          noFail  = true;
 bool          doDebug = false;
 bool          doTrace = false;
@@ -935,7 +936,8 @@ int XrdNetPMarkCfg::Parse(XrdSysError *eLog, XrdOucStream &Config)
 // Parse pmark directive parameters:
 //
 // [[no]debug] [defsfile [[no]fail] {<path> | {curl | wget} [tmo] <url>}]
-// [domain {any | local | remote}] [ffdest <udpdest>] [ffecho <intvl>]
+// [domain {any | local | remote}] [[no]duplex]
+// ffdest <udpdest>] [ffecho <intvl>]
 // [map2act <ename> {default | {role | user} <name>} <aname>]
 // [map2exp {default | {path <path> | vo <vo>} <ename>}] [[no]trace]
 // [use {[no]flowlabel | flowlabel+ff | [no]firefly | [no]scitag}
@@ -1014,6 +1016,11 @@ do{if (!strcmp("debug", val) || !strcmp("nodebug", val))
             }
        continue;
       }
+
+    if (!strcmp("duplex", val) || !strcmp("noduplex", val))
+       {doDuplx = (*val == 'd');
+        continue;
+       }
 
     if (!strcmp("fail", val) || !strcmp("nofail", val))
        {noFail = (*val == 'n');
