@@ -10,6 +10,10 @@ Release Notes
 Version 5.3.4
 --------------
 + **Major bug fixes**
+  **[XrdCl]** Discard response if there is no matching MsgHandler.
+  **[XrdCl]** in-queue: discard leftover msg matching newly add MsgHandler.
+  **[XrdCl]** Move a Message (request) from out-queue to in-queue without
+              acquiring the PostMaster::pDisconnectLock lock.
   **[XrdCl]** Use t/o events to measure lapsed time in order to replay
               HS requests. 
 
