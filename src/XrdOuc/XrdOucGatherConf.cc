@@ -170,7 +170,7 @@ int XrdOucGatherConf::Gather(const char *cfname, Level lvl, const char *parms)
             }
         }
 
-// Now check if any errors occured during file i/o
+// Now check if any errors occurred during file i/o
 //
    if ((rc = Config.LastError()))
       {if (eDest) eDest->Emsg("Gcf", rc, "read config file", cfname);

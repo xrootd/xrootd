@@ -119,7 +119,7 @@ const char *XrdNetRegistry::GetAddrs(const std::string       &hSpec,
    XrdSysMutexHelper mHelp(regMutex);
    if (!(reP = regEntry::Find(hSpec.c_str())))
       {aVec.clear();
-       return "psuedo host not registered";
+       return "pseudo host not registered";
       }
 
 // Hold this entry as we don't want to hold the global lock doing DNS lookups.

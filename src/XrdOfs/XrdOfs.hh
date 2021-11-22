@@ -344,7 +344,7 @@ const   char          *getVersion();
                                 const char             *opaque = 0);
 // Management functions
 //
-virtual int            Configure(XrdSysError &); // Backward Compatability
+virtual int            Configure(XrdSysError &); // Backward Compatibility
 
 virtual int            Configure(XrdSysError &, XrdOucEnv *);
 
