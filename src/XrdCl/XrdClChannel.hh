@@ -78,19 +78,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Send a message synchronously - synchronously means that
-      //! it will block until the message is written to a socket
-      //!
-      //! @param msg     message to be sent
-      //! @param expires expiration timestamp after which a failure should be
-      //!                reported if sending was unsuccessful
-      //! @param stateful physical stream disconnection causes an error
-      //! @return        success if the message has been pushed through the wire,
-      //!                failure otherwise
-      //------------------------------------------------------------------------
-      XRootDStatus Send( Message *msg, bool stateful, time_t expires );
-
-      //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
       //! send queue and a listener is called when the message is successfully
       //! pushed through the wire or when the timeout elapses
@@ -108,29 +95,6 @@ namespace XrdCl
                          MsgHandler   *handler,
                          bool                  stateful,
                          time_t                expires );
-
-      //------------------------------------------------------------------------
-      //! Synchronously receive a message - blocks until a message matching
-      //! a filter is found in the incoming queue or the timeout passes
-      //!
-      //! @param msg     reference to a message pointer, the pointer will
-      //!                point to the received message
-      //! @param filter  filter object defining what to look for
-      //! @param expires expiration timestamp
-      //! @return        success when the message has been received
-      //!                successfully, failure otherwise
-      //------------------------------------------------------------------------
-      Status Receive( std::shared_ptr<Message> &msg, MessageFilter *filter, time_t expires );
-
-      //------------------------------------------------------------------------
-      //! Listen to incoming messages, the listener is notified when a new
-      //! message arrives and when the timeout passes
-      //!
-      //! @param handler handler to be notified about new messages
-      //! @param expires expiration timestamp
-      //! @return        success when the handler has been registered correctly
-      //------------------------------------------------------------------------
-      Status Receive( MsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Query the transport handler
