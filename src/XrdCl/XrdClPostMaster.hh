@@ -83,26 +83,6 @@ namespace XrdCl
       bool Reinitialize();
 
       //------------------------------------------------------------------------
-      //! Send a message synchronously - synchronously means that
-      //! it will block until the message is written to a socket
-      //!
-      //! DEADLOCK WARNING: no lock should be taken while calling this method
-      //! that are used in the callback as well.
-      //!
-      //! @param url     recipient of the message
-      //! @param msg     message to be sent
-      //! @param stateful physical stream disconnection causes an error
-      //! @param expires unix timestamp after which a failure should be
-      //!                reported if sending was unsuccessful
-      //! @return        success if the message has been pushed through the wire,
-      //!                failure otherwise
-      //------------------------------------------------------------------------
-      XRootDStatus Send( const URL &url,
-                         Message   *msg,
-                         bool       stateful,
-                         time_t     expires );
-
-      //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
       //! send queue and a listener is called when the message is succesfsully
       //! pushed through the wire or when the timeout elapses
@@ -131,36 +111,6 @@ namespace XrdCl
       Status Redirect( const URL  &url,
                        Message    *msg,
                        MsgHandler *handler);
-
-      //------------------------------------------------------------------------
-      //! Synchronously receive a message - blocks until a message matching
-      //! a filter is found in the incoming queue or the timeout passes
-      //!
-      //! @param url     sender of the message
-      //! @param msg     reference to a message pointer, the pointer will
-      //!                point to the received message
-      //! @param filter  filter object defining what to look for
-      //! @param expires expiration timestamp
-      //! @return        success when the message has been received
-      //!                successfully, failure otherwise
-      //------------------------------------------------------------------------
-      Status Receive( const URL                &url,
-                      std::shared_ptr<Message> &msg,
-                      MessageFilter            *filter,
-                      time_t                    expires );
-
-      //------------------------------------------------------------------------
-      //! Listen to incoming messages, the listener is notified when a new
-      //! message arrives and when the timeout passes
-      //!
-      //! @param url     sender of the message
-      //! @param handler handler to be notified about new messages
-      //! @param expires expiration timestamp
-      //! @return        success when the listener has been inserted correctly
-      //------------------------------------------------------------------------
-      Status Receive( const URL  &url,
-                      MsgHandler *handler,
-                      time_t      expires );
 
       //------------------------------------------------------------------------
       //! Query the transport handler for a given URL
