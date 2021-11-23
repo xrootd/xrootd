@@ -207,7 +207,8 @@ class SyncMsgHandler : public XrdCl::MsgHandler
     XrdCl::XRootDStatus WaitFor( XrdCl::Message &rsp )
     {
       sem.Wait();
-      rsp = std::move( *response );
+      if( response )
+        rsp = std::move( *response );
       return status;
     }
 
