@@ -5116,7 +5116,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                // Parse the cert file
                int nci = (*ParseFile)(pi->cert, po->chain, pi->key);
                if (nci < 1) {
-                  DEBUG("proxy files must have at least 1 certificates"
+                  DEBUG("cert files must have at least 1 certificates"
                         " (found: "<<nci<<")");
                   continue;
                }
