@@ -118,11 +118,6 @@ class SyncMsgHandler : public XrdCl::MsgHandler
     {
     }
 
-    ~SyncMsgHandler()
-    {
-      delete response;
-    }
-
   private:
 
     XrdFilter                        filter;
