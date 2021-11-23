@@ -1420,6 +1420,7 @@ namespace XrdCl
                   pUrl.GetHostId().c_str(), this,
                   pRequest->GetDescription().c_str() );
       pMsgInFly = true;
+      return;
     }
 
     //--------------------------------------------------------------------------
