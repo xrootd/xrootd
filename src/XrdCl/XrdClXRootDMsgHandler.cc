@@ -1339,6 +1339,7 @@ namespace XrdCl
                   pRequest->GetDescription().c_str() );
 
       pMsgInFly = true;
+      return;
     }
 
     //--------------------------------------------------------------------------
