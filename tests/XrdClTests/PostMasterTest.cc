@@ -114,7 +114,7 @@ class SyncMsgHandler : public XrdCl::MsgHandler
 {
   public:
     SyncMsgHandler() :
-      sem( 0 ), request( nullptr ), response( nullptr )
+      sem( 0 ), request( nullptr ), response( nullptr ), expiration( 0 )
     {
     }
 
@@ -125,11 +125,12 @@ class SyncMsgHandler : public XrdCl::MsgHandler
 
   private:
 
-    XrdFilter             filter;
-    XrdSysSemaphore       sem;
-    XrdCl::XRootDStatus   status;
-    const XrdCl::Message *request;
-    XrdCl::Message       *response;
+    XrdFilter                        filter;
+    XrdSysSemaphore                  sem;
+    XrdCl::XRootDStatus              status;
+    const XrdCl::Message            *request;
+    std::shared_ptr<XrdCl::Message>  response;
+    time_t                           expiration;
 
   public:
 
@@ -139,7 +140,10 @@ class SyncMsgHandler : public XrdCl::MsgHandler
     virtual uint16_t Examine( std::shared_ptr<XrdCl::Message> &msg )
     {
       if( filter.Filter( msg.get() ) )
+      {
+        response = msg;
         return RemoveHandler;
+      }
       return Ignore;
     }
 
@@ -162,9 +166,8 @@ class SyncMsgHandler : public XrdCl::MsgHandler
     //------------------------------------------------------------------------
     // Process the message if it was "taken" by the examine action
     //------------------------------------------------------------------------
-    virtual void Process( XrdCl::Message *msg )
+    virtual void Process()
     {
-      response = msg;
       sem.Post();
     };
 
@@ -198,7 +201,12 @@ class SyncMsgHandler : public XrdCl::MsgHandler
     //------------------------------------------------------------------------
     virtual time_t GetExpiration()
     {
-      return 0;
+      return expiration;
+    }
+
+    void SetExpiration( time_t e )
+    {
+      expiration = e;
     }
 
     XrdCl::XRootDStatus WaitFor( XrdCl::Message &rsp )
@@ -256,6 +264,7 @@ void *TestThreadFunc( void *arg )
     XRootDTransport::MarshallRequest( &msgs[i] );    
     request->streamid[1] = i;
     msgHandlers[i].SetFilter( a->index, i );
+    msgHandlers[i].SetExpiration( expires );
     CPPUNIT_ASSERT_XRDST( a->pm->Send( host, &msgs[i], &msgHandlers[i], false, expires ) );
   }
 
@@ -331,6 +340,7 @@ void PostMasterTest::FunctionalTest()
 
   SyncMsgHandler msgHandler1;
   msgHandler1.SetFilter( 1, 2 );
+  msgHandler1.SetExpiration( expires );
 
   m1.Allocate( sizeof( ClientPingRequest ) );
   m1.Zero();
@@ -359,15 +369,18 @@ void PostMasterTest::FunctionalTest()
   
   SyncMsgHandler msgHandler2;
   msgHandler2.SetFilter( 1, 2 );
+  time_t shortexp = ::time(0) + 3;
+  msgHandler2.SetExpiration( shortexp );
   CPPUNIT_ASSERT_XRDST( postMaster.Send( localhost1, &m1, &msgHandler2, false,
-                        ::time(0)+3 ) );
+                        shortexp ) );
   CPPUNIT_ASSERT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errOperationExpired );
 
   SyncMsgHandler msgHandler3;
   msgHandler3.SetFilter( 1, 2 );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, &msgHandler3, false,
-                                               expires ),
-                              errConnectionError );
+  msgHandler3.SetExpiration( expires );
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( localhost1, &m1, &msgHandler3, false,
+                                          expires ) );
+  CPPUNIT_ASSERT_XRDST_NOTOK( msgHandler3.WaitFor( m2 ), errConnectionError );
 
   //----------------------------------------------------------------------------
   // Test the transport queries
@@ -406,6 +419,7 @@ void PostMasterTest::FunctionalTest()
 
   SyncMsgHandler msgHandler4;
   msgHandler4.SetFilter( 1, 2 );
+  msgHandler4.SetExpiration( expires );
   CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, &msgHandler4, false, expires ) );
 
   CPPUNIT_ASSERT_XRDST( msgHandler4.WaitFor( m2 ) );
@@ -421,6 +435,7 @@ void PostMasterTest::FunctionalTest()
   sleep( 10 );
   SyncMsgHandler msgHandler5;
   msgHandler5.SetFilter( 1, 2 );
+  msgHandler5.SetExpiration( expires );
   CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, &msgHandler5, false, expires ) );
 
   CPPUNIT_ASSERT_XRDST( msgHandler5.WaitFor( m2 ) );
@@ -556,6 +571,7 @@ void PostMasterTest::MultiIPConnectionTest()
   //----------------------------------------------------------------------------
   SyncMsgHandler msgHandler1;
   msgHandler1.SetFilter( 1, 2 );
+  msgHandler1.SetExpiration( expires );
   Message *m = CreatePing( 1, 2 );
   CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url1, m, &msgHandler1, false, expires ),
                               errInvalidAddr );
@@ -565,15 +581,18 @@ void PostMasterTest::MultiIPConnectionTest()
   //----------------------------------------------------------------------------
   SyncMsgHandler msgHandler2;
   msgHandler2.SetFilter( 1, 2 );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url2, m, &msgHandler2, false, expires ),
-                              errConnectionError );
+  msgHandler2.SetExpiration( expires );
+  Message m2;
+
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( url2, m, &msgHandler2, false, expires ) );
+  CPPUNIT_ASSERT_XRDST_NOTOK( msgHandler2.WaitFor( m2 ), errConnectionError );
 
   //----------------------------------------------------------------------------
   // Try on a good one
   //----------------------------------------------------------------------------
   SyncMsgHandler msgHandler3;
-  msgHandler1.SetFilter( 1, 2 );
-  Message m2;
+  msgHandler3.SetFilter( 1, 2 );
+  msgHandler3.SetExpiration( expires );
 
   CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, &msgHandler3, false, expires ) );
   CPPUNIT_ASSERT_XRDST( msgHandler3.WaitFor( m2 ) );
