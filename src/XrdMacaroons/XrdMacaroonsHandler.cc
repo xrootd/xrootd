@@ -139,6 +139,12 @@ Handler::GenerateID(const std::string &resource,
     uuid_unparse(uu, uuid_buf);
     std::string result(uuid_buf);
 
+// The following code shoul have been strictly for debugging purposes. This
+// added code skips it unless debug logging has been enabled. Due to the code
+// structure, indentation is a bit of a struggle as this is a minimal fix.
+//
+if (m_log->getMsgMask() & LogMask::Debug)
+   {
     std::stringstream ss;
     ss << "ID=" << result << ", ";
     ss << "resource=" << NormalizeSlashes(resource) << ", ";
@@ -160,7 +166,8 @@ Handler::GenerateID(const std::string &resource,
 
     ss << "expires=" << before;
 
-    m_log->Emsg("MacaroonGen", ss.str().c_str());
+    m_log->Emsg("MacaroonGen", ss.str().c_str());  // Mask::Debug
+   }
     return result;
 }
 
@@ -321,11 +328,13 @@ int Handler::ProcessTokenRequest(XrdHttpExtReq &req)
         }
         else if (value != path)
         {
+         if (m_log->getMsgMask() & LogMask::Error) {
             std::stringstream ss;
             ss << "Encountered requested scope request for authorization " << key
                << " with resource path " << value << "; however, prior request had path "
                << path;
-            m_log->Emsg("MacaroonRequest", ss.str().c_str());
+            m_log->Emsg("MacaroonRequest", ss.str().c_str()); // Mask::Error
+            }
             return req.SendSimpleResp(500, NULL, NULL, "Server only supports all scopes having the same path", 0);
         }
         other_caveats.push_back(key);
