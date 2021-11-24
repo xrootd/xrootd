@@ -3043,6 +3043,11 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
    //
    // Extract no proxy option, if any
    bool createpxy = (PxyReqOpts & kOptsCreatePxy) ? 1 : 0;
+   if (hs->RemVers < XrdSecgsiVersCertKey && !createpxy) {
+      // Server does not accept pure cert files
+      createpxy = 1;
+      DEBUG("Server does not accept pure cert/key authentication: version < "<< (int)XrdSecgsiVersCertKey);
+   }
 
    //
    // Resolve place-holders in cert, key and proxy file paths, if any
