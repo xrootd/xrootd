@@ -475,14 +475,28 @@ namespace XrdCl
     InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
 
     //--------------------------------------------------------------------------
-    // No handler, we discard the message ...
+    // Check if we can obtain a handler now that we have the whole response
     //--------------------------------------------------------------------------
     if( !mh.handler )
     {
-      log->Dump( PostMasterMsg, "[%s] Discarding received message: 0x%x, no "
-                 "MsgHandler found.", pStreamName.c_str(), msg );
-      delete msg;
-      return;
+      //------------------------------------------------------------------------
+      // Try once more if we can obtain a handler for the message, for the async
+      // (kXR_attn) messages this can be only done once the whole message has
+      // been read out from the socket
+      //------------------------------------------------------------------------
+      mh.handler = pIncomingQueue->GetHandlerForMessage( msg,
+                                                         mh.expires,
+                                                         mh.action );
+      //------------------------------------------------------------------------
+      // No handler, we discard the message ...
+      //------------------------------------------------------------------------
+      if( !mh.handler )
+      {
+        log->Dump( PostMasterMsg, "[%s] Discarding received message: 0x%x, no "
+                   "MsgHandler found.", pStreamName.c_str(), msg );
+        delete msg;
+        return;
+      }
     }
 
     //--------------------------------------------------------------------------
