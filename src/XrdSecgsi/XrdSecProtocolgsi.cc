@@ -3056,12 +3056,10 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    //
    // In the standard case we need to resolve also the proxy file path
-   if (createpxy) {
-      // Get the proxy path
-      if (XrdSutResolve(UsrProxy, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-         PRINT("Problems resolving templates in "<<UsrProxy);
-         return -1;
-      }
+   // Get the proxy path
+   if (XrdSutResolve(UsrProxy, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
+      PRINT("Problems resolving templates in "<<UsrProxy);
+      return -1;
    }
    //
    // Load / Attach-to user proxies
@@ -5112,23 +5110,25 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                   continue;
                }
             }
-            if (!pi->createpxy) {
-               // Parse the cert file
-               int nci = (*ParseFile)(pi->cert, po->chain, pi->key);
-               if (nci < 1) {
-                  DEBUG("cert files must have at least 1 certificates"
-                        " (found: "<<nci<<")");
-                  continue;
-               }
-            } else {
-               // Parse the proxy file
-               int nci = (*ParseFile)(pi->out, po->chain, 0);
-               if (nci < 2) {
-                  DEBUG("proxy files must have at least 2 certificates"
-                        " (found: "<<nci<<")");
+
+            // Parse the proxy file
+            int nci = (*ParseFile)(pi->out, po->chain, 0);
+            if (nci < 2) {
+               DEBUG("proxy files must have at least 2 certificates"
+                     " (found: "<<nci<<")");
+               if (!pi->createpxy) {
+                  // Parse the cert file if requested
+                  int nci = (*ParseFile)(pi->cert, po->chain, pi->key);
+                  if (nci < 1) {
+                     DEBUG("cert files must have at least 1 certificates"
+                           " (found: "<<nci<<")");
+                     continue;
+                  }
+               } else {
                   continue;
                }
             }
+
             // Check if any CA was in the file
             bool checkselfsigned = (CACheck > caVerifyss) ? true : false;
             po->chain->CheckCA(checkselfsigned);
