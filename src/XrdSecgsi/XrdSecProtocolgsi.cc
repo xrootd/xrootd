@@ -3810,11 +3810,11 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    int ncimin = (hs->Options & kOptsCreatePxy) ? 2 : 1;
    int nci = (*ParseBucket)(bck, hs->Chain);
    if (nci < ncimin) {
-      cmsg = "wrong number of certificates in received bucket (";
+      cmsg = "wrong number of certificates in received bucket (received: ";
       cmsg += nci;
-      cmsg += " < ";
+      cmsg += ", expected: >= ";
       cmsg += ncimin;
-      cmsg += " expected)";
+      cmsg += ")";
       return -1;
    }
    //
