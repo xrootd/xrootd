@@ -514,18 +514,20 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
    // If we found something, and we are asked to extract a key,
    // rewind and look for it
    if (nci) {
+      FILE *fcersave = 0;
       if (!fkey) {
          // Look in the same file, after rewinding
          rewind(fcer);
       } else {
          // We can close the file now
-         fclose(fcer);
+         fcersave = fcer;
 	 // Open key file
          fcer = fopen(fkey, "r");
          if (!fcer) {
            DEBUG("unable to open key file (errno: "<<errno<<")");
+           fcer = fcersave;
            return nci;
-         }	 
+         }
       }
       RSA  *rsap = 0;
       if (!PEM_read_RSAPrivateKey(fcer, &rsap, 0, 0)) {
@@ -579,6 +581,11 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
          }
          // Cleanup
          BIO_free(bkey);
+      }
+      if (fkey) {
+         // Re-establish original fcer pointer
+         fclose(fcer);
+         fcer = fcersave;
       }
    }
 
