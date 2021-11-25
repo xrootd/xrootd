@@ -1009,7 +1009,7 @@ namespace XrdCl
         uint16_t timeout = pipelineTimeout < this->timeout ?
                            pipelineTimeout : this->timeout;
         XRootDStatus st = this->file->GetXAttr( attrs, h, timeout );
-        if( !st.IsOK() ) delete handler;
+        if( !st.IsOK() ) delete h;
         return st;
       }
   };
