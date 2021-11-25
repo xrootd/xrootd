@@ -19,7 +19,7 @@ bool TPCHandler::Configure(const char *configfn, XrdOucEnv *myEnv)
     XrdOucEnv cfgEnv;
     XrdOucStream Config(&m_log, getenv("XRDINSTANCE"), &cfgEnv, "=====> ");
 
-    m_log.setMsgMask(LogMask::Info | LogMask::Warning | LogMask::Error);
+    m_log.setMsgMask(LogMask::Warning | LogMask::Error);
 
     std::string authLib;
     std::string authLibParms;
