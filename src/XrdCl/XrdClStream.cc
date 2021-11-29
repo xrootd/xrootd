@@ -488,8 +488,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( !mh.handler )
       {
-        log->Dump( PostMasterMsg, "[%s] Discarding received message: 0x%x, no "
-                   "MsgHandler found.", pStreamName.c_str(), msg.get() );
+        ServerResponse *rsp = (ServerResponse*)msg->GetBuffer();
+        log->Warning( PostMasterMsg, "[%s] Discarding received message: 0x%x "
+                      "(status=%d, SID=[%d,%d]), no MsgHandler found.",
+                      pStreamName.c_str(), msg.get(), rsp->hdr.status,
+                      rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
         return;
       }
     }
