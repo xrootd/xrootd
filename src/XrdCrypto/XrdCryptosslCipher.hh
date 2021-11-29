@@ -39,7 +39,7 @@
 #include <openssl/evp.h>
 #include <openssl/dh.h>
 
-#define kDHMINBITS 128
+#define kDHMINBITS 512
 
 // ---------------------------------------------------------------------------//
 //
