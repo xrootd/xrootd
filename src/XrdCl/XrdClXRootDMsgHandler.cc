@@ -467,6 +467,7 @@ namespace XrdCl
                  pRequest->GetDescription().c_str() );
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
       embededMsg->Append( pResponse->GetBuffer( 16 ), rsp->hdr.dlen-8 );
+      kXR_int32 rspdlen = rsp->hdr.dlen; // save the original response size
       pResponse.reset( embededMsg ); // this can never happen for oksofars
 
       // we need to unmarshall the header by hand
@@ -477,7 +478,7 @@ namespace XrdCl
       // the dlen value of the original message
       //------------------------------------------------------------------------
       ServerResponse *embRsp = (ServerResponse *)embededMsg->GetBuffer();
-      if( embRsp->hdr.dlen != rsp->hdr.dlen-16 )
+      if( embRsp->hdr.dlen != rspdlen-16 )
       {
         log->Error( XRootDMsg, "[%s] Sizes of the async response to %s and the "
                     "embedded message are inconsistent. Expected %d, got %d.",
