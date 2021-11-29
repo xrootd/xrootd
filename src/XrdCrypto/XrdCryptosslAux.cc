@@ -521,7 +521,7 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
       } else {
          // We can close the file now
          fcersave = fcer;
-	 // Open key file
+	       // Open key file
          fcer = fopen(fkey, "r");
          if (!fcer) {
            DEBUG("unable to open key file (errno: "<<errno<<")");

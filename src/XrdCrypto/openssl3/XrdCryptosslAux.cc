@@ -468,7 +468,7 @@ int XrdCryptosslX509ParseStack(XrdTlsPeerCerts* pc, XrdCryptoX509Chain *chain)
 
 //____________________________________________________________________________
 int XrdCryptosslX509ParseFile(const char *fname,
-                              XrdCryptoX509Chain *chain)
+                              XrdCryptoX509Chain *chain, const char *fkey)
 {
    EPNAME("X509ParseFile");
 
@@ -481,7 +481,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
       return 0;
    }
 
-   auto retval = XrdCryptosslX509ParseFile(fcer, chain, fname);
+   auto retval = XrdCryptosslX509ParseFile(fcer, chain, fname, fkey);
    fclose(fcer);
    return retval;
 }
@@ -489,7 +489,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
 //____________________________________________________________________________
 int XrdCryptosslX509ParseFile(FILE *fcer,
                               XrdCryptoX509Chain *chain,
-                              const char *fname)
+                              const char *fname, const char *fkey)
 {
    // Parse content of file 'fname' and add X509 certificates to
    // chain (which must be initialized by the caller).
@@ -530,7 +530,21 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
    // If we found something, and we are asked to extract a key,
    // rewind and look for it
    if (nci) {
-      rewind(fcer);
+      FILE *fcersave = 0;
+      if (!fkey) {
+         // Look in the same file, after rewinding
+         rewind(fcer);
+      } else {
+         // We can close the file now
+         fcersave = fcer;
+         // Open key file
+         fcer = fopen(fkey, "r");
+         if (!fcer) {
+           DEBUG("unable to open key file (errno: "<<errno<<")");
+           fcer = fcersave;
+           return nci;
+         }
+      }
       EVP_PKEY *rsa = 0;
       if (!PEM_read_PrivateKey(fcer, &rsa, 0, 0)) {
          DEBUG("no RSA private key found in file " << fname);
@@ -566,6 +580,11 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
          // Cleanup
          EVP_PKEY_free(rsa);
       }
+      if (fkey) {
+         // Re-establish original fcer pointer
+         fclose(fcer);
+         fcer = fcersave;
+       }
    }
 
    // We are done
