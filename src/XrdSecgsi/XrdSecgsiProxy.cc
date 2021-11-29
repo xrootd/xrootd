@@ -224,7 +224,7 @@ int main( int argc, char **argv )
       // Display info about existing proxies
       // Parse the proxy file
       cPXp = new XrdCryptogsiX509Chain();
-      nci = (*ParseFile)(PXcert.c_str(), cPXp);
+      nci = (*ParseFile)(PXcert.c_str(), cPXp, 0);
       if (nci < 2) {
          if (Exists) {
             exitrc = 1;

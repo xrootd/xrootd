@@ -79,7 +79,7 @@ typedef int (*XrdCryptoX509ChainToFile_t)(XrdCryptoX509Chain *, const char *);
 
 // certificates from file parsing
 typedef int (*XrdCryptoX509ParseFile_t)(const char *fname,
-                                        XrdCryptoX509Chain *);
+                                        XrdCryptoX509Chain *, const char *);
 
 // certificates from STACK_OF(X509*)
 typedef int (*XrdCryptoX509ParseStack_t)(XrdTlsPeerCerts* pc,

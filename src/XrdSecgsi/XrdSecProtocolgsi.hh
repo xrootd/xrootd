@@ -63,7 +63,7 @@ typedef XrdCryptogsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
-#define XrdSecgsiVERSION    10400
+#define XrdSecgsiVERSION    10600
 #define XrdSecNOIPCHK       0x0001
 #define XrdSecDEBUG         0x1000
 #define XrdCryptoMax        10
@@ -73,6 +73,8 @@ typedef XrdCryptogsiX509Chain X509Chain;
 
 #define XrdSecgsiVersDHsigned  10400  // Version at which started signing
                                       // of server DH parameters 
+#define XrdSecgsiVersCertKey   10600  // Version at which started supporting
+                                      // authentication with cert/key only
 
 //
 // Message codes either returned by server or included in buffers
@@ -108,7 +110,8 @@ enum kgsiHandshakeOpts {
    kOptsSrvReq     = 8,      // 0x0008: Server request for delegated proxy
    kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
    kOptsDelChn     = 32,     // 0x0020: Delete chain
-   kOptsPxCred     = 64      // 0x0040: Save delegated proxies as credentials
+   kOptsPxCred     = 64,     // 0x0040: Save delegated proxies as credentials
+   kOptsCreatePxy  = 128     // 0x0080: Request a client proxy
 };
 
 // Error codes
@@ -196,6 +199,7 @@ public:
    int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy; default 0
                   // [s] ask client for proxies; default: do not accept delegated proxies
    int    sigpxy; // [c] accept delegated proxy requests
+   int    createpxy; // [c] force client proxy authentications
    char  *srvnames;// [c] '|' separated list of allowed server names
    char  *exppxy; // [s] template for the exported file with proxies
    int    authzpxy; // [s] if 1 make proxy available in exported form in the 'endorsement'
@@ -218,7 +222,7 @@ public:
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
                   vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0;
-                  hashcomp = 1; trustdns = true;}
+                  hashcomp = 1; trustdns = true; createpxy = 1;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -242,6 +246,7 @@ typedef struct {
    const char *valid;
    int         deplen;
    int         bits;
+   bool        createpxy;
 } ProxyIn_t;
 
 template<class T>
