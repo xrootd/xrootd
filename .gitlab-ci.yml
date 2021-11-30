@@ -35,9 +35,9 @@ stages:
   tags:
     - docker_node
 
-build:centos8:
+build:cs8:
   stage: build:rpm
-  image: centos:8
+  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
   script:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
@@ -50,12 +50,12 @@ build:centos8:
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir centos-8
-    - cp packaging/*.src.rpm centos-8
-    - cp packaging/RPMS/*    centos-8
+    - cp packaging/*.src.rpm cs-8
+    - cp packaging/RPMS/*    cs-8
   artifacts:
     expire_in: 1 day
     paths:
-    - centos-8/
+    - cs-8/
   tags:
     - docker_node
   only:
@@ -590,7 +590,7 @@ publish:rhel:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in centos-8 cc-7 fc-35 fc-34 fc-33; do 
+    - "for platform in cs-8 cc-7 fc-35 fc-34 fc-33; do
          repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
          path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
