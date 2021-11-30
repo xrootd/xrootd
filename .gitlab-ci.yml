@@ -49,7 +49,7 @@ build:cs8:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir centos-8
+    - mkdir cs-8
     - cp packaging/*.src.rpm cs-8
     - cp packaging/RPMS/*    cs-8
   artifacts:
