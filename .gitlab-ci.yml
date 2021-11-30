@@ -277,18 +277,18 @@ build:macosx:
     - web
   allow_failure: true
 
-release:centos8-x86_64:
+release:cs8-x86_64:
   stage: build:rpm
-  image: centos:8
+  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
   script:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git python-macros
     - dnf config-manager --set-enabled powertools
     - dnf install -y cppunit-devel
     - dnf -y update libarchive
-    - mkdir centos-8-x86_64
+    - mkdir cs-8-x86_64
     - ./gen-tarball.sh $CI_COMMIT_TAG
-    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz centos-8-x86_64
+    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cs-8-x86_64
     - cd packaging/
     - git checkout tags/${CI_COMMIT_TAG}
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" -D "dist .el8"
@@ -296,12 +296,12 @@ release:centos8-x86_64:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el8" *.src.rpm
     - cd ..
-    - cp packaging/RPMS/*.rpm centos-8-x86_64
-    - cp packaging/*src.rpm   centos-8-x86_64
+    - cp packaging/RPMS/*.rpm cs-8-x86_64
+    - cp packaging/*src.rpm   cs-8-x86_64
   artifacts:
     expire_in: 1 day
     paths:
-    - centos-8-x86_64/
+    - cs-8-x86_64/
   tags:
     - docker_node
   only:
@@ -407,9 +407,9 @@ publish:pypi:
   allow_failure: true
 
 
-weekly:centos8:
+weekly:cs8:
   stage: build:rpm
-  image: centos:8
+  image: gitlab-registry.cern.ch/linuxsupport/cs8-base
   script:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git python-macros
@@ -641,7 +641,7 @@ publish:rhel:release:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - tarball=cc-7-x86_64/xrootd-*.tar.gz
-    - "for platform in centos-8-x86_64 cc-7-x86_64; do 
+    - "for platform in cs-8-x86_64 cc-7-x86_64; do
          path=$prefix/release/$platform/$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path/{source,tarball};
          sudo -u stci -H cp $platform/*.rpm $path;
@@ -700,20 +700,20 @@ publish:weekly:
     - docker_node
   dependencies:
     - weekly:cc7
-    - weekly:centos8
+    - weekly:cs8
   only:
     - schedules
     - web
   except:
     - tags
 
-publish:koji:centos8:
+publish:koji:cs8:
   stage: post:publish
   image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
   script:
     - yum install --nogpg -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
-    - path=/eos/project/s/storage-ci/www/xrootd/release/centos-8-x86_64/$CI_COMMIT_TAG/source/
+    - path=/eos/project/s/storage-ci/www/xrootd/release/cs-8-x86_64/$CI_COMMIT_TAG/source/
     - if [[ $CI_COMMIT_TAG != *rc* ]] ; then koji build eos8 $path/*.src.rpm ; else stat $path/*.src.rpm ; fi
   tags:
     - docker_node
