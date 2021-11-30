@@ -130,6 +130,13 @@ namespace XrdEc
       XrdCl::Pipeline ReadMetadata( size_t index );
 
       //-----------------------------------------------------------------------
+      //! Read size from xattr
+      //!
+      //! @param index : placement's index
+      //-----------------------------------------------------------------------
+      XrdCl::Pipeline ReadSize( size_t index );
+
+      //-----------------------------------------------------------------------
       //! Parse metadata from chunk info object
       //!
       //! @param ch : chunk info object returned by a read operation

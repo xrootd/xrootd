@@ -37,6 +37,7 @@
 #include "XrdCl/XrdClParallelOperation.hh"
 #include "XrdCl/XrdClZipOperations.hh"
 #include "XrdCl/XrdClFileOperations.hh"
+#include "XrdCl/XrdClFinalOperation.hh"
 
 #include <algorithm>
 #include <iterator>
@@ -438,19 +439,13 @@ namespace XrdEc
       // open the archive
       if( objcfg.nomtfile )
       {
-        opens.emplace_back( XrdCl::OpenArchive( *dataarchs[url], url, XrdCl::OpenFlags::Read ) |
-                            XrdCl::GetXAttr( dataarchs[url]->GetFile(), "xrdec.filesize" ) >>
-                              [this]( XrdCl::XRootDStatus &st, std::string &size)
-                              {
-                                if( !st.IsOK() ) return;
-                                filesize = std::stoull( size );
-                              } ) ;
+        opens.emplace_back( XrdCl::OpenArchive( *dataarchs[url], url, XrdCl::OpenFlags::Read ) );
       }
       else
         opens.emplace_back( OpenOnly( *dataarchs[url], url, false ) );
     }
 
-    auto pipehndl = [=]( XrdCl::XRootDStatus &st )
+    auto pipehndl = [=]( const XrdCl::XRootDStatus &st )
                     { // set the central directories in ZIP archives (if we use metadata files)
                       auto itr = dataarchs.begin();
                       for( ; itr != dataarchs.end() ; ++itr )
@@ -476,7 +471,7 @@ namespace XrdEc
                     };
     // in parallel open the data files and read the metadata
     XrdCl::Pipeline p = objcfg.nomtfile
-                      ? XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) >> pipehndl
+                      ? XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) | ReadSize( 0 ) | XrdCl::Final( pipehndl )
                       : XrdCl::Parallel( ReadMetadata( 0 ),
                                          XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) ) >> pipehndl;
     XrdCl::Async( std::move( p ), timeout );
@@ -727,6 +722,30 @@ namespace XrdEc
                  delete[] buffer;
                }
              } );
+  }
+
+  //-----------------------------------------------------------------------
+  //! Read size from xattr
+  //!
+  //! @param index : placement's index
+  //-----------------------------------------------------------------------
+  XrdCl::Pipeline Reader::ReadSize( size_t index )
+  {
+    std::string url = objcfg.GetDataUrl( index );
+    return XrdCl::GetXAttr( dataarchs[url]->GetFile(), "xrdec.filesize" ) >>
+        [index, this]( XrdCl::XRootDStatus &st, std::string &size)
+        {
+          if( !st.IsOK() )
+          {
+            //-------------------------------------------------------------
+            // Check if we can recover the error or a diffrent location
+            //-------------------------------------------------------------
+            if( index + 1 < objcfg.plgr.size() )
+              XrdCl::Pipeline::Replace( ReadSize( index + 1 ) );
+            return;
+          }
+          filesize = std::stoull( size );
+        };
   }
 
   //-----------------------------------------------------------------------

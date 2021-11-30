@@ -483,7 +483,7 @@ namespace XrdCl
         log->Error( XRootDMsg, "[%s] Sizes of the async response to %s and the "
                     "embedded message are inconsistent. Expected %d, got %d.",
                     pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-                    rsp->hdr.dlen-16, embRsp->hdr.dlen);
+                    rspdlen-16, embRsp->hdr.dlen);
 
         pStatus = Status( stFatal, errInvalidMessage );
         HandleResponse();
