@@ -20,6 +20,8 @@ Prerelease Notes
   **[Server]** Correct notify option handling for kXR_prepare.
 
 + **Miscellaneous**
+  **[Plugins]** Improve fault tolerance of redirlocal plugin.
+  **Commits: 514929d0
   **[Macaroons]** Relegate debug messages to debug status.
   **[Server]** Remove limit on number of args passed to a forked exec.
   **[Server[(( Add method to create an argv list from a string.
