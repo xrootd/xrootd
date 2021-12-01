@@ -243,16 +243,49 @@ namespace XrdCl
       inline XRootDStatus LoadPlacement( const std::string &path )
       {
         LocationInfo *info = nullptr;
-        XRootDStatus st = fs.DeepLocate( path, OpenFlags::None, info );
+        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, info );
         std::unique_ptr<LocationInfo> ptr( info );
         if( !st.IsOK() ) return st;
+        // The following check become meaningless
         if( info->GetSize() < objcfg->nbdata )
           return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
+
+        uint64_t verNumMax = 0;
+        std::vector<uint64_t> verNums;
+        std::vector<std::string>  xattrkeys;
+        std::vector<XrdCl::XAttr> xattrvals;
+        xattrkeys.push_back("xrdec.chunkver");
         for( size_t i = 0; i < info->GetSize(); ++i )
         {
+          FileSystem *fs_i = new FileSystem(info->At( i ).GetAddress());
+          xattrvals.clear();
+          st = fs_i->GetXAttr(path, xattrkeys, xattrvals, 0);
+          if (! xattrvals[0].value.empty())
+          {
+            std::stringstream sstream(xattrvals[0].value);
+            uint64_t verNum;
+            sstream >> verNum;
+            verNums.push_back(verNum);
+            if (verNum > verNumMax) 
+              verNumMax = verNum;
+          }
+          else
+            verNums.push_back(0);
+          delete fs_i;
+        }
+
+        int n = 0;
+        for( size_t i = 0; i < info->GetSize(); ++i )
+        {
+          if ( verNums.at(i) != verNumMax )
+            continue; 
+          else
+            n++;
           auto &location = info->At( i );
           objcfg->plgr.emplace_back( "root://" + location.GetAddress() + '/' );
         }
+        if (n < objcfg->nbdata )
+          return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
         return XRootDStatus();
       }
 

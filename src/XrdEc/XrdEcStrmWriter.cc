@@ -184,7 +184,9 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       // Create the Write request
       //-----------------------------------------------------------------------
-      XrdCl::Pipeline p = XrdCl::AppendFile( zip, fn, crc32c, strpsize, strpbuff ) >>
+      std::string basefn = fn;
+      basefn.replace(0,basefn.rfind("/")+1,"");
+      XrdCl::Pipeline p = XrdCl::AppendFile( zip, basefn, crc32c, strpsize, strpbuff ) >>
                            [=]( XrdCl::XRootDStatus &st ) mutable
                            {
                              //------------------------------------------------
@@ -237,10 +239,12 @@ namespace XrdEc
       std::string fn = std::to_string( i );                          // file name (URL of the data archive)
       buffer_t buff( dataarchs[i]->GetCD() );                        // raw data buffer (central directory of the data archive)
       uint32_t cksum = objcfg.digest( 0, buff.data(), buff.size() ); // digest (crc) of the buffer
-      lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );        // LFH record for the buffer
+      std::string basefn = fn;
+      basefn.replace(0,basefn.rfind("/")+1,"");
+      lfhs.emplace_back( basefn, cksum, buff.size(), time( 0 ) );        // LFH record for the buffer
       LFH &lfh = lfhs.back();
       cdfhs.emplace_back( &lfh, mode, offset );                      // CDFH record for the buffer
-      offset += LFH::lfhBaseSize + fn.size() + buff.size();          // shift the offset
+      offset += LFH::lfhBaseSize + basefn.size() + buff.size();          // shift the offset
       cdsize += cdfhs.back().cdfhSize;                               // update central directory size
       buffs.emplace_back( std::move( buff ) );                       // keep the buffer for later
     }
@@ -294,6 +298,7 @@ namespace XrdEc
     std::vector<XrdCl::Pipeline> closes;
     std::vector<XrdCl::Pipeline> save_metadata;
     closes.reserve( size );
+    std::string closeTime = std::to_string( time(NULL) );
     for( size_t i = 0; i < size; ++i )
     {
       //-----------------------------------------------------------------------
@@ -303,6 +308,7 @@ namespace XrdEc
       {
         std::string size( std::to_string( GetSize() ) );
         XrdCl::Pipeline p = XrdCl::SetXAttr( dataarchs[i]->GetFile(), "xrdec.filesize", size )
+                          | XrdCl::SetXAttr( dataarchs[i]->GetFile(), "xrdec.chunkver", closeTime.c_str() )
                           | XrdCl::CloseArchive( *dataarchs[i] );
         closes.emplace_back( std::move( p ) );
       }

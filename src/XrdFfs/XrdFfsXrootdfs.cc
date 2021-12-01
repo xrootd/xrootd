@@ -442,7 +442,10 @@ static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info 
     int res, fd;
     if (!S_ISREG(mode))
         return -EPERM;
-    res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
+    if (getenv("XRDCL_EC"))
+        res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY | O_EXCL, true, &fd);
+    else
+        res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
     if (res < 0) return res;
     fi->fh = fd;
     XrdFfsWcache_create(fd);    // Unlike mknod and like open, prepare wcache.

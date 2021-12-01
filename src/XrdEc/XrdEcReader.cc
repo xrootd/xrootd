@@ -594,6 +594,7 @@ namespace XrdEc
   {
     // generate the file name (blknb/strpnb)
     std::string fn = objcfg.GetFileName( blknb, strpnb );
+    fn.replace(0, fn.rfind("/")+1, "");
     // if the block/stripe does not exist it means we are reading passed the end of the file
     auto itr = urlmap.find( fn );
     if( itr == urlmap.end() )
