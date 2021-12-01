@@ -74,9 +74,10 @@ public:
   //! used to forward requests to CmsFinder with regular implementation
   //---------------------------------------------------------------------------
   XrdCmsClient *nativeCmsFinder;
-  XrdOss *theSS;
   bool readOnlyredirect;
   bool httpRedirect;
+  std::string localroot;
+  XrdSysError Say;
 };
 
 #endif // XRDCMSREDIRPLUGIN_HH_
