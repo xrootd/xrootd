@@ -177,7 +177,6 @@ private:
 bool
 CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
 {
-    bool atLeastOneValidCRLFound = false;
     file_smart_ptr outputfp(fdopen(dup(m_output_fd), "w"), &fclose);
     if (!outputfp.get()) {
         m_log.Emsg("CAset", "Failed to reopen file for output", fname.c_str());
@@ -194,7 +193,7 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
         if (!hash_ptr) {
             continue;
         }
-        atLeastOneValidCRLFound = true;
+        m_atLeastOneValidCRLFound = true;
         auto iter = m_known_crls.find(hash_ptr);
         if (iter != m_known_crls.end()) {
             //m_log.Emsg("CRLset", "Skipping known CRL with hash", fname.c_str(), hash_ptr);
@@ -209,8 +208,6 @@ CRLSet::processFile(file_smart_ptr &fp, const std::string &fname)
             return false;
         }
     }
-    if(!m_atLeastOneValidCRLFound)
-        m_atLeastOneValidCRLFound = atLeastOneValidCRLFound;
     fflush(outputfp.get());
 
     return true;
