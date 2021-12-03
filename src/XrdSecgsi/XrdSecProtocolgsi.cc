@@ -196,7 +196,7 @@ XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
 //
 // CA and CRL stacks
 GSIStack<XrdCryptoX509Chain>  XrdSecProtocolgsi::stackCA; // Stack of CA in use
-GSIStack<XrdCryptoX509Crl>  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
+std::unique_ptr<GSIStack<XrdCryptoX509Crl>>  XrdSecProtocolgsi::stackCRL( new GSIStack<XrdCryptoX509Crl>() ); // Stack of CRL in use
 //
 // GMAP control vars
 time_t XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
@@ -4648,7 +4648,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    if (cent->status == kCE_inactive) {
       // Cleanup and remove existing invalid entries
       if (chain) stackCA.Del(chain);
-      if (crl) stackCRL.Del(crl);
+      if (crl) stackCRL->Del(crl);
       PRINT("unable to get a valid entry from cache for " << tag);
       return -1;
    }
@@ -4662,14 +4662,14 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
       if (crl) {
          if (hs) hs->Crl = crl;
          // Add to the stack for proper cleaning of invalidated CRLs
-         stackCRL.Add(crl);
+         stackCRL->Add(crl);
       }
       return 0;
    }
 
    // Cleanup and remove existing invalid entries
    if (chain) stackCA.Del(chain);
-   if (crl) stackCRL.Del(crl);
+   if (crl) stackCRL->Del(crl);
 
    chain = 0;
    crl = 0;
@@ -4727,7 +4727,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             if (crl) {
                cent->buf2.buf = (char *)(crl);
                cent->buf2.len = 0;      // Just a flag
-               stackCRL.Add(crl);
+               stackCRL->Add(crl);
             }
             cent->mtime = timestamp;
             cent->status = kCE_ok;

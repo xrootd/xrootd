@@ -26,6 +26,7 @@
 /*                                                                            */
 /******************************************************************************/
 #include <ctime>
+#include <memory>
 
 #include "XrdNet/XrdNetAddrInfo.hh"
 
@@ -378,7 +379,7 @@ private:
    //
    // CA and CRL stacks
    static GSIStack<XrdCryptoX509Chain>    stackCA; // Stack of CA in use
-   static GSIStack<XrdCryptoX509Crl>      stackCRL; // Stack of CRL in use
+   static std::unique_ptr<GSIStack<XrdCryptoX509Crl>> stackCRL; // Stack of CRL in use
    //
    // GMAP control vars
    static time_t           lastGMAPCheck; // time of last check on GMAP
@@ -528,10 +529,13 @@ public:
                      if (Chain) Chain->Cleanup(1);
                      SafeDelete(Chain);
                   }
-                  if (Crl) {
+                  // Make sure XrdSecProtocolgsi::stackCRL exists, it could happen
+                  // that it has been deallocated due to static deinitialization
+                  // order fiasco
+                  if (Crl && bool( XrdSecProtocolgsi::stackCRL ) ) {
                      // This decreases the counter and actually deletes the object only
                      // when no instance is using it
-                     XrdSecProtocolgsi::stackCRL.Del(Crl);
+                     XrdSecProtocolgsi::stackCRL->Del(Crl);
                      Crl = 0;
                   }
                   // The proxy chain is owned by the proxy cache; invalid proxies are
