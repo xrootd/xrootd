@@ -63,6 +63,12 @@ public:
     std::string CRLFilename() const {auto file_ref = m_crl_file; return file_ref ? *file_ref : "";}
 
     /**
+     * Returns true if a valid CRL file has been found during the Maintenance thread execution
+     * false otherwise
+     */
+    bool atLeastOneValidCRLFound() const { return m_atLeastOneCRLFound; }
+
+    /**
      * Manages the temporary file associated with the curl handle
      */
     class TempCAGuard {
@@ -121,6 +127,7 @@ private:
     const std::string m_ca_dir;
     std::shared_ptr<std::string> m_ca_file;
     std::shared_ptr<std::string> m_crl_file;
+    bool m_atLeastOneCRLFound = false;
 
         // After success, how long to wait until the next CA reload.
     static constexpr unsigned m_update_interval = 900;

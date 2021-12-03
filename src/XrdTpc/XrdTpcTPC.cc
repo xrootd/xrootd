@@ -20,6 +20,7 @@
 #include "XrdTpcStream.hh"
 #include "XrdTpcTPC.hh"
 #include "XrdTpcCurlMulti.hh"
+#include <fstream>
 
 using namespace TPC;
 
@@ -114,7 +115,17 @@ TPCHandler::ConfigureCurlCA(CURL *curl)
     auto crl_filename = m_ca_file ? m_ca_file->CRLFilename() : "";
     if (!ca_filename.empty() && !crl_filename.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, ca_filename.c_str());
-        curl_easy_setopt(curl, CURLOPT_CRLFILE, crl_filename.c_str());
+        //Check that the CRL file contains at least one entry before setting this option to curl
+        //Indeed, an empty CRL file will make curl unhappy and therefore will fail
+        //all HTTP TPC transfers (https://github.com/xrootd/xrootd/issues/1543)
+        std::ifstream in(crl_filename, std::ifstream::ate | std::ifstream::binary);
+        if(in.tellg() > 0 && m_ca_file->atLeastOneValidCRLFound()){
+            curl_easy_setopt(curl, CURLOPT_CRLFILE, crl_filename.c_str());
+        } else {
+            std::ostringstream oss;
+            oss << "No valid CRL file has been found in the file " << crl_filename << ". Disabling CRL checking.";
+            m_log.Log(Warning,"TpcHandler",oss.str().c_str());
+        }
     }
     else if (!m_cadir.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAPATH, m_cadir.c_str());
