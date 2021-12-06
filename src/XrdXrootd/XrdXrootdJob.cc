@@ -38,6 +38,7 @@
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -57,7 +58,7 @@ void      DoIt();
 
 enum      JobStatus {Job_Active, Job_Cancel, Job_Done, Job_Waiting};
 
-JobStatus Status;     //    Job Status
+XrdSys::RAtomic<JobStatus> Status;     //    Job Status
 
           XrdXrootdJob2Do(XrdXrootdJob      *job,
                           int                jnum,
@@ -158,10 +159,6 @@ void XrdXrootdJob2Do::DoIt()
    char *lp = 0;
    int i, rc = 0;
 
-// Obtain a lock to prevent status changes
-//
-   theJob->myMutex.Lock();
-
 // While we were waiting to run we may have been cancelled. If we were not then
 // perform the actual function and get the result and send to any async clients
 //
@@ -170,9 +167,9 @@ void XrdXrootdJob2Do::DoIt()
                          theArgs[3], theArgs[4])))
           {Status = Job_Cancel;
            lp = jobStream.GetLine();
+           theJob->myMutex.Lock();
           }
-          else {theJob->myMutex.UnLock();
-                lp = jobStream.GetLine();
+          else {lp = jobStream.GetLine();
                 rc = theJob->theProg->RunDone(jobStream);
                 theJob->myMutex.Lock();
                 if ((rc && rc != -EPIPE) || (rc == -EPIPE && (!lp || !(*lp))))
