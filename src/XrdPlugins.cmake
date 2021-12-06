@@ -9,6 +9,7 @@ set( LIB_XRD_N2NO2P     XrdN2No2p-${PLUGIN_VERSION} )
 set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
 set( LIB_XRD_CMSREDIRL  XrdCmsRedirectLocal-${PLUGIN_VERSION} )
 set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
+set( LIB_XRD_GPI        XrdOfsPrepGPI-${PLUGIN_VERSION} )
 set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
 set( LIB_XRD_THROTTLE   XrdThrottle-${PLUGIN_VERSION} )
 
@@ -101,6 +102,24 @@ target_link_libraries(
 
 set_target_properties(
   ${LIB_XRD_GPFS}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# Ofs Generic Prepare plugin library
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_GPI}
+  MODULE
+  XrdOfs/XrdOfsPrepGPI.cc )
+
+target_link_libraries(
+  ${LIB_XRD_GPI}
+  XrdUtils )
+
+set_target_properties(
+  ${LIB_XRD_GPI}
   PROPERTIES
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
