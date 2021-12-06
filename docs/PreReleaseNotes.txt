@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Add generic prepare plugin.
+  **Commits: c768415f
   **[Server]** Add new class for gathering config data from config file.`
   **[Server]** Implement firefly network flow monitoring.
   **[Server]** Allow prefunctory redirect based on client's net attributes.
