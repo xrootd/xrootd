@@ -451,6 +451,12 @@ namespace XrdCl
       //! Decrement file object instance count bound to this channel
       //------------------------------------------------------------------------
       virtual void DecFileInstCnt( AnyObject &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get bind preference for the next data stream
+      //------------------------------------------------------------------------
+      virtual URL GetBindPreference( const URL  &url,
+                                     AnyObject  &channelData ) = 0;
   };
 }
 

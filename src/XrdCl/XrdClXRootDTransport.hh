@@ -289,6 +289,12 @@ namespace XrdCl
       virtual bool NeedEncryption( HandShakeData  *handShakeData,
                                   AnyObject      &channelData );
 
+      //------------------------------------------------------------------------
+      //! Get bind preference for the next data stream
+      //------------------------------------------------------------------------
+      virtual URL GetBindPreference( const URL  &url,
+                                     AnyObject  &channelData );
+
     private:
 
       //------------------------------------------------------------------------
@@ -331,11 +337,20 @@ namespace XrdCl
       XRootDStatus ProcessServerHS( HandShakeData     *hsData,
                                     XRootDChannelInfo *info );
 
-      //-----------------------------------------------------------------------
+      //------------------------------------------------------------------------
       // Process the protocol response
       //------------------------------------------------------------------------
       XRootDStatus ProcessProtocolResp( HandShakeData     *hsData,
                                         XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Process the protocol body:
+      //  * 'B' : bind preferences
+      //  * 'S' : security requirements
+      //------------------------------------------------------------------------
+      XRootDStatus ProcessProtocolBody( char              *bodybuff,
+                                        size_t             bodysize,
+                                        XRootDChannelInfo *info  );
 
       //------------------------------------------------------------------------
       // Generate the bind message

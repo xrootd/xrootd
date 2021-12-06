@@ -129,7 +129,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Convert Stream object and sub-stream number to stream name
       //------------------------------------------------------------------------
-      static std::string ToStreamName( Stream *stream, uint16_t strmnb );
+      static std::string ToStreamName( const URL &url, uint16_t strmnb );
 
       //------------------------------------------------------------------------
       // Connect returned

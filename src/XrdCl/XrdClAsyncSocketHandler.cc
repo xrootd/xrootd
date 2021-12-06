@@ -43,7 +43,7 @@ namespace XrdCl
     pChannelData( channelData ),
     pSubStreamNum( subStreamNum ),
     pStream( strm ),
-    pStreamName( ToStreamName( strm, subStreamNum ) ),
+    pStreamName( ToStreamName( url, subStreamNum ) ),
     pSocket( new Socket() ),
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
@@ -193,10 +193,10 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  std::string AsyncSocketHandler::ToStreamName( Stream *stream, uint16_t strmnb )
+  std::string AsyncSocketHandler::ToStreamName( const URL &url, uint16_t strmnb )
   {
     std::ostringstream o;
-    o << stream->GetURL()->GetHostId();
+    o << url.GetHostId();
     o << "." << strmnb;
     return o.str();
   }

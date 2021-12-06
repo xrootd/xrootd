@@ -38,6 +38,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucCRC.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -191,6 +192,27 @@ namespace XrdCl
       std::vector<size_t> strmqueues;
   };
 
+  struct BindPrefSelector
+  {
+    BindPrefSelector( std::vector<std::string> && bindprefs ) :
+      bindprefs( std::move( bindprefs ) ), next( 0 )
+    {
+    }
+
+    inline const std::string& Get()
+    {
+      std::string &ret = bindprefs[next];
+      ++next;
+      if( next >= bindprefs.size() )
+        next = 0;
+      return ret;
+    }
+
+    private:
+      std::vector<std::string> bindprefs;
+      size_t                   next;
+  };
+
   //----------------------------------------------------------------------------
   //! Information holder for xrootd channels
   //----------------------------------------------------------------------------
@@ -213,7 +235,6 @@ namespace XrdCl
       protection(0),
       protRespBody(0),
       protRespSize(0),
-      strmSelector(0),
       encrypted(false),
       istpc(false)
     {
@@ -228,7 +249,6 @@ namespace XrdCl
     ~XRootDChannelInfo()
     {
       delete [] authBuffer;
-      delete    strmSelector;
     }
 
     typedef std::vector<XRootDStreamInfo> StreamInfoVector;
@@ -236,31 +256,32 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Data
     //--------------------------------------------------------------------------
-    uint32_t                     serverFlags;
-    uint32_t                     protocolVersion;
-    uint8_t                      sessionId[16];
-    uint8_t                      oldSessionId[16];
-    bool                         firstLogIn;
-    std::shared_ptr<SIDManager>  sidManager;
-    char                        *authBuffer;
-    XrdSecProtocol              *authProtocol;
-    XrdSecParameters            *authParams;
-    XrdOucEnv                   *authEnv;
-    StreamInfoVector             stream;
-    std::string                  streamName;
-    std::string                  authProtocolName;
-    std::set<uint16_t>           sentOpens;
-    std::set<uint16_t>           sentCloses;
-    uint32_t                     finstcnt; // file instance count
-    uint32_t                     openFiles;
-    time_t                       waitBarrier;
-    XrdSecProtect               *protection;
-    ServerResponseBody_Protocol *protRespBody;
-    unsigned int                 protRespSize;
-    StreamSelector              *strmSelector;
-    bool                         encrypted;
-    bool                         istpc;
-    XrdSysMutex                  mutex;
+    uint32_t                           serverFlags;
+    uint32_t                           protocolVersion;
+    uint8_t                            sessionId[16];
+    uint8_t                            oldSessionId[16];
+    bool                               firstLogIn;
+    std::shared_ptr<SIDManager>        sidManager;
+    char                              *authBuffer;
+    XrdSecProtocol                    *authProtocol;
+    XrdSecParameters                  *authParams;
+    XrdOucEnv                         *authEnv;
+    StreamInfoVector                   stream;
+    std::string                        streamName;
+    std::string                        authProtocolName;
+    std::set<uint16_t>                 sentOpens;
+    std::set<uint16_t>                 sentCloses;
+    uint32_t                           finstcnt; // file instance count
+    uint32_t                           openFiles;
+    time_t                             waitBarrier;
+    XrdSecProtect                     *protection;
+    ServerResponseBody_Protocol       *protRespBody;
+    unsigned int                       protRespSize;
+    std::unique_ptr<StreamSelector>    strmSelector;
+    bool                               encrypted;
+    bool                               istpc;
+    std::unique_ptr<BindPrefSelector>  bindSelector;
+    XrdSysMutex                        mutex;
   };
 
   //----------------------------------------------------------------------------
@@ -379,7 +400,7 @@ namespace XrdCl
     env->GetInt( "SubStreamsPerChannel", streams );
     if( streams < 1 ) streams = 1;
     info->stream.resize( streams );
-    info->strmSelector = new StreamSelector( streams );
+    info->strmSelector.reset( new StreamSelector( streams ) );
     info->encrypted    = url.IsSecure();
     info->istpc        = url.IsTPC();
   }
@@ -1741,6 +1762,20 @@ namespace XrdCl
     return false;
   }
 
+  //------------------------------------------------------------------------
+  // Get bind preference for the next data stream
+  //------------------------------------------------------------------------
+  URL XRootDTransport::GetBindPreference( const URL  &url,
+                                          AnyObject  &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    if( !bool( info->bindSelector ) )
+      return url;
+
+    return URL( info->bindSelector->Get() );
+  }
+
   //----------------------------------------------------------------------------
   // Generate the message to be sent as an initial handshake
   // (handshake+kXR_protocol)
@@ -1801,6 +1836,7 @@ namespace XrdCl
     request->requestid = htons(kXR_protocol);
     request->clientpv  = htonl(kXR_PROTOCOLVERSION);
     request->flags     = ClientProtocolRequest::kXR_secreqs |
+                         ClientProtocolRequest::kXR_bifreqs |
                          ClientProtocolRequest::kXR_ableTLS;
 
     bool nodata = false;
@@ -1912,8 +1948,12 @@ namespace XrdCl
       info->protRespBody = new ServerResponseBody_Protocol();
       info->protRespBody->flags = rsp->body.protocol.flags;
       info->protRespBody->pval  = rsp->body.protocol.pval;
-      memcpy( &info->protRespBody->secreq, &rsp->body.protocol.secreq, rsp->hdr.dlen - 8 );
-      info->protRespSize = rsp->hdr.dlen;
+
+      char*  bodybuff = reinterpret_cast<char*>( &rsp->body.protocol.secreq );
+      size_t bodysize = rsp->hdr.dlen - 8;
+      XRootDStatus st = ProcessProtocolBody( bodybuff, bodysize, info );
+      if( !st.IsOK() )
+        return st;
     }
 
     log->Debug( XRootDTransportMsg,
@@ -1965,6 +2005,42 @@ namespace XrdCl
     }
 
     return XRootDStatus( stOK, suContinue );
+  }
+
+  XRootDStatus XRootDTransport::ProcessProtocolBody( char              *bodybuff,
+                                                     size_t             bodysize,
+                                                     XRootDChannelInfo *info  )
+  {
+    //--------------------------------------------------------------------------
+    // Parse bind preferences
+    //--------------------------------------------------------------------------
+    XrdProto::bifReqs *bifreq = reinterpret_cast<XrdProto::bifReqs*>( bodybuff );
+    if( bodysize >= sizeof( XrdProto::bifReqs ) && bifreq->theTag == 'B' )
+    {
+      bodybuff += sizeof( XrdProto::bifReqs );
+      bodysize -= sizeof( XrdProto::bifReqs );
+
+      if( bodysize < bifreq->bifILen )
+        return XRootDStatus( stError, errDataError, 0, "Received incomplete "
+                             "protocol response." );
+      std::string bindprefs_str( bodybuff, bifreq->bifILen );
+      std::vector<std::string> bindprefs;
+      Utils::splitString( bindprefs, bindprefs_str, "," );
+      info->bindSelector.reset( new BindPrefSelector( std::move( bindprefs ) ) );
+      bodybuff += bifreq->bifILen;
+      bodysize -= bifreq->bifILen;
+    }
+    //--------------------------------------------------------------------------
+    // Parse security requirements
+    //--------------------------------------------------------------------------
+    XrdProto::secReqs *secreq = reinterpret_cast<XrdProto::secReqs*>( bodybuff );
+    if( bodysize >= 6 /*XrdProto::secReqs*/ && secreq->theTag == 'S' )
+    {
+      memcpy( &info->protRespBody->secreq, secreq, bodysize );
+      info->protRespSize = bodysize + 8 /*pval & flags*/;
+    }
+
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------

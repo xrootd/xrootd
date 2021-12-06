@@ -619,8 +619,9 @@ namespace XrdCl
       {
         for( uint16_t i = 1; i < numSub; ++i )
         {
-          AsyncSocketHandler *s = new AsyncSocketHandler( *pUrl, pPoller, pTransport,
-                                                           pChannelData, i, this );
+          URL url = pTransport->GetBindPreference( *pUrl, *pChannelData );
+          AsyncSocketHandler *s = new AsyncSocketHandler( url, pPoller, pTransport,
+                                                          pChannelData, i, this );
           pSubStreams.push_back( new SubStreamData() );
           pSubStreams[i]->socket = s;
         }
