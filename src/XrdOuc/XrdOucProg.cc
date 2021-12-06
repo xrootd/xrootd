@@ -106,7 +106,7 @@ int XrdOucProg::Feed(const char *data[], const int dlen[])
                   theRC = Run(strmP, argV, argC)
   
 int XrdOucProg::Run(XrdOucStream *Sp, const char *argV[], int argC,
-                                      const char *envV[])
+                                      const char *envV[]) const
 {
    char **myArgs;
    int rc, totArgs = numArgs + argC;
@@ -153,7 +153,7 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *argV[], int argC,
 
 /******************************************************************************/
   
-int XrdOucProg::Run(const char *argV[], int argC, const char *envV[])
+int XrdOucProg::Run(const char *argV[], int argC, const char *envV[]) const
 {
    XrdOucStream cmd;
    char *lp;
@@ -177,7 +177,7 @@ int XrdOucProg::Run(const char *argV[], int argC, const char *envV[])
 /******************************************************************************/
 
 int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
-                                      const char *arg3, const char *arg4)
+                                      const char *arg3, const char *arg4) const
 {
    int rc;
 
@@ -190,7 +190,7 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
 /******************************************************************************/
 
 int XrdOucProg::Run(const char *arg1, const char *arg2,
-                    const char *arg3, const char *arg4)
+                    const char *arg3, const char *arg4) const
 {
    XrdOucStream cmd;
    char *lp;
@@ -215,7 +215,7 @@ int XrdOucProg::Run(const char *arg1, const char *arg2,
 
 int XrdOucProg::Run(char *outBuff, int outBsz,
                     const char *arg1, const char *arg2,
-                    const char *arg3, const char *arg4)
+                    const char *arg3, const char *arg4) const
 {
    XrdOucStream cmd;
    char *lp, *tp;
@@ -254,7 +254,7 @@ int XrdOucProg::Run(char *outBuff, int outBsz,
 /*                               R u n D o n e                                */
 /******************************************************************************/
 
-int XrdOucProg::RunDone(XrdOucStream &cmd)
+int XrdOucProg::RunDone(XrdOucStream &cmd) const
 {
    int rc;
 
