@@ -17,6 +17,8 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[Server]** Do not hold cheksum lock across local checksum computation.
+  **Commits: a6a06e64
   **[Server]** Correct notify option handling for kXR_prepare.
 
 + **Miscellaneous**
