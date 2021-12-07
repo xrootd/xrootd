@@ -15,6 +15,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <tuple>
+#include <regex>
 
 #include "INIReader.h"
 #include "picojson.h"
@@ -647,6 +648,8 @@ private:
             for (auto path : config.m_base_paths) {
                 auto path_rule = rule;
                 path_rule.m_path_prefix = path + rule.m_path_prefix;
+                path_rule.m_path_prefix = std::regex_replace(path_rule.m_path_prefix,
+                                                             std::regex("//"), "/");
                 map_rules.emplace_back(path_rule);
             }
         }
