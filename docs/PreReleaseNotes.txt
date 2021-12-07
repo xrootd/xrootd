@@ -24,6 +24,8 @@ Prerelease Notes
   **[Server]** Correct notify option handling for kXR_prepare.
 
 + **Miscellaneous**
+  **[Apps]** Reintroduce the xrdprep (a.k.a xprep) command.
+  **Commits: 1dd9b836
   **[Plugins]** Improve fault tolerance of redirlocal plugin.
   **Commits: 514929d0
   **[Macaroons]** Relegate debug messages to debug status.
