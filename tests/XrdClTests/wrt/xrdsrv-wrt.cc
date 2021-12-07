@@ -78,15 +78,23 @@ struct SocketIO
 
 struct wrt_queue
 {
-  wrt_queue() : worker( work, *this )
+  wrt_queue() : working( true ), worker( work, this )
   {
   }
 
-  static void work( wrt_queue &myself )
+  ~wrt_queue()
   {
-    while( true )
+    working = false;
+    cv.notify_all();
+    worker.join();
+  }
+
+  static void work( wrt_queue *myself )
+  {
+    while( myself->working )
     {
-      wrt_request req = pop();
+      wrt_request req = myself->pop();
+      if( !myself->working ) return;
       int rc = pwrite( req.fd, req.buf, req.len, req.off );
       if( rc < 0 )
         stdio.write( strerror( errno ) );
@@ -96,10 +104,12 @@ struct wrt_queue
 
   struct wrt_request
   {
-    wrt_request( int fd, const void *buf, size_t len, off_t off ) :
+    wrt_request( int fd, const char *buf, size_t len, off_t off ) :
       fd( fd ), buf( buf ), len( len ), off( off )
     {
     }
+
+    wrt_request() : fd( -1 ), buf( nullptr ), len( 0 ), off( 0 ){ }
 
     int fd;
     const char *buf;
@@ -123,14 +133,15 @@ struct wrt_queue
   wrt_request pop()
   {
     std::unique_lock<std::mutex> lck( mtx );
-    while( q.empty() )
+    while( q.empty() && working )
       cv.wait( lck );
+    if( !working ) return wrt_request();
     wrt_request req = q.front();
     q.pop();
     return req;
   }
 
-
+  bool working;
   std::thread worker;
   std::queue<wrt_request> q;
   std::mutex mtx;
@@ -178,7 +189,7 @@ void HandleProtocolReq( SocketIO &io, ClientRequestHdr *hdr )
   respHdr.dlen = htonl( sizeof( ServerResponseBody_Protocol ) );
   io.write( &respHdr, sizeof(ServerResponseHeader) );
 
-  kXR_int32 flags = kXR_DataServer | kXR_haveTLS | kXR_gotoTLS | kXR_tlsLogin;// | kXR_tlsData;
+  kXR_int32 flags = kXR_DataServer;
   std::cout << "Server flags = " << flags << std::endl;
 
   ServerResponseBody_Protocol body;
@@ -227,9 +238,13 @@ int HandleOpenReq( SocketIO &io, ClientRequestHdr *hdr )
   ss << "Path : " << std::string( buffer, req->dlen ) << std::endl;
   delete[] buffer;
 
-  int fd = open( path.c_str(), O_WRONLY | O_CREAT );
+  ss << "opening : " << path << std::endl;
+  int fd = open( path.c_str(), O_WRONLY | O_CREAT, 0664 );
   if( fd < 0 )
     stdio.write( strerror( errno ) );
+  else
+    ss << "file opened : " << fd << std::endl;
+
 
   ServerResponseHeader respHdr;
   memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
@@ -250,15 +265,39 @@ int HandleOpenReq( SocketIO &io, ClientRequestHdr *hdr )
   return fd;
 }
 
+ void HandleStatReq( SocketIO &io, ClientRequestHdr *hdr )
+{
+  ClientStatRequest *req = (ClientStatRequest*) hdr;
+  std::stringstream ss;
+  ss << __func__ << std::endl;
+
+  static const std::string statstr = "ABCD 1024 0 0";
+
+  char *buffer = new char[req->dlen];
+  io.read( buffer, req->dlen );
+  std::string path( buffer, req->dlen );
+  ss << "Path : " << std::string( buffer, req->dlen ) << std::endl;
+  delete[] buffer;
+
+  ServerResponseHeader respHdr;
+  memset( &respHdr, 0, sizeof( ServerResponseHeader ) );
+  respHdr.streamid[0] = req->streamid[0];
+  respHdr.streamid[1] = req->streamid[1];
+  respHdr.status = kXR_ok;
+  respHdr.dlen   = htonl( statstr.size() );
+  io.write( &respHdr, sizeof( ServerResponseHeader ) );
+  io.write( statstr.c_str(), statstr.size() );
+  stdio.write( ss.str() );
+}
+
 void HandleWriteReq( SocketIO &io, ClientRequestHdr *hdr, int fd, wrt_queue &wq )
 {
   ClientWriteRequest *req = (ClientWriteRequest*) hdr;
   std::stringstream ss;
   ss << __func__ << " : " << "control stream." << std::endl;
-
-  req->dlen = ntohl( req->dlen );
+  ss << "req->dlen = " << req->dlen << std::endl;
   req->offset = ntohll( req->offset );
-  ss << std::dec << "Read " << req->dlen << " bytes at " << req->offset << " offset" << std::endl;
+  ss << std::dec << "Read " << req->dlen << " bytes from socket.";
   char *buffer = new char[req->dlen];
   io.read( buffer, req->dlen );
   wq.write( fd, buffer, req->dlen, req->offset );
@@ -354,6 +393,7 @@ int HandleRequest( SocketIO &io )
   DoInitHS( io );
 
   wrt_queue wrtq;
+  int fd = -1;
 
   while( true )
   {
@@ -367,9 +407,14 @@ int HandleRequest( SocketIO &io )
     {
       return -1;
     }
+    else if( valread == 0 )
+    {
+      stdio.write( "client terminated the connection");
+      return 0;
+    }
     else if( valread < 8 )
     {
-      std::cout << "Got bogus header!" << std::endl;
+      std::cout << "Got bogus header : " << valread << std::endl;
       std::cout << std::string( buffer, valread ) << std::endl;
       return -1;
     }
@@ -380,7 +425,6 @@ int HandleRequest( SocketIO &io )
 
     ss << "Got request: " << hdr->requestid << std::endl;
     stdio.write( ss.str() );
-    int fd = -1;
 
     switch( hdr->requestid )
     {
@@ -423,12 +467,14 @@ int HandleRequest( SocketIO &io )
       case kXR_stat:
       {
         stdio.write(  "Got kXR_stat!" );
+        HandleStatReq( io, hdr );
         break;
       }
 
       case kXR_write:
       {
         stdio.write( "Got kXR_write!" );
+        HandleWriteReq( io, hdr, fd, wrtq );
         break;
       }
 
@@ -450,7 +496,7 @@ void control_stream( int socket )
   ss << '\n' << __func__ << '\n';
   stdio.write( ss.str() );
   SocketIO io( socket );
-  HandleRequest( io, 6 );
+  HandleRequest( io );
 }
 
 
@@ -469,7 +515,7 @@ int main(int argc, char const *argv[])
     }
 
     // Forcefully attaching socket to the port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
                                                   &opt, sizeof(opt)))
     {
         perror("setsockopt");
@@ -492,10 +538,13 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
+    std::list<std::thread> threads;
+
     while( true )
     {
       std::stringstream ss;
       ss << "Waiting to accept new TCP connection!" << std::endl;
+      stdio.write( ss.str() );
       if ((new_socket = accept(server_fd, (struct sockaddr *)&address, // TODO
                          (socklen_t*)&addrlen))<0)
       {
@@ -505,7 +554,7 @@ int main(int argc, char const *argv[])
       ss << "New TCP connection accepted!" << std::endl;
       stdio.write( ss.str() );
 
-      std::thread( control_stream, new_socket );
+      threads.emplace_back( control_stream, new_socket );
     }
 
     std::cout << "The End." << std::endl;
