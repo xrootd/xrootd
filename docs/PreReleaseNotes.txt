@@ -21,6 +21,8 @@ Prerelease Notes
   **Commits: 2140c2d
 
 + **Minor bug fixes**
+  **[XrdSciTokens] Avoid double slashes in the final path after rules.
+  **Commits: 4cc4f32
   **[Server]** Do not hold cheksum lock across local checksum computation.
   **Commits: a6a06e64
   **[Server]** Correct notify option handling for kXR_prepare.
