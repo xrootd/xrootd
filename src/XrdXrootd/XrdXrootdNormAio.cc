@@ -222,6 +222,7 @@ do{bool doWait = dataLen <= 0 || inFlight >= XrdXrootdProtocol::as_maxperreq;
    while(sendQ && sendQ->sfsAio.aio_offset == sendOffset && aOK)
       {aioP  = sendQ;
        sendQ = sendQ->next;
+       TRACEP(FSAIO,"aioR deQ "<<aioP->Result<<'@'<<aioP->sfsAio.aio_offset);
        if (!isDone && Send(aioP) && dataLen) aOK = CopyF2L_Add2Q(aioP);
           else aioP->Recycle();
       }
@@ -243,7 +244,7 @@ do{bool doWait = dataLen <= 0 || inFlight >= XrdXrootdProtocol::as_maxperreq;
 // Cleanup anything left over
 //
    if (finalRead) finalRead->Recycle();
-   while(sendQ) {sendQ->Recycle(); sendQ = sendQ->next;}
+   while((aioP = sendQ)) {sendQ = sendQ->next; aioP->Recycle();}
 
 // If we encountered a fatal link error then cancel any pending aio reads on
 // this link. Otherwise if we have not yet scheduled the next aio, do so.
