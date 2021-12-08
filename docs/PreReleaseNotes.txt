@@ -17,6 +17,8 @@ Prerelease Notes
   **[cmsd]** Allow flexible path consideration when determining affinity.
 
 + **Major bug fixes**
+  **[Server]** Correct code that frees unsent aio buffers after fatal error.
+  **Commits: 2140c2d
 
 + **Minor bug fixes**
   **[Server]** Do not hold cheksum lock across local checksum computation.
