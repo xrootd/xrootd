@@ -860,7 +860,7 @@ XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments)
                       return 0;
                      }
                   if (XrdOuca2x::a2i(*eLog, "PrepPGI -maxfiles", tokP,
-                                            &maxFiles, 1, 48)) return 0;
+                                            &maxFiles, 1, 1024)) return 0;
                  }
          else if (Token == "-maxquery")
                  {if (!(tokP = gpiConf.GetToken()) || *tokP == '-')
