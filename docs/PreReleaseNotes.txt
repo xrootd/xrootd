@@ -21,6 +21,8 @@ Prerelease Notes
   **Commits: 2140c2d
 
 + **Minor bug fixes**
+  **[AIO]** Correct test whether or not to turn off aio for Xcache.
+  **Commits: 55838a0
   **[XrdSciTokens] Avoid double slashes in the final path after rules.
   **Commits: 4cc4f32
   **[Server]** Do not hold cheksum lock across local checksum computation.
