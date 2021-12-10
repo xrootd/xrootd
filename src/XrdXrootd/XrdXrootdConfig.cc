@@ -332,7 +332,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!(asyncFlags & asDebug) && as_aioOK)
       {if (fsFeatures & XrdSfs::hasNAIO) as_aioOK = 0;
-          else if (asyncFlags && asNoCache && fsFeatures & XrdSfs::hasCACH)
+          else if (asyncFlags & asNoCache && fsFeatures & XrdSfs::hasCACH)
                   as_aioOK = 0;
        if (!as_aioOK) eDest.Say("Config asynchronous I/O has been disabled!");
       }
