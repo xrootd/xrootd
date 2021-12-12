@@ -42,6 +42,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysE2T.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 
 using namespace XrdCl;
