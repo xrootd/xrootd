@@ -30,6 +30,8 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
+#include "XrdVomsMapfile.hh"
+
 #include "XrdVomsFun.hh"
 
 /******************************************************************************/
@@ -57,7 +59,11 @@ int XrdSecgsiVOMSFun(XrdSecEntity &ent)
 {
 // Make sure we were initialized. If so, invoke the function and return result.
 //
-   return (vomsFun ? vomsFun->VOMSFun(ent) : -1);
+   int retval = (vomsFun ? vomsFun->VOMSFun(ent) : -1);
+   if (retval == -1) {return retval;}
+
+   auto mapfile = XrdVomsMapfile::Get();
+   return mapfile ? mapfile->Apply(ent) : retval;
 }
 }
 
@@ -73,6 +79,8 @@ int XrdSecgsiVOMSInit(const char *cfg)
 {
    static XrdSysLogger gLogger;
    static XrdSysError gDest(&gLogger, "XrdVoms");
+
+   XrdVomsMapfile::Configure(&gDest, nullptr);
 
 // Allocate a new Voms object
 //

@@ -29,6 +29,7 @@
 
 // This code is based on
 
+#include "XrdVomsMapfile.hh"
 #include "XrdVomsFun.hh"
 
 /** @brief This code is based on the basic architecture shown in
@@ -142,7 +143,9 @@ XrdHttpSecXtractor *XrdHttpGetSecXtractor(XrdHttpSecXtractorArgs)
 
 // Now return the interface object
 //
-   return (XrdHttpSecXtractor *)new XrdVomsHttp(eDest, *vomsFun);
+   auto base = static_cast<XrdHttpSecXtractor *>(new XrdVomsHttp(eDest, *vomsFun));
+   auto wrapper = static_cast<XrdHttpSecXtractor *>(XrdVomsMapfile::Configure(eDest, base));
+   return wrapper ? wrapper : base;
 }
 
 /******************************************************************************/
