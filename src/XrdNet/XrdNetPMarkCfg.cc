@@ -132,7 +132,7 @@ bool          tryVO   = false;
 bool          useDefs = false;
 
 bool          useFLbl = false;
-char          useFFly = -1;
+signed char   useFFly = -1;
 bool          addFLFF = false;
 bool          useSTag = true;
 
