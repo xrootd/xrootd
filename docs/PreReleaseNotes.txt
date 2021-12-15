@@ -8,7 +8,13 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  **[SciTokens]** Correct deletion from std::map to avoid SEGV.
+  **Commits: fc7edf7f
 
 + **Minor bug fixes**
+  **[SciTokens]** Regularize paths used for authorization.
+  **Commits: 48b1bf4a
 
 + **Miscellaneous**
+  **[Utils]** Redefine ENODATA when missing.
+  **Commits: b0584849
