@@ -53,7 +53,11 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
-  
+
+#ifndef ENODATA
+#define ENODATA ENOATTR
+#endif
+
 /******************************************************************************/
 /*                         L o c a l   M e t h o d s                          */
 /******************************************************************************/
@@ -469,7 +473,7 @@ char *XrdOucUtils::getFile(const char *path, int &rc, int maxsz, bool notempty)
 //
    if (Stat.st_size > maxsz) {rc = EFBIG; return 0;}
 
-// Make sure the file is not empty is empty files are disallowed
+// Make sure the file is not empty if empty files are disallowed
 //
    if (Stat.st_size == 0 && notempty) {rc = ENODATA; return 0;}
 
