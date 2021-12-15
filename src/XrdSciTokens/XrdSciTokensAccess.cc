@@ -960,9 +960,11 @@ private:
         if (now <= m_next_clean) {return;}
         std::lock_guard<std::mutex> guard(m_mutex);
 
-        for (auto iter = m_map.begin(); iter != m_map.end(); iter++) {
+        for (auto iter = m_map.begin(); iter != m_map.end(); ) {
             if (iter->second->expired()) {
-                m_map.erase(iter);
+                iter = m_map.erase(iter);
+            } else {
+                ++iter;
             }
         }
         Reconfig();
