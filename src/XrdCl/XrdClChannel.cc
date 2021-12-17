@@ -117,6 +117,7 @@ namespace XrdCl
     pStream->SetTaskManager( taskManager );
     pStream->SetJobManager( jobManager );
     pStream->SetChannelData( &pChannelData );
+    pStream->SetChannel( this );
     pStream->Initialize();
 
     //--------------------------------------------------------------------------
@@ -163,10 +164,17 @@ namespace XrdCl
   Status Channel::ForceDisconnect()
   {
     //--------------------------------------------------------------------------
-    // Disconnect and recreate the streams
+    // if stream is disconnected just delete it
     //--------------------------------------------------------------------------
-    pStream->ForceError( Status( stError, errOperationInterrupted ) );
-
+    if( pStream->IsDisconnected() )
+    {
+      delete this;
+      return Status();
+    }
+    //--------------------------------------------------------------------------
+    // otherwise schedule disconnect and then delete
+    //--------------------------------------------------------------------------
+    pStream->ScheduleDisconnect();
     return Status();
   }
 

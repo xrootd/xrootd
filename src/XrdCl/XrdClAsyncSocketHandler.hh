@@ -84,6 +84,14 @@ namespace XrdCl
       XRootDStatus Close();
 
       //------------------------------------------------------------------------
+      //! Schedule disconnect on next event
+      //------------------------------------------------------------------------
+      inline void ScheduleDisconnect()
+      {
+        pDisconnectChannel.store( true, std::memory_order_relaxed );
+      }
+
+      //------------------------------------------------------------------------
       //! Handle a socket event
       //------------------------------------------------------------------------
       virtual void Event( uint8_t type, XrdCl::Socket */*socket*/ );
@@ -261,6 +269,8 @@ namespace XrdCl
       std::unique_ptr<AsyncMsgReader> rspreader;
       std::unique_ptr<AsyncHSReader>  hsreader;
       std::unique_ptr<AsyncMsgWriter> reqwriter;
+
+      std::atomic<bool>               pDisconnectChannel;
   };
 }
 

@@ -313,8 +313,12 @@ namespace XrdCl
     if( it == pImpl->pChannelMap.end() )
       return Status( stError, errInvalidOp );
 
+    //----------------------------------------------------------------------
+    // We schedule a disconnect and remove the channel from ChannelMap so it
+    // cannot be accessed anymore by the end user. The channel will be
+    // deleted once disconnect is scheduled.
+    //----------------------------------------------------------------------
     it->second->ForceDisconnect();
-    delete it->second;
     pImpl->pChannelMap.erase( it );
 
     return Status();
