@@ -346,6 +346,7 @@ namespace XrdCl
 
         void lift()
         {
+          std::unique_lock<std::mutex> lck( mtx );
           on = false;
           cv.notify_all();
         }

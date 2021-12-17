@@ -166,6 +166,7 @@ namespace XrdEc
       urlmap_t                  urlmap;    //> map blknb/strpnb (data chunk) to URL
       missing_t                 missing;   //> set of missing stripes
       std::shared_ptr<block_t>  block;     //> cache for the block we are reading from
+      std::mutex                blkmtx;    //> mutex guarding the block from parallel access
       size_t                    lstblk;    //> last block number
       uint64_t                  filesize;  //> file size (obtained from xattr)
   };
