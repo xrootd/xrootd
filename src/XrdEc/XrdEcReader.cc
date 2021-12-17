@@ -506,12 +506,14 @@ namespace XrdEc
       //-------------------------------------------------------------------
       // Make sure we operate on a valid block
       //-------------------------------------------------------------------
+      std::unique_lock<std::mutex> lck( blkmtx );
       if( !block || block->blkid != blkid )
         block = std::make_shared<block_t>( blkid, *this, objcfg );
       //-------------------------------------------------------------------
       // Prepare the callback for reading from single stripe
       //-------------------------------------------------------------------
       auto blk = block;
+      lck.unlock();
       auto callback = [blk, rdctx, rdsize, rdmtx]( const XrdCl::XRootDStatus &st, uint32_t nbrd )
       {
         std::unique_lock<std::mutex> lck( *rdmtx );
@@ -549,7 +551,7 @@ namespace XrdEc
       //-------------------------------------------------------------------
       // Read data from a stripe
       //-------------------------------------------------------------------
-      block_t::read( block, strpid, rdoff, rdsize, usrbuff, callback, timeout );
+      block_t::read( blk, strpid, rdoff, rdsize, usrbuff, callback, timeout );
       //-------------------------------------------------------------------
       // Update absolute offset, read length, and user buffer
       //-------------------------------------------------------------------
