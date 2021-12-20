@@ -97,7 +97,6 @@ namespace XrdCl
     pJobManager( 0 ),
     pIncomingQueue( 0 ),
     pChannelData( 0 ),
-    pChannel( nullptr ),
     pLastStreamError( 0 ),
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 ),
@@ -1055,7 +1054,7 @@ namespace XrdCl
         // AsyncSocketHandler object (that called this method) and the Channel
         // object that aggregates this Stream.
         //----------------------------------------------------------------------
-        FinalizeChannel();
+        DefaultEnv::GetPostMaster()->ForceDisconnect( *pUrl );
         return;
       }
     }
@@ -1191,33 +1190,5 @@ namespace XrdCl
     }
 
     return false;
-  }
-
-  //------------------------------------------------------------------------
-  // true if the stream is disconnected, false otherwise
-  //------------------------------------------------------------------------
-  bool Stream::IsDisconnected()
-  {
-    XrdSysMutexHelper scopedLock( pMutex );
-    // it is enough if we check only the control channel
-    return pSubStreams[0]->status == Socket::Disconnected;
-  }
-
-  //------------------------------------------------------------------------
-  // Interrupt all outstanding requests and delete the channel
-  //------------------------------------------------------------------------
-  void Stream::FinalizeChannel()
-  {
-    ForceError( Status( stError, errOperationInterrupted ) );
-    delete pChannel;
-  }
-
-  //------------------------------------------------------------------------
-  // Schedule disconnect and channel deletion
-  //------------------------------------------------------------------------
-  void Stream::ScheduleDisconnect()
-  {
-    XrdSysMutexHelper scopedLock( pMutex );
-    pSubStreams[0]->socket->ScheduleDisconnect();
   }
 }

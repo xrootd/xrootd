@@ -51,8 +51,7 @@ namespace XrdCl
     pHSWaitStarted( 0 ),
     pHSWaitSeconds( 0 ),
     pUrl( url ),
-    pTlsHandShakeOngoing( false ),
-    pDisconnectChannel( false )
+    pTlsHandShakeOngoing( false )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -207,20 +206,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::Event( uint8_t type, XrdCl::Socket */*socket*/ )
   {
-    //--------------------------------------------------------------------------
-    // First check if the channel has been schedule to be finalized
-    //--------------------------------------------------------------------------
-    if( pDisconnectChannel.load( std::memory_order_relaxed) )
-    {
-      pStream->FinalizeChannel();
-      return;
-    }
-
-    //--------------------------------------------------------------------------
-    // First check if the socket itself wants to apply some mapping on the
-    // event. E.g. in case of TLS socket it might want to map read events to
-    // write events and vice-versa.
-    //--------------------------------------------------------------------------
+//    //--------------------------------------------------------------------------
+//    // First check if the socket itself wants to apply some mapping on the
+//    // event. E.g. in case of TLS socket it might want to map read events to
+//    // write events and vice-versa.
+//    //--------------------------------------------------------------------------
     type = pSocket->MapEvent( type );
 
     //--------------------------------------------------------------------------

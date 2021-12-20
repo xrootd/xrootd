@@ -116,15 +116,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Set the channel
-      //------------------------------------------------------------------------
-      void SetChannel( Channel *channel )
-      {
-        pChannel = channel;
-      }
-
-
-      //------------------------------------------------------------------------
       //! Set task manager
       //------------------------------------------------------------------------
       void SetTaskManager( TaskManager *taskManager )
@@ -273,25 +264,10 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! @return : true if this channel can be collapsed using this URL, false
+      //! @return : true is this channel can be collapsed using this URL, false
       //!           otherwise
       //------------------------------------------------------------------------
       bool CanCollapse( const URL &url );
-
-      //------------------------------------------------------------------------
-      //! @return : true if the stream is disconnected, false otherwise
-      //------------------------------------------------------------------------
-      bool IsDisconnected();
-
-      //------------------------------------------------------------------------
-      //! Interrupt all outstanding requests and delete the channel
-      //------------------------------------------------------------------------
-      void FinalizeChannel();
-
-      //------------------------------------------------------------------------
-      //! Schedule disconnect and channel deletion
-      //------------------------------------------------------------------------
-      void ScheduleDisconnect();
 
     private:
 
@@ -381,7 +357,6 @@ namespace XrdCl
       XrdSysRecMutex                 pMutex;
       InQueue                       *pIncomingQueue;
       AnyObject                     *pChannelData;
-      Channel                       *pChannel;
       uint32_t                       pLastStreamError;
       XRootDStatus                   pLastFatalError;
       uint16_t                       pStreamErrorWindow;
