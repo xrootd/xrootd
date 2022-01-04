@@ -31,6 +31,8 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <mutex>
+#include <unordered_map>
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -47,6 +49,9 @@ public:
 
 void        Init();
 
+bool        OpenFile(const std::string &entity);
+bool        CloseFile(const std::string &entity);
+
 void        Apply(int reqsize, int reqops, int uid);
 
 bool        IsThrottling() {return (m_ops_per_second > 0) || (m_bytes_per_second > 0);}
@@ -57,6 +62,8 @@ void        SetThrottles(float reqbyterate, float reqoprate, int concurrency, fl
 
 void        SetLoadShed(std::string &hostname, unsigned port, unsigned frequency)
             {m_loadshed_host = hostname; m_loadshed_port = port; m_loadshed_frequency = frequency;}
+
+void        SetMaxOpen(unsigned long max_open) {m_max_open = max_open;}
 
 //int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
 
@@ -126,6 +133,11 @@ std::string m_loadshed_host;
 unsigned m_loadshed_port;
 unsigned m_loadshed_frequency;
 int m_loadshed_limit_hit;
+
+// Maximum number of open files
+unsigned long m_max_open{0};
+std::unordered_map<std::string, unsigned long> m_file_counters;
+std::mutex m_file_mutex;
 
 static const char *TraceID;
 

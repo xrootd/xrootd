@@ -12,7 +12,7 @@ using namespace XrdThrottle;
    unsigned port; \
    std::string host; \
    m_throttle.PerformLoadShed(m_loadshed, host, port); \
-   m_eroute.Emsg("File", "Performing load-shed for client", m_user.c_str()); \
+   m_eroute.Emsg("File", "Performing load-shed for client", m_connection_id.c_str()); \
    error.setErrInfo(port, host.c_str()); \
    return SFS_REDIRECT; \
 }
@@ -33,7 +33,7 @@ File::File(const char                     *user,
      m_sfs(sfs),
 #endif
      m_uid(0),
-     m_user(user ? user : ""),
+     m_connection_id(user ? user : ""),
      m_throttle(throttle),
      m_eroute(eroute)
 {}
@@ -50,20 +50,25 @@ File::open(const char                *fileName,
 {
    // Try various potential "names" associated with the request, from the most
    // specific to most generic.
-   std::string unique_name;
-   if (client->eaAPI && client->eaAPI->Get("token.subject", unique_name)) {
-       if (client->vorg) unique_name += client->vorg;
+   if (client->eaAPI && client->eaAPI->Get("token.subject", m_user)) {
+       if (client->vorg) m_user = std::string(client->vorg) + ":" + m_user;
    } else if (client->eaAPI) {
-       client->eaAPI->Get("request.name", unique_name);
+       client->eaAPI->Get("request.name", m_user);
    }
-   m_uid = XrdThrottleManager::GetUid(unique_name.empty() ? client->name : unique_name.c_str());
+   if (m_user.empty()) {m_user = client->name ? client->name : "nobody";}
+   m_uid = XrdThrottleManager::GetUid(m_user.c_str());
    m_throttle.PrepLoadShed(opaque, m_loadshed);
+   if (!m_throttle.OpenFile(m_user)) {
+       error.setErrInfo(EMFILE, "User has hit their maximum file limit at the server.");
+       return SFS_ERROR;
+   }
    return m_sfs->open(fileName, openMode, createMode, client, opaque);
 }
 
 int
 File::close()
 {
+   m_throttle.CloseFile(m_user);
    return m_sfs->close();
 }
 

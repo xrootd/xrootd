@@ -125,6 +125,7 @@ private:
    unique_sfs_ptr m_sfs;
    int m_uid; // A unique identifier for this user; has no meaning except for the fairshare.
    std::string m_loadshed;
+   std::string m_connection_id; // Identity for the connection; may or may authenticated
    std::string m_user;
    XrdThrottleManager &m_throttle;
    XrdSysError &m_eroute;
@@ -280,6 +281,9 @@ private:
 
    int
    xtrace(XrdOucStream &Config);
+
+   int
+   xmaxopen(XrdOucStream &Config);
 
    static FileSystem  *m_instance;
    XrdSysError         m_eroute;

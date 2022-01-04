@@ -105,6 +105,59 @@ XrdThrottleManager::StealShares(int uid, int &reqsize, int &reqops)
 }
 
 /*
+ * Increment the number of files held open by a given entity.  Returns false
+ * if the user is at the maximum; in this case, the internal counter is not
+ * incremented.
+ */
+bool
+XrdThrottleManager::OpenFile(const std::string &entity)
+{
+    if (m_max_open == 0) return true;
+
+    const std::lock_guard<std::mutex> lock(m_file_mutex);
+    auto iter = m_file_counters.find(entity);
+    if (iter == m_file_counters.end()) {
+        m_file_counters[entity] = 1;
+        TRACE(FILES, "User " << entity << " has opened their first file");
+    } else if (iter->second < m_max_open) {
+        iter->second++;
+        TRACE(FILES, "User " << entity << " has " << iter->second << " open files");
+    } else {
+        TRACE(FILES, "User " << entity << " has hit the limit of " << iter->second << " open files");
+        return false;
+    }
+    return true;
+}
+
+
+/*
+ * Decrement the number of files held open by a given entity.
+ *
+ * Returns false if the value would have fallen below zero or
+ * if the entity isn't tracked.
+ */
+bool
+XrdThrottleManager::CloseFile(const std::string &entity)
+{
+    if (m_max_open == 0) return true;
+
+    const std::lock_guard<std::mutex> lock(m_file_mutex);
+    auto iter = m_file_counters.find(entity);
+    if (iter == m_file_counters.end()) {
+        TRACE(FILES, "WARNING: User " << entity << " closed a file but throttle plugin never saw an open file");
+        return false;
+    } else if (iter->second == 0) {
+        TRACE(FILES, "WARNING: User " << entity << " closed a file but throttle plugin thinks all files were already closed");
+        return false;
+    } else {
+        iter->second--;
+    }
+    TRACE(FILES, "User " << entity << " closed a file; " << iter->second << " remain open");
+    return true;
+}
+
+
+/*
  * Apply the throttle.  If there are no limits set, returns immediately.  Otherwise,
  * this applies the limits as best possible, stalling the thread if necessary.
  */
