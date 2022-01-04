@@ -1,6 +1,7 @@
 
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 
 #include "XrdThrottle.hh"
 
@@ -47,7 +48,15 @@ File::open(const char                *fileName,
            const XrdSecEntity        *client,
            const char                *opaque)
 {
-   m_uid = XrdThrottleManager::GetUid(client->name);
+   // Try various potential "names" associated with the request, from the most
+   // specific to most generic.
+   std::string unique_name;
+   if (client->eaAPI && client->eaAPI->Get("token.subject", unique_name)) {
+       if (client->vorg) unique_name += client->vorg;
+   } else if (client->eaAPI) {
+       client->eaAPI->Get("request.name", unique_name);
+   }
+   m_uid = XrdThrottleManager::GetUid(unique_name.empty() ? client->name : unique_name.c_str());
    m_throttle.PrepLoadShed(opaque, m_loadshed);
    return m_sfs->open(fileName, openMode, createMode, client, opaque);
 }

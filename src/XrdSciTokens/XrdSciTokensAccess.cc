@@ -211,11 +211,11 @@ struct IssuerConfig
 class XrdAccRules
 {
 public:
-    XrdAccRules(uint64_t expiry_time, const std::string &username, const std::string &token_username,
+    XrdAccRules(uint64_t expiry_time, const std::string &username, const std::string &token_subject,
         const std::string &issuer, const std::vector<MapRule> &rules, const std::vector<std::string> &groups) :
         m_expiry_time(expiry_time),
         m_username(username),
-        m_token_username(token_username),
+        m_token_subject(token_subject),
         m_issuer(issuer),
         m_map_rules(rules),
         m_groups(groups)
@@ -244,7 +244,7 @@ public:
     std::string get_username(const std::string &req_path)
     {
         for (const auto &rule : m_map_rules) {
-            std::string name = rule.match(m_token_username, req_path, m_groups);
+            std::string name = rule.match(m_token_subject, req_path, m_groups);
             if (!name.empty()) {
                 return name;
             }
@@ -252,6 +252,10 @@ public:
         return "";
     }
 
+        // Return the token's subject, an opaque unique string within the issuer's
+        // namespace.  It may or may not be related to the username one should
+        // use within the authorization framework.
+    const std::string & get_token_subject() const {return m_token_subject;}
     const std::string & get_default_username() const {return m_username;}
     const std::string & get_issuer() const {return m_issuer;}
 
@@ -262,7 +266,7 @@ private:
     AccessRulesRaw m_rules;
     uint64_t m_expiry_time{0};
     const std::string m_username;
-    const std::string m_token_username;
+    const std::string m_token_subject;
     const std::string m_issuer;
     const std::vector<MapRule> m_map_rules;
     const std::vector<std::string> m_groups;
@@ -327,12 +331,12 @@ public:
 		uint64_t cache_expiry;
 		AccessRulesRaw rules;
                 std::string username;
-                std::string token_username;
+                std::string token_subject;
                 std::string issuer;
                 std::vector<MapRule> map_rules;
                 std::vector<std::string> groups;
-                if (GenerateAcls(authz, cache_expiry, rules, username, token_username, issuer, map_rules, groups)) {
-                    access_rules.reset(new XrdAccRules(now + cache_expiry, username, token_username, issuer, map_rules, groups));
+                if (GenerateAcls(authz, cache_expiry, rules, username, token_subject, issuer, map_rules, groups)) {
+                    access_rules.reset(new XrdAccRules(now + cache_expiry, username, token_subject, issuer, map_rules, groups));
                     access_rules->parse(rules);
                 } else {
                     return OnMissing(Entity, path, oper, env);
@@ -402,6 +406,16 @@ public:
         if (mapping_success) {
             // Set scitokens.name in the extra attribute
             Entity->eaAPI->Add("request.name", username, true);
+        }
+
+            // Make the token subject available.  Even though it's a reasonably bad idea
+            // to use for *authorization* for file access, there may be other use cases.
+            // For example, the combination of (vorg, token.subject) is a reasonable
+            // approximation of a unique 'entity' (either person or a robot) and is
+            // more reasonable to use for resource fairshare in XrdThrottle.
+        const auto &token_subject = access_rules->get_token_subject();
+        if (!token_subject.empty()) {
+            Entity->eaAPI->Add("token.subject", token_subject, true);
         }
 
         // When the scope authorized this access, allow immediately.  Otherwise, chain
@@ -517,7 +531,7 @@ private:
         return XrdAccPriv_None;
     }
 
-    bool GenerateAcls(const std::string &authz, uint64_t &cache_expiry, AccessRulesRaw &rules, std::string &username, std::string &token_username, std::string &issuer, std::vector<MapRule> &map_rules, std::vector<std::string> &groups) {
+    bool GenerateAcls(const std::string &authz, uint64_t &cache_expiry, AccessRulesRaw &rules, std::string &username, std::string &token_subject, std::string &issuer, std::vector<MapRule> &map_rules, std::vector<std::string> &groups) {
         if (strncmp(authz.c_str(), "Bearer%20", 9)) {
             return false;
         }
@@ -634,11 +648,11 @@ private:
             scitoken_destroy(token);
             return false;
         }
-        token_username = std::string(value);
+        token_subject = std::string(value);
         free(value);
 
         if (config.m_map_subject) {
-            username = token_username;
+            username = token_subject;
         } else {
             username = config.m_default_user;
         }
