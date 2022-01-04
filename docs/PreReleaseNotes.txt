@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[SciTokens]** Save token subject as an XrdSecEntity xattr
+  **Commits: d737d741
 
 + **Major bug fixes**
   **[SciTokens]** Correct deletion from std::map to avoid SEGV.
