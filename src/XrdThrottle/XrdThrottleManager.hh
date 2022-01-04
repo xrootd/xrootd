@@ -33,6 +33,7 @@
 #include <ctime>
 #include <mutex>
 #include <unordered_map>
+#include <memory>
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -49,7 +50,7 @@ public:
 
 void        Init();
 
-bool        OpenFile(const std::string &entity);
+bool        OpenFile(const std::string &entity, std::string &open_error_message);
 bool        CloseFile(const std::string &entity);
 
 void        Apply(int reqsize, int reqops, int uid);
@@ -64,6 +65,8 @@ void        SetLoadShed(std::string &hostname, unsigned port, unsigned frequency
             {m_loadshed_host = hostname; m_loadshed_port = port; m_loadshed_frequency = frequency;}
 
 void        SetMaxOpen(unsigned long max_open) {m_max_open = max_open;}
+
+void        SetMaxConns(unsigned long max_conns) {m_max_conns = max_conns;}
 
 //int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
 
@@ -136,7 +139,10 @@ int m_loadshed_limit_hit;
 
 // Maximum number of open files
 unsigned long m_max_open{0};
+unsigned long m_max_conns{0};
 std::unordered_map<std::string, unsigned long> m_file_counters;
+std::unordered_map<std::string, unsigned long> m_conn_counters;
+std::unordered_map<std::string, std::unique_ptr<std::unordered_map<pid_t, unsigned long>>> m_active_conns;
 std::mutex m_file_mutex;
 
 static const char *TraceID;

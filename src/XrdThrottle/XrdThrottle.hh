@@ -122,6 +122,7 @@ private:
    virtual
    ~File();
 
+   bool m_is_open{false};
    unique_sfs_ptr m_sfs;
    int m_uid; // A unique identifier for this user; has no meaning except for the fairshare.
    std::string m_loadshed;
@@ -284,6 +285,9 @@ private:
 
    int
    xmaxopen(XrdOucStream &Config);
+
+   int
+   xmaxconn(XrdOucStream &Config);
 
    static FileSystem  *m_instance;
    XrdSysError         m_eroute;

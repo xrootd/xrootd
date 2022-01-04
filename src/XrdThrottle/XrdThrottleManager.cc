@@ -3,11 +3,14 @@
 
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 
 #define XRD_TRACE m_trace->
 #include "XrdThrottle/XrdThrottleTrace.hh"
+
+#include <sstream>
 
 const char *
 XrdThrottleManager::TraceID = "ThrottleManager";
@@ -110,22 +113,72 @@ XrdThrottleManager::StealShares(int uid, int &reqsize, int &reqops)
  * incremented.
  */
 bool
-XrdThrottleManager::OpenFile(const std::string &entity)
+XrdThrottleManager::OpenFile(const std::string &entity, std::string &error_message)
 {
-    if (m_max_open == 0) return true;
+    if (m_max_open == 0 && m_max_conns == 0) return true;
 
     const std::lock_guard<std::mutex> lock(m_file_mutex);
     auto iter = m_file_counters.find(entity);
-    if (iter == m_file_counters.end()) {
-        m_file_counters[entity] = 1;
-        TRACE(FILES, "User " << entity << " has opened their first file");
-    } else if (iter->second < m_max_open) {
-        iter->second++;
-        TRACE(FILES, "User " << entity << " has " << iter->second << " open files");
-    } else {
-        TRACE(FILES, "User " << entity << " has hit the limit of " << iter->second << " open files");
-        return false;
+    unsigned long cur_open_files, cur_open_conns;
+    if (m_max_open) {
+        if (iter == m_file_counters.end()) {
+            m_file_counters[entity] = 1;
+            TRACE(FILES, "User " << entity << " has opened their first file");
+            cur_open_files = 1;
+        } else if (iter->second < m_max_open) {
+            iter->second++;
+            cur_open_files = iter->second;
+        } else {
+            std::stringstream ss;
+            ss <<  "User " << entity << " has hit the limit of " << m_max_open << " open files";
+            TRACE(FILES, ss.str());
+            error_message = ss.str();
+            return false;
+        }
     }
+
+    if (m_max_conns) {
+        auto pid = XrdSysThread::Num();
+        auto conn_iter = m_active_conns.find(entity);
+        auto conn_count_iter = m_conn_counters.find(entity);
+        if ((conn_count_iter != m_conn_counters.end()) && (conn_count_iter->second == m_max_conns) &&
+            (conn_iter == m_active_conns.end() || ((*(conn_iter->second))[pid] == 0)))
+        {
+            // note: we are rolling back the increment in open files
+            if (m_max_open) iter->second--;
+            std::stringstream ss;
+            ss << "User " << entity << " has hit the limit of " << m_max_conns <<
+                " open connections";
+            TRACE(CONNS, ss.str());
+            error_message = ss.str();
+            return false;
+        }
+        if (conn_iter == m_active_conns.end()) {
+            std::unique_ptr<std::unordered_map<pid_t, unsigned long>> conn_map(
+                new std::unordered_map<pid_t, unsigned long>());
+            (*conn_map)[pid] = 1;
+            m_active_conns[entity] = std::move(conn_map);
+            if (conn_count_iter == m_conn_counters.end()) {
+                m_conn_counters[entity] = 1;
+                cur_open_conns = 1;
+            } else {
+                m_conn_counters[entity] ++;
+                cur_open_conns = m_conn_counters[entity];
+            }
+        } else {
+            auto pid_iter = conn_iter->second->find(pid);
+            if (pid_iter == conn_iter->second->end() || pid_iter->second == 0) {
+                (*(conn_iter->second))[pid] = 1;
+                conn_count_iter->second++;
+                cur_open_conns = conn_count_iter->second;
+            } else {
+                (*(conn_iter->second))[pid] ++;
+                cur_open_conns = conn_count_iter->second;
+           }
+        }
+        TRACE(CONNS, "User " << entity << " has " << cur_open_conns << " open connections");
+    }
+    if (m_max_open) TRACE(FILES, "User " << entity << " has " << cur_open_files << " open files");
     return true;
 }
 
@@ -139,21 +192,62 @@ XrdThrottleManager::OpenFile(const std::string &entity)
 bool
 XrdThrottleManager::CloseFile(const std::string &entity)
 {
-    if (m_max_open == 0) return true;
+    if (m_max_open == 0 && m_max_conns == 0) return true;
 
+    bool result = true;
     const std::lock_guard<std::mutex> lock(m_file_mutex);
-    auto iter = m_file_counters.find(entity);
-    if (iter == m_file_counters.end()) {
-        TRACE(FILES, "WARNING: User " << entity << " closed a file but throttle plugin never saw an open file");
-        return false;
-    } else if (iter->second == 0) {
-        TRACE(FILES, "WARNING: User " << entity << " closed a file but throttle plugin thinks all files were already closed");
-        return false;
-    } else {
-        iter->second--;
+    if (m_max_open) {
+        auto iter = m_file_counters.find(entity);
+        if (iter == m_file_counters.end()) {
+            TRACE(FILES, "WARNING: User " << entity << " closed a file but throttle plugin never saw an open file");
+            result = false;
+        } else if (iter->second == 0) {
+            TRACE(FILES, "WARNING: User " << entity << " closed a file but throttle plugin thinks all files were already closed");
+            result = false;
+        } else {
+            iter->second--;
+        }
+        if (result) TRACE(FILES, "User " << entity << " closed a file; " << iter->second <<
+                                 " remain open");
     }
-    TRACE(FILES, "User " << entity << " closed a file; " << iter->second << " remain open");
-    return true;
+
+    if (m_max_conns) {
+        auto pid = XrdSysThread::Num();
+        auto conn_iter = m_active_conns.find(entity);
+        auto conn_count_iter = m_conn_counters.find(entity);
+        if (conn_iter == m_active_conns.end() || !(conn_iter->second)) {
+            TRACE(CONNS, "WARNING: User " << entity << " closed a file on a connection we are not"
+                " tracking");
+            return false;
+        }
+        auto pid_iter = conn_iter->second->find(pid);
+        if (pid_iter == conn_iter->second->end()) {
+            TRACE(CONNS, "WARNING: User " << entity << " closed a file on a connection we are not"
+                " tracking");
+            return false;
+        }
+        if (pid_iter->second == 0) {
+            TRACE(CONNS, "WARNING: User " << entity << " closed a file on connection the throttle"
+                " plugin thinks was idle");
+        } else {
+            pid_iter->second--;
+        }
+        if (conn_count_iter == m_conn_counters.end()) {
+            TRACE(CONNS, "WARNING: User " << entity << " closed a file but the throttle plugin never"
+                " observed an open file");
+        } else if (pid_iter->second == 0) {
+            if (conn_count_iter->second == 0) {
+                TRACE(CONNS, "WARNING: User " << entity << " had a connection go idle but the "
+                    " throttle plugin already thought all connections were idle");
+            } else {
+                conn_count_iter->second--;
+                TRACE(CONNS, "User " << entity << " had connection on thread " << pid << " go idle; "
+                    << conn_count_iter->second << " active connections remain");
+            }
+        }
+    }
+
+    return result;
 }
 
 
@@ -217,6 +311,47 @@ XrdThrottleManager::Recompute()
 {
    while (1)
    {
+      // The connection counter can accumulate a number of known-idle connections.
+      // We only need to keep long-term memory of idle ones.  Take this chance to garbage
+      // collect old connection counters.
+      if (m_max_open || m_max_conns) {
+          const std::lock_guard<std::mutex> lock(m_file_mutex);
+          for (auto iter = m_active_conns.begin(); iter != m_active_conns.end();)
+          {
+              auto & conn_count = *iter;
+              if (!conn_count.second) {
+                  iter = m_active_conns.erase(iter);
+                  continue;
+              }
+              for (auto iter2 = conn_count.second->begin(); iter2 != conn_count.second->end();) {
+                  if (iter2->second == 0) {
+                      iter2 = conn_count.second->erase(iter2);
+                  } else {
+                      iter2++;
+                  }
+              }
+              if (!conn_count.second->size()) {
+                  iter = m_active_conns.erase(iter);
+              } else {
+                  iter++;
+              }
+          }
+          for (auto iter = m_conn_counters.begin(); iter != m_conn_counters.end();) {
+              if (!iter->second) {
+                  iter = m_conn_counters.erase(iter);
+              } else {
+                  iter++;
+              }
+          }
+          for (auto iter = m_file_counters.begin(); iter != m_file_counters.end();) {
+              if (!iter->second) {
+                  iter = m_file_counters.erase(iter);
+              } else {
+                  iter++;
+              }
+          }
+      }
+
       TRACE(DEBUG, "Recomputing fairshares for throttle.");
       RecomputeInternal();
       TRACE(DEBUG, "Finished recomputing fairshares for throttle; sleeping for " << m_interval_length_seconds << " seconds.");

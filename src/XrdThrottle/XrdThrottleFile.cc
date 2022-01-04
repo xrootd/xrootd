@@ -39,7 +39,11 @@ File::File(const char                     *user,
 {}
 
 File::~File()
-{}
+{
+   if (m_is_open) {
+      m_throttle.CloseFile(m_user);
+   }
+}
 
 int
 File::open(const char                *fileName,
@@ -58,16 +62,24 @@ File::open(const char                *fileName,
    if (m_user.empty()) {m_user = client->name ? client->name : "nobody";}
    m_uid = XrdThrottleManager::GetUid(m_user.c_str());
    m_throttle.PrepLoadShed(opaque, m_loadshed);
-   if (!m_throttle.OpenFile(m_user)) {
-       error.setErrInfo(EMFILE, "User has hit their maximum file limit at the server.");
+   std::string open_error_message;
+   if (!m_throttle.OpenFile(m_user, open_error_message)) {
+       error.setErrInfo(EMFILE, open_error_message.c_str());
        return SFS_ERROR;
    }
-   return m_sfs->open(fileName, openMode, createMode, client, opaque);
+   auto retval = m_sfs->open(fileName, openMode, createMode, client, opaque);
+   if (retval != SFS_ERROR) {
+      m_is_open = true;
+   } else {
+      m_throttle.CloseFile(m_user);
+   }
+   return retval;
 }
 
 int
 File::close()
 {
+   m_is_open = false;
    m_throttle.CloseFile(m_user);
    return m_sfs->close();
 }
