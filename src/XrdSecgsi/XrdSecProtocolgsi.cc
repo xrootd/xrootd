@@ -3241,6 +3241,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
           {hs->Options &= ~(kOptsFwdPxy | kOptsSigReq);
            std::cerr <<"secgsi: proxy delegation forbidden when trusting DNS "
                        "to resolve '" <<wantHost <<"'!\n" <<std::flush;
+           return -1;
           }
       }
 
