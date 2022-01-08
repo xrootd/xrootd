@@ -10,6 +10,8 @@
 #define TRACE_IOPS      0x0002
 #define TRACE_IOLOAD    0x0004
 #define TRACE_DEBUG     0x0008
+#define TRACE_FILES     0x0010
+#define TRACE_CONNS     0x0020
 
 #ifndef NODEBUG
 

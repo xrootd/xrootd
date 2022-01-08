@@ -147,6 +147,8 @@ FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs)
          if (!val || !val[0]) {log.Emsg("Config", "fslib not specified."); continue;}
          fslib = val;
       }
+      TS_Xeq("throttle.max_open_files", xmaxopen);
+      TS_Xeq("throttle.max_active_connections", xmaxconn);
       TS_Xeq("throttle.throttle", xthrottle);
       TS_Xeq("throttle.loadshed", xloadshed);
       TS_Xeq("throttle.trace", xtrace);
@@ -165,6 +167,58 @@ FileSystem::Configure(XrdSysError & log, XrdSfsFileSystem *native_fs)
 
    return 0;
 }
+
+/******************************************************************************/
+/*                            x m a x o p e n                                 */
+/******************************************************************************/
+
+/* Function: xmaxopen
+
+   Purpose:  Parse the directive: throttle.max_open_files <limit>
+
+             <limit>   maximum number of open file handles for a unique entity.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+int
+FileSystem::xmaxopen(XrdOucStream &Config)
+{
+    auto val = Config.GetWord();
+    if (!val || val[0] == '\0')
+       {m_eroute.Emsg("Config", "Max open files not specified!  Example usage: throttle.max_open_files 16000");}
+    long long max_open = -1;
+    if (XrdOuca2x::a2sz(m_eroute, "max open files value", val, &max_open, 1)) return 1;
+
+    m_throttle.SetMaxOpen(max_open);
+    return 0;
+}
+
+
+/******************************************************************************/
+/*                            x m a x c o n n                                 */
+/******************************************************************************/
+
+/* Function: xmaxconn
+
+   Purpose:  Parse the directive: throttle.max_active_connections <limit>
+
+             <limit>   maximum number of connections with at least one open file for a given entity
+
+  Output: 0 upon success or !0 upon failure.
+*/
+int
+FileSystem::xmaxconn(XrdOucStream &Config)
+{
+    auto val = Config.GetWord();
+    if (!val || val[0] == '\0')
+       {m_eroute.Emsg("Config", "Max active cconnections not specified!  Example usage: throttle.max_active_connections 4000");}
+    long long max_conn = -1;
+    if (XrdOuca2x::a2sz(m_eroute, "max active connections value", val, &max_conn, 1)) return 1;
+
+    m_throttle.SetMaxConns(max_conn);
+    return 0;
+}
+
 
 /******************************************************************************/
 /*                            x t h r o t t l e                               */
@@ -306,6 +360,8 @@ int FileSystem::xtrace(XrdOucStream &Config)
       {"iops",      TRACE_IOPS},
       {"bandwidth", TRACE_BANDWIDTH},
       {"ioload",    TRACE_IOLOAD},
+      {"files",     TRACE_FILES},
+      {"connections",TRACE_CONNS},
    };
    int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
