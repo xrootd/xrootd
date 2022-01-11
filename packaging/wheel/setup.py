@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup
 from setuptools.command.install import install
 from setuptools.command.sdist import sdist
 from wheel.bdist_wheel import bdist_wheel
@@ -12,7 +12,6 @@ except ImportError:
 
 import subprocess
 import sys
-import getpass
 
 def get_version():
     version = subprocess.check_output(['./genversion.sh', '--print-only'])
