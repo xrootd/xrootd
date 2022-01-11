@@ -247,7 +247,10 @@ namespace XrdCl
           return XRootDStatus( stError, errNotFound );
         // create the result
         info = make_stat( fn );
-        return XRootDStatus();
+        if (info) 
+          return XRootDStatus();
+        else // have difficult to access the openned archive.
+          return XRootDStatus( stError, errNotFound );
       }
 
       //-----------------------------------------------------------------------
@@ -464,6 +467,7 @@ namespace XrdCl
       {
         StatInfo *infoptr = 0;
         XRootDStatus st = archive.Stat( false, infoptr );
+        if (!st.IsOK()) return nullptr;
         std::unique_ptr<StatInfo> stinfo( infoptr );
         auto itr = cdmap.find( fn );
         if( itr == cdmap.end() ) return nullptr;

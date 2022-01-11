@@ -29,6 +29,7 @@ namespace XrdEc
     return crc32_gzip_refl( crc, buffer, len );
   }
 
+  static const std::string ObjStr = "obj";
   struct ObjCfg
   {
       ObjCfg() = delete;
@@ -77,7 +78,7 @@ namespace XrdEc
 
       inline std::string GetFileName( size_t blknb, size_t strpnb ) const
       {
-        return obj + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
+        return ObjStr + '.' + std::to_string( blknb ) + '.' + std::to_string( strpnb );
       }
 
       const std::string obj;
@@ -88,7 +89,6 @@ namespace XrdEc
       const uint64_t    chunksize;  // size of single chunk (nbchunks * chunksize = blksize)
       const uint64_t    paritysize; // size of the parity in the block
       const uint64_t    blksize;    // the whole block size (data + parity) in MB
-
       std::vector<std::string> plgr;
       std::vector<std::string> dtacgi;
       std::vector<std::string> mdtacgi;

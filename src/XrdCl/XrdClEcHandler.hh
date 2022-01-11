@@ -16,10 +16,64 @@
 #include "XrdEc/XrdEcReader.hh"
 #include "XrdEc/XrdEcStrmWriter.hh"
 
+#include "XrdOuc/XrdOucCRC.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
+
 #include <memory>
 
 namespace XrdCl
 {
+  class EcPgReadResponseHandler : public ResponseHandler
+  {
+    private:
+      XrdCl::ResponseHandler *realHandler;
+    public:
+    // constructor
+    EcPgReadResponseHandler(ResponseHandler *a) : realHandler(a) {}
+  
+    // Response Handler
+    void HandleResponse(XRootDStatus *status,
+                        AnyObject    *rdresp)
+    {
+      if( !status->IsOK() )
+      {
+        realHandler->HandleResponse( status, rdresp );
+        delete this;
+        return;
+      }
+  
+      ChunkInfo *chunk = 0;
+      rdresp->Get(chunk);
+  
+      std::vector<uint32_t> cksums;
+      size_t nbpages = chunk->length / XrdSys::PageSize;
+      if( chunk->length % XrdSys::PageSize )
+        ++nbpages;
+      cksums.reserve( nbpages );
+
+      size_t  size = chunk->length;
+      char   *buffer = reinterpret_cast<char*>( chunk->buffer );
+
+      for( size_t pg = 0; pg < nbpages; ++pg )
+      {
+        size_t pgsize = XrdSys::PageSize;
+        if( pgsize > size ) pgsize = size;
+        uint32_t crcval = XrdOucCRC::Calc32C( buffer, pgsize );
+        cksums.push_back( crcval );
+        buffer += pgsize;
+        size   -= pgsize;
+      }
+  
+      PageInfo *pages = new PageInfo(chunk->offset, chunk->length, chunk->buffer, std::move(cksums));
+      delete rdresp;
+      AnyObject *response = new AnyObject();
+      response->Set( pages );
+      realHandler->HandleResponse( status, response );
+  
+      delete this;
+    }
+  };
+
   class EcHandler : public FilePlugIn
   {
     public:
@@ -192,7 +246,20 @@ namespace XrdCl
         reader->Read( offset, size, buffer, handler, timeout );
         return XRootDStatus();
       }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::File::PgRead - async
+      //------------------------------------------------------------------------
+      XRootDStatus PgRead(uint64_t offset, uint32_t size, void *buffer,
+                                    ResponseHandler *handler,
+                                    uint16_t timeout) 
+      {
+        ResponseHandler *substitHandler = new EcPgReadResponseHandler( handler );
+        XRootDStatus st = Read(offset, size, buffer, substitHandler, timeout);
+        return st;
+      }
     
+
       //------------------------------------------------------------------------
       //! @see File::Write
       //------------------------------------------------------------------------
@@ -213,6 +280,28 @@ namespace XrdCl
       }
     
       //------------------------------------------------------------------------
+      //! @see XrdCl::File::PgWrite - async
+      //------------------------------------------------------------------------
+      XRootDStatus PgWrite( uint64_t               offset,
+                            uint32_t               size,
+                            const void            *buffer,
+                            std::vector<uint32_t> &cksums,
+                            ResponseHandler       *handler,
+                            uint16_t               timeout = 0 )
+      {
+        if(! cksums.empty() )
+        {
+          const char *data = static_cast<const char*>( buffer );
+          std::vector<uint32_t> local_cksums;
+          XrdOucPgrwUtils::csCalc( data, offset, size, local_cksums );
+          if (data) delete data;
+          if (local_cksums != cksums)
+            return XRootDStatus( stError, errInvalidArgs, 0, "data and crc32c digests do not match." );
+        }
+        return Write(offset, size, buffer, handler, timeout); 
+      }
+
+      //------------------------------------------------------------------------
       //!
       //------------------------------------------------------------------------
       bool IsOpen() const
@@ -224,10 +313,22 @@ namespace XrdCl
 
       inline XRootDStatus LoadPlacement()
       {
-        LocationInfo *info = nullptr;
-        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, info );
-        std::unique_ptr<LocationInfo> ptr( info );
+        LocationInfo *infoAll = nullptr;
+        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, infoAll );
+        std::unique_ptr<LocationInfo> ptr( infoAll );
         if( !st.IsOK() ) return st;
+
+        LocationInfo *info = new LocationInfo();
+        std::unique_ptr<LocationInfo> ptr1( info );
+
+        // filter out ServerPending locations or managers
+        for( size_t i = 0; i < infoAll->GetSize(); ++i )
+        {
+          auto &location = infoAll->At( i );
+          if ( location.GetType() == XrdCl::LocationInfo::ServerOnline )
+            info->Add(location);
+        }
+
         if( info->GetSize() < objcfg->nbchunks )
           return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
         unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -243,16 +344,49 @@ namespace XrdCl
       inline XRootDStatus LoadPlacement( const std::string &path )
       {
         LocationInfo *info = nullptr;
-        XRootDStatus st = fs.DeepLocate( path, OpenFlags::None, info );
+        XRootDStatus st = fs.DeepLocate( "*", OpenFlags::None, info );
         std::unique_ptr<LocationInfo> ptr( info );
         if( !st.IsOK() ) return st;
+        // The following check become meaningless
         if( info->GetSize() < objcfg->nbdata )
           return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
+
+        uint64_t verNumMax = 0;
+        std::vector<uint64_t> verNums;
+        std::vector<std::string>  xattrkeys;
+        std::vector<XrdCl::XAttr> xattrvals;
+        xattrkeys.push_back("xrdec.chunkver");
         for( size_t i = 0; i < info->GetSize(); ++i )
         {
+          FileSystem *fs_i = new FileSystem(info->At( i ).GetAddress());
+          xattrvals.clear();
+          st = fs_i->GetXAttr(path, xattrkeys, xattrvals, 0);
+          if (st.IsOK() && ! xattrvals[0].value.empty())
+          {
+            std::stringstream sstream(xattrvals[0].value);
+            uint64_t verNum;
+            sstream >> verNum;
+            verNums.push_back(verNum);
+            if (verNum > verNumMax) 
+              verNumMax = verNum;
+          }
+          else
+            verNums.push_back(0);
+          delete fs_i;
+        }
+
+        int n = 0;
+        for( size_t i = 0; i < info->GetSize(); ++i )
+        {
+          if ( verNums.at(i) == 0 || verNums.at(i) != verNumMax )
+            continue; 
+          else
+            n++;
           auto &location = info->At( i );
           objcfg->plgr.emplace_back( "root://" + location.GetAddress() + '/' );
         }
+        if (n < objcfg->nbdata )
+          return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
         return XRootDStatus();
       }
 
