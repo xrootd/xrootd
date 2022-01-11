@@ -354,6 +354,7 @@ namespace XrdCl
 #ifdef WITH_XRDEC
     if( lib == "XrdEcDefault" )
     {
+      setenv("XRDCL_EC", "True", 1);
       auto itr = config.find( "nbdta" );
       if( itr == config.end() )
         return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, nullptr );

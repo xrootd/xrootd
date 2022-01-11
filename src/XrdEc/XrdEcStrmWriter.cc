@@ -234,7 +234,8 @@ namespace XrdEc
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     for( size_t i = 0; i < cdcnt; ++i )
     {
-      std::string fn = std::to_string( i );                          // file name (URL of the data archive)
+      //std::string fn = std::to_string( i );                          // file name (URL of the data archive)
+      std::string fn = XrdEc::ObjStr;
       buffer_t buff( dataarchs[i]->GetCD() );                        // raw data buffer (central directory of the data archive)
       uint32_t cksum = objcfg.digest( 0, buff.data(), buff.size() ); // digest (crc) of the buffer
       lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );        // LFH record for the buffer
@@ -294,6 +295,7 @@ namespace XrdEc
     std::vector<XrdCl::Pipeline> closes;
     std::vector<XrdCl::Pipeline> save_metadata;
     closes.reserve( size );
+    std::string closeTime = std::to_string( time(NULL) );
     for( size_t i = 0; i < size; ++i )
     {
       //-----------------------------------------------------------------------
@@ -303,6 +305,7 @@ namespace XrdEc
       {
         std::string size( std::to_string( GetSize() ) );
         XrdCl::Pipeline p = XrdCl::SetXAttr( dataarchs[i]->GetFile(), "xrdec.filesize", size )
+                          | XrdCl::SetXAttr( dataarchs[i]->GetFile(), "xrdec.chunkver", closeTime.c_str() )
                           | XrdCl::CloseArchive( *dataarchs[i] );
         closes.emplace_back( std::move( p ) );
       }
