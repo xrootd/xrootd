@@ -38,7 +38,7 @@ if [ "$res" -ne "0" ]; then
 fi
 
 cd ../bindings/python
-$6 -m pip install $3 . # $6 holds the python sys.executable
+$6 setup.py install $3 # $6 holds the python sys.executable
 res=$?
 if [ "$res" -ne "0" ]; then
     exit 1
