@@ -145,6 +145,7 @@ if( NOT XRDCL_ONLY )
   set( XROOTD_PRIVATE_HEADERS
     ${XROOTD_PRIVATE_HEADERS}
     XrdHttp/XrdHttpExtHandler.hh
+    XrdSys/XrdSysTrace.hh
     XrdOfs/XrdOfs.hh
     XrdOfs/XrdOfsEvr.hh
     XrdOfs/XrdOfsHandle.hh
