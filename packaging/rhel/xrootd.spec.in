@@ -107,13 +107,17 @@ BuildRequires: json-c-devel
 
 %if %{python2only}
 BuildRequires: python2-devel
+BuildRequires: python2-setuptools
 %endif
 %if %{python2and3}
 BuildRequires: python2-devel
+BuildRequires: python2-setuptools
 BuildRequires: python%{python3_pkgversion}-devel
+BuildRequires: python%{python3_pkgversion}-setuptools
 %endif
 %if %{python3only}
 BuildRequires: python%{python3_pkgversion}-devel
+BuildRequires: python%{python3_pkgversion}-setuptools
 %endif
 
 BuildRequires: openssl-devel
