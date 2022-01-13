@@ -58,6 +58,8 @@ fi
 cd $startdir
 rm -r xrootdbuild
 
+# TODO: Remove all of the below and build a wheel using PyPA tools
+
 # convert the egg-info into a proper dist-info
 egginfo_path=$(ls $1/xrootd-*.egg-info)
 core="${egginfo_path%.*}"
