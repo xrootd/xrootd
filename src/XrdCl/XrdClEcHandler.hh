@@ -355,7 +355,7 @@ namespace XrdCl
         std::vector<uint64_t> verNums;
         std::vector<std::string>  xattrkeys;
         std::vector<XrdCl::XAttr> xattrvals;
-        xattrkeys.push_back("xrdec.chunkver");
+        xattrkeys.push_back("xrdec.strpver");
         for( size_t i = 0; i < info->GetSize(); ++i )
         {
           FileSystem *fs_i = new FileSystem(info->At( i ).GetAddress());
