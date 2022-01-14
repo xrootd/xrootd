@@ -297,12 +297,8 @@ namespace XrdEc
     closes.reserve( size );
     std::string closeTime = std::to_string( time(NULL) );
 
-    XrdCl::xattr_t xa1("xrdec.filesize", std::to_string(GetSize()));
-    XrdCl::xattr_t xa2("xrdec.strpver", closeTime.c_str());
-
-    std::vector<XrdCl::xattr_t> xav;
-    xav.push_back( std::move(xa1) );
-    xav.push_back( std::move(xa2) );
+    std::vector<XrdCl::xattr_t> xav{ {"xrdec.filesize", std::to_string(GetSize())},
+                                     {"xrdec.strpver", closeTime.c_str()} };
 
     for( size_t i = 0; i < size; ++i )
     {
