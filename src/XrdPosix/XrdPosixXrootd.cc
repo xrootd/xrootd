@@ -952,7 +952,7 @@ struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
    if (!(dp64 = Readdir64(dirp))) return 0;
 
    dp32 = (struct dirent *)dp64;
-   if (dp32->d_name  != dp64->d_name)
+   if ((char*)dp32->d_name != (char*)dp64->d_name)
       {dp32->d_ino    = dp64->d_ino;
 #if !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__GNU__) && !(defined(__FreeBSD_kernel__) && defined(__GLIBC__))
        dp32->d_off     = dp64->d_off;
