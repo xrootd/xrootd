@@ -1,0 +1,321 @@
+name: build
+
+on:
+  push:
+    branches:
+    - master
+    tags:
+    - v*
+  pull_request:
+    branches:
+    - master
+  schedule:
+    - cron:  '23 1 * * 0'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  cmake-centos7:
+
+    runs-on: ubuntu-latest
+    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+
+    steps:
+    - name: Install external dependencies with yum
+      run: |
+        yum update -y
+        yum install --nogpg -y \
+            cmake3 \
+            make \
+            krb5-devel \
+            libuuid-devel \
+            libxml2-devel \
+            openssl-devel \
+            systemd-devel \
+            zlib-devel \
+            devtoolset-7-gcc-c++ \
+            which \
+            python3-devel \
+            python3-setuptools \
+            git \
+            cppunit-devel
+        yum clean all
+
+    # Need to use v1 of action as image Git is too old
+    - name: Clone repository now that Git is available
+      uses: actions/checkout@v1
+
+    - name: Build with cmake
+      run: |
+        . /opt/rh/devtoolset-7/enable
+        cd ..
+        cmake3 \
+            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
+            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DENABLE_TESTS=ON \
+            -S xrootd \
+            -B build
+        cmake3 build -LH
+        cmake3 \
+            --build build \
+            --clean-first \
+            --parallel $(($(nproc) - 1))
+        cmake3 --build build --target install
+        python3 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+    - name: Run libXrdCl tests
+      run: |
+        cd ../build/tests
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/UtilsTest/'
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/SocketTest/'
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PollerTest/'
+        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PostMasterTest/'
+        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/FileSystemTest/'
+        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/LocalFileHandlerTest/'
+
+  cmake-centos7-updated-python:
+
+    runs-on: ubuntu-latest
+    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+
+    steps:
+    - name: Install external dependencies with yum
+      run: |
+        yum update -y
+        yum install --nogpg -y \
+            cmake3 \
+            make \
+            krb5-devel \
+            libuuid-devel \
+            libxml2-devel \
+            openssl-devel \
+            systemd-devel \
+            zlib-devel \
+            devtoolset-7-gcc-c++ \
+            which \
+            python3-devel \
+            python3-setuptools \
+            git \
+            cppunit-devel
+        yum clean all
+        python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
+
+    # Need to use v1 of action as image Git is too old
+    - name: Clone repository now that Git is available
+      uses: actions/checkout@v1
+
+    - name: Build with cmake
+      run: |
+        . /opt/rh/devtoolset-7/enable
+        cd ..
+        cmake3 \
+            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
+            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DENABLE_TESTS=ON \
+            -S xrootd \
+            -B build
+        cmake3 build -LH
+        cmake3 \
+            --build build \
+            --clean-first \
+            --parallel $(($(nproc) - 1))
+        cmake3 --build build --target install
+        python3 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+  rpm-centos7:
+
+    runs-on: ubuntu-latest
+    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+
+    steps:
+    - name: Overwrite /etc/yum.repos.d/epel.repo to remove epel-source
+      run: |
+        head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo
+        mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
+
+    - name: Install external dependencies with yum
+      run: |
+        yum update -y
+        yum install --nogpg -y \
+            gcc-c++ \
+            rpm-build \
+            which \
+            git \
+            python-srpm-macros \
+            centos-release-scl
+        yum clean all
+
+    # Need to use v1 of action as image Git is too old
+    - name: Clone repository now that Git is available
+      uses: actions/checkout@v1
+
+    - name: Build
+      run: |
+        cd packaging/
+        ./makesrpm.sh \
+          --define "_with_python3 1" \
+          --define "_with_tests 1" \
+          --define "_with_xrdclhttp 1" \
+          --define "_with_scitokens 1" \
+          --define "_with_isal 1"
+        yum-builddep --nogpgcheck -y *.src.rpm
+        mkdir RPMS
+        rpmbuild --rebuild \
+          --define "_rpmdir RPMS/" \
+          --define "_with_python3 1" \
+          --define "_with_tests 1" \
+          --define "_with_xrdclhttp 1" \
+          --define "_with_scitokens 1" \
+          --define "_with_isal 1" \
+          --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" \
+          *.src.rpm
+
+    - name: Install
+      run: |
+        ls -lh packaging/RPMS/
+        yum install -y \
+          ./packaging/RPMS/xrootd-*.rpm \
+          ./packaging/RPMS/python3-xrootd-*.rpm
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+  sdist-centos7:
+
+    runs-on: ubuntu-latest
+    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+
+    steps:
+    - name: Install external dependencies with yum
+      run: |
+        yum update -y
+        yum install --nogpg -y \
+            cmake3 \
+            make \
+            krb5-devel \
+            libuuid-devel \
+            libxml2-devel \
+            openssl-devel \
+            systemd-devel \
+            zlib-devel \
+            devtoolset-7-gcc-c++ \
+            which \
+            python3-devel \
+            python3-setuptools \
+            git \
+            cppunit-devel
+        yum clean all
+        python3 -m pip --no-cache-dir install wheel
+
+    # Need to use v1 of action as image Git is too old
+    - name: Clone repository now that Git is available
+      uses: actions/checkout@v1
+
+    - name: Build sdist using publishing workflow
+      run: |
+        . /opt/rh/devtoolset-7/enable
+        cp packaging/wheel/* .
+        ./publish.sh
+        python3 -m pip --verbose install dist/xrootd-*.tar.gz
+        python3 -m pip list
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+  sdist-centos7-updated-python:
+
+    runs-on: ubuntu-latest
+    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+
+    steps:
+    - name: Install external dependencies with yum
+      run: |
+        yum update -y
+        yum install --nogpg -y \
+            cmake3 \
+            make \
+            krb5-devel \
+            libuuid-devel \
+            libxml2-devel \
+            openssl-devel \
+            systemd-devel \
+            zlib-devel \
+            devtoolset-7-gcc-c++ \
+            which \
+            python3-devel \
+            python3-setuptools \
+            git \
+            cppunit-devel
+        yum clean all
+        python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
+
+    # Need to use v1 of action as image Git is too old
+    - name: Clone repository now that Git is available
+      uses: actions/checkout@v1
+
+    - name: Build sdist using publishing workflow
+      run: |
+        . /opt/rh/devtoolset-7/enable
+        cp packaging/wheel/* .
+        ./publish.sh
+        python3 -m pip --verbose install dist/xrootd-*.tar.gz
+        python3 -m pip list
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
