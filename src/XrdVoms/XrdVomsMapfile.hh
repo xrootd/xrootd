@@ -35,11 +35,15 @@
 class XrdVomsMapfile : public XrdHttpSecXtractor {
 
 public:
+    virtual ~XrdVomsMapfile();
+
     static XrdVomsMapfile *Configure(XrdSysError *, XrdHttpSecXtractor *);
     static XrdVomsMapfile *Get();
 
     virtual int GetSecData(XrdLink *, XrdSecEntity &, SSL *);
     int Apply(XrdSecEntity &);
+
+    bool IsValid() const {return m_is_valid;}
 
     /* Base class returns an error if these aren't overridden */
     virtual int Init(SSL_CTX *, int) {return 0;}
@@ -73,14 +77,35 @@ private:
     bool Compare(const MapfileEntry &entry, const std::vector<std::string> &fqan);
     std::vector<std::string> MakePath(const XrdOucString &group);
 
+    // A continuously-running thread for maintenance tasks (reloading the mapfile)
+    static void *MaintenanceThread(void *myself_raw);
+
+    // Set to true if the last maintenance attempt succeeded.
+    bool m_is_valid = false;
+    // Time of the last observed status change of file.
+    struct timespec m_mapfile_ctime{0, 0};
+
     std::string m_mapfile;
     std::shared_ptr<const std::vector<MapfileEntry>> m_entries;
     XrdHttpSecXtractor *m_xrdvoms{nullptr};
     XrdSysError *m_edest{nullptr};
 
-    std::atomic<time_t> m_last_update;
+    // Pipes to allow the main thread to communicate shutdown events to the maintenance
+    // thread, allowing for a clean shutdown.
+    int m_maintenance_pipe_r{-1};
+    int m_maintenance_pipe_w{-1};
+    int m_maintenance_thread_pipe_r{-1};
+    int m_maintenance_thread_pipe_w{-1};
+
+        // After success, how long to wait until the next mapfile check.
+    static constexpr unsigned m_update_interval = 30;
+        // After failure, how long to wait until the next mapfile check.
+    static constexpr unsigned m_update_interval_failure = 3;
 
     // Singleton
     static std::unique_ptr<XrdVomsMapfile> mapper;
+    // There are multiple protocol objects that may need the mapfile object;
+    // if we already tried-and-failed configuration once, this singleton will
+    // help us avoid failing again.
     static bool tried_configure;
 };

@@ -31,6 +31,8 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include <memory>
 #include <fstream>
@@ -38,7 +40,7 @@
 #include <vector>
 #include <string>
 #include <fcntl.h>
-
+#include <sys/poll.h>
 
 bool XrdVomsMapfile::tried_configure = false;
 std::unique_ptr<XrdVomsMapfile> XrdVomsMapfile::mapper;
@@ -57,6 +59,12 @@ PathToString(const std::vector<std::string> &path)
     return ss.str();
 }
 
+uint64_t monotonic_time_s() {
+  struct timespec tp;
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  return tp.tv_sec + (tp.tv_nsec >= 500000000);
+}
+
 }
 
 
@@ -64,7 +72,62 @@ XrdVomsMapfile::XrdVomsMapfile(XrdSysError *erp, XrdHttpSecXtractor *xrdvoms,
     const std::string &mapfile)
     : m_mapfile(mapfile), m_xrdvoms(xrdvoms), m_edest(erp)
 {
-    m_last_update.store(0, std::memory_order_relaxed);
+    // Setup communication pipes; we write one byte to the child to tell it to shutdown;
+    // it'll write one byte back to acknowledge before our destructor exits.
+    int pipes[2];
+    if (-1 == XrdSysFD_Pipe(pipes)) {
+        m_edest->Emsg("XrdVomsMapfile", "Failed to create communication pipes", strerror(errno));
+        return;
+    }
+    if (-1 == XrdSysFD_Pipe(pipes)) {
+        m_edest->Emsg("XrdVomsMapfile", "Failed to create communication pipes", strerror(errno));
+        return;
+    }
+
+    struct stat statbuf;
+    if (-1 == stat(m_mapfile.c_str(), &statbuf)) {
+        m_edest->Emsg("XrdVomsMapfile", errno, "Error checking the mapfile", m_mapfile.c_str());
+        return;
+    }
+    memcpy(&m_mapfile_ctime, &statbuf.st_ctim, sizeof(decltype(m_mapfile_ctime)));
+
+    if (!ParseMapfile(m_mapfile)) {return;}
+
+    m_maintenance_pipe_r = pipes[0];
+    m_maintenance_pipe_w = pipes[1];
+    m_maintenance_thread_pipe_r = pipes[0];
+    m_maintenance_thread_pipe_w = pipes[1];
+
+    pthread_t tid;
+    auto rc = XrdSysThread::Run(&tid, XrdVomsMapfile::MaintenanceThread,
+                                static_cast<void*>(this), 0, "VOMS Mapfile refresh");
+    if (rc) {
+        m_edest->Emsg("XrdVomsMapfile", "Failed to launch VOMS mapfile monitoring thread");
+        close(m_maintenance_pipe_r); m_maintenance_pipe_r = -1;
+        close(m_maintenance_pipe_w); m_maintenance_pipe_w = -1;
+        close(m_maintenance_thread_pipe_r); m_maintenance_thread_pipe_r = -1;
+        close(m_maintenance_thread_pipe_w); m_maintenance_thread_pipe_w = -1;
+        return;
+    }
+    m_is_valid = true;
+}
+
+
+XrdVomsMapfile::~XrdVomsMapfile()
+{
+    char indicator[1];
+    if (m_maintenance_pipe_w >= 0) {
+        indicator[0] = '1';
+        int rval;
+        do {rval = write(m_maintenance_pipe_w, indicator, 1);} while (rval != -1 || errno == EINTR);
+        if (m_maintenance_thread_pipe_r >= 0) {
+            do {rval = read(m_maintenance_thread_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
+            close(m_maintenance_thread_pipe_r);
+            close(m_maintenance_thread_pipe_w);
+        }
+        close(m_maintenance_pipe_r);
+        close(m_maintenance_pipe_w);
+    }
 }
 
 
@@ -88,21 +151,6 @@ XrdVomsMapfile::ParseMapfile(const std::string &mapfile)
     }
     m_entries = entries;
     return true;
-}
-
-
-bool
-XrdVomsMapfile::Reconfigure() {
-    auto now = time(NULL);
-    auto retval = true;
-    std::stringstream ss;
-    ss << "Last update " << m_last_update.load(std::memory_order_relaxed) << ", " << now;
-    m_edest->Log(LogMask::Debug, "VOMS Mapfile", ss.str().c_str());
-    if (now > m_last_update.load(std::memory_order_relaxed) + 30) {
-        retval = ParseMapfile(m_mapfile);
-        m_last_update.store(now, std::memory_order_relaxed);
-    }
-    return retval;
 }
 
 
@@ -255,8 +303,6 @@ XrdVomsMapfile::GetSecData(XrdLink * lnk, XrdSecEntity &entity, SSL *ssl)
 int
 XrdVomsMapfile::Apply(XrdSecEntity &entity)
 {
-    Reconfigure();
-
     // In current use cases, the gridmap results take precedence over the voms-mapfile
     // results.  However, the grid mapfile plugins often will populate the name attribute
     // with a reasonable default (DN or DN hash) if the mapping fails, meaning we can't
@@ -367,8 +413,70 @@ XrdVomsMapfile::Configure(XrdSysError *erp, XrdHttpSecXtractor *xtractor)
     if (!map_filename.empty()) {
         if (erp) erp->Emsg("Config", "Will initialize VOMS mapfile", map_filename.c_str());
         mapper.reset(new XrdVomsMapfile(erp, xtractor, map_filename));
-        mapper->Reconfigure();
     }
 
-    return mapper.get();
+    return mapper->IsValid() ? mapper.get() : nullptr;
+}
+
+
+void *
+XrdVomsMapfile::MaintenanceThread(void *myself_raw)
+{
+    auto myself = static_cast<XrdVomsMapfile*>(myself_raw);
+
+   auto now = monotonic_time_s();
+   auto next_update = now + m_update_interval;
+   while (true) {
+       now = monotonic_time_s();
+       auto remaining = next_update - now;
+       struct pollfd fds;
+       fds.fd = myself->m_maintenance_pipe_r;
+       fds.events = POLLIN;
+       auto rval = poll(&fds, 1, remaining*1000);
+       if (rval == -1) {
+           if (rval == EINTR) continue;
+           else break;
+       } else if (rval == 0) { // timeout!  Let's run maintenance.
+           struct stat statbuf;
+           if (-1 == stat(myself->m_mapfile.c_str(), &statbuf)) {
+               myself->m_edest->Emsg("XrdVomsMapfile", errno, "Error checking the mapfile",
+                   myself->m_mapfile.c_str());
+               next_update = monotonic_time_s() + m_update_interval_failure;
+               myself->m_mapfile_ctime.tv_sec = 0;
+               myself->m_mapfile_ctime.tv_nsec = 0;
+               myself->m_is_valid = false;
+               continue;
+           }
+           if ((myself->m_mapfile_ctime.tv_sec == statbuf.st_ctim.tv_sec) &&
+               (myself->m_mapfile_ctime.tv_nsec == statbuf.st_ctim.tv_nsec))
+           {
+               myself->m_edest->Log(LogMask::Debug, "Maintenance", "Not reloading VOMS mapfile; "
+                   "no changes detected.");
+               next_update = monotonic_time_s() + m_update_interval;
+               continue;
+           }
+           memcpy(&myself->m_mapfile_ctime, &statbuf.st_ctim, sizeof(decltype(statbuf.st_ctim)));
+
+           myself->m_edest->Log(LogMask::Debug, "Maintenance", "Reloading VOMS mapfile now");
+           if ( (myself->m_is_valid = myself->ParseMapfile(myself->m_mapfile)) ) {
+               next_update = monotonic_time_s() + m_update_interval;
+           } else {
+               next_update = monotonic_time_s() + m_update_interval_failure;
+           }
+       } else { // FD ready; let's shutdown
+           if (fds.revents & POLLIN) {
+               char indicator[1];
+               do {rval = read(myself->m_maintenance_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
+           }
+       }
+   }
+   if (errno) {
+       myself->m_edest->Emsg("Maintenance", "Failed to poll for events from parent object");
+   }
+   char indicator = '1';
+   int rval;
+   do {rval = write(myself->m_maintenance_thread_pipe_w, &indicator, 1);} while (rval != -1 || errno == EINTR);
+
+
+   return nullptr;
 }
