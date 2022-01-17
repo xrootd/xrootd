@@ -357,6 +357,79 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  //! PgWrite operation (@see FileOperation)
+  //----------------------------------------------------------------------------
+  template<bool HasHndl>
+  class PgWriteImpl: public FileOperation<PgWriteImpl, HasHndl, Resp<void>,
+      Arg<uint64_t>, Arg<uint32_t>, Arg<void*>, Arg<std::vector<uint32_t>>>
+  {
+    public:
+
+      //------------------------------------------------------------------------
+      //! Inherit constructors from FileOperation (@see FileOperation)
+      //------------------------------------------------------------------------
+      using FileOperation<PgWriteImpl, HasHndl, Resp<void>, Arg<uint64_t>,
+                          Arg<uint32_t>, Arg<void*>, Arg<std::vector<uint32_t>>>::FileOperation;
+
+      //------------------------------------------------------------------------
+      //! Argument indexes in the args tuple
+      //------------------------------------------------------------------------
+      enum { OffsetArg, SizeArg, BufferArg, CksumsArg };
+
+      //------------------------------------------------------------------------
+      //! @return : name of the operation (@see Operation)
+      //------------------------------------------------------------------------
+      std::string ToString()
+      {
+        return "PgWrite";
+      }
+
+    protected:
+
+      //------------------------------------------------------------------------
+      //! RunImpl operation (@see Operation)
+      //!
+      //! @param params :  container with parameters forwarded from
+      //!                  previous operation
+      //! @return       :  status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+      {
+        uint64_t               offset = std::get<OffsetArg>( this->args ).Get();
+        uint32_t               size   = std::get<SizeArg>( this->args ).Get();
+        void                  *buffer = std::get<BufferArg>( this->args ).Get();
+        std::vector<uint32_t>  cksums = std::get<CksumsArg>( this->args ).Get();
+        uint16_t  timeout = pipelineTimeout < this->timeout ?
+                            pipelineTimeout : this->timeout;
+        return this->file->PgWrite( offset, size, buffer, cksums, handler, timeout );
+      }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating PgReadImpl objects
+  //----------------------------------------------------------------------------
+  inline PgWriteImpl<false> PgWrite( Ctx<File> file, Arg<uint64_t> offset,
+                                    Arg<uint32_t> size, Arg<void*> buffer,
+                                    Arg<std::vector<uint32_t>> cksums,
+                                    uint16_t timeout = 0 )
+  {
+    return PgWriteImpl<false>( std::move( file ), std::move( offset ), std::move( size ),
+                               std::move( buffer ), std::move( cksums ) ).Timeout( timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating PgReadImpl objects
+  //----------------------------------------------------------------------------
+  inline PgWriteImpl<false> PgWrite( Ctx<File> file, Arg<uint64_t> offset,
+                                    Arg<uint32_t> size, Arg<void*> buffer,
+                                    uint16_t timeout = 0 )
+  {
+    std::vector<uint32_t> cksums;
+    return PgWriteImpl<false>( std::move( file ), std::move( offset ), std::move( size ),
+                               std::move( buffer ), std::move( cksums ) ).Timeout( timeout );
+  }
+
+  //----------------------------------------------------------------------------
   //! Close operation (@see FileOperation)
   //----------------------------------------------------------------------------
   template<bool HasHndl>
