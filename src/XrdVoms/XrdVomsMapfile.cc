@@ -68,9 +68,9 @@ uint64_t monotonic_time_s() {
 }
 
 
-XrdVomsMapfile::XrdVomsMapfile(XrdSysError *erp, XrdHttpSecXtractor *xrdvoms,
+XrdVomsMapfile::XrdVomsMapfile(XrdSysError *erp,
     const std::string &mapfile)
-    : m_mapfile(mapfile), m_xrdvoms(xrdvoms), m_edest(erp)
+    : m_mapfile(mapfile), m_edest(erp)
 {
     // Setup communication pipes; we write one byte to the child to tell it to shutdown;
     // it'll write one byte back to acknowledge before our destructor exits.
@@ -289,18 +289,6 @@ XrdVomsMapfile::MakePath(const XrdOucString &group)
 
 
 int
-XrdVomsMapfile::GetSecData(XrdLink * lnk, XrdSecEntity &entity, SSL *ssl)
-{
-    if (!m_xrdvoms) return -1;
-
-    auto retval = m_xrdvoms->GetSecData(lnk, entity, ssl);
-    if (retval) return retval;
-
-    return Apply(entity);
-}
-
-
-int
 XrdVomsMapfile::Apply(XrdSecEntity &entity)
 {
     // In current use cases, the gridmap results take precedence over the voms-mapfile
@@ -352,12 +340,11 @@ XrdVomsMapfile::Get()
 
 
 XrdVomsMapfile *
-XrdVomsMapfile::Configure(XrdSysError *erp, XrdHttpSecXtractor *xtractor)
+XrdVomsMapfile::Configure(XrdSysError *erp)
 {
     if (tried_configure) {
         auto result = mapper.get();
         if (result) {
-            result->SetExtractor(xtractor);
             result->SetErrorStream(erp);
         }
         return result;
@@ -370,14 +357,14 @@ XrdVomsMapfile::Configure(XrdSysError *erp, XrdHttpSecXtractor *xtractor)
 
     char *config_filename = nullptr;
     if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
-        return nullptr;
+        return VOMS_MAP_FAILED;
     }
     XrdOucStream stream(erp, getenv("XRDINSTANCE"));
 
     int cfg_fd;
     if ((cfg_fd = open(config_filename, O_RDONLY, 0)) < 0) {
         if (erp) erp->Emsg("Config", errno, "open config file", config_filename);
-        return nullptr;
+        return VOMS_MAP_FAILED;
     }
     stream.Attach(cfg_fd);
     char *var;
@@ -387,14 +374,14 @@ XrdVomsMapfile::Configure(XrdSysError *erp, XrdHttpSecXtractor *xtractor)
             auto val = stream.GetWord();
             if (!val || !val[0]) {
                 if (erp) erp->Emsg("Config", "VOMS mapfile not specified");
-                return nullptr;
+                return VOMS_MAP_FAILED;
             }
             map_filename = val;
         } else if (!strcmp(var, "voms.trace")) {
             auto val = stream.GetWord();
             if (!val || !val[0]) {
                 if (erp) erp->Emsg("Config", "VOMS logging level not specified");
-                return nullptr;
+                return VOMS_MAP_FAILED;
             }
             if (erp) erp->setMsgMask(0);
             if (erp) do {
@@ -412,10 +399,14 @@ XrdVomsMapfile::Configure(XrdSysError *erp, XrdHttpSecXtractor *xtractor)
 
     if (!map_filename.empty()) {
         if (erp) erp->Emsg("Config", "Will initialize VOMS mapfile", map_filename.c_str());
-        mapper.reset(new XrdVomsMapfile(erp, xtractor, map_filename));
+        mapper.reset(new XrdVomsMapfile(erp, map_filename));
+        if (!mapper->IsValid()) {
+            mapper.reset(nullptr);
+            return VOMS_MAP_FAILED;
+        }
     }
 
-    return mapper->IsValid() ? mapper.get() : nullptr;
+    return mapper.get();
 }
 
 

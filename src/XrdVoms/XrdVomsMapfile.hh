@@ -23,39 +23,37 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdHttp/XrdHttpSecXtractor.hh"
-
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSec/XrdSecEntity.hh"
 
 #include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
 
-class XrdVomsMapfile : public XrdHttpSecXtractor {
+#define VOMS_MAP_FAILED ((XrdVomsMapfile *)-1)
+
+class XrdVomsMapfile {
 
 public:
     virtual ~XrdVomsMapfile();
 
-    static XrdVomsMapfile *Configure(XrdSysError *, XrdHttpSecXtractor *);
+    // Returns `nullptr` if the mapfile was not configured; returns
+    // VOMS_MAP_FAILED (`(void*)-1`) if the mapfile was configured but it
+    // was unable to be parsed (or other error occurred).
+    static XrdVomsMapfile *Configure(XrdSysError *);
     static XrdVomsMapfile *Get();
 
-    virtual int GetSecData(XrdLink *, XrdSecEntity &, SSL *);
     int Apply(XrdSecEntity &);
 
     bool IsValid() const {return m_is_valid;}
 
-    /* Base class returns an error if these aren't overridden */
-    virtual int Init(SSL_CTX *, int) {return 0;}
-    virtual int InitSSL(SSL *ssl, char *cadir) {return 0;}
-    virtual int FreeSSL(SSL *) {return 0;}
-
 private:
     bool Reconfigure();
     void SetErrorStream(XrdSysError *erp) {if (erp) {m_edest = erp;}}
-    void SetExtractor(XrdHttpSecXtractor *xtractor) {if (xtractor) {m_xrdvoms = xtractor;}}
 
-    XrdVomsMapfile(XrdSysError *erp, XrdHttpSecXtractor *xrdvoms, const std::string &mapfile);
+    XrdVomsMapfile(XrdSysError *erp, const std::string &mapfile);
 
     enum LogMask {
         Debug = 0x01,
@@ -87,7 +85,6 @@ private:
 
     std::string m_mapfile;
     std::shared_ptr<const std::vector<MapfileEntry>> m_entries;
-    XrdHttpSecXtractor *m_xrdvoms{nullptr};
     XrdSysError *m_edest{nullptr};
 
     // Pipes to allow the main thread to communicate shutdown events to the maintenance

@@ -38,6 +38,7 @@
 class XrdSecEntity;
 class XrdSysError;
 class XrdSysLogger;
+class XrdVomsMapfile;
 
 class XrdVomsFun
 {
@@ -82,5 +83,7 @@ XrdOucString    gVoFmt;           // format contents of XrdSecEntity::vorg
 
 XrdSysError    &gDest;
 XrdSysLogger   *gLogger;
+
+XrdVomsMapfile *m_mapfile{nullptr};
 };
 #endif

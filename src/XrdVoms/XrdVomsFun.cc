@@ -41,6 +41,7 @@
 #include "XrdVoms.hh"
 #include "XrdVomsFun.hh"
 #include "XrdVomsTrace.hh"
+#include "XrdVomsMapfile.hh"
 
 #ifdef HAVE_XRDCRYPTO
 #include "XrdCrypto/XrdCryptoX509.hh"
@@ -380,7 +381,13 @@ int XrdVomsFun::VOMSFun(XrdSecEntity &ent)
    // Success or failure?
    int rc = !ent.vorg ? -1 : 0;
    if (rc == 0 && gGrps.Num() && !ent.grps) rc = -1;
-   
+
+   // If we have a mapfile object, apply the mapping now.
+   if (m_mapfile) {
+       auto mapfile_rc = m_mapfile->Apply(ent);
+       rc = rc ? rc : mapfile_rc;
+   }
+
    // Done
    return rc;
 }
@@ -592,6 +599,13 @@ int XrdVomsFun::VOMSInit(const char *cfg)
    if (gVOs.Num() > 0) {PRINT("+++ VO(s):        "<< voss);}
       else             {PRINT("+++ VO(s):         all");}
    PRINT("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+   m_mapfile = XrdVomsMapfile::Configure(&gDest);
+   if (m_mapfile == VOMS_MAP_FAILED) {
+      aOK = false;
+      PRINT("VOMS mapfile requested but initialization failed; failing VOMS plugin config.");
+   }
+
    // Done
    return (aOK ? gCertFmt : -1);
 }
