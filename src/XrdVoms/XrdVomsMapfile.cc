@@ -29,6 +29,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysError.hh"
 
 #include <memory>
@@ -255,6 +256,17 @@ int
 XrdVomsMapfile::Apply(XrdSecEntity &entity)
 {
     Reconfigure();
+
+    // In current use cases, the gridmap results take precedence over the voms-mapfile
+    // results.  However, the grid mapfile plugins often will populate the name attribute
+    // with a reasonable default (DN or DN hash) if the mapping fails, meaning we can't
+    // simply look at entity.name; instead, we look at an extended attribute that is only
+    // set when the mapfile is used to generate the name.
+    std::string gridmap_name;
+    auto gridmap_success = entity.eaAPI->Get("gridmap.name", gridmap_name);
+    if (gridmap_success) {
+        return 0;
+    }
 
     int from_vorg = 0, from_role = 0, from_grps = 0;
     XrdOucString vorg = entity.vorg, entry_vorg;
