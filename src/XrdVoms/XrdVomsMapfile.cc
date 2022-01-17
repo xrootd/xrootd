@@ -228,8 +228,11 @@ XrdVomsMapfile::MakePath(const XrdOucString &group)
     XrdOucString entry;
     std::vector<std::string> path;
     path.reserve(4);
-    while ((from = group.tokenize(entry, from, '/')) != -1) {
-        if (entry.empty()) continue;
+        // The const'ness of the tokenize method as declared is incorrect; we use
+        // const_cast here to avoid fixing the XrdOucString header (which would break
+        // the ABI).
+    while ((from = const_cast<XrdOucString&>(group).tokenize(entry, from, '/')) != -1) {
+        if (entry.length() == 0) continue;
         path.emplace_back(entry.c_str());
     }
     return path;
