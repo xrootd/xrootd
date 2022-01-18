@@ -226,6 +226,13 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
+    - name: Build sdist using publishing workflow
+      run: |
+        . /opt/rh/devtoolset-7/enable
+        cp packaging/wheel/* .
+        ./publish.sh
+        ls -lhtra dist/
+
   sdist-centos7:
 
     runs-on: ubuntu-latest
