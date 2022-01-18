@@ -232,13 +232,13 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else if( type & ReadTimeOut )
     {
+      if( pHSWaitSeconds )
+        CheckHSWait();
+
       if( likely( pHandShakeDone ) )
         OnReadTimeout();
       else
         OnTimeoutWhileHandshaking();
-
-      if( pHSWaitSeconds )
-        CheckHSWait();
     }
 
     //--------------------------------------------------------------------------
