@@ -83,8 +83,8 @@ virtual bool               CopyL2F(XrdXrootdAioBuff *aioP) = 0;
 
 static  const char*        TraceID;
 
-        XrdSysCondVar2     aioReady;
         XrdSysMutex        aioMutex;   // Locks private data
+        XrdSysCondVar2     aioReady;
         XrdXrootdAioBuff*  pendQ;
         XrdXrootdAioBuff*  pendQEnd;   // -> Last element in pendQ
 
