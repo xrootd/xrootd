@@ -95,7 +95,6 @@ class ChunkHandler: public ResponseHandler
         ChunkInfo *rsp = nullptr;
         response->Get( rsp );
         chunk = new PageInfo( rsp->offset, rsp->length, rsp->buffer );
-        response->Set( ( int* )0 );
       }
     }
 
