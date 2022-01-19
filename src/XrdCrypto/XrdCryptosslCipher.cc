@@ -32,6 +32,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 #include <cstring>
+#include <assert.h>
 
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
@@ -459,7 +460,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
    // Constructor for key agreement.
    // If pub is not defined, generates a DH full key,
    // the public part and parameters can be retrieved using Public().
-   // The number of random bits to be used in 'bits'.
+   // 'bits' is ignored (DH key is generated once)
    // If pub is defined with the public part and parameters of the
    // counterpart fully initialize a cipher with that information.
    // Sets also the name to 't', if different from the default one.
@@ -474,15 +475,21 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
    cipher = 0;
    deflength = 1;
 
+   static DH *dhparms = [] {
+        DH *dh = DH_new();
+        DEBUG("generate DH parameters");
+        DH_generate_parameters_ex(dh, kDHMINBITS, DH_GENERATOR_5, NULL);
+        DEBUG("generate DH parameters done");
+        return dh;
+   }();
+
+   assert(DH_get0_p(dhparms));
+
    if (!pub) {
-      DEBUG("generate DH full key");
-      //
-      // at least 128 bits
-      bits = (bits < kDHMINBITS) ? kDHMINBITS : bits;
-      //
-      // Generate params for DH object
-      fDH = DH_new();
-      if (fDH && DH_generate_parameters_ex(fDH, bits, DH_GENERATOR_5, NULL)) {
+      DEBUG("configure DH parameters");
+      // Set params for DH object
+      fDH = DHparams_dup(dhparms);
+      if (fDH) {
          int prc = 0;
          DH_check(fDH,&prc);
          if (prc == 0) {
