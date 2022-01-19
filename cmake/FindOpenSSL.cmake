@@ -68,8 +68,8 @@ endif()
 
 #-------------------------------------------------------------------------------
 # Check for the TLS support in the OpenSSL version that is available
-# (assume availble if requiting the use of static libs and the openssl version
-# is at least 1.0.2
+# (assume available if use of static libs is detected and the openssl version
+# is at least 1.0.2)
 #-------------------------------------------------------------------------------
 
 if ( OPENSSL_FOUND )
