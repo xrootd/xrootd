@@ -223,15 +223,15 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                   }
                oldP = oldP->next;
               }
-         if (!plus || strcmp(hSpec, newP->text)) isBad = false;
-            else {eDest->Say("Config warning: "
-                             "Cyclic DNS registration for ",newP->text,"\n"
-                             "Config warning: This cluster will exhibit "
-                             "undefined behaviour!!!");
-             isBad = true;
-            }
-         if (!oldP) 
-            {appList = SInsert(appList, newP);
+         if (!oldP)
+            {if (!plus || strcmp(hSpec, newP->text)) isBad = false;
+                else {eDest->Say("Config warning: "
+                                 "Cyclic DNS registration for ",newP->text,"\n"
+                                 "Config warning: This cluster will exhibit "
+                                 "undefined behaviour!!!");
+                      isBad = true;
+                     }
+             appList = SInsert(appList, newP);
              if (plus && !hush) Display(eDest, hSpec, newP->text, isBad);
             }
         }
