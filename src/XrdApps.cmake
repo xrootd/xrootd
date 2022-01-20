@@ -5,6 +5,7 @@ include( XRootDCommon )
 # Modules
 #-------------------------------------------------------------------------------
 set( LIB_XRDCL_PROXY_PLUGIN XrdClProxyPlugin-${PLUGIN_VERSION} )
+set( LIB_XRDCL_RECORDER_PLUGIN XrdClRecorder-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -176,6 +177,32 @@ set_target_properties(
   PROPERTIES
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# XrdClRecorder library
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRDCL_RECORDER_PLUGIN}
+  MODULE
+  XrdApps/RecordPlugin/XrdClRecorderPlugin.cc )
+
+target_link_libraries(${LIB_XRDCL_RECORDER_PLUGIN} XrdCl)
+
+set_target_properties(
+  ${LIB_XRDCL_RECORDER_PLUGIN}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+add_executable(
+  xrdreplay
+  XrdApps/RecordPlugin/XrdClReplay.cc )
+
+target_link_libraries(
+  xrdreplay
+  ${CMAKE_THREAD_LIBS_INIT}
+  XrdCl
+  XrdUtils )
 
 #-------------------------------------------------------------------------------
 # Install
