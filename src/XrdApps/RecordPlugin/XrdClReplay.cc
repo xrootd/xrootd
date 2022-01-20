@@ -71,7 +71,7 @@ class mytimer_t
 //------------------------------------------------------------------------------
 class ActionExecutor
 {
-  using buffer_t = std::vector<char>; //< data buffer
+  using buffer_t = std::shared_ptr<std::vector<char>>; //< data buffer
 
   public:
 
@@ -170,11 +170,11 @@ class ActionExecutor
         buffer_t buffer;
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetReadArgs();
-        Async( Read( file, offset, buffer.size(), buffer.data(), timeout ) >>
-               [buffer( std::move( buffer ) ), orgststr{ orgststr }, sync]( XRootDStatus &s, ChunkInfo &r ) mutable
+        Async( Read( file, offset, buffer->size(), buffer->data(), timeout ) >>
+               [buffer, orgststr{ orgststr }, sync]( XRootDStatus &s, ChunkInfo &r ) mutable
                {
                  HandleStatus( s, orgststr );
-                 buffer.clear();
+                 buffer.reset();
                  sync.reset();
                } );
       }
@@ -184,11 +184,11 @@ class ActionExecutor
         buffer_t buffer;
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetPgReadArgs();
-        Async( PgRead( file, offset, buffer.size(), buffer.data(), timeout ) >>
-               [buffer{ std::move( buffer ) }, orgststr{ orgststr }, sync]( XRootDStatus &s, PageInfo &r ) mutable
+        Async( PgRead( file, offset, buffer->size(), buffer->data(), timeout ) >>
+               [buffer, orgststr{ orgststr }, sync]( XRootDStatus &s, PageInfo &r ) mutable
                {
                  HandleStatus( s, orgststr );
-                 buffer.clear();
+                 buffer.reset();
                  sync.reset();
                } );
       }
@@ -198,11 +198,11 @@ class ActionExecutor
         buffer_t buffer;
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetWriteArgs();
-        Async( Write( file, offset, buffer.size(), buffer.data(), timeout ) >>
-               [buffer{ std::move( buffer ) }, orgststr{ orgststr }, sync]( XRootDStatus &s ) mutable
+        Async( Write( file, offset, buffer->size(), buffer->data(), timeout ) >>
+               [buffer, orgststr{ orgststr }, sync]( XRootDStatus &s ) mutable
                {
                  HandleStatus( s, orgststr );
-                 buffer.clear();
+                 buffer.reset();
                  sync.reset();
                } );
       }
@@ -212,11 +212,11 @@ class ActionExecutor
         buffer_t buffer;
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetPgWriteArgs();
-        Async( PgWrite( file, offset, buffer.size(), buffer.data(), timeout ) >>
-               [buffer{ std::move( buffer ) }, orgststr{ orgststr }, sync]( XRootDStatus &s ) mutable
+        Async( PgWrite( file, offset, buffer->size(), buffer->data(), timeout ) >>
+               [buffer, orgststr{ orgststr }, sync]( XRootDStatus &s ) mutable
                {
                  HandleStatus( s, orgststr );
-                 buffer.clear();
+                 buffer.reset();
                  sync.reset();
                } );
       }
@@ -343,7 +343,7 @@ class ActionExecutor
         throw std::invalid_argument( "Failed to parse read arguments." );
       uint64_t offset = std::stoull( tokens[0] );
       uint32_t length = std::stoul( tokens[1] );
-      buffer_t buffer( length, 'A' );
+      auto buffer = std::make_shared<std::vector<char>>( length, 'A' );
       uint16_t timeout = static_cast<uint16_t>( std::stoul( tokens[2] ) );
       return std::make_tuple( offset, buffer, timeout );
     }
