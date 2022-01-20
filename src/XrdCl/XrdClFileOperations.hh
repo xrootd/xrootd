@@ -208,7 +208,16 @@ namespace XrdCl
         return this->file->Open( url, flags, mode, handler, timeout );
       }
   };
-  typedef OpenImpl<false> Open;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating ReadImpl objects
+  //----------------------------------------------------------------------------
+  inline OpenImpl<false> Open( Ctx<File> file, Arg<std::string> url, Arg<OpenFlags::Flags> flags,
+                               Arg<Access::Mode> mode = Access::None, uint16_t timeout = 0 )
+  {
+    return OpenImpl<false>( std::move( file ), std::move( url ), std::move( flags ),
+                            std::move( mode ) ).Timeout( timeout );
+  }
 
   //----------------------------------------------------------------------------
   //! Read operation (@see FileOperation)
@@ -466,7 +475,14 @@ namespace XrdCl
         return this->file->Close( handler, timeout );
       }
   };
-  typedef CloseImpl<false> Close;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating CloseImpl objects
+  //----------------------------------------------------------------------------
+  inline CloseImpl<false> Close( Ctx<File> file, uint16_t timeout = 0 )
+  {
+    return CloseImpl<false>( std::move( file ) ).Timeout( timeout );
+  }
 
   //----------------------------------------------------------------------------
   //! Stat operation (@see FileOperation)
@@ -616,7 +632,14 @@ namespace XrdCl
         return this->file->Sync( handler, timeout );
       }
   };
-  typedef SyncImpl<false> Sync;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating SyncImpl objects
+  //----------------------------------------------------------------------------
+  inline SyncImpl<false> Sync( Ctx<File> file, uint16_t timeout = 0 )
+  {
+    return SyncImpl<false>( std::move( file ) ).Timeout( timeout );
+  }
 
   //----------------------------------------------------------------------------
   //! Truncate operation (@see FileOperation)
@@ -666,9 +689,9 @@ namespace XrdCl
   //! Factory for creating TruncateImpl objects (as there is another Stat in
   //! FileSystem there would be a clash of typenames).
   //----------------------------------------------------------------------------
-  inline TruncateImpl<false> Truncate( Ctx<File> file, Arg<uint64_t> size )
+  inline TruncateImpl<false> Truncate( Ctx<File> file, Arg<uint64_t> size, uint16_t timeout )
   {
-    return TruncateImpl<false>( std::move( file ), std::move( size ) );
+    return TruncateImpl<false>( std::move( file ), std::move( size ) ).Timeout( timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -717,7 +740,21 @@ namespace XrdCl
         return this->file->VectorRead( chunks, buffer, handler, timeout );
       }
   };
-  typedef VectorReadImpl<false> VectorRead;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating VectorReadImpl objects
+  //----------------------------------------------------------------------------
+  inline VectorReadImpl<false> VectorRead( Ctx<File> file, Arg<ChunkList> chunks,
+                                           Arg<void*> buffer, uint16_t timeout = 0 )
+  {
+    return VectorReadImpl<false>( std::move( file ), std::move( chunks ), std::move( buffer ) ).Timeout( timeout );
+  }
+
+  inline VectorReadImpl<false> VectorRead( Ctx<File> file, Arg<ChunkList> chunks,
+                                           uint16_t timeout = 0 )
+  {
+    return VectorReadImpl<false>( std::move( file ), std::move( chunks ), nullptr ).Timeout( timeout );
+  }
 
   //----------------------------------------------------------------------------
   //! VectorWrite operation (@see FileOperation)
@@ -763,7 +800,15 @@ namespace XrdCl
         return this->file->VectorWrite( chunks, handler, timeout );
       }
   };
-  typedef VectorWriteImpl<false> VectorWrite;
+
+  //----------------------------------------------------------------------------
+  //! Factory for creating VectorWriteImpl objects
+  //----------------------------------------------------------------------------
+  inline VectorWriteImpl<false> VectorWrite( Ctx<File> file, Arg<ChunkList> chunks,
+                                             uint16_t timeout = 0 )
+  {
+    return VectorWriteImpl<false>( std::move( file ), std::move( chunks ) ).Timeout( timeout );
+  }
 
   //----------------------------------------------------------------------------
   //! WriteV operation (@see FileOperation)
