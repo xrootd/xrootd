@@ -32,7 +32,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 #include <cstring>
-#include <assert.h>
+#include <cassert>
 
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
@@ -475,32 +475,27 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
    cipher = 0;
    deflength = 1;
 
-   static DH *dhparms = [] {
-        DH *dh = DH_new();
-        DEBUG("generate DH parameters");
-        DH_generate_parameters_ex(dh, kDHMINBITS, DH_GENERATOR_5, NULL);
-        DEBUG("generate DH parameters done");
-        return dh;
-   }();
-
-   assert(DH_get0_p(dhparms));
-
    if (!pub) {
+      static DH *dhparms = [] {
+         DH *dh = DH_new();
+         DEBUG("generate DH parameters");
+         DH_generate_parameters_ex(dh, kDHMINBITS, DH_GENERATOR_5, NULL);
+         DEBUG("generate DH parameters done");
+         return dh;
+      }();
+
       DEBUG("configure DH parameters");
       // Set params for DH object
+      assert(DH_get0_p(dhparms));
       fDH = DHparams_dup(dhparms);
       if (fDH) {
-         int prc = 0;
-         DH_check(fDH,&prc);
-         if (prc == 0) {
-            //
-            // Generate DH key
-            if (DH_generate_key(fDH)) {
-               // Init context
-               ctx = EVP_CIPHER_CTX_new();
-               if (ctx)
-                  valid = 1;
-            }
+         //
+         // Generate DH key
+         if (DH_generate_key(fDH)) {
+            // Init context
+            ctx = EVP_CIPHER_CTX_new();
+            if (ctx)
+               valid = 1;
          }
       }
 
