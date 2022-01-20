@@ -16,6 +16,9 @@ Prerelease Notes
   **Commits: fc7edf7f
   **[cmsd]** Avoid SEGV, avoid using pointers after deleting them.
   **Commits: cfada244
+  **[XrdCl]** Avoid derefferencing null ptr when trasforming ChunkInfo
+              into PageInfo.
+  **Commits: 8621a6cb 888ebad6
 
 + **Minor bug fixes**
   **[SciTokens]** Regularize paths used for authorization.
@@ -24,3 +27,7 @@ Prerelease Notes
 + **Miscellaneous**
   **[Utils]** Redefine ENODATA when missing.
   **Commits: b0584849
+  **[CMake]** Add support for static openssl libraries
+  **Commits: 0cf1f29f 79501b4f
+  **[CI]** Add GitHub Actions based CI
+  **Commits: 8641f0ce e4cb0b12
