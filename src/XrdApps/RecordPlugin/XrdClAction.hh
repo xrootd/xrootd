@@ -65,8 +65,6 @@ namespace XrdCl {
     //--------------------------------------------------------------------------
     inline std::string ToString()
     {
-      using msecond_t = std::chrono::duration<uint64_t, std::milli>;
-
       std::stringstream ss;
       ss << id << ',';
       ss << Name()   << ',';

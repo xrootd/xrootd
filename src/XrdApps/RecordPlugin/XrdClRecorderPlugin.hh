@@ -39,7 +39,6 @@ class RecorderFactory : public PlugInFactory
     //----------------------------------------------------------------------------
     RecorderFactory( const std::map<std::string, std::string>* config )
     {
-      Log* log = DefaultEnv::GetLog();
       if( config )
       {
         auto itr = config->find( "output" );

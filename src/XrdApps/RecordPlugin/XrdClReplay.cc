@@ -462,7 +462,7 @@ std::unordered_map<File*, action_list> ParseInput( const std::string &path )
     std::string action = tokens[1];                // action name (e.g. Open)
     uint64_t    start  = std::stoull( tokens[2] ); // start time
     std::string args   = tokens[3];                // operation arguments
-    uint64_t    stop   = std::stoull( tokens[4] ); // stop time
+    // uint64_t    stop   = std::stoull( tokens[4] ); // stop time
     std::string status = tokens[5];                // operation status
     std::string resp   = tokens[6];                // server response
     if( !files.count( id ) )

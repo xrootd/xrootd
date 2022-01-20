@@ -28,8 +28,10 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
-
 #include "XrdClAction.hh"
+
+#include <mutex>
+#include <fcntl.h>
 
 namespace XrdCl
 {
@@ -94,7 +96,7 @@ class Recorder: public FilePlugIn
           else
             btsWritten += rc;
         }
-        while( btsWritten < entry.size() );
+        while( size_t( btsWritten ) < entry.size() );
         return true;;
       }
 
