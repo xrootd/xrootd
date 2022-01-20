@@ -32,6 +32,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 #include <cstring>
+#include <cassert>
 
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
@@ -487,7 +488,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
    // Constructor for key agreement.
    // If pub is not defined, generates a DH full key,
    // the public part and parameters can be retrieved using Public().
-   // The number of random bits to be used in 'bits'.
+   // 'bits' is ignored (DH key is generated once)
    // If pub is defined with the public part and parameters of the
    // counterpart fully initialize a cipher with that information.
    // Sets also the name to 't', if different from the default one.
@@ -503,35 +504,32 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
    deflength = 1;
 
    if (!pub) {
-      DEBUG("generate DH full key");
+      static EVP_PKEY *dhparms = [] {
+         DEBUG("generate DH parameters");
+         EVP_PKEY *dhParam = 0;
+         EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, 0);
+         EVP_PKEY_paramgen_init(pkctx);
+         EVP_PKEY_CTX_set_dh_paramgen_prime_len(pkctx, kDHMINBITS);
+         EVP_PKEY_CTX_set_dh_paramgen_generator(pkctx, 5);
+         EVP_PKEY_paramgen(pkctx, &dhParam);
+         EVP_PKEY_CTX_free(pkctx);
+         DEBUG("generate DH parameters done");
+         return dhParam;
+      }();
+
+      DEBUG("configure DH parameters");
       //
-      // at least 128 bits
-      bits = (bits < kDHMINBITS) ? kDHMINBITS : bits;
-      //
-      // Generate params for DH object
-      EVP_PKEY *dhParam = 0;
-      EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, 0);
-      EVP_PKEY_paramgen_init(pkctx);
-      EVP_PKEY_CTX_set_dh_paramgen_prime_len(pkctx, bits);
-      EVP_PKEY_CTX_set_dh_paramgen_generator(pkctx, 5);
-      EVP_PKEY_paramgen(pkctx, &dhParam);
+      // Set params for DH object
+      assert(dhparms);
+      EVP_PKEY_CTX *pkctx = EVP_PKEY_CTX_new(dhparms, 0);
+      EVP_PKEY_keygen_init(pkctx);
+      EVP_PKEY_keygen(pkctx, &fDH);
       EVP_PKEY_CTX_free(pkctx);
-      if (dhParam) {
-         if (XrdCheckDH(dhParam) == 1) {
-            //
-            // Generate DH key
-            pkctx = EVP_PKEY_CTX_new(dhParam, 0);
-            EVP_PKEY_keygen_init(pkctx);
-            EVP_PKEY_keygen(pkctx, &fDH);
-            EVP_PKEY_CTX_free(pkctx);
-            if (fDH) {
-               // Init context
-               ctx = EVP_CIPHER_CTX_new();
-               if (ctx)
-                  valid = 1;
-            }
-         }
-         EVP_PKEY_free(dhParam);
+      if (fDH) {
+         // Init context
+         ctx = EVP_CIPHER_CTX_new();
+         if (ctx)
+            valid = 1;
       }
 
    } else {
