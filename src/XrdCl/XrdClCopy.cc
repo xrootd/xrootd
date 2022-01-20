@@ -438,8 +438,8 @@ XrdCpFile *IndexRemote( XrdCl::FileSystem *fs,
     current = new XrdCpFile( path.c_str(), badUrl );
     if( badUrl )
     {
-      delete current;
       log->Error( AppMsg, "Bad URL: %s", current->Path );
+      delete current;
       return 0;
     }
 
