@@ -14,6 +14,8 @@ Prerelease Notes
 + **Major bug fixes**
   **[SciTokens]** Correct deletion from std::map to avoid SEGV.
   **Commits: fc7edf7f
+  **[cmsd]** Avoid SEGV, avoid using pointers after deleting them.
+  **Commits: cfada244
 
 + **Minor bug fixes**
   **[SciTokens]** Regularize paths used for authorization.
