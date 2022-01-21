@@ -194,6 +194,8 @@ namespace XrdCl {
 
     void Serialize( AnyObject *response )
     {
+      if( !response )
+        return;
       StatInfo *info = nullptr;
       response->Get( info );
       std::stringstream ss;
@@ -236,6 +238,8 @@ namespace XrdCl {
 
     void Serialize( AnyObject *response )
     {
+      if( !response )
+        return;
       ChunkInfo *ptr = nullptr;
       response->Get( ptr );
       serialrsp = std::to_string( ptr->length );
@@ -269,6 +273,8 @@ namespace XrdCl {
 
     void Serialize( AnyObject *response )
     {
+      if( !response )
+        return;
       PageInfo *ptr = nullptr;
       response->Get( ptr );
       serialrsp = std::to_string( ptr->GetLength() ) + ';' +
@@ -412,6 +418,8 @@ namespace XrdCl {
 
     void Serialize( AnyObject *response )
     {
+      if( !response )
+        return;
       VectorReadInfo *ptr = nullptr;
       response->Get( ptr );
       std::stringstream ss;
@@ -480,6 +488,8 @@ namespace XrdCl {
 
     void Serialize( AnyObject *response )
     {
+      if( !response )
+        return;
       Buffer *ptr = nullptr;
       response->Get( ptr );
       serialrsp = std::to_string( ptr->GetSize() );
