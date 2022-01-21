@@ -234,8 +234,7 @@ namespace XrdEc
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     for( size_t i = 0; i < cdcnt; ++i )
     {
-      //std::string fn = std::to_string( i );                          // file name (URL of the data archive)
-      std::string fn = XrdEc::ObjStr;
+      std::string fn = std::to_string( i );                          // file name (URL of the data archive)
       buffer_t buff( dataarchs[i]->GetCD() );                        // raw data buffer (central directory of the data archive)
       uint32_t cksum = objcfg.digest( 0, buff.data(), buff.size() ); // digest (crc) of the buffer
       lfhs.emplace_back( fn, cksum, buff.size(), time( 0 ) );        // LFH record for the buffer
