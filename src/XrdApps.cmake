@@ -184,7 +184,7 @@ set_target_properties(
 add_library(
   ${LIB_XRDCL_RECORDER_PLUGIN}
   MODULE
-  XrdApps/RecordPlugin/XrdClRecorderPlugin.cc )
+  XrdApps/XrdClRecordPlugin/XrdClRecorderPlugin.cc )
 
 target_link_libraries(${LIB_XRDCL_RECORDER_PLUGIN} XrdCl)
 
@@ -196,7 +196,7 @@ set_target_properties(
 
 add_executable(
   xrdreplay
-  XrdApps/RecordPlugin/XrdClReplay.cc )
+  XrdApps/XrdClRecordPlugin/XrdClReplay.cc )
 
 target_link_libraries(
   xrdreplay

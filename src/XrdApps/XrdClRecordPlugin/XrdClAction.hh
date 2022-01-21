@@ -412,7 +412,7 @@ namespace XrdCl {
       std::stringstream ss;
       ss << req[0].offset << ";" << req[0].length;
       for( size_t i = 1; i < req.size(); ++i )
-        ss << req[i].offset << ";" << req[i].length;
+        ss << ";" << req[i].offset << ";" << req[i].length;
       return ss.str();
     }
 
@@ -456,7 +456,7 @@ namespace XrdCl {
       std::stringstream ss;
       ss << req[0].offset << ";" << req[0].length;
       for( size_t i = 1; i < req.size(); ++i )
-        ss << req[i].offset << ";" << req[i].length;
+        ss << ";" << req[i].offset << ";" << req[i].length;
       return ss.str();
     }
 

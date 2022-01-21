@@ -148,9 +148,12 @@ class Recorder: public FilePlugIn
       //------------------------------------------------------------------------
       ~Output()
       {
-        int rc = close( fd );
-        if( rc < 0 )
-          DefaultEnv::GetLog()->Warning( AppMsg, "[Recorder] failed to close the output file: %s", strerror( errno ) );
+        if( fd >= 0 )
+        {
+          int rc = close( fd );
+          if( rc < 0 )
+            DefaultEnv::GetLog()->Warning( AppMsg, "[Recorder] failed to close the output file: %s", strerror( errno ) );
+        }
       }
 
       std::mutex  mtx;   //< mutex guarding the writes

@@ -317,7 +317,6 @@ class ActionExecutor
     //--------------------------------------------------------------------------
     uint16_t GetCloseArgs()
     {
-      std::cout << "args = " << args << std::endl;
       return static_cast<uint16_t>( std::stoul( args ) );
     }
 
@@ -402,10 +401,10 @@ class ActionExecutor
       std::vector<std::string> tokens;
       Utils::splitString( tokens, args, ";" );
       ChunkList chunks;
-      for( size_t i = 0; i < tokens.size(); i += 2 )
+      for( size_t i = 0; i < tokens.size() - 1; i += 2 )
       {
-        uint64_t offset = std::stoull( tokens[1] );
-        uint32_t length = std::stoul( tokens[0] );
+        uint64_t offset = std::stoull( tokens[i] );
+        uint32_t length = std::stoul( tokens[i+1] );
         char*    buffer = new char[length];
         memset( buffer, 'A', length );
         chunks.emplace_back( offset, length, buffer );
@@ -492,7 +491,7 @@ std::thread ExecuteActions( std::unique_ptr<File> file, action_list &&actions )
         for( auto &p : actions )
         {
           if( p.first > prevstop )
-            std::this_thread::sleep_for( std::chrono::duration<uint64_t, std::milli>( p.first - prevstop ) );
+            std::this_thread::sleep_for( std::chrono::seconds( p.first - prevstop ) );
           prevstop = p.first;
           auto &action = p.second;
           mytimer_t timer;
