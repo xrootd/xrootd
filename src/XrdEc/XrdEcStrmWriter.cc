@@ -294,6 +294,11 @@ namespace XrdEc
     std::vector<XrdCl::Pipeline> closes;
     std::vector<XrdCl::Pipeline> save_metadata;
     closes.reserve( size );
+    std::string closeTime = std::to_string( time(NULL) );
+
+    std::vector<XrdCl::xattr_t> xav{ {"xrdec.filesize", std::to_string(GetSize())},
+                                     {"xrdec.strpver", closeTime.c_str()} };
+
     for( size_t i = 0; i < size; ++i )
     {
       //-----------------------------------------------------------------------
@@ -301,8 +306,7 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       if( dataarchs[i]->IsOpen() )
       {
-        std::string size( std::to_string( GetSize() ) );
-        XrdCl::Pipeline p = XrdCl::SetXAttr( dataarchs[i]->GetFile(), "xrdec.filesize", size )
+        XrdCl::Pipeline p = XrdCl::SetXAttr( dataarchs[i]->GetFile(), xav )
                           | XrdCl::CloseArchive( *dataarchs[i] );
         closes.emplace_back( std::move( p ) );
       }
