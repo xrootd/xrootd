@@ -37,6 +37,7 @@
 #include "Xrd/XrdScheduler.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
@@ -99,6 +100,12 @@ static const int          argvnum = sizeof(theArgs)/sizeof(theArgs[0]);
 /*                      G l o b a l   F u n c t i o n s                       */
 /******************************************************************************/
 
+namespace XrdXrootd
+{
+extern XrdSysError   eLog;
+}
+using namespace XrdXrootd;
+
 extern XrdSysTrace      XrdXrootdTrace;
   
 int XrdXrootdJobWaiting(XrdXrootdJob2Do *item, void *arg)
@@ -152,10 +159,15 @@ XrdXrootdJob2Do::~XrdXrootdJob2Do()
 /******************************************************************************/
 /*                                  D o I t                                   */
 /******************************************************************************/
+
+#define jobInfo theJob->JobName<<' '<<(theArgs[1] ? theArgs[1] : "")\
+                <<(theArgs[2] ? " " : "")<<(theArgs[2] ? theArgs[2] : "")
   
 void XrdXrootdJob2Do::DoIt()
 {
+   static const char *TraceID = "jobXeq";
    XrdXrootdJob2Do *jp = 0;
+   const char *endStat = " completed";
    char *lp = 0;
    int i, rc = 0;
 
@@ -163,9 +175,11 @@ void XrdXrootdJob2Do::DoIt()
 // perform the actual function and get the result and send to any async clients
 //
    if (Status != Job_Cancel)
-      {if ((rc = theJob->theProg->Run(&jobStream, theArgs[1], theArgs[2],
+      {TRACE(REQ, "Job "<<jobInfo<<" started");
+       if ((rc = theJob->theProg->Run(&jobStream, theArgs[1], theArgs[2],
                          theArgs[3], theArgs[4])))
           {Status = Job_Cancel;
+           endStat= " failed";
            lp = jobStream.GetLine();
            theJob->myMutex.Lock();
           }
@@ -173,14 +187,21 @@ void XrdXrootdJob2Do::DoIt()
                 rc = theJob->theProg->RunDone(jobStream);
                 theJob->myMutex.Lock();
                 if ((rc && rc != -EPIPE) || (rc == -EPIPE && (!lp || !(*lp))))
-                   Status = Job_Cancel;
+                   {Status = Job_Cancel; endStat = " failed";}
                    else if (Status != Job_Cancel)
                            {Status = Job_Done;
                             for (i = 0; i < numClients; i++)
                                 if (!Client[i].isSync) {sendResult(lp); break;}
                            }
                }
+       } else {
+        endStat = " cancelled";
+        theJob->myMutex.Lock();
        }
+
+// Produce a trace record
+//
+   TRACE(REQ, "Job "<<jobInfo<<endStat);
 
 // If the number of jobs > than the max allowed, then redrive a waiting job
 // if in fact we represent a legitimate job slot (this could a phantom slot
@@ -313,7 +334,7 @@ XrdOucTList *XrdXrootdJob2Do::lstClient()
 /*                             v e r C l i e n t                              */
 /******************************************************************************/
   
-int XrdXrootdJob2Do::verClient(int dodel)
+int XrdXrootdJob2Do::verClient(int dodel) // Caller must have theJob->myMutex
 {
    int i, j, k;
 
@@ -330,9 +351,16 @@ int XrdXrootdJob2Do::verClient(int dodel)
 //
    if (!numClients && dodel)
       {XrdXrootdJob2Do *jp = theJob->JobTable.Remove(JobNum);
-       if (jp->Status == XrdXrootdJob2Do::Job_Waiting) theJob->numJobs--;
-       delete jp;
-       return 0;
+       if (jp)
+          {if (jp->Status == XrdXrootdJob2Do::Job_Waiting) theJob->numJobs--;
+           delete jp;
+           return 0;
+          } else {
+           char ebuff[80];
+           snprintf(ebuff, sizeof(ebuff), "Unable to find %s job %d;",
+                           theJob->JobName, JobNum);
+           eLog.Emsg("Job2Do", ebuff, "job slot disabled!");
+          }
       }
    return numClients;
 }
@@ -341,7 +369,7 @@ int XrdXrootdJob2Do::verClient(int dodel)
 /*                               R e d r i v e                                */
 /******************************************************************************/
   
-void XrdXrootdJob2Do::Redrive()
+void XrdXrootdJob2Do::Redrive() // Caller must have theJob->myMutex held
 {
    XrdXrootdJob2Do *jp;
    int Start = 0;
@@ -364,10 +392,12 @@ void XrdXrootdJob2Do::Redrive()
 /******************************************************************************/
 /*                            s e n d R e s u l t                             */
 /******************************************************************************/
+
+// Caller must have theJob->myMutex locked.
   
 void XrdXrootdJob2Do::sendResult(char *lp, int caned, int jrc)
 {
-   static const char *TraceID   = "sendResult";
+   static const char *TraceID   = "jobSendResult";
    static const kXR_int32 Xcan  = static_cast<kXR_int32>(htonl(kXR_Cancelled));
    XrdXrootdReqID ReqID;
    struct iovec   jobVec[6];
@@ -619,6 +649,8 @@ int XrdXrootdJob::Schedule(const char         *jkey,
 /*                               C l e a n U p                                */
 /******************************************************************************/
   
+// The caller must have myMutex locked
+
 void XrdXrootdJob::CleanUp(XrdXrootdJob2Do *jp)
 {
    int theStatus = jp->Status;
@@ -641,6 +673,8 @@ void XrdXrootdJob::CleanUp(XrdXrootdJob2Do *jp)
 /*                            s e n d R e s u l t                             */
 /******************************************************************************/
   
+// Caller must have myMutex locked.
+
 int XrdXrootdJob::sendResult(XrdXrootdResponse *resp,
                              const char        *rpfx,
                              XrdXrootdJob2Do   *job)
