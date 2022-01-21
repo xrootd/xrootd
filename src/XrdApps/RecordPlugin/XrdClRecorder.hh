@@ -381,6 +381,18 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! VectorRead
+  //----------------------------------------------------------------------------
+  virtual XRootDStatus VectorWrite( const ChunkList &chunks,
+                                    ResponseHandler *handler,
+                                    uint16_t         timeout )
+  {
+    std::unique_ptr<Action> ptr( new VectorWriteAction( this, chunks, timeout ) );
+    RecordHandler *recHandler = new RecordHandler( output, std::move( ptr ), handler );
+    return file.VectorWrite( chunks, recHandler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
   //! Fcntl
   //----------------------------------------------------------------------------
   virtual XRootDStatus Fcntl(const Buffer&    arg,
