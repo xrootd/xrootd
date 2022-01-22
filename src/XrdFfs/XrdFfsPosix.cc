@@ -800,8 +800,11 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
     res = -1;
     errno = ENOENT;
     for (i = 0; i < nurls; i++)
+    {
+        time_t max_mtime = 0;
         if (res_i[i] == 0) 
         {
+            if (stbuf_i[i].st_mtime <= max_mtime) continue; 
             res = 0;
             errno = 0;
             memcpy((void*)stbuf, (void*)(&stbuf_i[i]), sizeof(struct stat));
@@ -813,6 +816,7 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
             errno = ETIMEDOUT;
             syslog(LOG_WARNING, "WARNING: stat(%s) failed (connection timeout)", newurls[i]);
         }
+    }
 
     for (i = 0; i < nurls; i++)
         free(newurls[i]);

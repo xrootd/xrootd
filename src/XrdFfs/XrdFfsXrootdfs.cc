@@ -442,7 +442,10 @@ static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info 
     int res, fd;
     if (!S_ISREG(mode))
         return -EPERM;
-    res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
+    if (getenv("XRDCL_EC"))
+        res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY | O_EXCL, true, &fd);
+    else
+        res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
     if (res < 0) return res;
     fi->fh = fd;
     XrdFfsWcache_create(fd);    // Unlike mknod and like open, prepare wcache.
@@ -799,6 +802,19 @@ static int xrootdfs_read(const char *path, char *buf, size_t size, off_t offset,
 
     fd = (int) fi->fh;
     XrdFfsWcache_flush(fd);  /* in case is the file is reading/writing */
+
+    if (getenv("XRDCL_EC"))
+    {
+        struct stat stbuf;
+        XrdPosixXrootd::Fstat(fd, &stbuf);  // Silly but does not seem to hurt performance
+        off_t fsize = stbuf.st_size;
+
+        if ( offset >= fsize )
+            return 0;
+
+        size = (size_t)(fsize - offset) > size ? size : fsize - offset; 
+    }
+
     res = XrdFfsPosix_pread(fd, buf, size, offset);
     if (res == -1)
         res = -errno;
