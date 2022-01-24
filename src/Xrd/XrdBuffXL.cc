@@ -63,7 +63,8 @@ XrdBuffXL::XrdBuffXL() : bucket(0), totalo(0), pagsz(getpagesize()), slots(0),
 
 void XrdBuffXL::Init(int maxMSZ)
 {
-   int lg2, chunksz;
+   unsigned int lg2;
+   int chunksz;
 
 // If this is a duplicate call, delete the previous setup
 //

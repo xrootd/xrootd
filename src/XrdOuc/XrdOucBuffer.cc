@@ -76,7 +76,7 @@ XrdOucBuffPool::XrdOucBuffPool(int minsz, int maxsz,
 
 // Allocate a slot vector for this
 //
-   bSlot = new BuffSlot[slots];
+   bSlot = new BuffSlot[(unsigned int)slots];
 
 // Complete initializing the slot vector
 //
