@@ -259,7 +259,7 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
 //
    if (aInfo.aNum4 || aInfo.aNum6)
       {aVsz = aInfo.aNum4 + aInfo.aNum6;
-       *aVec = new XrdNetAddr[aVsz];
+       *aVec = new XrdNetAddr[(unsigned int)aVsz];
        FillAddr(aInfo, *aVec);
       }
 

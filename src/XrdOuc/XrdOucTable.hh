@@ -40,7 +40,7 @@ public:
 
          XrdOucTable(int maxe)
                     {int i;
-                     Table = new OucTable[maxe];
+                     Table = new OucTable[(unsigned int)maxe];
                      maxnum = maxe; curnum = 0; avlnum = 0;
                      for (i = 1; i < maxe; i++) Table[i-1].Fnum = i;
                      Table[maxe-1].Fnum = -1;
