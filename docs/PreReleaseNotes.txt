@@ -12,6 +12,8 @@ Prerelease Notes
   **Commits: ded8082e
 
 + **Major bug fixes**
+  **]GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
+  **Commits: 8c38b20f
   **[Server]** Prevent SEGV due to missing lock call for background jobs.
   **Commits: 7615d866
   **[SciTokens]** Correct deletion from std::map to avoid SEGV.
