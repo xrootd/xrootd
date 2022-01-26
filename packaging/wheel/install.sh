@@ -38,14 +38,27 @@ if [ "$res" -ne "0" ]; then
 fi
 
 cd ../bindings/python
-$6 setup.py install $3 # $6 holds the python sys.executable
-res=$?
+
+# Determine if shutil.which is available for a modern Python package install
+${6} -c 'import shutil.which' &> /dev/null  # $6 holds the python sys.executable
+shutil_which_available=$?
+if [ "${shutil_which_available}" -ne "0" ]; then
+    ${6} setup.py install ${3}
+    res=$?
+else
+    ${6} -m pip install ${3} .
+    res=$?
+fi
+unset shutil_which_available
+
 if [ "$res" -ne "0" ]; then
     exit 1
 fi
 
 cd $startdir
 rm -r xrootdbuild
+
+# TODO: Remove all of the below and build a wheel using PyPA tools
 
 # convert the egg-info into a proper dist-info
 egginfo_path=$(ls $1/xrootd-*.egg-info)
