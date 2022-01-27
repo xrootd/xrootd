@@ -32,6 +32,8 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileSystemOperations.hh"
+#include "XrdCl/XrdClParallelOperation.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
 #include <cstdlib>
@@ -591,30 +593,37 @@ XRootDStatus DoRm( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc != 2 )
+  if( argc < 2 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  std::vector<Pipeline> rms;
+  rms.reserve( argc - 1 );
+  for( size_t i = 1; i < argc; ++i )
   {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
+    std::string fullPath;
+    if( !BuildPath( fullPath, env, args[i] ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path: %s", fullPath.c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    rms.emplace_back( Rm( fs, fullPath ) >>
+                      [log, fullPath]( XRootDStatus &st )
+                      {
+                        log->Error( AppMsg, "Unable remove %s: %s",
+                                            fullPath.c_str(),
+                                            st.ToStr().c_str() );
+                      } );
   }
 
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  XRootDStatus st = fs->Rm( fullPath );
+  XRootDStatus st = WaitFor( Parallel( rms ) );
   if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Unable remove %s: %s",
-                        fullPath.c_str(),
-                        st.ToStr().c_str() );
     return st;
-  }
 
   return XRootDStatus();
 }
