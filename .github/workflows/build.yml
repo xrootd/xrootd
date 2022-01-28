@@ -336,7 +336,8 @@ jobs:
         . /opt/rh/devtoolset-7/enable
         cp packaging/wheel/* .
         ./publish.sh
-        python3 -m pip --verbose install dist/xrootd-*.tar.gz
+        cd ..  # Move xrootd.egg-info off PYTHONPATH
+        python3 -m pip --verbose install xrootd/dist/xrootd-*.tar.gz
         python3 -m pip list
 
     - name: Verify Python bindings
@@ -383,7 +384,8 @@ jobs:
         . /opt/rh/devtoolset-7/enable
         cp packaging/wheel/* .
         ./publish.sh
-        python3 -m pip --verbose install dist/xrootd-*.tar.gz
+        cd ..  # Move xrootd.egg-info off PYTHONPATH
+        python3 -m pip --verbose install xrootd/dist/xrootd-*.tar.gz
         python3 -m pip list
 
     - name: Verify Python bindings
