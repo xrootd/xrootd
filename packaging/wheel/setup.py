@@ -14,11 +14,30 @@ import subprocess
 import sys
 
 def get_version():
-    version = subprocess.check_output(['./genversion.sh', '--print-only'])
-    version = version.decode()
-    if version.startswith('v'):
+    version = subprocess.check_output(['./genversion.sh', '--print-only']).decode()
+
+    # Sanitize in keeping with PEP 440
+    # c.f. https://www.python.org/dev/peps/pep-0440/
+    # c.f. https://github.com/pypa/pip/issues/8368
+    # version needs to pass pip._vendor.packaging.version.Version()
+    version = version.replace("-", ".")
+
+    if version.startswith("v"):
         version = version[1:]
-    version = version.split('-')[0]
+
+    version_parts = version.split(".")
+
+    # Assume SemVer as default case
+    if len(version_parts[0]) == 8:
+        # CalVer
+        date = version_parts[0]
+        year = date[:4]
+        incremental = date[4:]
+        if incremental.startswith("0"):
+          incremental = incremental[1:]
+
+        version = year + "." + incremental
+
     return version
 
 def get_version_from_file():
