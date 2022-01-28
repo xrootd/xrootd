@@ -50,10 +50,9 @@ if version.startswith('unknown'):
     import os
     version_file_path = os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'VERSION')
     print('Version file path: {}'.format(version_file_path))
-    f = open(version_file_path, 'r')
-    version = f.read().split('/n')[0] 
-    print('Version from file: {}'.format(version))
-    f.close()
+    with open(version_file_path, 'r') as f:
+      version = f.read().split('/n')[0]
+      print('Version from file: {}'.format(version))
   except Exception as e:
     print('{} \nCannot open VERSION_INFO file. {} will be used'.format(e, version))
 
