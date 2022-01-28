@@ -33,6 +33,7 @@
 #include <unordered_map>
 #include <chrono>
 #include <iostream>
+#include <thread>
 
 namespace XrdCl
 {
