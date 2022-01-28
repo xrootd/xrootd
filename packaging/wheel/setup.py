@@ -42,9 +42,8 @@ def get_version():
 
 def get_version_from_file():
     try:
-        f = open('./bindings/python/VERSION')
-        version = f.read().split('/n')[0]
-        f.close()
+        with open('./bindings/python/VERSION') as f:
+            version = f.read().split('/n')[0]
         return version
     except:
         print('Failed to get version from file. Using unknown')
