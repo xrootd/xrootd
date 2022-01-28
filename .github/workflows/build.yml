@@ -158,6 +158,73 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
+  # TODO: Drop once Python 2 support is dropped
+  cmake-centos7-python2:
+
+    runs-on: ubuntu-latest
+    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+
+    steps:
+    # python2-pip is broken on CentOS so can't upgrade pip or setuptools
+    - name: Install external dependencies with yum
+      run: |
+        yum update -y
+        yum install --nogpg -y \
+            cmake3 \
+            make \
+            krb5-devel \
+            libuuid-devel \
+            libxml2-devel \
+            openssl-devel \
+            systemd-devel \
+            zlib-devel \
+            devtoolset-7-gcc-c++ \
+            which \
+            python2-pip \
+            python2-setuptools \
+            python2-devel \
+            git \
+            cppunit-devel
+        yum clean all
+        python2 -m pip --no-cache-dir install --upgrade wheel
+
+    # Need to use v1 of action as image Git is too old
+    - name: Clone repository now that Git is available
+      uses: actions/checkout@v1
+
+    # Deprecated setup.py install will try to install under ${CMAKE_INSTALL_PREFIX}/lib64
+    # so set CMAKE_INSTALL_PREFIX=/usr/ to make testing easy
+    - name: Build with cmake
+      run: |
+        . /opt/rh/devtoolset-7/enable
+        cd ..
+        cmake3 \
+            -DCMAKE_INSTALL_PREFIX=/usr/ \
+            -DPYTHON_EXECUTABLE=$(command -v python2) \
+            -DENABLE_TESTS=ON \
+            -S xrootd \
+            -B build
+        cmake3 build -LH
+        cmake3 \
+            --build build \
+            --clean-first \
+            --parallel $(($(nproc) - 1))
+        cmake3 --build build --target install
+        python2 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python2 -m pip list
+        python2 -m pip show xrootd
+        python2 -c 'import XRootD; print(XRootD)'
+        python2 -c 'import pyxrootd; print(pyxrootd)'
+        python2 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
   rpm-centos7:
 
     runs-on: ubuntu-latest
