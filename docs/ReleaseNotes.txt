@@ -5,6 +5,32 @@ XRootD
 Release Notes
 =============
 
+--------------
+Version 5.4.1
+--------------
+
++ **Major bug fixes**
+  **[GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
+  **[Server]** Prevent SEGV due to missing lock call for background jobs.
+  **[SciTokens]** Correct deletion from std::map to avoid SEGV.
+  **[cmsd]** Avoid SEGV, avoid using pointers after deleting them.
+  **[XrdCl]** Make sure HS wait is not handled after channel has been TTLed.
+  **[XrdCl]** Avoid derefferencing null ptr when trasforming ChunkInfo
+              into PageInfo.
+  **[XrdEc]** Ensure parallel execution of Reader::Read is thread-safe.
+  **[CMake]** Add XrdSysTrace.hh to private headers.
+  **[PIP]** Use shutil.which over distutils.spawn.find_executable when
+            possible.
+
++ **Minor bug fixes**
+  **[SciTokens]** Regularize paths used for authorization.
+
++ **Miscellaneous**
+  **[Utils]** Redefine ENODATA when missing.
+  **[CMake]** Add support for static openssl libraries
+  **[CI]** Add GitHub Actions based CI
+  **[IOEvents]** Improve tracing.
+  **[XrdCl/XrdEc]** Make XrdEc compatible with vanilla xrootd servers.
 
 --------------
 Version 5.4.0
