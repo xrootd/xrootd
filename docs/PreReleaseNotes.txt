@@ -10,6 +10,8 @@ Prerelease Notes
   **Commits: d737d741
   **[Throttle]** Track maximum concurrency limits in throttle plugin
   **Commits: ded8082e
+  **[XrdCl]** xrdfs: support multiple rm paths
+  **[XrdCl]** record / replay plug-in
 
 + **Major bug fixes**
   **]GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
