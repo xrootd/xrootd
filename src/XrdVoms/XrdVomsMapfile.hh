@@ -96,8 +96,6 @@ private:
 
         // After success, how long to wait until the next mapfile check.
     static constexpr unsigned m_update_interval = 30;
-        // After failure, how long to wait until the next mapfile check.
-    static constexpr unsigned m_update_interval_failure = 3;
 
     // Singleton
     static std::unique_ptr<XrdVomsMapfile> mapper;

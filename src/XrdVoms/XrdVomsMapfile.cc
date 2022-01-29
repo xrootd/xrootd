@@ -428,11 +428,11 @@ XrdVomsMapfile::MaintenanceThread(void *myself_raw)
            if (rval == EINTR) continue;
            else break;
        } else if (rval == 0) { // timeout!  Let's run maintenance.
+           next_update = monotonic_time_s() + m_update_interval;
            struct stat statbuf;
            if (-1 == stat(myself->m_mapfile.c_str(), &statbuf)) {
                myself->m_edest->Emsg("XrdVomsMapfile", errno, "Error checking the mapfile",
                    myself->m_mapfile.c_str());
-               next_update = monotonic_time_s() + m_update_interval_failure;
                myself->m_mapfile_ctime.tv_sec = 0;
                myself->m_mapfile_ctime.tv_nsec = 0;
                myself->m_is_valid = false;
@@ -443,16 +443,13 @@ XrdVomsMapfile::MaintenanceThread(void *myself_raw)
            {
                myself->m_edest->Log(LogMask::Debug, "Maintenance", "Not reloading VOMS mapfile; "
                    "no changes detected.");
-               next_update = monotonic_time_s() + m_update_interval;
                continue;
            }
            memcpy(&myself->m_mapfile_ctime, &statbuf.st_ctim, sizeof(decltype(statbuf.st_ctim)));
 
            myself->m_edest->Log(LogMask::Debug, "Maintenance", "Reloading VOMS mapfile now");
-           if ( (myself->m_is_valid = myself->ParseMapfile(myself->m_mapfile)) ) {
-               next_update = monotonic_time_s() + m_update_interval;
-           } else {
-               next_update = monotonic_time_s() + m_update_interval_failure;
+           if ( !(myself->m_is_valid = myself->ParseMapfile(myself->m_mapfile)) ) {
+               myself->m_edest->Log(LogMask::Error, "Maintenance", "Failed to reload VOMS mapfile");
            }
        } else { // FD ready; let's shutdown
            if (fds.revents & POLLIN) {
