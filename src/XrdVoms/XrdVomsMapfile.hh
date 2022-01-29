@@ -87,13 +87,6 @@ private:
     std::shared_ptr<const std::vector<MapfileEntry>> m_entries;
     XrdSysError *m_edest{nullptr};
 
-    // Pipes to allow the main thread to communicate shutdown events to the maintenance
-    // thread, allowing for a clean shutdown.
-    int m_maintenance_pipe_r{-1};
-    int m_maintenance_pipe_w{-1};
-    int m_maintenance_thread_pipe_r{-1};
-    int m_maintenance_thread_pipe_w{-1};
-
         // After success, how long to wait until the next mapfile check.
     static constexpr unsigned m_update_interval = 30;
 

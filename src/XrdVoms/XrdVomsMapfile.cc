@@ -72,18 +72,6 @@ XrdVomsMapfile::XrdVomsMapfile(XrdSysError *erp,
     const std::string &mapfile)
     : m_mapfile(mapfile), m_edest(erp)
 {
-    // Setup communication pipes; we write one byte to the child to tell it to shutdown;
-    // it'll write one byte back to acknowledge before our destructor exits.
-    int pipes[2];
-    if (-1 == XrdSysFD_Pipe(pipes)) {
-        m_edest->Emsg("XrdVomsMapfile", "Failed to create communication pipes", strerror(errno));
-        return;
-    }
-    if (-1 == XrdSysFD_Pipe(pipes)) {
-        m_edest->Emsg("XrdVomsMapfile", "Failed to create communication pipes", strerror(errno));
-        return;
-    }
-
     struct stat statbuf;
     if (-1 == stat(m_mapfile.c_str(), &statbuf)) {
         m_edest->Emsg("XrdVomsMapfile", errno, "Error checking the mapfile", m_mapfile.c_str());
@@ -93,20 +81,11 @@ XrdVomsMapfile::XrdVomsMapfile(XrdSysError *erp,
 
     if (!ParseMapfile(m_mapfile)) {return;}
 
-    m_maintenance_pipe_r = pipes[0];
-    m_maintenance_pipe_w = pipes[1];
-    m_maintenance_thread_pipe_r = pipes[0];
-    m_maintenance_thread_pipe_w = pipes[1];
-
     pthread_t tid;
     auto rc = XrdSysThread::Run(&tid, XrdVomsMapfile::MaintenanceThread,
                                 static_cast<void*>(this), 0, "VOMS Mapfile refresh");
     if (rc) {
         m_edest->Emsg("XrdVomsMapfile", "Failed to launch VOMS mapfile monitoring thread");
-        close(m_maintenance_pipe_r); m_maintenance_pipe_r = -1;
-        close(m_maintenance_pipe_w); m_maintenance_pipe_w = -1;
-        close(m_maintenance_thread_pipe_r); m_maintenance_thread_pipe_r = -1;
-        close(m_maintenance_thread_pipe_w); m_maintenance_thread_pipe_w = -1;
         return;
     }
     m_is_valid = true;
@@ -114,21 +93,7 @@ XrdVomsMapfile::XrdVomsMapfile(XrdSysError *erp,
 
 
 XrdVomsMapfile::~XrdVomsMapfile()
-{
-    char indicator[1];
-    if (m_maintenance_pipe_w >= 0) {
-        indicator[0] = '1';
-        int rval;
-        do {rval = write(m_maintenance_pipe_w, indicator, 1);} while (rval != -1 || errno == EINTR);
-        if (m_maintenance_thread_pipe_r >= 0) {
-            do {rval = read(m_maintenance_thread_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
-            close(m_maintenance_thread_pipe_r);
-            close(m_maintenance_thread_pipe_w);
-        }
-        close(m_maintenance_pipe_r);
-        close(m_maintenance_pipe_w);
-    }
-}
+{}
 
 
 bool
@@ -420,51 +385,33 @@ XrdVomsMapfile::MaintenanceThread(void *myself_raw)
    while (true) {
        now = monotonic_time_s();
        auto remaining = next_update - now;
-       struct pollfd fds;
-       fds.fd = myself->m_maintenance_pipe_r;
-       fds.events = POLLIN;
-       auto rval = poll(&fds, 1, remaining*1000);
-       if (rval == -1) {
-           if (rval == EINTR) continue;
-           else break;
-       } else if (rval == 0) { // timeout!  Let's run maintenance.
-           next_update = monotonic_time_s() + m_update_interval;
-           struct stat statbuf;
-           if (-1 == stat(myself->m_mapfile.c_str(), &statbuf)) {
-               myself->m_edest->Emsg("XrdVomsMapfile", errno, "Error checking the mapfile",
-                   myself->m_mapfile.c_str());
-               myself->m_mapfile_ctime.tv_sec = 0;
-               myself->m_mapfile_ctime.tv_nsec = 0;
-               myself->m_is_valid = false;
-               continue;
-           }
-           if ((myself->m_mapfile_ctime.tv_sec == statbuf.st_ctim.tv_sec) &&
-               (myself->m_mapfile_ctime.tv_nsec == statbuf.st_ctim.tv_nsec))
-           {
-               myself->m_edest->Log(LogMask::Debug, "Maintenance", "Not reloading VOMS mapfile; "
-                   "no changes detected.");
-               continue;
-           }
-           memcpy(&myself->m_mapfile_ctime, &statbuf.st_ctim, sizeof(decltype(statbuf.st_ctim)));
+       auto rval = sleep(remaining);
+       if (rval > 0) {
+           // Woke up early due to a signal; re-run prior logic.
+           continue;
+       }
+       next_update = monotonic_time_s() + m_update_interval;
+       struct stat statbuf;
+       if (-1 == stat(myself->m_mapfile.c_str(), &statbuf)) {
+           myself->m_edest->Emsg("XrdVomsMapfile", errno, "Error checking the mapfile",
+               myself->m_mapfile.c_str());
+           myself->m_mapfile_ctime.tv_sec = 0;
+           myself->m_mapfile_ctime.tv_nsec = 0;
+           myself->m_is_valid = false;
+           continue;
+       }
+       if ((myself->m_mapfile_ctime.tv_sec == statbuf.st_ctim.tv_sec) &&
+           (myself->m_mapfile_ctime.tv_nsec == statbuf.st_ctim.tv_nsec))
+       {
+           myself->m_edest->Log(LogMask::Debug, "Maintenance", "Not reloading VOMS mapfile; "
+               "no changes detected.");
+           continue;
+       }
+       memcpy(&myself->m_mapfile_ctime, &statbuf.st_ctim, sizeof(decltype(statbuf.st_ctim)));
 
-           myself->m_edest->Log(LogMask::Debug, "Maintenance", "Reloading VOMS mapfile now");
-           if ( !(myself->m_is_valid = myself->ParseMapfile(myself->m_mapfile)) ) {
-               myself->m_edest->Log(LogMask::Error, "Maintenance", "Failed to reload VOMS mapfile");
-           }
-       } else { // FD ready; let's shutdown
-           if (fds.revents & POLLIN) {
-               char indicator[1];
-               do {rval = read(myself->m_maintenance_pipe_r, indicator, 1);} while (rval != -1 || errno == EINTR);
-           }
+       myself->m_edest->Log(LogMask::Debug, "Maintenance", "Reloading VOMS mapfile now");
+       if ( !(myself->m_is_valid = myself->ParseMapfile(myself->m_mapfile)) ) {
+           myself->m_edest->Log(LogMask::Error, "Maintenance", "Failed to reload VOMS mapfile");
        }
    }
-   if (errno) {
-       myself->m_edest->Emsg("Maintenance", "Failed to poll for events from parent object");
-   }
-   char indicator = '1';
-   int rval;
-   do {rval = write(myself->m_maintenance_thread_pipe_w, &indicator, 1);} while (rval != -1 || errno == EINTR);
-
-
-   return nullptr;
 }
