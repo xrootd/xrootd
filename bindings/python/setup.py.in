@@ -50,13 +50,36 @@ if version.startswith('unknown'):
     import os
     version_file_path = os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'VERSION')
     print('Version file path: {}'.format(version_file_path))
-    f = open(version_file_path, 'r')
-    version = f.read().split('/n')[0] 
-    print('Version from file: {}'.format(version))
-    f.close()
+    with open(version_file_path, 'r') as f:
+      version = f.read().split('/n')[0]
+      print('Version from file: {}'.format(version))
   except Exception as e:
     print('{} \nCannot open VERSION_INFO file. {} will be used'.format(e, version))
 
+# Sanitize in keeping with PEP 440
+# c.f. https://www.python.org/dev/peps/pep-0440/
+# c.f. https://github.com/pypa/pip/issues/8368
+# version needs to pass pip._vendor.packaging.version.Version()
+version = version.replace("-", ".")
+
+if version.startswith("v"):
+    version = version[1:]
+
+version_parts = version.split(".")
+if len(version_parts[0]) == 8:
+    # CalVer
+    date = version_parts[0]
+    year = date[:4]
+    incremental = date[4:]
+    if incremental.startswith("0"):
+      incremental = incremental[1:]
+
+    version = year + "." + incremental
+
+    if len(version_parts) > 1:
+      # https://github.com/pypa/pip/issues/9188#issuecomment-736025963
+      hash = version_parts[1]
+      version = version + "+" + hash
 
 print('XRootD library dir:    ', xrdlibdir)
 print('XRootD src include dir:', xrdsrcincdir)
