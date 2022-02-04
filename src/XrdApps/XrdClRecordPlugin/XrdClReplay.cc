@@ -211,13 +211,12 @@ class ActionExecutor
         Access::Mode     mode;
         uint16_t         timeout;
         std::tie( url, flags, mode, timeout ) = GetOpenArgs();
-        std::string tmp( orgststr );
         WaitFor( Open( file, url, flags, mode, timeout ) >>
-                 [tmp, ending, closing, start]( XRootDStatus &s ) mutable
+                 [this, ending, closing, start ]( XRootDStatus &s ) mutable
                  {
                    uint64_t duration = get_time() - start;
                    ActionStatistics::Instance().UpdateAct( "Open", duration );
-                   HandleStatus( s, tmp );
+                   HandleStatus( s, orgststr );
                    ending.reset();
                    closing.reset();
                  } );
@@ -226,7 +225,6 @@ class ActionExecutor
       else if( action == "Close" ) // close action
       {
         uint16_t timeout = GetCloseArgs();
-        std::string tmp( orgststr );
         if( closing )
         {
           auto &sem = closing->get();
@@ -234,11 +232,11 @@ class ActionExecutor
           sem.Wait();
         }
         Async( Close( file, timeout ) >>
-               [tmp, ending, start]( XRootDStatus &s ) mutable
+               [this, ending, start]( XRootDStatus &s ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "Close", duration );
-                 HandleStatus( s, tmp );
+                 HandleStatus( s, orgststr );
                  ending.reset();
                } );
       }
@@ -247,13 +245,12 @@ class ActionExecutor
         bool force;
         uint16_t timeout;
         std::tie( force, timeout ) = GetStatArgs();
-        std::string tmp( orgststr );
         Async( Stat( file, force, timeout ) >>
-               [tmp, ending, closing, start]( XRootDStatus &s, StatInfo &r ) mutable
+               [this, ending, closing, start]( XRootDStatus &s, StatInfo &r ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "Stat", duration );
-                 HandleStatus( s, tmp );
+                 HandleStatus( s, orgststr );
                  ending.reset();
                  closing.reset();
                } );
@@ -266,7 +263,7 @@ class ActionExecutor
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetReadArgs();
         Async( Read( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing, start]( XRootDStatus &s, ChunkInfo &r ) mutable
+               [this, buffer, ending, closing, start]( XRootDStatus &s, ChunkInfo &r ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "Read", duration );
@@ -283,7 +280,7 @@ class ActionExecutor
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetPgReadArgs();
         Async( PgRead( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing, start]( XRootDStatus &s, PageInfo &r ) mutable
+               [this, buffer, ending, closing, start]( XRootDStatus &s, PageInfo &r ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "PgRead", duration );
@@ -300,7 +297,7 @@ class ActionExecutor
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetWriteArgs();
         Async( Write( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing, start]( XRootDStatus &s ) mutable
+               [this, buffer, ending, closing, start]( XRootDStatus &s ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "Write", duration );
@@ -317,7 +314,7 @@ class ActionExecutor
         uint16_t timeout;
         std::tie( offset, buffer, timeout ) = GetPgWriteArgs();
         Async( PgWrite( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing, start]( XRootDStatus &s ) mutable
+               [this, buffer, ending, closing, start]( XRootDStatus &s ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "PgWrite", duration );
@@ -330,13 +327,12 @@ class ActionExecutor
       else if( action == "Sync" ) // sync action
       {
         uint16_t timeout = GetSyncArgs();
-        std::string tmp( orgststr );
         Async( Sync( file, timeout ) >>
-               [tmp, ending, closing, start]( XRootDStatus &s ) mutable
+               [this, ending, closing, start]( XRootDStatus &s ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "Sync", duration );
-                 HandleStatus( s, tmp );
+                 HandleStatus( s, orgststr );
                  ending.reset();
                  closing.reset();
                } );
@@ -346,13 +342,12 @@ class ActionExecutor
         uint64_t size;
         uint16_t timeout;
         std::tie( size, timeout ) = GetTruncateArgs();
-        std::string tmp( orgststr );
         Async( Truncate( file, size, timeout ) >>
-               [tmp, ending, closing, start]( XRootDStatus &s ) mutable
+               [this, ending, closing, start]( XRootDStatus &s ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "Truncate", duration );
-                 HandleStatus( s, tmp );
+                 HandleStatus( s, orgststr );
                  ending.reset();
                  closing.reset();
                } );
@@ -362,13 +357,12 @@ class ActionExecutor
         ChunkList chunks;
         uint16_t  timeout;
         std::tie( chunks, timeout ) = GetVectorReadArgs();
-        std::string tmp( orgststr );
         Async( VectorRead( file, chunks, timeout ) >>
-               [chunks, tmp, ending, closing, start]( XRootDStatus &s, VectorReadInfo &r ) mutable
+               [this, chunks, ending, closing, start]( XRootDStatus &s, VectorReadInfo &r ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "VectorRead", duration );
-                 HandleStatus( s, tmp );
+                 HandleStatus( s, orgststr );
                  for( auto &ch : chunks )
                    delete[] (char*)ch.buffer;
                  ending.reset();
@@ -383,11 +377,11 @@ class ActionExecutor
         std::tie( chunks, timeout ) = GetVectorWriteArgs();
         std::string tmp( orgststr );
         Async( VectorWrite( file, chunks, timeout ) >>
-               [chunks, tmp, ending, closing, start]( XRootDStatus &s ) mutable
+               [this, chunks, ending, closing, start]( XRootDStatus &s ) mutable
                {
                  uint64_t duration = get_time() - start;
                  ActionStatistics::Instance().UpdateAct( "VectorWrite", duration );
-                 HandleStatus( s, tmp );
+                 HandleStatus( s, orgststr );
                  for( auto &ch : chunks )
                    delete[] (char*)ch.buffer;
                  ending.reset();
@@ -560,7 +554,8 @@ using action_list = std::multimap<uint64_t, ActionExecutor>;
 std::unordered_map<File*, action_list> ParseInput( const std::string &path, std::unordered_map<File*, uint64_t> &starts )
 {
   std::unordered_map<File*, action_list> result;
-  std::ifstream input( path, std::ifstream::in );
+  std::unique_ptr<std::ifstream> fin( path.empty() ? nullptr : new std::ifstream( path, std::ifstream::in ) );
+  std::istream &input = path.empty() ? std::cin : *fin;
   std::string line;
   std::unordered_map<uint64_t, File*> files;
 
@@ -574,9 +569,7 @@ std::unordered_map<File*, action_list> ParseInput( const std::string &path, std:
     if( tokens.size() == 6 )
       tokens.emplace_back();
     if( tokens.size() != 7 )
-    {
       throw std::invalid_argument( "Invalid input file format." );
-    }
 
     uint64_t    id     = std::stoull( tokens[0] ); // file object ID
     std::string action = tokens[1];                // action name (e.g. Open)
@@ -645,14 +638,15 @@ std::thread ExecuteActions( std::unique_ptr<File> file, action_list &&actions )
 
 int main( int argc, char **argv )
 {
-  if( argc != 2 )
+  if( argc > 2 )
   {
-    std::cout << "Error: wrong number of arguments.\n";
-    std::cout << "\nUsage:   xrdreplay <file>\n";
+    std::cerr << "Error: wrong number of arguments.\n";
+    std::cerr << "\nUsage:   xrdreplay [file]\n";
     return 1;
   }
 
-  std::string path( argv[1] );
+
+  std::string path( argc == 2 ? argv[1] : "" );
   try
   {
     std::unordered_map<XrdCl::File*, uint64_t> starts;
