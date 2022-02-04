@@ -32,25 +32,70 @@ endif()
 
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
 
-add_custom_command(OUTPUT ${OUTPUT}
-                   COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} build
-                   DEPENDS ${DEPS})
-
-add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
-
-# Get the distribution name on Debian families
-execute_process( COMMAND grep -i ^NAME=\" /etc/os-release
-                 OUTPUT_VARIABLE DEB_DISTRO )
-STRING(REGEX REPLACE "^NAME=\"" "" DEB_DISTRO "${DEB_DISTRO}")
-STRING(REGEX REPLACE "\".*"     "" DEB_DISTRO "${DEB_DISTRO}")
-
-if( DEB_DISTRO STREQUAL "Debian" OR DEB_DISTRO STREQUAL "Ubuntu" )
-  set(PYTHON_LAYOUT  "unix" CACHE STRING "Python installation layout (deb or unix)")
-  set(DEB_INSTALL_ARGS "--install-layout ${PYTHON_LAYOUT}")
+if( PIP_VERBOSE )
+  set(PIP_INSTALL_VERBOSE_FLAG "--verbose")
+else()
+  set(PIP_INSTALL_VERBOSE_FLAG "")
 endif()
 
-install(
-  CODE
-  "EXECUTE_PROCESS(
-    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} ${DEB_INSTALL_ARGS} --record PYTHON_INSTALLED)" )
+# Check it the Python interpreter has a valid version of pip
+execute_process(
+        COMMAND ${PYTHON_EXECUTABLE} -m pip --version
+        RESULT_VARIABLE VALID_PIP_EXIT_CODE
+        OUTPUT_QUIET
+)
 
+if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
+  # Attempt to still install with deprecated invocation of setup.py
+  message(WARNING
+         " ${PYTHON_EXECUTABLE} does not have a valid pip associated with it."
+         " It is recommended that you install a version of pip to install Python"
+         " packages and bindings. If you are unable to install a version of pip"
+         " through a package manager or with your Python build try using the PyPA's"
+         " get-pip.py bootstrapping script ( https://github.com/pypa/get-pip ).\n"
+         " The installation of the Python bindings will attempt to continue using"
+         " the deprecated method of `${PYTHON_EXECUTABLE} setup.py install`."
+         )
+
+  # https://docs.python.org/3/install/#splitting-the-job-up
+  add_custom_command(OUTPUT ${OUTPUT}
+                     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} ${PIP_INSTALL_VERBOSE_FLAG} build
+                     DEPENDS ${DEPS})
+
+  add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
+
+  # Get the distribution name on Debian families
+  execute_process( COMMAND grep -i ^NAME= /etc/os-release
+                   OUTPUT_VARIABLE DEB_DISTRO )
+  STRING(REGEX REPLACE "^NAME=\"" "" DEB_DISTRO "${DEB_DISTRO}")
+  STRING(REGEX REPLACE "\".*"     "" DEB_DISTRO "${DEB_DISTRO}")
+
+  if( DEB_DISTRO STREQUAL "Debian" OR DEB_DISTRO STREQUAL "Ubuntu" )
+    set(PYTHON_LAYOUT  "unix" CACHE STRING "Python installation layout (deb or unix)")
+    set(DEB_INSTALL_ARGS "--install-layout ${PYTHON_LAYOUT}")
+  endif()
+
+  install(
+    CODE
+    "EXECUTE_PROCESS(
+      COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
+                ${PIP_INSTALL_VERBOSE_FLAG} \
+                --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
+                ${DEB_INSTALL_ARGS} \
+                --record PYTHON_INSTALLED
+    )"
+  )
+
+else()
+  # Use --force-reinstall to ensure a clean install if a rebuild needs to happen
+  install(
+    CODE
+    "EXECUTE_PROCESS(
+      COMMAND ${PYTHON_EXECUTABLE} -m pip install \
+                ${PIP_INSTALL_VERBOSE_FLAG} \
+                --force-reinstall \
+                --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
+                ${CMAKE_CURRENT_BINARY_DIR}
+      )"
+  )
+endif()

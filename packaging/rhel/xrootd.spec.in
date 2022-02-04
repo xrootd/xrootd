@@ -106,6 +106,7 @@ BuildRequires: libmacaroons-devel
 BuildRequires: json-c-devel
 
 %if %{python2only}
+BuildRequires: python2-pip
 BuildRequires: python2-devel
 BuildRequires: python2-setuptools
 %endif
