@@ -228,6 +228,69 @@ jobs:
         python2 -c 'import pyxrootd; print(pyxrootd)'
         python2 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
+  cmake-ubuntu-updated-python:
+
+    # Use of sudo as https://github.com/actions/virtual-environments requires it
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install external dependencies with apt-get
+      run: |
+        sudo apt-get update -y
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
+          g++ \
+          git \
+          cmake \
+          uuid-dev \
+          dpkg-dev \
+          libssl-dev \
+          libx11-dev \
+          python3 \
+          python3-pip \
+          python3-venv \
+          python3-dev
+        sudo apt-get autoclean -y
+        python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
+
+    - name: Clone repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Build with cmake
+      run: |
+        cd ..
+        cmake \
+            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
+            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DENABLE_TESTS=ON \
+            -DPIP_VERBOSE=ON \
+            -S xrootd \
+            -B build
+        cmake build -LH
+        cmake \
+            --build build \
+            --clean-first \
+            --parallel $(($(nproc) - 1))
+        sudo cmake --build build --target install
+        python3 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+        export PYTHON_VERSION_MINOR=$(_tmp=$(find /usr/local/lib/ -type d -iname "python*") && echo ${_tmp: -3}; unset _tmp)
+        export PYTHONPATH="/usr/local/lib/python${PYTHON_VERSION_MINOR}/site-packages:${PYTHONPATH}"
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
   rpm-centos7:
 
     runs-on: ubuntu-latest
@@ -348,6 +411,70 @@ jobs:
         dnf install -y \
           ./packaging/RPMS/xrootd-*.rpm \
           ./packaging/RPMS/python3-xrootd-*.rpm
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+  dpkg-ubuntu:
+
+    # Use of sudo as https://github.com/actions/virtual-environments requires it
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install external dependencies with apt-get
+      run: |
+        sudo apt-get update -y
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
+          g++ \
+          git \
+          cmake \
+          debhelper \
+          devscripts \
+          equivs \
+          gdebi-core
+        sudo apt-get autoclean -y
+
+    - name: Clone repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Build .deb
+      run: |
+        cp -R packaging/debian/ .
+        mk-build-deps --build-dep debian/control
+        sudo gdebi -n xrootd-build-deps-depends*.deb
+        version=`./genversion.sh --print-only`
+        dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+        dpkg_version=`dpkg-query --showformat='${Version}' --show dpkg`
+        rc=0 ; dpkg --compare-versions $dpkg_version "ge" "1.18.11" || rc=$?
+        if [ $rc -eq "0" ]; then
+          dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" ;
+        else
+          dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages" ;
+        fi
+
+    - name: Install
+      run: |
+        ls -lh deb_packages/*.deb
+        sudo apt-get install -y \
+          ./deb_packages/libxr*_*.deb \
+          ./deb_packages/xrootd-libs_*.deb \
+          ./deb_packages/xrootd-client*_*.deb \
+          ./deb_packages/xrootd-devel_*.deb \
+          ./deb_packages/xrootd-plugins_*.deb \
+          ./deb_packages/xrootd-server*_*.deb \
+          ./deb_packages/python3-xrootd_*.deb
 
     - name: Verify install
       run: |
