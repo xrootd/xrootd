@@ -89,6 +89,8 @@ static struct fuse_opt xrootdfs_opts[14];
 
 enum { OPT_KEY_HELP, OPT_KEY_SECSSS, };
 
+int usingEC = 0;
+
 static void* xrootdfs_init(struct fuse_conn_info *conn)
 {
     struct passwd pw, *pwp;
@@ -127,6 +129,7 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
     free(pwbuf);
 
 /* put Xrootd related initialization calls here, after fuse daemonize itself. */
+    if (getenv("XRDCL_EC")) usingEC = 1;
     XrdPosixXrootd *abc = new XrdPosixXrootd(-xrootdfs.maxfd);
     XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
     XrdFfsWcache_init(abc->fdOrigin(), xrootdfs.maxfd);
@@ -442,7 +445,7 @@ static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info 
     int res, fd;
     if (!S_ISREG(mode))
         return -EPERM;
-    if (getenv("XRDCL_EC"))
+    if (usingEC)
         res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY | O_EXCL, true, &fd);
     else
         res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
@@ -803,7 +806,7 @@ static int xrootdfs_read(const char *path, char *buf, size_t size, off_t offset,
     fd = (int) fi->fh;
     XrdFfsWcache_flush(fd);  /* in case is the file is reading/writing */
 
-    if (getenv("XRDCL_EC"))
+    if (usingEC)
     {
         struct stat stbuf;
         XrdPosixXrootd::Fstat(fd, &stbuf);  // Silly but does not seem to hurt performance

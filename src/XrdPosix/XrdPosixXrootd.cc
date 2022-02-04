@@ -94,6 +94,7 @@ bool             oidsOK    = false;
 bool             p2lSRC    = false;
 bool             p2lSGI    = false;
 bool             autoPGRD  = false;
+int              usingEC   = -1;
 };
 
 int            XrdPosixXrootd::baseFD    = 0;
@@ -179,6 +180,12 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 {
    static XrdSysMutex myMutex;
    char *cfn;
+
+// Test if XRDCL_EC is set. That env var. is set at XrdCl::PlugInManager::LoadFactory
+// in XrdClPlugInManager.cc, which is called (by XrdOssGetSS while loading 
+// libXrdPss.so) before this function. 
+// Note: some standalone programs will call this constructor directly. 
+   if (XrdPosixGlobals::usingEC == -1) XrdPosixGlobals::usingEC = getenv("XRDCL_EC")? 1 : 0;
 
 // Only static fields are initialized here. We need to do this only once!
 //
@@ -1040,6 +1047,7 @@ int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
 /*                                R e n a m e                                 */
 /******************************************************************************/
 
+int ec_rename(const char*, const char*, XrdPosixAdmin*);
 int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 {
    XrdPosixAdmin admin(oldpath);
@@ -1060,66 +1068,11 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 
 // Issue the rename
 //
-   if (! getenv("XRDCL_EC"))
-       return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
-                                  newUrl.GetPathWithParams()));
-   else
-   {
-       XrdCl::URL url(oldpath);
-       std::string file = url.GetPath();
-       XrdCl::LocationInfo *info = nullptr;
-       XrdCl::FileSystem fs(oldpath);
+   if (XrdPosixGlobals::usingEC)
+       return ec_rename(oldpath, newpath, &admin);
 
-       XrdCl::Buffer queryArgs(5), *queryResp = nullptr;
-       queryArgs.FromString("role");
-       XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
-       // xrootdfs call this function with individual servers. but we can only do 
-       // fs.DeepLocate("*"...) agaist a redirector
-       // xrootdfs already did a stat and know that this is a file, not a dir
-       if (!st.IsOK() || queryResp->ToString() == "server")
-       {
-           if (queryResp) delete queryResp;
-           return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
-                                      newUrl.GetPathWithParams()));
-       }
-       else
-           if (queryResp) delete queryResp;
-
-       st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
-       std::unique_ptr<XrdCl::LocationInfo> ptr( info );
-       if( !st.IsOK() ) 
-       {
-           errno = ENOENT;
-           return -1;
-       }
-
-       // check if this is a file or a dir, do not support dir renaming in EC
-       struct stat buf;
-       if (Stat(oldpath, &buf) != 0 || ! S_ISREG(buf.st_mode))
-       {
-           errno = ENOTSUP;
-           return -1;
-       }
-       if (Stat(newpath, &buf) == 0) 
-       {
-           errno = ENOTSUP;
-           return -1;
-       }
-
-
-       int rc = -ENOENT;
-       for( size_t i = 0; i < info->GetSize(); ++i )
-       {
-           std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
-           XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str());
-           int x = XrdPosixMap::Result(admin_i->Xrd.Mv(admin_i->Url.GetPathWithParams(),
-                                                       newUrl.GetPathWithParams()));
-           if (x != -ENOENT && rc != 0)
-               rc = x;
-           if (admin_i) delete admin_i;
-       }
-       return rc;
-   }
+   return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
+                              newUrl.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1191,6 +1144,7 @@ void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
 /*                                  S t a t                                   */
 /******************************************************************************/
   
+int ec_stat(const char*, struct stat*, XrdPosixAdmin*);
 int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 {
    XrdPosixAdmin admin(path);
@@ -1205,7 +1159,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Check if we can get the stat informatation from the cache
 //
-  if (! getenv("XRDCL_EC") && XrdPosixGlobals::theCache)
+  if (! XrdPosixGlobals::usingEC && XrdPosixGlobals::theCache)
      {LfnPath statX("stat", path, false);
       if (!statX.path) return -1;
       int rc = XrdPosixGlobals::theCache->Stat(statX.path, *buf);
@@ -1215,109 +1169,12 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Issue the stat and verify that all went well
 //
-   if (! getenv("XRDCL_EC"))
-   {
-       if (!admin.Stat(*buf)) return -1;
-   }
-   else 
-   {
-       XrdCl::URL url(path);
-       std::string file = url.GetPath();
-       XrdCl::LocationInfo *info = nullptr;
-       XrdCl::FileSystem fs(path);
+   if (XrdPosixGlobals::usingEC)
+       return ec_stat(path, buf, &admin);
 
-       std::vector<std::string>  xattrkeys;
-       std::vector<XrdCl::XAttr> xattrvals;
-       xattrkeys.push_back("xrdec.strpver");
-       xattrkeys.push_back("xrdec.filesize");
-
-       XrdCl::Buffer queryArgs(5), *queryResp = nullptr;
-       queryArgs.FromString("role");
-       XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
-       // xrootdfs call this function with individual servers. but we can only do 
-       //        // fs.DeepLocate("*"...) agaist a redirector
-       if (!st.IsOK() || queryResp->ToString() == "server")
-       {
-           if (queryResp) delete queryResp;
-           if (!admin.Stat(*buf)) 
-               return -1;
-           else
-           {
-               st = fs.GetXAttr(file, xattrkeys, xattrvals, 0);
-               if (! xattrvals[0].value.empty())
-               {
-                   std::stringstream sstream0(xattrvals[0].value);
-                   sstream0 >> buf->st_mtime;
-                   std::stringstream sstream1(xattrvals[0].value);
-                   sstream1 >> buf->st_size;
-               }
-               return 0;
-           }
-       }
-       else
-           if (queryResp) delete queryResp;
-
-       st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
-       std::unique_ptr<XrdCl::LocationInfo> ptr( info );
-       if( !st.IsOK() ) 
-       {
-           errno = ENOENT;
-           return -1;
-       }
-
-       int found = 0;
-       uint64_t verNumMax = 0;
-       struct stat buf_i;
-       XrdPosixConfig::initStat(&buf_i);
-       for( size_t i = 0; i < info->GetSize(); ++i )
-       {
-           std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
-           XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str());
- 
-           if (admin_i->Stat(buf_i)) 
-           {
-               if (! S_ISREG(buf_i.st_mode))
-               {
-                   memcpy(buf, &buf_i, sizeof(struct stat));
-                   if (admin_i) delete admin_i;
-                   return 0;
-               }
-               else
-               {
-                   if (verNumMax == 0) memcpy(buf, &buf_i, sizeof(struct stat));
-                   found = 1;
-               }
-               XrdCl::FileSystem *fs_i = new XrdCl::FileSystem(info->At( i ).GetAddress());
-   
-               xattrvals.clear();
-               st = fs_i->GetXAttr(file, xattrkeys, xattrvals, 0);
-               if (! xattrvals[0].value.empty())
-               {
-                   std::stringstream sstream(xattrvals[0].value);
-                   uint64_t verNum;
-                   sstream >> verNum;
-                   if ( verNum > verNumMax )
-                   {
-                       verNumMax = verNum;
-                       memcpy(buf, &buf_i, sizeof(struct stat));
-                       buf->st_mtime = verNumMax;   // assume verNum is mtime
-                       std::stringstream sstream(xattrvals[1].value);
-                       sstream >> buf->st_size;
-                   }
-               }
-               if (fs_i) delete fs_i;
-           }
-           if (admin_i) delete admin_i;
-       }
-       if (! found) 
-       {
-           errno = ENOENT;
-           return -1;
-       }
-   }
-
+   if (!admin.Stat(*buf)) return -1;
    return 0;
-}
+}        
 
 /******************************************************************************/
 /*                                S t a t f s                                 */
@@ -1474,6 +1331,7 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 /*                                 U n l i n k                                */
 /******************************************************************************/
 
+int ec_unlink(const char*, XrdPosixAdmin*);
 int XrdPosixXrootd::Unlink(const char *path)
 {
    XrdPosixAdmin admin(path);
@@ -1492,47 +1350,10 @@ int XrdPosixXrootd::Unlink(const char *path)
 
 // Issue the UnLink
 //
-   if (! getenv("XRDCL_EC"))
-       return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
-   else
-   {
-       XrdCl::URL url(path);
-       std::string file = url.GetPath();
-       XrdCl::LocationInfo *info = nullptr;
-       XrdCl::FileSystem fs(path);
+   if (XrdPosixGlobals::usingEC)
+      return ec_unlink(path, &admin);
 
-       XrdCl::Buffer queryArgs(5), *queryResp = nullptr;
-       queryArgs.FromString("role");
-       XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
-       // xrootdfs call this function with individual servers. but we can only do 
-       // fs.DeepLocate("*"...) agaist a redirector
-       if (!st.IsOK() || queryResp->ToString() == "server")
-       {
-           if (queryResp) delete queryResp;
-           return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
-       }
-       else
-           if (queryResp) delete queryResp;
-
-       st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
-       std::unique_ptr<XrdCl::LocationInfo> ptr( info );
-       if( !st.IsOK() ) 
-       {
-           errno = ENOENT;
-           return -1;
-       }
-       int rc = -ENOENT;
-       for( size_t i = 0; i < info->GetSize(); ++i )
-       {
-           std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
-           XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str());
-           int x = XrdPosixMap::Result(admin_i->Xrd.Rm(admin_i->Url.GetPathWithParams()));
-           if (x != -ENOENT && rc != 0)
-               rc = x;
-           if (admin_i) delete admin_i;
-       }
-       return rc;
-   }
+   return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1661,4 +1482,214 @@ int XrdPosixXrootd::Fault(XrdPosixFile *fp, int ecode)
    fp->UnLock();
    errno = ecode;
    return -1;
+}
+
+/******************************************************************************/
+/*                       I n t e r n a l  M e t h o d s                       */
+/******************************************************************************/
+/******************************************************************************/
+/*                             e c _ r e n a m e                              */
+/******************************************************************************/
+int ec_rename(const char *oldpath, const char *newpath, XrdPosixAdmin *admin)
+{
+    XrdCl::URL url(oldpath);
+    XrdCl::URL newUrl(newpath);
+
+    std::string file = url.GetPath();
+    XrdCl::LocationInfo *info = nullptr;
+    XrdCl::FileSystem fs(oldpath);
+
+    XrdCl::Buffer queryArgs(5), *queryResp = nullptr;
+    queryArgs.FromString("role");
+    XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
+    // xrootdfs call this function with individual servers. but we can only do 
+    // fs.DeepLocate("*"...) agaist a redirector
+    // xrootdfs already did a stat and know that this is a file, not a dir
+    if (!st.IsOK() || queryResp->ToString() == "server")
+    {
+        if (queryResp) delete queryResp;
+        return XrdPosixMap::Result(admin->Xrd.Mv(admin->Url.GetPathWithParams(),
+                                   newUrl.GetPathWithParams()));
+    }
+    else
+        if (queryResp) delete queryResp;
+
+    st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+    std::unique_ptr<XrdCl::LocationInfo> ptr( info );
+    if( !st.IsOK() ) 
+    {
+        errno = ENOENT;
+        return -1;
+    }
+
+    // check if this is a file or a dir, do not support dir renaming in EC
+    struct stat buf;
+    if (XrdPosixXrootd::Stat(oldpath, &buf) != 0 || ! S_ISREG(buf.st_mode))
+    {
+        errno = ENOTSUP;
+        return -1;
+    }
+    if (XrdPosixXrootd::Stat(newpath, &buf) == 0) 
+    {
+        errno = ENOTSUP;
+        return -1;
+    }
+
+
+    int rc = -ENOENT;
+    for( size_t i = 0; i < info->GetSize(); ++i )
+    {
+        std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
+        XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str());
+        int x = XrdPosixMap::Result(admin_i->Xrd.Mv(admin_i->Url.GetPathWithParams(),
+                                                    newUrl.GetPathWithParams()));
+        if (x != -ENOENT && rc != 0)
+            rc = x;
+        if (admin_i) delete admin_i;
+    }
+    return rc;
+}
+
+/******************************************************************************/
+/*                                e c _ s t a t                               */
+/******************************************************************************/
+int ec_stat(const char *path, struct stat *buf, XrdPosixAdmin *admin)
+{
+   XrdCl::URL url(path);
+   std::string file = url.GetPath();
+   XrdCl::LocationInfo *info = nullptr;
+   XrdCl::FileSystem fs(path);
+
+   std::vector<std::string>  xattrkeys;
+   std::vector<XrdCl::XAttr> xattrvals;
+   xattrkeys.push_back("xrdec.strpver");
+   xattrkeys.push_back("xrdec.filesize");
+
+   XrdCl::Buffer queryArgs(5), *queryResp = nullptr;
+   queryArgs.FromString("role");
+   XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
+   // xrootdfs call this function with individual servers. but we can only do 
+   //        // fs.DeepLocate("*"...) agaist a redirector
+   if (!st.IsOK() || queryResp->ToString() == "server")
+   {
+       if (queryResp) delete queryResp;
+       if (!admin->Stat(*buf)) 
+           return -1;
+       else
+       {
+           st = fs.GetXAttr(file, xattrkeys, xattrvals, 0);
+           if (! xattrvals[0].value.empty())
+           {
+               std::stringstream sstream0(xattrvals[0].value);
+               sstream0 >> buf->st_mtime;
+               std::stringstream sstream1(xattrvals[0].value);
+               sstream1 >> buf->st_size;
+           }
+           return 0;
+       }
+   }
+   else
+       if (queryResp) delete queryResp;
+
+   st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+   std::unique_ptr<XrdCl::LocationInfo> ptr( info );
+   if( !st.IsOK() ) 
+   {
+       errno = ENOENT;
+       return -1;
+   }
+
+   int found = 0;
+   uint64_t verNumMax = 0;
+   struct stat buf_i;
+   XrdPosixConfig::initStat(&buf_i);
+   for( size_t i = 0; i < info->GetSize(); ++i )
+   {
+       std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
+       XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str());
+ 
+       if (admin_i->Stat(buf_i)) 
+       {
+           if (! S_ISREG(buf_i.st_mode))
+           {
+               memcpy(buf, &buf_i, sizeof(struct stat));
+               if (admin_i) delete admin_i;
+               return 0;
+           }
+           else
+           {
+               if (verNumMax == 0) memcpy(buf, &buf_i, sizeof(struct stat));
+               found = 1;
+           }
+           XrdCl::FileSystem *fs_i = new XrdCl::FileSystem(info->At( i ).GetAddress());
+   
+           xattrvals.clear();
+           st = fs_i->GetXAttr(file, xattrkeys, xattrvals, 0);
+           if (! xattrvals[0].value.empty())
+           {
+               std::stringstream sstream(xattrvals[0].value);
+               uint64_t verNum;
+               sstream >> verNum;
+               if ( verNum > verNumMax )
+               {
+                   verNumMax = verNum;
+                   memcpy(buf, &buf_i, sizeof(struct stat));
+                   buf->st_mtime = verNumMax;   // assume verNum is mtime
+                   std::stringstream sstream(xattrvals[1].value);
+                   sstream >> buf->st_size;
+               }
+           }
+           if (fs_i) delete fs_i;
+       }
+       if (admin_i) delete admin_i;
+   }
+   if (! found) 
+   {
+       errno = ENOENT;
+       return -1;
+   }
+   return 0;
+}
+   
+/******************************************************************************/
+/*                              e c _ u n l i n k                             */
+/******************************************************************************/
+int ec_unlink(const char *path, XrdPosixAdmin *admin)
+{
+    XrdCl::URL url(path);
+    std::string file = url.GetPath();
+    XrdCl::LocationInfo *info = nullptr;
+    XrdCl::FileSystem fs(path);
+
+    XrdCl::Buffer queryArgs(5), *queryResp = nullptr;
+    queryArgs.FromString("role");
+    XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
+    // xrootdfs call this function with individual servers. but we can only do 
+    // fs.DeepLocate("*"...) agaist a redirector
+    if (!st.IsOK() || queryResp->ToString() == "server")
+    {
+        if (queryResp) delete queryResp;
+        return XrdPosixMap::Result(admin->Xrd.Rm(admin->Url.GetPathWithParams()));
+    }
+    else
+        if (queryResp) delete queryResp;
+
+    st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+    std::unique_ptr<XrdCl::LocationInfo> ptr( info );
+    if( !st.IsOK() ) 
+    {
+        errno = ENOENT;
+        return -1;
+    }
+    int rc = -ENOENT;
+    for( size_t i = 0; i < info->GetSize(); ++i )
+    {
+        std::string url_i = "root://" + info->At(i).GetAddress() + "/" + file;
+        XrdPosixAdmin *admin_i = new XrdPosixAdmin(url_i.c_str());
+        int x = XrdPosixMap::Result(admin_i->Xrd.Rm(admin_i->Url.GetPathWithParams()));
+        if (x != -ENOENT && rc != 0)
+            rc = x;
+        if (admin_i) delete admin_i;
+    }
+    return rc;
 }
