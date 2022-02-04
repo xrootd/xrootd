@@ -237,13 +237,13 @@ int main(int argc, char *argv[])
                 printf("Error_accessing: %s\n", argv[1]);
                 return 1;
             }
-            off_t offset = 0;
-            while ( offset < stbuf.st_size && (len = XrdPosixXrootd::Read(fd, buf, N)) > 0 )
+            off_t totbytes = 0;
+            while ( totbytes < stbuf.st_size && (len = XrdPosixXrootd::Read(fd, buf, N)) > 0 )
             {
                 adler = adler32(adler, 
                                 (const Bytef*)buf, 
-                                (len < (stbuf.st_size - offset)? len : stbuf.st_size - offset ));
-                offset += len;
+                                (len < (stbuf.st_size - totbytes)? len : stbuf.st_size - totbytes ));
+                totbytes += len;
             }
 
             XrdPosixXrootd::Close(fd);
