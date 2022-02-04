@@ -32,6 +32,12 @@ endif()
 
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
 
+if( PIP_VERBOSE )
+  set(PIP_INSTALL_VERBOSE_FLAG "--verbose")
+else()
+  set(PIP_INSTALL_VERBOSE_FLAG "")
+endif()
+
 # Check it the Python interpreter has a valid version of pip
 execute_process(
         COMMAND ${PYTHON_EXECUTABLE} -m pip --version
@@ -53,7 +59,7 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
 
   # https://docs.python.org/3/install/#splitting-the-job-up
   add_custom_command(OUTPUT ${OUTPUT}
-                     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} build
+                     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} ${PIP_INSTALL_VERBOSE_FLAG} build
                      DEPENDS ${DEPS})
 
   add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
@@ -73,6 +79,7 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
     CODE
     "EXECUTE_PROCESS(
       COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
+                ${PIP_INSTALL_VERBOSE_FLAG} \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
                 ${DEB_INSTALL_ARGS} \
                 --record PYTHON_INSTALLED
@@ -85,6 +92,7 @@ else()
     CODE
     "EXECUTE_PROCESS(
       COMMAND ${PYTHON_EXECUTABLE} -m pip install \
+                ${PIP_INSTALL_VERBOSE_FLAG} \
                 --force-reinstall \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
                 ${CMAKE_CURRENT_BINARY_DIR}
