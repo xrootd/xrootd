@@ -63,6 +63,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
+            -DPIP_VERBOSE=ON \
             -S xrootd \
             -B build
         cmake3 build -LH
@@ -135,6 +136,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
+            -DPIP_VERBOSE=ON \
             -S xrootd \
             -B build
         cmake3 build -LH
@@ -202,6 +204,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/ \
             -DPYTHON_EXECUTABLE=$(command -v python2) \
             -DENABLE_TESTS=ON \
+            -DPIP_VERBOSE=ON \
             -S xrootd \
             -B build
         cmake3 build -LH
