@@ -303,6 +303,65 @@ jobs:
         ./publish.sh
         ls -lhtra dist/
 
+  rpm-fedora:
+
+    runs-on: ubuntu-latest
+    container: fedora:35
+
+    steps:
+    - name: Install external dependencies with dnf
+      run: |
+        dnf update -y
+        dnf install --nogpg -y \
+            gcc-c++ \
+            rpm-build \
+            which \
+            tar \
+            dnf-plugins-core \
+            git
+        dnf clean all
+
+    - name: Clone repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Build
+      run: |
+        cd packaging/
+        ./makesrpm.sh \
+          --define "_with_python3 1" \
+          --define "_with_ceph11 1"
+        dnf builddep --nogpgcheck -y *.src.rpm
+        mkdir RPMS
+        rpmbuild --rebuild \
+          --define "_rpmdir RPMS/" \
+          --define "_with_python3 1" \
+          --define "_with_ceph11 1" \
+          --define "_with_openssl3 1" \
+          --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" \
+          *.src.rpm
+
+    - name: Install
+      run: |
+        ls -lh packaging/RPMS/
+        dnf install -y \
+          ./packaging/RPMS/xrootd-*.rpm \
+          ./packaging/RPMS/python3-xrootd-*.rpm
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
   sdist-centos7:
 
     runs-on: ubuntu-latest
