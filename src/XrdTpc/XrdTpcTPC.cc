@@ -696,7 +696,6 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 #endif
 }
 
-int usingEC = -1;
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
     TPCLogRecord rec;
     rec.log_prefix = "PullRequest";
@@ -730,7 +729,6 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     XrdSfsFileOpenMode mode = SFS_O_CREAT;
     auto overwrite_header = req.headers.find("Overwrite");
     if ((overwrite_header == req.headers.end()) || (overwrite_header->second == "T")) {
-        if (usingEC == -1) usingEC = getenv("XRDCL_EC")? 1 : 0;
         if (! usingEC) mode = SFS_O_TRUNC;
     }
     int streams = 1;

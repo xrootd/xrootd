@@ -87,7 +87,7 @@ extern bool                       oidsOK;
 extern bool                       p2lSRC;
 extern bool                       p2lSGI;
 extern bool                       autoPGRD;
-extern int                        usingEC;
+extern bool                       usingEC;
 };
   
 /******************************************************************************/
@@ -182,7 +182,7 @@ void XrdPosixConfig::EnvInfo(XrdOucEnv &theEnv)
 // Test if XRDCL_EC is set. That env var. is set at XrdCl::PlugInManager::LoadFactory
 // in XrdClPlugInManager.cc, which is called (by XrdOssGetSS while loading 
 // libXrdPss.so) before this function. 
-   XrdPosixGlobals::usingEC = getenv("XRDCL_EC")? 1 : 0;
+   XrdPosixGlobals::usingEC = getenv("XRDCL_EC")? true : false;
 }
 
 /******************************************************************************/

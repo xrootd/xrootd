@@ -144,5 +144,7 @@ private:
 #else
     static const int m_pipelining_multiplier = 1;
 #endif
+
+    bool usingEC; // indicate if XrdEC is used
 };
 }

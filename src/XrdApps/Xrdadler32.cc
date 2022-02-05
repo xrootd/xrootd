@@ -237,6 +237,7 @@ int main(int argc, char *argv[])
                 printf("Error_accessing: %s\n", argv[1]);
                 return 1;
             }
+            //!!! TO DO: Remove testing of totbytes once XrdClEC read regression is fixed
             off_t totbytes = 0;
             while ( totbytes < stbuf.st_size && (len = XrdPosixXrootd::Read(fd, buf, N)) > 0 )
             {

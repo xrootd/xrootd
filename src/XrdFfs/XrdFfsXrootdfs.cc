@@ -89,7 +89,7 @@ static struct fuse_opt xrootdfs_opts[14];
 
 enum { OPT_KEY_HELP, OPT_KEY_SECSSS, };
 
-int usingEC = 0;
+bool usingEC = false;
 
 static void* xrootdfs_init(struct fuse_conn_info *conn)
 {
@@ -129,7 +129,7 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
     free(pwbuf);
 
 /* put Xrootd related initialization calls here, after fuse daemonize itself. */
-    if (getenv("XRDCL_EC")) usingEC = 1;
+    if (getenv("XRDCL_EC")) usingEC = true;
     XrdPosixXrootd *abc = new XrdPosixXrootd(-xrootdfs.maxfd);
     XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
     XrdFfsWcache_init(abc->fdOrigin(), xrootdfs.maxfd);
@@ -812,6 +812,7 @@ static int xrootdfs_read(const char *path, char *buf, size_t size, off_t offset,
         XrdPosixXrootd::Fstat(fd, &stbuf);  // Silly but does not seem to hurt performance
         off_t fsize = stbuf.st_size;
 
+        //!!! TO DO: Remove offset test once XrdClEC read regression is fixed 
         if ( offset >= fsize )
             return 0;
 

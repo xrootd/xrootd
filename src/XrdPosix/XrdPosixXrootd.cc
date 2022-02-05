@@ -94,7 +94,7 @@ bool             oidsOK    = false;
 bool             p2lSRC    = false;
 bool             p2lSGI    = false;
 bool             autoPGRD  = false;
-int              usingEC   = -1;
+bool             usingEC   = false;
 };
 
 int            XrdPosixXrootd::baseFD    = 0;
@@ -185,7 +185,7 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 // in XrdClPlugInManager.cc, which is called (by XrdOssGetSS while loading 
 // libXrdPss.so) before this function. 
 // Note: some standalone programs will call this constructor directly. 
-   if (XrdPosixGlobals::usingEC == -1) XrdPosixGlobals::usingEC = getenv("XRDCL_EC")? 1 : 0;
+   XrdPosixGlobals::usingEC = getenv("XRDCL_EC")? true : false;
 
 // Only static fields are initialized here. We need to do this only once!
 //
@@ -1047,7 +1047,6 @@ int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
 /*                                R e n a m e                                 */
 /******************************************************************************/
 
-int ec_rename(const char*, const char*, XrdPosixAdmin*);
 int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 {
    XrdPosixAdmin admin(oldpath);
@@ -1069,7 +1068,7 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 // Issue the rename
 //
    if (XrdPosixGlobals::usingEC)
-       return ec_rename(oldpath, newpath, &admin);
+       return EcRename(oldpath, newpath, &admin);
 
    return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
                               newUrl.GetPathWithParams()));
@@ -1144,7 +1143,6 @@ void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
 /*                                  S t a t                                   */
 /******************************************************************************/
   
-int ec_stat(const char*, struct stat*, XrdPosixAdmin*);
 int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 {
    XrdPosixAdmin admin(path);
@@ -1170,7 +1168,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 // Issue the stat and verify that all went well
 //
    if (XrdPosixGlobals::usingEC)
-       return ec_stat(path, buf, &admin);
+       return EcStat(path, buf, &admin);
 
    if (!admin.Stat(*buf)) return -1;
    return 0;
@@ -1331,7 +1329,6 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 /*                                 U n l i n k                                */
 /******************************************************************************/
 
-int ec_unlink(const char*, XrdPosixAdmin*);
 int XrdPosixXrootd::Unlink(const char *path)
 {
    XrdPosixAdmin admin(path);
@@ -1351,7 +1348,7 @@ int XrdPosixXrootd::Unlink(const char *path)
 // Issue the UnLink
 //
    if (XrdPosixGlobals::usingEC)
-      return ec_unlink(path, &admin);
+      return EcUnlink(path, &admin);
 
    return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
 }
@@ -1485,12 +1482,9 @@ int XrdPosixXrootd::Fault(XrdPosixFile *fp, int ecode)
 }
 
 /******************************************************************************/
-/*                       I n t e r n a l  M e t h o d s                       */
+/*                               E c R e n a m e                              */
 /******************************************************************************/
-/******************************************************************************/
-/*                             e c _ r e n a m e                              */
-/******************************************************************************/
-int ec_rename(const char *oldpath, const char *newpath, XrdPosixAdmin *admin)
+int XrdPosixXrootd::EcRename(const char *oldpath, const char *newpath, XrdPosixAdmin *admin)
 {
     XrdCl::URL url(oldpath);
     XrdCl::URL newUrl(newpath);
@@ -1551,9 +1545,9 @@ int ec_rename(const char *oldpath, const char *newpath, XrdPosixAdmin *admin)
 }
 
 /******************************************************************************/
-/*                                e c _ s t a t                               */
+/*                                  E c S t a t                               */
 /******************************************************************************/
-int ec_stat(const char *path, struct stat *buf, XrdPosixAdmin *admin)
+int XrdPosixXrootd::EcStat(const char *path, struct stat *buf, XrdPosixAdmin *admin)
 {
    XrdCl::URL url(path);
    std::string file = url.GetPath();
@@ -1652,9 +1646,9 @@ int ec_stat(const char *path, struct stat *buf, XrdPosixAdmin *admin)
 }
    
 /******************************************************************************/
-/*                              e c _ u n l i n k                             */
+/*                                E c U n l i n k                             */
 /******************************************************************************/
-int ec_unlink(const char *path, XrdPosixAdmin *admin)
+int XrdPosixXrootd::EcUnlink(const char *path, XrdPosixAdmin *admin)
 {
     XrdCl::URL url(path);
     std::string file = url.GetPath();
