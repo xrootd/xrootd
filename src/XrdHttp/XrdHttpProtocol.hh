@@ -212,6 +212,7 @@ private:
   static bool isRequiredXtractor; // If true treat secxtractor errors as fatal
   static XrdHttpSecXtractor *secxtractor;
   
+  static bool usingEC;   // using XrdEC
   // Loads the SecXtractor plugin, if available
   static int LoadSecXtractor(XrdSysError *eDest, const char *libName,
                       const char *libParms);

@@ -978,7 +978,6 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
   }
 }
 
-int usingEC = -1;
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
@@ -1368,8 +1367,7 @@ int XrdHttpReq::ProcessHTTPReq() {
         l = resourceplusopaque.length() + 1;
         xrdreq.open.dlen = htonl(l);
         xrdreq.open.mode = htons(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
-        if (usingEC == -1) usingEC = getenv("XRDCL_EC")? 1 : 0;
-        if (! usingEC) 
+        if (! XrdHttpProtocol::usingEC) 
           xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_delete);
         else
           xrdreq.open.options = htons(kXR_mkpath | kXR_open_wrto | kXR_new);
