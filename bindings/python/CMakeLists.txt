@@ -81,8 +81,7 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
       COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
                 ${PIP_INSTALL_VERBOSE_FLAG} \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
-                ${DEB_INSTALL_ARGS} \
-                --record PYTHON_INSTALLED
+                ${DEB_INSTALL_ARGS}
     )"
   )
 
