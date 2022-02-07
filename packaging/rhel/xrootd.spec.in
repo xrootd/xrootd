@@ -653,7 +653,6 @@ popd
 pushd xrootd
 pushd  build
 make install DESTDIR=$RPM_BUILD_ROOT
-cat PYTHON_INSTALLED | sed -e "s|$RPM_BUILD_ROOT||g" > PYTHON_INSTALLED_FILES
 popd
 
 # configuration stuff
@@ -1033,13 +1032,15 @@ fi
 %dir %{_sysconfdir}/xrootd
 
 %if %{python2only}
-%files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
+%files -n python2-%{name}
 %defattr(-,root,root,-)
+%{python2_sitearch}/*
 %endif
 
 %if %{python2and3}
-%files -n python2-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
+%files -n python2-%{name}
 %defattr(-,root,root,-)
+%{python2_sitearch}/*
 
 %files -n python%{python3_pkgversion}-%{name}
 %defattr(-,root,root,-)
@@ -1047,8 +1048,9 @@ fi
 %endif
 
 %if %{python3only}
-%files -n python%{python3_pkgversion}-%{name} -f xrootd/build/PYTHON_INSTALLED_FILES
+%files -n python%{python3_pkgversion}-%{name}
 %defattr(-,root,root,-)
+%{python3_sitearch}/*
 %endif
 
 %files voms
