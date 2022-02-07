@@ -12,3 +12,15 @@ lib = /home/simonm/git/xrootd-xrdreply/build/src/libXrdClRecorder-5.so
 enable = true
 output = /tmp/out.csv
 ```
+
+In order to replay either do:
+
+```bash
+xrdreplay /tmp/out.csv
+```
+
+or
+
+```bash
+cat /tmp/out.csv | xrdreplay
+```
