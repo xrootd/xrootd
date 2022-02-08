@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2017 by European Organization for Nuclear Research (CERN)
-// Author: Michal Simon <michal.simon@cern.ch>
+// Copyright (c) 2011-2021 by European Organization for Nuclear Research (CERN)
+// Author: Michal Simon <michal.simon@cern.ch> 
+// Co-Author: Andreas-Joachim Peters <andreas.joachim.peters@cern.ch>
 //------------------------------------------------------------------------------
 // This file is part of the XRootD software suite.
 //
@@ -26,7 +27,9 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
+#include "XrdClAction.hh"
+#include "XrdClActionMetrics.hh"
+#include "XrdClReplayArgs.hh"
 #include <fstream>
 #include <vector>
 #include <tuple>
@@ -34,37 +37,48 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include <iomanip>
+#include <atomic>
+#include <stdarg.h>
+#include <getopt.h>
+#include <map>
+#include <vector>
+#include <numeric>
 
 namespace XrdCl
 {
-
 //------------------------------------------------------------------------------
 //! Timer helper class
 //------------------------------------------------------------------------------
 class mytimer_t
 {
   public:
-    //--------------------------------------------------------------------------
-    //! Constructor (record start time)
-    //--------------------------------------------------------------------------
-    mytimer_t() : start( clock_t::now() ){ }
+  //--------------------------------------------------------------------------
+  //! Constructor (record start time)
+  //--------------------------------------------------------------------------
+  mytimer_t()
+  : start(clock_t::now())
+  {
+  }
 
-    //--------------------------------------------------------------------------
-    //! Reset the start time
-    //--------------------------------------------------------------------------
-    void reset(){ start = clock_t::now(); }
+  //--------------------------------------------------------------------------
+  //! Reset the start time
+  //--------------------------------------------------------------------------
+  void reset() { start = clock_t::now(); }
 
-    //--------------------------------------------------------------------------
-    //! @return : get time elapsed from start
-    //--------------------------------------------------------------------------
-    uint64_t elapsed() const
-    {
-      return std::chrono::duration_cast<std::chrono::seconds>( clock_t::now() - start ).count();
-    }
+  //--------------------------------------------------------------------------
+  //! @return : get time elapsed from start
+  //--------------------------------------------------------------------------
+  double elapsed() const
+  {
+    return (1.0
+            * (std::chrono::duration_cast<std::chrono::nanoseconds>(clock_t::now() - start).count())
+            / 1000000000.0);
+  }
 
   private:
-    using clock_t = std::chrono::high_resolution_clock;
-    std::chrono::time_point<clock_t> start; //< registered start time
+  using clock_t = std::chrono::high_resolution_clock;
+  std::chrono::time_point<clock_t> start;  //< registered start time
 };
 
 //------------------------------------------------------------------------------
@@ -74,430 +88,747 @@ class mytimer_t
 class barrier_t
 {
   public:
-    //------------------------------------------------------------------------
-    //! Constructor
-    //! @param sem : the semaphore
-    //------------------------------------------------------------------------
-    barrier_t( XrdSysSemaphore &sem ) : sem( sem ) { }
+  //------------------------------------------------------------------------
+  //! Constructor
+  //! @param sem : the semaphore
+  //------------------------------------------------------------------------
+  barrier_t(XrdSysSemaphore& sem)
+  : sem(sem)
+  {
+  }
 
-    //------------------------------------------------------------------------
-    //! Destructor
-    //------------------------------------------------------------------------
-    ~barrier_t()
-    {
-      sem.Post();
-    }
+  //------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------
+  ~barrier_t() { sem.Post(); }
 
-    inline XrdSysSemaphore& get()
-    {
-      return sem;
-    }
+  inline XrdSysSemaphore& get() { return sem; }
 
   private:
-    XrdSysSemaphore &sem; //< the semaphore to be posted
+  XrdSysSemaphore& sem;  //< the semaphore to be posted
 };
+
+//------------------------------------------------------------------------------
+//! AssureFile creates input data files on the fly if required
+//------------------------------------------------------------------------------
+bool AssureFile(const std::string& url, uint64_t size, bool viatruncate, bool verify)
+{
+  OpenFlags::Flags flags   = OpenFlags::Read;
+  Access::Mode     mode    = Access::None;
+  uint16_t         timeout = 60;
+
+  {
+    // deal with existing files
+    auto         file   = std::make_unique<XrdCl::File>(false);
+    XRootDStatus status = file->Open(url, flags, mode, timeout);
+    if (status.IsOK())
+    {
+      StatInfo* statinfo;
+      // file exists already, verify the size
+      status = file->Stat(false, statinfo, timeout);
+      if (status.IsOK())
+      {
+        if (statinfo->GetSize() < size)
+        {
+          std::cerr
+            << "Error: file size is not sufficient, but I won't touch the file - aborting ...";
+          return false;
+        }
+        else
+        {
+          std::cout << "# ---> info: file exists and has sufficient size" << std::endl;
+          return true;
+        }
+      }
+    }
+  }
+
+  if (verify)
+  {
+    std::cerr << "Verify: file is missing or inaccesible: " << url << std::endl;
+    return false;
+  }
+
+  {
+    // deal with non-existing file
+    OpenFlags::Flags wflags = OpenFlags::New | OpenFlags::Write | OpenFlags::MakePath;
+    Access::Mode     wmode  = Access::UR | Access::UW | Access::UX;
+    auto             file   = std::make_unique<XrdCl::File>(false);
+    XRootDStatus     status = file->Open(url, wflags, wmode, timeout);
+    if (status.IsOK())
+    {
+      if (viatruncate)
+      {
+        // create a file via truncation
+        status = file->Truncate(size, timeout);
+        if (!status.IsOK())
+        {
+          std::cerr << "Error: " << status.ToString() << " - empty file might be left behind!"
+                    << std::endl;
+          return false;
+        }
+        return true;
+      }
+      else
+      {
+        // create a file via writes
+        using buffer_t = std::vector<uint64_t>;  //< data buffer
+        buffer_t buffer(32768);
+        size_t   nbytes = 0;
+
+        while (nbytes < size)
+        {
+          size_t towrite = size - nbytes;
+          if (towrite > (buffer.size() * sizeof(uint64_t)))
+            towrite = buffer.size() * sizeof(uint64_t);
+          for (size_t i = 0; i < buffer.size(); ++i)
+          {
+            // we write the offset in this buffer
+            buffer[i] = nbytes / sizeof(uint64_t) + i;
+          }
+          status = file->Write(nbytes, towrite, buffer.data(), timeout);
+          if (!status.IsOK())
+          {
+            std::cerr << "Error: " << status.ToString() << " - failed to write file at offset "
+                      << nbytes << " - incomplete file might be left behind!" << std::endl;
+            return false;
+          }
+          nbytes += towrite;
+        }
+      }
+      return true;
+    }
+    else
+    {
+      std::cerr << "Error: " << status.ToString() << " - failed to create file!" << std::endl;
+    }
+  }
+  return false;
+}
 
 //------------------------------------------------------------------------------
 //! Executes an action registered in the csv file
 //------------------------------------------------------------------------------
 class ActionExecutor
 {
-  using buffer_t = std::shared_ptr<std::vector<char>>; //< data buffer
+  using buffer_t = std::shared_ptr<std::vector<char>>;  //< data buffer
 
   public:
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //! @param file     : the file that should be the context of the action
+  //! @param action   : the action to be executed
+  //! @param args     : arguments for the action
+  //! @param orgststr : original status
+  //! @param resp     : original response
+  //! @param duration : nominal duration of this action
+  //--------------------------------------------------------------------------
+  ActionExecutor(File&              file,
+                 const std::string& action,
+                 const std::string& args,
+                 const std::string& orgststr,
+                 const std::string& resp,
+                 const double&      duration)
+  : file(file)
+  , action(action)
+  , args(args)
+  , orgststr(orgststr)
+  , nominalduration(duration)
+  {
+  }
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //! @param file     : the file that should be the context of the action
-    //! @param action   : the action to be executed
-    //! @param args     : arguments for the action
-    //! @param orgststr : original status
-    //! @param resp     : original response
-    //--------------------------------------------------------------------------
-    ActionExecutor( File              &file,
-                    const std::string &action,
-                    const std::string &args,
-                    const std::string &orgststr,
-                    const std::string &resp ) :
-      file( file ),
-      action( action ),
-      args( args ),
-      orgststr( orgststr )
+  //--------------------------------------------------------------------------
+  //! Execute the action
+  //! @param ending  : synchronization object for ending the execution
+  //--------------------------------------------------------------------------
+  void Execute(std::shared_ptr<barrier_t>& ending,
+               std::shared_ptr<barrier_t>& closing,
+               ActionMetrics&              metric,
+               const bool&                 simulate)
+  {
+    if (action == "Open")  // open action
     {
-    }
+      std::string      url;
+      OpenFlags::Flags flags;
+      Access::Mode     mode;
+      uint16_t         timeout;
+      std::tie(url, flags, mode, timeout) = GetOpenArgs();
 
-    //--------------------------------------------------------------------------
-    //! Execute the action
-    //! @param ending  : synchronization object for ending the execution
-    //--------------------------------------------------------------------------
-    void Execute( std::shared_ptr<barrier_t> &ending,
-                  std::shared_ptr<barrier_t> &closing )
-    {
-      if( action == "Open" ) // open action
+      std::string lmetric;
+      if ((flags & OpenFlags::Update) || (flags & OpenFlags::Write))
       {
-        std::string      url;
-        OpenFlags::Flags flags;
-        Access::Mode     mode;
-        uint16_t         timeout;
-        std::tie( url, flags, mode, timeout ) = GetOpenArgs();
-        std::string tmp( orgststr );
-        WaitFor( Open( file, url, flags, mode, timeout ) >>
-                 [tmp, ending, closing]( XRootDStatus &s ) mutable
-                 {
-                   HandleStatus( s, tmp );
-                   ending.reset();
-                   closing.reset();
-                 } );
-
-      }
-      else if( action == "Close" ) // close action
-      {
-        uint16_t timeout = GetCloseArgs();
-        std::string tmp( orgststr );
-        if( closing )
-        {
-          auto &sem = closing->get();
-          closing.reset();
-          sem.Wait();
-        }
-        Async( Close( file, timeout ) >>
-               [tmp, ending]( XRootDStatus &s ) mutable
-               {
-                 HandleStatus( s, tmp );
-                 ending.reset();
-               } );
-      }
-      else if( action == "Stat" ) // stat action
-      {
-        bool force;
-        uint16_t timeout;
-        std::tie( force, timeout ) = GetStatArgs();
-        std::string tmp( orgststr );
-        Async( Stat( file, force, timeout ) >>
-               [tmp, ending, closing]( XRootDStatus &s, StatInfo &r ) mutable
-               {
-                 HandleStatus( s, tmp );
-                 ending.reset();
-                 closing.reset();
-               } );
-
-      }
-      else if( action == "Read" ) // read action
-      {
-        uint64_t offset;
-        buffer_t buffer;
-        uint16_t timeout;
-        std::tie( offset, buffer, timeout ) = GetReadArgs();
-        Async( Read( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing]( XRootDStatus &s, ChunkInfo &r ) mutable
-               {
-                 HandleStatus( s, orgststr );
-                 buffer.reset();
-                 ending.reset();
-                 closing.reset();
-               } );
-      }
-      else if( action == "PgRead" ) // pgread action
-      {
-        uint64_t offset;
-        buffer_t buffer;
-        uint16_t timeout;
-        std::tie( offset, buffer, timeout ) = GetPgReadArgs();
-        Async( PgRead( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing]( XRootDStatus &s, PageInfo &r ) mutable
-               {
-                 HandleStatus( s, orgststr );
-                 buffer.reset();
-                 ending.reset();
-                 closing.reset();
-               } );
-      }
-      else if( action == "Write" ) // write action
-      {
-        uint64_t offset;
-        buffer_t buffer;
-        uint16_t timeout;
-        std::tie( offset, buffer, timeout ) = GetWriteArgs();
-        Async( Write( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing]( XRootDStatus &s ) mutable
-               {
-                 HandleStatus( s, orgststr );
-                 buffer.reset();
-                 ending.reset();
-                 closing.reset();
-               } );
-      }
-      else if( action == "PgWrite" ) // pgwrite action
-      {
-        uint64_t offset;
-        buffer_t buffer;
-        uint16_t timeout;
-        std::tie( offset, buffer, timeout ) = GetPgWriteArgs();
-        Async( PgWrite( file, offset, buffer->size(), buffer->data(), timeout ) >>
-               [buffer, orgststr{ orgststr }, ending, closing]( XRootDStatus &s ) mutable
-               {
-                 HandleStatus( s, orgststr );
-                 buffer.reset();
-                 ending.reset();
-                 closing.reset();
-               } );
-      }
-      else if( action == "Sync" ) // sync action
-      {
-        uint16_t timeout = GetSyncArgs();
-        std::string tmp( orgststr );
-        Async( Sync( file, timeout ) >>
-               [tmp, ending, closing]( XRootDStatus &s ) mutable
-               {
-                 HandleStatus( s, tmp );
-                 ending.reset();
-                 closing.reset();
-               } );
-      }
-      else if( action == "Truncate" ) // truncate action
-      {
-        uint64_t size;
-        uint16_t timeout;
-        std::tie( size, timeout ) = GetTruncateArgs();
-        std::string tmp( orgststr );
-        Async( Truncate( file, size, timeout ) >>
-               [tmp, ending, closing]( XRootDStatus &s ) mutable
-               {
-                 HandleStatus( s, tmp );
-                 ending.reset();
-                 closing.reset();
-               } );
-      }
-      else if( action == "VectorRead" ) // vector read action
-      {
-        ChunkList chunks;
-        uint16_t  timeout;
-        std::tie( chunks, timeout ) = GetVectorReadArgs();
-        std::string tmp( orgststr );
-        Async( VectorRead( file, chunks, timeout ) >>
-               [chunks, tmp, ending, closing]( XRootDStatus &s, VectorReadInfo &r ) mutable
-               {
-                 HandleStatus( s, tmp );
-                 for( auto &ch : chunks )
-                   delete[] (char*)ch.buffer;
-                 ending.reset();
-                 closing.reset();
-               } );
-
-      }
-      else if( action == "VectorWrite" ) // vector write
-      {
-        ChunkList chunks;
-        uint16_t  timeout;
-        std::tie( chunks, timeout ) = GetVectorWriteArgs();
-        std::string tmp( orgststr );
-        Async( VectorWrite( file, chunks, timeout ) >>
-               [chunks, tmp, ending, closing]( XRootDStatus &s ) mutable
-               {
-                 HandleStatus( s, tmp );
-                 for( auto &ch : chunks )
-                   delete[] (char*)ch.buffer;
-                 ending.reset();
-                 closing.reset();
-               } );
+        metric.ios["OpenW::n"]++;
       }
       else
       {
-        DefaultEnv::GetLog()->Warning( AppMsg, "Cannot replyt %s action.", action.c_str() );
+        metric.ios["OpenR::n"]++;
+      }
+
+      metric.ios["Open::n"]++;
+
+      mytimer_t timer;
+
+      if (!simulate)
+        WaitFor(Open(file, url, flags, mode, timeout) >>
+                [this, ending, closing, timer, &metric](XRootDStatus& s) mutable
+                {
+                  metric.addIos("Open", "e", HandleStatus(s, orgststr));
+                  metric.addDelays("Open", "tmeas", timer.elapsed());
+                  ending.reset();
+                  closing.reset();
+                });
+      else
+      {
+        ending.reset();
+        closing.reset();
       }
     }
+    else if (action == "Close")  // close action
+    {
+      uint16_t    timeout = GetCloseArgs();
+      mytimer_t   timer;
+
+      if (closing)
+      {
+        auto& sem = closing->get();
+        closing.reset();
+        sem.Wait();
+      }
+
+      metric.ios["Close::n"]++;
+
+      if (!simulate)
+        Async(Close(file, timeout) >>
+              [this, ending, timer, &metric](XRootDStatus& s) mutable
+              {
+                metric.addIos("Close", "e", HandleStatus(s, orgststr));
+                metric.addDelays("Close", "tmeas", timer.elapsed());
+                ending.reset();
+              });
+      else
+      {
+        ending.reset();
+      }
+    }
+    else if (action == "Stat")  // stat action
+    {
+      bool     force;
+      uint16_t timeout;
+      std::tie(force, timeout) = GetStatArgs();
+      metric.ios["Stat::n"]++;
+      mytimer_t timer;
+
+      if (!simulate)
+        Async(Stat(file, force, timeout) >>
+              [this, ending, closing, timer, &metric](XRootDStatus& s, StatInfo& r) mutable
+              {
+                metric.addIos("Stat", "e", HandleStatus(s, orgststr));
+                metric.addDelays("Stat", "tmeas", timer.elapsed());
+                ending.reset();
+                closing.reset();
+              });
+      else
+      {
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "Read")  // read action
+    {
+      uint64_t offset;
+      buffer_t buffer;
+      uint16_t timeout;
+      std::tie(offset, buffer, timeout) = GetReadArgs();
+      metric.ios["Read::n"]++;
+      metric.ios["Read::b"] += buffer->size();
+      if ((offset + buffer->size()) > metric.ios["Read::o"])
+        metric.ios["Read::o"] = offset + buffer->size();
+
+      mytimer_t timer;
+      if (!simulate)
+        Async(Read(file, offset, buffer->size(), buffer->data(), timeout) >>
+              [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s,
+                                                                              ChunkInfo& r) mutable
+              {
+                metric.addIos("Read", "e", HandleStatus(s, orgststr));
+                metric.addDelays("Read", "tmeas", timer.elapsed());
+                buffer.reset();
+                ending.reset();
+                closing.reset();
+              });
+      else
+      {
+        buffer.reset();
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "PgRead")  // pgread action
+    {
+      uint64_t offset;
+      buffer_t buffer;
+      uint16_t timeout;
+      std::tie(offset, buffer, timeout) = GetPgReadArgs();
+      metric.ios["PgRead::n"]++;
+      metric.ios["PgRead::b"] += buffer->size();
+      if ((offset + buffer->size()) > metric.ios["Read::o"])
+        metric.ios["Read::o"] = offset + buffer->size();
+      mytimer_t timer;
+      if (!simulate)
+        Async(PgRead(file, offset, buffer->size(), buffer->data(), timeout) >>
+              [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s,
+                                                                              PageInfo& r) mutable
+              {
+                metric.addIos("PgRead", "e", HandleStatus(s, orgststr));
+                metric.addDelays("PgRead", "tmeas", timer.elapsed());
+                buffer.reset();
+                ending.reset();
+                closing.reset();
+              });
+      else
+      {
+        buffer.reset();
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "Write")  // write action
+    {
+      uint64_t offset;
+      buffer_t buffer;
+      uint16_t timeout;
+      std::tie(offset, buffer, timeout) = GetWriteArgs();
+      metric.ios["Write::n"]++;
+      metric.ios["Write::b"] += buffer->size();
+      if ((offset + buffer->size()) > metric.ios["Write::o"])
+        metric.ios["Write::o"] = offset + buffer->size();
+      mytimer_t timer;
+
+      if (!simulate)
+        Async(
+          Write(file, offset, buffer->size(), buffer->data(), timeout) >>
+          [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
+          {
+            metric.addIos("Write", "e", HandleStatus(s, orgststr));
+            metric.addDelays("Write", "tmeas", timer.elapsed());
+            buffer.reset();
+            ending.reset();
+            closing.reset();
+          });
+      else
+      {
+        buffer.reset();
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "PgWrite")  // pgwrite action
+    {
+      uint64_t offset;
+      buffer_t buffer;
+      uint16_t timeout;
+      std::tie(offset, buffer, timeout) = GetPgWriteArgs();
+      metric.ios["PgWrite::n"]++;
+      metric.ios["PgWrite::b"] += buffer->size();
+      if ((offset + buffer->size()) > metric.ios["Write::o"])
+        metric.ios["Write::o"] = offset + buffer->size();
+      mytimer_t timer;
+      if (!simulate)
+        Async(
+          PgWrite(file, offset, buffer->size(), buffer->data(), timeout) >>
+          [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
+          {
+            metric.addIos("PgWrite", "e", HandleStatus(s, orgststr));
+            metric.addDelays("PgWrite", "tmeas", timer.elapsed());
+            buffer.reset();
+            ending.reset();
+            closing.reset();
+          });
+      else
+      {
+        buffer.reset();
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "Sync")  // sync action
+    {
+      uint16_t    timeout = GetSyncArgs();
+      metric.ios["Sync::n"]++;
+      mytimer_t timer;
+      if (!simulate)
+        Async(Sync(file, timeout) >>
+              [this, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              {
+                metric.addIos("Sync", "e", HandleStatus(s, orgststr));
+                metric.addDelays("Sync", "tmeas", timer.elapsed());
+                ending.reset();
+                closing.reset();
+              });
+      else
+      {
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "Truncate")  // truncate action
+    {
+      uint64_t size;
+      uint16_t timeout;
+      std::tie(size, timeout) = GetTruncateArgs();
+      metric.ios["Truncate::n"]++;
+      if (size > metric.ios["Truncate::o"])
+        metric.ios["Truncate::o"] = size;
+
+      mytimer_t timer;
+      if (!simulate)
+        Async(Truncate(file, size, timeout) >>
+              [this, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              {
+                metric.addIos("Truncate", "e", HandleStatus(s, orgststr));
+                metric.addDelays("Truncate", "tmeas", timer.elapsed());
+                ending.reset();
+                closing.reset();
+              });
+      else
+      {
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "VectorRead")  // vector read action
+    {
+      ChunkList chunks;
+      uint16_t  timeout;
+      std::tie(chunks, timeout) = GetVectorReadArgs();
+      metric.ios["VectorRead::n"]++;
+      for (auto& ch : chunks)
+      {
+        metric.ios["VectorRead::b"] += ch.GetLength();
+        if ((ch.GetOffset() + ch.GetLength()) > metric.ios["Read::o"])
+          metric.ios["Read::o"] = ch.GetOffset() + ch.GetLength();
+      }
+
+      mytimer_t timer;
+      if (!simulate)
+        Async(
+          VectorRead(file, chunks, timeout) >>
+          [this, chunks, ending, closing, timer, &metric](XRootDStatus& s, VectorReadInfo& r) mutable
+          {
+            metric.addIos("VectorRead", "e", HandleStatus(s, orgststr));
+            metric.addDelays("VectorRead", "tmeas", timer.elapsed());
+            for (auto& ch : chunks)
+              delete[](char*) ch.buffer;
+            ending.reset();
+            closing.reset();
+          });
+      else
+      {
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else if (action == "VectorWrite")  // vector write
+    {
+      ChunkList chunks;
+      uint16_t  timeout;
+      std::tie(chunks, timeout) = GetVectorWriteArgs();
+      metric.ios["VectorWrite::n"]++;
+      for (auto& ch : chunks)
+      {
+        metric.ios["VectorWrite::b"] += ch.GetLength();
+        if ((ch.GetOffset() + ch.GetLength()) > metric.ios["Write::o"])
+          metric.ios["Write::o"] = ch.GetOffset() + ch.GetLength();
+      }
+      mytimer_t timer;
+      if (!simulate)
+        Async(VectorWrite(file, chunks, timeout) >>
+              [this, chunks, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              {
+                metric.addIos("VectorWrite", "e", HandleStatus(s, orgststr));
+                metric.addDelays("VectorWrite", "tmeas", timer.elapsed());
+                for (auto& ch : chunks)
+                  delete[](char*) ch.buffer;
+                ending.reset();
+                closing.reset();
+              });
+      else
+      {
+        ending.reset();
+        closing.reset();
+      }
+    }
+    else
+    {
+      DefaultEnv::GetLog()->Warning(AppMsg, "Cannot replyt %s action.", action.c_str());
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get nominal duration variable
+  //--------------------------------------------------------------------------
+  double NominalDuration() const { return nominalduration; }
+
+  //--------------------------------------------------------------------------
+  //! Get aciton name
+  //--------------------------------------------------------------------------
+  std::string Name() const { return action; }
 
   private:
+  //--------------------------------------------------------------------------
+  //! Handle response status
+  //--------------------------------------------------------------------------
+  static bool HandleStatus(XRootDStatus& response, const std::string& orgstr)
+  {
+    std::string rspstr = response.ToString();
+    rspstr.erase(remove(rspstr.begin(), rspstr.end(), ' '), rspstr.end());
 
-    //--------------------------------------------------------------------------
-    //! Handle response status
-    //--------------------------------------------------------------------------
-    static void HandleStatus( XRootDStatus &response, const std::string &orgstr )
+    if (rspstr != orgstr)
     {
-      std::string rspstr = response.ToString();
-      if( rspstr == orgstr )
-      {
-        DefaultEnv::GetLog()->Warning( AppMsg, "We were expecting status: %s, but "
-                                       "received: %s", orgstr.c_str(), rspstr.c_str() );
-      }
+      DefaultEnv::GetLog()->Warning(AppMsg,
+                                    "We were expecting status: %s, but "
+                                    "received: %s",
+                                    orgstr.c_str(),
+                                    rspstr.c_str());
+      return true;
     }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for open
-    //--------------------------------------------------------------------------
-    std::tuple<std::string, OpenFlags::Flags, Access::Mode, uint16_t> GetOpenArgs()
+    else
     {
-      std::vector<std::string> tokens;
-      Utils::splitString( tokens, args, ";" );
-      if( tokens.size() != 4 )
-        throw std::invalid_argument( "Failed to parse open arguments." );
-      std::string url = tokens[0];
-      OpenFlags::Flags flags = static_cast<OpenFlags::Flags>( std::stoul( tokens[1] ) );
-      Access::Mode mode = static_cast<Access::Mode>( std::stoul( tokens[2] ) );
-      uint16_t timeout = static_cast<uint16_t>( std::stoul( tokens[3] ) );
-      return std::make_tuple( url, flags, mode, timeout );
+      return false;
     }
+  }
 
-    //--------------------------------------------------------------------------
-    //! Parse arguments for close
-    //--------------------------------------------------------------------------
-    uint16_t GetCloseArgs()
+  //--------------------------------------------------------------------------
+  //! Parse arguments for open
+  //--------------------------------------------------------------------------
+  std::tuple<std::string, OpenFlags::Flags, Access::Mode, uint16_t> GetOpenArgs()
+  {
+    std::vector<std::string> tokens;
+    Utils::splitString(tokens, args, ";");
+    if (tokens.size() != 4)
+      throw std::invalid_argument("Failed to parse open arguments.");
+    std::string      url     = tokens[0];
+    OpenFlags::Flags flags   = static_cast<OpenFlags::Flags>(std::stoul(tokens[1]));
+    Access::Mode     mode    = static_cast<Access::Mode>(std::stoul(tokens[2]));
+    uint16_t         timeout = static_cast<uint16_t>(std::stoul(tokens[3]));
+    return std::make_tuple(url, flags, mode, timeout);
+  }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for close
+  //--------------------------------------------------------------------------
+  uint16_t GetCloseArgs() { return static_cast<uint16_t>(std::stoul(args)); }
+
+  std::tuple<bool, uint16_t> GetStatArgs()
+  {
+    std::vector<std::string> tokens;
+    Utils::splitString(tokens, args, ";");
+    if (tokens.size() != 2)
+      throw std::invalid_argument("Failed to parse stat arguments.");
+    bool     force   = (tokens[0] == "true");
+    uint16_t timeout = static_cast<uint16_t>(std::stoul(tokens[1]));
+    return std::make_tuple(force, timeout);
+  }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for read
+  //--------------------------------------------------------------------------
+  std::tuple<uint64_t, buffer_t, uint16_t> GetReadArgs()
+  {
+    std::vector<std::string> tokens;
+    Utils::splitString(tokens, args, ";");
+    if (tokens.size() != 3)
+      throw std::invalid_argument("Failed to parse read arguments.");
+    uint64_t offset  = std::stoull(tokens[0]);
+    uint32_t length  = std::stoul(tokens[1]);
+    auto     buffer  = std::make_shared<std::vector<char>>(length, 'A');
+    uint16_t timeout = static_cast<uint16_t>(std::stoul(tokens[2]));
+    return std::make_tuple(offset, buffer, timeout);
+  }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for pgread
+  //--------------------------------------------------------------------------
+  inline std::tuple<uint64_t, buffer_t, uint16_t> GetPgReadArgs() { return GetReadArgs(); }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for write
+  //--------------------------------------------------------------------------
+  inline std::tuple<uint64_t, buffer_t, uint16_t> GetWriteArgs() { return GetReadArgs(); }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for pgwrite
+  //--------------------------------------------------------------------------
+  inline std::tuple<uint64_t, buffer_t, uint16_t> GetPgWriteArgs() { return GetReadArgs(); }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for sync
+  //--------------------------------------------------------------------------
+  uint16_t GetSyncArgs() { return static_cast<uint16_t>(std::stoul(args)); }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for truncate
+  //--------------------------------------------------------------------------
+  std::tuple<uint64_t, uint16_t> GetTruncateArgs()
+  {
+    std::vector<std::string> tokens;
+    Utils::splitString(tokens, args, ";");
+    if (tokens.size() != 2)
+      throw std::invalid_argument("Failed to parse truncate arguments.");
+    uint64_t size    = std::stoull(tokens[0]);
+    uint16_t timeout = static_cast<uint16_t>(std::stoul(tokens[1]));
+    return std::make_tuple(size, timeout);
+  }
+
+  //--------------------------------------------------------------------------
+  //! Parse arguments for vector read
+  //--------------------------------------------------------------------------
+  std::tuple<ChunkList, uint16_t> GetVectorReadArgs()
+  {
+    std::vector<std::string> tokens;
+    Utils::splitString(tokens, args, ";");
+    ChunkList chunks;
+    for (size_t i = 0; i < tokens.size() - 1; i += 2)
     {
-      return static_cast<uint16_t>( std::stoul( args ) );
+      uint64_t offset = std::stoull(tokens[i]);
+      uint32_t length = std::stoul(tokens[i + 1]);
+      char*    buffer = new char[length];
+      memset(buffer, 'A', length);
+      chunks.emplace_back(offset, length, buffer);
     }
+    uint16_t timeout = static_cast<uint16_t>(std::stoul(tokens.back()));
+    return std::make_tuple(std::move(chunks), timeout);
+  }
 
-    std::tuple<bool, uint16_t> GetStatArgs()
-    {
-      std::vector<std::string> tokens;
-      Utils::splitString( tokens, args, ";" );
-      if( tokens.size() != 2 )
-        throw std::invalid_argument( "Failed to parse stat arguments." );
-      bool force = ( tokens[0] == "true" );
-      uint16_t timeout = static_cast<uint16_t>( std::stoul( tokens[1] ) );
-      return std::make_tuple( force, timeout );
-    }
+  //--------------------------------------------------------------------------
+  //! Parse arguments for vector write
+  //--------------------------------------------------------------------------
+  inline std::tuple<ChunkList, uint16_t> GetVectorWriteArgs() { return GetVectorReadArgs(); }
 
-    //--------------------------------------------------------------------------
-    //! Parse arguments for read
-    //--------------------------------------------------------------------------
-    std::tuple<uint64_t, buffer_t, uint16_t> GetReadArgs()
-    {
-      std::vector<std::string> tokens;
-      Utils::splitString( tokens, args, ";" );
-      if( tokens.size() != 3 )
-        throw std::invalid_argument( "Failed to parse read arguments." );
-      uint64_t offset = std::stoull( tokens[0] );
-      uint32_t length = std::stoul( tokens[1] );
-      auto buffer = std::make_shared<std::vector<char>>( length, 'A' );
-      uint16_t timeout = static_cast<uint16_t>( std::stoul( tokens[2] ) );
-      return std::make_tuple( offset, buffer, timeout );
-    }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for pgread
-    //--------------------------------------------------------------------------
-    inline std::tuple<uint64_t, buffer_t, uint16_t> GetPgReadArgs()
-    {
-      return GetReadArgs();
-    }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for write
-    //--------------------------------------------------------------------------
-    inline std::tuple<uint64_t, buffer_t, uint16_t> GetWriteArgs()
-    {
-      return GetReadArgs();
-    }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for pgwrite
-    //--------------------------------------------------------------------------
-    inline std::tuple<uint64_t, buffer_t, uint16_t> GetPgWriteArgs()
-    {
-      return GetReadArgs();
-    }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for sync
-    //--------------------------------------------------------------------------
-    uint16_t GetSyncArgs()
-    {
-      return static_cast<uint16_t>( std::stoul( args ) );
-    }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for truncate
-    //--------------------------------------------------------------------------
-    std::tuple<uint64_t, uint16_t> GetTruncateArgs()
-    {
-      std::vector<std::string> tokens;
-      Utils::splitString( tokens, args, ";" );
-      if( tokens.size() != 2 )
-        throw std::invalid_argument( "Failed to parse truncate arguments." );
-      uint64_t size = std::stoull( tokens[0] );
-      uint16_t timeout = static_cast<uint16_t>( std::stoul( tokens[1] ) );
-      return std::make_tuple( size, timeout );
-    }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for vector read
-    //--------------------------------------------------------------------------
-    std::tuple<ChunkList, uint16_t> GetVectorReadArgs()
-    {
-      std::vector<std::string> tokens;
-      Utils::splitString( tokens, args, ";" );
-      ChunkList chunks;
-      for( size_t i = 0; i < tokens.size() - 1; i += 2 )
-      {
-        uint64_t offset = std::stoull( tokens[i] );
-        uint32_t length = std::stoul( tokens[i+1] );
-        char*    buffer = new char[length];
-        memset( buffer, 'A', length );
-        chunks.emplace_back( offset, length, buffer );
-      }
-      uint16_t timeout = static_cast<uint16_t>( std::stoul( tokens.back() ) );
-      return std::make_tuple( std::move( chunks ), timeout );
-    }
-
-    //--------------------------------------------------------------------------
-    //! Parse arguments for vector write
-    //--------------------------------------------------------------------------
-    inline std::tuple<ChunkList, uint16_t> GetVectorWriteArgs()
-    {
-      return GetVectorReadArgs();
-    }
-
-    File              &file;     //< the file object
-    const std::string  action;   //< the action to be executed
-    const std::string  args;     //< arguments for the operation
-    std::string        orgststr; //< the original response status of the action
+  File&             file;             //< the file object
+  const std::string action;           //< the action to be executed
+  const std::string args;             //< arguments for the operation
+  std::string       orgststr;         //< the original response status of the action
+  double            nominalduration;  //< the original duration of execution
 };
 
 //------------------------------------------------------------------------------
 //! List of actions: start time - action
 //------------------------------------------------------------------------------
-using action_list = std::multimap<uint64_t, ActionExecutor>;
+using action_list = std::multimap<double, ActionExecutor>;
 
 //------------------------------------------------------------------------------
 //! Parse input file
 //! @param path : path to the input csv file
 //------------------------------------------------------------------------------
-std::unordered_map<File*, action_list> ParseInput( const std::string &path )
+std::unordered_map<File*, action_list> ParseInput(const std::string&                      path,
+                                                  double&                                 t0,
+                                                  double&                                 t1,
+                                                  std::unordered_map<File*, std::string>& filenames,
+                                                  std::unordered_map<File*, double>& synchronicity,
+                                                  std::unordered_map<File*, size_t>& responseerrors,
+                                                  const std::vector<std::string>&    option_regex)
 {
   std::unordered_map<File*, action_list> result;
-  std::ifstream input( path, std::ifstream::in );
-  std::string line;
-  std::unordered_map<uint64_t, File*> files;
+  std::unique_ptr<std::ifstream>        fin( path.empty() ? nullptr : new std::ifstream( path, std::ifstream::in ) );
+  std::istream                          &input = path.empty() ? std::cin : *fin;
+  std::string                            line;
+  std::unordered_map<uint64_t, File*>    files;
+  std::unordered_map<uint64_t, double>   last_stop;
+  std::unordered_map<uint64_t, double>   overlaps;
+  std::unordered_map<uint64_t, double>   overlaps_cnt;
 
-  while( input.good() )
+  t0 = 10e99;
+  t1 = 0;
+  while (input.good())
   {
-    std::getline( input, line );
-    if( line.empty() )
+    std::getline(input, line);
+    if (line.empty())
       continue;
-    std::vector<std::string> tokens; tokens.reserve( 7 );
-    XrdCl::Utils::splitString( tokens, line, "," );
-    if( tokens.size() == 6 )
+    std::vector<std::string> tokens;
+    tokens.reserve(7);
+    XrdCl::Utils::splitString(tokens, line, ",");
+    if (tokens.size() == 6)
       tokens.emplace_back();
-    if( tokens.size() != 7 )
+    if (tokens.size() != 7)
     {
-      throw std::invalid_argument( "Invalid input file format." );
+      throw std::invalid_argument("Invalid input file format.");
     }
 
-    uint64_t    id     = std::stoull( tokens[0] ); // file object ID
-    std::string action = tokens[1];                // action name (e.g. Open)
-    uint64_t    start  = std::stoull( tokens[2] ); // start time
-    std::string args   = tokens[3];                // operation arguments
-    // uint64_t    stop   = std::stoull( tokens[4] ); // stop time
-    std::string status = tokens[5];                // operation status
-    std::string resp   = tokens[6];                // server response
-    if( !files.count( id ) )
+    uint64_t    id     = std::stoull(tokens[0]);  // file object ID
+    std::string action = tokens[1];               // action name (e.g. Open)
+    double      start  = std::stod(tokens[2]);    // start time
+    std::string args   = tokens[3];               // operation arguments
+    double      stop   = std::stod(tokens[4]);    // stop time
+    std::string status = tokens[5];               // operation status
+    std::string resp   = tokens[6];               // server response
+
+    if (option_regex.size())
     {
-      files[id] = new File( false );
-      files[id]->SetProperty( "BundledClose", "true" );
+      for (auto& v : option_regex)
+      {
+        std::vector<std::string> tokens;
+        Utils::splitString(tokens, v, ":=");
+        std::regex src(tokens[0]);
+        if (tokens.size() != 2)
+        {
+          std::cerr
+            << "Error: invalid regex for argument replacement - must be format like <oldstring>:=<newstring>"
+            << std::endl;
+          exit(EINVAL);
+        }
+        else
+        {
+          // write the results to an output iterator
+          args = std::regex_replace(args, src, tokens[1]);
+        }
+      }
     }
-    result[files[id]].emplace( start, ActionExecutor( *files[id], action, args, status, resp ) );
+
+    if (start < t0)
+      t0 = start;
+    if (stop > t1)
+      t1 = stop;
+
+    if (!files.count(id))
+    {
+      files[id] = new File(false);
+      files[id]->SetProperty("BundledClose", "true");
+      filenames[files[id]] = args;
+      filenames[files[id]].erase(args.find(";"));
+      overlaps[id]     = 0;
+      overlaps_cnt[id] = 0;
+      last_stop[id]    = stop;
+    }
+    else
+    {
+      overlaps_cnt[id]++;
+      if (start > last_stop[id])
+      {
+        overlaps[id]++;
+      }
+      last_stop[id] = stop;
+    }
+
+    last_stop[id]           = stop;
+    double nominal_duration = stop - start;
+
+    if (status != "[SUCCESS]")
+    {
+      responseerrors[files[id]]++;
+    }
+    else
+    {
+      result[files[id]].emplace(
+        start, ActionExecutor(*files[id], action, args, status, resp, nominal_duration));
+    }
   }
 
+  for (auto& it : overlaps)
+  {
+    // compute the synchronicity of requests
+    synchronicity[files[it.first]] = 100.0 * (it.second / overlaps_cnt[it.first]);
+  }
   return result;
 }
 
@@ -505,70 +836,375 @@ std::unordered_map<File*, action_list> ParseInput( const std::string &path )
 //! Execute list of actions against given file
 //! @param file    : the file object
 //! @param actions : list of actions to be executed
+//! @param t0      : offset to add to each start time to determine when to ru an action
 //! @return        : thread that will executed the list of actions
 //------------------------------------------------------------------------------
-std::thread ExecuteActions( std::unique_ptr<File> file, action_list &&actions )
+std::thread ExecuteActions(std::unique_ptr<File> file,
+                           action_list&&         actions,
+                           double                t0,
+                           double                speed,
+                           ActionMetrics&        metric,
+                           const bool&           simulate)
 {
-  std::thread t( [file{ std::move( file ) }, actions{ std::move( actions ) }]() mutable
+  std::thread t(
+    [file{ std::move(file) },
+     actions{ std::move(actions) },
+     t0,
+     &metric,
+     &simulate,
+     &speed]() mutable
+    {
+      XrdSysSemaphore endsem(0);
+      XrdSysSemaphore closesem(0);
+      auto            ending  = std::make_shared<barrier_t>(endsem);
+      auto            closing = std::make_shared<barrier_t>(closesem);
+
+      for (auto& p : actions)
       {
-        XrdSysSemaphore endsem( 0 );
-        XrdSysSemaphore closesem( 0 );
-        auto ending = std::make_shared<barrier_t>( endsem );
-        auto closing = std::make_shared<barrier_t>( closesem );
-        auto prevstop = actions.begin()->first;
-        for( auto &p : actions )
+        auto& action = p.second;
+
+        auto tdelay = t0 ? ((p.first + t0) - XrdCl::Action::timeNow()) : 0;
+        if (tdelay > 0)
         {
-          if( p.first > prevstop )
-            std::this_thread::sleep_for( std::chrono::seconds( p.first - prevstop ) );
-          prevstop = p.first;
-          auto &action = p.second;
-          mytimer_t timer;
-          action.Execute( ending, closing );
-          uint64_t duration = timer.elapsed();
-          prevstop += duration;
+          tdelay /= speed;
+          metric.delays[action.Name() + "::tloss"] += tdelay;
+          std::this_thread::sleep_for(std::chrono::milliseconds((int) (tdelay * 1000)));
         }
-        ending.reset();
-        closing.reset();
-        endsem.Wait();
-        file.reset();
-      } );
+        else
+        {
+          metric.delays[action.Name() + "::tgain"] += tdelay;
+        }
+
+        mytimer_t timer;
+        action.Execute(ending, closing, metric, simulate);
+        metric.addDelays(action.Name(), "tnomi", action.NominalDuration());
+        metric.addDelays(action.Name(), "texec", timer.elapsed());
+      }
+      ending.reset();
+      closing.reset();
+      endsem.Wait();
+      file->GetProperty("LastURL", metric.url);
+      file.reset();
+    });
   return t;
 }
 
 }
 
-int main( int argc, char **argv )
+void usage()
 {
-  if( argc != 2 )
-  {
-    std::cout << "Error: wrong number of arguments.\n";
-    std::cout << "\nUsage:   xrdreplay <file>\n";
-    return 1;
-  }
-
-  std::string path( argv[1] );
-  try
-  {
-    auto actions = XrdCl::ParseInput( path ); // parse the input file
-    std::vector<std::thread> threads;
-    threads.reserve( actions.size() );
-    for( auto &action : actions )
-    {
-      // execute list of actions against file object
-      threads.emplace_back( ExecuteActions( std::unique_ptr<XrdCl::File>( action.first ), std::move( action.second ) ) );
-    }
-    for( auto &t : threads ) // wait until we are done
-      t.join();
-  }
-  catch( const std::invalid_argument &ex )
-  {
-    std::cout << ex.what() << std::endl; // print parsing errors
-    return 1;
-  }
-
-  return 0;
+  std::cerr
+    << "usage: xrdreplay [-p|--print] [-c|--create-data] [t|--truncate-data] [-l|--long] [-s|--summary] [-h|--help] [-r|--replace <arg>:=<newarg>] [-f|--suppress] <recordfilename>\n"
+    << std::endl;
+  std::cerr << "                -h | --help             : show this help" << std::endl;
+  std::cerr
+    << "                -f | --suppress         : force to run all IO with all successful result status - suppress all others"
+    << std::endl;
+  std::cerr
+    << "                                          - by default the player won't run with an unsuccessfull recorded IO"
+    << std::endl;
+  std::cerr << std::endl;
+  std::cerr
+    << "                -p | --print            : print only mode - shows all the IO for the given replay file without actually running any IO"
+    << std::endl;
+  std::cerr
+    << "                -s | --summary          : print summary - shows all the aggregated IO counter summed for all files"
+    << std::endl;
+  std::cerr
+    << "                -l | --long             : print long - show all file IO counter for each individual file"
+    << std::endl;
+  std::cerr
+    << "                -r | --replace <a>:=<b> : replace in the argument list the string <a> with <b> "
+    << std::endl;
+  std::cerr
+    << "                                          - option is usable several times e.g. to change storage prefixes or filenames"
+    << std::endl;
+  std::cerr << std::endl;
+  std::cerr
+    << "example:        ...  --replace file:://localhost:=root://xrootd.eu/        : redirect local file to remote"
+    << std::endl;
+  std::cerr << std::endl;
+  exit(-1);
 }
 
+int main(int argc, char** argv)
+{
+  XrdCl::ReplayArgs opt(argc, argv);
+  int               rc = 0;
+
+  try
+  {
+    double                                                 t0 = 0;
+    double                                                 t1 = 0;
+    std::unordered_map<XrdCl::File*, std::string>          filenames;
+    std::unordered_map<XrdCl::File*, double>               synchronicity;
+    std::unordered_map<XrdCl::File*, size_t>               responseerrors;
+    auto                                                   actions = XrdCl::ParseInput(opt.path(),
+                                     t0,
+                                     t1,
+                                     filenames,
+                                     synchronicity,
+                                     responseerrors,
+                                     opt.regex());  // parse the input file
+    std::vector<std::thread>                               threads;
+    std::unordered_map<XrdCl::File*, XrdCl::ActionMetrics> metrics;
+    threads.reserve(actions.size());
+    double               toffset = XrdCl::Action::timeNow() - t0;
+    XrdCl::mytimer_t     timer;
+    XrdCl::ActionMetrics summetric;
+    bool                 sampling_error = false;
+
+    for (auto& action : actions)
+    {
+      metrics[action.first].fname         = filenames[action.first];
+      metrics[action.first].synchronicity = synchronicity[action.first];
+      metrics[action.first].errors        = responseerrors[action.first];
+      if (metrics[action.first].errors)
+      {
+        sampling_error = true;
+      }
+    }
+
+    if (sampling_error)
+    {
+      std::cerr << "Warning: IO file contains unsuccessfull samples!" << std::endl;
+      if (!opt.suppress_error())
+      {
+        std::cerr << "... run with [-f] or [--suppress] option to suppress unsuccessfull IO events!"
+                  << std::endl;
+        exit(-1);
+      }
+    }
 
 
+    if (opt.print())
+      toffset = 0;  // indicate not to follow timing
 
+    for (auto& action : actions)
+    {
+      // execute list of actions against file object
+      threads.emplace_back(ExecuteActions(std::unique_ptr<XrdCl::File>(action.first),
+                                          std::move(action.second),
+                                          toffset,
+                                          opt.speed(),
+                                          metrics[action.first],
+                                          opt.print()));
+    }
+
+    for (auto& t : threads)  // wait until we are done
+      t.join();
+
+    if (opt.json())
+    {
+      std::cout << "{" << std::endl;
+      if (opt.longformat())
+        std::cout << "  \"metrics\": [" << std::endl;
+    }
+
+    for (auto& metric : metrics)
+    {
+      if (opt.longformat())
+      {
+        std::cout << metric.second.Dump(opt.json());
+      }
+      summetric.add(metric.second);
+    }
+
+    if (opt.summary())
+      std::cout << summetric.Dump(opt.json());
+
+    if (opt.json())
+    {
+      if (opt.longformat())
+        std::cout << "  ]," << std::endl;
+    }
+
+    double tbench = timer.elapsed();
+
+    if (opt.json())
+    {
+      {
+        std::cout << "  \"iosummary\": { " << std::endl;
+        if (!opt.print())
+        {
+          std::cout << "    \"player::runtime\": " << tbench << "," << std::endl;
+        }
+        std::cout << "    \"player::speed\": " << opt.speed() << "," << std::endl;
+        std::cout << "    \"sampled::runtime\": " << t1 - t0 << "," << std::endl;
+        std::cout << "    \"volume::totalread\": " << summetric.getBytesRead() << "," << std::endl;
+        std::cout << "    \"volume::totalwrite\": " << summetric.getBytesWritten() << ","
+                  << std::endl;
+        std::cout << "    \"volume::read\": " << summetric.ios["Read::b"] << "," << std::endl;
+        std::cout << "    \"volume::write\": " << summetric.ios["Write::b"] << "," << std::endl;
+        std::cout << "    \"volume::pgread\": " << summetric.ios["PgRead::b"] << "," << std::endl;
+        std::cout << "    \"volume::pgwrite\": " << summetric.ios["PgWrite::b"] << "," << std::endl;
+        std::cout << "    \"volume::vectorread\": " << summetric.ios["VectorRead::b"] << ","
+                  << std::endl;
+        std::cout << "    \"volume::vectorwrite\": " << summetric.ios["VectorWrite::b"] << ","
+                  << std::endl;
+        std::cout << "    \"iops::read\": " << summetric.ios["Read::n"] << "," << std::endl;
+        std::cout << "    \"iops::write\": " << summetric.ios["Write::n"] << "," << std::endl;
+        std::cout << "    \"iops::pgread\": " << summetric.ios["PgRead::n"] << "," << std::endl;
+        std::cout << "    \"iops::pgwrite\": " << summetric.ios["PgRead::n"] << "," << std::endl;
+        std::cout << "    \"iops::vectorread\": " << summetric.ios["VectorRead::n"] << ","
+                  << std::endl;
+        std::cout << "    \"iops::vectorwrite\": " << summetric.ios["VectorRead::n"] << ","
+                  << std::endl;
+        std::cout << "    \"files::read\": " << summetric.ios["OpenR::n"] << "," << std::endl;
+        std::cout << "    \"files::write\": " << summetric.ios["OpenW::n"] << "," << std::endl;
+	std::cout << "    \"datasetsize::read\": " << summetric.ios["Read::o"] << "," << std::endl;
+	std::cout << "    \"datasetsize::write\": " << summetric.ios["Write::o"] << "," << std::endl;
+        if (!opt.print())
+        {
+          std::cout << "    \"bandwidth::mb::read\": "
+                    << summetric.getBytesRead() / tbench / 1000000.0 << "," << std::endl;
+          std::cout << "    \"bandwdith::mb::write\": "
+                    << summetric.getBytesWritten() / tbench / 1000000.0 << "," << std::endl;
+          std::cout << "    \"performancemark\": " << (100.0 * (t1 - t0) / tbench) << ","
+                    << std::endl;
+          std::cout << "    \"gain::read\":"
+                    << (100.0 * summetric.delays["Read::tnomi"] / summetric.delays["Read::tmeas"])
+                    << "," << std::endl;
+          std::cout << "    \"gain::write\":"
+                    << (100.0 * summetric.delays["Write::tnomi"] / summetric.delays["Write::tmeas"])
+                    << std::endl;
+        }
+        std::cout << "    \"synchronicity::read\":"
+                  << summetric.aggregated_synchronicity.ReadSynchronicity() << "," << std::endl;
+        std::cout << "    \"synchronicity::write\":"
+                  << summetric.aggregated_synchronicity.WriteSynchronicity() << "," << std::endl;
+        std::cout << "    \"response::error:\":" << summetric.ios["All::e"] << std::endl;
+        std::cout << "  }" << std::endl;
+        std::cout << "}" << std::endl;
+      }
+    }
+    else
+    {
+      std::cout << "# =============================================" << std::endl;
+      if (!opt.print())
+        std::cout << "# IO Summary" << std::endl;
+      else
+        std::cout << "# IO Summary (print mode)" << std::endl;
+      std::cout << "# =============================================" << std::endl;
+      if (!opt.print())
+      {
+        std::cout << "# Total   Runtime  : " << std::fixed << tbench << " s" << std::endl;
+      }
+      std::cout << "# Sampled Runtime  : " << std::fixed << t1 - t0 << " s" << std::endl;
+      std::cout << "# Playback Speed   : " << std::fixed << std::setprecision(2) << opt.speed()
+                << std::endl;
+      std::cout << "# IO Volume (R)    : " << std::fixed
+                << XrdCl::ActionMetrics::humanreadable(summetric.getBytesRead())
+                << " [ std:" << XrdCl::ActionMetrics::humanreadable(summetric.ios["Read::b"])
+                << " vec:" << XrdCl::ActionMetrics::humanreadable(summetric.ios["VectorRead::b"])
+                << " page:" << XrdCl::ActionMetrics::humanreadable(summetric.ios["PgRead::b"])
+                << " ] " << std::endl;
+      std::cout << "# IO Volume (W)    : " << std::fixed
+                << XrdCl::ActionMetrics::humanreadable(summetric.getBytesWritten())
+                << " [ std:" << XrdCl::ActionMetrics::humanreadable(summetric.ios["Write::b"])
+                << " vec:" << XrdCl::ActionMetrics::humanreadable(summetric.ios["VectorWrite::b"])
+                << " page:" << XrdCl::ActionMetrics::humanreadable(summetric.ios["PgWrite::b"])
+                << " ] " << std::endl;
+      std::cout << "# IOPS      (R)    : " << std::fixed << summetric.getIopsRead()
+                << " [ std:" << summetric.ios["Read::n"]
+                << " vec:" << summetric.ios["VectorRead::n"]
+                << " page:" << summetric.ios["PgRead::n"] << " ] " << std::endl;
+      std::cout << "# IOPS      (W)    : " << std::fixed << summetric.getIopsWrite()
+                << " [ std:" << summetric.ios["Write::n"]
+                << " vec:" << summetric.ios["VectorWrite::n"]
+                << " page:" << summetric.ios["PgWrite::n"] << " ] " << std::endl;
+      std::cout << "# Files     (R)    : " << std::fixed << summetric.ios["OpenR::n"] << std::endl;
+      std::cout << "# Files     (W)    : " << std::fixed << summetric.ios["OpenW::n"] << std::endl;
+      std::cout << "# Datasize  (R)    : " << std::fixed
+                << XrdCl::ActionMetrics::humanreadable(summetric.ios["Read::o"]) << std::endl;
+      std::cout << "# Datasize  (W)    : " << std::fixed
+                << XrdCl::ActionMetrics::humanreadable(summetric.ios["Write::o"]) << std::endl;
+      if (!opt.print())
+      {
+        std::cout << "# IO BW     (R)    : " << std::fixed << std::setprecision(2)
+                  << summetric.getBytesRead() / tbench / 1000000.0 << " MB/s" << std::endl;
+        std::cout << "# IO BW     (W)    : " << std::fixed << std::setprecision(2)
+                  << summetric.getBytesRead() / tbench / 1000000.0 << " MB/s" << std::endl;
+      }
+      std::cout << "# ---------------------------------------------" << std::endl;
+      std::cout << "# Quality Estimation" << std::endl;
+      std::cout << "# ---------------------------------------------" << std::endl;
+      if (!opt.print())
+      {
+        std::cout << "# Performance Mark : " << std::fixed << std::setprecision(2)
+                  << (100.0 * (t1 - t0) / tbench) << "%" << std::endl;
+        std::cout << "# Gain Mark(R)     : " << std::fixed << std::setprecision(2)
+                  << (100.0 * summetric.delays["Read::tnomi"] / summetric.delays["Read::tmeas"])
+                  << "%" << std::endl;
+        std::cout << "# Gain Mark(W)     : " << std::fixed << std::setprecision(2)
+                  << (100.0 * summetric.delays["Write::tnomi"] / summetric.delays["Write::tmeas"])
+                  << "%" << std::endl;
+      }
+      std::cout << "# Synchronicity(R) : " << std::fixed << std::setprecision(2)
+                << summetric.aggregated_synchronicity.ReadSynchronicity() << "%" << std::endl;
+      std::cout << "# Synchronicity(W) : " << std::fixed << std::setprecision(2)
+                << summetric.aggregated_synchronicity.WriteSynchronicity() << "%" << std::endl;
+      if (!opt.print())
+      {
+        std::cout << "# ---------------------------------------------" << std::endl;
+        std::cout << "# Response Errors  : " << std::fixed << summetric.ios["All::e"] << std::endl;
+        std::cout << "# =============================================" << std::endl;
+        if (summetric.ios["All::e"])
+        {
+          std::cerr << "Error: replay job failed with IO errors!" << std::endl;
+          rc = -5;
+        }
+      }
+      if (opt.create() || opt.verify())
+      {
+        std::cout << "# ---------------------------------------------" << std::endl;
+        if (opt.create())
+        {
+          std::cout << "# Creating Dataset ..." << std::endl;
+        }
+        else
+        {
+          std::cout << "# Verifying Dataset ..." << std::endl;
+        }
+        uint64_t created_sofar = 0;
+        for (auto& metric : metrics)
+        {
+          if (metric.second.getBytesRead() && !metric.second.getBytesWritten())
+          {
+            std::cout << "# ............................................." << std::endl;
+            std::cout << "# file: " << metric.second.fname << std::endl;
+            std::cout << "# size: "
+                      << XrdCl::ActionMetrics::humanreadable(metric.second.ios["Read::o"]) << " [ "
+                      << XrdCl::ActionMetrics::humanreadable(created_sofar) << " out of "
+                      << XrdCl::ActionMetrics::humanreadable(summetric.ios["Read::o"]) << " ] "
+                      << std::setprecision(2) << " ( "
+                      << 100.0 * created_sofar / summetric.ios["Read::o"] << "% )" << std::endl;
+            if (!XrdCl::AssureFile(
+                  metric.second.fname, metric.second.ios["Read::o"], opt.truncate(), opt.verify()))
+            {
+              if (opt.verify())
+              {
+                rc = -5;
+              }
+              else
+              {
+                std::cerr << "Error: failed to assure that file " << metric.second.fname
+                          << " is stored with a size of "
+                          << XrdCl::ActionMetrics::humanreadable(metric.second.ios["Read::o"])
+                          << " !!!";
+                rc = -5;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  catch (const std::invalid_argument& ex)
+  {
+    std::cout << ex.what() << std::endl;  // print parsing errors
+    return 1;
+  }
+
+  return rc;
+}
