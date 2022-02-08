@@ -98,6 +98,8 @@ struct XrdHttpProtocol::XrdHttpExtHandlerInfo XrdHttpProtocol::exthandler[MAX_XR
 int XrdHttpProtocol::exthandlercnt = 0;
 std::map< std::string, std::string > XrdHttpProtocol::hdr2cgimap; 
 
+bool XrdHttpProtocol::usingEC = false;
+
 XrdScheduler *XrdHttpProtocol::Sched = 0; // System scheduler
 XrdBuffManager *XrdHttpProtocol::BPool = 0; // Buffer manager
 XrdSysError XrdHttpProtocol::eDest = 0; // Error message handler
@@ -1035,6 +1037,9 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
       {eDest.Say("Config failure: one or more directives are flawed!");
        return 1;
       }
+
+// Test if XrdEC is loaded
+   if (getenv("XRDCL_EC")) usingEC = true;
 
 // If https was disabled, then issue a warning message if xrdtls configured
 // of it's disabled because httpsmode was auto and xrdtls was not configured.
