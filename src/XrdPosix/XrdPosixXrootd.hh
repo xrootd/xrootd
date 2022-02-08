@@ -46,7 +46,6 @@
 
 #include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdPosix/XrdPosixAdmin.hh"
 
 struct XrdOucIOVec;
 
@@ -54,6 +53,7 @@ class XrdPosixCallBack;
 class XrdPosixCallBackIO;
 class XrdPosixFile;
 class XrdPosixInfo;
+class XrdPosixAdmin;
 
 //-----------------------------------------------------------------------------
 //! POSIX interface to XRootD with some extensions, as noted.
