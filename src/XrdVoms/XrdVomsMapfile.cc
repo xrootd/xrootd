@@ -400,6 +400,12 @@ XrdVomsMapfile::MaintenanceThread(void *myself_raw)
            myself->m_is_valid = false;
            continue;
        }
+       // Use ctime here as it is solely controlled by the OS (unlike mtime,
+       // which can be manipulated by userspace and potentially not change
+       // when updated - rsync, tar, and rpm, for example, all preserve mtime).
+       // ctime also will also be updated appropriately for overwrites/renames,
+       // allowing us to detect those changes as well.
+       //
        if ((myself->m_mapfile_ctime.tv_sec == statbuf.st_ctim.tv_sec) &&
            (myself->m_mapfile_ctime.tv_nsec == statbuf.st_ctim.tv_nsec))
        {
