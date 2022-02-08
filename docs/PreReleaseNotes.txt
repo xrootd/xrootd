@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Posix]** Make xrootd proxy, xrootdfs and xrdadler32 work with XrdCl+EC
+  **Commits: 8a222633
   **[SciTokens]** Save token subject as an XrdSecEntity xattr
   **Commits: d737d741
   **[Throttle]** Track maximum concurrency limits in throttle plugin
