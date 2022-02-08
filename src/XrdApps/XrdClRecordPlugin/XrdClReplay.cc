@@ -557,7 +557,7 @@ using action_list = std::multimap<uint64_t, ActionExecutor>;
 //! Parse input file
 //! @param path : path to the input csv file
 //------------------------------------------------------------------------------
-std::unordered_map<File*, action_list> ParseInput( const std::string &path, std::unordered_map<File*, uint64_t> &starts )
+std::unordered_map<File*, action_list> ParseInput( const std::string &path )
 {
   std::unordered_map<File*, action_list> result;
   std::ifstream input( path, std::ifstream::in );
@@ -595,13 +595,6 @@ std::unordered_map<File*, action_list> ParseInput( const std::string &path, std:
       files[id]->SetProperty( "BundledClose", "true" );
     }
     result[files[id]].emplace( start, ActionExecutor( *files[id], action, args, status, resp, start, stop ) );
-    if( starts.count( files[id] ) )
-      starts[files[id]] = start;
-    else
-    {
-      if( starts[files[id]] > start )
-        starts[files[id]] = start;
-    }
   }
 
   return result;
@@ -655,29 +648,13 @@ int main( int argc, char **argv )
   std::string path( argv[1] );
   try
   {
-    std::unordered_map<XrdCl::File*, uint64_t> starts;
-    auto actions = XrdCl::ParseInput( path, starts ); // parse the input file
-    // figure out start time for each file
-    uint64_t minstart = starts.begin()->second;
-    for( auto &p : starts )
-    {
-      if( p.second < minstart )
-        minstart = p.second;
-    }
-    // normalize the start time
-    std::multimap<uint64_t, XrdCl::File*> starts_normalized;
-    for( auto &p : starts )
-      starts_normalized.emplace( p.second - minstart, p.first );
-
+    auto actions = XrdCl::ParseInput( path ); // parse the input file
     std::vector<std::thread> threads;
     threads.reserve( actions.size() );
-    for( auto &start : starts_normalized )
+    for( auto &action : actions )
     {
-      if( start.first )
-        std::this_thread::sleep_for( std::chrono::seconds( start.first ) );
-      auto action = actions.find( start.second );
       // execute list of actions against file object
-      threads.emplace_back( ExecuteActions( std::unique_ptr<XrdCl::File>( action->first ), std::move( action->second ) ) );
+      threads.emplace_back( ExecuteActions( std::unique_ptr<XrdCl::File>( action.first ), std::move( action.second ) ) );
     }
     for( auto &t : threads ) // wait until we are done
       t.join();
