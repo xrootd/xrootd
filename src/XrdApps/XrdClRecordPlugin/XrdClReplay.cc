@@ -26,7 +26,6 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdApps/XrdClRecordPlugin/XrdClReplayArgs.hh"
 
 #include <fstream>
 #include <vector>
@@ -639,11 +638,17 @@ std::thread ExecuteActions( std::unique_ptr<File> file, action_list &&actions )
 
 int main( int argc, char **argv )
 {
+  if( argc > 2 )
+  {
+    std::cerr << "Error: wrong number of arguments.\n";
+    std::cerr << "\nUsage:   xrdreplay [file]\n";
+    return 1;
+  }
+
+
+  std::string path( argc == 2 ? argv[1] : "" );
   try
   {
-    XrdCl::ReplayArgs args( argc, argv );
-    std::string path = args.GetPath();
-
     std::unordered_map<XrdCl::File*, uint64_t> starts;
     auto actions = XrdCl::ParseInput( path, starts ); // parse the input file
     // figure out start time for each file
@@ -675,13 +680,7 @@ int main( int argc, char **argv )
   }
   catch( const std::invalid_argument &ex )
   {
-    std::cerr << ex.what() << std::endl; // print parsing errors
-    return 1;
-  }
-  catch( const std::exception &ex )
-  {
-    std::cerr << ex.what() << '\n'; // print argument errors
-    std::cerr << "\nUsage: xrdreplay [file] [--dump-local] [--create-remote]\n\n";
+    std::cout << ex.what() << std::endl; // print parsing errors
     return 1;
   }
 
