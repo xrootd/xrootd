@@ -32,9 +32,10 @@
 #endif
 
 void    XrdFfsWcache_init(int basefd, int maxfd);
-int     XrdFfsWcache_create(int fd);
+int     XrdFfsWcache_create(int fd, int flags);
 void    XrdFfsWcache_destroy(int fd);
 ssize_t  XrdFfsWcache_flush(int fd);
+ssize_t  XrdFfsWcache_pread(int fd, char *buf, size_t len, off_t offset);
 ssize_t  XrdFfsWcache_pwrite(int fd, char *buf, size_t len, off_t offset);
 
 #ifdef __cplusplus

@@ -354,7 +354,6 @@ namespace XrdCl
 #ifdef WITH_XRDEC
     if( lib == "XrdEcDefault" )
     {
-      setenv("XRDCL_EC", "True", 1);
       auto itr = config.find( "nbdta" );
       if( itr == config.end() )
         return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, nullptr );
@@ -371,6 +370,11 @@ namespace XrdCl
       itr = config.find( "plgr" );
       if( itr != config.end() )
         Utils::splitString( plgr, itr->second, "," );
+
+      std::string xrdclECenv = std::to_string(nbdta) + "," +
+                                 std::to_string(nbprt) + "," +
+                                 std::to_string(chsz);
+      setenv("XRDCL_EC", xrdclECenv.c_str(), 1);
 
       EcPlugInFactory *ecHandler = new EcPlugInFactory( nbdta, nbprt, chsz, std::move( plgr ) );
       return std::make_pair<XrdOucPinLoader*, PlugInFactory*>( nullptr, ecHandler );
