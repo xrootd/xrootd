@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[XrdFfs]** update xrootdfs to work with XrdEC faster
+  **Commits: e8493d27
   **[Posix]** Make xrootd proxy, xrootdfs and xrdadler32 work with XrdCl+EC
   **Commits: 8a222633
   **[SciTokens]** Save token subject as an XrdSecEntity xattr
