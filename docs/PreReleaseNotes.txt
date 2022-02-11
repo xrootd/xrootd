@@ -18,7 +18,9 @@ Prerelease Notes
   **[XrdCl]** record / replay plug-in
 
 + **Major bug fixes**
-  **]GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
+  **[Posix]** Make sure pointer is set to 0 to avoid memory corruption.
+  **Commits: 1fa31fd9
+  **[GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
   **Commits: 8c38b20f
   **[Server]** Prevent SEGV due to missing lock call for background jobs.
   **Commits: 7615d866
