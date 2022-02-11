@@ -36,7 +36,6 @@
    a big_writes option to allow > 4KByte writing. It will make this 
    smiple write caching obsolete. 
 */
-#define XrdFfsWcacheBufsize 131072
 
 #if defined(__linux__)
 /* For pread()/pwrite() */
@@ -63,10 +62,14 @@
   extern "C" {
 #endif
 
+ssize_t XrdFfsRcacheBufsize;
+ssize_t XrdFfsWcacheBufsize = 131072;
+
 struct XrdFfsWcacheFilebuf {
     off_t offset;
     size_t len;
     char *buf;
+    size_t bufsize;
     pthread_mutex_t *mlock;
 };
 
@@ -100,9 +103,23 @@ void XrdFfsWcache_init(int basefd, int maxfd)
         XrdFfsWcacheFbufs[fd].buf = NULL;
         XrdFfsWcacheFbufs[fd].mlock = NULL;
     }
+    if (!getenv("XRDCL_EC"))
+    {
+        XrdFfsRcacheBufsize = 1024 * 128;
+    }
+    else
+    {
+        char *savptr;
+        int nbdat = atoi(strtok_r(getenv("XRDCL_EC"), ",", &savptr));
+        strtok_r(NULL, ",", &savptr);
+        int chsz = atoi(strtok_r(NULL, ",", &savptr));
+        XrdFfsRcacheBufsize = nbdat * chsz; 
+    }
+    if (getenv("XROOTDFS_WCACHESZ"))
+        XrdFfsRcacheBufsize = atoi(getenv("XROOTDFS_WCACHESZ"));
 }
 
-int XrdFfsWcache_create(int fd)
+int XrdFfsWcache_create(int fd, int flags)
 /* Create a write cache buffer for a given file descriptor
  *
  * fd:      file descriptor
@@ -116,12 +133,30 @@ int XrdFfsWcache_create(int fd)
 
     XrdFfsWcacheFbufs[fd].offset = 0;
     XrdFfsWcacheFbufs[fd].len = 0;
-    XrdFfsWcacheFbufs[fd].buf = (char*)malloc(XrdFfsWcacheBufsize);
+    // "flag & O_RDONLY" is not equivalant to ! (flags & O_RDWR) && ! (flags & O_WRONLY)
+    if ( ! (flags & O_RDWR) &&     
+         ! (flags & O_WRONLY) &&
+         (flags & O_DIRECT) )  // Limit the usage scenario of the read cache 
+    {
+        XrdFfsWcacheFbufs[fd].buf = (char*)malloc(XrdFfsRcacheBufsize);
+        XrdFfsWcacheFbufs[fd].bufsize = XrdFfsRcacheBufsize;
+    }
+    else
+    {
+        XrdFfsWcacheFbufs[fd].buf = (char*)malloc(XrdFfsWcacheBufsize);
+        XrdFfsWcacheFbufs[fd].bufsize = XrdFfsWcacheBufsize;
+    }
     if (XrdFfsWcacheFbufs[fd].buf == NULL)
+    {
+        errno = ENOMEM;
         return 0;
+    }
     XrdFfsWcacheFbufs[fd].mlock = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
     if (XrdFfsWcacheFbufs[fd].mlock == NULL)
+    {
+        errno = ENOMEM;
         return 0;
+    }
     errno = pthread_mutex_init(XrdFfsWcacheFbufs[fd].mlock, NULL);
     if (errno)
         return 0;
@@ -164,6 +199,98 @@ ssize_t XrdFfsWcache_flush(int fd)
     return rc;
 }
 
+/*
+struct fd_n_offset {
+    int fd;
+    off_t offset;
+    fd_n_offset(int myfd, off_t myoffset) : fd(myfd), offset(myoffset) {}
+};
+
+void *XrdFfsWcache_updateReadCache(void *x)
+{
+    struct fd_n_offset *a = (struct fd_n_offset*) x;
+    size_t bufsize = XrdFfsWcacheFbufs[a->fd].bufsize;
+
+    pthread_mutex_lock(XrdFfsWcacheFbufs[a->fd].mlock);
+    XrdFfsWcacheFbufs[a->fd].offset = (a->offset / bufsize) * bufsize;
+    XrdFfsWcacheFbufs[a->fd].len = XrdFfsPosix_pread(a->fd + XrdFfsPosix_baseFD,
+                                                     XrdFfsWcacheFbufs[a->fd].buf,
+                                                     bufsize,
+                                                     XrdFfsWcacheFbufs[a->fd].offset);
+    pthread_mutex_unlock(XrdFfsWcacheFbufs[a->fd].mlock);   
+    return NULL;
+}
+*/
+
+// this is a read cache
+ssize_t XrdFfsWcache_pread(int fd, char *buf, size_t len, off_t offset)
+{
+    ssize_t rc;
+    fd -= XrdFfsPosix_baseFD;
+    if (fd < 0)
+    {
+        errno = EBADF;
+        return -1;
+    }
+
+    char *bufptr;
+    size_t bufsize = XrdFfsWcacheFbufs[fd].bufsize;
+
+    pthread_mutex_lock(XrdFfsWcacheFbufs[fd].mlock);
+
+    // identity which block to cache
+    if (XrdFfsWcacheFbufs[fd].len == 0 || 
+        (offset / bufsize != XrdFfsWcacheFbufs[fd].offset / bufsize))
+    {
+        XrdFfsWcacheFbufs[fd].offset = (offset / bufsize) * bufsize;
+        XrdFfsWcacheFbufs[fd].len = XrdFfsPosix_pread(fd + XrdFfsPosix_baseFD, 
+                                                      XrdFfsWcacheFbufs[fd].buf,
+                                                      bufsize,
+                                                      XrdFfsWcacheFbufs[fd].offset);
+    }  // when XrdFfsWcacheFbufs[fd].len < bufsize, the block is partially cached.
+
+
+    // fetch data from the cache, up to the block's upper boundary.
+    if (XrdFfsWcacheFbufs[fd].offset <= offset && 
+        offset < XrdFfsWcacheFbufs[fd].offset + (off_t)XrdFfsWcacheFbufs[fd].len) 
+    {  // read from cache, 
+//----------------------------------------------------------
+// FUSE doesn't like this block of the code, unless direct_io is enabled, or
+// O_DIRECT flags is used. Otherwise, FUSES will stop reading prematurely
+// when two processes read the same file at the same time.  
+       bufptr = &XrdFfsWcacheFbufs[fd].buf[offset - XrdFfsWcacheFbufs[fd].offset]; 
+       rc = (len < XrdFfsWcacheFbufs[fd].len - (offset - XrdFfsWcacheFbufs[fd].offset))?
+             len : XrdFfsWcacheFbufs[fd].len - (offset - XrdFfsWcacheFbufs[fd].offset);
+       memcpy(buf, bufptr, rc);
+//----------------------------------------------------------
+    } 
+    else
+    { // offset fall into the uncached part of the partically cached block
+       rc = XrdFfsPosix_pread(fd + XrdFfsPosix_baseFD, buf, len, offset);
+    }
+    pthread_mutex_unlock(XrdFfsWcacheFbufs[fd].mlock);
+/*    
+    // prefetch the next block
+    if ( (offset + rc) ==
+         (XrdFfsWcacheFbufs[fd].offset + bufsize) )
+    {
+        pthread_t thread;
+        pthread_attr_t attr;
+        //size_t stacksize = 4*1024*1024;
+    
+        pthread_attr_init(&attr);
+        //pthread_attr_setstacksize(&attr, stacksize);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+        struct fd_n_offset nextblock(fd, (offset + bufsize));
+        if (! pthread_create(&thread, &attr, XrdFfsWcache_updateReadCache, &nextblock)) 
+            pthread_detach(thread);
+        pthread_attr_destroy(&attr);
+    }
+*/
+    return rc;
+}
+
 ssize_t XrdFfsWcache_pwrite(int fd, char *buf, size_t len, off_t offset)
 {
     ssize_t rc;
@@ -176,7 +303,7 @@ ssize_t XrdFfsWcache_pwrite(int fd, char *buf, size_t len, off_t offset)
     }
 
 /* do not use caching under these cases */
-    if (len > XrdFfsWcacheBufsize/2 || fd >= XrdFfsWcacheNFILES)
+    if (len > (size_t)(XrdFfsWcacheBufsize/2) || fd >= XrdFfsWcacheNFILES)
     {
         rc = XrdFfsPosix_pwrite(fd + XrdFfsPosix_baseFD, buf, len, offset);
         return rc;

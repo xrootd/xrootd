@@ -52,6 +52,11 @@
 #include "XrdFfs/XrdFfsDent.hh"
 #include "XrdFfs/XrdFfsQueue.hh"
 
+#include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+
 #ifdef __cplusplus
   extern "C" {
 #endif
@@ -91,7 +96,22 @@ int XrdFfsPosix_closedir(DIR *dirp)
 
 int XrdFfsPosix_mkdir(const char *path, mode_t mode)
 {
-    return XrdPosixXrootd::Mkdir(path, mode);
+    XrdCl::URL url(path);
+    std::string dir = url.GetPath();
+    XrdCl::LocationInfo *info = nullptr;
+    XrdCl::FileSystem fs(path);
+
+    XrdCl::XRootDStatus st = fs.DeepLocate("*", XrdCl::OpenFlags::None, info );
+    std::unique_ptr<XrdCl::LocationInfo> ptr( info );  
+
+    if( !st.IsOK() )
+    {
+        errno = ENOENT;
+        return -1;
+    }
+    std::string nodeUrl = "root://" + info->At(0).GetAddress() + "/" + dir;
+
+    return XrdPosixXrootd::Mkdir(nodeUrl.c_str(), mode);
 }
 
 int XrdFfsPosix_rmdir(const char *path)

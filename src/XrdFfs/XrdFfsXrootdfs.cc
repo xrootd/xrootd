@@ -129,7 +129,6 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
     free(pwbuf);
 
 /* put Xrootd related initialization calls here, after fuse daemonize itself. */
-    if (getenv("XRDCL_EC")) usingEC = true;
     XrdPosixXrootd *abc = new XrdPosixXrootd(-xrootdfs.maxfd);
     XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
     XrdFfsWcache_init(abc->fdOrigin(), xrootdfs.maxfd);
@@ -451,7 +450,7 @@ static int xrootdfs_create(const char *path, mode_t mode, struct fuse_file_info 
         res = xrootdfs_do_create(path, xrootdfs.rdr, O_CREAT | O_WRONLY, true, &fd);
     if (res < 0) return res;
     fi->fh = fd;
-    XrdFfsWcache_create(fd);    // Unlike mknod and like open, prepare wcache.
+    XrdFfsWcache_create(fd, fi->flags);    // Unlike mknod and like open, prepare wcache.
     if (xrootdfs.cns != NULL)
     {
         xrootdfs_do_create(path, xrootdfs.cns, O_CREAT | O_EXCL, false, &fd);
@@ -791,7 +790,7 @@ static int xrootdfs_open(const char *path, struct fuse_file_info *fi)
 
     fi->fh = fd;
     // be careful, 0 means error for this function
-    if (XrdFfsWcache_create(fi->fh))
+    if (XrdFfsWcache_create(fi->fh, fi->flags))
         return 0;
     else
         return -errno;
@@ -804,7 +803,7 @@ static int xrootdfs_read(const char *path, char *buf, size_t size, off_t offset,
     int res;
 
     fd = (int) fi->fh;
-    XrdFfsWcache_flush(fd);  /* in case is the file is reading/writing */
+    if (fi->flags & O_RDWR) XrdFfsWcache_flush(fd);
 
     if (usingEC)
     {
@@ -817,11 +816,18 @@ static int xrootdfs_read(const char *path, char *buf, size_t size, off_t offset,
             return 0;
 
         size = (size_t)(fsize - offset) > size ? size : fsize - offset; 
+        // Restrict the use of read cache to O_DIRECT use case 
+        // See comment in XRdFfsWcache_pread()
+        if ( ! (fi->flags & O_RDWR) && (fi->flags & O_DIRECT) )
+            res = XrdFfsWcache_pread(fd, buf, size, offset);
+        else
+            res = XrdFfsPosix_pread(fd, buf, size, offset);
     }
+    else
+        res = XrdFfsPosix_pread(fd, buf, size, offset);
 
-    res = XrdFfsPosix_pread(fd, buf, size, offset);
     if (res == -1)
-        res = -errno;
+    res = -errno;
 
     return res;
 }
@@ -1253,6 +1259,7 @@ static void xrootdfs_usage(const char *progname)
 "\n"
 "Default options:\n"
 "    fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5\n"
+"  In case of an Erasure Encoding storage, entry_timeout=0\n"
 "\n"
 "[Required]\n"
 "    -o rdr=redirector_url    root URL of the Xrootd redirector\n"
@@ -1328,13 +1335,25 @@ int main(int argc, char *argv[])
 /* Define XrootdFS options */
     char **cmdline_opts;
 
+    if (getenv("XRDCL_EC")) usingEC = true;
+
     cmdline_opts = (char **) malloc(sizeof(char*) * (argc -1 + 3));
     cmdline_opts[0] = argv[0];
     cmdline_opts[1] = strdup("-o");
     if (getenv("XROOTDFS_NO_ALLOW_OTHER") != NULL && ! strcmp(getenv("XROOTDFS_NO_ALLOW_OTHER"),"1") )
-        cmdline_opts[2] = strdup("fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+     {
+        if (! usingEC)
+            cmdline_opts[2] = strdup("fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+        else
+            cmdline_opts[2] = strdup("fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=0,negative_timeout=5");
+    }
     else
-        cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+    {
+        if (! usingEC)
+            cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+        else
+            cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=0,negative_timeout=5");
+    }
 
     for (int i = 1; i < argc; i++)
         cmdline_opts[i+2] = argv[i];
