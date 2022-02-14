@@ -58,6 +58,10 @@
     #include "XrdFfs/XrdFfsPosix.hh"
 #endif
 
+#ifndef O_DIRECT
+#define O_DIRECT 0
+#endif
+
 #ifdef __cplusplus
   extern "C" {
 #endif
