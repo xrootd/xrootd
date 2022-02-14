@@ -599,6 +599,19 @@ XRootDStatus DoRm( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  struct print_t
+  {
+    void print( const std::string &msg )
+    {
+      std::unique_lock<std::mutex> lck( mtx );
+      std::cout << msg << '\n';
+    }
+    std::mutex mtx;
+  };
+  std::shared_ptr<print_t> print;
+  if( argc - 1 > 1 )
+    print = std::make_shared<print_t>();
+
   std::vector<Pipeline> rms;
   rms.reserve( argc - 1 );
   for( size_t i = 1; i < argc; ++i )
@@ -610,11 +623,18 @@ XRootDStatus DoRm( FileSystem                      *fs,
       return XRootDStatus( stError, errInvalidArgs );
     }
     rms.emplace_back( Rm( fs, fullPath ) >>
-                      [log, fullPath]( XRootDStatus &st )
+                      [log, fullPath, print]( XRootDStatus &st )
                       {
-                        log->Error( AppMsg, "Unable remove %s: %s",
-                                            fullPath.c_str(),
-                                            st.ToStr().c_str() );
+                        if( !st.IsOK() )
+                        {
+                          log->Error( AppMsg, "Unable remove %s: %s",
+                                              fullPath.c_str(),
+                                              st.ToStr().c_str() );
+                        }
+                        if( print )
+                        {
+                          print->print( "rm " + fullPath + " : " + st.ToString() );
+                        }
                       } );
   }
 
