@@ -21,9 +21,16 @@ Version 5.4.1
   **[CMake]** Add XrdSysTrace.hh to private headers.
   **[PIP]** Use shutil.which over distutils.spawn.find_executable when
             possible.
+  **[Posix]** Make sure pointer is set to 0 to avoid memory corruption.
 
 + **Minor bug fixes**
   **[SciTokens]** Regularize paths used for authorization.
+  **[pip]** Sanitize version to be PEP 440 compliant.
+  **[Python]** Use context manager for opening files.
+  **[Python]** Install Python bindings with pip if available.
+  **[RPM]** Add python2-pip to BuildRequires.
+  **[RPM]** Add python2-pip to BuildRequires.
+  **[Debian]** Add python3-pip, python3-setuptools as required packages.
 
 + **Miscellaneous**
   **[Utils]** Redefine ENODATA when missing.
@@ -31,6 +38,7 @@ Version 5.4.1
   **[CI]** Add GitHub Actions based CI
   **[IOEvents]** Improve tracing.
   **[XrdCl/XrdEc]** Make XrdEc compatible with vanilla xrootd servers.
+  **[XrdCl]** xrdfs: allow rm multiple files.
 
 --------------
 Version 5.4.0
