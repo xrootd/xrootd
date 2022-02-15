@@ -88,22 +88,22 @@ struct Action
   inline std::string ToString()
   {
     std::stringstream ss;
-    ss << id << ',';
-    ss << Name() << ',';
+    ss << "\"" << id     << "\"" << ',';
+    ss << "\"" << Name() << "\"" << ',';
 
     double tstart = time(start);
     double tstop  = time(stop);
-    ss << std::fixed << std::setprecision(9) << tstart << ",";
+    ss << "\"" << std::fixed << std::setprecision(9) << tstart << "\"" << ",";
     std::string argstr = ArgStr();
     if (!argstr.empty())
       argstr += ';';
-    ss << argstr << timeout << ',';
-    ss << std::fixed << std::setprecision(9) << tstop << ",";
+    ss << "\"" << argstr << timeout << "\"" << ',';
+    ss << "\"" << std::fixed << std::setprecision(9) << tstop  << "\"" << ",";
     auto ststr = status.ToString();
     while (ststr.back() == ' ')
       ststr.pop_back();
-    ss << ststr << ',';
-    ss << serialrsp << '\n';
+    ss << "\"" << ststr << "\"" << ',';
+    ss << "\"" << serialrsp << "\"" << '\n';
     return ss.str();
   }
 

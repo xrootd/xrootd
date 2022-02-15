@@ -713,6 +713,79 @@ class ActionExecutor
 };
 
 //------------------------------------------------------------------------------
+//! Split a row into columns
+//------------------------------------------------------------------------------
+std::vector<std::string> ToColumns( const std::string &row )
+{
+  std::cout << std::endl;
+  std::vector<std::string> columns;
+  size_t quotecnt = 0;
+  size_t pos = 0;
+  //----------------------------------------------------------------------------
+  //! loop over all the columns in the row
+  //----------------------------------------------------------------------------
+  while( pos != std::string::npos && pos < row.size() )
+  {
+    if( row[pos] == '"' ) // we are handling a quoted column
+    {
+      if( quotecnt > 0 ) // this is a closing quote
+      {
+        if( pos + 1 < row.size() && row[pos + 1] != ',' ) // if it is not the last character in the row it should be followed by a comma
+          throw std::runtime_error( "Parsing error: missing comma" );
+        --quotecnt; // strip the quote
+        ++pos; // move to the comma or end of row
+        continue;
+      }
+      else // this is a opening quote
+      {
+        ++quotecnt;
+        auto b = std::next( row.begin(), pos + 1 ); // iterator to the beginning of our column
+        size_t posend = row.find( "\",", pos + 1 ); // position of the cursor to the end of our column
+        if( posend == std::string::npos && row[row.size() - 1] == '"' )
+          posend = row.size() - 1;
+        else if( posend == std::string::npos )
+          throw std::runtime_error( "Parsing error: missing closing quote" );
+        auto e = std::next( row.begin(), posend ); // iterator to the end of our column
+        columns.emplace_back( b, e ); // add the column to the result
+        pos = posend; // move to the next column
+        continue;
+      }
+    }
+    else if( row[pos] == ',' ) // we are handling a column separator
+    {
+      if( pos + 1 < row.size() && row[pos + 1] == '"' ) // check if the column is quoted
+      {
+        ++pos; // if yes we will handle this with the logic reserved for quoted columns
+        continue;
+      }
+      auto b = std::next( row.begin(), pos + 1 ); // iterator to the beginning of our column
+      size_t posend = row.find( ',', pos + 1 ); // position of the cursor to the end of our column
+      if( posend == std::string::npos )
+        posend = row.size();
+      auto e = std::next( row.begin(), posend ); // iterator to the end of our column
+      columns.emplace_back( b, e ); // add the column to the result
+      pos = posend; // move to the next column
+      continue;
+    }
+    else if( pos == 0 ) // we are handling the 1st column if not quoted
+    {
+      size_t posend = row.find( ',', pos + 1 ); // position of the cursor to the end of our column
+      if( posend == std::string::npos )
+        posend = row.size();
+      auto end = std::next( row.begin(), posend ); // iterator to the end of our column
+      columns.emplace_back( row.begin(), end ); // add the column to the result
+      pos = posend;  // move to the next column
+      continue;
+    }
+    else
+    {
+      throw std::runtime_error( "Parsing error: invalid input file." );
+    }
+  }
+  return columns;
+}
+
+//------------------------------------------------------------------------------
 //! List of actions: start time - action
 //------------------------------------------------------------------------------
 using action_list = std::multimap<double, ActionExecutor>;
@@ -745,9 +818,7 @@ std::unordered_map<File*, action_list> ParseInput(const std::string&            
     std::getline(input, line);
     if (line.empty())
       continue;
-    std::vector<std::string> tokens;
-    tokens.reserve(7);
-    XrdCl::Utils::splitString(tokens, line, ",");
+    std::vector<std::string> tokens = ToColumns( line );
     if (tokens.size() == 6)
       tokens.emplace_back();
     if (tokens.size() != 7)
