@@ -223,8 +223,12 @@ public:
   //! Create the output csv file
   //! @param path : path for the file to be created
   //----------------------------------------------------------------------------
-  inline static void SetOutput( const std::string &path )
+  inline static void SetOutput( const std::string &cfgpath )
   {
+    static const std::string defaultpath = "/tmp/xrdrecord.csv";
+    const char *envpath = getenv( "XRD_RECORDERPATH" );
+    std::string path = envpath ? envpath :
+                       ( !cfgpath.empty() ? cfgpath : defaultpath );
     Output::Get().SetPath( path );
   }
 

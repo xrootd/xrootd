@@ -42,8 +42,7 @@ class RecorderFactory : public PlugInFactory
       if( config )
       {
         auto itr = config->find( "output" );
-        if( itr != config->end() )
-          Recorder::SetOutput( itr->second );
+        Recorder::SetOutput( itr != config->end() ? itr->second : "" );
       }
     }
 
