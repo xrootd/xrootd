@@ -13,7 +13,7 @@ set( Solaris  FALSE )
 set( XrdClPipelines FALSE )
 
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
-set( LIBRARY_PATH_PREFIX "lib" )
+define_default( LIBRARY_PATH_PREFIX "lib" )
 
 #-------------------------------------------------------------------------------
 # Enable c++14
@@ -101,22 +101,22 @@ if( APPLE )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )
 
   add_definitions( -DLT_MODULE_EXT=".dylib" )
-  set( CMAKE_INSTALL_LIBDIR "lib" )
-  set( CMAKE_INSTALL_BINDIR "bin" )
-  set( CMAKE_INSTALL_MANDIR "share/man" )
-  set( CMAKE_INSTALL_INCLUDEDIR "include" )
-  set( CMAKE_INSTALL_DATADIR "share" )
+  define_default( CMAKE_INSTALL_LIBDIR "lib" )
+  define_default( CMAKE_INSTALL_BINDIR "bin" )
+  define_default( CMAKE_INSTALL_MANDIR "share/man" )
+  define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
+  define_default( CMAKE_INSTALL_DATADIR "share" )
 endif()
 
 #-------------------------------------------------------------------------------
 # FreeBSD
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD" )
-  set( CMAKE_INSTALL_LIBDIR "lib" )
-  set( CMAKE_INSTALL_BINDIR "bin" )
-  set( CMAKE_INSTALL_MANDIR "man" )
-  set( CMAKE_INSTALL_INCLUDEDIR "include" )
-  set( CMAKE_INSTALL_DATADIR "share" )
+  define_default( CMAKE_INSTALL_LIBDIR "lib" )
+  define_default( CMAKE_INSTALL_BINDIR "bin" )
+  define_default( CMAKE_INSTALL_MANDIR "man" )
+  define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
+  define_default( CMAKE_INSTALL_DATADIR "share" )
 endif()
 
 #-------------------------------------------------------------------------------
@@ -124,11 +124,11 @@ endif()
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   define_default( FORCE_32BITS FALSE )
-  set( CMAKE_INSTALL_LIBDIR "lib" )
-  set( CMAKE_INSTALL_BINDIR "bin" )
-  set( CMAKE_INSTALL_MANDIR "man" )
-  set( CMAKE_INSTALL_INCLUDEDIR "include" )
-  set( CMAKE_INSTALL_DATADIR "share" )
+  define_default( CMAKE_INSTALL_LIBDIR "lib" )
+  define_default( CMAKE_INSTALL_BINDIR "bin" )
+  define_default( CMAKE_INSTALL_MANDIR "man" )
+  define_default( CMAKE_INSTALL_INCLUDEDIR "include" )
+  define_default( CMAKE_INSTALL_DATADIR "share" )
   set( Solaris TRUE )
   add_definitions( -D__solaris__=1 )
   add_definitions( -DSUNCC -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS )
@@ -155,10 +155,10 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   if( ${SOLARIS_VERSION} STREQUAL "10" AND SOLARIS_AMD64 AND NOT FORCE_32BITS )
     set( CMAKE_CXX_FLAGS " -m64 -xtarget=opteron -xs ${CMAKE_CXX_FLAGS} " )
     set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -G" )
-    set( CMAKE_LIBRARY_PATH "/lib/64;/usr/lib/64" )
+    define_default( CMAKE_LIBRARY_PATH "/lib/64;/usr/lib/64" )
     add_definitions( -DSUNX86 )
     set( LIB_SEARCH_OPTIONS NO_DEFAULT_PATH )
-    set( LIBRARY_PATH_PREFIX "lib/64" )
+    define_default( LIBRARY_PATH_PREFIX "lib/64" )
   endif()
 
   #-----------------------------------------------------------------------------
