@@ -35,6 +35,8 @@ Prerelease Notes
 + **Minor bug fixes**
   **[SciTokens]** Regularize paths used for authorization.
   **Commits: 48b1bf4a
+  **[Proxy]** Allow for URLs with username.
+  **Commits: 05a8c0ed
 
 + **Miscellaneous**
   **[TLS]** Display all OpenSSL messages upon fatal error.
