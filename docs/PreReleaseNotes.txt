@@ -39,6 +39,8 @@ Prerelease Notes
   **Commits: 05a8c0ed
 
 + **Miscellaneous**
+  **[Server]** Ignore -Warray-bounds warnings from stricter check in gcc 12.
+  **Commits: 1639703
   **[TLS]** Display all OpenSSL messages upon fatal error.
   **Commits: 14732fd
   **[Utils]** Redefine ENODATA when missing.
