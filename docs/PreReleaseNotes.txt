@@ -37,6 +37,8 @@ Prerelease Notes
   **Commits: 48b1bf4a
 
 + **Miscellaneous**
+  **[TLS]** Display all OpenSSL messages upon fatal error.
+  **Commits: 14732fd
   **[Utils]** Redefine ENODATA when missing.
   **Commits: b0584849
   **[CMake]** Add support for static openssl libraries
