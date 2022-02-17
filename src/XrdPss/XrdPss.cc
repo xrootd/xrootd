@@ -1304,8 +1304,11 @@ int XrdPssSys::P2OUT(char *pbuff, int pblen, XrdPssUrlInfo &uInfo)
    if (!(n = P2DST(retc, hBuff, sizeof(hBuff), PolPath, path))) return 0;
    path += n;
 
-// Create the new path
+// Create the new path. If the url already contains a userid then use it
+// instead or our internally generated one. We may need an option for this
+// as it may result in unintended side-effects but for now we do that.
 //
+   if (index(hBuff, '@')) theID= "";
    n = snprintf(pbuff,pblen,"%s%s%s/%s",pname,theID,hBuff,path);
 
 // Make sure the path will fit
