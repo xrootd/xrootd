@@ -181,6 +181,8 @@ if( NOT XRDCL_ONLY )
     XrdSut/XrdSutBucket.hh
 
     XrdVoms/XrdVoms.hh
+
+    XrdOuc/XrdOucPgrwUtils.hh
 )
 endif()
 
