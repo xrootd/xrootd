@@ -720,7 +720,7 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // since Epoch (Jan 1, 1970) 
    // Return -1 if something went wrong
    time_t etime = -1;
-   EPNAME("ASN1toUTC");
+// EPNAME("ASN1toUTC");
 
    //
    // Make sure there is something to convert
@@ -757,7 +757,7 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // Include DST shift; here, because we have the information
    if (ltm.tm_isdst > 0) etime += XrdCryptoDSTShift;
    // Notify, if requested
-   DEBUG(" UTC: "<<etime<<"  isdst: "<<ltm.tm_isdst);
+// DEBUG(" UTC: "<<etime<<"  isdst: "<<ltm.tm_isdst);
    //
    // We are done
    return etime;
