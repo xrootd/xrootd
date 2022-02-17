@@ -10,6 +10,7 @@ Version 5.4.1
 --------------
 
 + **Major bug fixes**
+  **[Posix]** Make sure pointer is set to 0 to avoid memory corruption.
   **[GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
   **[Server]** Prevent SEGV due to missing lock call for background jobs.
   **[SciTokens]** Correct deletion from std::map to avoid SEGV.
