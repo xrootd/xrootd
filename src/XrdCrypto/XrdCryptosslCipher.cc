@@ -61,6 +61,11 @@ static void DH_get0_pqg(const DH *dh,
         *g = dh->g;
 }
 
+inline static const BIGNUM *DH_get0_p(const DH *dh)
+{
+  return dh->p;
+}
+
 static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
 {
     /* If the fields p and g in d are NULL, the corresponding input
