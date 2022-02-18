@@ -799,7 +799,8 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 // of domain. Composite listings are normally disabled for out of domain nodes.
 //
    if (!index(mval, '.')
-   || !strcmp(XrdPssUtils::getDomain(mval), XrdPssUtils::getDomain(myHost)))
+   || (!strcmp(XrdPssUtils::getDomain(mval), XrdPssUtils::getDomain(myHost))
+       && !strcmp(protName, "http://") && !strcmp(protName, "https://")))
       XrdPosixConfig::SetEnv("DirlistDflt", 1);
 
 // All done
