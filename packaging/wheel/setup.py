@@ -27,6 +27,11 @@ def get_version():
 
     version_parts = version.split(".")
 
+    # Ensure release candidates sanitized to <major>.<minor>.<patch>rc<candidate>
+    if version_parts[-1].startswith("rc"):
+        version = ".".join(version_parts[:-1]) + version_parts[-1]
+        version_parts = version.split(".")
+
     # Assume SemVer as default case
     if len(version_parts[0]) == 8:
         # CalVer
