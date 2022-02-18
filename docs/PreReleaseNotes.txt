@@ -37,6 +37,8 @@ Prerelease Notes
   **Commits: 48b1bf4a
   **[Proxy]** Allow for URLs with username.
   **Commits: 05a8c0ed
+  **[XrdPss]** Do not trigger DeepLocate when pss.origin is http(s)
+  **Commits: 753fd54
 
 + **Miscellaneous**
   **[GSI]** Comment out no longer needed trace record
