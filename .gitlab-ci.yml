@@ -221,19 +221,6 @@ build:deb_ubuntu_bionic:
     - schedules 
     - web
  
-build:deb_ubuntu_xenial:
-  image: ubuntu:xenial
-  <<: *deb_ubuntu_build_def
-  variables:
-    DIST: xenial
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-
 build:deb_ubuntu_focal:
   image: ubuntu:focal
   <<: *deb_ubuntu_build_def
@@ -376,16 +363,6 @@ release:deb_ubuntu_bionic:
   variables:
     DIST: bionic
     DEBUG: "true"
-  only:
-    - web
-  except:
-    - branches
-
-release:deb_ubuntu_xenial:
-  image: ubuntu:xenial
-  <<: *deb_ubuntu_build_def
-  variables:
-    DIST: xenial
   only:
     - web
   except:
@@ -653,7 +630,6 @@ publish:debian:
     - docker_node
   dependencies:
     - build:deb_ubuntu_bionic
-    - build:deb_ubuntu_xenial
     - build:deb_ubuntu_focal
   only:
     - master
@@ -704,7 +680,6 @@ publish:debian:release:
     - docker_node
   dependencies:
     - release:deb_ubuntu_bionic
-    - release:deb_ubuntu_xenial
     - release:deb_ubuntu_focal
   only:
     - web
