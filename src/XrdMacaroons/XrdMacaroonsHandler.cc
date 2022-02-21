@@ -568,8 +568,7 @@ Handler::GenerateMacaroonResponse(XrdHttpExtReq &req, const std::string &resourc
 
     size_t size_hint = macaroon_serialize_size_hint(mac_with_date);
 
-    std::vector<char> macaroon_resp; macaroon_resp.reserve(size_hint);
-    macaroon_resp.push_back((char)0);
+    std::vector<char> macaroon_resp; macaroon_resp.resize(size_hint);
     if (macaroon_serialize(mac_with_date, &macaroon_resp[0], size_hint, &mac_err))
     {
         printf("Returned macaroon_serialize code: %lu\n", (unsigned long)size_hint);
