@@ -309,6 +309,37 @@ release:cs8-x86_64:
   except:
     - branches
 
+release:rocky8-x86_64:
+  stage: build:rpm
+  image: rockylinux:8
+  script:
+    - dnf install -y epel-release
+    - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git python-macros
+    - dnf config-manager --set-enabled powertools
+    - dnf install -y cppunit-devel
+    - dnf -y update libarchive
+    - mkdir rocky-8-x86_64
+    - ./gen-tarball.sh $CI_COMMIT_TAG
+    - mv xrootd-${CI_COMMIT_TAG#"v"}.tar.gz cs-8-x86_64
+    - cd packaging/
+    - git checkout tags/${CI_COMMIT_TAG}
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" -D "dist .el8"
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - mkdir RPMS
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_with_isal 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el8" *.src.rpm
+    - cd ..
+    - cp packaging/RPMS/*.rpm rocky-8-x86_64
+    - cp packaging/*src.rpm   rocky-8-x86_64
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - rocky-8-x86_64/
+  tags:
+    - docker_node
+  only:
+    - web
+  except:
+    - branches
 
 release:cc7-x86_64:
   stage: build:rpm
@@ -639,7 +670,7 @@ publish:rhel:release:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
     - tarball=cc-7-x86_64/xrootd-*.tar.gz
-    - "for platform in cs-8-x86_64 cc-7-x86_64; do
+    - "for platform in rocky-8-x86_64 cs-8-x86_64 cc-7-x86_64; do
          path=$prefix/release/$platform/$CI_COMMIT_TAG/;
          sudo -u stci -H mkdir -p $path/{source,tarball};
          sudo -u stci -H cp $platform/*.rpm $path;
