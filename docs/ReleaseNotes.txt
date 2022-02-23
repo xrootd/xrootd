@@ -23,6 +23,7 @@ Version 5.4.1
   **[PIP]** Use shutil.which over distutils.spawn.find_executable when
             possible.
   **[Posix]** Make sure pointer is set to 0 to avoid memory corruption.
+  **[Macaroons]** Avoid undefined behaviour (e.g. SEGV) using std::vector.
 
 + **Minor bug fixes**
   **[SciTokens]** Regularize paths used for authorization.
