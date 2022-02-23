@@ -18,6 +18,8 @@ Prerelease Notes
   **[XrdCl]** record / replay plug-in
 
 + **Major bug fixes**
+  **[Macaroons]** Avoid undefined behaviour (e.g. SEGV) using std::vector.
+  **Commits: 052beb54
   **[Posix]** Make sure pointer is set to 0 to avoid memory corruption.
   **Commits: 1fa31fd9
   **[GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
