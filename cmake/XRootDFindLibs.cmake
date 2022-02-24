@@ -94,8 +94,8 @@ compiler_define_if_found( HAVE_CURL_MULTI_WAIT HAVE_CURL_MULTI_WAIT )
 endif()
 
 find_package( Macaroons )
-include (FindPkgConfig REQUIRED)
-pkg_check_modules(JSON REQUIRED json-c)
+include(FindPkgConfig REQUIRED)
+pkg_check_modules(JSON json-c)
 pkg_check_modules(UUID REQUIRED uuid)
 
 if( MACAROONS_FOUND AND JSON_FOUND AND UUID_FOUND )
