@@ -1499,7 +1499,8 @@ int XrdPosixXrootd::EcRename(const char *oldpath, const char *newpath, XrdPosixA
     // xrootdfs call this function with individual servers. but we can only do 
     // fs.DeepLocate("*"...) agaist a redirector
     // xrootdfs already did a stat and know that this is a file, not a dir
-    if (!st.IsOK() || queryResp->ToString() == "server")
+    if (!st.IsOK() || queryResp->ToString() == "server"
+                   || queryResp->ToString() == "server\n")
     {
         if (queryResp) delete queryResp;
         return XrdPosixMap::Result(admin->Xrd.Mv(admin->Url.GetPathWithParams(),
@@ -1564,7 +1565,8 @@ int XrdPosixXrootd::EcStat(const char *path, struct stat *buf, XrdPosixAdmin *ad
    XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
    // xrootdfs call this function with individual servers. but we can only do 
    //        // fs.DeepLocate("*"...) agaist a redirector
-   if (!st.IsOK() || queryResp->ToString() == "server")
+   if (!st.IsOK() || queryResp->ToString() == "server"
+                  || queryResp->ToString() == "server\n")
    {
        if (queryResp) delete queryResp;
        if (!admin->Stat(*buf)) 
@@ -1578,6 +1580,7 @@ int XrdPosixXrootd::EcStat(const char *path, struct stat *buf, XrdPosixAdmin *ad
                sstream0 >> buf->st_mtime;
                std::stringstream sstream1(xattrvals[0].value);
                sstream1 >> buf->st_size;
+               buf->st_blocks = (buf->st_size + 512)/512;
            }
            return 0;
        }
@@ -1631,6 +1634,7 @@ int XrdPosixXrootd::EcStat(const char *path, struct stat *buf, XrdPosixAdmin *ad
                    buf->st_mtime = verNumMax;   // assume verNum is mtime
                    std::stringstream sstream(xattrvals[1].value);
                    sstream >> buf->st_size;
+                   buf->st_blocks = (buf->st_size + 512)/512;
                }
            }
            if (fs_i) delete fs_i;
@@ -1660,7 +1664,8 @@ int XrdPosixXrootd::EcUnlink(const char *path, XrdPosixAdmin *admin)
     XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Config, queryArgs, queryResp);
     // xrootdfs call this function with individual servers. but we can only do 
     // fs.DeepLocate("*"...) agaist a redirector
-    if (!st.IsOK() || queryResp->ToString() == "server")
+    if (!st.IsOK() || queryResp->ToString() == "server"
+                   || queryResp->ToString() == "server\n")
     {
         if (queryResp) delete queryResp;
         return XrdPosixMap::Result(admin->Xrd.Rm(admin->Url.GetPathWithParams()));
