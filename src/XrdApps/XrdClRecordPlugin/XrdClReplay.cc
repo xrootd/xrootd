@@ -244,7 +244,7 @@ class ActionExecutor
   void Execute(std::shared_ptr<barrier_t>& ending,
                std::shared_ptr<barrier_t>& closing,
                ActionMetrics&              metric,
-               const bool&                 simulate)
+               bool                        simulate)
   {
     if (action == "Open")  // open action
     {
@@ -270,9 +270,9 @@ class ActionExecutor
 
       if (!simulate)
         WaitFor(Open(file, url, flags, mode, timeout) >>
-                [this, ending, closing, timer, &metric](XRootDStatus& s) mutable
+                [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
                 {
-                  metric.addIos("Open", "e", HandleStatus(s, orgststr));
+                  metric.addIos("Open", "e", HandleStatus(s, orgststr, "Open"));
                   metric.addDelays("Open", "tmeas", timer.elapsed());
                   ending.reset();
                   closing.reset();
@@ -299,9 +299,9 @@ class ActionExecutor
 
       if (!simulate)
         Async(Close(file, timeout) >>
-              [this, ending, timer, &metric](XRootDStatus& s) mutable
+              [this, orgststr{ orgststr }, ending, timer, &metric](XRootDStatus& s) mutable
               {
-                metric.addIos("Close", "e", HandleStatus(s, orgststr));
+                metric.addIos("Close", "e", HandleStatus(s, orgststr, "Close"));
                 metric.addDelays("Close", "tmeas", timer.elapsed());
                 ending.reset();
               });
@@ -320,9 +320,9 @@ class ActionExecutor
 
       if (!simulate)
         Async(Stat(file, force, timeout) >>
-              [this, ending, closing, timer, &metric](XRootDStatus& s, StatInfo& r) mutable
+              [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s, StatInfo& r) mutable
               {
-                metric.addIos("Stat", "e", HandleStatus(s, orgststr));
+                metric.addIos("Stat", "e", HandleStatus(s, orgststr, "Stat"));
                 metric.addDelays("Stat", "tmeas", timer.elapsed());
                 ending.reset();
                 closing.reset();
@@ -350,7 +350,7 @@ class ActionExecutor
               [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s,
                                                                               ChunkInfo& r) mutable
               {
-                metric.addIos("Read", "e", HandleStatus(s, orgststr));
+                metric.addIos("Read", "e", HandleStatus(s, orgststr, "Read"));
                 metric.addDelays("Read", "tmeas", timer.elapsed());
                 buffer.reset();
                 ending.reset();
@@ -379,7 +379,7 @@ class ActionExecutor
               [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s,
                                                                               PageInfo& r) mutable
               {
-                metric.addIos("PgRead", "e", HandleStatus(s, orgststr));
+                metric.addIos("PgRead", "e", HandleStatus(s, orgststr, "PgRead"));
                 metric.addDelays("PgRead", "tmeas", timer.elapsed());
                 buffer.reset();
                 ending.reset();
@@ -409,7 +409,7 @@ class ActionExecutor
           Write(file, offset, buffer->size(), buffer->data(), timeout) >>
           [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
           {
-            metric.addIos("Write", "e", HandleStatus(s, orgststr));
+            metric.addIos("Write", "e", HandleStatus(s, orgststr, "Write"));
             metric.addDelays("Write", "tmeas", timer.elapsed());
             buffer.reset();
             ending.reset();
@@ -438,7 +438,7 @@ class ActionExecutor
           PgWrite(file, offset, buffer->size(), buffer->data(), timeout) >>
           [buffer, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
           {
-            metric.addIos("PgWrite", "e", HandleStatus(s, orgststr));
+            metric.addIos("PgWrite", "e", HandleStatus(s, orgststr, "PgWrite"));
             metric.addDelays("PgWrite", "tmeas", timer.elapsed());
             buffer.reset();
             ending.reset();
@@ -458,9 +458,9 @@ class ActionExecutor
       mytimer_t timer;
       if (!simulate)
         Async(Sync(file, timeout) >>
-              [this, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
               {
-                metric.addIos("Sync", "e", HandleStatus(s, orgststr));
+                metric.addIos("Sync", "e", HandleStatus(s, orgststr, "Sync"));
                 metric.addDelays("Sync", "tmeas", timer.elapsed());
                 ending.reset();
                 closing.reset();
@@ -483,9 +483,9 @@ class ActionExecutor
       mytimer_t timer;
       if (!simulate)
         Async(Truncate(file, size, timeout) >>
-              [this, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              [this, orgststr{ orgststr }, ending, closing, timer, &metric](XRootDStatus& s) mutable
               {
-                metric.addIos("Truncate", "e", HandleStatus(s, orgststr));
+                metric.addIos("Truncate", "e", HandleStatus(s, orgststr, "Truncate"));
                 metric.addDelays("Truncate", "tmeas", timer.elapsed());
                 ending.reset();
                 closing.reset();
@@ -500,7 +500,7 @@ class ActionExecutor
     {
       ChunkList chunks;
       uint16_t  timeout;
-      std::tie(chunks, timeout) = GetVectorReadArgs();
+      std::tie(chunks, timeout) = GetVectorReadArgs(simulate);
       metric.ios["VectorRead::n"]++;
       for (auto& ch : chunks)
       {
@@ -513,9 +513,9 @@ class ActionExecutor
       if (!simulate)
         Async(
           VectorRead(file, chunks, timeout) >>
-          [this, chunks, ending, closing, timer, &metric](XRootDStatus& s, VectorReadInfo& r) mutable
+          [this, orgststr{ orgststr }, chunks, ending, closing, timer, &metric](XRootDStatus& s, VectorReadInfo& r) mutable
           {
-            metric.addIos("VectorRead", "e", HandleStatus(s, orgststr));
+            metric.addIos("VectorRead", "e", HandleStatus(s, orgststr, "VectorRead"));
             metric.addDelays("VectorRead", "tmeas", timer.elapsed());
             for (auto& ch : chunks)
               delete[](char*) ch.buffer;
@@ -524,6 +524,8 @@ class ActionExecutor
           });
       else
       {
+	for (auto& ch : chunks)
+	  delete[](char*) ch.buffer;
         ending.reset();
         closing.reset();
       }
@@ -532,7 +534,7 @@ class ActionExecutor
     {
       ChunkList chunks;
       uint16_t  timeout;
-      std::tie(chunks, timeout) = GetVectorWriteArgs();
+      std::tie(chunks, timeout) = GetVectorWriteArgs(simulate);
       metric.ios["VectorWrite::n"]++;
       for (auto& ch : chunks)
       {
@@ -543,9 +545,9 @@ class ActionExecutor
       mytimer_t timer;
       if (!simulate)
         Async(VectorWrite(file, chunks, timeout) >>
-              [this, chunks, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              [this, orgststr{ orgststr }, chunks, ending, closing, timer, &metric](XRootDStatus& s) mutable
               {
-                metric.addIos("VectorWrite", "e", HandleStatus(s, orgststr));
+                metric.addIos("VectorWrite", "e", HandleStatus(s, orgststr, "VectorWrite"));
                 metric.addDelays("VectorWrite", "tmeas", timer.elapsed());
                 for (auto& ch : chunks)
                   delete[](char*) ch.buffer;
@@ -554,6 +556,8 @@ class ActionExecutor
               });
       else
       {
+	for (auto& ch : chunks)
+	  delete[](char*) ch.buffer;
         ending.reset();
         closing.reset();
       }
@@ -578,7 +582,7 @@ class ActionExecutor
   //--------------------------------------------------------------------------
   //! Handle response status
   //--------------------------------------------------------------------------
-  static bool HandleStatus(XRootDStatus& response, const std::string& orgstr)
+  static bool HandleStatus(XRootDStatus& response, const std::string& orgstr, const std::string where="unknown")
   {
     std::string rspstr = response.ToString();
     rspstr.erase(remove(rspstr.begin(), rspstr.end(), ' '), rspstr.end());
@@ -587,9 +591,10 @@ class ActionExecutor
     {
       DefaultEnv::GetLog()->Warning(AppMsg,
                                     "We were expecting status: %s, but "
-                                    "received: %s",
+                                    "received: %s from: %s",
                                     orgstr.c_str(),
-                                    rspstr.c_str());
+                                    rspstr.c_str(),
+				    where.c_str());
       return true;
     }
     else
@@ -683,7 +688,7 @@ class ActionExecutor
   //--------------------------------------------------------------------------
   //! Parse arguments for vector read
   //--------------------------------------------------------------------------
-  std::tuple<ChunkList, uint16_t> GetVectorReadArgs()
+  std::tuple<ChunkList, uint16_t> GetVectorReadArgs(bool simulate)
   {
     std::vector<std::string> tokens;
     Utils::splitString(tokens, args, ";");
@@ -693,7 +698,11 @@ class ActionExecutor
       uint64_t offset = std::stoull(tokens[i]);
       uint32_t length = std::stoul(tokens[i + 1]);
       char*    buffer = new char[length];
-      memset(buffer, 'A', length);
+
+      if (!simulate)
+      {
+	memset(buffer, 'A', length);
+      }
       chunks.emplace_back(offset, length, buffer);
     }
     uint16_t timeout = static_cast<uint16_t>(std::stoul(tokens.back()));
@@ -703,7 +712,7 @@ class ActionExecutor
   //--------------------------------------------------------------------------
   //! Parse arguments for vector write
   //--------------------------------------------------------------------------
-  inline std::tuple<ChunkList, uint16_t> GetVectorWriteArgs() { return GetVectorReadArgs(); }
+  inline std::tuple<ChunkList, uint16_t> GetVectorWriteArgs(bool simulate) { return GetVectorReadArgs(simulate); }
 
   File&             file;             //< the file object
   const std::string action;           //< the action to be executed
@@ -717,7 +726,6 @@ class ActionExecutor
 //------------------------------------------------------------------------------
 std::vector<std::string> ToColumns( const std::string &row )
 {
-  std::cout << std::endl;
   std::vector<std::string> columns;
   size_t quotecnt = 0;
   size_t pos = 0;
@@ -915,14 +923,14 @@ std::thread ExecuteActions(std::unique_ptr<File> file,
                            double                t0,
                            double                speed,
                            ActionMetrics&        metric,
-                           const bool&           simulate)
+                           bool                  simulate)
 {
   std::thread t(
     [file{ std::move(file) },
      actions{ std::move(actions) },
      t0,
      &metric,
-     &simulate,
+     simulate,
      &speed]() mutable
     {
       XrdSysSemaphore endsem(0);
@@ -939,7 +947,7 @@ std::thread ExecuteActions(std::unique_ptr<File> file,
         {
           tdelay /= speed;
           metric.delays[action.Name() + "::tloss"] += tdelay;
-          std::this_thread::sleep_for(std::chrono::milliseconds((int) (tdelay * 1000)));
+	  std::this_thread::sleep_for(std::chrono::milliseconds((int) (tdelay * 1000)));
         }
         else
         {

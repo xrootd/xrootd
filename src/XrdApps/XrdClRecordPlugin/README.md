@@ -1,7 +1,7 @@
 # 1 XrdClRecorder Plugin
 
-This XRootD Client Plugin can be used to record all user's actions on XrdCl::File object and store them into a csv file. Afterwards, using the xrdreplay utily the actions can be replayed preserving the original timing.
-The output file can be provided either using `XRD_RECORDERPATH` environment variable or the `output` key in the plug-in configuration file (the enviroment variable takes precedence). If neither is provided the recorded actions will be stored at a default location: `/tmp/xrdrecord.csv`.
+This XRootD Client Plugin can be used to record all user's actions on XrdCl::File object and store them into a csv file. Afterwards, using the xrdreplay utility the actions can be replayed preserving the original timing.
+The output file can be provided either using the `XRD_RECORDERPATH` environment variable or the `output` key in the plug-in configuration file (the enviroment variable takes precedence). If neither is provided the recorded actions will be stored at a default location: `/tmp/xrdrecord.csv`.
 
 
 Config file format:
@@ -33,14 +33,14 @@ _________________
 The **xrdreplay** application provides the following operation modes:
 * <em>print</em> mode (-p)           : display runtime and IO statistics for a record file
 * <em>verify</em> mode (-v)          : verify the existance of the required input files for a record file
-* <em>creation</em> mode (-c,-t)     : create the required input data using file creation and write the minimal required size (-c) or truncate files to the minal required size (-t)
+* <em>creation</em> mode (-c,-t)     : create the required input data using file creation and write the minimal required size (-c) or truncate files to the minimal required size (-t)
 * <em>playback</em> mode (default)   : replay a given record file
 
 _________________
 
 ## 2.1 <em>print</em> mode (-p)
 
-To display the IO statistics from a recorded file do without playback do:
+To display the IO statistics from a recorded file without playback do:
 
 ```bash
 xrdreplay -p recording.csv
@@ -65,7 +65,7 @@ xrdreplay -p recording.csv
 # Synchronicity(W) : 100.00%
 ```
 
-To further inspect details of the recording file (which files are accessed and the IO per file) use the long format (-l) and optionally the summarhy option (-s):
+To further inspect details of the recording file (which files are accessed and IO per file) use the long format (-l) and optionally the summary option (-s):
 
 ```bash
 xrdreplay -p recording.csv
@@ -100,7 +100,7 @@ _________________
 
 ## 2.2 <em>verify</em> mode (-v)
 
-To verify the availiblity of all input files one uses:
+To verify the availability of all input files one uses:
 
 ```bash
 xrdreplay -v recording.cvs
@@ -113,7 +113,7 @@ xrdreplay -v recording.cvs
 # size: 536.87 MB [ 0 B out of 536.87 MB ]  ( 0.00% )
 # ---> info: file exists and has sufficient size
 ```
-On success the shell returns 0, if there was a missing, too small or inaccesible file  it returns -5 (251).
+On success the shell returns 0, if there was a missing, too small or inaccesible file it returns -5 (251).
 
 ```bash
 Warning: xrdreplay considers a file only as an input file if it has no bytes written.
@@ -122,7 +122,7 @@ _________________
 
 ## 2.3 <em>creation</em> mode (-c)
 
-In this mode **xrdreplay** will create the required input files. In this context it is worthwhile to explain the <em>--replace</em> option, which allows to modify the input and output path used by **xrdreplay**.
+In creation mode **xrdreplay** will create the required input files. In this context it is worthwhile to explain the <em>--replace</em> option, which allows to modify the input and output path used by **xrdreplay**.
 
 ### 2.3.1 using the --replace option
 You can use the <em>--replace</em> option (multiple times) to rewrite the URLs of input and output data e.g.:
@@ -137,7 +137,7 @@ There are two ways to create input data:
 * <em>-c</em> create files and write well defined patterns into the files to the minimum required offset given by the recorded pattern
 * <em>-t</em> create files and truncate files to the minum required offset given by the recorded pattern (files will contain 0)
 
-The truncate option might be not good to produce useful results when the storage systems supports parse files and/or compression.
+The truncate option might be not good to produce useful results when the storage systems supports sparse files and/or compression.
 
 Her is an example to create input data in <em>create</em> mode in a modified storage endpoint:
 ```bash
@@ -147,7 +147,7 @@ xrdreplay --replace root://cmsserver//store/cms/:=root://mycluster//mypath/ -c
 _________________
 
 ## 2.4 <em>playback</em> mode (default)
-**xrdreplay** without print,verify or creation option will playback a recorded pattern file. By default **xrdreplay** will replay the IO trying to keep the original timing of each requests. This might not be possible if responses are slower than in the original recording. It is possible to modify the playback speed using the <em>-x speedval</em> option. A value of 2 means to try to run the recorded pattern with double speed. A value of 0.5 means to replay the pattern at half speed.
+**xrdreplay** without print, verify or creation option will playback a recorded pattern file. By default **xrdreplay** will replay the IO trying to keep the original timing of each request. This might not be possible if responses are slower than in the original recording. It is possible to modify the playback speed using the <em>-x speedval</em> option. A value of 2 means to try to run the recorded pattern with double speed. A value of 0.5 means to replay the pattern at half speed. Increasing the playback speed can increase memory requirements significantly.
 
 The playback mode creates some additional output lines:
 
@@ -182,8 +182,8 @@ xrdreplay recording.cvs
 # Response Errors  : 0
 # =============================================
 ```
-Most of the output fields are self-explaining. <em>Performance Mark</em> just puts the original run-time to the achieved run-time into relation.
-The <Gain Marks> indicate if the IO could potentially be run faster than given by the recording if they are more than 100%. The <em>Synchronicity</em> measures the amount of IO requests within a given file are overlapping between request and response. A value of 100% indicates synchronous IO, a value towards 0 indicates asynchronous IO. 
+Most of the output fields are self-explaining. <em>Performance Mark</em> puts the original run-time to the achieved run-time into relation.
+The <Gain Marks> indicates if the IO could potentially be run faster than given by the recording (when > 100%). The <em>Synchronicity</em> measures the amount of IO requests within a given file are overlapping between request and response. A value of 100% indicates synchronous IO, a value towards 0 indicates asynchronous IO. This value does not measure parallelism between files.
 
 In case of IO errors you will see a response error counter != 0 and a shell return code of -5 (251).
 ```bash
@@ -193,7 +193,7 @@ In case of IO errors you will see a response error counter != 0 and a shell retu
 ```
 
 ### 2.4.1 using the force (error suppression) mode (-f)
-By default **xrdreplay** will reject to replay a recording file with error responses. Using the <em>-f</em> flag you can force the player to run. In this case unsuccessfull IO events will be skipped in the replay.
+By default **xrdreplay** will reject to replay a recording file with error responses. By using the <em>-f</em> flag you can force the player to run. In this case unsuccessful IO events will be skipped in the replay.
 
 _________________
 
@@ -245,7 +245,7 @@ usage: xrdreplay [-p|--print] [-c|--create-data] [t|--truncate-data] [-l|--long]
 
                 -h | --help             : show this help
                 -f | --suppress         : force to run all IO with all successful result status - suppress all others
-                                          - by default the player won't run with an unsuccessfull recorded IO
+                                          - by default the player won't run with an unsuccessful recorded IO
 
                 -p | --print            : print only mode - shows all the IO for the given replay file without actually running any IO
                 -s | --summary          : print summary - shows all the aggregated IO counter summed for all files
