@@ -100,6 +100,7 @@ BuildRequires: libcurl-devel
 BuildRequires: libuuid-devel
 BuildRequires: voms-devel >= 2.0.6
 BuildRequires: git
+BuildRequires: pkgconf
 %if %{have_macaroons}
 BuildRequires: libmacaroons-devel
 %endif
