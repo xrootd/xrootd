@@ -18,25 +18,8 @@ Prerelease Notes
   **[XrdCl]** record / replay plug-in
 
 + **Major bug fixes**
-  **[Macaroons]** Avoid undefined behaviour (e.g. SEGV) using std::vector.
-  **Commits: 052beb54
-  **[Posix]** Make sure pointer is set to 0 to avoid memory corruption.
-  **Commits: 1fa31fd9
-  **[GSI]** Generate DH parameters on first call to XrdCryptosslCipher.
-  **Commits: 8c38b20f
-  **[Server]** Prevent SEGV due to missing lock call for background jobs.
-  **Commits: 7615d866
-  **[SciTokens]** Correct deletion from std::map to avoid SEGV.
-  **Commits: fc7edf7f
-  **[cmsd]** Avoid SEGV, avoid using pointers after deleting them.
-  **Commits: cfada244
-  **[XrdCl]** Avoid derefferencing null ptr when trasforming ChunkInfo
-              into PageInfo.
-  **Commits: 8621a6cb 888ebad6
 
 + **Minor bug fixes**
-  **[SciTokens]** Regularize paths used for authorization.
-  **Commits: 48b1bf4a
   **[Proxy]** Allow for URLs with username.
   **Commits: 05a8c0ed
   **[XrdPss]** Do not trigger DeepLocate when pss.origin is http(s)
@@ -51,9 +34,3 @@ Prerelease Notes
   **Commits: 1639703
   **[TLS]** Display all OpenSSL messages upon fatal error.
   **Commits: 14732fd
-  **[Utils]** Redefine ENODATA when missing.
-  **Commits: b0584849
-  **[CMake]** Add support for static openssl libraries
-  **Commits: 0cf1f29f 79501b4f
-  **[CI]** Add GitHub Actions based CI
-  **Commits: 8641f0ce e4cb0b12
