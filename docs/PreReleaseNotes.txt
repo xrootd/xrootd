@@ -41,6 +41,8 @@ Prerelease Notes
   **Commits: 05a8c0ed
   **[XrdPss]** Do not trigger DeepLocate when pss.origin is http(s)
   **Commits: 5550a77c
+  **[XrdPosix]** bug fix, report correct st_blocks in EC
+  **COmmits: 99d44728
 
 + **Miscellaneous**
   **[GSI]** Comment out no longer needed trace record
