@@ -151,7 +151,7 @@ class ReplayArgs
       << "                -f | --suppress         : force to run all IO with all successful result status - suppress all others"
       << std::endl;
     std::cerr
-      << "                                          - by default the player won't run with an unsuccessfull recorded IO"
+      << "                                          - by default the player won't run with an unsuccessful recorded IO"
       << std::endl;
     std::cerr << std::endl;
     std::cerr
