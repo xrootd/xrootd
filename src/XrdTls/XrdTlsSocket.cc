@@ -32,6 +32,7 @@
 #include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSys/XrdSysE2T.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdTls/XrdTls.hh"
 #include "XrdTls/XrdTlsContext.hh"
 #include "XrdTls/XrdTlsNotary.hh"
 #include "XrdTls/XrdTlsPeerCerts.hh"
@@ -95,7 +96,6 @@ XrdTlsSocketImpl *theImpl;
 
 namespace XrdTlsGlobal
 {
-extern XrdTls::msgCB_t msgCB;
 extern XrdSysTrace SysTrace;
 }
 
@@ -743,7 +743,7 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
                 std::string eMsg = Err2Text(rc);
                 snprintf(msgBuff, sizeof(msgBuff),
                         "FD %d TLS shutdown failed; %s.\n",pImpl->sFD,eMsg.c_str());
-                XrdTlsGlobal::msgCB(pImpl->traceID, msgBuff, false);
+                XrdTls::Emsg(pImpl->traceID, msgBuff, true);
                 break;
                }
            }
