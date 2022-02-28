@@ -2430,7 +2430,7 @@ int XrdHttpProtocol::xsecxtractor(XrdOucStream& Config) {
     }
 
     char libName[4096];
-    strncpy(libName, val, sizeof(libName));
+    strlcpy(libName, val, sizeof(libName));
     libName[sizeof(libName) - 1] = '\0';
     char libParms[4096];
 

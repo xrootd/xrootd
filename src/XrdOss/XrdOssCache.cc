@@ -748,7 +748,7 @@ void XrdOssCache::MapDevs(bool dBug)
       // We are only concerned about normal block devices
       //
          if (sDev[1] != 'd' || (*sDev != 's' && *sDev != 'h')) continue;
-         strncpy(sDN, sDev, sizeof(sDN));
+         strlcpy(sDN, sDev, sizeof(sDN));
          sDN[sizeof(sDN)-1] = 0;
 
       // Trim off any numbers from the id

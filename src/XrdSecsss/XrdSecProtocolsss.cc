@@ -288,7 +288,7 @@ if (!(decKey.Data.Opts & XrdSecsssKT::ktEnt::noIPCK))
 // At this point we need to check if this identity can be passed as a clone
 //
    if (aProts && myID.Clonable(aProts))
-      {strncpy(Entity.prot, myID.xAuth, sizeof(Entity.prot));
+      {strlcpy(Entity.prot, myID.xAuth, sizeof(Entity.prot));
        Entity.prot[XrdSecPROTOIDSIZE-1] = 0;
        if (myID.xUser) XrdOucUtils::getUID(myID.xUser,Entity.uid,&Entity.gid);
        if (myID.xGrup) XrdOucUtils::getGID(myID.xGrup,Entity.gid);
