@@ -43,7 +43,6 @@
 
 namespace XrdTlsGlobal
 {
-extern XrdTls::msgCB_t msgCB;
 extern XrdSysTrace SysTrace;
 };
   
@@ -134,7 +133,7 @@ do{ctxImpl->crlMutex.ReadLock();
 // Verify that the context was properly built
 //
    if (!newctx || !newctx->isOK())
-      {XrdTlsGlobal::msgCB("CrlRefresh:","Refresh of context failed!!!",false);
+      {XrdTls::Emsg("CrlRefresh:","Refresh of context failed!!!",false);
        continue;
       }
 
@@ -280,7 +279,7 @@ bool Setup_Flusher(XrdTlsContextImpl *pImpl, int flushT)
       {char eBuff[512];
        snprintf(eBuff, sizeof(eBuff),
                 "Unable to start cache flusher thread; rc=%d", rc);
-       XrdTlsGlobal::msgCB("SessCache:", eBuff, false);
+       XrdTls::Emsg("SessCache:", eBuff, false);
        return false;
       }
 
@@ -416,10 +415,10 @@ void Fatal(std::string *eMsg, const char *msg, bool sslmsg=false)
 //
    if (eMsg) *eMsg = msg;
 
-// Now route the message to the message callback function. We always flush the
-// ssl error queue, even if not an ssl error, to prevent suprises.
+// Now route the message to the message callback function. If this is an ssl
+// related error we also flush the ssl error queue to prevent suprises.
 //
-   XrdTlsGlobal::msgCB("TLS_Context:", msg, sslmsg);
+   XrdTls::Emsg("TLS_Context:", msg, sslmsg);
 }
 
 /******************************************************************************/
@@ -513,15 +512,15 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 
        X509_NAME_oneline(X509_get_subject_name(cert), name, sizeof(name));
        snprintf(info,sizeof(info),"Cert verification failed for DN=%s",name);
-       XrdTlsGlobal::msgCB("CertVerify:", info, false);
+       XrdTls::Emsg("CertVerify:", info, false);
 
        X509_NAME_oneline(X509_get_issuer_name(cert), name, sizeof(name));
        snprintf(info,sizeof(info),"Failing cert issuer=%s", name);
-       XrdTlsGlobal::msgCB("CertVerify:", info, false);
+       XrdTls::Emsg("CertVerify:", info, false);
 
        snprintf(info, sizeof(info), "Error %d at depth %d [%s]", err, depth,
                                     X509_verify_cert_error_string(err));
-       XrdTlsGlobal::msgCB("CertVerify", info, false);
+       XrdTls::Emsg("CertVerify", info, false);
       }
 
    return aOK;
@@ -1007,7 +1006,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 // Check if there is anything that is refreshable
 //
    if (!x509Verify())
-      {XrdTlsGlobal::msgCB("CrlRefresh:",
+      {XrdTls::Emsg("CrlRefresh:",
                            "No cert information exists to refresh!", false);
        return false;
       }
@@ -1026,7 +1025,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
           {char eBuff[512];
            snprintf(eBuff, sizeof(eBuff),
                     "Unable to start CRL refresh thread; rc=%d", rc);
-           XrdTlsGlobal::msgCB("CrlRefresh:", eBuff, false);
+           XrdTls::Emsg("CrlRefresh:", eBuff, false);
            pImpl->crlMutex.UnLock();
            return false;
           } else pImpl->crlRunning = true;
@@ -1042,7 +1041,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 // Older version are too difficult to deal with. Issue a message if this
 // feature is being enabled on an old version.
 //
-   XrdTlsGlobal::msgCB("CrlRefresh:", "Refreshing CRLs only supported in "
+   XrdTls::Emsg("CrlRefresh:", "Refreshing CRLs only supported in "
                        "OpenSSL version >= 1.02; CRL refresh disabled!", false);
    return false;
 #endif
