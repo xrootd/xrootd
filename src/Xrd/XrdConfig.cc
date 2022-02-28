@@ -131,7 +131,7 @@ namespace
 {
 XrdOucEnv  theEnv;
 XrdVERSIONINFODEF(myVer, Xrd, XrdVNUMBER, XrdVERSION);
-bool       SSLmsgs = false;
+bool SSLmsgs = true;
 
 void TlsError(const char *tid, const char *msg, bool sslmsg)
              {if (!sslmsg || SSLmsgs) XrdGlobal::Log.Emsg("TLS", tid, msg);}
@@ -1442,7 +1442,6 @@ bool XrdConfig::SetupTLS()
                 if (TRACING(TRACE_TLSSOK)) tlsdbg |= XrdTls::dbgSOK;
                }
        XrdTls::SetDebug(tlsdbg, &Logger);
-       SSLmsgs = true;
       }
 
 // Create a context

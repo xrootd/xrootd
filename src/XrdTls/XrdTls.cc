@@ -47,12 +47,12 @@ void ToStdErr(const char *tid, const char *msg, bool sslerr)
 {
    std::cerr <<"TLS: " <<msg <<'\n' <<std::flush;
 }
+XrdTls::msgCB_t msgCB = ToStdErr;
 bool echoMsg = false;
 }
 
 namespace XrdTlsGlobal
 {
-XrdTls::msgCB_t  msgCB = ToStdErr;
 XrdSysTrace      SysTrace("TLS",0);
 };
 
@@ -95,8 +95,8 @@ namespace
 {
 int ssl_msg_CB(const char *str, size_t len, void *u)
 {   const char *tid = (const char *)u;
-    XrdTlsGlobal::msgCB(tid, str, true);
-    if (echoMsg && XrdTlsGlobal::msgCB != ToStdErr) ToStdErr(tid, str, true);
+    msgCB(tid, str, true);
+    if (echoMsg && msgCB != ToStdErr) ToStdErr(tid, str, true);
     return 0;
 }
 }
@@ -111,8 +111,8 @@ void XrdTls::Emsg(const char *tid, const char *msg, bool flush)
 // Print passed in error, if any
 //
   if (msg)
-     {XrdTlsGlobal::msgCB(tid, msg, false);
-      if (echoMsg && XrdTlsGlobal::msgCB != ToStdErr) ToStdErr(tid, msg, false);
+     {msgCB(tid, msg, false);
+      if (echoMsg && msgCB != ToStdErr) ToStdErr(tid, msg, false);
      }
 
 // Flush all openssl errors if so wanted
@@ -195,7 +195,7 @@ void XrdTls::SetDebug(int opts, XrdTls::msgCB_t cbP)
 
 void XrdTls::SetMsgCB(XrdTls::msgCB_t cbP)
 {
-   XrdTlsGlobal::msgCB = (cbP ? cbP : ToStdErr);
+   msgCB = (cbP ? cbP : ToStdErr);
 }
 
 /******************************************************************************/
