@@ -28,6 +28,8 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[TLS]** Make sure openssl messages always get logged.
+  **Commits: b2a4027
   **[GSI]** Comment out no longer needed trace record
   **Commits: 92a1b7a
   **[Server]** Ignore -Warray-bounds warnings from stricter check in gcc 12.
