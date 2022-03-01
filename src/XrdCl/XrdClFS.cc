@@ -641,7 +641,7 @@ XRootDStatus DoRm( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  XRootDStatus st = WaitFor( Parallel( rms ) );
+  XRootDStatus st = WaitFor( Parallel( rms ).AtLeast( rms.size() ) );
   if( !st.IsOK() )
     return st;
 
