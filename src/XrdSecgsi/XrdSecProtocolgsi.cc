@@ -1954,7 +1954,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                DEBUG("user mapping lookup successful: name is '"<<name<<"'");
             }
             Entity.name = strdup(name.c_str());
-            Entity.eaAPI->Add("gridmap.name", name.c_str(), true);
+            Entity.eaAPI->Add("gridmap.name", "1", true);
          }
       }
       // If not set, use DN

@@ -263,7 +263,7 @@ XrdVomsMapfile::Apply(XrdSecEntity &entity)
     // set when the mapfile is used to generate the name.
     std::string gridmap_name;
     auto gridmap_success = entity.eaAPI->Get("gridmap.name", gridmap_name);
-    if (gridmap_success) {
+    if (gridmap_success && gridmap_name == "1") {
         return 0;
     }
 

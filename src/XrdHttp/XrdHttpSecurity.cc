@@ -165,7 +165,7 @@ XrdHttpProtocol::HandleGridMap(XrdLink* lp)
       TRACEI(DEBUG, " Mapping name: '" << SecEntity.moninfo << "' --> " << bufname);
       if (SecEntity.name) free(SecEntity.name);
       SecEntity.name = strdup(bufname);
-      SecEntity.eaAPI->Add("gridmap.name", bufname, true);
+      SecEntity.eaAPI->Add("gridmap.name", "1", true);
     }
     else {
       TRACEI(ALL, " Mapping name: " << SecEntity.moninfo << " Failed. err: " << mape);
