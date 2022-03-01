@@ -13,6 +13,7 @@ add_library(
    ${LIB_XRD_VOMS}
    MODULE
    ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsFun.cc
+   ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsMapfile.cc
    ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsgsi.cc
    ${CMAKE_SOURCE_DIR}/src/XrdVoms/XrdVomsHttp.cc )
 
