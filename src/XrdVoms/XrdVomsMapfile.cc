@@ -420,4 +420,5 @@ XrdVomsMapfile::MaintenanceThread(void *myself_raw)
            myself->m_edest->Log(LogMask::Error, "Maintenance", "Failed to reload VOMS mapfile");
        }
    }
+   return nullptr;
 }
