@@ -10,7 +10,7 @@ Config file format:
 
 ```bash
 url = *
-lib = /home/simonm/git/xrootd-xrdreply/build/src/libXrdClRecorder-5.so
+lib = /usr/lib64/libXrdClRecorder-5.so
 enable = true
 output = /tmp/out.csv # optional
 ```

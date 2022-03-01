@@ -208,7 +208,7 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdAppUtils ${LIB_XRDCL_PROXY_PLUGIN}
+  TARGETS XrdAppUtils ${LIB_XRDCL_PROXY_PLUGIN} ${LIB_XRDCL_RECORDER_PLUGIN}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
@@ -218,6 +218,11 @@ if( NOT XRDCL_ONLY )
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 endif()
+
+install(
+  TARGETS xrdreplay
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
 install(
   FILES

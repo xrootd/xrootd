@@ -716,6 +716,8 @@ install -m 644 packaging/common/xrootd-http.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xr
 # client plug-in config
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d
 install -m 644 packaging/common/client-plugin.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
+install -m 644 packaging/common/recorder.conf              $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/recorder.conf
+
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
 install -m 644 src/XrdClHttp/config/http.client.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/xrdcl-http-plugin.conf
 %endif
@@ -946,10 +948,12 @@ fi
 %{_libdir}/libXrdPosixPreload.so.2*
 %{_libdir}/libXrdSsiLib.so.2*
 %{_libdir}/libXrdSsiShMap.so.2*
+%{_libdir}/libXrdClRecorder-5.so
 %if %{?_with_isal:1}%{!?_with_isal:0}
 %{_libdir}/libXrdEc.so.1*
 %endif
 %{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
+%{_sysconfdir}/xrootd/client.plugins.d/recorder.conf
 %config(noreplace) %{_sysconfdir}/xrootd/client.conf
 # This lib may be used for LD_PRELOAD so the .so link needs to be included
 %{_libdir}/libXrdPosixPreload.so
@@ -1019,6 +1023,7 @@ fi
 %{_bindir}/xrdgsiproxy
 %{_bindir}/xrdmapc
 %{_bindir}/xrdpinls
+%{_bindir}/xrdreplay
 %{_mandir}/man1/xrdadler32.1*
 %{_mandir}/man1/xrdcopy.1*
 %{_mandir}/man1/xrdcp.1*
