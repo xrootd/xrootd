@@ -6,6 +6,14 @@ Release Notes
 =============
 
 
+-------------
+Version 5.4.2
+-------------
+
++ **Major bug fixes**
+  **[XrdCl]** xrdfs rm: make sure status for all files is reported.
+  **[XrdCrypto]** Add DH_get0_p for OPENSSL_VERSION_NUMBER < 0x10100000L.
+
 --------------
 Version 5.4.1
 --------------
