@@ -19,7 +19,7 @@ Prerelease Notes
   **Commits: ????????
   **[XrdCl]** In EC, add adjustable preference to servers based on free space
   **[XrdFfs]** same above
-  **Commits: 963ac979
+  **Commits: 963ac979, 446b404e
 
 + **Major bug fixes**
 
