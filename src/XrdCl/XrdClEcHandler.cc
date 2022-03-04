@@ -38,7 +38,8 @@ namespace XrdCl
       {
         for (uint32_t i=0; i<oldList.GetSize(); i++)
         {
-          if (ServerList[j].address == oldList.At(i).GetAddress())
+          if (ServerList[j].address == oldList.At(i).GetAddress() &&
+              oldList.At(i).GetType() == XrdCl::LocationInfo::ServerOnline)
           {
             newList.Add(oldList.At(i));
             if (newList.GetSize() == n)
@@ -54,7 +55,8 @@ namespace XrdCl
     {
       for (uint32_t i=0; i<oldList.GetSize(); i++)
       {
-        if (Exists(oldList.At(i)))
+        if (Exists(oldList.At(i)) &&
+            oldList.At(i).GetType() == XrdCl::LocationInfo::ServerOnline)
         {
           newList.Add(oldList.At(i));
         }
@@ -123,6 +125,7 @@ namespace XrdCl
   {
     if (! initExportPaths) return;
     time_t t = time(NULL);
+    if (t < lastUpdateT + 300) return;
     lock.lock();
     if (t > lastUpdateT + 300)
     {
