@@ -132,6 +132,19 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
     XrdPosixXrootd *abc = new XrdPosixXrootd(-xrootdfs.maxfd);
     XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
     XrdFfsWcache_init(abc->fdOrigin(), xrootdfs.maxfd);
+
+    char *next, *savptr;
+    next = strtok_r(strdup(xrootdfs.rdr), "//", &savptr);
+    next = strtok_r(NULL, "//", &savptr);
+    char exportpath[1024];
+    while ((next = strtok_r(NULL, "//", &savptr)) != NULL)
+    {
+        strcat(exportpath, "/");
+        strcat(exportpath, next);
+    }
+    setenv("XRDEXPORTS", exportpath, 1);
+    if (savptr) free(savptr);
+    if (next) free(next);
 /*
    From FAQ:
       Miscellaneous threads should be started from the init() method.

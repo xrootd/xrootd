@@ -11,6 +11,155 @@
 
 namespace XrdCl
 {
+
+  ServerSpaceInfo::ServerSpaceInfo() {
+    if (getenv("XrdCl_EC_X_RATIO"))
+    {
+      xRatio = atoi(getenv("XrdCl_EC_X_RATIO"));
+    }
+    else
+    {
+      xRatio = 1;
+    }
+  };
+
+  void ServerSpaceInfo::SelectLocations(XrdCl::LocationInfo &oldList,
+                                        XrdCl::LocationInfo &newList,
+                                        uint32_t n)
+  {
+    TryInitExportPaths();
+    AddServers(oldList);
+    UpdateSpaceInfo();
+  
+    lock.lock();
+    if (oldList.GetSize() > n && ! BlindSelect())
+    {
+      for (uint32_t j=0; j<ServerList.size(); j++)
+      {
+        for (uint32_t i=0; i<oldList.GetSize(); i++)
+        {
+          if (ServerList[j].address == oldList.At(i).GetAddress())
+          {
+            newList.Add(oldList.At(i));
+            if (newList.GetSize() == n)
+            {
+              lock.unlock();
+              return;
+            }
+          }
+        }
+      }
+    }
+    else
+    {
+      for (uint32_t i=0; i<oldList.GetSize(); i++)
+      {
+        if (Exists(oldList.At(i)))
+        {
+          newList.Add(oldList.At(i));
+        }
+      }
+    }
+    lock.unlock();
+  }
+  
+  void ServerSpaceInfo::Dump()
+  {
+    for (uint32_t j=0; j<ServerList.size(); j++)
+    {
+      ServerList[j].Dump();
+    }
+  };
+  
+  void ServerSpaceInfo::TryInitExportPaths()
+  {
+    if (initExportPaths) return;
+    lock.lock();
+    if (! initExportPaths && getenv("XRDEXPORTS"))
+    {
+      std::istringstream p(getenv("XRDEXPORTS"));
+      std::string s;
+      while(std::getline(p, s, ' '))
+      {
+        ExportPaths.push_back(s);
+      }
+      initExportPaths = true;
+    }
+    lock.unlock();
+  };
+  
+  uint64_t ServerSpaceInfo::GetFreeSpace(const std::string addr)
+  {
+    XrdCl::FileSystem fs(addr);
+    XrdCl::Buffer queryArgs(1024), *queryResp = nullptr;
+  
+    for (uint32_t i=0; i<ExportPaths.size(); i++)
+    {
+      queryArgs.FromString(ExportPaths[i]);
+      XrdCl::XRootDStatus st = fs.Query(XrdCl::QueryCode::Space, queryArgs, queryResp, 0);
+      if (st.IsOK())
+      {
+        std::string resp = queryResp->ToString();
+        int b = resp.find("oss.free=", 0);
+        int e = resp.find("&", b);
+        uint64_t s = 0;
+        std::stringstream sstream0( resp.substr(b+9, e-(b+9)) );
+        sstream0 >> s;
+        if (queryResp) delete queryResp;
+        return s;
+      }
+      if (queryResp) delete queryResp;
+    }
+    return 0;
+  };
+  
+  bool ServerSpaceInfo::BlindSelect() {
+    auto ms_since_epoch = std::chrono::system_clock::now().time_since_epoch() /
+                          std::chrono::nanoseconds(1);
+    return (ms_since_epoch % 10 > xRatio ? true : false);
+  };
+  
+  void ServerSpaceInfo::UpdateSpaceInfo()
+  {
+    if (! initExportPaths) return;
+    time_t t = time(NULL);
+    lock.lock();
+    if (t > lastUpdateT + 300)
+    {
+        for (uint32_t j=0; j<ServerList.size(); j++)
+          ServerList[j].freeSpace = GetFreeSpace(ServerList[j].address);
+        std::sort(ServerList.begin(), ServerList.end());
+        lastUpdateT = t;
+    }
+    lock.unlock();
+  };
+  
+  bool ServerSpaceInfo::Exists(XrdCl::LocationInfo::Location &loc)
+  {
+    for (uint32_t j=0; j<ServerList.size(); j++)
+      if (loc.GetAddress() == ServerList[j].address)
+        return true;
+    return false;
+  };
+  
+  void ServerSpaceInfo::AddServers(XrdCl::LocationInfo &locInfo)
+  {
+    lock.lock();
+    for (uint32_t i=0; i<locInfo.GetSize(); i++)
+    {
+      if (Exists(locInfo.At(i))) continue;
+      if (locInfo.At(i).GetType() == XrdCl::LocationInfo::ServerOnline)
+      {
+        FreeSpace s;
+        s.address = locInfo.At(i).GetAddress();
+        s.freeSpace = GetFreeSpace( s.address );
+        ServerList.push_back(s);
+        std::sort(ServerList.begin(), ServerList.end());
+      }
+    }
+    lock.unlock();
+  };
+
   EcHandler* GetEcHandler( const URL &headnode, const URL &redirurl )
   {
     const URL::ParamsMap &params = redirurl.GetParams();

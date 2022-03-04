@@ -20,9 +20,54 @@
 #include "XrdOuc/XrdOucPgrwUtils.hh"
 
 #include <memory>
+#include <iostream>
+#include <chrono>
+#include <algorithm>
+#include <mutex>
 
 namespace XrdCl
 {
+  class FreeSpace {
+  public:
+    std::string address;
+    uint64_t freeSpace;
+    FreeSpace() {};
+    bool operator<(const FreeSpace &a)
+    {
+      return ((freeSpace > a.freeSpace) ? true : false);
+    }
+    void Dump()
+    {
+      std::cout << address << " : " << freeSpace << std::endl;
+    }
+  };
+
+  class ServerSpaceInfo {
+  public:
+    ServerSpaceInfo();
+    ~ServerSpaceInfo() {};
+    // From the old location list, select a new location list
+    // n: select at least "n" nodes in the new location list
+    void SelectLocations(XrdCl::LocationInfo &oldList,
+                         XrdCl::LocationInfo &newList,
+                         uint32_t n);
+    void Dump();
+  private:
+    std::vector<FreeSpace> ServerList;
+    std::vector<std::string> ExportPaths;
+    time_t lastUpdateT = 0;
+    int xRatio = 10;
+    std::mutex lock;
+    bool initExportPaths = false;
+
+    void TryInitExportPaths();
+    uint64_t GetFreeSpace(const std::string addr);
+    bool BlindSelect();
+    void UpdateSpaceInfo();
+    bool Exists(XrdCl::LocationInfo::Location &loc);
+    void AddServers(XrdCl::LocationInfo &locInfo);
+  };
+
   class EcPgReadResponseHandler : public ResponseHandler
   {
     private:
@@ -321,13 +366,8 @@ namespace XrdCl
         LocationInfo *info = new LocationInfo();
         std::unique_ptr<LocationInfo> ptr1( info );
 
-        // filter out ServerPending locations or managers
-        for( size_t i = 0; i < infoAll->GetSize(); ++i )
-        {
-          auto &location = infoAll->At( i );
-          if ( location.GetType() == XrdCl::LocationInfo::ServerOnline )
-            info->Add(location);
-        }
+        static ServerSpaceInfo ssi;
+        ssi.SelectLocations(*infoAll, *info, objcfg->nbchunks);
 
         if( info->GetSize() < objcfg->nbchunks )
           return XRootDStatus( stError, errInvalidOp, 0, "Too few data servers." );
