@@ -130,7 +130,6 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
       if (XrdCheckRSA(fEVP) == 1) {
          status = kComplete;
          DEBUG("basic length: "<<EVP_PKEY_size(fEVP)<<" bytes");
-         // Set the key
       } else {
          DEBUG("WARNING: generated key is invalid");
          // Generated an invalid key: cleanup
@@ -525,6 +524,7 @@ int XrdCryptosslRSA::EncryptPrivate(const char *in, int lin, char *out, int lout
    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
    while (len > 0 && ke <= int(loutmax - lout)) {
       size_t lc = (len > lcmax) ? lcmax : len;
+      lout = loutmax - ke;
       if (EVP_PKEY_sign(ctx, (unsigned char *)&out[ke], &lout,
                              (unsigned char *)&in[kk], lc) <= 0) {
          EVP_PKEY_CTX_free(ctx);
@@ -579,6 +579,7 @@ int XrdCryptosslRSA::EncryptPublic(const char *in, int lin, char *out, int loutm
    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING);
    while (len > 0 && ke <= int(loutmax - lout)) {
       size_t lc = (len > lcmax) ? lcmax : len;
+      lout = loutmax - ke;
       if (EVP_PKEY_encrypt(ctx, (unsigned char *)&out[ke], &lout,
                                 (unsigned char *)&in[kk], lc) <= 0) {
          EVP_PKEY_CTX_free(ctx);
@@ -632,6 +633,7 @@ int XrdCryptosslRSA::DecryptPrivate(const char *in, int lin, char *out, int lout
    EVP_PKEY_decrypt_init(ctx);
    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING);
    while (len > 0 && ke <= int(loutmax - lout)) {
+      lout = loutmax - ke;
       if (EVP_PKEY_decrypt(ctx, (unsigned char *)&out[ke], &lout,
                                 (unsigned char *)&in[kk], lcmax) <= 0) {
          EVP_PKEY_CTX_free(ctx);
@@ -685,6 +687,7 @@ int XrdCryptosslRSA::DecryptPublic(const char *in, int lin, char *out, int loutm
    EVP_PKEY_verify_recover_init(ctx);
    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING);
    while (len > 0 && ke <= int(loutmax - lout)) {
+      lout = loutmax - ke;
       if (EVP_PKEY_verify_recover(ctx, (unsigned char *)&out[ke], &lout,
                                        (unsigned char *)&in[kk], lcmax) <= 0) {
          EVP_PKEY_CTX_free(ctx);

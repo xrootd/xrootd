@@ -550,41 +550,47 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
          DEBUG("no RSA private key found in file " << fname);
       } else {
          DEBUG("found a RSA private key in file " << fname);
-         // We need to complete the key:
-         // check all the private keys of the loaded certificates
-         {
+         // We need to complete the key
+         // check all the public keys of the loaded certificates
+         if (XrdCheckRSA(rsa) == 1) {
             // Loop over the chain certificates
             XrdCryptoX509 *cert = chain->Begin();
-            while (cert->Opaque()) {
+            while (cert && cert->Opaque()) {
                if (cert->type != XrdCryptoX509::kCA) {
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
-                        EVP_PKEY_copy_parameters(evpp, rsa);
-                        DEBUG("RSA key completed for '"<<cert->Subject()<<"'");
                         // Test consistency
-                        if (XrdCheckRSA(evpp) == 1) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+                        int rc = EVP_PKEY_cmp(evpp, rsa);
+#else
+                        int rc = EVP_PKEY_eq(evpp, rsa);
+#endif
+                        EVP_PKEY_free(evpp);
+                        if (rc == 1) {
+                           DEBUG("RSA key completed");
                            // Update PKI in certificate
-                           cert->SetPKI((XrdCryptoX509data)evpp);
+                           cert->SetPKI((XrdCryptoX509data)rsa);
                            // Update status
                            cert->PKI()->status = XrdCryptoRSA::kComplete;
                            break;
                         }
-                        EVP_PKEY_free(evpp);
                   }
                }
                // Get next
                cert = chain->Next();
             }
+            if (!cert)
+               EVP_PKEY_free(rsa);
          }
-         // Cleanup
-         EVP_PKEY_free(rsa);
+         else
+            EVP_PKEY_free(rsa);
       }
       if (fkey) {
          // Re-establish original fcer pointer
          fclose(fcer);
          fcer = fcersave;
-       }
+      }
    }
 
    // We are done
@@ -655,34 +661,40 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
       } else {
          DEBUG("found a RSA private key in bucket");
          // We need to complete the key
-         // check all the private keys of the loaded certificates
-         {
+         // check all the public keys of the loaded certificates
+         if (XrdCheckRSA(rsa) == 1) {
             // Loop over the chain certificates
             XrdCryptoX509 *cert = chain->Begin();
-            while (cert->Opaque()) {
+            while (cert && cert->Opaque()) {
                if (cert->type != XrdCryptoX509::kCA) {
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
-                        EVP_PKEY_copy_parameters(evpp, rsa);
-                        DEBUG("RSA key completed");
                         // Test consistency
-                        if (XrdCheckRSA(evpp) == 1) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+                        int rc = EVP_PKEY_cmp(evpp, rsa);
+#else
+                        int rc = EVP_PKEY_eq(evpp, rsa);
+#endif
+                        EVP_PKEY_free(evpp);
+                        if (rc == 1) {
+                           DEBUG("RSA key completed");
                            // Update PKI in certificate
-                           cert->SetPKI((XrdCryptoX509data)evpp);
+                           cert->SetPKI((XrdCryptoX509data)rsa);
                            // Update status
                            cert->PKI()->status = XrdCryptoRSA::kComplete;
                            break;
                         }
-                        EVP_PKEY_free(evpp);
                   }
                }
                // Get next
                cert = chain->Next();
             }
+            if (!cert)
+               EVP_PKEY_free(rsa);
          }
-         // Cleanup
-         EVP_PKEY_free(rsa);
+         else
+            EVP_PKEY_free(rsa);
       }
    }
 
@@ -700,7 +712,7 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // since Epoch (Jan 1, 1970) 
    // Return -1 if something went wrong
    time_t etime = -1;
-   EPNAME("ASN1toUTC");
+// EPNAME("ASN1toUTC");
 
    //
    // Make sure there is something to convert
@@ -737,7 +749,7 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // Include DST shift; here, because we have the information
    if (ltm.tm_isdst > 0) etime += XrdCryptoDSTShift;
    // Notify, if requested
-   DEBUG(" UTC: "<<etime<<"  isdst: "<<ltm.tm_isdst);
+// DEBUG(" UTC: "<<etime<<"  isdst: "<<ltm.tm_isdst);
    //
    // We are done
    return etime;

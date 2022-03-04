@@ -159,7 +159,7 @@ static int XrdCheckDH (EVP_PKEY *pkey) {
    }
 #else
    EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
-   rc = EVP_PKEY_check(ckctx);
+   rc = EVP_PKEY_param_check(ckctx);
    EVP_PKEY_CTX_free(ckctx);
 #endif
    return rc;

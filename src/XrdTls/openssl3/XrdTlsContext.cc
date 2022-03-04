@@ -520,7 +520,7 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 
        snprintf(info, sizeof(info), "Error %d at depth %d [%s]", err, depth,
                                     X509_verify_cert_error_string(err));
-       XrdTls::Emsg("CertVerify", info, false);
+       XrdTls::Emsg("CertVerify:", info, true);
       }
 
    return aOK;
@@ -534,6 +534,7 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 /******************************************************************************/
 
 #define FATAL(msg) {Fatal(eMsg, msg); return;}
+#define FATAL_SSL(msg) {Fatal(eMsg, msg, true); return;}
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                              const char *caDir, const char *caFile,
@@ -610,7 +611,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Before we try to use any specified files, make sure they exist, are of
 // the right type and do not have excessive access privileges.
-//
+//                                                                              .a
    if (!VerPaths(cert, key, caDir, caFile, eText)) FATAL( eText.c_str());
 
 // Copy parameters to out parm structure.
@@ -634,7 +635,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Make sure we have a context here
 //
-   if (pImpl->ctx == 0) FATAL("Unable to allocate TLS context!");
+   if (pImpl->ctx == 0) FATAL_SSL("Unable to allocate TLS context!");
 
 // Always prohibit SSLv2 & SSLv3 as these are not secure.
 //
@@ -654,7 +655,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 //
    if (caDir || caFile)
      {if (!SSL_CTX_load_verify_locations(pImpl->ctx, caFile, caDir))
-         FATAL("Unable to load the CA cert file or directory.");
+         FATAL_SSL("Unable to load the CA cert file or directory.");
 
       int vDepth = (opts & vdept) >> vdepS;
       SSL_CTX_set_verify_depth(pImpl->ctx, (vDepth ? vDepth : 9));
@@ -675,7 +676,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Set cipher list
 //
    if (!SSL_CTX_set_cipher_list(pImpl->ctx, sslCiphers))
-      FATAL("Unable to set SSL cipher list; no supported ciphers.");
+      FATAL_SSL("Unable to set SSL cipher list; no supported ciphers.");
 
 // If we need to enable eliptic-curve support, do so now. Note that for
 // OpenSSL 1.1.0+ this is automatically done for us.
@@ -705,17 +706,17 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 // Load certificate
 //
    if (SSL_CTX_use_certificate_file(pImpl->ctx, cert, SSL_FILETYPE_PEM) != 1)
-      FATAL("Unable to create TLS context; invalid certificate.");
+      FATAL_SSL("Unable to create TLS context; invalid certificate.");
 
 // Load the private key
 //
    if (SSL_CTX_use_PrivateKey_file(pImpl->ctx, key, SSL_FILETYPE_PEM) != 1 )
-      FATAL("Unable to create TLS context; invalid private key.");
+      FATAL_SSL("Unable to create TLS context; invalid private key.");
 
 // Make sure the key and certificate file match.
 //
    if (SSL_CTX_check_private_key(pImpl->ctx) != 1 )
-      FATAL("Unable to create TLS context; cert-key mismatch.");
+      FATAL_SSL("Unable to create TLS context; cert-key mismatch.");
 
 // All went well, so keep the context.
 //
@@ -960,8 +961,12 @@ int XrdTlsContext::SessionCache(int opts, const char *id, int idlen)
 
 bool XrdTlsContext::SetContextCiphers(const char *ciphers)
 {
-   return (!(pImpl->ctx) || !SSL_CTX_set_cipher_list(pImpl->ctx, ciphers)
-         ? false : true);
+   if (pImpl->ctx && SSL_CTX_set_cipher_list(pImpl->ctx, ciphers)) return true;
+
+   char eBuff[2048];
+   snprintf(eBuff,sizeof(eBuff),"Unable to set context ciphers '%s'",ciphers);
+   Fatal(0, eBuff, true);
+   return false;
 }
 
 /******************************************************************************/
@@ -1007,7 +1012,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 //
    if (!x509Verify())
       {XrdTls::Emsg("CrlRefresh:",
-                           "No cert information exists to refresh!", false);
+                    "No cert information exists to refresh!", false);
        return false;
       }
 
@@ -1042,7 +1047,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 // feature is being enabled on an old version.
 //
    XrdTls::Emsg("CrlRefresh:", "Refreshing CRLs only supported in "
-                       "OpenSSL version >= 1.02; CRL refresh disabled!", false);
+                "OpenSSL version >= 1.02; CRL refresh disabled!", false);
    return false;
 #endif
 }
