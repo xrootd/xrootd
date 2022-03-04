@@ -16,6 +16,10 @@ Prerelease Notes
   **Commits: ded8082e
   **[XrdCl]** xrdfs: support multiple rm paths
   **[XrdCl]** record / replay plug-in
+  **Commits: ????????
+  **[XrdCl]** In EC, add adjustable preference to servers based on free space
+  **[XrdFfs]** same above
+  **Commits: 963ac979
 
 + **Major bug fixes**
 
