@@ -216,9 +216,11 @@ namespace XrdCl
     if( cosc_str != "true" && cosc_str != "false" ) return nullptr;
     bool cosc = cosc_str == "true";
 
+    std::string ckstype;
     itr = params.find( "xrdec.cksum" );
     if( cosc && itr == params.end() ) return nullptr;
-    std::string ckstype = itr->second;
+    if( cosc )
+      ckstype = itr->second;
 
     std::string chdigest;
     itr = params.find( "xrdec.chdigest" );
@@ -228,10 +230,16 @@ namespace XrdCl
       chdigest = itr->second;
     bool usecrc32c = ( chdigest == "crc32c" );
 
+    bool nomtfile = false;
+    itr = params.find( "xrdec.nomtfile" );
+    if( itr != params.end() )
+      nomtfile = ( itr->second == "true" );
+
     XrdEc::ObjCfg *objcfg = new XrdEc::ObjCfg( objid, nbdta, nbprt, blksz / nbdta, usecrc32c );
-    objcfg->plgr    = std::move( plgr );
-    objcfg->dtacgi  = std::move( dtacgi );
-    objcfg->mdtacgi = std::move( mdtacgi );
+    objcfg->plgr     = std::move( plgr );
+    objcfg->dtacgi   = std::move( dtacgi );
+    objcfg->mdtacgi  = std::move( mdtacgi );
+    objcfg->nomtfile = nomtfile;
 
     std::unique_ptr<CheckSumHelper> cksHelper( cosc ? new CheckSumHelper( "", ckstype ) : nullptr );
     if( cksHelper )
