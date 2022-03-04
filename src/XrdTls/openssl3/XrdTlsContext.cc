@@ -520,7 +520,7 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 
        snprintf(info, sizeof(info), "Error %d at depth %d [%s]", err, depth,
                                     X509_verify_cert_error_string(err));
-       XrdTls::Emsg("CertVerify", info, false);
+       XrdTls::Emsg("CertVerify:", info, true);
       }
 
    return aOK;
@@ -1012,7 +1012,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 //
    if (!x509Verify())
       {XrdTls::Emsg("CrlRefresh:",
-                           "No cert information exists to refresh!", false);
+                    "No cert information exists to refresh!", false);
        return false;
       }
 
@@ -1047,7 +1047,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 // feature is being enabled on an old version.
 //
    XrdTls::Emsg("CrlRefresh:", "Refreshing CRLs only supported in "
-                       "OpenSSL version >= 1.02; CRL refresh disabled!", false);
+                "OpenSSL version >= 1.02; CRL refresh disabled!", false);
    return false;
 #endif
 }
