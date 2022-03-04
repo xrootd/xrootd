@@ -402,6 +402,7 @@ public:
         if (mapping_success) {
             // Set scitokens.name in the extra attribute
             Entity->eaAPI->Add("request.name", username, true);
+            new_secentity.eaAPI->Add("request.name", username, true);
         }
 
         // When the scope authorized this access, allow immediately.  Otherwise, chain
