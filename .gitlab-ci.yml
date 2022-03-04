@@ -35,6 +35,35 @@ stages:
   tags:
     - docker_node
 
+build:cs9:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cs9-base
+  script:
+    - dnf install -y epel-release
+    - dnf install --nogpg -y gcc-c++ rpm-build which tar dnf-plugins-core git
+    - dnf install -y cppunit-devel
+    - cd packaging/
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" -D "dist .el9"
+    - dnf builddep --nogpgcheck -y *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_openssl3 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el9" *.src.rpm
+    - cd ..
+    - mkdir cs-9
+    - cp packaging/RPMS/*.rpm cs-9
+    - cp packaging/*src.rpm   cs-9
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - cs-9/
+  tags:
+    - docker_node
+  only:
+    - master
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules
+    - web
+
 build:cs8:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cs8-base
@@ -65,6 +94,7 @@ build:cs8:
     - tags
     - schedules
     - web
+  allow_failure: true
 
 build:cc7:
   stage: build:rpm
