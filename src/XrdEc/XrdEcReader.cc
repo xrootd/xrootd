@@ -486,6 +486,12 @@ namespace XrdEc
                      XrdCl::ResponseHandler *handler,
                      uint16_t                timeout )
   {
+    if( objcfg.nomtfile )
+    {
+      if( offset + length > filesize )
+        length = filesize - offset;
+    }
+
     char *usrbuff = reinterpret_cast<char*>( buffer );
     typedef std::tuple<uint64_t, uint32_t,
                        void*, uint32_t,
