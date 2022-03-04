@@ -328,6 +328,8 @@ namespace XrdCl
     // Remove the socket
     //--------------------------------------------------------------------------
     PollerHelper *helper = (PollerHelper*)it->second;
+    pSocketMap.erase( it );
+    scopedLock.UnLock();
 
     if( helper->channel )
     {
@@ -343,7 +345,6 @@ namespace XrdCl
     }
     delete helper->callBack;
     delete helper;
-    pSocketMap.erase( it );
     return true;
   }
 
