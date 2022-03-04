@@ -63,6 +63,7 @@ build:cs9:
     - tags
     - schedules
     - web
+  allow_failure: true
 
 build:cs8:
   stage: build:rpm
@@ -94,7 +95,6 @@ build:cs8:
     - tags
     - schedules
     - web
-  allow_failure: true
 
 build:cc7:
   stage: build:rpm
