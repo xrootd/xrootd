@@ -137,6 +137,7 @@ int XrdFrmXfrDaemon::Init()
   
 void *XrdFrmXfrDaemonPong(void *parg)
 {
+    (void)parg;
     XrdFrmXfrDaemon::Pong();
     return (void *)0;
 }

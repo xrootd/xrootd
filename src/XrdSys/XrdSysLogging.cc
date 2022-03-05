@@ -325,6 +325,7 @@ XrdSysLogging::MsgBuff *XrdSysLogging::getMsg(char **msgTxt, bool cont)
 
 void *XrdSysLogging::Send2PI(void *arg)
 {
+   (void)arg;
    MsgBuff *theMsg;
    char    *msgTxt, lstBuff[80];
    int      msgLen;

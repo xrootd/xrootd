@@ -72,6 +72,7 @@ char               XrdFrmMonitor::monSTAGE   = 0;
 
 void *XrdFrmMonitorID(void *parg)
 {
+   (void)parg;
    XrdFrmMonitor::Ident();
    return (void *)0;
 }

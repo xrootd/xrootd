@@ -194,6 +194,7 @@ const char *XrdFrmMigrate::Eligible(XrdFrmFileset *sP, time_t &xTime)
   
 void *XrdMigrateStart(void *parg)
 {
+   (void)parg;
     XrdFrmMigrate::Migrate(0);
     return (void *)0;
 }

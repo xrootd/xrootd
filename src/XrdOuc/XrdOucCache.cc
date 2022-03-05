@@ -43,6 +43,7 @@ int XrdOucCacheIO::pgRead(char                  *buff,
                           uint64_t               opts,
                           int                   *csfix)
 {
+   (void)csfix;
    int bytes;
 
 // Read the data into the buffer
@@ -71,6 +72,8 @@ int XrdOucCacheIO::pgWrite(char                  *buff,
                            uint64_t               opts,
                            int                   *csfix)
 {
+   (void)csvec; (void)opts; (void)csfix;
+
 // Now just return the result of a plain write
 //
    return Write(buff, offs, wrlen);

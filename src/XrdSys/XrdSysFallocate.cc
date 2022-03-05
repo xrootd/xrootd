@@ -80,7 +80,7 @@ int posix_fallocate(int fd, off_t offset, off_t len)
     if (!__builtin_saddll_overflow(offset, len, &c_test)) {
         fstore_t store = {F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, offset + len};
         // Try to get a continous chunk of disk space
-        fcntl(fd, F_PREALLOCATE, &store);
+        ret = fcntl(fd, F_PREALLOCATE, &store);
         if (ret < 0) {
             // OK, perhaps we are too fragmented, allocate non-continuous
             store.fst_flags = F_ALLOCATEALL;
