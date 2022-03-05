@@ -12,3 +12,4 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Oss]** Do not fail a mkdir if directory already exists with the same mode.
