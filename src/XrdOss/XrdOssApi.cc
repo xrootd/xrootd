@@ -324,7 +324,16 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *envP)
 //
    if (!mkdir(local_path, mode))  return XrdOssOK;
    if (mkpath && errno == ENOENT){return Mkpath(local_path, mode);}
-                                  return -errno;
+   if (errno != EEXIST)           return -errno;
+
+// Check if this is a duplicate request
+//
+   struct stat Stat;
+   static const mode_t accBits = (S_IRWXU|S_IRWXG|S_IRWXO);
+
+   if (!stat(local_path, &Stat) && S_ISDIR(Stat.st_mode)
+   && mode == (Stat.st_mode & accBits)) return XrdOssOK;
+   return EEXIST;
 }
 
 /******************************************************************************/
