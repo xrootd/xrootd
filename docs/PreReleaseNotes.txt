@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[XrdAcc]** Make the acc subsystem aware of request-based name mapping.
+  **Commits: 09b95bb0
   **[XrdFfs]** update xrootdfs to work with XrdEC faster
   **Commits: e8493d27
   **[Posix]** Make xrootd proxy, xrootdfs and xrdadler32 work with XrdCl+EC
