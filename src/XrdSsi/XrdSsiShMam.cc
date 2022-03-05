@@ -1200,6 +1200,8 @@ void XrdSsiShMam::RetItem(MemItem *iP)
 
 void XrdSsiShMam::SetLocking(bool isrw)
 {
+   (void)isrw;
+
 // If we do not have atomics then file locking is mandatory
 //
 #ifdef NEED_ATOMIC_MUTEX

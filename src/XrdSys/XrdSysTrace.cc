@@ -116,6 +116,7 @@ XrdSysTrace& XrdSysTrace::Beg(const char *usr,
   
 XrdSysTrace& XrdSysTrace::operator<<(XrdSysTrace *val)
 {
+   (void)val;
 
 // Make sure an endline character appears
 //

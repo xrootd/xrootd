@@ -355,6 +355,7 @@ bool XrdSys::IOEvents::PollKQ::Modify(XrdSys::IOEvents::Channel *cP,
                                      const char               **eTxt,
                                      bool                      &isLocked)
 {
+   (void)isLocked;
    struct kevent chlist[2];
    int i = 0;
    int events   = cP->GetEvents(), theFD = cP->GetFD();

@@ -85,7 +85,8 @@ bool  BadHdr(dbgHdr *dLine)
 
   
 void *LoggingStdErr(void *carg)
-      {XrdOucStream seStream;
+      {(void)carg;
+       XrdOucStream seStream;
        struct timeval seTime = {0,0};
        struct iovec   ioV;
 

@@ -401,7 +401,7 @@ void XrdFrmTransfer::ffMake(int nofile){
   
 void *InitXfer(void *parg)
 {   XrdFrmTransfer *xP = new XrdFrmTransfer;
-    xP->Start(*(int *)parg);
+    if (parg) xP->Start(*(int *)parg);
     return (void *)0;
 }
   
@@ -537,6 +537,7 @@ void XrdFrmTransfer::Start(int ioqType)
   
 int XrdFrmTransfer::TrackDC(char *Lfn, char *Mdp, char *Rfn)
 {
+   (void)Lfn;
    char *FName, *Slash, *Slush = 0, *begRfn = Rfn;
    int n = -1;
 

@@ -162,6 +162,7 @@ XrdOucGMap::XrdOucGMap(XrdOucGMapArgs)
 //
 int XrdOucGMap::load(const char *mf, bool force)
 {
+   (void)mf;
 
    // We need an exclusive lock here
    xsl.Lock(xs_Exclusive);

@@ -171,18 +171,22 @@ public:
     ~PollerErr1() {}
 
 protected:
-void Begin(XrdSysSemaphore *syncp, int &rc, const char **eTxt) {}
+void Begin(XrdSysSemaphore *syncp, int &rc, const char **eTxt)
+          {(void)syncp; (void)rc; (void)eTxt;}
 
-void Exclude(Channel *cP, bool &isLocked, bool dover=1) {}
+void Exclude(Channel *cP, bool &isLocked, bool dover=1)
+            {(void)cP; (void)isLocked; (void)dover;}
 
 bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
-            {if (!(eNum = GetFault(cP))) eNum = EPROTO;
+            {(void)isLocked;
+             if (!(eNum = GetFault(cP))) eNum = EPROTO;
              if (eTxt) *eTxt = "initializing channel";
              return false;
             }
 
 bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked)
-            {if (!(eNum = GetFault(cP))) eNum = EPROTO;
+            {(void)isLocked;
+             if (!(eNum = GetFault(cP))) eNum = EPROTO;
              if (eTxt) *eTxt = "modifying channel";
              return false;
             }

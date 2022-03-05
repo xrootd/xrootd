@@ -189,6 +189,8 @@ std::vector<std::string *> *XrdOucN2N::n2nVec(const char *lfn)
   
 XrdOucName2Name *XrdOucgetName2Name(XrdOucgetName2NameArgs)
 {
+   (void)confg; (void)parms;
+
    XrdOucN2N *n2nP = new XrdOucN2N(eDest, lroot, rroot);
    XrdOucN2NVec_P  = (XrdOucName2NameVec *)n2nP;
    return (XrdOucName2Name *)n2nP;
