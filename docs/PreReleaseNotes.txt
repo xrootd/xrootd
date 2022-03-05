@@ -24,6 +24,8 @@ Prerelease Notes
   **Commits: 963ac979, 446b404e
 
 + **Major bug fixes**
+  **[Server]** Modify vector's size instead of capacity to avoid undef behaviour
+  **Commits: 0bfc0ca2
 
 + **Minor bug fixes**
   **[Proxy]** Allow for URLs with username.
