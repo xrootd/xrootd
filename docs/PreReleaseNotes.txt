@@ -12,4 +12,6 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Server]** Fix MacOS complaints about unused parameters.
+  **Commits: 7f2a61e
   **[Oss]** Do not fail a mkdir if directory already exists with the same mode.
