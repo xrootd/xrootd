@@ -406,6 +406,7 @@ public:
         if (mapping_success) {
             // Set scitokens.name in the extra attribute
             Entity->eaAPI->Add("request.name", username, true);
+            new_secentity.eaAPI->Add("request.name", username, true);
         }
 
             // Make the token subject available.  Even though it's a reasonably bad idea

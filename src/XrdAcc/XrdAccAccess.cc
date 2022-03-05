@@ -42,6 +42,7 @@
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysPlugin.hh"
   
 /******************************************************************************/
@@ -122,7 +123,13 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 
 // Setup the id (we don't need a lock for that)
 //
-   if (Entity->name)
+   std::string username;
+   auto got_token = Entity->eaAPI->Get("request.name", username);
+   if (got_token)
+      {eInfo.name = username.c_str();
+       isuser = true;
+      }
+   else if (Entity->name)
       {eInfo.name = Entity->name;
        isuser = (*eInfo.name != 0);
       } else {
@@ -297,7 +304,12 @@ int XrdAccAccess::Audit(const int              accok,
                                     "update"           // 12
                              };
    const char *opname = (oper > AOP_LastOp ? "???" : Opername[oper]);
-   const char *id   = (Entity->name ? (const char *)Entity->name : "*");
+   std::string username;
+   const char *id = "*";
+   auto got_token = Entity->eaAPI->Get("request.name", username);
+   if (got_token) {
+       id = username.c_str();
+   } else if (Entity->name) id = Entity->name;
    const char *host = (Entity->host ? (const char *)Entity->host : "?");
    char atype[XrdSecPROTOIDSIZE+1];
 
