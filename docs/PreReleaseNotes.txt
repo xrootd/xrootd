@@ -36,6 +36,8 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[Oss]** Do not fail a mkdir if directory already exists with the same mode.
+  **Commits: fc97a7e
   **[GSI]** Increase default kel length bits from 512 to 2048.
   **Commits: f38bbd9
   **[TLS]** Make sure openssl messages always get logged.
