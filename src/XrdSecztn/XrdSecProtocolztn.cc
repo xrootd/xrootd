@@ -206,6 +206,7 @@ public:
 
        ~XrdSecProtocolztn() {if (Entity.host) free(Entity.host);
                              if (Entity.name) free(Entity.name);
+                             if (Entity.creds)free(Entity.creds);
                             } // via Delete()
 
 static const int ztnVersion = 0;
@@ -642,6 +643,10 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
                return -1;
               }
       }
+       Entity.credslen = strlen(tResp->tkn);
+       if (Entity.creds) free(Entity.creds);
+       Entity.creds = (char *)malloc(Entity.credslen+1);
+       strcpy(Entity.creds, tResp->tkn);
        if (!Entity.name) Entity.name = strdup("anon");
        return 0;
       }
