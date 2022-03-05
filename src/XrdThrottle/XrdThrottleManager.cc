@@ -48,10 +48,10 @@ XrdThrottleManager::Init()
 {
    TRACE(DEBUG, "Initializing the throttle manager.");
    // Initialize all our shares to zero.
-   m_primary_bytes_shares.reserve(m_max_users);
-   m_secondary_bytes_shares.reserve(m_max_users);
-   m_primary_ops_shares.reserve(m_max_users);
-   m_secondary_ops_shares.reserve(m_max_users);
+   m_primary_bytes_shares.resize(m_max_users);
+   m_secondary_bytes_shares.resize(m_max_users);
+   m_primary_ops_shares.resize(m_max_users);
+   m_secondary_ops_shares.resize(m_max_users);
    // Allocate each user 100KB and 10 ops to bootstrap;
    for (int i=0; i<m_max_users; i++)
    {

@@ -113,9 +113,9 @@ private:
             }
 
             // Inflate the underlying buffer if needed.
-            ssize_t new_bytes_needed = (m_size + size) - m_buffer.capacity();
+            ssize_t new_bytes_needed = (m_size + size) - m_buffer.size();
             if (new_bytes_needed > 0) {
-                m_buffer.reserve(m_capacity);
+                m_buffer.resize(m_capacity);
             }
 
             // Finally, do the copy.
