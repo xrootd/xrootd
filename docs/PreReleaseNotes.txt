@@ -34,6 +34,8 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[GSI]** Increase default kel length bits from 512 to 2048.
+  **Commits: f38bbd9
   **[TLS]** Make sure openssl messages always get logged.
   **Commits: b2a4027
   **[GSI]** Comment out no longer needed trace record
