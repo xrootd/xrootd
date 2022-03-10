@@ -116,8 +116,9 @@ XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
   // Extract the DN for the current connection that will be used later on when
   // handling the gridmap file
   const char * dn = chain.EECname();
+  const char * eechash = chain.EEChash();
 
-  if (!dn) {
+  if (!dn || !eechash) {
     // X509Chain doesn't assume it owns the underlying certs unless
     // you explicitly invoke the Cleanup method
     TRACEI(DEBUG, "Failed to extract DN information.");
@@ -130,10 +131,9 @@ XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
   }
 
   SecEntity.moninfo = strdup(dn);
-  TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'");
+  TRACEI(DEBUG, " Subject name is : '" << SecEntity.moninfo << "'; hash is " << eechash);
   // X509Chain doesn't assume it owns the underlying certs unless
   // you explicitly invoke the Cleanup method
-  chain.Cleanup();
 
   if (GetVOMSData(lp)) {
     TRACEI(DEBUG, " No VOMS information for DN: " << SecEntity.moninfo);
@@ -141,11 +141,14 @@ XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
     if (isRequiredXtractor) {
       eDest.Emsg(epname, "Failed extracting required VOMS info for DN: ",
                  SecEntity.moninfo);
+      chain.Cleanup();
       return 1;
     }
   }
 
-  return HandleGridMap(lp);
+  auto retval = HandleGridMap(lp, eechash);
+  chain.Cleanup();
+  return retval;
 }
 
 
@@ -154,7 +157,7 @@ XrdHttpProtocol::HandleAuthentication(XrdLink* lp)
 /******************************************************************************/
 
 int
-XrdHttpProtocol::HandleGridMap(XrdLink* lp)
+XrdHttpProtocol::HandleGridMap(XrdLink* lp, const char * eechash)
 {
   EPNAME("HandleGridMap");
   char bufname[256];
@@ -176,6 +179,12 @@ XrdHttpProtocol::HandleGridMap(XrdLink* lp)
         return 1;
       }
     }
+  }
+
+  if (!SecEntity.name && !compatNameGeneration) {
+    TRACEI(DEBUG, " Will fallback name to subject hash: " << eechash);
+    SecEntity.name = strdup(eechash);
+    return 0;
   }
 
   if (!SecEntity.name) {

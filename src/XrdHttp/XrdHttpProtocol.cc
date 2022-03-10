@@ -90,6 +90,7 @@ char *XrdHttpProtocol::secretkey = 0;
 
 char *XrdHttpProtocol::gridmap = 0;
 bool XrdHttpProtocol::isRequiredGridmap = false;
+bool XrdHttpProtocol::compatNameGeneration = false;
 int XrdHttpProtocol::sslverifydepth = 9;
 BIO *XrdHttpProtocol::sslbio_err = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
@@ -1958,7 +1959,7 @@ int XrdHttpProtocol::xsslkey(XrdOucStream & Config) {
 
 /* Function: xgmap
 
-   Purpose:  To parse the directive: gridmap [required] <path>
+   Purpose:  To parse the directive: gridmap [required] [compatNameGeneration] <path>
 
      required   optional parameter which if present treats any grimap errors
                 as fatal.
@@ -1992,6 +1993,19 @@ int XrdHttpProtocol::xgmap(XrdOucStream & Config) {
       return 1;
     }
   }
+
+  // Handle optional parameter "compatNameGeneration"
+  //
+  if (!strcmp(val, "compatNameGeneration")) {
+    compatNameGeneration = true;
+    val = Config.GetWord();
+    if (!val || !val[0]) {
+      eDest.Emsg("Config", "HTTP X509 gridmap file missing after "
+                 "[compatNameGeneration] parameter");
+      return 1;
+    }
+  }
+
 
   // Record the path
   //
