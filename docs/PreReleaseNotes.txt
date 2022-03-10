@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[HTTP]** Have the XrdHttp extraction logic match GSI/
+  **Commits: 0379ca64
   **[XrdAcc]** Make the acc subsystem aware of request-based name mapping.
   **Commits: 09b95bb0
   **[XrdFfs]** update xrootdfs to work with XrdEC faster
