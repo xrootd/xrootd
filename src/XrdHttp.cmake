@@ -18,7 +18,7 @@ if( BUILD_HTTP )
   #-----------------------------------------------------------------------------
   include_directories( ${OPENSSL_INCLUDE_DIR} )
 
-  if( WITH_OPENSSL3 )
+  if( ENABLE_OPENSSL3 )
     set( XrdHttpSources
       XrdHttp/XrdHttpProtocol.cc        XrdHttp/XrdHttpProtocol.hh
       XrdHttp/XrdHttpSecurity.cc

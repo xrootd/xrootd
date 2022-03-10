@@ -561,9 +561,6 @@ cmake  \
 %if %{?_with_isal:1}%{!?_with_isal:0}
       -DENABLE_XRDEC=TRUE \
 %endif
-%if %{?_with_openssl3:1}%{!?_with_openssl3:0}
-      -DWITH_OPENSSL3=TRUE \
-%endif
 %if %{python3only}
       -DXRD_PYTHON_REQ_VERSION=%{python3_pkgversion} \
 %endif

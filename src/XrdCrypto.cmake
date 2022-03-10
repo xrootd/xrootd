@@ -15,7 +15,7 @@ set( XRD_CRYPTO_SOVERSION 2 )
 set( XRD_CRYPTO_LITE_VERSION   2.0.0 )
 set( XRD_CRYPTO_LITE_SOVERSION 2 )
 
-if( WITH_OPENSSL3 )
+if( ENABLE_OPENSSL3 )
   set( XrdCryptoSources
     XrdCrypto/XrdCryptoAux.cc                 XrdCrypto/XrdCryptoAux.hh
     XrdCrypto/XrdCryptoTrace.hh
@@ -70,7 +70,7 @@ set_target_properties(
 # The XrdCryptoLite library
 #-------------------------------------------------------------------------------
 
-if( WITH_OPENSSL3 )
+if( ENABLE_OPENSSL3 )
   set( XrdCryptoLiteSources
        XrdCrypto/XrdCryptoLite.cc   XrdCrypto/XrdCryptoLite.hh
        XrdCrypto/openssl3/XrdCryptoLite_bf32.cc )
@@ -110,7 +110,7 @@ set_target_properties(
 if( BUILD_CRYPTO )
   include_directories( ${OPENSSL_INCLUDE_DIR} )
 
-  if( WITH_OPENSSL3 )
+  if( ENABLE_OPENSSL3 )
     set( XrdCryptosslSources 
          XrdCrypto/openssl3/XrdCryptosslAux.cc       XrdCrypto/XrdCryptosslAux.hh
          XrdCrypto/openssl3/XrdCryptosslgsiAux.cc

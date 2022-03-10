@@ -47,7 +47,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # The XrdSecpwd module
 #-------------------------------------------------------------------------------
-if( WITH_OPENSSL3 )
+if( ENABLE_OPENSSL3 )
   set( XrdSecProtectSources
     XrdSec/openssl3/XrdSecProtect.cc    XrdSec/XrdSecProtect.hh
     XrdSec/XrdSecProtector.cc           XrdSec/XrdSecProtector.hh )
