@@ -161,9 +161,11 @@ private:
   int GetVOMSData(XrdLink *lp);
 
   // Handle gridmap file mapping if present
+  // Second argument is the OpenSSL hash of the EEC, if present; this allows
+  // a consistent fallback if the user is not in the mapfile.
   //
   // @return 0 if successful, otherwise !0
-  int HandleGridMap(XrdLink* lp);
+  int HandleGridMap(XrdLink* lp, const char * eechash);
 
   /// Get up to blen bytes from the connection. Put them into mybuff.
   /// This primitive, for the way it is used, is not supposed to block
@@ -366,7 +368,8 @@ protected:
   /// Gridmap file location. The same used by XrdSecGsi
   static char *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
   static bool isRequiredGridmap; // If true treat gridmap errors as fatal
-   
+  static bool compatNameGeneration; // If true, utilize the old algorithm for username generation for unknown users.
+
   /// The key used to calculate the url hashes
   static char *secretkey;
 
