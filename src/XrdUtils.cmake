@@ -61,7 +61,7 @@ set ( XrdSysSources
   #-----------------------------------------------------------------------------
   # XrdTls
   #-----------------------------------------------------------------------------
-if ( WITH_OPENSSL3 )
+if ( ENABLE_OPENSSL3 )
   set ( XrdTlsSources
     XrdTls/XrdTls.cc                  XrdTls/XrdTls.hh
     XrdTls/openssl3/XrdTlsContext.cc  XrdTls/XrdTlsContext.hh
@@ -89,7 +89,7 @@ endif()
   # XrdCrypto: linking against a few functions that are useful for XrdTls; avoids
   # linking against all of libXrdCryptossl in XrdUtils
   #-----------------------------------------------------------------------------
-if ( WITH_OPENSSL3 )
+if ( ENABLE_OPENSSL3 )
   set ( XrdCryptoSources
     XrdCrypto/openssl3/XrdCryptosslAux.cc     XrdCrypto/XrdCryptosslAux.hh
     XrdCrypto/openssl3/XrdCryptosslX509.cc    XrdCrypto/XrdCryptosslX509.hh

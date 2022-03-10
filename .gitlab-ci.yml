@@ -45,7 +45,7 @@ build:cs9:
     - cd packaging/
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" -D "dist .el9"
     - dnf builddep --nogpgcheck -y *.src.rpm
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_with_openssl3 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el9" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el9" *.src.rpm
     - cd ..
     - mkdir cs-9
     - cp packaging/RPMS/*.rpm cs-9
@@ -162,7 +162,7 @@ build:fedorai-35:
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_ceph11 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_ceph11 1" --define "_with_openssl3 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
     - mkdir fc-35/
     - cp packaging/*.src.rpm fc-35

@@ -38,9 +38,10 @@
 #define COMMON_DIGEST_FOR_OPENSSL
 #include "CommonCrypto/CommonDigest.h"
 #else
-#include <openssl/evp.h>
 #include <openssl/sha.h>
 #endif
+
+#include <openssl/evp.h>
 
 #include "XrdVersion.hh"
 

@@ -1293,6 +1293,7 @@ namespace XrdCl
     delete [] pAsyncReadBuffer;
     pAsyncReadBuffer = 0;
     pAsyncOffset     = pAsyncReadSize = 0;
+    pOtherRawStarted = false;
 
     return st;
   }
