@@ -313,6 +313,20 @@ public:
                                         XrdOucEnv       *env) override
     {
         const char *authz = env ? env->Get("authz") : nullptr;
+            // Note: this is more permissive than the plugin was previously.
+            // The prefix 'Bearer%20' used to be required as that's what HTTP
+            // required.  However, to make this more pleasant for XRootD protocol
+            // users, we now simply "handle" the prefix insterad of requiring it.
+        if (authz && !strncmp(authz, "Bearer%20", 9)) {
+            authz += 9;
+        }
+            // If there's no request-specific token, then see if the ZTN authorization
+            // has provided us with a session token.
+        if (!authz && Entity && !strcmp("ztn", Entity->prot) && Entity->creds &&
+            Entity->credslen && Entity->creds[Entity->credslen] == '\0')
+        {
+            authz = Entity->creds;
+        }
         if (authz == nullptr) {
             return OnMissing(Entity, path, oper, env);
         }
@@ -533,15 +547,11 @@ private:
     }
 
     bool GenerateAcls(const std::string &authz, uint64_t &cache_expiry, AccessRulesRaw &rules, std::string &username, std::string &token_subject, std::string &issuer, std::vector<MapRule> &map_rules, std::vector<std::string> &groups) {
-        if (strncmp(authz.c_str(), "Bearer%20", 9)) {
-            return false;
-        }
-
         // Does this look like a JWT?  If not, bail out early and
         // do not pollute the log.
         bool looks_good = true;
         int separator_count = 0;
-        for (auto cur_char = authz.c_str() + 9; *cur_char; cur_char++) {
+        for (auto cur_char = authz.c_str(); *cur_char; cur_char++) {
             if (*cur_char == '.') {
                 separator_count++;
                 if (separator_count > 2) {
@@ -565,7 +575,7 @@ private:
         char *err_msg;
         SciToken token = nullptr;
         pthread_rwlock_rdlock(&m_config_lock);
-        auto retval = scitoken_deserialize(authz.c_str() + 9, &token, &m_valid_issuers_array[0], &err_msg);
+        auto retval = scitoken_deserialize(authz.c_str(), &token, &m_valid_issuers_array[0], &err_msg);
         pthread_rwlock_unlock(&m_config_lock);
         if (retval) {
             // This originally looked like a JWT so log the failure.
