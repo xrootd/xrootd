@@ -80,7 +80,7 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
     "EXECUTE_PROCESS(
       COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
                 ${PIP_INSTALL_VERBOSE_FLAG} \
-                --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
+                --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \$ENV{XROOTDPY_INSTALL_OPTS} \
                 ${DEB_INSTALL_ARGS}
     )"
   )
@@ -93,7 +93,7 @@ else()
       COMMAND ${PYTHON_EXECUTABLE} -m pip install \
                 ${PIP_INSTALL_VERBOSE_FLAG} \
                 --force-reinstall \
-                --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
+                --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \$ENV{XROOTDPY_INSTALL_OPTS} \
                 ${CMAKE_CURRENT_BINARY_DIR}
       )"
   )
