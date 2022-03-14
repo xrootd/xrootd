@@ -63,7 +63,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
-            -DPIP_VERBOSE=ON \
+            -DPIP_OPTIONS="--verbose" \
             -S xrootd \
             -B build
         cmake3 build -LH
@@ -128,6 +128,8 @@ jobs:
     - name: Clone repository now that Git is available
       uses: actions/checkout@v1
 
+    # Use extra PIP_OPTIONS strings as example that this is possible.
+    # N.B.: None of the PIP_OPTIONS are required for this step to work.
     - name: Build with cmake
       run: |
         . /opt/rh/devtoolset-7/enable
@@ -136,7 +138,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
-            -DPIP_VERBOSE=ON \
+            -DPIP_OPTIONS="--verbose --force-reinstall --prefix /usr/local/" \
             -S xrootd \
             -B build
         cmake3 build -LH
@@ -204,7 +206,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/ \
             -DPYTHON_EXECUTABLE=$(command -v python2) \
             -DENABLE_TESTS=ON \
-            -DPIP_VERBOSE=ON \
+            -DPIP_OPTIONS="--verbose" \
             -S xrootd \
             -B build
         cmake3 build -LH
@@ -264,7 +266,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
-            -DPIP_VERBOSE=ON \
+            -DPIP_OPTIONS="--verbose" \
             -S xrootd \
             -B build
         cmake build -LH
