@@ -32,10 +32,15 @@ endif()
 
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
 
-if( PIP_VERBOSE )
-  set(PIP_INSTALL_VERBOSE_FLAG "--verbose")
+string(FIND "${PIP_OPTIONS}" "--prefix" PIP_OPTIONS_PREFIX_POSITION)
+if( "${PIP_OPTIONS_PREFIX_POSITION}" EQUAL "-1" )
+  string(APPEND PIP_OPTIONS " --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}")
 else()
-  set(PIP_INSTALL_VERBOSE_FLAG "")
+  message(WARNING
+        " The pip option --prefix has been set in '${PIP_OPTIONS}' which will change"
+        " it from its default value of '--prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}'."
+        " Make sure this is intentional and that you understand the effects."
+        )
 endif()
 
 # Check it the Python interpreter has a valid version of pip
@@ -59,7 +64,7 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
 
   # https://docs.python.org/3/install/#splitting-the-job-up
   add_custom_command(OUTPUT ${OUTPUT}
-                     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} ${PIP_INSTALL_VERBOSE_FLAG} build
+                     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} --verbose build
                      DEPENDS ${DEPS})
 
   add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
@@ -79,21 +84,18 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
     CODE
     "EXECUTE_PROCESS(
       COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
-                ${PIP_INSTALL_VERBOSE_FLAG} \
+                --verbose \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
                 ${DEB_INSTALL_ARGS}
     )"
   )
 
 else()
-  # Use --force-reinstall to ensure a clean install if a rebuild needs to happen
   install(
     CODE
     "EXECUTE_PROCESS(
       COMMAND ${PYTHON_EXECUTABLE} -m pip install \
-                ${PIP_INSTALL_VERBOSE_FLAG} \
-                --force-reinstall \
-                --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
+                ${PIP_OPTIONS} \
                 ${CMAKE_CURRENT_BINARY_DIR}
       )"
   )
