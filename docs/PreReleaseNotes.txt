@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Report experiment and activity codes when present for monitoring.
+  **Commits: 0bf2833d
   **[HTTP]** Have the XrdHttp extraction logic match GSI/
   **Commits: 0379ca64
   **[XrdAcc]** Make the acc subsystem aware of request-based name mapping.
