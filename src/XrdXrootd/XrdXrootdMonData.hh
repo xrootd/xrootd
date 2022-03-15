@@ -111,6 +111,7 @@ const kXR_char XROOTD_MON_MAPREDR       = 'r';
 const kXR_char XROOTD_MON_MAPSTAG       = 's'; // Internal use only!
 const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
+const kXR_char XROOTD_MON_MAPUEAC       = 'U'; // User experiment/activity
 const kXR_char XROOTD_MON_MAPXFER       = 'x';
 
 const kXR_char XROOTD_MON_GSCCM         = 'M'; // pfc: Cache context mgt info

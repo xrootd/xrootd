@@ -1,10 +1,8 @@
-#ifndef __XRDNETPMARK__
-#define __XRDNETPMARK__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d N e t P M a r k . h h                         */
+/*                        X r d N e t P M a r k . c c                         */
 /*                                                                            */
-/* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2022 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,57 +28,36 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-class XrdNetAddrInfo;
-class XrdSecEntity;
+#include <stdlib.h>
+#include <string.h>
+  
+#include "XrdNet/XrdNetPMark.hh"
 
-class XrdNetPMark
+/******************************************************************************/
+/*                                 g e t E A                                  */
+/******************************************************************************/
+  
+bool XrdNetPMark::getEA(const char *cgi, int &ecode, int &acode)
 {
-public:
 
-class Handle
-     {public:
-
-      bool        getEA(int &ec, int &ac)
-                       {if (eCode >= 0) {ec = eCode; ac = aCode; return true;}
-                        ec = ac = 0; return false;
-                       }
-
-      bool        Valid() {return eCode >= 0;}
-
-                  Handle(const char *app=0, int ecode=0, int acode=0)
-                        : appName(app), eCode(ecode), aCode(acode) {}
-
-                  Handle(Handle &h)
-                        : appName(h.appName), eCode(h.eCode), aCode(h.aCode) {};
-
-      virtual    ~Handle() {};
-
-      protected:
-      const char *appName;
-      int         eCode;
-      int         aCode;
-     };
-
-virtual Handle *Begin(XrdSecEntity &Client, const char *path=0,
-                                            const char *cgi=0,
-                                            const char *app=0) = 0;
-
-virtual Handle *Begin(XrdNetAddrInfo &addr, Handle     &handle,
-                                            const char *tident) = 0;
-
-static  bool    getEA(const char *cgi, int &ecode, int &acode);
-
-                XrdNetPMark() {}
-protected:
-
-// ID limits and specifications
+// If we have cgi, see if we can extract rge codes from there
 //
-static const int btsActID =   6;
-static const int mskActID =  63;
-static const int maxActID =  63;
+   if (cgi)
+      {const char *stP = strstr(cgi, "scitag.flow=");
+       if (stP)
+          {char *eol;
+           int eacode = strtol(stP+12, &eol, 10);
+           if (eacode >= 0 && eacode <= XrdNetPMark::maxExpID
+           &&  (*eol == '&' || *eol ==0))
+              {ecode = eacode >> XrdNetPMark::btsActID;
+               acode = eacode &  XrdNetPMark::mskActID;
+               return true;
+              }
+          }
+      }
 
-static const int maxExpID = 511;
-
-virtual        ~XrdNetPMark() {} // This object cannot be deleted!
-};
-#endif
+// No go
+//
+   ecode = acode = 0;
+   return false;
+}

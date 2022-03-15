@@ -320,6 +320,19 @@ void XrdXrootdMonitor::User::Register(const char *Uname,
    Iops  = XrdXrootdMonitor::monIO;
    Fops  = XrdXrootdMonitor::monFILE;
 }
+
+/******************************************************************************/
+/*                                R e p o r t                                 */
+/******************************************************************************/
+  
+void XrdXrootdMonitor::User::Report(int eCode, int aCode)
+{
+   char buff[1024];
+
+   snprintf(buff, sizeof(buff), "&Uc=%d&Ec=%d&Ac=%d", ntohl(Did), eCode, aCode);
+
+   XrdXrootdMonitor::Map(XROOTD_MON_MAPUEAC,*this,buff);
+}
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -385,7 +398,8 @@ XrdXrootdMonitor *XrdXrootdMonitor::Alloc(int force)
 // If enabled, create a new object (if possible). If we are not monitoring
 // i/o then return the global object.
 //
-   if (!isEnabled || (isEnabled < 0 && !force)) mp = 0;
+// if (!isEnabled || (isEnabled < 0 && !force)) mp = 0;
+   if (!isEnabled) mp = 0;
       else if (!monIO) mp = altMon;
               else if ((mp = new XrdXrootdMonitor()))
                       if (!(mp->monBuff)) {delete mp; mp = 0;}
@@ -821,7 +835,8 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
 // Route the packet to all destinations that need them
 //
         if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
-   else if (code == XROOTD_MON_MAPUSER) montype = XROOTD_MON_USER;
+   else if (code == XROOTD_MON_MAPUSER
+        ||  code == XROOTD_MON_MAPUEAC) montype = XROOTD_MON_USER;
    else                                 montype = XROOTD_MON_INFO;
    Send(montype, (void *)&map, size);
 
@@ -917,6 +932,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
    mP->Mutex.UnLock();
    return 0;
 }
+
 
 /******************************************************************************/
 /*                                  T i c k                                   */

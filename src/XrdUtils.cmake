@@ -207,7 +207,7 @@ set ( XrdNetSources
   XrdNet/XrdNetIdentity.cc      XrdNet/XrdNetIdentity.hh
   XrdNet/XrdNetIF.cc            XrdNet/XrdNetIF.hh
   XrdNet/XrdNetMsg.cc           XrdNet/XrdNetMsg.hh
-                                XrdNet/XrdNetPMark.hh
+  XrdNet/XrdNetPMark.cc         XrdNet/XrdNetPMark.hh
   XrdNet/XrdNetPMarkCfg.cc      XrdNet/XrdNetPMarkCfg.hh
   XrdNet/XrdNetPMarkFF.cc       XrdNet/XrdNetPMarkFF.hh
   XrdNet/XrdNetRegistry.cc      XrdNet/XrdNetRegistry.hh

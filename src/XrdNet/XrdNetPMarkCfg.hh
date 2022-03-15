@@ -60,14 +60,6 @@ static  int          Parse(XrdSysError *eLog, XrdOucStream &Config);
 
                      XrdNetPMarkCfg() {}
 
-// ID limits and specifications
-//
-
-static const int btsActID =   6;
-static const int mskActID =  63;
-static const int maxActID =  63;
-
-static const int maxExpID = 511;
 
 private:
            ~XrdNetPMarkCfg() {}

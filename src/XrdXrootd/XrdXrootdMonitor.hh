@@ -214,6 +214,8 @@ inline kXR_unt32   MapPath(const char *Path)
        void        Report(const char *Info)
                          {Did=XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER,*this,Info);}
 
+       void        Report(int eCode, int aCode);
+
 inline int         Ready()  {return XrdXrootdMonitor::monACTIVE;}
 
        User() : Agent(0), Did(0), Iops(0), Fops(0), Len(0), Name(0) {}

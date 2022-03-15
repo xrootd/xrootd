@@ -1581,6 +1581,7 @@ int XrdXrootdProtocol::do_Open()
 // If packet marking is enabled, notify that we have potentially started data.
 // We also need to extend the marking to any associated streams.
 //
+   int eCode, aCode;
    if (PMark && !pmDone)
       {streamMutex.Lock();
        pmDone = true;
@@ -1594,8 +1595,14 @@ int XrdXrootdProtocol::do_Open()
                   }
               }
        streamMutex.UnLock();
-      }
 
+       if (pmHandle && Monitor.Logins() && pmHandle->getEA(eCode, aCode))
+          Monitor.Report(eCode, aCode);
+      } else {
+       if (!pmDone  && Monitor.Logins()
+       &&  XrdNetPMark::getEA(opaque, eCode, aCode))
+          {Monitor.Report(eCode, aCode); pmDone = true;}
+      }
 
 // Respond (failure is not an option now)
 //

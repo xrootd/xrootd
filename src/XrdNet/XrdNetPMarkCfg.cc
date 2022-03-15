@@ -729,18 +729,7 @@ bool XrdNetPMarkCfg::getCodes(XrdSecEntity &client, const char *path,
 
 // If we are allowed to use scitags, then try that first
 //
-   if (useSTag && cgi)
-      {const char *stP = strstr(cgi, "scitag.flow=");
-       if (stP)
-          {char *eol;
-           int eacode = strtol(stP+12, &eol, 10);
-           if (eacode >= 0 && eacode <= 0x00007fff && (*eol == '&' || *eol ==0))
-              {ecode = eacode >> btsActID;
-               acode = eacode &  mskActID;
-               return true;
-              }
-          }
-      }
+   if (useSTag && cgi && XrdNetPMark::getEA(cgi, ecode, acode)) return true;
 
 // If we can use the definitions (i.e. in error) return w/o packet marking
 //
