@@ -247,6 +247,11 @@ namespace XrdCl
       std::string GetParamsAsString() const;
 
       //------------------------------------------------------------------------
+      //! Get the login token if present in the opaque info
+      //------------------------------------------------------------------------
+      std::string GetLoginToken() const;
+
+      //------------------------------------------------------------------------
       //! Get the URL params as string
       //!
       //! @param filter : if set to true filters out 'xrdcl.'

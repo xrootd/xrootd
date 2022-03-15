@@ -345,6 +345,17 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
+  // Get the login token if present in the opaque info
+  //------------------------------------------------------------------------
+  std::string URL::GetLoginToken() const
+  {
+    auto itr = pParams.find( "xrd.logintoken" );
+    if( itr == pParams.end() )
+      return "";
+    return itr->second;
+  }
+
+  //------------------------------------------------------------------------
   //! Get the URL params as string
   //------------------------------------------------------------------------
   std::string URL::GetParamsAsString( bool filter ) const
@@ -388,6 +399,13 @@ namespace XrdCl
     for( it = paramsVect.begin(); it != paramsVect.end(); ++it )
     {
       if( it->empty() ) continue;
+      size_t qpos = it->find( '?' );
+      if( qpos != std::string::npos ) // we have login token
+      {
+        it->substr( qpos + 1 );
+        pParams["xrd.logintoken"] = it->substr( qpos + 1 );
+        it->erase( qpos );
+      }
       size_t pos = it->find( "=" );
       if( pos == std::string::npos )
         pParams[*it] = "";
