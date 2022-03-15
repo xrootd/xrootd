@@ -402,7 +402,6 @@ namespace XrdCl
       size_t qpos = it->find( '?' );
       if( qpos != std::string::npos ) // we have login token
       {
-        it->substr( qpos + 1 );
         pParams["xrd.logintoken"] = it->substr( qpos + 1 );
         it->erase( qpos );
       }
