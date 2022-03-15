@@ -404,7 +404,7 @@ namespace XrdCl
     info->strmSelector.reset( new StreamSelector( streams ) );
     info->encrypted    = url.IsSecure();
     info->istpc        = url.IsTPC();
-    info->logintoken   = url.GetParamsAsString( true );
+    info->logintoken   = url.GetLoginToken();
   }
 
   //----------------------------------------------------------------------------
