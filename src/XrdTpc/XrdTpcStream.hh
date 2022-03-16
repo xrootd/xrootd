@@ -98,6 +98,7 @@ private:
             }
             m_offset = -1;
             m_size = 0;
+            m_buffer.clear();
             return retval;
         }
 
