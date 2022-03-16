@@ -677,6 +677,7 @@ private:
                 MakeCanonical(base_path + acl_path, path);
                 if (!strcmp(acl_authz, "read")) {
                     xrd_rules.emplace_back(AOP_Read, path);
+                    xrd_rules.emplace_back(AOP_Readdir, path);
                     xrd_rules.emplace_back(AOP_Stat, path);
                 } else if (!strcmp(acl_authz, "write")) {
                     xrd_rules.emplace_back(AOP_Update, path);
