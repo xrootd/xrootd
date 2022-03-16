@@ -78,7 +78,7 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
   install(
     CODE
     "EXECUTE_PROCESS(
-      COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
+    COMMAND /usr/bin/env CC=c++ CFLAGS=\"-std=c++17\" ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
                 ${PIP_INSTALL_VERBOSE_FLAG} \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
                 ${DEB_INSTALL_ARGS}
@@ -90,7 +90,7 @@ else()
   install(
     CODE
     "EXECUTE_PROCESS(
-      COMMAND ${PYTHON_EXECUTABLE} -m pip install \
+    COMMAND /usr/bin/env CC=c++ CFLAGS=\"-std=c++17\" ${PYTHON_EXECUTABLE} -m pip install \
                 ${PIP_INSTALL_VERBOSE_FLAG} \
                 --force-reinstall \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
