@@ -740,7 +740,7 @@ bool XrdHttpReq::Redir(XrdXrootd::Bridge::Context &info, //!< the result context
   
   TRACE(REQ, " XrdHttpReq::Redir Redirecting to " << redirdest.c_str());
 
-  if ((request == rtPOST) || (request == rtPUT))
+  if (request != rtGET)
     prot->SendSimpleResp(307, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
   else
     prot->SendSimpleResp(302, NULL, (char *) redirdest.c_str(), 0, 0, keepalive);
