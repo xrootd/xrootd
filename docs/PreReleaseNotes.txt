@@ -42,6 +42,8 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[HttpTpc]** Vector cleared after use so it can be shrunk.
+  **Commits: ebf9de7
   **[ZTN]** Point to the token via Entity.creds.
   **Commits: 5e84e9f
   **[Server]** Fix MacOS complaints about unused parameters.
