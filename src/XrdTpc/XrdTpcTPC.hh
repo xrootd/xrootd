@@ -10,6 +10,8 @@
 
 #include "XrdTls/XrdTlsTempCA.hh"
 
+#include <curl/curl.h>
+
 class XrdOucErrInfo;
 class XrdOucStream;
 class XrdSfsFile;
@@ -45,6 +47,8 @@ public:
     virtual int Init(const char *cfgfile) {return 0;}
 
 private:
+
+    static int sockopt_setcloexec_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
 
     struct TPCLogRecord {
 
