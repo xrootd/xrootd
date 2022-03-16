@@ -758,6 +758,9 @@ namespace XrdCl
           o << "fake://fake:111//fake?";
           o << urlComponents[1];
 
+          if( urlComponents.size() == 3 )
+            o << '?' << urlComponents[2];
+
           if (!xrdCgi.empty())
           {
             o << '&' << xrdCgi;
