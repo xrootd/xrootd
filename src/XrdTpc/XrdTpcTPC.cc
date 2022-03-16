@@ -38,6 +38,21 @@ void CurlDeleter::operator()(CURL *curl)
     if (curl) curl_easy_cleanup(curl);
 }
 
+/**
+ * The callback that will be called by libcurl when the socket has been created
+ * https://curl.se/libcurl/c/CURLOPT_SOCKOPTFUNCTION.html
+ */
+int TPCHandler::sockopt_setcloexec_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
+    int oldFlags = fcntl(curlfd,F_GETFD,0);
+    if(oldFlags < 0) {
+        return CURL_SOCKOPT_ERROR;
+    }
+    oldFlags |= FD_CLOEXEC;
+    if(!fcntl(curlfd,F_SETFD,oldFlags)) {
+        return CURL_SOCKOPT_OK;
+    }
+    return CURL_SOCKOPT_ERROR;
+}
 
 // We need to utilize the full URL (including the query string), not just the
 // resource name.  The query portion is hidden in the `xrd-http-query` header;
@@ -641,7 +656,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
- 
+    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_setcloexec_callback);
     auto query_header = req.headers.find("xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
@@ -714,6 +729,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {
             char msg[] = "Failed to initialize internal transfer file handle";
