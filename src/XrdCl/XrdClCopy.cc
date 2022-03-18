@@ -492,7 +492,7 @@ int main( int argc, char **argv )
   }
 
   ProgressDisplay progress;
-  if( config.Want(XrdCpConfig::DoNoPbar) )
+  if( config.Want(XrdCpConfig::DoNoPbar) || !isatty( fileno( stdout ) ) )
     progress.PrintProgressBar( false );
 
   bool         posc          = false;
