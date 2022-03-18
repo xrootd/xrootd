@@ -44,7 +44,6 @@ jobs:
             systemd-devel \
             zlib-devel \
             devtoolset-7-gcc-c++ \
-            which \
             python3-devel \
             python3-setuptools \
             git \
@@ -116,7 +115,6 @@ jobs:
             systemd-devel \
             zlib-devel \
             devtoolset-7-gcc-c++ \
-            which \
             python3-devel \
             python3-setuptools \
             git \
@@ -183,7 +181,6 @@ jobs:
             systemd-devel \
             zlib-devel \
             devtoolset-7-gcc-c++ \
-            which \
             python2-pip \
             python2-setuptools \
             python2-devel \
@@ -310,7 +307,6 @@ jobs:
         yum install --nogpg -y \
             gcc-c++ \
             rpm-build \
-            which \
             git \
             python-srpm-macros \
             centos-release-scl
@@ -380,7 +376,6 @@ jobs:
         dnf install --nogpg -y \
             gcc-c++ \
             rpm-build \
-            which \
             tar \
             dnf-plugins-core \
             git
@@ -509,7 +504,6 @@ jobs:
             systemd-devel \
             zlib-devel \
             devtoolset-7-gcc-c++ \
-            which \
             python3-devel \
             python3-setuptools \
             git \
@@ -557,7 +551,6 @@ jobs:
             systemd-devel \
             zlib-devel \
             devtoolset-7-gcc-c++ \
-            which \
             python3-devel \
             python3-setuptools \
             git \
