@@ -290,6 +290,70 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
+  cmake-macos:
+
+    runs-on: macos-latest
+
+    steps:
+    - name: Install external dependencies with homebrew
+      run: |
+        brew install \
+          cmake \
+          make \
+          gcc \
+          zlib \
+          krb5 \
+          ossp-uuid \
+          libxml2 \
+          git \
+          openssl@3
+
+    - name: Install necessary Python libraries
+      run: |
+        python3 -m pip install --upgrade pip setuptools wheel
+        python3 -m pip list
+
+    - name: Clone repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    # Given how homebrew installs things, openssl needs to be have its locations
+    # be given explicitly.
+    - name: Build with cmake
+      run: |
+        cd ..
+        cmake \
+            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
+            -DOPENSSL_SSL_LIBRARY=$(find $(find $(brew --cellar openssl) -type d -iname "lib") -type f -iname "libssl*.dylib") \
+            -DOPENSSL_CRYPTO_LIBRARY=$(find $(find $(brew --cellar openssl) -type d -iname "lib") -type f -iname "libcrypto*.dylib") \
+            -DOPENSSL_INCLUDE_DIR=$(find $(brew --cellar openssl) -type d -iname "include") \
+            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DENABLE_TESTS=ON \
+            -DPIP_OPTIONS="--verbose" \
+            -S xrootd \
+            -B build
+        cmake build -LH
+        cmake \
+            --build build \
+            --clean-first \
+            --parallel $(($(sysctl -n hw.ncpu) - 1))
+        cmake --build build --target install
+        python3 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
   rpm-centos7:
 
     runs-on: ubuntu-latest
