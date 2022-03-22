@@ -12,6 +12,8 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Tests]** Fix strcpy overflow.
+  **Commits: 4e112ac
   **[HttpTpc]** Vector cleared after use so it can be shrunk.
   **Commits: ebf9de7
   **[ZTN]** Point to the token via Entity.creds.
