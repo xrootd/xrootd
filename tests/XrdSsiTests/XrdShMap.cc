@@ -347,7 +347,7 @@ void Usage()
 // Count up characters and llocate a buffer
 //
    for (int j = i; j < n; j++) ulen += helpInfo[j].cln + plen + 3;
-   uLine = new char[ulen+(plen*((ulen+80)/80))];
+   uLine = new char[ulen+(plen*((ulen+80)/80))+1];
 
 // Copy over all of the commands
 //
