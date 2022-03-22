@@ -61,7 +61,7 @@ function getVersionFromRefs()
 function getVersionFromLog()
 {
   AWK=gawk
-  EX="`which gawk`"
+  EX="$(command -v gawk)"
   if test x"${EX}" == x -o ! -x "${EX}"; then
     AWK=awk
   fi
@@ -167,7 +167,7 @@ elif test x$USER_VERSION != x; then
 #-------------------------------------------------------------------------------
 else
   echo "[I] Determining version from git" 1>&2
-  EX="`which git`"
+  EX="$(command -v git)"
   if test x"${EX}" == x -o ! -x "${EX}"; then
     echo "[!] Unable to find git in the path: setting the version tag to unknown" 1>&2
   else

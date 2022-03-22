@@ -13,7 +13,7 @@ CERNEXP='^[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.CERN.*$'
 function findProg()
 {
   for prog in $@; do
-    if test -x "`which $prog 2>/dev/null`"; then
+    if test -x "$(command -v $prog 2>/dev/null)"; then
       echo $prog
       break
     fi
