@@ -30,6 +30,8 @@
 
 #include <cstdio>
 #include <strings.h>
+#include <unistd.h>
+#include <sys/stat.h>
   
 #include "XrdOfs/XrdOfsTPC.hh"
 #include "XrdOfs/XrdOfsTPCConfig.hh"
@@ -42,6 +44,8 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+
+#include "XrdXrootd/XrdXrootdTpcMon.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -182,13 +186,42 @@ int XrdOfsTPCProg::Init()
 
 void XrdOfsTPCProg::Run()
 {
+   XrdXrootdTpcMon::TpcInfo monInfo;
+   struct stat Stat;
+   char *questSrc, *questLfn, *questDst;
    int rc;
+   bool doMon = Cfg.tpcMon != 0;
 
 // Run the current job and indicate it's ending status and possibly getting a
 // another job to run. Note "Job" will always be valid.
 //
-do{rc = Xeq();
+do{if (doMon)
+      {monInfo.Init();
+       gettimeofday(&monInfo.begT, 0);
+      }
+
+   rc = Xeq();
+
+   if (doMon)
+      {gettimeofday(&monInfo.endT, 0);
+       if ((questSrc = index(Job->Info.Key, '?'))) *questSrc = 0;
+       monInfo.srcURL = Job->Info.Key;
+       if ((questLfn = index(Job->Info.Lfn, '?'))) *questLfn = 0;
+       monInfo.dstURL = Job->Info.Lfn;
+       monInfo.endRC  = rc;
+       if (Job->Info.Str) monInfo.strm = Job->Info.Str;
+       //??? Need to set ipv4/6 bit
+
+       if ((questDst = index(Job->Info.Dst, '?'))) *questDst = 0;
+       if (!XrdOfsOss->Stat(Job->Info.Dst, &Stat)) monInfo.fSize = Stat.st_size;
+       if (questDst) *questDst = '?';
+       Cfg.tpcMon->Report(monInfo);
+       if (questLfn) *questLfn = '?';
+       if (questSrc) *questSrc = '?';
+      }
+
    Job = Job->Done(this, eRec, rc);
+
   } while(Job);
 
 // No more jobs to run. Place us on the idle queue. Upon return this thread
@@ -230,7 +263,7 @@ XrdOfsTPCProg *XrdOfsTPCProg::Start(XrdOfsTPCJob *jP, int &rc)
 /******************************************************************************/
 /*                                   X e q                                    */
 /******************************************************************************/
-  
+
 int XrdOfsTPCProg::Xeq()
 {
    EPNAME("Xeq");

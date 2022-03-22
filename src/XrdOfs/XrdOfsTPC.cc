@@ -81,6 +81,7 @@ int                fcNum    = 0;
 bool               tpcOK    = false;
 bool               encTPC   = false;
 
+XrdXrootdTpcMon*   tpcMon   = 0;
 XrdOfsTPCConfig    Cfg;
 }
 

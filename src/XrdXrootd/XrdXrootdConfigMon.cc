@@ -42,6 +42,7 @@
 #include "XrdXrootd/XrdXrootdGSReal.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
+#include "XrdXrootd/XrdXrootdTpcMon.hh"
 
 /******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */
@@ -84,6 +85,8 @@ struct XrdXrootdGSReal::GSParms gsObj[] =
         {"pfc",    0, XROOTD_MON_PFC,   0, -1, XROOTD_MON_GSPFC, 0,
                    XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
         {"TcpMon", 0, XROOTD_MON_TCPMO, 0, -1, XROOTD_MON_GSTCP, 0,
+                   XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm},
+        {"Tpc",    0, XROOTD_MON_TPC,   0, -1, XROOTD_MON_GSTPC, 0,
                    XrdXrootdGSReal::fmtBin, XrdXrootdGSReal::hdrNorm}
        };
 }
@@ -95,9 +98,9 @@ struct XrdXrootdGSReal::GSParms gsObj[] =
 bool XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
 {
    XrdXrootdGStream *gs;
-   int numgs = sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
+   static const int numgs=sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
    char vbuff[64];
-   bool aOK, gXrd[] = {false, false, true};
+   bool aOK, gXrd[numgs] = {false, false, true, true};
 
 // For each enabled monitoring provider, allocate a g-stream and put
 // its address in our environment.
@@ -112,6 +115,16 @@ bool XrdXrootdProtocol::ConfigGStream(XrdOucEnv &myEnv, XrdOucEnv *urEnv)
                else if (urEnv) urEnv->PutPtr(vbuff, (void *)gs);
            }
        }
+
+// Configure the TPC monitor if we have a gStream for it
+//
+   if (urEnv && (gs = (XrdXrootdGStream*)urEnv->GetPtr("Tpc.gStream*")))
+      {XrdXrootdTpcMon* tpcMon = new XrdXrootdTpcMon("xroot",eDest.logger(),*gs);
+       myEnv.PutPtr("TpcMonitor*", (void*)tpcMon);
+      }
+
+// All done
+//
    return true;
 }
 
@@ -209,6 +222,7 @@ bool XrdXrootdProtocol::ConfigMon(XrdProtocol_Config *pi, XrdOucEnv &xrootdEnv)
          pfc                monitor proxy file cache
          redir              monitors request redirections
          tcpmon             monitors tcp connection closes.
+         tpc                Third Party Copy
          user               monitors user login and disconnect events.
          <host:port>        where monitor records are to be sentvia UDP.
 
@@ -339,6 +353,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
               else if (!strcmp("pfc",  val)) MP->monMode[i] |=  XROOTD_MON_PFC;
               else if (!strcmp("redir",val)) MP->monMode[i] |=  XROOTD_MON_REDR;
               else if (!strcmp("tcpmon",val))MP->monMode[i] |=  XROOTD_MON_TCPMO;
+              else if (!strcmp("tpc",   val))MP->monMode[i] |=  XROOTD_MON_TPC;
               else if (!strcmp("user", val)) MP->monMode[i] |=  XROOTD_MON_USER;
               else break;
 
@@ -429,7 +444,7 @@ char *XrdXrootdProtocol::xmondest(const char *what, char *val)
 
    Purpose:  Parse directive: mongstream <strm> use <opts>
 
-   <strm>:  {all | ccm | pfc | tcpmon}  [<strm>]
+   <strm>:  {all | ccm | pfc | tcpmon | tpc}  [<strm>]
 
    <opts>:  [flust <t>] [maxlen <l>] [send <fmt> [noident] <host:port>]
 
@@ -441,6 +456,7 @@ char *XrdXrootdProtocol::xmondest(const char *what, char *val)
          ccm                gstream: cache context management
          pfc                gstream: proxy file cache
          tcpmon             gstream: tcp connection monitoring
+         tpc                gstream: Third Party Copy
 
          noXXX              do not include information.
 
@@ -461,7 +477,8 @@ int XrdXrootdProtocol::xmongs(XrdOucStream &Config)
    int numopts = sizeof(gsopts)/sizeof(struct gsOpts);
 
    int numgs = sizeof(gsObj)/sizeof(struct XrdXrootdGSReal::GSParms);
-   int selAll = XROOTD_MON_CCM | XROOTD_MON_PFC | XROOTD_MON_TCPMO;
+   int selAll = XROOTD_MON_CCM | XROOTD_MON_PFC | XROOTD_MON_TCPMO
+              | XROOTD_MON_TPC;
    int i, selMon = 0, opt = -1, hdr = -1, fmt = -1, flushVal = -1;
    long long maxlVal = -1;
    char *val, *dest = 0;
@@ -597,8 +614,9 @@ bool XrdXrootdProtocol::xmongsend(XrdOucStream &Config, char *val, char *&dest,
 
 // The next one is the the optional hdr spec
 //
+   val = Config.GetWord();
    if (fmt == XrdXrootdGSReal::fmtNone) hdr = XrdXrootdGSReal::hdrNone;
-      else if ((val = Config.GetWord()))
+      else if (val)
               {for (i = 0; i < numhdrs; i++)
                    if (!strcmp(val, gshdr[i].opname))
                       {hdr = gshdr[i].opval;

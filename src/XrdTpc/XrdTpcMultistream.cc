@@ -484,6 +484,7 @@ int TPCHandler::RunCurlWithStreamsImpl(XrdHttpExtReq &req, State &state,
         return retval;
     } else if (success) {
         logTransferEvent(LogMask::Info, rec, "TRANSFER_SUCCESS");
+        rec.status = 0;
     }
     return req.ChunkResp(NULL, 0);
 }

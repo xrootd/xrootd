@@ -1,10 +1,13 @@
-
 #include "XrdHttp/XrdHttpExtHandler.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdVersion.hh"
+
+#include "XrdXrootd/XrdXrootdTpcMon.hh"
 
 #include <curl/curl.h>
 
@@ -15,6 +18,7 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <iostream> // Delete later!!!
 
 #include "XrdTpcState.hh"
 #include "XrdTpcStream.hh"
@@ -24,6 +28,8 @@
 
 using namespace TPC;
 
+XrdXrootdTpcMon* TPCHandler::TPCLogRecord::tpcMonitor = 0;
+
 uint64_t TPCHandler::m_monid{0};
 int TPCHandler::m_marker_period = 5;
 size_t TPCHandler::m_block_size = 16*1024*1024;
@@ -32,15 +38,60 @@ XrdSysMutex TPCHandler::m_monid_mutex;
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, HttpTPC);
 
+/******************************************************************************/
+/*   T P C H a n d l e r : : T P C L o g R e c o r d   D e s t r u c t o r    */
+/******************************************************************************/
+  
+TPCHandler::TPCLogRecord::~TPCLogRecord()
+{
+// Record monitoring data is enabled
+//
+   if (tpcMonitor)
+      {XrdXrootdTpcMon::TpcInfo monInfo;
 
+       monInfo.begT = begT;
+       gettimeofday(&monInfo.endT, 0);
+
+       if (log_prefix == "PullRequest")
+          {monInfo.dstURL = local.c_str();
+           monInfo.srcURL = remote.c_str();
+          } else {
+           monInfo.dstURL = remote.c_str();
+           monInfo.srcURL = local.c_str();
+           monInfo.opts |= XrdXrootdTpcMon::TpcInfo::isaPush;
+          }
+
+       if (!status) monInfo.endRC = 0;
+          else if (tpc_status > 0) monInfo.endRC = tpc_status;
+                  else  monInfo.endRC = 1;
+       monInfo.strm  = static_cast<unsigned char>(streams);
+       monInfo.fSize = (bytes_transferred < 0 ? 0 : bytes_transferred);
+       if (!isIPv6) monInfo.opts |= XrdXrootdTpcMon::TpcInfo::isIPv4;
+
+       tpcMonitor->Report(monInfo);
+      }
+}
+  
+/******************************************************************************/
+/*               C u r l D e l e t e r : : o p e r a t o r ( )                */
+/******************************************************************************/
+  
 void CurlDeleter::operator()(CURL *curl)
 {
     if (curl) curl_easy_cleanup(curl);
 }
 
+/******************************************************************************/
+/*           s o c k o p t _ s e t c l o e x e c _ c a l l b a c k            */
+/******************************************************************************/
+  
 /**
  * The callback that will be called by libcurl when the socket has been created
  * https://curl.se/libcurl/c/CURLOPT_SOCKOPTFUNCTION.html
+ *
+ * Note: that this callback has been replaced by the opensocket_callback as it
+ *       was needed for monitoring to report what IP protocol was being used.
+ *       It has been kept in case we will need this callback in the future.
  */
 int TPCHandler::sockopt_setcloexec_callback(void *clientp, curl_socket_t curlfd, curlsocktype purpose) {
     int oldFlags = fcntl(curlfd,F_GETFD,0);
@@ -54,6 +105,37 @@ int TPCHandler::sockopt_setcloexec_callback(void *clientp, curl_socket_t curlfd,
     return CURL_SOCKOPT_ERROR;
 }
 
+/******************************************************************************/
+/*                   o p e n s o c k e t _ c a l l b a c k                    */
+/******************************************************************************/
+  
+  
+/**
+ * The callback that will be called by libcurl when the socket is about to be
+ * opened so we can capture the protocol that will be used.
+ */
+int TPCHandler::opensocket_callback(void *clientp,
+                                    curlsocktype purpose,
+                                    struct curl_sockaddr *aInfo)
+{
+// See what kind of address will be used to connect
+//
+if (purpose == CURLSOCKTYPE_IPCXN && clientp)
+   {XrdNetAddr thePeer(&(aInfo->addr));
+    ((TPCLogRecord *)clientp)->isIPv6 =  (thePeer.isIPType(XrdNetAddrInfo::IPv6)
+                                      && !thePeer.isMapped());
+   }
+
+// Return a socket file descriptor (note the clo_exec flag will be set).
+//
+   int fd = XrdSysFD_Socket(aInfo->family, aInfo->socktype, aInfo->protocol);
+   return (fd >= 0 ? fd : CURL_SOCKET_BAD);
+}
+
+/******************************************************************************/
+/*                            p r e p a r e U R L                             */
+/******************************************************************************/
+  
 // We need to utilize the full URL (including the query string), not just the
 // resource name.  The query portion is hidden in the `xrd-http-query` header;
 // we take this out and combine it with the resource name.
@@ -90,8 +172,10 @@ static std::string prepareURL(XrdHttpExtReq &req) {
   return req.resource + result.str().c_str();
 }
 
-
-//
+/******************************************************************************/
+/*           e n c o d e _ x r o o t d _ o p a q u e _ t o _ u r i            */
+/******************************************************************************/
+  
 // When processing a redirection from the filesystem layer, it is permitted to return
 // some xrootd opaque data.  The quoting rules for xrootd opaque data are significantly
 // more permissive than a URI (basically, only '&' and '=' are disallowed while some
@@ -123,6 +207,10 @@ std::string encode_xrootd_opaque_to_uri(CURL *curl, const std::string &opaque)
     return output.str();
 }
 
+/******************************************************************************/
+/*           T P C H a n d l e r : : C o n f i g u r e C u r l C A            */
+/******************************************************************************/
+  
 void
 TPCHandler::ConfigureCurlCA(CURL *curl)
 {
@@ -155,6 +243,10 @@ bool TPCHandler::MatchesPath(const char *verb, const char *path) {
     return !strcmp(verb, "COPY") || !strcmp(verb, "OPTIONS");
 }
 
+/******************************************************************************/
+/*                            P r e p a r e U R L                             */
+/******************************************************************************/
+  
 static std::string PrepareURL(const std::string &input) {
     if (!strncmp(input.c_str(), "davs://", 7)) {
         return "https://" + input.substr(7);
@@ -162,6 +254,10 @@ static std::string PrepareURL(const std::string &input) {
     return input;
 }
 
+/******************************************************************************/
+/*                T P C H a n d l e r : : P r o c e s s R e q                 */
+/******************************************************************************/
+  
 int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
     if (req.verb == "OPTIONS") {
         return ProcessOptionsReq(req);
@@ -186,10 +282,18 @@ int TPCHandler::ProcessReq(XrdHttpExtReq &req) {
     return req.SendSimpleResp(400, NULL, NULL, "No Source or Destination specified", 0);
 }
 
+/******************************************************************************/
+/*                 T P C H a n d l e r   D e s t r u c t o r                  */
+/******************************************************************************/
+  
 TPCHandler::~TPCHandler() {
     m_sfs = NULL;
 }
 
+/******************************************************************************/
+/*                T P C H a n d l e r   C o n s t r u c t o r                 */
+/******************************************************************************/
+  
 TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
         m_desthttps(false),
         m_timeout(60),
@@ -200,8 +304,18 @@ TPCHandler::TPCHandler(XrdSysError *log, const char *config, XrdOucEnv *myEnv) :
     if (!Configure(config, myEnv)) {
         throw std::runtime_error("Failed to configure the HTTP third-party-copy handler.");
     }
+
+// Extract out the TPC monitoring object (we share it with xrootd).
+//
+   XrdXrootdGStream *gs = (XrdXrootdGStream*)myEnv->GetPtr("Tpc.gStream*");
+   if (gs)
+      TPCLogRecord::tpcMonitor = new XrdXrootdTpcMon("http",log->logger(),*gs);
 }
 
+/******************************************************************************/
+/*         T P C H a n d l e r : : P r o c e s s O p t i o n s R e q          */
+/******************************************************************************/
+  
 /**
  * Handle the OPTIONS verb as we have added a new one...
  */
@@ -209,6 +323,10 @@ int TPCHandler::ProcessOptionsReq(XrdHttpExtReq &req) {
     return req.SendSimpleResp(200, NULL, (char *) "DAV: 1\r\nDAV: <http://apache.org/dav/propset/fs/1>\r\nAllow: HEAD,GET,PUT,PROPFIND,DELETE,OPTIONS,COPY", NULL, 0);
 }
 
+/******************************************************************************/
+/*                  T P C H a n d l e r : : G e t A u t h z                   */
+/******************************************************************************/
+  
 std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
     std::string authz;
     auto authz_header = req.headers.find("Authorization");
@@ -222,6 +340,10 @@ std::string TPCHandler::GetAuthz(XrdHttpExtReq &req) {
     return authz;
 }
 
+/******************************************************************************/
+/*          T P C H a n d l e r : : R e d i r e c t T r a n s f e r           */
+/******************************************************************************/
+  
 int TPCHandler::RedirectTransfer(CURL *curl, const std::string &redirect_resource,
     XrdHttpExtReq &req, XrdOucErrInfo &error, TPCLogRecord &rec)
 {
@@ -257,6 +379,10 @@ int TPCHandler::RedirectTransfer(CURL *curl, const std::string &redirect_resourc
         NULL, 0);
 }
 
+/******************************************************************************/
+/*             T P C H a n d l e r : : O p e n W a i t S t a l l              */
+/******************************************************************************/
+  
 int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
                       int mode, int openMode, const XrdSecEntity &sec,
                       const std::string &authz)
@@ -289,6 +415,11 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
     return open_result;
 }
 
+/******************************************************************************/
+/* XRD_CHUNK_RESP:                                                            */
+/*         T P C H a n d l e r : : D e t e r m i n e X f e r S i z e          */
+/******************************************************************************/
+  
 #ifdef XRD_CHUNK_RESP
 /**
  * Determine size at remote end.
@@ -327,7 +458,12 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     success = true;
     return 0;
 }
-
+  
+/******************************************************************************/
+/* XRD_CHUNK_RESP:                                                            */
+/*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
+/******************************************************************************/
+  
 int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State &state) {
     std::stringstream ss;
     const std::string crlf = "\n";
@@ -348,6 +484,11 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, TPC::State
     return req.ChunkResp(ss.str().c_str(), 0);
 }
 
+/******************************************************************************/
+/* XRD_CHUNK_RESP:                                                            */
+/*            T P C H a n d l e r : : S e n d P e r f M a r k e r             */
+/******************************************************************************/
+  
 int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vector<State*> &state,
     off_t bytes_transferred)
 {
@@ -392,6 +533,11 @@ int TPCHandler::SendPerfMarker(XrdHttpExtReq &req, TPCLogRecord &rec, std::vecto
     return req.ChunkResp(ss.str().c_str(), 0);
 }
 
+/******************************************************************************/
+/* XRD_CHUNK_RESP:                                                            */
+/*        T P C H a n d l e r : : R u n C u r l W i t h U p d a t e s         */
+/******************************************************************************/
+  
 int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
     TPCLogRecord &rec)
 {
@@ -599,12 +745,20 @@ int TPCHandler::RunCurlWithUpdates(CURL *curl, XrdHttpExtReq &req, State &state,
         return retval;
     } else if (success) {
         logTransferEvent(LogMask::Info, rec, "TRANSFER_SUCCESS");
+        rec.status = 0;
     }
     return req.ChunkResp(NULL, 0);
 }
+
+/******************************************************************************/
+/* !XRD_CHUNK_RESP:                                                           */
+/*              T P C H a n d l e r : : R u n C u r l B a s i c               */
+/******************************************************************************/
+  
 #else
 int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
-                             const char *log_prefix) {
+                             TPCLogRecord &rec) {
+    const char *log_prefix = rec.log_prefix.c_str();
     CURLcode res;
     res = curl_easy_perform(curl);
     state.Flush();
@@ -633,11 +787,16 @@ int TPCHandler::RunCurlBasic(CURL *curl, XrdHttpExtReq &req, State &state,
         return req.SendSimpleResp(500, NULL, NULL, msg, 0);
     } else {
         char msg[] = "Created";
+        rec.status = 0;
         return req.SendSimpleResp(201, NULL, NULL, msg, 0);
     }
 }
 #endif
 
+/******************************************************************************/
+/*            T P C H a n d l e r : : P r o c e s s P u s h R e q             */
+/******************************************************************************/
+  
 int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req) {
     TPCLogRecord rec;
     rec.log_prefix = "PushRequest";
@@ -656,7 +815,9 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
         return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_setcloexec_callback);
+//  curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_setcloexec_callback);
+    curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
+    curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
     auto query_header = req.headers.find("xrd-http-fullresource");
     std::string redirect_resource = req.resource;
     if (query_header != req.headers.end()) {
@@ -707,10 +868,14 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
 #ifdef XRD_CHUNK_RESP
     return RunCurlWithUpdates(curl, req, state, rec);
 #else
-    return RunCurlBasic(curl, req, state, "ProcessPushReq");
+    return RunCurlBasic(curl, req, state, rec);
 #endif
 }
 
+/******************************************************************************/
+/*            T P C H a n d l e r : : P r o c e s s P u l l R e q             */
+/******************************************************************************/
+  
 int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) {
     TPCLogRecord rec;
     rec.log_prefix = "PullRequest";
@@ -718,7 +883,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     rec.remote = resource;
     char *name = req.GetSecEntity().name;
     if (name) rec.name = name;
-    logTransferEvent(LogMask::Info, rec, "PULL_START", "Starting a push request");
+    logTransferEvent(LogMask::Info, rec, "PULL_START", "Starting a pull request");
 
     ManagedCurlHandle curlPtr(curl_easy_init());
     auto curl = curlPtr.get();
@@ -729,7 +894,9 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
             return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
     }
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
+//  curl_easy_setopt(curl,CURLOPT_SOCKOPTFUNCTION,sockopt_setcloexec_callback);
+    curl_easy_setopt(curl, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
+    curl_easy_setopt(curl, CURLOPT_OPENSOCKETDATA, &rec);
     std::unique_ptr<XrdSfsFile> fh(m_sfs->newFile(name, m_monid++));
     if (!fh.get()) {
             char msg[] = "Failed to initialize internal transfer file handle";
@@ -801,11 +968,14 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         return RunCurlWithUpdates(curl, req, state, rec);
     }
 #else
-    return RunCurlBasic(curl, req, state, "ProcessPullReq");
+    return RunCurlBasic(curl, req, state, rec);
 #endif
 }
 
-
+/******************************************************************************/
+/*          T P C H a n d l e r : : l o g T r a n s f e r E v e n t           */
+/******************************************************************************/
+  
 void TPCHandler::logTransferEvent(LogMask mask, const TPCLogRecord &rec,
         const std::string &event, const std::string &message)
 {
@@ -830,7 +1000,10 @@ void TPCHandler::logTransferEvent(LogMask mask, const TPCLogRecord &rec,
     m_log.Log(mask, rec.log_prefix.c_str(), ss.str().c_str());
 }
 
-
+/******************************************************************************/
+/*                  X r d H t t p G e t E x t H a n d l e r                   */
+/******************************************************************************/
+  
 extern "C" {
 
 XrdHttpExtHandler *XrdHttpGetExtHandler(XrdSysError *log, const char * config, const char * /*parms*/, XrdOucEnv *myEnv) {
@@ -855,4 +1028,3 @@ XrdHttpExtHandler *XrdHttpGetExtHandler(XrdSysError *log, const char * config, c
 }
 
 }
-

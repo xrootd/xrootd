@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <sys/time.h>
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -16,6 +17,7 @@ class XrdOucErrInfo;
 class XrdOucStream;
 class XrdSfsFile;
 class XrdSfsFileSystem;
+class XrdXrootdTpcMon;
 typedef void CURL;
 
 namespace TPC {
@@ -49,24 +51,30 @@ public:
 private:
 
     static int sockopt_setcloexec_callback(void * clientp, curl_socket_t curlfd, curlsocktype purpose);
+    static int opensocket_callback(void *clientp,
+                                   curlsocktype purpose,
+                                   struct curl_sockaddr *address);
 
     struct TPCLogRecord {
 
-        TPCLogRecord() : status( -1 ),
-                         tpc_status(-1),
-                         streams( 1 ),
-                         bytes_transferred( -1 )
+        TPCLogRecord() : bytes_transferred( -1 ), status( -1 ),
+                         tpc_status(-1), streams( 1 ), isIPv6(false)
         {
+         gettimeofday(&begT, 0); // Set effective start time
         }
+       ~TPCLogRecord();
 
         std::string log_prefix;
         std::string local;
         std::string remote;
         std::string name;
+        static XrdXrootdTpcMon* tpcMonitor;
+        timeval     begT;
+        off_t bytes_transferred;
         int status;
         int tpc_status;
-        unsigned streams;
-        off_t bytes_transferred;
+        unsigned int streams;
+        bool isIPv6;
     };
 
     int ProcessOptionsReq(XrdHttpExtReq &req);
@@ -110,7 +118,7 @@ private:
                            TPCLogRecord &rec);
 #else
     int RunCurlBasic(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
-                     const char *log_prefix);
+                     TPCLogRecord &rec);
 #endif
 
     int ProcessPushReq(const std::string & resource, XrdHttpExtReq &req);

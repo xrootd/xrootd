@@ -96,7 +96,7 @@ XrdVERSIONINFO(XrdOfs,XrdOfs);
 
 namespace XrdOfsTPCParms
 {
-extern XrdOfsTPCConfig Cfg;
+extern XrdOfsTPCConfig  Cfg;
 }
 
 namespace
@@ -653,6 +653,10 @@ int XrdOfs::ConfigTPC(XrdSysError &Eroute, XrdOucEnv *envP)
 //
    if (!(Cfg.rPath = ConfigTPCDir(Eroute, ".ofs/.tpcproxy"))) return 1;
    if (envP) envP->Put("tpc.rpdir", Cfg.rPath);
+
+// Check if TPC monitoring is wanted and set it up
+//
+   Cfg.tpcMon = (XrdXrootdTpcMon*)envP->GetPtr("TpcMonitor*");
 
 // All done
 //

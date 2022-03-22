@@ -30,8 +30,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+class XrdXrootdTpcMon;
+
 struct XrdOfsTPCConfig
 {
+XrdXrootdTpcMon* tpcMon;
+
 char  *XfrProg;
 char  *cksType;
 char  *cPath;
@@ -48,7 +52,7 @@ bool   autoRM;
 bool   noids;
 bool   fCreds;
 
-       XrdOfsTPCConfig() : XfrProg(0), cksType(0), cPath(0), rPath(0),
+       XrdOfsTPCConfig() : tpcMon(0), XfrProg(0), cksType(0), cPath(0), rPath(0),
                            maxTTL(15), dflTTL(7),  tcpSTRM(0),   tcpSMax(15),
                            xfrMax(9),  errMon(-3), LogOK(false), doEcho(false),
                            autoRM(false), noids(true), fCreds(false)

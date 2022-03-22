@@ -51,6 +51,7 @@ add_library(
   XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
   XrdXrootd/XrdXrootdGSReal.cc          XrdXrootd/XrdXrootdGSReal.hh
   XrdXrootd/XrdXrootdGStream.cc         XrdXrootd/XrdXrootdGStream.hh
+  XrdXrootd/XrdXrootdTpcMon.cc         XrdXrootd/XrdXrootdTpcMon.hh
                                         XrdXrootd/XrdXrootdTrace.hh
   XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
   XrdXrootd/XrdXrootdTransPend.cc       XrdXrootd/XrdXrootdTransPend.hh
