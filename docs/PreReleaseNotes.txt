@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Provide g-stream monitoring for Third Party Copy (TPC).
+  **Commits: 0cda247c
   **[SciTokens]** Allow the SciToken plugin to consume based on ZTN tokens.
   **Commits: 0aa7a0eb
   **[Server]** Report experiment and activity codes when present for monitoring.
