@@ -360,7 +360,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor from XRootDStatus
       //------------------------------------------------------------------------
-      PipelineException( const XRootDStatus &error ) : error( error )
+      PipelineException( const XRootDStatus &error ) : error( error ), strerr( error.ToString() )
       {
 
       }
@@ -368,7 +368,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Copy constructor.
       //------------------------------------------------------------------------
-      PipelineException( const PipelineException &ex ) : error( ex.error )
+      PipelineException( const PipelineException &ex ) : error( ex.error ), strerr( ex.error.ToString() )
       {
 
       }
@@ -378,7 +378,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       PipelineException& operator=( const PipelineException &ex )
       {
-        error = ex.error;
+        error  = ex.error;
+        strerr = ex.strerr;
         return *this;
       }
 
@@ -387,7 +388,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       const char* what() const noexcept
       {
-        return error.ToString().c_str();
+        return strerr.c_str();
       }
 
       //------------------------------------------------------------------------
@@ -404,6 +405,7 @@ namespace XrdCl
       //! the XRootDStatus associated with this exception
       //------------------------------------------------------------------------
       XRootDStatus error;
+      std::string  strerr;
   };
 
   //----------------------------------------------------------------------------
