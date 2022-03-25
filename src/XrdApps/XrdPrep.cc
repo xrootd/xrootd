@@ -271,7 +271,8 @@ int main(int argc, char **argv)
 // Check if all went well
 //
    if (!st.IsOK())
-      {const char *einfo, *etxt = st.ToStr().c_str();
+      {std::string estr = st.ToStr();
+       const char *einfo, *etxt = estr.c_str();
        if (!(einfo = rindex(etxt, ']'))) einfo = etxt;
           else {einfo++;
                 while(*einfo && *einfo == ' ') einfo++;
@@ -283,7 +284,8 @@ int main(int argc, char **argv)
 
 // Display the result
 //
-   const char *xx = response->ToString().c_str();
+   std::string rstr = response->ToString();
+   const char *xx = rstr.c_str();
    if (*xx) std::cout << xx << std::endl;
    delete response;
 
