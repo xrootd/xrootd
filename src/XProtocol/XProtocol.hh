@@ -1385,6 +1385,7 @@ static int mapError(int rc)
            case ETOOMANYREFS:  return kXR_TooManyErrs;
            case ETIMEDOUT:     return kXR_ReqTimedOut;
            case EBADF:         return kXR_FileNotOpen;
+           case ECANCELED:     return kXR_Cancelled;
            default:            return kXR_FSError;
           }
       }
