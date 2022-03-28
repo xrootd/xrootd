@@ -622,12 +622,14 @@ namespace
                     uint32_t          chunkSize,
                     uint8_t           parallelChunks,
                     const std::string &ckSumType,
-                    const std::vector<std::string> &addcks ):
+                    const std::vector<std::string> &addcks,
+                    bool doserver ):
         Source( ckSumType, addcks ),
         pUrl( url ), pFile( new XrdCl::File() ), pSize( -1 ),
         pCurrentOffset( 0 ), pChunkSize( chunkSize ),
         pParallel( parallelChunks ),
-        pNbConn( 0 ), pUsePgRead( false )
+        pNbConn( 0 ), pUsePgRead( false ),
+        pDoServer( doserver )
       {
         int val = XrdCl::DefaultSubStreamsPerChannel;
         XrdCl::DefaultEnv::GetEnv()->GetInt( "SubStreamsPerChannel", val );
@@ -686,16 +688,39 @@ namespace
           }
         }
 
+        //----------------------------------------------------------------------
+        // Figere out the actual data server we are talking to
+        //----------------------------------------------------------------------
+        if( !pUrl->IsLocalFile() ||
+           ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
+        {
+          pFile->GetProperty( "DataServer", pDataServer );
+        }
+
+
         if( ( !pUrl->IsLocalFile() && !pFile->IsSecure() ) ||
             ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
         {
-          pFile->GetProperty( "DataServer", pDataServer );
           //--------------------------------------------------------------------
           // Decide whether we can use PgRead
           //--------------------------------------------------------------------
           int val = XrdCl::DefaultCpUsePgWrtRd;
           XrdCl::DefaultEnv::GetEnv()->GetInt( "CpUsePgWrtRd", val );
           pUsePgRead = XrdCl::Utils::HasPgRW( pDataServer ) && ( val == 1 );
+        }
+
+        //----------------------------------------------------------------------
+        // Print the IPv4/IPv6 stack to the stderr if we are running in server
+        // mode
+        //----------------------------------------------------------------------
+        if( pDoServer && !pUrl->IsLocalFile() )
+        {
+          AnyObject obj;
+          DefaultEnv::GetPostMaster()->QueryTransport( pDataServer, TransportQuery::IpStack, obj );
+          std::string *ipstack = nullptr;
+          obj.Get( ipstack );
+          std::cerr << "!-!" << *ipstack << std::endl;
+          delete ipstack;
         }
 
         SetOnDataConnectHandler( pFile );
@@ -984,6 +1009,7 @@ namespace
       uint16_t                   pNbConn;
       uint16_t                   pMaxNbConn;
       bool                       pUsePgRead;
+      bool                       pDoServer;
 
       std::shared_ptr<CancellableJob> pDataConnCB;
   };
@@ -1002,8 +1028,10 @@ namespace
                        uint32_t           chunkSize,
                        uint8_t            parallelChunks,
                        const std::string &ckSumType,
-                       const std::vector<std::string> &addcks ):
-                      XRootDSource( archive, chunkSize, parallelChunks, ckSumType, addcks ),
+                       const std::vector<std::string> &addcks,
+                       bool doserver ):
+                      XRootDSource( archive, chunkSize, parallelChunks, ckSumType,
+                                    addcks, doserver ),
                       pFilename( filename ),
                       pZipArchive( new XrdCl::ZipArchive() )
       {
@@ -2443,7 +2471,7 @@ namespace XrdCl
     uint32_t    chunkSize;
     uint64_t    blockSize;
     bool        posc, force, coerce, makeDir, dynamicSource, zip, xcp, preserveXAttr,
-                rmOnBadCksum, continue_, zipappend;
+                rmOnBadCksum, continue_, zipappend, doserver;
     int32_t     nbXcpSources;
     long long   xRate;
     long long   xRateThreshold;
@@ -2471,6 +2499,7 @@ namespace XrdCl
     pProperties->Get( "cpTimeout",       cpTimeout );
     pProperties->Get( "zipAppend",       zipappend );
     pProperties->Get( "addcksums",       addcksums );
+    pProperties->Get( "doServer",        doserver );
 
     if( zip )
       pProperties->Get( "zipSource",     zipSource );
@@ -2519,7 +2548,8 @@ namespace XrdCl
     if( xcp )
       src.reset( new XRootDSourceXCp( &GetSource(), chunkSize, parallelChunks, nbXcpSources, blockSize ) );
     else if( zip ) // TODO make zip work for xcp
-      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks, checkSumType, addcksums ) );
+      src.reset( new XRootDSourceZip( zipSource, &GetSource(), chunkSize, parallelChunks,
+                                      checkSumType, addcksums , doserver) );
     else if( GetSource().GetProtocol() == "stdio" )
       src.reset( new StdInSource( checkSumType, chunkSize, addcksums ) );
     else
@@ -2527,7 +2557,7 @@ namespace XrdCl
       if( dynamicSource )
         src.reset( new XRootDSourceDynamic( &GetSource(), chunkSize, checkSumType, addcksums ) );
       else
-        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks, checkSumType, addcksums ) );
+        src.reset( new XRootDSource( &GetSource(), chunkSize, parallelChunks, checkSumType, addcksums, doserver ) );
     }
 
     XRootDStatus st = src->Initialize();

@@ -506,6 +506,7 @@ int main( int argc, char **argv )
   bool         continue_     = false;
   bool         recurse       = false;
   bool         zipappend     = false;
+  bool         doserver      = false;
   std::string thirdParty = "none";
 
   if( config.Want( XrdCpConfig::DoPosc ) )      posc       = true;
@@ -514,6 +515,7 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoTpc ) )       thirdParty = "first";
   if( config.Want( XrdCpConfig::DoTpcOnly ) )   thirdParty = "only";
   if( config.Want( XrdCpConfig::DoZipAppend ) ) zipappend  = true;
+  if( config.Want( XrdCpConfig::DoServer ) )    doserver   = true;
   if( config.Want( XrdCpConfig::DoTpcDlgt ) )
   {
     // the env var is being set already here (we are issuing a stat
@@ -873,7 +875,8 @@ int main( int argc, char **argv )
     properties.Set( "rmOnBadCksum",    rmOnBadCksum           );
     properties.Set( "continue",        continue_              );
     properties.Set( "zipAppend",       zipappend              );
-    properties.Set( "addcksums",       config.AddCksVal );
+    properties.Set( "addcksums",       config.AddCksVal       );
+    properties.Set( "doServer",        doserver               );
 
     if( zip )
       properties.Set( "zipSource",     zipFile                );

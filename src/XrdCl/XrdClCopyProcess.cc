@@ -262,8 +262,9 @@ namespace XrdCl
     pImpl->pJobProperties.push_back( properties );
     PropertyList &p = pImpl->pJobProperties.back();
 
-    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", "zipArchive",
-                           "xcp", "preserveXAttr", "rmOnBadCksum", "continue", "zipAppend", 0};
+    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir",
+                           "zipArchive", "xcp", "preserveXAttr", "rmOnBadCksum",
+                           "continue", "zipAppend", "doServer", 0};
     for( int i = 0; bools[i]; ++i )
       if( !p.HasProperty( bools[i] ) )
         p.Set( bools[i], false );
