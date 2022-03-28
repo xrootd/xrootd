@@ -279,8 +279,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   struct TransportQuery
   {
-    static const uint16_t Name = 1; //!< Transport name, returns const char *
-    static const uint16_t Auth = 2; //!< Transport name, returns std::string *
+    static const uint16_t Name    = 1; //!< Transport name, returns const char *
+    static const uint16_t Auth    = 2; //!< Transport name, returns std::string *
+    static const uint16_t IpStack = 3; //!< returns the IP stack (IPv4 or IPv6)
   };
 
   //----------------------------------------------------------------------------
@@ -457,6 +458,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual URL GetBindPreference( const URL  &url,
                                      AnyObject  &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Set the effective channel IP stack
+      //------------------------------------------------------------------------
+      virtual void SetIpStack( const std::string &ipstack,
+                               AnyObject         &channelData  ) = 0;
   };
 }
 

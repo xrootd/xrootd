@@ -145,6 +145,10 @@ namespace XrdCl
     log->Debug( AsyncSockMsg, "[%s] Attempting connection to %s",
                 pStreamName.c_str(), nameBuff );
 
+    std::string ipstack( ( pSockAddr.isIPType( XrdNetAddr::IPType::IPv6 ) &&
+                           !pSockAddr.isMapped() ) ? "IPv6" : "IPv4" );
+    pTransport->SetIpStack( ipstack, *pChannelData );
+
     st = pSocket->ConnectToAddress( pSockAddr, 0 );
     if( !st.IsOK() )
     {

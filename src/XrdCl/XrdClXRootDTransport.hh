@@ -295,6 +295,12 @@ namespace XrdCl
       virtual URL GetBindPreference( const URL  &url,
                                      AnyObject  &channelData );
 
+      //------------------------------------------------------------------------
+      //! Set the effective channel IP stack
+      //------------------------------------------------------------------------
+      virtual void SetIpStack( const std::string &ipstack,
+                               AnyObject         &channelData  );
+
     private:
 
       //------------------------------------------------------------------------
