@@ -43,6 +43,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 
+union XrdNetSockAddr;
 class XrdSysError;
 
 class XrdNetMsg
@@ -68,6 +69,27 @@ int           Send(const char *buff,          // The data to be send
                          int   blen=0,        // Length (strlen(buff) if zero)
                    const char *dest=0,        // Hostname to send UDP datagram
                          int   tmo=-1);       // Timeout in ms (-1 = none)
+
+//------------------------------------------------------------------------------
+//! Send a UDP message to an endpoint.
+//!
+//! @param  buff     The data to send.
+//! @param  blen     Length of the data in buff. If not specified, the length is
+//!                  computed as strlen(buff).
+//! @param  dest     The endpoint in the form as in "host:port".
+//! @param  netSA    The endpoint address. This overrides the constructor.
+//! @param  timeout  maximum seconds to wait for a idle socket. When negative,
+//!                  the default, no time limit applies.
+//! @return <0       Message not sent due to error.
+//! @return =0       Message send (well as defined by UDP)
+//! @return >0       Message not sent, timeout occurred.
+//------------------------------------------------------------------------------
+
+int           Send(          const char *dest,    // EP: host:port
+                   const XrdNetSockAddr &netSA,   // Address of endpoint
+                             const char *buff,    // The data to be send
+                                   int   blen=0,  // Length (strlen(buff) if zero)
+                                   int   tmo=-1); // Timeout in ms (-1 = none)
 
 //------------------------------------------------------------------------------
 //! Send a UDP message to an endpoint using an I/O vector.

@@ -110,7 +110,8 @@ std::map<std::string, ExpInfo*> v2eMap;
 // Other configuration values
 //
 XrdSysError  *eDest  = 0;
-XrdNetMsg    *netMsg = 0;
+XrdNetMsg    *netMsg = 0;  // UDP object for collector
+XrdNetMsg    *netOrg = 0;  // UDP object for origin
 XrdScheduler *Sched  = 0;
 XrdSysTrace  *Trace  = 0;
 const char   *myHostName = "-";
@@ -121,6 +122,10 @@ ExpInfo      *expDflt = 0;
 
 char         *ffDest  = 0;
 int           ffEcho  = 0;
+static
+const  int    ffPORT  = 10514;  // The default port
+int           ffPortD = 0;      // The dest  port to use
+int           ffPortO = 0;      // The reply port to use
 
 static const int domAny = 0;
 static const int domLcl = 1;
@@ -136,7 +141,6 @@ signed char   useFFly = -1;
 bool          addFLFF = false;
 bool          useSTag = true;
 
-bool          doDuplx = false;
 bool          noFail  = true;
 bool          doDebug = false;
 bool          doTrace = false;
@@ -269,14 +273,14 @@ XrdNetPMark *XrdNetPMarkCfg::Config(XrdSysError *eLog, XrdScheduler *sched,
 // If firefly is enabled, make sure we have an ffdest
 //
    if (useFFly < 0)
-      {if (ffDest) useFFly = true;
+      {if (ffPortD || ffPortO) useFFly = true;
           else {useFFly = false;
                 eLog->Say("Config warning: firefly disabled; "
                           "configuration incomplete!");
                 return 0;
                }
       } else {
-       if (useFFly && !ffDest)
+       if (useFFly && !ffPortD && !ffPortO)
           {eLog->Say("Config invalid: pmark 'use firefly' requires "
                      "specifying 'ffdest'!");
            fatal = true;
@@ -318,17 +322,42 @@ XrdNetPMark *XrdNetPMarkCfg::Config(XrdSysError *eLog, XrdScheduler *sched,
 //
    if (!useFFly) return 0;
 
-// Create a netmsg object for firefly reporting
+// Create a netmsg object for firefly reporting if a dest was specified
 //
    bool aOK = false;
-   netMsg = new XrdNetMsg(eDest, ffDest, &aOK);
-   if (!aOK)
-      {eLog->Emsg("Config", "pmark unable to create UDP tunnel to", ffDest);
-       if (!noFail) fatal = true;
-       delete netMsg;
-       netMsg = 0;
-       useFFly= false;
-       return 0;
+   if (ffDest)
+      {XrdNetAddr spec;
+       char buff[1024];
+       const char *eTxt = spec.Set(ffDest, -ffPortD);
+       if (eTxt)
+          {snprintf(buff, sizeof(buff), "%s:%d; %s", ffDest, ffPortD, eTxt);
+           eLog->Emsg("Config", "pmark unable to create UDP tunnel to", buff);
+           useFFly = false;
+           fatal   = true;
+           return 0;
+          }
+       if (spec.Format(buff, sizeof(buff)))
+          netMsg = new XrdNetMsg(eDest, buff, &aOK);
+       if (!aOK)
+          {eLog->Emsg("Config", "pmark unable to create UDP tunnel to", ffDest);
+           fatal = true;
+           delete netMsg;
+           netMsg = 0;
+           useFFly= false;
+           return 0;
+          }
+       }
+
+// Handle the firefly messages to origin
+//
+   if (ffPortO)
+      {netOrg = new XrdNetMsg(eDest, 0, &aOK);
+       if (!aOK)
+          {eLog->Emsg("Config","pmark unable to create origin UDP tunnel");
+           fatal = true;
+           useFFly= false;
+           return 0;
+          }
       }
 
 // Get our host name.
@@ -925,11 +954,13 @@ int XrdNetPMarkCfg::Parse(XrdSysError *eLog, XrdOucStream &Config)
 // Parse pmark directive parameters:
 //
 // [[no]debug] [defsfile [[no]fail] {<path> | {curl | wget} [tmo] <url>}]
-// [domain {any | local | remote}] [[no]duplex]
-// ffdest <udpdest>] [ffecho <intvl>]
+// [domain {any | local | remote}] [[no]fail] [ffdest <udpdest>]
+// [ffecho <intvl>]
 // [map2act <ename> {default | {role | user} <name>} <aname>]
 // [map2exp {default | {path <path> | vo <vo>} <ename>}] [[no]trace]
 // [use {[no]flowlabel | flowlabel+ff | [no]firefly | [no]scitag}
+//
+// <udpdest>: {origin[:<port>] | <host>[:port]} [,<udpdest>]
 //
    std::string name;
    char *val;
@@ -1006,23 +1037,33 @@ do{if (!strcmp("debug", val) || !strcmp("nodebug", val))
        continue;
       }
 
-    if (!strcmp("duplex", val) || !strcmp("noduplex", val))
-       {doDuplx = (*val == 'd');
-        continue;
-       }
-
     if (!strcmp("fail", val) || !strcmp("nofail", val))
        {noFail = (*val == 'n');
         continue;
        }
 
    if (!strcmp("ffdest", val))
-      {if (!(val = Config.GetWord()))
-          {eLog->Say("Config invalid: pmark dest value specified");
-           return 1;
-          }
-       if (ffDest) free(ffDest);
-       ffDest = strdup(val);
+      {const char *addtxt = "";
+       char *colon, *comma;
+       int  xPort;
+       val = Config.GetWord();
+       do {if (!val || *val == 0 || *val == ',' || *val == ':')
+              {eLog->Say("Config invalid: pmark ffdest value not specified",
+                         addtxt); return 1;
+              }
+           if ((comma = index(val, ','))) *comma++ = 0;
+           if ((colon = index(val, ':')))
+              {*colon++ = 0;
+               if ((xPort = XrdOuca2x::a2p(*eLog, "udp", colon, false)) <= 0)
+                  return 1;
+              } else xPort = ffPORT;
+           if (!strcmp(val, "origin")) ffPortO = xPort;
+              else {if (ffDest) free(ffDest);
+                    ffDest  = strdup(val);
+                    ffPortD = xPort;
+                   }
+           addtxt = " after comma";
+          } while((val = comma));
        if (useFFly < 0) useFFly = 1;
        continue;
       }

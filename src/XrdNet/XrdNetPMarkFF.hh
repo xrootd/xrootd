@@ -32,7 +32,8 @@
 
 #include "XrdNet/XrdNetPMark.hh"
 
-class XrdNetAddrInfo;
+class  XrdNetAddrInfo;
+union  XrdNetSockAddr;
 
 class XrdNetPMarkFF : public XrdNetPMark::Handle
 {
@@ -43,22 +44,33 @@ void         addHandle(XrdNetPMark::Handle *fh) {xtraFH = fh;}
 bool         Start(XrdNetAddrInfo &addr);
 
              XrdNetPMarkFF(XrdNetPMark::Handle &h, const char *tid)
-                          : XrdNetPMark::Handle(h), tident(tid), xtraFH(0)  {}
+                          : XrdNetPMark::Handle(h), tident(tid) {}
 
 virtual     ~XrdNetPMarkFF();
 
 private:
 
+struct sockStats
+      {uint64_t bRecv;  // Bytes received
+       uint64_t bSent;  // Bytes sent
+       uint32_t msRTT;  // RTT in milliseconds
+       uint32_t usRTT;  // RTT us remainder
+      };
+
 bool        Emit(const char *state, const char *cT, const char *eT);
 const char *getUTC(char *utcBuff, int utcBLen);
+void        SockStats(struct sockStats &ss);
 
-char       *ffHdr     = 0;
-char       *ffTailC   = 0;
-int         ffTailCsz = 0;
-int         ffTailSsz = 0; // Set to zero if any part failed!
-char       *ffTailS   = 0;
+XrdNetSockAddr      *mySad  = 0;
+XrdNetPMark::Handle *xtraFH = 0;
+
 const char *tident;
-
-XrdNetPMark::Handle *xtraFH;
+char       *oDest    = 0;
+char       *ffHdr    = 0;
+char       *ffTail   = 0;
+int         ffTailsz = 0;
+int         sockFD   =-1;
+bool        fdOK     = false;
+bool        odOK     = false;
 };
 #endif

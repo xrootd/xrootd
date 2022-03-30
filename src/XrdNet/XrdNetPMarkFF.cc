@@ -28,11 +28,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <cstdint>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 
@@ -53,11 +55,11 @@
 #define DEBUG(txt) if (doDebug) SYSTRACE(Trace->, tident, epName, 0, txt)
   
 #define EPName(ep) const char *epName = ep
-
+  
 /******************************************************************************/
 /*               F i r e f l y   P a c k e t   T e m p l a t e                */
 /******************************************************************************/
-  
+
 namespace
 {
 const char *ffFmt0 =
@@ -69,7 +71,9 @@ const char *ffFmt0 =
     "\"current-time\":\"%%s\","     //-> yyyy-mm-ddThh:mm:ss.uuuuuu+00:00
     "\"start-time\":\"%s\""
     "%%s"                           //-> ,"end-time":"<date-time>"
-  "},";
+  "},"
+  "\"usage\":{\"received\":%%llu,\"sent\":%%llu},"
+  "\"netlink\":{\"rtt\":%%u.%%.03u},";
 
 const char *ffFmt1 =
   "\"context\":{"
@@ -81,8 +85,8 @@ const char *ffFmt1 =
 const char *ffFmt2 =
   "\"flow-id\":{"
     "\"afi\":\"ipv%c\","            //-> ipv4 | ipv6
-    "\"src-ip\":\"%s\","            //-> <ip address> note we will reverse
-    "\"dst-ip\":\"%s\","            //   these to create a symmetric flow
+    "\"src-ip\":\"%s\","            //   source which is always server (us)
+    "\"dst-ip\":\"%s\","            //   dest   which is always client
     "\"protocol\":\"tcp\","
     "\"src-port\":%d,"
     "\"dst-port\":%d"
@@ -105,12 +109,13 @@ namespace XrdNetPMarkConfig
 //
 extern XrdSysError  *eDest;
 extern XrdNetMsg    *netMsg;
+extern XrdNetMsg    *netOrg;
 extern XrdScheduler *Sched;
 extern XrdSysTrace  *Trace;
 
 extern char         *ffDest;
+extern int           ffPortO;
 extern int           ffEcho;
-extern bool          doDuplx;
 extern bool          doDebug;
 extern bool          doTrace;
 
@@ -133,144 +138,42 @@ XrdSysMutex ffMutex;
 */
 
 /******************************************************************************/
-/*                            D e s t r u c t o r                             */
-/******************************************************************************/
-  
-XrdNetPMarkFF::~XrdNetPMarkFF()
-{
-// If all is well, emit the closing message
-//
-   if (ffTailSsz)
-      {char utcBuff[40], endBuff[80];
-       snprintf(endBuff, sizeof(endBuff), ffEnd,
-                         getUTC(utcBuff, sizeof(utcBuff)));
-       Emit("end", utcBuff, endBuff);
-      }
-
-// Cleanup
-//
-   if (ffHdr)   free(ffHdr);
-   if (ffTailC) free(ffTailC);
-   if (ffTailS) free(ffTailS);
-   if (xtraFH)  delete xtraFH;
-};
-
-/******************************************************************************/
-/*                                 S t a r t                                  */
-/******************************************************************************/
-  
-bool XrdNetPMarkFF::Start(XrdNetAddrInfo &addr)
-{
-   char appInfo[128], clIP[INET6_ADDRSTRLEN+2], svIP[INET6_ADDRSTRLEN+2];
-   int  clPort, svPort;
-   char clType, svType;
-
-// Preform app if we need to
-//
-   if (!appName) *appInfo = 0;
-      else snprintf(appInfo,sizeof(appInfo),ffApp,sizeof(appInfo)-20,appName);
-
-// Obtain connectivity information about the peer and ourselves. We really
-// should obtain our external address and use that but the issue is that
-// we may have multiple external addresses and the client determines which
-// one actually gets used. So, it's complicated. A TODO.
-//
-   clPort = XrdNetUtils::GetSokInfo( addr.SockFD(), clIP, sizeof(clIP), clType);
-   if (clPort < 0)
-      {eDest->Emsg("PMarkFF", clPort, "get peer information.");
-       return false;
-      }
-
-   svPort = XrdNetUtils::GetSokInfo(-addr.SockFD(), svIP, sizeof(svIP), svType);
-   if (svPort < 0)
-      {eDest->Emsg("PMarkFF", clPort, "get self information.");
-       return false;
-      }
-
-// Format the base firefly template. We may need to do this twice to permute
-// the source and destination IP addresses so the flow is registered as
-// mmetric. However, the client determines the address family being used.
-//
-   char utcBuff[40], bseg0[512];
-   int len0 = snprintf(bseg0, sizeof(bseg0), ffFmt0, myHostName,
-                                             getUTC(utcBuff, sizeof(utcBuff)));
-   if (len0 >= (int)sizeof(bseg0))
-      {eDest->Emsg("PMarkFF", "invalid json; bseg0 truncated.");
-       return false;
-      }
-
-   ffHdr = strdup(bseg0);
-
-   char bseg1[256];
-   int len1 = snprintf(bseg1, sizeof(bseg1), ffFmt1, eCode, aCode, appInfo);
-   if (len1 >= (int)sizeof(bseg1))
-      {eDest->Emsg("PMarkFF", "invalid json; bseg1 truncated.");
-       return false;
-      }
-
-   char bseg2[256];
-   int len2 = snprintf(bseg2, sizeof(bseg2), ffFmt2,
-                              clType, clIP, svIP, clPort, svPort);
-   if (len2 >= (int)sizeof(bseg2))
-      {eDest->Emsg("PMarkFF", "invalid json; cl bseg2 truncated.");
-       return false;
-      }
-
-   ffTailCsz = len1 + len2;
-   ffTailC   = (char *)malloc(ffTailCsz + 1);
-   strcpy(ffTailC,      bseg1);
-   strcpy(ffTailC+len1, bseg2);
-
-   len2 = snprintf(bseg2, sizeof(bseg2), ffFmt2,
-                          clType, svIP, clIP, svPort, clPort);
-   if (len2 >= (int)sizeof(bseg2))
-      {eDest->Emsg("PMarkFF", "invalid json; sv bseg2 truncated.");
-       return false;
-      }
-
-   ffTailSsz = len1 + len2;
-   ffTailS  = (char *)malloc(ffTailSsz + 1);
-   strcpy(ffTailS,      bseg1);
-   strcpy(ffTailS+len1, bseg2);
-
-// OK, we now can emit the starting packet
-//
-   return Emit("start", utcBuff, "");
-}
-
-/******************************************************************************/
 /* Private:                         E m i t                                   */
 /******************************************************************************/
   
 bool XrdNetPMarkFF::Emit(const char *state, const char *cT, const char *eT)
 {
    EPName("Emit");
+   struct sockStats ss;
    char msgBuff[1024];
 
-   int n = snprintf(msgBuff, sizeof(msgBuff), ffHdr, state, cT, eT);
-   if (n + ffTailCsz >= (int)sizeof(msgBuff)
-   ||  n + ffTailSsz >= (int)sizeof(msgBuff))
+   SockStats(ss);
+
+   int n = snprintf(msgBuff, sizeof(msgBuff), ffHdr, state, cT, eT,
+                             ss.bRecv, ss.bSent, ss.msRTT, ss.usRTT);
+
+   if (n + ffTailsz >= (int)sizeof(msgBuff))
       {eDest->Emsg("PMarkFF", "invalid json; msgBuff truncated.");
-       ffTailSsz = 0;
+       fdOK = odOK = false;
        return false;
       }
 
-   if (doDuplx)
-      {memcpy(msgBuff+n, ffTailC, ffTailCsz+1);
+   memcpy(msgBuff+n, ffTail, ffTailsz+1);
 
-       DEBUG("Sending pmark c-msg: " <<msgBuff);
-       if (netMsg->Send(msgBuff, n+ffTailCsz) < 0)
-          {ffTailSsz = 0;
+   if (fdOK)
+      {DEBUG("Sending pmark s-msg: " <<msgBuff);
+       if (netMsg->Send(msgBuff, n+ffTailsz) < 0)
+          {fdOK = false;
            return false;
           }
       }
 
-   memcpy(msgBuff+n, ffTailS, ffTailSsz+1);
-
-   DEBUG("Sending pmark s-msg: " <<msgBuff);
-   if (netMsg->Send(msgBuff, n+ffTailSsz) < 0)
-      {ffTailSsz = 0;
-       return false;
+   if (odOK)
+      {DEBUG("Sending pmark o-msg: " <<(netMsg ? "=s-msg" : msgBuff));
+       if (netOrg->Send(oDest, *mySad, msgBuff, n+ffTailsz) < 0)
+          {odOK = false;
+           return false;
+          }
       }
 
    return true;
@@ -349,3 +252,152 @@ void XrdNetPMarkCfg::Registry(XrdNetPMarkFF *ffobj, bool doadd)
        return 0;
       }
 */
+
+/******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+  
+XrdNetPMarkFF::~XrdNetPMarkFF()
+{
+// If all is well, emit the closing message
+//
+   if (fdOK || odOK)
+      {char utcBuff[40], endBuff[80];
+       snprintf(endBuff, sizeof(endBuff), ffEnd,
+                         getUTC(utcBuff, sizeof(utcBuff)));
+       Emit("end", utcBuff, endBuff);
+      }
+
+// Cleanup
+//
+   if (mySad)  delete(mySad);
+   if (oDest)  free(oDest);
+   if (ffHdr)  free(ffHdr);
+   if (ffTail) free(ffTail);
+   if (xtraFH) delete xtraFH;
+};
+
+/******************************************************************************/
+/*                             S o c k S t a t s                              */
+/******************************************************************************/
+
+#ifdef __linux__
+#include <linux/tcp.h>
+#endif
+
+void XrdNetPMarkFF::SockStats(struct sockStats &ss)
+{
+#ifndef __linux__
+   memset(&ss, 0, sizeof(struct sockStats));
+#else
+   struct tcp_info tcpInfo;
+   socklen_t  tiLen = sizeof(tcpInfo);
+
+   if (getsockopt(sockFD, IPPROTO_TCP, TCP_INFO, (void *)&tcpInfo, &tiLen) == 0)
+      {ss.bRecv = static_cast<uint64_t>(tcpInfo.tcpi_bytes_received);
+       ss.bSent = static_cast<uint64_t>(tcpInfo.tcpi_bytes_acked);
+       ss.msRTT = static_cast<uint32_t>(tcpInfo.tcpi_rtt/1000);
+       ss.usRTT = static_cast<uint32_t>(tcpInfo.tcpi_rtt%1000);
+      } else memset(&ss, 0, sizeof(struct sockStats));
+#endif
+}
+
+/******************************************************************************/
+/*                                 S t a r t                                  */
+/******************************************************************************/
+  
+bool XrdNetPMarkFF::Start(XrdNetAddrInfo &addr)
+{
+   char appInfo[128], clIP[INET6_ADDRSTRLEN+2], svIP[INET6_ADDRSTRLEN+2];
+   int  clPort, svPort;
+   char clType, svType;
+   bool fdok = false, odok = false;
+
+// Preform app if we need to
+//
+   if (!appName) *appInfo = 0;
+      else snprintf(appInfo,sizeof(appInfo),ffApp,sizeof(appInfo)-20,appName);
+
+// Get the file descriptor for the socket
+//
+   sockFD = addr.SockFD();
+
+// Obtain connectivity information about the peer and ourselves. We really
+// should obtain our external address and use that but the issue is that
+// we may have multiple external addresses and the client determines which
+// one actually gets used. So, it's complicated. A TODO.
+//
+   clPort = XrdNetUtils::GetSokInfo( sockFD, clIP, sizeof(clIP), clType);
+   if (clPort < 0)
+      {eDest->Emsg("PMarkFF", clPort, "get peer information.");
+       return false;
+      }
+
+   svPort = XrdNetUtils::GetSokInfo(-sockFD, svIP, sizeof(svIP), svType);
+   if (svPort < 0)
+      {eDest->Emsg("PMarkFF", clPort, "get self information.");
+       return false;
+      }
+
+// If there is no special collector, indicate so
+//
+   if (netMsg) fdok = true;
+
+// If the messages need to flow to the origin, get the destination information
+//
+   if (netOrg)
+      {const XrdNetSockAddr *urSad = addr.NetAddr();
+       if (!urSad) eDest->Emsg("PMarkFF", "unable to get origin address.");
+          else {char buff[1024];
+                mySad = new XrdNetSockAddr;
+                memcpy(mySad, urSad, sizeof(XrdNetSockAddr));
+                mySad->v4.sin_port = htons(static_cast<uint16_t>(ffPortO));
+                snprintf(buff, sizeof(buff), "%s:%d", clIP, ffPortO);
+                oDest = strdup(buff);
+                odok  = true;
+               }
+      }
+
+// If we cannot report anywhere then indicate we failed
+//
+   if (!fdok && !odok) return false;
+
+// Format the base firefly template. Note that the client determines the
+// address family that is being used.
+//
+   char utcBuff[40], bseg0[512];
+   int len0 = snprintf(bseg0, sizeof(bseg0), ffFmt0, myHostName,
+                                             getUTC(utcBuff, sizeof(utcBuff)));
+   if (len0 >= (int)sizeof(bseg0))
+      {eDest->Emsg("PMarkFF", "invalid json; bseg0 truncated.");
+       return false;
+      }
+
+   ffHdr = strdup(bseg0);
+
+   char bseg1[256];
+   int len1 = snprintf(bseg1, sizeof(bseg1), ffFmt1, eCode, aCode, appInfo);
+   if (len1 >= (int)sizeof(bseg1))
+      {eDest->Emsg("PMarkFF", "invalid json; bseg1 truncated.");
+       return false;
+      }
+
+   char bseg2[256];
+   int len2 = snprintf(bseg2, sizeof(bseg2), ffFmt2,
+                              clType, svIP, clIP, svPort, clPort);
+   if (len2 >= (int)sizeof(bseg2))
+      {eDest->Emsg("PMarkFF", "invalid json; cl bseg2 truncated.");
+       return false;
+      }
+
+   ffTailsz = len1 + len2;
+   ffTail   = (char *)malloc(ffTailsz + 1);
+   strcpy(ffTail,      bseg1);
+   strcpy(ffTail+len1, bseg2);
+
+// OK, we now can emit the starting packet
+//
+   fdOK = fdok;
+   odOK = odok;
+   return Emit("start", utcBuff, "");
+}
