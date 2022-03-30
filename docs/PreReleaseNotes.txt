@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Bring packet marking up to current specification.
+  **Commits: 0d7f8633
   **[Server]** Provide g-stream monitoring for Third Party Copy (TPC).
   **Commits: 0cda247c
   **[SciTokens]** Allow the SciToken plugin to consume based on ZTN tokens.
