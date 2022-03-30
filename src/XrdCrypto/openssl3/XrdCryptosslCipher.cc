@@ -570,21 +570,27 @@ XrdCryptosslCipher::XrdCryptosslCipher(bool padded, int bits, char *pub,
                   EVP_PKEY_CTX_free(pkctx);
                   if (fDH) {
                      // Now we can compute the cipher
-                     ktmp = new char[EVP_PKEY_size(fDH)];
-                     memset(ktmp, 0, EVP_PKEY_size(fDH));
+                     ltmp = EVP_PKEY_size(fDH);
+                     ktmp = new char[ltmp];
+                     memset(ktmp, 0, ltmp);
                      if (ktmp) {
                         // Create peer public key
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
                         EVP_PKEY *peer = 0;
+                        OSSL_PARAM *params1 = 0;
+                        EVP_PKEY_todata( dhParam, EVP_PKEY_KEY_PARAMETERS, &params1 );
                         OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
                         OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, bnpub);
-                        OSSL_PARAM *params = OSSL_PARAM_BLD_to_param(bld);
+                        OSSL_PARAM *params2 = OSSL_PARAM_BLD_to_param(bld);
                         OSSL_PARAM_BLD_free(bld);
+                        OSSL_PARAM *params = OSSL_PARAM_merge( params1, params2 );
                         pkctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, 0);
                         EVP_PKEY_fromdata_init(pkctx);
-                        EVP_PKEY_fromdata(pkctx, &peer, EVP_PKEY_PUBLIC_KEY, params);
+                        EVP_PKEY_fromdata(pkctx, &peer, EVP_PKEY_KEYPAIR, params);
                         EVP_PKEY_CTX_free(pkctx);
                         OSSL_PARAM_free(params);
+                        OSSL_PARAM_free(params1);
+                        OSSL_PARAM_free(params2);
 #else
                         DH* dh = DH_new();
                         DH_set0_key(dh, BN_dup(bnpub), NULL);
