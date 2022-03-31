@@ -600,9 +600,16 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
     pSubStreams[subStream]->status = Socket::Connected;
+
+    AnyObject obj;
+    pTransport->Query( TransportQuery::IpStack, obj, *pChannelData );
+    std::string *ipstack;
+    obj.Get( ipstack );
+
     Log *log = DefaultEnv::GetLog();
-    log->Debug( PostMasterMsg, "[%s] Stream %d connected.", pStreamName.c_str(),
-                subStream );
+    log->Debug( PostMasterMsg, "[%s] Stream %d connected (%s).", pStreamName.c_str(),
+                subStream, ipstack->c_str() );
+    delete ipstack;
 
     if( subStream == 0 )
     {
