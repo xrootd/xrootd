@@ -369,7 +369,7 @@ public:
                 ss << grp << " ";
             }
             const auto &groups_str = ss.str();
-            new_secentity.grps = static_cast<char*>(malloc(groups_str.size()));
+            new_secentity.grps = static_cast<char*>(malloc(groups_str.size() + 1));
             if (new_secentity.grps) {
                 memcpy(new_secentity.grps, groups_str.c_str(), groups_str.size());
                 new_secentity.grps[groups_str.size()] = '\0';
