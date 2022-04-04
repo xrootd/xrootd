@@ -44,9 +44,111 @@
 #include <map>
 #include <vector>
 #include <numeric>
+#include <mutex>
+#include <condition_variable>
 
 namespace XrdCl
 {
+
+//------------------------------------------------------------------------------
+//! Buffer pool - to limit memory consumption
+//------------------------------------------------------------------------------
+class BufferPool
+{
+  public:
+
+    //--------------------------------------------------------------------------
+    //! Single instance access
+    //--------------------------------------------------------------------------
+    static BufferPool& Instance()
+    {
+      static BufferPool instance;
+      return instance;
+    }
+
+    //--------------------------------------------------------------------------
+    //! Allocate a buffer if has available memory, otherwise wait until enough
+    //! memory has been reclaimed
+    //--------------------------------------------------------------------------
+    std::shared_ptr<std::vector<char>> Allocate( size_t length )
+    {
+      std::unique_lock<std::mutex> lck( mtx );
+      cv.wait( lck, [this, length]{ return available >= length; } );
+      available -= length;
+      BufferDeleter del;
+      std::shared_ptr<std::vector<char>> buffer( new std::vector<char>( length, 'A' ), del );
+      return buffer;
+    }
+
+  private:
+
+    //--------------------------------------------------------------------------
+    //! Reclaim memory
+    //--------------------------------------------------------------------------
+    void Reclaim( size_t length )
+    {
+      std::unique_lock<std::mutex> lck;
+      available += length;
+      cv.notify_all();
+    }
+
+    //--------------------------------------------------------------------------
+    //! Custom deleter for shared_ptr (notifies the buffer-pool when memory
+    //! has been reclaimed)
+    //--------------------------------------------------------------------------
+    struct BufferDeleter
+    {
+      void operator()( std::vector<char> *buff )
+      {
+        BufferPool::Instance().Reclaim( buff->size() );
+        delete buff;
+      }
+    };
+
+    static const size_t KB = 1024;
+    static const size_t MB = 1024 * KB;
+    static const size_t GB = 1024 * MB;
+
+    //--------------------------------------------------------------------------
+    //! Constructor - read out the memory limit from XRD_MAXBUFFERSIZE, if not
+    //! set don't impose any limit
+    //--------------------------------------------------------------------------
+    BufferPool() : mtx(), cv()
+    {
+      const char *maxsize = getenv( "XRD_MAXBUFFERSIZE" );
+      if( maxsize )
+      {
+        size_t len = strlen( maxsize );
+        size_t pos;
+        available = std::stoul( maxsize, &pos );
+        std::string sufix( len != pos ? maxsize + len - 2 : "" );
+        std::transform( sufix.begin(), sufix.end(), sufix.begin(), ::toupper );
+        if( !sufix.empty() )
+        {
+          if( sufix == "KB" )
+            available *= KB;
+          else if( sufix == "MB" )
+            available *= MB;
+          else if( sufix == "GB" )
+            available *= GB;
+        }
+        return;
+      }
+      available = std::numeric_limits<size_t>::max();
+    }
+
+    BufferPool( const BufferPool& ) = delete;
+    BufferPool( BufferPool&& ) = delete;
+
+    BufferPool& operator=( const BufferPool& ) = delete;
+    BufferPool& operator=( BufferPool& ) = delete;
+
+
+    size_t                  available;
+    std::mutex              mtx;
+    std::condition_variable cv;
+};
+
 //------------------------------------------------------------------------------
 //! Timer helper class
 //------------------------------------------------------------------------------
@@ -500,7 +602,8 @@ class ActionExecutor
     {
       ChunkList chunks;
       uint16_t  timeout;
-      std::tie(chunks, timeout) = GetVectorReadArgs(simulate);
+      std::vector<buffer_t> buffers;
+      std::tie(chunks, timeout, buffers) = GetVectorReadArgs();
       metric.ios["VectorRead::n"]++;
       for (auto& ch : chunks)
       {
@@ -513,12 +616,11 @@ class ActionExecutor
       if (!simulate)
         Async(
           VectorRead(file, chunks, timeout) >>
-          [this, orgststr{ orgststr }, chunks, ending, closing, timer, &metric](XRootDStatus& s, VectorReadInfo& r) mutable
+          [this, orgststr{ orgststr }, buffers, ending, closing, timer, &metric](XRootDStatus& s, VectorReadInfo& r) mutable
           {
             metric.addIos("VectorRead", "e", HandleStatus(s, orgststr, "VectorRead"));
             metric.addDelays("VectorRead", "tmeas", timer.elapsed());
-            for (auto& ch : chunks)
-              delete[](char*) ch.buffer;
+            buffers.clear();
             ending.reset();
             closing.reset();
           });
@@ -534,7 +636,8 @@ class ActionExecutor
     {
       ChunkList chunks;
       uint16_t  timeout;
-      std::tie(chunks, timeout) = GetVectorWriteArgs(simulate);
+      std::vector<buffer_t> buffers;
+      std::tie(chunks, timeout, buffers) = GetVectorWriteArgs();
       metric.ios["VectorWrite::n"]++;
       for (auto& ch : chunks)
       {
@@ -545,12 +648,11 @@ class ActionExecutor
       mytimer_t timer;
       if (!simulate)
         Async(VectorWrite(file, chunks, timeout) >>
-              [this, orgststr{ orgststr }, chunks, ending, closing, timer, &metric](XRootDStatus& s) mutable
+              [this, orgststr{ orgststr }, buffers, ending, closing, timer, &metric](XRootDStatus& s) mutable
               {
                 metric.addIos("VectorWrite", "e", HandleStatus(s, orgststr, "VectorWrite"));
                 metric.addDelays("VectorWrite", "tmeas", timer.elapsed());
-                for (auto& ch : chunks)
-                  delete[](char*) ch.buffer;
+                buffers.clear();
                 ending.reset();
                 closing.reset();
               });
@@ -646,7 +748,7 @@ class ActionExecutor
       throw std::invalid_argument("Failed to parse read arguments.");
     uint64_t offset  = std::stoull(tokens[0]);
     uint32_t length  = std::stoul(tokens[1]);
-    auto     buffer  = std::make_shared<std::vector<char>>(length, 'A');
+    auto     buffer  = BufferPool::Instance().Allocate( length );
     uint16_t timeout = static_cast<uint16_t>(std::stoul(tokens[2]));
     return std::make_tuple(offset, buffer, timeout);
   }
@@ -688,31 +790,30 @@ class ActionExecutor
   //--------------------------------------------------------------------------
   //! Parse arguments for vector read
   //--------------------------------------------------------------------------
-  std::tuple<ChunkList, uint16_t> GetVectorReadArgs(bool simulate)
+  std::tuple<ChunkList, uint16_t, std::vector<buffer_t>> GetVectorReadArgs()
   {
     std::vector<std::string> tokens;
     Utils::splitString(tokens, args, ";");
     ChunkList chunks;
+    chunks.reserve( tokens.size() - 1 );
+    std::vector<buffer_t> buffers;
+    buffers.reserve( tokens.size() - 1 );
     for (size_t i = 0; i < tokens.size() - 1; i += 2)
     {
       uint64_t offset = std::stoull(tokens[i]);
       uint32_t length = std::stoul(tokens[i + 1]);
-      char*    buffer = new char[length];
-
-      if (!simulate)
-      {
-	memset(buffer, 'A', length);
-      }
-      chunks.emplace_back(offset, length, buffer);
+      auto     buffer  = BufferPool::Instance().Allocate( length );
+      chunks.emplace_back(offset, length, buffer->data());
+      buffers.emplace_back( std::move( buffer ) );
     }
     uint16_t timeout = static_cast<uint16_t>(std::stoul(tokens.back()));
-    return std::make_tuple(std::move(chunks), timeout);
+    return std::make_tuple(std::move(chunks), timeout, std::move(buffers));
   }
 
   //--------------------------------------------------------------------------
   //! Parse arguments for vector write
   //--------------------------------------------------------------------------
-  inline std::tuple<ChunkList, uint16_t> GetVectorWriteArgs(bool simulate) { return GetVectorReadArgs(simulate); }
+  inline std::tuple<ChunkList, uint16_t, std::vector<buffer_t>> GetVectorWriteArgs() { return GetVectorReadArgs(); }
 
   File&             file;             //< the file object
   const std::string action;           //< the action to be executed

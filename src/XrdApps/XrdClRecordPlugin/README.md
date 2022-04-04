@@ -301,12 +301,11 @@ General output:
 | `Syncrhonicity (W)`        | 100=sync 1=async IO for writes             | `synchronicity::write`                         |
 | `Response Errors`          | number of IOs which were not successfull   | `response::error`                              |
 
+_________________
 
+## 2.8 Memory consumption
 
-
-
-
-
+It is possible to limit the memory consumption of xrdreplay by setting the `XRD_MAXBUFFERSIZE` environment variable, following sufixes are supported: kb, mb, gb (case insensitive).
 
 
 
