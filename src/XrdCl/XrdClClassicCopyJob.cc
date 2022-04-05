@@ -694,7 +694,7 @@ namespace
         if( !pUrl->IsLocalFile() ||
            ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
         {
-          pFile->GetProperty( "DataServer", pDataServer );
+          pFile->GetProperty( "LastURL", pDataServer );
         }
 
 
