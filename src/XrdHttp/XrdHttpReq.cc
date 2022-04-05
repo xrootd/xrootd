@@ -2692,8 +2692,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(httpStatusCode, NULL, NULL,
-                             httpStatusText.c_str(), httpStatusText.length(), false);
+        if (xrderrcode == kXR_ItExists) {
+          prot->SendSimpleResp(405, NULL, NULL, (char *) "Method is not allowed; resource already exists.", 0, false);
+        } else {
+          prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                               httpStatusText.c_str(), httpStatusText.length(), false);
+        }
         return -1;
       }
 
