@@ -38,6 +38,8 @@ Prerelease Notes
   **Commits: 0bfc0ca2
 
 + **Minor bug fixes**
+  **[HTTP]** Use 405 for mkcol/mkdir EEXIST.
+  **Commits: 0a63a309
   **[Proxy]** Allow for URLs with username.
   **Commits: 05a8c0ed
   **[XrdPss]** Do not trigger DeepLocate when pss.origin is http(s)
