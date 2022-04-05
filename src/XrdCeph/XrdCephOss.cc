@@ -31,6 +31,8 @@
 #include "XrdCeph/XrdCephOssDir.hh"
 #include "XrdCeph/XrdCephOssFile.hh"
 #include "XrdCeph/XrdCephPosix.hh"
+#include "XrdCeph/XrdCephOssBufferedFile.hh"
+#include "XrdCeph/XrdCephOssReadVFile.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -44,11 +46,19 @@ XrdVERSIONINFO(XrdOssGetStorageSystem, XrdCephOss);
 XrdSysError XrdCephEroute(0);
 XrdOucTrace XrdCephTrace(&XrdCephEroute);
 
+/// timestamp output for logging messages
+static std::string ts() {
+    std::time_t t = std::time(nullptr);
+    char mbstr[50];
+    std::strftime(mbstr, sizeof(mbstr), "%y%m%d %H:%M:%S ", std::localtime(&t));
+    return std::string(mbstr);
+}
+
 // log wrapping function to be used by ceph_posix interface
 char g_logstring[1024];
 static void logwrapper(char *format, va_list argp) {
   vsnprintf(g_logstring, 1024, format, argp);
-  XrdCephEroute.Say(g_logstring);
+  XrdCephEroute.Say(ts().c_str(), g_logstring);
 }
 
 /// pointer to library providing Name2Name interface. 0 be default
@@ -95,6 +105,8 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
    int NoGo = 0;
    XrdOucEnv myEnv;
    XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+   //disable posc  
+   XrdOucEnv::Export("XRDXROOTD_NOPOSC", "1");
    // If there is no config file, nothing to be done
    if (configfn && *configfn) {
      // Try to open the configuration file.
@@ -125,23 +137,120 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
        if (!strncmp(var, "ceph.namelib", 12)) {
          var = Config.GetWord();
          if (var) {
+           std::string libname = var;
            // Warn in case parameters were givne
            char parms[1040];
+           bool hasParms{false};
            if (!Config.GetRest(parms, sizeof(parms)) || parms[0]) {
-             Eroute.Emsg("Config", "namelib parameters will be ignored");
+              hasParms = true;
            }
            // Load name lib
-           XrdOucN2NLoader n2nLoader(&Eroute,configfn,NULL,NULL,NULL);
-           g_namelib = n2nLoader.Load(var, XrdVERSIONINFOVAR(XrdOssGetStorageSystem), NULL);
+           XrdOucN2NLoader  n2nLoader(&Eroute,configfn,(hasParms?parms:""),NULL,NULL);
+           g_namelib = n2nLoader.Load(libname.c_str(), XrdVERSIONINFOVAR(XrdOssGetStorageSystem), NULL);
            if (!g_namelib) {
              Eroute.Emsg("Config", "Unable to load library given in ceph.namelib : %s", var);
            }
          } else {
-           Eroute.Emsg("Config", "Missing value for ceph.namelib in config file", configfn);
+           Eroute.Emsg("Config", "Missing value for ceph.namelib in config file ", configfn);
            return 1;
          }
        }
-     }
+        if (!strncmp(var, "ceph.usebuffer", 14)) { // allowable values: 0, 1
+         var = Config.GetWord();
+         if (var) {
+           unsigned long value = strtoul(var, 0, 10);
+           if (value <= 1) {
+             m_configBufferEnable = value;
+             Eroute.Emsg("Config", "ceph.usebuffer",std::to_string(m_configBufferEnable).c_str());
+           } else {
+             Eroute.Emsg("Config", "Invalid value for ceph.usebuffer in config file (must be 0 or 1)", configfn, var);
+             return 1;
+           }
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.usebuffer in config file", configfn);
+           return 1;
+         }
+       } // usebuffer
+        if (!strncmp(var, "ceph.buffersize", 15)) { // size in bytes
+         var = Config.GetWord();
+         if (var) {
+           unsigned long value = strtoul(var, 0, 10);
+           if (value > 0 and value <= 1000000000L) {
+             m_configBufferSize = value;
+            Eroute.Emsg("Config", "ceph.buffersize", std::to_string(m_configBufferSize).c_str() ); 
+           } else {
+             Eroute.Emsg("Config", "Invalid value for ceph.buffersize in config file; enter in bytes (no units)", configfn, var);
+             return 1;
+           }
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.buffersize in config file", configfn);
+           return 1;
+         }
+       } // buffersize
+        if (!strncmp(var, "ceph.buffermaxpersimul", 22)) { // size in bytes
+         var = Config.GetWord();
+         if (var) {
+           unsigned long value = strtoul(var, 0, 10);
+           if (value > 0 and value <= 1000000000L) {
+             m_configMaxSimulBufferCount = value;
+            Eroute.Emsg("Config", "ceph.buffermaxpersimul", std::to_string(m_configMaxSimulBufferCount).c_str() ); 
+           } else {
+             Eroute.Emsg("Config", "Invalid value for ceph.buffermaxpersimul in config file; enter in bytes (no units)", configfn, var);
+             return 1;
+           }
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.buffermaxpersimul in config file", configfn);
+           return 1;
+         }
+       } // buffersize
+
+          if (!strncmp(var, "ceph.usereadv", 13)) { // allowable values: 0, 1
+         var = Config.GetWord();
+         if (var) {
+           unsigned long value = strtoul(var, 0, 10);
+           if (value <= 1) {
+             m_configReadVEnable = value;
+             Eroute.Emsg("Config", "ceph.usereadvalg",std::to_string(m_configBufferEnable).c_str());
+           } else {
+             Eroute.Emsg("Config", "Invalid value for ceph.usereadv in config file (must be 0 or 1)", configfn, var);
+             return 1;
+           }
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.usereadv in config file", configfn);
+           return 1;
+         }
+       } // usereadv
+       if (!strncmp(var, "ceph.readvalgname", 17)) {
+         var = Config.GetWord();
+        // Eroute.Emsg("Config", "readvalgname readvalgname readvalgname readvalgname", var);
+         if (var) {
+           // Warn in case parameters were givne
+           char parms[1040];
+           if (!Config.GetRest(parms, sizeof(parms)) || parms[0]) {
+             Eroute.Emsg("Config", "readvalgname parameters will be ignored");
+           }
+          m_configReadVAlgName = var;
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.readvalgname in config file", configfn);
+           return 1;
+         }
+       }
+       if (!strncmp(var, "ceph.bufferiomode", 17)) {
+         var = Config.GetWord();
+         if (var) {
+           // Warn in case parameters were givne
+           char parms[1040];
+           if (!Config.GetRest(parms, sizeof(parms)) || parms[0]) {
+             Eroute.Emsg("Config", "readvalgname parameters will be ignored");
+           }
+          m_configBufferIOmode = var; // allowed values would be aio, io
+         } else {
+           Eroute.Emsg("Config", "Missing value for ceph.bufferiomode in config file", configfn);
+           return 1;
+         }
+       }
+
+     } // while
 
      // Now check if any errors occurred during file i/o
      int retc = Config.LastError();
@@ -251,6 +360,22 @@ XrdOssDF* XrdCephOss::newDir(const char *tident) {
 }
 
 XrdOssDF* XrdCephOss::newFile(const char *tident) {
-  return new XrdCephOssFile(this);
+
+  // Depending on the configuration settings stack up the underlying 
+  // XrdCephOssFile instance with decorator objects for readV and Buffering requests
+
+  XrdCephOssFile* xrdCephOssDF =  new XrdCephOssFile(this);
+  
+  if (m_configReadVEnable) {
+    xrdCephOssDF = new XrdCephOssReadVFile(this,xrdCephOssDF,m_configReadVAlgName);
+  }
+
+  if (m_configBufferEnable) {
+    xrdCephOssDF = new XrdCephOssBufferedFile(this,xrdCephOssDF, m_configBufferSize, 
+                                              m_configBufferIOmode, m_configMaxSimulBufferCount);
+  }
+
+
+  return xrdCephOssDF;
 }
 

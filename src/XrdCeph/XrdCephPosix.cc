@@ -41,6 +41,7 @@
 #include <sstream>
 #include <sys/xattr.h>
 #include <time.h>
+#include <chrono>
 #include <limits>
 #include <pthread.h>
 #include "XrdSfs/XrdSfsAio.hh"
@@ -49,6 +50,8 @@
 #include "XrdSys/XrdSysPlatform.hh"
 
 #include "XrdCeph/XrdCephPosix.hh"
+
+#include "XrdSfs/XrdSfsFlags.hh" // for the OFFLINE flag status 
 
 /// small structs to store file metadata
 struct CephFile {
@@ -129,6 +132,9 @@ XrdSysMutex g_fd_mutex;
 /// mutex protecting initialization of ceph clusters
 XrdSysMutex g_init_mutex;
 
+//JW Counter for number of times a given cluster is resolved.
+std::map<unsigned int, unsigned long long> g_idxCntr;
+
 /// Accessor to next ceph pool index
 /// Note that this is not thread safe, but we do not care
 /// as we only want a rough load balancing
@@ -152,6 +158,8 @@ unsigned int getCephPoolIdxAndIncrease() {
     nextValue = 0;
   }
   g_cephPoolIdx = nextValue;
+  // JW logging of accesses:
+  ++g_idxCntr[res];
   return res;
 }
 
@@ -251,6 +259,32 @@ static unsigned int stoui(const std::string &s) {
   }
   return (unsigned int)res;
 }
+
+void dumpClusterInfo() {
+  //JW
+  // log the current state of the cluster:
+  // don't want to lock here, so the numbers may not be 100% self-consistent
+  int n_cluster = g_cluster.size();
+  int n_ioCtx = g_ioCtx.size();
+  int n_filesOpenForWrite = g_filesOpenForWrite.size();
+  int n_fds = g_fds.size(); 
+  int n_stripers = g_radosStripers.size(); 
+  int n_stripers_pool = 0;
+  for (size_t i = 0; i < g_radosStripers.size(); ++i) {
+    n_stripers_pool += g_radosStripers.at(i).size();
+  }
+  std::stringstream ss;
+  ss << "Counts: " << n_cluster << " " << n_ioCtx << " " << n_filesOpenForWrite << " " 
+     << n_fds << " " << n_stripers << " " << n_stripers_pool << " " << n_stripers_pool 
+     << " CountsbyCluster: [";
+  for (const auto& el : g_idxCntr) {
+    ss << el.first << ":" << el.second << ", " ;
+  } // it
+  ss<< "], ";
+
+    logwrapper((char*)"dumpClusterInfo : %s", ss.str().c_str());
+}
+
 
 /// fills the userId of a ceph file struct from a string and an environment
 /// returns position of first character after the userId
@@ -400,9 +434,11 @@ void translateFileName(std::string &physName, std::string logName){
       logwrapper((char*)"ceph_namelib : failed to translate %s using namelib plugin, using it as is", logName.c_str());
       physName = logName;
     } else {
+      logwrapper((char*)"ceph_namelib : translated %s to %s", logName.c_str(), physCName);
       physName = physCName;
     }
   } else {
+    //logwrapper((char*)"ceph_namelib : No mapping done");
     physName = logName;
   }
 }
@@ -417,14 +453,16 @@ void fillCephFile(const char *path, XrdOucEnv *env, CephFile &file) {
   // If env is null or no entry is found for what is missing, defaults are
   // applied. These defaults are initially set to 'admin', 'default', 1, 4MB and 4MB
   // but can be changed via a call to ceph_posix_set_defaults
-  std::string spath = path;
+  std::string spath {path};
+  // If namelib is specified, apply translation to the whole path (which might include pool, etc)
+  translateFileName(spath,path);
   size_t colonPos = spath.find(':');
   if (std::string::npos == colonPos) {
     // deal with name translation
-    translateFileName(file.name, spath);
+    file.name = spath;
     fillCephFileParams("", env, file);
   } else {
-    translateFileName(file.name, spath.substr(colonPos+1));
+    file.name = spath.substr(colonPos+1);
     fillCephFileParams(spath.substr(0, colonPos), env, file);
   }
 }
@@ -652,12 +690,12 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
 
   struct stat buf;
   libradosstriper::RadosStriper *striper = getRadosStriper(fr); //Get a handle to the RADOS striper API
- 
   if (NULL == striper) {
     logwrapper((char*)"Cannot create striper");  
     return -EINVAL;
   }
- 
+  dumpClusterInfo(); // JW enhanced logging
+
   int rc = striper->stat(fr.name, (uint64_t*)&(buf.st_size), &(buf.st_atime)); //Get details about a file
   
  
@@ -681,7 +719,11 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
           return rc;
         }
       } else {
-        return -EEXIST;
+        if (flags & O_EXCL) {
+          return -EACCES; // permission denied
+        } else {
+          return -EEXIST; // otherwise return just file exists
+        }
       }
     }
     // At this point, we know either the target file didn't exist, or the ceph_posix_unlink above removed it
@@ -1275,6 +1317,9 @@ int ceph_posix_truncate(XrdOucEnv* env, const char *pathname, unsigned long long
 
 int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {
   logwrapper((char*)"ceph_posix_unlink : %s", pathname);
+  // start the timer
+  auto timer_start = std::chrono::steady_clock::now();
+
   // minimal stat : only size and times are filled
   CephFile file = getCephFile(pathname, env);
   libradosstriper::RadosStriper *striper = getRadosStriper(file);
@@ -1282,7 +1327,15 @@ int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {
     return -EINVAL;
   }
   int rc = striper->remove(file.name);
+  auto end = std::chrono::steady_clock::now();
+  auto deltime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - timer_start).count();
+
+  if (rc == 0) {
+      logwrapper((char*)"ceph_posix_unlink : %s unlink successful: %d ms", pathname, deltime_ms);
+      return 0;
+  }
   if (rc != -EBUSY) {
+    logwrapper((char*)"ceph_posix_unlink : %s unlink failed: %d ms; return code %d", pathname, deltime_ms, rc);
     return rc; 
   }
   // if EBUSY returned, assume the file is locked; so try to remove the lock
@@ -1297,10 +1350,13 @@ int ceph_posix_unlink(XrdOucEnv* env, const char *pathname) {
 
   // now try to remove again
   rc = striper->remove(file.name);
+  end = std::chrono::steady_clock::now();
+  deltime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - timer_start).count();
+
   if (rc != 0) {
-    logwrapper((char*)"ceph_posix_unlink : unlink failed after lock removal %s, %d", pathname, rc);
+    logwrapper((char*)"ceph_posix_unlink : unlink failed after lock removal %s, %d ms", pathname, deltime_ms);
   } else {
-    logwrapper((char*)"ceph_posix_unlink : unlink suceeded after lock removal %s, %d", pathname, rc);
+    logwrapper((char*)"ceph_posix_unlink : unlink suceeded after lock removal %s, %d ms", pathname, deltime_ms);
   }
   return rc; 
 }
