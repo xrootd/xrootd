@@ -35,6 +35,18 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSys/XrdSysXAttr.hh>
 
+// simple logging for XrdCeph buffering code
+#define XRDCEPHLOGLEVEL 1
+#ifdef XRDCEPHLOGLEVEL 
+  // ensure that 
+  //   extern XrdOucTrace XrdCephTrace; 
+  // is in the cc file where you want to log // << std::endl
+  //#define LOGCEPH(x) {std::stringstream _s; _s << x;   XrdCephTrace.Beg(); std::clog << _s.str() ; XrdCephTrace.End(); _s.clear();}
+  #define LOGCEPH(x) {std::stringstream _s; _s << x;  std::clog << _s.str() << std::endl; _s.clear(); }
+#else 
+  #define LOGCEPH(x) 
+#endif 
+
 class XrdSfsAio;
 typedef void(AioCB)(XrdSfsAio*, size_t);
 
