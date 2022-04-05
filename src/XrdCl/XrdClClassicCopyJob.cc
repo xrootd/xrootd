@@ -689,7 +689,7 @@ namespace
         if( ( !pUrl->IsLocalFile() && !pFile->IsSecure() ) ||
             ( pUrl->IsLocalFile() && pUrl->IsMetalink() ) )
         {
-          pFile->GetProperty( "DataServer", pDataServer );
+          pFile->GetProperty( "LastURL", pDataServer );
           //--------------------------------------------------------------------
           // Decide whether we can use PgRead
           //--------------------------------------------------------------------
