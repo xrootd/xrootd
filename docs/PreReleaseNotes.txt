@@ -10,6 +10,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[HTTP]** Use 405 for mkcol/mkdir EEXIST.
 
 + **Miscellaneous**
   **[Tests]** Fix strcpy overflow.
