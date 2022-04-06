@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Implement gStream to monitor all http and xroot TPC events.
+  **Commits: 00fadbee
   **[Server]** Bring packet marking up to current specification.
   **Commits: 0d7f8633
   **[Server]** Provide g-stream monitoring for Third Party Copy (TPC).
