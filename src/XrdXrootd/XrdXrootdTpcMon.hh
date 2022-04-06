@@ -43,6 +43,7 @@ public:
 
 struct TpcInfo
 {
+const char*      clID;   // Client ID
 struct timeval   begT;   // gettimeofday copy started
 struct timeval   endT;   // gettimeofday copy ended
 const char*      srcURL; // The source URL used
@@ -56,7 +57,8 @@ unsigned char    rsvd;   // Reserved
 static const int isaPush = 0x0001; // opts: Push request otherwise a pull
 static const int isIPv4  = 0x0002; // opts: Used IPv4 for xfr else IPv6.
 
-void             Init() {begT.tv_sec = 0; begT.tv_usec = 0;
+void             Init() {clID  = "";
+                         begT.tv_sec = 0; begT.tv_usec = 0;
                          endT.tv_sec = 0; endT.tv_usec = 0;
                          srcURL = "";     dstURL = "";
                          fSize  = 0;      endRC  = 0,

@@ -49,6 +49,7 @@ TPCHandler::TPCLogRecord::~TPCLogRecord()
    if (tpcMonitor)
       {XrdXrootdTpcMon::TpcInfo monInfo;
 
+       monInfo.clID = clID.c_str();
        monInfo.begT = begT;
        gettimeofday(&monInfo.endT, 0);
 
@@ -803,6 +804,7 @@ int TPCHandler::ProcessPushReq(const std::string & resource, XrdHttpExtReq &req)
     rec.local = req.resource;
     rec.remote = resource;
     char *name = req.GetSecEntity().name;
+    req.GetClientID(rec.clID);
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PUSH_START", "Starting a push request");
 
@@ -882,6 +884,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     rec.local = req.resource;
     rec.remote = resource;
     char *name = req.GetSecEntity().name;
+    req.GetClientID(rec.clID);
     if (name) rec.name = name;
     logTransferEvent(LogMask::Info, rec, "PULL_START", "Starting a pull request");
 

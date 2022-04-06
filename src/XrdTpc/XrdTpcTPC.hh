@@ -68,6 +68,7 @@ private:
         std::string local;
         std::string remote;
         std::string name;
+        std::string clID;
         static XrdXrootdTpcMon* tpcMonitor;
         timeval     begT;
         off_t bytes_transferred;

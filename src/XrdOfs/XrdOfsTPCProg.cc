@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
   
+#include "XrdNet/XrdNetIdentity.hh"
 #include "XrdOfs/XrdOfsTPC.hh"
 #include "XrdOfs/XrdOfsTPCConfig.hh"
 #include "XrdOfs/XrdOfsTPCJob.hh"
@@ -188,9 +189,11 @@ void XrdOfsTPCProg::Run()
 {
    XrdXrootdTpcMon::TpcInfo monInfo;
    struct stat Stat;
+   const char *clID, *at;
    char *questSrc, *questLfn, *questDst;
    int rc;
-   bool doMon = Cfg.tpcMon != 0;
+   bool isIPv4, doMon = Cfg.tpcMon != 0;
+   char clBuff[592];
 
 // Run the current job and indicate it's ending status and possibly getting a
 // another job to run. Note "Job" will always be valid.
@@ -200,7 +203,7 @@ do{if (doMon)
        gettimeofday(&monInfo.begT, 0);
       }
 
-   rc = Xeq();
+   rc = Xeq(isIPv4);
 
    if (doMon)
       {gettimeofday(&monInfo.endT, 0);
@@ -210,7 +213,17 @@ do{if (doMon)
        monInfo.dstURL = Job->Info.Lfn;
        monInfo.endRC  = rc;
        if (Job->Info.Str) monInfo.strm = Job->Info.Str;
-       //??? Need to set ipv4/6 bit
+       if (isIPv4) monInfo.opts |= XrdXrootdTpcMon::TpcInfo::isIPv4;
+
+       clID = Job->Info.Org;
+       if (clID && (at = index(clID, '@')) && !index(at+1, '.'))
+          {const char *dName = XrdNetIdentity::Domain();
+           if (dName)
+              {snprintf(clBuff, sizeof(clBuff), "%s%s", clID, dName);
+               clID = clBuff;
+              }
+          }
+       monInfo.clID = clID;
 
        if ((questDst = index(Job->Info.Dst, '?'))) *questDst = 0;
        if (!XrdOfsOss->Stat(Job->Info.Dst, &Stat)) monInfo.fSize = Stat.st_size;
@@ -264,7 +277,7 @@ XrdOfsTPCProg *XrdOfsTPCProg::Start(XrdOfsTPCJob *jP, int &rc)
 /*                                   X e q                                    */
 /******************************************************************************/
 
-int XrdOfsTPCProg::Xeq()
+int XrdOfsTPCProg::Xeq(bool &isIPv4)
 {
    EPNAME("Xeq");
    credFile cFile(Job);
@@ -358,8 +371,10 @@ int XrdOfsTPCProg::Xeq()
 // be printed as an error message should the copy fail.
 //
    *eRec = 0;
+   isIPv4 = false;
    while((lP = JobStream.GetLine()))
-        {if ((Colon = index(lP, ':')) && *(Colon+1) == ' ')
+        {if (!strcmp(lP, "!-!IPv4")) isIPv4 = true;
+         if ((Colon = index(lP, ':')) && *(Colon+1) == ' ')
             {strncpy(eRec, Colon+2, sizeof(eRec)-1); 
              eRec[sizeof(eRec)-1] = 0;
             }

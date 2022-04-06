@@ -41,9 +41,9 @@
   
 namespace
 {
-const char *json_fmt = "{\"TPC\":\"%s\","
+const char *json_fmt = "{\"TPC\":\"%s\",\"Client\":\"%s\","
 "\"Xeq\":{\"Beg\":\"%s\",\"End\":\"%s\",\"RC\":%d,\"Strm\":%u,\"Type\":\"%s\","
-        "\"IPv\":%c},},"
+        "\"IPv\":%c},"
 "\"Src\":\"%s\",\"Dst\":\"%s\",\"Size\":%d}";
 
 const char *urlFMT = "";
@@ -133,7 +133,7 @@ void XrdXrootdTpcMon::Report(XrdXrootdTpcMon::TpcInfo &info)
 
 // Format the line
 //
-   int n = snprintf(buff, sizeof(buff), json_fmt, protocol,
+   int n = snprintf(buff, sizeof(buff), json_fmt, protocol, info.clID,
                     getUTC(info.begT, bt_buff, sizeof(bt_buff)),
                     getUTC(info.endT, et_buff, sizeof(et_buff)),
                     info.endRC, static_cast<unsigned int>(info.strm),

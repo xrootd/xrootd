@@ -21,7 +21,7 @@
 //------------------------------------------------------------------------------
 
 
-
+#include "Xrd/XrdLink.hh"
 #include "XrdHttpExtHandler.hh"
 #include "XrdHttpReq.hh"
 #include "XrdHttpProtocol.hh"
@@ -70,6 +70,12 @@ int XrdHttpExtReq::BuffgetData(int blen, char **data, bool wait) {
   return nb;
 }
 
+void XrdHttpExtReq::GetClientID(std::string &clid)
+{
+   char buff[512];
+   prot->Link->Client(buff, sizeof(buff));
+   clid = buff;
+}
 
 const XrdSecEntity &XrdHttpExtReq::GetSecEntity() const
 {

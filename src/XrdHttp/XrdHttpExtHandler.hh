@@ -54,6 +54,9 @@ public:
   
   std::string clientdn, clienthost, clientgroups;
   long long length;
+
+  // Get full client identifier
+  void GetClientID(std::string &clid);
   
   // A view of the XrdSecEntity associated with the request.
   const XrdSecEntity &GetSecEntity() const;

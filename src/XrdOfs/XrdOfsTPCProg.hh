@@ -50,7 +50,7 @@ static int       Init();
 static
 XrdOfsTPCProg   *Start(XrdOfsTPCJob *jP, int &rc);
 
-       int       Xeq();
+       int       Xeq(bool &isIPv4);
 
                  XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num, int errMon);
 
