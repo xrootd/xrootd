@@ -25,6 +25,7 @@
 #ifndef PYXROOTD_HH_
 #define PYXROOTD_HH_
 
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <string>
 #include "structmember.h"
