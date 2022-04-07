@@ -241,6 +241,7 @@ private:
         char *doelse();
         char *doif();
         bool  Echo(int ec, const char *t1, const char *t2=0, const char *t3=0);
+        int   getValue(const char *path, char *vbuff, int  vbsz);
         int   isSet(char *var);
         char *vSubs(char *Var);
         int   xMsg(const char *txt1, const char *txt2=0, const char *txt3=0);

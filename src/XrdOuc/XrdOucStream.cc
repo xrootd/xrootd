@@ -1319,6 +1319,32 @@ char *XrdOucStream::doif()
 }
 
 /******************************************************************************/
+/*                              g e t V a l u e                               */
+/******************************************************************************/
+  
+int XrdOucStream::getValue(const char *path, char *vbuff, int  vbsz)
+{
+   struct stat Stat;
+   int n, rc = 0, vFD;
+
+// Make sure the file exists and it not too big
+//
+   if (stat(path, &Stat)) return errno;
+   if (Stat.st_size >= vbsz) return EFBIG;
+
+// Open the file and read it in
+//
+   if ((vFD = XrdSysFD_Open(path, O_RDONLY)) < 0) return errno;
+   if ((n = read(vFD, vbuff, vbsz-1)) >= 0) vbuff[n] = 0;
+      else rc = errno;
+
+// All done
+//
+   close(vFD);
+   return rc;
+}
+  
+/******************************************************************************/
 /*                                 i s S e t                                  */
 /******************************************************************************/
   
@@ -1327,8 +1353,9 @@ int XrdOucStream::isSet(char *var)
    static const char *Mtxt1[2] = {"setenv", "set"};
    static const char *Mtxt2[2] = {"Setenv variable", "Set variable"};
    static const char *Mtxt3[2] = {"Variable", "Environmental variable"};
-   char *tp, *vn, *vp, *pv, Vname[64], ec, Nil = 0;
-   int sawEQ, Set = 1;
+   char *tp, *vn, *vp, *pv, Vname[64], ec, Nil = 0, sawIT = 0;
+   int Set = 1;
+   char valBuff[1024];
 
 // Process set var = value | set -v | setenv = value
 //
@@ -1354,10 +1381,10 @@ int XrdOucStream::isSet(char *var)
       }
   }
 
-// Next may be var= | var | var=val
+// Next may be var= | var | var=val | var< | var<val
 //
-   if ((vp = index(tp, '='))) {sawEQ = 1; *vp = '\0'; vp++;}
-      else sawEQ = 0;
+   if ((vp = index(tp, '=')) || (vp = index(tp, '<')))
+      {sawIT = *vp; *vp = '\0'; vp++;}
    if (strlcpy(Vname, tp, sizeof(Vname)) >= sizeof(Vname))
       return xMsg(Mtxt2[Set],tp,"is too long.");
    if (!Set && !strncmp("XRD", Vname, 3))
@@ -1371,11 +1398,25 @@ int XrdOucStream::isSet(char *var)
 
 // Now look for the value
 //
-   if (sawEQ) tp = vp;
-      else if (!(tp = GetToken()) || *tp != '=')
+   if (sawIT) tp = vp;
+      else if (!(tp = GetToken()) || (*tp != '=' && *tp != '<'))
               return xMsg("Missing '=' after", Mtxt1[Set], Vname);
-              else tp++;
+              else {sawIT = *tp; tp++;}
    if (!*tp && !(tp = GetToken())) tp = (char *)"";
+
+// Handle reading value from a file
+//
+   if (sawIT == '<')
+      {int rc;
+       if (!*tp) return xMsg(Mtxt2[Set], Vname, "path to value not specified");
+       if ((rc = getValue(tp, valBuff, sizeof(valBuff))))
+          {char tbuff[512];
+           snprintf(tbuff, sizeof(tbuff), "cannot be set via path %s; %s",
+                    tp, XrdSysE2T(rc));
+           return xMsg(Mtxt2[Set], Vname, tbuff);
+          }
+       tp = valBuff;
+      }
 
 // The value may be '$var', in which case we need to get it out of the env if
 // this is a set or from our environment if this is a setenv
