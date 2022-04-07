@@ -641,3 +641,57 @@ jobs:
         python3 -c 'import XRootD; print(XRootD)'
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+  sdist-ubuntu:
+
+    # Use of sudo as https://github.com/actions/virtual-environments requires it
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install external dependencies with apt-get
+      run: |
+        sudo apt-get update -y
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
+          g++ \
+          git \
+          cmake \
+          uuid-dev \
+          dpkg-dev \
+          libssl-dev \
+          libx11-dev \
+          python3 \
+          python3-pip \
+          python3-venv \
+          python3-dev \
+          pkg-config \
+          tree
+        sudo apt-get autoclean -y
+        python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
+        python3 -m pip list
+
+    - name: Clone repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Build sdist using publishing workflow
+      run: |
+        cp packaging/wheel/* .
+        ./publish.sh
+        python3 -m pip --verbose install ./dist/xrootd-*.tar.gz
+        python3 -m pip list
+
+    - name: Show site-pacakges layout for XRootD modules
+      run: |
+        find $(python3 -c 'import XRootD; import pathlib; print(str(pathlib.Path(XRootD.__path__[0]).parent))') \
+          -type d \
+          -iname "*xrootd*" | xargs tree
+
+    - name: Verify Python bindings
+      run: |
+        python3 --version --version
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
