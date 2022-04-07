@@ -282,8 +282,8 @@ jobs:
     - name: Verify Python bindings
       run: |
         export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
-        export PYTHON_VERSION_MINOR=$(_tmp=$(find /usr/local/lib/ -type d -iname "python*") && echo ${_tmp: -3}; unset _tmp)
-        export PYTHONPATH="/usr/local/lib/python${PYTHON_VERSION_MINOR}/site-packages:${PYTHONPATH}"
+        export PYTHON_VERSION_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info.minor}")')
+        export PYTHONPATH="/usr/local/lib/python3.${PYTHON_VERSION_MINOR}/site-packages:${PYTHONPATH}"
         python3 -m pip list
         python3 -m pip show xrootd
         python3 -c 'import XRootD; print(XRootD)'
