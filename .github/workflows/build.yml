@@ -252,7 +252,7 @@ jobs:
         python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
 
     - name: Clone repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -313,7 +313,7 @@ jobs:
         python3 -m pip list
 
     - name: Clone repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -445,7 +445,7 @@ jobs:
         dnf clean all
 
     - name: Clone repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -504,7 +504,7 @@ jobs:
         sudo apt-get autoclean -y
 
     - name: Clone repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
