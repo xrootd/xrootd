@@ -52,6 +52,8 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[SciTomkens]** Also grant Readdir when token grants read permission.
+  **Commits: 8b05e3e
   **[Tests]** Fix strcpy overflow.
   **Commits: 4e112ac
   **[HttpTpc]** Vector cleared after use so it can be shrunk.
