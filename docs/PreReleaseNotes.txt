@@ -13,6 +13,8 @@ Prerelease Notes
   **[HTTP]** Use 405 for mkcol/mkdir EEXIST.
 
 + **Miscellaneous**
+  **[SciTomkens]** Also grant Readdir when token grants read permission.
+  **Commits: 8b05e3e
   **[Tests]** Fix strcpy overflow.
   **Commits: 4e112ac
   **[HttpTpc]** Vector cleared after use so it can be shrunk.
