@@ -116,6 +116,7 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
     EPNAME("Create")
     const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
     char  local_path[MAXPATHLEN+1], *p, pc;
+    local_path[0] = '\0';
     unsigned long long remotefs;
     int isLink = 0, Missing = 1, retc = 0, datfd;
     XrdOssCreateInfo crInfo(local_path, path, access_mode, Opts);
