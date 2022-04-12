@@ -113,6 +113,9 @@ private:
   void parseResource(char *url);
   // Map an XRootD error code to an appropriate HTTP status code and message
   void mapXrdErrorToHttpStatus();
+  
+  // Sanitize the resource from http[s]://[host]/ questionable prefix
+  void sanitizeResourcePfx();
 public:
 
   XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {
