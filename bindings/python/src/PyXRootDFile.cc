@@ -424,7 +424,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "buffer", "offset", "size", "timeout",
                                      "callback", NULL };
     const  char *buffer;
-    int          buffsize;
+    Py_ssize_t   buffsize;
     uint64_t     offset   = 0;
     uint32_t     size     = 0;
     uint16_t     timeout  = 0;
@@ -641,7 +641,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "arg", "timeout", "callback", NULL };
     const char         *buffer   = 0;
-    int                 buffSize = 0;
+    Py_ssize_t          buffSize = 0;
     uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
