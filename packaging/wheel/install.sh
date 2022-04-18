@@ -40,7 +40,7 @@ fi
 cd ../bindings/python
 
 # Determine if shutil.which is available for a modern Python package install
-${6} -c 'import shutil.which' &> /dev/null  # $6 holds the python sys.executable
+${6} -c 'from shutil import which' &> /dev/null  # $6 holds the python sys.executable
 shutil_which_available=$?
 if [ "${shutil_which_available}" -ne "0" ]; then
     ${6} setup.py install ${3}
