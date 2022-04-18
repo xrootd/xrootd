@@ -112,6 +112,7 @@ BuildRequires: python2-devel
 BuildRequires: python2-setuptools
 %endif
 %if %{python2and3}
+BuildRequires: python2-pip
 BuildRequires: python2-devel
 BuildRequires: python2-setuptools
 BuildRequires: python%{python3_pkgversion}-devel
