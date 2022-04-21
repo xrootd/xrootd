@@ -305,7 +305,6 @@ jobs:
           krb5 \
           ossp-uuid \
           libxml2 \
-          git \
           openssl@3
 
     - name: Install necessary Python libraries
