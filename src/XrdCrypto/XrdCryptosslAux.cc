@@ -762,13 +762,13 @@ void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s)
 
 #ifndef USEX509NAMEONELINE
    BIO *mbio = BIO_new(BIO_s_mem());
-   X509_NAME_print_ex(mbio, nm, 0, XN_FLAG_COMPAT);
+   X509_NAME_print_ex(mbio, nm, 0, XN_FLAG_SEP_MULTILINE);
    char *data = 0;
    long len = BIO_get_mem_data(mbio, &data);
    s = "/";
    s.insert(data, 1, len);
    BIO_free(mbio);
-   s.replace(", ", "/");
+   s.replace("\n", "/");
 #else
    char *xn = X509_NAME_oneline(nm, 0, 0);
    s = xn;
