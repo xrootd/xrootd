@@ -6,6 +6,7 @@ Class Reference
 ---------------
 
 .. module:: XRootD.client
+   :noindex:
 
 .. autoclass:: XRootD.client.URL()
 

@@ -76,8 +76,8 @@ class File(object):
               object and None
 
     As of Python 2.5, you can avoid having to call this method explicitly if you
-    use the :keyword:`with` statement.  For example, the following code will
-    automatically close *f* when the :keyword:`with` block is exited::
+    use the `with` statement.  For example, the following code will
+    automatically close *f* when the `with` block is exited::
 
       from __future__ import with_statement # This isn't required in Python 2.6
 
