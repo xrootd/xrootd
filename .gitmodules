@@ -1,6 +1,3 @@
-[submodule "src/XrdClHttp"]
-	path = src/XrdClHttp
-	url = https://github.com/xrootd/xrdcl-http
 [submodule "src/XrdCeph"]
 	path = src/XrdCeph
 	url = https://github.com/xrootd/xrootd-ceph
