@@ -145,3 +145,7 @@ if( ENABLE_VOMS AND (LINUX OR KFREEBSD OR Hurd) )
     set( BUILD_VOMS FALSE )
   endif()
 endif()
+
+if( ENABLE_XRDCLHTTP )
+  find_package( Davix REQUIRED )
+endif()

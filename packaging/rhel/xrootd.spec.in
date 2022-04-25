@@ -557,7 +557,7 @@ cmake  \
       -DXRDCEPH_SUBMODULE=TRUE \
 %endif
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
-      -DXRDCLHTTP_SUBMODULE=TRUE \
+      -DENABLE_XRDCLHTTP=TRUE \
 %endif
 %if %{?_with_isal:1}%{!?_with_isal:0}
       -DENABLE_XRDEC=TRUE \
@@ -597,7 +597,7 @@ cmake  \
       -DXRDCEPH_SUBMODULE=TRUE \
 %endif
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
-      -DXRDCLHTTP_SUBMODULE=TRUE \
+      -DENABLE_XRDEC=TRUE \
 %endif
       ../
 

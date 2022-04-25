@@ -27,4 +27,5 @@ option( ENABLE_VOMS      "Enable VOMS plug-in if possible."                     
 option( ENABLE_XRDEC     "Enable erasure coding component."                               FALSE )
 option( ENABLE_ASAN      "Enable adress sanitizer."                                       FALSE )
 option( ENABLE_OPENSSL3  "Enable openssl3 support."                                       TRUE )
+option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                                      FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 2.4 )
