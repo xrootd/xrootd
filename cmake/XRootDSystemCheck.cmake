@@ -6,6 +6,7 @@ include( CheckFunctionExists )
 include( CheckSymbolExists ) 
 include( CheckLibraryExists )
 include( CheckIncludeFile )
+include( CheckCXXSourceCompiles )
 include( CheckCXXSourceRuns )
 include( XRootDUtils )
 
@@ -58,7 +59,7 @@ if( NOT HAVE_GETHBYXR )
 endif()
 
 if( HAVE_GETHBYXR_IN_SOCKET OR HAVE_PROTOR_IN_SOCKET OR HAVE_NAMEINFO_IN_SOCKET )
-  set( SOCKET_LIBRARY "-lsocket" )
+  set( SOCKET_LIBRARY "socket" )
 else()
   set( SOCKET_LIBRARY "" )
 endif()
@@ -73,7 +74,6 @@ if( NOT MacOSX )
   if( NOT HAVE_SENDFILE )
     check_library_exists( sendfile sendfile "" HAVE_SENDFILE_IN_SENDFILE )
     compiler_define_if_found( HAVE_SENDFILE_IN_SENDFILE HAVE_SENDFILE )
-
     if( HAVE_SENDFILE_IN_SENDFILE )
       set( SENDFILE_LIBRARY "sendfile" )
     endif()
@@ -85,13 +85,13 @@ endif()
 #-------------------------------------------------------------------------------
 check_function_exists( crypt HAVE_CRYPT )
 compiler_define_if_found( HAVE_CRYPT HAVE_CRYPT )
+set( CRYPT_LIBRARY "" )
 if( NOT HAVE_CRYPT )
   check_library_exists( crypt crypt "" HAVE_CRYPT_IN_CRYPT )
   compiler_define_if_found( HAVE_CRYPT_IN_CRYPT HAVE_CRYPT )
-  set( CRYPT_LIBRARY "-lcrypt" )
-endif()
-if( NOT HAVE_CRYPT AND NOT HAVE_CRYPT_IN_CRYPT )
-  set( CRYPT_LIBRARY "" )
+  if( HAVE_CRYPT_IN_CRYPT )
+    set( CRYPT_LIBRARY "crypt" )
+  endif()
 endif()
 
 check_include_file( et/com_err.h HAVE_ET_COM_ERR_H )
@@ -107,7 +107,7 @@ find_package( Threads )
 # Check for the atomics
 #-------------------------------------------------------------------------------
 if (CMAKE_CROSSCOMPILING)
-  message(WARNING "Cannot detect atomics support when cross-compiling, assuming atmoics are available")
+  message(WARNING "Cannot detect atomics support when cross-compiling, assuming atomics are available")
   set(HAVE_ATOMICS ON)
 else()
   check_cxx_source_runs(
@@ -138,5 +138,44 @@ if ( EnableAtomicsIfPresent )
   compiler_define_if_found( HAVE_ATOMICS HAVE_ATOMICS )
 endif ()
 
+#-------------------------------------------------------------------------------
+# Check if we need libatomic to use atomic operations in the C++ code.
+# (This is required for using 64 bit atomics on some 32 bit architectures.)
+#-------------------------------------------------------------------------------
+function(check_working_cxx_atomics varname)
+  set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -std=c++11")
+  check_cxx_source_compiles("
+#include <atomic>
+#include <cstdint>
+int main() {
+   std::atomic<int> a1(0);
+   int a1val = a1.load();
+   (void)a1val;
+   std::atomic<uint64_t> a2(0);
+   uint64_t a2val = a2.load(std::memory_order_relaxed);
+   (void)a2val;
+   return 0;
+}
+" ${varname})
+  set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
+endfunction(check_working_cxx_atomics varname)
 
+check_working_cxx_atomics(HAVE_CXX_ATOMICS_WITHOUT_LIB)
+set(ATOMIC_LIBRARY "")
+if(NOT HAVE_CXX_ATOMICS_WITHOUT_LIB)
+  check_library_exists(atomic __atomic_fetch_add_4 "" HAVE_LIBATOMIC)
+  if(HAVE_LIBATOMIC)
+    set(OLD_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+    list(APPEND CMAKE_REQUIRED_LIBRARIES "atomic")
+    check_working_cxx_atomics(HAVE_CXX_ATOMICS_WITH_LIB)
+    set(CMAKE_REQUIRED_LIBRARIES ${OLD_CMAKE_REQUIRED_LIBRARIES})
+    if(HAVE_CXX_ATOMICS_WITH_LIB)
+      set(ATOMIC_LIBRARY "atomic")
+    endif()
+  endif()
+endif()
 
+if (NOT HAVE_CXX_ATOMICS_WITHOUT_LIB AND NOT HAVE_CXX_ATOMICS_WITH_LIB)
+  message(FATAL_ERROR "Compiler must support std::atomic!")
+endif()
