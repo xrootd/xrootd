@@ -422,7 +422,6 @@ jobs:
 
     - name: Build sdist using publishing workflow
       run: |
-        . /opt/rh/devtoolset-7/enable
         cp packaging/wheel/* .
         ./publish.sh
         ls -lhtra dist/
@@ -559,6 +558,7 @@ jobs:
         yum update -y
         yum install --nogpg -y \
             cmake3 \
+            gcc-c++ \
             make \
             krb5-devel \
             libuuid-devel \
@@ -580,7 +580,6 @@ jobs:
 
     - name: Build sdist using publishing workflow
       run: |
-        . /opt/rh/devtoolset-7/enable
         cp packaging/wheel/* .
         ./publish.sh
         cd ..  # Move xrootd.egg-info off PYTHONPATH
@@ -606,6 +605,7 @@ jobs:
         yum update -y
         yum install --nogpg -y \
             cmake3 \
+            gcc-c++ \
             make \
             krb5-devel \
             libuuid-devel \
@@ -627,7 +627,6 @@ jobs:
 
     - name: Build sdist using publishing workflow
       run: |
-        . /opt/rh/devtoolset-7/enable
         cp packaging/wheel/* .
         ./publish.sh
         cd ..  # Move xrootd.egg-info off PYTHONPATH
