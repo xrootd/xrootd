@@ -230,8 +230,14 @@ void calcHashes(
         const char *key) {
 
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  EVP_MAC *mac;
+  EVP_MAC_CTX *ctx;
+  size_t len;
+#else
   HMAC_CTX *ctx;
   unsigned int len;
+#endif
   unsigned char mdbuf[EVP_MAX_MD_SIZE];
   char buf[64];
   struct tm tms;
@@ -249,6 +255,54 @@ void calcHashes(
   if (!fn || !secent) {
     return;
   }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+
+  mac = EVP_MAC_fetch(0, "sha256", 0);
+  ctx = EVP_MAC_CTX_new(mac);
+
+  if (!ctx) {
+     return;
+  }
+
+
+  EVP_MAC_init(ctx, (const unsigned char *) key, strlen(key), 0);
+
+
+  if (fn)
+    EVP_MAC_update(ctx, (const unsigned char *) fn,
+          strlen(fn) + 1);
+
+  EVP_MAC_update(ctx, (const unsigned char *) &request,
+          sizeof (request));
+
+  if (secent->name)
+    EVP_MAC_update(ctx, (const unsigned char *) secent->name,
+          strlen(secent->name) + 1);
+
+  if (secent->vorg)
+    EVP_MAC_update(ctx, (const unsigned char *) secent->vorg,
+          strlen(secent->vorg) + 1);
+
+  if (secent->host)
+    EVP_MAC_update(ctx, (const unsigned char *) secent->host,
+          strlen(secent->host) + 1);
+
+  if (secent->moninfo)
+    EVP_MAC_update(ctx, (const unsigned char *) secent->moninfo,
+          strlen(secent->moninfo) + 1);
+
+  localtime_r(&tim, &tms);
+  strftime(buf, sizeof (buf), "%s", &tms);
+  EVP_MAC_update(ctx, (const unsigned char *) buf,
+          strlen(buf) + 1);
+
+  EVP_MAC_final(ctx, mdbuf, &len, EVP_MAX_MD_SIZE);
+
+  EVP_MAC_CTX_free(ctx);
+  EVP_MAC_free(mac);
+
+#else
 
   ctx = HMAC_CTX_new();
 
@@ -279,7 +333,7 @@ void calcHashes(
   if (secent->host)
     HMAC_Update(ctx, (const unsigned char *) secent->host,
           strlen(secent->host) + 1);
-    
+
   if (secent->moninfo)
     HMAC_Update(ctx, (const unsigned char *) secent->moninfo,
           strlen(secent->moninfo) + 1);
@@ -291,9 +345,11 @@ void calcHashes(
 
   HMAC_Final(ctx, mdbuf, &len);
 
-  Tobase64(mdbuf, len / 2, hash);
-
   HMAC_CTX_free(ctx);
+
+#endif
+
+  Tobase64(mdbuf, len / 2, hash);
 }
 
 int compareHash(

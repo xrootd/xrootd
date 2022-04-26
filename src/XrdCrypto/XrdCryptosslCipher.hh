@@ -53,7 +53,7 @@ private:
    int         lIV;
    const EVP_CIPHER *cipher;
    EVP_CIPHER_CTX *ctx;
-   DH         *fDH;
+   EVP_PKEY   *fDH;
    bool        deflength;
    bool        valid;
 

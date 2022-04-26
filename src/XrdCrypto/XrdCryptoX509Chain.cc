@@ -44,7 +44,7 @@
 
 // Description of errors
 static const char *X509ChainErrStr[] = {
-   "no error condition occurred",         // 0
+   "no error condition occurred",        // 0
    "chain is inconsistent",              // 1
    "size exceeds max allowed depth",     // 2
    "invalid or missing CA",              // 3
