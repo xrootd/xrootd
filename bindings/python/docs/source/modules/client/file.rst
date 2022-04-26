@@ -3,6 +3,7 @@
 ================================================
 
 .. module:: XRootD.client
+   :noindex:
 
 .. autoclass:: XRootD.client.File
 
