@@ -264,6 +264,19 @@ build:deb_ubuntu_focal:
     - schedules
     - web
 
+build:deb_ubuntu_jammy:
+  image: ubuntu:jammy
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: jammy
+  only:
+    - master
+    - /^stable-.*$/
+  except:
+    - tags
+    - schedules
+    - web
+
 build:macosx:
   stage: build:rpm
   script:
@@ -407,6 +420,17 @@ release:deb_ubuntu_focal:
     - web
   except:
     - branches
+
+release:deb_ubuntu_jammy:
+  image: ubuntu:jammy
+  <<: *deb_ubuntu_build_def
+  variables:
+    DIST: jammy
+  only:
+    - web
+  except:
+    - branches
+
 
 release:pypi:
   stage: build:rpm
