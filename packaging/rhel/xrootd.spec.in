@@ -716,7 +716,7 @@ install -m 644 packaging/common/client-plugin.conf.example $RPM_BUILD_ROOT%{_sys
 install -m 644 packaging/common/recorder.conf              $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/recorder.conf
 
 %if %{?_with_xrdclhttp:1}%{!?_with_xrdclhttp:0}
-install -m 644 src/XrdClHttp/config/http.client.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/xrdcl-http-plugin.conf
+install -m 644 packaging/common/http.client.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/client.plugins.d/xrdcl-http-plugin.conf
 %endif
 
 # client config
