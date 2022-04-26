@@ -40,7 +40,9 @@ fi
 cd ../bindings/python
 
 # Determine if shutil.which is available for a modern Python package install
-${6} -c 'import shutil.which' &> /dev/null  # $6 holds the python sys.executable
+# (shutil.which was added in Python 3.3, so any version of Python 3 now will have it)
+# TODO: Drop support for Python 3.3 and simplify to pip approach
+${6} -c 'from shutil import which' &> /dev/null  # $6 holds the python sys.executable
 shutil_which_available=$?
 if [ "${shutil_which_available}" -ne "0" ]; then
     ${6} setup.py install ${3}
@@ -57,28 +59,3 @@ fi
 
 cd $startdir
 rm -r xrootdbuild
-
-# TODO: Remove all of the below and build a wheel using PyPA tools
-
-# convert the egg-info into a proper dist-info
-egginfo_path=$(ls $1/xrootd-*.egg-info)
-core="${egginfo_path%.*}"
-core="${egginfo_path#$1/}"
-sufix="${core#xrootd-*.*.*_-}"
-core="${core%_-*}"
-if [[ "$core" == "$sufix" ]]
-then
-    distinfo_path="${egginfo_path%.*}.dist-info"
-else
-    distinfo_path="$1/$core-$sufix"
-fi
-echo $distinfo_path >> /tmp/out.txt
-mkdir $distinfo_path
-mv $egginfo_path $distinfo_path/METADATA
-echo -e "Wheel-Version: 1.0\nGenerator: bdist_wheel (0.35.1)\nRoot-Is-Purelib: true\nTag: py2-none-any\nTag: py3-none-any" > $distinfo_path/WHEEL
-touch $distinfo_path/RECORD
-distinfo_name=${distinfo_path#"$1"}
-find $1/pyxrootd/      -type f -exec sha256sum {} \; | awk '{printf$2 ",sha256=" $1 "," ; system("stat --printf=\"%s\" "$2) ; print '\n'; }' >> $distinfo_path/RECORD
-find $1/$distinfo_name -type f -exec sha256sum {} \; | awk '{printf$2 ",sha256=" $1 "," ; system("stat --printf=\"%s\" "$2) ; print '\n'; }' >> $distinfo_path/RECORD
-find $1/XRootD/        -type f -exec sha256sum {} \; | awk '{printf$2 ",sha256=" $1 "," ; system("stat --printf=\"%s\" "$2) ; print '\n'; }' >> $distinfo_path/RECORD
-find $1/pyxrootd/ -type l | awk '{print$1 ",,"}' >> $distinfo_path/RECORD
