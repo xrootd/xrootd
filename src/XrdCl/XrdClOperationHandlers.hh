@@ -160,10 +160,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor.
       //
-      //! @param func : function, functor or lambda
+      //! @param func : function, functor or lambda (2 arguments)
       //------------------------------------------------------------------------
       FunctionWrapper(
           std::function<void( XRootDStatus&, Response& )> handleFunction ) :
+          fun( [handleFunction]( XRootDStatus &s, Response &r, HostList& ){ handleFunction( s, r ); } )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda (3 arguments)
+      //------------------------------------------------------------------------
+      FunctionWrapper(
+          std::function<void( XRootDStatus&, Response&, HostList& )> handleFunction ) :
           fun( handleFunction )
       {
       }
@@ -171,19 +182,20 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Callback method.
       //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
       {
         std::unique_ptr<XRootDStatus> delst( status );
         std::unique_ptr<AnyObject> delrsp( response );
+        std::unique_ptr<HostList> delhl( hostList );
         Response *res = GetResponse<Response>( status, response );
-        fun( *status, *res );
+        fun( *status, *res, *hostList );
       }
 
     private:
       //------------------------------------------------------------------------
       //! user defined function, functor or lambda
       //------------------------------------------------------------------------
-      std::function<void( XRootDStatus&, Response& )> fun;
+      std::function<void( XRootDStatus&, Response&, HostList& )> fun;
   };
 
   //----------------------------------------------------------------------------
@@ -199,10 +211,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor.
       //
-      //! @param func : function, functor or lambda
+      //! @param func : function, functor or lambda (1 argument)
       //------------------------------------------------------------------------
       FunctionWrapper(
           std::function<void( XRootDStatus& )> handleFunction ) :
+          fun( [handleFunction]( XRootDStatus& s, HostList& ){ handleFunction( s ); } )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda (2 arguments)
+      //------------------------------------------------------------------------
+      FunctionWrapper(
+          std::function<void( XRootDStatus&, HostList& )> handleFunction ) :
           fun( handleFunction )
       {
       }
@@ -210,18 +233,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Callback method.
       //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
       {
         std::unique_ptr<XRootDStatus> delst( status );
         std::unique_ptr<AnyObject> delrsp( response );
-        fun( *status );
+        std::unique_ptr<HostList> delhl( hostList );
+        fun( *status, *hostList );
       }
 
     private:
       //------------------------------------------------------------------------
       //! user defined function, functor or lambda
       //------------------------------------------------------------------------
-      std::function<void( XRootDStatus& )> fun;
+      std::function<void( XRootDStatus&, HostList& )> fun;
   };
 
   //----------------------------------------------------------------------------
@@ -315,10 +339,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor.
       //
-      //! @param func : function, functor or lambda
+      //! @param func : function, functor or lambda (2 arguments)
       //------------------------------------------------------------------------
       ExOpenFuncWrapper( const Ctx<File> &f,
           std::function<void( XRootDStatus&, StatInfo& )> handleFunction ) :
+          f( f ), fun( [handleFunction]( XRootDStatus &s, StatInfo &i, HostList& ){ handleFunction( s, i ); } )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Constructor.
+      //
+      //! @param func : function, functor or lambda (3 arguments)
+      //------------------------------------------------------------------------
+      ExOpenFuncWrapper( const Ctx<File> &f,
+          std::function<void( XRootDStatus&, StatInfo&, HostList& )> handleFunction ) :
           f( f ), fun( handleFunction )
       {
       }
@@ -326,11 +361,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Callback method.
       //------------------------------------------------------------------------
-      void HandleResponse( XRootDStatus *status, AnyObject *response )
+      void HandleResponseWithHosts( XRootDStatus *status, AnyObject *response, HostList *hostList )
       {
         delete response;
         std::unique_ptr<XRootDStatus> delst( status );
         std::unique_ptr<StatInfo> delrsp;
+        std::unique_ptr<HostList> delhl;
         StatInfo *info = nullptr;
         if( status->IsOK() )
         {
@@ -339,7 +375,7 @@ namespace XrdCl
         }
         else
           info = &NullRef<StatInfo>::value;
-        fun( *status, *info );
+        fun( *status, *info, *hostList );
       }
 
     private:
@@ -347,7 +383,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! user defined function, functor or lambda
       //------------------------------------------------------------------------
-      std::function<void( XRootDStatus&, StatInfo& )> fun;
+      std::function<void( XRootDStatus&, StatInfo&, HostList& )> fun;
   };
 
   //----------------------------------------------------------------------------
@@ -639,6 +675,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! A factory method
       //!
+      //! @param func : the function/functor/lambda that should be wrapped
+      //! @return     : FunctionWrapper instance
+      //------------------------------------------------------------------------
+      inline static ResponseHandler* Create( std::function<void( XRootDStatus&,
+          Response&, HostList& )> func )
+      {
+        return new FunctionWrapper<Response>( func );
+      }
+
+      //------------------------------------------------------------------------
+      //! A factory method
+      //!
       //! @param func : the task that should be wrapped
       //! @return     : TaskWrapper instance
       //------------------------------------------------------------------------
@@ -670,6 +718,17 @@ namespace XrdCl
       //! @return     : SimpleFunctionWrapper instance
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( std::function<void( XRootDStatus& )> func )
+      {
+        return new FunctionWrapper<void>( func );
+      }
+
+      //------------------------------------------------------------------------
+      //! A factory method
+      //!
+      //! @param func : the function/functor/lambda that should be wrapped
+      //! @return     : SimpleFunctionWrapper instance
+      //------------------------------------------------------------------------
+      inline static ResponseHandler* Create( std::function<void( XRootDStatus&, HostList& )> func )
       {
         return new FunctionWrapper<void>( func );
       }
