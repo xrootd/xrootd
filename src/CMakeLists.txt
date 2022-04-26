@@ -40,7 +40,7 @@ if( ENABLE_XRDCL )
   add_subdirectory( XrdCl )
 endif()
 
-if( ENABLE_XRDCLHTTP )
+if( BUILD_XRDCLHTTP )
   add_subdirectory( XrdClHttp )
 endif()
 
