@@ -18,27 +18,15 @@ if( BUILD_HTTP )
   #-----------------------------------------------------------------------------
   include_directories( ${OPENSSL_INCLUDE_DIR} )
 
-  if( ENABLE_OPENSSL3 )
-    set( XrdHttpSources
-      XrdHttp/XrdHttpProtocol.cc        XrdHttp/XrdHttpProtocol.hh
-      XrdHttp/XrdHttpSecurity.cc
-      XrdHttp/XrdHttpReq.cc             XrdHttp/XrdHttpReq.hh
-                                        XrdHttp/XrdHttpSecXtractor.hh
-      XrdHttp/XrdHttpExtHandler.cc      XrdHttp/XrdHttpExtHandler.hh
-                                        XrdHttp/XrdHttpStatic.hh
-                                        XrdHttp/XrdHttpTrace.hh
-      XrdHttp/openssl3/XrdHttpUtils.cc  XrdHttp/XrdHttpUtils.hh )
-  else()
-    set( XrdHttpSources
-      XrdHttp/XrdHttpProtocol.cc        XrdHttp/XrdHttpProtocol.hh
-      XrdHttp/XrdHttpSecurity.cc
-      XrdHttp/XrdHttpReq.cc             XrdHttp/XrdHttpReq.hh
-                                        XrdHttp/XrdHttpSecXtractor.hh
-      XrdHttp/XrdHttpExtHandler.cc      XrdHttp/XrdHttpExtHandler.hh
-                                        XrdHttp/XrdHttpStatic.hh
-                                        XrdHttp/XrdHttpTrace.hh
-      XrdHttp/XrdHttpUtils.cc           XrdHttp/XrdHttpUtils.hh )
-  endif()
+  set( XrdHttpSources
+    XrdHttp/XrdHttpProtocol.cc        XrdHttp/XrdHttpProtocol.hh
+    XrdHttp/XrdHttpSecurity.cc
+    XrdHttp/XrdHttpReq.cc             XrdHttp/XrdHttpReq.hh
+                                      XrdHttp/XrdHttpSecXtractor.hh
+    XrdHttp/XrdHttpExtHandler.cc      XrdHttp/XrdHttpExtHandler.hh
+                                      XrdHttp/XrdHttpStatic.hh
+                                      XrdHttp/XrdHttpTrace.hh
+    XrdHttp/XrdHttpUtils.cc           XrdHttp/XrdHttpUtils.hh )
 
   # Note this is marked as a shared library as XrdHttp plugins are expected to
   # link against this for the XrdHttpExt class implementations.

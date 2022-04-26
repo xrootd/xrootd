@@ -59,6 +59,22 @@ static RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey)
 }
 #endif
 
+static int XrdCheckRSA (EVP_PKEY *pkey) {
+   int rc;
+#if OPENSSL_VERSION_NUMBER < 0x10101000L
+   RSA *rsa = EVP_PKEY_get0_RSA(pkey);
+   if (rsa)
+      rc = RSA_check_key(rsa);
+   else
+      rc = -2;
+#else
+   EVP_PKEY_CTX *ckctx = EVP_PKEY_CTX_new(pkey, 0);
+   rc = EVP_PKEY_check(ckctx);
+   EVP_PKEY_CTX_free(ckctx);
+#endif
+   return rc;
+}
+
 //____________________________________________________________________________
 int XrdCryptosslX509VerifyCB(int ok, X509_STORE_CTX *ctx)
 {
@@ -151,7 +167,7 @@ bool XrdCryptosslX509VerifyChain(XrdCryptoX509Chain *chain, int &errcode)
       return 0;
 
    // Set the verify callback function
-   X509_STORE_set_verify_cb_func(store,0);
+   X509_STORE_set_verify_cb_func(store, 0);
 
    // Add the first (the CA) certificate
    XrdCryptoX509 *cert = chain->Begin();
@@ -521,7 +537,7 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
       } else {
          // We can close the file now
          fcersave = fcer;
-	       // Open key file
+         // Open key file
          fcer = fopen(fkey, "r");
          if (!fcer) {
            DEBUG("unable to open key file (errno: "<<errno<<")");
@@ -529,58 +545,46 @@ int XrdCryptosslX509ParseFile(FILE *fcer,
            return nci;
          }
       }
-      RSA  *rsap = 0;
-      if (!PEM_read_RSAPrivateKey(fcer, &rsap, 0, 0)) {
+      EVP_PKEY *rsa = 0;
+      if (!PEM_read_PrivateKey(fcer, &rsa, 0, 0)) {
          DEBUG("no RSA private key found in file " << fname);
       } else {
          DEBUG("found a RSA private key in file " << fname);
-         // We need to complete the key: we save it temporarily
-         // to a bio and check all the private keys of the
-         // loaded certificates 
-         bool ok = 1;
-         BIO *bkey = BIO_new(BIO_s_mem());
-         if (!bkey) {
-            DEBUG("unable to create BIO for key completion");
-            ok = 0;
-         }
-         if (ok) {
-            // Write the private key
-            if (!PEM_write_bio_RSAPrivateKey(bkey,rsap,0,0,0,0,0)) {
-               DEBUG("unable to write RSA private key to bio");
-               ok = 0;
-            }
-         }
-         RSA_free(rsap);
-         if (ok) {
+         // We need to complete the key
+         // check all the public keys of the loaded certificates
+         if (XrdCheckRSA(rsa) == 1) {
             // Loop over the chain certificates
             XrdCryptoX509 *cert = chain->Begin();
-            while (cert->Opaque()) {
+            while (cert && cert->Opaque()) {
                if (cert->type != XrdCryptoX509::kCA) {
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
-                     RSA *rsa = 0;
-                     if (PEM_read_bio_RSAPrivateKey(bkey,&rsa,0,0)) {
-                        EVP_PKEY_assign_RSA(evpp, rsa);
-                        DEBUG("RSA key completed for '"<<cert->Subject()<<"'");
                         // Test consistency
-                        int rc = RSA_check_key(EVP_PKEY_get0_RSA(evpp));
-                        if (rc != 0) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+                        int rc = EVP_PKEY_cmp(evpp, rsa);
+#else
+                        int rc = EVP_PKEY_eq(evpp, rsa);
+#endif
+                        EVP_PKEY_free(evpp);
+                        if (rc == 1) {
+                           DEBUG("RSA key completed");
                            // Update PKI in certificate
-                           cert->SetPKI((XrdCryptoX509data)evpp);
+                           cert->SetPKI((XrdCryptoX509data)rsa);
                            // Update status
                            cert->PKI()->status = XrdCryptoRSA::kComplete;
                            break;
                         }
-                     }
                   }
                }
                // Get next
                cert = chain->Next();
             }
+            if (!cert)
+               EVP_PKEY_free(rsa);
          }
-         // Cleanup
-         BIO_free(bkey);
+         else
+            EVP_PKEY_free(rsa);
       }
       if (fkey) {
          // Re-establish original fcer pointer
@@ -629,7 +633,7 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
 
    // Get certificates from BIO
    X509 *xcer = 0;
-   while (PEM_read_bio_X509(bmem,&xcer,0,0)) {
+   while (PEM_read_bio_X509(bmem, &xcer, 0, 0)) {
       //
       // Create container and add to the list
       XrdCryptoX509 *c = new XrdCryptosslX509(xcer);
@@ -651,58 +655,46 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
    // as read operations modify the BIO contents; a read-only BIO
    // may be more efficient)
    if (nci && BIO_write(bmem,(const void *)(b->buffer),b->size) == b->size) {
-      RSA  *rsap = 0;
-      if (!PEM_read_bio_RSAPrivateKey(bmem, &rsap, 0, 0)) {
-         DEBUG("no RSA private key found in bucket ");
+      EVP_PKEY *rsa = 0;
+      if (!PEM_read_bio_PrivateKey(bmem, &rsa, 0, 0)) {
+         DEBUG("no RSA private key found in bucket");
       } else {
-         DEBUG("found a RSA private key in bucket ");
-         // We need to complete the key: we save it temporarily
-         // to a bio and check all the private keys of the
-         // loaded certificates 
-         bool ok = 1;
-         BIO *bkey = BIO_new(BIO_s_mem());
-         if (!bkey) {
-            DEBUG("unable to create BIO for key completion");
-            ok = 0;
-         }
-         if (ok) {
-            // Write the private key
-            if (!PEM_write_bio_RSAPrivateKey(bkey,rsap,0,0,0,0,0)) {
-               DEBUG("unable to write RSA private key to bio");
-               ok = 0;
-            }
-         }
-         RSA_free(rsap);
-         if (ok) {
+         DEBUG("found a RSA private key in bucket");
+         // We need to complete the key
+         // check all the public keys of the loaded certificates
+         if (XrdCheckRSA(rsa) == 1) {
             // Loop over the chain certificates
             XrdCryptoX509 *cert = chain->Begin();
-            while (cert->Opaque()) {
+            while (cert && cert->Opaque()) {
                if (cert->type != XrdCryptoX509::kCA) {
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
-                     RSA *rsa = 0;
-                     if (PEM_read_bio_RSAPrivateKey(bkey,&rsa,0,0)) {
-                        EVP_PKEY_assign_RSA(evpp, rsa);
-                        DEBUG("RSA key completed ");
                         // Test consistency
-                        int rc = RSA_check_key(EVP_PKEY_get0_RSA(evpp));
-                        if (rc != 0) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+                        int rc = EVP_PKEY_cmp(evpp, rsa);
+#else
+                        int rc = EVP_PKEY_eq(evpp, rsa);
+#endif
+                        EVP_PKEY_free(evpp);
+                        if (rc == 1) {
+                           DEBUG("RSA key completed");
                            // Update PKI in certificate
-                           cert->SetPKI((XrdCryptoX509data)evpp);
+                           cert->SetPKI((XrdCryptoX509data)rsa);
                            // Update status
                            cert->PKI()->status = XrdCryptoRSA::kComplete;
                            break;
                         }
-                     }
                   }
                }
                // Get next
                cert = chain->Next();
             }
+            if (!cert)
+               EVP_PKEY_free(rsa);
          }
-         // Cleanup
-         BIO_free(bkey);
+         else
+            EVP_PKEY_free(rsa);
       }
    }
 
