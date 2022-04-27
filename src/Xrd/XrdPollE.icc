@@ -249,7 +249,8 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
        jfirst = jlast = 0; num2sched = 0;
        for (i = 0; i < numpolled; i++)
            {if ((pInfo = (XrdPollInfo *)PollTab[i].data.ptr))
-              {if (!(pInfo->isEnabled)) remFD(*pInfo, PollTab[i].events);
+              {if (!(pInfo->isEnabled) && pInfo->FD >= 0)
+                  remFD(*pInfo, PollTab[i].events);
                   else {pInfo->isEnabled = 0;
                         if (!(PollTab[i].events & pollOK)
                         ||   (PollTab[i].events & POLLRDHUP))
