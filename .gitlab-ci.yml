@@ -752,6 +752,8 @@ publish:weekly:
          if [ -d $platform ] ; then
            path=$prefix/experimental/$platform/x86_64/;
            sudo -u stci -H mkdir -p $path;
+           ls -latr $platform/;
+           echo $path;
            sudo -u stci -H cp $platform/* $path;
            sudo -u stci -H createrepo --update -q $path;
          fi;
