@@ -13,6 +13,8 @@ Prerelease Notes
   **[HTTP]** Use 405 for mkcol/mkdir EEXIST.
 
 + **Miscellaneous**
+  **[Server]** Avoid misleading error message due to queued but delayed event.
+  **Commits: 6695a44
   **[SciTomkens]** Also grant Readdir when token grants read permission.
   **Commits: 8b05e3e
   **[Tests]** Fix strcpy overflow.
