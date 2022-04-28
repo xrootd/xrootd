@@ -276,6 +276,7 @@ build:deb_ubuntu_jammy:
     - tags
     - schedules
     - web
+  allow_failure: true
 
 build:macosx:
   stage: build:rpm
@@ -430,6 +431,7 @@ release:deb_ubuntu_jammy:
     - web
   except:
     - branches
+  allow_failure: true
 
 
 release:pypi:
