@@ -52,6 +52,8 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[Utils]** Avoid emitting fatal polling error message unless aborting.
+  **Commits: 41f2a89
   **[Server]** Avoid misleading error message due to queued but delayed event.
   **Commits: 6695a44
   **[SciTomkens]** Also grant Readdir when token grants read permission.
