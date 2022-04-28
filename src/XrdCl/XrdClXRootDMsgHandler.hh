@@ -648,9 +648,10 @@ namespace XrdCl
         return pgcnt;
       }
 
-      inline void Copy( uint32_t offchlst, char *buffer, size_t length )
+      inline void Copy( uint32_t usrbufoff, char *buffer, size_t length )
       {
         auto itr = pChunkList->begin();
+        uint64_t chunkbufoff = 0; // chunk buffer offset
         while( length > 0 )
         {
           // first find the right buffer
@@ -658,16 +659,20 @@ namespace XrdCl
           size_t  cplen = 0;
           for( ; itr != pChunkList->end() ; ++itr )
           {
-            if( offchlst < itr->offset ||
-                offchlst >= itr->offset + itr->length )
+            if( usrbufoff < chunkbufoff ||
+                usrbufoff >= chunkbufoff + itr->length )
+            {
+              chunkbufoff += itr->length;
               continue;
-            size_t dstoff = offchlst - itr->offset;
+            }
+            size_t dstoff = usrbufoff - chunkbufoff;
             dstbuf = reinterpret_cast<char*>( itr->buffer ) + dstoff;
-            cplen = itr->length - cplen;
+            cplen = itr->length - dstoff;
             break;
           }
           // now do the copy
-          if( cplen > length ) cplen = length;
+          if( cplen > length )
+            cplen = length;
           memcpy( dstbuf, buffer, cplen );
           buffer += cplen;
           length -= cplen;

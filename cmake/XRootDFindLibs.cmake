@@ -93,6 +93,8 @@ check_function_exists( curl_multi_wait HAVE_CURL_MULTI_WAIT )
 compiler_define_if_found( HAVE_CURL_MULTI_WAIT HAVE_CURL_MULTI_WAIT )
 endif()
 
+find_package( Macaroons )
+
 if( NOT MacOSX )
   include(FindPkgConfig REQUIRED)
   pkg_check_modules(JSON json-c)
