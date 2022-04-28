@@ -223,16 +223,14 @@ void XrdSys::IOEvents::PollKQ::Begin(XrdSysSemaphore *syncsem,
             if (numpolled == 0) CbkTMO();
        else if (numpolled <  0)
                {int rc = errno;
-                cerr <<"KQ: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
                 //--------------------------------------------------------------
                 // If we are in a child process and the poll file descriptor
                 // has been closed, there is an immense chance the fork will be
                 // followed by an exec, in which case we don't want to abort
                 //--------------------------------------------------------------
-                if( rc == EBADF && parentPID != getpid() )
-                  return;
-                else
-                  abort();
+                if( rc == EBADF && parentPID != getpid() ) return;
+                cerr <<"KQ: " <<XrdSysE2T(rc) <<" polling for events" <<endl;
+                abort();
                }
        else for (int i = 0; i < numpolled; i++)
                 {if ((cP = (Channel *)pollTab[i].udata)) Dispatch(cP, i);
