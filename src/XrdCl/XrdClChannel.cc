@@ -207,7 +207,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Channel::QueryTransport( uint16_t query, AnyObject &result )
   {
-    return pTransport->Query( query, result, pChannelData );
+    if( query < 2000 )
+      return pTransport->Query( query, result, pChannelData );
+    return pStream->Query( query, result );
   }
 
   //----------------------------------------------------------------------------

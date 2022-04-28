@@ -601,15 +601,10 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     pSubStreams[subStream]->status = Socket::Connected;
 
-    AnyObject obj;
-    pTransport->Query( TransportQuery::IpStack, obj, *pChannelData );
-    std::string *ipstack;
-    obj.Get( ipstack );
-
+    std::string ipstack( pSubStreams[0]->socket->GetIpStack() );
     Log *log = DefaultEnv::GetLog();
     log->Debug( PostMasterMsg, "[%s] Stream %d connected (%s).", pStreamName.c_str(),
-                subStream, ipstack->c_str() );
-    delete ipstack;
+                subStream, ipstack.c_str() );
 
     if( subStream == 0 )
     {
@@ -1198,4 +1193,29 @@ namespace XrdCl
 
     return false;
   }
+
+  //------------------------------------------------------------------------
+  // Query the stream
+  //------------------------------------------------------------------------
+  Status Stream::Query( uint16_t   query, AnyObject &result )
+  {
+    switch( query )
+    {
+      case StreamQuery::IpAddr:
+      {
+        result.Set( new std::string( pSubStreams[0]->socket->GetIpAddr() ), false );
+        return Status();
+      }
+
+      case StreamQuery::IpStack:
+      {
+        result.Set( new std::string( pSubStreams[0]->socket->GetIpStack() ), false );
+        return Status();
+      }
+
+      default:
+        return Status( stError, errQueryNotSupported );
+    }
+  }
+
 }

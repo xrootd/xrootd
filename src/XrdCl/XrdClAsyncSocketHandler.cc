@@ -145,10 +145,6 @@ namespace XrdCl
     log->Debug( AsyncSockMsg, "[%s] Attempting connection to %s",
                 pStreamName.c_str(), nameBuff );
 
-    std::string ipstack( ( pSockAddr.isIPType( XrdNetAddr::IPType::IPv6 ) &&
-                           !pSockAddr.isMapped() ) ? "IPv6" : "IPv4" );
-    pTransport->SetIpStack( ipstack, *pChannelData );
-
     st = pSocket->ConnectToAddress( pSockAddr, 0 );
     if( !st.IsOK() )
     {
@@ -837,5 +833,25 @@ namespace XrdCl
       pHSWaitSeconds = 0;
       pHSWaitStarted = 0;
     }
+  }
+
+  //------------------------------------------------------------------------
+  // Get the IP stack
+  //------------------------------------------------------------------------
+  std::string AsyncSocketHandler::GetIpStack() const
+  {
+    std::string ipstack( ( pSockAddr.isIPType( XrdNetAddr::IPType::IPv6 ) &&
+                           !pSockAddr.isMapped() ) ? "IPv6" : "IPv4" );
+    return ipstack;
+  }
+
+  //------------------------------------------------------------------------
+  // Get hostname
+  //------------------------------------------------------------------------
+  std::string AsyncSocketHandler::GetIpAddr()
+  {
+    char nameBuff[256];
+    pSockAddr.Format( nameBuff, sizeof(nameBuff), XrdNetAddrInfo::fmtAdv6 );
+    return nameBuff;
   }
 }

@@ -281,7 +281,26 @@ namespace XrdCl
   {
     static const uint16_t Name    = 1; //!< Transport name, returns const char *
     static const uint16_t Auth    = 2; //!< Transport name, returns std::string *
-    static const uint16_t IpStack = 3; //!< returns the IP stack (IPv4 or IPv6)
+  };
+
+  //----------------------------------------------------------------------------
+  //! XRootD related protocol queries
+  //----------------------------------------------------------------------------
+  struct XRootDQuery
+  {
+    static const uint16_t ServerFlags     = 1002; //!< returns server flags
+    static const uint16_t ProtocolVersion = 1003; //!< returns the protocol version
+    static const uint16_t IsEncrypted     = 1004; //!< returns true if the channel is encrypted
+  };
+
+  //----------------------------------------------------------------------------
+  //! Stream query definitions
+  //! The transports may support other queries, with ids > 2999 and ids < 2000
+  //----------------------------------------------------------------------------
+  struct StreamQuery
+  {
+      static const uint16_t IpAddr   = 2001;
+      static const uint16_t IpStack  = 2002;
   };
 
   //----------------------------------------------------------------------------
@@ -458,12 +477,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual URL GetBindPreference( const URL  &url,
                                      AnyObject  &channelData ) = 0;
-
-      //------------------------------------------------------------------------
-      //! Set the effective channel IP stack
-      //------------------------------------------------------------------------
-      virtual void SetIpStack( const std::string &ipstack,
-                               AnyObject         &channelData  ) = 0;
   };
 }
 

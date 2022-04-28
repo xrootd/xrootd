@@ -42,16 +42,6 @@ namespace XrdCl
   struct PluginUnloadHandler;
 
   //----------------------------------------------------------------------------
-  //! XRootD related protocol queries
-  //----------------------------------------------------------------------------
-  struct XRootDQuery
-  {
-    static const uint16_t ServerFlags     = 1002; //!< returns server flags
-    static const uint16_t ProtocolVersion = 1003; //!< returns the protocol version
-    static const uint16_t IsEncrypted     = 1004; //!< returns true if the channel is encrypted
-  };
-
-  //----------------------------------------------------------------------------
   //! XRootD transport handler
   //----------------------------------------------------------------------------
   class XRootDTransport: public TransportHandler
@@ -294,12 +284,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual URL GetBindPreference( const URL  &url,
                                      AnyObject  &channelData );
-
-      //------------------------------------------------------------------------
-      //! Set the effective channel IP stack
-      //------------------------------------------------------------------------
-      virtual void SetIpStack( const std::string &ipstack,
-                               AnyObject         &channelData  );
 
     private:
 

@@ -716,7 +716,7 @@ namespace
         if( pDoServer && !pUrl->IsLocalFile() )
         {
           AnyObject obj;
-          DefaultEnv::GetPostMaster()->QueryTransport( pDataServer, TransportQuery::IpStack, obj );
+          DefaultEnv::GetPostMaster()->QueryTransport( pDataServer, StreamQuery::IpStack, obj );
           std::string *ipstack = nullptr;
           obj.Get( ipstack );
           std::cerr << "!-!" << *ipstack << std::endl;

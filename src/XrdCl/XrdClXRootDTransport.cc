@@ -282,7 +282,6 @@ namespace XrdCl
     bool                               istpc;
     std::unique_ptr<BindPrefSelector>  bindSelector;
     std::string                        logintoken;
-    std::string                        ipstack;
     XrdSysMutex                        mutex;
   };
 
@@ -1475,10 +1474,6 @@ namespace XrdCl
         result.Set( new std::string( info->authProtocolName ), false );
         return Status();
 
-      case TransportQuery::IpStack:
-        result.Set( new std::string( info->ipstack ), false );
-        return Status();
-
       //------------------------------------------------------------------------
       // Server flags
       //------------------------------------------------------------------------
@@ -1781,17 +1776,6 @@ namespace XrdCl
       return url;
 
     return URL( info->bindSelector->Get() );
-  }
-
-  //------------------------------------------------------------------------
-  //! Set the effective channel IP stack
-  //------------------------------------------------------------------------
-  void XRootDTransport::SetIpStack( const std::string &ipstack,
-                                    AnyObject  &channelData  )
-  {
-    XRootDChannelInfo *info = 0;
-    channelData.Get( info );
-    info->ipstack = ipstack;
   }
 
   //----------------------------------------------------------------------------
