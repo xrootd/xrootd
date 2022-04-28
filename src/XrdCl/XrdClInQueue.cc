@@ -121,8 +121,8 @@ namespace XrdCl
   // is stored in msg
   //----------------------------------------------------------------------------
   MsgHandler *InQueue::GetHandlerForMessage( std::shared_ptr<Message> &msg,
-						                                         time_t                   &expires,
-						                                         uint16_t                 &action )
+						                                 time_t                   &expires,
+						                                 uint16_t                 &action )
   {
     time_t   exp = 0;
     uint16_t act = 0;
