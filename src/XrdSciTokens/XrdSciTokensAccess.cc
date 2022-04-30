@@ -419,7 +419,7 @@ public:
                     m_log.Log(LogMask::Debug, "Access", "New valid token", access_rules->str().c_str());
                 }
             } catch (std::exception &exc) {
-                m_log.Log(LogMask::Info, "Access", "Error generating ACLs for authorization", exc.what());
+                m_log.Log(LogMask::Warning, "Access", "Error generating ACLs for authorization", exc.what());
                 return OnMissing(Entity, path, oper, env);
             }
             std::lock_guard<std::mutex> guard(m_mutex);
