@@ -1,7 +1,7 @@
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -39,6 +39,30 @@ enum LogMask {
     Error = 0x08,
     All = 0xff
 };
+
+std::string LogMaskToString(int mask) {
+    if (mask == LogMask::All) {return "all";}
+
+    bool has_entry = false;
+    std::stringstream ss;
+    if (mask & LogMask::Debug) {
+        ss << "debug";
+        has_entry = true;
+    }
+    if (mask & LogMask::Info) {
+        ss << (has_entry ? ", " : "") << "info";
+        has_entry = true;
+    }
+    if (mask & LogMask::Warning) {
+        ss << (has_entry ? ", " : "") << "warning";
+        has_entry = true;
+    }
+    if (mask & LogMask::Error) {
+        ss << (has_entry ? ", " : "") << "error";
+        has_entry = true;
+    }
+    return ss.str();
+}
 
 typedef std::vector<std::pair<Access_Operation, std::string>> AccessRulesRaw;
 
@@ -811,26 +835,22 @@ private:
         if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
             return false;
         }
-        XrdOucStream stream(&m_log, getenv("XRDINSTANCE"));
-
-        int cfg_fd;
-        if ((cfg_fd = open(config_filename, O_RDONLY, 0)) < 0) {
-            m_log.Emsg("Config", errno, "open config file", config_filename);
+        XrdOucGatherConf scitokens_conf("scitokens.trace", &m_log);
+        int result;
+        if ((result = scitokens_conf.Gather(config_filename, XrdOucGatherConf::trim_lines)) < 0) {
+            m_log.Emsg("Config", -result, "parsing config file", config_filename);
             return false;
         }
-        stream.Attach(cfg_fd);
-        char *var;
+
+        char *val;
         std::string map_filename;
-        while ((var = stream.GetMyFirstWord())) {
-            if (strcmp(var, "scitokens.trace")) {
-                continue;
-            }
-            auto val = stream.GetWord();
-            if (!val || !val[0]) {
-                m_log.Emsg("Config", "SciTokens logging level not specified");
+        while (scitokens_conf.GetLine()) {
+            m_log.setMsgMask(0);
+            scitokens_conf.GetToken(); // Ignore the output; we asked for a single config value, trace
+            if (!(val = scitokens_conf.GetToken())) {
+                m_log.Emsg("Config", "scitokens.trace requires an argument.  Usage: scitokens.trace [all|error|warning|info|debug|none]");
                 return false;
             }
-            m_log.setMsgMask(0);
             do {
                 if (!strcmp(val, "all")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::All);}
                 else if (!strcmp(val, "error")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::Error);}
@@ -838,10 +858,11 @@ private:
                 else if (!strcmp(val, "info")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::Info);}
                 else if (!strcmp(val, "debug")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::Debug);}
                 else if (!strcmp(val, "none")) {m_log.setMsgMask(0);}
-                else {m_log.Emsg("Config", "scitokens.trace encountered an unknown directive:", val);}
-                val = stream.GetWord();
-            } while (val);
+                else {m_log.Emsg("Config", "scitokens.trace encountered an unknown directive:", val); return false;}
+            } while ((val = scitokens_conf.GetToken()));
         }
+        m_log.Emsg("Config", "Logging levels enabled -", LogMaskToString(m_log.getMsgMask()).c_str());
+
         return Reconfig();
     }
 
