@@ -38,20 +38,22 @@
   
 //! The following are supported operations
 
-enum Access_Operation  {AOP_Any      = 0,  //!< Special for getting privs
-                        AOP_Chmod    = 1,  //!< chmod()
-                        AOP_Chown    = 2,  //!< chown()
-                        AOP_Create   = 3,  //!< open() with create
-                        AOP_Delete   = 4,  //!< rm() or rmdir()
-                        AOP_Insert   = 5,  //!< mv() for target
-                        AOP_Lock     = 6,  //!< n/a
-                        AOP_Mkdir    = 7,  //!< mkdir()
-                        AOP_Read     = 8,  //!< open() r/o, prepare()
-                        AOP_Readdir  = 9,  //!< opendir()
-                        AOP_Rename   = 10, //!< mv() for source
-                        AOP_Stat     = 11, //!< exists(), stat()
-                        AOP_Update   = 12, //!< open() r/w or append
-                        AOP_LastOp   = 12  //   For limits testing
+enum Access_Operation  {AOP_Any         = 0,  //!< Special for getting privs
+                        AOP_Chmod       = 1,  //!< chmod()
+                        AOP_Chown       = 2,  //!< chown()
+                        AOP_Create      = 3,  //!< open() with create
+                        AOP_Delete      = 4,  //!< rm() or rmdir()
+                        AOP_Insert      = 5,  //!< mv() for target
+                        AOP_Lock        = 6,  //!< n/a
+                        AOP_Mkdir       = 7,  //!< mkdir()
+                        AOP_Read        = 8,  //!< open() r/o, prepare()
+                        AOP_Readdir     = 9,  //!< opendir()
+                        AOP_Rename      = 10, //!< mv() for source
+                        AOP_Stat        = 11, //!< exists(), stat()
+                        AOP_Update      = 12, //!< open() r/w or append
+                        AOP_Excl_Create = 13, //!< open() with O_EXCL|O_CREAT
+                        AOP_Excl_Insert = 14, //!< mv() where destination doesn't exist.
+                        AOP_LastOp      = 14  //   For limits testing
                        };
 
 /******************************************************************************/

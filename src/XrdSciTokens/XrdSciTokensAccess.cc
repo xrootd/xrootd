@@ -88,12 +88,14 @@ XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
         case AOP_Chown:
             new_privs |= static_cast<int>(XrdAccPriv_Chown);
             break;
+        case AOP_Excl_Create: // fallthrough
         case AOP_Create:
             new_privs |= static_cast<int>(XrdAccPriv_Create);
             break;
         case AOP_Delete:
             new_privs |= static_cast<int>(XrdAccPriv_Delete);
             break;
+        case AOP_Excl_Insert: // fallthrough
         case AOP_Insert:
             new_privs |= static_cast<int>(XrdAccPriv_Insert);
             break;
@@ -128,7 +130,9 @@ const std::string OpToName(Access_Operation op) {
         case AOP_Chmod: return "chmod";
         case AOP_Chown: return "chown";
         case AOP_Create: return "create";
+        case AOP_Excl_Create: return "excl_create";
         case AOP_Delete: return "del";
+        case AOP_Excl_Insert: return "excl_insert";
         case AOP_Insert: return "insert";
         case AOP_Lock: return "lock";
         case AOP_Mkdir: return "mkdir";

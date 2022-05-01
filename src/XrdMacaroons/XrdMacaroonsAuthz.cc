@@ -69,12 +69,14 @@ static XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
         case AOP_Chown:
             new_privs |= static_cast<int>(XrdAccPriv_Chown);
             break;
+        case AOP_Excl_Create: // fallthrough
         case AOP_Create:
             new_privs |= static_cast<int>(XrdAccPriv_Create);
             break;
         case AOP_Delete:
             new_privs |= static_cast<int>(XrdAccPriv_Delete);
             break;
+        case AOP_Excl_Insert: // fallthrough
         case AOP_Insert:
             new_privs |= static_cast<int>(XrdAccPriv_Insert);
             break;
@@ -255,11 +257,13 @@ AuthzCheck::AuthzCheck(const char *req_path, const Access_Operation req_oper, ss
     case AOP_Insert:
     case AOP_Lock:
     case AOP_Mkdir:
-    case AOP_Rename:
     case AOP_Update:
+    case AOP_Create:
         m_desired_activity = "MANAGE";
         break;
-    case AOP_Create:
+    case AOP_Rename:
+    case AOP_Excl_Create:
+    case AOP_Excl_Insert:
         m_desired_activity = "UPLOAD";
         break;
     case AOP_Delete:
@@ -363,7 +367,7 @@ AuthzCheck::verify_activity(const unsigned char * pred, size_t pred_sz)
     {
         // Any allowed activity also implies "READ_METADATA"
         if (m_desired_activity == "READ_METADATA") {return 0;}
-        if (activity == m_desired_activity)
+        if ((activity == m_desired_activity) || ((m_desired_activity == "UPLOAD") && (activity == "MANAGE")))
         {
             m_log.Log(LogMask::Debug, "AuthzCheck", "macaroon has desired activity", activity.c_str());
             return 0;
