@@ -459,7 +459,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
        args[1] = algT;
        args[2] = argp->buff;
        args[3] = const_cast<char *>(Client->tident);
-       if (Client->eaAPI->Get(std::string("request.name"), keyval))
+       if (Client->eaAPI->Get(std::string("request.name"), keyval) && !keyval.empty())
           args[4] = const_cast<char *>(keyval.c_str());
           else if (Client->name) args[4] = Client->name;
                   else args[4] = 0;
