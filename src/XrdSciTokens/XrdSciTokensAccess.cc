@@ -821,9 +821,10 @@ private:
                     xrd_rules.emplace_back(AOP_Stat, path);
                 } else if (!strcmp(acl_authz, "create")) {
                     paths_create_or_modify_seen.insert(path);
-                    xrd_rules.emplace_back(AOP_Create, path);
+                    xrd_rules.emplace_back(AOP_Excl_Create, path);
                     xrd_rules.emplace_back(AOP_Mkdir, path);
                     xrd_rules.emplace_back(AOP_Rename, path);
+                    xrd_rules.emplace_back(AOP_Excl_Insert, path);
                 } else if (!strcmp(acl_authz, "modify")) {
                     paths_create_or_modify_seen.insert(path);
                     xrd_rules.emplace_back(AOP_Create, path);
