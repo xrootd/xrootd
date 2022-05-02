@@ -10,21 +10,5 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
-  **[HTTP]** Use 405 for mkcol/mkdir EEXIST.
 
 + **Miscellaneous**
-  **[Utils]** Avoid emitting fatal polling error message unless aborting.
-  **Commits: 41f2a89
-  **[Server]** Avoid misleading error message due to queued but delayed event.
-  **Commits: 6695a44
-  **[SciTomkens]** Also grant Readdir when token grants read permission.
-  **Commits: 8b05e3e
-  **[Tests]** Fix strcpy overflow.
-  **Commits: 4e112ac
-  **[HttpTpc]** Vector cleared after use so it can be shrunk.
-  **Commits: ebf9de7
-  **[ZTN]** Point to the token via Entity.creds.
-  **Commits: 5e84e9f
-  **[Server]** Fix MacOS complaints about unused parameters.
-  **Commits: 7f2a61e
-  **[Oss]** Do not fail a mkdir if directory already exists with the same mode.

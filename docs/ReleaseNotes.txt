@@ -7,6 +7,49 @@ Release Notes
 
 
 --------------
+Version 5.4.3
+--------------
+
++ **Major bug fixes**
+  **[XrdCl]** Make sure SocketHandler does not deadlock with PollerBuiltIn.
+  **[XrdCl]** Pass the login token from redirect rsp to login req.
+  **[XrdCl]** Fix infinite loop when copying data from msg body to user buffer.
+  **[XrdCrypto]** OpenSSL3: correctly initialize cipher with public key and DH
+                  parameters, fixes #1662
+  **[XrdAcc]** Make the acc subsystem aware of request-based name mapping.
+  **[XrdTpc]** [XrdTpc] Added CLOEXEC flag for curl file descriptors.
+  **[XProtocol]** Make sure ECANCELED is translated to kXR_Cancelled.
+  **[XrdSciTokens]** Fix memory corruption.
+  **[Python]** Fix Python 3.10+ issues from PY_SSIZE_T_CLEAN not being set.
+  **[XrdHttp]** Support full URIs in the GET request, fixes #1675.
+  **[PIP]** Fix import syntax to enable shutil.which check.
+
++ **Minor bug fixes**
+  **[XrdHttp]** Use 405 for mkcol/mkdir EEXIST.
+  **[XrdHttp]** Redirect PUT and POST with 307.
+  **[XrdHttp]** Use 307 to redirect anything that is not GET.
+  **[XrdCl]** Remove the leading ? from auto generated login token, fixes #1535.
+  **[XrdSciTokens]** Also grant Readdir when token grants read permission.
+
++ **Miscellaneous**
+  **[XrdCl]** xrdcp: turn off progress bar when not running on a terminal,
+              closes #1608.
+  **[OpenSSL]** Provide OpenSSL3 compability.
+  **[TLS]** Display all OpenSSL messages upon fatal error; fixes #1554.
+  **[GSI]** Increase default bits from 512 to 2048.
+  **[PIP]** Add PIP_OPTIONS CMake option for greater control of Python bindings
+            install.
+  **[Python]** Remove unused Python setup files from old workflows.
+  **[XrdSys]** Don't abort if it looks like we're about to fork.
+  **[Utils]** Avoid emitting fatal polling error message unless aborting.
+  **[Server]** Avoid misleading error message due to queued but delayed event.
+  **[Tests]** Fix strcpy overflow.
+  **[HttpTpc]** Vector cleared after use so it can be shrunk.
+  **[ZTN]** Point to the token via Entity.creds.
+  **[Server]** Fix MacOS complaints about unused parameters.
+  **[Oss]** Do not fail a mkdir if directory already exists with the same mode.
+
+--------------
 Version 5.4.2
 --------------
 
