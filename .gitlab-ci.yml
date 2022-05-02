@@ -209,9 +209,9 @@ build:fedora-34:
     - schedules
     - web
 
-build:fedora-33:
+build:fedora-36:
   stage: build:rpm
-  image: fedora:33
+  image: fedora:36
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git
     - cd packaging/
@@ -220,13 +220,13 @@ build:fedora-33:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-33/
-    - cp packaging/*.src.rpm fc-33
-    - cp packaging/RPMS/* fc-33
+    - mkdir fc-36/
+    - cp packaging/*.src.rpm fc-36
+    - cp packaging/RPMS/* fc-36
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-33/
+    - fc-36/
   tags:
     - docker_node
   only:
@@ -652,7 +652,7 @@ publish:rhel:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cs-8 cc-7 fc-35 fc-34 fc-33; do
+    - "for platform in cs-8 cc-7 fc-35 fc-34 fc-36; do
          repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
          path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
