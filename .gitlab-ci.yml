@@ -484,7 +484,7 @@ weekly:cc7:
   script:
     - head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo ; mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
     - yum install --nogpg -y gcc-c++ rpm-build git cppunit-devel python-srpm-macros centos-release-scl
-    - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v' | grep -v 'rc.*$' | grep -v 'osghotfix' | grep -v 'CERN$' | sed -e '$!d')
+    - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v5' | grep -v 'rc.*$' | grep -v 'osghotfix' | grep -v 'CERN$' | sed -e '$!d')
     - xrootd_version=${xrootd_version:11}
     - echo $xrootd_version
     - short_hash=$(git rev-parse --verify HEAD | awk '{print substr($0, 0, 8)}')
