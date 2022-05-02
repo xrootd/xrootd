@@ -119,7 +119,7 @@ XrdThrottleManager::OpenFile(const std::string &entity, std::string &error_messa
 
     const std::lock_guard<std::mutex> lock(m_file_mutex);
     auto iter = m_file_counters.find(entity);
-    unsigned long cur_open_files, cur_open_conns;
+    unsigned long cur_open_files = 0, cur_open_conns;
     if (m_max_open) {
         if (iter == m_file_counters.end()) {
             m_file_counters[entity] = 1;
