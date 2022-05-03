@@ -221,8 +221,9 @@ namespace XrdCl
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read && msg->GetSize() == 8 )
         {
-          pReadRawStarted = false;
-          pAsyncMsgSize   = dlen;
+          pReadRawStarted       = false;
+          pAsyncMsgSize         = dlen;
+          pReadRawCurrentOffset = 0;
           return Raw | RemoveHandler;
         }
 
@@ -231,8 +232,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( reqId == kXR_readv  && msg->GetSize() == 8 )
         {
-          pAsyncMsgSize      = dlen;
-          pReadVRawMsgOffset = 0;
+          pVectorReader->SetDataLength( dlen );
           return Raw | RemoveHandler;
         }
 
@@ -286,8 +286,7 @@ namespace XrdCl
         {
           if( msg->GetSize() == 8 )
           {
-            pAsyncMsgSize      = dlen;
-            pReadVRawMsgOffset = 0;
+            pVectorReader->SetDataLength( dlen );
             pTimeoutFence.store( true, std::memory_order_relaxed );
             return Raw | ( pOksofarAsAnswer ? None : NoProcess );
           }
@@ -976,35 +975,34 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Read message body directly from a socket
   //----------------------------------------------------------------------------
-  XRootDStatus XRootDMsgHandler::ReadMessageBody( Message  *msg,
+  XRootDStatus XRootDMsgHandler::ReadMessageBody( Message*,
                                                   Socket   *socket,
                                                   uint32_t &bytesRead )
   {
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
     if( reqId == kXR_read )
-      return ReadRawRead( msg, socket, bytesRead );
+      return ReadRawRead( socket, bytesRead );
 
     if( reqId == kXR_readv )
-      return ReadRawReadV( msg, socket, bytesRead );
+      return pVectorReader->Read( *socket, bytesRead );
 
     if( reqId == kXR_pgread )
       return pPageReader->Read( *socket, bytesRead );
 
-    return ReadRawOther( msg, socket, bytesRead );
+    return ReadRawOther( socket, bytesRead );
   }
 
   //------------------------------------------------------------------------
   // Handle a kXR_read in raw mode
   //------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadRawRead( Message  *msg,
-                                             Socket   *socket,
-                                             uint32_t &bytesRead )
+  Status XRootDMsgHandler::ReadRawRead( Socket   *socket,
+                                        uint32_t &bytesRead )
   {
     Log *log = DefaultEnv::GetLog();
-    uint32_t bytesleft = pAsyncMsgSize - pReadRawCurrentOffset;
+    uint32_t bytesleft = pAsyncMsgSize - pReadRawCurrentOffset; // TODO: Is pReadRawCurrentOffset set to 0 after stream t/o? It must be a problem for readv !
 
-    while( pAsyncChunkIndex < pChunkList->size()  && bytesleft > 0 )
+    while( pAsyncChunkIndex < pChunkList->size() && bytesleft > 0 )
     {
       //--------------------------------------------------------------------------
       // We need to check if we have and overflow, before we start reading
@@ -1038,7 +1036,7 @@ namespace XrdCl
       // instead of just quitting in order to keep the stream sane.
       //--------------------------------------------------------------------------
       if( pChunkStatus[pAsyncChunkIndex].sizeError )
-        return ReadRawOther( msg, socket, bytesRead );
+        return ReadRawOther( socket, bytesRead );
 
       //--------------------------------------------------------------------------
       // Read the data
@@ -1069,8 +1067,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle a kXR_readv in raw mode
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadRawReadV( Message  *msg,
-                                         Socket   *socket,
+  Status XRootDMsgHandler::ReadRawReadV( Socket   *socket,
                                          uint32_t &bytesRead )
   {
     if( pReadVRawMsgOffset == pAsyncMsgSize )
@@ -1276,8 +1273,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle anything other than kXR_read and kXR_readv in raw mode
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadRawOther( Message  *msg,
-                                         Socket   *socket,
+  Status XRootDMsgHandler::ReadRawOther( Socket   *socket,
                                          uint32_t &bytesRead )
   {
     if( !pOtherRawStarted )
@@ -2162,13 +2158,10 @@ namespace XrdCl
                    "VectorReadInfo", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
-        VectorReadInfo *info = new VectorReadInfo();
-        Status st = PostProcessReadV( info );
+        VectorReadInfo *info = nullptr;
+        Status st = pVectorReader->GetVectorReadInfo( info );
         if( !st.IsOK() )
-        {
-          delete info;
           return st;
-        }
 
         AnyObject *obj = new AnyObject();
         obj->Set( info );
