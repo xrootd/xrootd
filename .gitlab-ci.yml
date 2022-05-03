@@ -236,6 +236,7 @@ build:fedora-36:
     - tags
     - schedules
     - web
+  allow_failure: true
  
 build:deb_ubuntu_bionic:
   image: ubuntu:bionic
