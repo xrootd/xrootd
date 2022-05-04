@@ -52,6 +52,10 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[x509]** Allow commans in DN's.
+  **Commits: 6729eaa
+  **{SciTokens]** Add addition messages and debugging.
+  **Commits: ab9fb7a
   **[Utils]** Avoid emitting fatal polling error message unless aborting.
   **Commits: 41f2a89
   **[Server]** Avoid misleading error message due to queued but delayed event.
