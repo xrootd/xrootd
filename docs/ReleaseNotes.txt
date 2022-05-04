@@ -14,6 +14,8 @@ Version 5.4.3
   **[XrdCl]** Make sure SocketHandler does not deadlock with PollerBuiltIn.
   **[XrdCl]** Pass the login token from redirect rsp to login req.
   **[XrdCl]** Fix infinite loop when copying data from msg body to user buffer.
+  **[XrdCl]** Make sure TPC destination is created with correct permissions.
+  **[XrdCl]** Fix VectorRead raw data socket readout.
   **[XrdCrypto]** OpenSSL3: correctly initialize cipher with public key and DH
                   parameters, fixes #1662
   **[XrdAcc]** Make the acc subsystem aware of request-based name mapping.
@@ -35,6 +37,7 @@ Version 5.4.3
   **[x509]** Allow commans in DN's.
   **[XrdCl]** xrdcp: turn off progress bar when not running on a terminal,
               closes #1608.
+  **[XrdCl]** Simplify kXR_attn handling.
   **[OpenSSL]** Provide OpenSSL3 compability.
   **[TLS]** Display all OpenSSL messages upon fatal error; fixes #1554.
   **[GSI]** Increase default bits from 512 to 2048.
