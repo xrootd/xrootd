@@ -37,11 +37,6 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
-      //! Add a fully reconstructed message to the queue
-      //------------------------------------------------------------------------
-      bool AddMessage( std::shared_ptr<Message> msg );
-
-      //------------------------------------------------------------------------
       //! Add a listener that should be notified about incoming messages
       //!
       //! @param handler message handler

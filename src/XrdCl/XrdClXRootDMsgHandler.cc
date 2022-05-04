@@ -136,32 +136,12 @@ namespace XrdCl
     uint32_t        dlen   = 0;
 
     //--------------------------------------------------------------------------
-    // We got an async message
+    // We only care about async responses, but those are extracted now
+    // in the SocketHandler.
     //--------------------------------------------------------------------------
     if( rsp->hdr.status == kXR_attn )
     {
-      if( msg->GetSize() < 12 )
-        return Ignore;
-
-      //------------------------------------------------------------------------
-      // We only care about async responses
-      //------------------------------------------------------------------------
-      if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
-        return Ignore;
-
-      if( msg->GetSize() < 24 )
-        return Ignore;
-
-      //------------------------------------------------------------------------
-      // Check if the message has the stream ID that we're interested in
-      //------------------------------------------------------------------------
-      ServerResponse *embRsp = (ServerResponse*)msg->GetBuffer(16);
-      if( embRsp->hdr.streamid[0] != req->header.streamid[0] ||
-          embRsp->hdr.streamid[1] != req->header.streamid[1] )
-        return Ignore;
-
-      status = ntohs( embRsp->hdr.status );
-      dlen   = ntohl( embRsp->hdr.dlen );
+      return Ignore;
     }
     //--------------------------------------------------------------------------
     // We got a sync message - check if it belongs to us
@@ -215,11 +195,10 @@ namespace XrdCl
       case kXR_ok:
       {
         //----------------------------------------------------------------------
-        // For kXR_read we read in raw mode if we haven't got the full message
-        // already (handler installed to late and the message has been cached)
+        // For kXR_read we read in raw mode
         //----------------------------------------------------------------------
         uint16_t reqId = ntohs( req->header.requestid );
-        if( reqId == kXR_read && msg->GetSize() == 8 )
+        if( reqId == kXR_read )
         {
           pReadRawStarted       = false;
           pAsyncMsgSize         = dlen;
@@ -230,7 +209,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // kXR_readv is the same as kXR_read
         //----------------------------------------------------------------------
-        if( reqId == kXR_readv  && msg->GetSize() == 8 )
+        if( reqId == kXR_readv )
         {
           pVectorReader->SetDataLength( dlen );
           return Raw | RemoveHandler;
@@ -265,18 +244,10 @@ namespace XrdCl
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
         {
-          if( msg->GetSize() == 8 )
-          {
-            pReadRawStarted = false;
-            pAsyncMsgSize   = dlen;
-            pTimeoutFence.store( true, std::memory_order_relaxed );
-            return Raw | ( pOksofarAsAnswer ? None : NoProcess );
-          }
-          else
-          {
-            pReadRawCurrentOffset += dlen;
-            return ( pOksofarAsAnswer ? None : NoProcess );
-          }
+          pReadRawStarted = false;
+          pAsyncMsgSize   = dlen;
+          pTimeoutFence.store( true, std::memory_order_relaxed );
+          return Raw | ( pOksofarAsAnswer ? None : NoProcess );
         }
 
         //----------------------------------------------------------------------
@@ -284,14 +255,9 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( reqId == kXR_readv )
         {
-          if( msg->GetSize() == 8 )
-          {
-            pVectorReader->SetDataLength( dlen );
-            pTimeoutFence.store( true, std::memory_order_relaxed );
-            return Raw | ( pOksofarAsAnswer ? None : NoProcess );
-          }
-          else
-            return ( pOksofarAsAnswer ? None : NoProcess );
+          pVectorReader->SetDataLength( dlen );
+          pTimeoutFence.store( true, std::memory_order_relaxed );
+          return Raw | ( pOksofarAsAnswer ? None : NoProcess );
         }
 
         return ( pOksofarAsAnswer ? None : NoProcess );
@@ -455,43 +421,6 @@ namespace XrdCl
     ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
 
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
-
-    //--------------------------------------------------------------------------
-    // We got an async message
-    //--------------------------------------------------------------------------
-    if( rsp->hdr.status == kXR_attn )
-    {
-      log->Dump( XRootDMsg, "[%s] Got an async response to message %s, "
-                 "processing it", pUrl.GetHostId().c_str(),
-                 pRequest->GetDescription().c_str() );
-      Message *embededMsg = new Message( rsp->hdr.dlen-8 );
-      embededMsg->Append( pResponse->GetBuffer( 16 ), rsp->hdr.dlen-8 );
-      kXR_int32 rspdlen = rsp->hdr.dlen; // save the original response size
-      pResponse.reset( embededMsg ); // this can never happen for oksofars
-
-      // we need to unmarshall the header by hand
-      XRootDTransport::UnMarshallHeader( *embededMsg );
-
-      //------------------------------------------------------------------------
-      // Check if the dlen field of the embedded message is consistent with
-      // the dlen value of the original message
-      //------------------------------------------------------------------------
-      ServerResponse *embRsp = (ServerResponse *)embededMsg->GetBuffer();
-      if( embRsp->hdr.dlen != rspdlen-16 )
-      {
-        log->Error( XRootDMsg, "[%s] Sizes of the async response to %s and the "
-                    "embedded message are inconsistent. Expected %d, got %d.",
-                    pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-                    rspdlen-16, embRsp->hdr.dlen);
-
-        pStatus = Status( stFatal, errInvalidMessage );
-        HandleResponse();
-        return;
-      }
-
-      Process();
-      return;
-    }
 
     //--------------------------------------------------------------------------
     // If it is a local file, it can be only a metalink redirector
@@ -1981,6 +1910,13 @@ namespace XrdCl
 
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
+          //--------------------------------------------------------------------
+          // we are expecting to have only the header in the message, the raw
+          // data have been readout into the user buffer
+          //--------------------------------------------------------------------
+          if( pPartialResps[i]->GetSize() > 8 )
+            return Status( stOK, errInternal );
+
           ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
 
           if( currentOffset + part->hdr.dlen > size )
@@ -1989,17 +1925,18 @@ namespace XrdCl
             break;
           }
 
-          if( pPartialResps[i]->GetSize() > 8 )
-            Copy( currentOffset, part->body.buffer.data, part->hdr.dlen );
           currentOffset += part->hdr.dlen;
         }
 
+        //----------------------------------------------------------------------
+        // we are expecting to have only the header in the message, the raw
+        // data have been readout into the user buffer
+        //----------------------------------------------------------------------
+        if( pResponse->GetSize() > 8 )
+          return Status( stOK, errInternal );
+
         if( currentOffset + rsp->hdr.dlen <= size )
-        {
-          if( pResponse->GetSize() > 8 )
-            Copy( currentOffset, rsp->body.buffer.data, rsp->hdr.dlen );
           currentOffset += rsp->hdr.dlen;
-        }
         else
           sizeMismatch = true;
 
@@ -2022,7 +1959,6 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( pRequest->GetVirtReqID() == kXR_virtReadv )
         {
-
           VectorReadInfo *vrInfo = new VectorReadInfo();
           vrInfo->SetSize( currentOffset );
           uint32_t bytesleft = currentOffset;
@@ -2157,6 +2093,22 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
                    "VectorReadInfo", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
+
+        for( uint32_t i = 0; i < pPartialResps.size(); ++i )
+        {
+          //--------------------------------------------------------------------
+          // we are expecting to have only the header in the message, the raw
+          // data have been readout into the user buffer
+          //--------------------------------------------------------------------
+          if( pPartialResps[i]->GetSize() > 8 )
+            return Status( stOK, errInternal );
+        }
+        //----------------------------------------------------------------------
+        // we are expecting to have only the header in the message, the raw
+        // data have been readout into the user buffer
+        //----------------------------------------------------------------------
+        if( pResponse->GetSize() > 8 )
+          return Status( stOK, errInternal );
 
         VectorReadInfo *info = nullptr;
         Status st = pVectorReader->GetVectorReadInfo( info );

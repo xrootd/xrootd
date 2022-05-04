@@ -106,11 +106,22 @@ namespace XrdCl
             case ReadHeader:
             {
               XRootDStatus st = xrdTransport.GetHeader( *inmsg, &socket );
-              if( !st.IsOK() || st.code == suRetry ) return st;
-
+              if( !st.IsOK() || st.code == suRetry )
+                return st;
 
               log->Dump( AsyncSockMsg, "[%s] Received message header for 0x%x size: %d",
                         strmname.c_str(), inmsg.get(), inmsg->GetCursor() );
+
+              ServerResponse *rsp = (ServerResponse*)inmsg->GetBuffer();
+              if( rsp->hdr.status == kXR_attn )
+              {
+                log->Dump( AsyncSockMsg, "[%s] Will readout the attn action code "
+                           "of message 0x%x", strmname.c_str(), inmsg.get() );
+                inmsg->ReAllocate( 16 ); // header (bytes 8) + action code (8 bytes)
+                readstage = ReadAttn;
+                continue;
+              }
+
               inmsgsize = inmsg->GetCursor();
               inhandler = strm.InstallIncHandler( inmsg, substrmnb );
 
@@ -131,6 +142,32 @@ namespace XrdCl
               continue;
             }
             //------------------------------------------------------------------
+            // Before proceeding we need to figure out the attn action code
+            //------------------------------------------------------------------
+            case ReadAttn:
+            {
+              XRootDStatus st = ReadAttnActnum();
+              if( !st.IsOK() || st.code == suRetry )
+                return st;
+
+              //----------------------------------------------------------------
+              // There is an embedded response, overwrite the message with that
+              //----------------------------------------------------------------
+              if( HasEmbeddedRsp() )
+              {
+                inmsg->Free();
+                readstage = ReadHeader;
+                continue;
+              }
+
+              //----------------------------------------------------------------
+              // Readout the rest of the body
+              //----------------------------------------------------------------
+              inmsgsize = inmsg->GetCursor();
+              readstage = ReadMsgBody;
+              continue;
+            }
+            //------------------------------------------------------------------
             // We need to call a raw message handler to get the data from the
             // socket
             //------------------------------------------------------------------
@@ -138,9 +175,11 @@ namespace XrdCl
             {
               uint32_t bytesRead = 0;
               XRootDStatus st = inhandler->ReadMessageBody( inmsg.get(), &socket, bytesRead );
-              if( !st.IsOK() ) return st;
+              if( !st.IsOK() )
+                return st;
               inmsgsize += bytesRead;
-              if( st.code == suRetry ) return st;
+              if( st.code == suRetry )
+                return st;
               //----------------------------------------------------------------
               // The next step is to finalize the read
               //----------------------------------------------------------------
@@ -153,7 +192,8 @@ namespace XrdCl
             case ReadMsgBody:
             {
               XRootDStatus st = xrdTransport.GetBody( *inmsg, &socket );
-              if( !st.IsOK() || st.code == suRetry ) return st;
+              if( !st.IsOK() || st.code == suRetry )
+                return st;
               inmsgsize = inmsg->GetCursor();
 
               //----------------------------------------------------------------
@@ -216,6 +256,38 @@ namespace XrdCl
 
     private:
 
+      XRootDStatus ReadAttnActnum()
+      {
+        //----------------------------------------------------------------------
+        // Readout the action code from the socket. We are reading out 8 bytes
+        // into the message, the 8 byte header is already there.
+        //----------------------------------------------------------------------
+        size_t btsleft = 8 - ( inmsg->GetCursor() - 8 );
+        while( btsleft > 0 )
+        {
+          int btsrd = 0;
+          XRootDStatus st = socket.Read( inmsg->GetBufferAtCursor(), btsleft, btsrd );
+          if( !st.IsOK() || st.code == suRetry )
+            return st;
+          btsleft -= btsrd;
+          inmsg->AdvanceCursor( btsrd );
+        }
+
+        //----------------------------------------------------------------------
+        // Marshal the action code
+        //----------------------------------------------------------------------
+        ServerResponseBody_Attn *attn = (ServerResponseBody_Attn*)inmsg->GetBuffer( 8 );
+        attn->actnum = ntohl( attn->actnum );
+
+        return XRootDStatus();
+      }
+
+      inline bool HasEmbeddedRsp()
+      {
+        ServerResponseBody_Attn *attn = (ServerResponseBody_Attn*)inmsg->GetBuffer( 8 );
+        return ( attn->actnum == kXR_asynresp );
+      }
+
       //------------------------------------------------------------------------
       //! Stages of reading out a response from the socket
       //------------------------------------------------------------------------
@@ -223,6 +295,7 @@ namespace XrdCl
       {
         ReadStart,   //< the next step is to initialize the read
         ReadHeader,  //< the next step is to read the header
+        ReadAttn,    //< the next step is to read attn action code
         ReadMsgBody, //< the next step is to read the body
         ReadRawData, //< the next step is to read the raw data
         ReadDone     //< the next step is to finalize the read
