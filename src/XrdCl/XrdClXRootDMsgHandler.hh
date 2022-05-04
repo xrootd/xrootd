@@ -161,13 +161,6 @@ namespace XrdCl
         pPgWrtCurrentPageOffset( 0 ),
         pPgWrtCurrentPageNb( 0 ),
 
-        pReadVRawMsgOffset( 0 ),
-        pReadVRawChunkHeaderDone( false ),
-        pReadVRawChunkHeaderStarted( false ),
-        pReadVRawSizeError( false ),
-        pReadVRawChunkIndex( 0 ),
-        pReadVRawMsgDiscard( false ),
-
         pOtherRawStarted( false ),
 
         pFollowMetalink( false ),
@@ -193,7 +186,6 @@ namespace XrdCl
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
           pHasSessionId = true;
-        memset( &pReadVRawChunkHeader, 0, sizeof( readahead_list ) );
 
         Log *log = DefaultEnv::GetLog();
         log->Debug( ExDbgMsg, "[%s] MsgHandler created: 0x%x (message: %s ).",
@@ -450,12 +442,6 @@ namespace XrdCl
                           uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
-      //! Handle a kXR_readv in raw mode
-      //------------------------------------------------------------------------
-      Status ReadRawReadV( Socket   *socket,
-                           uint32_t &bytesRead );
-
-      //------------------------------------------------------------------------
       //! Handle anything other than kXR_read and kXR_readv in raw mode
       //------------------------------------------------------------------------
       Status ReadRawOther( Socket   *socket,
@@ -523,16 +509,6 @@ namespace XrdCl
       //! Some requests need to be rewritten also after getting kXR_wait - sigh
       //------------------------------------------------------------------------
       Status RewriteRequestWait();
-
-      //------------------------------------------------------------------------
-      //! Post process vector read
-      //------------------------------------------------------------------------
-      Status PostProcessReadV( VectorReadInfo *vReadInfo );
-
-      //------------------------------------------------------------------------
-      //! Unpack a single readv response
-      //------------------------------------------------------------------------
-      Status UnPackReadVResponse( Message &msg );
 
       //------------------------------------------------------------------------
       //! Update the "tried=" part of the CGI of the current message
@@ -695,14 +671,6 @@ namespace XrdCl
       Buffer                                 pPgWrtCksumBuff;
       uint32_t                               pPgWrtCurrentPageOffset;
       uint32_t                               pPgWrtCurrentPageNb;
-
-      uint32_t                               pReadVRawMsgOffset;
-      bool                                   pReadVRawChunkHeaderDone;
-      bool                                   pReadVRawChunkHeaderStarted;
-      bool                                   pReadVRawSizeError;
-      int32_t                                pReadVRawChunkIndex;
-      readahead_list                         pReadVRawChunkHeader;
-      bool                                   pReadVRawMsgDiscard;
 
       bool                                   pOtherRawStarted;
 
