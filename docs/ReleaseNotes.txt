@@ -32,6 +32,7 @@ Version 5.4.3
   **[XrdSciTokens]** Also grant Readdir when token grants read permission.
 
 + **Miscellaneous**
+  **[x509]** Allow commans in DN's.
   **[XrdCl]** xrdcp: turn off progress bar when not running on a terminal,
               closes #1608.
   **[OpenSSL]** Provide OpenSSL3 compability.
