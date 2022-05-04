@@ -540,7 +540,8 @@ namespace XrdCl
     if( coerce )
       targetFlags |= OpenFlags::Force;
 
-    st = dstFile.Open( realTarget.GetURL(), targetFlags, Access::None, timeLeft );
+    Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
+    st = dstFile.Open( realTarget.GetURL(), targetFlags, mode, timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable to open target %s: %s",

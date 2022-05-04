@@ -885,7 +885,7 @@ namespace XrdCl
     // Open File
     //---------------------------------------------------------------------
     if( mode == Access::Mode::None)
-      mode = 0600;
+      mode = 0644;
     fd = XrdSysFD_Open( path.c_str(), openflags, mode );
     if( fd == -1 )
     {
