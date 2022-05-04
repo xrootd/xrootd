@@ -245,7 +245,7 @@ namespace XrdCl
             case ReadDiscard:
             {
               uint32_t btsleft = dlen - totalbtsrd;
-              // allocate the discard buffer is necessary
+              // allocate the discard buffer if necessary
               if( discardbuff.size() < btsleft )
                 discardbuff.resize( dlen - btsleft );
 
