@@ -1,6 +1,7 @@
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucGatherConf.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -16,6 +17,8 @@
 #include <unordered_map>
 #include <tuple>
 
+#include "fcntl.h"
+
 #include "INIReader.h"
 #include "picojson.h"
 
@@ -28,6 +31,38 @@ XrdVERSIONINFO(XrdAccAuthorizeObject, XrdAccSciTokens);
 XrdVERSIONINFO(XrdAccAuthorizeObjAdd, XrdAccSciTokens);
 
 namespace {
+
+enum LogMask {
+    Debug = 0x01,
+    Info = 0x02,
+    Warning = 0x04,
+    Error = 0x08,
+    All = 0xff
+};
+
+std::string LogMaskToString(int mask) {
+    if (mask == LogMask::All) {return "all";}
+
+    bool has_entry = false;
+    std::stringstream ss;
+    if (mask & LogMask::Debug) {
+        ss << "debug";
+        has_entry = true;
+    }
+    if (mask & LogMask::Info) {
+        ss << (has_entry ? ", " : "") << "info";
+        has_entry = true;
+    }
+    if (mask & LogMask::Warning) {
+        ss << (has_entry ? ", " : "") << "warning";
+        has_entry = true;
+    }
+    if (mask & LogMask::Error) {
+        ss << (has_entry ? ", " : "") << "error";
+        has_entry = true;
+    }
+    return ss.str();
+}
 
 typedef std::vector<std::pair<Access_Operation, std::string>> AccessRulesRaw;
 
@@ -85,6 +120,46 @@ XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
             break;
     };
     return static_cast<XrdAccPrivs>(new_privs);
+}
+
+const std::string OpToName(Access_Operation op) {
+    switch (op) {
+        case AOP_Any: return "any";
+        case AOP_Chmod: return "chmod";
+        case AOP_Chown: return "chown";
+        case AOP_Create: return "create";
+        case AOP_Delete: return "del";
+        case AOP_Insert: return "insert";
+        case AOP_Lock: return "lock";
+        case AOP_Mkdir: return "mkdir";
+        case AOP_Read: return "read";
+        case AOP_Readdir: return "dir";
+        case AOP_Rename: return "mv";
+        case AOP_Stat: return "stat";
+        case AOP_Update: return "update";
+    };
+    return "unknown";
+}
+
+std::string AccessRuleStr(const AccessRulesRaw &rules) {
+    std::unordered_map<std::string, std::unique_ptr<std::stringstream>> rule_map;
+    for (const auto &rule : rules) {
+        auto iter = rule_map.find(rule.second);
+        if (iter == rule_map.end()) {
+            auto result = rule_map.insert(std::make_pair(rule.second, std::make_unique<std::stringstream>()));
+            iter = result.first;
+            *(iter->second) << OpToName(rule.first);
+        } else {
+            *(iter->second) << "," << OpToName(rule.first);
+        }
+    }
+    std::stringstream ss;
+    bool first = true;
+    for (const auto &val : rule_map) {
+       ss << (first ? "" : ";") << val.first << ":" << val.second->str();
+       first = false;
+    }
+    return ss.str();
 }
 
 bool MakeCanonical(const std::string &path, std::string &result)
@@ -241,7 +316,7 @@ public:
         }
     }
 
-    std::string get_username(const std::string &req_path)
+    std::string get_username(const std::string &req_path) const
     {
         for (const auto &rule : m_map_rules) {
             std::string name = rule.match(m_token_subject, req_path, m_groups);
@@ -251,6 +326,26 @@ public:
         }
         return "";
     }
+
+    const std::string str() const
+    {
+        std::stringstream ss;
+        ss << "mapped_username=" << m_username << ", subject=" << m_token_subject
+           << ", issuer=" << m_issuer;
+        if (!m_groups.empty()) {
+            ss << ", groups=";
+            bool first=true;
+            for (const auto &group : m_groups) {
+                ss << (first ? "" : ",") << group;
+                first = false;
+            }
+        }
+        if (!m_rules.empty()) {
+            ss << ", authorizations=" << AccessRuleStr(m_rules);
+        }
+        return ss.str();
+    }
+
 
         // Return the token's subject, an opaque unique string within the issuer's
         // namespace.  It may or may not be related to the username one should
@@ -296,7 +391,7 @@ public:
         pthread_rwlock_init(&m_config_lock, nullptr);
         m_config_lock_initialized = true;
         m_log.Say("++++++ XrdAccSciTokens: Initialized SciTokens-based authorization.");
-        if (!Reconfig()) {
+        if (!Config()) {
             throw std::runtime_error("Failed to configure SciTokens authorization.");
         }
     }
@@ -330,6 +425,7 @@ public:
         if (authz == nullptr) {
             return OnMissing(Entity, path, oper, env);
         }
+        m_log.Log(LogMask::Debug, "Access", "Trying token-based access control");
         std::shared_ptr<XrdAccRules> access_rules;
         uint64_t now = monotonic_time();
         Check(now);
@@ -341,6 +437,7 @@ public:
             }
         }
         if (!access_rules) {
+            m_log.Log(LogMask::Debug, "Access", "Token not found in recent cache; parsing.");
             try {
 		uint64_t cache_expiry;
 		AccessRulesRaw rules;
@@ -353,14 +450,20 @@ public:
                     access_rules.reset(new XrdAccRules(now + cache_expiry, username, token_subject, issuer, map_rules, groups));
                     access_rules->parse(rules);
                 } else {
+                    m_log.Log(LogMask::Warning, "Access", "Failed to generate ACLs for token");
                     return OnMissing(Entity, path, oper, env);
                 }
+                if (m_log.getMsgMask() & LogMask::Debug) {
+                    m_log.Log(LogMask::Debug, "Access", "New valid token", access_rules->str().c_str());
+                }
             } catch (std::exception &exc) {
-                m_log.Emsg("Access", "Error generating ACLs for authorization", exc.what());
+                m_log.Log(LogMask::Warning, "Access", "Error generating ACLs for authorization", exc.what());
                 return OnMissing(Entity, path, oper, env);
             }
             std::lock_guard<std::mutex> guard(m_mutex);
             m_map[authz] = access_rules;
+        } else if (m_log.getMsgMask() & LogMask::Debug) {
+            m_log.Log(LogMask::Debug, "Access", "Cached token", access_rules->str().c_str());
         }
 
         // Strategy: we populate the name in the XrdSecEntity if:
@@ -401,6 +504,11 @@ public:
 
         mapping_success = !username.empty();
         scope_success = access_rules->apply(oper, path);
+        if (scope_success && (m_log.getMsgMask() & LogMask::Debug)) {
+            std::stringstream ss;
+            ss << "Grant authorization based on scopes for operation=" << OpToName(oper) << ", path=" << path;
+            m_log.Log(LogMask::Debug, "Access", ss.str().c_str());
+        }
 
         if (!scope_success && !mapping_success) {
             auto returned_accs = OnMissing(&new_secentity, path, oper, env);
@@ -421,6 +529,7 @@ public:
             // Set scitokens.name in the extra attribute
             Entity->eaAPI->Add("request.name", username, true);
             new_secentity.eaAPI->Add("request.name", username, true);
+            m_log.Log(LogMask::Debug, "Access", "Request username", username.c_str());
         }
 
             // Make the token subject available.  Even though it's a reasonably bad idea
@@ -479,7 +588,7 @@ public:
         pthread_rwlock_unlock(&m_config_lock);
         if (retval) {
             // This originally looked like a JWT so log the failure.
-            m_log.Emsg("Validate", "Failed to deserialize SciToken:", err_msg);
+            m_log.Log(LogMask::Warning, "Validate", "Failed to deserialize SciToken:", err_msg);
             emsg = err_msg;
             free(err_msg);
             return false;
@@ -569,6 +678,7 @@ private:
             }
         }
         if ((separator_count != 2) || (!looks_good)) {
+            m_log.Log(LogMask::Debug, "Parse", "Token does not appear to be a valid JWT; skipping.");
             return false;
         }
 
@@ -579,14 +689,14 @@ private:
         pthread_rwlock_unlock(&m_config_lock);
         if (retval) {
             // This originally looked like a JWT so log the failure.
-            m_log.Emsg("GenerateAcls", "Failed to deserialize SciToken:", err_msg);
+            m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to deserialize SciToken:", err_msg);
             free(err_msg);
             return false;
         }
 
         long long expiry;
         if (scitoken_get_expiration(token, &expiry, &err_msg)) {
-            m_log.Emsg("GenerateAcls", "Unable to determine token expiration:", err_msg);
+            m_log.Log(LogMask::Warning, "GenerateAcls", "Unable to determine token expiration:", err_msg);
             free(err_msg);
             scitoken_destroy(token);
             return false;
@@ -600,7 +710,7 @@ private:
 
         char *value = nullptr;
         if (scitoken_get_claim_string(token, "iss", &value, &err_msg)) {
-            m_log.Emsg("GenerateAcls", "Failed to get issuer:", err_msg);
+            m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to get issuer:", err_msg);
             scitoken_destroy(token);
             free(err_msg);
             return false;
@@ -612,7 +722,7 @@ private:
         auto enf = enforcer_create(token_issuer.c_str(), &m_audiences_array[0], &err_msg);
         pthread_rwlock_unlock(&m_config_lock);
         if (!enf) {
-            m_log.Emsg("GenerateAcls", "Failed to create an enforcer:", err_msg);
+            m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to create an enforcer:", err_msg);
             scitoken_destroy(token);
             free(err_msg);
             return false;
@@ -622,7 +732,7 @@ private:
         if (enforcer_generate_acls(enf, token, &acls, &err_msg)) {
             scitoken_destroy(token);
             enforcer_destroy(enf);
-            m_log.Emsg("GenerateAcls", "ACL generation from SciToken failed:", err_msg);
+            m_log.Log(LogMask::Warning, "GenerateAcls", "ACL generation from SciToken failed:", err_msg);
             free(err_msg);
             return false;
         }
@@ -646,7 +756,7 @@ private:
         auto iter = m_issuers.find(token_issuer);
         if (iter == m_issuers.end()) {
             pthread_rwlock_unlock(&m_config_lock);
-            m_log.Emsg("GenerateAcls", "Authorized issuer without a config.");
+            m_log.Log(LogMask::Warning, "GenerateAcls", "Authorized issuer without a config.");
             scitoken_destroy(token);
             return false;
         }
@@ -654,7 +764,7 @@ private:
         value = nullptr;
         if (scitoken_get_claim_string(token, "sub", &value, &err_msg)) {
             pthread_rwlock_unlock(&m_config_lock);
-            m_log.Emsg("GenerateAcls", "Failed to get token subject:", err_msg);
+            m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to get token subject:", err_msg);
             free(err_msg);
             scitoken_destroy(token);
             return false;
@@ -727,6 +837,46 @@ private:
         return true;
     }
 
+
+    bool Config() {
+        // Set default mask for logging.
+        m_log.setMsgMask(LogMask::Error | LogMask::Warning);
+
+        char *config_filename = nullptr;
+        if (!XrdOucEnv::Import("XRDCONFIGFN", config_filename)) {
+            return false;
+        }
+        XrdOucGatherConf scitokens_conf("scitokens.trace", &m_log);
+        int result;
+        if ((result = scitokens_conf.Gather(config_filename, XrdOucGatherConf::trim_lines)) < 0) {
+            m_log.Emsg("Config", -result, "parsing config file", config_filename);
+            return false;
+        }
+
+        char *val;
+        std::string map_filename;
+        while (scitokens_conf.GetLine()) {
+            m_log.setMsgMask(0);
+            scitokens_conf.GetToken(); // Ignore the output; we asked for a single config value, trace
+            if (!(val = scitokens_conf.GetToken())) {
+                m_log.Emsg("Config", "scitokens.trace requires an argument.  Usage: scitokens.trace [all|error|warning|info|debug|none]");
+                return false;
+            }
+            do {
+                if (!strcmp(val, "all")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::All);}
+                else if (!strcmp(val, "error")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::Error);}
+                else if (!strcmp(val, "warning")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::Warning);}
+                else if (!strcmp(val, "info")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::Info);}
+                else if (!strcmp(val, "debug")) {m_log.setMsgMask(m_log.getMsgMask() | LogMask::Debug);}
+                else if (!strcmp(val, "none")) {m_log.setMsgMask(0);}
+                else {m_log.Emsg("Config", "scitokens.trace encountered an unknown directive:", val); return false;}
+            } while ((val = scitokens_conf.GetToken()));
+        }
+        m_log.Emsg("Config", "Logging levels enabled -", LogMaskToString(m_log.getMsgMask()).c_str());
+
+        return Reconfig();
+    }
+
     bool ParseMapfile(const std::string &filename, std::vector<MapRule> &rules)
     {
         std::stringstream ss;
@@ -734,19 +884,19 @@ private:
         if (!mapfile.is_open())
         {
             ss << "Error opening mapfile (" << filename << "): " << strerror(errno);
-            m_log.Emsg("ParseMapfile", ss.str().c_str());
+            m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
             return false;
         }
         picojson::value val;
         auto err = picojson::parse(val, mapfile);
         if (!err.empty()) {
             ss << "Unable to parse mapfile (" << filename << ") as json: " << err;
-            m_log.Emsg("ParseMapfile", ss.str().c_str());
+            m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
             return false;
         }
         if (!val.is<picojson::array>()) {
             ss << "Top-level element of the mapfile " << filename << " must be a list";
-            m_log.Emsg("ParseMapfile", ss.str().c_str());
+            m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
             return false;
         }
         const auto& rule_list = val.get<picojson::array>();
@@ -754,7 +904,7 @@ private:
         {
             if (!rule.is<picojson::object>()) {
                 ss << "Mapfile " << filename << " must be a list of JSON objects; found non-object";
-                m_log.Emsg("ParseMapfile", ss.str().c_str());
+                m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
                 return false;
             }
             std::string path;
@@ -766,7 +916,7 @@ private:
                 if (!entry.second.is<std::string>()) {
                     if (entry.first != "result" && entry.first != "group" && entry.first != "sub" && entry.first != "path") {continue;}
                     ss << "In mapfile " << filename << ", rule entry for " << entry.first << " has non-string value";
-                    m_log.Emsg("ParseMapfile", ss.str().c_str());
+                    m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
                     return false;
                 }
                 if (entry.first == "result") {
@@ -783,7 +933,7 @@ private:
                     if (!MakeCanonical(entry.second.get<std::string>(), norm_path)) {
                         ss << "In mapfile " << filename << " encountered a path " << entry.second.get<std::string>()
                            << " that cannot be normalized";
-                        m_log.Emsg("ParseMapfile", ss.str().c_str());
+                        m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
                         return false;
                     }
                     path = norm_path;
@@ -796,7 +946,7 @@ private:
             if (result.empty())
             {
                 ss << "In mapfile " << filename << " encountered a rule without a 'result' attribute";
-                m_log.Emsg("ParseMapfile", ss.str().c_str());
+                m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
                 return false;
             }
             rules.emplace_back(sub, path, group, result);
@@ -824,24 +974,24 @@ private:
 
             for (const auto &arg : arg_list) {
                 if (strncmp(arg.c_str(), "config=", 7)) {
-                    m_log.Emsg("Reconfig", "Ignoring unknown configuration argument:", arg.c_str());
+                    m_log.Log(LogMask::Error, "Reconfig", "Ignoring unknown configuration argument:", arg.c_str());
                     continue;
                 }
                 m_cfg_file = std::string(arg.c_str() + 7);
             }
         }
-        m_log.Emsg("Reconfig", "Parsing configuration file:", m_cfg_file.c_str());
+        m_log.Log(LogMask::Info, "Reconfig", "Parsing configuration file:", m_cfg_file.c_str());
 
         INIReader reader(m_cfg_file);
         if (reader.ParseError() < 0) {
             std::stringstream ss;
             ss << "Error opening config file (" << m_cfg_file << "): " << strerror(errno);
-            m_log.Emsg("Reconfig", ss.str().c_str());
+            m_log.Log(LogMask::Error, "Reconfig", ss.str().c_str());
             return false;
         } else if (reader.ParseError()) {
             std::stringstream ss;
             ss << "Parse error on line " << reader.ParseError() << " of file " << m_cfg_file;
-            m_log.Emsg("Reconfig", ss.str().c_str());
+            m_log.Log(LogMask::Error, "Reconfig", ss.str().c_str());
             return false;
         }
         std::vector<std::string> audiences;
@@ -870,16 +1020,16 @@ private:
                     picojson::value json_obj;
                     auto err = picojson::parse(json_obj, audience);
                     if (!err.empty()) {
-                        m_log.Emsg("Reconfig", "Unable to parse audience_json:", err.c_str());
+                        m_log.Log(LogMask::Error, "Reconfig", "Unable to parse audience_json:", err.c_str());
                         return false;
                     }
                     if (!json_obj.is<picojson::value::array>()) {
-                        m_log.Emsg("Reconfig", "audience_json must be a list of strings; not a list.");
+                        m_log.Log(LogMask::Error, "Reconfig", "audience_json must be a list of strings; not a list.");
                         return false;
                     }
                     for (const auto &val : json_obj.get<picojson::value::array>()) {
                         if (!val.is<std::string>()) {
-                            m_log.Emsg("Reconfig", "audience must be a list of strings; value is not a string.");
+                            m_log.Log(LogMask::Error, "Reconfig", "audience must be a list of strings; value is not a string.");
                             return false;
                         }
                         audiences.push_back(val.get<std::string>());
@@ -893,7 +1043,7 @@ private:
                 } else if (onmissing == "deny") {
                     m_authz_behavior = AuthzBehavior::DENY;
                 } else if (!onmissing.empty()) {
-                    m_log.Emsg("Reconfig", "Unknown value for onmissing key:", onmissing.c_str());
+                    m_log.Log(LogMask::Error, "Reconfig", "Unknown value for onmissing key:", onmissing.c_str());
                     return false;
                 }
             }
@@ -902,25 +1052,26 @@ private:
 
             auto issuer = reader.Get(section, "issuer", "");
             if (issuer.empty()) {
-                m_log.Emsg("Reconfig", "Ignoring section because 'issuer' attribute is not set:",
+                m_log.Log(LogMask::Error, "Reconfig", "Ignoring section because 'issuer' attribute is not set:",
                      section.c_str());
                 continue;
             }
+            m_log.Log(LogMask::Debug, "Reconfig", "Configuring issuer", issuer.c_str());
 
             std::vector<MapRule> rules;
             auto name_mapfile = reader.Get(section, "name_mapfile", "");
             if (!name_mapfile.empty()) {
                 if (!ParseMapfile(name_mapfile, rules)) {
-                    m_log.Emsg("Reconfig", "Failed to parse mapfile; failing (re-)configuration", name_mapfile.c_str());
+                    m_log.Log(LogMask::Error, "Reconfig", "Failed to parse mapfile; failing (re-)configuration", name_mapfile.c_str());
                     return false;
                 } else {
-                    m_log.Emsg("Reconfig", "Successfully parsed SciTokens mapfile:", name_mapfile.c_str());
+                    m_log.Log(LogMask::Info, "Reconfig", "Successfully parsed SciTokens mapfile:", name_mapfile.c_str());
                 }
             }
 
             auto base_path = reader.Get(section, "base_path", "");
             if (base_path.empty()) {
-                m_log.Emsg("Reconfig", "Ignoring section because 'base_path' attribute is not set:",
+                m_log.Log(LogMask::Error, "Reconfig", "Ignoring section because 'base_path' attribute is not set:",
                      section.c_str());
                 continue;
             }
@@ -930,7 +1081,7 @@ private:
 
             auto name = section.substr(pos);
             if (name.empty()) {
-                m_log.Emsg("Reconfig", "Invalid section name:", section.c_str());
+                m_log.Log(LogMask::Error, "Reconfig", "Invalid section name:", section.c_str());
                 continue;
             }
 
@@ -953,7 +1104,7 @@ private:
         }
 
         if (issuers.empty()) {
-            m_log.Emsg("Reconfig", "No issuers configured.");
+            m_log.Log(LogMask::Warning, "Reconfig", "No issuers configured.");
         }
 
         pthread_rwlock_wrlock(&m_config_lock);
