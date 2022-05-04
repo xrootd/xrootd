@@ -653,7 +653,7 @@ publish:rhel:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cs-8 cc-7 fc-35 fc-34 fc-36; do
+    - "for platform in cs-8 cc-7 fc-35 fc-34; do
          repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
          path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
