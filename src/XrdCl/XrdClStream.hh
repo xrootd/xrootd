@@ -297,23 +297,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // Job queuing the incoming messages
-      //------------------------------------------------------------------------
-      class QueueIncMsgJob: public Job
-      {
-        public:
-          QueueIncMsgJob( InQueue &queue, std::shared_ptr<Message> msg ): pQueue( queue ), msg( std::move( msg ) ) {};
-          virtual ~QueueIncMsgJob() {};
-          virtual void Run( void* )
-          {
-            pQueue.AddMessage( std::move( msg ) );
-          }
-        private:
-          InQueue &pQueue;
-          std::shared_ptr<Message> msg;
-      };
-
-      //------------------------------------------------------------------------
       // Job handling the incoming messages
       //------------------------------------------------------------------------
       class HandleIncMsgJob: public Job

@@ -1519,9 +1519,7 @@ namespace XrdCl
     ServerResponse *rsp = (ServerResponse*)msg.GetBuffer();
     if( rsp->hdr.status == kXR_attn )
     {
-      if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
-        return NoAction;
-      rsp = (ServerResponse*)msg.GetBuffer(16);
+      return NoAction;
     }
 
     if( info->sidManager->IsTimedOut( rsp->hdr.streamid ) )

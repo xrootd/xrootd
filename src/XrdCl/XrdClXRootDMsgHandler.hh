@@ -653,37 +653,6 @@ namespace XrdCl
         return pgcnt;
       }
 
-      inline void Copy( uint32_t usrbufoff, char *buffer, size_t length )
-      {
-        auto itr = pChunkList->begin();
-        uint64_t chunkbufoff = 0; // chunk buffer offset
-        while( length > 0 )
-        {
-          // first find the right buffer
-          char   *dstbuf = nullptr;
-          size_t  cplen = 0;
-          for( ; itr != pChunkList->end() ; ++itr )
-          {
-            if( usrbufoff < chunkbufoff ||
-                usrbufoff >= chunkbufoff + itr->length )
-            {
-              chunkbufoff += itr->length;
-              continue;
-            }
-            size_t dstoff = usrbufoff - chunkbufoff;
-            dstbuf = reinterpret_cast<char*>( itr->buffer ) + dstoff;
-            cplen = itr->length - dstoff;
-            break;
-          }
-          // now do the copy
-          if( cplen > length )
-            cplen = length;
-          memcpy( dstbuf, buffer, cplen );
-          buffer += cplen;
-          length -= cplen;
-        }
-      }
-
       Message                               *pRequest;
       std::shared_ptr<Message>               pResponse; //< the ownership is shared with MsgReader
       std::vector<std::shared_ptr<Message>>  pPartialResps; //< the ownership is shared with MsgReader

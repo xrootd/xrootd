@@ -35,65 +35,14 @@ namespace XrdCl
 
     ServerResponse *rsp = (ServerResponse *)msg.GetBuffer();
 
-    // We got an async message
+    // We only care about async responses, but those are extracted now
+    // in the SocketHandler
     if( rsp->hdr.status == kXR_attn )
-    {
-      if( msg.GetSize() < 12 )
-        return true;
-
-      // We only care about async responses
-      if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
-        return true;
-
-      if( msg.GetSize() < 24 )
-        return true;
-
-      ServerResponse *embRsp = (ServerResponse*)msg.GetBuffer(16);
-      sid = ((uint16_t)embRsp->hdr.streamid[1] << 8) | (uint16_t)embRsp->hdr.streamid[0];
-    }
+      return true;
     else
-    {
       sid = ((uint16_t)rsp->hdr.streamid[1] << 8) | (uint16_t)rsp->hdr.streamid[0];
-    }
 
     return false;
-  }
-
-  //----------------------------------------------------------------------------
-  // Add a message to the queue
-  //----------------------------------------------------------------------------
-  bool InQueue::AddMessage( std::shared_ptr<Message> msg )
-  {
-    uint16_t            action  = 0;
-    MsgHandler* handler = 0;
-    uint16_t msgSid = 0;
-
-    if (DiscardMessage(*msg, msgSid))
-    {
-      return true;
-    }
-
-    // Lookup the sid in the map of handlers
-    pMutex.Lock();
-    HandlerMap::iterator it = pHandlers.find(msgSid);
-
-    if (it != pHandlers.end())
-    {
-      handler = it->second.first;
-      action  = handler->Examine( msg );
-
-      if( action & MsgHandler::RemoveHandler )
-        pHandlers.erase( it );
-    }
-    else
-      pMessages[msgSid] = msg;
-
-    pMutex.UnLock();
-
-    if( handler && !(action & MsgHandler::NoProcess) )
-      handler->Process();
-
-    return true;
   }
 
   //----------------------------------------------------------------------------
