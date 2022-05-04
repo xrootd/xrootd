@@ -184,10 +184,10 @@ void FileTest::ReadTest()
   CPPUNIT_ASSERT( bytesRead1 == 40*MB );
   CPPUNIT_ASSERT( bytesRead2 == 40000000 );
 
-  uint32_t crc = Utils::ComputeCRC32( buffer1, 40*MB );
+  uint32_t crc = XrdClTests::Utils::ComputeCRC32( buffer1, 40*MB );
   CPPUNIT_ASSERT( crc == 3303853367UL );
 
-  crc = Utils::ComputeCRC32( buffer2, 40000000 );
+  crc = XrdClTests::Utils::ComputeCRC32( buffer2, 40000000 );
   CPPUNIT_ASSERT( crc == 898701504UL );
 
   delete [] buffer1;
@@ -279,10 +279,10 @@ void FileTest::WriteTest()
   uint32_t bytesRead2 = 0;
   File f1, f2;
 
-  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
-  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
-  uint32_t crc1 = Utils::ComputeCRC32( buffer1, 4*MB );
-  crc1 = Utils::UpdateCRC32( crc1, buffer2, 4*MB );
+  CPPUNIT_ASSERT( XrdClTests::Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
+  CPPUNIT_ASSERT( XrdClTests::Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
+  uint32_t crc1 = XrdClTests::Utils::ComputeCRC32( buffer1, 4*MB );
+  crc1 = XrdClTests::Utils::UpdateCRC32( crc1, buffer2, 4*MB );
 
   //----------------------------------------------------------------------------
   // Write the data
@@ -306,8 +306,8 @@ void FileTest::WriteTest()
   CPPUNIT_ASSERT( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ).IsOK() );
   CPPUNIT_ASSERT( bytesRead1 == 4*MB );
   CPPUNIT_ASSERT( bytesRead2 == 4*MB );
-  uint32_t crc2 = Utils::ComputeCRC32( buffer3, 4*MB );
-  crc2 = Utils::UpdateCRC32( crc2, buffer4, 4*MB );
+  uint32_t crc2 = XrdClTests::Utils::ComputeCRC32( buffer3, 4*MB );
+  crc2 = XrdClTests::Utils::UpdateCRC32( crc2, buffer4, 4*MB );
   CPPUNIT_ASSERT( f2.Close().IsOK() );
   CPPUNIT_ASSERT( crc1 == crc2 );
 
@@ -367,10 +367,10 @@ void FileTest::WriteVTest()
   uint32_t bytesRead1 = 0;
   File f1, f2;
 
-  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
-  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
-  uint32_t crc1 = Utils::ComputeCRC32( buffer1, 4*MB );
-  crc1 = Utils::UpdateCRC32( crc1, buffer2, 4*MB );
+  CPPUNIT_ASSERT( XrdClTests::Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
+  CPPUNIT_ASSERT( XrdClTests::Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
+  uint32_t crc1 = XrdClTests::Utils::ComputeCRC32( buffer1, 4*MB );
+  crc1 = XrdClTests::Utils::UpdateCRC32( crc1, buffer2, 4*MB );
 
   //----------------------------------------------------------------------------
   // Prepare IO vector
@@ -402,7 +402,7 @@ void FileTest::WriteVTest()
   CPPUNIT_ASSERT( f2.Read( 0, 8*MB, buffer3, bytesRead1 ).IsOK() );
   CPPUNIT_ASSERT( bytesRead1 == 8*MB );
 
-  uint32_t crc2 = Utils::ComputeCRC32( buffer3, 8*MB );
+  uint32_t crc2 = XrdClTests::Utils::ComputeCRC32( buffer3, 8*MB );
   CPPUNIT_ASSERT( f2.Close().IsOK() );
   CPPUNIT_ASSERT( crc1 == crc2 );
 
@@ -467,14 +467,14 @@ void FileTest::VectorReadTest()
   CPPUNIT_ASSERT( info->GetSize() == 40*MB );
   delete info;
   uint32_t crc = 0;
-  crc = Utils::ComputeCRC32( buffer1, 40*MB );
+  crc = XrdClTests::Utils::ComputeCRC32( buffer1, 40*MB );
   CPPUNIT_ASSERT( crc == 3695956670UL );
 
   info = 0;
   CPPUNIT_ASSERT_XRDST( f.VectorRead( chunkList2, buffer2, info ) );
   CPPUNIT_ASSERT( info->GetSize() == 40*256000 );
   delete info;
-  crc = Utils::ComputeCRC32( buffer2, 40*256000 );
+  crc = XrdClTests::Utils::ComputeCRC32( buffer2, 40*256000 );
   CPPUNIT_ASSERT( crc == 3492603530UL );
 
   CPPUNIT_ASSERT_XRDST( f.Close() );
@@ -559,7 +559,7 @@ void FileTest::VectorWriteTest()
     gen_random_str( buffer, size );
 
     // calculate expected checksum
-    expectedCrc32 = Utils::UpdateCRC32( expectedCrc32, buffer, size );
+    expectedCrc32 = XrdClTests::Utils::UpdateCRC32( expectedCrc32, buffer, size );
     totalSize += size;
     chunks.push_back( XrdCl::ChunkInfo( offset, size, buffer ) );
 
@@ -594,7 +594,7 @@ void FileTest::VectorWriteTest()
   CPPUNIT_ASSERT_XRDST( f.VectorRead( chunks, buffer2, info2 ) );
 
   CPPUNIT_ASSERT( info2->GetSize() == totalSize );
-  uint32_t crc32 = Utils::ComputeCRC32( buffer2, totalSize );
+  uint32_t crc32 = XrdClTests::Utils::ComputeCRC32( buffer2, totalSize );
   CPPUNIT_ASSERT( crc32 == expectedCrc32 );
 
   //----------------------------------------------------------------------------
