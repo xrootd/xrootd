@@ -24,6 +24,10 @@ if( ENABLE_ASAN )
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fsanitize=address")
 endif()
 
+if( ENABLE_TSAN )
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fsanitize=thread")
+endif()
+
 #-------------------------------------------------------------------------------
 # Enable XrdCl::Pipelines for clang compiler
 # Note: once we move to c++14 globaly we can remove this

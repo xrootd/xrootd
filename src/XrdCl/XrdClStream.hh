@@ -260,6 +260,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetOnDataConnectHandler( std::shared_ptr<Job> &onConnJob )
       {
+        XrdSysMutexHelper scopedLock( pMutex );
         pOnDataConnJob = onConnJob;
       }
 

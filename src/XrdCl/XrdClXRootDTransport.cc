@@ -271,7 +271,7 @@ namespace XrdCl
     std::string                        authProtocolName;
     std::set<uint16_t>                 sentOpens;
     std::set<uint16_t>                 sentCloses;
-    uint32_t                           finstcnt; // file instance count
+    std::atomic<uint32_t>              finstcnt; // file instance count
     uint32_t                           openFiles;
     time_t                             waitBarrier;
     XrdSecProtect                     *protection;
@@ -720,9 +720,9 @@ namespace XrdCl
     log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
                "TTL: %d, allocated SIDs: %d, open files: %d, bound file objects: %d",
                info->streamName.c_str(), inactiveTime, ttl, allocatedSIDs,
-               info->openFiles, info->finstcnt );
+               info->openFiles, info->finstcnt.load( std::memory_order_relaxed ) );
 
-    if( info->openFiles != 0 && info->finstcnt != 0 )
+    if( info->openFiles != 0 && info->finstcnt.load( std::memory_order_relaxed ) != 0 )
       return false;
 
     if( !allocatedSIDs && inactiveTime > ttl )
@@ -1582,7 +1582,7 @@ namespace XrdCl
       if( rsp->hdr.status == kXR_ok )
       {
         ++info->openFiles;
-        ++info->finstcnt; // another file File object instance has been bound with this connection
+        info->finstcnt.fetch_add( 1, std::memory_order_relaxed ); // another file File object instance has been bound with this connection
       }
       return NoAction;
     }
@@ -1678,8 +1678,8 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
-    if( info->finstcnt > 0 )
-      --info->finstcnt;
+    if( info->finstcnt.load( std::memory_order_relaxed ) > 0 )
+      info->finstcnt.fetch_sub( 1, std::memory_order_relaxed );
   }
 
   //----------------------------------------------------------------------------
@@ -2293,7 +2293,7 @@ namespace XrdCl
   // Do the authentication
   //----------------------------------------------------------------------------
   XRootDStatus XRootDTransport::DoAuthentication( HandShakeData     *hsData,
-                                            XRootDChannelInfo *info )
+                                                  XRootDChannelInfo *info )
   {
     //--------------------------------------------------------------------------
     // Prepare
