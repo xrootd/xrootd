@@ -2246,8 +2246,14 @@ int XrdOfs::rename(const char             *old_name,  // In
 
 // Apply security, as needed
 //
-   // Make a copy of the XrdSecEntity object xattrs as the authorization below may change it.
    AUTHORIZE(client, &old_Env, AOP_Rename, "renaming", old_name, einfo);
+
+// The above authorization may mutate the XrdSecEntity by putting a mapped name
+// into the extended attributes.  This mapped name will affect the subsequent
+// authorization check below, giving the client access that may not be permitted.
+// Hence, we delete this attribute to reset the object back to "pristine" state.
+// If there was a way to make a copy of the XrdSecEntity, we could avoid this
+// hack-y reach inside the extended attributes.
    if (client) client->eaAPI->Add("request.name", "", true);
 
 // If we do not have full-blown insert authorization, we'll need to test for
