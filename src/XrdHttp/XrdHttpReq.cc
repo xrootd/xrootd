@@ -2752,7 +2752,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(409, NULL, NULL, (char *) etext.c_str(), 0, false);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, (char *) etext.c_str(), 0, false);
         return -1;
       }
 
