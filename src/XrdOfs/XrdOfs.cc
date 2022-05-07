@@ -2287,25 +2287,25 @@ int XrdOfs::rename(const char             *old_name,  // In
 // If we cannot overwrite, we must open-exclusive first.  This will test whether
 // we will destroy data in the rename (without actually destroying data).
 //
-   std::unique_ptr<XrdSfsFile> tmp_fp = nullptr;
    if (cannot_overwrite)
-      {tmp_fp.reset(newFile(einfo));
-       if (!tmp_fp)
-          {return fsError(einfo, ENOMEM);}
-       if (SFS_OK != tmp_fp->open(new_name, SFS_O_CREAT, 0700, client, infoN))
-          {return fsError(einfo, -tmp_fp->error.getErrInfo());}
+      {XrdSfsFileExistence exists_flag;
+       if (SFS_OK != exists(new_name, exists_flag, einfo, client, infoN))
+          {// File existence check itself failed; we can't prove that data won't
+           // be overwritten so we return an error.
+           return fsError(einfo, -einfo.getErrInfo());
+          }
+       if (exists_flag != XrdSfsFileExistNo)
+          {// EPERM mimics the error code set by Linux when you invoke rename()
+           // but cannot overwrite the destination file.
+           einfo.setErrInfo(EPERM, "Overwrite of existing data not permitted");
+           return fsError(einfo, -EPERM);
+          }
       }
 
 // Perform actual rename operation
 //
    if ((retc = XrdOfsOss->Rename(old_name, new_name, &old_Env, &new_Env)))
-      {if (tmp_fp)
-          {tmp_fp.reset();
-           // Try cleaning up the destination file we temporarily created.
-           if (SFS_OK != remove('f', new_name, einfo, client, infoN))
-              {OfsEroute.Emsg("Overwrite_Test", "Failed to cleanup overwrite testfile; potential file leak at", new_name);}
-          }
-       return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name);
+      {return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name);
       }
    XrdOfsHandle::Hide(old_name);
    if (Balancer) {Balancer->Removed(old_name);
