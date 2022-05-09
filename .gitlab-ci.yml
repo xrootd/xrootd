@@ -153,7 +153,7 @@ build:cc7:
 #    - schedules
 #    - web
 
-build:fedorai-35:
+build:fedora-35:
   stage: build:rpm
   image: fedora:35
   script:
