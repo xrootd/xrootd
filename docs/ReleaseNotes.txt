@@ -44,6 +44,8 @@ Version 5.4.3
   **[PIP]** Add PIP_OPTIONS CMake option for greater control of Python bindings
             install.
   **[Python]** Remove unused Python setup files from old workflows.
+  **[Python]** Provide cmake switch (XROOTD_PYBUILD_ENV) for setting up python
+               build environment.
   **[XrdSys]** Don't abort if it looks like we're about to fork.
   **[Utils]** Avoid emitting fatal polling error message unless aborting.
   **[Server]** Avoid misleading error message due to queued but delayed event.
