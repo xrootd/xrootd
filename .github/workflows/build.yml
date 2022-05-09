@@ -456,6 +456,8 @@ jobs:
 
     - name: Build
       run: |
+        # c.f. https://github.com/actions/checkout/issues/760
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
         cd packaging/
         ./makesrpm.sh \
           --define "_with_python3 1" \
