@@ -378,6 +378,7 @@ Python 2 bindings for XRootD
 %package -n python%{python3_pkgversion}-%{name}
 Summary:       Python 3 bindings for XRootD
 Group:         Development/Libraries
+%{?python_provide:%python_provide python%{python3_pkgversion}-%{name}}
 Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 
 %description -n python%{python3_pkgversion}-%{name}
