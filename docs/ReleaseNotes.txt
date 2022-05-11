@@ -18,6 +18,7 @@ Version 5.4.3
   **[XrdCl]** Fix VectorRead raw data socket readout.
   **[XrdCrypto]** OpenSSL3: correctly initialize cipher with public key and DH
                   parameters, fixes #1662
+  **[XrdCrypto]** bf32: respect the key length when encrypting/decrypting.
   **[XrdAcc]** Make the acc subsystem aware of request-based name mapping.
   **[XrdTpc]** [XrdTpc] Added CLOEXEC flag for curl file descriptors.
   **[XProtocol]** Make sure ECANCELED is translated to kXR_Cancelled.
