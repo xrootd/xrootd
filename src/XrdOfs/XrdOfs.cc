@@ -2284,8 +2284,11 @@ int XrdOfs::rename(const char             *old_name,  // In
        evsObject->Notify(XrdOfsEvs::Mv, evInfo);
       }
 
-// If we cannot overwrite, we must open-exclusive first.  This will test whether
+// If we cannot overwrite, we must test for existence first.  This will test whether
 // we will destroy data in the rename (without actually destroying data).
+// Note there's an obvious race condition here; it was seen as the lesser-of-evils
+// compared to creating an exclusive file and potentially leaking it in the event
+// of a crash.
 //
    if (cannot_overwrite)
       {XrdSfsFileExistence exists_flag;
