@@ -94,7 +94,10 @@ int XrdCryptoLite_bf32::Decrypt(const char *key,
 // Decrypt
 //
    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-   EVP_DecryptInit_ex(ctx, EVP_bf_cfb64(), 0, (unsigned char *)key, ivec);
+   EVP_DecryptInit_ex(ctx, EVP_bf_cfb64(), NULL, NULL, NULL);
+   EVP_CIPHER_CTX_set_padding(ctx, 0);
+   EVP_CIPHER_CTX_set_key_length(ctx, keyLen);
+   EVP_DecryptInit_ex(ctx, NULL, NULL, (unsigned char *)key, ivec);
    EVP_DecryptUpdate(ctx, (unsigned char *)dst, &wLen,
                           (unsigned char *)src, srcLen);
    EVP_DecryptFinal_ex(ctx, (unsigned char *)dst, &wLen);
@@ -149,7 +152,10 @@ int XrdCryptoLite_bf32::Encrypt(const char *key,
 // Encrypt
 //
    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-   EVP_EncryptInit_ex(ctx, EVP_bf_cfb64(), 0, (unsigned char *)key, ivec);
+   EVP_EncryptInit_ex(ctx, EVP_bf_cfb64(), NULL, NULL, NULL);
+   EVP_CIPHER_CTX_set_padding(ctx, 0);
+   EVP_CIPHER_CTX_set_key_length(ctx, keyLen);
+   EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char *)key, ivec);
    EVP_EncryptUpdate(ctx, (unsigned char *)dst, &wLen, bP, dLen);
    EVP_EncryptFinal_ex(ctx, (unsigned char *)dst, &wLen);
    EVP_CIPHER_CTX_free(ctx);
