@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server] Separate out authorization to overwrite data.
+  **Commits: 070ec697
   **[Server] Allow set variable values to come from a file.
   **Commits: 0bcacd4a
   **[Server]** Implement gStream to monitor all http and xroot TPC events.
