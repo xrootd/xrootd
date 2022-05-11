@@ -125,7 +125,7 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 //
    std::string username;
    auto got_token = Entity->eaAPI->Get("request.name", username);
-   if (got_token)
+   if (got_token && !username.empty())
       {eInfo.name = username.c_str();
        isuser = true;
       }
@@ -307,7 +307,7 @@ int XrdAccAccess::Audit(const int              accok,
    std::string username;
    const char *id = "*";
    auto got_token = Entity->eaAPI->Get("request.name", username);
-   if (got_token) {
+   if (got_token && !username.empty()) {
        id = username.c_str();
    } else if (Entity->name) id = Entity->name;
    const char *host = (Entity->host ? (const char *)Entity->host : "?");

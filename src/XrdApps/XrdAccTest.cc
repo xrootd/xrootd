@@ -84,10 +84,12 @@ optab_t optab[] =
               {"cm",     AOP_Chmod},
               {"co",     AOP_Chown},
               {"cr",     AOP_Create},
+              {"ec",     AOP_Excl_Create},
               {"rm",     AOP_Delete},
               {"lk",     AOP_Lock},
               {"mk",     AOP_Mkdir},
               {"mv",     AOP_Rename},
+              {"ei",     AOP_Excl_Insert},
               {"rd",     AOP_Read},
               {"ls",     AOP_Readdir},
               {"st",     AOP_Stat},
@@ -108,6 +110,7 @@ void Usage(const char *msg)
    cerr <<"<act>: <opc> <path> [<path> [...]]\n";
    cerr <<"<opc>: cr - create    mv - rename    st - status    lk - lock\n";
    cerr <<"       rd - read      wr - write     ls - readdir   rm - remove\n";
+   cerr <<"       ec - excl create              ei - excl rename\n";
    cerr <<"       *  - zap args  ?  - display privs\n";
    cerr <<flush;
    exit(msg ? 1 : 0);

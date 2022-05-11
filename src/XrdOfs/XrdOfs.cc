@@ -37,6 +37,7 @@
 #include <ctime>
 #include <netdb.h>
 #include <cstdlib>
+#include <memory>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -83,6 +84,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSec/XrdSecEntityAttr.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -582,7 +584,22 @@ int XrdOfsFile::open(const char          *path,      // In
    if (open_flag & O_CREAT)
       {// Apply security, as needed
        //
-       AUTHORIZE(client,&Open_Env,AOP_Create,"create",path,error);
+       // If we aren't requesting O_EXCL, one needs AOP_Create
+       if (!(open_flag & O_EXCL))
+          {if (client && XrdOfsFS->Authorization &&
+               !XrdOfsFS->Authorization->Access(client, path, AOP_Create, &Open_Env))
+              { // We don't have the ability to create a file without O_EXCL.  If we have AOP_Excl_Create,
+                // then manipulate the open flags and see if we're successful with it.
+                AUTHORIZE(client,&Open_Env,AOP_Excl_Create,"create",path,error);
+                open_flag |= O_EXCL;
+                open_flag &= ~O_TRUNC;
+              }
+          }
+       // If we are in O_EXCL mode, then we accept either AOP_Excl_Create or AOP_Create
+       else if (client && XrdOfsFS->Authorization &&
+            !XrdOfsFS->Authorization->Access(client, path, AOP_Excl_Create, &Open_Env))
+          {AUTHORIZE(client,&Open_Env,AOP_Create,"create",path,error);}
+
        OOIDENTENV(client, Open_Env);
 
        // For ephemeral file, we must enter the file into the queue
@@ -2229,9 +2246,24 @@ int XrdOfs::rename(const char             *old_name,  // In
 
 // Apply security, as needed
 //
-   AUTHORIZE2(client, einfo,
-              AOP_Rename, "renaming",    old_name, &old_Env,
-              AOP_Insert, "renaming to", new_name, &new_Env );
+   AUTHORIZE(client, &old_Env, AOP_Rename, "renaming", old_name, einfo);
+
+// The above authorization may mutate the XrdSecEntity by putting a mapped name
+// into the extended attributes.  This mapped name will affect the subsequent
+// authorization check below, giving the client access that may not be permitted.
+// Hence, we delete this attribute to reset the object back to "pristine" state.
+// If there was a way to make a copy of the XrdSecEntity, we could avoid this
+// hack-y reach inside the extended attributes.
+   if (client) client->eaAPI->Add("request.name", "", true);
+
+// If we do not have full-blown insert authorization, we'll need to test for
+// destination existence
+   bool cannot_overwrite = false;
+   if (client && XrdOfsFS->Authorization &&
+      !XrdOfsFS->Authorization->Access(client, new_name, AOP_Insert, &new_Env))
+      {cannot_overwrite = true;
+       AUTHORIZE(client, &new_Env, AOP_Excl_Insert, "renaming to (no overwrite)", new_name, einfo);
+      }
 
 // Find out where we should rename this file
 //
@@ -2252,10 +2284,32 @@ int XrdOfs::rename(const char             *old_name,  // In
        evsObject->Notify(XrdOfsEvs::Mv, evInfo);
       }
 
+// If we cannot overwrite, we must test for existence first.  This will test whether
+// we will destroy data in the rename (without actually destroying data).
+// Note there's an obvious race condition here; it was seen as the lesser-of-evils
+// compared to creating an exclusive file and potentially leaking it in the event
+// of a crash.
+//
+   if (cannot_overwrite)
+      {XrdSfsFileExistence exists_flag;
+       if (SFS_OK != exists(new_name, exists_flag, einfo, client, infoN))
+          {// File existence check itself failed; we can't prove that data won't
+           // be overwritten so we return an error.
+           return fsError(einfo, -einfo.getErrInfo());
+          }
+       if (exists_flag != XrdSfsFileExistNo)
+          {// EPERM mimics the error code set by Linux when you invoke rename()
+           // but cannot overwrite the destination file.
+           einfo.setErrInfo(EPERM, "Overwrite of existing data not permitted");
+           return fsError(einfo, -EPERM);
+          }
+      }
+
 // Perform actual rename operation
 //
    if ((retc = XrdOfsOss->Rename(old_name, new_name, &old_Env, &new_Env)))
-      return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name);
+      {return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name);
+      }
    XrdOfsHandle::Hide(old_name);
    if (Balancer) {Balancer->Removed(old_name);
                   Balancer->Added(new_name);

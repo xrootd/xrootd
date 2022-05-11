@@ -1034,6 +1034,13 @@ int XrdHttpReq::ProcessHTTPReq() {
     resourceplusopaque.append(q);
     TRACEI(DEBUG, "Appended header fields to opaque info: '" 
                  << hdr2cgistr.c_str() << "'");
+
+    // We assume that anything appended to the CGI str should also
+    // apply to the destination in case of a MOVE.
+    if (strchr(destination.c_str(), '?')) destination.append("&");
+    else destination.append("?");
+    destination.append(q);
+
     free(q);
     m_appended_hdr2cgistr = true;
     }
@@ -2745,7 +2752,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
     {
 
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(409, NULL, NULL, (char *) etext.c_str(), 0, false);
+        prot->SendSimpleResp(httpStatusCode, NULL, NULL, (char *) etext.c_str(), 0, false);
         return -1;
       }
 

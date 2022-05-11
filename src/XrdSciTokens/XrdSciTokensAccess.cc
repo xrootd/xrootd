@@ -88,12 +88,14 @@ XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
         case AOP_Chown:
             new_privs |= static_cast<int>(XrdAccPriv_Chown);
             break;
+        case AOP_Excl_Create: // fallthrough
         case AOP_Create:
             new_privs |= static_cast<int>(XrdAccPriv_Create);
             break;
         case AOP_Delete:
             new_privs |= static_cast<int>(XrdAccPriv_Delete);
             break;
+        case AOP_Excl_Insert: // fallthrough
         case AOP_Insert:
             new_privs |= static_cast<int>(XrdAccPriv_Insert);
             break;
@@ -128,7 +130,9 @@ const std::string OpToName(Access_Operation op) {
         case AOP_Chmod: return "chmod";
         case AOP_Chown: return "chown";
         case AOP_Create: return "create";
+        case AOP_Excl_Create: return "excl_create";
         case AOP_Delete: return "del";
+        case AOP_Excl_Insert: return "excl_insert";
         case AOP_Insert: return "insert";
         case AOP_Lock: return "lock";
         case AOP_Mkdir: return "mkdir";
@@ -792,6 +796,8 @@ private:
 
         AccessRulesRaw xrd_rules;
         int idx = 0;
+        std::set<std::string> paths_write_seen;
+        std::set<std::string> paths_create_or_modify_seen;
         while (acls[idx].resource && acls[idx++].authz) {
             const auto &acl_path = acls[idx-1].resource;
             const auto &acl_authz = acls[idx-1].authz;
@@ -813,16 +819,36 @@ private:
                     xrd_rules.emplace_back(AOP_Read, path);
                     xrd_rules.emplace_back(AOP_Readdir, path);
                     xrd_rules.emplace_back(AOP_Stat, path);
-                } else if (!strcmp(acl_authz, "write")) {
-                    xrd_rules.emplace_back(AOP_Update, path);
+                } else if (!strcmp(acl_authz, "create")) {
+                    paths_create_or_modify_seen.insert(path);
+                    xrd_rules.emplace_back(AOP_Excl_Create, path);
+                    xrd_rules.emplace_back(AOP_Mkdir, path);
+                    xrd_rules.emplace_back(AOP_Rename, path);
+                    xrd_rules.emplace_back(AOP_Excl_Insert, path);
+                } else if (!strcmp(acl_authz, "modify")) {
+                    paths_create_or_modify_seen.insert(path);
                     xrd_rules.emplace_back(AOP_Create, path);
                     xrd_rules.emplace_back(AOP_Mkdir, path);
+                    xrd_rules.emplace_back(AOP_Rename, path);
+                    xrd_rules.emplace_back(AOP_Insert, path);
+                    xrd_rules.emplace_back(AOP_Update, path);
                     xrd_rules.emplace_back(AOP_Chmod, path);
                     xrd_rules.emplace_back(AOP_Delete, path);
-                    xrd_rules.emplace_back(AOP_Insert, path);
-                    xrd_rules.emplace_back(AOP_Rename, path);
-                    xrd_rules.emplace_back(AOP_Update, path);
+                } else if (!strcmp(acl_authz, "write")) {
+                    paths_write_seen.insert(path);
                 }
+            }
+        }
+        for (const auto &write_path : paths_write_seen) {
+            if (paths_create_or_modify_seen.find(write_path) == paths_create_or_modify_seen.end()) {
+                // This is a SciToken, add write ACLs.
+                xrd_rules.emplace_back(AOP_Create, write_path);
+                xrd_rules.emplace_back(AOP_Mkdir, write_path);
+                xrd_rules.emplace_back(AOP_Rename, write_path);
+                xrd_rules.emplace_back(AOP_Insert, write_path);
+                xrd_rules.emplace_back(AOP_Update, write_path);
+                xrd_rules.emplace_back(AOP_Chmod, write_path);
+                xrd_rules.emplace_back(AOP_Delete, write_path);
             }
         }
 

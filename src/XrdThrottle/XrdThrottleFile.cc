@@ -57,7 +57,8 @@ File::open(const char                *fileName,
    if (client->eaAPI && client->eaAPI->Get("token.subject", m_user)) {
        if (client->vorg) m_user = std::string(client->vorg) + ":" + m_user;
    } else if (client->eaAPI) {
-       client->eaAPI->Get("request.name", m_user);
+       std::string user;
+       if (client->eaAPI->Get("request.name", user) && !user.empty()) m_user = user;
    }
    if (m_user.empty()) {m_user = client->name ? client->name : "nobody";}
    m_uid = XrdThrottleManager::GetUid(m_user.c_str());
