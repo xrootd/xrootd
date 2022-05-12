@@ -240,14 +240,14 @@ namespace XrdCl
             }
 
             //------------------------------------------------------------------
-            // We've had an error and we are in the discarding mode,
+            // We've had an error and we are in the discarding mode
             //------------------------------------------------------------------
             case ReadDiscard:
             {
               uint32_t btsleft = dlen - totalbtsrd;
               // allocate the discard buffer if necessary
               if( discardbuff.size() < btsleft )
-                discardbuff.resize( dlen - btsleft );
+                discardbuff.resize( btsleft );
 
               //----------------------------------------------------------------
               // We need to readout the data from the socket in order to keep
@@ -258,8 +258,8 @@ namespace XrdCl
               totalbtsrd += btsrd;
               btsret     += btsrd;
 
-              log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes",
-                         url.GetHostId().c_str(), btsrd );
+              log->Warning( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes",
+                            url.GetHostId().c_str(), btsrd );
 
               if( !st.IsOK() || st.code == suRetry )
                 return st;
