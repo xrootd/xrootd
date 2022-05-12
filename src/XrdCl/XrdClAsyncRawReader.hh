@@ -16,8 +16,8 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef SRC_XRDCL_XRDCLASYNCVECTORREADER_HH_
-#define SRC_XRDCL_XRDCLASYNCVECTORREADER_HH_
+#ifndef SRC_XRDCL_XRDCLASYNCRAWREADER_HH_
+#define SRC_XRDCL_XRDCLASYNCRAWREADER_HH_
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClSocket.hh"
@@ -29,7 +29,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Object for reading out data from the VectorRead response
   //----------------------------------------------------------------------------
-  class AsyncVectorReader
+  class AsyncRawReader
   {
     public:
       //------------------------------------------------------------------------
@@ -37,26 +37,25 @@ namespace XrdCl
       //!
       //! @param url : channel URL
       //------------------------------------------------------------------------
-      AsyncVectorReader( const URL &url ) :
+      AsyncRawReader( const URL &url, const Message &request ) :
         readstage( ReadStart ),
         url( url ),
+        request( request ),
         chunks( nullptr ),
         dlen( 0 ),
         msgbtsrd( 0 ),
-        rawbtsrd( 0 ),
+        totalbtsrd( 0 ),
         chidx( 0 ),
         choff( 0 ),
         chlen( 0 ),
-        rdlstoff( 0 ),
-        rdlstlen( 0 )
+        sizeerr( false )
       {
-        memset( &rdlst, 0, sizeof( readahead_list ) );
       }
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      virtual ~AsyncVectorReader()
+      virtual ~AsyncRawReader()
       {
       }
 
@@ -65,8 +64,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetDataLength( int dlen )
       {
-        this->dlen      = dlen;
-        this->readstage = ReadStart;
+        this->dlen       = dlen;
+        this->readstage  = ReadStart;
       }
 
       //------------------------------------------------------------------------
@@ -75,7 +74,6 @@ namespace XrdCl
       void SetChunkList( ChunkList *chunks )
       {
         this->chunks = chunks;
-        this->chstatus.resize( chunks->size() );
       }
 
       //------------------------------------------------------------------------
@@ -99,108 +97,21 @@ namespace XrdCl
             case ReadStart:
             {
               msgbtsrd  = 0;
-              rdlstoff  = 0;
-              rdlstlen  = sizeof( readahead_list );
-              readstage = ReadRdLst;
-              continue;
-            }
-
-            //------------------------------------------------------------------
-            // Readout the read_list
-            //------------------------------------------------------------------
-            case ReadRdLst:
-            {
-              //----------------------------------------------------------------
-              // We cannot afford to read the next header from the stream
-              // because we will cross the message boundary
-              //----------------------------------------------------------------
-              if( msgbtsrd + rdlstlen > dlen )
-              {
-                uint32_t btsleft = dlen - msgbtsrd;
-                log->Error( XRootDMsg, "[%s] ReadRawReadV: No enough data to read "
-                            "another chunk header. Discarding %d bytes.",
-                            url.GetHostId().c_str(), btsleft );
-                readstage = ReadDiscard;
-                continue;
-              }
-
-              //----------------------------------------------------------------
-              // Let's readout the read list record from the socket
-              //----------------------------------------------------------------
-              uint32_t btsrd = 0;
-              char *buff = reinterpret_cast<char*>( &rdlst );
-              Status st = ReadBytesAsync( socket, buff + rdlstoff, rdlstlen, btsrd );
-              rdlstoff += btsrd;
-              rdlstlen -= btsrd;
-              msgbtsrd += btsrd;
-              btsret   += btsrd;
-
-              if( !st.IsOK() || st.code == suRetry )
-                 return st;
-
-              //----------------------------------------------------------------
-              // We have a complete read list record, now we need to marshal it
-              //----------------------------------------------------------------
-              rdlst.rlen   = ntohl( rdlst.rlen );
-              rdlst.offset = ntohll( rdlst.offset );
-              choff = 0;
-              chlen = rdlst.rlen;
-
-              //----------------------------------------------------------------
-              // Find the buffer corresponding to the chunk
-              //----------------------------------------------------------------
-              bool chfound = false;
-              for( size_t i = 0; i < chunks->size(); ++i )
-              {
-                if( ( *chunks )[i].offset == uint64_t( rdlst.offset ) &&
-                    ( *chunks )[i].length == uint32_t( rdlst.rlen ) )
-                {
-                  chfound = true;
-                  chidx = i;
-                  break;
-                }
-              }
-
-              //----------------------------------------------------------------
-              // If the chunk was not found this is a bogus response, switch
-              // to discard mode
-              //----------------------------------------------------------------
-              if( !chfound )
-              {
-                log->Error( XRootDMsg, "[%s] ReadRawReadV: Impossible to find chunk "
-                            "buffer corresponding to %d bytes at %ld",
-                            url.GetHostId().c_str(), rdlst.rlen, rdlst.offset );
-                uint32_t btsleft = dlen - msgbtsrd;
-                log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarding %d bytes",
-                           url.GetHostId().c_str(), btsleft );
-                readstage = ReadDiscard;
-                continue;
-              }
-
-              readstage = ReadChunk;
+              chlen     = ( *chunks )[0].length;
+              readstage = ReadRaw;
               continue;
             }
 
             //------------------------------------------------------------------
             // Readout the raw data
             //------------------------------------------------------------------
-            case ReadChunk:
+            case ReadRaw:
             {
               //----------------------------------------------------------------
-              // The chunk was found, but reading all the data will cross the
-              // message boundary
+              // Make sure we are not reading past the end of the read response
               //----------------------------------------------------------------
               if( msgbtsrd + chlen > dlen )
-              {
-                uint32_t btsleft = dlen - msgbtsrd;
-                log->Error( XRootDMsg, "[%s] ReadRawReadV: Malformed chunk header: "
-                            "reading %d bytes from message would cross the message "
-                            "boundary, discarding %d bytes.", url.GetHostId().c_str(),
-                            rdlst.rlen, btsleft );
-                chstatus[chidx].sizeerr = true;
-                readstage = ReadDiscard;
-                continue;
-              }
+                chlen = dlen - msgbtsrd;
 
               //----------------------------------------------------------------
               // Readout the raw data from the socket
@@ -208,35 +119,44 @@ namespace XrdCl
               uint32_t btsrd = 0;
               char *buff = static_cast<char*>( ( *chunks )[chidx].buffer );
               Status st = ReadBytesAsync( socket, buff + choff, chlen, btsrd );
-              choff    += btsrd;
-              chlen    -= btsrd;
-              msgbtsrd += btsrd;
-              rawbtsrd += btsrd;
-              btsret   += btsrd;
+              choff        += btsrd;
+              chlen        -= btsrd;
+              msgbtsrd     += btsrd;
+              totalbtsrd += btsrd;
+              btsret       += btsrd;
 
               if( !st.IsOK() || st.code == suRetry )
                  return st;
 
-              log->Dump( XRootDMsg, "[%s] ReadRawReadV: read buffer for chunk %d@%ld",
-                         url.GetHostId().c_str(), rdlst.rlen, rdlst.offset );
-
               //----------------------------------------------------------------
-              // Mark chunk as done
+              // If the chunk is full, move to the next buffer
               //----------------------------------------------------------------
-              chstatus[chidx].done = true;
-
+              if( choff == ( *chunks )[chidx].length )
+              {
+                ++chidx;
+                choff = 0;
+                chlen = ( chidx < chunks->size() ? ( *chunks )[chidx].length : 0 );
+              }
               //----------------------------------------------------------------
-              // There is still data to be read, we need to readout the next
-              // read list record.
+              // Check if there are some data left in the response to be readout
+              // from the socket.
               //----------------------------------------------------------------
               if( msgbtsrd < dlen )
               {
-                rdlstoff  = 0;
-                rdlstlen  = sizeof( readahead_list );
-                readstage = ReadRdLst;
+                //--------------------------------------------------------------
+                // We run out of space, the server has send too much data
+                //--------------------------------------------------------------
+                if( choff == ( *chunks )[chidx].length )
+                {
+                  readstage = ReadDiscard;
+                  continue;
+                }
+                readstage = ReadRaw;
                 continue;
               }
-
+              //----------------------------------------------------------------
+              // We are done
+              //----------------------------------------------------------------
               readstage = ReadDone;
               continue;
             }
@@ -246,6 +166,7 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadDiscard:
             {
+              sizeerr = true;
               uint32_t btsleft = dlen - msgbtsrd;
               // allocate the discard buffer if necessary
               if( discardbuff.size() < btsleft )
@@ -260,12 +181,16 @@ namespace XrdCl
               msgbtsrd += btsrd;
               btsret     += btsrd;
 
-              log->Warning( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes",
+              log->Warning( XRootDMsg, "[%s] ReadRawRead: Discarded %d bytes",
                             url.GetHostId().c_str(), btsrd );
 
               if( !st.IsOK() || st.code == suRetry )
                 return st;
 
+              DefaultEnv::GetLog()->Error( XRootDMsg, "[%s] Handling response to %s: "
+                                           "user supplied buffer is too small for the "
+                                           "received data.", url.GetHostId().c_str(),
+                                           request.GetDescription().c_str() );
               readstage = ReadDone;
               continue;
             }
@@ -275,11 +200,6 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadDone:
             {
-              chidx = 0;
-              choff = 0;
-              chlen = 0;
-              rdlstoff = 0;
-              rdlstlen = 0;
               break;
             }
           }
@@ -293,21 +213,29 @@ namespace XrdCl
         return XRootDStatus();
       }
 
+      Status GetChunkInfo( ChunkInfo *&info )
+      {
+        if( sizeerr )
+          return Status( stError, errInvalidResponse );
+        info = new ChunkInfo( chunks->front() );
+        info->length = totalbtsrd;
+        return Status();
+
+      }
+
       Status GetVectorReadInfo( VectorReadInfo *&info )
       {
-        //--------------------------------------------------------------------------
-        // See if all the chunks are OK and put them in the response
-        //--------------------------------------------------------------------------
-        std::unique_ptr<VectorReadInfo> ptr( new VectorReadInfo() );
-        for( uint32_t i = 0; i < chunks->size(); ++i )
+        if( sizeerr )
+          return Status( stError, errInvalidResponse );
+        info = new VectorReadInfo();
+        info->SetSize( totalbtsrd );
+        int btsleft = totalbtsrd;
+        for( auto &chunk : *chunks )
         {
-          if( !chstatus[i].done )
-             return Status( stFatal, errInvalidResponse );
-          ptr->GetChunks().emplace_back( ( *chunks )[i].offset,
-              ( *chunks )[i].length, ( *chunks )[i].buffer );
+          int length = uint32_t( btsleft ) >= chunk.length ? chunk.length : btsleft;
+          info->GetChunks().emplace_back( chunk.offset, length, chunk.buffer );
+          btsleft -= length;
         }
-        ptr->SetSize( rawbtsrd );
-        info = ptr.release();
         return Status();
       }
 
@@ -356,8 +284,7 @@ namespace XrdCl
       enum Stage
       {
         ReadStart,   //< the next step is to initialize the read
-        ReadRdLst,   //< the next step is to read the read_list
-        ReadChunk,   //< the next step is to read the raw data
+        ReadRaw,     //< the next step is to read the raw data
         ReadDiscard, //< there was an error, we are in discard mode
         ReadDone     //< the next step is to finalize the read
       };
@@ -370,23 +297,20 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // The context of the read operation
       //------------------------------------------------------------------------
-      const URL                &url;          //< for logging purposes
+      const URL     &url;          //< for logging purposes
+      const Message &request;      //< client request
 
-      ChunkList                *chunks;       //< list of data chunks to be filled with user data
-      std::vector<ChunkStatus>  chstatus;     //< status per chunk
-      uint32_t                  dlen;         //< size of the data in the message
-      uint32_t                  msgbtsrd;     //< number of bytes read out from the socket for the current message
-      uint32_t                  rawbtsrd;     //< total number of bytes read out from the socket
+      ChunkList     *chunks;       //< list of data chunks to be filled with user data
+      uint32_t       dlen;         //< size of the data in the message
+      uint32_t       msgbtsrd;     //< number of bytes read out from the socket for the current message
+      uint32_t       totalbtsrd;   //< total number of bytes read out from the socket
 
-      size_t                    chidx;        //< index of the current data buffer
-      size_t                    choff;        //< offset within the current buffer
-      size_t                    chlen;        //< bytes left to be readout into the current chunk
+      size_t         chidx;        //< index of the current data buffer
+      size_t         choff;        //< offset within the current buffer
+      size_t         chlen;        //< bytes left to be readout into the current chunk
 
-      size_t                    rdlstoff;     //< offset within the current read_list
-      readahead_list            rdlst;        //< the readahead list for the current chunk
-      size_t                    rdlstlen;     //< bytes left to be readout into read list
-
-      buffer_t                  discardbuff;  //< buffer for discarding data in case of an error
+      buffer_t       discardbuff;  //< buffer for discarding data in case of an error
+      bool           sizeerr;      //< true if the server send us too much data, false otherwise
   };
 
 } /* namespace XrdCl */

@@ -200,9 +200,7 @@ namespace XrdCl
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
         {
-          pReadRawStarted       = false;
-          pAsyncMsgSize         = dlen;
-          pReadRawCurrentOffset = 0;
+          pRawReader->SetDataLength( dlen );
           return Raw | RemoveHandler;
         }
 
@@ -244,8 +242,7 @@ namespace XrdCl
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
         {
-          pReadRawStarted = false;
-          pAsyncMsgSize   = dlen;
+          pRawReader->SetDataLength( dlen );
           pTimeoutFence.store( true, std::memory_order_relaxed );
           return Raw | ( pOksofarAsAnswer ? None : NoProcess );
         }
@@ -911,7 +908,7 @@ namespace XrdCl
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
     if( reqId == kXR_read )
-      return ReadRawRead( socket, bytesRead );
+      return pRawReader->Read( *socket, bytesRead );
 
     if( reqId == kXR_readv )
       return pVectorReader->Read( *socket, bytesRead );
@@ -1689,19 +1686,6 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
-        // calculate the total read size
-        size_t size = std::accumulate( pChunkList->begin(), pChunkList->end(), 0,
-                                       []( size_t acc, ChunkInfo &ch )
-                                       {
-                                         return acc + ch.length;
-                                       } );
-
-        //----------------------------------------------------------------------
-        // Glue in the cached responses if necessary
-        //----------------------------------------------------------------------
-        bool       sizeMismatch  = false;
-        uint32_t   currentOffset = 0;
-
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
           //--------------------------------------------------------------------
@@ -1710,41 +1694,13 @@ namespace XrdCl
           //--------------------------------------------------------------------
           if( pPartialResps[i]->GetSize() > 8 )
             return Status( stOK, errInternal );
-
-          ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
-
-          if( currentOffset + part->hdr.dlen > size )
-          {
-            sizeMismatch = true;
-            break;
-          }
-
-          currentOffset += part->hdr.dlen;
         }
-
         //----------------------------------------------------------------------
         // we are expecting to have only the header in the message, the raw
         // data have been readout into the user buffer
         //----------------------------------------------------------------------
         if( pResponse->GetSize() > 8 )
           return Status( stOK, errInternal );
-
-        if( currentOffset + rsp->hdr.dlen <= size )
-          currentOffset += rsp->hdr.dlen;
-        else
-          sizeMismatch = true;
-
-        //----------------------------------------------------------------------
-        // Overflow
-        //----------------------------------------------------------------------
-        if( pChunkStatus.front().sizeError || sizeMismatch )
-        {
-          log->Error( XRootDMsg, "[%s] Handling response to %s: user supplied "
-                      "buffer is too small for the received data.",
-                      pUrl.GetHostId().c_str(),
-                      pRequest->GetDescription().c_str() );
-          return Status( stError, errInvalidResponse );
-        }
 
         AnyObject *obj = new AnyObject();
         //----------------------------------------------------------------------
@@ -1753,27 +1709,22 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( pRequest->GetVirtReqID() == kXR_virtReadv )
         {
-          VectorReadInfo *vrInfo = new VectorReadInfo();
-          vrInfo->SetSize( currentOffset );
-          uint32_t bytesleft = currentOffset;
-          auto itr = pChunkList->begin();
-          for( ; itr != pChunkList->end() ; ++itr )
-          {
-            uint32_t length = itr->length;
-            if( length > bytesleft ) length = bytesleft;
-            vrInfo->GetChunks().emplace_back( itr->offset, length, itr->buffer );
-            bytesleft -= length;
-          }
-          obj->Set( vrInfo );
+          VectorReadInfo *info = nullptr;
+          Status st = pRawReader->GetVectorReadInfo( info );
+          if( !st.IsOK() )
+            return st;
+          obj->Set( info );
         }
         //----------------------------------------------------------------------
         // Otherwise, we package the response into a standard ChunkInfo.
         //----------------------------------------------------------------------
         else
         {
-          ChunkInfo *retChunk = new ChunkInfo( pChunkList->front() );
-          retChunk->length = currentOffset;
-          obj->Set( retChunk );
+          ChunkInfo *chunk = nullptr;
+          Status st = pRawReader->GetChunkInfo( chunk );
+          if( !st.IsOK() )
+            return st;
+          obj->Set( chunk );
         }
 
         response = obj;

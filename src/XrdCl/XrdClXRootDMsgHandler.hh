@@ -34,6 +34,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClAsyncPageReader.hh"
 #include "XrdCl/XrdClAsyncVectorReader.hh"
+#include "XrdCl/XrdClAsyncRawReader.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPageSize.hh"
@@ -203,6 +204,10 @@ namespace XrdCl
         if( ntohs( hdr->requestid ) == kXR_readv )
         {
           pVectorReader.reset( new AsyncVectorReader( *url ) );
+        }
+        else if( ntohs( hdr->requestid ) == kXR_read )
+        {
+          pRawReader.reset( new AsyncRawReader( *url, *pRequest ) );
         }
       }
 
@@ -389,6 +394,8 @@ namespace XrdCl
         pChunkList = chunkList;
         if( pVectorReader )
           pVectorReader->SetChunkList( chunkList );
+        else if( pRawReader )
+          pRawReader->SetChunkList( chunkList );
         if( chunkList )
           pChunkStatus.resize( chunkList->size() );
         else
@@ -667,6 +674,7 @@ namespace XrdCl
 
       std::unique_ptr<AsyncPageReader>       pPageReader;
       std::unique_ptr<AsyncVectorReader>     pVectorReader;
+      std::unique_ptr<AsyncRawReader>        pRawReader;
 
       Buffer                                 pPgWrtCksumBuff;
       uint32_t                               pPgWrtCurrentPageOffset;
