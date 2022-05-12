@@ -349,8 +349,6 @@ namespace XrdCl
       //----------------------------------------------------------------------
       // The message contains only Status header and body but no raw data
       //----------------------------------------------------------------------
-      pReadRawStarted = false;
-      pAsyncMsgSize   = rspst->bdy.dlen;
       if( !pPageReader )
         pPageReader.reset( new AsyncPageReader( *pChunkList, pCrc32cDigests ) );
       pPageReader->SetMsgDlen( rspst->bdy.dlen );
@@ -917,77 +915,6 @@ namespace XrdCl
       return pPageReader->Read( *socket, bytesRead );
 
     return ReadRawOther( socket, bytesRead );
-  }
-
-  //------------------------------------------------------------------------
-  // Handle a kXR_read in raw mode
-  //------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadRawRead( Socket   *socket,
-                                        uint32_t &bytesRead )
-  {
-    Log *log = DefaultEnv::GetLog();
-    uint32_t bytesleft = pAsyncMsgSize - pReadRawCurrentOffset; // TODO: Is pReadRawCurrentOffset set to 0 after stream t/o? It must be a problem for readv !
-
-    while( pAsyncChunkIndex < pChunkList->size() && bytesleft > 0 )
-    {
-      //--------------------------------------------------------------------------
-      // We need to check if we have and overflow, before we start reading
-      // anything
-      //--------------------------------------------------------------------------
-      if( !pReadRawStarted )
-      {
-        ChunkInfo chunk  = (*pChunkList)[pAsyncChunkIndex];
-        pAsyncOffset     = 0;
-        pAsyncReadBuffer = reinterpret_cast<char*>( chunk.buffer ) + pAsyncChunkOffset;
-        pAsyncReadSize   = chunk.length - pAsyncChunkOffset;
-        if( pAsyncReadSize > bytesleft )
-          pAsyncReadSize = bytesleft;
-        bool lastchunk = pChunkList->size() == pAsyncChunkIndex + 1;
-        if( lastchunk && bytesleft > chunk.length )
-        {
-          log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
-                      ": expected: %d, got %d bytes",
-                      pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-                      pReadRawCurrentOffset + chunk.length,
-                      pReadRawCurrentOffset + bytesleft );
-
-          pChunkStatus[pAsyncChunkIndex].sizeError = true;
-          pOtherRawStarted               = false;
-        }
-        pReadRawStarted = true;
-      }
-
-      //--------------------------------------------------------------------------
-      // If we have an overflow we discard all the incoming data. We do this
-      // instead of just quitting in order to keep the stream sane.
-      //--------------------------------------------------------------------------
-      if( pChunkStatus[pAsyncChunkIndex].sizeError )
-        return ReadRawOther( socket, bytesRead );
-
-      //--------------------------------------------------------------------------
-      // Read the data
-      //--------------------------------------------------------------------------
-      XRootDStatus st = ReadAsync( socket, bytesRead );
-      pAsyncChunkOffset += bytesRead;
-      if( !st.IsOK() || st.code == suRetry ) return st;
-
-      //--------------------------------------------------------------------------
-      // Update read state
-      //--------------------------------------------------------------------------
-      ChunkInfo chunk  = (*pChunkList)[pAsyncChunkIndex];
-      char *end = reinterpret_cast<char*>( chunk.buffer ) + chunk.length;
-      if( pAsyncReadBuffer == end ) // the chunk is full
-      {
-        ++pAsyncChunkIndex; // move to next buffer
-        pReadRawStarted = false; // indicated we need a new buffer
-        pAsyncChunkOffset = 0; // we will be using a new chunk
-      }
-      pReadRawCurrentOffset += pAsyncReadSize; // update the total number of bytes read
-      bytesleft -= pAsyncReadSize; // update number of bytes left to be read
-    }
-
-    pReadRawCurrentOffset = 0;
-    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------

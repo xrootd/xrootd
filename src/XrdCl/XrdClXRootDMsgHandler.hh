@@ -149,14 +149,10 @@ namespace XrdCl
         pNotAuthorizedCounter( 0 ),
 
         pAsyncOffset( 0 ),
-        pAsyncChunkOffset( 0 ),
         pAsyncChunkIndex( 0 ),
         pAsyncReadSize( 0 ),
         pAsyncReadBuffer( 0 ),
         pAsyncMsgSize( 0 ),
-
-        pReadRawStarted( false ),
-        pReadRawCurrentOffset( 0 ),
 
         pPgWrtCksumBuff( 4 ),
         pPgWrtCurrentPageOffset( 0 ),
@@ -443,12 +439,6 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
-      //! Handle a kXR_read in raw mode
-      //------------------------------------------------------------------------
-      Status ReadRawRead( Socket   *socket,
-                          uint32_t &bytesRead );
-
-      //------------------------------------------------------------------------
       //! Handle anything other than kXR_read and kXR_readv in raw mode
       //------------------------------------------------------------------------
       Status ReadRawOther( Socket   *socket,
@@ -663,14 +653,10 @@ namespace XrdCl
       uint16_t                               pNotAuthorizedCounter;
 
       uint32_t                               pAsyncOffset;
-      uint32_t                               pAsyncChunkOffset;
       uint32_t                               pAsyncChunkIndex;
       uint32_t                               pAsyncReadSize;
       char*                                  pAsyncReadBuffer;
       uint32_t                               pAsyncMsgSize;
-
-      bool                                   pReadRawStarted;
-      uint32_t                               pReadRawCurrentOffset;
 
       std::unique_ptr<AsyncPageReader>       pPageReader;
       std::unique_ptr<AsyncVectorReader>     pVectorReader;
