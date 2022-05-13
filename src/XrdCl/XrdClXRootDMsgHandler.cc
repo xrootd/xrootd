@@ -167,6 +167,7 @@ namespace XrdCl
     //    answer and we need to wait for more (default, no extra flag)
     //--------------------------------------------------------------------------
     pResponse = msg;
+    pBodyReader->SetDataLength( dlen );
 
     Log *log = DefaultEnv::GetLog();
     switch( status )
@@ -200,7 +201,6 @@ namespace XrdCl
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
         {
-          pRawReader->SetDataLength( dlen );
           return Raw | RemoveHandler;
         }
 
@@ -209,7 +209,6 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( reqId == kXR_readv )
         {
-          pVectorReader->SetDataLength( dlen );
           return Raw | RemoveHandler;
         }
 
@@ -242,7 +241,6 @@ namespace XrdCl
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
         {
-          pRawReader->SetDataLength( dlen );
           pTimeoutFence.store( true, std::memory_order_relaxed );
           return Raw | ( pOksofarAsAnswer ? None : NoProcess );
         }
@@ -252,7 +250,6 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( reqId == kXR_readv )
         {
-          pVectorReader->SetDataLength( dlen );
           pTimeoutFence.store( true, std::memory_order_relaxed );
           return Raw | ( pOksofarAsAnswer ? None : NoProcess );
         }
@@ -905,64 +902,11 @@ namespace XrdCl
   {
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
     uint16_t reqId = ntohs( req->header.requestid );
-    if( reqId == kXR_read )
-      return pRawReader->Read( *socket, bytesRead );
-
-    if( reqId == kXR_readv )
-      return pVectorReader->Read( *socket, bytesRead );
 
     if( reqId == kXR_pgread )
       return pPageReader->Read( *socket, bytesRead );
 
-    return ReadRawOther( socket, bytesRead );
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle anything other than kXR_read and kXR_readv in raw mode
-  //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadRawOther( Socket   *socket,
-                                         uint32_t &bytesRead )
-  {
-    if( !pOtherRawStarted )
-    {
-      pAsyncOffset     = 0;
-      pAsyncReadSize   = pAsyncMsgSize;
-      pAsyncReadBuffer = new char[pAsyncMsgSize];
-      pOtherRawStarted = true;
-    }
-
-    Status st = ReadAsync( socket, bytesRead );
-
-    if( st.IsOK() && st.code == suRetry )
-      return st;
-
-    delete [] pAsyncReadBuffer;
-    pAsyncReadBuffer = 0;
-    pAsyncOffset     = pAsyncReadSize = 0;
-    pOtherRawStarted = false;
-
-    return st;
-  }
-
-  //--------------------------------------------------------------------------
-  // Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
-  // and pAsyncOffset
-  //--------------------------------------------------------------------------
-  Status XRootDMsgHandler::ReadBytesAsync( Socket *socket, char *&buffer, uint32_t toBeRead, uint32_t &bytesRead )
-  {
-    while( toBeRead > 0 )
-    {
-      int btsRead = 0;
-      Status status = socket->Read( buffer, toBeRead, btsRead );
-
-      if( !status.IsOK() || status.code == suRetry )
-        return status;
-
-      buffer    += btsRead;
-      bytesRead += btsRead;
-      toBeRead  -= btsRead;
-    }
-    return Status( stOK, suDone );
+    return pBodyReader->Read( *socket, bytesRead );
   }
 
   //----------------------------------------------------------------------------
@@ -1628,34 +1572,10 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( pResponse->GetSize() > 8 )
           return Status( stOK, errInternal );
-
-        AnyObject *obj = new AnyObject();
         //----------------------------------------------------------------------
-        // If this is a virtual readv we need to package the response into
-        // a VectorReadInfo object.
+        // Get the response for the end user
         //----------------------------------------------------------------------
-        if( pRequest->GetVirtReqID() == kXR_virtReadv )
-        {
-          VectorReadInfo *info = nullptr;
-          Status st = pRawReader->GetVectorReadInfo( info );
-          if( !st.IsOK() )
-            return st;
-          obj->Set( info );
-        }
-        //----------------------------------------------------------------------
-        // Otherwise, we package the response into a standard ChunkInfo.
-        //----------------------------------------------------------------------
-        else
-        {
-          ChunkInfo *chunk = nullptr;
-          Status st = pRawReader->GetChunkInfo( chunk );
-          if( !st.IsOK() )
-            return st;
-          obj->Set( chunk );
-        }
-
-        response = obj;
-        return Status();
+        return pBodyReader->GetResponse( response );
       }
 
       //------------------------------------------------------------------------
@@ -1781,16 +1701,10 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( pResponse->GetSize() > 8 )
           return Status( stOK, errInternal );
-
-        VectorReadInfo *info = nullptr;
-        Status st = pVectorReader->GetVectorReadInfo( info );
-        if( !st.IsOK() )
-          return st;
-
-        AnyObject *obj = new AnyObject();
-        obj->Set( info );
-        response = obj;
-        return Status();
+        //----------------------------------------------------------------------
+        // Get the response for the end user
+        //----------------------------------------------------------------------
+        return pBodyReader->GetResponse( response );
       }
 
       //------------------------------------------------------------------------

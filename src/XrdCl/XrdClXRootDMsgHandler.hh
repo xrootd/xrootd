@@ -32,9 +32,12 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
+
+#include "XrdCl/XrdClAsyncMsgBodyReader.hh"
 #include "XrdCl/XrdClAsyncPageReader.hh"
 #include "XrdCl/XrdClAsyncVectorReader.hh"
 #include "XrdCl/XrdClAsyncRawReader.hh"
+#include "XrdCl/XrdClAsyncDiscardReader.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPageSize.hh"
@@ -150,9 +153,6 @@ namespace XrdCl
 
         pAsyncOffset( 0 ),
         pAsyncChunkIndex( 0 ),
-        pAsyncReadSize( 0 ),
-        pAsyncReadBuffer( 0 ),
-        pAsyncMsgSize( 0 ),
 
         pPgWrtCksumBuff( 4 ),
         pPgWrtCurrentPageOffset( 0 ),
@@ -198,13 +198,11 @@ namespace XrdCl
         }
 
         if( ntohs( hdr->requestid ) == kXR_readv )
-        {
-          pVectorReader.reset( new AsyncVectorReader( *url ) );
-        }
+          pBodyReader.reset( new AsyncVectorReader( *url, *pRequest ) );
         else if( ntohs( hdr->requestid ) == kXR_read )
-        {
-          pRawReader.reset( new AsyncRawReader( *url, *pRequest ) );
-        }
+          pBodyReader.reset( new AsyncRawReader( *url, *pRequest ) );
+        else
+          pBodyReader.reset( new AsyncDiscardReader( *url, *pRequest ) );
       }
 
       //------------------------------------------------------------------------
@@ -388,10 +386,8 @@ namespace XrdCl
       void SetChunkList( ChunkList *chunkList )
       {
         pChunkList = chunkList;
-        if( pVectorReader )
-          pVectorReader->SetChunkList( chunkList );
-        else if( pRawReader )
-          pRawReader->SetChunkList( chunkList );
+        if( pBodyReader )
+          pBodyReader->SetChunkList( chunkList );
         if( chunkList )
           pChunkStatus.resize( chunkList->size() );
         else
@@ -437,32 +433,6 @@ namespace XrdCl
       void PartialReceived();
 
     private:
-
-      //------------------------------------------------------------------------
-      //! Handle anything other than kXR_read and kXR_readv in raw mode
-      //------------------------------------------------------------------------
-      Status ReadRawOther( Socket   *socket,
-                           uint32_t &bytesRead );
-
-      //------------------------------------------------------------------------
-      //! Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
-      //! and pAsyncOffset
-      //------------------------------------------------------------------------
-      inline Status ReadAsync( Socket *socket, uint32_t &bytesRead )
-      {
-        uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
-        uint32_t btsRead  = 0;
-        Status st = ReadBytesAsync( socket, pAsyncReadBuffer, toBeRead, btsRead );
-        pAsyncOffset += btsRead;
-        bytesRead    += btsRead;
-        return st;
-      }
-
-      //------------------------------------------------------------------------
-      //! Read a buffer asynchronously
-      //------------------------------------------------------------------------
-      static Status ReadBytesAsync( Socket   *socket,   char     *&buffer,
-                                    uint32_t  toBeRead, uint32_t  &bytesRead );
 
       //------------------------------------------------------------------------
       //! Recover error
@@ -654,13 +624,9 @@ namespace XrdCl
 
       uint32_t                               pAsyncOffset;
       uint32_t                               pAsyncChunkIndex;
-      uint32_t                               pAsyncReadSize;
-      char*                                  pAsyncReadBuffer;
-      uint32_t                               pAsyncMsgSize;
 
       std::unique_ptr<AsyncPageReader>       pPageReader;
-      std::unique_ptr<AsyncVectorReader>     pVectorReader;
-      std::unique_ptr<AsyncRawReader>        pRawReader;
+      std::unique_ptr<AsyncMsgBodyReader>    pBodyReader;
 
       Buffer                                 pPgWrtCksumBuff;
       uint32_t                               pPgWrtCurrentPageOffset;

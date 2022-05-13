@@ -124,7 +124,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get virtual request ID for the message
       //------------------------------------------------------------------------
-      uint16_t GetVirtReqID()
+      uint16_t GetVirtReqID() const
       {
         return pVirtReqID;
       }

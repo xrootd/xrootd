@@ -19,6 +19,8 @@
 #ifndef SRC_XRDCL_XRDCLASYNCRAWREADER_HH_
 #define SRC_XRDCL_XRDCLASYNCRAWREADER_HH_
 
+
+#include "XrdCl/XrdClAsyncMsgBodyReader.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClStream.hh"
@@ -27,53 +29,20 @@ namespace XrdCl
 {
 
   //----------------------------------------------------------------------------
-  //! Object for reading out data from the VectorRead response
+  //! Object for reading out data from the kXR_read response
   //----------------------------------------------------------------------------
-  class AsyncRawReader
+  class AsyncRawReader : public AsyncMsgBodyReader
   {
     public:
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param url : channel URL
+      //! @param url     : channel URL
+      //! @param request : client request
       //------------------------------------------------------------------------
       AsyncRawReader( const URL &url, const Message &request ) :
-        readstage( ReadStart ),
-        url( url ),
-        request( request ),
-        chunks( nullptr ),
-        dlen( 0 ),
-        msgbtsrd( 0 ),
-        totalbtsrd( 0 ),
-        chidx( 0 ),
-        choff( 0 ),
-        chlen( 0 ),
-        sizeerr( false )
+        AsyncMsgBodyReader( url, request )
       {
-      }
-
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~AsyncRawReader()
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Sets response data length
-      //------------------------------------------------------------------------
-      void SetDataLength( int dlen )
-      {
-        this->dlen       = dlen;
-        this->readstage  = ReadStart;
-      }
-
-      //------------------------------------------------------------------------
-      //! Sets the chunk list with user buffers
-      //------------------------------------------------------------------------
-      void SetChunkList( ChunkList *chunks )
-      {
-        this->chunks = chunks;
       }
 
       //------------------------------------------------------------------------
@@ -85,8 +54,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Read( Socket &socket, uint32_t &btsret )
       {
-        Log  *log = DefaultEnv::GetLog();
-
         while( true )
         {
           switch( readstage )
@@ -119,11 +86,11 @@ namespace XrdCl
               uint32_t btsrd = 0;
               char *buff = static_cast<char*>( ( *chunks )[chidx].buffer );
               Status st = ReadBytesAsync( socket, buff + choff, chlen, btsrd );
-              choff        += btsrd;
-              chlen        -= btsrd;
-              msgbtsrd     += btsrd;
-              totalbtsrd += btsrd;
-              btsret       += btsrd;
+              choff    += btsrd;
+              chlen    -= btsrd;
+              msgbtsrd += btsrd;
+              rawbtsrd += btsrd;
+              btsret   += btsrd;
 
               if( !st.IsOK() || st.code == suRetry )
                  return st;
@@ -166,31 +133,17 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadDiscard:
             {
-              sizeerr = true;
-              uint32_t btsleft = dlen - msgbtsrd;
-              // allocate the discard buffer if necessary
-              if( discardbuff.size() < btsleft )
-                discardbuff.resize( btsleft );
-
-              //----------------------------------------------------------------
-              // We need to readout the data from the socket in order to keep
-              // the stream sane.
-              //----------------------------------------------------------------
-              uint32_t btsrd = 0;
-              Status st = ReadBytesAsync( socket, discardbuff.data(), btsleft, btsrd );
-              msgbtsrd += btsrd;
-              btsret     += btsrd;
-
-              log->Warning( XRootDMsg, "[%s] ReadRawRead: Discarded %d bytes",
-                            url.GetHostId().c_str(), btsrd );
+              XRootDStatus st = DiscardBytes( socket, btsret, "RawReader" );
 
               if( !st.IsOK() || st.code == suRetry )
                 return st;
 
-              DefaultEnv::GetLog()->Error( XRootDMsg, "[%s] Handling response to %s: "
-                                           "user supplied buffer is too small for the "
-                                           "received data.", url.GetHostId().c_str(),
+              DefaultEnv::GetLog()->Error( XRootDMsg, "[%s] RawReader: Handling "
+                                           "response to %s: user supplied buffer is "
+                                           "too small for the received data.",
+                                           url.GetHostId().c_str(),
                                            request.GetDescription().c_str() );
+              dataerr   = true;
               readstage = ReadDone;
               continue;
             }
@@ -202,6 +155,11 @@ namespace XrdCl
             {
               break;
             }
+
+            //------------------------------------------------------------------
+            // Others should not happen
+            //------------------------------------------------------------------
+            default : return XRootDStatus( stError, errInternal );
           }
 
           // just in case
@@ -213,104 +171,44 @@ namespace XrdCl
         return XRootDStatus();
       }
 
-      Status GetChunkInfo( ChunkInfo *&info )
+      //------------------------------------------------------------------------
+      //! Get the response
+      //------------------------------------------------------------------------
+      XRootDStatus GetResponse( AnyObject *&response )
       {
-        if( sizeerr )
-          return Status( stError, errInvalidResponse );
-        info = new ChunkInfo( chunks->front() );
-        info->length = totalbtsrd;
-        return Status();
-
+        if( dataerr )
+          return XRootDStatus( stError, errInvalidResponse );
+        std::unique_ptr<AnyObject> rsp( new AnyObject() );
+        if( request.GetVirtReqID() == kXR_virtReadv )
+          rsp->Set( GetVectorReadInfo() );
+        else
+          rsp->Set( GetChunkInfo() );
+        response = rsp.release();
+        return XRootDStatus();
       }
 
-      Status GetVectorReadInfo( VectorReadInfo *&info )
+    private:
+
+      inline ChunkInfo* GetChunkInfo()
       {
-        if( sizeerr )
-          return Status( stError, errInvalidResponse );
-        info = new VectorReadInfo();
-        info->SetSize( totalbtsrd );
-        int btsleft = totalbtsrd;
+        ChunkInfo *info = new ChunkInfo( chunks->front() );
+        info->length = rawbtsrd;
+        return info;
+      }
+
+      inline VectorReadInfo* GetVectorReadInfo()
+      {
+        VectorReadInfo *info = new VectorReadInfo();
+        info->SetSize( rawbtsrd );
+        int btsleft = rawbtsrd;
         for( auto &chunk : *chunks )
         {
           int length = uint32_t( btsleft ) >= chunk.length ? chunk.length : btsleft;
           info->GetChunks().emplace_back( chunk.offset, length, chunk.buffer );
           btsleft -= length;
         }
-        return Status();
+        return info;
       }
-
-    private:
-
-      //--------------------------------------------------------------------------
-      // Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
-      // and pAsyncOffset
-      //--------------------------------------------------------------------------
-      Status ReadBytesAsync( Socket &socket, char *buffer, uint32_t toBeRead, uint32_t &bytesRead )
-      {
-        size_t shift = 0;
-        while( toBeRead > 0 )
-        {
-          int btsRead = 0;
-          Status status = socket.Read( buffer + shift, toBeRead, btsRead );
-
-          if( !status.IsOK() || status.code == suRetry )
-            return status;
-
-          bytesRead += btsRead;
-          toBeRead  -= btsRead;
-          shift     += btsRead;
-        }
-        return Status( stOK, suDone );
-      }
-
-      //------------------------------------------------------------------------
-      // Helper struct for async reading of chunks
-      //------------------------------------------------------------------------
-      struct ChunkStatus
-      {
-        ChunkStatus(): sizeerr( false ), done( false ) {}
-        bool sizeerr;
-        bool done;
-      };
-
-      //------------------------------------------------------------------------
-      // internal buffer type
-      //------------------------------------------------------------------------
-      using buffer_t = std::vector<char>;
-
-      //------------------------------------------------------------------------
-      //! Stages of reading out a response from the socket
-      //------------------------------------------------------------------------
-      enum Stage
-      {
-        ReadStart,   //< the next step is to initialize the read
-        ReadRaw,     //< the next step is to read the raw data
-        ReadDiscard, //< there was an error, we are in discard mode
-        ReadDone     //< the next step is to finalize the read
-      };
-
-      //------------------------------------------------------------------------
-      // Current read stage
-      //------------------------------------------------------------------------
-      Stage readstage;
-
-      //------------------------------------------------------------------------
-      // The context of the read operation
-      //------------------------------------------------------------------------
-      const URL     &url;          //< for logging purposes
-      const Message &request;      //< client request
-
-      ChunkList     *chunks;       //< list of data chunks to be filled with user data
-      uint32_t       dlen;         //< size of the data in the message
-      uint32_t       msgbtsrd;     //< number of bytes read out from the socket for the current message
-      uint32_t       totalbtsrd;   //< total number of bytes read out from the socket
-
-      size_t         chidx;        //< index of the current data buffer
-      size_t         choff;        //< offset within the current buffer
-      size_t         chlen;        //< bytes left to be readout into the current chunk
-
-      buffer_t       discardbuff;  //< buffer for discarding data in case of an error
-      bool           sizeerr;      //< true if the server send us too much data, false otherwise
   };
 
 } /* namespace XrdCl */
