@@ -28,4 +28,4 @@ option( ENABLE_XRDEC     "Enable erasure coding component."                     
 option( ENABLE_ASAN      "Enable adress sanitizer."                                       FALSE )
 option( ENABLE_TSAN      "Enable thread sanitizer."                                       FALSE )
 option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                                      TRUE )
-define_default( XRD_PYTHON_REQ_VERSION 2.4 )
+define_default( XRD_PYTHON_REQ_VERSION 3 )
