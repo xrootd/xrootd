@@ -8,14 +8,12 @@
 
         %if %{rhel} == 7
 			# we build both python2 and python3 bindings for EPEL7
-			%define python2only 0
-			%define python3only 0
-			%define python2and3 1
+                        %define _with_python2 1
+                        %define _with_python3 1
         %else
 			# we only build both python3 bindings for EPEL>7
-			%define python2only 0
-			%define python3only 1
-			%define python2and3 0
+			%define _with_python2 0
+			%define _with_python3 1
         %endif
 %else
     # do we have macaroons ?
@@ -31,9 +29,8 @@
         %define use_systemd 0
     %endif
     # we only build python3 bindings for fedora
-    %define python2only 0
-    %define python3only 1
-    %define python2and3 0
+    %define _with_python2 0
+    %define _with_python3 1
 %endif
 
 
@@ -106,19 +103,12 @@ BuildRequires: libmacaroons-devel
 %endif
 BuildRequires: json-c-devel
 
-%if %{python2only}
+%if %{_with_python2}
 BuildRequires: python2-pip
 BuildRequires: python2-devel
 BuildRequires: python2-setuptools
 %endif
-%if %{python2and3}
-BuildRequires: python2-pip
-BuildRequires: python2-devel
-BuildRequires: python2-setuptools
-BuildRequires: python%{python3_pkgversion}-devel
-BuildRequires: python%{python3_pkgversion}-setuptools
-%endif
-%if %{python3only}
+%if %{_with_python3}
 BuildRequires: python%{python3_pkgversion}-devel
 BuildRequires: python%{python3_pkgversion}-setuptools
 %endif
@@ -341,9 +331,9 @@ tool.
 # Python bindings
 #-------------------------------------------------------------------------------
 
-%if %{python2only}
+%if %{_with_python2}
 #-------------------------------------------------------------------------------
-# python2 only (EPEL6)
+# python2
 #-------------------------------------------------------------------------------
 %package -n python2-%{name}
 Summary:       Python 2 bindings for XRootD
@@ -357,36 +347,9 @@ Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Python 2 bindings for XRootD
 %endif
 
-%if %{python2and3}
+%if %{_with_python3}
 #-------------------------------------------------------------------------------
-# python2 (EPEL7)
-#-------------------------------------------------------------------------------
-%package -n python2-%{name}
-Summary:       Python 2 bindings for XRootD
-Group:         Development/Libraries
-Provides:      python-%{name}
-Provides:      %{name}-python = %{epoch}:%{version}-%{release}
-Obsoletes:     %{name}-python < 1:4.8.0-1
-Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description -n python2-xrootd
-Python 2 bindings for XRootD
-
-#-------------------------------------------------------------------------------
-# python3 (EPEL7)
-#-------------------------------------------------------------------------------
-%package -n python%{python3_pkgversion}-%{name}
-Summary:       Python 3 bindings for XRootD
-Group:         Development/Libraries
-Requires:      %{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-
-%description -n python%{python3_pkgversion}-%{name}
-Python 3 bindings for XRootD
-%endif
-
-%if %{python3only}
-#-------------------------------------------------------------------------------
-# python3 only (Fedora and EPEL8)
+# python3
 #-------------------------------------------------------------------------------
 %package -n python%{python3_pkgversion}-%{name}
 Summary:       Python 3 bindings for XRootD
@@ -563,9 +526,6 @@ cmake  \
 %if %{?_with_isal:1}%{!?_with_isal:0}
       -DENABLE_XRDEC=TRUE \
 %endif
-%if %{python3only}
-      -DXRD_PYTHON_REQ_VERSION=%{python3_pkgversion} \
-%endif
       -DUSER_VERSION=v%{version} \
       ../
 
@@ -607,12 +567,16 @@ popd
 popd
 %endif
 
-%if %{python2and3}
-# build python3 bindings
 pushd build/bindings/python
+# build python3 bindings
+%if %{_with_python2}
 %py3_build
-popd
 %endif
+# build python2 bindings
+%if %{_with_python3}
+%py2_build
+%endif
+popd
 
 #-------------------------------------------------------------------------------
 # Installation
@@ -732,12 +696,16 @@ mkdir -p %{buildroot}%{_datadir}/selinux/packages/%{name}
 install -m 644 -p packaging/common/xrootd.pp \
     %{buildroot}%{_datadir}/selinux/packages/%{name}/%{name}.pp
 
-%if %{python2and3}
-# install python3 bindings
 pushd build/bindings/python
-%py3_install
-popd
+# install python2 bindings
+%if %{_with_python2}
+%py2_install
 %endif
+# install python3 bindings
+%if %{_with_python3}
+%py3_install
+%endif
+popd
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -1035,23 +1003,13 @@ fi
 %{_mandir}/man1/xrootdfs.1*
 %dir %{_sysconfdir}/xrootd
 
-%if %{python2only}
+%if %{_with_python2}
 %files -n python2-%{name}
 %defattr(-,root,root,-)
 %{python2_sitearch}/*
 %endif
 
-%if %{python2and3}
-%files -n python2-%{name}
-%defattr(-,root,root,-)
-%{python2_sitearch}/*
-
-%files -n python%{python3_pkgversion}-%{name}
-%defattr(-,root,root,-)
-%{python3_sitearch}/*
-%endif
-
-%if %{python3only}
+%if %{_with_python3}
 %files -n python%{python3_pkgversion}-%{name}
 %defattr(-,root,root,-)
 %{python3_sitearch}/*
