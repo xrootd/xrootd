@@ -570,11 +570,11 @@ popd
 pushd build/bindings/python
 # build python3 bindings
 %if %{_with_python2}
-%py3_build
+%py2_build
 %endif
 # build python2 bindings
 %if %{_with_python3}
-%py2_build
+%py3_build
 %endif
 popd
 
