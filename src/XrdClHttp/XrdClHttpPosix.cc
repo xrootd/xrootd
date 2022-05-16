@@ -13,8 +13,8 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
 
-#include "davix/auth/davixx509cred.hpp"
-#include "davix/auth/davixauth.hpp"
+#include "auth/davixx509cred.hpp"
+#include "auth/davixauth.hpp"
 
 #include <string>
 
