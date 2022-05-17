@@ -124,7 +124,6 @@ namespace XrdCl
   void InQueue::ReportStreamEvent( MsgHandler::StreamEvent event,
                                    XRootDStatus            status )
   {
-    uint8_t action = 0;
     XrdSysMutexHelper scopedLock( pMutex );
     for( HandlerMap::iterator it = pHandlers.begin(); it != pHandlers.end(); )
     {
