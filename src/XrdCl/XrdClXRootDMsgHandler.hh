@@ -168,8 +168,6 @@ namespace XrdCl
 
         pMsgInFly( false ),
 
-        pTimeoutFence( false ),
-
         pDirListStarted( false ),
         pDirListWithStat( false ),
 
@@ -285,8 +283,8 @@ namespace XrdCl
       //! @param streamNum stream concerned
       //! @param status    status info
       //------------------------------------------------------------------------
-      virtual uint8_t OnStreamEvent( StreamEvent  event,
-                                     XRootDStatus status );
+      virtual void OnStreamEvent( StreamEvent  event,
+                                  XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
@@ -424,13 +422,6 @@ namespace XrdCl
       {
         pStateful = stateful;
       }
-
-      //------------------------------------------------------------------------
-      //! Bookkeeping after partial response has been received:
-      //! - take down the timeout fence after oksofar response has been handled
-      //! - reset status-response-body marshaled flag
-      //------------------------------------------------------------------------
-      void PartialReceived();
 
     private:
 
@@ -643,13 +634,6 @@ namespace XrdCl
       RedirectTraceBack                      pRedirectTraceBack;
 
       bool                                   pMsgInFly;
-
-      //------------------------------------------------------------------------
-      // true if MsgHandler is both in inQueue and installed in respective
-      // Stream (this could happen if server gave oksofar response), otherwise
-      // false
-      //------------------------------------------------------------------------
-      std::atomic<bool>                      pTimeoutFence;
 
       //------------------------------------------------------------------------
       // if we are serving chunked data to the user's handler in case of
