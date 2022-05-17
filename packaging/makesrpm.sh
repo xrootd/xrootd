@@ -248,31 +248,6 @@ git submodule update -- src/XrdCeph
 #git submodule foreach git pull origin master
 
 #-------------------------------------------------------------------------------
-# Add XrdClHttp sub-module to our tarball
-#-------------------------------------------------------------------------------
-cd src/XrdClHttp
-
-if [ -z ${TAG+x} ]; then
-  COMMIT=`git log --pretty=format:"%H" -1`
-else
-  COMMIT=$TAG
-fi
-
-git archive --prefix=xrootd/src/XrdClHttp/ --format=tar $COMMIT > $RPMSOURCES/xrdcl-http.tar
-if test $? -ne 0; then
-  echo "[!] Unable to create the xrdcl-http source tarball" 1>&2
-  exit 6
-fi
-
-tar --concatenate --file $RPMSOURCES/xrootd.tar $RPMSOURCES/xrdcl-http.tar
-if test $? -ne 0; then
-  echo "[!] Unable to add xrdcl-http to xrootd tarball" 1>&2
-  exit 6
-fi
-
-cd - > /dev/null
-
-#-------------------------------------------------------------------------------
 # Add XrdCeph sub-module to our tarball
 #-------------------------------------------------------------------------------
 cd src/XrdCeph
