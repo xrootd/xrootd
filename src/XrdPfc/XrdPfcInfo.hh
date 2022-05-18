@@ -134,9 +134,7 @@ public:
    //---------------------------------------------------------------------
    void SetAllBitsSynced();
 
-   void SetBufferSize(long long);
-   
-   void SetFileSizeAndCreationTime(long long);
+   void SetBufferSizeFileSizeAndCreationTime(long long bs, long long fs);
 
    //---------------------------------------------------------------------
    //! \brief Reserve bit vectors for file_size / buffer_size bytes.

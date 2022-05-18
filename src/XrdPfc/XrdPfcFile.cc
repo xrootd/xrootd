@@ -65,6 +65,8 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_non_flushed_cnt(0),
    m_in_sync(false),
    m_state_cond(0),
+   m_block_size(0),
+   m_num_blocks(0),
    m_prefetch_state(kOff),
    m_prefetch_read_cnt(0),
    m_prefetch_hit_cnt(0),
@@ -156,7 +158,7 @@ Stats File::DeltaStatsFromLastCall()
 
 void File::BlockRemovedFromWriteQ(Block* b)
 {
-   TRACEF(Dump, "BlockRemovedFromWriteQ() block = " << (void*) b << " idx= " << b->m_offset/m_cfi.GetBufferSize());
+   TRACEF(Dump, "BlockRemovedFromWriteQ() block = " << (void*) b << " idx= " << b->m_offset/m_block_size);
 
    XrdSysCondVarHelper _lck(m_state_cond);
    dec_ref_count(b);
@@ -471,8 +473,7 @@ bool File::Open()
 
    if (initialize_info_file)
    {
-      m_cfi.SetBufferSize(conf.m_bufferSize);
-      m_cfi.SetFileSizeAndCreationTime(m_file_size);
+      m_cfi.SetBufferSizeFileSizeAndCreationTime(conf.m_bufferSize, m_file_size);
       m_cfi.SetCkSumState(conf.get_cs_Chk());
       m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
@@ -482,6 +483,8 @@ bool File::Open()
    m_cfi.WriteIOStatAttach();
    m_state_cond.Lock();
    m_is_open = true;
+   m_block_size = m_cfi.GetBufferSize();
+   m_num_blocks = m_cfi.GetNBlocks();
    m_prefetch_state = (m_cfi.IsComplete()) ? kComplete : kStopped; // Will engage in AddIO().
    m_state_cond.UnLock();
 
@@ -534,9 +537,8 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
    // Reference count is 0 so increase it in calling function if you want to
    // catch the block while still in memory.
 
-   const long long BS    = m_cfi.GetBufferSize();
-   const long long off   = i * BS;
-   const int  last_block = m_cfi.GetNBlocks() - 1;
+   const long long off   = i * m_block_size;
+   const int  last_block = m_num_blocks - 1;
    const bool cs_net     = cache()->RefConfiguration().is_cschk_net();
 
    int blk_size, req_size;
@@ -544,7 +546,7 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
       blk_size = req_size = m_file_size - off;
       if (cs_net && req_size & 0xFFF) req_size = (req_size & ~0xFFF) + 0x1000;
    } else {
-      blk_size = req_size = BS;
+      blk_size = req_size = m_block_size;
    }
 
    Block *b   = 0;
@@ -606,8 +608,6 @@ void File::ProcessBlockRequests(BlockList_t& blks)
 int File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, IntList_t& blocks,
                               char* req_buf, long long req_off, long long req_size)
 {
-   const long long BS = m_cfi.GetBufferSize();
-
    // TODO Use readv to load more at the same time.
 
    long long total = 0;
@@ -619,9 +619,9 @@ int File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, IntList_t&
       long long blk_off; // offset in block
       long long size;    // size to copy
 
-      overlap(*ii, BS, req_off, req_size, off, blk_off, size);
+      overlap(*ii, m_block_size, req_off, req_size, off, blk_off, size);
 
-      io->GetInput()->Read( *handler, req_buf + off, *ii * BS + blk_off, size);
+      io->GetInput()->Read( *handler, req_buf + off, *ii * m_block_size + blk_off, size);
       TRACEF(Dump, "RequestBlockDirect success, idx = " <<  *ii << " size = " <<  size);
 
       total += size;
@@ -636,7 +636,6 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
                              char* req_buf, long long req_off, long long req_size)
 {
    TRACEF(Dump, "ReadBlocksFromDisk " <<  blocks.size());
-   const long long BS = m_cfi.GetBufferSize();
 
    long long total = 0;
 
@@ -649,9 +648,9 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
       long long blk_off; // offset in block
       long long size;    // size to copy
 
-      overlap(*ii, BS, req_off, req_size, off, blk_off, size);
+      overlap(*ii, m_block_size, req_off, req_size, off, blk_off, size);
 
-      long long rs = m_data_file->Read(req_buf + off, *ii * BS + blk_off -m_offset, size);
+      long long rs = m_data_file->Read(req_buf + off, *ii * m_block_size + blk_off -m_offset, size);
       TRACEF(Dump, "ReadBlocksFromDisk block idx = " <<  *ii << " size= " << size);
 
       if (rs < 0)
@@ -676,14 +675,12 @@ int File::ReadBlocksFromDisk(std::list<int>& blocks,
 
 int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 {
-   const long long BS = m_cfi.GetBufferSize();
-
    Stats loc_stats;
 
    BlockList_t blks;
 
-   const int idx_first = iUserOff / BS;
-   const int idx_last  = (iUserOff + iUserSize - 1) / BS;
+   const int idx_first = iUserOff / m_block_size;
+   const int idx_last  = (iUserOff + iUserSize - 1) / m_block_size;
 
    BlockSet_t  requested_blocks;
    BlockList_t blks_to_request, blks_to_process, blks_processed;
@@ -843,9 +840,9 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             long long off_in_block; // offset in block
             long long size_to_copy; // size to copy
 
-            overlap((*bi)->m_offset/BS, BS, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
+            overlap((*bi)->m_offset/m_block_size, m_block_size, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
 
-            TRACEF(Dump, "Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/BS << " size " << size_to_copy);
+            TRACEF(Dump, "Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/m_block_size << " size " << size_to_copy);
             memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
             bytes_read += size_to_copy;
 
@@ -863,7 +860,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
             if ( ! error_cond)
             {
                error_cond = (*bi)->m_errno;
-               TRACEF(Error, "Read() io " << io << ", block "<< (*bi)->m_offset/BS <<
+               TRACEF(Error, "Read() io " << io << ", block "<< (*bi)->m_offset/m_block_size <<
                       " finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
             }
          }
@@ -915,7 +912,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 
       for (BlockList_i bi = blks_processed.begin(); bi != blks_processed.end(); ++bi)
       {
-         TRACEF(Dump, "Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/BufferSize()));
+         TRACEF(Dump, "Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/m_block_size));
          dec_ref_count(*bi);
       }
 
@@ -969,7 +966,7 @@ void File::WriteBlockToDisk(Block* b)
       return;
    }
 
-   const int blk_idx =  (b->m_offset - m_offset) / m_cfi.GetBufferSize();
+   const int blk_idx =  (b->m_offset - m_offset) / m_block_size;
 
    // Set written bit.
    TRACEF(Dump, "WriteToDisk() success set bit for block " <<  b->m_offset << " size=" <<  size);
@@ -1099,7 +1096,7 @@ void File::dec_ref_count(Block* b)
 void File::free_block(Block* b)
 {
    // Method always called under lock.
-   int i = b->m_offset / BufferSize();
+   int i = b->m_offset / m_block_size;
    TRACEF(Dump, "free_block block " << b << "  idx =  " <<  i);
    size_t ret = m_block_map.erase(i);
    if (ret != 1)
@@ -1174,7 +1171,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 
    Block *b = brh->m_block;
 
-   TRACEF(Dump, tpfx << "block=" << b << ", idx=" << b->m_offset/BufferSize() << ", off=" << b->m_offset << ", res=" << res);
+   TRACEF(Dump, tpfx << "block=" << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << ", res=" << res);
 
    if (res >= 0 && res != b->get_size())
    {
@@ -1226,7 +1223,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
    {
       b->set_downloaded();
       // Increase ref-count for the writer.
-      TRACEF(Dump, tpfx << "inc_ref_count idx=" <<  b->m_offset/BufferSize());
+      TRACEF(Dump, tpfx << "inc_ref_count idx=" <<  b->m_offset/m_block_size);
       if ( ! m_in_shutdown)
       {
          inc_ref_count(b);
@@ -1237,9 +1234,9 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
    else
    {
       if (res < 0) {
-         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/BufferSize() << ", off=" << b->m_offset << " error=" << res);
+         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << " error=" << res);
       } else {
-         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/BufferSize() << ", off=" << b->m_offset << " incomplete, got " << res << " expected " << b->get_size());
+         TRACEF(Error, tpfx << "block " << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << " incomplete, got " << res << " expected " << b->get_size());
 #if defined(__APPLE__) || defined(__GNU__) || (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) || defined(__FreeBSD__)
          res = -EIO;
 #else
@@ -1250,11 +1247,6 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
    }
 
    m_state_cond.Broadcast();
-}
-
-long long File::BufferSize()
-{
-   return m_cfi.GetBufferSize();
 }
 
 //------------------------------------------------------------------------------
@@ -1268,7 +1260,7 @@ const char* File::lPath() const
 
 int File::offsetIdx(int iIdx)
 {
-   return iIdx - m_offset/m_cfi.GetBufferSize();
+   return iIdx - m_offset/m_block_size;
 }
 
 
@@ -1298,11 +1290,11 @@ void File::Prefetch()
       }
 
       // Select block(s) to fetch.
-      for (int f = 0; f < m_cfi.GetNBlocks(); ++f)
+      for (int f = 0; f < m_num_blocks; ++f)
       {
          if ( ! m_cfi.TestBitWritten(f))
          {
-            int f_act = f + m_offset / m_cfi.GetBufferSize();
+            int f_act = f + m_offset / m_block_size;
 
             BlockMap_i bi = m_block_map.find(f_act);
             if (bi == m_block_map.end())

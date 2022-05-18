@@ -190,6 +190,11 @@ int IOEntireFile::Read(char *buff, long long off, int size)
    return (retval < 0) ? retval : bytes_read;
 }
 
+//______________________________________________________________________________
+void IOEntireFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
+{
+
+}
 
 /*
  * Perform a readv from the cache

@@ -256,13 +256,13 @@ private:
    bool           m_is_open;            //!< open state (presumably not needed anymore)
    bool           m_in_shutdown;        //!< file is in emergency shutdown due to irrecoverable error or unlink request
 
-   XrdOssDF      *m_data_file;             //!< file handle for data file on disk
-   XrdOssDF      *m_info_file;           //!< file handle for data-info file on disk
+   XrdOssDF      *m_data_file;          //!< file handle for data file on disk
+   XrdOssDF      *m_info_file;          //!< file handle for data-info file on disk
    Info           m_cfi;                //!< download status of file blocks and access statistics
 
    std::string    m_filename;           //!< filename of data file on disk
    long long      m_offset;             //!< offset of cached file for block-based / hdfs operation
-   long long      m_file_size;           //!< size of cached disk file for block-based operation
+   long long      m_file_size;          //!< size of cached disk file for block-based operation
 
    // IO objects attached to this file.
 
@@ -303,10 +303,10 @@ private:
    typedef std::set<Block*>      BlockSet_t;
    typedef BlockSet_t::iterator  BlockSet_i;
 
-
-   BlockMap_t m_block_map;
-
+   BlockMap_t    m_block_map;
    XrdSysCondVar m_state_cond;
+   long long     m_block_size;
+   int           m_num_blocks;
 
    Stats         m_stats;              //!< cache statistics for this instance
    Stats         m_last_stats;         //!< copy of cache stats during last purge cycle, used for per directory stat reporting
@@ -359,8 +359,6 @@ private:
                            std::vector<ReadVChunkListRAM>& blks_processed,
                            long long& bytes_hit,
                            long long& bytes_missed);
-
-   long long BufferSize();
 
    void inc_ref_count(Block*);
    void dec_ref_count(Block*);

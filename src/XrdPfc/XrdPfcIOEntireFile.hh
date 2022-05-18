@@ -50,42 +50,29 @@ public:
 
    //---------------------------------------------------------------------
    //! Pass Read request to the corresponding File object.
-   //!
-   //! @param Buffer
-   //! @param Offset
-   //! @param Length
-   //!
-   //! @return number of bytes read
    //---------------------------------------------------------------------
-   using XrdOucCacheIO::Read;
-
-   virtual int Read(char *Buffer, long long Offset, int Length);
+   int  Read(char *buff, long long off, int size) override;
+   void Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size) override;
 
    //---------------------------------------------------------------------
    //! Pass ReadV request to the corresponding File object.
-   //!
-   //! @param readV
-   //! @param n number of XrdOucIOVecs
-   //!
-   //! @return total bytes read
    //---------------------------------------------------------------------
    using XrdOucCacheIO::ReadV;
+   int ReadV(const XrdOucIOVec *readV, int n) override;
 
-   virtual int ReadV(const XrdOucIOVec *readV, int n);
+   void Update(XrdOucCacheIO &iocp) override;
 
-   virtual void Update(XrdOucCacheIO &iocp);
-
-   //! \brief Abstract virtual method of XrdPfcIO
+   //! \brief Abstract virtual method of XrdPfc::IO
    //! Called to check if destruction needs to be done in a separate task.
-   bool ioActive() /* override */;
+   bool ioActive() override;
 
-   //! \brief Abstract virtual method of XrdPfcIO
+   //! \brief Abstract virtual method of XrdPfc::IO
    //! Called to destruct the IO object after it is no longer used.
-   void DetachFinalize() /* override */;
+   void DetachFinalize() override;
    
-   virtual int  Fstat(struct stat &sbuff);
+   int  Fstat(struct stat &sbuff) override;
 
-   virtual long long FSize();
+   long long FSize() override;
 
 private:
    File        *m_file;

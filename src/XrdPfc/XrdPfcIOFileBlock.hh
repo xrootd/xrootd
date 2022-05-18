@@ -42,26 +42,26 @@ public:
 
    ~IOFileBlock();
 
-   //! \brief Abstract virtual method of XrdPfcIO
+   //! \brief Abstract virtual method of XrdPfc::IO
    //! Called to check if destruction needs to be done in a separate task.
-   bool ioActive() /* override */;
+   bool ioActive() override;
 
-   //! \brief Abstract virtual method of XrdPfcIO
+   //! \brief Abstract virtual method of XrdPfc::IO
    //! Called to destruct the IO object after it is no longer used.
-   void DetachFinalize() /* override */;
+   void DetachFinalize() override;
 
    //---------------------------------------------------------------------
    //! Pass Read request to the corresponding File object.
    //---------------------------------------------------------------------
    using XrdOucCacheIO::Read;
 
-   virtual int Read(char *Buffer, long long Offset, int Length);
+   int Read(char *Buffer, long long Offset, int Length) override;
    
-   virtual int  Fstat(struct stat &sbuff);
+   int  Fstat(struct stat &sbuff) override;
 
-   virtual long long FSize();
+   long long FSize() override;
 
-   virtual void Update(XrdOucCacheIO &iocp);
+   void Update(XrdOucCacheIO &iocp) override;
 
 private:
    long long                  m_blocksize;       //!< size of file-block

@@ -13,7 +13,7 @@ class XrdSysTrace;
 namespace XrdPfc
 {
 //----------------------------------------------------------------------------
-//! Base cache-io class that implements XrdOucCacheIO abstract methods.
+//! Base cache-io class that implements some XrdOucCacheIO abstract methods.
 //----------------------------------------------------------------------------
 class IO : public XrdOucCacheIO
 {
@@ -24,25 +24,22 @@ public:
    virtual XrdOucCacheIO *Base() { return m_io; }
 
    //! Original data source URL.
-   virtual const char *Path() { return m_io.load(std::memory_order_relaxed)->Path(); }
+   const char *Path() override { return m_io.load(std::memory_order_relaxed)->Path(); }
 
    using XrdOucCacheIO::Sync;
-
-   virtual int Sync() { return 0; }
+   int Sync() override { return 0; }
 
    using XrdOucCacheIO::Trunc;
-
-   virtual int Trunc(long long Offset) { return -ENOTSUP; }
+   int Trunc(long long Offset) override { return -ENOTSUP; }
 
    using XrdOucCacheIO::Write;
+   int Write(char *Buffer, long long Offset, int Length) override { return -ENOTSUP; }
 
-   virtual int Write(char *Buffer, long long Offset, int Length) { return -ENOTSUP; }
-
-   virtual void Update(XrdOucCacheIO &iocp);
+   void Update(XrdOucCacheIO &iocp) override;
 
    // Detach is virtual from XrdOucCacheIO, here it is split
    // into abstract ioActive() and DetachFinalize().
-   bool Detach(XrdOucCacheIOCD &iocdP) /* final */;
+   bool Detach(XrdOucCacheIOCD &iocdP) final;
 
    virtual bool ioActive()       = 0;
    virtual void DetachFinalize() = 0;
@@ -53,7 +50,7 @@ public:
    XrdOucCacheIO* GetInput();
 
 protected:
-   Cache       &m_cache;           //!< reference to Cache needed in detach
+   Cache       &m_cache;   //!< reference to Cache object
    const char  *m_traceID;
 
    const char*  GetPath()         { return m_io.load(std::memory_order_relaxed)->Path(); }
@@ -61,9 +58,9 @@ protected:
    const char*  RefreshLocation() { return m_io.load(std::memory_order_relaxed)->Location(true);  }
 
 private:
-   std::atomic<XrdOucCacheIO*> m_io;                //!< original data source
+   std::atomic<XrdOucCacheIO*> m_io; //!< original data source
 
-   void         SetInput(XrdOucCacheIO*);
+   void SetInput(XrdOucCacheIO*);
 };
 }
 

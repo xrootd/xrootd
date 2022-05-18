@@ -159,16 +159,10 @@ void Info::SetAllBitsSynced()
 
 //------------------------------------------------------------------------------
 
-void Info::SetBufferSize(long long bs)
+void Info::SetBufferSizeFileSizeAndCreationTime(long long bs, long long fs)
 {
-   // Needed only info is created first time in File::Open()
+   // Needed only when Info object is created for the first time in File::Open()
    m_store.m_buffer_size = bs;
-}
-
-//------------------------------------------------------------------------------s
-
-void Info::SetFileSizeAndCreationTime(long long fs)
-{
    m_store.m_file_size = fs;
    ResizeBits();
    m_store.m_creationTime = time(0);
