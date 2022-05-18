@@ -169,13 +169,14 @@ class SyncMsgHandler : public XrdCl::MsgHandler
     //------------------------------------------------------------------------
     // Handle an event other that a message arrival
     //------------------------------------------------------------------------
-    virtual void OnStreamEvent( StreamEvent          event,
+    virtual uint8_t OnStreamEvent( StreamEvent          event,
                                    XrdCl::XRootDStatus  status )
     {
       if( event == Ready )
-        return;
+        return 0;
       this->status = status;
       sem.Post();
+      return RemoveHandler;
     };
 
     //------------------------------------------------------------------------
