@@ -36,12 +36,12 @@ namespace XrdPfc
 //! \brief Downloads original file into a single file on local disk.
 //! Handles read requests as they come along.
 //----------------------------------------------------------------------------
-class IOEntireFile : public IO
+class IOFile : public IO
 {
 public:
-   IOEntireFile(XrdOucCacheIO *io, Cache &cache);
+   IOFile(XrdOucCacheIO *io, Cache &cache);
 
-   ~IOEntireFile();
+   ~IOFile();
 
    //------------------------------------------------------------------------
    //! Check if File was opened successfully.

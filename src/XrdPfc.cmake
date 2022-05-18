@@ -27,7 +27,7 @@ add_library(
   XrdPfc/XrdPfcStats.hh
   XrdPfc/XrdPfcInfo.cc          XrdPfc/XrdPfcInfo.hh
   XrdPfc/XrdPfcIO.cc            XrdPfc/XrdPfcIO.hh
-  XrdPfc/XrdPfcIOEntireFile.cc  XrdPfc/XrdPfcIOEntireFile.hh
+  XrdPfc/XrdPfcIOFile.cc        XrdPfc/XrdPfcIOFile.hh
   XrdPfc/XrdPfcIOFileBlock.cc   XrdPfc/XrdPfcIOFileBlock.hh
   XrdPfc/XrdPfcDecision.hh)
 

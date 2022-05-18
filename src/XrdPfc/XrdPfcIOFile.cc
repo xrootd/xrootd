@@ -23,7 +23,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdPfcIOEntireFile.hh"
+#include "XrdPfcIOFile.hh"
 #include "XrdPfcStats.hh"
 #include "XrdPfcTrace.hh"
 
@@ -32,7 +32,7 @@
 using namespace XrdPfc;
 
 //______________________________________________________________________________
-IOEntireFile::IOEntireFile(XrdOucCacheIO *io, Cache & cache) :
+IOFile::IOFile(XrdOucCacheIO *io, Cache & cache) :
    IO(io, cache),
    m_file(0),
    m_localStat(0)
@@ -41,17 +41,17 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO *io, Cache & cache) :
 }
 
 //______________________________________________________________________________
-IOEntireFile::~IOEntireFile()
+IOFile::~IOFile()
 {
    // called from Detach() if no sync is needed or
    // from Cache's sync thread
-   TRACEIO(Debug, "~IOEntireFile() " << this);
+   TRACEIO(Debug, "~IOFile() " << this);
 
    delete m_localStat;
 }
 
 //______________________________________________________________________________
-int IOEntireFile::Fstat(struct stat &sbuff)
+int IOFile::Fstat(struct stat &sbuff)
 {
    std::string name = GetFilename() + Info::s_infoExtension;
 
@@ -67,13 +67,13 @@ int IOEntireFile::Fstat(struct stat &sbuff)
 }
 
 //______________________________________________________________________________
-long long IOEntireFile::FSize()
+long long IOFile::FSize()
 {
    return m_file->GetFileSize();
 }
 
 //______________________________________________________________________________
-int IOEntireFile::initCachedStat(const char* path)
+int IOFile::initCachedStat(const char* path)
 {
    // Called indirectly from the constructor.
 
@@ -125,21 +125,21 @@ int IOEntireFile::initCachedStat(const char* path)
 }
 
 //______________________________________________________________________________
-void IOEntireFile::Update(XrdOucCacheIO &iocp)
+void IOFile::Update(XrdOucCacheIO &iocp)
 {
    IO::Update(iocp);
    m_file->ioUpdated(this);
 }
 
 //______________________________________________________________________________
-bool IOEntireFile::ioActive()
+bool IOFile::ioActive()
 {
    RefreshLocation();
    return m_file->ioActive(this);
 }
 
 //______________________________________________________________________________
-void IOEntireFile::DetachFinalize()
+void IOFile::DetachFinalize()
 {
    // Effectively a destructor.
 
@@ -152,7 +152,7 @@ void IOEntireFile::DetachFinalize()
 }
 
 //______________________________________________________________________________
-int IOEntireFile::Read(char *buff, long long off, int size)
+int IOFile::Read(char *buff, long long off, int size)
 {
    TRACEIO(Dump, "Read() "<< this << " off: " << off << " size: " << size);
 
@@ -191,7 +191,7 @@ int IOEntireFile::Read(char *buff, long long off, int size)
 }
 
 //______________________________________________________________________________
-void IOEntireFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
+void IOFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
 {
 
 }
@@ -199,7 +199,7 @@ void IOEntireFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int si
 /*
  * Perform a readv from the cache
  */
-int IOEntireFile::ReadV(const XrdOucIOVec *readV, int n)
+int IOFile::ReadV(const XrdOucIOVec *readV, int n)
 {
    TRACEIO(Dump, "ReadV(), get " <<  n << " requests" );
    return m_file->ReadV(this, readV, n);

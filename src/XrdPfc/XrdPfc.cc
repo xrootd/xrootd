@@ -38,7 +38,7 @@
 #include "XrdPfc.hh"
 #include "XrdPfcTrace.hh"
 #include "XrdPfcInfo.hh"
-#include "XrdPfcIOEntireFile.hh"
+#include "XrdPfcIOFile.hh"
 #include "XrdPfcIOFileBlock.hh"
 
 using namespace XrdPfc;
@@ -219,18 +219,18 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
       }
       else
       {
-         IOEntireFile *ioef = new IOEntireFile(io, *this);
+         IOFile *iof = new IOFile(io, *this);
 
-         if ( ! ioef->HasFile())
+         if ( ! iof->HasFile())
          {
-           delete ioef;
+           delete iof;
            // TODO - redirect instead. But this is kind of an awkward place for it.
-           // errno is set during IOEntireFile construction.
+           // errno is set during IOFile construction.
            TRACE(Error, tpfx << "Failed opening local file, falling back to remote access " << io->Path());
            return io;
          }
 
-         cio = ioef;
+         cio = iof;
       }
 
       TRACE_PC(Debug, const char* loc = io->Location(), tpfx << io->Path() << " location: " <<
