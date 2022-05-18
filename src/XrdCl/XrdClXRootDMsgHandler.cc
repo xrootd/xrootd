@@ -169,12 +169,6 @@ namespace XrdCl
     pResponse = msg;
     pBodyReader->SetDataLength( dlen );
 
-    //--------------------------------------------------------------------------
-    // We received a new message, in case this is kXR_status we will need to
-    // unmarshal the body.
-    //--------------------------------------------------------------------------
-    pRspStatusBodyUnMarshaled = false;
-
     Log *log = DefaultEnv::GetLog();
     switch( status )
     {
@@ -235,7 +229,9 @@ namespace XrdCl
                    pRequest->GetDescription().c_str() );
 
         if( !pOksofarAsAnswer )
+        {
           pPartialResps.emplace_back( std::move( pResponse ) );
+        }
 
         //----------------------------------------------------------------------
         // For kXR_read we either read in raw mode if the message has not
@@ -244,13 +240,19 @@ namespace XrdCl
         //----------------------------------------------------------------------
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
+        {
+          pTimeoutFence.store( true, std::memory_order_relaxed );
           return Raw | ( pOksofarAsAnswer ? None : NoProcess );
+        }
 
         //----------------------------------------------------------------------
         // kXR_readv is similar to read, except that the payload is different
         //----------------------------------------------------------------------
         if( reqId == kXR_readv )
+        {
+          pTimeoutFence.store( true, std::memory_order_relaxed );
           return Raw | ( pOksofarAsAnswer ? None : NoProcess );
+        }
 
         return ( pOksofarAsAnswer ? None : NoProcess );
       }
@@ -351,7 +353,10 @@ namespace XrdCl
       action |= Raw;
 
       if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+      {
         action |= NoProcess;
+        pTimeoutFence.store( true, std::memory_order_relaxed );
+      }
       else
         action |= RemoveHandler;
     }
@@ -863,15 +868,18 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle an event other that a message arrival - may be timeout
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::OnStreamEvent( StreamEvent   event,
-                                        XRootDStatus  status )
+  uint8_t XRootDMsgHandler::OnStreamEvent( StreamEvent   event,
+                                           XRootDStatus  status )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( XRootDMsg, "[%s] Stream event reported for msg %s",
                pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
 
     if( event == Ready )
-      return;
+      return 0;
+
+    if( pTimeoutFence.load( std::memory_order_relaxed ) )
+      return 0;
 
     if( pSidMgr && pMsgInFly && ( event == Timeout
         || status.code == errOperationExpired
@@ -882,6 +890,7 @@ namespace XrdCl
     }
 
     HandleError( status );
+    return RemoveHandler;
   }
 
   //----------------------------------------------------------------------------
@@ -1112,6 +1121,15 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Bookkeeping after partial response has been received.
+  //----------------------------------------------------------------------------
+  void XRootDMsgHandler::PartialReceived()
+  {
+    pTimeoutFence.store( false, std::memory_order_relaxed ); // Take down the timeout fence
+    pRspStatusBodyUnMarshaled = false;
+  }
+
+  //----------------------------------------------------------------------------
   // Unpack the message and call the response handler
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::HandleResponse()
@@ -1188,6 +1206,7 @@ namespace XrdCl
     {
       XrdSysCondVarHelper lck( pCV );
       pResponse.reset();
+      pTimeoutFence.store( false, std::memory_order_relaxed );
       pCV.Broadcast();
     }
   }

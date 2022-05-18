@@ -36,7 +36,6 @@ namespace XrdCl
   class InQueue
   {
     public:
-
       //------------------------------------------------------------------------
       //! Add a listener that should be notified about incoming messages
       //!
@@ -65,6 +64,11 @@ namespace XrdCl
       //! Re-insert the handler without scanning the cached messages
       //------------------------------------------------------------------------
       void ReAddMessageHandler( MsgHandler *handler, time_t expires );
+
+      //------------------------------------------------------------------------
+      //! Remove a listener
+      //------------------------------------------------------------------------
+      void RemoveMessageHandler( MsgHandler *handler );
 
       //------------------------------------------------------------------------
       //! Report an event to the handlers

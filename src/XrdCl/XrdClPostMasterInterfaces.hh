@@ -148,11 +148,13 @@ namespace XrdCl
       //!
       //! @param event     type of the event
       //! @param status    status info
+      //! @return          Action::RemoveHandler or 0
       //------------------------------------------------------------------------
-      virtual void OnStreamEvent( StreamEvent   event,
-                                  XRootDStatus  status )
+      virtual uint8_t OnStreamEvent( StreamEvent   event,
+                                     XRootDStatus  status )
       {
         (void)event; (void)status;
+        return 0;
       };
 
       //------------------------------------------------------------------------

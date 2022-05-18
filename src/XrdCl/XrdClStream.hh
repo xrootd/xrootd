@@ -278,6 +278,11 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
+      //! Check if message is a partial response
+      //------------------------------------------------------------------------
+      static bool IsPartial( Message &msg );
+
+      //------------------------------------------------------------------------
       //! Check if addresses contains given address
       //------------------------------------------------------------------------
       inline static bool HasNetAddr( const XrdNetAddr              &addr,

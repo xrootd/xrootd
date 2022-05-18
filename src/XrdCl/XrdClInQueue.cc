@@ -68,10 +68,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Get a message handler interested in receiving message whose header
   // is stored in msg
-  //
-  // If the handler is found it is always removed from the queue for the time
-  // of processing the response. In case of a t/o, stream error, if the response
-  // has been chunked the handler should be readded using `ReAddMessageHandler`.
   //----------------------------------------------------------------------------
   MsgHandler *InQueue::GetHandlerForMessage( std::shared_ptr<Message> &msg,
 						                                 time_t                   &expires,
@@ -95,7 +91,9 @@ namespace XrdCl
       handler = it->second.first;
       act     = handler->Examine( msg );
       exp     = it->second.second;
-      pHandlers.erase( it );
+
+      if( act & MsgHandler::RemoveHandler )
+        pHandlers.erase( it );
     }
 
     if( handler )
@@ -111,7 +109,7 @@ namespace XrdCl
   // Re-insert the handler without scanning the cached messages
   //----------------------------------------------------------------------------
   void InQueue::ReAddMessageHandler( MsgHandler *handler,
-				                             time_t      expires )
+				     time_t              expires )
   {
     uint16_t handlerSid = handler->GetSid();
     XrdSysMutexHelper scopedLock( pMutex );
@@ -119,17 +117,28 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Remove a listener
+  //----------------------------------------------------------------------------
+  void InQueue::RemoveMessageHandler( MsgHandler *handler )
+  {
+    uint16_t handlerSid = handler->GetSid();
+    XrdSysMutexHelper scopedLock( pMutex );
+    pHandlers.erase(handlerSid);
+  }
+
+  //----------------------------------------------------------------------------
   // Report an event to the handlers
   //----------------------------------------------------------------------------
   void InQueue::ReportStreamEvent( MsgHandler::StreamEvent event,
-                                   XRootDStatus            status )
+				   XRootDStatus                    status )
   {
     uint8_t action = 0;
     XrdSysMutexHelper scopedLock( pMutex );
     for( HandlerMap::iterator it = pHandlers.begin(); it != pHandlers.end(); )
     {
-      it->second.first->OnStreamEvent( event, status );
-      if( event != MsgHandler::Ready )
+      action = it->second.first->OnStreamEvent( event, status );
+
+      if( action & MsgHandler::RemoveHandler )
       {
         auto next = it; ++next;
         pHandlers.erase( it );
@@ -154,10 +163,11 @@ namespace XrdCl
     {
       if( it->second.second <= now )
       {
-        it->second.first->OnStreamEvent( MsgHandler::Timeout,
+        uint8_t act = it->second.first->OnStreamEvent( MsgHandler::Timeout,
                                          Status( stError, errOperationExpired ) );
         auto next = it; ++next;
-        pHandlers.erase( it );
+        if( act & MsgHandler::RemoveHandler )
+          pHandlers.erase( it );
         it = next;
       }
       else
