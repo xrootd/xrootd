@@ -148,7 +148,6 @@ BuildRequires: clang
 BuildRequires: libasan
 BuildRequires: devtoolset-7-libasan-devel
 Requires: libasan
-Requires: devtoolset-7-libasan
 %endif
 
 %if %{?_with_scitokens:1}%{!?_with_scitokens:0}
