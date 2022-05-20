@@ -166,9 +166,8 @@ int IOFile::Read(char *buff, long long off, int size)
    if (off + size > FSize())
       size = FSize() - off;
 
-
-   ssize_t bytes_read = 0;
-   ssize_t retval = 0;
+   int bytes_read = 0;
+   int retval = 0;
 
    retval = m_file->Read(this, buff, off, size);
    if (retval >= 0)

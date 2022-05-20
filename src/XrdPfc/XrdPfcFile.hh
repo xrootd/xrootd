@@ -144,19 +144,12 @@ public:
 class File
 {
 public:
-   //------------------------------------------------------------------------
-   //! Constructor.
-   //------------------------------------------------------------------------
-   File(const std::string &path, long long offset, long long fileSize);
+   // Constructor and Open() are private.
 
-   //------------------------------------------------------------------------
    //! Static constructor that also does Open. Returns null ptr if Open fails.
-   //------------------------------------------------------------------------
    static File* FileOpen(const std::string &path, long long offset, long long fileSize);
 
-   //------------------------------------------------------------------------
    //! Destructor.
-   //------------------------------------------------------------------------
    ~File();
 
    //! Handle removal of a block from Cache's write queue.
@@ -165,19 +158,11 @@ public:
    //! Handle removal of a set of blocks from Cache's write queue.
    void BlocksRemovedFromWriteQ(std::list<Block*>&);
 
-   //! Open file handle for data file and info file on local disk.
-   bool Open();
-
    //! Vector read from disk if block is already downloaded, else ReadV from client.
    int ReadV(IO *io, const XrdOucIOVec *readV, int n);
 
    //! Normal read.
    int Read (IO *io, char* buff, long long offset, int size);
-
-   //----------------------------------------------------------------------
-   //! \brief Data and cinfo files are open.
-   //----------------------------------------------------------------------
-   bool isOpen() const { return m_is_open; }
 
    //----------------------------------------------------------------------
    //! \brief Notification from IO that it has been updated (remote open).
@@ -249,13 +234,16 @@ public:
    bool is_in_emergency_shutdown() { return m_in_shutdown; }
 
 private:
-   enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
+   //! Constructor.
+   File(const std::string &path, long long offset, long long fileSize);
+
+   //! Open file handle for data file and info file on local disk.
+   bool Open();
+
+   static const char *m_traceID;
 
    int            m_ref_cnt;            //!< number of references from IO or sync
    
-   bool           m_is_open;            //!< open state (presumably not needed anymore)
-   bool           m_in_shutdown;        //!< file is in emergency shutdown due to irrecoverable error or unlink request
-
    XrdOssDF      *m_data_file;          //!< file handle for data file on disk
    XrdOssDF      *m_info_file;          //!< file handle for data-info file on disk
    Info           m_cfi;                //!< download status of file blocks and access statistics
@@ -286,10 +274,15 @@ private:
    IoMap_i    m_current_io;     //!< IO object to be used for prefetching.
    int        m_ios_in_detach;  //!< Number of IO objects to which we replied false to ioActive() and will be removed soon.
 
-   // fsync
+   // FSync
+
    std::vector<int>  m_writes_during_sync;
    int  m_non_flushed_cnt;
    bool m_in_sync;
+   bool m_detach_time_logged;
+   bool m_in_shutdown;        //!< file is in emergency shutdown due to irrecoverable error or unlink request
+
+   // Block state and management
 
    typedef std::list<int>        IntList_t;
    typedef IntList_t::iterator   IntList_i;
@@ -308,11 +301,17 @@ private:
    long long     m_block_size;
    int           m_num_blocks;
 
+   // Stats
+
    Stats         m_stats;              //!< cache statistics for this instance
    Stats         m_last_stats;         //!< copy of cache stats during last purge cycle, used for per directory stat reporting
 
    std::set<std::string> m_remote_locations; //!< Gathered in AddIO / ioUpdate / ioActive.
    void insert_remote_location(const std::string &loc);
+
+   // Prefetch
+
+   enum PrefetchState_e { kOff=-1, kOn, kHold, kStopped, kComplete };
 
    PrefetchState_e m_prefetch_state;
 
@@ -320,9 +319,7 @@ private:
    int   m_prefetch_hit_cnt;
    float m_prefetch_score;              // cached
    
-   bool  m_detach_time_logged;
-
-   static const char *m_traceID;
+   // Helpers
 
    bool overlap(int blk,               // block to query
                 long long blk_size,    //
@@ -334,8 +331,23 @@ private:
                 long long &size);
 
    // Read
+
+   struct ReadRequest
+   {
+      File *m_file;
+      IO   *m_io;
+      char *m_buf;
+      long long m_off;
+      int       m_size;
+
+      long long m_bytes_read = 0;
+      int       m_error_cond = 0; // to be set to -errno
+
+      ReadRequest() {}
+   };
+
    Block* PrepareBlockRequest(int i, IO *io, bool prefetch);
-   
+
    void   ProcessBlockRequest (Block       *b);
    void   ProcessBlockRequests(BlockList_t& blks);
 
@@ -346,6 +358,7 @@ private:
                              char* req_buf, long long req_off, long long req_size);
 
    // VRead
+
    bool VReadValidate     (const XrdOucIOVec *readV, int n);
    void VReadPreProcess   (IO *io, const XrdOucIOVec *readV, int n,
                            BlockList_t&        blks_to_request,

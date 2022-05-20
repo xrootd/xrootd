@@ -101,13 +101,6 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int n)
 
    m_state_cond.Lock();
 
-   if ( ! m_is_open)
-   {
-      m_state_cond.UnLock();
-      TRACEF(Error, "ReadV file is not open");
-      return io->GetInput()->ReadV(readV, n);
-   }
-
    if (m_in_shutdown)
    {
       m_state_cond.UnLock();

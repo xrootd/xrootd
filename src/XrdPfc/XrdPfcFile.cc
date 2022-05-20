@@ -52,8 +52,6 @@ const char *File::m_traceID = "File";
 
 File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_ref_cnt(0),
-   m_is_open(false),
-   m_in_shutdown(false),
    m_data_file(0),
    m_info_file(0),
    m_cfi(Cache::GetInstance().GetTrace(), Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks > 0),
@@ -64,14 +62,15 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_ios_in_detach(0),
    m_non_flushed_cnt(0),
    m_in_sync(false),
+   m_detach_time_logged(false),
+   m_in_shutdown(false),
    m_state_cond(0),
    m_block_size(0),
    m_num_blocks(0),
    m_prefetch_state(kOff),
    m_prefetch_read_cnt(0),
    m_prefetch_hit_cnt(0),
-   m_prefetch_score(1),
-   m_detach_time_logged(false)
+   m_prefetch_score(1)
 {
 }
 
@@ -198,12 +197,6 @@ bool File::ioActive(IO *io)
    {
       XrdSysCondVarHelper _lck(m_state_cond);
 
-      if ( ! m_is_open)
-      {
-         TRACEF(Error, "ioActive for io " << io <<" called on a closed file. This should not happen.");
-         return false;
-      }
-
       IoMap_i mi = m_io_map.find(io);
 
       if (mi != m_io_map.end())
@@ -274,7 +267,7 @@ bool File::FinalizeSyncBeforeExit()
    // This method is called after corresponding IO is detached from PosixCache.
 
    XrdSysCondVarHelper _lck(m_state_cond);
-   if (m_is_open && ! m_in_shutdown)
+   if ( ! m_in_shutdown)
    {
      if ( ! m_writes_during_sync.empty() || m_non_flushed_cnt > 0 || ! m_detach_time_logged)
      {
@@ -376,12 +369,6 @@ bool File::Open()
 
    TRACEF(Dump, tpfx << "open file for disk cache");
 
-   if (m_is_open)
-   {
-      TRACEF(Error, tpfx << "file is already opened.");
-      return true;
-   }
-
    const Configuration &conf = Cache::GetInstance().RefConfiguration();
 
    XrdOss     &myOss  = * Cache::GetInstance().GetOss();
@@ -482,7 +469,6 @@ bool File::Open()
 
    m_cfi.WriteIOStatAttach();
    m_state_cond.Lock();
-   m_is_open = true;
    m_block_size = m_cfi.GetBufferSize();
    m_num_blocks = m_cfi.GetNBlocks();
    m_prefetch_state = (m_cfi.IsComplete()) ? kComplete : kStopped; // Will engage in AddIO().
@@ -677,81 +663,74 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
 {
    Stats loc_stats;
 
-   BlockList_t blks;
-
-   const int idx_first = iUserOff / m_block_size;
-   const int idx_last  = (iUserOff + iUserSize - 1) / m_block_size;
-
    BlockSet_t  requested_blocks;
-   BlockList_t blks_to_request, blks_to_process, blks_processed;
-   IntList_t   blks_on_disk,    blks_direct;
+   BlockList_t blks_to_process;
+   IntList_t   blks_on_disk, blks_direct;
 
    // lock
    // loop over reqired blocks:
    //   - if on disk, ok;
    //   - if in ram or incoming, inc ref-count
-   //   - if not available, request and inc ref count before requesting the
-   //     hell and more (esp. for sparse readvs).
-   //     assess if passing the req to client is actually better.
+   //   - otherwise request and inc ref count (unless RAM full => request direct)
    // unlock
 
    m_state_cond.Lock();
 
-   if ( ! m_is_open)
-   {
-      m_state_cond.UnLock();
-      TRACEF(Error, "Read file is not open");
-      return io->GetInput()->Read(iUserBuff, iUserOff, iUserSize);
-   }
    if (m_in_shutdown)
    {
       m_state_cond.UnLock();
       return -ENOENT;
    }
 
-   for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
    {
-      TRACEF(Dump, "Read() idx " << block_idx);
-      BlockMap_i bi = m_block_map.find(block_idx);
+      BlockList_t to_request;
+      const int idx_first = iUserOff / m_block_size;
+      const int idx_last  = (iUserOff + iUserSize - 1) / m_block_size;
 
-      // In RAM or incoming?
-      if (bi != m_block_map.end())
+      for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
       {
-         inc_ref_count(bi->second);
-         TRACEF(Dump, "Read() " << (void*) iUserBuff << "inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
-         blks_to_process.push_front(bi->second);
-      }
-      // On disk?
-      else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
-      {
-         TRACEF(Dump, "Read() read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
-         blks_on_disk.push_back(block_idx);
-      }
-      // Then we have to get it ...
-      else
-      {
-         // Is there room for one more RAM Block?
-         Block *b = PrepareBlockRequest(block_idx, io, false);
-         if (b)
+         TRACEF(Dump, "Read() idx " << block_idx);
+         BlockMap_i bi = m_block_map.find(block_idx);
+
+         // In RAM or incoming?
+         if (bi != m_block_map.end())
          {
-            TRACEF(Dump, "Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
-            inc_ref_count(b);
-            blks_to_process.push_back(b);
-            blks_to_request.push_back(b);
-            requested_blocks.insert(b);
+            inc_ref_count(bi->second);
+            TRACEF(Dump, "Read() " << (void*) iUserBuff << "inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
+            blks_to_process.push_front(bi->second);
          }
-         // Nope ... read this directly without caching.
+         // On disk?
+         else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
+         {
+            TRACEF(Dump, "Read() read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
+            blks_on_disk.push_back(block_idx);
+         }
+         // Then we have to get it ...
          else
          {
-            TRACEF(Dump, "Read() direct block " << block_idx);
-            blks_direct.push_back(block_idx);
+            // Is there room for one more RAM Block?
+            Block *b = PrepareBlockRequest(block_idx, io, false);
+            if (b)
+            {
+               TRACEF(Dump, "Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
+               inc_ref_count(b);
+               to_request.push_back(b);
+               blks_to_process.push_back(b);
+               requested_blocks.insert(b);
+            }
+            else // Nope ... read this directly without caching.
+            {
+               TRACEF(Dump, "Read() direct block " << block_idx);
+               blks_direct.push_back(block_idx);
+            }
          }
       }
+
+      m_state_cond.UnLock();
+
+      ProcessBlockRequests(to_request);
+      to_request.clear();
    }
-
-   m_state_cond.UnLock();
-
-   ProcessBlockRequests(blks_to_request);
 
    long long bytes_read = 0;
    int       error_cond = 0; // to be set to -errno
@@ -831,8 +810,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       ProcessBlockRequests(to_reissue);
       to_reissue.clear();
 
-      BlockList_i bi = finished.begin();
-      while (bi != finished.end())
+      for (BlockList_i bi = finished.begin(); bi != finished.end(); ++bi)
       {
          if ((*bi)->is_ok())
          {
@@ -864,11 +842,19 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
                       " finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
             }
          }
-         ++bi;
       }
 
-      std::copy(finished.begin(), finished.end(), std::back_inserter(blks_processed));
-      finished.clear();
+      // Release finished blocks.
+      if ( ! finished.empty())
+      {
+         XrdSysCondVarHelper _lck(m_state_cond);
+
+         for (BlockList_i bi = finished.begin(); bi != finished.end(); ++bi)
+         {
+            TRACEF(Dump, "Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/m_block_size));
+            dec_ref_count(*bi);
+         }
+      }
    }
 
    // Fourth, make sure all direct requests have arrived.
@@ -903,27 +889,18 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
    }
    assert(iUserSize >= bytes_read);
 
-   // Last, stamp and release blocks, release file.
+   // Last, update prefetch score and stats.
    {
       XrdSysCondVarHelper _lck(m_state_cond);
 
-      // blks_to_process can be non-empty, if we're exiting with an error.
-      std::copy(blks_to_process.begin(), blks_to_process.end(), std::back_inserter(blks_processed));
-
-      for (BlockList_i bi = blks_processed.begin(); bi != blks_processed.end(); ++bi)
-      {
-         TRACEF(Dump, "Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/m_block_size));
-         dec_ref_count(*bi);
-      }
-
       // update prefetch score
       m_prefetch_hit_cnt += prefetchHitsRam;
-      for (IntList_i d = blks_on_disk.begin(); d !=  blks_on_disk.end(); ++d)
+      for (IntList_i d = blks_on_disk.begin(); d != blks_on_disk.end(); ++d)
       {
          if (m_cfi.TestBitPrefetch(offsetIdx(*d)))
             m_prefetch_hit_cnt++;
       }
-      m_prefetch_score = float(m_prefetch_hit_cnt)/m_prefetch_read_cnt;
+      m_prefetch_score = float(m_prefetch_hit_cnt) / m_prefetch_read_cnt;
    }
 
    m_stats.AddReadStats(loc_stats);
