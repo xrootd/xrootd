@@ -489,9 +489,6 @@ namespace XrdCl
     log->Dump( PostMasterMsg, "[%s] Handling received message: 0x%x.",
                pStreamName.c_str(), msg.get() );
 
-    if( !(mh.action & MsgHandler::RemoveHandler) )
-      pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
-
     if( mh.action & (MsgHandler::NoProcess|MsgHandler::Ignore) )
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",

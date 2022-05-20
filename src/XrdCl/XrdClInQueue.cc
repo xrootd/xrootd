@@ -55,15 +55,6 @@ namespace XrdCl
   {
     uint16_t handlerSid = handler->GetSid();
     XrdSysMutexHelper scopedLock( pMutex );
-    MessageMap::iterator it = pMessages.find(handlerSid);
-
-    //--------------------------------------------------------------------------
-    // If there is a leftover message in the in-queue simply remove it, there's
-    // no way this is the actual message we are waiting for as we just send it
-    // over the wire and we are still occupying the event-loop thread
-    //--------------------------------------------------------------------------
-    if( ( rmMsg = it != pMessages.end() ) )
-      pMessages.erase( it );
 
     pHandlers[handlerSid] = HandlerAndExpire( handler, expires );
   }

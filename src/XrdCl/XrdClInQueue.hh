@@ -97,8 +97,6 @@ namespace XrdCl
 
       typedef std::pair<MsgHandler *, time_t> HandlerAndExpire;
       typedef std::map<uint16_t, HandlerAndExpire> HandlerMap;
-      typedef std::map<uint16_t, std::shared_ptr<Message>> MessageMap;
-      MessageMap pMessages;
       HandlerMap pHandlers;
       XrdSysRecMutex pMutex;
   };
