@@ -269,10 +269,20 @@ namespace XrdCl
                    "%s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
+        uint16_t reqId = ntohs( req->header.requestid );
+        if( reqId == kXR_pgwrite )
+        {
+          //--------------------------------------------------------------------
+          // In case of pgwrite by definition this wont be a partial response
+          // so we can already remove the handler from the in-queue
+          //--------------------------------------------------------------------
+          return RemoveHandler;
+        }
+
         //----------------------------------------------------------------------
-        // first of all we need to read the body of the kXR_status response,
-        // we can handle the raw data (if any) only after we have the whole
-        // kXR_status body
+        // Otherwise (pgread), first of all we need to read the body of the
+        // kXR_status response, we can handle the raw data (if any) only after
+        // we have the whole kXR_status body
         //----------------------------------------------------------------------
         return None;
       }
