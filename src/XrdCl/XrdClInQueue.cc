@@ -20,6 +20,9 @@
 #include "XrdCl/XrdClInQueue.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClMessage.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClConstants.hh"
 
 #include <arpa/inet.h>              // for network unmarshalling stuff
 
@@ -88,12 +91,20 @@ namespace XrdCl
 
     if (it != pHandlers.end())
     {
+      Log *log = DefaultEnv::GetLog();
       handler = it->second.first;
       act     = handler->Examine( msg );
       exp     = it->second.second;
+      log->Debug( ExDbgMsg, "[msg: 0x%x] Assigned MsgHandler: 0x%x.",
+                  msg.get(), handler );
+
 
       if( act & MsgHandler::RemoveHandler )
+      {
         pHandlers.erase( it );
+        log->Debug( ExDbgMsg, "[handler: 0x%x] Removed MsgHandler: 0x%x from the in-queue.",
+                    handler, handler );
+      }
     }
 
     if( handler )
@@ -124,6 +135,10 @@ namespace XrdCl
     uint16_t handlerSid = handler->GetSid();
     XrdSysMutexHelper scopedLock( pMutex );
     pHandlers.erase(handlerSid);
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( ExDbgMsg, "[handler: 0x%x] Removed MsgHandler: 0x%x from the in-queue.",
+                handler, handler );
+
   }
 
   //----------------------------------------------------------------------------
