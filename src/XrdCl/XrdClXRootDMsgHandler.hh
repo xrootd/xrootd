@@ -33,11 +33,11 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 
-#include "XrdCl/XrdClAsyncMsgBodyReader.hh"
 #include "XrdCl/XrdClAsyncPageReader.hh"
 #include "XrdCl/XrdClAsyncVectorReader.hh"
 #include "XrdCl/XrdClAsyncRawReader.hh"
 #include "XrdCl/XrdClAsyncDiscardReader.hh"
+#include "XrdClAsyncRawReaderIntfc.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPageSize.hh"
@@ -626,7 +626,7 @@ namespace XrdCl
       uint32_t                               pAsyncChunkIndex;
 
       std::unique_ptr<AsyncPageReader>       pPageReader;
-      std::unique_ptr<AsyncMsgBodyReader>    pBodyReader;
+      std::unique_ptr<AsyncRawReaderIntfc>   pBodyReader;
 
       Buffer                                 pPgWrtCksumBuff;
       uint32_t                               pPgWrtCurrentPageOffset;

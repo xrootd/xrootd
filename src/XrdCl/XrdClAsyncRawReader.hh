@@ -20,10 +20,10 @@
 #define SRC_XRDCL_XRDCLASYNCRAWREADER_HH_
 
 
-#include "XrdCl/XrdClAsyncMsgBodyReader.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClStream.hh"
+#include "XrdClAsyncRawReaderIntfc.hh"
 
 namespace XrdCl
 {
@@ -31,7 +31,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Object for reading out data from the kXR_read response
   //----------------------------------------------------------------------------
-  class AsyncRawReader : public AsyncMsgBodyReader
+  class AsyncRawReader : public AsyncRawReaderIntfc
   {
     public:
       //------------------------------------------------------------------------
@@ -41,7 +41,7 @@ namespace XrdCl
       //! @param request : client request
       //------------------------------------------------------------------------
       AsyncRawReader( const URL &url, const Message &request ) :
-        AsyncMsgBodyReader( url, request )
+        AsyncRawReaderIntfc( url, request )
       {
       }
 

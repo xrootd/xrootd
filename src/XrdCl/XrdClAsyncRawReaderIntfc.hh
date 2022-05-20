@@ -16,8 +16,8 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef SRC_XRDCL_XRDCLASYNCMSGBODYREADER_HH_
-#define SRC_XRDCL_XRDCLASYNCMSGBODYREADER_HH_
+#ifndef SRC_XRDCL_XRDCLASYNCRAWREADERINTFC_HH_
+#define SRC_XRDCL_XRDCLASYNCRAWREADERINTFC_HH_
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClSocket.hh"
@@ -31,11 +31,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Base class for any message's body reader
   //----------------------------------------------------------------------------
-  class AsyncMsgBodyReader
+  class AsyncRawReaderIntfc
   {
     public:
 
-      AsyncMsgBodyReader( const URL &url, const Message &request ) :
+      AsyncRawReaderIntfc( const URL &url, const Message &request ) :
         readstage( ReadStart ),
         url( url ),
         request( request ),
@@ -53,7 +53,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      virtual ~AsyncMsgBodyReader()
+      virtual ~AsyncRawReaderIntfc()
       {
       }
 
@@ -139,7 +139,7 @@ namespace XrdCl
         msgbtsrd += btsrd;
         btsret   += btsrd;
 
-        log->Warning( XRootDMsg, "[%s] %s: Discarded %d bytes",
+        log->Warning( XRootDMsg, "[%s] Discarded %d bytes",
                       url.GetHostId().c_str(), btsrd );
 
         if( !st.IsOK() || st.code == suRetry )
@@ -202,4 +202,4 @@ namespace XrdCl
 
 }
 
-#endif /* SRC_XRDCL_XRDCLASYNCMSGBODYREADER_HH_ */
+#endif /* SRC_XRDCL_XRDCLASYNCRAWREADERINTFC_HH_ */

@@ -24,7 +24,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClAsyncMsgBodyReader.hh"
+#include "XrdClAsyncRawReaderIntfc.hh"
 
 namespace XrdCl
 {
@@ -32,7 +32,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Object for discarding data
   //----------------------------------------------------------------------------
-  class AsyncDiscardReader : public AsyncMsgBodyReader
+  class AsyncDiscardReader : public AsyncRawReaderIntfc
   {
     public:
       //------------------------------------------------------------------------
@@ -42,7 +42,7 @@ namespace XrdCl
       //! @param request : client request
       //------------------------------------------------------------------------
       AsyncDiscardReader( const URL &url, const Message &request ) :
-        AsyncMsgBodyReader( url, request )
+        AsyncRawReaderIntfc( url, request )
       {
       }
 

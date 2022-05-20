@@ -21,7 +21,7 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClSocket.hh"
-#include "XrdCl/XrdClAsyncMsgBodyReader.hh"
+#include "XrdClAsyncRawReaderIntfc.hh"
 
 namespace XrdCl
 {
@@ -29,7 +29,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Object for reading out data from the VectorRead response
   //----------------------------------------------------------------------------
-  class AsyncVectorReader : public AsyncMsgBodyReader
+  class AsyncVectorReader : public AsyncRawReaderIntfc
   {
     public:
       //------------------------------------------------------------------------
@@ -38,7 +38,7 @@ namespace XrdCl
       //! @param url : channel URL
       //------------------------------------------------------------------------
       AsyncVectorReader( const URL &url, const Message &request ) :
-        AsyncMsgBodyReader( url, request ),
+        AsyncRawReaderIntfc( url, request ),
         rdlstoff( 0 ),
         rdlstlen( 0 )
       {
