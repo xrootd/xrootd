@@ -293,6 +293,7 @@ int XrdXrootdProtocol::do_PgRIO()
 // of iovec elements that we will use to send the data as fewer bytes may have
 // been read. In fact, no bytes may have been read.
 //
+   long long ioOffset = IO.Offset;
    do {if ((xframt = sfsP->pgRead(IO.Offset, buff, rLen, csVec, pgrOpts)) <= 0)
           break;
 
@@ -310,7 +311,8 @@ int XrdXrootdProtocol::do_PgRIO()
 
        for (int i = 0; i < items; i++) csVec[i] = htonl(csVec[i]);
 
-       pgrResp.ofs = htonll(IO.Offset);
+       pgrResp.ofs = htonll(ioOffset);
+//     std::cerr<<"PGR: "<<xframt<<'@'<<ioOffset<<std::endl;
        dlen  = xframt + (items * sizeof(uint32_t));
        if ((rc = Response.Send(pgrResp.rsp, infoLen, iov, items*2+1, dlen)) < 0)
           return rc;
@@ -321,6 +323,7 @@ int XrdXrootdProtocol::do_PgRIO()
            pgOff = 0;
           }
 
+       ioOffset = IO.Offset;
       } while(IO.IOLen > 0);
 
 // Determine why we ended here
