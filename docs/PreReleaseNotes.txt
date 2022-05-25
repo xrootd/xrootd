@@ -40,6 +40,8 @@ Prerelease Notes
   **Commits: 963ac979, 446b404e
 
 + **Major bug fixes**
+  **[Server]** Return correct pgread offset for sync reads.
+  **Commits: 989d204
   **[Server]** Modify vector's size instead of capacity to avoid undef behaviour
   **Commits: 0bfc0ca2
 
