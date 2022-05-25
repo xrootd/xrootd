@@ -52,6 +52,7 @@ class AsyncPageReader
         chunks( chunks ),
         digests( digests ),
         dlen( 0 ),
+        rspoff( 0 ),
         chindex( 0 ),
         choff( 0 ),
         dgindex( 0 ),
@@ -78,9 +79,24 @@ class AsyncPageReader
     //--------------------------------------------------------------------------
     //! Sets message data size
     //--------------------------------------------------------------------------
-    void SetMsgDlen( uint32_t dlen )
+    void SetRsp( ServerResponseV2 *rsp )
     {
-      this->dlen = dlen;
+      dlen = rsp->status.bdy.dlen;
+      rspoff = rsp->info.pgread.offset;
+
+      uint64_t bufoff = rspoff - chunks[0].offset;
+      chindex = 0;
+
+      for( chindex = 0; chindex < chunks.size(); ++chindex )
+      {
+        if( chunks[chindex].length < bufoff )
+        {
+          bufoff -= chunks[chindex].length;
+          continue;
+        }
+        break;
+      }
+      choff = bufoff;
     }
 
     //--------------------------------------------------------------------------
@@ -322,6 +338,7 @@ class AsyncPageReader
     ChunkList &chunks;              //< list of data chunks to be filled with user data
     std::vector<uint32_t> &digests; //< list of crc32c digests for every 4KB page of data
     uint32_t   dlen;                //< size of the data in the message
+    uint64_t   rspoff;              //< response offset
 
     size_t chindex;                 //< index of the current data buffer
     size_t choff;                   //< offset within the current buffer

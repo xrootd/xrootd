@@ -295,7 +295,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   uint16_t XRootDMsgHandler::InspectStatusRsp()
   {
-    if( !pResponse ) return 0;
+    if( !pResponse )
+      return 0;
 
     Log *log = DefaultEnv::GetLog();
     ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
@@ -341,8 +342,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Common handling for partial results
     //--------------------------------------------------------------------------
-    ServerResponseStatus *rspst   = (ServerResponseStatus*)pResponse->GetBuffer();
-    if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+    ServerResponseV2 *rspst   = (ServerResponseV2*)pResponse->GetBuffer();
+    if( rspst->status.bdy.resptype == XrdProto::kXR_PartialResult )
     {
       pPartialResps.push_back( std::move( pResponse ) );
     }
@@ -358,11 +359,11 @@ namespace XrdCl
       //----------------------------------------------------------------------
       if( !pPageReader )
         pPageReader.reset( new AsyncPageReader( *pChunkList, pCrc32cDigests ) );
-      pPageReader->SetMsgDlen( rspst->bdy.dlen );
+      pPageReader->SetRsp( rspst );
 
       action |= Raw;
 
-      if( rspst->bdy.resptype == XrdProto::kXR_PartialResult )
+      if( rspst->status.bdy.resptype == XrdProto::kXR_PartialResult )
       {
         action |= NoProcess;
         pTimeoutFence.store( true, std::memory_order_relaxed );
@@ -375,7 +376,7 @@ namespace XrdCl
       // if data corruption has been detected on the server side we will
       // send some additional data pointing to the pages that need to be
       // retransmitted
-      if( size_t( sizeof( ServerResponseHeader ) + rspst->hdr.dlen + rspst->bdy.dlen ) >
+      if( size_t( sizeof( ServerResponseHeader ) + rspst->status.hdr.dlen + rspst->status.bdy.dlen ) >
         pResponse->GetCursor() )
         action |= More;
       // if we already have this data we need to unmarshal it
