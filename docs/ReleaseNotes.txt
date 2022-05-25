@@ -26,6 +26,7 @@ Version 5.4.3
   **[Python]** Fix Python 3.10+ issues from PY_SSIZE_T_CLEAN not being set.
   **[XrdHttp]** Support full URIs in the GET request, fixes #1675.
   **[PIP]** Fix import syntax to enable shutil.which check.
+  **[Server]** Return correct pgread offset for sync reads.
 
 + **Minor bug fixes**
   **[XrdHttp]** Use 405 for mkcol/mkdir EEXIST.
