@@ -312,7 +312,10 @@ int XrdXrootdProtocol::do_PgRIO()
        for (int i = 0; i < items; i++) csVec[i] = htonl(csVec[i]);
 
        pgrResp.ofs = htonll(ioOffset);
-//     std::cerr<<"PGR: "<<xframt<<'@'<<ioOffset<<std::endl;
+//     char trBuff[512];
+//     snprintf(trBuff, sizeof(trBuff), "Xeq PGR: %d@%lld (%lld)\n",
+//              xframt, ioOffset, ioOffset>>12);
+//     std::cerr<<trBuff<<std::flush;
        dlen  = xframt + (items * sizeof(uint32_t));
        if ((rc = Response.Send(pgrResp.rsp, infoLen, iov, items*2+1, dlen)) < 0)
           return rc;
