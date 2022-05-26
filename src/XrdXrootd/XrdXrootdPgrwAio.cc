@@ -448,6 +448,10 @@ bool XrdXrootdPgrwAio::SendData(XrdXrootdAioBuff *bP, bool final)
       {int iovLen, iovNum;
        struct iovec *ioVec = bP->pgrwP->iov4Send(iovNum, iovLen, true);
        pgrResp.ofs = htonll(bP->sfsAio.aio_offset);
+//     char trBuff[512];
+//     snprintf(trBuff, sizeof(trBuff), "Aio PGR: %d@%ld (%ld)\n",
+//              iovLen, bP->sfsAio.aio_offset, (bP->sfsAio.aio_offset>>12));
+//     std::cerr<<trBuff<<std::flush;
        rc = Response.Send(pgrResp.rsp, infoLen, ioVec, iovNum, iovLen);
       } else {
        pgrResp.rsp.bdy.dlen = 0;
