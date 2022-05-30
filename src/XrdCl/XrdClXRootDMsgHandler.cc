@@ -364,7 +364,7 @@ namespace XrdCl
       // The message contains only Status header and body but no raw data
       //----------------------------------------------------------------------
       pReadRawStarted = false;
-      pAsyncMsgSize   = rspst->bdy.dlen;
+      pAsyncMsgSize   = rspst->status.bdy.dlen;
       if( !pPageReader )
         pPageReader.reset( new AsyncPageReader( *pChunkList, pCrc32cDigests ) );
       pPageReader->SetRsp( rspst );
