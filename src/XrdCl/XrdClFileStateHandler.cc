@@ -38,6 +38,7 @@
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClRedirectorRegistry.hh"
 #include "XrdCl/XrdClAnyObject.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #ifdef WITH_XRDEC
 #include "XrdCl/XrdClEcHandler.hh"
@@ -1153,27 +1154,31 @@ namespace XrdCl
   {
     int issupported = true;
     AnyObject obj;
-    XRootDStatus st = DefaultEnv::GetPostMaster()->QueryTransport( *pDataServer, XRootDQuery::ServerFlags, obj );
-    if( st.IsOK() )
+    XRootDStatus st1 = DefaultEnv::GetPostMaster()->QueryTransport( *pDataServer, XRootDQuery::ServerFlags, obj );
+    int protver = 0;
+    XRootDStatus st2 = Utils::GetProtocolVersion( *pDataServer, protver );
+    if( st1.IsOK() && st2.IsOK() )
     {
       int *ptr = 0;
       obj.Get( ptr );
-      issupported = ( *ptr & kXR_suppgrw );
+      issupported = ( *ptr & kXR_suppgrw ) && ( protver >= kXR_PROTPGRWVERSION );
       delete ptr;
     }
+    else
+      issupported = false;
 
     if( !issupported )
     {
       DefaultEnv::GetLog()->Debug( FileMsg, "[0x%x@%s] PgRead not supported; substituting with Read.",
                                   this, pFileUrl->GetURL().c_str() );
       ResponseHandler *substitHandler = new PgReadSubstitutionHandler( this, handler );
-      st = Read( offset, size, buffer, substitHandler, timeout );
+      auto st = Read( offset, size, buffer, substitHandler, timeout );
       if( !st.IsOK() ) delete substitHandler;
       return st;
     }
 
     ResponseHandler* pgHandler = new PgReadHandler( this, handler, offset );
-    st = PgReadImpl( offset, size, buffer, PgReadFlags::None, pgHandler, timeout );
+    auto st = PgReadImpl( offset, size, buffer, PgReadFlags::None, pgHandler, timeout );
     if( !st.IsOK() ) delete pgHandler;
     return st;
   }
