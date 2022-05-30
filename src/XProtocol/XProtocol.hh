@@ -67,10 +67,10 @@
 // upper limit (i.e. n.9.9 + 1 -> n+1.0.0). The kXR_PROTSIGNVERSION defines the
 // protocol version where request signing became available.
 //
-#define kXR_PROTOCOLVERSION  0x00000510
+#define kXR_PROTOCOLVERSION  0x00000511
 #define kXR_PROTXATTVERSION  0x00000500
 #define kXR_PROTTLSVERSION   0x00000500
-#define kXR_PROTPGRWVERSION  0x00000510
+#define kXR_PROTPGRWVERSION  0x00000511
 #define kXR_PROTSIGNVERSION  0x00000310
 #define kXR_PROTOCOLVSTRING "5.1.0"
 
