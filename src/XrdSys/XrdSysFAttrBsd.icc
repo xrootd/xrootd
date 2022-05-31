@@ -160,7 +160,7 @@ int XrdSysFAttr::Set(const char *Aname, const void *Aval, int Avsz,
 //
   if (isNew)
      {ec = (fd < 0 ? extattr_get_file(Path,EXTATTR_NAMESPACE_USER,Aname,0,0)
-                   : extattr_get_fd(  fd,  EXTATTR_NAMESPACE_USER,Aname,0 0));
+                   : extattr_get_fd(  fd,  EXTATTR_NAMESPACE_USER,Aname,0,0));
       if (ec >= 0) return -EEXIST;
      }
 
