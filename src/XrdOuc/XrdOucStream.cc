@@ -36,7 +36,7 @@
 #include <poll.h>
 #include <unistd.h>
 #include <strings.h>
-#if !defined(__linux__) && !defined(__CYGWIN__) && !defined(__GNU__)
+#if !defined(__linux__) && !defined(__CYGWIN__) && !defined(__GNU__) && !defined(__FreeBSD__)
 #include <sys/conf.h>
 #endif
 #include <sys/stat.h>

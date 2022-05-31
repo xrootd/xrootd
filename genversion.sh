@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #-------------------------------------------------------------------------------
 # Process the git decoration expansion and try to derive version number
