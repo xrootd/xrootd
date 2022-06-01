@@ -28,6 +28,7 @@
 #include "XrdPfcTrace.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPgrwUtils.hh"
 
 using namespace XrdPfc;
 
@@ -151,55 +152,186 @@ void IOFile::DetachFinalize()
    delete this;
 }
 
+
+//==============================================================================
+// Read and pgRead - sync / async and helpers
+//==============================================================================
+
 //______________________________________________________________________________
 int IOFile::Read(char *buff, long long off, int size)
 {
-   TRACEIO(Dump, "Read() "<< this << " off: " << off << " size: " << size);
+   TRACEIO(Debug, "Read() sync "<< this << " off: " << off << " size: " << size);
 
-   // protect from reads over the file size
-   if (off >= FSize())
-      return 0;
-   if (off < 0)
+   int retval;
+   XrdSysCondVar cond;
+
+   auto end_foo = [&](int result) {
+      cond.Lock();
+      retval = result;
+      cond.Signal();
+      cond.UnLock();
+   };
+
+   cond.Lock();
+   retval = ReadBegin(buff, off, size, end_foo);
+   if (retval == -EWOULDBLOCK)
    {
-      return -EINVAL;
+      cond.Wait();
    }
-   if (off + size > FSize())
-      size = FSize() - off;
-
-   int bytes_read = 0;
-   int retval = 0;
-
-   retval = m_file->Read(this, buff, off, size);
-   if (retval >= 0)
-   {
-      bytes_read  = retval;
-      size       -= retval;
-
-      // All errors like this should have been already captured by File::Read()
-      // and reflected in its retval.
-      if (size > 0)
-         TRACEIO(Warning, "Read() bytes missed " << size);
-   }
-   else
-   {
-      TRACEIO(Warning, "Read() error in File::Read(), exit status=" << retval
-              << ", error=" << XrdSysE2T(-retval));
-   }
-
-   return (retval < 0) ? retval : bytes_read;
+   cond.UnLock();
+   return ReadEnd(retval, nullptr);
 }
 
 //______________________________________________________________________________
 void IOFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
 {
+   TRACEIO(Debug, "Read() async "<< this << " off: " << off << " size: " << size);
 
+   auto end_foo = [=, &iocb](int result) {
+      this->ReadEnd(result, &iocb);
+   };
+
+   int retval = ReadBegin(buff, off, size, end_foo);
+   if (retval != -EWOULDBLOCK)
+   {
+      end_foo(retval);
+   }
 }
 
-/*
- * Perform a readv from the cache
- */
+//______________________________________________________________________________
+void IOFile::pgRead(XrdOucCacheIOCB &iocb, char *buff, long long off, int size,
+                    std::vector<uint32_t> &csvec, uint64_t opts, int *csfix)
+{
+   TRACEIO(Debug, "pgRead() async "<< this << " off: " << off << " size: " << size);
+
+   auto end_foo = [=, &iocb, &csvec](int result) {
+      if (result > 0 && (opts & XrdOucCacheIO::forceCS))
+         XrdOucPgrwUtils::csCalc((const char *)buff, (ssize_t)off, (size_t)result, csvec);
+      this->ReadEnd(result, &iocb);
+   };
+
+   int retval = ReadBegin(buff, off, size, end_foo);
+   if (retval != -EWOULDBLOCK)
+   {
+      end_foo(retval);
+   }
+}
+
+//______________________________________________________________________________
+int IOFile::ReadBegin(char *buff, long long off, int size, ReadReqComplete_foo rrc_func)
+{
+   // protect from reads over the file size
+   if (off >= FSize()) {
+      size = 0;
+      return 0;
+   }
+   if (off < 0) {
+      return -EINVAL;
+   }
+   if (off + size > FSize()) {
+      size = FSize() - off;
+   }
+
+   return m_file->Read(this, buff, off, size, rrc_func);
+}
+
+//______________________________________________________________________________
+int IOFile::ReadEnd(int retval, XrdOucCacheIOCB *iocb)
+{
+   TRACEIO(Debug, "ReadEnd() " << (iocb ? "a" : "") << "sync " << this << " retval: " << retval);
+
+   if (retval < 0)
+   {
+      TRACEIO(Warning, "ReadEnd() error in File::Read(), exit status=" << retval
+              << ", error=" << XrdSysE2T(-retval));
+   }
+
+   if (iocb)
+   {
+      iocb->Done(retval);
+   }
+
+   return retval;
+}
+
+
+//==============================================================================
+// ReadV
+//==============================================================================
+
+//______________________________________________________________________________
 int IOFile::ReadV(const XrdOucIOVec *readV, int n)
 {
-   TRACEIO(Dump, "ReadV(), get " <<  n << " requests" );
-   return m_file->ReadV(this, readV, n);
+   TRACEIO(Dump, "ReadV() sync, get " <<  n << " chunks" );
+
+   int retval;
+   XrdSysCondVar cond;
+
+   auto end_foo = [&](int result) {
+      cond.Lock();
+      retval = result;
+      cond.Signal();
+      cond.UnLock();
+   };
+
+   cond.Lock();
+   retval = ReadVBegin(readV, n, end_foo);
+   if (retval == -EWOULDBLOCK)
+   {
+      cond.Wait();
+   }
+   cond.UnLock();
+   return ReadVEnd(retval, n, nullptr);
+}
+
+//______________________________________________________________________________
+void IOFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
+{
+   TRACEIO(Dump, "ReadV() async, n_chunks: " <<  n);
+
+   auto end_foo = [=, &iocb](int result) {
+      this->ReadVEnd(result, n, &iocb);
+   };
+
+   int retval = ReadVBegin(readV, n, end_foo);
+   if (retval != -EWOULDBLOCK)
+   {
+      end_foo(retval);
+   }
+}
+
+//______________________________________________________________________________
+int IOFile::ReadVBegin(const XrdOucIOVec *readV, int n, ReadReqComplete_foo rrc_func)
+{
+   long long file_size = FSize();
+   for (int i = 0; i < n; ++i)
+   {
+      const XrdOucIOVec &vr = readV[i];
+      if (vr.offset < 0 || vr.offset >= file_size ||
+          vr.offset + vr.size > file_size)
+      {
+         return -EINVAL;
+      }
+   }
+
+   return m_file->ReadV(this, readV, n, rrc_func);
+}
+
+//______________________________________________________________________________
+int IOFile::ReadVEnd(int retval, int n, XrdOucCacheIOCB *iocb)
+{
+   TRACEIO(Debug, "ReadVEnd() " << (iocb ? "a" : "") << "sync " << this << " retval: " << retval << " n_chunks: " << n);
+
+   if (retval < 0)
+   {
+      TRACEIO(Warning, "ReadVEnd() error in File::ReadV(), exit status=" << retval
+              << ", error=" << XrdSysE2T(-retval));
+   }
+
+   if (iocb)
+   {
+      iocb->Done(retval);
+   }
+
+   return retval;
 }

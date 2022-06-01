@@ -70,9 +70,8 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_prefetch_state(kOff),
    m_prefetch_read_cnt(0),
    m_prefetch_hit_cnt(0),
-   m_prefetch_score(1)
-{
-}
+   m_prefetch_score(0)
+{}
 
 File::~File()
 {
@@ -489,7 +488,7 @@ bool File::overlap(int blk,            // block to query
                    // output:
                    long long &off,     // offset in user buffer
                    long long &blk_off, // offset in block
-                   long long &size)    // size to copy
+                   int       &size)    // size to copy
 {
    const long long beg     = blk * blk_size;
    const long long end     = beg + blk_size;
@@ -502,7 +501,7 @@ bool File::overlap(int blk,            // block to query
 
       off     = ovlp_beg - req_off;
       blk_off = ovlp_beg - beg;
-      size    = ovlp_end - ovlp_beg;
+      size    = (int) (ovlp_end - ovlp_beg);
 
       assert(size <= blk_size);
       return true;
@@ -515,7 +514,7 @@ bool File::overlap(int blk,            // block to query
 
 //------------------------------------------------------------------------------
 
-Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
+Block* File::PrepareBlockRequest(int i, IO *io, void *req_id, bool prefetch)
 {
    // Must be called w/ block_map locked.
    // Checks on size etc should be done before.
@@ -540,7 +539,7 @@ Block* File::PrepareBlockRequest(int i, IO *io, bool prefetch)
 
    if (buf)
    {
-      b = new (std::nothrow) Block(this, io, buf, off, blk_size, req_size, prefetch, cs_net);
+      b = new (std::nothrow) Block(this, io, req_id, buf, off, blk_size, req_size, prefetch, cs_net);
 
       if (b)
       {
@@ -591,81 +590,43 @@ void File::ProcessBlockRequests(BlockList_t& blks)
 
 //------------------------------------------------------------------------------
 
-int File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, IntList_t& blocks,
-                              char* req_buf, long long req_off, long long req_size)
+void File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, std::vector<XrdOucIOVec>& ioVec, int expected_size)
 {
-   // TODO Use readv to load more at the same time.
+   TRACEF(Dump, "RequestBlocksDirect issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
 
-   long long total = 0;
-
-   for (IntList_i ii = blocks.begin(); ii != blocks.end(); ++ii)
-   {
-      // overlap and request
-      long long off;     // offset in user buffer
-      long long blk_off; // offset in block
-      long long size;    // size to copy
-
-      overlap(*ii, m_block_size, req_off, req_size, off, blk_off, size);
-
-      io->GetInput()->Read( *handler, req_buf + off, *ii * m_block_size + blk_off, size);
-      TRACEF(Dump, "RequestBlockDirect success, idx = " <<  *ii << " size = " <<  size);
-
-      total += size;
-   }
-
-   return total;
+   io->GetInput()->ReadV( *handler, ioVec.data(), (int) ioVec.size());
 }
 
 //------------------------------------------------------------------------------
 
-int File::ReadBlocksFromDisk(std::list<int>& blocks,
-                             char* req_buf, long long req_off, long long req_size)
+int File::ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size)
 {
-   TRACEF(Dump, "ReadBlocksFromDisk " <<  blocks.size());
+   TRACEF(Dump, "ReadBlocksFromDisk issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
 
-   long long total = 0;
+   long long rs = m_data_file->ReadV(ioVec.data(), (int) ioVec.size());
 
-   // Coalesce adjacent reads.
-
-   for (IntList_i ii = blocks.begin(); ii != blocks.end(); ++ii)
+   if (rs < 0)
    {
-      // overlap and read
-      long long off;     // offset in user buffer
-      long long blk_off; // offset in block
-      long long size;    // size to copy
-
-      overlap(*ii, m_block_size, req_off, req_size, off, blk_off, size);
-
-      long long rs = m_data_file->Read(req_buf + off, *ii * m_block_size + blk_off -m_offset, size);
-      TRACEF(Dump, "ReadBlocksFromDisk block idx = " <<  *ii << " size= " << size);
-
-      if (rs < 0)
-      {
-         TRACEF(Error, "ReadBlocksFromDisk neg retval = " <<  rs << " idx = " << *ii );
-         return rs;
-      }
-
-      if (rs != size)
-      {
-         TRACEF(Error, "ReadBlocksFromDisk incomplete size = " <<  rs << " idx = " << *ii);
-         return -EIO;
-      }
-
-      total += rs;
+      TRACEF(Error, "ReadBlocksFromDisk neg retval = " <<  rs);
+      return rs;
    }
 
-   return total;
+   if (rs != expected_size)
+   {
+      TRACEF(Error, "ReadBlocksFromDisk incomplete size = " << rs);
+      return -EIO;
+   }
+
+   return (int) rs;
 }
 
 //------------------------------------------------------------------------------
 
-int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
+int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadReqComplete_foo rrc_func)
 {
-   Stats loc_stats;
-
-   BlockSet_t  requested_blocks;
-   BlockList_t blks_to_process;
-   IntList_t   blks_on_disk, blks_direct;
+   // rrc_func is ONLY called from async processing.
+   // If this function returns anything other than -EWOULDBLOCK, rrc_func needs to be called by the caller.
+   // This streamlines implementation of synchronous IO::Read().
 
    // lock
    // loop over reqired blocks:
@@ -682,230 +643,256 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize)
       return -ENOENT;
    }
 
+   // Shortcut -- file is fully downloaded.
+
+   if (m_cfi.IsComplete())
    {
-      BlockList_t to_request;
+      m_state_cond.UnLock();
+      int ret = m_data_file->Read(iUserBuff, iUserOff, iUserSize);
+      if (ret > 0) m_stats.AddBytesHit(ret);
+      return ret;
+   }
+
+   XrdOucIOVec readV( { iUserOff, iUserSize, 0, iUserBuff } );
+
+   return ReadOpusCoalescere(io, &readV, 1, rrc_func, "Read() ");
+}
+
+//------------------------------------------------------------------------------
+
+int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqComplete_foo rrc_func)
+{
+   TRACEF(Dump, "ReadV for " << readVnum << " chunks.");
+
+   m_state_cond.Lock();
+
+   if (m_in_shutdown)
+   {
+      m_state_cond.UnLock();
+      return -ENOENT;
+   }
+
+   // Shortcut -- file is fully downloaded.
+
+   if (m_cfi.IsComplete())
+   {
+      m_state_cond.UnLock();
+      int ret = m_data_file->ReadV(const_cast<XrdOucIOVec*>(readV), readVnum);
+      if (ret > 0) m_stats.AddBytesHit(ret);
+      return ret;
+   }
+
+   return ReadOpusCoalescere(io, readV, readVnum, rrc_func, "ReadV() ");
+}
+
+//------------------------------------------------------------------------------
+
+int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
+                             ReadReqComplete_foo rrc_func, const char *tpfx)
+{
+   // Non-trivial processing for Read and ReadV.
+   // Entered under lock.
+
+   int prefetch_cnt = 0;
+
+   ReadRequest *read_req = nullptr;
+   BlockList_t  blks_to_request;     // blocks we are issuing a new remote request for
+
+   std::unordered_map<Block*, std::vector<ChunkRequest>> blks_ready;
+
+   std::vector<XrdOucIOVec> iovec_disk;
+   std::vector<XrdOucIOVec> iovec_direct;
+   int                      iovec_disk_total = 0;
+   int                      iovec_direct_total = 0;
+
+   for (int iov_idx = 0; iov_idx < readVnum; ++iov_idx)
+   {
+      const XrdOucIOVec &iov = readV[iov_idx];
+      long long   iUserOff  = iov.offset;
+      int         iUserSize = iov.size;
+      char       *iUserBuff = iov.data;
+
       const int idx_first = iUserOff / m_block_size;
       const int idx_last  = (iUserOff + iUserSize - 1) / m_block_size;
 
       for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
       {
-         TRACEF(Dump, "Read() idx " << block_idx);
+         TRACEF(Dump, tpfx << "idx " << block_idx);
          BlockMap_i bi = m_block_map.find(block_idx);
+
+         // overlap and read
+         long long off;     // offset in user buffer
+         long long blk_off; // offset in block
+         int       size;    // size to copy
+
+         overlap(block_idx, m_block_size, iUserOff, iUserSize, off, blk_off, size);
 
          // In RAM or incoming?
          if (bi != m_block_map.end())
          {
             inc_ref_count(bi->second);
-            TRACEF(Dump, "Read() " << (void*) iUserBuff << "inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
-            blks_to_process.push_front(bi->second);
+            TRACEF(Dump, tpfx << (void*) iUserBuff << " inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
+
+            if (bi->second->is_finished())
+            {
+               // note, blocks with error should not be here !!!
+               // they should be either removed or reissued in ProcessBlockResponse()
+               assert(bi->second->is_ok());
+
+               blks_ready[bi->second].push_back( ChunkRequest(nullptr, iUserBuff + off, blk_off, size) );
+            }
+            else
+            {
+               if ( ! read_req)
+                  read_req = new ReadRequest(this, io, rrc_func);
+
+               // We have a lock on state_cond --> as we register the request before releasing the lock,
+               // we are sure to get a call-in via the ChunkRequest handling when this block arrives.
+
+               bi->second->m_chunk_reqs.emplace_back(ChunkRequest(read_req, iUserBuff + off, blk_off, size));
+               ++read_req->m_n_chunk_reqs;
+            }
+
+            if (bi->second->m_prefetch)
+               ++prefetch_cnt;
          }
          // On disk?
          else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
          {
-            TRACEF(Dump, "Read() read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
-            blks_on_disk.push_back(block_idx);
+            TRACEF(Dump, tpfx << "read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
+
+            iovec_disk.push_back( { block_idx * m_block_size + blk_off, size, 0, iUserBuff + off } );
+            iovec_disk_total += size;
+
+            if (m_cfi.TestBitPrefetch(offsetIdx(block_idx)))
+               ++prefetch_cnt;
          }
-         // Then we have to get it ...
+         // Neither ... then we have to go get it ...
          else
          {
+            if ( ! read_req)
+               read_req = new ReadRequest(this, io, rrc_func);
+
             // Is there room for one more RAM Block?
-            Block *b = PrepareBlockRequest(block_idx, io, false);
+            Block *b = PrepareBlockRequest(block_idx, io, read_req, false);
             if (b)
             {
-               TRACEF(Dump, "Read() inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
+               TRACEF(Dump, tpfx << "inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);
                inc_ref_count(b);
-               to_request.push_back(b);
-               blks_to_process.push_back(b);
-               requested_blocks.insert(b);
+               blks_to_request.push_back(b);
+
+               b->m_chunk_reqs.emplace_back(ChunkRequest(read_req, iUserBuff + off, blk_off, size));
+               ++read_req->m_n_chunk_reqs;
             }
             else // Nope ... read this directly without caching.
             {
-               TRACEF(Dump, "Read() direct block " << block_idx);
-               blks_direct.push_back(block_idx);
+               TRACEF(Dump, tpfx << "direct block " << block_idx << ", blk_off " << blk_off << ", size " << size);
+
+               iovec_direct.push_back( { block_idx * m_block_size + blk_off, size, 0, iUserBuff + off } );
+               iovec_direct_total += size;
+               read_req->m_direct_done = false;
             }
          }
-      }
+      } // end for over blocks in an IOVec
+   } // end for over readV IOVec
 
-      m_state_cond.UnLock();
+   inc_prefetch_hit_cnt(prefetch_cnt);
 
-      ProcessBlockRequests(to_request);
-      to_request.clear();
+   m_state_cond.UnLock();
+
+   // First, send out remote requests for new blocks.
+   if ( ! blks_to_request.empty())
+   {
+      ProcessBlockRequests(blks_to_request);
+      blks_to_request.clear();
    }
+
+   // Second, send out remote direct read requests.
+   if ( ! iovec_direct.empty())
+   {
+      DirectResponseHandler *direct_handler = new DirectResponseHandler(read_req, 1);
+      RequestBlocksDirect(io, direct_handler, iovec_direct, iovec_direct_total);
+
+      TRACEF(Dump, tpfx << "direct read requests sent out, n_chunks = " << (int) iovec_direct.size() << ", total_size = " << iovec_direct_total);
+   }
+
+   // Begin synchronous part where we process data that is already in RAM or on disk.
 
    long long bytes_read = 0;
    int       error_cond = 0; // to be set to -errno
 
-   // First, send out any direct requests.
-   // TODO Could send them all out in a single vector read.
-   DirectResponseHandler *direct_handler = 0;
-   int direct_size = 0;
-
-   if ( ! blks_direct.empty())
+   // Third, process blocks that are available in RAM.
+   if ( ! blks_ready.empty())
    {
-      direct_handler = new DirectResponseHandler(blks_direct.size());
-
-      direct_size = RequestBlocksDirect(io, direct_handler, blks_direct, iUserBuff, iUserOff, iUserSize);
-
-      TRACEF(Dump, "Read() direct read requests sent out, size = " << direct_size);
+      for (auto &bvi : blks_ready)
+      {
+         for (auto &cr : bvi.second)
+         {
+            TRACEF(Dump, tpfx << "ub=" << (void*)cr.m_buf << " from pre-finished block " << bvi.first->m_offset/m_block_size << " size " << cr.m_size);
+            memcpy(cr.m_buf, bvi.first->m_buff + cr.m_off, cr.m_size);
+            bytes_read += cr.m_size;
+         }
+      }
    }
 
-   // Second, read blocks from disk.
-   if ( ! blks_on_disk.empty() && bytes_read >= 0)
+   // Fourth, read blocks from disk.
+   if ( ! iovec_disk.empty())
    {
-      int rc = ReadBlocksFromDisk(blks_on_disk, iUserBuff, iUserOff, iUserSize);
-      TRACEF(Dump, "Read() " << (void*)iUserBuff <<" from disk finished size = " << rc);
+      int rc = ReadBlocksFromDisk(iovec_disk, iovec_disk_total);
+      TRACEF(Dump, tpfx << "from disk finished size = " << rc);
       if (rc >= 0)
       {
          bytes_read += rc;
-         loc_stats.m_BytesHit += rc;
       }
       else
       {
          error_cond = rc;
-         TRACEF(Error, "Read() failed read from disk");
+         TRACEF(Error, tpfx << "failed read from disk");
       }
    }
 
-   // Third, loop over blocks that are available or incoming
-   int prefetchHitsRam = 0;
-   while ( ! blks_to_process.empty())
+   // End synchronous part -- update with sync stats and determine actual state of this read.
+   // Note: remote reads might have already finished during disk-read!
+
+   m_state_cond.Lock();
+
+   for (auto &bvi : blks_ready)
+      dec_ref_count(bvi.first, (int) bvi.second.size());
+
+   if (read_req)
    {
-      BlockList_t finished;
-      BlockList_t to_reissue;
+      read_req->m_sync_done = true;
+      read_req->m_stats.m_BytesHit += bytes_read;
+      read_req->update_error_cond(error_cond);
+
+      if (read_req->is_complete())
       {
-         XrdSysCondVarHelper _lck(m_state_cond);
+         // Almost like FinalizeReadRequest(read_req) -- but no callout!
 
-         BlockList_i bi = blks_to_process.begin();
-         while (bi != blks_to_process.end())
-         {
-            if ((*bi)->is_failed() && (*bi)->get_io() != io)
-            {
-               TRACEF(Info, "Read() requested block " << (void*)(*bi) << " failed with another io " <<
-                      (*bi)->get_io() << " - reissuing request with my io " << io);
+         m_state_cond.UnLock();
 
-               (*bi)->reset_error_and_set_io(io);
-               to_reissue.push_back(*bi);
-               ++bi;
-            }
-            else if ((*bi)->is_finished())
-            {
-               TRACEF(Dump, "Read() requested block finished " << (void*)(*bi) << ", is_failed()=" << (*bi)->is_failed());
-               finished.push_back(*bi);
-               BlockList_i bj = bi++;
-               blks_to_process.erase(bj);
-            }
-            else
-            {
-               ++bi;
-            }
-         }
+         m_stats.AddReadStats(read_req->m_stats);
 
-         if (finished.empty() && to_reissue.empty())
-         {
-            m_state_cond.Wait();
-            continue;
-         }
-      }
-
-      ProcessBlockRequests(to_reissue);
-      to_reissue.clear();
-
-      for (BlockList_i bi = finished.begin(); bi != finished.end(); ++bi)
-      {
-         if ((*bi)->is_ok())
-         {
-            long long user_off;     // offset in user buffer
-            long long off_in_block; // offset in block
-            long long size_to_copy; // size to copy
-
-            overlap((*bi)->m_offset/m_block_size, m_block_size, iUserOff, iUserSize, user_off, off_in_block, size_to_copy);
-
-            TRACEF(Dump, "Read() ub=" << (void*)iUserBuff  << " from finished block " << (*bi)->m_offset/m_block_size << " size " << size_to_copy);
-            memcpy(&iUserBuff[user_off], &((*bi)->m_buff[off_in_block]), size_to_copy);
-            bytes_read += size_to_copy;
-
-            if (requested_blocks.find(*bi) == requested_blocks.end())
-               loc_stats.m_BytesHit    += size_to_copy;
-            else
-               loc_stats.m_BytesMissed += size_to_copy;
-
-            if ((*bi)->m_prefetch)
-               prefetchHitsRam++;
-         }
-         else
-         {
-            // It has failed ... report only the first error.
-            if ( ! error_cond)
-            {
-               error_cond = (*bi)->m_errno;
-               TRACEF(Error, "Read() io " << io << ", block "<< (*bi)->m_offset/m_block_size <<
-                      " finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
-            }
-         }
-      }
-
-      // Release finished blocks.
-      if ( ! finished.empty())
-      {
-         XrdSysCondVarHelper _lck(m_state_cond);
-
-         for (BlockList_i bi = finished.begin(); bi != finished.end(); ++bi)
-         {
-            TRACEF(Dump, "Read() dec_ref_count " << (void*)(*bi) << " idx = " << (int)((*bi)->m_offset/m_block_size));
-            dec_ref_count(*bi);
-         }
-      }
-   }
-
-   // Fourth, make sure all direct requests have arrived.
-   // This can not be skipped as responses write into request memory buffers.
-   if (direct_handler != 0)
-   {
-      TRACEF(Dump, "Read() waiting for direct requests ");
-
-      XrdSysCondVarHelper _lck(direct_handler->m_cond);
-
-      while (direct_handler->m_to_wait > 0)
-      {
-         direct_handler->m_cond.Wait();
-      }
-
-      if (direct_handler->m_errno == 0)
-      {
-         bytes_read += direct_size;
-         loc_stats.m_BytesBypassed += direct_size;
+         int ret = read_req->return_value();
+         delete read_req;
+         return ret;
       }
       else
       {
-         // Set error and report only if this is the first error in this read.
-         if ( ! error_cond)
-         {
-            error_cond = direct_handler->m_errno;
-            TRACEF(Error, "Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
-         }
+         m_state_cond.UnLock();
+         return -EWOULDBLOCK;
       }
-
-      delete direct_handler;
    }
-   assert(iUserSize >= bytes_read);
-
-   // Last, update prefetch score and stats.
+   else
    {
-      XrdSysCondVarHelper _lck(m_state_cond);
+      m_stats.m_BytesHit += bytes_read;
 
-      // update prefetch score
-      m_prefetch_hit_cnt += prefetchHitsRam;
-      for (IntList_i d = blks_on_disk.begin(); d != blks_on_disk.end(); ++d)
-      {
-         if (m_cfi.TestBitPrefetch(offsetIdx(*d)))
-            m_prefetch_hit_cnt++;
-      }
-      m_prefetch_score = float(m_prefetch_hit_cnt) / m_prefetch_read_cnt;
+      m_state_cond.UnLock();
+
+      // !!! No callout.
+
+      return error_cond ? error_cond : bytes_read;
    }
-
-   m_stats.AddReadStats(loc_stats);
-
-   return error_cond ? error_cond : bytes_read;
 }
 
 //------------------------------------------------------------------------------
@@ -1048,28 +1035,6 @@ void File::Sync()
 
 //------------------------------------------------------------------------------
 
-void File::inc_ref_count(Block* b)
-{
-   // Method always called under lock.
-   b->m_refcnt++;
-   TRACEF(Dump, "inc_ref_count " << b << " refcnt  " << b->m_refcnt);
-}
-
-//------------------------------------------------------------------------------
-
-void File::dec_ref_count(Block* b)
-{
-   // Method always called under lock.
-   assert(b->is_finished());
-   b->m_refcnt--;
-   assert(b->m_refcnt >= 0);
-
-   if (b->m_refcnt == 0)
-   {
-      free_block(b);
-   }
-}
-
 void File::free_block(Block* b)
 {
    // Method always called under lock.
@@ -1142,6 +1107,92 @@ bool File::select_current_io_or_disable_prefetching(bool skip_current)
 
 //------------------------------------------------------------------------------
 
+void File::ProcessDirectReadFinished(ReadRequest *rreq, int bytes_read, int error_cond)
+{
+   // Called from DirectResponseHandler.
+   // NOT under lock.
+
+   TRACEF(Error, "Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
+
+   m_state_cond.Lock();
+
+   if (error_cond)
+      rreq->update_error_cond(error_cond);
+   else
+      rreq->m_stats.m_BytesBypassed += bytes_read;
+
+   rreq->m_direct_done = true;
+
+   bool rreq_complete = rreq->is_complete();
+
+   m_state_cond.UnLock();
+
+   if (rreq_complete)
+      FinalizeReadRequest(rreq);
+}
+
+void File::ProcessBlockError(Block *b, ReadRequest *rreq)
+{
+   // Called from ProcessBlockResponse().
+   // YES under lock -- we have to protect m_block_map for recovery through multiple IOs.
+   // Does not manage m_read_req.
+   // Will not complete the request.
+
+   TRACEF(Error, "ProcessBlockError() io " << b->m_io << ", block "<< b->m_offset/m_block_size <<
+                 " finished with error " << -b->get_error() << " " << XrdSysE2T(-b->get_error()));
+
+   rreq->update_error_cond(b->get_error());
+   --rreq->m_n_chunk_reqs;
+
+   dec_ref_count(b);
+}
+
+void File::ProcessBlockSuccess(Block *b, ChunkRequest &creq)
+{
+   // Called from ProcessBlockResponse().
+   // NOT under lock as it does memcopy ofor exisf block data.
+   // Acquires lock for block, m_read_req and rreq state update.
+
+   ReadRequest *rreq = creq.m_read_req;
+
+   TRACEF(Dump, "ProcessBlockSuccess() ub=" << (void*)creq.m_buf  << " from finished block " << b->m_offset/m_block_size << " size " << creq.m_size);
+   memcpy(creq.m_buf, b->m_buff + creq.m_off, creq.m_size);
+
+   m_state_cond.Lock();
+
+   rreq->m_bytes_read += creq.m_size;
+
+   if (b->get_req_id() == (void*) rreq)
+      rreq->m_stats.m_BytesMissed += creq.m_size;
+   else
+      rreq->m_stats.m_BytesHit    += creq.m_size;
+
+   --rreq->m_n_chunk_reqs;
+
+   dec_ref_count(b);
+
+   if (b->m_prefetch)
+      inc_prefetch_hit_cnt(1);
+
+   bool rreq_complete = rreq->is_complete();
+
+   m_state_cond.UnLock();
+
+   if (rreq_complete)
+      FinalizeReadRequest(rreq);
+}
+
+void File::FinalizeReadRequest(ReadRequest *rreq)
+{
+   // called from ProcessBlockResponse()
+   // NOT under lock -- does callout
+
+   m_stats.AddReadStats(rreq->m_stats);
+
+   rreq->m_complete_func(rreq->return_value());
+   delete rreq;
+}
+
 void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 {
    static const char* tpfx = "ProcessBlockResponse ";
@@ -1158,7 +1209,7 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
       Cache::GetInstance().UnlinkFile(m_filename, false);
    }
 
-   XrdSysCondVarHelper _lck(m_state_cond);
+   m_state_cond.Lock();
 
    // Deregister block from IO's prefetch count, if needed.
    if (b->m_prefetch)
@@ -1207,6 +1258,18 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
          m_stats.AddWriteStats(b->get_size(), b->get_n_cksum_errors());
          cache()->AddWriteTask(b, true);
       }
+
+      
+      // Swap chunk-reqs vector out of Block, it will be processed outside of lock.
+      vChunkRequest_t  creqs_to_notify;
+      creqs_to_notify.swap( b->m_chunk_reqs );
+
+      m_state_cond.UnLock();
+
+      for (auto &creq : creqs_to_notify)
+      {
+         ProcessBlockSuccess(b, creq);
+      }
    }
    else
    {
@@ -1221,9 +1284,50 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
 #endif
       }
       b->set_error(res);
-   }
 
-   m_state_cond.Broadcast();
+      // Loop over Block's chunk-reqs vector, error out ones with the same IO.
+      // Collect others with a different IO, the first of them will be used to reissue the request.
+      // This is then done outside of lock.
+      std::list<ReadRequest*> rreqs_to_complete;
+      vChunkRequest_t         creqs_to_keep;
+
+      for(ChunkRequest &creq : b->m_chunk_reqs)
+      {
+         ReadRequest *rreq = creq.m_read_req;
+
+         if (rreq->m_io == b->get_io())
+         {
+            ProcessBlockError(b, rreq);
+            if (rreq->is_complete())
+            {
+               rreqs_to_complete.push_back(rreq);
+            }
+         }
+         else
+         {
+            creqs_to_keep.push_back(creq);
+         }
+      }
+
+      if ( ! creqs_to_keep.empty())
+      {
+         ReadRequest *rreq = creqs_to_keep.front().m_read_req;
+
+         TRACEF(Info, "ProcessBlockResponse() requested block " << (void*)b << " failed with another io " <<
+               b->get_io() << " - reissuing request with my io " << rreq->m_io);
+
+         b->reset_error_and_set_io(rreq->m_io, rreq);
+         b->m_chunk_reqs.swap( creqs_to_keep );
+      }
+
+      m_state_cond.UnLock();
+
+      if ( ! b->m_chunk_reqs.empty())
+         ProcessBlockRequest(b);
+
+      for (auto rreq : rreqs_to_complete)
+         FinalizeReadRequest(rreq);
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -1235,7 +1339,7 @@ const char* File::lPath() const
 
 //------------------------------------------------------------------------------
 
-int File::offsetIdx(int iIdx)
+int File::offsetIdx(int iIdx) const
 {
    return iIdx - m_offset/m_block_size;
 }
@@ -1276,14 +1380,14 @@ void File::Prefetch()
             BlockMap_i bi = m_block_map.find(f_act);
             if (bi == m_block_map.end())
             {
-               Block *b = PrepareBlockRequest(f_act, m_current_io->first, true);
+               Block *b = PrepareBlockRequest(f_act, m_current_io->first, nullptr, true);
                if (b)
                {
                   TRACEF(Dump, "Prefetch take block " << f_act);
                   blks.push_back(b);
                   // Note: block ref_cnt not increased, it will be when placed into write queue.
-                  m_prefetch_read_cnt++;
-                  m_prefetch_score = float(m_prefetch_hit_cnt)/m_prefetch_read_cnt;
+
+                  inc_prefetch_read_cnt(1);
                }
                else
                {
@@ -1383,17 +1487,17 @@ void BlockResponseHandler::Done(int res)
 
 void DirectResponseHandler::Done(int res)
 {
-   XrdSysCondVarHelper _lck(m_cond);
+   m_mutex.Lock();
 
-   --m_to_wait;
+   int n_left = --m_to_wait;
 
    if (res < 0)
-   {
       m_errno = res;
-   }
+   else
+      m_bytes_read += res;
 
-   if (m_to_wait == 0)
-   {
-      m_cond.Signal();
-   }
+   m_mutex.UnLock();
+
+   if (n_left == 0)
+      m_read_req->m_file->ProcessDirectReadFinished(m_read_req, m_bytes_read, m_errno);
 }

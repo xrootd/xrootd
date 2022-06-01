@@ -23,7 +23,6 @@ add_library(
   XrdPfc/XrdPfcPurge.cc
   XrdPfc/XrdPfcCommand.cc
   XrdPfc/XrdPfcFile.cc          XrdPfc/XrdPfcFile.hh
-  XrdPfc/XrdPfcVRead.cc
   XrdPfc/XrdPfcStats.hh
   XrdPfc/XrdPfcInfo.cc          XrdPfc/XrdPfcInfo.hh
   XrdPfc/XrdPfcIO.cc            XrdPfc/XrdPfcIO.hh

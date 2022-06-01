@@ -353,9 +353,30 @@ int IOFileBlock::Read(char *buff, long long off, int size)
 
       TRACEIO(Dump, "Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
-      int retvalBlock = (fb != 0) ?
-         fb->Read(this, buff, off, readBlockSize) :
-         GetInput()->Read(buff, off, readBlockSize);
+      int retvalBlock;
+      if (fb != 0)
+      {
+         XrdSysCondVar cond;
+
+         auto end_foo = [&](int result) {
+            cond.Lock();
+            retvalBlock = result;
+            cond.Signal();
+            cond.UnLock();
+         };
+
+         cond.Lock();
+         retvalBlock = fb->Read(this, buff, off, readBlockSize, end_foo);
+         if (retvalBlock == -EWOULDBLOCK)
+         {
+            cond.Wait();
+         }
+         cond.UnLock();
+      }
+      else
+      {
+         retvalBlock = GetInput()->Read(buff, off, readBlockSize);
+      }
 
       TRACEIO(Dump, "Read()  Block read returned " << retvalBlock);
       if (retvalBlock == readBlockSize)

@@ -53,12 +53,15 @@ public:
    //---------------------------------------------------------------------
    int  Read(char *buff, long long off, int size) override;
    void Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size) override;
+   void pgRead(XrdOucCacheIOCB &iocb, char *buff, long long off, int size,
+               std::vector<uint32_t> &csvec, uint64_t opts=0, int *csfix=0) override;
+   using XrdOucCacheIO::pgRead;
 
    //---------------------------------------------------------------------
    //! Pass ReadV request to the corresponding File object.
    //---------------------------------------------------------------------
-   using XrdOucCacheIO::ReadV;
-   int ReadV(const XrdOucIOVec *readV, int n) override;
+   int  ReadV(const XrdOucIOVec *readV, int n) override;
+   void ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n) override;
 
    void Update(XrdOucCacheIO &iocp) override;
 
@@ -76,6 +79,13 @@ public:
 
 private:
    File        *m_file;
+
+   int ReadBegin(char *buff, long long off, int size, ReadReqComplete_foo rrc_func);
+   int ReadEnd(int retval, XrdOucCacheIOCB *iocb);
+
+   int ReadVBegin(const XrdOucIOVec *readV, int n, ReadReqComplete_foo rrc_func);
+   int ReadVEnd(int retval, int n, XrdOucCacheIOCB *iocb);
+
    struct stat *m_localStat;
    int initCachedStat(const char* path);
 };
