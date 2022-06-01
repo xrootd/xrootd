@@ -55,46 +55,12 @@ struct ReadVChunkListDisk;
 
 namespace XrdPfc
 {
-/*
-template<typename L> bool remove_list_element(L &list, typename L::value_type &element)
-{
-   auto i = list.begin();
-   while (i != list.end()) {
-      if (*i == element) { list.erase(i); return true; }
-      ++i;
-   }
-   return false;
-}
-
-template<typename L> bool has_list_element(L &list, typename L::value_type &element)
-{
-   auto i = list.begin();
-   while (i != list.end()) {
-      if (*i == element) return true;
-      ++i;
-   }
-   return false;
-}
-
-template<typename L> typename L::iterator find_list_element(L &list, typename L::value_type &element)
-{
-   auto i = list.begin();
-   while (i != list.end()) {
-      if (*i == element) break;
-      ++i;
-   }
-   return i;
-}
-*/
-// ================================================================
-
 class  File;
 
 using ReadReqComplete_foo = std::function<void (int)>;
 
 struct ReadRequest
 {
-   File      *m_file; // XXXX why do we need file here ???;
    IO        *m_io;
    ReadReqComplete_foo m_complete_func;
 
@@ -106,8 +72,8 @@ struct ReadRequest
    bool        m_sync_done    = false;
    bool        m_direct_done  = true;
 
-   ReadRequest(File *file, IO *io, ReadReqComplete_foo end_func) :
-      m_file(file), m_io(io), m_complete_func(end_func)
+   ReadRequest(IO *io, ReadReqComplete_foo end_func) :
+      m_io(io), m_complete_func(end_func)
    {}
 
    void update_error_cond(int ec) { if (m_error_cond == 0 ) m_error_cond = ec; }
@@ -216,13 +182,14 @@ class DirectResponseHandler : public XrdOucCacheIOCB
 {
 public:
    XrdSysMutex   m_mutex;
+   File         *m_file;
    ReadRequest  *m_read_req;
    int           m_to_wait;
    int           m_bytes_read = 0;
    int           m_errno = 0;
 
-   DirectResponseHandler(ReadRequest *rreq, int to_wait) :
-      m_read_req(rreq), m_to_wait(to_wait)
+   DirectResponseHandler(File *file, ReadRequest *rreq, int to_wait) :
+      m_file(file), m_read_req(rreq), m_to_wait(to_wait)
    {}
 
    virtual void Done(int result);

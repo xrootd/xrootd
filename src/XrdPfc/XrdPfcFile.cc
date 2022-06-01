@@ -744,7 +744,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
             else
             {
                if ( ! read_req)
-                  read_req = new ReadRequest(this, io, rrc_func);
+                  read_req = new ReadRequest(io, rrc_func);
 
                // We have a lock on state_cond --> as we register the request before releasing the lock,
                // we are sure to get a call-in via the ChunkRequest handling when this block arrives.
@@ -771,7 +771,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
          else
          {
             if ( ! read_req)
-               read_req = new ReadRequest(this, io, rrc_func);
+               read_req = new ReadRequest(io, rrc_func);
 
             // Is there room for one more RAM Block?
             Block *b = PrepareBlockRequest(block_idx, io, read_req, false);
@@ -810,7 +810,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
    // Second, send out remote direct read requests.
    if ( ! iovec_direct.empty())
    {
-      DirectResponseHandler *direct_handler = new DirectResponseHandler(read_req, 1);
+      DirectResponseHandler *direct_handler = new DirectResponseHandler(this, read_req, 1);
       RequestBlocksDirect(io, direct_handler, iovec_direct, iovec_direct_total);
 
       TRACEF(Dump, tpfx << "direct read requests sent out, n_chunks = " << (int) iovec_direct.size() << ", total_size = " << iovec_direct_total);
@@ -1499,5 +1499,5 @@ void DirectResponseHandler::Done(int res)
    m_mutex.UnLock();
 
    if (n_left == 0)
-      m_read_req->m_file->ProcessDirectReadFinished(m_read_req, m_bytes_read, m_errno);
+      m_file->ProcessDirectReadFinished(m_read_req, m_bytes_read, m_errno);
 }
