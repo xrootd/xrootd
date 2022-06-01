@@ -851,7 +851,7 @@ namespace XrdCl
   std::string AsyncSocketHandler::GetIpAddr()
   {
     char nameBuff[256];
-    pSockAddr.Format( nameBuff, sizeof(nameBuff), XrdNetAddrInfo::fmtAdv6 );
+    pSockAddr.Format( nameBuff, sizeof(nameBuff), XrdNetAddrInfo::fmtAuto, XrdNetAddrInfo::noPort );
     return nameBuff;
   }
 }
