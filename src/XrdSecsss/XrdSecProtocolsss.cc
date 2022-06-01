@@ -28,7 +28,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#if !defined(__FreeBSD__)
 #include <alloca.h>
+#endif
 #include <cctype>
 #include <iostream>
 #include <cstdlib>

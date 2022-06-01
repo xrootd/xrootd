@@ -33,7 +33,7 @@
 
 #include <dirent.h>
 
-#if  defined(__APPLE__)
+#if  defined(__APPLE__) || defined(__FreeBSD__)
 #if !defined(dirent64)
 #define dirent64 dirent
 #endif
