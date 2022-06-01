@@ -57,8 +57,11 @@ protected:
    std::string  GetFilename()     { return XrdCl::URL(GetPath()).GetPath(); }
    const char*  RefreshLocation() { return m_io.load(std::memory_order_relaxed)->Location(true);  }
 
+   unsigned short ObtainReadSid() { return m_read_seqid++; }
+
 private:
-   std::atomic<XrdOucCacheIO*> m_io; //!< original data source
+   std::atomic<XrdOucCacheIO*> m_io;         //!< original data source
+   std::atomic<unsigned short> m_read_seqid; //!< sequential read id (for logging)
 
    void SetInput(XrdOucCacheIO*);
 };

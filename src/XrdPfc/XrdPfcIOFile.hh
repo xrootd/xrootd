@@ -80,14 +80,40 @@ public:
 private:
    File        *m_file;
 
-   int ReadBegin(char *buff, long long off, int size, ReadReqComplete_foo rrc_func);
-   int ReadEnd(int retval, XrdOucCacheIOCB *iocb);
+   struct ReadReqRH : public XrdOucCacheIOCB
+   {
+      int               m_expected_size = 0;
+      int               m_n_chunks = 0;
+      unsigned short    m_seq_id;
+      IOFile           *m_io;
+      XrdOucCacheIOCB  *m_iocb;
 
-   int ReadVBegin(const XrdOucIOVec *readV, int n, ReadReqComplete_foo rrc_func);
-   int ReadVEnd(int retval, int n, XrdOucCacheIOCB *iocb);
+      ReadReqRH(unsigned short sid, IOFile *io, XrdOucCacheIOCB *iocb) :
+         m_seq_id(sid), m_io(io), m_iocb(iocb)
+      {}
+   };
+
+   struct ReadReqRHCond : public ReadReqRH
+   {
+      XrdSysCondVar m_cond   {0};
+      int           m_retval {0};
+
+      using ReadReqRH::ReadReqRH;
+
+      void Done(int result) override
+      { m_cond.Lock(); m_retval = result; m_cond.Signal(); m_cond.UnLock(); }
+   };
+
+   int ReadBegin(char *buff, long long off, int size, ReadReqRH *rh);
+   int ReadEnd(int retval, ReadReqRH *rh);
+
+   int ReadVBegin(const XrdOucIOVec *readV, int n, ReadReqRH *rh);
+   int ReadVEnd(int retval, ReadReqRH *rh);
 
    struct stat *m_localStat;
    int initCachedStat(const char* path);
+
+
 };
 
 }

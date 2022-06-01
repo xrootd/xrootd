@@ -622,7 +622,7 @@ int File::ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size)
 
 //------------------------------------------------------------------------------
 
-int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadReqComplete_foo rrc_func)
+int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, XrdOucCacheIOCB *rh)
 {
    // rrc_func is ONLY called from async processing.
    // If this function returns anything other than -EWOULDBLOCK, rrc_func needs to be called by the caller.
@@ -655,12 +655,12 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadR
 
    XrdOucIOVec readV( { iUserOff, iUserSize, 0, iUserBuff } );
 
-   return ReadOpusCoalescere(io, &readV, 1, rrc_func, "Read() ");
+   return ReadOpusCoalescere(io, &readV, 1, rh, "Read() ");
 }
 
 //------------------------------------------------------------------------------
 
-int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqComplete_foo rrc_func)
+int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, XrdOucCacheIOCB *rh)
 {
    TRACEF(Dump, "ReadV for " << readVnum << " chunks.");
 
@@ -682,13 +682,13 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqComplete_
       return ret;
    }
 
-   return ReadOpusCoalescere(io, readV, readVnum, rrc_func, "ReadV() ");
+   return ReadOpusCoalescere(io, readV, readVnum, rh, "ReadV() ");
 }
 
 //------------------------------------------------------------------------------
 
 int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
-                             ReadReqComplete_foo rrc_func, const char *tpfx)
+                             XrdOucCacheIOCB *rh, const char *tpfx)
 {
    // Non-trivial processing for Read and ReadV.
    // Entered under lock.
@@ -739,22 +739,22 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
                // they should be either removed or reissued in ProcessBlockResponse()
                assert(bi->second->is_ok());
 
-               blks_ready[bi->second].push_back( ChunkRequest(nullptr, iUserBuff + off, blk_off, size) );
+               blks_ready[bi->second].emplace_back( ChunkRequest(nullptr, iUserBuff + off, blk_off, size) );
+
+               if (bi->second->m_prefetch)
+                  ++prefetch_cnt;
             }
             else
             {
                if ( ! read_req)
-                  read_req = new ReadRequest(io, rrc_func);
+                  read_req = new ReadRequest(io, rh);
 
                // We have a lock on state_cond --> as we register the request before releasing the lock,
                // we are sure to get a call-in via the ChunkRequest handling when this block arrives.
 
-               bi->second->m_chunk_reqs.emplace_back(ChunkRequest(read_req, iUserBuff + off, blk_off, size));
+               bi->second->m_chunk_reqs.emplace_back( ChunkRequest(read_req, iUserBuff + off, blk_off, size) );
                ++read_req->m_n_chunk_reqs;
             }
-
-            if (bi->second->m_prefetch)
-               ++prefetch_cnt;
          }
          // On disk?
          else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
@@ -771,7 +771,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
          else
          {
             if ( ! read_req)
-               read_req = new ReadRequest(io, rrc_func);
+               read_req = new ReadRequest(io, rh);
 
             // Is there room for one more RAM Block?
             Block *b = PrepareBlockRequest(block_idx, io, read_req, false);
@@ -1189,7 +1189,7 @@ void File::FinalizeReadRequest(ReadRequest *rreq)
 
    m_stats.AddReadStats(rreq->m_stats);
 
-   rreq->m_complete_func(rreq->return_value());
+   rreq->m_iocb->Done(rreq->return_value());
    delete rreq;
 }
 

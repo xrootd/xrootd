@@ -356,22 +356,25 @@ int IOFileBlock::Read(char *buff, long long off, int size)
       int retvalBlock;
       if (fb != 0)
       {
-         XrdSysCondVar cond;
+         struct ZHandler : public XrdOucCacheIOCB
+         {
+            XrdSysCondVar m_cond   {0};
+            int           m_retval {0};
 
-         auto end_foo = [&](int result) {
-            cond.Lock();
-            retvalBlock = result;
-            cond.Signal();
-            cond.UnLock();
+            void Done(int result) override
+            { m_cond.Lock(); m_retval = result; m_cond.Signal(); m_cond.UnLock(); }
          };
 
-         cond.Lock();
-         retvalBlock = fb->Read(this, buff, off, readBlockSize, end_foo);
+         ZHandler rh;
+
+         rh.m_cond.Lock();
+         int retvalBlock = fb->Read(this, buff, off, readBlockSize, &rh);
          if (retvalBlock == -EWOULDBLOCK)
          {
-            cond.Wait();
+            rh.m_cond.Wait();
+            retvalBlock = rh.m_retval;
          }
-         cond.UnLock();
+         rh.m_cond.UnLock();
       }
       else
       {

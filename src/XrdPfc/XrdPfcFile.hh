@@ -57,12 +57,10 @@ namespace XrdPfc
 {
 class  File;
 
-using ReadReqComplete_foo = std::function<void (int)>;
-
 struct ReadRequest
 {
-   IO        *m_io;
-   ReadReqComplete_foo m_complete_func;
+   IO              *m_io;
+   XrdOucCacheIOCB *m_iocb;
 
    long long   m_bytes_read = 0;
    int         m_error_cond = 0; // to be set to -errno
@@ -72,8 +70,8 @@ struct ReadRequest
    bool        m_sync_done    = false;
    bool        m_direct_done  = true;
 
-   ReadRequest(IO *io, ReadReqComplete_foo end_func) :
-      m_io(io), m_complete_func(end_func)
+   ReadRequest(IO *io, XrdOucCacheIOCB *iocb) :
+      m_io(io), m_iocb(iocb)
    {}
 
    void update_error_cond(int ec) { if (m_error_cond == 0 ) m_error_cond = ec; }
@@ -173,10 +171,10 @@ public:
 
    BlockResponseHandler(Block *b) : m_block(b) {}
 
-   virtual void Done(int result);
+   void Done(int result) override;
 };
 
-// ================================================================
+// ----------------------------------------------------------------
 
 class DirectResponseHandler : public XrdOucCacheIOCB
 {
@@ -192,7 +190,7 @@ public:
       m_file(file), m_read_req(rreq), m_to_wait(to_wait)
    {}
 
-   virtual void Done(int result);
+   void Done(int result) override;
 };
 
 // ================================================================
@@ -217,10 +215,10 @@ public:
    void BlocksRemovedFromWriteQ(std::list<Block*>&);
 
    //! Normal read.
-   int Read(IO *io, char* buff, long long offset, int size, ReadReqComplete_foo rrc_func);
+   int Read(IO *io, char* buff, long long offset, int size, XrdOucCacheIOCB *rh);
 
    //! Vector read.
-   int ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqComplete_foo rrc_func);
+   int ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, XrdOucCacheIOCB *rh);
 
    //----------------------------------------------------------------------
    //! \brief Notification from IO that it has been updated (remote open).
@@ -395,7 +393,8 @@ private:
 
    int    ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size);
 
-   int    ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqComplete_foo rrc_func, const char *tpfx);
+   int    ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
+                             XrdOucCacheIOCB *rh, const char *tpfx);
 
    void ProcessDirectReadFinished(ReadRequest *rreq, int bytes_read, int error_cond);
    void ProcessBlockError(Block *b, ReadRequest *rreq);
