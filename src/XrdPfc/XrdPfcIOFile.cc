@@ -160,7 +160,7 @@ void IOFile::DetachFinalize()
 //______________________________________________________________________________
 int IOFile::Read(char *buff, long long off, int size)
 {
-   auto *rh = new ReadReqRHCond(ObtainReadSid(), this, nullptr);
+   auto *rh = new ReadReqRHCond(ObtainReadSid(), nullptr);
 
    TRACEIO(Debug, "Read() sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
 
@@ -181,10 +181,13 @@ void IOFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
 {
    struct ZHandler : ReadReqRH
    {  using ReadReqRH::ReadReqRH;
+      IOFile *m_io = nullptr;
+
       void Done(int result) override { m_io->ReadEnd(result, this); }
    };
 
-   auto *rh = new ZHandler(ObtainReadSid(), this, &iocb);
+   auto *rh = new ZHandler(ObtainReadSid(), &iocb);
+   rh->m_io = this;
 
    TRACEIO(Debug, "Read() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
 
@@ -201,13 +204,14 @@ void IOFile::pgRead(XrdOucCacheIOCB &iocb, char *buff, long long off, int size,
 {
    struct ZHandler : ReadReqRH
    {  using ReadReqRH::ReadReqRH;
-      
+      IOFile *m_io = nullptr;
       std::function<void (int)> m_lambda {0};
 
       void Done(int result) override { if (m_lambda) m_lambda(result); m_io-> ReadEnd(result, this); }
    };
 
-   auto *rh = new ZHandler(ObtainReadSid(), this, &iocb);
+   auto *rh = new ZHandler(ObtainReadSid(), &iocb);
+   rh->m_io = this;
 
    TRACEIO(Debug, "pgRead() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
 
@@ -249,9 +253,9 @@ int IOFile::ReadEnd(int retval, ReadReqRH *rh)
    TRACEIO(Debug, "ReadEnd() " << (rh->m_iocb ? "a" : "") << "sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " retval: " << retval << " expected_size: " << rh->m_expected_size);
 
    if (retval < 0) {
-      TRACEIO(Warning, "ReadEnd() error in File::Read(), exit status=" << retval << ", error=" << XrdSysE2T(-retval));
+      TRACEIO(Warning, "ReadEnd() error in File::Read(), exit status=" << retval << ", error=" << XrdSysE2T(-retval) << " sid: " << Xrd::hex1 << rh->m_seq_id);
    } else if (retval < rh->m_expected_size) {
-      TRACEIO(Warning, "ReadEnd() bytes missed " << rh->m_expected_size - retval);
+      TRACEIO(Warning, "ReadEnd() bytes missed " << rh->m_expected_size - retval << " sid: " << Xrd::hex1 << rh->m_seq_id);
    }
    if (rh->m_iocb)
       rh->m_iocb->Done(retval);
@@ -269,7 +273,7 @@ int IOFile::ReadEnd(int retval, ReadReqRH *rh)
 //______________________________________________________________________________
 int IOFile::ReadV(const XrdOucIOVec *readV, int n)
 {
-   auto *rh = new ReadReqRHCond(ObtainReadSid(), this, nullptr);
+   auto *rh = new ReadReqRHCond(ObtainReadSid(), nullptr);
 
    TRACEIO(Dump, "ReadV() sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " n_chunks: " <<  n);
 
@@ -289,10 +293,13 @@ void IOFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
 {
    struct ZHandler : ReadReqRH
    {  using ReadReqRH::ReadReqRH;
+      IOFile *m_io = nullptr;
+
       void Done(int result) override { m_io-> ReadVEnd(result, this); }
    };
 
-   auto *rh = new ZHandler(ObtainReadSid(), this, &iocb);
+   auto *rh = new ZHandler(ObtainReadSid(), &iocb);
+   rh->m_io = this;
 
    TRACEIO(Dump, "ReadV() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " n_chunks: " <<  n);
 

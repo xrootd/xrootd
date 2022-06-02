@@ -622,18 +622,13 @@ int File::ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size)
 
 //------------------------------------------------------------------------------
 
-int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, XrdOucCacheIOCB *rh)
+int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadReqRH *rh)
 {
    // rrc_func is ONLY called from async processing.
    // If this function returns anything other than -EWOULDBLOCK, rrc_func needs to be called by the caller.
    // This streamlines implementation of synchronous IO::Read().
 
-   // lock
-   // loop over reqired blocks:
-   //   - if on disk, ok;
-   //   - if in ram or incoming, inc ref-count
-   //   - otherwise request and inc ref count (unless RAM full => request direct)
-   // unlock
+   TRACEF(Dump, "Read sid: " << Xrd::hex1 << rh->m_seq_id << " size: " << iUserSize);
 
    m_state_cond.Lock();
 
@@ -660,7 +655,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, XrdOu
 
 //------------------------------------------------------------------------------
 
-int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, XrdOucCacheIOCB *rh)
+int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqRH *rh)
 {
    TRACEF(Dump, "ReadV for " << readVnum << " chunks.");
 
@@ -688,10 +683,16 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, XrdOucCacheIOCB 
 //------------------------------------------------------------------------------
 
 int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
-                             XrdOucCacheIOCB *rh, const char *tpfx)
+                             ReadReqRH *rh, const char *tpfx)
 {
    // Non-trivial processing for Read and ReadV.
    // Entered under lock.
+   //
+   // loop over reqired blocks:
+   //   - if on disk, ok;
+   //   - if in ram or incoming, inc ref-count
+   //   - otherwise request and inc ref count (unless RAM full => request direct)
+   // unlock
 
    int prefetch_cnt = 0;
 
@@ -715,9 +716,11 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
       const int idx_first = iUserOff / m_block_size;
       const int idx_last  = (iUserOff + iUserSize - 1) / m_block_size;
 
+      TRACEF(Dump, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx_first: " << idx_first << " idx_last: " << idx_last);
+
       for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
       {
-         TRACEF(Dump, tpfx << "idx " << block_idx);
+         TRACEF(Dump, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx: " << block_idx);
          BlockMap_i bi = m_block_map.find(block_idx);
 
          // overlap and read
@@ -861,9 +864,10 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
 
    if (read_req)
    {
-      read_req->m_sync_done = true;
-      read_req->m_stats.m_BytesHit += bytes_read;
+      read_req->m_bytes_read += bytes_read;
       read_req->update_error_cond(error_cond);
+      read_req->m_stats.m_BytesHit += bytes_read;
+      read_req->m_sync_done = true;
 
       if (read_req->is_complete())
       {
@@ -1189,7 +1193,7 @@ void File::FinalizeReadRequest(ReadRequest *rreq)
 
    m_stats.AddReadStats(rreq->m_stats);
 
-   rreq->m_iocb->Done(rreq->return_value());
+   rreq->m_rh->Done(rreq->return_value());
    delete rreq;
 }
 

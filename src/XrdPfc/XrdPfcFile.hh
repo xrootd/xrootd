@@ -57,10 +57,24 @@ namespace XrdPfc
 {
 class  File;
 
+struct ReadReqRH : public XrdOucCacheIOCB
+{
+   int               m_expected_size = 0;
+   int               m_n_chunks = 0; // Only set for ReadV().
+   unsigned short    m_seq_id;
+   XrdOucCacheIOCB  *m_iocb; // External callback passed into IO::Read().
+
+   ReadReqRH(unsigned short sid, XrdOucCacheIOCB *iocb) :
+      m_seq_id(sid), m_iocb(iocb)
+   {}
+};
+
+// -------------------------------------------------------------
+
 struct ReadRequest
 {
-   IO              *m_io;
-   XrdOucCacheIOCB *m_iocb;
+   IO         *m_io;
+   ReadReqRH  *m_rh; // Internal callback created in IO::Read().
 
    long long   m_bytes_read = 0;
    int         m_error_cond = 0; // to be set to -errno
@@ -70,8 +84,8 @@ struct ReadRequest
    bool        m_sync_done    = false;
    bool        m_direct_done  = true;
 
-   ReadRequest(IO *io, XrdOucCacheIOCB *iocb) :
-      m_io(io), m_iocb(iocb)
+   ReadRequest(IO *io, ReadReqRH *rh) :
+      m_io(io), m_rh(rh)
    {}
 
    void update_error_cond(int ec) { if (m_error_cond == 0 ) m_error_cond = ec; }
@@ -215,10 +229,10 @@ public:
    void BlocksRemovedFromWriteQ(std::list<Block*>&);
 
    //! Normal read.
-   int Read(IO *io, char* buff, long long offset, int size, XrdOucCacheIOCB *rh);
+   int Read(IO *io, char* buff, long long offset, int size, ReadReqRH *rh);
 
    //! Vector read.
-   int ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, XrdOucCacheIOCB *rh);
+   int ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqRH *rh);
 
    //----------------------------------------------------------------------
    //! \brief Notification from IO that it has been updated (remote open).
@@ -394,7 +408,7 @@ private:
    int    ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size);
 
    int    ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
-                             XrdOucCacheIOCB *rh, const char *tpfx);
+                             ReadReqRH *rh, const char *tpfx);
 
    void ProcessDirectReadFinished(ReadRequest *rreq, int bytes_read, int error_cond);
    void ProcessBlockError(Block *b, ReadRequest *rreq);

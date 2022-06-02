@@ -59,6 +59,17 @@ protected:
 
    unsigned short ObtainReadSid() { return m_read_seqid++; }
 
+   struct ReadReqRHCond : public ReadReqRH
+   {
+      XrdSysCondVar m_cond   {0};
+      int           m_retval {0};
+
+      using ReadReqRH::ReadReqRH;
+
+      void Done(int result) override
+      { m_cond.Lock(); m_retval = result; m_cond.Signal(); m_cond.UnLock(); }
+   };
+
 private:
    std::atomic<XrdOucCacheIO*> m_io;         //!< original data source
    std::atomic<unsigned short> m_read_seqid; //!< sequential read id (for logging)
