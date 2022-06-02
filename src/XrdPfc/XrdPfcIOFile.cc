@@ -162,7 +162,7 @@ int IOFile::Read(char *buff, long long off, int size)
 {
    auto *rh = new ReadReqRHCond(ObtainReadSid(), nullptr);
 
-   TRACEIO(Debug, "Read() sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
+   TRACEIO(Dump, "Read() sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
 
    rh->m_cond.Lock();
    int retval = ReadBegin(buff, off, size, rh);
@@ -189,7 +189,7 @@ void IOFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
    auto *rh = new ZHandler(ObtainReadSid(), &iocb);
    rh->m_io = this;
 
-   TRACEIO(Debug, "Read() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
+   TRACEIO(Dump, "Read() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
 
    int retval = ReadBegin(buff, off, size, rh);
    if (retval != -EWOULDBLOCK)
@@ -213,7 +213,7 @@ void IOFile::pgRead(XrdOucCacheIOCB &iocb, char *buff, long long off, int size,
    auto *rh = new ZHandler(ObtainReadSid(), &iocb);
    rh->m_io = this;
 
-   TRACEIO(Debug, "pgRead() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
+   TRACEIO(Dump, "pgRead() async " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
 
    if (opts & XrdOucCacheIO::forceCS)
       rh->m_lambda = [=, &csvec](int result) {
@@ -250,7 +250,7 @@ int IOFile::ReadBegin(char *buff, long long off, int size, ReadReqRH *rh)
 //______________________________________________________________________________
 int IOFile::ReadEnd(int retval, ReadReqRH *rh)
 {
-   TRACEIO(Debug, "ReadEnd() " << (rh->m_iocb ? "a" : "") << "sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " retval: " << retval << " expected_size: " << rh->m_expected_size);
+   TRACEIO(Dump, "ReadEnd() " << (rh->m_iocb ? "a" : "") << "sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " retval: " << retval << " expected_size: " << rh->m_expected_size);
 
    if (retval < 0) {
       TRACEIO(Warning, "ReadEnd() error in File::Read(), exit status=" << retval << ", error=" << XrdSysE2T(-retval) << " sid: " << Xrd::hex1 << rh->m_seq_id);
@@ -332,8 +332,8 @@ int IOFile::ReadVBegin(const XrdOucIOVec *readV, int n, ReadReqRH *rh)
 //______________________________________________________________________________
 int IOFile::ReadVEnd(int retval, ReadReqRH *rh)
 {
-   TRACEIO(Debug, "ReadVEnd() " << (rh->m_iocb ? "a" : "") << "sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id <<
-                  " retval: " << retval << " n_chunks: " << rh->m_n_chunks << " expected_size: " << rh->m_expected_size);
+   TRACEIO(Dump, "ReadVEnd() " << (rh->m_iocb ? "a" : "") << "sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id <<
+                 " retval: " << retval << " n_chunks: " << rh->m_n_chunks << " expected_size: " << rh->m_expected_size);
 
    if (retval < 0) {
       TRACEIO(Warning, "ReadVEnd() error in File::ReadV(), exit status=" << retval << ", error=" << XrdSysE2T(-retval));
