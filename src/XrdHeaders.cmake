@@ -53,6 +53,13 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucEnum.hh
   XrdOuc/XrdOucCompiler.hh
+  XrdPosix/XrdPosix.hh
+  XrdPosix/XrdPosixCache.hh
+  XrdPosix/XrdPosixCallBack.hh
+  XrdPosix/XrdPosixExtern.hh
+  XrdPosix/XrdPosixOsDep.hh
+  XrdPosix/XrdPosixXrootd.hh
+  XrdPosix/XrdPosixXrootdPath.hh
   XrdSec/XrdSecAttr.hh
   XrdSec/XrdSecEntity.hh
   XrdSec/XrdSecEntityAttr.hh
@@ -101,13 +108,6 @@ if( NOT XRDCL_ONLY )
     XrdOss/XrdOssDefaultSS.hh
     XrdOss/XrdOssStatInfo.hh
     XrdOss/XrdOssWrapper.hh
-    XrdPosix/XrdPosix.hh
-    XrdPosix/XrdPosixCache.hh
-    XrdPosix/XrdPosixCallBack.hh
-    XrdPosix/XrdPosixExtern.hh
-    XrdPosix/XrdPosixOsDep.hh
-    XrdPosix/XrdPosixXrootd.hh
-    XrdPosix/XrdPosixXrootdPath.hh
     XrdSfs/XrdSfsAio.hh
     XrdSfs/XrdSfsDio.hh
     XrdSfs/XrdSfsXio.hh
