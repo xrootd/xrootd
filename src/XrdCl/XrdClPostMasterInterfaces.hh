@@ -301,6 +301,7 @@ namespace XrdCl
   {
       static const uint16_t IpAddr   = 2001;
       static const uint16_t IpStack  = 2002;
+      static const uint16_t HostName = 2003;
   };
 
   //----------------------------------------------------------------------------

@@ -846,12 +846,23 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  // Get hostname
+  // Get IP address
   //------------------------------------------------------------------------
   std::string AsyncSocketHandler::GetIpAddr()
   {
     char nameBuff[256];
-    pSockAddr.Format( nameBuff, sizeof(nameBuff), XrdNetAddrInfo::fmtAuto, XrdNetAddrInfo::noPort );
+    pSockAddr.Format( nameBuff, sizeof(nameBuff), XrdNetAddrInfo::fmtAddr, XrdNetAddrInfo::noPort );
     return nameBuff;
+  }
+
+  //------------------------------------------------------------------------
+  //! Get hostname
+  //------------------------------------------------------------------------
+  std::string AsyncSocketHandler::GetHostName()
+  {
+    const char *cstr = pSockAddr.Name();
+    if( !cstr )
+      return std::string();
+    return cstr;
   }
 }

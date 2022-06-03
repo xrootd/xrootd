@@ -1196,6 +1196,12 @@ namespace XrdCl
         return Status();
       }
 
+      case StreamQuery::HostName:
+      {
+        result.Set( new std::string( pSubStreams[0]->socket->GetHostName() ), false );
+        return Status();
+      }
+
       default:
         return Status( stError, errQueryNotSupported );
     }
