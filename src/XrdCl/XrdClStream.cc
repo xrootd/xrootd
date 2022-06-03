@@ -123,6 +123,17 @@ namespace XrdCl
                                                       DefaultNetworkStack );
 
     pAddressType = Utils::String2AddressType( netStack );
+    if( pAddressType == Utils::AddressType::IPAuto )
+    {
+      XrdNetUtils::NetProt stacks = XrdNetUtils::NetConfig( XrdNetUtils::NetType::qryINIF );
+      if( !( stacks & XrdNetUtils::hasIP64 ) )
+      {
+        if( stacks & XrdNetUtils::hasIPv4 )
+          pAddressType = Utils::AddressType::IPv4;
+        else if( stacks & XrdNetUtils::hasIPv6 )
+          pAddressType = Utils::AddressType::IPv6;
+      }
+    }
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( PostMasterMsg, "[%s] Stream parameters: Network Stack: %s, "
