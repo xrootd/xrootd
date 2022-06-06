@@ -452,7 +452,7 @@ bool File::Open()
          m_cfi.ResetAllAccessStats();
          m_data_file->Ftruncate(0);
       } else {
-         // If a file is complete, we don't really need to reset net cksums ... well, maybe next time.
+         // TODO: If the file is complete, we don't need to reset net cksums.
          m_cfi.DowngradeCkSumState(conf.get_cs_Chk());
       }
    }
@@ -461,6 +461,7 @@ bool File::Open()
    {
       m_cfi.SetBufferSizeFileSizeAndCreationTime(conf.m_bufferSize, m_file_size);
       m_cfi.SetCkSumState(conf.get_cs_Chk());
+      m_cfi.ResetNoCkSumTime();
       m_cfi.Write(m_info_file, ifn.c_str());
       m_info_file->Fsync();
       TRACEF(Debug, tpfx << "Creating new file info, data size = " <<  m_file_size << " num blocks = "  << m_cfi.GetNBlocks());
