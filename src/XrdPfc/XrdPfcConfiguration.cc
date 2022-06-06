@@ -532,6 +532,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       }
 
       m_log.Say(buff);
+
+      m_env->Put("XRDPFC.SEGSIZE", std::to_string(m_configuration.m_bufferSize).c_str());
    }
 
    // Derived settings

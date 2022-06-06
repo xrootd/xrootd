@@ -415,22 +415,9 @@ private:
    void ProcessBlockSuccess(Block *b, ChunkRequest &creq);
    void FinalizeReadRequest(ReadRequest *rreq);
 
-   void ProcessBlockResponse(BlockResponseHandler* brh, int res);
+   void ProcessBlockResponse(Block *b, int res);
 
-/*
-   void VReadPreProcess   (IO *io, const XrdOucIOVec *readV, int readVnum,
-                           BlockList_t&        blks_to_request,
-                           ReadVBlockListRAM&  blks_to_process,
-                           ReadVBlockListDisk& blks_on_disk,
-                           std::vector<XrdOucIOVec>& chunkVec);
-   int  VReadFromDisk     (const XrdOucIOVec *readV, int readVnum,
-                           ReadVBlockListDisk& blks_on_disk);
-   int  VReadProcessBlocks(IO *io, const XrdOucIOVec *readV, int readVnum,
-                           std::vector<ReadVChunkListRAM>& blks_to_process,
-                           std::vector<ReadVChunkListRAM>& blks_processed,
-                           long long& bytes_hit,
-                           long long& bytes_missed);
-*/
+   // Block management
 
    void inc_ref_count(Block* b);
    void dec_ref_count(Block* b, int count = 1);

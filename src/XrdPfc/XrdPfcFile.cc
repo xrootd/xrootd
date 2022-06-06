@@ -516,7 +516,7 @@ bool File::overlap(int blk,            // block to query
 
 Block* File::PrepareBlockRequest(int i, IO *io, void *req_id, bool prefetch)
 {
-   // Must be called w/ block_map locked.
+   // Must be called w/ state_cond locked.
    // Checks on size etc should be done before.
    //
    // Reference count is 0 so increase it in calling function if you want to
@@ -718,6 +718,10 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
 
       TRACEF(Dump, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx_first: " << idx_first << " idx_last: " << idx_last);
 
+      enum LastBlock_e { LB_other, LB_disk, LB_direct };
+
+      LastBlock_e lbe = LB_other;
+
       for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
       {
          TRACEF(Dump, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx: " << block_idx);
@@ -758,17 +762,24 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
                bi->second->m_chunk_reqs.emplace_back( ChunkRequest(read_req, iUserBuff + off, blk_off, size) );
                ++read_req->m_n_chunk_reqs;
             }
+
+            lbe = LB_other;
          }
          // On disk?
          else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
          {
             TRACEF(Dump, tpfx << "read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
 
-            iovec_disk.push_back( { block_idx * m_block_size + blk_off, size, 0, iUserBuff + off } );
+            if (lbe == LB_disk)
+               iovec_disk.back().size += size;
+            else
+               iovec_disk.push_back( { block_idx * m_block_size + blk_off, size, 0, iUserBuff + off } );
             iovec_disk_total += size;
 
             if (m_cfi.TestBitPrefetch(offsetIdx(block_idx)))
                ++prefetch_cnt;
+
+            lbe = LB_disk;
          }
          // Neither ... then we have to go get it ...
          else
@@ -786,14 +797,21 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
 
                b->m_chunk_reqs.emplace_back(ChunkRequest(read_req, iUserBuff + off, blk_off, size));
                ++read_req->m_n_chunk_reqs;
+
+               lbe = LB_other;
             }
             else // Nope ... read this directly without caching.
             {
                TRACEF(Dump, tpfx << "direct block " << block_idx << ", blk_off " << blk_off << ", size " << size);
 
-               iovec_direct.push_back( { block_idx * m_block_size + blk_off, size, 0, iUserBuff + off } );
+               if (lbe == LB_direct)
+                  iovec_direct.back().size += size;
+               else
+                  iovec_direct.push_back( { block_idx * m_block_size + blk_off, size, 0, iUserBuff + off } );
                iovec_direct_total += size;
                read_req->m_direct_done = false;
+
+               lbe = LB_direct;
             }
          }
       } // end for over blocks in an IOVec
@@ -899,7 +917,10 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
    }
 }
 
-//------------------------------------------------------------------------------
+
+//==============================================================================
+// WriteBlock and Sync
+//==============================================================================
 
 void File::WriteBlockToDisk(Block* b)
 {
@@ -994,7 +1015,7 @@ void File::Sync()
    {
       Stats loc_stats = m_stats.Clone();
       m_cfi.WriteIOStat(loc_stats);
-      m_cfi.Write(m_info_file,m_filename.c_str());
+      m_cfi.Write(m_info_file, m_filename.c_str());
       int cret = m_info_file->Fsync();
       if (cret != XrdOssOK)
       {
@@ -1037,7 +1058,10 @@ void File::Sync()
    TRACEF(Dump, "Sync "<< written_while_in_sync  << " blocks written during sync");
 }
 
-//------------------------------------------------------------------------------
+
+//==============================================================================
+// Block processing
+//==============================================================================
 
 void File::free_block(Block* b)
 {
@@ -1197,11 +1221,9 @@ void File::FinalizeReadRequest(ReadRequest *rreq)
    delete rreq;
 }
 
-void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
+void File::ProcessBlockResponse(Block *b, int res)
 {
    static const char* tpfx = "ProcessBlockResponse ";
-
-   Block *b = brh->m_block;
 
    TRACEF(Dump, tpfx << "block=" << b << ", idx=" << b->m_offset/m_block_size << ", off=" << b->m_offset << ", res=" << res);
 
@@ -1263,7 +1285,6 @@ void File::ProcessBlockResponse(BlockResponseHandler* brh, int res)
          cache()->AddWriteTask(b, true);
       }
 
-      
       // Swap chunk-reqs vector out of Block, it will be processed outside of lock.
       vChunkRequest_t  creqs_to_notify;
       creqs_to_notify.swap( b->m_chunk_reqs );
@@ -1482,8 +1503,7 @@ std::string File::GetRemoteLocations() const
 
 void BlockResponseHandler::Done(int res)
 {
-   m_block->m_file->ProcessBlockResponse(this, res);
-
+   m_block->m_file->ProcessBlockResponse(m_block, res);
    delete this;
 }
 
@@ -1495,13 +1515,17 @@ void DirectResponseHandler::Done(int res)
 
    int n_left = --m_to_wait;
 
-   if (res < 0)
-      m_errno = res;
-   else
+   if (res < 0) {
+      if (m_errno == 0) m_errno = res; // store first reported error
+   } else {
       m_bytes_read += res;
+   }
 
    m_mutex.UnLock();
 
    if (n_left == 0)
+   {
       m_file->ProcessDirectReadFinished(m_read_req, m_bytes_read, m_errno);
+      delete this;
+   }
 }
