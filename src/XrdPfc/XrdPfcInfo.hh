@@ -134,9 +134,7 @@ public:
    //---------------------------------------------------------------------
    void SetAllBitsSynced();
 
-   void SetBufferSize(long long);
-   
-   void SetFileSizeAndCreationTime(long long);
+   void SetBufferSizeFileSizeAndCreationTime(long long bs, long long fs);
 
    //---------------------------------------------------------------------
    //! \brief Reserve bit vectors for file_size / buffer_size bytes.
@@ -199,7 +197,7 @@ public:
    //---------------------------------------------------------------------
    //! Check download status in given block range
    //---------------------------------------------------------------------
-   bool IsAnythingEmptyInRng(int firstIdx, int lastIdx) const;
+   int CountBlocksNotWrittenInRng(int firstIdx, int lastIdx) const;
 
    //---------------------------------------------------------------------
    //! Get size of download-state bit-vector in bytes.
@@ -305,6 +303,7 @@ public:
    bool   HasNoCkSumTime() const { return m_store.m_noCkSumTime != 0; }
    time_t GetNoCkSumTime() const { return m_store.m_noCkSumTime; }
    time_t GetNoCkSumTimeForUVKeep() const { return m_store.m_noCkSumTime ? m_store.m_noCkSumTime : m_store.m_creationTime; }
+   void   ResetNoCkSumTime() { m_store.m_noCkSumTime = 0; }
 
 #ifdef XRDPFC_CKSUM_TEST
    static void TestCksumStuff();
@@ -329,7 +328,8 @@ protected:
 
    int  m_version;
    int  m_bitvecSizeInBits;                  //!< cached
-   bool m_complete;                          //!< cached
+   int  m_missingBlocks;                     //!< cached, updated in SetBitWritten()
+   bool m_complete;                          //!< cached; if false, set to true when missingBlocks hit zero
    bool m_hasPrefetchBuffer;                 //!< constains current prefetch score
 
 private:
@@ -359,7 +359,11 @@ inline void Info::SetBitWritten(int i)
    assert(cn < GetBitvecSizeInBytes());
 
    const int off = i - cn*8;
+
    m_buff_written[cn] |= cfiBIT(off);
+
+   if (--m_missingBlocks == 0)
+      m_complete = true;
 }
 
 inline void Info::SetBitPrefetch(int i)
@@ -449,19 +453,21 @@ inline bool Info::IsComplete() const
    return m_complete;
 }
 
-inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
+inline int Info::CountBlocksNotWrittenInRng(int firstIdx, int lastIdx) const
 {
    // TODO rewrite to use full byte comparisons outside of edges ?
    // Also, it seems to be always called with firstIdx = 0, lastIdx = m_bitvecSizeInBits.
+   int cnt = 0;
    for (int i = firstIdx; i < lastIdx; ++i)
-      if (! TestBitWritten(i)) return true;
+      if (! TestBitWritten(i)) ++cnt;
 
-   return false;
+   return cnt;
 }
 
 inline void Info::UpdateDownloadCompleteStatus()
 {
-   m_complete = ! IsAnythingEmptyInRng(0, m_bitvecSizeInBits);
+   m_missingBlocks = CountBlocksNotWrittenInRng(0, m_bitvecSizeInBits);
+   m_complete      = (m_missingBlocks == 0);
 }
 
 inline long long Info::GetBufferSize() const

@@ -36,7 +36,7 @@ Configuration::Configuration() :
    m_accHistorySize(20),
    m_dirStatsMaxDepth(-1),
    m_dirStatsStoreDepth(0),
-   m_bufferSize(256*1024),
+   m_bufferSize(128*1024),
    m_RamAbsAvailable(0),
    m_RamKeepStdBlocks(0),
    m_wqueue_blocks(16),
@@ -303,7 +303,7 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    // Adjust default parameters for client/serverless caching
    if (m_isClient)
    {
-      m_configuration.m_bufferSize     = 256 * 1024;
+      m_configuration.m_bufferSize     = 128 * 1024; // same as normal.
       m_configuration.m_wqueue_blocks  = 8;
       m_configuration.m_wqueue_threads = 1;
    }
@@ -532,6 +532,8 @@ bool Cache::Config(const char *config_filename, const char *parameters)
       }
 
       m_log.Say(buff);
+
+      m_env->Put("XRDPFC.SEGSIZE", std::to_string(m_configuration.m_bufferSize).c_str());
    }
 
    // Derived settings

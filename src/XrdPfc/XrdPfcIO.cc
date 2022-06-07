@@ -6,7 +6,8 @@ using namespace XrdPfc;
 IO::IO(XrdOucCacheIO *io, Cache &cache) :
    m_cache           (cache),
    m_traceID         ("IO"),
-   m_io              (io)
+   m_io              (io),
+   m_read_seqid      (0u)
 {}
 
 //==============================================================================

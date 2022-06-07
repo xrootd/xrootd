@@ -65,6 +65,13 @@ public:
       m_BytesBypassed += s.m_BytesBypassed;
    }
 
+   void AddBytesHit(long long bh)
+   {
+      XrdSysMutexHelper _lock(&m_Mutex);
+
+      m_BytesHit      += bh;
+   }
+
    void AddWriteStats(long long bytes_written, int n_cks_errs)
    {
       XrdSysMutexHelper _lock(&m_Mutex);

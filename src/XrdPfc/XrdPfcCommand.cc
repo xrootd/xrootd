@@ -233,8 +233,7 @@ void Cache::ExecuteCommandUrl(const std::string& command_url)
          // Fill up cinfo.
 
          Info myInfo(m_trace, false);
-         myInfo.SetBufferSize(block_size);
-         myInfo.SetFileSizeAndCreationTime(file_size);
+         myInfo.SetBufferSizeFileSizeAndCreationTime(block_size, file_size);
          myInfo.SetAllBitsSynced();
 
          for (int i = 0; i < at_count; ++i)

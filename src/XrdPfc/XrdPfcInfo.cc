@@ -127,6 +127,7 @@ Info::Info(XrdSysTrace* trace, bool prefetchBuffer) :
    m_buff_synced(0), m_buff_written(0),  m_buff_prefetch(0),
    m_version(0),
    m_bitvecSizeInBits(0),
+   m_missingBlocks(0),
    m_complete(false),
    m_hasPrefetchBuffer(prefetchBuffer),
    m_cksCalcMd5(0)
@@ -159,16 +160,10 @@ void Info::SetAllBitsSynced()
 
 //------------------------------------------------------------------------------
 
-void Info::SetBufferSize(long long bs)
+void Info::SetBufferSizeFileSizeAndCreationTime(long long bs, long long fs)
 {
-   // Needed only info is created first time in File::Open()
+   // Needed only when Info object is created for the first time in File::Open()
    m_store.m_buffer_size = bs;
-}
-
-//------------------------------------------------------------------------------s
-
-void Info::SetFileSizeAndCreationTime(long long fs)
-{
    m_store.m_file_size = fs;
    ResizeBits();
    m_store.m_creationTime = time(0);
@@ -190,6 +185,9 @@ void Info::ResizeBits()
    m_buff_synced  = (unsigned char*) malloc(GetBitvecSizeInBytes());
    memset(m_buff_written, 0, GetBitvecSizeInBytes());
    memset(m_buff_synced,  0, GetBitvecSizeInBytes());
+
+   m_missingBlocks = m_bitvecSizeInBits;
+   m_complete      = false;
 
    if (m_hasPrefetchBuffer)
    {
@@ -351,7 +349,7 @@ bool Info::Read(XrdOssDF *fp, const char *dname, const char *fname)
 
    memcpy(m_buff_written, m_buff_synced, GetBitvecSizeInBytes());
 
-   m_complete = ! IsAnythingEmptyInRng(0, m_bitvecSizeInBits);
+   UpdateDownloadCompleteStatus();
 
    return true;
 }
@@ -523,7 +521,7 @@ bool Info::ReadV3(XrdOssDF* fp, off_t off, const char *dname, const char *fname)
    }
 
    // cache complete status
-   m_complete = ! IsAnythingEmptyInRng(0, m_bitvecSizeInBits);
+   UpdateDownloadCompleteStatus();
 
    // read creation time
    if (r.Read(m_store.m_creationTime)) return false;
@@ -587,7 +585,7 @@ bool Info::ReadV2(XrdOssDF* fp, off_t off, const char *dname, const char *fname)
    }
 
    // cache complete status
-   m_complete = ! IsAnythingEmptyInRng(0, m_bitvecSizeInBits);
+   UpdateDownloadCompleteStatus();
 
    // read creation time
    if (r.Read(m_store.m_creationTime)) return false;

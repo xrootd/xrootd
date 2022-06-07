@@ -36,12 +36,12 @@ namespace XrdPfc
 //! \brief Downloads original file into a single file on local disk.
 //! Handles read requests as they come along.
 //----------------------------------------------------------------------------
-class IOEntireFile : public IO
+class IOFile : public IO
 {
 public:
-   IOEntireFile(XrdOucCacheIO *io, Cache &cache);
+   IOFile(XrdOucCacheIO *io, Cache &cache);
 
-   ~IOEntireFile();
+   ~IOFile();
 
    //------------------------------------------------------------------------
    //! Check if File was opened successfully.
@@ -50,47 +50,46 @@ public:
 
    //---------------------------------------------------------------------
    //! Pass Read request to the corresponding File object.
-   //!
-   //! @param Buffer
-   //! @param Offset
-   //! @param Length
-   //!
-   //! @return number of bytes read
    //---------------------------------------------------------------------
-   using XrdOucCacheIO::Read;
-
-   virtual int Read(char *Buffer, long long Offset, int Length);
+   int  Read(char *buff, long long off, int size) override;
+   void Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size) override;
+   void pgRead(XrdOucCacheIOCB &iocb, char *buff, long long off, int size,
+               std::vector<uint32_t> &csvec, uint64_t opts=0, int *csfix=0) override;
+   using XrdOucCacheIO::pgRead;
 
    //---------------------------------------------------------------------
    //! Pass ReadV request to the corresponding File object.
-   //!
-   //! @param readV
-   //! @param n number of XrdOucIOVecs
-   //!
-   //! @return total bytes read
    //---------------------------------------------------------------------
-   using XrdOucCacheIO::ReadV;
+   int  ReadV(const XrdOucIOVec *readV, int n) override;
+   void ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n) override;
 
-   virtual int ReadV(const XrdOucIOVec *readV, int n);
+   void Update(XrdOucCacheIO &iocp) override;
 
-   virtual void Update(XrdOucCacheIO &iocp);
-
-   //! \brief Abstract virtual method of XrdPfcIO
+   //! \brief Abstract virtual method of XrdPfc::IO
    //! Called to check if destruction needs to be done in a separate task.
-   bool ioActive() /* override */;
+   bool ioActive() override;
 
-   //! \brief Abstract virtual method of XrdPfcIO
+   //! \brief Abstract virtual method of XrdPfc::IO
    //! Called to destruct the IO object after it is no longer used.
-   void DetachFinalize() /* override */;
+   void DetachFinalize() override;
    
-   virtual int  Fstat(struct stat &sbuff);
+   int  Fstat(struct stat &sbuff) override;
 
-   virtual long long FSize();
+   long long FSize() override;
 
 private:
    File        *m_file;
+
+   int ReadBegin(char *buff, long long off, int size, ReadReqRH *rh);
+   int ReadEnd(int retval, ReadReqRH *rh);
+
+   int ReadVBegin(const XrdOucIOVec *readV, int n, ReadReqRH *rh);
+   int ReadVEnd(int retval, ReadReqRH *rh);
+
    struct stat *m_localStat;
    int initCachedStat(const char* path);
+
+
 };
 
 }

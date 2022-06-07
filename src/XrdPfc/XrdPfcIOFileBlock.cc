@@ -256,9 +256,8 @@ int IOFileBlock::initLocalStat()
                // This is writing the top-level cinfo
                // The info file is used to get file size on defer open
                // don't initalize buffer, it does not hold useful information in this case
-               m_info.SetBufferSize(m_cache.RefConfiguration().m_bufferSize);
+               m_info.SetBufferSizeFileSizeAndCreationTime(m_cache.RefConfiguration().m_bufferSize, tmpStat.st_size);
                // m_info.DisableDownloadStatus(); -- this stopped working a while back.
-               m_info.SetFileSizeAndCreationTime(tmpStat.st_size);
                m_info.Write(m_info_file, path.c_str());
                m_info_file->Fsync();
             }
@@ -354,9 +353,33 @@ int IOFileBlock::Read(char *buff, long long off, int size)
 
       TRACEIO(Dump, "Read() block[ " << blockIdx << "] read-block-size[" << readBlockSize << "], offset[" << readBlockSize << "] off = " << off );
 
-      int retvalBlock = (fb != 0) ?
-         fb->Read(this, buff, off, readBlockSize) :
-         GetInput()->Read(buff, off, readBlockSize);
+      int retvalBlock;
+      if (fb != 0)
+      {
+         struct ZHandler : public ReadReqRH
+         {  using ReadReqRH::ReadReqRH;
+            XrdSysCondVar m_cond   {0};
+            int           m_retval {0};
+
+            void Done(int result) override
+            { m_cond.Lock(); m_retval = result; m_cond.Signal(); m_cond.UnLock(); }
+         };
+
+         ReadReqRHCond rh(ObtainReadSid(), nullptr);
+
+         rh.m_cond.Lock();
+         retvalBlock = fb->Read(this, buff, off, readBlockSize, &rh);
+         if (retvalBlock == -EWOULDBLOCK)
+         {
+            rh.m_cond.Wait();
+            retvalBlock = rh.m_retval;
+         }
+         rh.m_cond.UnLock();
+      }
+      else
+      {
+         retvalBlock = GetInput()->Read(buff, off, readBlockSize);
+      }
 
       TRACEIO(Dump, "Read()  Block read returned " << retvalBlock);
       if (retvalBlock == readBlockSize)
