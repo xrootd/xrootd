@@ -988,7 +988,7 @@ void File::WriteBlockToDisk(Block* b)
       {
          m_cfi.SetBitSynced(blk_idx);
          ++m_non_flushed_cnt;
-         if (m_non_flushed_cnt >= Cache::GetInstance().RefConfiguration().m_flushCnt &&
+         if ((m_cfi.IsComplete() || m_non_flushed_cnt >= Cache::GetInstance().RefConfiguration().m_flushCnt) &&
              ! m_in_shutdown)
          {
             schedule_sync     = true;
@@ -1045,7 +1045,8 @@ void File::Sync()
       return;
    }
 
-   int written_while_in_sync;
+   int  written_while_in_sync;
+   bool resync = false;
    {
       XrdSysCondVarHelper _lck(&m_state_cond);
       for (std::vector<int>::iterator i = m_writes_during_sync.begin(); i != m_writes_during_sync.end(); ++i)
@@ -1054,9 +1055,18 @@ void File::Sync()
       }
       written_while_in_sync = m_non_flushed_cnt = (int) m_writes_during_sync.size();
       m_writes_during_sync.clear();
-      m_in_sync = false;
+
+      // If there were writes during sync and the file is now complete,
+      // let us call Sync again without resetting the m_in_sync flag.
+      if (written_while_in_sync > 0 && m_cfi.IsComplete() && ! m_in_shutdown)
+         resync = true;
+      else
+         m_in_sync = false;
    }
-   TRACEF(Dump, "Sync "<< written_while_in_sync  << " blocks written during sync");
+   TRACEF(Dump, "Sync "<< written_while_in_sync  << " blocks written during sync." << (resync ? " File is now complete - resyncing." : ""));
+
+   if (resync)
+      Sync();
 }
 
 
