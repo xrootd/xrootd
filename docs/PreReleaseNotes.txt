@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Protocol]** Add reflink capability to protocol via kXR_open options.
+  **Commits: 0a4ba6e2
   **[Server] Separate out authorization to overwrite data.
   **Commits: 070ec697
   **[Server] Allow set variable values to come from a file.
