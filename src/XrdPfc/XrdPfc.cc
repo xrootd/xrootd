@@ -247,7 +247,7 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 
 void Cache::AddWriteTask(Block* b, bool fromRead)
 {
-   TRACE(Dump, "AddWriteTask() bOff=" <<  b->m_offset);
+   TRACE(Dump, "AddWriteTask() offset=" <<  b->m_offset << ". file " << b->get_file()->GetLocalPath());
 
    {
       XrdSysMutexHelper lock(&m_RAM_mutex);

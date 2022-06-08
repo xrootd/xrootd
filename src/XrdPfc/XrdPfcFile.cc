@@ -593,7 +593,7 @@ void File::ProcessBlockRequests(BlockList_t& blks)
 
 void File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, std::vector<XrdOucIOVec>& ioVec, int expected_size)
 {
-   TRACEF(Dump, "RequestBlocksDirect issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
+   TRACEF(DumpXL, "RequestBlocksDirect() issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
 
    io->GetInput()->ReadV( *handler, ioVec.data(), (int) ioVec.size());
 }
@@ -602,7 +602,7 @@ void File::RequestBlocksDirect(IO *io, DirectResponseHandler *handler, std::vect
 
 int File::ReadBlocksFromDisk(std::vector<XrdOucIOVec>& ioVec, int expected_size)
 {
-   TRACEF(Dump, "ReadBlocksFromDisk issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
+   TRACEF(DumpXL, "ReadBlocksFromDisk() issuing ReadV for n_chunks = " << (int) ioVec.size() << ", total_size = " << expected_size);
 
    long long rs = m_data_file->ReadV(ioVec.data(), (int) ioVec.size());
 
@@ -629,7 +629,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadR
    // If this function returns anything other than -EWOULDBLOCK, rrc_func needs to be called by the caller.
    // This streamlines implementation of synchronous IO::Read().
 
-   TRACEF(Dump, "Read sid: " << Xrd::hex1 << rh->m_seq_id << " size: " << iUserSize);
+   TRACEF(Dump, "Read() sid: " << Xrd::hex1 << rh->m_seq_id << " size: " << iUserSize);
 
    m_state_cond.Lock();
 
@@ -658,7 +658,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadR
 
 int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqRH *rh)
 {
-   TRACEF(Dump, "ReadV for " << readVnum << " chunks.");
+   TRACEF(Dump, "ReadV() for " << readVnum << " chunks.");
 
    m_state_cond.Lock();
 
@@ -717,7 +717,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
       const int idx_first = iUserOff / m_block_size;
       const int idx_last  = (iUserOff + iUserSize - 1) / m_block_size;
 
-      TRACEF(Dump, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx_first: " << idx_first << " idx_last: " << idx_last);
+      TRACEF(DumpXL, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx_first: " << idx_first << " idx_last: " << idx_last);
 
       enum LastBlock_e { LB_other, LB_disk, LB_direct };
 
@@ -725,7 +725,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
 
       for (int block_idx = idx_first; block_idx <= idx_last; ++block_idx)
       {
-         TRACEF(Dump, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx: " << block_idx);
+         TRACEF(DumpXL, tpfx << "sid: " << Xrd::hex1 << rh->m_seq_id << " idx: " << block_idx);
          BlockMap_i bi = m_block_map.find(block_idx);
 
          // overlap and read
@@ -769,7 +769,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
          // On disk?
          else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
          {
-            TRACEF(Dump, tpfx << "read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
+            TRACEF(DumpXL, tpfx << "read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
 
             if (lbe == LB_disk)
                iovec_disk.back().size += size;
@@ -803,7 +803,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
             }
             else // Nope ... read this directly without caching.
             {
-               TRACEF(Dump, tpfx << "direct block " << block_idx << ", blk_off " << blk_off << ", size " << size);
+               TRACEF(DumpXL, tpfx << "direct block " << block_idx << ", blk_off " << blk_off << ", size " << size);
 
                if (lbe == LB_direct)
                   iovec_direct.back().size += size;
@@ -850,7 +850,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
       {
          for (auto &cr : bvi.second)
          {
-            TRACEF(Dump, tpfx << "ub=" << (void*)cr.m_buf << " from pre-finished block " << bvi.first->m_offset/m_block_size << " size " << cr.m_size);
+            TRACEF(DumpXL, tpfx << "ub=" << (void*)cr.m_buf << " from pre-finished block " << bvi.first->m_offset/m_block_size << " size " << cr.m_size);
             memcpy(cr.m_buf, bvi.first->m_buff + cr.m_off, cr.m_size);
             bytes_read += cr.m_size;
          }
@@ -861,7 +861,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
    if ( ! iovec_disk.empty())
    {
       int rc = ReadBlocksFromDisk(iovec_disk, iovec_disk_total);
-      TRACEF(Dump, tpfx << "from disk finished size = " << rc);
+      TRACEF(DumpXL, tpfx << "from disk finished size = " << rc);
       if (rc >= 0)
       {
          bytes_read += rc;
@@ -1391,7 +1391,7 @@ void File::Prefetch()
 
    BlockList_t blks;
 
-   TRACEF(Dump, "Prefetch enter to check download status");
+   TRACEF(DumpXL, "Prefetch() entering.");
    {
       XrdSysCondVarHelper _lck(m_state_cond);
 

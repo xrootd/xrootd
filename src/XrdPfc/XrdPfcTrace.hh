@@ -9,6 +9,7 @@
 #define TRACE_Info     3
 #define TRACE_Debug    4
 #define TRACE_Dump     5
+#define TRACE_DumpXL   6
 
 #define TRACE_STR_None     ""
 #define TRACE_STR_Error    "error "
@@ -16,6 +17,7 @@
 #define TRACE_STR_Info     "info "
 #define TRACE_STR_Debug    "debug "
 #define TRACE_STR_Dump     "dump "
+#define TRACE_STR_DumpXL   "dump "
 
 #define TRACE_STR_0        ""
 #define TRACE_STR_1        "error "
@@ -23,6 +25,7 @@
 #define TRACE_STR_3        "info "
 #define TRACE_STR_4        "debug "
 #define TRACE_STR_5        "dump "
+#define TRACE_STR_6        "dump "
 
 #ifndef NODEBUG
 

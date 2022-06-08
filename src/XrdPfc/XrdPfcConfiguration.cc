@@ -241,7 +241,8 @@ bool Cache::xtrace(XrdOucStream &Config)
       {"warning", 2},
       {"info",    3},
       {"debug",   4},
-      {"dump",    5}
+      {"dump",    5},
+      {"dumpxl",  6}
    };
    int numopts = sizeof(tropts)/sizeof(struct traceopts);
 
