@@ -449,24 +449,29 @@ enum XOpenRequestMode {
 };
 
 enum XOpenRequestOption {
-   kXR_compress = 1,      // also locate (return unique hosts)
-   kXR_delete   = 2,
-   kXR_force    = 4,
-   kXR_new      = 8,
-   kXR_open_read= 16,
-   kXR_open_updt= 32,
-   kXR_async    = 64,
-   kXR_refresh  = 128,   // also locate
-   kXR_mkpath   = 256,
-   kXR_prefname = 256,   // only locate
-   kXR_open_apnd= 512,
-   kXR_retstat  = 1024,
-   kXR_4dirlist = 1024,  // for locate intending a dirlist
-   kXR_replica  = 2048,
-   kXR_posc     = 4096,
-   kXR_nowait   = 8192,  // also locate
-   kXR_seqio    =16384,
-   kXR_open_wrto=32768
+   kXR_compress = 0x0001, //     1   // also locate (return unique hosts)
+   kXR_delete   = 0x0002, //     2
+   kXR_force    = 0x0004, //     4
+   kXR_new      = 0x0008, //     8
+   kXR_open_read= 0x0010, //    16
+   kXR_open_updt= 0x0020, //    32
+   kXR_async    = 0x0040, //    64
+   kXR_refresh  = 0x0080, //   128   // also locate
+   kXR_mkpath   = 0x0100, //   256
+   kXR_prefname = 0x0100, //   256   // only locate
+   kXR_open_apnd= 0x0200, //   512
+   kXR_retstat  = 0x0400, //  1024
+   kXR_4dirlist = 0x0400, //  1024   // for locate intending a dirlist
+   kXR_replica  = 0x0800, //  2048
+   kXR_posc     = 0x1000, //  4096
+   kXR_nowait   = 0x2000, //  8192   // also locate
+   kXR_seqio    = 0x4000, // 16384
+   kXR_open_wrto= 0x8000  // 32768
+};
+
+enum XOpenRequestOption2 {
+   kXR_dup      = 0x0001, //     1
+   kXR_samefs   = 0x0002  //     2
 };
   
 struct ClientOpenRequest {
