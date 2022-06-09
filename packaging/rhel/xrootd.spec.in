@@ -955,6 +955,7 @@ fi
 %{_libdir}/libXrdSsiLog-5.so
 %{_libdir}/libXrdThrottle-5.so
 %{_libdir}/libXrdCmsRedirectLocal-5.so
+%{_libdir}/libXrdOfsPrepGPI-5.so
 
 %files server-devel
 %defattr(-,root,root,-)
