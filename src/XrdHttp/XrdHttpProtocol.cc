@@ -1521,6 +1521,8 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
   else
     ss << "Connection: Close" << crlf;
 
+  ss << "Server: XrootD/" << XrdVSTRING << crlf;
+  
   if ((bodylen >= 0) && (code != 100))
     ss << "Content-Length: " << bodylen << crlf;
 
