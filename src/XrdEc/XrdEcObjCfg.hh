@@ -57,6 +57,7 @@ namespace XrdEc
                                        paritysize( objcfg.paritysize ),
                                        blksize( objcfg.blksize ),
                                        plgr( objcfg.plgr ),
+									   plgrReplace(objcfg.plgrReplace),
                                        digest( objcfg.digest ),
                                        nomtfile( objcfg.nomtfile )
       {
@@ -65,8 +66,15 @@ namespace XrdEc
       inline std::string GetDataUrl( size_t i ) const
       {
         std::string url = plgr[i] + '/' + obj;
-        if( !dtacgi.empty() ) url += '?' + dtacgi[i];
+        if( !dtacgi.empty() && dtacgi.size() > i ) url += '?' + dtacgi[i];
         return url;
+      }
+
+      inline std::string GetReplacementUrl(size_t i)const
+      {
+    	  std::string url = plgrReplace[i] + '/' + obj;
+    	  if( !dtacgi.empty()) url += '?' + dtacgi[i];
+    	  return url;
       }
 
       inline std::string GetMetadataUrl( size_t i ) const
@@ -90,6 +98,7 @@ namespace XrdEc
       const uint64_t    paritysize; // size of the parity in the block
       const uint64_t    blksize;    // the whole block size (data + parity) in MB
       std::vector<std::string> plgr;
+      std::vector<std::string> plgrReplace;
       std::vector<std::string> dtacgi;
       std::vector<std::string> mdtacgi;
 

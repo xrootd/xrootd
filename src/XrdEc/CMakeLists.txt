@@ -22,6 +22,7 @@ add_library(
   XrdEcThreadPool.hh
   XrdEcStrmWriter.hh           XrdEcStrmWriter.cc
   XrdEcReader.hh               XrdEcReader.cc
+  XrdEcRepairTool.hh		   XrdEcRepairTool.cc
 )
 
 target_link_libraries(

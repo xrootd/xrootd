@@ -48,7 +48,7 @@ namespace XrdCl
                              ResponseHandler   *usrHandler,
                              uint16_t           timeout )
   {
-    if( me.openstage != ZipArchive::Done || !me.archive.IsOpen() )
+	  if( me.openstage != ZipArchive::Done || !me.archive.IsOpen() )
       return XRootDStatus( stError, errInvalidOp );
 
     Log *log = DefaultEnv::GetLog();
@@ -80,14 +80,22 @@ namespace XrdCl
       filesize = cdfh->extra->compressedSize;
     uint16_t descsize = cdfh->HasDataDescriptor() ?
                         DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
+
+    if(filesize+descsize > nextRecordOffset)
+        	return XRootDStatus( stError, errInvalidArgs,
+        			errInvalidArgs, "Resulting offset of read smaller than zero." );
+
     uint64_t fileoff  = nextRecordOffset - filesize - descsize;
     uint64_t offset   = fileoff + relativeOffset;
     uint64_t uncompressedSize = cdfh->uncompressedSize;
     if( uncompressedSize == std::numeric_limits<uint32_t>::max() && cdfh->extra )
       uncompressedSize = cdfh->extra->uncompressedSize;
+
     uint64_t sizeTillEnd = relativeOffset > uncompressedSize ?
                            0 : uncompressedSize - relativeOffset;
     if( size > sizeTillEnd ) size = sizeTillEnd;
+
+
 
     // if it is a compressed file use ZIP cache to read from the file
     if( cdfh->compressionMethod == Z_DEFLATED )
@@ -180,13 +188,14 @@ namespace XrdCl
         RSP          *rsp = new RSP( relativeOffset, size, usrbuff );
         ZipArchive::Schedule( usrHandler, st, rsp );
       }
+
       return XRootDStatus();
     }
 
     Pipeline p = XrdCl::RdWithRsp<RSP>( me.archive, offset, size, usrbuff ) >>
                    [=, &me]( XRootDStatus &st, RSP &r )
                    {
-                     log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at "
+    				log->Dump( ZipMsg, "[0x%x] Read %d bytes of remote data at "
                                         "offset %d.", &me, r.GetLength(), r.GetOffset() );
                      if( usrHandler )
                      {
@@ -200,6 +209,7 @@ namespace XrdCl
     Async( std::move( p ), timeout );
     return XRootDStatus();
   }
+
 
   //---------------------------------------------------------------------------
   // Constructor
@@ -304,7 +314,9 @@ namespace XrdCl
                               [=]( XRootDStatus &status, ChunkInfo &chunk ) mutable
                               {
                                 // check the status is OK
-                                if( !status.IsOK() ) return;
+                                if( !status.IsOK() ) {
+                                	return;
+                                }
 
                                 const char *buff = reinterpret_cast<char*>( chunk.buffer );
                                 while( true )
@@ -317,7 +329,7 @@ namespace XrdCl
                                       const char *eocdBlock = EOCD::Find( buff, chunk.length );
                                       if( !eocdBlock )
                                       {
-                                        XRootDStatus error( stError, errDataError, 0,
+                                    	  XRootDStatus error( stError, errDataError, 0,
                                                             "End-of-central-directory signature not found." );
                                         Pipeline::Stop( error );
                                       }
@@ -440,9 +452,11 @@ namespace XrdCl
                                         log->Dump( ZipMsg, "[0x%x] CD records parsed.", this );
 										uint64_t sumCompSize = 0;
 										for (auto it = cdvec.begin(); it != cdvec.end(); it++) {
-											sumCompSize += (*it)->compressedSize;
-											if ((*it)->offset > archsize || (*it)->offset + (*it)->compressedSize > archsize)
+											if ((*it)->offset > archsize || (*it)->offset + (*it)->compressedSize > archsize
+													|| (*it)->offset < sumCompSize)
 												throw bad_data();
+
+											sumCompSize += (*it)->compressedSize;
 										}
 										if (sumCompSize > archsize)
 											throw bad_data();
@@ -465,6 +479,7 @@ namespace XrdCl
                                   break;
                                 }
                               }
+
                           | XrdCl::Final( [=]( const XRootDStatus &status )
                               { // finalize the pipeline by calling the user callback
                                 if( status.IsOK() )
@@ -635,7 +650,9 @@ namespace XrdCl
                      [=]( XRootDStatus &st )
                      {
                        if( st.IsOK() ) Clear();
-                       else openstage = Error;
+                       else {
+                    	   openstage = Error;
+                       }
                      }
                  | XrdCl::Final( [=]( const XRootDStatus &st ) mutable
                      {
@@ -780,13 +797,16 @@ namespace XrdCl
     iov[1].iov_base = const_cast<void*>( buffer );
     iov[1].iov_len  = size;
 
+
     uint64_t wrtoff = cdoff; // we only support appending
     uint32_t wrtlen = iov[0].iov_len + iov[1].iov_len;
 
     Pipeline p;
     auto wrthandler = [=]( const XRootDStatus &st ) mutable
                       {
-                        if( st.IsOK() ) updated = true;
+                        if( st.IsOK() ) {
+                        	updated = true;
+                        }
                         lfhbuf.reset();
                         if( handler )
                           handler->HandleResponse( make_status( st ), nullptr );
@@ -882,6 +902,8 @@ namespace XrdCl
     }
 
     log->Dump( ZipMsg, "[0x%x] Appending file: %s.", this, fn.c_str() );
+
+
     //-------------------------------------------------------------------------
     // Create Local File Header record
     //-------------------------------------------------------------------------
@@ -891,5 +913,7 @@ namespace XrdCl
     //-------------------------------------------------------------------------
     return WriteImpl( size, buffer, handler, timeout );
   }
+
+
 
 } /* namespace XrdZip */

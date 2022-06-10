@@ -137,7 +137,9 @@ namespace XrdEc
     //-------------------------------------------------------------------------
     // Shuffle the servers so every block has a different placement
     //-------------------------------------------------------------------------
-    static std::default_random_engine random_engine( std::chrono::system_clock::now().time_since_epoch().count() );
+    // make the shuffling reproducable!
+    static std::default_random_engine random_engine( 100 );
+
     std::shared_ptr<sync_queue<size_t>> servers = std::make_shared<sync_queue<size_t>>();
     std::vector<size_t> zipid( dataarchs.size() );
     std::iota( zipid.begin(), zipid.end(), 0 );
@@ -297,7 +299,9 @@ namespace XrdEc
     std::string closeTime = std::to_string( time(NULL) );
 
     std::vector<XrdCl::xattr_t> xav{ {"xrdec.filesize", std::to_string(GetSize())},
-                                     {"xrdec.strpver", closeTime.c_str()} };
+                                     {"xrdec.strpver", closeTime.c_str()},
+									 {"xrdec.corrupted", std::to_string(0)}
+    };
 
     for( size_t i = 0; i < size; ++i )
     {

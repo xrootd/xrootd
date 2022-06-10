@@ -86,7 +86,6 @@ namespace XrdZip
       from_buffer( uncompressedSize, buffer );
       from_buffer( filenameLength, buffer );
       from_buffer( extraLength, buffer );
-
       if(bufferSize > 0 && (uint64_t)(lfhBaseSize + filenameLength + extraLength) > bufferSize)
     	  throw bad_data();
       // parse the filename

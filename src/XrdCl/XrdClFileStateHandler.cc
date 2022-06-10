@@ -888,10 +888,10 @@ namespace XrdCl
       return XRootDStatus( stOK, suAlreadyDone );
 
     if( self->pFileState == OpenInProgress || self->pFileState == Recovering )
-      return XRootDStatus( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp, 0, "OpenInProgress or Recovering");
 
     if( !self->pAllowBundledClose && !self->pInTheFly.empty() )
-      return XRootDStatus( stError, errInvalidOp );
+      return XRootDStatus( stError, errInvalidOp, 0, "In the fly not empty");
 
     self->pFileState = CloseInProgress;
 

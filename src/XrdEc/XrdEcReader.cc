@@ -28,9 +28,12 @@
 #include "XrdEc/XrdEcObjCfg.hh"
 #include "XrdEc/XrdEcThreadPool.hh"
 
-#include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"
+#include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipUtils.hh"
+
+#include "XrdCl/XrdClMessageUtils.hh"
+
 
 #include "XrdOuc/XrdOucCRC32C.hh"
 
@@ -38,6 +41,8 @@
 #include "XrdCl/XrdClZipOperations.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClFinalOperation.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -46,379 +51,12 @@
 #include <iterator>
 #include <numeric>
 #include <tuple>
+
 #include <set>
+
 
 namespace XrdEc
 {
-  //---------------------------------------------------------------------------
-  // OpenOnly operation (@see ZipOperation) - a private ZIP operation
-  //---------------------------------------------------------------------------
-  template<bool HasHndl>
-  class OpenOnlyImpl: public XrdCl::ZipOperation<OpenOnlyImpl, HasHndl,
-      XrdCl::Resp<void>, XrdCl::Arg<std::string>, XrdCl::Arg<bool>>
-
-  {
-    public:
-
-      //-----------------------------------------------------------------------
-      // Inherit constructors from FileOperation (@see FileOperation)
-      //-----------------------------------------------------------------------
-      using XrdCl::ZipOperation<OpenOnlyImpl, HasHndl, XrdCl::Resp<void>,
-          XrdCl::Arg<std::string>, XrdCl::Arg<bool>>::ZipOperation;
-
-      //-----------------------------------------------------------------------
-      // Argument indexes in the args tuple
-      //-----------------------------------------------------------------------
-      enum { UrlArg, UpdtArg };
-
-      //-----------------------------------------------------------------------
-      // @return : name of the operation (@see Operation)
-      //-----------------------------------------------------------------------
-      std::string ToString()
-      {
-        return "OpenOnly";
-      }
-
-    protected:
-
-      //-----------------------------------------------------------------------
-      // RunImpl operation (@see Operation)
-      //
-      // @param params :  container with parameters forwarded from
-      //                  previous operation
-      // @return       :  status of the operation
-      //-----------------------------------------------------------------------
-      XrdCl::XRootDStatus RunImpl( XrdCl::PipelineHandler *handler,
-                                   uint16_t                pipelineTimeout )
-      {
-        std::string      url     = std::get<UrlArg>( this->args ).Get();
-        bool             updt    = std::get<UpdtArg>( this->args ).Get();
-        uint16_t         timeout = pipelineTimeout < this->timeout ?
-                                   pipelineTimeout : this->timeout;
-        return this->zip->OpenOnly( url, updt, handler, timeout );
-      }
-  };
-
-  //---------------------------------------------------------------------------
-  // Factory for creating OpenArchiveImpl objects
-  //---------------------------------------------------------------------------
-  inline OpenOnlyImpl<false> OpenOnly( XrdCl::Ctx<XrdCl::ZipArchive> zip,
-                                       XrdCl::Arg<std::string>       fn,
-                                       XrdCl::Arg<bool>              updt,
-                                       uint16_t                      timeout = 0 )
-  {
-    return OpenOnlyImpl<false>( std::move( zip ), std::move( fn ),
-                                std::move( updt ) ).Timeout( timeout );
-  }
-
-  //-------------------------------------------------------------------------
-  // A single data block
-  //-------------------------------------------------------------------------
-  struct block_t
-  {
-    typedef std::tuple<uint64_t, uint32_t, char*, callback_t> args_t;
-    typedef std::vector<args_t> pending_t;
-
-    //-----------------------------------------------------------------------
-    // Stripe state: empty / loading / valid
-    //-----------------------------------------------------------------------
-    enum state_t { Empty = 0, Loading, Valid, Missing, Recovering };
-
-    //-----------------------------------------------------------------------
-    // Constructor
-    //-----------------------------------------------------------------------
-    block_t( size_t blkid, Reader &reader, ObjCfg &objcfg ) : reader( reader ),
-                                                              objcfg( objcfg ),
-                                                              stripes( objcfg.nbchunks ),
-                                                              state( objcfg.nbchunks, Empty ),
-                                                              pending( objcfg.nbchunks ),
-                                                              blkid( blkid ),
-                                                              recovering( 0 )
-    {
-    }
-
-    //-----------------------------------------------------------------------
-    // Read data from stripe
-    //
-    // @param self     : the block_t object
-    // @param strpid   : stripe ID
-    // @param offset   : relative offset within the stripe
-    // @param size     : number of bytes to be read from the stripe
-    // @param usrbuff  : user buffer for the data
-    // @param usrcb    : user callback to be notified when the read operation
-    //                   has been resolved
-    // @param timeout  : operation timeout
-    //-----------------------------------------------------------------------
-    static void read( std::shared_ptr<block_t> &self,
-                      size_t                    strpid,
-                      uint64_t                  offset,
-                      uint32_t                  size,
-                      char                     *usrbuff,
-                      callback_t                usrcb,
-                      uint16_t                  timeout )
-    {
-      std::unique_lock<std::mutex> lck( self->mtx );
-
-      //---------------------------------------------------------------------
-      // The cache is empty, we need to load the data
-      //---------------------------------------------------------------------
-      if( self->state[strpid] == Empty )
-      {
-        self->reader.Read( self->blkid, strpid, self->stripes[strpid],
-                           read_callback( self, strpid ), timeout );
-        self->state[strpid] = Loading;
-      }
-      //---------------------------------------------------------------------
-      // The stripe is either corrupted or unreachable
-      //---------------------------------------------------------------------
-      if( self->state[strpid] == Missing )
-      {
-        if( !error_correction( self ) )
-        {
-          //-----------------------------------------------------------------
-          // Recovery was not possible, notify the user of the error
-          //-----------------------------------------------------------------
-          usrcb( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError ), 0 );
-          return;
-        }
-        //-------------------------------------------------------------------
-        // we fall through to the following if-statements that will handle
-        // Recovering / Valid state
-        //-------------------------------------------------------------------
-      }
-      //---------------------------------------------------------------------
-      // The cache is loading or recovering, we don't have the data yet
-      //---------------------------------------------------------------------
-      if( self->state[strpid] == Loading || self->state[strpid] == Recovering )
-      {
-        self->pending[strpid].emplace_back( offset, size, usrbuff, usrcb );
-        return;
-      }
-      //---------------------------------------------------------------------
-      // We do have the data so we can serve the user right away
-      //---------------------------------------------------------------------
-      if( self->state[strpid] == Valid )
-      {
-        if( offset + size > self->stripes[strpid].size() )
-          size = self->stripes[strpid].size() - offset;
-        if(usrbuff)
-        	memcpy( usrbuff, self->stripes[strpid].data() + offset, size );
-        usrcb( XrdCl::XRootDStatus(), size );
-        return;
-      }
-      //---------------------------------------------------------------------
-      // In principle we should never end up here, nevertheless if this
-      // happens it is clearly an error ...
-      //---------------------------------------------------------------------
-      usrcb( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp ), 0 );
-    }
-
-    //-----------------------------------------------------------------------
-    // If neccessary trigger error correction procedure
-    // @param self : the block_t object
-    // @return     : false if the block is corrupted and cannot be recovered,
-    //               true otherwise
-    //-----------------------------------------------------------------------
-    static bool error_correction( std::shared_ptr<block_t> &self )
-    {
-      //---------------------------------------------------------------------
-      // Do the accounting for our stripes
-      //---------------------------------------------------------------------
-      size_t missingcnt = 0, validcnt = 0, loadingcnt = 0, recoveringcnt = 0;
-      std::for_each( self->state.begin(), self->state.end(), [&]( state_t &s )
-        {
-          switch( s )
-          {
-            case Missing:    ++missingcnt;    break;
-            case Valid:      ++validcnt;      break;
-            case Loading:    ++loadingcnt;    break;
-            case Recovering: ++recoveringcnt; break;
-            default: ;
-          }
-        } );
-      //---------------------------------------------------------------------
-      // If there are no missing stripes all is good ...
-      //---------------------------------------------------------------------
-      if( missingcnt + recoveringcnt == 0 ) return true;
-      //---------------------------------------------------------------------
-      // Check if we can do the recovery at all (if too many stripes are
-      // missing it won't be possible)
-      //---------------------------------------------------------------------
-      if( missingcnt + recoveringcnt > self->objcfg.nbparity )
-      {
-        std::for_each( self->state.begin(), self->state.end(),
-                       []( state_t &s ){ if( s == Recovering ) s = Missing; } );
-        return false;
-      }
-      //---------------------------------------------------------------------
-      // Check if we can do the recovery right away
-      //---------------------------------------------------------------------
-      if( validcnt >= self->objcfg.nbdata )
-      {
-        Config &cfg = Config::Instance();
-        stripes_t strps( self->get_stripes() );
-        try
-        {
-          cfg.GetRedundancy( self->objcfg ).compute( strps );
-        }
-        catch( const IOError &ex )
-        {
-          std::for_each( self->state.begin(), self->state.end(),
-                         []( state_t &s ){ if( s == Recovering ) s = Missing; } );
-          return false;
-        }
-        //-------------------------------------------------------------------
-        // Now when we recovered the data we need to mark every stripe as
-        // valid and execute the pending reads
-        //-------------------------------------------------------------------
-        for( size_t strpid = 0; strpid < self->objcfg.nbchunks; ++strpid )
-        {
-          if( self->state[strpid] != Recovering ) continue;
-          self->state[strpid] = Valid;
-          self->carryout( self->pending[strpid], self->stripes[strpid] );
-        }
-        return true;
-      }
-      //---------------------------------------------------------------------
-      // Try loading the data and only then attempt recovery
-      //---------------------------------------------------------------------
-      size_t i = 0;
-      while( loadingcnt + validcnt < self->objcfg.nbdata && i < self->objcfg.nbchunks )
-      {
-        size_t strpid = i++;
-        if( self->state[strpid] != Empty ) continue;
-        self->reader.Read( self->blkid, strpid, self->stripes[strpid],
-                           read_callback( self, strpid ) );
-        self->state[strpid] = Loading;
-        ++loadingcnt;
-      }
-
-      //-------------------------------------------------------------------
-      // Now that we triggered the recovery procedure mark every missing
-      // stripe as recovering.
-      //-------------------------------------------------------------------
-      std::for_each( self->state.begin(), self->state.end(),
-                     []( state_t &s ){ if( s == Missing ) s = Recovering; } );
-      return true;
-    }
-
-    //-----------------------------------------------------------------------
-    // Get a callback for read operation
-    //-----------------------------------------------------------------------
-    inline static
-    callback_t read_callback( std::shared_ptr<block_t> &self, size_t strpid )
-    {
-      return [self, strpid]( const XrdCl::XRootDStatus &st, uint32_t ) mutable
-             {
-               std::unique_lock<std::mutex> lck( self->mtx );
-               self->state[strpid] = st.IsOK() ? Valid : Missing;
-               //------------------------------------------------------------
-               // Check if we need to do any error correction (either for
-               // the current stripe, or any other stripe)
-               //------------------------------------------------------------
-               bool recoverable = error_correction( self );
-               //------------------------------------------------------------
-               // Carry out the pending read requests if we got the data
-               //------------------------------------------------------------
-               if( st.IsOK() )
-                 self->carryout( self->pending[strpid], self->stripes[strpid], st );
-               //------------------------------------------------------------
-               // Carry out the pending read requests if there was an error
-               // and we cannot recover
-               //------------------------------------------------------------
-               if( !recoverable )
-                 self->fail_missing();
-             };
-    }
-
-    //-----------------------------------------------------------------------
-    // Get stripes_t data structure used for error recovery
-    //-----------------------------------------------------------------------
-    inline stripes_t get_stripes()
-    {
-      stripes_t ret;
-      ret.reserve( objcfg.nbchunks );
-      for( size_t i = 0; i < objcfg.nbchunks; ++i )
-      {
-        if( state[i] == Valid )
-          ret.emplace_back( stripes[i].data(), true );
-        else
-        {
-          stripes[i].resize( objcfg.chunksize, 0 );
-          ret.emplace_back( stripes[i].data(), false );
-        }
-      }
-      return ret;
-    }
-
-    //-------------------------------------------------------------------------
-    // Execute the pending read requests
-    //-------------------------------------------------------------------------
-    inline void carryout( pending_t                 &pending,
-                          const buffer_t            &stripe,
-                          const XrdCl::XRootDStatus &st = XrdCl::XRootDStatus() )
-    {
-      //-----------------------------------------------------------------------
-      // Iterate over all pending read operations for given stripe
-      //-----------------------------------------------------------------------
-      auto itr = pending.begin();
-      for( ; itr != pending.end() ; ++itr )
-      {
-        auto       &args     = *itr;
-        callback_t &callback = std::get<3>( args );
-        uint32_t    nbrd  = 0; // number of bytes read
-        //---------------------------------------------------------------------
-        // If the read was successful, copy the data to user buffer
-        //---------------------------------------------------------------------
-        if( st.IsOK() )
-        {
-          uint64_t  offset  = std::get<0>( args );
-          uint32_t  size    = std::get<1>( args );
-          char     *usrbuff = std::get<2>( args );
-          // are we reading past the end of file?
-          if( offset > stripe.size() )
-            size = 0;
-          // are partially reading past the end of the file?
-          else if( offset + size > stripe.size() )
-            size = stripe.size() - offset;
-          if(usrbuff)
-        	  memcpy( usrbuff, stripe.data() + offset, size );
-          nbrd = size;
-        }
-        //---------------------------------------------------------------------
-        // Call the user callback
-        //---------------------------------------------------------------------
-        callback( st, nbrd );
-      }
-      //-----------------------------------------------------------------------
-      // Now we can clear the pending reads
-      //-----------------------------------------------------------------------
-      pending.clear();
-    }
-
-    //-------------------------------------------------------------------------
-    // Execute pending read requests for missing stripes
-    //-------------------------------------------------------------------------
-    inline void fail_missing()
-    {
-      size_t size = objcfg.nbchunks;
-      for( size_t i = 0; i < size; ++i )
-      {
-        if( state[i] != Missing ) continue;
-        carryout( pending[i], stripes[i],
-                  XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError ) );
-      }
-    }
-
-    Reader                 &reader;
-    ObjCfg                 &objcfg;
-    std::vector<buffer_t>   stripes;    //< data buffer for every stripe
-    std::vector<state_t>    state;      //< state of every data buffer (empty/loading/valid)
-    std::vector<pending_t>  pending;    //< pending reads per stripe
-    size_t                  blkid;      //< block ID
-    bool                    recovering; //< true if we are in the process of recovering data, false otherwise
-    std::mutex              mtx;
-  };
 
   //---------------------------------------------------------------------------
   // Destructor (we need it in the source file because block_t is defined in
@@ -433,14 +71,16 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   void Reader::Open( XrdCl::ResponseHandler *handler, uint16_t timeout )
   {
+	  auto log = XrdCl::DefaultEnv::GetLog();
     const size_t size = objcfg.plgr.size();
     std::vector<XrdCl::Pipeline> opens; opens.reserve( size );
+    std::vector<XrdCl::Pipeline> healthRead; healthRead.reserve(size);
     for( size_t i = 0; i < size; ++i )
     {
       // generate the URL
       std::string url = objcfg.GetDataUrl( i );
       archiveIndices.emplace(url, i);
-      // create the file object
+
       dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>(
           Config::Instance().enable_plugins ) );
       // open the archive
@@ -450,27 +90,35 @@ namespace XrdEc
       }
       else
         opens.emplace_back( OpenOnly( *dataarchs[url], url, false ) );
+
+      healthRead.emplace_back(CheckHealthExists(i));
     }
+
+
 
     auto pipehndl = [=]( const XrdCl::XRootDStatus &st )
                     { // set the central directories in ZIP archives (if we use metadata files)
-                      auto itr = dataarchs.begin();
-                      for( ; itr != dataarchs.end() ; ++itr )
-                      {
-                        const std::string &url    = itr->first;
-                        auto              &zipptr = itr->second;
-                        if( zipptr->openstage == XrdCl::ZipArchive::NotParsed )
-                          zipptr->SetCD( metadata[url] );
-                        else if( zipptr->openstage != XrdCl::ZipArchive::Done && !metadata.empty() )
-                          AddMissing( metadata[url] );
-                        auto itr = zipptr->cdmap.begin();
-                        for( ; itr != zipptr->cdmap.end() ; ++itr )
-                        {
-                          urlmap.emplace( itr->first, url );
-                          size_t blknb = fntoblk( itr->first );
-                          if( blknb > lstblk ) lstblk = blknb;
-                        }
-                      }
+        auto itr = dataarchs.begin();
+		for (; itr != dataarchs.end(); ++itr) {
+			const std::string &url = itr->first;
+			auto &zipptr = itr->second;
+			if (zipptr->openstage == XrdCl::ZipArchive::NotParsed)
+				zipptr->SetCD(metadata[url]);
+			else if (zipptr->openstage != XrdCl::ZipArchive::Done
+					&& !metadata.empty())
+				AddMissing(metadata[url]);
+			auto itr = zipptr->cdmap.begin();
+			for (; itr != zipptr->cdmap.end(); ++itr) {
+				try {
+					size_t blknb = fntoblk(itr->first);
+					urlmap.emplace(itr->first, url);
+					if (blknb > lstblk)
+						lstblk = blknb;
+				} catch (std::invalid_argument&) {
+					log->Dump(XrdCl::XRootDMsg, "EC Reader Open: Invalid file name found");
+				}
+			}
+		}
                       metadata.clear();
                       // call user handler
                       if( handler )
@@ -478,7 +126,9 @@ namespace XrdEc
                     };
     // in parallel open the data files and read the metadata
     XrdCl::Pipeline p = objcfg.nomtfile
-                      ? XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) | ReadSize( 0 ) | XrdCl::Final( pipehndl )
+                      ? XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata )
+                    		  | XrdCl::Parallel(healthRead).AtLeast(0)
+                    		  | ReadSize( 0 ) | XrdCl::Final( pipehndl )
                       : XrdCl::Parallel( ReadMetadata( 0 ),
                                          XrdCl::Parallel( opens ).AtLeast( objcfg.nbdata ) ) >> pipehndl;
     XrdCl::Async( std::move( p ), timeout );
@@ -491,7 +141,7 @@ namespace XrdEc
                      uint32_t                length,
                      void                   *buffer,
                      XrdCl::ResponseHandler *handler,
-                     uint16_t                timeout )
+                     uint16_t                timeout)
   {
     if( objcfg.nomtfile )
     {
@@ -537,7 +187,7 @@ namespace XrdEc
       lck.unlock();
       auto callback = [blk, rdctx, rdsize, rdmtx]( const XrdCl::XRootDStatus &st, uint32_t nbrd )
       {
-        std::unique_lock<std::mutex> lck( *rdmtx );
+    	  std::unique_lock<std::mutex> lck( *rdmtx );
         //---------------------------------------------------------------------
         // update number of bytes left to be read (bytes requested not actually
         // read)
@@ -572,7 +222,7 @@ namespace XrdEc
       //-------------------------------------------------------------------
       // Read data from a stripe
       //-------------------------------------------------------------------
-      block_t::read( blk, strpid, rdoff, rdsize, usrbuff, callback, timeout );
+      block_t::read( blk, strpid, rdoff, rdsize, usrbuff, callback, timeout);
       //-------------------------------------------------------------------
       // Update absolute offset, read length, and user buffer
       //-------------------------------------------------------------------
@@ -621,9 +271,8 @@ namespace XrdEc
     auto itr = urlmap.find( fn );
     if( itr == urlmap.end() )
     {
-      auto st = !IsMissing( fn ) ? XrdCl::XRootDStatus() :
-                XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
-      ThreadPool::Instance().Execute( cb, st, 0 );
+    	auto st = XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
+    	ThreadPool::Instance().Execute( cb, st, 0 );
       return;
     }
     // get the URL of the ZIP archive with the respective data
@@ -635,7 +284,7 @@ namespace XrdEc
     auto st = zipptr->Stat( fn, info );
     if( !st.IsOK() )
     {
-      ThreadPool::Instance().Execute( cb, st, 0 );
+    	ThreadPool::Instance().Execute( cb, st, 0 );
       return;
     }
     uint32_t rdsize = info->GetSize();
@@ -643,47 +292,48 @@ namespace XrdEc
     // create a buffer for the data
     buffer.resize( objcfg.chunksize );
     // issue the read request
-    XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, rdsize, buffer.data() ) >>
-                    [zipptr, fn, cb, this]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
-                    {
-                      //---------------------------------------------------
-                      // If read failed there's nothing to do, just pass the
-                      // status to user callback
-                      //---------------------------------------------------
-                      if( !st.IsOK() )
-                      {
-                        cb( st, 0 );
-                        return;
-                      }
-                      //---------------------------------------------------
-                      // Get the checksum for the read data
-                      //---------------------------------------------------
-                      uint32_t orgcksum = 0;
-                      auto s = zipptr->GetCRC32( fn, orgcksum );
-                      //---------------------------------------------------
-                      // If we cannot extract the checksum assume the data
-                      // are corrupted
-                      //---------------------------------------------------
-                      if( !st.IsOK() )
-                      {
-                        cb( st, 0 );
-                        return;
-                      }
-                      //---------------------------------------------------
-                      // Verify data integrity
-                      //---------------------------------------------------
-                      uint32_t cksum = objcfg.digest( 0, ch.buffer, ch.length );
-                      if( orgcksum != cksum )
-                      {
-                        cb( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errDataError ), 0 );
-                        return;
-                      }
-                      //---------------------------------------------------
-                      // All is good, we can call now the user callback
-                      //---------------------------------------------------
-                      cb( XrdCl::XRootDStatus(), ch.length );
-                    }, timeout );
-  }
+	XrdCl::Async(
+			XrdCl::ReadFrom(*zipptr, fn, 0, rdsize, buffer.data())
+					>> [zipptr, fn, cb, &buffer, this, url, timeout](
+							XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch)
+							{
+								//---------------------------------------------------
+								// If read failed there's nothing to do, just pass the
+								// status to user callback
+								//---------------------------------------------------
+							if( !st.IsOK() )
+							{
+								cb( XrdCl::XRootDStatus(st.status, XrdCl::errNotFound, 0, "Read failed"), 0 );
+								return;
+							}
+							//---------------------------------------------------
+							// Get the checksum for the read data
+							//---------------------------------------------------
+							uint32_t orgcksum = 0;
+							auto s = zipptr->GetCRC32(fn, orgcksum);
+							//---------------------------------------------------
+							// If we cannot extract the checksum assume the data
+							// are corrupted
+							//---------------------------------------------------
+							if( !s.IsOK() )
+							{
+								cb( XrdCl::XRootDStatus(s.status, s.code, s.errNo, "Chksum fail"), 0 );
+								return;
+							}
+							//---------------------------------------------------
+							// Verify data integrity
+							//---------------------------------------------------
+							uint32_t cksum = objcfg.digest( 0, ch.buffer, ch.length );
+							if( orgcksum != cksum )
+							{
+								cb( XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errCheckSumError, 0, "Chksum of data and cdfh not equal" ), 0 );
+								return;
+							}
+							// checksums identical, call with positive response
+							cb(XrdCl::XRootDStatus(), ch.length);
+							return;
+						}, timeout);
+}
 
   //-----------------------------------------------------------------------
   // Read metadata for the object
@@ -756,9 +406,9 @@ namespace XrdEc
   {
     std::string url = objcfg.GetDataUrl( index );
     return XrdCl::GetXAttr( dataarchs[url]->GetFile(), "xrdec.filesize" ) >>
-        [index, this]( XrdCl::XRootDStatus &st, std::string &size)
+        [index, this, url]( XrdCl::XRootDStatus &st, std::string &size)
         {
-          if( !st.IsOK() )
+          if( !st.IsOK() || this->dataarchs[url]->openstage != XrdCl::ZipArchive::Done)
           {
             //-------------------------------------------------------------
             // Check if we can recover the error or a diffrent location
@@ -767,8 +417,44 @@ namespace XrdEc
               XrdCl::Pipeline::Replace( ReadSize( index + 1 ) );
             return;
           }
+          try{
           filesize = std::stoull( size );
+          }
+          catch(std::invalid_argument &){
+        	  if( index + 1 < objcfg.plgr.size() )
+        	  XrdCl::Pipeline::Replace( ReadSize( index + 1 ) );
+          }
         };
+  }
+
+  XrdCl::Pipeline Reader::CheckHealthExists(size_t index){
+	  std::string url = objcfg.GetDataUrl( index );
+	  		  return XrdCl::ListXAttr(dataarchs[url]->GetFile()) >>
+	  				  [index, url, this] (XrdCl::XRootDStatus &st, std::vector<XrdCl::XAttr> attrs){
+	  			  	  	 for(auto it = attrs.begin(); it != attrs.end(); it++){
+	  			  	  		 if(it->name == "xrdec.corrupted"){
+	  			  	  			 XrdCl::Pipeline::Replace(ReadHealth(index));
+	  			  	  		 }
+	  			  	  	 }
+	  		  };
+  }
+
+  XrdCl::Pipeline Reader::ReadHealth(size_t index){
+		  std::string url = objcfg.GetDataUrl( index );
+		  return XrdCl::GetXAttr( dataarchs[url]->GetFile(), "xrdec.corrupted" ) >>
+	          [index, url, this]( XrdCl::XRootDStatus &st, std::string &damage)
+	          {
+				if (st.IsOK()) {
+					try {
+						int damaged = std::stoi(damage);
+						if (damaged > 0)
+							this->dataarchs[url]->openstage = XrdCl::ZipArchive::Error;
+					} catch (std::invalid_argument&) {
+						return;
+					}
+				}
+				return;
+	          };
   }
 
   //-----------------------------------------------------------------------
@@ -799,8 +485,13 @@ namespace XrdEc
       uint32_t crc32val = objcfg.digest( 0, buffer, lfh.uncompressedSize );
       if( crc32val != lfh.ZCRC32 ) return false;
       // keep the metadata
-      std::string url = objcfg.GetDataUrl( std::stoull( lfh.filename ) );
-      metadata.emplace( url, buffer_t( buffer, buffer + lfh.uncompressedSize ) );
+      try{
+    	  std::string url = objcfg.GetDataUrl( std::stoull( lfh.filename ) );
+    	  metadata.emplace( url, buffer_t( buffer, buffer + lfh.uncompressedSize ) );
+      }
+      catch(const std::invalid_argument* e){
+
+      }
       buffer += lfh.uncompressedSize;
       length -= lfh.uncompressedSize;
     }
@@ -836,7 +527,9 @@ namespace XrdEc
     if( missing.count( fn ) ) return true;
     // if we don't have a metadata file and the chunk exceeds last chunk
     // also return true
-    if( objcfg.nomtfile && fntoblk( fn ) <= lstblk ) return true;
+    try{
+    if( objcfg.nomtfile && fntoblk( fn ) <= lstblk ) return true;}
+    catch(...){}
     // otherwise return false
     return false;
   }

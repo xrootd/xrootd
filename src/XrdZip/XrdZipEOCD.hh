@@ -49,7 +49,7 @@ namespace XrdZip
     }
 
     //-------------------------------------------------------------------------
-    //! Constructor from buffer
+    //! Constructor from buffer (optional argument buffer length)
     //-------------------------------------------------------------------------
     EOCD( const char *buffer, uint32_t maxSize = 0 )
     {
@@ -63,7 +63,6 @@ namespace XrdZip
       if(maxSize > 0 && (uint32_t)(eocdBaseSize + commentLength) > maxSize)
     	  throw bad_data();
       comment       = std::string( buffer + 22, commentLength );
-
       eocdSize = eocdBaseSize + commentLength;
       useZip64= false;
     }

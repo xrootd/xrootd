@@ -208,7 +208,7 @@ namespace XrdZip
       internAttr        = *reinterpret_cast<const uint16_t*>( buffer + 36 );
       externAttr        = *reinterpret_cast<const uint32_t*>( buffer + 38 );
       offset            = *reinterpret_cast<const uint32_t*>( buffer + 42 );
-      if(maxSize > 0 && (uint32_t)(cdfhBaseSize+filenameLength + extraLength + commentLength) > maxSize){
+      if(maxSize > 0 && (uint32_t)(cdfhBaseSize + filenameLength + extraLength + commentLength) > maxSize){
     	  throw bad_data();
       }
       filename.assign( buffer + 46, filenameLength );
