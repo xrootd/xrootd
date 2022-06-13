@@ -547,8 +547,6 @@ Block* File::PrepareBlockRequest(int i, IO *io, void *req_id, bool prefetch)
          m_block_map[i] = b;
 
          // Actual Read request is issued in ProcessBlockRequests().
-         TRACEF(Dump, "PrepareBlockRequest() idx=" << i << ", block=" << (void*) b << ", prefetch=" <<  prefetch << 
-                      ", offset=" << off << ", size=" << blk_size << ", buffer=" << (void*) buf);
 
          if (m_prefetch_state == kOn && (int) m_block_map.size() >= Cache::GetInstance().RefConfiguration().m_prefetch_max_blocks)
          {
@@ -569,13 +567,21 @@ void File::ProcessBlockRequest(Block *b)
 {
    // This *must not* be called with block_map locked.
 
-   BlockResponseHandler* oucCB = new BlockResponseHandler(b);
+   BlockResponseHandler* brh = new BlockResponseHandler(b);
+
+   if (XRD_TRACE What >= TRACE_Dump) {
+      char buf[256];
+      snprintf(buf, 256, "idx=%lld, block=%p, prefetch=%d, off=%lld, req_size=%d, buff=%p, resp_handler=%p ",
+         b->get_offset()/m_block_size, b, b->m_prefetch, b->get_offset(), b->get_req_size(), b->get_buff(), brh);
+      TRACEF(Dump, "ProcessBlockRequest() " << buf);
+   }
+
    if (b->req_cksum_net())
    {
-      b->get_io()->GetInput()->pgRead(*oucCB, b->get_buff(), b->get_offset(), b->get_req_size(),
+      b->get_io()->GetInput()->pgRead(*brh, b->get_buff(), b->get_offset(), b->get_req_size(),
                                       b->ref_cksum_vec(), 0, b->ptr_n_cksum_errors());
    } else {
-      b->get_io()->GetInput()->  Read(*oucCB, b->get_buff(), b->get_offset(), b->get_size());
+      b->get_io()->GetInput()->  Read(*brh, b->get_buff(), b->get_offset(), b->get_size());
    }
 }
 
