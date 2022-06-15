@@ -1359,8 +1359,8 @@ void File::ProcessBlockResponse(Block *b, int res)
                b->get_io() << " - reissuing request with my io " << rreq->m_io);
 
          b->reset_error_and_set_io(rreq->m_io, rreq);
-         b->m_chunk_reqs.swap( creqs_to_keep );
       }
+      b->m_chunk_reqs.swap( creqs_to_keep ); // Note: creqs_to_keep can be empty.
 
       m_state_cond.UnLock();
 
