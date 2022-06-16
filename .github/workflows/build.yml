@@ -206,6 +206,7 @@ jobs:
             -DPYTHON_EXECUTABLE=$(command -v python2) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
+            -DXRD_PYTHON_REQ_VERSION="2.7" \
             -S xrootd \
             -B build
         cmake3 build -LH
