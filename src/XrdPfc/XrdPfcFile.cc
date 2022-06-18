@@ -1214,10 +1214,10 @@ void File::ProcessBlockSuccess(Block *b, ChunkRequest &creq)
 
    --rreq->m_n_chunk_reqs;
 
-   dec_ref_count(b);
-
    if (b->m_prefetch)
       inc_prefetch_hit_cnt(1);
+
+   dec_ref_count(b);
 
    bool rreq_complete = rreq->is_complete();
 
@@ -1293,10 +1293,10 @@ void File::ProcessBlockResponse(Block *b, int res)
    if (res == b->get_size())
    {
       b->set_downloaded();
-      // Increase ref-count for the writer.
       TRACEF(Dump, tpfx << "inc_ref_count idx=" <<  b->m_offset/m_block_size);
       if ( ! m_in_shutdown)
       {
+         // Increase ref-count for the writer.
          inc_ref_count(b);
          m_stats.AddWriteStats(b->get_size(), b->get_n_cksum_errors());
          cache()->AddWriteTask(b, true);
@@ -1351,6 +1351,7 @@ void File::ProcessBlockResponse(Block *b, int res)
          }
       }
 
+      bool reissue = false;
       if ( ! creqs_to_keep.empty())
       {
          ReadRequest *rreq = creqs_to_keep.front().m_read_req;
@@ -1359,16 +1360,17 @@ void File::ProcessBlockResponse(Block *b, int res)
                b->get_io() << " - reissuing request with my io " << rreq->m_io);
 
          b->reset_error_and_set_io(rreq->m_io, rreq);
+         b->m_chunk_reqs.swap( creqs_to_keep );
+         reissue = true;
       }
-      b->m_chunk_reqs.swap( creqs_to_keep ); // Note: creqs_to_keep can be empty.
 
       m_state_cond.UnLock();
 
-      if ( ! b->m_chunk_reqs.empty())
-         ProcessBlockRequest(b);
-
       for (auto rreq : rreqs_to_complete)
          FinalizeReadRequest(rreq);
+
+      if (reissue)
+         ProcessBlockRequest(b);
    }
 }
 
