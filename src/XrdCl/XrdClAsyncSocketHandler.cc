@@ -370,8 +370,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pPoller->EnableReadNotification( pSocket, true, pTimeoutResolution ) )
     {
-      hswriter.reset();
-      hsreader.reset();
       pStream->OnConnectError( pSubStreamNum,
                                XRootDStatus( stFatal, errPollerError ) );
       return;
@@ -661,9 +659,6 @@ namespace XrdCl
     log->Error( AsyncSockMsg, "[%s] Socket error encountered: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
 
-    rspreader.reset();
-    reqwriter.reset();
-
     pStream->OnError( pSubStreamNum, st );
   }
 
@@ -675,8 +670,6 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Error( AsyncSockMsg, "[%s] Socket error while handshaking: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
-    hsreader.reset();
-    hswriter.reset();
 
     pStream->OnConnectError( pSubStreamNum, st );
   }
@@ -694,14 +687,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnReadTimeout()
   {
-    bool isBroken = false;
-    pStream->OnReadTimeout( pSubStreamNum, isBroken );
-
-    if( isBroken )
-    {
-      rspreader.reset();
-      reqwriter.reset();
-    }
+    pStream->OnReadTimeout( pSubStreamNum );
   }
 
   //----------------------------------------------------------------------------
@@ -724,9 +710,6 @@ namespace XrdCl
     // a stream t/o and all requests are retried
     //--------------------------------------------------------------------------
     pStream->ForceError( XRootDStatus( stError, errSocketError ) );
-
-    rspreader.reset();
-    reqwriter.reset();
   }
 
   //----------------------------------------------------------------------------
