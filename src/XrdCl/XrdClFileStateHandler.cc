@@ -3027,6 +3027,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       pFileState = Error;
+      pStatus    = st;
       FailQueuedMessages( st );
     }
 
