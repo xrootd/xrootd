@@ -270,7 +270,7 @@ int XrdPosixXrootd::Close(int fildes)
    EPNAME("Close");
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fP;
-   bool ret;
+   bool dnocb, ret;
 
 // Map the file number to the file object. In the prcess we relese the file
 // number so no one can reference this file again.
@@ -284,7 +284,7 @@ int XrdPosixXrootd::Close(int fildes)
 // the caller will get a zero return code should we delay the close.
 //
    fP->Ref();
-   if (fP->XCio->Detach((XrdOucCacheIOCD&)*fP) && fP->Refs() < 2)
+   if ((dnocb = fP->XCio->Detach((XrdOucCacheIOCD&)*fP)) && fP->Refs() < 2)
       {if ((ret = fP->Close(Status))) {delete fP; fP = 0;}
           else if (DEBUGON)
                   {std::string eTxt = Status.ToString();
@@ -293,6 +293,11 @@ int XrdPosixXrootd::Close(int fildes)
       } else {
        ret = true;
       }
+
+// If Detach indicates it completed without the need to call the callback
+// take the reference count down as there will be no callback to do it
+//
+   if (fP && dnocb) fP->unRef();
 
 // If we still have a handle then we need to do a delayed delete on this
 // object because either the close failed or there is still active I/O
