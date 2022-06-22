@@ -488,8 +488,16 @@ namespace XrdEc
   {
     if( objcfg.nomtfile )
     {
-      if( offset + length > filesize )
+      if( offset >= filesize )
+        length = 0;
+      else if( offset + length > filesize )
         length = filesize - offset;
+    }
+
+    if( length == 0 )
+    {
+      ScheduleHandler( offset, 0, buffer, handler );
+      return;
     }
 
     char *usrbuff = reinterpret_cast<char*>( buffer );
