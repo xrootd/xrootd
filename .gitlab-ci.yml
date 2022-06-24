@@ -19,12 +19,7 @@ stages:
     - version=`./genversion.sh --print-only`
     - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg_version=`dpkg-query --showformat='${Version}' --show dpkg`
-    - rc=0 ; dpkg --compare-versions $dpkg_version "ge" "1.18.11" || rc=$?
-    - if [ $rc -eq "0" ]; then
-        dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" ;
-      else
-        dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages" ;
-      fi
+    - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).changes"
     - mkdir ${DIST}/
     - cp deb_packages/*.deb ${DIST}/
     - if [[ $DEBUG = "true" ]] ; then cp deb_packages/*.ddeb ${DIST}/; fi
