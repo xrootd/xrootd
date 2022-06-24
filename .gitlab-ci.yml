@@ -19,6 +19,34 @@ stages:
     - version=`./genversion.sh --print-only`
     - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg_version=`dpkg-query --showformat='${Version}' --show dpkg`
+    - rc=0 ; dpkg --compare-versions $dpkg_version "ge" "1.18.11" || rc=$?
+    - if [ $rc -eq "0" ]; then
+        dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" ;
+      else
+        dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages" ;
+      fi
+    - mkdir ${DIST}/
+    - cp deb_packages/*.deb ${DIST}/
+    - if [[ $DEBUG = "true" ]] ; then cp deb_packages/*.ddeb ${DIST}/; fi
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - ${DIST}/
+  tags:
+    - docker_node
+
+.template:deb_ubuntu_build: &deb_ubuntu_build_new_def
+  stage: build:rpm
+  script:
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt-get update
+    - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core
+    - mv packaging/debian/python3-xrootd.install.new packaging/debian/python3-xrootd.install
+    - cp -R packaging/debian/ .
+    - mk-build-deps --build-dep debian/control
+    - gdebi -n xrootd-build-deps-depends*.deb
+    - version=`./genversion.sh --print-only`
+    - dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).changes"
     - mkdir ${DIST}/
     - cp deb_packages/*.deb ${DIST}/
@@ -262,7 +290,7 @@ build:deb_ubuntu_focal:
 
 build:deb_ubuntu_jammy:
   image: ubuntu:jammy
-  <<: *deb_ubuntu_build_def
+  <<: *deb_ubuntu_build_new_def
   variables:
     DIST: jammy
   only:
@@ -420,7 +448,7 @@ release:deb_ubuntu_focal:
 
 release:deb_ubuntu_jammy:
   image: ubuntu:jammy
-  <<: *deb_ubuntu_build_def
+  <<: *deb_ubuntu_build_new_def
   variables:
     DIST: jammy
   only:
