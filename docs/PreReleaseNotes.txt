@@ -48,6 +48,8 @@ Prerelease Notes
   **Commits: 0bfc0ca2
 
 + **Minor bug fixes**
+  **[Server]** Avoid SEGV during client recovery dur to close waitresp.
+  **Commits: 4df4cda9
   **[HTTP]** Use 405 for mkcol/mkdir EEXIST.
   **Commits: 0a63a309
   **[Proxy]** Allow for URLs with username.
