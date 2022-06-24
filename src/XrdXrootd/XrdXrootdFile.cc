@@ -169,7 +169,7 @@ void XrdXrootdFile::Ref(int num)
 //
    fileMutex.Lock();
    refCount += num;
-   TRACEI(DEBUG,"File::Ref "<<refCount<<" after +"<<num);
+   TRACEI(DEBUG,"File::Ref "<<refCount<<" after +"<<num<<' '<<FileKey);
    if (num < 0 && syncWait && refCount <= 0) syncWait->Post();
    fileMutex.UnLock();
 }
