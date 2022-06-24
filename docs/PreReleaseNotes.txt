@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Apps]** Provide command line too to manipulate checksum xattr.
+  **Commits: 0daa1ee3
   **[Protocol]** Add reflink capability to protocol via kXR_open options.
   **Commits: 0a4ba6e2
   **[Server] Separate out authorization to overwrite data.
