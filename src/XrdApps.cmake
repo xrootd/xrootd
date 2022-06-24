@@ -32,6 +32,16 @@ if( NOT XRDCL_ONLY )
     ${CMAKE_THREAD_LIBS_INIT}
     ${ZLIB_LIBRARIES} )
 
+  #-----------------------------------------------------------------------------
+  # xrdcks
+  #-----------------------------------------------------------------------------
+  add_executable(
+    xrdcks
+    XrdApps/XrdCks.cc )
+
+  target_link_libraries(
+    xrdcks
+    XrdUtils )
 
   #-----------------------------------------------------------------------------
   # xrdcrc32c
