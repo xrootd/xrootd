@@ -181,6 +181,8 @@ inline XrdXrootdFile *Get(int fnum)
                                                 XTab(0), XTnum(0), XTfree(0)
                          {memset((void *)FTab, 0, sizeof(FTab));}
 
+static XrdXrootdFile *heldSpotP;
+
 private:
 
       ~XrdXrootdFileTable() {} // Always use Recycle() to delete this object!

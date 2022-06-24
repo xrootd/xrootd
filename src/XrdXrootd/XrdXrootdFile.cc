@@ -62,13 +62,13 @@ extern XrdSysTrace       XrdXrootdTrace;
        const char      *XrdXrootdFileTable::TraceID = "FileTable";
        const char      *XrdXrootdFileTable::ID      = "";
 
+       XrdXrootdFile   *XrdXrootdFileTable::heldSpotP = (XrdXrootdFile *)1;
+
 namespace
 {
              XrdSysError   *eDest;
 
 static const unsigned long  heldSpotV = 1UL;;
-
-static       XrdXrootdFile *heldSpotP = (XrdXrootdFile *)1;
 
 static const unsigned long  heldMask = ~1UL;
 }
