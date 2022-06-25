@@ -169,7 +169,7 @@ void XrdXrootdFile::Ref(int num)
 //
    fileMutex.Lock();
    refCount += num;
-   TRACEI(DEBUG,"File::Ref "<<refCount<<" after +"<<num<<' '<<FileKey);
+   TRACEI(FSAIO,"File::Ref="<<refCount<<" after +"<<num<<' '<<FileKey);
    if (num < 0 && syncWait && refCount <= 0) syncWait->Post();
    fileMutex.UnLock();
 }
@@ -184,9 +184,9 @@ void XrdXrootdFile::Serialize()
 // Wait until the reference count reaches zero
 //
    fileMutex.Lock();
+   TRACEI(FSAIO, "serializing access "<<FileMode<<" Ref="<<refCount<<' '<<FileKey);
    if (refCount > 0)
       {XrdSysSemaphore mySem(0);
-       TRACEI(DEBUG, "serializing access " <<FileMode <<' ' <<FileKey);
        syncWait = &mySem;
        fileMutex.UnLock();
        mySem.Wait();
