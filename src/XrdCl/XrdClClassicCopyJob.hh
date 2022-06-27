@@ -41,6 +41,55 @@ namespace XrdCl
       //! @return         status of the copy operation
       //------------------------------------------------------------------------
       virtual XRootDStatus Run( CopyProgressHandler *progress = 0 );
+
+      //------------------------------------------------------------------------
+      // Get the final result
+      //------------------------------------------------------------------------
+      inline const XRootDStatus& GetResult() const
+      {
+        return result;
+      }
+
+    private:
+
+      //------------------------------------------------------------------------
+      // Update the final result so it is clear that it is a source error
+      //------------------------------------------------------------------------
+      inline XrdCl::XRootDStatus& SourceError( XrdCl::XRootDStatus &status )
+      {
+        std::string msg = status.GetErrorMessage();
+        msg += " (source)";
+        status.SetErrorMessage( msg );
+        result = status;
+        return status;
+      }
+
+      //------------------------------------------------------------------------
+      // Update the final result do it is clear that it is a destination error
+      //------------------------------------------------------------------------
+      inline XrdCl::XRootDStatus& DestinationError( XrdCl::XRootDStatus &status )
+      {
+        std::string msg = status.GetErrorMessage();
+        msg += " (destination)";
+        status.SetErrorMessage( msg );
+        result = status;
+        return status;
+      }
+
+      //------------------------------------------------------------------------
+      // Set the final result
+      //------------------------------------------------------------------------
+      template<typename ... Args>
+      inline XRootDStatus& SetResult( Args&&... args )
+      {
+        result = XrdCl::XRootDStatus( std::forward<Args>(args)... );
+        return result;
+      }
+
+      //------------------------------------------------------------------------
+      // The final result
+      //------------------------------------------------------------------------
+      XRootDStatus result;
   };
 }
 
