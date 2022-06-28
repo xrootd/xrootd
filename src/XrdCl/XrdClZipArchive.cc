@@ -76,12 +76,17 @@ namespace XrdCl
     uint64_t nextRecordOffset = ( cditr->second + 1 < me.cdvec.size() ) ?
                                 CDFH::GetOffset( *me.cdvec[cditr->second + 1] ) : cdOffset;
     uint64_t filesize = cdfh->compressedSize;
+    if( filesize == std::numeric_limits<uint32_t>::max() && cdfh->extra )
+      filesize = cdfh->extra->compressedSize;
     uint16_t descsize = cdfh->HasDataDescriptor() ?
                         DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
     uint64_t fileoff  = nextRecordOffset - filesize - descsize;
     uint64_t offset   = fileoff + relativeOffset;
-    uint64_t sizeTillEnd = relativeOffset > cdfh->uncompressedSize ?
-                           0 : cdfh->uncompressedSize - relativeOffset;
+    uint64_t uncompressedSize = cdfh->uncompressedSize;
+    if( uncompressedSize == std::numeric_limits<uint32_t>::max() && cdfh->extra )
+      uncompressedSize = cdfh->extra->uncompressedSize;
+    uint64_t sizeTillEnd = relativeOffset > uncompressedSize ?
+                           0 : uncompressedSize - relativeOffset;
     if( size > sizeTillEnd ) size = sizeTillEnd;
 
     // if it is a compressed file use ZIP cache to read from the file
@@ -94,7 +99,7 @@ namespace XrdCl
       // default constructor
       ZipCache &cache = me.zipcache[fn];
 
-      if( relativeOffset > cdfh->uncompressedSize )
+      if( relativeOffset > uncompressedSize )
       {
         // we are reading past the end of file,
         // we can serve the request right away!
@@ -106,8 +111,8 @@ namespace XrdCl
       }
 
       uint32_t sizereq = size;
-      if( relativeOffset + size > cdfh->uncompressedSize )
-        sizereq = cdfh->uncompressedSize - relativeOffset;
+      if( relativeOffset + size > uncompressedSize )
+        sizereq = uncompressedSize - relativeOffset;
       cache.QueueReq( relativeOffset, sizereq, usrbuff, usrHandler );
 
       // if we have the whole ZIP archive we can populate the cache
@@ -124,24 +129,24 @@ namespace XrdCl
       // if we don't have the data we need to issue a remote read
       if( !me.buffer )
       {
-        if( relativeOffset > cdfh->compressedSize ) return XRootDStatus(); // there's nothing to do,
+        if( relativeOffset > filesize ) return XRootDStatus(); // there's nothing to do,
                                                                            // we already have all the data locally
         uint32_t rdsize = size;
         // check if this is the last read (we reached the end of
         // file from user perspective)
-        if( relativeOffset + size >= cdfh->uncompressedSize )
+        if( relativeOffset + size >= uncompressedSize )
         {
           // if yes, make sure we readout all the compressed data
           // Note: In a patological case the compressed size may
           //       be greater than the uncompressed size
-          rdsize = cdfh->compressedSize > relativeOffset ?
-                   cdfh->compressedSize - relativeOffset :
+          rdsize = filesize > relativeOffset ?
+                   filesize - relativeOffset :
                    0;
         }
         // make sure we are not reading past the end of
         // compressed data
-        if( relativeOffset + size > cdfh->compressedSize )
-          rdsize = cdfh->compressedSize - relativeOffset;
+        if( relativeOffset + size > filesize )
+          rdsize = filesize - relativeOffset;
 
 
         // now read the data ...
@@ -707,7 +712,10 @@ namespace XrdCl
     for( ; itr != cdvec.end() ; ++itr )
     {
       CDFH *cdfh = itr->get();
-      StatInfo *entry_info = make_stat( *info, cdfh->uncompressedSize );
+      uint64_t uncompressedSize = cdfh->uncompressedSize;
+      if( uncompressedSize == std::numeric_limits<uint32_t>::max() && cdfh->extra )
+        uncompressedSize = cdfh->extra->uncompressedSize;
+      StatInfo *entry_info = make_stat( *info, uncompressedSize );
       DirectoryList::ListEntry *entry =
           new DirectoryList::ListEntry( url.GetHostId(), cdfh->filename, entry_info );
       list->Add( entry );

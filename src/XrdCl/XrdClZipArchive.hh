@@ -472,7 +472,10 @@ namespace XrdCl
         auto itr = cdmap.find( fn );
         if( itr == cdmap.end() ) return nullptr;
         size_t index = itr->second;
-        return make_stat( *stinfo, cdvec[index]->uncompressedSize );
+        uint64_t uncompressedSize = cdvec[index]->uncompressedSize;
+        if( cdvec[index]->extra && uncompressedSize == std::numeric_limits<uint32_t>::max() )
+          uncompressedSize = cdvec[index]->extra->uncompressedSize;
+        return make_stat( *stinfo, uncompressedSize );
       }
 
       //-----------------------------------------------------------------------
