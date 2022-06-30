@@ -5,6 +5,79 @@ XRootD
 Release Notes
 =============
 
+-------------
+Version 5.5.0
+-------------
+
++ **New Features**
+  **[XrdApps]** Provide command line too to manipulate checksum xattr.
+  **[XrdApps]** xrdreplay: support quoted columns
+  **[XrdApps]** xrdrecorder: allow to set the output path using XRD_RECORDERPATH
+                envar.
+  **[Protocol]** Add reflink capability to protocol via kXR_open options.
+  **[Server] Separate out authorization to overwrite data.
+  **[Server] Allow set variable values to come from a file.
+  **[Server]** Implement gStream to monitor all http and xroot TPC events.
+  **[Server]** Bring packet marking up to current specification.
+  **[Server]** Provide g-stream monitoring for Third Party Copy (TPC).
+  **[SciTokens]** Allow the SciToken plugin to consume based on ZTN tokens.
+  **[Server]** Report experiment and activity codes when present for monitoring.
+  **[HTTP]** Have the XrdHttp extraction logic match GSI/
+  **[XrdAcc]** Make the acc subsystem aware of request-based name mapping.
+  **[XrdFfs]** update xrootdfs to work with XrdEC faster
+  **[Posix]** Make xrootd proxy, xrootdfs and xrdadler32 work with XrdCl+EC
+  **[SciTokens]** Save token subject as an XrdSecEntity xattr
+  **[Throttle]** Track maximum concurrency limits in throttle plugin
+  **[XrdCl]** xrdfs: support multiple rm paths
+  **[XrdCl]** record / replay plug-in
+  **[XrdCl]** In EC, add adjustable preference to servers based on free space
+  **[XrdCl]** Add recorder plug-in and xrdreply tool.
+  **[XrdCl]** xrdcp --server: report IP stack to stderr.
+  **[XrdCl]** Introduce Stream queries (IpAddr, IpStack, HostName).
+  **[XrdFfs]** same above
+  **[XrdVomsMapfile]** Add support for VOMS mapfile
+  **[XrdCl/XrdEc]** Make the remote ec cfg more flexible.
+  **[Pfc]** Implement async read and readV from the perspective of XrdOucCacheIO.
+
++ **Major bug fixes**
+  **[Server]** Modify vector's size instead of capacity to avoid undef behaviour
+  **[XrdEc]** Make sure returned read size is correct.
+  **[XrdEc]** Reader: make sure the completion handler is called if the read is of
+              zero size.
+  **[XrdCl]** Avoid race condition in AsyncSocketHander on use of reader/writer
+              objects after link is re-enabled
+  **[XrdCl]** Set the error status if the re-connection fails early during recovery
+  **[XrdCl]** xrdcp: don't use a common static status obj across all copy jobs.
+  **[XrdCl]** ZIP: respect file sizes > 4GB.
+  **[XrdCl]** Correctly calculate #pages in pgread rsp (for small rsp).
+  **[XrdCl]** PgRead: don't exceed max iovcnt.
+  **[Server]** Reset the buffer pointer after a non-aligned pgRead request.
+  **[XrdPfc]** Count number of active reads on an PfcIO object so that POSIX AIO
+               bailout detach can be handled correctly.
+
+
++ **Minor bug fixes**
+  **[Server]** Avoid SEGV during client recovery due to close waitresp.
+  **[Proxy]** Allow for URLs with username.
+  **[XrdPss]** Do not trigger DeepLocate when pss.origin is http(s)
+  **[XrdPosix]** bug fix, report correct st_blocks in EC
+
++ **Miscellaneous**
+  **[SciTokens]** Add addition messages and debugging.
+  **[SciTokens]** Also grant Readdir when token grants read permission.
+  **[Server]** Ignore -Warray-bounds warnings from stricter check in gcc 12.
+  **[CMake]** XRootDOSDefs: Use define_default on default values
+  **[CMake]** Add XrdOuc/XrdOucPgrwUtils.hh to private headers.
+  **[CMake]** Change Py required version to 3.
+  **[CI]** Add Ubunty Jammy builds.
+  **[XrdClHttp]** Move to xrootd core.
+  **[XrdCl]** Refactor kXR_read raw data socket readout.
+  **[XrdCl]** Support HostList in lambda completion handlers.
+  **[XrdCl]** Make sure FileStateHandler is preserved until all outstanding
+              requests are resolved.
+  **[XrdCl]** Make sure FS data are preserved until all outstanding requests
+              are resolved.
+  **[Crypto]** bf32: Load "legacy" provider for blowfish in openssl v3.
 
 --------------
 Version 5.4.3
