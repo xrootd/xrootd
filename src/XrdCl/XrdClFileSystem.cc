@@ -863,6 +863,8 @@ namespace
 
 namespace XrdCl
 {
+  struct FileSystemData;
+
   //----------------------------------------------------------------------------
   //! Wrapper class used to assign a load balancer
   //----------------------------------------------------------------------------
@@ -872,7 +874,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Constructor and destructor
       //------------------------------------------------------------------------
-      AssignLBHandler( FileSystemImpl *fs, ResponseHandler *userHandler ):
+      AssignLBHandler( std::shared_ptr<FileSystemData> &fs,
+                       ResponseHandler                 *userHandler ):
         pFS(fs), pUserHandler(userHandler) {}
 
       virtual ~AssignLBHandler() {}
@@ -885,7 +888,7 @@ namespace XrdCl
                                             HostList     *hostList );
 
     private:
-      FileSystemImpl  *pFS;
+      std::shared_ptr<FileSystemData> pFS;
       ResponseHandler *pUserHandler;
   };
 
@@ -898,7 +901,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Constructor and destructor
       //------------------------------------------------------------------------
-      AssignLastURLHandler( FileSystemImpl *fs, ResponseHandler *userHandler ):
+      AssignLastURLHandler( std::shared_ptr<FileSystemData> &fs,
+                            ResponseHandler                 *userHandler ):
         pFS(fs), pUserHandler(userHandler) {}
 
       virtual ~AssignLastURLHandler() {}
@@ -911,53 +915,47 @@ namespace XrdCl
                                             HostList     *hostList );
 
     private:
-      FileSystemImpl  *pFS;
+      std::shared_ptr<FileSystemData> pFS;
       ResponseHandler *pUserHandler;
   };
 
-  //----------------------------------------------------------------------------
-  //! Implementation holding the data members
-  //----------------------------------------------------------------------------
-  struct FileSystemImpl
+
+  struct FileSystemData
   {
-    FileSystemImpl( const URL &url ) :
+    FileSystemData( const URL &url ) :
       pLoadBalancerLookupDone( false ),
       pFollowRedirects( true ),
       pUrl( new URL( url.GetURL() ) )
     {
     }
 
-    ~FileSystemImpl()
-    {
-      delete pUrl;
-    }
-
     //------------------------------------------------------------------------
     // Send a message in a locked environment
     //------------------------------------------------------------------------
-    XRootDStatus Send( Message                 *msg,
-                       ResponseHandler         *handler,
-                       MessageSendParams       &params )
+    static XRootDStatus Send( std::shared_ptr<FileSystemData> &fs,
+                              Message                         *msg,
+                              ResponseHandler                 *handler,
+                              MessageSendParams               &params )
     {
       Log *log = DefaultEnv::GetLog();
-      XrdSysMutexHelper scopedLock( pMutex );
+      XrdSysMutexHelper scopedLock( fs->pMutex );
 
-      log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
-                 pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+      log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", fs.get(),
+                 fs->pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
 
-      AssignLastURLHandler *lastUrlHandler = new AssignLastURLHandler( this, handler );
+      AssignLastURLHandler *lastUrlHandler = new AssignLastURLHandler( fs, handler );
       handler = lastUrlHandler;
 
       AssignLBHandler *lbHandler = nullptr;
-      if( !pLoadBalancerLookupDone && pFollowRedirects )
+      if( !fs->pLoadBalancerLookupDone && fs->pFollowRedirects )
       {
-        lbHandler = new AssignLBHandler( this, handler );
+        lbHandler = new AssignLBHandler( fs, handler );
         handler = lbHandler;
       }
 
-      params.followRedirects = pFollowRedirects;
+      params.followRedirects = fs->pFollowRedirects;
 
-      auto st = MessageUtils::SendMessage( *pUrl, msg, handler, params, 0 );
+      auto st = MessageUtils::SendMessage( *fs->pUrl, msg, handler, params, 0 );
       if( !st.IsOK() )
       {
         delete lastUrlHandler;
@@ -981,8 +979,7 @@ namespace XrdCl
       log->Dump( FileSystemMsg, "[0x%x@%s] Assigning %s as load balancer", this,
                  pUrl->GetHostId().c_str(), url.GetHostId().c_str() );
 
-      delete pUrl;
-      pUrl = new URL( url );
+      pUrl.reset( new URL( url ) );
       pLoadBalancerLookupDone = true;
     }
 
@@ -1003,8 +1000,21 @@ namespace XrdCl
     XrdSysMutex           pMutex;
     bool                  pLoadBalancerLookupDone;
     bool                  pFollowRedirects;
-    URL                  *pUrl;
+    std::unique_ptr<URL>  pUrl;
     std::unique_ptr<URL>  pLastUrl;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Implementation holding the data members
+  //----------------------------------------------------------------------------
+  struct FileSystemImpl
+  {
+    FileSystemImpl( const URL &url ) :
+      fsdata( std::make_shared<FileSystemData>( url ) )
+    {
+    }
+
+    std::shared_ptr<FileSystemData> fsdata;
   };
 
   //------------------------------------------------------------------------
@@ -1134,7 +1144,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1212,7 +1222,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1253,7 +1263,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1297,7 +1307,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1325,7 +1335,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Rm( path, handler, timeout );
 
-    if( pImpl->pUrl->IsLocalFile() )
+    if( pImpl->fsdata->pUrl->IsLocalFile() )
       return LocalFS::Instance().Rm( path, handler, timeout );
 
     std::string fPath = FilterXrdClCgi( path );
@@ -1341,7 +1351,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1385,7 +1395,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1427,7 +1437,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1469,7 +1479,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1505,7 +1515,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1531,7 +1541,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Stat( path, handler, timeout );
 
-    if( pImpl->pUrl->IsLocalFile() )
+    if( pImpl->fsdata->pUrl->IsLocalFile() )
       return LocalFS::Instance().Stat( path, handler, timeout );
 
     std::string fPath = FilterXrdClCgi( path );
@@ -1548,7 +1558,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1590,7 +1600,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1627,7 +1637,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1662,7 +1672,7 @@ namespace XrdCl
     {
       // stat the file to check if it is a directory or a file
       // the ZIP handler will take care of the rest
-      ZipListHandler *zipHandler = new ZipListHandler( *pImpl->pUrl, path, flags, handler, timeout );
+      ZipListHandler *zipHandler = new ZipListHandler( *pImpl->fsdata->pUrl, path, flags, handler, timeout );
       XRootDStatus st = Stat( path, zipHandler, timeout );
       if( !st.IsOK() )
         delete zipHandler;
@@ -1683,7 +1693,7 @@ namespace XrdCl
       req->options[0] = kXR_dstat | kXR_dcksm;
 
     if( flags & DirListFlags::Recursive )
-      handler = new RecursiveDirListHandler( *pImpl->pUrl, url.GetPath(), flags, handler, timeout );
+      handler = new RecursiveDirListHandler( *pImpl->fsdata->pUrl, url.GetPath(), flags, handler, timeout );
 
     if( flags & DirListFlags::Merge )
       handler = new MergeDirListHandler( flags & DirListFlags::Chunked, handler );
@@ -1695,7 +1705,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1759,7 +1769,7 @@ namespace XrdCl
       {
         URL locationURL( locations->At(i).GetAddress() );
         // make sure the original protocol is preserved (root vs roots)
-        locationURL.SetProtocol( pImpl->pUrl->GetProtocol() );
+        locationURL.SetProtocol( pImpl->fsdata->pUrl->GetProtocol() );
         fs = new FileSystem( locationURL );
         st = fs->DirList( path, flags, currentResp, timeout );
         if( !st.IsOK() )
@@ -1868,7 +1878,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -1923,7 +1933,7 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //------------------------------------------------------------------------
@@ -2094,8 +2104,8 @@ namespace XrdCl
 
     if( name == "FollowRedirects" )
     {
-      if( value == "true" ) pImpl->pFollowRedirects = true;
-      else pImpl->pFollowRedirects = false;
+      if( value == "true" ) pImpl->fsdata->pFollowRedirects = true;
+      else pImpl->fsdata->pFollowRedirects = false;
       return true;
     }
     return false;
@@ -2112,15 +2122,15 @@ namespace XrdCl
 
     if( name == "FollowRedirects" )
     {
-      if( pImpl->pFollowRedirects ) value = "true";
+      if( pImpl->fsdata->pFollowRedirects ) value = "true";
       else value = "false";
       return true;
     }
     else if( name == "LastURL" )
     {
-      if( pImpl->pLastUrl )
+      if( pImpl->fsdata->pLastUrl )
       {
-        value = pImpl->pLastUrl->GetURL();
+        value = pImpl->fsdata->pLastUrl->GetURL();
         return true;
       }
       else return false;
@@ -2157,7 +2167,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
 
-    return pImpl->Send( msg, handler, params );
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //------------------------------------------------------------------------
@@ -2165,7 +2175,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void FileSystem::Lock()
   {
-    pImpl->pMutex.Lock();
+    pImpl->fsdata->pMutex.Lock();
   }
 
   //------------------------------------------------------------------------
@@ -2173,6 +2183,6 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void FileSystem::UnLock()
   {
-    pImpl->pMutex.UnLock();
+    pImpl->fsdata->pMutex.UnLock();
   }
 }

@@ -878,7 +878,7 @@ namespace XrdCl
                                  ResponseHandler      *handler,
                                  uint16_t              timeout = 0 );
 
-      FileSystemImpl   *pImpl;   //< pointer to implementation
+      FileSystemImpl   *pImpl;   //< pointer to implementation (TODO: once we can break ABI we can use a shared pointer here, and then we can drop the FileSystemData in source file)
       FileSystemPlugIn *pPlugIn; //< file system plug-in
   };
 }
