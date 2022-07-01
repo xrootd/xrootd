@@ -116,38 +116,6 @@ namespace XrdCl
         return XRootDStatus( stOK, suDone );
       }
 
-      //--------------------------------------------------------------------------
-      // Discard bytes
-      //--------------------------------------------------------------------------
-      XRootDStatus DiscardBytes( Socket            &socket,
-                                 uint32_t          &btsret,
-                                 const std::string &reader )
-      {
-        Log *log = DefaultEnv::GetLog();
-
-        uint32_t btsleft = dlen - msgbtsrd;
-        // allocate the discard buffer if necessary
-        if( discardbuff.size() < btsleft )
-          discardbuff.resize( btsleft );
-
-        //----------------------------------------------------------------
-        // We need to readout the data from the socket in order to keep
-        // the stream sane.
-        //----------------------------------------------------------------
-        uint32_t btsrd = 0;
-        Status st = ReadBytesAsync( socket, discardbuff.data(), btsleft, btsrd );
-        msgbtsrd += btsrd;
-        btsret   += btsrd;
-
-        log->Warning( XRootDMsg, "[%s] Discarded %d bytes",
-                      url.GetHostId().c_str(), btsrd );
-
-        if( !st.IsOK() || st.code == suRetry )
-          return st;
-
-        return XRootDStatus();
-      }
-
       //------------------------------------------------------------------------
       // Helper struct for async reading of chunks
       //------------------------------------------------------------------------

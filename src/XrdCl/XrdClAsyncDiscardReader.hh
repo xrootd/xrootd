@@ -56,59 +56,13 @@ namespace XrdCl
       XRootDStatus Read( Socket &socket, uint32_t &btsret )
       {
         Log  *log = DefaultEnv::GetLog();
-        while( true )
-        {
-          switch( readstage )
-          {
-            //------------------------------------------------------------------
-            // Prepare to readout a new response
-            //------------------------------------------------------------------
-            case ReadStart:
-            {
-              msgbtsrd  = 0;
-              readstage = ReadDiscard;
-              continue;
-            }
-
-            //------------------------------------------------------------------
-            // We've had an error and we are in the discarding mode
-            //------------------------------------------------------------------
-            case ReadDiscard:
-            {
-              XRootDStatus st = DiscardBytes( socket, btsret, "DiscardReader" );
-
-              if( !st.IsOK() || st.code == suRetry )
-                return st;
-
-              log->Error( XRootDMsg, "[%s] Handling response to %s: "
-                                     "DiscardReader: we were not expecting "
-                                     "raw data.", url.GetHostId().c_str(),
-                                     request.GetDescription().c_str() );
-              readstage = ReadDone;
-              continue;
-            }
-
-            //------------------------------------------------------------------
-            // Finalize the read
-            //------------------------------------------------------------------
-            case ReadDone:
-            {
-              break;
-            }
-
-            //------------------------------------------------------------------
-            // Others should not happen
-            //------------------------------------------------------------------
-            default : return XRootDStatus( stError, errInternal );
-          }
-
-          // just in case
-          break;
-        }
-        //----------------------------------------------------------------------
-        // We are done
-        //----------------------------------------------------------------------
-        return XRootDStatus();
+        log->Error( XRootDMsg, "[%s] Handling response to %s: "
+                               "DiscardReader: we were not expecting "
+                               "raw data.", url.GetHostId().c_str(),
+                               request.GetDescription().c_str() );
+        // Just drop the connection, we don't know if the stream is sane anymore.
+        // Recover with a reconnect.
+        return XRootDStatus( stError, errCorruptedHeader );
       }
 
       //------------------------------------------------------------------------

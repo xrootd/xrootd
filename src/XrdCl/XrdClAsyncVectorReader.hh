@@ -137,9 +137,6 @@ namespace XrdCl
                 log->Error( XRootDMsg, "[%s] VectorReader: Impossible to find chunk "
                             "buffer corresponding to %d bytes at %ld",
                             url.GetHostId().c_str(), rdlst.rlen, rdlst.offset );
-                uint32_t btsleft = dlen - msgbtsrd;
-                log->Dump( XRootDMsg, "[%s] VectorReader: Discarding %d bytes",
-                           url.GetHostId().c_str(), btsleft );
                 readstage = ReadDiscard;
                 continue;
               }
@@ -213,14 +210,9 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadDiscard:
             {
-              XRootDStatus st = DiscardBytes( socket, btsret, "RawReader" );
-
-              if( !st.IsOK() || st.code == suRetry )
-                return st;
-
-              dataerr   = true;
-              readstage = ReadDone;
-              continue;
+              // Just drop the connection, we don't know if the stream is sane
+              // anymore. Recover with a reconnect.
+              return XRootDStatus( stError, errCorruptedHeader );
             }
 
             //------------------------------------------------------------------

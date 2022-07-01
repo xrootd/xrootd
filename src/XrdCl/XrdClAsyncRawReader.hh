@@ -133,19 +133,14 @@ namespace XrdCl
             //------------------------------------------------------------------
             case ReadDiscard:
             {
-              XRootDStatus st = DiscardBytes( socket, btsret, "RawReader" );
-
-              if( !st.IsOK() || st.code == suRetry )
-                return st;
-
               DefaultEnv::GetLog()->Error( XRootDMsg, "[%s] RawReader: Handling "
                                            "response to %s: user supplied buffer is "
                                            "too small for the received data.",
                                            url.GetHostId().c_str(),
                                            request.GetDescription().c_str() );
-              dataerr   = true;
-              readstage = ReadDone;
-              continue;
+              // Just drop the connection, we don't know if the stream is sane
+              // anymore. Recover with a reconnect.
+              return XRootDStatus( stError, errCorruptedHeader );
             }
 
             //------------------------------------------------------------------
