@@ -578,24 +578,6 @@ namespace XrdCl
       static const size_t             PageWithCksum  = XrdSys::PageSize + CksumSize;
       static const size_t             MaxSslErrRetry = 3;
 
-      inline static size_t NbPgPerRsp( uint64_t offset, uint32_t dlen )
-      {
-        uint32_t pgcnt = 0;
-        uint32_t remainder = offset % XrdSys::PageSize;
-        if( remainder > 0 )
-        {
-          // account for the first unaligned page
-          ++pgcnt;
-          // the size of the 1st unaligned page
-          uint32_t _1stpg = XrdSys::PageSize - remainder;
-          offset += _1stpg;
-          dlen   -= _1stpg + CksumSize;
-        }
-        pgcnt += dlen / PageWithCksum;
-        if( dlen % PageWithCksum ) ++ pgcnt;
-        return pgcnt;
-      }
-
       Message                               *pRequest;
       std::shared_ptr<Message>               pResponse; //< the ownership is shared with MsgReader
       std::vector<std::shared_ptr<Message>>  pPartialResps; //< the ownership is shared with MsgReader
