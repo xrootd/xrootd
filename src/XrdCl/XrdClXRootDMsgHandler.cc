@@ -1612,8 +1612,8 @@ namespace XrdCl
           //--------------------------------------------------------------------
           // the actual size of the raw data without the crc32c checksums
           //--------------------------------------------------------------------
-          size_t datalen = part->status.bdy.dlen - XrdOucPgrwUtils::csNum(
-                           part->info.pgread.offset, part->status.bdy.dlen ) * CksumSize;
+          size_t datalen = part->status.bdy.dlen - NbPgPerRsp( part->info.pgread.offset,
+                           part->status.bdy.dlen ) * CksumSize;
 
           if( currentOffset + datalen > chunk.length )
           {
@@ -1626,8 +1626,8 @@ namespace XrdCl
         }
 
         ServerResponseV2 *rspst = (ServerResponseV2*)pResponse->GetBuffer();
-        size_t datalen = rspst->status.bdy.dlen - XrdOucPgrwUtils::csNum(
-                         rspst->info.pgread.offset, rspst->status.bdy.dlen ) * CksumSize;
+        size_t datalen = rspst->status.bdy.dlen - NbPgPerRsp( rspst->info.pgread.offset,
+                         rspst->status.bdy.dlen ) * CksumSize;
         if( currentOffset + datalen <= chunk.length )
           currentOffset += datalen;
         else
