@@ -36,8 +36,8 @@
 
 namespace XrdCl
 {
-  class FileStateHandler;
-  class FilePlugIn;
+  struct FileImpl;
+  class  FilePlugIn;
 
   //----------------------------------------------------------------------------
   //! A file
@@ -845,9 +845,9 @@ namespace XrdCl
                               ResponseHandler    *handler,
                               uint16_t            timeout = 0 );
 
-      FileStateHandler *pStateHandler;
-      FilePlugIn       *pPlugIn;
-      bool              pEnablePlugIns;
+      FileImpl   *pImpl;
+      FilePlugIn *pPlugIn;
+      bool        pEnablePlugIns;
   };
 }
 

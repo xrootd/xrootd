@@ -36,13 +36,31 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
+  // The implementation
+  //----------------------------------------------------------------------------
+  struct FileImpl
+  {
+    FileImpl( FilePlugIn *plugin ) :
+      pStateHandler( std::make_shared<FileStateHandler>( plugin ) )
+    {
+    }
+
+    FileImpl( bool useVirtRedirector, FilePlugIn *plugin ) :
+      pStateHandler( std::make_shared<FileStateHandler>( useVirtRedirector, plugin ) )
+    {
+    }
+
+    std::shared_ptr<FileStateHandler> pStateHandler;
+  };
+
+  //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
   File::File( bool enablePlugIns ):
     pPlugIn(0),
     pEnablePlugIns( enablePlugIns )
   {
-    pStateHandler = new FileStateHandler( pPlugIn );
+    pImpl = new FileImpl( pPlugIn );
   }
 
   //----------------------------------------------------------------------------
@@ -52,7 +70,7 @@ namespace XrdCl
     pPlugIn(0),
     pEnablePlugIns( enablePlugIns )
   {
-    pStateHandler = new FileStateHandler( virtRedirect == EnableVirtRedirect, pPlugIn );
+    pImpl = new FileImpl( virtRedirect == EnableVirtRedirect, pPlugIn );
   }
 
   //----------------------------------------------------------------------------
@@ -71,7 +89,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if ( DefaultEnv::GetLog() && DefaultEnv::GetPostMaster()->IsRunning() && IsOpen() )
       XRootDStatus status = Close();
-    delete pStateHandler;
+    delete pImpl;
     delete pPlugIn;
   }
 
@@ -108,7 +126,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Open( url, flags, mode, handler, timeout );
 
-    return pStateHandler->Open( url, flags, mode, handler, timeout );
+    return pImpl->pStateHandler->Open( url, flags, mode, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -136,7 +154,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Close( handler, timeout );
 
-    return pStateHandler->Close( handler, timeout );
+    return pImpl->pStateHandler->Close( handler, timeout );
   }
 
 
@@ -163,7 +181,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Stat( force, handler, timeout );
 
-    return pStateHandler->Stat( force, handler, timeout );
+    return pImpl->pStateHandler->Stat( force, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -194,7 +212,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Read( offset, size, buffer, handler, timeout );
 
-    return pStateHandler->Read( offset, size, buffer, handler, timeout );
+    return pImpl->pStateHandler->Read( offset, size, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -233,7 +251,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->PgRead( offset, size, buffer, handler, timeout );
 
-    return pStateHandler->PgRead( offset, size, buffer, handler, timeout );
+    return pImpl->pStateHandler->PgRead( offset, size, buffer, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -274,7 +292,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Write( offset, size, buffer, handler, timeout );
 
-    return pStateHandler->Write( offset, size, buffer, handler, timeout );
+    return pImpl->pStateHandler->Write( offset, size, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -303,7 +321,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Write( offset, std::move( buffer ), handler, timeout );
 
-    return pStateHandler->Write( offset, std::move( buffer ), handler, timeout );
+    return pImpl->pStateHandler->Write( offset, std::move( buffer ), handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -335,7 +353,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Write( offset, size, fdoff, fd, handler, timeout );
 
-    return pStateHandler->Write( offset, size, fdoff, fd, handler, timeout );
+    return pImpl->pStateHandler->Write( offset, size, fdoff, fd, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -369,7 +387,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->PgWrite( offset, size, buffer, cksums, handler, timeout );
 
-    return pStateHandler->PgWrite( offset, size, buffer, cksums, handler, timeout );
+    return pImpl->pStateHandler->PgWrite( offset, size, buffer, cksums, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -399,7 +417,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Sync( handler, timeout );
 
-    return pStateHandler->Sync( handler, timeout );
+    return pImpl->pStateHandler->Sync( handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -426,7 +444,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Truncate( size, handler, timeout );
 
-    return pStateHandler->Truncate( size, handler, timeout );
+    return pImpl->pStateHandler->Truncate( size, handler, timeout );
   }
 
 
@@ -455,7 +473,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->VectorRead( chunks, buffer, handler, timeout );
 
-    return pStateHandler->VectorRead( chunks, buffer, handler, timeout );
+    return pImpl->pStateHandler->VectorRead( chunks, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -484,7 +502,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->VectorWrite( chunks, handler, timeout );
 
-    return pStateHandler->VectorWrite( chunks, handler, timeout );
+    return pImpl->pStateHandler->VectorWrite( chunks, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -513,7 +531,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->WriteV( offset, iov, iovcnt, handler, timeout );
 
-    return pStateHandler->WriteV( offset, iov, iovcnt, handler, timeout );
+    return pImpl->pStateHandler->WriteV( offset, iov, iovcnt, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -550,7 +568,7 @@ namespace XrdCl
                             ResponseHandler *handler,
                             uint16_t         timeout )
   {
-    return pStateHandler->ReadV( offset, iov, iovcnt, handler, timeout );
+    return pImpl->pStateHandler->ReadV( offset, iov, iovcnt, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -596,7 +614,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Fcntl( arg, handler, timeout );
 
-    return pStateHandler->Fcntl( arg, handler, timeout );
+    return pImpl->pStateHandler->Fcntl( arg, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -624,7 +642,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Visa( handler, timeout );
 
-    return pStateHandler->Visa( handler, timeout );
+    return pImpl->pStateHandler->Visa( handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -651,7 +669,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pStateHandler->SetXAttr( attrs, handler, timeout );
+    return pImpl->pStateHandler->SetXAttr( attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -684,7 +702,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pStateHandler->GetXAttr( attrs, handler, timeout );
+    return pImpl->pStateHandler->GetXAttr( attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -717,7 +735,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pStateHandler->DelXAttr( attrs, handler, timeout );
+    return pImpl->pStateHandler->DelXAttr( attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -749,7 +767,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pStateHandler->ListXAttr( handler, timeout );
+    return pImpl->pStateHandler->ListXAttr( handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -781,7 +799,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pStateHandler->Checkpoint( code, handler, timeout );
+    return pImpl->pStateHandler->Checkpoint( code, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -796,7 +814,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pStateHandler->ChkptWrt( offset, size, buffer, handler, timeout );
+    return pImpl->pStateHandler->ChkptWrt( offset, size, buffer, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -811,7 +829,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pStateHandler->ChkptWrtV( offset, iov, iovcnt, handler, timeout );
+    return pImpl->pStateHandler->ChkptWrtV( offset, iov, iovcnt, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -819,7 +837,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus File::TryOtherServer( uint16_t timeout )
   {
-    return pStateHandler->TryOtherServer( timeout );
+    return pImpl->pStateHandler->TryOtherServer( timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -830,7 +848,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->IsOpen();
 
-    return pStateHandler->IsOpen();
+    return pImpl->pStateHandler->IsOpen();
   }
 
   //------------------------------------------------------------------------
@@ -840,7 +858,7 @@ namespace XrdCl
   {
     if( pPlugIn )
       return false;
-    return pStateHandler->IsSecure();
+    return pImpl->pStateHandler->IsSecure();
   }
 
   //----------------------------------------------------------------------------
@@ -851,7 +869,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->SetProperty( name, value );
 
-    return pStateHandler->SetProperty( name, value );
+    return pImpl->pStateHandler->SetProperty( name, value );
   }
 
   //----------------------------------------------------------------------------
@@ -862,6 +880,6 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->GetProperty( name, value );
 
-    return pStateHandler->GetProperty( name, value );
+    return pImpl->pStateHandler->GetProperty( name, value );
   }
 }
