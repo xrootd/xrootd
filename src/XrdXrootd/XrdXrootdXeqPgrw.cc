@@ -323,6 +323,7 @@ int XrdXrootdProtocol::do_PgRIO()
        if (pgOff)
           {iov[2].iov_base = argp->buff;
            iov[2].iov_len  = pgPageSize;
+           buff = argp->buff;
            pgOff = 0;
           }
 
