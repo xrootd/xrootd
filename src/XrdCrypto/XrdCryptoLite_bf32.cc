@@ -41,6 +41,10 @@
 #include <cinttypes>
 
 #include <openssl/evp.h>
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/provider.h>
+#endif
 
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -174,6 +178,24 @@ int XrdCryptoLite_bf32::Encrypt(const char *key,
 XrdCryptoLite *XrdCryptoLite_New_bf32(const char Type)
 {
 #ifdef HAVE_SSL
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+   // With openssl v3 the blowfish cipher is only available via the "legacy"
+   // provider. Legacy is typically not enabled by default (but can be via
+   // openssl.cnf) so it is loaded here. Explicitly loading a provider will
+   // disable the automatic loading of the "default" one. The default might
+   // not have already been loaded, or standard algorithms might be available
+   // via another configured provider, such as FIPS. So an attempt is made to
+   // fetch a common default algorithm, possibly automaticlly loading the
+   // default provider. Afterwards the legacy provider is loaded.
+   static struct loadProviders {
+      loadProviders() {
+         EVP_MD *mdp = EVP_MD_fetch(NULL, "SHA2-256", NULL);
+         if (mdp) EVP_MD_free(mdp);
+         // Load legacy provider into the default (NULL) library context
+         (void) OSSL_PROVIDER_load(NULL, "legacy");
+      }
+   } lp;
+#endif
    return (XrdCryptoLite *)(new XrdCryptoLite_bf32(Type));
 #else
    return (XrdCryptoLite *)0;
