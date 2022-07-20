@@ -44,6 +44,8 @@ Prerelease Notes
   **Commits: 963ac979, 446b404e
 
 + **Major bug fixes**
+  **[Server]** Reset the buffer pointer after a non-aligned pgRead request
+  **Commits: 3ee3b9e
   **[Server]** Return correct pgread offset for sync reads.
   **Commits: 989d204
   **[Server]** Modify vector's size instead of capacity to avoid undef behaviour
@@ -62,6 +64,8 @@ Prerelease Notes
   **COmmits: 99d44728
 
 + **Miscellaneous**
+  **[Crypto]** Load "legacy" provider for blowfish in openssl v3
+  **Commits: 8692538
   **[x509]** Allow commans in DN's.
   **Commits: 6729eaa
   **{SciTokens]** Add addition messages and debugging.
