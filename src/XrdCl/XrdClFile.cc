@@ -126,7 +126,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Open( url, flags, mode, handler, timeout );
 
-    return pImpl->pStateHandler->Open( url, flags, mode, handler, timeout );
+    return FileStateHandler::Open( pImpl->pStateHandler, url, flags, mode, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -154,7 +154,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Close( handler, timeout );
 
-    return pImpl->pStateHandler->Close( handler, timeout );
+    return FileStateHandler::Close( pImpl->pStateHandler, handler, timeout );
   }
 
 
@@ -181,7 +181,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Stat( force, handler, timeout );
 
-    return pImpl->pStateHandler->Stat( force, handler, timeout );
+    return FileStateHandler::Stat( pImpl->pStateHandler, force, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -212,7 +212,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Read( offset, size, buffer, handler, timeout );
 
-    return pImpl->pStateHandler->Read( offset, size, buffer, handler, timeout );
+    return FileStateHandler::Read( pImpl->pStateHandler, offset, size, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -251,7 +251,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->PgRead( offset, size, buffer, handler, timeout );
 
-    return pImpl->pStateHandler->PgRead( offset, size, buffer, handler, timeout );
+    return FileStateHandler::PgRead( pImpl->pStateHandler, offset, size, buffer, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -292,7 +292,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Write( offset, size, buffer, handler, timeout );
 
-    return pImpl->pStateHandler->Write( offset, size, buffer, handler, timeout );
+    return FileStateHandler::Write( pImpl->pStateHandler, offset, size, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -321,7 +321,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Write( offset, std::move( buffer ), handler, timeout );
 
-    return pImpl->pStateHandler->Write( offset, std::move( buffer ), handler, timeout );
+    return FileStateHandler::Write( pImpl->pStateHandler, offset, std::move( buffer ), handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -353,7 +353,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Write( offset, size, fdoff, fd, handler, timeout );
 
-    return pImpl->pStateHandler->Write( offset, size, fdoff, fd, handler, timeout );
+    return FileStateHandler::Write( pImpl->pStateHandler, offset, size, fdoff, fd, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -387,7 +387,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->PgWrite( offset, size, buffer, cksums, handler, timeout );
 
-    return pImpl->pStateHandler->PgWrite( offset, size, buffer, cksums, handler, timeout );
+    return FileStateHandler::PgWrite( pImpl->pStateHandler, offset, size, buffer, cksums, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -417,7 +417,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Sync( handler, timeout );
 
-    return pImpl->pStateHandler->Sync( handler, timeout );
+    return FileStateHandler::Sync( pImpl->pStateHandler, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -444,7 +444,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Truncate( size, handler, timeout );
 
-    return pImpl->pStateHandler->Truncate( size, handler, timeout );
+    return FileStateHandler::Truncate( pImpl->pStateHandler, size, handler, timeout );
   }
 
 
@@ -473,7 +473,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->VectorRead( chunks, buffer, handler, timeout );
 
-    return pImpl->pStateHandler->VectorRead( chunks, buffer, handler, timeout );
+    return FileStateHandler::VectorRead( pImpl->pStateHandler, chunks, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -502,7 +502,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->VectorWrite( chunks, handler, timeout );
 
-    return pImpl->pStateHandler->VectorWrite( chunks, handler, timeout );
+    return FileStateHandler::VectorWrite( pImpl->pStateHandler, chunks, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -531,7 +531,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->WriteV( offset, iov, iovcnt, handler, timeout );
 
-    return pImpl->pStateHandler->WriteV( offset, iov, iovcnt, handler, timeout );
+    return FileStateHandler::WriteV( pImpl->pStateHandler, offset, iov, iovcnt, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -568,7 +568,7 @@ namespace XrdCl
                             ResponseHandler *handler,
                             uint16_t         timeout )
   {
-    return pImpl->pStateHandler->ReadV( offset, iov, iovcnt, handler, timeout );
+    return FileStateHandler::ReadV( pImpl->pStateHandler, offset, iov, iovcnt, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -614,7 +614,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Fcntl( arg, handler, timeout );
 
-    return pImpl->pStateHandler->Fcntl( arg, handler, timeout );
+    return FileStateHandler::Fcntl( pImpl->pStateHandler, arg, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -642,7 +642,7 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->Visa( handler, timeout );
 
-    return pImpl->pStateHandler->Visa( handler, timeout );
+    return FileStateHandler::Visa( pImpl->pStateHandler, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -669,7 +669,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pImpl->pStateHandler->SetXAttr( attrs, handler, timeout );
+    return FileStateHandler::SetXAttr( pImpl->pStateHandler, attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -702,7 +702,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pImpl->pStateHandler->GetXAttr( attrs, handler, timeout );
+    return FileStateHandler::GetXAttr( pImpl->pStateHandler, attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -735,7 +735,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pImpl->pStateHandler->DelXAttr( attrs, handler, timeout );
+    return FileStateHandler::DelXAttr( pImpl->pStateHandler, attrs, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -767,7 +767,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pImpl->pStateHandler->ListXAttr( handler, timeout );
+    return FileStateHandler::ListXAttr( pImpl->pStateHandler, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -799,7 +799,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pImpl->pStateHandler->Checkpoint( code, handler, timeout );
+    return FileStateHandler::Checkpoint( pImpl->pStateHandler, code, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -814,7 +814,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pImpl->pStateHandler->ChkptWrt( offset, size, buffer, handler, timeout );
+    return FileStateHandler::ChkptWrt( pImpl->pStateHandler, offset, size, buffer, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -829,7 +829,7 @@ namespace XrdCl
     if( pPlugIn )
       return XRootDStatus( stError, errNotSupported );
 
-    return pImpl->pStateHandler->ChkptWrtV( offset, iov, iovcnt, handler, timeout );
+    return FileStateHandler::ChkptWrtV( pImpl->pStateHandler, offset, iov, iovcnt, handler, timeout );
   }
 
   //------------------------------------------------------------------------
@@ -837,7 +837,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   XRootDStatus File::TryOtherServer( uint16_t timeout )
   {
-    return pImpl->pStateHandler->TryOtherServer( timeout );
+    return FileStateHandler::TryOtherServer( pImpl->pStateHandler, timeout );
   }
 
   //----------------------------------------------------------------------------
