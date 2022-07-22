@@ -287,9 +287,12 @@ namespace XrdCl
     else
       pPath = path;
 
-    std::string::iterator back = pPath.end() - 1;
-    if( pProtocol == "file" && *back == '/' )
-      pPath.erase( back );
+    if( !pPath.empty() )
+    {
+      std::string::iterator back = pPath.end() - 1;
+      if( pProtocol == "file" && *back == '/' )
+        pPath.erase( back );
+    }
 
     ComputeURL();
     return true;
