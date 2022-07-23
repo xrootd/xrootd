@@ -30,7 +30,7 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <dirent.h>
-#include <sys/poll.h>
+#include <poll.h>
 
 #include <unordered_set>
 #include <memory>

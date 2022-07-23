@@ -40,7 +40,7 @@
 #include <vector>
 #include <string>
 #include <fcntl.h>
-#include <sys/poll.h>
+#include <poll.h>
 
 bool XrdVomsMapfile::tried_configure = false;
 std::unique_ptr<XrdVomsMapfile> XrdVomsMapfile::mapper;
