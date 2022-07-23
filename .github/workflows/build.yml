@@ -297,6 +297,77 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
+  cmake-voidlinux:
+
+    runs-on: ubuntu-latest
+    container: 'ghcr.io/void-linux/xbps-src-masterdir:20220527RC01-x86_64-musl'
+
+    steps:
+    - name: Install external dependencies with xbps
+      run: |
+        # Sync and upgrade once, assume error comes from xbps update
+        xbps-install -Syu || xbps-install -yu xbps
+        # Upgrade again (in case there was a xbps update)
+        xbps-install -Syu
+        # Install script dependencies
+        xbps-install -y \
+          gcc \
+          git \
+          cmake \
+          make \
+          pkg-config \
+          libuuid-devel \
+          openssl-devel \
+          readline-devel \
+          libexecinfo-devel \
+          zlib-devel \
+          python3 \
+          python3-pip \
+          python3-wheel \
+          python3-devel
+
+    - name: Clone repository
+      uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+
+    - name: Build with cmake
+      run: |
+        git config --global --add safe.directory "$PWD"
+        cd ..
+        cmake \
+            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
+            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DENABLE_TESTS=ON \
+            -DCMAKE_CXX_STANDARD_LIBRARIES=-lexecinfo \
+            -DPIP_OPTIONS="--verbose" \
+            -S xrootd \
+            -B build
+        cmake build -LH
+        cmake \
+            --build build \
+            --clean-first \
+            --parallel $(($(nproc) - 1))
+        cmake --build build --target install
+        python3 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        export LD_LIBRARY_PATH="/usr/local/lib64:${LD_LIBRARY_PATH}"
+        export PYTHON_VERSION_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info.minor}")')
+        export PYTHONPATH="/usr/local/lib/python3.${PYTHON_VERSION_MINOR}/site-packages:${PYTHONPATH}"
+        python3 --version --version
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
   cmake-macos:
 
     runs-on: macos-latest
