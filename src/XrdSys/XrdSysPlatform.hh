@@ -241,16 +241,8 @@ extern "C"
 #if defined(_AIX) || \
    (defined(XR__SUNGCC3) && !defined(__arch64__))
 #   define SOCKLEN_t size_t
-#elif defined(XR__GLIBC) || \
-   defined(__FreeBSD__) || \
-   (defined(__FreeBSD_kernel__) && defined(__GLIBC__)) || \
-   (defined(XR__SUNGCC3) && defined(__arch64__)) || defined(__APPLE__) || \
-   (defined(__sun) && defined(_SOCKLEN_T))
-#   ifndef SOCKLEN_t
-#      define SOCKLEN_t socklen_t
-#   endif
 #elif !defined(SOCKLEN_t)
-#   define SOCKLEN_t int
+#   define SOCKLEN_t socklen_t
 #endif
 
 #ifdef _LP64

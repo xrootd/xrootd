@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "XrdPosix/XrdPosixOsDep.hh"
+#include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/

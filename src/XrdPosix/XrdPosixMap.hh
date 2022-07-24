@@ -36,6 +36,11 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
+#if defined(__linux__) && defined(HAVE_MUSL_LIBC)
+#define __NEED_dev_t
+#include <bits/alltypes.h>
+#endif
+
 class XrdPosixMap
 {
 public:

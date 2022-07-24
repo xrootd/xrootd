@@ -42,6 +42,12 @@
 #include <sys/uio.h>
 #include <cstdint>
 
+#if defined(__linux__) && defined(HAVE_MUSL_LIBC)
+#define __NEED_suseconds_t
+#define __NEED_struct_timeval
+#include <bits/alltypes.h>
+#endif
+
 namespace
 {
   class PgReadHandler;

@@ -38,7 +38,7 @@
 #include <memory>
 #include <mutex>
 
-#if defined(__GLIBC__) || defined(__BIONIC__) || defined(__CYGWIN__)
+#if defined(__GLIBC__) || defined(HAVE_MUSL_LIBC) || defined(__BIONIC__) || defined(__CYGWIN__)
 #include <byteswap.h>
 #elif defined(__APPLE__)
 // Make sure that byte swap functions are not already defined.

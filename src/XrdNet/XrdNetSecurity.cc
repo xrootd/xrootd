@@ -40,12 +40,14 @@
 #include <sys/types.h>
 #include <Winsock2.h>
 #include <io.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
+#if WIN32 || defined(__linux__) && defined(HAVE_MUSL_LIBC)
 int innetgr(const char *netgroup, const char *host, const char *user,
              const char *domain)
 {
    return 0;
 }
-#include "XrdSys/XrdWin32.hh"
 #endif
 
 #include "XrdNet/XrdNetAddr.hh"

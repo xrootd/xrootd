@@ -34,6 +34,11 @@
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
 
+#if defined(__linux__) && defined(HAVE_MUSL_LIBC)
+#define __NEED_mode_t
+#include <bits/alltypes.h>
+#endif
+
 class XrdSysError;
 class XrdTcpMonInfo;
 class XrdNetSecurity;

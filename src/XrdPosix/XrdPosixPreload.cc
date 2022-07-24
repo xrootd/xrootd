@@ -42,6 +42,22 @@
 
 #include "XrdPosix/XrdPosixExtern.hh"
  
+#ifdef creat64
+#undef creat64
+#undef fseeko64
+#undef ftello64
+#undef ftruncate64
+#undef lseek64
+#undef open64
+#undef pread64
+#undef pwrite64
+#undef readdir64
+#undef readdir64_r
+#undef statfs64
+#undef statvfs64
+#undef truncate64
+#endif
+
 /******************************************************************************/
 /*                   G l o b a l   D e c l a r a t i o n s                    */
 /******************************************************************************/
