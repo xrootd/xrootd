@@ -160,6 +160,8 @@ void IOFile::DetachFinalize()
 //______________________________________________________________________________
 int IOFile::Read(char *buff, long long off, int size)
 {
+   ++m_active_read_reqs;
+
    auto *rh = new ReadReqRHCond(ObtainReadSid(), nullptr);
 
    TRACEIO(Dump, "Read() sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " off: " << off << " size: " << size);
@@ -183,8 +185,12 @@ void IOFile::Read(XrdOucCacheIOCB &iocb, char *buff, long long off, int size)
    {  using ReadReqRH::ReadReqRH;
       IOFile *m_io = nullptr;
 
-      void Done(int result) override { m_io->ReadEnd(result, this); }
+      void Done(int result) override {
+         m_io->ReadEnd(result, this);
+      }
    };
+
+   ++m_active_read_reqs;
 
    auto *rh = new ZHandler(ObtainReadSid(), &iocb);
    rh->m_io = this;
@@ -207,8 +213,13 @@ void IOFile::pgRead(XrdOucCacheIOCB &iocb, char *buff, long long off, int size,
       IOFile *m_io = nullptr;
       std::function<void (int)> m_lambda {0};
 
-      void Done(int result) override { if (m_lambda) m_lambda(result); m_io-> ReadEnd(result, this); }
+      void Done(int result) override {
+         if (m_lambda) m_lambda(result);
+         m_io->ReadEnd(result, this);
+      }
    };
+
+   ++m_active_read_reqs;
 
    auto *rh = new ZHandler(ObtainReadSid(), &iocb);
    rh->m_io = this;
@@ -262,6 +273,8 @@ int IOFile::ReadEnd(int retval, ReadReqRH *rh)
 
    delete rh;
 
+   --m_active_read_reqs;
+
    return retval;
 }
 
@@ -273,6 +286,8 @@ int IOFile::ReadEnd(int retval, ReadReqRH *rh)
 //______________________________________________________________________________
 int IOFile::ReadV(const XrdOucIOVec *readV, int n)
 {
+   ++m_active_read_reqs;
+
    auto *rh = new ReadReqRHCond(ObtainReadSid(), nullptr);
 
    TRACEIO(Dump, "ReadV() sync " << this << " sid: " << Xrd::hex1 << rh->m_seq_id << " n_chunks: " <<  n);
@@ -297,6 +312,8 @@ void IOFile::ReadV(XrdOucCacheIOCB &iocb, const XrdOucIOVec *readV, int n)
 
       void Done(int result) override { m_io-> ReadVEnd(result, this); }
    };
+
+   ++m_active_read_reqs;
 
    auto *rh = new ZHandler(ObtainReadSid(), &iocb);
    rh->m_io = this;
@@ -344,6 +361,8 @@ int IOFile::ReadVEnd(int retval, ReadReqRH *rh)
       rh->m_iocb->Done(retval);
 
    delete rh;
+
+   --m_active_read_reqs;
 
    return retval;
 }

@@ -70,11 +70,22 @@ protected:
       { m_cond.Lock(); m_retval = result; m_cond.Signal(); m_cond.UnLock(); }
    };
 
+   std::atomic<unsigned int>   m_active_read_reqs; //!< number of active read requests
+
 private:
    std::atomic<XrdOucCacheIO*> m_io;         //!< original data source
    std::atomic<unsigned short> m_read_seqid; //!< sequential read id (for logging)
 
    void SetInput(XrdOucCacheIO*);
+
+   // Variables used by File to store IO-relates state. Managed under
+   // File::m_state_cond mutex.
+   friend class File;
+
+   time_t m_attach_time       {0}; // Set by File::AddIO()
+   int    m_active_prefetches {0};
+   bool   m_allow_prefetching {true};
+   bool   m_in_detach         {false};
 };
 }
 

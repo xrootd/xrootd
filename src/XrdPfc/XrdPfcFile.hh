@@ -322,24 +322,11 @@ private:
 
    // IO objects attached to this file.
 
-   struct IODetails
-   {
-      time_t m_attach_time;
-      int    m_active_prefetches;
-      bool   m_allow_prefetching;
+   typedef std::set<IO*>     IoSet_t;
+   typedef IoSet_t::iterator IoSet_i;
 
-      IODetails(time_t at) :
-         m_attach_time             (at),
-         m_active_prefetches       (0),
-         m_allow_prefetching       (true)
-      {}
-   };
-
-   typedef std::map<IO*, IODetails> IoMap_t;
-   typedef IoMap_t::iterator        IoMap_i;
-
-   IoMap_t    m_io_map;
-   IoMap_i    m_current_io;     //!< IO object to be used for prefetching.
+   IoSet_t    m_io_set;
+   IoSet_i    m_current_io;     //!< IO object to be used for prefetching.
    int        m_ios_in_detach;  //!< Number of IO objects to which we replied false to ioActive() and will be removed soon.
 
    // FSync

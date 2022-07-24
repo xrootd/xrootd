@@ -58,7 +58,7 @@ File::File(const std::string& path, long long iOffset, long long iFileSize) :
    m_filename(path),
    m_offset(iOffset),
    m_file_size(iFileSize),
-   m_current_io(m_io_map.end()),
+   m_current_io(m_io_set.end()),
    m_ios_in_detach(0),
    m_non_flushed_cnt(0),
    m_in_sync(false),
@@ -196,21 +196,25 @@ bool File::ioActive(IO *io)
    {
       XrdSysCondVarHelper _lck(m_state_cond);
 
-      IoMap_i mi = m_io_map.find(io);
+      IoSet_i mi = m_io_set.find(io);
 
-      if (mi != m_io_map.end())
+      if (mi != m_io_set.end())
       {
+         unsigned int n_active_reads = io->m_active_read_reqs;
+
          TRACE(Info, "ioActive for io " << io <<
-                ", active_prefetches "       << mi->second.m_active_prefetches <<
-                ", allow_prefetching "       << mi->second.m_allow_prefetching <<
-                ", ios_in_detach "           << m_ios_in_detach);
+                ", active_reads "       << n_active_reads <<
+                ", active_prefetches "  << io->m_active_prefetches <<
+                ", allow_prefetching "  << io->m_allow_prefetching <<
+                ", ios_in_detach "      << m_ios_in_detach);
          TRACEF(Info,
-                "\tio_map.size() "           << m_io_map.size() <<
-                ", block_map.size() "        << m_block_map.size() << ", file");
+                "\tio_map.size() "      << m_io_set.size() <<
+                ", block_map.size() "   << m_block_map.size() << ", file");
 
          insert_remote_location(loc);
 
-         mi->second.m_allow_prefetching = false;
+         io->m_allow_prefetching = false;
+         io->m_in_detach = true;
 
          // Check if any IO is still available for prfetching. If not, stop it.
          if (m_prefetch_state == kOn || m_prefetch_state == kHold)
@@ -226,13 +230,17 @@ bool File::ioActive(IO *io)
 
          bool io_active_result;
 
-         if (m_io_map.size() - m_ios_in_detach == 1)
+         if (n_active_reads > 0)
+         {
+            io_active_result = true;
+         }
+         else if (m_io_set.size() - m_ios_in_detach == 1)
          {
             io_active_result = ! m_block_map.empty();
          }
          else
          {
-            io_active_result = mi->second.m_active_prefetches > 0;
+            io_active_result = io->m_active_prefetches > 0;
          }
 
          if ( ! io_active_result)
@@ -246,7 +254,7 @@ bool File::ioActive(IO *io)
       }
       else
       {
-         TRACEF(Error, "ioActive io " << io <<" not found in IoMap. This should not happen.");
+         TRACEF(Error, "ioActive io " << io <<" not found in IoSet. This should not happen.");
          return false;
       }
    }
@@ -295,11 +303,12 @@ void File::AddIO(IO *io)
 
    m_state_cond.Lock();
 
-   IoMap_i mi = m_io_map.find(io);
+   IoSet_i mi = m_io_set.find(io);
 
-   if (mi == m_io_map.end())
+   if (mi == m_io_set.end())
    {
-      m_io_map.insert(std::make_pair(io, IODetails(now)));
+      m_io_set.insert(io);
+      io->m_attach_time = now;
       m_stats.IoAttach();
 
       insert_remote_location(loc);
@@ -330,20 +339,20 @@ void File::RemoveIO(IO *io)
 
    m_state_cond.Lock();
 
-   IoMap_i mi = m_io_map.find(io);
+   IoSet_i mi = m_io_set.find(io);
 
-   if (mi != m_io_map.end())
+   if (mi != m_io_set.end())
    {
       if (mi == m_current_io)
       {
          ++m_current_io;
       }
 
-      m_stats.IoDetach(now - mi->second.m_attach_time);
-      m_io_map.erase(mi);
+      m_stats.IoDetach(now - io->m_attach_time);
+      m_io_set.erase(mi);
       --m_ios_in_detach;
 
-      if (m_io_map.empty() && m_prefetch_state != kStopped && m_prefetch_state != kComplete)
+      if (m_io_set.empty() && m_prefetch_state != kStopped && m_prefetch_state != kComplete)
       {
          TRACEF(Error, "RemoveIO() io = " << (void*)io << " Prefetching is not stopped/complete -- it should be by now.");
          m_prefetch_state = kStopped;
@@ -639,10 +648,10 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadR
 
    m_state_cond.Lock();
 
-   if (m_in_shutdown)
+   if (m_in_shutdown || io->m_in_detach)
    {
       m_state_cond.UnLock();
-      return -ENOENT;
+      return m_in_shutdown ? -ENOENT : -EBADFD;
    }
 
    // Shortcut -- file is fully downloaded.
@@ -668,10 +677,10 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqRH *rh)
 
    m_state_cond.Lock();
 
-   if (m_in_shutdown)
+   if (m_in_shutdown || io->m_in_detach)
    {
       m_state_cond.UnLock();
-      return -ENOENT;
+      return m_in_shutdown ? -ENOENT : -EBADFD;
    }
 
    // Shortcut -- file is fully downloaded.
@@ -897,7 +906,6 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
       if (read_req->is_complete())
       {
          // Almost like FinalizeReadRequest(read_req) -- but no callout!
-
          m_state_cond.UnLock();
 
          m_stats.AddReadStats(read_req->m_stats);
@@ -915,7 +923,6 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
    else
    {
       m_stats.m_BytesHit += bytes_read;
-
       m_state_cond.UnLock();
 
       // !!! No callout.
@@ -1110,27 +1117,27 @@ bool File::select_current_io_or_disable_prefetching(bool skip_current)
 {
    // Method always called under lock. It also expects prefetch to be active.
 
-   int  io_size = (int) m_io_map.size();
+   int  io_size = (int) m_io_set.size();
    bool io_ok   = false;
 
    if (io_size == 1)
    {
-      io_ok = m_io_map.begin()->second.m_allow_prefetching;
+      io_ok = (*m_io_set.begin())->m_allow_prefetching;
       if (io_ok)
       {
-         m_current_io = m_io_map.begin();
+         m_current_io = m_io_set.begin();
       }
    }
    else if (io_size > 1)
    {
-      IoMap_i mi = m_current_io;
-      if (skip_current && mi != m_io_map.end()) ++mi;
+      IoSet_i mi = m_current_io;
+      if (skip_current && mi != m_io_set.end()) ++mi;
 
       for (int i = 0; i < io_size; ++i)
       {
-         if (mi == m_io_map.end()) mi = m_io_map.begin();
+         if (mi == m_io_set.end()) mi = m_io_set.begin();
 
-         if (mi->second.m_allow_prefetching)
+         if ((*mi)->m_allow_prefetching)
          {
             m_current_io = mi;
             io_ok = true;
@@ -1142,7 +1149,7 @@ bool File::select_current_io_or_disable_prefetching(bool skip_current)
 
    if ( ! io_ok)
    {
-      m_current_io    = m_io_map.end();
+      m_current_io    = m_io_set.end();
       m_prefetch_state = kStopped;
       cache()->DeRegisterPrefetchFile(this);
    }
@@ -1257,16 +1264,17 @@ void File::ProcessBlockResponse(Block *b, int res)
    // Deregister block from IO's prefetch count, if needed.
    if (b->m_prefetch)
    {
-      IoMap_i mi = m_io_map.find(b->get_io());
-      if (mi != m_io_map.end())
+      IO     *io = b->get_io();
+      IoSet_i mi = m_io_set.find(io);
+      if (mi != m_io_set.end())
       {
-         --mi->second.m_active_prefetches;
+         --io->m_active_prefetches;
 
          // If failed and IO is still prefetching -- disable prefetching on this IO.
-         if (res < 0 && mi->second.m_allow_prefetching)
+         if (res < 0 && io->m_allow_prefetching)
          {
-            TRACEF(Debug, tpfx << "after failed prefetch on io " << b->get_io() << " disabling prefetching on this io.");
-            mi->second.m_allow_prefetching = false;
+            TRACEF(Debug, tpfx << "after failed prefetch on io " << io << " disabling prefetching on this io.");
+            io->m_allow_prefetching = false;
 
             // Check if any IO is still available for prfetching. If not, stop it.
             if (m_prefetch_state == kOn || m_prefetch_state == kHold)
@@ -1286,7 +1294,7 @@ void File::ProcessBlockResponse(Block *b, int res)
       }
       else
       {
-         TRACEF(Error, tpfx << "io " << b->get_io() << " not found in IoMap.");
+         TRACEF(Error, tpfx << "io " << b->get_io() << " not found in IoSet.");
       }
    }
 
@@ -1424,7 +1432,7 @@ void File::Prefetch()
             BlockMap_i bi = m_block_map.find(f_act);
             if (bi == m_block_map.end())
             {
-               Block *b = PrepareBlockRequest(f_act, m_current_io->first, nullptr, true);
+               Block *b = PrepareBlockRequest(f_act, *m_current_io, nullptr, true);
                if (b)
                {
                   TRACEF(Dump, "Prefetch take block " << f_act);
@@ -1451,7 +1459,7 @@ void File::Prefetch()
       }
       else
       {
-         m_current_io->second.m_active_prefetches += (int) blks.size();
+         (*m_current_io)->m_active_prefetches += (int) blks.size();
       }
    }
 
