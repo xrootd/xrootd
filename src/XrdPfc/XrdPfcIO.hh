@@ -7,8 +7,7 @@ class XrdSysTrace;
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
-#include <atomic>
+#include <XrdSys/XrdSysRAtomic.hh>
 
 namespace XrdPfc
 {
@@ -24,7 +23,7 @@ public:
    virtual XrdOucCacheIO *Base() { return m_io; }
 
    //! Original data source URL.
-   const char *Path() override { return m_io.load(std::memory_order_relaxed)->Path(); }
+   const char *Path() override { return m_io->Path(); }
 
    using XrdOucCacheIO::Sync;
    int Sync() override { return 0; }
@@ -44,7 +43,7 @@ public:
    virtual bool ioActive()       = 0;
    virtual void DetachFinalize() = 0;
 
-   const char*  GetLocation() { return m_io.load(std::memory_order_relaxed)->Location(false); }
+   const char*  GetLocation() { return m_io->Location(false); }
    XrdSysTrace* GetTrace()    { return m_cache.GetTrace(); }
 
    XrdOucCacheIO* GetInput();
@@ -53,9 +52,9 @@ protected:
    Cache       &m_cache;   //!< reference to Cache object
    const char  *m_traceID;
 
-   const char*  GetPath()         { return m_io.load(std::memory_order_relaxed)->Path(); }
+   const char*  GetPath()         { return m_io->Path(); }
    std::string  GetFilename()     { return XrdCl::URL(GetPath()).GetPath(); }
-   const char*  RefreshLocation() { return m_io.load(std::memory_order_relaxed)->Location(true);  }
+   const char*  RefreshLocation() { return m_io->Location(true);  }
 
    unsigned short ObtainReadSid() { return m_read_seqid++; }
 
@@ -70,11 +69,11 @@ protected:
       { m_cond.Lock(); m_retval = result; m_cond.Signal(); m_cond.UnLock(); }
    };
 
-   std::atomic<unsigned int>   m_active_read_reqs; //!< number of active read requests
+   RAtomic_int       m_active_read_reqs; //!< number of active read requests
 
 private:
-   std::atomic<XrdOucCacheIO*> m_io;         //!< original data source
-   std::atomic<unsigned short> m_read_seqid; //!< sequential read id (for logging)
+   XrdSys::RAtomic<XrdOucCacheIO*> m_io; //!< original data source
+   RAtomic_ushort          m_read_seqid; //!< sequential read id (for logging)
 
    void SetInput(XrdOucCacheIO*);
 

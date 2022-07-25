@@ -6,7 +6,7 @@ using namespace XrdPfc;
 IO::IO(XrdOucCacheIO *io, Cache &cache) :
    m_cache           (cache),
    m_traceID         ("IO"),
-   m_active_read_reqs(0u),
+   m_active_read_reqs(0),
    m_io              (io),
    m_read_seqid      (0u)
 {}
@@ -24,12 +24,12 @@ void IO::Update(XrdOucCacheIO &iocp)
 
 void IO::SetInput(XrdOucCacheIO* x)
 {
-   m_io.store(x, std::memory_order_relaxed);
+   m_io = x;
 }
 
 XrdOucCacheIO* IO::GetInput()
 {
-   return m_io.load(std::memory_order_relaxed);
+   return m_io;
 }
 
 //==============================================================================

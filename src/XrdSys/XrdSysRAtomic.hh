@@ -169,6 +169,9 @@ T*  operator=(T* v) volatile noexcept
     operator T*() volatile noexcept
       {return _m.load(std::memory_order_relaxed);}
 
+    T* operator->() noexcept
+      {return _m.load(std::memory_order_relaxed);}
+
 // Post-increment/decrement (i.e. x++)
 //
 T*  operator++(int) noexcept
