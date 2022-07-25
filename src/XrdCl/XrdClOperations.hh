@@ -38,6 +38,11 @@
 #include "XrdCl/XrdClFinalOperation.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include "XrdCl/XrdClResponseJob.hh"
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+
 namespace XrdCl
 {
 
@@ -273,8 +278,10 @@ namespace XrdCl
           st = XRootDStatus( stError, errInternal, 0, ex.what() );
         }
 
-        if( !st.IsOK() )
-          h->HandleResponse( new XRootDStatus( st ), nullptr );
+        if( !st.IsOK() ){
+          ResponseJob *job = new ResponseJob(h, new XRootDStatus(st), 0, nullptr);
+          DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob(job);
+        }
       }
 
       //------------------------------------------------------------------------
