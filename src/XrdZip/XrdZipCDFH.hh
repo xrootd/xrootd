@@ -84,7 +84,7 @@ namespace XrdZip
         uint32_t signature = to<uint32_t>( buffer + offset );
         if( signature != cdfhSign ) throw bad_data();
         // parse the record
-        std::unique_ptr<CDFH> cdfh( new CDFH( buffer + offset ) );
+        std::unique_ptr<CDFH> cdfh( new CDFH( buffer + offset, bufferSize ) );
         offset     += cdfh->cdfhSize;
         bufferSize -= cdfh->cdfhSize;
         cdmap[cdfh->filename] = i;
@@ -190,7 +190,7 @@ namespace XrdZip
     //-------------------------------------------------------------------------
     // Constructor from buffer
     //-------------------------------------------------------------------------
-    CDFH( const char *buffer )
+    CDFH( const char *buffer, const uint32_t maxSize = 0 )
     {
       zipVersion        = *reinterpret_cast<const uint16_t*>( buffer + 4 );
       minZipVersion     = *reinterpret_cast<const uint16_t*>( buffer + 6 );
@@ -208,7 +208,9 @@ namespace XrdZip
       internAttr        = *reinterpret_cast<const uint16_t*>( buffer + 36 );
       externAttr        = *reinterpret_cast<const uint32_t*>( buffer + 38 );
       offset            = *reinterpret_cast<const uint32_t*>( buffer + 42 );
-
+      if(maxSize > 0 && (uint32_t)(cdfhBaseSize+filenameLength + extraLength + commentLength) > maxSize){
+    	  throw bad_data();
+      }
       filename.assign( buffer + 46, filenameLength );
 
       // now parse the 'extra' (may contain the zip64 extension to CDFH)
