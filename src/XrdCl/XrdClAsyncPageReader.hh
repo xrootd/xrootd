@@ -192,7 +192,7 @@ class AsyncPageReader
     inline static uint32_t CalcIOVSize( uint32_t dleft )
     {
       uint32_t ret = ( dleft / PageWithDigest + 2 ) * 2;
-      return ( ret > max_iovcnt() ? max_iovcnt() : ret );
+      return ( ret > uint32_t( max_iovcnt() ) ? max_iovcnt() : ret );
     }
 
     //--------------------------------------------------------------------------
