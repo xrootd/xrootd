@@ -118,11 +118,13 @@ class AsyncPageReader
         // read the data into the buffer
         nbbts = 0;
         auto st = socket.ReadV( iov.data() + iovindex, iovcnt, nbbts );
-        if( !st.IsOK() ) return st;
+        if( !st.IsOK() )
+          return st;
         btsread += nbbts;
         dlen    -= nbbts;
         ShiftIOV( nbbts );
-        if( st.code == suRetry ) return st;
+        if( st.code == suRetry )
+          return st;
       }
       while( nbbts > 0 && dlen > 0 && chindex < chunks.size() );
 
@@ -189,7 +191,8 @@ class AsyncPageReader
     //--------------------------------------------------------------------------
     inline static uint32_t CalcIOVSize( uint32_t dleft )
     {
-      return ( dleft / PageWithDigest + 2 ) * 2;
+      uint32_t ret = ( dleft / PageWithDigest + 2 ) * 2;
+      return ( ret > max_iovcnt() ? max_iovcnt() : ret );
     }
 
     //--------------------------------------------------------------------------
@@ -203,7 +206,8 @@ class AsyncPageReader
       uint32_t pgspace = chunks[chindex].length - choff;
       // space in our digest buffer
       uint32_t dgspace = sizeof( uint32_t ) * (digests.size() - dgindex ) - dgoff;
-      if( dleft > pgspace + dgspace ) dleft = pgspace + dgspace;
+      if( dleft > pgspace + dgspace )
+        dleft = pgspace + dgspace;
       return dleft;
     }
 
@@ -227,26 +231,31 @@ class AsyncPageReader
       // handle the first digest
       uint32_t fdglen = sizeof( uint32_t ) - dgoff;
       addiov( dgbuf, fdglen, dleft );
-      if( dleft == 0 || iovcnt >= max_iovcnt() ) return;
+      if( dleft == 0 || iovcnt >= max_iovcnt() )
+        return;
       // handle the first page
       uint32_t fpglen = XrdSys::PageSize - rdoff % XrdSys::PageSize;
       addiov( pgbuf, fpglen, dleft );
-      if( dleft == 0 || iovcnt >= max_iovcnt() ) return;
+      if( dleft == 0 || iovcnt >= max_iovcnt() )
+        return;
       // handle all the subsequent aligned pages
       size_t fullpgs = dleft / PageWithDigest;
       for( size_t i = 0; i < fullpgs; ++i )
       {
-        addiov( dgbuf, sizeof( uint32_t ) );
-        addiov( pgbuf, XrdSys::PageSize );
+        addiov( dgbuf, sizeof( uint32_t ), dleft );
+        if( dleft == 0 || iovcnt >= max_iovcnt() )
+          return;
+        addiov( pgbuf, XrdSys::PageSize, dleft );
+        if( dleft == 0 || iovcnt >= max_iovcnt() )
+          return;
       }
-      dleft -= fullpgs * PageWithDigest;
-      if( dleft == 0 || iovcnt >= max_iovcnt() ) return;
       // handle the last digest
       uint32_t ldglen = sizeof( uint32_t );
       addiov( dgbuf, ldglen, dleft );
-      if( dleft == 0 || iovcnt >= max_iovcnt() ) return;
+      if( dleft == 0 || iovcnt >= max_iovcnt() )
+        return;
       // handle the last page
-      addiov( pgbuf, dleft );
+      addiov( pgbuf, dleft, dleft );
     }
 
     //--------------------------------------------------------------------------
