@@ -88,7 +88,7 @@ namespace XrdCl
     // will hang forever (this could happen when Python interpreter exits).
     //--------------------------------------------------------------------------
     if ( DefaultEnv::GetLog() && DefaultEnv::GetPostMaster()->IsRunning() && IsOpen() )
-      XRootDStatus status = Close();
+      XRootDStatus status = Close( nullptr, 0 );
     delete pImpl;
     delete pPlugIn;
   }
