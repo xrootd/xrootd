@@ -52,6 +52,8 @@ Prerelease Notes
   **Commits: 0bfc0ca2
 
 + **Minor bug fixes**
+  **[Frm]** Fix incorrect logic in frm_admin audit space.
+  &&Commits: 0becd718
   **[Server]** Avoid SEGV during client recovery dur to close waitresp.
   **Commits: 4df4cda9
   **[HTTP]** Use 405 for mkcol/mkdir EEXIST.
