@@ -31,6 +31,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <ctime>
+#include <limits.h>
 #include <sys/uio.h>
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -446,7 +447,8 @@ bool XrdXrootdAioTask::Wait4Buff(int maxWait)
 
 // Calculate wait time and when we should produce a message
 //
-   if (maxWait <= 0)  maxWait = XrdXrootdProtocol::as_timeout;
+   if (maxWait <= 0)  maxWait = (XrdXrootdProtocol::as_timeout ?
+                                 XrdXrootdProtocol::as_timeout : INT_MAX);
    aioWait = (maxWait > msgInterval ? msgInterval : maxWait);
 
 // Wait for a buffer to arrive.

@@ -331,9 +331,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // proxy and we were asked not to use aio in such a cacse.
 //
    if (!(asyncFlags & asDebug) && as_aioOK)
-      {if (fsFeatures & XrdSfs::hasNAIO) as_aioOK = 0;
+      {if (fsFeatures & XrdSfs::hasNAIO) as_aioOK = false;
           else if (asyncFlags & asNoCache && fsFeatures & XrdSfs::hasCACH)
-                  as_aioOK = 0;
+                  as_aioOK = false;
        if (!as_aioOK) eDest.Say("Config asynchronous I/O has been disabled!");
       }
 
@@ -900,7 +900,7 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
    if (V_mtot  > 0) as_maxpersrv = V_mtot;
    if (V_minsz > 0) as_miniosz   = V_minsz;
    if (V_segsz > 0){as_segsize   = V_segsz; as_seghalf = V_segsz/2;}
-   if (V_tmo   > 0) as_timeout   = V_tmo;
+   if (V_tmo  >= 0) as_timeout   = V_tmo;
    if (V_mstall> 0) as_maxstalls = V_mstall;
    if (V_debug > 0) asyncFlags  |= asDebug;
    if (V_force > 0) as_force     = true;
