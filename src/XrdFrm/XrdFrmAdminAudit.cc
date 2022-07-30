@@ -461,7 +461,7 @@ int XrdFrmAdmin::AuditSpaceXA(const char *Space, const char *Path)
 // Go and check out the files
 //
    while(Act && (sP = fP->Get(ec,1)))
-        {if (sP->baseFile()) Act = AuditNameNB(sP);
+        {if (!sP->baseFile()) Act = AuditNameNB(sP);
             else {numFiles++;
                   if ((Act = AuditSpaceXA(sP)))
                      {if (Act < 0) numFiles--;
@@ -489,10 +489,10 @@ int XrdFrmAdmin::AuditSpaceXA(XrdFrmFileset *sP)
    char Resp = 0, tempPath[1032], lkbuff[1032], *Pfn = pfnInfo.Attr.Pfn;
    int n;
 
-// First step is to get the pfn extended attribute (Get will issue a msg)
+// First step is to get the pfn extended attribute
 //
-   if ((n = pfnInfo.Get(sP->basePath()) <= 0))
-      {if (!n) Msg("Missing pfn xref for data file ", sP->basePath());
+   if (pfnInfo.Get(sP->basePath()) <= 0)
+      {Msg("Missing pfn xref for data file ", sP->basePath());
        numProb++;
        return 1;
       }
