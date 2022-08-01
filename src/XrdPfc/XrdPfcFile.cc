@@ -1286,10 +1286,12 @@ void File::ProcessBlockResponse(Block *b, int res)
             }
          }
 
-         // If failed with no subscribers -- remove the block now.
+         // If failed with no subscribers -- delete the block and exit.
          if (b->m_refcnt == 0 && (res < 0 || m_in_shutdown))
          {
             free_block(b);
+            m_state_cond.UnLock();
+            return;
          }
       }
       else
