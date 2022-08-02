@@ -1001,6 +1001,9 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
       case kXR_isDirectory:
         httpStatusCode = 409; httpStatusText = "Resource is a directory";
         break;
+      case kXR_ItExists:
+        httpStatusCode = 409; httpStatusText = "File already exists";
+        break;
       case kXR_InvalidRequest:
         httpStatusCode = 405; httpStatusText = "Method is not allowed";
         break;
