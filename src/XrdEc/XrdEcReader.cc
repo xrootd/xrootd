@@ -43,6 +43,8 @@
 #include <iterator>
 #include <numeric>
 #include <tuple>
+#include <set>
+#include <iostream>
 
 namespace XrdEc
 {
@@ -171,6 +173,7 @@ namespace XrdEc
       {
         if( !error_correction( self ) )
         {
+        	std::cout << "Error correct impossible\n"<<std::flush;
           //-----------------------------------------------------------------
           // Recovery was not possible, notify the user of the error
           //-----------------------------------------------------------------
@@ -197,7 +200,8 @@ namespace XrdEc
       {
         if( offset + size > self->stripes[strpid].size() )
           size = self->stripes[strpid].size() - offset;
-        memcpy( usrbuff, self->stripes[strpid].data() + offset, size );
+        if(usrbuff)
+        	memcpy( usrbuff, self->stripes[strpid].data() + offset, size );
         usrcb( XrdCl::XRootDStatus(), size );
         return;
       }
@@ -376,7 +380,8 @@ namespace XrdEc
           // are partially reading past the end of the file?
           else if( offset + size > stripe.size() )
             size = stripe.size() - offset;
-          memcpy( usrbuff, stripe.data() + offset, size );
+          if(usrbuff)
+        	  memcpy( usrbuff, stripe.data() + offset, size );
           nbrd = size;
         }
         //---------------------------------------------------------------------
@@ -433,6 +438,7 @@ namespace XrdEc
     {
       // generate the URL
       std::string url = objcfg.GetDataUrl( i );
+      archiveIndices.emplace(url, i);
       // create the file object
       dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>(
           Config::Instance().enable_plugins ) );
@@ -832,6 +838,247 @@ namespace XrdEc
     if( objcfg.nomtfile && fntoblk( fn ) <= lstblk ) return true;
     // otherwise return false
     return false;
+  }
+
+
+  inline callback_t Reader::ErrorCorrected(Reader *reader, std::shared_ptr<block_t> &self, size_t blkid, size_t strpid){
+	  return [reader, self, strpid, blkid]( const XrdCl::XRootDStatus &st, uint32_t ) mutable
+	                 {
+	                   std::unique_lock<std::mutex> readerLock(reader->missingChunksMutex);
+	                   reader->missingChunksVectorRead.erase(std::remove(reader->missingChunksVectorRead.begin(), reader->missingChunksVectorRead.end(), std::make_tuple(blkid, strpid)));
+	                   reader->waitMissing.notify_all();
+	                 };
+  }
+
+  void Reader::MissingVectorRead(std::shared_ptr<block_t> &currentBlock, size_t blkid, size_t strpid, uint16_t timeout){
+	  {
+		std::unique_lock<std::mutex> lk(missingChunksMutex);
+		missingChunksVectorRead.emplace_back(
+			std::make_tuple(blkid,strpid));
+	  }
+	currentBlock->state[strpid] = block_t::Missing;
+	currentBlock->read(currentBlock, strpid, 0, objcfg.chunksize,
+			nullptr,
+			ErrorCorrected(this, currentBlock, blkid, strpid),
+			timeout);
+  }
+
+
+  void Reader::VectorRead(const XrdCl::ChunkList &chunks, void *buffer, XrdCl::ResponseHandler *handler, uint16_t timeout){
+	  if(chunks.size() > 1024) {
+		  if(handler) handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, XrdCl::errInvalidArgs, XrdCl::errInvalidArgs), nullptr);
+		  return;
+	  }
+
+	  std::vector<XrdCl::ChunkList> hostLists;
+	  for(size_t dataHosts = 0; dataHosts < objcfg.nbchunks; dataHosts++){
+		  hostLists.emplace_back(XrdCl::ChunkList());
+	  }
+
+	  //bool useGlobalBuffer = buffer != nullptr;
+	  char* globalBuffer = (char*)buffer;
+
+	  // host index, blkid, strpid
+	  std::set<std::tuple<size_t, size_t, size_t>> requestedChunks;
+	  // create block_ts for any requested block index
+	  std::map<size_t, std::shared_ptr<block_t>> blockMap;
+
+	  // go through the requested lists of chunks and assign them to fitting hosts
+	  for(size_t index = 0; index < chunks.size(); index++){
+		  uint32_t remainLength = chunks[index].length;
+		  uint64_t currentOffset = chunks[index].offset;
+
+		  while(remainLength > 0){
+		      size_t   blkid  = currentOffset / objcfg.datasize;                                     //< ID of the block from which we will be reading
+		      size_t   strpid = ( currentOffset % objcfg.datasize ) / objcfg.chunksize;              //< ID of the stripe from which we will be reading
+		      uint64_t rdoff  = currentOffset - blkid * objcfg.datasize - strpid * objcfg.chunksize ; //< relative read offset within the stripe
+		      //uint64_t offsetInFile = rdoff + blkid * objcfg.chunksize;							// relative offset within the file
+		      uint32_t rdsize = objcfg.chunksize - rdoff;                                     //< read size within the stripe
+		      if( rdsize > remainLength ) rdsize = remainLength;
+		      if(currentOffset + rdsize >= filesize) {
+		    	  rdsize = filesize - currentOffset;
+		    	  remainLength = rdsize;
+		      }
+
+
+		      std::string fn = objcfg.GetFileName(blkid, strpid);
+
+		      auto itr = urlmap.find( fn );
+		      if( itr == urlmap.end() )
+		      {
+		        std::cout << "Couldn't identify host for file " << fn << "\n" << std::flush;
+		        break;
+		      }
+		      // get the URL of the ZIP archive with the respective data
+		      const std::string &url = itr->second;
+		      auto itr2 = archiveIndices.find(url);
+		      if(itr2 == archiveIndices.end())
+		      {
+		    	  std::cout << "Couldn't identify host for file " << fn << "\n" << std::flush;
+		    	  break;
+		      }
+		      size_t indexOfArchive = archiveIndices[url];
+
+			if (blockMap.find(blkid) == blockMap.end())
+			{
+				blockMap.emplace(blkid,
+						std::make_shared<block_t>(blkid, *this, objcfg));
+			}
+
+			blockMap[blkid]->state[strpid] = block_t::Loading;
+			XrdCl::StatInfo* info;
+			if(dataarchs[url]->Stat(objcfg.GetFileName(blkid, strpid), info).IsOK())
+				blockMap[blkid]->stripes[strpid].resize( info ->GetSize() );
+			/*std::cout << "Check or created block with blkid " << blkid
+					<< " and stripe count " << blockMap[blkid]->stripes.size()
+					<< " and stripe " << strpid << " has size "
+					<< blockMap[blkid]->stripes[strpid].size() << "\n"
+					<< std::flush;*/
+
+		      //std::cout << "Archive selected: " << indexOfArchive << ", URL: " << url << "\n" << std::flush;
+
+		      auto requestChunk = std::make_tuple(indexOfArchive, blkid, strpid);
+		      if(requestedChunks.find(requestChunk) == requestedChunks.end())
+		    	  {
+		    	  uint64_t off = 0;
+		    	  dataarchs[url]->GetOffset(objcfg.GetFileName(blkid, strpid), off);
+		    	  hostLists[indexOfArchive].emplace_back(XrdCl::ChunkInfo(
+		    			  off,
+						  info ->GetSize(),
+						  blockMap[blkid]->stripes[strpid].data()));
+
+		    	  // fill list of requested chunks by block and stripe id
+		    	  requestedChunks.emplace(requestChunk);
+
+		    	  }
+		      remainLength -= rdsize;
+		      currentOffset += rdsize;
+
+		  }
+	  }
+
+	  std::vector<XrdCl::Pipeline> hostPipes;
+	  hostPipes.reserve(hostLists.size());
+	  for(size_t i = 0; i < hostLists.size(); i++){
+		  while(hostLists[i].size() > 0){
+			  uint32_t range = hostLists[i].size() > 1024 ? 1024 : hostLists[i].size();
+			  XrdCl::ChunkList partList(hostLists[i].begin(), hostLists[i].begin() + range);
+			  hostLists[i].erase(hostLists[i].begin(), hostLists[i].begin() + range);
+		hostPipes.emplace_back(
+				XrdCl::VectorRead(XrdCl::Ctx<XrdCl::File>(dataarchs[objcfg.GetDataUrl(i)]->archive),
+						partList, nullptr, timeout)
+						>> [=](const XrdCl::XRootDStatus &st, XrdCl::VectorReadInfo ch) mutable
+						{
+								auto it = requestedChunks.begin();
+								while(it!=requestedChunks.end())
+								{
+									auto &args = *it;
+									size_t host = std::get<0>(args);
+									size_t blkid = std::get<1>(args);
+									size_t strpid = std::get<2>(args);
+									it++;
+									if(host == i)
+									{
+										std::shared_ptr<block_t> currentBlock = blockMap[blkid];
+										if(!st.IsOK())
+										{
+											std::cout << "VectorRead failed entirely\n" << std::flush;
+											MissingVectorRead(currentBlock, blkid, strpid, timeout);
+										}
+										else{
+											uint32_t orgcksum = 0;
+											auto s = dataarchs[objcfg.GetDataUrl(i)]->GetCRC32( objcfg.GetFileName(blkid, strpid), orgcksum );
+											//---------------------------------------------------
+											// If we cannot extract the checksum assume the data
+											// are corrupted
+											//---------------------------------------------------
+											if( !st.IsOK() )
+											{
+												std::cout << "Couldn't read CRC32 from CD\n" << std::flush;
+												MissingVectorRead(currentBlock, blkid, strpid, timeout);
+												continue;
+											}
+											//---------------------------------------------------
+											// Verify data integrity
+											//---------------------------------------------------
+											uint32_t cksum = objcfg.digest( 0, currentBlock->stripes[strpid].data(), currentBlock->stripes[strpid].size() );
+											if( orgcksum != cksum )
+											{
+												std::cout << "CD Chksum = " << orgcksum << " but calculated: " << cksum << "\n" << std::flush;
+												MissingVectorRead(currentBlock, blkid, strpid, timeout);
+												continue;
+											}
+											else{
+												currentBlock->state[strpid] = block_t::Valid;
+												bool recoverable = currentBlock->error_correction( currentBlock );
+												if(!recoverable) std::cout << "Couldn't recover block " << blkid << "\n" << std::flush;
+											}
+										}
+									}
+								}
+							}
+							);
+	  }
+	  }
+
+	  auto finalPipehndl = [=] (const XrdCl::XRootDStatus &st) mutable {
+		  // wait until all missing chunks are corrected (uses single reads to get parity stripes)
+		  std::unique_lock<std::mutex> lk(missingChunksMutex);
+		  waitMissing.wait(lk, [=] { return missingChunksVectorRead.size() == 0;});
+
+		  bool failed = false;
+		  for(size_t index = 0; index < chunks.size(); index++){
+			  uint32_t remainLength = chunks[index].length;
+			  uint64_t currentOffset = chunks[index].offset;
+
+					char *localBuffer;
+					if (globalBuffer)
+						localBuffer = globalBuffer;
+					else
+						localBuffer = (char*)(chunks[index].buffer);
+
+			  while(remainLength > 0){
+			      size_t   blkid  = currentOffset / objcfg.datasize;                                     //< ID of the block from which we will be reading
+			      size_t   strpid = ( currentOffset % objcfg.datasize ) / objcfg.chunksize;              //< ID of the stripe from which we will be reading
+			      uint64_t rdoff  = currentOffset - blkid * objcfg.datasize - strpid * objcfg.chunksize ; //< relative read offset within the stripe
+			      //uint64_t offsetInFile = rdoff + blkid * objcfg.chunksize;							// relative offset within the file
+			      uint32_t rdsize = objcfg.chunksize - rdoff;                                     //< read size within the stripe
+			      if( rdsize > remainLength ) rdsize = remainLength;
+
+				  // put received data into given buffers
+			      if(blockMap.find(blkid) == blockMap.end() || blockMap[blkid] == nullptr){
+			    	  std::cout << "Critical error Vector Read: Missing block\n" << std::flush;
+			    	  failed = true;
+			    	  break;
+			      }
+			      if(blockMap[blkid]->state[strpid] != block_t::Valid){
+			    	  std::cout << "Critical error Vector Read: Invalid stripe in block " << blkid << " stripe " << strpid << ", State is " << blockMap[blkid]->state[strpid] << "\n" << std::flush;
+			    	  failed = true;
+			    	  break;
+			      }
+
+			      memcpy(localBuffer, blockMap[blkid]->stripes[strpid].data() + rdoff, rdsize);
+
+			      remainLength -= rdsize;
+			      currentOffset += rdsize;
+			      localBuffer += rdsize;
+			  }
+			  if(globalBuffer) globalBuffer = localBuffer;
+		  }
+		  if(handler){
+			  std::cout << "Failed: " << failed<< "\n" << std::flush;
+			  if(failed) handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, "Couldn't read all segments"), nullptr);
+			  else handler->HandleResponse(new XrdCl::XRootDStatus(), nullptr);
+		  }
+	  };
+
+	  //std::cout << "Set up " << hostPipes.size() << " pipes\n" << std::flush;
+
+	  XrdCl::Pipeline p = XrdCl::Parallel(hostPipes) |
+			  XrdCl::Final(finalPipehndl);
+
+	  XrdCl::Async(std::move(p), timeout);
+
   }
 
 } /* namespace XrdEc */

@@ -96,6 +96,18 @@ namespace XrdEc
                  XrdCl::ResponseHandler *handler,
                  uint16_t                timeout );
 
+      /*
+       * Read multiple locations and lengths of data
+       * internally remapped to stripes
+       *
+       * @param chunks	: list of offsets, lengths and separate buffers
+       * @param buffer 	: optional full buffer for all data
+       */
+      void VectorRead( 	const XrdCl::ChunkList 	&chunks,
+    		  	  	  	void 					*buffer,
+					    XrdCl::ResponseHandler 	*handler,
+						uint16_t 				timeout);
+
       //-----------------------------------------------------------------------
       //! Close the data object
       //-----------------------------------------------------------------------
@@ -155,6 +167,10 @@ namespace XrdEc
       //-----------------------------------------------------------------------
       bool IsMissing( const std::string &fn );
 
+      inline static callback_t ErrorCorrected(Reader *reader, std::shared_ptr<block_t> &self, size_t blkid, size_t strpid);
+
+      void MissingVectorRead(std::shared_ptr<block_t> &block, size_t blkid, size_t strpid, uint16_t timeout = 0);
+
       typedef std::unordered_map<std::string, std::shared_ptr<XrdCl::ZipArchive>> dataarchs_t;
       typedef std::unordered_map<std::string, buffer_t> metadata_t;
       typedef std::unordered_map<std::string, std::string> urlmap_t;
@@ -169,6 +185,11 @@ namespace XrdEc
       std::mutex                blkmtx;    //> mutex guarding the block from parallel access
       size_t                    lstblk;    //> last block number
       uint64_t                  filesize;  //> file size (obtained from xattr)
+      std::map<std::string, size_t>  archiveIndices;
+
+      std::mutex	missingChunksMutex;
+      std::vector<std::tuple<size_t, size_t>> missingChunksVectorRead;
+      std::condition_variable waitMissing;
   };
 
 } /* namespace XrdEc */

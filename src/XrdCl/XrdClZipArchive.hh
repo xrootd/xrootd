@@ -285,6 +285,41 @@ namespace XrdCl
         return XRootDStatus();
       }
 
+      inline XRootDStatus GetOffset( const std::string &fn, uint64_t &offset){
+    	  if( openstage != XrdCl::ZipArchive::Done || !archive.IsOpen() )
+    	  	        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errInvalidOp );
+
+    	  	      auto cditr = cdmap.find( fn );
+    	  	      if( cditr == cdmap.end() )
+    	  	        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound,
+    	  	        		XrdCl::errNotFound, "File not found." );
+
+    	  	      XrdCl::CDFH *cdfh = cdvec[cditr->second].get();
+
+    	  	      // check if the file is compressed, for now we only support uncompressed and inflate/deflate compression
+    	  	      if( cdfh->compressionMethod != 0 && cdfh->compressionMethod != Z_DEFLATED )
+    	  	        return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported,
+    	  	                             0, "The compression algorithm is not supported!" );
+
+    	  	      // Now the problem is that at the beginning of our
+    	  	      // file there is the Local-file-header, which size
+    	  	      // is not known because of the variable size 'extra'
+    	  	      // field, so we need to know the offset of the next
+    	  	      // record and shift it by the file size.
+    	  	      // The next record is either the next LFH (next file)
+    	  	      // or the start of the Central-directory.
+    	  	      uint64_t cdOffset = zip64eocd ? zip64eocd->cdOffset : eocd->cdOffset;
+    	  	      uint64_t nextRecordOffset = ( cditr->second + 1 < cdvec.size() ) ?
+    	  	    		  XrdCl::CDFH::GetOffset( *cdvec[cditr->second + 1] ) : cdOffset;
+    	  	      uint64_t filesize = cdfh->compressedSize;
+    	  	      if( filesize == std::numeric_limits<uint32_t>::max() && cdfh->extra )
+    	  	        filesize = cdfh->extra->compressedSize;
+    	  	      uint16_t descsize = cdfh->HasDataDescriptor() ?
+    	  	    		  XrdCl::DataDescriptor::GetSize( cdfh->IsZIP64() ) : 0;
+    	  	      offset  = nextRecordOffset - filesize - descsize;
+    	  	      return XrdCl::XRootDStatus();
+      }
+
       //-----------------------------------------------------------------------
       //! Create the central directory at the end of ZIP archive and close it
       //
