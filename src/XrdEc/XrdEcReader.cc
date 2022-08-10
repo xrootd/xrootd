@@ -39,12 +39,14 @@
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClFinalOperation.hh"
 
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+
 #include <algorithm>
 #include <iterator>
 #include <numeric>
 #include <tuple>
 #include <set>
-#include <iostream>
 
 namespace XrdEc
 {
@@ -173,7 +175,6 @@ namespace XrdEc
       {
         if( !error_correction( self ) )
         {
-        	std::cout << "Error correct impossible\n"<<std::flush;
           //-----------------------------------------------------------------
           // Recovery was not possible, notify the user of the error
           //-----------------------------------------------------------------
@@ -875,6 +876,8 @@ namespace XrdEc
 		  hostLists.emplace_back(XrdCl::ChunkList());
 	  }
 
+	  auto log = XrdCl::DefaultEnv::GetLog();
+
 	  //bool useGlobalBuffer = buffer != nullptr;
 	  char* globalBuffer = (char*)buffer;
 
@@ -906,7 +909,7 @@ namespace XrdEc
 		      auto itr = urlmap.find( fn );
 		      if( itr == urlmap.end() )
 		      {
-		        std::cout << "Couldn't identify host for file " << fn << "\n" << std::flush;
+		        log->Dump(XrdCl::XRootDMsg, "EC Vector Read: No mapping of file to host found");
 		        break;
 		      }
 		      // get the URL of the ZIP archive with the respective data
@@ -914,7 +917,7 @@ namespace XrdEc
 		      auto itr2 = archiveIndices.find(url);
 		      if(itr2 == archiveIndices.end())
 		      {
-		    	  std::cout << "Couldn't identify host for file " << fn << "\n" << std::flush;
+		    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't find host for file");
 		    	  break;
 		      }
 		      size_t indexOfArchive = archiveIndices[url];
@@ -929,13 +932,6 @@ namespace XrdEc
 			XrdCl::StatInfo* info;
 			if(dataarchs[url]->Stat(objcfg.GetFileName(blkid, strpid), info).IsOK())
 				blockMap[blkid]->stripes[strpid].resize( info ->GetSize() );
-			/*std::cout << "Check or created block with blkid " << blkid
-					<< " and stripe count " << blockMap[blkid]->stripes.size()
-					<< " and stripe " << strpid << " has size "
-					<< blockMap[blkid]->stripes[strpid].size() << "\n"
-					<< std::flush;*/
-
-		      //std::cout << "Archive selected: " << indexOfArchive << ", URL: " << url << "\n" << std::flush;
 
 		      auto requestChunk = std::make_tuple(indexOfArchive, blkid, strpid);
 		      if(requestedChunks.find(requestChunk) == requestedChunks.end())
@@ -980,9 +976,11 @@ namespace XrdEc
 									if(host == i)
 									{
 										std::shared_ptr<block_t> currentBlock = blockMap[blkid];
+
+
 										if(!st.IsOK())
 										{
-											std::cout << "VectorRead failed entirely\n" << std::flush;
+											log->Dump(XrdCl::XRootDMsg, "Vector Read of host ... failed entirely\n");
 											MissingVectorRead(currentBlock, blkid, strpid, timeout);
 										}
 										else{
@@ -994,7 +992,7 @@ namespace XrdEc
 											//---------------------------------------------------
 											if( !st.IsOK() )
 											{
-												std::cout << "Couldn't read CRC32 from CD\n" << std::flush;
+												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't read CRC32 from CD");
 												MissingVectorRead(currentBlock, blkid, strpid, timeout);
 												continue;
 											}
@@ -1004,14 +1002,15 @@ namespace XrdEc
 											uint32_t cksum = objcfg.digest( 0, currentBlock->stripes[strpid].data(), currentBlock->stripes[strpid].size() );
 											if( orgcksum != cksum )
 											{
-												std::cout << "CD Chksum = " << orgcksum << " but calculated: " << cksum << "\n" << std::flush;
+												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Wrong checksum for ... \n");
 												MissingVectorRead(currentBlock, blkid, strpid, timeout);
 												continue;
 											}
 											else{
 												currentBlock->state[strpid] = block_t::Valid;
 												bool recoverable = currentBlock->error_correction( currentBlock );
-												if(!recoverable) std::cout << "Couldn't recover block " << blkid << "\n" << std::flush;
+												if(!recoverable)
+													log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't recover block ...\n");
 											}
 										}
 									}
@@ -1041,18 +1040,17 @@ namespace XrdEc
 			      size_t   blkid  = currentOffset / objcfg.datasize;                                     //< ID of the block from which we will be reading
 			      size_t   strpid = ( currentOffset % objcfg.datasize ) / objcfg.chunksize;              //< ID of the stripe from which we will be reading
 			      uint64_t rdoff  = currentOffset - blkid * objcfg.datasize - strpid * objcfg.chunksize ; //< relative read offset within the stripe
-			      //uint64_t offsetInFile = rdoff + blkid * objcfg.chunksize;							// relative offset within the file
 			      uint32_t rdsize = objcfg.chunksize - rdoff;                                     //< read size within the stripe
 			      if( rdsize > remainLength ) rdsize = remainLength;
 
 				  // put received data into given buffers
 			      if(blockMap.find(blkid) == blockMap.end() || blockMap[blkid] == nullptr){
-			    	  std::cout << "Critical error Vector Read: Missing block\n" << std::flush;
+			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read error: Missing block");
 			    	  failed = true;
 			    	  break;
 			      }
 			      if(blockMap[blkid]->state[strpid] != block_t::Valid){
-			    	  std::cout << "Critical error Vector Read: Invalid stripe in block " << blkid << " stripe " << strpid << ", State is " << blockMap[blkid]->state[strpid] << "\n" << std::flush;
+			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read error: Invalid stripe in ...");
 			    	  failed = true;
 			    	  break;
 			      }
@@ -1066,13 +1064,11 @@ namespace XrdEc
 			  if(globalBuffer) globalBuffer = localBuffer;
 		  }
 		  if(handler){
-			  std::cout << "Failed: " << failed<< "\n" << std::flush;
+			  if(failed) log->Dump(XrdCl::XRootDMsg, "EC Vector Read failed (at least in part)");
 			  if(failed) handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, "Couldn't read all segments"), nullptr);
 			  else handler->HandleResponse(new XrdCl::XRootDStatus(), nullptr);
 		  }
 	  };
-
-	  //std::cout << "Set up " << hostPipes.size() << " pipes\n" << std::flush;
 
 	  XrdCl::Pipeline p = XrdCl::Parallel(hostPipes) |
 			  XrdCl::Final(finalPipehndl);

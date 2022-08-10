@@ -400,9 +400,6 @@ void MicroTest::VerifyVectorRead(uint32_t seed){
 		  uint32_t offset = offsetGen(random_engine);
 
 		  buffers[i].resize(size);
-		  /*for(uint32_t u = 0; u < size; u++){
-			  buffers[i][u] = 'b';
-		  }*/
 		  chunks.push_back(XrdCl::ChunkInfo(offset, size, buffers[i].data()));
 
 		  std::string resultExp( rawdata.data() + offset, size );
@@ -445,7 +442,6 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 	std::default_random_engine random_engine(seed);
 
 	std::vector<std::vector<char>> buffers(5);
-	//std::vector<std::string> expected;
 	XrdCl::ChunkList chunks;
 	for (int i = 0; i < 5; i++)
 	{
@@ -458,14 +454,9 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 			offset = rawdata.size() - size / 2;
 
 		buffers[i].resize(size);
-		/*for (uint32_t u = 0; u < size; u++)
-		{
-			buffers[i][u] = 'b';
-		}*/
+
 		chunks.push_back(XrdCl::ChunkInfo(offset, size, buffers[i].data()));
 
-		//std::string resultExp( rawdata.data() + offset, size );
-		//expected.emplace_back(resultExp);
 	}
 
 	XrdCl::SyncResponseHandler h;
@@ -473,23 +464,16 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 	h.WaitForResponse();
 	std::cout << "Got response from vector read\n" << std::flush;
 	status = h.GetStatus();
+	// the response should be negative since one of the reads was over the file end
 	if (status->IsOK())
 	{
 		CPPUNIT_ASSERT(false);
 	}
-	//CPPUNIT_ASSERT_XRDST( *status );
 	delete status;
 	std::cout << "Status not OK\n" << std::flush;
-	/*for(int i = 0; i < 5; i++){
-	 std::cout << "buffer length: " << buffers[i].size() << " expected: " << expected[i].size() << "\n" << std::flush;
-	 std::string result(buffers[i].data(), expected[i].size());
-	 std::cout << "Compare " << expected[i] << " to result: " << result << "\n" << std::flush;
-	 CPPUNIT_ASSERT( result == expected[i] );
-	 }*/
 
 	buffers.clear();
 	buffers.resize(1025);
-	//std::vector<std::string> expected;
 	chunks.clear();
 	for (int i = 0; i < 1025; i++)
 	{
@@ -500,14 +484,9 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 		uint32_t offset = offsetGen(random_engine);
 
 		buffers[i].resize(size);
-		/*for (uint32_t u = 0; u < size; u++)
-		{
-			buffers[i][u] = 'b';
-		}*/
+
 		chunks.push_back(XrdCl::ChunkInfo(offset, size, buffers[i].data()));
 
-		//std::string resultExp(rawdata.data() + offset, size);
-		//expected.emplace_back(resultExp);
 	}
 
 	XrdCl::SyncResponseHandler h2;
@@ -515,11 +494,11 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 	h2.WaitForResponse();
 	std::cout << "Got response from vector read\n" << std::flush;
 	status = h2.GetStatus();
+	// the response should be negative since we requested too many reads
 	if (status->IsOK())
 	{
 		CPPUNIT_ASSERT(false);
 	}
-	//CPPUNIT_ASSERT_XRDST( *status );
 	delete status;
 	std::cout << "Status not OK\n" << std::flush;
 
