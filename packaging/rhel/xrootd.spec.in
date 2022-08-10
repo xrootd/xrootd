@@ -146,7 +146,9 @@ BuildRequires: clang
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
 BuildRequires: libasan
+%if %{?rhel}%{!?rhel:0} == 7
 BuildRequires: devtoolset-7-libasan-devel
+%endif
 Requires: libasan
 %endif
 
