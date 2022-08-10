@@ -100,8 +100,6 @@ class MicroTest: public CppUnit::TestCase
 
     	uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
 
-    	std::cout << "Start vector read verification\n"<< std::flush;
-
     	VerifyVectorRead(seed);
 
     	CleanUp();
@@ -116,8 +114,6 @@ class MicroTest: public CppUnit::TestCase
 
 		uint32_t seed =
 				std::chrono::system_clock::now().time_since_epoch().count();
-
-		std::cout << "Start vector read verification\n" << std::flush;
 
 		IllegalVectorRead(seed);
 
@@ -409,15 +405,11 @@ void MicroTest::VerifyVectorRead(uint32_t seed){
 	  XrdCl::SyncResponseHandler h;
 	  reader.VectorRead(chunks, nullptr, &h, 0);
 	    h.WaitForResponse();
-	    std::cout << "Got response from vector read\n" << std::flush;
 	    status = h.GetStatus();
 	    CPPUNIT_ASSERT_XRDST( *status );
 	    delete status;
-	    std::cout << "Status OK\n" << std::flush;
 	    for(int i = 0; i < 5; i++){
-	    	std::cout << "buffer length: " << buffers[i].size() << " expected: " << expected[i].size() << "\n" << std::flush;
 	    	std::string result(buffers[i].data(), expected[i].size());
-	    	std::cout << "Compare " << expected[i] << " to result: " << result << "\n" << std::flush;
 	    	CPPUNIT_ASSERT( result == expected[i] );
 	    }
 
@@ -462,7 +454,6 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 	XrdCl::SyncResponseHandler h;
 	reader.VectorRead(chunks, nullptr, &h, 0);
 	h.WaitForResponse();
-	std::cout << "Got response from vector read\n" << std::flush;
 	status = h.GetStatus();
 	// the response should be negative since one of the reads was over the file end
 	if (status->IsOK())
@@ -470,7 +461,6 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 		CPPUNIT_ASSERT(false);
 	}
 	delete status;
-	std::cout << "Status not OK\n" << std::flush;
 
 	buffers.clear();
 	buffers.resize(1025);
@@ -492,7 +482,6 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 	XrdCl::SyncResponseHandler h2;
 	reader.VectorRead(chunks, nullptr, &h2, 0);
 	h2.WaitForResponse();
-	std::cout << "Got response from vector read\n" << std::flush;
 	status = h2.GetStatus();
 	// the response should be negative since we requested too many reads
 	if (status->IsOK())
@@ -500,7 +489,6 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 		CPPUNIT_ASSERT(false);
 	}
 	delete status;
-	std::cout << "Status not OK\n" << std::flush;
 
 	XrdCl::SyncResponseHandler handler2;
 	reader.Close(&handler2);

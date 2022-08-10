@@ -909,7 +909,7 @@ namespace XrdEc
 		      auto itr = urlmap.find( fn );
 		      if( itr == urlmap.end() )
 		      {
-		        log->Dump(XrdCl::XRootDMsg, "EC Vector Read: No mapping of file to host found");
+		        log->Dump(XrdCl::XRootDMsg, "EC Vector Read: No mapping of file to host found.");
 		        break;
 		      }
 		      // get the URL of the ZIP archive with the respective data
@@ -917,7 +917,7 @@ namespace XrdEc
 		      auto itr2 = archiveIndices.find(url);
 		      if(itr2 == archiveIndices.end())
 		      {
-		    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't find host for file");
+		    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't find host for file.");
 		    	  break;
 		      }
 		      size_t indexOfArchive = archiveIndices[url];
@@ -980,7 +980,7 @@ namespace XrdEc
 
 										if(!st.IsOK())
 										{
-											log->Dump(XrdCl::XRootDMsg, "Vector Read of host ... failed entirely\n");
+											log->Dump(XrdCl::XRootDMsg, "EC Vector Read of host %d failed entirely.", i);
 											MissingVectorRead(currentBlock, blkid, strpid, timeout);
 										}
 										else{
@@ -992,7 +992,7 @@ namespace XrdEc
 											//---------------------------------------------------
 											if( !st.IsOK() )
 											{
-												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't read CRC32 from CD");
+												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't read CRC32 from CD.");
 												MissingVectorRead(currentBlock, blkid, strpid, timeout);
 												continue;
 											}
@@ -1002,7 +1002,7 @@ namespace XrdEc
 											uint32_t cksum = objcfg.digest( 0, currentBlock->stripes[strpid].data(), currentBlock->stripes[strpid].size() );
 											if( orgcksum != cksum )
 											{
-												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Wrong checksum for ... \n");
+												log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Wrong checksum for block %d stripe %d.", blkid, strpid);
 												MissingVectorRead(currentBlock, blkid, strpid, timeout);
 												continue;
 											}
@@ -1010,7 +1010,7 @@ namespace XrdEc
 												currentBlock->state[strpid] = block_t::Valid;
 												bool recoverable = currentBlock->error_correction( currentBlock );
 												if(!recoverable)
-													log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't recover block ...\n");
+													log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Couldn't recover block %d.", blkid);
 											}
 										}
 									}
@@ -1045,12 +1045,12 @@ namespace XrdEc
 
 				  // put received data into given buffers
 			      if(blockMap.find(blkid) == blockMap.end() || blockMap[blkid] == nullptr){
-			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read error: Missing block");
+			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Missing block %d.", blkid);
 			    	  failed = true;
 			    	  break;
 			      }
 			      if(blockMap[blkid]->state[strpid] != block_t::Valid){
-			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read error: Invalid stripe in ...");
+			    	  log->Dump(XrdCl::XRootDMsg, "EC Vector Read: Invalid stripe in block %d stripe %d.", blkid, strpid);
 			    	  failed = true;
 			    	  break;
 			      }
@@ -1064,7 +1064,7 @@ namespace XrdEc
 			  if(globalBuffer) globalBuffer = localBuffer;
 		  }
 		  if(handler){
-			  if(failed) log->Dump(XrdCl::XRootDMsg, "EC Vector Read failed (at least in part)");
+			  if(failed) log->Dump(XrdCl::XRootDMsg, "EC Vector Read failed (at least in part).");
 			  if(failed) handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError, "Couldn't read all segments"), nullptr);
 			  else handler->HandleResponse(new XrdCl::XRootDStatus(), nullptr);
 		  }
