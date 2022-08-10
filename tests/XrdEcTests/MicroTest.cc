@@ -292,7 +292,7 @@ void MicroTest::Init( bool usecrc32c )
   datadir = cwd + "/data";
   CPPUNIT_ASSERT( mkdir( datadir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH ) == 0 );
   // create a directory for each stripe
-  size_t nbstrps = objcfg->nbdata + objcfg->nbparity;
+  size_t nbstrps = objcfg->nbdata + 2 * objcfg->nbparity;
   for( size_t i = 0; i < nbstrps; ++i )
   {
     std::stringstream ss;

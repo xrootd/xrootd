@@ -871,7 +871,7 @@ namespace XrdEc
 	  }
 
 	  std::vector<XrdCl::ChunkList> hostLists;
-	  for(size_t dataHosts = 0; dataHosts < objcfg.nbchunks; dataHosts++){
+	  for(size_t dataHosts = 0; dataHosts < objcfg.plgr.size(); dataHosts++){
 		  hostLists.emplace_back(XrdCl::ChunkList());
 	  }
 
