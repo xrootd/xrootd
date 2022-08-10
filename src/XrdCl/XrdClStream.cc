@@ -467,24 +467,35 @@ namespace XrdCl
     msg->SetSessionId( pSessionId );
     pBytesReceived += bytesReceived;
 
-    uint32_t streamAction = pTransport->MessageReceived( *msg, subStream,
-                                                         *pChannelData );
-    if( streamAction & TransportHandler::DigestMsg )
-      return;
-
-    if( streamAction & TransportHandler::RequestClose )
+    MsgHandler *handler = nullptr;
+    uint16_t action = 0;
     {
-      RequestClose( *msg );
-      return;
+      InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
+      handler = mh.handler;
+      action = mh.action;
+      mh.Reset();
+    }
+
+    if( !IsPartial( *msg ) )
+    {
+      uint32_t streamAction = pTransport->MessageReceived( *msg, subStream,
+                                                           *pChannelData );
+      if( streamAction & TransportHandler::DigestMsg )
+        return;
+
+      if( streamAction & TransportHandler::RequestClose )
+      {
+        RequestClose( *msg );
+        return;
+      }
     }
 
     Log *log = DefaultEnv::GetLog();
-    InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
 
     //--------------------------------------------------------------------------
     // No handler, we discard the message ...
     //--------------------------------------------------------------------------
-    if( !mh.handler )
+    if( !handler )
     {
       ServerResponse *rsp = (ServerResponse*)msg->GetBuffer();
       log->Warning( PostMasterMsg, "[%s] Discarding received message: 0x%x "
@@ -500,7 +511,7 @@ namespace XrdCl
     log->Dump( PostMasterMsg, "[%s] Handling received message: 0x%x.",
                pStreamName.c_str(), msg.get() );
 
-    if( mh.action & (MsgHandler::NoProcess|MsgHandler::Ignore) )
+    if( action & (MsgHandler::NoProcess|MsgHandler::Ignore) )
     {
       log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
@@ -508,16 +519,14 @@ namespace XrdCl
       // if we are handling partial response we have to take down the timeout fence
       if( IsPartial( *msg ) )
       {
-        XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( mh.handler );
+        XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( handler );
         if( xrdHandler ) xrdHandler->PartialReceived();
       }
 
-      mh.Reset();
       return;
     }
 
-    Job *job = new HandleIncMsgJob( mh.handler );
-    mh.Reset();
+    Job *job = new HandleIncMsgJob( handler );
     pJobManager->QueueJob( job );
   }
 
@@ -811,12 +820,14 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Reinsert the receiving handler
+    // Reinsert the receiving handler and reset any partially read partial
     //--------------------------------------------------------------------------
     if( pSubStreams[subStream]->inMsgHelper.handler )
     {
       InMessageHelper &h = pSubStreams[subStream]->inMsgHelper;
       pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
+      XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( h.handler );
+      if( xrdHandler ) xrdHandler->PartialReceived();
       h.Reset();
     }
 
@@ -894,9 +905,9 @@ namespace XrdCl
   void Stream::ForceError( XRootDStatus status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
+    Log    *log = DefaultEnv::GetLog();
     for( size_t substream = 0; substream < pSubStreams.size(); ++substream )
     {
-      Log    *log = DefaultEnv::GetLog();
       if( pSubStreams[substream]->status != Socket::Connected ) continue;
       pSubStreams[substream]->socket->Close();
       pSubStreams[substream]->status = Socket::Disconnected;
@@ -915,35 +926,37 @@ namespace XrdCl
       }
 
       //--------------------------------------------------------------------
-      // Reinsert the receiving handler
+      // Reinsert the receiving handler and reset any partially read partial
       //--------------------------------------------------------------------
       if( pSubStreams[substream]->inMsgHelper.handler )
       {
         InMessageHelper &h = pSubStreams[substream]->inMsgHelper;
         pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
+        XRootDMsgHandler *xrdHandler = dynamic_cast<XRootDMsgHandler*>( h.handler );
+        if( xrdHandler ) xrdHandler->PartialReceived();
         h.Reset();
       }
-
-      pConnectionCount = 0;
-
-      //------------------------------------------------------------------------
-      // We're done here, unlock the stream mutex to avoid deadlocks and
-      // report the disconnection event to the handlers
-      //------------------------------------------------------------------------
-      log->Debug( PostMasterMsg, "[%s] Reporting disconnection to queued "
-                  "message handlers.", pStreamName.c_str() );
-
-      SubStreamList::iterator it;
-      OutQueue q;
-      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
-        q.GrabItems( *(*it)->outQueue );
-      scopedLock.UnLock();
-
-      q.Report( status );
-
-      pIncomingQueue->ReportStreamEvent( MsgHandler::Broken, status );
-      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
     }
+
+    pConnectionCount = 0;
+
+    //------------------------------------------------------------------------
+    // We're done here, unlock the stream mutex to avoid deadlocks and
+    // report the disconnection event to the handlers
+    //------------------------------------------------------------------------
+    log->Debug( PostMasterMsg, "[%s] Reporting disconnection to queued "
+                "message handlers.", pStreamName.c_str() );
+
+    SubStreamList::iterator it;
+    OutQueue q;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+      q.GrabItems( *(*it)->outQueue );
+    scopedLock.UnLock();
+
+    q.Report( status );
+
+    pIncomingQueue->ReportStreamEvent( MsgHandler::Broken, status );
+    pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status );
   }
 
   //----------------------------------------------------------------------------
@@ -1117,7 +1130,8 @@ namespace XrdCl
                                      MsgHandler *&incHandler )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
-    if( !mh.handler ) return false;
+    if( !mh.handler )
+      return MsgHandler::RemoveHandler;
 
     uint16_t action = mh.handler->InspectStatusRsp();
     mh.action |= action;
