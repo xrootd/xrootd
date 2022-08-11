@@ -278,6 +278,7 @@ namespace XrdCl
         // kXR_status response, we can handle the raw data (if any) only after
         // we have the whole kXR_status body
         //----------------------------------------------------------------------
+        pTimeoutFence.store( true, std::memory_order_relaxed );
         return None;
       }
 
@@ -364,10 +365,7 @@ namespace XrdCl
       action |= Raw;
 
       if( rspst->status.bdy.resptype == XrdProto::kXR_PartialResult )
-      {
         action |= NoProcess;
-        pTimeoutFence.store( true, std::memory_order_relaxed );
-      }
       else
         action |= RemoveHandler;
     }
