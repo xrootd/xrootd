@@ -585,20 +585,26 @@ int XrdOfsFile::open(const char          *path,      // In
       {// Apply security, as needed
        //
        // If we aren't requesting O_EXCL, one needs AOP_Create
+       bool overwrite_permitted = true;
        if (!(open_flag & O_EXCL))
           {if (client && XrdOfsFS->Authorization &&
                !XrdOfsFS->Authorization->Access(client, path, AOP_Create, &Open_Env))
               { // We don't have the ability to create a file without O_EXCL.  If we have AOP_Excl_Create,
                 // then manipulate the open flags and see if we're successful with it.
                 AUTHORIZE(client,&Open_Env,AOP_Excl_Create,"create",path,error);
+                overwrite_permitted = false;
                 open_flag |= O_EXCL;
                 open_flag &= ~O_TRUNC;
               }
           }
        // If we are in O_EXCL mode, then we accept either AOP_Excl_Create or AOP_Create
        else if (client && XrdOfsFS->Authorization &&
-            !XrdOfsFS->Authorization->Access(client, path, AOP_Excl_Create, &Open_Env))
-          {AUTHORIZE(client,&Open_Env,AOP_Create,"create",path,error);}
+            !XrdOfsFS->Authorization->Access(client, path, AOP_Create, &Open_Env))
+          {AUTHORIZE(client,&Open_Env,AOP_Excl_Create,"create",path,error);
+           // In this case, we don't have AOP_Create but we do have AOP_Excl_Create; note that
+           // overwrites are not permitted (this is later used to correct an error code).
+           overwrite_permitted = false;
+          }
 
        OOIDENTENV(client, Open_Env);
 
@@ -621,7 +627,11 @@ int XrdOfsFile::open(const char          *path,      // In
                return XrdOfsFS->fsError(error, SFS_STARTED);
               }
            if (retc != -ENOTSUP)
-              {if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(path);
+              {// If we tried to overwrite an existing file but do not have the AOP_Create
+               // privilege, then ensure we generate a 'permission denied' instead of 'exists'
+               if ((open_flag & O_EXCL) && retc == -EEXIST && !overwrite_permitted)
+                  {retc = -EACCES;}
+               if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(path);
                return XrdOfsFS->Emsg(epname, error, retc, "create", path);
               }
           } else {
