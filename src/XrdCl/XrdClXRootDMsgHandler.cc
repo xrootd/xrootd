@@ -827,8 +827,7 @@ namespace XrdCl
           log->Debug( XRootDMsg, "[%s] Wait time is too long, timing out %s",
                       pUrl.GetHostId().c_str(),
                       pRequest->GetDescription().c_str() );
-          pStatus   = Status( stError, errOperationExpired );
-          HandleResponse();
+          HandleError( Status( stError, errOperationExpired) );
         }
         return;
       }
@@ -889,14 +888,6 @@ namespace XrdCl
 
     if( pTimeoutFence.load( std::memory_order_relaxed ) )
       return 0;
-
-    if( pSidMgr && pMsgInFly && ( event == Timeout
-        || status.code == errOperationExpired
-        || status.code == errOperationInterrupted ) )
-    {
-      ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
-      pSidMgr->TimeOutSID( req->header.streamid );
-    }
 
     HandleError( status );
     return RemoveHandler;
@@ -1189,10 +1180,8 @@ namespace XrdCl
     if( pSidMgr && finalrsp )
     {
       ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
-      if( !status->IsOK() && pMsgInFly &&
-          ( status->code == errOperationExpired || status->code == errOperationInterrupted ) )
-        pSidMgr->TimeOutSID( req->header.streamid );
-      else
+      if( status->IsOK() || !pMsgInFly ||
+          !( status->code == errOperationExpired || status->code == errOperationInterrupted ) )
         pSidMgr->ReleaseSID( req->header.streamid );
     }
 
@@ -2000,6 +1989,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( status.IsOK() )
       return;
+
+    if( pSidMgr && pMsgInFly && ( 
+        status.code == errOperationExpired ||
+        status.code == errOperationInterrupted ) )
+    {
+      ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
+      pSidMgr->TimeOutSID( req->header.streamid );
+    }
 
     bool noreplicas = ( status.code == errErrorResponse &&
                         status.errNo == kXR_noReplicas );
