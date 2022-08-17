@@ -56,6 +56,8 @@ class MicroTest: public CppUnit::TestCase
       CPPUNIT_TEST( AlignedWriteTest );
       CPPUNIT_TEST( SmallWriteTest );
       CPPUNIT_TEST( BigWriteTest );
+      CPPUNIT_TEST( VectorReadTest );
+      CPPUNIT_TEST( IllegalVectorReadTest );
       CPPUNIT_TEST( AlignedWrite1MissingTest );
       CPPUNIT_TEST( AlignedWrite2MissingTest );
       CPPUNIT_TEST( AlignedWriteTestIsalCrcNoMt );
@@ -87,6 +89,35 @@ class MicroTest: public CppUnit::TestCase
     inline void AlignedWriteTestIsalCrcNoMt()
     {
       AlignedWriteTestImpl( false );
+    }
+
+    inline void VectorReadTest(){
+    	Init(true);
+
+    	AlignedWriteRaw();
+
+    	Verify();
+
+    	uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+
+    	VerifyVectorRead(seed);
+
+    	CleanUp();
+    }
+
+    inline void IllegalVectorReadTest(){
+		Init(true);
+
+		AlignedWriteRaw();
+
+		Verify();
+
+		uint32_t seed =
+				std::chrono::system_clock::now().time_since_epoch().count();
+
+		IllegalVectorRead(seed);
+
+		CleanUp();
     }
 
     inline void AlignedWrite1MissingTestImpl( bool usecrc32c )
@@ -167,6 +198,10 @@ class MicroTest: public CppUnit::TestCase
       CorruptedReadVerify();
     }
 
+    void VerifyVectorRead(uint32_t randomSeed);
+
+    void IllegalVectorRead(uint32_t randomSeed);
+
     void CleanUp();
 
     inline void ReadVerifyAll()
@@ -242,7 +277,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( MicroTest );
 
 void MicroTest::Init( bool usecrc32c )
 {
-  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, usecrc32c, !usecrc32c ) );
+  objcfg.reset( new ObjCfg( "test.txt", nbdata, nbparity, chsize, usecrc32c, true ) );
   rawdata.clear();
 
   char cwdbuff[1024];
@@ -331,14 +366,136 @@ void MicroTest::CorruptedReadVerify()
   UrlReachable( 0 );
   UrlReachable( 1 );
 
-  CorruptChunk( 0, 0 );
-  ReadVerifyAll();
-
   CorruptChunk( 0, 1 );
   ReadVerifyAll();
 
   CorruptChunk( 0, 2 );
-  Corrupted1stBlkReadVerify();
+  ReadVerifyAll();
+
+}
+
+void MicroTest::VerifyVectorRead(uint32_t seed){
+	  Reader reader( *objcfg );
+	  // open the data object
+	  XrdCl::SyncResponseHandler handler1;
+	  reader.Open( &handler1 );
+	  handler1.WaitForResponse();
+	  XrdCl::XRootDStatus *status = handler1.GetStatus();
+	  CPPUNIT_ASSERT_XRDST( *status );
+	  delete status;
+
+	  std::default_random_engine random_engine(seed);
+
+	  std::vector<std::vector<char>> buffers(5);
+	  std::vector<std::string> expected;
+	  XrdCl::ChunkList chunks;
+	  for(int i = 0; i < 5; i++){
+		  std::uniform_int_distribution<uint32_t> sizeGen(0, rawdata.size()/4);
+		  uint32_t size = sizeGen(random_engine);
+		  std::uniform_int_distribution<uint32_t> offsetGen(0, rawdata.size() - size);
+		  uint32_t offset = offsetGen(random_engine);
+
+		  buffers[i].resize(size);
+		  chunks.push_back(XrdCl::ChunkInfo(offset, size, buffers[i].data()));
+
+		  std::string resultExp( rawdata.data() + offset, size );
+		  expected.push_back(resultExp);
+	  }
+
+	  XrdCl::SyncResponseHandler h;
+	  reader.VectorRead(chunks, nullptr, &h, 0);
+	    h.WaitForResponse();
+	    status = h.GetStatus();
+	    CPPUNIT_ASSERT_XRDST( *status );
+	    delete status;
+	    for(int i = 0; i < 5; i++){
+	    	std::string result(buffers[i].data(), expected[i].size());
+	    	CPPUNIT_ASSERT( result == expected[i] );
+	    }
+
+	    XrdCl::SyncResponseHandler handler2;
+	      reader.Close( &handler2 );
+	      handler2.WaitForResponse();
+	      status = handler2.GetStatus();
+	      CPPUNIT_ASSERT_XRDST( *status );
+	      delete status;
+}
+
+void MicroTest::IllegalVectorRead(uint32_t seed){
+	Reader reader(*objcfg);
+	// open the data object
+	XrdCl::SyncResponseHandler handler1;
+	reader.Open(&handler1);
+	handler1.WaitForResponse();
+	XrdCl::XRootDStatus *status = handler1.GetStatus();
+	CPPUNIT_ASSERT_XRDST(*status);
+	delete status;
+
+	std::default_random_engine random_engine(seed);
+
+	std::vector<std::vector<char>> buffers(5);
+	XrdCl::ChunkList chunks;
+	for (int i = 0; i < 5; i++)
+	{
+		std::uniform_int_distribution<uint32_t> sizeGen(1, rawdata.size() / 4);
+		uint32_t size = sizeGen(random_engine);
+		std::uniform_int_distribution<uint32_t> offsetGen(0,
+				rawdata.size() - size);
+		uint32_t offset = offsetGen(random_engine);
+		if (i == 0)
+			offset = rawdata.size() - size / 2;
+
+		buffers[i].resize(size);
+
+		chunks.push_back(XrdCl::ChunkInfo(offset, size, buffers[i].data()));
+
+	}
+
+	XrdCl::SyncResponseHandler h;
+	reader.VectorRead(chunks, nullptr, &h, 0);
+	h.WaitForResponse();
+	status = h.GetStatus();
+	// the response should be negative since one of the reads was over the file end
+	if (status->IsOK())
+	{
+		CPPUNIT_ASSERT(false);
+	}
+	delete status;
+
+	buffers.clear();
+	buffers.resize(1025);
+	chunks.clear();
+	for (int i = 0; i < 1025; i++)
+	{
+		std::uniform_int_distribution<uint32_t> sizeGen(1, rawdata.size() / 4);
+		uint32_t size = sizeGen(random_engine);
+		std::uniform_int_distribution<uint32_t> offsetGen(0,
+				rawdata.size() - size);
+		uint32_t offset = offsetGen(random_engine);
+
+		buffers[i].resize(size);
+
+		chunks.push_back(XrdCl::ChunkInfo(offset, size, buffers[i].data()));
+
+	}
+
+	XrdCl::SyncResponseHandler h2;
+	reader.VectorRead(chunks, nullptr, &h2, 0);
+	h2.WaitForResponse();
+	status = h2.GetStatus();
+	// the response should be negative since we requested too many reads
+	if (status->IsOK())
+	{
+		CPPUNIT_ASSERT(false);
+	}
+	delete status;
+
+	XrdCl::SyncResponseHandler handler2;
+	reader.Close(&handler2);
+	handler2.WaitForResponse();
+	status = handler2.GetStatus();
+	CPPUNIT_ASSERT_XRDST(*status);
+	delete status;
 }
 
 void MicroTest::ReadVerify( uint32_t rdsize, uint64_t maxrd )
