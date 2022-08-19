@@ -1578,7 +1578,7 @@ int XrdPosixXrootd::EcStat(const char *path, struct stat *buf, XrdPosixAdmin *ad
            {
                std::stringstream sstream0(xattrvals[0].value);
                sstream0 >> buf->st_mtime;
-               std::stringstream sstream1(xattrvals[0].value);
+               std::stringstream sstream1(xattrvals[1].value);
                sstream1 >> buf->st_size;
                buf->st_blocks = (buf->st_size + 512)/512;
            }
