@@ -651,7 +651,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadR
    if (m_in_shutdown || io->m_in_detach)
    {
       m_state_cond.UnLock();
-      return m_in_shutdown ? -ENOENT : -EBADFD;
+      return m_in_shutdown ? -ENOENT : -EBADF;
    }
 
    // Shortcut -- file is fully downloaded.
@@ -680,7 +680,7 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqRH *rh)
    if (m_in_shutdown || io->m_in_detach)
    {
       m_state_cond.UnLock();
-      return m_in_shutdown ? -ENOENT : -EBADFD;
+      return m_in_shutdown ? -ENOENT : -EBADF;
    }
 
    // Shortcut -- file is fully downloaded.
