@@ -95,7 +95,7 @@ else()
     CODE
     "EXECUTE_PROCESS(
       COMMAND /usr/bin/env ${XROOTD_PYBUILD_ENV} ${PYTHON_EXECUTABLE} -m pip install \
-                ${PIP_OPTIONS} \
+                --ignore-installed ${PIP_OPTIONS} \
                 ${CMAKE_CURRENT_BINARY_DIR}
       )"
   )
