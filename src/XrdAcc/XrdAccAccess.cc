@@ -300,8 +300,10 @@ int XrdAccAccess::Audit(const int              accok,
                                     "read",            // 8
                                     "readdir",         // 9
                                     "rename",          // 10
-                                    "stat",            // 10
-                                    "update"           // 12
+                                    "stat",            // 11
+                                    "update",          // 12
+                                    "excl_create",     // 13
+                                    "excl_insert"      // 14
                              };
    const char *opname = (oper > AOP_LastOp ? "???" : Opername[oper]);
    std::string username;
@@ -427,8 +429,12 @@ int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
                                 XrdAccPriv_Readdir,              // 9
                                 XrdAccPriv_Rename,               // 10
                                 XrdAccPriv_Lookup,               // 11
-                                XrdAccPriv_Update                // 12
+                                XrdAccPriv_Update,               // 12
+                                (XrdAccPrivs)0xffff,             // 13
+                                (XrdAccPrivs)0xffff              // 14
                                };
+   // Note AOP_Excl* does not have a corresponding XrdAccPrivs; this is on
+   // purpose as the Excl* privilege is not modelled within the AuditDB framework.
    if (oper < 0 || oper > AOP_LastOp) return 0;
    return (int)(need[oper] & priv) == need[oper];
 }
