@@ -776,10 +776,11 @@ private:
         token_subject = std::string(value);
         free(value);
 
+        std::string tmp_username;
         if (config.m_map_subject) {
-            username = token_subject;
+            tmp_username = token_subject;
         } else {
-            username = config.m_default_user;
+            tmp_username = config.m_default_user;
         }
 
         for (auto rule : config.m_map_rules) {
@@ -856,7 +857,7 @@ private:
 
         cache_expiry = expiry;
         rules = std::move(xrd_rules);
-        username = std::move(username);
+        username = std::move(tmp_username);
         issuer = std::move(token_issuer);
         groups = std::move(groups_parsed);
 
