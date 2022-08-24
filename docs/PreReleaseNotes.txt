@@ -46,6 +46,8 @@ Prerelease Notes
   **Commits: 963ac979, 446b404e
 
 + **Major bug fixes**
+  **[Server]** Adjust for self-move behaviour changes in some compilers.
+  **Commits: 07f4217
   **[Server]** Reset the buffer pointer after a non-aligned pgRead request
   **Commits: 3ee3b9e
   **[Server]** Return correct pgread offset for sync reads.
