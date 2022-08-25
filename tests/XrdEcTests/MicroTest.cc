@@ -144,7 +144,7 @@ class MicroTest: public CppUnit::TestCase
     	InitRepair(usecrc32c);
     	uint64_t seed2 = std::chrono::system_clock::now().time_since_epoch().count();
 
-    	XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::XRootDMsg, "Random Seed FileGen: %d, Random Seed Corruption: %d" , seed, seed2);
+    	XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::XRootDMsg, "Random Seed FileGen: %d, Random Seed Corruption: %d, Random Seed ObjCfg: %d" , seed, seed2, objcfg->seed);
 
 		// run the test
 

@@ -17,6 +17,7 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
 
 namespace XrdEc
 {
@@ -46,6 +47,7 @@ namespace XrdEc
         nomtfile( nomtfile )
       {
         digest = usecrc32c ? crc32c : isal_crc32;
+        seed = std::chrono::system_clock::now().time_since_epoch().count();
       }
 
       ObjCfg( const ObjCfg &objcfg ) : obj( objcfg.obj ),
@@ -59,7 +61,8 @@ namespace XrdEc
                                        plgr( objcfg.plgr ),
 									   plgrReplace(objcfg.plgrReplace),
                                        digest( objcfg.digest ),
-                                       nomtfile( objcfg.nomtfile )
+                                       nomtfile( objcfg.nomtfile ),
+									   seed( objcfg.seed )
       {
       }
 
@@ -105,6 +108,8 @@ namespace XrdEc
       uint32_t (*digest)(uint32_t, void const*, size_t);
 
       bool nomtfile;
+
+      uint64_t seed; // the seed used for e.g. server shuffling, default set to current time
   };
 }
 
