@@ -472,7 +472,7 @@ namespace XrdCl
           const void  *buffer  = std::get<BufferArg>( this->args ).Get();
           uint16_t     timeout = pipelineTimeout < this->timeout ?
                                 pipelineTimeout : this->timeout;
-          return this->zip->WriteFileInto( fn, offset, size, crc32, buffer, handler, timeout );
+          return this->zip->WriteIntoFile( fn, offset, size, crc32, buffer, handler, timeout );
         }
     };
 

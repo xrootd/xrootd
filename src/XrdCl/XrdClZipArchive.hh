@@ -178,7 +178,7 @@ namespace XrdCl
       //! @param timeout : operation timeout
       //! @return        : the status of the operation
       //-----------------------------------------------------------------------
-      XRootDStatus WriteFileInto( const std::string &fn,
+      XRootDStatus WriteIntoFile( const std::string &fn,
     		  	  	  	  	  uint64_t           offset,
 	                          uint32_t           size,
 							  uint32_t 			chksum,

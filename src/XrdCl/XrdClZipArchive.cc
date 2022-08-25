@@ -701,7 +701,7 @@ namespace XrdCl
   /*
    * Writes a buffer into the file at an offset. Not tested with compressed archives.
    */
-  XRootDStatus ZipArchive::WriteFileInto(const std::string &fn, uint64_t relativeOffset,
+  XRootDStatus ZipArchive::WriteIntoFile(const std::string &fn, uint64_t relativeOffset,
   		uint32_t size, uint32_t chksum, const void *usrbuff, ResponseHandler *handler,
   		uint16_t timeout) {
 	  if (openstage != ZipArchive::Done || !archive.IsOpen())
