@@ -50,7 +50,6 @@
 #include <numeric>
 #include <tuple>
 #include <fstream>
-#include <iostream>
 
 namespace XrdEc {
 
