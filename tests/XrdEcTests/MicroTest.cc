@@ -233,6 +233,10 @@ class MicroTest: public CppUnit::TestCase
     	AlignedRepairTestImpl(true, 4, true, true);
     }
 
+    /*
+     * Should work with non-local files. Check TryOpen for the kXR code that indicates
+     * that the file is locked by another operation.
+     */
     inline void RepairBlockedTest(){
     	AlignedRepairTestImpl(true, 5, false, true);
     }
