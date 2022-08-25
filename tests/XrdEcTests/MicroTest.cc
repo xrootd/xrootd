@@ -361,9 +361,6 @@ class MicroTest: public CppUnit::TestCase
     void UrlNotReachable( size_t index );
     void UrlReachable( size_t index );
 
-
-
-
   private:
 
     void AlignedWriteRaw();
@@ -378,8 +375,6 @@ class MicroTest: public CppUnit::TestCase
       const char *end   = begin + size;
       std::copy( begin, end, std::back_inserter( rawdata ) );
     }
-
-
 
     std::string datadir;
     std::unique_ptr<ObjCfg> objcfg;

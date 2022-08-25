@@ -772,8 +772,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       uint16_t timeout;
     };
-
-
 }
 
 #endif // __XRD_CL_OPERATIONS_HH__
