@@ -295,7 +295,7 @@ bool RepairTool::error_correction( std::shared_ptr<block_t> &self, RepairTool *w
     {
       size_t strpid = i++;
       if( self->state[strpid] != block_t::Empty ) continue;
-      writer->Read( self->blkid, strpid, self->stripes[strpid],
+      self->reader.Read( self->blkid, strpid, self->stripes[strpid],
                          RepairTool::update_callback( self, writer, strpid, timeout ) ,timeout);
       self->state[strpid] = block_t::Loading;
       ++loadingcnt;
