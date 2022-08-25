@@ -35,7 +35,6 @@ if( BUILD_XRDEC )
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcUtilities.cc
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcStrmWriter.cc
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcReader.cc
-       ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcRepairTool.cc
        XrdClEcHandler.cc
   )
   set( ISAL_LIB isal )

@@ -53,7 +53,10 @@ class MicroTest;
 
 namespace XrdEc
 {
-
+  //---------------------------------------------------------------------------
+  // Forward declaration for the internal cache
+  //---------------------------------------------------------------------------
+  struct block_t;
   //---------------------------------------------------------------------------
   // Buffer for a single chunk of data
   //---------------------------------------------------------------------------
@@ -62,12 +65,6 @@ namespace XrdEc
   // Read callback, to be called with status and number of bytes read
   //---------------------------------------------------------------------------
   typedef std::function<void( const XrdCl::XRootDStatus&, uint32_t )> callback_t;
-
-  //---------------------------------------------------------------------------
-  // Forward declaration for the internal cache
-  //---------------------------------------------------------------------------
-  struct block_t;
-
 
   //---------------------------------------------------------------------------
   // Reader object for reading erasure coded and striped data
@@ -151,7 +148,7 @@ namespace XrdEc
       //! @param cb      : callback
       //! @param timeout : operation timeout
       //-----------------------------------------------------------------------
-      void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout = 0);
+      void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout = 0 );
 
       //-----------------------------------------------------------------------
       //! Read metadata for the object
@@ -198,7 +195,6 @@ namespace XrdEc
       typedef std::unordered_map<std::string, buffer_t> metadata_t;
       typedef std::unordered_map<std::string, std::string> urlmap_t;
       typedef std::unordered_set<std::string> missing_t;
-
 
       ObjCfg                   &objcfg;
       dataarchs_t               dataarchs; //> map URL to ZipArchive object

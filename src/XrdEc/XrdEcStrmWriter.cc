@@ -137,9 +137,7 @@ namespace XrdEc
     //-------------------------------------------------------------------------
     // Shuffle the servers so every block has a different placement
     //-------------------------------------------------------------------------
-    // make the shuffling reproducable!
-    static std::default_random_engine random_engine( 100 );
-
+    static std::default_random_engine random_engine( std::chrono::system_clock::now().time_since_epoch().count() );
     std::shared_ptr<sync_queue<size_t>> servers = std::make_shared<sync_queue<size_t>>();
     std::vector<size_t> zipid( dataarchs.size() );
     std::iota( zipid.begin(), zipid.end(), 0 );

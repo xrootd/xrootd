@@ -28,8 +28,8 @@
 #include "XrdEc/XrdEcObjCfg.hh"
 #include "XrdEc/XrdEcThreadPool.hh"
 
-#include "XrdZip/XrdZipCDFH.hh"
 #include "XrdZip/XrdZipLFH.hh"
+#include "XrdZip/XrdZipCDFH.hh"
 #include "XrdZip/XrdZipUtils.hh"
 
 #include "XrdCl/XrdClMessageUtils.hh"
@@ -41,8 +41,6 @@
 #include "XrdCl/XrdClZipOperations.hh"
 #include "XrdCl/XrdClFileOperations.hh"
 #include "XrdCl/XrdClFinalOperation.hh"
-#include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
 
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -51,9 +49,7 @@
 #include <iterator>
 #include <numeric>
 #include <tuple>
-
 #include <set>
-
 
 namespace XrdEc
 {
@@ -71,7 +67,7 @@ namespace XrdEc
   //---------------------------------------------------------------------------
   void Reader::Open( XrdCl::ResponseHandler *handler, uint16_t timeout )
   {
-	  auto log = XrdCl::DefaultEnv::GetLog();
+	auto log = XrdCl::DefaultEnv::GetLog();
     const size_t size = objcfg.plgr.size();
     std::vector<XrdCl::Pipeline> opens; opens.reserve( size );
     std::vector<XrdCl::Pipeline> healthRead; healthRead.reserve(size);
@@ -80,7 +76,7 @@ namespace XrdEc
       // generate the URL
       std::string url = objcfg.GetDataUrl( i );
       archiveIndices.emplace(url, i);
-
+      // create the file object
       dataarchs.emplace( url, std::make_shared<XrdCl::ZipArchive>(
           Config::Instance().enable_plugins ) );
       // open the archive
@@ -93,8 +89,6 @@ namespace XrdEc
 
       healthRead.emplace_back(CheckHealthExists(i));
     }
-
-
 
     auto pipehndl = [=]( const XrdCl::XRootDStatus &st )
                     { // set the central directories in ZIP archives (if we use metadata files)
@@ -141,7 +135,7 @@ namespace XrdEc
                      uint32_t                length,
                      void                   *buffer,
                      XrdCl::ResponseHandler *handler,
-                     uint16_t                timeout)
+                     uint16_t                timeout )
   {
     if( objcfg.nomtfile )
     {
@@ -187,7 +181,7 @@ namespace XrdEc
       lck.unlock();
       auto callback = [blk, rdctx, rdsize, rdmtx]( const XrdCl::XRootDStatus &st, uint32_t nbrd )
       {
-    	  std::unique_lock<std::mutex> lck( *rdmtx );
+        std::unique_lock<std::mutex> lck( *rdmtx );
         //---------------------------------------------------------------------
         // update number of bytes left to be read (bytes requested not actually
         // read)
@@ -222,7 +216,7 @@ namespace XrdEc
       //-------------------------------------------------------------------
       // Read data from a stripe
       //-------------------------------------------------------------------
-      block_t::read( blk, strpid, rdoff, rdsize, usrbuff, callback, timeout);
+      block_t::read( blk, strpid, rdoff, rdsize, usrbuff, callback, timeout );
       //-------------------------------------------------------------------
       // Update absolute offset, read length, and user buffer
       //-------------------------------------------------------------------
@@ -271,8 +265,8 @@ namespace XrdEc
     auto itr = urlmap.find( fn );
     if( itr == urlmap.end() )
     {
-    	auto st = XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
-    	ThreadPool::Instance().Execute( cb, st, 0 );
+      auto st = XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotFound );
+      ThreadPool::Instance().Execute( cb, st, 0 );
       return;
     }
     // get the URL of the ZIP archive with the respective data
@@ -284,7 +278,7 @@ namespace XrdEc
     auto st = zipptr->Stat( fn, info );
     if( !st.IsOK() )
     {
-    	ThreadPool::Instance().Execute( cb, st, 0 );
+      ThreadPool::Instance().Execute( cb, st, 0 );
       return;
     }
     uint32_t rdsize = info->GetSize();
@@ -418,7 +412,7 @@ namespace XrdEc
             return;
           }
           try{
-          filesize = std::stoull( size );
+          	filesize = std::stoull( size );
           }
           catch(std::invalid_argument &){
         	  if( index + 1 < objcfg.plgr.size() )
@@ -450,6 +444,7 @@ namespace XrdEc
 						if (damaged > 0)
 							this->dataarchs[url]->openstage = XrdCl::ZipArchive::Error;
 					} catch (std::invalid_argument&) {
+						XrdCl::DefaultEnv::GetLog()->Error(XrdCl::XRootDMsg, "Read non-integer from xrdec.corrupted XAttr");
 						return;
 					}
 				}
@@ -489,8 +484,8 @@ namespace XrdEc
     	  std::string url = objcfg.GetDataUrl( std::stoull( lfh.filename ) );
     	  metadata.emplace( url, buffer_t( buffer, buffer + lfh.uncompressedSize ) );
       }
-      catch(const std::invalid_argument* e){
-
+      catch(const std::invalid_argument &){
+		  XrdCl::DefaultEnv::GetLog()->Error(XrdCl::XRootDMsg, "Found invalid filename in lfh");
       }
       buffer += lfh.uncompressedSize;
       length -= lfh.uncompressedSize;
@@ -528,8 +523,11 @@ namespace XrdEc
     // if we don't have a metadata file and the chunk exceeds last chunk
     // also return true
     try{
-    if( objcfg.nomtfile && fntoblk( fn ) <= lstblk ) return true;}
-    catch(...){}
+    	if( objcfg.nomtfile && fntoblk( fn ) <= lstblk ) return true;
+    	}
+    catch(std::invalid_argument &){
+    	XrdCl::DefaultEnv::GetLog()->Error(XrdCl::XRootDMsg, "File name couldn't be parsed to block id");
+    }
     // otherwise return false
     return false;
   }

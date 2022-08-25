@@ -256,8 +256,11 @@ namespace XrdEc
     size_t len = end - begin;
     return std::stoul( fn.substr( begin,  len ) );
 	  }
-	  catch(...){
+	  catch(std::invalid_argument &e){
 		  throw std::invalid_argument("File name doesn't fit pattern");
+	  }
+	  catch(std::out_of_range &e){
+	  	  throw std::out_of_range("File name results in out of range block id");
 	  }
   }
 }

@@ -13,7 +13,6 @@
 #include "XrdCl/XrdClOperationHandlers.hh"
 #include "XrdCl/XrdClCtx.hh"
 
-
 namespace XrdCl
 {
 
@@ -287,7 +286,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {
-    	  std::string &fn = std::get<FileNameArg>( this->args ).Get();
+        std::string &fn = std::get<FileNameArg>( this->args ).Get();
         uint64_t     offset  = std::get<OffsetArg>( this->args ).Get();
         uint32_t     size    = std::get<SizeArg>( this->args ).Get();
         void        *buffer  = std::get<BufferArg>( this->args ).Get();
@@ -426,6 +425,7 @@ namespace XrdCl
     return AppendFileImpl<false>( std::move( zip ), std::move( fn ), std::move( crc32 ),
                                   std::move( size ), std::move( buffer ) ).Timeout( timeout );
   }
+
 
   //----------------------------------------------------------------------------
   //! CloseFile operation (@see ZipOperation)
