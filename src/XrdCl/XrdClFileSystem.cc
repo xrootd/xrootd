@@ -1752,62 +1752,79 @@ namespace XrdCl
         return XRootDStatus( stError, errNotFound );
       }
 
-      //------------------------------------------------------------------------
-      // Ask each server for a directory list
-      //------------------------------------------------------------------------
-      flags &= ~DirListFlags::Locate;
-      FileSystem    *fs;
-      DirectoryList *currentResp  = 0;
-      uint32_t       errors       = 0;
-      uint32_t       numLocations = locations->GetSize();
-      bool           partial      = st.code == suPartial ? true : false;
-
-      response = new DirectoryList();
-      response->SetParentName( path );
-
-      for( uint32_t i = 0; i < locations->GetSize(); ++i )
+      // Check if destination is a data server
+      bool isserver = false;
+      AnyObject obj;
+      st = DefaultEnv::GetPostMaster()->QueryTransport( *pImpl->fsdata->pUrl, XRootDQuery::ServerFlags, obj );
+      if( st.IsOK() )
       {
-        URL locationURL( locations->At(i).GetAddress() );
-        // make sure the original protocol is preserved (root vs roots)
-        locationURL.SetProtocol( pImpl->fsdata->pUrl->GetProtocol() );
-        fs = new FileSystem( locationURL );
-        st = fs->DirList( path, flags, currentResp, timeout );
-        if( !st.IsOK() )
+        int *ptr = 0;
+        obj.Get( ptr );
+        isserver = ( *ptr & kXR_isServer );
+        delete ptr;
+      }
+
+      if( !isserver )
+      {
+        //------------------------------------------------------------------------
+        // Ask each server for a directory list
+        //------------------------------------------------------------------------
+        flags &= ~DirListFlags::Locate;
+        FileSystem    *fs;
+        DirectoryList *currentResp  = 0;
+        uint32_t       errors       = 0;
+        uint32_t       numLocations = locations->GetSize();
+        bool           partial      = st.code == suPartial ? true : false;
+
+        response = new DirectoryList();
+        response->SetParentName( path );
+
+        for( uint32_t i = 0; i < locations->GetSize(); ++i )
         {
-          ++errors;
+          URL locationURL( locations->At(i).GetAddress() );
+          // make sure the original protocol is preserved (root vs roots)
+          locationURL.SetProtocol( pImpl->fsdata->pUrl->GetProtocol() );
+          fs = new FileSystem( locationURL );
+          st = fs->DirList( path, flags, currentResp, timeout );
+          if( !st.IsOK() )
+          {
+            ++errors;
+            delete fs;
+            continue;
+          }
+
+          if( st.code == suPartial )
+            partial = true;
+
+          DirectoryList::Iterator it;
+
+          for( it = currentResp->Begin(); it != currentResp->End(); ++it )
+          {
+            response->Add( *it );
+            *it = 0;
+          }
+
           delete fs;
-          continue;
+          delete currentResp;
+          fs          = 0;
+          currentResp = 0;
         }
+        delete locations;
 
-        if( st.code == suPartial )
-          partial = true;
+        if( flags & DirListFlags::Merge )
+          MergeDirListHandler::Merge( response );
 
-        DirectoryList::Iterator it;
-
-        for( it = currentResp->Begin(); it != currentResp->End(); ++it )
+        if( errors || partial )
         {
-          response->Add( *it );
-          *it = 0;
+          if( errors == numLocations )
+            return st;
+          return XRootDStatus( stOK, suPartial );
         }
-
-        delete fs;
-        delete currentResp;
-        fs          = 0;
-        currentResp = 0;
+        return XRootDStatus();
       }
-      delete locations;
-
-      if( flags & DirListFlags::Merge )
-        MergeDirListHandler::Merge( response );
-
-      if( errors || partial )
-      {
-        if( errors == numLocations )
-          return st;
-        return XRootDStatus( stOK, suPartial );
-      }
-      return XRootDStatus();
-    };
+      else
+        delete locations;
+    }
 
     //--------------------------------------------------------------------------
     // We just ask the current server
