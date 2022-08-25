@@ -56,19 +56,55 @@ class RepairTool {
 
 public:
 	RepairTool(ObjCfg &objcfg, uint16_t _bufferLimit = 512) :
-			objcfg(objcfg), reader(objcfg), lstblk(0), filesize(0)
-			{
+			objcfg(objcfg), reader(objcfg), lstblk(0), filesize(0),
+			checkAfterRepair(false){
+		currentBlockChecked.store(0);
 		currentReplaceIndex = 0;
+		chunksRepaired.store(0);
+		repairFailed = false;
+		finishedRepair = false;
+		chunkRepairsWritten.store(0);
 		bufferLimit = _bufferLimit;
 		currentBuffers = 0;
 		st = nullptr;
 	}
 	virtual ~RepairTool() {
 	}
+	/*
+	 * Repairs the file specified in the objcfg by overwriting or writing to a new host
+	 * Specify replacementPlgr in the objcfg!
+	 */
+	void RepairFile(bool checkAgainAfterRepair, XrdCl::ResponseHandler *handler, uint16_t timeout = 0);
+	/*
+	 * Checks the file specified in the objcfg
+	 * Specify replacementPlgr in the objcfg even though they won't be written to.
+	 */
 	void CheckFile(XrdCl::ResponseHandler *handler, uint16_t timeout = 0);
-
-
+	/*
+	 * The number of blocks that have read all of their stripes but possibly not written to disk yet
+	 */
+	std::atomic<uint32_t> currentBlockChecked;
+	/*
+	 * amount of chunks that have to be overwritten or rewritten
+	 */
+	std::atomic<uint64_t> chunksRepaired;
+	/*
+	 * number of chunk writes that have terminated successfully.
+	 */
+	std::atomic<uint64_t> chunkRepairsWritten;
+	/*
+	 * Did the repair fail at some point (e.g. non restorable stripe)
+	 */
+	bool repairFailed;
 private:
+
+	/**
+	 * Initializes read/write Dataarchs, opens them and checks whether any need to be replaced.
+	 * @param handler
+	 * @param timeout
+	 */
+	void OpenInUpdateMode(XrdCl::ResponseHandler *handler,
+				uint16_t timeout = 0);
 	/**
 	 * Opens read Dataarchs and fills the redirection map, but doesn't create writeDataarchs yet.
 	 * @param handler
@@ -117,6 +153,16 @@ private:
 	 */
 	void ReplaceURL(const std::string &url);
 
+    //-----------------------------------------------------------------------
+    //! Checks the block at currentBlockIndex and executes error correction
+    //-----------------------------------------------------------------------
+	void CheckBlock(uint16_t timeout);
+	/**
+	 * Checks all stripes of the current block. Returns false if the block is finished (in positive or negative way).
+	 * @param self
+	 * @param writer
+	 * @return
+	 */
 	static bool error_correction( std::shared_ptr<block_t> &self, RepairTool *writer, uint16_t timeout );
     /**
      * Initiates the actual read from disk, calls update_callback afterwards
@@ -127,7 +173,15 @@ private:
      * @param timeout
      * @param exactControl
      */
-	void Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout = 0);
+	void Read( size_t blknb, size_t strpnb, std::shared_ptr<buffer_t> buffer, callback_t cb, uint16_t timeout = 0);
+	/**
+	 * Sets the state of the stripe we read to okay or missing and calls error correction again.
+	 * @param self
+	 * @param tool
+	 * @param strpid
+	 * @return
+	 */
+	static callback_t update_callback(std::shared_ptr<block_t> &self, RepairTool *tool, size_t strpid, uint16_t timeout);
 	/**
 	 * Used for CheckFile: If the read was unsuccessful due to corrupted data (checksum violation) message the user.
 	 * @param self
@@ -136,6 +190,13 @@ private:
 	 * @return
 	 */
 	static callback_t read_callback(std::shared_ptr<ThreadEndSemaphore> sem, size_t blkid, size_t strpid, RepairTool *tool);
+	/**
+	 * Writes the content of the stripe to its corresponding writeDataarch by writing into or appending.
+	 * @param blk
+	 * @param strpid
+	 * @return
+	 */
+	XrdCl::XRootDStatus WriteChunk(std::shared_ptr<block_t> blk, size_t strpid, uint16_t timeout);
 
 	/**
 	 * Closes all archives in writeDataarchs and sets their corrupted flag to 0.
@@ -181,7 +242,32 @@ private:
 	std::mutex urlMutex;
 
 	XrdCl::XRootDStatus* st;
+
+	/*
+	 * The mutex for access to the finishedRepair variable and the condition variable
+	 */
+	std::mutex finishedRepairMutex;
+	/*
+	 * Locked by finishedRepirMutex and waits until finishedRepair and written == demanded and blocksChecked == totalBlocks
+	 */
+	std::condition_variable repairVar;
+	/*
+	 * Indicates that all block repair have been initialized
+	 */
+	bool finishedRepair;
+
+	/*
+	 * If true, check the whole file again after repair to confirm everything was written successfully and correctly
+	 */
+	bool checkAfterRepair;
+
+	/*
+	 * Limits the number of buffers for the check file function
+	 */
 	uint16_t bufferLimit;
+	/*
+	 * current amount of buffers in checkFile
+	 */
 	uint16_t currentBuffers;
 	std::mutex bufferCountMutex;
 	std::condition_variable waitBuffers;

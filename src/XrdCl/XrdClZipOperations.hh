@@ -426,6 +426,68 @@ namespace XrdCl
                                   std::move( size ), std::move( buffer ) ).Timeout( timeout );
   }
 
+  //----------------------------------------------------------------------------
+    //! WriteIntoFile operation (@see ZipOperation)
+    //----------------------------------------------------------------------------
+    template<bool HasHndl>
+    class WriteIntoFileImpl: public ZipOperation<WriteIntoFileImpl, HasHndl, Resp<void>,
+        Arg<std::string>, Arg<uint64_t>, Arg<uint32_t>, Arg<uint32_t>, Arg<const void*>>
+    {
+      public:
+
+        //------------------------------------------------------------------------
+        //! Inherit constructors from FileOperation (@see FileOperation)
+        //------------------------------------------------------------------------
+        using ZipOperation<WriteIntoFileImpl, HasHndl, Resp<void>, Arg<std::string>,
+            Arg<uint64_t>,Arg<uint32_t>, Arg<uint32_t>, Arg<const void*>>::ZipOperation;
+
+        //------------------------------------------------------------------------
+        //! Argument indexes in the args tuple
+        //------------------------------------------------------------------------
+        enum { FnArg, OffsetArg, SizeArg, CrcArg, BufferArg };
+
+        //------------------------------------------------------------------------
+        //! @return : name of the operation (@see Operation)
+        //------------------------------------------------------------------------
+        std::string ToString()
+        {
+          return "WriteIntoFile";
+        }
+
+      protected:
+
+        //------------------------------------------------------------------------
+        //! RunImpl operation (@see Operation)
+        //!
+        //! @param params :  container with parameters forwarded from
+        //!                  previous operation
+        //! @return       :  status of the operation
+        //------------------------------------------------------------------------
+        XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
+        {
+          std::string &fn      = std::get<FnArg>( this->args ).Get();
+          uint64_t 		offset = std::get<OffsetArg>(this->args).Get();
+          uint32_t     crc32   = std::get<CrcArg>( this->args ).Get();
+          uint32_t     size    = std::get<SizeArg>( this->args ).Get();
+          const void  *buffer  = std::get<BufferArg>( this->args ).Get();
+          uint16_t     timeout = pipelineTimeout < this->timeout ?
+                                pipelineTimeout : this->timeout;
+          return this->zip->WriteFileInto( fn, offset, size, crc32, buffer, handler, timeout );
+        }
+    };
+
+    //----------------------------------------------------------------------------
+    //! Factory for creating ArchiveReadImpl objects
+    //----------------------------------------------------------------------------
+    inline WriteIntoFileImpl<false> WriteIntoFile( Ctx<ZipArchive> zip, Arg<std::string> fn,
+    										Arg<uint64_t> offset,
+                                             Arg<uint32_t> size, Arg<uint32_t> crc32,
+                                             Arg<const void*> buffer, uint16_t timeout = 0 )
+    {
+      return WriteIntoFileImpl<false>( std::move( zip ), std::move( fn ), std::move(offset), std::move( size ),
+                                    std::move( crc32 ), std::move( buffer ) ).Timeout( timeout );
+    }
+
 
   //----------------------------------------------------------------------------
   //! CloseFile operation (@see ZipOperation)

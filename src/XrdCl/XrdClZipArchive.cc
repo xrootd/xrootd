@@ -698,6 +698,96 @@ namespace XrdCl
     return ReadFromImpl<ChunkInfo>( *this, fn, offset, size, buffer, handler, timeout );
   }
 
+  /*
+   * Writes a buffer into the file at an offset. Not tested with compressed archives.
+   */
+  XRootDStatus ZipArchive::WriteFileInto(const std::string &fn, uint64_t relativeOffset,
+  		uint32_t size, uint32_t chksum, const void *usrbuff, ResponseHandler *handler,
+  		uint16_t timeout) {
+	  if (openstage != ZipArchive::Done || !archive.IsOpen())
+	  		return XRootDStatus(stError, errInvalidOp);
+
+	  	Log *log = DefaultEnv::GetLog();
+
+	  	auto cditr = cdmap.find(fn);
+	  	if (cditr == cdmap.end())
+	  		return XRootDStatus(stError, errNotFound, errNotFound,
+	  				"File not found.");
+
+	  	CDFH *cdfh = cdvec[cditr->second].get();
+
+	  	// check if the file is compressed, for now we only support uncompressed and inflate/deflate compression
+	  	if (cdfh->compressionMethod != 0 && cdfh->compressionMethod != Z_DEFLATED)
+	  		return XRootDStatus(stError, errNotSupported, 0,
+	  				"The compression algorithm is not supported!");
+
+	  	uint64_t offset = CDFH::GetOffset(*cdfh);
+
+	  	LFH lfh(fn, chksum, size, time(0));
+
+
+	  	std::shared_ptr<buffer_t> lfhbuf;
+	  	uint32_t lfhlen = lfh.lfhSize;
+	  	lfhbuf = std::make_shared<buffer_t>();
+	  	lfhbuf->reserve(size+lfhlen);
+	  	lfh.Serialize(*lfhbuf);
+	  	auto usrchars = (char*)usrbuff;
+	  	for(uint32_t u = 0; u < size; u++){
+	  		lfhbuf->push_back(usrchars[u]);
+	  	}
+	  	size += lfhlen;
+
+
+
+	  	// if it is a compressed file use ZIP cache to read from the file
+	  	if (cdfh->compressionMethod == Z_DEFLATED) {
+
+	  		// issue remote write
+	  		if (relativeOffset > cdfh->compressedSize)
+	  			return XRootDStatus(); // there's nothing to do,
+	  								   // we already have all the data locally
+	  		uint32_t wrsize = size;
+	  		// check if this is the last read (we reached the end of
+	  		// file from user perspective)
+	  		if (relativeOffset + size >= cdfh->uncompressedSize) {
+	  			// if yes, make sure we readout all the compressed data
+	  			// Note: In a patological case the compressed size may
+	  			//       be greater than the uncompressed size
+	  			wrsize =
+	  					cdfh->compressedSize > relativeOffset ?
+	  							cdfh->compressedSize - relativeOffset : 0;
+	  		}
+	  		// make sure we are not reading past the end of
+	  		// compressed data
+	  		if (relativeOffset + size > cdfh->compressedSize)
+	  			wrsize = cdfh->compressedSize - relativeOffset;
+
+	  		// now write the data ...
+	  		Pipeline p =
+	  				XrdCl::Write(archive, offset, wrsize, usrbuff)
+	  						>> [=](XRootDStatus &st) {
+	  							Log *log = DefaultEnv::GetLog();
+	  							log->Dump(ZipMsg,
+	  									"Wrote bytes to remote data.");
+	  						};
+	  		Async(std::move(p), timeout);
+
+	  		return XRootDStatus();
+	  	}
+
+	  	Pipeline p = XrdCl::Write(archive, offset, size, lfhbuf->data())
+	  			>> [=](XRootDStatus &st) mutable {
+	  				log->Dump( ZipMsg, "Wrote bytes to remote data");
+	  				if (handler) {
+	  					XRootDStatus *status = ZipArchive::make_status(st);
+	  					handler->HandleResponse(status, nullptr);
+	  				}
+	  				lfhbuf.reset();
+	  			};
+	  	Async(std::move(p), timeout);
+	  	return XRootDStatus();
+  }
+
   //---------------------------------------------------------------------------
   // PgRead data from a given file
   //---------------------------------------------------------------------------

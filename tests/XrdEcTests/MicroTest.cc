@@ -178,6 +178,17 @@ class MicroTest: public CppUnit::TestCase
 
     	auto oldPlgr = std::vector<std::string>(objcfg->plgr);
 
+    	XrdCl::SyncResponseHandler handler2;
+		XrdEc::RepairTool r(*objcfg);
+		r.RepairFile(false, &handler2);
+		handler2.WaitForResponse();
+		if(!repairFails){
+			if(mustHaveErrors)
+				CPPUNIT_ASSERT(r.chunksRepaired > 0);
+			Verify(false);
+		}
+		else
+			CPPUNIT_ASSERT(r.repairFailed);
 
 		// clean up
 		if(corruptionType == 0){
@@ -731,8 +742,6 @@ void MicroTest::IllegalVectorRead(uint32_t seed){
 	status = handler2.GetStatus();
 	CPPUNIT_ASSERT_XRDST(*status);
 	delete status;
-
-  Corrupted1stBlkReadVerify(true);
 }
 
 callback_t MicroTest::read_callback(MicroTest *self, size_t blkid, size_t strpid) {
@@ -758,8 +767,6 @@ void MicroTest::VerifyAnyErrorExists(){
 	XrdCl::XRootDStatus *status = handlerRepair.GetStatus();
 	CPPUNIT_ASSERT(!status->IsOK());
 }
-
-
 
 void MicroTest::ReadVerify( uint32_t rdsize, bool repairAllow, uint64_t maxrd )
 {

@@ -168,6 +168,25 @@ namespace XrdCl
                              uint16_t           timeout = 0 );
 
       //-----------------------------------------------------------------------
+      //! Overwrite data in a given file
+      //!
+      //! @param fn      : the name of the file into which we are going to write
+      //! @param offset  : offset within the file to write at
+      //! @param size    : number of bytes to be written
+      //! @param buffer  : the buffer for the data
+      //! @param handler : user callback
+      //! @param timeout : operation timeout
+      //! @return        : the status of the operation
+      //-----------------------------------------------------------------------
+      XRootDStatus WriteFileInto( const std::string &fn,
+    		  	  	  	  	  uint64_t           offset,
+	                          uint32_t           size,
+							  uint32_t 			chksum,
+	                          const void              *buffer,
+	                          ResponseHandler   *handler,
+	                          uint16_t           timeout = 0 );
+
+      //-----------------------------------------------------------------------
       //! PgRead data from a given file
       //!
       //! @param fn      : the name of the file from which we are going to read

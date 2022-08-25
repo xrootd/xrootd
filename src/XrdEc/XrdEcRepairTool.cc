@@ -29,6 +29,7 @@
 #include "XrdEc/XrdEcConfig.hh"
 #include "XrdEc/XrdEcObjCfg.hh"
 #include "XrdEc/XrdEcThreadPool.hh"
+#include "XrdEc/XrdEcBlkPool.hh"
 
 #include "XrdZip/XrdZipLFH.hh"
 #include "XrdZip/XrdZipCDFH.hh"
@@ -53,6 +54,279 @@
 
 namespace XrdEc {
 
+
+//-----------------------------------------------------------------------
+// If neccessary trigger error correction procedure
+// @param self : the block_t object
+// @return     : false if the block is corrupted and cannot be recovered,
+//               true otherwise
+//-----------------------------------------------------------------------
+bool RepairTool::error_correction( std::shared_ptr<block_t> &self, RepairTool *writer, uint16_t timeout )
+{
+
+    //---------------------------------------------------------------------
+    // Do the accounting for our stripes
+    //---------------------------------------------------------------------
+    size_t missingcnt = 0, validcnt = 0, loadingcnt = 0, recoveringcnt = 0, emptycnt = 0;
+    std::for_each( self->state.begin(), self->state.end(), [&]( block_t::state_t &s )
+      {
+        switch( s )
+        {
+          case block_t::Missing:    ++missingcnt;    break;
+          case block_t::Valid:      ++validcnt;      break;
+          case block_t::Loading:    ++loadingcnt;    break;
+          case block_t::Recovering: ++recoveringcnt; break;
+          case block_t::Empty: 		++emptycnt; 	 break;
+          default: ;
+        }
+      } );
+    XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::XRootDMsg, "Error Correct with %d valid, %d missing", validcnt, missingcnt);
+    if(validcnt == writer->objcfg.nbchunks){
+    	// both check_block and update_callback will skip to the next block by returning false.
+    	return false;
+    }
+    //---------------------------------------------------------------------
+    // Check if we can do the recovery at all (if too many stripes are
+    // missing it won't be possible)
+    //---------------------------------------------------------------------
+    if( missingcnt + recoveringcnt > self->objcfg.nbparity )
+    {
+      std::for_each( self->state.begin(), self->state.end(),
+                     []( block_t::state_t &s ){ if( s == block_t::Recovering ) s = block_t::Missing; } );
+      writer->repairFailed = true;
+      return false;
+    }
+    //---------------------------------------------------------------------
+    // Only do the recovery once every chunk was analyzed
+    // the redundancy results are cached so errors might be overlooked otherwise
+    //---------------------------------------------------------------------
+    if( missingcnt > 0 && validcnt + missingcnt == self->objcfg.nbchunks )
+    {
+
+      Config &cfg = Config::Instance();
+      stripes_t strps( self->get_stripes() );
+      try
+      {
+        cfg.GetRedundancy( self->objcfg ).compute( strps );
+      }
+      catch( const IOError &ex )
+      {
+        std::for_each( self->state.begin(), self->state.end(),
+                       []( block_t::state_t &s ){ if( s == block_t::Recovering ) s = block_t::Missing; } );
+        writer->repairFailed = true;
+        return false;
+      }
+      //-------------------------------------------------------------------
+      // Now that we triggered the recovery procedure mark every missing
+      // stripe as recovering.
+      //-------------------------------------------------------------------
+      std::for_each( self->state.begin(), self->state.end(),
+                     []( block_t::state_t &s ){ if( s == block_t::Missing ) s = block_t::Recovering; } );
+
+      //-------------------------------------------------------------------
+      // Now when we recovered the data we need to mark every stripe as
+      // valid and execute the pending reads
+      //-------------------------------------------------------------------
+      for( size_t strpid = 0; strpid < self->objcfg.nbchunks; ++strpid )
+      {
+        if( self->state[strpid] != block_t::Recovering ) continue;
+        // we expect one more repair/write
+        writer->chunksRepaired.fetch_add(1,std::memory_order_relaxed);
+        // Write new content to disk
+        auto st = writer->WriteChunk(self, strpid, timeout);
+        if(!st.IsOK()){
+        	      std::for_each( self->state.begin(), self->state.end(),
+        	                     []( block_t::state_t &s ){ if( s == block_t::Recovering ) s = block_t::Missing; } );
+        	      writer->repairFailed = true;
+        	      return false;
+        }
+			self->state[strpid] = block_t::Valid;
+			validcnt++;
+			if (validcnt == writer->objcfg.nbchunks)
+			{
+				return false;
+			}
+
+      }
+      return true;
+    }
+    //---------------------------------------------------------------------
+    // Try loading the data and only then attempt recovery
+    //---------------------------------------------------------------------
+    size_t i = 0;
+    while( loadingcnt + validcnt < self->objcfg.nbchunks && i < self->objcfg.nbchunks )
+    {
+      size_t strpid = i++;
+      if( self->state[strpid] != block_t::Empty ) continue;
+      self->reader.Read( self->blkid, strpid, self->stripes[strpid],
+                         RepairTool::update_callback( self, writer, strpid, timeout ) ,timeout);
+      self->state[strpid] = block_t::Loading;
+      ++loadingcnt;
+    }
+
+    return true;
+}
+
+//-----------------------------------------------------------------------
+// Get a callback for read operation
+//-----------------------------------------------------------------------
+callback_t RepairTool::update_callback(std::shared_ptr<block_t> &self, RepairTool *tool,
+		size_t strpid, uint16_t timeout) {
+	return [self, tool, strpid, timeout](const XrdCl::XRootDStatus &st, const uint32_t &length) mutable {
+		std::unique_lock<std::mutex> lck(tool->blkmtx);
+		self->state[strpid] = st.IsOK() ? self->Valid : self->Missing;
+		if(st.IsOK()){
+			self->stripes[strpid].resize(length);
+		}
+		//------------------------------------------------------------
+		// Check if we need to do any error correction (either for
+		// the current stripe, or any other stripe)
+		//------------------------------------------------------------
+		if(!error_correction(self, tool, timeout)){
+			tool->currentBlockChecked.fetch_add(1, std::memory_order_relaxed);
+			BlockPool::Instance().Recycle(std::move(self));
+			tool->repairVar.notify_all();
+			lck.unlock();
+			//tool->CheckBlock();
+		}
+	};
+}
+
+//-----------------------------------------------------------------------
+// If neccessary trigger error correction procedure
+// @param self : the block_t object
+// @return     : false if the block is corrupted and cannot be recovered,
+//               true otherwise
+//-----------------------------------------------------------------------
+bool RepairTool::error_correction( std::shared_ptr<block_t> &self, RepairTool *writer, uint16_t timeout )
+{
+
+    //---------------------------------------------------------------------
+    // Do the accounting for our stripes
+    //---------------------------------------------------------------------
+    size_t missingcnt = 0, validcnt = 0, loadingcnt = 0, recoveringcnt = 0, emptycnt = 0;
+    std::for_each( self->state.begin(), self->state.end(), [&]( block_t::state_t &s )
+      {
+        switch( s )
+        {
+          case block_t::Missing:    ++missingcnt;    break;
+          case block_t::Valid:      ++validcnt;      break;
+          case block_t::Loading:    ++loadingcnt;    break;
+          case block_t::Recovering: ++recoveringcnt; break;
+          case block_t::Empty: 		++emptycnt; 	 break;
+          default: ;
+        }
+      } );
+    XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::XRootDMsg, "Error Correct with %d valid, %d missing", validcnt, missingcnt);
+    if(validcnt == writer->objcfg.nbchunks){
+    	// both check_block and update_callback will skip to the next block by returning false.
+    	return false;
+    }
+    //---------------------------------------------------------------------
+    // Check if we can do the recovery at all (if too many stripes are
+    // missing it won't be possible)
+    //---------------------------------------------------------------------
+    if( missingcnt + recoveringcnt > self->objcfg.nbparity )
+    {
+      std::for_each( self->state.begin(), self->state.end(),
+                     []( block_t::state_t &s ){ if( s == block_t::Recovering ) s = block_t::Missing; } );
+      writer->repairFailed = true;
+      return false;
+    }
+    //---------------------------------------------------------------------
+    // Only do the recovery once every chunk was analyzed
+    // the redundancy results are cached so errors might be overlooked otherwise
+    //---------------------------------------------------------------------
+    if( missingcnt > 0 && validcnt + missingcnt == self->objcfg.nbchunks )
+    {
+
+      Config &cfg = Config::Instance();
+      stripes_t strps( self->get_stripes() );
+      try
+      {
+        cfg.GetRedundancy( self->objcfg ).compute( strps );
+      }
+      catch( const IOError &ex )
+      {
+        std::for_each( self->state.begin(), self->state.end(),
+                       []( block_t::state_t &s ){ if( s == block_t::Recovering ) s = block_t::Missing; } );
+        writer->repairFailed = true;
+        return false;
+      }
+      //-------------------------------------------------------------------
+      // Now that we triggered the recovery procedure mark every missing
+      // stripe as recovering.
+      //-------------------------------------------------------------------
+      std::for_each( self->state.begin(), self->state.end(),
+                     []( block_t::state_t &s ){ if( s == block_t::Missing ) s = block_t::Recovering; } );
+
+      //-------------------------------------------------------------------
+      // Now when we recovered the data we need to mark every stripe as
+      // valid and execute the pending reads
+      //-------------------------------------------------------------------
+      for( size_t strpid = 0; strpid < self->objcfg.nbchunks; ++strpid )
+      {
+        if( self->state[strpid] != block_t::Recovering ) continue;
+        // we expect one more repair/write
+        writer->chunksRepaired.fetch_add(1,std::memory_order_relaxed);
+        // Write new content to disk
+        auto st = writer->WriteChunk(self, strpid, timeout);
+        if(!st.IsOK()){
+        	      std::for_each( self->state.begin(), self->state.end(),
+        	                     []( block_t::state_t &s ){ if( s == block_t::Recovering ) s = block_t::Missing; } );
+        	      writer->repairFailed = true;
+        	      return false;
+        }
+			self->state[strpid] = block_t::Valid;
+			validcnt++;
+			if (validcnt == writer->objcfg.nbchunks)
+			{
+				return false;
+			}
+
+      }
+      return true;
+    }
+    //---------------------------------------------------------------------
+    // Try loading the data and only then attempt recovery
+    //---------------------------------------------------------------------
+    size_t i = 0;
+    while( loadingcnt + validcnt < self->objcfg.nbchunks && i < self->objcfg.nbchunks )
+    {
+      size_t strpid = i++;
+      if( self->state[strpid] != block_t::Empty ) continue;
+      writer->Read( self->blkid, strpid, self->stripes[strpid],
+                         RepairTool::update_callback( self, writer, strpid, timeout ) ,timeout);
+      self->state[strpid] = block_t::Loading;
+      ++loadingcnt;
+    }
+
+    return true;
+}
+
+//-----------------------------------------------------------------------
+// Get a callback for read operation
+//-----------------------------------------------------------------------
+callback_t RepairTool::update_callback(std::shared_ptr<block_t> &self, RepairTool *tool,
+		size_t strpid, uint16_t timeout) {
+	return [self, tool, strpid, timeout](const XrdCl::XRootDStatus &st, const uint32_t &length) mutable {
+		std::unique_lock<std::mutex> lck(tool->blkmtx);
+		self->state[strpid] = st.IsOK() ? self->Valid : self->Missing;
+		if(st.IsOK()){
+			self->stripes[strpid].resize(length);
+		}
+		//------------------------------------------------------------
+		// Check if we need to do any error correction (either for
+		// the current stripe, or any other stripe)
+		//------------------------------------------------------------
+		if(!error_correction(self, tool, timeout)){
+			tool->currentBlockChecked.fetch_add(1, std::memory_order_relaxed);
+			BlockPool::Instance().Recycle(std::move(self));
+			tool->repairVar.notify_all();
+			lck.unlock();
+		}
+	};
+}
 
 //-----------------------------------------------------------------------
 // Get a callback for read operation
@@ -92,10 +366,12 @@ void RepairTool::CheckFile(XrdCl::ResponseHandler *handler, uint16_t timeout){
 			InvalidateReplaceArchive(oldUrl, readDataarchs[oldUrl], timeout);
 			st->status = XrdCl::stError;
 		}
+		if(redirectionMap.size() > objcfg.nbparity){
+			log->Error(XrdCl::XRootDMsg, "NOT RECOVERABLE: Too many archives are damaged");
+		}
 	}
 	// do the read for each strpid and blkid but with different callback func
 	uint64_t numBlocks = ceil((filesize / (float) objcfg.chunksize) / objcfg.nbdata);
-	std::vector<std::shared_ptr<buffer_t>> buffers;
 	auto sem = std::make_shared<XrdSysSemaphore>(0);
 	{
 		// switching out of this context will remove the own reference to ptr
@@ -112,13 +388,13 @@ void RepairTool::CheckFile(XrdCl::ResponseHandler *handler, uint16_t timeout){
 				std::shared_ptr<buffer_t> buffer = std::make_shared<buffer_t>();
 				currentBuffers++;
 				buffer->reserve(objcfg.chunksize);
-				buffers.push_back(buffer);
-				Read(blkid, strpid, *buffer,
+				Read(blkid, strpid, buffer,
 						RepairTool::read_callback(ptr, blkid, strpid, this), timeout);
 			}
 		}
 	}
 	sem->Wait();
+	// just to reuse CloseAllArchives
 	for(size_t u = 0; u < objcfg.plgr.size(); u++){
 		writeDataarchs[objcfg.GetDataUrl(u)]= readDataarchs[objcfg.GetDataUrl(u)];
 	}
@@ -129,6 +405,191 @@ void RepairTool::CheckFile(XrdCl::ResponseHandler *handler, uint16_t timeout){
 	{
 		handler->HandleResponse(new XrdCl::XRootDStatus(*st), nullptr);
 	}
+}
+
+void RepairTool::RepairFile(bool checkAgainAfterRepair, XrdCl::ResponseHandler *handler, uint16_t timeout) {
+	auto log = XrdCl::DefaultEnv::GetLog();
+	std::stringstream stream;
+	stream<<"Repair called with " << (int)objcfg.nbchunks << " chunks of which " << (int)objcfg.nbdata << "are data\n"<<std::flush;
+
+	log->Debug(XrdCl::XRootDMsg, &(stream.str()[0]));
+
+	XrdCl::SyncResponseHandler handler1;
+	RepairTool::OpenInUpdateMode(&handler1, timeout);
+	handler1.WaitForResponse();
+
+	if(!(handler1.GetStatus()->IsOK()))
+	{
+		repairFailed = true;
+		log->Error(XrdCl::XRootDMsg, "Open failed");
+		if(handler)
+			handler->HandleResponse(handler1.GetStatus(), nullptr);
+		return;
+	}
+
+	log->Debug(XrdCl::XRootDMsg, "Opened archives.");
+
+	checkAfterRepair = checkAgainAfterRepair;
+
+	chunksRepaired.store(0, std::memory_order_relaxed);
+	currentBlockChecked.store(0, std::memory_order_relaxed);
+	// last blk is the index of the last (e.g. index 3 means we have 4 blocks -> currentBlockChecked must be 4 at the end)
+	uint32_t totalBlocks = lstblk + 1;
+	repairFailed = false;
+
+
+	CheckBlock(timeout);
+	std::unique_lock<std::mutex> lk(finishedRepairMutex);
+	repairVar.wait(lk, [this, totalBlocks]{return this->finishedRepair && this->chunkRepairsWritten.load(std::memory_order_relaxed) == this->chunksRepaired.load(std::memory_order_relaxed) && this->currentBlockChecked.load(std::memory_order_relaxed) == totalBlocks;});
+	lk.unlock();
+
+	XrdCl::SyncResponseHandler handlerClose;
+	CloseAllArchives(&handlerClose, timeout);
+	handlerClose.WaitForResponse();
+
+	log->Debug(XrdCl::XRootDMsg, "Archives closed.");
+
+	for (size_t i = 0; i < objcfg.plgr.size(); i++)
+	{
+		if (redirectionMap.find(objcfg.GetDataUrl(i)) != redirectionMap.end())
+		{
+			objcfg.plgr[i] = std::string(redirectionMap[objcfg.GetDataUrl(i)]);
+		}
+	}
+	for (auto it = objcfg.plgr.begin(); it != objcfg.plgr.end(); it++)
+	{
+		log->Debug(XrdCl::XRootDMsg, "Host at %s", *it);
+	}
+	for (auto it = redirectionMap.begin(); it != redirectionMap.end(); it++)
+		log->Debug(XrdCl::XRootDMsg, "Redirect from %s to %s", it->first, it->second);
+
+
+	log->Debug(XrdCl::XRootDMsg, "Chunks repaired: %d", chunksRepaired.load(std::memory_order_relaxed));
+	if (repairFailed)
+	{
+		log->Error(XrdCl::XRootDMsg, "Repair failed at some point.");
+		if(handler)
+			handler->HandleResponse(new XrdCl::XRootDStatus(XrdCl::stError), nullptr);
+	}
+	else if(handler)
+		handler->HandleResponse(new XrdCl::XRootDStatus(), nullptr);
+
+}
+
+void RepairTool::CheckBlock(uint16_t timeout) {
+	auto log = XrdCl::DefaultEnv::GetLog();
+
+	std::unique_lock<std::mutex> lck(blkmtx);
+	size_t totalBlocks = 0;
+	if (objcfg.nomtfile) {
+		totalBlocks = lstblk + 1;
+	} else {
+		totalBlocks = lstblk + 1;
+	}
+	//size_t blkid = currentBlockChecked;
+	for (size_t blkid = 0; blkid < totalBlocks; blkid++) {
+		if (!block || block->blkid != blkid)
+			//block = std::make_shared<block_t>(blkid, reader, objcfg);
+			block = BlockPool::Instance().Create(objcfg, reader, blkid);
+		auto blk = block;
+		// initiates the read for each stripe
+		if (!error_correction(blk, this, timeout)) {
+			currentBlockChecked.fetch_add(1,std::memory_order_relaxed);
+			log->Error(XrdCl::XRootDMsg, "Couldn't restore block %d.", blkid);
+			}
+	}
+	std::unique_lock<std::mutex> lk(finishedRepairMutex);
+	log->Debug(XrdCl::XRootDMsg, "Repair initialized for all blocks");
+	finishedRepair = true;
+	repairVar.notify_all();
+
+}
+
+XrdCl::XRootDStatus RepairTool::WriteChunk(std::shared_ptr<block_t> blk, size_t strpid, uint16_t timeout){
+	auto log = XrdCl::DefaultEnv::GetLog();
+
+	auto blkid = blk->blkid;
+	std::string fn = objcfg.GetFileName( blkid, strpid );
+
+	std::string url;
+	// if the block/stripe does not exist it means we are reading passed the end of the file
+	auto itr = urlmap.find(fn);
+	if (itr == urlmap.end())
+	{
+		log->Error(XrdCl::XRootDMsg, "Couldn't locate file %s for writing", fn);
+		auto it = redirectionMap.begin();
+		uint32_t u = 0;
+		while(it != redirectionMap.end()){
+			if(u >= blk->redirectionIndex) break;
+			u++;
+			it++;
+		}
+		url = it->first;
+		blk->redirectionIndex++;
+		log->Error(XrdCl::XRootDMsg, "Replacing it with host %s", url);
+	}
+	else url = itr->second;
+	if(writeDataarchs[url]->IsOpen()){
+		auto it = writeDataarchs[url]->cdmap.find(fn);
+		uint64_t offset = 0;
+		int32_t actualSize = objcfg.chunksize;
+		if (strpid < objcfg.nbdata && filesize < blkid * objcfg.chunksize * objcfg.nbdata
+						+ (strpid + 1) * objcfg.chunksize)
+		{
+			actualSize = filesize - (blkid * objcfg.chunksize * objcfg.nbdata
+							+ strpid * objcfg.chunksize);
+			if (actualSize < 0)
+				actualSize = 0;
+		}
+		// if we are in a parity stripe and only the first data stripe has size > 0, the parity stripe has that same size ( < chunksize)
+		if(strpid >= objcfg.nbdata && filesize < blkid * objcfg.chunksize * objcfg.nbdata + objcfg.chunksize){
+			actualSize = filesize - (blkid * objcfg.chunksize * objcfg.nbdata);
+			if (actualSize < 0)
+				actualSize = 0;
+		}
+		auto pipehndl = [=](const XrdCl::XRootDStatus &st) {
+			// increase the written counter by one (atomic)
+			if(!st.IsOK()){
+				log->Error(XrdCl::XRootDMsg, "Write to %s failed: %d", url, st.code);
+
+			}
+			std::unique_lock<std::mutex> lk(finishedRepairMutex);
+			chunkRepairsWritten.fetch_add(1,std::memory_order_relaxed);
+			repairVar.notify_all();
+			    	};
+		log->Debug(XrdCl::XRootDMsg, "Writing with size %d", actualSize);
+		if(it != writeDataarchs[url]->cdmap.end()){
+
+			// the file exists, so we overwrite it (but make a copy of the current state for testing purposes)
+			uint32_t chksum = objcfg.digest(0, &(blk->stripes[strpid][0]), actualSize);
+			std::stringstream ss;
+			ss << "cp " << url << " " << url<< strpid;
+			std::string s = ss.str();
+			system(s.data());
+
+			XrdCl::Pipeline p = XrdCl::WriteIntoFile(XrdCl::Ctx<XrdCl::ZipArchive>(*writeDataarchs[url]),
+					fn, offset, actualSize, chksum, &(blk->stripes[strpid][0]), 0)
+							| XrdCl::Final(pipehndl);
+			XrdCl::Async(std::move(p), timeout);
+			return XrdCl::XRootDStatus();
+		}
+		else{
+
+			uint32_t chksum = objcfg.digest(0, &(blk->stripes[strpid][0]), actualSize);
+			// the file doesnt exist at all, so we append it to the archive (likely a completely new archive)
+			XrdCl::Pipeline p = XrdCl::AppendFile(
+					XrdCl::Ctx<XrdCl::ZipArchive>(*writeDataarchs[url]),
+					fn, chksum, actualSize, &(blk->stripes[strpid][0]))
+				| XrdCl::Final(pipehndl);
+			XrdCl::Async(std::move(p), timeout);
+			return XrdCl::XRootDStatus();
+		}
+	}
+	std::unique_lock<std::mutex> lk(finishedRepairMutex);
+	chunkRepairsWritten.fetch_add(1,std::memory_order_relaxed);
+	repairVar.notify_all();
+	XrdCl::DefaultEnv::GetLog()->Error(XrdCl::XRootDMsg, "Can't write, archive not open.");
+	return XrdCl::XRootDStatus(XrdCl::stError, "Can't write, archive not open");
 }
 
 //---------------------------------------------------------------------------
@@ -415,6 +876,65 @@ void RepairTool::TryOpen(XrdCl::ResponseHandler *handler, XrdCl::OpenFlags::Flag
 							XrdCl::Parallel(opens).AtLeast(objcfg.nbdata))
 							>> pipehndl;
 	XrdCl::Async(std::move(p), timeout);
+}
+
+void RepairTool::OpenInUpdateMode(XrdCl::ResponseHandler *handler,
+		uint16_t timeout) {
+	XrdCl::SyncResponseHandler handler1;
+	TryOpen(&handler1, XrdCl::OpenFlags::Update, timeout);
+	handler1.WaitForResponse();
+	if (handler1.GetStatus()->IsOK())
+	{
+		auto readItr = readDataarchs.begin();
+		for(; readItr != readDataarchs.end(); ++readItr){
+			writeDataarchs.emplace(readItr->first, readItr->second);
+		}
+		if(redirectionMap.size() > 0){
+			std::vector<XrdCl::Pipeline> opens;
+			opens.reserve(redirectionMap.size());
+			auto itr = redirectionMap.begin();
+			size_t index = 0;
+			for (; itr != redirectionMap.end(); ++itr)
+			{
+				const std::string &oldUrl = itr->first;
+				// the redirection map saves the plgr without the "test.txt" file name for easier future replacement
+				const std::string &newUrl = objcfg.GetReplacementUrl(index);
+				auto newArch = std::make_shared<XrdCl::ZipArchive>(
+						Config::Instance().enable_plugins);
+
+				writeDataarchs[oldUrl] = newArch;
+
+				opens.emplace_back(
+						XrdCl::OpenArchive(*writeDataarchs[oldUrl], newUrl,
+								XrdCl::OpenFlags::New
+										| XrdCl::OpenFlags::Write));
+
+				XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::XRootDMsg, "Created new archive pointing from url %s to %s", oldUrl, newUrl);
+
+				InvalidateReplaceArchive(oldUrl, readDataarchs[oldUrl], timeout);
+
+				index++;
+			}
+			auto pipefinal =
+					[=](
+							const XrdCl::XRootDStatus &st)
+							{
+								if (handler)
+								{
+									handler->HandleResponse(new XrdCl::XRootDStatus(st), nullptr);
+								}
+							};
+			XrdCl::Pipeline p = XrdCl::Parallel(opens)
+					| XrdCl::Final(pipefinal);
+			XrdCl::Async(std::move(p), timeout);
+			return;
+		}
+	}
+	// we only fall through to this if the handler status is not okay or no redirection is necessary
+	if (handler)
+	{
+		handler->HandleResponse(new XrdCl::XRootDStatus(*handler1.GetStatus()), nullptr);
+	}
 }
 
 XrdCl::Pipeline RepairTool::CheckHealthExists(size_t index){
@@ -730,7 +1250,7 @@ XrdCl::Pipeline RepairTool::ReadMetadata(size_t index) {
 			});
 }
 
-void RepairTool::Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t cb, uint16_t timeout )
+void RepairTool::Read( size_t blknb, size_t strpnb, std::shared_ptr<buffer_t> buffer, callback_t cb, uint16_t timeout )
 {
   // generate the file name (blknb/strpnb)
   std::string fn = objcfg.GetFileName( blknb, strpnb );
@@ -765,10 +1285,10 @@ void RepairTool::Read( size_t blknb, size_t strpnb, buffer_t &buffer, callback_t
   uint32_t rdsize = info->GetSize();
   delete info;
   // create a buffer for the data
-  buffer.resize( objcfg.chunksize );
+  buffer->resize( objcfg.chunksize );
   // issue the read request
-  XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, rdsize, buffer.data() ) >>
-                  [zipptr, fn, cb, &buffer, this, url, timeout]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
+  XrdCl::Async( XrdCl::ReadFrom( *zipptr, fn, 0, rdsize, buffer->data() ) >>
+                  [zipptr, fn, cb, buffer, this, url, timeout]( XrdCl::XRootDStatus &st, XrdCl::ChunkInfo &ch )
                   {
                     //---------------------------------------------------
                     // If read failed there's nothing to do, just pass the
