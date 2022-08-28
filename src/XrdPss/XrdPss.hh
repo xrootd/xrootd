@@ -90,7 +90,7 @@ ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
 int     pgRead (XrdSfsAio* aioparm, uint64_t opts);
 ssize_t pgWrite(void* buffer, off_t offset, size_t wrlen,
                 uint32_t* csvec, uint64_t opts);
-int     pgWrite(XrdSfsAio* aoiparm, uint64_t opts);
+int     pgWrite(XrdSfsAio* aioparm, uint64_t opts);
 ssize_t Read(               off_t, size_t);
 ssize_t Read(       void *, off_t, size_t);
 int     Read(XrdSfsAio *aiop);

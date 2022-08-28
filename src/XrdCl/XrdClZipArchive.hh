@@ -395,7 +395,6 @@ namespace XrdCl
       //-----------------------------------------------------------------------
       //! Append data to a new file, implementation
       //!
-      //! @param lfh     : the Local File Header record
       //! @param size    : number of bytes to be appended
       //! @param buffer  : the buffer with the data to be appended
       //! @param handler : user callback

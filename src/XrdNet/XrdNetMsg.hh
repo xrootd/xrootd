@@ -58,7 +58,7 @@ public:
 //!                  computed as strlen(buff).
 //! @param  dest     The endpint name which can be host:port or a named socket.
 //!                  If dest is zero, uses dest specified in the constructor.
-//! @param  timeout  maximum seconds to wait for a idle socket. When negative,
+//! @param  tmo      maximum seconds to wait for a idle socket. When negative,
 //!                  the default, no time limit applies.
 //! @return <0       Message not sent due to error.
 //! @return =0       Message send (well as defined by UDP)
@@ -78,7 +78,7 @@ int           Send(const char *buff,          // The data to be send
 //!                  computed as strlen(buff).
 //! @param  dest     The endpoint in the form as in "host:port".
 //! @param  netSA    The endpoint address. This overrides the constructor.
-//! @param  timeout  maximum seconds to wait for a idle socket. When negative,
+//! @param  tmo      maximum seconds to wait for a idle socket. When negative,
 //!                  the default, no time limit applies.
 //! @return <0       Message not sent due to error.
 //! @return =0       Message send (well as defined by UDP)
@@ -98,7 +98,7 @@ int           Send(          const char *dest,    // EP: host:port
 //! @param  iovcnt   The number of elements in the vector.
 //! @param  dest     The endpint name which can be host:port or a named socket.
 //!                  If dest is zero, uses dest specified in the constructor.
-//! @param  timeout  maximum seconds to wait for a idle socket. When negative,
+//! @param  tmo      maximum seconds to wait for a idle socket. When negative,
 //!                  the default, no time limit applies.
 //! @return <0       Message not sent due to error.
 //! @return =0       Message send (well as defined by UDP)

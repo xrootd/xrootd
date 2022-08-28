@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file RedundancyProvider.hh
+//! @file XrdEcRedundancyProvider.hh
 //! @author Paul Hermann Lensing
 //! @brief Class for computing parities and recovering data
 //------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ namespace XrdEc
     //! has to equal nData+nParity. Blocks can be arbitrary size, but size has
     //! to be equal within a stripe. Function will throw on incorrect input.
     //!
-    //! @param stripe nData+nParity blocks, missing (empty) blocks will be
+    //! @param stripes nData+nParity blocks, missing (empty) blocks will be
     //!   computed if possible.
     //--------------------------------------------------------------------------
     void compute( stripes_t &stripes );
@@ -77,8 +77,8 @@ namespace XrdEc
     //! to be correct (crc integrity checks of blocks should be done previously
     //! to attempting erasure decoding).
     //!
-    //! @param stripe vector of nData+nParity blocks, missing (empty) blocks are
-    //!        errors
+    //! @param stripes vector of nData+nParity blocks, missing (empty) blocks
+    //!        are errors
     //! @return a string of stripe size describing the error pattern
     //--------------------------------------------------------------------------
     std::string getErrorPattern( stripes_t &stripes ) const;

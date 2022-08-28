@@ -192,7 +192,7 @@ virtual bool    ProcessResponse(const XrdSsiErrInfo  &eInfo,
 //! @param  buff  Pointer to the buffer given to XrdSsiStream::SetBuff().
 //! @param  blen  The number of bytes in buff or an error indication if blen < 0.
 //! @param  last  true  This is the last stream segment, no more data remains.
-//! @param        false More data may remain in the stream.
+//!               false More data may remain in the stream.
 //-----------------------------------------------------------------------------
 
 virtual void ProcessResponseData(const XrdSsiErrInfo  &eInfo, char *buff,
@@ -263,7 +263,7 @@ virtual void    RelRequestBuffer() {}
 //! to XrdSsiService::ProcessRequest(). Once the request is started, a request
 //! handle is returned which can be passed to XrdSsiService::Attach().
 //!
-//! @param  detttl The detach time to live value.
+//! @param  dttl The detach time to live value.
 //-----------------------------------------------------------------------------
 
 inline void     SetDetachTTL(uint32_t dttl) {detTTL = dttl;}

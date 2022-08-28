@@ -154,7 +154,7 @@ namespace XrdCl
       //!
       //! @arg from : state from which the object is being converted
       //!
-      //! @param op : the object that is being converted
+      //! @param open : the object that is being converted
       //------------------------------------------------------------------------
       template<bool from>
       OpenImpl( OpenImpl<from> && open ) :
@@ -173,7 +173,7 @@ namespace XrdCl
       //! Overload of operator>> defined in ConcreteOperation, we're adding
       //! additional capabilities by using ExResp factory (@see ExResp).
       //!
-      //! @param func : function/functor/lambda
+      //! @param hdlr : function/functor/lambda
       //------------------------------------------------------------------------
       template<typename Hdlr>
       OpenImpl<true> operator>>( Hdlr &&hdlr )
@@ -195,8 +195,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! RunImpl operation (@see Operation)
       //!
-      //! @param timeout : pipeline timeout
-      //! @return        : status of the operation
+      //! @param pipelineTimeout : pipeline timeout
+      //! @return                : status of the operation
       //------------------------------------------------------------------------
       XRootDStatus RunImpl( PipelineHandler *handler, uint16_t pipelineTimeout )
       {

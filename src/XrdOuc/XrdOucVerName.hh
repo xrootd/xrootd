@@ -43,7 +43,7 @@ public:
 //! Test if plugin path contains a version number.
 //!
 //! @param  piPath  Pointer to the original path to the plug-in.
-//! @param  piNoVm  != 0: If piPath has a version, an strdup'd path without a
+//! @param  piNoVN  != 0: If piPath has a version, an strdup'd path without a
 //!                 version is returned. Otherwise, nil is returned.
 //!                 == 0: Does not return an alternate path.
 //!

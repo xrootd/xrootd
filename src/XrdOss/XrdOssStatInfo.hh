@@ -35,6 +35,13 @@ class  XrdOucEnv;
 class  XrdSysLogger;
 struct stat;
 
+namespace XrdOssStatEvent
+{
+static const int FileAdded   = 1; //!< Path has been added
+static const int PendAdded   = 2; //!< Path has been added in pending mode
+static const int FileRemoved = 0; //!< Path has been removed
+}
+
 //------------------------------------------------------------------------------
 //! This file defines the alternate stat() function that can be used as a
 //! replacement for the normal system stat() call that is used to determine the
@@ -60,13 +67,6 @@ struct stat;
 //! @return Failure:      a -1 with errno set to the correct err number value.
 //------------------------------------------------------------------------------
 
-typedef int (*XrdOssStatInfo_t) (const char *path, struct stat *buff,
-                                 int         opts, XrdOucEnv   *envP);
-
-typedef int (*XrdOssStatInfo2_t)(const char *path, struct stat *buff,
-                                 int         opts, XrdOucEnv   *envP,
-                                 const char *lfn);
-
 //------------------------------------------------------------------------------
 //! Set file information.
 //!
@@ -78,17 +78,21 @@ typedef int (*XrdOssStatInfo2_t)(const char *path, struct stat *buff,
 //! @param  path       -> the file path whose whose stat information changed.
 //! @param  buff       -> Nil; this indicates that stat information is being set.
 //! @param  opts          One of the following options:
-namespace XrdOssStatEvent
-{
-static const int FileAdded   = 1; //!< Path has been added
-static const int PendAdded   = 2; //!< Path has been added in pending mode
-static const int FileRemoved = 0; //!< Path has been removed
-}
+//!                       XrdOssStatEvent::FileAdded,
+//!                       XrdOssStatEvent::PendAdded,
+//!                       XrdOssStatEvent::FileRemoved.
 //! @param  envP       -> Nil
 //! @param  lfn        -> the logical file name whose stat information changed.
 //!
 //! @return The return value should be zero but is not currently inspected.
 //------------------------------------------------------------------------------
+
+typedef int (*XrdOssStatInfo_t) (const char *path, struct stat *buff,
+                                 int         opts, XrdOucEnv   *envP);
+
+typedef int (*XrdOssStatInfo2_t)(const char *path, struct stat *buff,
+                                 int         opts, XrdOucEnv   *envP,
+                                 const char *lfn);
 
 /******************************************************************************/
 /*           X r d O s s S t a t I n f o   I n s t a n t i a t o r            */
@@ -123,11 +127,12 @@ static const int FileRemoved = 0; //!< Path has been removed
 //! The function creator must be declared as an extern "C" function in the
 //! plug-in shared library as follows:
 //------------------------------------------------------------------------------
-/*!
-   extern "C" XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
-                                                  XrdSysLogger  *Logger,
-                                                  const char    *config_fn,
-                                                  const char    *parms);
+/*! @code {.cpp}
+    extern "C" XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
+                                                   XrdSysLogger  *Logger,
+                                                   const char    *config_fn,
+                                                   const char    *parms);
+    @endcode
 
     An alternate entry point may be defined in lieu of the previous entry point.
     This normally identified by a version option in the configuration file (e.g.
@@ -137,11 +142,13 @@ static const int FileRemoved = 0; //!< Path has been removed
     @param  envP     - Pointer to the environment containing implementation
                        specific information.
 
-   extern "C" XrdOssStatInfo2_t XrdOssStatInfoInit2(XrdOss        *native_oss,
-                                                    XrdSysLogger  *Logger,
-                                                    const char    *config_fn,
-                                                    const char    *parms,
-                                                    XrdOucEnv     *envP);
+    @code {.cpp}
+    extern "C" XrdOssStatInfo2_t XrdOssStatInfoInit2(XrdOss        *native_oss,
+                                                     XrdSysLogger  *Logger,
+                                                     const char    *config_fn,
+                                                     const char    *parms,
+                                                     XrdOucEnv     *envP);
+    @endcode
 */
 
 //------------------------------------------------------------------------------
@@ -151,7 +158,8 @@ static const int FileRemoved = 0; //!< Path has been removed
 //! your plug-in. Include the code shown below at file level in your source.
 //------------------------------------------------------------------------------
 
-/*!     #include "XrdVersion.hh"
+/*!
+        #include "XrdVersion.hh"
         XrdVERSIONINFO(XrdOssStatInfoInit,<name>);
 
     where \<name\> is a 1- to 15-character unquoted name identifying your plugin.

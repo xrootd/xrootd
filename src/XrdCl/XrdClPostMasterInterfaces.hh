@@ -188,7 +188,7 @@ namespace XrdCl
       //! true - only socket related errors may be returned here
       //!
       //! @param socket    the socket to read from
-      //! @param bytesRead number of bytes read by the method
+      //! @param bytesWritten number of bytes written by the method
       //! @return          stOK & suDone if the whole body has been processed
       //!                  stOK & suRetry if more data needs to be written
       //!                  stError on failure
@@ -228,7 +228,6 @@ namespace XrdCl
       //! Event callback
       //!
       //! @param event   the event that has occurred
-      //! @param stream  the stream concerned
       //! @param status  the status info
       //! @return true if the handler should be kept
       //!         false if it should be removed from further consideration

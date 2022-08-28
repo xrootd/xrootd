@@ -357,8 +357,6 @@ inline int          getErrMid() {return mID;}
 
 //-----------------------------------------------------------------------------
 //! Set the monitoring identifier.
-//!
-//! @return The monitoring identifier.
 //-----------------------------------------------------------------------------
 
 inline void         setErrMid(int  mid) {mID = mid;}

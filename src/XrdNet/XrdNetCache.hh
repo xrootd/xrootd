@@ -66,7 +66,7 @@ char  *Find(XrdNetAddrInfo *hAddr);
 //------------------------------------------------------------------------------
 //! Set the default keep time for entries in the cache during initialization.
 //!
-//! @param  ktVal  the number of seconds to keep an entry in the cache.
+//! @param  ktval  the number of seconds to keep an entry in the cache.
 //------------------------------------------------------------------------------
 static
 void   SetKT(int ktval) {keepTime = ktval;}

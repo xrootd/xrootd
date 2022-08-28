@@ -37,7 +37,6 @@ class MetalinkRedirector : public VirtualRedirector
     //----------------------------------------------------------------------------
     //! Constructor
     //! @param url         : URL to the metalink file
-    //! @param userHandler : the response handler provided by end user
     //----------------------------------------------------------------------------
     MetalinkRedirector( const std::string &url );
 
@@ -48,6 +47,7 @@ class MetalinkRedirector : public VirtualRedirector
 
     //----------------------------------------------------------------------------
     //! Initializes the object with the content of the metalink file
+    //! @param userHandler : the response handler provided by end user
     //----------------------------------------------------------------------------
     XRootDStatus Load( ResponseHandler *userHandler );
 

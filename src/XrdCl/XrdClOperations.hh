@@ -70,7 +70,6 @@ namespace XrdCl
       //! Constructor.
       //!
       //! @param handler  : the handler of our operation
-      //! @param recovery : the recovery procedure for our operation
       //------------------------------------------------------------------------
       PipelineHandler( ResponseHandler   *handler );
 
@@ -244,13 +243,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Run operation
       //!
-      //! @param prom   : the promise that we will have a result
+      //! @param prms   : the promise that we will have a result
       //! @param final  : the object to call at the end of pipeline
-      //! @param args   : forwarded arguments
-      //! @param bucket : number of the bucket with arguments
-      //!
-      //! @return       : stOK if operation was scheduled for execution
-      //!                 successfully, stError otherwise
       //------------------------------------------------------------------------
       void Run( Timeout                                   timeout,
                 std::promise<XRootDStatus>                prms,
@@ -290,7 +284,6 @@ namespace XrdCl
       //! @param params :  container with parameters forwarded from
       //!                  previous operation
       //! @return       :  status of the operation
-      //! @param bucket : number of the bucket with arguments
       //------------------------------------------------------------------------
       virtual XRootDStatus RunImpl( PipelineHandler *handler, uint16_t timeout ) = 0;
 
@@ -528,6 +521,7 @@ namespace XrdCl
   //! the status
   //!
   //! @param pipeline : the pipeline to be executed
+  //! @param timeout  : the pipeline timeout
   //!
   //! @return         : status of the operation
   //----------------------------------------------------------------------------
@@ -583,7 +577,7 @@ namespace XrdCl
       //! Note: due to reference collapsing this covers both l-value and
       //!       r-value references.
       //!
-      //! @param func : function/functor/lambda
+      //! @param hdlr : function/functor/lambda
       //------------------------------------------------------------------------
       template<typename Hdlr>
       Derived<true> operator>>( Hdlr &&hdlr )
@@ -699,8 +693,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Implements operator>> functionality
       //!
-      //! @param h  :  handler to be added
-      //! @
+      //! @param handler :  handler to be added
+      //!
       //! @return   :  return an instance of Derived<true>
       //------------------------------------------------------------------------
       inline Derived<true> StreamImpl( ResponseHandler *handler )

@@ -155,7 +155,7 @@ virtual int  List(AList **aPL, const char *Path, int fd=-1, int getSz=0) = 0;
 //!                   attribute value which may contain binary data.
 //! @param  Path   -> Path of the file whose attribute is to be set.
 //! @param  fd     -> If >=0 is the file descriptor of the opened subject file.
-//! @param  isnew     When !0 then the attribute must not exist (i.e. new).
+//! @param  isNew     When !0 then the attribute must not exist (i.e. new).
 //!                   Otherwise, if it does exist, the value is replaced. In
 //!                   either case, if it does not exist it should be created.
 //!

@@ -163,7 +163,7 @@ namespace XrdCl
           //--------------------------------------------------------------------
           //! Constructor
           //!
-          //! @param value : the future value to be hold by us
+          //! @param ftr : the future value to be hold by us
           //--------------------------------------------------------------------
           FutureValue( std::future<T> &&ftr ) : ftr( std::move( ftr ) )
           {
@@ -195,7 +195,7 @@ namespace XrdCl
           //--------------------------------------------------------------------
           //! Constructor
           //!
-          //! @param value : the forwarded value to be hold by us
+          //! @param fwd : the forwarded value to be hold by us
           //--------------------------------------------------------------------
           FwdValue( const Fwd<T> &fwd ) : fwd( fwd )
           {
@@ -305,7 +305,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor.
       //!
-      //! @param value : value of the argument
+      //! @param str : value of the argument
       //------------------------------------------------------------------------
       Arg( std::string str ) : ArgBase<std::string>( str )
       {
@@ -314,7 +314,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor.
       //!
-      //! @param val : value of the argument
+      //! @param cstr : value of the argument
       //------------------------------------------------------------------------
       Arg( const char *cstr ) : ArgBase<std::string>( cstr )
       {

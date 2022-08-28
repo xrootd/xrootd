@@ -50,7 +50,7 @@ public:
 //! and md5 checksums are natively supported. Up to five more checksum
 //! algorithms can be loaded from shared libraries.
 //!
-//! @param  csNme    The name of the checksum algorithm (e.g. md5).
+//! @param  csName   The name of the checksum algorithm (e.g. md5).
 //! @param  csParms  Any parameters that might be needed by the checksum
 //!                  algorithm should it be loaded from a shared library.
 //! @param  eBuff    Optional pointer to a buffer to receive the reason for a

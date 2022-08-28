@@ -110,7 +110,7 @@ static void SetDebug(int opts, msgCB_t logP);
 //------------------------------------------------------------------------
 //! Convert SSL error to TLS::RC code.
 //!
-//! @param  sslerr - the SSL error return code.
+//! @param  sslrc  - the SSL error return code.
 //!
 //! @return The corresponding TLS::RC code.
 //------------------------------------------------------------------------
@@ -120,7 +120,7 @@ static RC ssl2RC(int sslrc);
 //------------------------------------------------------------------------
 //! Convert SSL error to text.
 //!
-//! @param  sslerr - the SSL error return code.
+//! @param  sslrc  - the SSL error return code.
 //! @param  dflt   - the default to be return when mapping does no exist.
 //!
 //! @return The corresponding text or the dflt string is returned.

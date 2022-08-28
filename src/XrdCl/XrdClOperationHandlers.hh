@@ -620,8 +620,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //!  A factory method, simply forwards the given handler
       //!
-      //! @param h : the ResponseHandler that should be wrapped
-      //! @return  : a ForwardingHandler instance
+      //! @param hdlr : the ResponseHandler that should be wrapped
+      //! @return     : a ForwardingHandler instance
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( ResponseHandler *hdlr )
       {
@@ -631,8 +631,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //!  A factory method, simply forwards the given handler
       //!
-      //! @param h : the ResponseHandler that should be wrapped
-      //! @return  : a ForwardingHandler instance
+      //! @param hdlr : the ResponseHandler that should be wrapped
+      //! @return     : a ForwardingHandler instance
       //------------------------------------------------------------------------
       inline static ResponseHandler* Create( ResponseHandler &hdlr )
       {
@@ -687,7 +687,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! A factory method
       //!
-      //! @param func : the task that should be wrapped
+      //! @param task : the task that should be wrapped
       //! @return     : TaskWrapper instance
       //------------------------------------------------------------------------
       template<typename Return>
@@ -736,7 +736,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! A factory method
       //!
-      //! @param func : the task that should be wrapped
+      //! @param task : the task that should be wrapped
       //! @return     : TaskWrapper instance
       //------------------------------------------------------------------------
       template<typename Return>

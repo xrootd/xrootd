@@ -38,53 +38,55 @@
     cache. There can be many such instances. Each instance is associated with
     one or more XrdOucCacheIO objects (see the XrdOucCache::Attach() method).
 
-    Notes: 1. The minimum PageSize is 4096 (4k) and must be a power of 2.
-              The maximum PageSize is 16MB.
-           2. The size of the cache is forced to be a multiple PageSize and
-              have a minimum size of PageSize * 256.
-           3. The minimum external read size is equal to PageSize.
-           4. Currently, only write-through caches are supported.
-           5. The Max2Cache value avoids placing data in the cache when a read
-              exceeds the specified value. The minimum allowed is PageSize, which
-              is also the default.
-           6. Structured file optimization allows pages whose bytes have been
-              fully referenced to be discarded; effectively increasing the cache.
-           7. A structured cache treats all files as structured. By default, the
-              cache treats files as unstructured. You can over-ride the settings
-              on an individual file basis when the file's I/O object is attached
-              by passing the XrdOucCache::optFIS option, if needed.
-           8. Write-in caches are only supported for files attached with the
-              XrdOucCache::optWIN setting. Otherwise, updates are handled
-              with write-through operations.
-           9. A cache object may be deleted. However, the deletion is delayed
-              until all CacheIO objects attached to the cache are detached.
-          10. The default maximum attached files is set to 8192 when isServer
-              has been specified. Otherwise, it is set at 256.
-          11. When canPreRead is specified, the cache asynchronously handles
-              preread requests (see XrdOucCacheIO::Preread()) using 9 threads
-              when isServer is in effect. Otherwise, 3 threads are used.
-          12. The max queue depth for prereads is 8. When the max is exceeded
-              the oldest preread is discarded to make room for the newest one.
-          13. If you specify the canPreRead option when creating the cache you
-              can also enable automatic prereads if the algorithm is workable.
-              Otherwise, you will need to implement your own algorithm and
-              issue prereads manually using the XrdOucCacheIO::Preread() method.
-          14. The automatic preread algorithm is (see aprParms):
-              a) A preread operation occurs when all of the following conditions
-                 are satisfied:
-                 o The cache CanPreRead option is in effect.
-                 o The read length < 'miniRead'
-                    ||(read length < 'maxiRead' && Offset == next maxi offset)
-              b) The preread page count is set to be readlen/pagesize and the
-                 preread occurs at the page after read_offset+readlen. The page
-                 is adjusted, as follows:
-                 o If the count is < minPages, it is set to minPages.
-                 o The count must be > 0 at this point.
-              c) Normally, pre-read pages participate in the LRU scheme. However,
-                 if the preread was triggered using 'maxiRead' then the pages are
-                 marked for single use only. This means that the moment data is
-                 delivered from the page, the page is recycled.
-          15. Invalid options silently force the use of the default.
+    Notes:
+
+    1.  The minimum PageSize is 4096 (4k) and must be a power of 2.
+        The maximum PageSize is 16MB.
+    2.  The size of the cache is forced to be a multiple PageSize and
+        have a minimum size of PageSize * 256.
+    3.  The minimum external read size is equal to PageSize.
+    4.  Currently, only write-through caches are supported.
+    5.  The Max2Cache value avoids placing data in the cache when a read
+        exceeds the specified value. The minimum allowed is PageSize, which
+        is also the default.
+    6.  Structured file optimization allows pages whose bytes have been
+        fully referenced to be discarded; effectively increasing the cache.
+    7.  A structured cache treats all files as structured. By default, the
+        cache treats files as unstructured. You can over-ride the settings
+        on an individual file basis when the file's I/O object is attached
+        by passing the XrdOucCache::optFIS option, if needed.
+    8.  Write-in caches are only supported for files attached with the
+        XrdOucCache::optWIN setting. Otherwise, updates are handled
+        with write-through operations.
+    9.  A cache object may be deleted. However, the deletion is delayed
+        until all CacheIO objects attached to the cache are detached.
+    10. The default maximum attached files is set to 8192 when isServer
+        has been specified. Otherwise, it is set at 256.
+    11. When canPreRead is specified, the cache asynchronously handles
+        preread requests (see XrdOucCacheIO::Preread()) using 9 threads
+        when isServer is in effect. Otherwise, 3 threads are used.
+    12. The max queue depth for prereads is 8. When the max is exceeded
+        the oldest preread is discarded to make room for the newest one.
+    13. If you specify the canPreRead option when creating the cache you
+        can also enable automatic prereads if the algorithm is workable.
+        Otherwise, you will need to implement your own algorithm and
+        issue prereads manually using the XrdOucCacheIO::Preread() method.
+    14. The automatic preread algorithm is (see aprParms):
+        1. A preread operation occurs when all of the following conditions
+           are satisfied:
+           - The cache CanPreRead option is in effect.
+           - The read length < 'miniRead'
+             || (read length < 'maxiRead' && Offset == next maxi offset)
+        2. The preread page count is set to be readlen/pagesize and the
+           preread occurs at the page after read_offset+readlen. The page
+           is adjusted, as follows:
+           - If the count is < minPages, it is set to minPages.
+           - The count must be > 0 at this point.
+        3. Normally, pre-read pages participate in the LRU scheme. However,
+           if the preread was triggered using 'maxiRead' then the pages are
+           marked for single use only. This means that the moment data is
+           delivered from the page, the page is recycled.
+    15. Invalid options silently force the use of the default.
 */
 
 class XrdRmc
@@ -136,8 +138,8 @@ Debug        = 0x0003; //!< Produce some debug messages (levels 0, 1, 2, or 3)
 //-----------------------------------------------------------------------------
 //! Create an instance of a memory cache.
 //!
-//! @param  Reference to mandatory cache parameters.
-//! @param  Optional pointer to default automatic preread parameters.
+//! @param  Params  Reference to mandatory cache parameters.
+//! @param  aprP    Optional pointer to default automatic preread parameters.
 //!
 //! @return Success: a pointer to a new instance of the cache.
 //!         Failure: a null pointer is returned and errno set to the reason.

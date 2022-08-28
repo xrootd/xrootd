@@ -375,23 +375,23 @@ public:
 //-----------------------------------------------------------------------------
 //! Open a file.
 //!
-//! @param  path   - Pointer to the path of the file to be opened.
-//! @param  oMode  - Flags indicating how the open is to be handled.
-//!                  SFS_O_CREAT   create the file
-//!                  SFS_O_MKPTH   Make directory path if missing
-//!                  SFS_O_NOWAIT  do not impose operational delays
-//!                  SFS_O_NOTPC   do not allow TPC operation
-//!                  SFS_O_POSC    persist only on successful close
-//!                  SFS_O_RAWIO   allow client-side decompression
-//!                  SFS_O_RDONLY  open read/only
-//!                  SFS_O_RDWR    open read/write
-//!                  SFS_O_REPLICA Open for replication
-//!                  SFS_O_RESET   Reset any cached information
-//!                  SFS_O_TRUNC   truncate existing file to zero length
-//!                  SFS_O_WRONLY  open write/only
-//! @param  cMode  - The file's mode if it will be created.
-//! @param  client - Client's identify (see common description).
-//! @param  opaque - path's CGI information (see common description).
+//! @param  fileName   - Pointer to the path of the file to be opened.
+//! @param  openMode   - Flags indicating how the open is to be handled.
+//!                      SFS_O_CREAT   create the file
+//!                      SFS_O_MKPTH   Make directory path if missing
+//!                      SFS_O_NOWAIT  do not impose operational delays
+//!                      SFS_O_NOTPC   do not allow TPC operation
+//!                      SFS_O_POSC    persist only on successful close
+//!                      SFS_O_RAWIO   allow client-side decompression
+//!                      SFS_O_RDONLY  open read/only
+//!                      SFS_O_RDWR    open read/write
+//!                      SFS_O_REPLICA Open for replication
+//!                      SFS_O_RESET   Reset any cached information
+//!                      SFS_O_TRUNC   truncate existing file to zero length
+//!                      SFS_O_WRONLY  open write/only
+//! @param  createMode - The file's mode if it will be created.
+//! @param  client     - Client's identify (see common description).
+//! @param  opaque     - path's CGI information (see common description).
 //!
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
 //-----------------------------------------------------------------------------
@@ -497,8 +497,8 @@ virtual const char    *FName() = 0;
 //-----------------------------------------------------------------------------
 //! Get file's memory mapping if one exists (memory mapped files only).
 //!
-//! @param  addr   - Place where the starting memory address is returned.
-//! @param  size   - Place where the file's size is returned.
+//! @param  Addr   - Place where the starting memory address is returned.
+//! @param  Size   - Place where the file's size is returned.
 //!
 //! @return SFS_OK when the file is memory mapped or any other code otherwise.
 //-----------------------------------------------------------------------------
@@ -636,7 +636,7 @@ virtual int            read(XrdSfsAio *aioparm) = 0;
 //! implementation is supplied but should be replaced to increase performance.
 //!
 //! @param  readV     pointer to the array of read requests.
-//! @param  rdvcnt    the number of elements in readV.
+//! @param  rdvCnt    the number of elements in readV.
 //!
 //! @return >=0       The numbe of bytes placed into the buffer.
 //! @return SFS_ERROR File could not be read, error holds the reason.
@@ -693,7 +693,7 @@ virtual int            write(XrdSfsAio *aioparm) = 0;
 //! supplied but should be replaced to increase performance.
 //!
 //! @param  writeV    pointer to the array of write requests.
-//! @param  wdvcnt    the number of elements in writeV.
+//! @param  wdvCnt    the number of elements in writeV.
 //!
 //! @return >=0       The total number of bytes written to the file.
 //! @return SFS_ERROR File could not be written, error holds the reason.
@@ -755,7 +755,7 @@ virtual int            getCXinfo(char cxtype[4], int &cxrsz) = 0;
 //-----------------------------------------------------------------------------
 //! Enable exchange buffer I/O for write calls.
 //!
-//! @param  - Pointer to the XrdSfsXio object to be used for buffer exchanges.
+//! @param  xioP - Pointer to the XrdSfsXio object to be used for buffer exchanges.
 //-----------------------------------------------------------------------------
 
 virtual void           setXio(XrdSfsXio *xioP) { (void)xioP; }
@@ -1226,7 +1226,7 @@ virtual int            rename(const char             *oPath,
 //-----------------------------------------------------------------------------
 //! Return state information on a file or directory.
 //!
-//! @param  path   - Pointer to the path in question.
+//! @param  Name   - Pointer to the path in question.
 //! @param  buf    - Pointer to the structure where info it to be returned.
 //! @param  eInfo  - The object where error info is to be returned.
 //! @param  client - Client's identify (see common description).
@@ -1303,7 +1303,7 @@ uint64_t               FeatureSet; //!< Adjust features at initialization
     @param  nativeFS - the filesystem that would have been used. You may return
                        this pointer if you wish.
     @param  Logger   - The message logging object to be used for messages.
-    @param  configFN - pointer to the path of the configuration file. If nil
+    @param  configFn - pointer to the path of the configuration file. If nil
                        there is no configuration file.
     @param  envP     - Pointer to the environment containing implementation
                        specific information.
