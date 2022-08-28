@@ -97,7 +97,7 @@ void            AddProtocol(const char * protname);
 //-----------------------------------------------------------------------------
 //! Obtain the next digest that can be used to validate the file.
 //!
-//! @param  hVal     Place to put the pointer to the hash value in ASCII
+//! @param  hval     Place to put the pointer to the hash value in ASCII
 //!                  encoded hex,
 //! @param  xrdname  When true the corresponding name expected by XRootD is
 //!                  returned

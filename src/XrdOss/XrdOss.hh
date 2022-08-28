@@ -104,7 +104,7 @@ virtual int     Readdir(char *buff, int blen) {return -ENOTDIR;}
 //!       deleted from the target directory are quietly skipped.
 //-----------------------------------------------------------------------------
 
-virtual int     StatRet(struct stat *) {return -ENOTSUP;}
+virtual int     StatRet(struct stat *buff) {return -ENOTSUP;}
 
 /******************************************************************************/
 /*                 F i l e   O r i e n t e d   M e t h o d s                  */
@@ -161,7 +161,7 @@ virtual int     Fsync(XrdSfsAio *aiop) {return -EISDIR;}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Ftruncate(unsigned long long) {return -EISDIR;}
+virtual int     Ftruncate(unsigned long long flen) {return -EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Return the memory mapped characteristics of the file.
@@ -267,7 +267,7 @@ virtual ssize_t pgWrite(void* buffer, off_t offset, size_t wrlen,
 //!         (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     pgWrite(XrdSfsAio* aoiparm, uint64_t opts);
+virtual int     pgWrite(XrdSfsAio* aioparm, uint64_t opts);
 
 //-----------------------------------------------------------------------------
 //! Preread file blocks into the file system cache.
@@ -303,7 +303,7 @@ virtual ssize_t Read(void *buffer, off_t offset, size_t size)
 //!         (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Read(XrdSfsAio *aoip) {(void)aoip; return (ssize_t)-EISDIR;}
+virtual int     Read(XrdSfsAio *aiop) {(void)aiop; return (ssize_t)-EISDIR;}
 
 //-----------------------------------------------------------------------------
 //! Read uncompressed file bytes into a buffer.
@@ -555,7 +555,8 @@ virtual void      Connect(XrdOucEnv &env);
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int       Create(const char *, const char *, mode_t, XrdOucEnv &,
+virtual int       Create(const char *tid, const char *path,
+                         mode_t mode, XrdOucEnv &env,
                          int opts=0)=0;
 
 //-----------------------------------------------------------------------------
@@ -652,7 +653,7 @@ virtual int       Reloc(const char *tident, const char *path,
 //! Remove a directory.
 //!
 //! @param  path   - Pointer to the path of the directory to be removed.
-//! @param  opts   - The processing options:
+//! @param  Opts   - The processing options:
 //!                  XRDOSS_Online   - only remove online copy
 //!                  XRDOSS_isPFN    - path is already translated.
 //! @param  envP   - Pointer to environmental information.
@@ -711,9 +712,6 @@ virtual int       Stats(char *buff, int blen) {(void)buff; (void)blen; return 0;
 //! @param  buff   - Pointer to the buffer to hold the information.
 //! @param  blen   - Length of the buffer. This is updated with the actual
 //!                  number of bytes placed in the buffer as in snprintf().
-//! @param  opts   - Options:
-//!                  XRDEXP_STAGE - info for stageable space wanted.
-//!                  XRDEXP_NOTRW - info for Read/Only space wanted.
 //! @param  envP   - Pointer to environmental information.
 //!
 //! @return "<wval> <fsp> <utl> <sval> <fsp> <utl>"
@@ -730,16 +728,14 @@ virtual int       StatFS(const char *path, char *buff, int &blen,
 //-----------------------------------------------------------------------------
 //! Return filesystem physical space information associated with a space name.
 //!
+//! @param  env    - Ref to environmental information. If the environment
+//!                  has the key oss.cgroup defined, the associated value is
+//!                  used as the space name and the path is ignored.
 //! @param  path   - Path in the name space in question. The space name
 //!                  associated with gthe path is used unless overridden.
 //! @param  buff   - Pointer to the buffer to hold the information.
 //! @param  blen   - Length of the buffer. This is updated with the actual
 //!                  number of bytes placed in the buffer as in snprintf().
-//! @param  opts   - Options (see StatFS()) apply only when there are no
-//!                  spaces defined.
-//! @param  envP   - Ref to environmental information. If the environment
-//!                  has the key oss.cgroup defined, the associated value is
-//!                  used as the space name and the path is ignored.
 //!
 //! @return "oss.cgroup=<name>&oss.space=<totbytes>&oss.free=<freebytes>
 //!          &oss.maxf=<maxcontigbytes>&oss.used=<bytesused>
@@ -850,7 +846,7 @@ virtual int       Truncate(const char *path, unsigned long long fsize,
 //! Remove a file.
 //!
 //! @param  path   - Pointer to the path of the file to be removed.
-//! @param  opts   - Options:
+//! @param  Opts   - Options:
 //!                  XRDOSS_isMIG  - this is a migratable path.
 //!                  XRDOSS_isPFN  - do not apply name2name to path.
 //!                  XRDOSS_Online - remove only the online copy.

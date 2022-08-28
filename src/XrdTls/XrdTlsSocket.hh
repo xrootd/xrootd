@@ -94,7 +94,7 @@ enum HS_Mode
 //------------------------------------------------------------------------
 //! Accept an incoming TLS connection
 //!
-//! @param  eWhy     - If not nil, receives the associated error message.
+//! @param  eMsg     - If not nil, receives the associated error message.
 //!
 //! @return The appropriate TLS return code.
 //------------------------------------------------------------------------

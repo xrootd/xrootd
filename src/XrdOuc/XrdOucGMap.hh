@@ -155,8 +155,6 @@ int           load(const char *mf, bool force = 0);
 //! otherwise system performance will be severely degraded.
 //------------------------------------------------------------------------------
 
-extern "C" XrdOucGMap *XrdOucgetGMap(XrdOucGMapArgs);
-
 //------------------------------------------------------------------------------
 //! Declare compilation version.
 //!
@@ -165,9 +163,13 @@ extern "C" XrdOucGMap *XrdOucgetGMap(XrdOucGMapArgs);
 //! avoid execution issues should the class definition change. Declare it as:
 //------------------------------------------------------------------------------
 
-/*! #include "XrdVersion.hh"
-    XrdVERSIONINFO(XrdOucgetGMap,<name>);
+/*!
+        #include "XrdVersion.hh"
+        XrdVERSIONINFO(XrdOucgetGMap,<name>);
 
     where <name> is a 1- to 15-character unquoted name identifying your plugin.
 */
+
+extern "C" XrdOucGMap *XrdOucgetGMap(XrdOucGMapArgs);
+
 #endif

@@ -224,7 +224,7 @@ inline bool HasDest(ifType ifT=PublicV6)
 //------------------------------------------------------------------------------
 //! Determine if an endpoint is this domain based on hostname.
 //!
-//! @param  epAddr   Pointer to the endpoint NetAddrInfo object.
+//! @param  epaddr   Pointer to the endpoint NetAddrInfo object.
 //!
 //! @result true     The endpoint is in this domain.
 //! @result false    Either the endpoint is not in this domain, is a private
@@ -297,8 +297,6 @@ static void Privatize(ifType &x) {x = ifType(x | PrivateIF);}
 //! Set the default assigned port number.
 //!
 //! @param  pnum     The port number.
-//!
-//! @return The previous port number.
 //------------------------------------------------------------------------------
 
 static void PortDefault(int pnum=1094);

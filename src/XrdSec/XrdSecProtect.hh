@@ -92,7 +92,7 @@ virtual void         Delete() {delete this;}
 //!                 using free() when it is no longer needed.
 //! @param  thereq  Reference to the client request header/body that needs to
 //!                 be secured. The request must be in network byte order.
-//! @aparam thedata The request data whose length resides in theReq.dlen. If
+//! @param  thedata The request data whose length resides in theReq.dlen. If
 //!                 thedata is nil but thereq.dlen is not zero then the request
 //!                 data must follow the request header in the thereq buffer.
 //!
@@ -114,7 +114,7 @@ virtual int          Secure(SecurityRequest *&newreq,
 //!                 All but the request code must be in network byte order.
 //! @param  thereq  Reference to the client request header/body that needs to
 //!                 be verified. The request must be in network byte order.
-//! @aparam thedata The request data whose length resides in theReq.dlen.
+//! @param  thedata The request data whose length resides in theReq.dlen.
 //!
 //! @return Upon success zero is returned. Otherwise a pointer to a null
 //!         delimited string describing the problem is returned.

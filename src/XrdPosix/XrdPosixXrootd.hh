@@ -322,9 +322,6 @@ static int     Unlink(const char *path);
 //! @param  n       the number of elements in the readV vector.
 //!
 //! @param  cbp     pointer to the callback object for async execution.
-//!
-//! @return Upon success returns the total number of bytes read. Otherwise, -1
-//!         is returned and errno is appropriately set.
 //-----------------------------------------------------------------------------
 
 static void    VRead(int fildes, const XrdOucIOVec *readV, int n,

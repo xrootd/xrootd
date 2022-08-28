@@ -84,15 +84,15 @@ class Result;
 //!                 created for each session or, if the protocol allows, be
 //!                 shared by all sessions. It cannot be deleted until all
 //!                 references to the object disappear (see the Result class).
-//!         linkP   a pointer to the link object that the protocol driver
+//! @param  linkP   a pointer to the link object that the protocol driver
 //!                 created to the client connection.
-//!         secP    a pointer to the XrdSecEntity object that describes the
+//! @param  seceP   a pointer to the XrdSecEntity object that describes the
 //!                 client's identity.
-//!         nameP   An arbitrary 1-to-8 character client name. The Bridge will
+//! @param  nameP   An arbitrary 1-to-8 character client name. The Bridge will
 //!                 uniquefy this name so that log file messages will track the
 //!                 the associated client. The link's identity is set to
 //!                 correspond to this name with additional information.
-//!         protP   a 1-to-7 character name of the protocol using this bridge
+//! @param  protP   a 1-to-7 character name of the protocol using this bridge
 //!                 (e.g. "http").
 //!
 //! @return bridgeP a pointer to a new instance of this class if a bridge
@@ -179,7 +179,7 @@ virtual bool  Disc() = 0;
 //! must see the data prior to sending to the client (e.g. for encryption).
 //!
 //! @param  fhandle the filehandle as returned by kXR_open.
-//! @param  mode    When true, enables sendfile() otherwise it is disabled.
+//! @param  seton   When true, enables sendfile() otherwise it is disabled.
 //!
 //! @return =0      Sucessful.
 //! @return <0      Call failed. The return code is -errno and usually will
@@ -207,7 +207,7 @@ virtual int   setSF(kXR_char *fhandle, bool seton=false) = 0;
 //!
 //-----------------------------------------------------------------------------
 
-virtual void  SetWait(int wime, bool notify=false) = 0;
+virtual void  SetWait(int wtime, bool notify=false) = 0;
 
 /******************************************************************************/
 /*            X r d X r o o t d : : B r i d g e : : C o n t e x t             */

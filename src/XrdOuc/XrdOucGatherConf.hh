@@ -83,7 +83,7 @@ bool  hasData();
 //------------------------------------------------------------------------------
 //! Attempt to use pre-existing data.
 //!
-//! @param  Pointer to null terminated pre-existing data.
+//! @param  data  Pointer to null terminated pre-existing data.
 //!
 //! @return False if the pointer is nil or points to a null string; true o/w.
 //------------------------------------------------------------------------------

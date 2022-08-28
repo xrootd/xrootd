@@ -149,10 +149,10 @@ virtual bool   Prepare(XrdSsiErrInfo &eInfo, const XrdSsiResource &rDesc);
 //! @param  resRef   Reference to the Resource object that describes the
 //!                  resource that the request will be using.
 //!
-//! @return All results are returned via the request object callback methods.
-//!         For background queries, the XrdSsiRequest::ProcessResponse() is 
-//!         called with a response type of isHandle when the request is handed
-//!         off to the endpoint for execution (see XrdSsiRequest::SetDetachTTL).
+//! All results are returned via the request object callback methods.
+//! For background queries, the XrdSsiRequest::ProcessResponse() is 
+//! called with a response type of isHandle when the request is handed
+//! off to the endpoint for execution (see XrdSsiRequest::SetDetachTTL).
 //-----------------------------------------------------------------------------
 
 virtual void   ProcessRequest(XrdSsiRequest  &reqRef,

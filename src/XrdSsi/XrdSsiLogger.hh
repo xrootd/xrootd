@@ -47,7 +47,7 @@ public:
 //! @param  pfx  !0 -> the text to prefix the message; the message is formed as
 //!                    <timestamp> pfx: txt1 [txt2] [txt3]\n
 //!         pfx  =0 -> add message to the log without a time stamp or prefix.
-//! @param  msg  the message to added to the log.
+//! @param  txt1,txt2,txt3  the message to be added to the log.
 //-----------------------------------------------------------------------------
 
 static void Msg(const char *pfx,    const char *txt1,
@@ -86,7 +86,7 @@ static void Msgv(const char *pfx, const char *fmt, va_list aP);
 //!
 //! @param  iovP pointer to an iovec that contains the message.
 //!              that a newline character is always appended to the message.
-//! @param  iobN the number of elements in the iovec.
+//! @param  iovN the number of elements in the iovec.
 //-----------------------------------------------------------------------------
 
 static void Msgv(struct iovec *iovP, int iovN);

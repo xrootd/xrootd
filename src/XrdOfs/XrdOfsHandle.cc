@@ -71,7 +71,7 @@ public:
         int     pgWrite(XrdSfsAio* aioparm, uint64_t opts)   {return  wRC;  }
         ssize_t Read(off_t, size_t)                          {return  rRC;  }
         ssize_t Read(void *, off_t, size_t)                  {return  rRC;  }
-        int     Read(XrdSfsAio *aoip)                        {return  rRC;  }
+        int     Read(XrdSfsAio *aiop)                        {return  rRC;  }
         ssize_t ReadV(XrdOucIOVec *readV,int rdvcnt)         {return  rRC;  }
         ssize_t ReadRaw(    void *, off_t, size_t)           {return  rRC;  }
         ssize_t Write(const void *, off_t, size_t)           {return  wRC;  }

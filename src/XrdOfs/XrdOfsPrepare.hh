@@ -178,7 +178,7 @@ extern "C" XrdOfsPrepare_t *XrdOfsgetPrepare;
 //! @param  parms -> Argument string specified on the namelib directive. It may
 //!                  be null or point to a null string if no parms exist.
 //! @param  theSfs-> Pointer to the XrdSfsFileSystem plugin.
-//! @param  theOSs-> Pointer to the OSS plugin.
+//! @param  theOss-> Pointer to the OSS plugin.
 //! @param  envP  -> Pointer to environmental information (may be nil).
 //! @param  prepP -> Pointer to the existing XrdOfsPrepare object that should
 //!                  be wrapped by the returned object.

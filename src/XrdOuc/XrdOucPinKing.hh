@@ -54,7 +54,7 @@ public:
 //! Add an Pin object to the load list.
 //!
 //! @param path   Pointer to the pin's path.
-//! @param parm   Pointer to the pin's parameters.
+//! @param parms  Pointer to the pin's parameters.
 //! @param push   When true pushes the pin onto the load stack. Otherwise,
 //!               replaces or defines the base plugin.
 //------------------------------------------------------------------------------
@@ -82,9 +82,9 @@ T     *Load(const char *Symbol);
 //! @param drctv  Ref to the directive that initiated the load. The text is
 //!               used in error messages to relate the directive to the error.
 //!               E.g. "sec.entlib" -> "Unable to load sec.entlib plugin...."
-//! @param envP   Ref to environment.
-//! @param errP   Ref to the message routing object.
-//! @param vInfo  Pointer to the version information of the caller. If the
+//! @param envR   Ref to environment.
+//! @param errR   Ref to the message routing object.
+//! @param vinfo  Pointer to the version information of the caller. If the
 //!               pointer is nil, no version checking occurs.
 //------------------------------------------------------------------------------
 

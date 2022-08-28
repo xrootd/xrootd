@@ -83,16 +83,15 @@ namespace XrdCl
       //! pushed through the wire or when the timeout elapses
       //!
       //! @param msg     message to be sent
-      //! @apram stateful physical stream disconnection causes an error
+      //! @param handler handler to be notified about the status
+      //! @param stateful physical stream disconnection causes an error
       //! @param expires unix timestamp after which a failure is reported
       //!                to the listener
-      //! @param handler handler to be notified about the status
-      //! @param redirector virtual redirector to be used
       //! @return        success if the message was successfully inserted
       //!                into the send queues, failure otherwise
       //------------------------------------------------------------------------
       XRootDStatus Send( Message              *msg,
-                         MsgHandler   *handler,
+                         MsgHandler           *handler,
                          bool                  stateful,
                          time_t                expires );
 

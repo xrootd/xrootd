@@ -282,7 +282,6 @@ namespace XrdCl
       //! Handle an event other that a message arrival
       //!
       //! @param event     type of the event
-      //! @param streamNum stream concerned
       //! @param status    status info
       //------------------------------------------------------------------------
       virtual uint8_t OnStreamEvent( StreamEvent  event,
@@ -304,7 +303,7 @@ namespace XrdCl
       //! true - only socket related errors may be returned here
       //!
       //! @param socket    the socket to read from
-      //! @param bytesRead number of bytes read by the method
+      //! @param bytesWritten number of bytes written by the method
       //! @return          stOK & suDone if the whole body has been processed
       //!                  stOK & suRetry if more data needs to be written
       //!                  stError on failure
@@ -510,7 +509,7 @@ namespace XrdCl
       //! Check if for given request and Metalink redirector  it is OK to omit
       //! the kXR_wait and proceed stright to the next entry in the Metalink file
       //!
-      //! @param   reuqest : the request in question
+      //! @param   request : the request in question
       //! @param   url     : metalink URL
       //! @return          : true if yes, false if no
       //------------------------------------------------------------------------
@@ -533,7 +532,7 @@ namespace XrdCl
       //! Read data from buffer
       //!
       //! @param buffer : the buffer with data
-      //! @param size   : the size of the buffer
+      //! @param buflen : the size of the buffer
       //! @param result : output parameter (data read)
       //! @return       : status of the operation
       //------------------------------------------------------------------------
@@ -544,7 +543,7 @@ namespace XrdCl
       //! Read a string from buffer
       //!
       //! @param buffer : the buffer with data
-      //! @param size   : the size of the buffer
+      //! @param buflen : the size of the buffer
       //! @param result : output parameter (data read)
       //! @return       : status of the operation
       //------------------------------------------------------------------------

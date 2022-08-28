@@ -59,7 +59,7 @@ typedef void (*XrdSysLogPI_t)(struct timeval const &mtime,
 //! library identified by the "-l @library" command line option. This function
 //! is called only once during loging initialization.
 //!
-//! @param  cfgfn     -> Configuration filename (nil if none).
+//! @param  cfgn      -> Configuration filename (nil if none).
 //! @param  argv      -> command line arguments after "-+xrdlog".
 //! @param  argc         number of command line arguments in argv.
 //!

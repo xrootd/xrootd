@@ -74,8 +74,8 @@ static uint32_t Calc32C(const void* data, size_t count, uint32_t prevcs=0);
 //! @param  csval  Pointer to a vector to hold individual page checksums. The
 //!                vector must be sized:
 //!                (count/XrdSys::PageSize + (count%XrdSys::PageSize != 0)).
-//!
-//! @return Each element of csval holds the checksum for the associated page.
+//!                On return, each element of csval holds the checksum for
+//!                the associated page.
 //------------------------------------------------------------------------------
 
 static void Calc32C(const void* data, size_t count, uint32_t* csval);

@@ -106,7 +106,7 @@ static void DoBT(const char *head=0, void *thisP=0, void *objP=0,
 //!                 login mkdir mv open ping prepare protocol putfile query read
 //!                 readv rm rmdir set stat statx sync truncate verifyw write
 //!
-//! @param  reqs    The kXR_ response code name(s). If the pointer is nil, the
+//! @param  rsps    The kXR_ response code name(s). If the pointer is nil, the
 //!                 back trace filter is set using envar XRDBT_RSPFILTER as the
 //!                 argument. If both are nil, no filter is established.
 //!                 Specify, one or more names, each separated by a space.

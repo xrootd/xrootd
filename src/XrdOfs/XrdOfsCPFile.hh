@@ -55,7 +55,7 @@ int            Append(const char *data, off_t offset, int dlen);
 //-----------------------------------------------------------------------------
 //! Create a checkpoint
 //!
-//! @param  srcFN   - Pointer to the name of the source file being checkpointed.
+//! @param  lfn     - Pointer to the name of the source file being checkpointed.
 //! @param  Stat    - Reference to source file stat information.
 //!
 //! @return 0 upon success and -errno upon failure.
@@ -168,7 +168,7 @@ static char   *Target(const char *ckpfn);
 //-----------------------------------------------------------------------------
 //! Constructor
 //!
-//! @param  ckpfn   - Pointer to the name of the checkpoint file to use. When
+//! @param  cfn     - Pointer to the name of the checkpoint file to use. When
 //!                   supplied, creates are prohibited.
 //-----------------------------------------------------------------------------
 

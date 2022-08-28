@@ -179,8 +179,7 @@ namespace XrdCl
       //! Write scattered buffers in one operation - async
       //!
       //! @param offset    offset from the beginning of the file
-      //! @param iov       list of the buffers to be written
-      //! @param iovcnt    number of buffers
+      //! @param chunks    list of the chunks to be read
       //! @param handler   handler to be notified when the response arrives
       //! @param timeout   timeout value, if 0 then the environment default
       //!                  will be used
@@ -292,10 +291,9 @@ namespace XrdCl
                               uint16_t                   timeout = 0 );
 
       //------------------------------------------------------------------------
-      //! creates the directories specified in file_path
+      //! creates the directories specified in path
       //!
-      //! @param file_path specifies which directories are to be created
-      //! @param mode      same access modes as for the desired file operation
+      //! @param path      specifies which directories are to be created
       //! @return          status of the mkdir system call
       //------------------------------------------------------------------------
       static XRootDStatus MkdirPath( const std::string &path );

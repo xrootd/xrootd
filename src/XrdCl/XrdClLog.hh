@@ -161,7 +161,7 @@ namespace XrdCl
       //! Always print the message
       //!
       //! @param level  log level
-      //! @param type   topic of the message
+      //! @param topic  topic of the message
       //! @param format format string - the same as in printf
       //! @param list   list of arguments
       //------------------------------------------------------------------------

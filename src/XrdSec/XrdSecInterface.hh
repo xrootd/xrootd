@@ -376,9 +376,11 @@ virtual      ~XrdSecProtocol() {}
 //!                return true (the default is to return false).
 //------------------------------------------------------------------------------
 
-/*! extern "C" char *XrdSecProtocol<p>Init (const char     who,
+/*! @code {.cpp}
+    extern "C" char *XrdSecProtocol<p>Init (const char     who,
                                             const char    *parms,
                                             XrdOucErrInfo *einfo) {. . . .}
+    @endcode
 */
 
 //------------------------------------------------------------------------------
@@ -386,7 +388,7 @@ virtual      ~XrdSecProtocol() {}
 //!
 //! @param  who      contains 'c' when called on the client side and 's' when
 //!                  called on the server side.
-//! @param  host     The client's host name or the IP address as text. An IP
+//! @param  hostname The client's host name or the IP address as text. An IP
 //!                  may be supplied if the host address is not resolvable. Use
 //!                  endPoint to get the hostname only if it's actually needed.
 //! @param  endPoint the XrdNetAddrInfo object describing the end-point. When
@@ -478,10 +480,10 @@ virtual      ~XrdSecProtocol() {}
 //! Typedef to simplify the encoding of methods returning XrdSecProtocol.
 //------------------------------------------------------------------------------
 
-typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *,
-                                           XrdNetAddrInfo &,
-                                           XrdSecParameters &,
-                                           XrdOucErrInfo *);
+typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *hostname,
+                                           XrdNetAddrInfo &endPoint,
+                                           XrdSecParameters &sectoken,
+                                           XrdOucErrInfo *einfo);
 
 /*! Example:
 

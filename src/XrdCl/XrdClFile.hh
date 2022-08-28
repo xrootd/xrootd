@@ -218,8 +218,8 @@ namespace XrdCl
       //! @param offset    offset from the beginning of the file
       //! @param size    buffer size, at least 1 page big (4KB)
       //! @param buffer    a pointer to a buffer big enough to hold the data
-      //! @param bytesRead number of bytes actually read
       //! @param cksums    crc32c checksum for each read 4KB page
+      //! @param bytesRead number of bytes actually read
       //! @param timeout   timeout value, if 0 the environment default will be
       //!                  used
       //! @return          status of the operation
@@ -525,7 +525,6 @@ namespace XrdCl
       //! @param offset    offset from the beginning of the file
       //! @param iov       list of the buffers to
       //! @param iovcnt    number of buffers
-      //! @param handler   handler to be notified when the response arrives
       //! @param timeout   timeout value, if 0 then the environment default
       //!                  will be used
       //! @return          status of the operation
@@ -558,7 +557,7 @@ namespace XrdCl
       //! @param offset    offset from the beginning of the file
       //! @param iov       list of the buffers to be written
       //! @param iovcnt    number of buffers
-      //! @param handler   handler to be notified when the response arrives
+      //! @param bytesRead number of bytes actually read
       //! @param timeout   timeout value, if 0 then the environment default
       //!                  will be used
       //! @return          status of the operation

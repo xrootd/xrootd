@@ -233,7 +233,7 @@ int        Ver(  const char *Xfn, XrdCksData &Cks, XrdCksPCB *pcbP)
 //! Constructor
 //!
 //! @param  prevPI   Reference to the antecedent plugin.
-//! Wparam  errP     Pointer to error message object
+//! @param  errP     Pointer to error message object
 //------------------------------------------------------------------------------
 
            XrdCksWrapper(XrdCks &prevPI, XrdSysError *errP)

@@ -41,7 +41,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param xrdTransport : the (xrootd) transport layer
       //! @param socket       : the socket with the message to be read out
       //! @param strmname     : stream name
       //------------------------------------------------------------------------

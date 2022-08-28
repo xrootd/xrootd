@@ -93,7 +93,7 @@ bool   Configure(XrdCmsClient *cmscP, XrdOucEnv *envP);
 //-----------------------------------------------------------------------------
 //! Configure the fsctl plugin.
 //!
-//! @param   cmsP    Pointer to the cms plugin.
+//! @param   cmscP   Pointer to the cms plugin.
 //! @param   envP    Pointer to the environment.
 //-----------------------------------------------------------------------------
 

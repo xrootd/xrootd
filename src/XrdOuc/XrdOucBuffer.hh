@@ -201,7 +201,7 @@ inline int           DataLen() {return dlen;}
 //-----------------------------------------------------------------------------
 //! Highjack the buffer contents and reinitialize the original buffer.
 //!
-//! @param  xsz   - the desired size to be given to the highjacked buffer. If
+//! @param  bPsz  - the desired size to be given to the highjacked buffer. If
 //!                 zero, the current size is used. Same size resictions apply
 //!                 as for buffer pool Alloc(), above.
 //!

@@ -218,7 +218,7 @@ class XCpSrc
      * This method is used by ChunkHandler to report the result of a write,
      * to the source object.
      *
-     * @param stats  : operation status
+     * @param status : operation status
      * @param chunk  : the read chunk (if operation failed, should be null)
      * @param handle : the file object used to read the chunk
      */
