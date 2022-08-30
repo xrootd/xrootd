@@ -531,8 +531,7 @@ int XrdXrootdProtocol::do_Close()
 
 // Find the file object
 //
-   if (!FTab || !(fp = FTab->Get(fh.handle))
-   ||  fp == XrdXrootdFileTable::heldSpotP)
+   if (!FTab || !(fp = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen, 
                           "close does not refer to an open file");
 
