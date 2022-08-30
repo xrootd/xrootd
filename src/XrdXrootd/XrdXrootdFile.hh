@@ -168,9 +168,15 @@ public:
 
 inline XrdXrootdFile *Get(int fnum)
                          {if (fnum >= 0)
-                             {if (fnum < XRD_FTABSIZE) return FTab[fnum];
-                              if (XTab && (fnum-XRD_FTABSIZE)<XTnum)
-                                 return XTab[fnum-XRD_FTABSIZE];
+                             {if (fnum < XRD_FTABSIZE)
+                                 {if (FTab[fnum] != heldSpotP) return FTab[fnum];
+                                 } else {
+                                  if (XTab)
+                                     {int i = fnum - XRD_FTABSIZE;
+                                      if (i < XTnum &&  XTab[i] != heldSpotP)
+                                         return XTab[i];
+                                     }
+                                 }
                              }
                           return (XrdXrootdFile *)0;
                          }
