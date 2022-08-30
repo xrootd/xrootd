@@ -208,14 +208,14 @@ int          GetSokInfo(int fd, char *theAddr, int theALen, char &theType);
 //! Obtain an easily digestable list of hosts. This is the list of up to eight
 //! unique aliases (i.e. with different addresses) assigned to a base hostname.
 //!
+//! @param  hSpec    the host specification suitable for XrdNetAddr.Set().
+//! @param  hPort    When >= 0 specified the port to use regardless of hSpec.
+//!                  When <  0 the port must be present in hSpec.
+//! @param  hWant    Maximum number of list entries wanted. If hWant is greater
+//!                  that eight it is set eigth.
 //! @param  sPort    If not nil, the *sPort will be set to hPort if and only if
 //!                  the IP address in one of the entries matches the host
 //!                  address. Otherwise, the value is unchanged.
-//! @param  hName    the host specification suitable for XrdNetAddr.Set().
-//! @param  hPort    When >= 0 specified the port to use regardless of hSpec.
-//!                  When <  0 the port must be present in hSpec.
-//!         hWant    Maximum number of list entries wanted. If hWant is greater
-//!                  that eight it is set eigth.
 //! @param  eText    When not nil, is where to place error message text.
 //!
 //! @return Success: Pointer to a list of XrdOucTList objects where
@@ -379,7 +379,6 @@ static int  Port(int fd, const char **eText=0);
 //! Obtain the protocol identifier.
 //!
 //! @param  pName    the name of the protocol (e.g. "tcp").
-//! @param  eText    when not null, the reason for a failure is returned.
 //!
 //! @return The protocol identifier.
 //------------------------------------------------------------------------------
@@ -404,7 +403,7 @@ static int  ServPort(const char *sName, bool isUDP=false, const char **eText=0);
 //! used within this class and by XrdNetAddr when the IP mode changes.  It is
 //! meant for internal use only.
 //!
-//! @param  ipType   Is one of the following from the AddrOpts enum:
+//! @param  aOpts    Is one of the following from the AddrOpts enum:
 //!                  allIPMap - Use IPv6 and mapped IPv4 addrs (default)
 //!                  onlyIPv4 - Use only IPv4 addresses.
 //!                  prefAuto - Determine proper options based on configuration.
@@ -417,7 +416,7 @@ static int  SetAuto(AddrOpts aOpts=allIPMap);
 //------------------------------------------------------------------------------
 //! Check if whether or not a host name represents more than one unique host.
 //!
-//! @param  hName    the host specification suitable for XrdNetAddr.Set().
+//! @param  hSpec    the host specification suitable for XrdNetAddr.Set().
 //! @param  eText    When not nil, is where to place error message text.
 //!
 //! @return True is this is a simple single host. False if the name represensts

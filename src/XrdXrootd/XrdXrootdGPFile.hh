@@ -145,7 +145,7 @@ virtual void getFile(const XrdXrootdGPFileInfo &gargs,
 //!       reflected by calling pargs.Completed() with an error code and msg.
 //-----------------------------------------------------------------------------
 
-virtual void putFile(const XrdXrootdGPFileInfo &gargs,
+virtual void putFile(const XrdXrootdGPFileInfo &pargs,
                      const XrdSecEntity        *client=0) = 0;
 
 //------------------------------------------------------------------------------

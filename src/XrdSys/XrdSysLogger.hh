@@ -139,7 +139,7 @@ int Bind(const char *path, int lfh=0);
 //! Capture allows you to capture all messages (they are not routed). This is
 //! a global setting so use with caution!
 //!
-//! @param  tBase     Pointer to the XrdOucTListFIFO where messages are saved.
+//! @param  tFIFO     Pointer to the XrdOucTListFIFO where messages are saved.
 //!                   If the pointer is nil, capturing is turned off.
 //-----------------------------------------------------------------------------
 

@@ -77,8 +77,8 @@ int           Rmdir(const char* path);
 //-----------------------------------------------------------------------------
 //! Rename a file or directory in the cache.
 //!
-//! @param  oldpath -> filepath of existing directory or file.
-//! @param  newpath -> filepath the directory or file is to have.
+//! @param  oldPath -> filepath of existing directory or file.
+//! @param  newPath -> filepath the directory or file is to have.
 //!
 //! @return 0       This method is currently not supported.
 //-----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ int           Stat(const char *path, struct stat &sbuff);
 //-----------------------------------------------------------------------------
 //! Rename a file or directory in the cache.
 //!
-//! @param  Stat    Reference to the statistics object to be filled in.
+//! @param  Stats   Reference to the statistics object to be filled in.
 //-----------------------------------------------------------------------------
 
 void          Statistics(XrdOucCacheStats &Stats);

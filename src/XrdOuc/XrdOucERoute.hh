@@ -61,7 +61,7 @@ static int Format(char *buff, int blen, int ecode, const char *etxt1,
 //! @param  estrm   pointer to the XrdOucStrean object which is to receive the
 //!                 error message text or null if none exists.
 //! @param  esfx    The suffix identifier to use when routing to the log.
-//! @param  enum    the error number associated iwth the error.
+//! @param  ecode   the error number associated iwth the error.
 //! @param  etxt1   associated text token #1.
 //! @param  etxt2   associated text token #2 (optional).
 //!

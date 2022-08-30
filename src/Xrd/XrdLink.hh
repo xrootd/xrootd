@@ -153,7 +153,7 @@ static XrdLink *Find(int &curr, XrdLinkMatch *who=0);
 //-----------------------------------------------------------------------------
 //! Find the next client name matching certain attributes.
 //!
-//! @param  cur     Is an internal tracking value that allows repeated calls.
+//! @param  curr    Is an internal tracking value that allows repeated calls.
 //!                 It must be set to a value of 0 or less on the initial call
 //!                 and not touched therafter unless zero is returned.
 //! @param  bname   Pointer to a buffer where the name is to be returned.
@@ -306,7 +306,8 @@ int             Recv(char *buff, int blen, int timeout);
 //!
 //! @param  iov     pointer to the message vector.
 //! @param  iocnt   number of iov elements in the vector.
-//! @param  bytes   the sum of the sizes in the vector.
+//! @param  timeout milliseconds to wait for data. A negative value waits
+//!                 forever.
 //!
 //! @return >=0     number of bytes read.
 //!         < 0     an error occurred or when -ETIMEDOUT is returned, no data
@@ -336,9 +337,9 @@ int             RecvAll(char *buff, int blen, int timeout=-1);
 //------------------------------------------------------------------------------
 //! Register a host name with this IP address. This is not MT-safe!
 //!
-//! @param  hName    -> to a true host name which should be fully qualified.
-//!                     One of the IP addresses registered to this name must
-//!                     match the IP address associated with this object.
+//! @param  hName  pointer to a true host name which should be fully qualified.
+//!                One of the IP addresses registered to this name must
+//!                match the IP address associated with this object.
 //!
 //! @return True:    Specified name is now associated with this link.
 //!         False:   Nothing changed, registration could not be verified.
@@ -479,7 +480,7 @@ bool            setTLS(bool enable, XrdTlsContext *ctx=0);
 //-----------------------------------------------------------------------------
 //! Shutdown the link but otherwise keep it intact.
 //!
-//! @param  getlock if true, the operation is performed under a lock.
+//! @param  getLock if true, the operation is performed under a lock.
 //-----------------------------------------------------------------------------
 
 void            Shutdown(bool getLock);
@@ -554,9 +555,6 @@ bool            hasBridge() const {return isBridged;}
 
 //-----------------------------------------------------------------------------
 //! Determine if this link is using TLS.
-//!
-//! @param  vprot   if not nil, the TLS protocol version number if returned.
-//!                 If the link is not using TLS the version is a null string.
 //!
 //! @return true    this link is  using TLS.
 //! @return false   this link not using TLS.

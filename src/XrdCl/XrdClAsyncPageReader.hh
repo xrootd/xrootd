@@ -42,10 +42,7 @@ class AsyncPageReader
     //! Constructor
     //!
     //! @param chunks  : list of buffer for the data
-    //! @param socket  : the socket with the data
     //! @param digests : a vector that will be filled with crc32c digest data
-    //! @param dlen    : total size of data (including crc32 digests) in the
-    //!                  server response
     //--------------------------------------------------------------------------
     AsyncPageReader( ChunkList             &chunks,
                      std::vector<uint32_t> &digests ) :
@@ -100,7 +97,8 @@ class AsyncPageReader
     }
 
     //--------------------------------------------------------------------------
-    //! Readout date from the socket
+    //! Readout data from the socket
+    //! @param socket  : the socket with the data 
     //! @param btsread : number of user data read from the socket
     //! @return        : operation status
     //--------------------------------------------------------------------------

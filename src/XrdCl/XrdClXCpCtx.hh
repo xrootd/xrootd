@@ -147,7 +147,7 @@ class XCpCtx
      * Gets the next chunk from the sink, if the sink is empty blocks.
      *
      * @param ci : the chunk retrieved from sink (output parameter)
-     * @retrun   : stError if we failed to transfer the file,
+     * @return   : stError if we failed to transfer the file,
      *             stOK otherwise, with one of the following codes:
      *             - suDone     : the whole file has been transferred,
      *                            we are done

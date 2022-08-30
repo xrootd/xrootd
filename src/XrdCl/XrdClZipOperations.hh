@@ -33,7 +33,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param f    : file on which the operation will be performed
+      //! @param zip  : file on which the operation will be performed
       //! @param args : file operation arguments
       //------------------------------------------------------------------------
       ZipOperation( Ctx<ZipArchive> zip, Arguments... args): ConcreteOperation<Derived, false, Response, Arguments...>( std::move( args )... ), zip( std::move( zip ) )

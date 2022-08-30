@@ -110,7 +110,7 @@ static XrdPollInfo *fd2PollInfo(int fd)
 //-----------------------------------------------------------------------------
 //! Find the next link matching certain attributes.
 //!
-//! @param  cur     Is an internal tracking value that allows repeated calls.
+//! @param  curr    Is an internal tracking value that allows repeated calls.
 //!                 It must be set to a value of 0 or less on the initial call
 //!                 and not touched therafter unless a null pointer is returned.
 //! @param  who     If the object use to check if teh link matches the wanted
@@ -128,7 +128,7 @@ static XrdLink  *Find(int &curr, XrdLinkMatch *who=0);
 //-----------------------------------------------------------------------------
 //! Find the next client name matching certain attributes.
 //!
-//! @param  cur     Is an internal tracking value that allows repeated calls.
+//! @param  curr    Is an internal tracking value that allows repeated calls.
 //!                 It must be set to a value of 0 or less on the initial call
 //!                 and not touched therafter unless zero is returned.
 //! @param  bname   Pointer to a buffer where the name is to be returned.
@@ -152,8 +152,8 @@ static void     idleScan();
 //-----------------------------------------------------------------------------
 //! Set kill constants.
 //!
-//! @param  wksec   Seconds to wait for kill to happed,
-//! @param  kwsec   The minimum number of seconds to wait after killing a
+//! @param  wkSec   Seconds to wait for kill to happed,
+//! @param  kwSec   The minimum number of seconds to wait after killing a
 //!                 connection for it to end.
 //-----------------------------------------------------------------------------
 
@@ -162,7 +162,7 @@ static void     setKWT(int wkSec, int kwSec);
 //-----------------------------------------------------------------------------
 //! Setup link processing.
 //!
-//! @param  maaxfds The maximum number of connections to handle.
+//! @param  maxfds  The maximum number of connections to handle.
 //! @param  idlewt  The time interval to check for idle connections.
 //!
 //! @return !0      Successful.

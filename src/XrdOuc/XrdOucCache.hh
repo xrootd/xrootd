@@ -398,9 +398,6 @@ virtual int  Trunc(long long offs) = 0;
 //!               caller holds any locks they must be recursive locks as the
 //!               callback may occur on the calling thread.
 //! @param  offs  the size the file is have.
-//!
-//! @return       <0 - Trunc failed, value is -errno.
-//!               =0 - Trunc succeeded.
 //------------------------------------------------------------------------------
 
 virtual void Trunc(XrdOucCacheIOCB &iocb, long long offs)
@@ -720,7 +717,7 @@ virtual       ~XrdOucCache() {}
   
 //------------------------------------------------------------------------------
 //! Your cache plug-in must exist in a shared library and have the following
-//! extern  C function defined whos parameters are:
+//! extern C function defined whose parameters are:
 //!
 //! @param Logger  Pointer to the logger object that should be used with an
 //!                instance of XrdSysError to direct messages to a log file.
@@ -732,22 +729,24 @@ virtual       ~XrdOucCache() {}
 //!                path. If Parms is null, there are no parameters.
 //! @param envP    Pointer to environmental information. The most relevant
 //!                is whether or not gStream monitoring is enabled.
+//!                @code {.cpp}
 //!                XrdXrootdGStream *gStream = (XrddXrootdGStream *)
 //!                                            envP->GetPtr("pfc.gStream*");
+//!                @endcode
 //! @return        A usable, fully configured, instance of an XrdOucCache
 //!                object upon success and a null pointer otherwise. This
 //!                instance is used for all operations defined by methods in
 //!                XrdOucCache base class.
 //!
+//! @code {.cpp}
 //! extern "C"
 //! {
 //! XrdOucCache *XrdOucGetCache(XrdSysLogger *Logger, // Where messages go
 //!                             const char   *Config, // Config file used
 //!                             const char   *Parms,  // Optional parm string
-//! }                           XrdOucEnv    *envP);  // Optional environment
-
-typedef XrdOucCache *(*XrdOucCache_t)(XrdSysLogger *, const char *,
-                                        const char *, XrdOucEnv  *);
+//!                             XrdOucEnv    *envP);  // Optional environment
+//! }
+//! @endcode
 
 //------------------------------------------------------------------------------
 //! Declare compilation version.
@@ -756,9 +755,14 @@ typedef XrdOucCache *(*XrdOucCache_t)(XrdSysLogger *, const char *,
 //! your plug-in. Declare it as shown below.
 //------------------------------------------------------------------------------
 
-/*! #include "XrdVersion.hh"
-    XrdVERSIONINFO(XrdOucGetCache,<name>);
+/*!
+        #include "XrdVersion.hh"
+        XrdVERSIONINFO(XrdOucGetCache,<name>);
 
     where <name> is a 1- to 15-character unquoted name identifying your plugin.
 */
+
+typedef XrdOucCache *(*XrdOucCache_t)(XrdSysLogger *Logger, const char *Config,
+                                      const char   *Parms,  XrdOucEnv  *envP);
+
 #endif

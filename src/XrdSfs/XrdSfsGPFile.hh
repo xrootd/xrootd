@@ -72,8 +72,8 @@ void         *rsvd3;   //!< Reserved field
 //! @param emsg - An optional message further explaining the reason for the
 //!               failure (highly recommended).
 //!
-//! @return No value is returned but this object is deleted and no references
-//!         to the object should exist after return is made.
+//! No value is returned but this object is deleted and no references
+//! to the object should exist after return is made.
 //-----------------------------------------------------------------------------
 
 virtual void Finished(int rc, const char *emsg=0) = 0;

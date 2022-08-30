@@ -221,7 +221,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Create the output csv file
-  //! @param path : path for the file to be created
+  //! @param cfgpath : path for the file to be created
   //----------------------------------------------------------------------------
   inline static void SetOutput( const std::string &cfgpath )
   {

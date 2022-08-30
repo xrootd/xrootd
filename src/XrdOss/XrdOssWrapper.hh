@@ -87,7 +87,7 @@ virtual int     Readdir(char *buff, int blen)
 //! Set the stat() buffer where stat information is to be placed corresponding
 //! to the directory entry returned by Readdir().
 //!
-//! @param  buff   - Pointer to stat structure to be used.
+//! @param  Stat   - Pointer to stat structure to be used.
 //!
 //! @return 0 upon success or -ENOTSUP if not supported.
 //!
@@ -151,8 +151,8 @@ virtual int     Fsync(XrdSfsAio *aiop) {return wrapDF.Fsync(aiop);}
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
 
-virtual int     Ftruncate(unsigned long long offs)
-                         {return wrapDF.Ftruncate(offs);}
+virtual int     Ftruncate(unsigned long long flen)
+                         {return wrapDF.Ftruncate(flen);}
 
 //-----------------------------------------------------------------------------
 //! Return the memory mapped characteristics of the file.
@@ -609,7 +609,7 @@ virtual int       Reloc(const char *tident, const char *path,
 //! Remove a directory.
 //!
 //! @param  path   - Pointer to the path of the directory to be removed.
-//! @param  opts   - The processing options:
+//! @param  Opts   - The processing options:
 //!                  XRDOSS_Online   - only remove online copy
 //!                  XRDOSS_isPFN    - path is already translated.
 //! @param  envP   - Pointer to environmental information.
@@ -672,9 +672,6 @@ virtual int       Stats(char *buff, int blen)
 //! @param  buff   - Pointer to the buffer to hold the information.
 //! @param  blen   - Length of the buffer. This is updated with the actual
 //!                  number of bytes placed in the buffer as in snprintf().
-//! @param  opts   - Options:
-//!                  XRDEXP_STAGE - info for stageable space wanted.
-//!                  XRDEXP_NOTRW - info for Read/Only space wanted.
 //! @param  envP   - Pointer to environmental information.
 //!
 //! @return "<wval> <fsp> <utl> <sval> <fsp> <utl>"
@@ -692,16 +689,14 @@ virtual int       StatFS(const char *path, char *buff, int &blen,
 //-----------------------------------------------------------------------------
 //! Return filesystem physical space information associated with a space name.
 //!
+//! @param  env    - Ref to environmental information. If the environment
+//!                  has the key oss.cgroup defined, the associated value is
+//!                  used as the space name and the path is ignored.
 //! @param  path   - Path in the name space in question. The space name
 //!                  associated with gthe path is used unless overridden.
 //! @param  buff   - Pointer to the buffer to hold the information.
 //! @param  blen   - Length of the buffer. This is updated with the actual
 //!                  number of bytes placed in the buffer as in snprintf().
-//! @param  opts   - Options (see StatFS()) apply only when there are no
-//!                  spaces defined.
-//! @param  envP   - Ref to environmental information. If the environment
-//!                  has the key oss.cgroup defined, the associated value is
-//!                  used as the space name and the path is ignored.
 //!
 //! @return "oss.cgroup=<name>&oss.space=<totbytes>&oss.free=<freebytes>
 //!          &oss.maxf=<maxcontigbytes>&oss.used=<bytesused>
@@ -807,7 +802,7 @@ virtual int       Truncate(const char *path, unsigned long long fsize,
 //! Remove a file.
 //!
 //! @param  path   - Pointer to the path of the file to be removed.
-//! @param  opts   - Options:
+//! @param  Opts   - Options:
 //!                  XRDOSS_isMIG  - this is a migratable path.
 //!                  XRDOSS_isPFN  - do not apply name2name to path.
 //!                  XRDOSS_Online - remove only the online copy.

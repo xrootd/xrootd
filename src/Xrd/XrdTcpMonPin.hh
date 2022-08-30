@@ -37,7 +37,9 @@
     object exists in the environment. You get the g-stream object specific
     to this plugin by executing the following (assume envR is the environment):
 
+    @code {.cpp}
     XrdXrootdGStream *gS = (XrdXrootdGStream *)envR.GetPtr("TcpMon.gStream*");
+    @endcode
 */
 
 class XrdTcpMonPin

@@ -112,7 +112,7 @@ enum   SyncOpt {SyncOff = 0, SyncOn, SyncAll, SyncNow, SyncQSz};
 //-----------------------------------------------------------------------------
 //! Typedef for the optional hash computation function (see constructor)
 //!
-//! @param  parms   Pointer to the key whose hash is to be returned. If nil
+//! @param  key     Pointer to the key whose hash is to be returned. If nil
 //!                 the function should return its 4-character name (e.g.
 //!                 {int hash; memcpy(&hash, "c32 ", sizeof(int)); return hash;}
 //!
@@ -156,6 +156,8 @@ bool         Attach(const char *path, ShMap_Access access, int tmo=-1);
 //! allows you to fill the map as needed with minimal overhead. Once this is
 //! done, call Export() to make the new map visible, possibly replacing an
 //! any existing version of a map with the same name.
+//!
+//! @param  path    Pointer to the file that is or will represent the map.
 //!
 //! @param  parms   Reference to the parameters. See the ShMap_Parms struct for
 //!                 for details and constructor defaults. Below is a detailed

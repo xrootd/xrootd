@@ -131,7 +131,7 @@ int  Unlink(XrdOssDF &atDir, const char *path);
 //-----------------------------------------------------------------------------
 //! Constructor
 //!
-//! @param  ossfd  - Reference to the OSS system interface.
+//! @param  ossfs  - Reference to the OSS system interface.
 //-----------------------------------------------------------------------------
 
      XrdOssAt(XrdOss &ossfs) : ossFS(ossfs) {}

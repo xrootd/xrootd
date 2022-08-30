@@ -47,8 +47,8 @@ public:
 //! @param  csval  Pointer to a vector to hold individual page checksums. The
 //!                raw vector must be sized as computed by csNum(). When
 //!                passed an std::vector, it is done automatically.
-//!
-//! @return Each element of csval holds the checksum for the associated page.
+//!                On return, each element of csval holds the checksum for
+//!                the associated page.
 //------------------------------------------------------------------------------
 
 static void csCalc(const char* data, off_t offs, size_t count,

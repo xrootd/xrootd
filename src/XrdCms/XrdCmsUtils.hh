@@ -88,7 +88,7 @@ bool     ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 //! Obtain the port for a manager specification
 //!
 //! @param  eDest    Pointer to the error message object to route messages.
-//! @param  oldMans  The configuration file stream.
+//! @param  CFile    The configuration file stream.
 //! @param  hSpec    The initial manager specification which may or may not
 //!                  have the port number in it.
 //!

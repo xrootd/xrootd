@@ -160,17 +160,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Portable wrapper around SIGPIPE free send
       //!
-      //! @param buffer : data to be written
-      //! @param size   : size of the data buffer
-      //! @return       : the amount of data actually written
+      //! @param buffer       : data to be written
+      //! @param size         : size of the data buffer
+      //! @param bytesWritten : the amount of data actually written
       //------------------------------------------------------------------------
       XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten );
 
       //------------------------------------------------------------------------
       //! Write data from a kernel buffer to the socket
       //!
-      //! @param kbuff : data to be written
-      //! @return      : the amount of data actually written
+      //! @param kbuff        : data to be written
+      //! @param bytesWritten : the amount of data actually written
       //------------------------------------------------------------------------
       XRootDStatus Send( XrdSys::KernelBuffer &kbuff, int &bytesWritten );
 
@@ -179,7 +179,6 @@ namespace XrdCl
       //!
       //! @param msg      : message (request) to be sent
       //! @param strmname : stream name (for logging purposes)
-      //! @return         : the amount of data actually written
       //------------------------------------------------------------------------
       XRootDStatus Send( Message &msg, const std::string &strmname );
 

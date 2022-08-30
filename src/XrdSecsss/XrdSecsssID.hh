@@ -99,7 +99,7 @@ enum authType
 //! @param  lgnid  - Pointer to the login ID.
 //! @param  Ident  - Pointer to the entity object to be registstered. If the
 //!                  pointer is NIL, then the mapping is deleted.
-//! @param  doRep  - When true, any existing mapping is replaced.
+//! @param  doReplace - When true, any existing mapping is replaced.
 //! @param  defer  - When true, the entity object is recorded but serialization
 //!                  is deferred until the object is needed. The entity object
 //!                  must remain valid until the mapping is deleted. The entity
@@ -125,7 +125,7 @@ private:
 //! @param  dP     - Reference to a pointer where the serialized ID is returned.
 //!                  The caller is responsible for freeing the storage.
 //! @param  myIP   - Pointer to IP address of client.
-//! @param  opts   - Options to pass to the XrdSecsssEnt data extractor.
+//! @param  dataOpts - Options to pass to the XrdSecsssEnt data extractor.
 //!                  See XrdSecsssEnt::rr_Data for details.
 //!
 //! @return The length of the structure pointed to by dP; zero if not found.
@@ -136,7 +136,7 @@ int      Find(const char *lid, char *&dP, const char *myIP, int dataOpts=0);
 //-----------------------------------------------------------------------------
 //! Get initial parameters for sss ID mapping.
 //!
-//! @param  atype  - The authentication type used by this object.
+//! @param  aType  - The authentication type used by this object.
 //! @param  idP    - Reference to a pointer where the default ID is returned.
 //!
 //! @return A pointer to this object if it was instantiated, otherwise nil.
