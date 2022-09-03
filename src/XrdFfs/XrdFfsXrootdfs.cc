@@ -143,8 +143,6 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
         strcat(exportpath, next);
     }
     setenv("XRDEXPORTS", exportpath, 1);
-    if (savptr) free(savptr);
-    if (next) free(next);
 /*
    From FAQ:
       Miscellaneous threads should be started from the init() method.
