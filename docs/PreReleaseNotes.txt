@@ -8,6 +8,8 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+  **[XrdFfs]** Fix a bug in xrootdfs reported by issue #1777
+  **Commit** 360e0d47
 
 + **Minor bug fixes**
 
