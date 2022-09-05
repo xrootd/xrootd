@@ -73,6 +73,7 @@ namespace
     { errInvalidResponse,      "Invalid response"     },
     { errRedirect,             "Unhandled redirect"   },
     { errErrorResponse,        "Error response"       },
+    { errLocalError,           "Local error"          },
     { errResponseNegative,     "Query response negative" },
     { 0, 0 } };
 
