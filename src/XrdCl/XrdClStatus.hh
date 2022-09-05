@@ -104,6 +104,7 @@ namespace XrdCl
 
   const uint16_t errErrorResponse        = 400;
   const uint16_t errRedirect             = 401;
+  const uint16_t errLocalError           = 402;
 
   const uint16_t errResponseNegative     = 500; //!< Query response was negative
 
