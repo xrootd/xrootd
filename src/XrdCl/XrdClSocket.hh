@@ -63,7 +63,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Desctuctor
       //------------------------------------------------------------------------
-      ~Socket();
+      virtual ~Socket();
 
       //------------------------------------------------------------------------
       //! Initialize the socket
@@ -164,7 +164,7 @@ namespace XrdCl
       //! @param size         : size of the data buffer
       //! @param bytesWritten : the amount of data actually written
       //------------------------------------------------------------------------
-      XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten );
+      virtual XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten );
 
       //------------------------------------------------------------------------
       //! Write data from a kernel buffer to the socket
@@ -193,7 +193,7 @@ namespace XrdCl
       //!                    EWOULDBLOCK : ( stOK,    suRetry )
       //!                    other error : ( stError, errSocketError )
       //----------------------------------------------------------------------------
-      XRootDStatus Read( char *buffer, size_t size, int &bytesRead );
+      virtual XRootDStatus Read( char *buffer, size_t size, int &bytesRead );
 
       //----------------------------------------------------------------------------
       //! ReadV helper for raw socket
