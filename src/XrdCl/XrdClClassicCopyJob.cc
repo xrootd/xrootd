@@ -1834,7 +1834,10 @@ namespace
       {
         using namespace XrdCl;
         if( !pFile->IsOpen() )
+        {
+          delete[] (char*)ci.GetBuffer(); // we took the ownership of the buffer
           return XRootDStatus( stError, errUninitialized );
+        }
 
         //----------------------------------------------------------------------
         // If there is still place for this chunk to be sent send it
@@ -1856,6 +1859,7 @@ namespace
           log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
                       ch->chunk.GetLength(), ch->chunk.GetOffset(),
                       pUrl.GetURL().c_str(), ch->status.ToStr().c_str() );
+          delete[] (char*)ci.GetBuffer(); // we took the ownership of the buffer
           CleanUpChunks();
 
           //--------------------------------------------------------------------
@@ -2661,7 +2665,6 @@ namespace XrdCl
           pResults->Set( "WrtRecoveryRedir", dest->GetWrtRecoveryRedir() );
           return SetResult( st );
         }
-
         return DestinationError( st );
       }
 
