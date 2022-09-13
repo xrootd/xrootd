@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 
 // Make sure the right number of arguments are here
 //
-    if (argc < 2)
+    if (argc <= 2)
        {if (argc > 1 && !strcmp(argv[1], "-h")) Usage(0);
         Usage(1);
        }
