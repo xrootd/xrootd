@@ -12,5 +12,7 @@ Prerelease Notes
   **Commit** 360e0d47
 
 + **Minor bug fixes**
+  **[Apps]** Avoid SEGV when asking for help.
+  **Commit** 016a28f7 
 
 + **Miscellaneous**
