@@ -867,8 +867,7 @@ namespace XrdCl
                   XrdSysE2T( errno ) );
 
       return XRootDStatus( stError, errLocalError,
-                           XProtocol::mapError( errno ),
-                           XrdSysE2T( errno ) );
+                           XProtocol::mapError( errno ) );
     }
     //---------------------------------------------------------------------
     // Stat File and cache statInfo in openInfo
@@ -878,8 +877,7 @@ namespace XrdCl
     {
       log->Error( FileMsg, "Open: stat failed." );
       return XRootDStatus( stError, errLocalError,
-                           XProtocol::mapError( errno ),
-                           XrdSysE2T( errno ) );
+                           XProtocol::mapError( errno ) );
     }
 
     std::ostringstream data;

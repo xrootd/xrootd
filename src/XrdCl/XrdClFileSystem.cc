@@ -64,9 +64,8 @@ namespace
         if( stat( path.c_str(), &ssp ) == -1 )
         {
           log->Error( FileMsg, "Stat: failed: %s", XrdSysE2T( errno ) );
-          XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
-                                                  XProtocol::mapError( errno ),
-                                                  XrdSysE2T( errno ) );
+          XRootDStatus *error = new XRootDStatus( stError, errLocalError,
+                                                  XProtocol::mapError( errno ) );
           return QueueTask( error, 0, handler );
         }
 
@@ -102,9 +101,8 @@ namespace
         if( unlink( path.c_str() ) )
         {
           log->Error( FileMsg, "Rm: failed: %s", XrdSysE2T( errno ) );
-          XRootDStatus *error = new XRootDStatus( stError, errErrorResponse,
-                                                  XProtocol::mapError( errno ),
-                                                  XrdSysE2T( errno ) );
+          XRootDStatus *error = new XRootDStatus( stError, errLocalError,
+                                                  XProtocol::mapError( errno ) );
           return QueueTask( error, 0, handler );
         }
 
