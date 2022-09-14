@@ -663,7 +663,7 @@ namespace XrdCl
                      const std::string &name,
                      StatInfo          *statInfo = 0):
             pHostAddress( hostAddress ),
-            pName( name ),
+            pName( SanitizeName( name ) ),
             pStatInfo( statInfo )
           {}
 
@@ -716,6 +716,15 @@ namespace XrdCl
           }
 
         private:
+
+          inline static std::string SanitizeName( const std::string &name )
+          {
+            const char *cstr = name.c_str();
+            while( *cstr == '/' ) // the C string is guaranteed to end with '\0'
+              ++cstr;
+            return cstr;
+          }
+
           std::string  pHostAddress;
           std::string  pName;
           StatInfo    *pStatInfo;
