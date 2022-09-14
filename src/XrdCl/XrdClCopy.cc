@@ -683,7 +683,7 @@ int main( int argc, char **argv )
       char *cwd = getcwd( buf, FILENAME_MAX );
       if( !cwd )
       {
-        XRootDStatus st( stError, XProtocol::mapError( errno ), errno, XrdSysE2T( errno ) );
+        XRootDStatus st( stError, XProtocol::mapError( errno ), errno );
         std::cerr <<  st.GetErrorMessage() << std::endl;
         return st.GetShellCode();
       }
@@ -806,7 +806,7 @@ int main( int argc, char **argv )
         char *cwd = getcwd( buf, FILENAME_MAX );
         if( !cwd )
         {
-          XRootDStatus st( stError, XProtocol::mapError( errno ), errno, XrdSysE2T( errno ) );
+          XRootDStatus st( stError, XProtocol::mapError( errno ), errno );
           std::cerr <<  st.GetErrorMessage() << std::endl;
           return st.GetShellCode();
         }
