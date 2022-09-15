@@ -5,6 +5,24 @@ XRootD
 Release Notes
 =============
 
+
+-------------
+Version 5.5.1
+-------------
+
++ **Major bug fixes**
+**[XrdFfs]** Fix a bug in xrootdfs reported by issue #1777
+**[Server]** Avoid SEGV when client tries to access file after deferred closed.
+
++ **Minor bug fixes**
+**[Apps]** Avoid SEGV when asking for help.
+**[XrdCl]** copy job: fix memory leak (buffers not queued on error).
+
++ **Miscellaneous**
+**[XrdCl]** Introduce new error code for handling local errors.
+**[XrdCl]** local file handler: obtain error code with aio_error.
+**[XrdCl]** xrdfs ls: sanitize ls entry.
+
 -------------
 Version 5.5.0
 -------------
