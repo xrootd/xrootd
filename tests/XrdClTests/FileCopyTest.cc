@@ -461,7 +461,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     CPPUNIT_ASSERT_XRDST_NOTOK( process16.Run( &progress16 ), errOperationInterrupted );
     XrdCl::FileSystem localfs( "file://localhost" );
     XrdCl::StatInfo *ptr = nullptr;
-    CPPUNIT_ASSERT_XRDST_NOTOK( localfs.Stat( "/data/tpcFile.dat", ptr ), XrdCl::errErrorResponse );
+    CPPUNIT_ASSERT_XRDST_NOTOK( localfs.Stat( "/data/tpcFile.dat", ptr ), XrdCl::errLocalError );
 
     //--------------------------------------------------------------------------
     // Test --retry and --retry-policy
