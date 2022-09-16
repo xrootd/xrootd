@@ -711,6 +711,7 @@ publish:debian:
   dependencies:
     - build:deb_ubuntu_bionic
     - build:deb_ubuntu_focal
+    - build:deb_ubuntu_jammy
   only:
     - master
     - /^stable-.*$/
@@ -761,6 +762,7 @@ publish:debian:release:
   dependencies:
     - release:deb_ubuntu_bionic
     - release:deb_ubuntu_focal
+    - release:deb_ubuntu_jammy
   only:
     - web
   except:
