@@ -59,7 +59,7 @@ public:
   virtual int Close(long long *retsz=0);
   virtual ssize_t Read(off_t offset, size_t blen);
   virtual ssize_t Read(void *buff, off_t offset, size_t blen);
-  virtual int     Read(XrdSfsAio *aoip);
+  virtual int     Read(XrdSfsAio *aiop);
   virtual ssize_t ReadRaw(void *, off_t, size_t);
   virtual int Fstat(struct stat *buff);
   virtual ssize_t Write(const void *buff, off_t offset, size_t blen);
