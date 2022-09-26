@@ -19,6 +19,8 @@
 //------------------------------------------------------------------------------
 
 #include <cstdint>
+#include <unordered_map>
+#include <openssl/ssl.h>
 //#include <string>
   
 //----------------------------------------------------------------------------
@@ -36,6 +38,9 @@ struct XrdTlsSocket;
 class XrdTlsContext
 {
 public:
+    static XrdSysRWLock                  SSLMapsMutex;
+    static std::unordered_map<SSL *,SSL_CTX *> SSLtoSSLCTX;
+    static std::unordered_map<SSL_CTX *, uint64_t> SSLCTXCount;
 
 //------------------------------------------------------------------------
 //! Clone a new context from this context.
@@ -111,6 +116,8 @@ bool            isOK();
 //------------------------------------------------------------------------
 
 void           *Session();
+
+void CleanupSession(SSL * ssl);
 
 //------------------------------------------------------------------------
 //! Get or set session cache parameters for generated sessions.

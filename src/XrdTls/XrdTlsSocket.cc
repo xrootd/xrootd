@@ -79,6 +79,7 @@ public:
    undoImpl(XrdTlsSocketImpl *pImpl) : theImpl(pImpl) {}
   ~undoImpl() {if (theImpl && theImpl->ssl)
                   {SSL_free( theImpl->ssl );
+                      theImpl->tlsctx->CleanupSession(theImpl->ssl);
                    theImpl->ssl = 0;
                   }
               }
@@ -429,6 +430,7 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
    if ( pImpl->ssl )
       {if (isClient) return "TLS I/O: connection is still in use.";
           else {SSL_free( pImpl->ssl );
+                ctx.CleanupSession(pImpl->ssl);
                 pImpl->ssl = 0;
                }
       }
@@ -751,7 +753,8 @@ void XrdTlsSocket::Shutdown(XrdTlsSocket::SDType sdType)
 
 // Now free the ssl object which will free all the BIO's associated with it
 //
-   SSL_free( pImpl->ssl );
+   SSL_free(pImpl->ssl);
+   pImpl->tlsctx->CleanupSession(pImpl->ssl);
    pImpl->ssl = 0;
    pImpl->fatal = 0;
 }

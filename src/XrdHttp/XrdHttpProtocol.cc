@@ -1751,7 +1751,7 @@ void XrdHttpProtocol::Cleanup() {
         secxtractor->FreeSSL(ssl);
 
     SSL_free(ssl);
-
+    xrdctx->CleanupSession(ssl);
   }
 
 
