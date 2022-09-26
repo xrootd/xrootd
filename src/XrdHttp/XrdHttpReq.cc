@@ -803,7 +803,11 @@ void XrdHttpReq::appendOpaque(XrdOucString &s, XrdSecEntity *secent, char *hash,
 
       if (secent->vorg) {
         s += "&xrdhttpvorg=";
-        s += secent->vorg;
+        char *s1 = quote(secent->vorg);
+        if (s1) {
+          s += s1;
+          free(s1);
+        }
       }
 
       if (secent->host) {
