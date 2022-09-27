@@ -102,12 +102,14 @@ jobs:
   cmake-centos7-updated-python:
 
     runs-on: ubuntu-latest
-    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+    container: centos:7
 
     steps:
     - name: Install external dependencies with yum
       run: |
         yum update -y
+        yum install -y epel-release centos-release-scl
+        yum clean all
         yum install --nogpg -y \
             cmake3 \
             make \
@@ -168,13 +170,15 @@ jobs:
   cmake-centos7-python2:
 
     runs-on: ubuntu-latest
-    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+    container: centos:7
 
     steps:
     # python2-pip is broken on CentOS so can't upgrade pip or setuptools
     - name: Install external dependencies with yum
       run: |
         yum update -y
+        yum install -y epel-release centos-release-scl
+        yum clean all
         yum install --nogpg -y \
             cmake3 \
             make \
@@ -364,7 +368,7 @@ jobs:
   rpm-centos7:
 
     runs-on: ubuntu-latest
-    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+    container: centos:7
 
     steps:
     - name: Overwrite /etc/yum.repos.d/epel.repo to remove epel-source
@@ -375,6 +379,8 @@ jobs:
     - name: Install external dependencies with yum
       run: |
         yum update -y
+        yum install -y epel-release centos-release-scl
+        yum clean all
         yum install --nogpg -y \
             gcc-c++ \
             rpm-build \
@@ -563,12 +569,14 @@ jobs:
   sdist-centos7:
 
     runs-on: ubuntu-latest
-    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+    container: centos:7
 
     steps:
     - name: Install external dependencies with yum
       run: |
         yum update -y
+        yum install -y epel-release centos-release-scl
+        yum clean all
         yum install --nogpg -y \
             cmake3 \
             gcc-c++ \
@@ -617,12 +625,14 @@ jobs:
   sdist-centos7-updated-python:
 
     runs-on: ubuntu-latest
-    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+    container: centos:7
 
     steps:
     - name: Install external dependencies with yum
       run: |
         yum update -y
+        yum install -y epel-release centos-release-scl
+        yum clean all
         yum install --nogpg -y \
             cmake3 \
             gcc-c++ \
