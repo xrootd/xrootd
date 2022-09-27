@@ -14,5 +14,7 @@ Prerelease Notes
 + **Minor bug fixes**
   **[Apps]** Avoid SEGV when asking for help.
   **Commit** 016a28f7 
+  **[Server]** Add O_RDWR open flag when creating file to avoid fs issue
+  **Commit** 0a665900
 
 + **Miscellaneous**
