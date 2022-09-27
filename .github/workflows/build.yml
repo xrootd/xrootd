@@ -28,12 +28,14 @@ jobs:
   cmake-centos7:
 
     runs-on: ubuntu-latest
-    container: gitlab-registry.cern.ch/linuxsupport/cc7-base:latest
+    container: centos:7
 
     steps:
     - name: Install external dependencies with yum
       run: |
         yum update -y
+        yum install -y epel-release centos-release-scl
+        yum clean all
         yum install --nogpg -y \
             cmake3 \
             make \
