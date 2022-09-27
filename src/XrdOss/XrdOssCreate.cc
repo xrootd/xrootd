@@ -293,7 +293,7 @@ int XrdOssSys::Alloc_Local(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 
 // Simply open the file in the local filesystem, creating it if need be.
 //
-   do {datfd = open(crInfo.Path, O_CREAT|O_TRUNC, crInfo.Amode);}
+   do {datfd = open(crInfo.Path, O_RDWR|O_CREAT|O_TRUNC, crInfo.Amode);}
                while(datfd < 0 && errno == EINTR);
    if (datfd < 0) return -errno;
 
