@@ -373,14 +373,14 @@ jobs:
     steps:
     - name: Overwrite /etc/yum.repos.d/epel.repo to remove epel-source
       run: |
+        yum install -y epel-release centos-release-scl
         head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo
         mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
+        yum clean all
 
     - name: Install external dependencies with yum
       run: |
         yum update -y
-        yum install -y epel-release centos-release-scl
-        yum clean all
         yum install --nogpg -y \
             gcc-c++ \
             rpm-build \
