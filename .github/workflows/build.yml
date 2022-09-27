@@ -374,7 +374,7 @@ jobs:
     - name: Overwrite /etc/yum.repos.d/epel.repo to remove epel-source
       run: |
         yum install -y epel-release centos-release-scl
-        head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo
+        head -n -8 /etc/yum.repos.d/epel.repo > /tmp/epel.repo
         mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
         yum clean all
 
