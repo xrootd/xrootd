@@ -126,6 +126,8 @@ const char  *ValPath(const char *path, mode_t allow, bool isdir);
 
 static bool PidFile(XrdSysError &eDest, const char *path);
 
+static int getModificationTime(const char * path, time_t & modificationTime);
+
        XrdOucUtils() {}
       ~XrdOucUtils() {}
 };
