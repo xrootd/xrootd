@@ -1345,5 +1345,17 @@ bool XrdOucUtils::PidFile(XrdSysError &eDest, const char *path)
    close(fd);
    return true;
 }
+/******************************************************************************/
+/*                               getModificationTime                          */
+/******************************************************************************/
+int XrdOucUtils::getModificationTime(const char *path, time_t &modificationTime) {
+    struct stat buf;
+    int statRet = ::stat(path,&buf);
+    if(!statRet) {
+        modificationTime = buf.st_mtime;
+    }
+    return statRet;
+}
+
 #endif
 
