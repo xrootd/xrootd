@@ -881,8 +881,11 @@ void *XrdTlsContext::Session()
    SSL_CTX_set1_verify_cert_store(pImpl->ctx, newX509);
    SSL_CTX_set1_chain_cert_store(pImpl->ctx, newX509);*/
    //The above two macros actually do not replace the certificate that has
-   //to be used for that SSL session, so we will generate the session with the SSL_CTX * of
+   //to be used for that SSL session, so we will create the session with the SSL_CTX * of
    //the TlsContext created by Refresh()
+   //First, free the current SSL_CTX, if it is used by any transfer, it will just decrease
+   //the reference counter of it. There is therefore no risk of double free...
+   SSL_CTX_free(pImpl->ctx);
    pImpl->ctx = ctxnew->pImpl->ctx;
    //In the destructor of XrdTlsContextImpl, SSL_CTX_Free() is
    //called if ctx is != 0. As this new ctx is used by the session
