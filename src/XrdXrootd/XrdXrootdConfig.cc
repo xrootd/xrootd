@@ -576,7 +576,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
 // context must be of the non-verified kind as we don't accept certs.
 //
    if (!NoGo && tlsCtx)
-      {tlsCtx = tlsCtx->Clone(false);
+      {tlsCtx = tlsCtx->Clone(false,true);
        if (!tlsCtx)
           {eDest.Say("Config failure: unable to setup TLS for protocol!");
            NoGo = 1;
