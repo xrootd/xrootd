@@ -216,8 +216,15 @@ do{if ((rc = SSL_accept( pImpl->ssl )) > 0)
 
    // Check why we did not succeed. We may be able to recover.
    //
-   if (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE)
-      {aOK = false; break;}
+   if (ssler != SSL_ERROR_WANT_READ && ssler != SSL_ERROR_WANT_WRITE) {
+       if(ssler == SSL_ERROR_SSL){
+           //In the case the accept does have an error related to OpenSSL,
+           //shutdown the TLSSocket in case the link associated to that connection
+           //is re-used
+           Shutdown();
+       }
+       aOK = false; break;
+   }
 
    if (pImpl->hsNoBlock) return XrdTls::ssl2RC(ssler);
 
