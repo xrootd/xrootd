@@ -178,6 +178,8 @@ void            SetDefaultCiphers(const char *ciphers);
 
        bool     x509Verify();
 
+       bool newHostCertificateDetected();
+
 //------------------------------------------------------------------------
 //! Constructor. Note that you should use isOK() to determine if construction
 //!              was successful. A false return indicates failure.

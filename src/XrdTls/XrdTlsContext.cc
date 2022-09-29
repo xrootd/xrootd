@@ -70,6 +70,7 @@ struct XrdTlsContextImpl
     short                         flushT;
     bool                          crlRunning;
     bool                          flsRunning;
+    time_t                        lastCertModTime = 0;
 };
   
 /******************************************************************************/
@@ -118,38 +119,39 @@ do{ctxImpl->crlMutex.ReadLock();
 //
    XrdSysTimer::Snooze(sleepTime);
 
-// Check if this context is still alive. Generally, it never gets deleted.
-//
-   ctxImpl->crlMutex.WriteLock();
-   if (!ctxImpl->owner) break;
+   if (ctxImpl->owner->x509Verify() || ctxImpl->owner->newHostCertificateDetected()) {
+       // Check if this context is still alive. Generally, it never gets deleted.
+       //
+       ctxImpl->crlMutex.WriteLock();
+       if (!ctxImpl->owner) break;
 
-// We clone the original, this will give us the latest crls (i.e. refreshed).
-// We drop the lock while doing so as this may take a long time. This is
-// completely safe to do because we implicitly own the implementation.
-//
-   ctxImpl->crlMutex.UnLock();
-   XrdTlsContext *newctx = ctxImpl->owner->Clone();
+       // We clone the original, this will give us the latest crls (i.e. refreshed).
+       // We drop the lock while doing so as this may take a long time. This is
+       // completely safe to do because we implicitly own the implementation.
+       //
+       ctxImpl->crlMutex.UnLock();
+       XrdTlsContext *newctx = ctxImpl->owner->Clone();
 
-// Verify that the context was properly built
-//
-   if (!newctx || !newctx->isOK())
-      {XrdTls::Emsg("CrlRefresh:","Refresh of context failed!!!",false);
-       continue;
-      }
+       // Verify that the context was properly built
+       //
+       if (!newctx || !newctx->isOK())
+       {XrdTls::Emsg("CrlRefresh:","Refresh of context failed!!!",false);
+           continue;
+       }
 
-// OK, set the new context to be used next time Session() is called.
-//
-   ctxImpl->crlMutex.WriteLock();
-   doreplace = (ctxImpl->ctxnew != 0);
-   if (doreplace) delete ctxImpl->ctxnew;
-   ctxImpl->ctxnew = newctx;
-   ctxImpl->crlMutex.UnLock();
+       // OK, set the new context to be used next time Session() is called.
+       //
+       ctxImpl->crlMutex.WriteLock();
+       doreplace = (ctxImpl->ctxnew != 0);
+       if (doreplace) delete ctxImpl->ctxnew;
+       ctxImpl->ctxnew = newctx;
+       ctxImpl->crlMutex.UnLock();
 
-// Do some debugging
-//
-   if (doreplace) {DBG_CTX("CRL refresh created replacement x509 store.");}
-      else {DBG_CTX("CRL refresh created new x509 store.");}
-
+       // Do some debugging
+       //
+       if (doreplace) {DBG_CTX("CRL refresh created replacement x509 store.");}
+       else {DBG_CTX("CRL refresh created new x509 store.");}
+   }
   } while(true);
 
 // If we are here the context that started us has gone away and we are done
@@ -616,7 +618,11 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // Copy parameters to out parm structure.
 //
-   if (cert)   pImpl->Parm.cert   = cert;
+   if (cert)   {
+       pImpl->Parm.cert   = cert;
+       //This call should not fail as a stat is already performed in the call of VerPaths() above
+       XrdOucUtils::getModificationTime(pImpl->Parm.cert.c_str(),pImpl->lastCertModTime);
+   }
    if (key)    pImpl->Parm.pkey   = key;
    if (caDir)  pImpl->Parm.cadir  = caDir;
    if (caFile) pImpl->Parm.cafile = caFile;
@@ -1001,31 +1007,13 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
    pthread_t tid;
    int       rc;
 
-// If the value is zero, then the caller want to stop refreshing.
+// If it's negative or equal to 0, use the current setting
 //
-   if (!refsec)
-      {pImpl->crlMutex.WriteLock();
-       pImpl->Parm.crlRT = 0;
-       pImpl->crlMutex.UnLock();
-       return true;
-      }
-
-// If it's negative, use the curren setting
-//
-   if (refsec < 0)
+   if (refsec <= 0)
       {pImpl->crlMutex.WriteLock();
        refsec = pImpl->Parm.crlRT;
        pImpl->crlMutex.UnLock();
        if (!refsec) refsec = 8*60*60;
-      }
-
-
-// Check if there is anything that is refreshable
-//
-   if (!x509Verify())
-      {XrdTls::Emsg("CrlRefresh:",
-                    "No cert information exists to refresh!", false);
-       return false;
       }
 
 // Make sure this is at least 60 seconds between refreshes
@@ -1071,4 +1059,21 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
 bool XrdTlsContext::x509Verify()
 {
    return !(pImpl->Parm.cadir.empty()) || !(pImpl->Parm.cafile.empty());
+}
+
+bool XrdTlsContext::newHostCertificateDetected() {
+    const std::string certPath = pImpl->Parm.cert;
+    if(certPath.empty()) {
+        //No certificate provided, should not happen though
+        return false;
+    }
+    time_t modificationTime;
+    if(!XrdOucUtils::getModificationTime(certPath.c_str(),modificationTime)){
+        if (pImpl->lastCertModTime != modificationTime) {
+            //The certificate file has changed
+            pImpl->lastCertModTime = modificationTime;
+            return true;
+        }
+    }
+    return false;
 }
