@@ -28,5 +28,7 @@ option( ENABLE_XRDEC     "Enable erasure coding component."                     
 option( ENABLE_ASAN      "Enable adress sanitizer."                                       FALSE )
 option( ENABLE_TSAN      "Enable thread sanitizer."                                       FALSE )
 option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                                      TRUE )
+option( ENABLE_SCITOKENS "Enable SciTokens plugin."                                       TRUE )
+option( ENABLE_MACAROONS "Enable Macaroons plugin."                                       TRUE )
 option( FORCE_ENABLED    "Fail build if enabled components cannot be built."              FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 3 )
