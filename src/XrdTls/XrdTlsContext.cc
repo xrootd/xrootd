@@ -726,7 +726,7 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
 
 // All went well, start the CRL refresh thread and keep the context.
 //
-   if(opts & scRefr) {
+   if(opts & rfCRL) {
        SetCrlRefresh();
    }
    ctx_tracker.Keep();
@@ -767,12 +767,12 @@ XrdTlsContext *XrdTlsContext::Clone(bool full,bool startCRLRefresh)
 // Cloning simply means getting a object with the old parameters.
 //
    uint64_t myOpts = my.opts;
-   if(startCRLRefresh){
-       myOpts |= XrdTlsContext::scRefr;
-   } else {
-       myOpts &= ~XrdTlsContext::scRefr;
-   }
-   XrdTlsContext *xtc = new XrdTlsContext(cert, pkey, caD, caF, myOpts,nullptr);
+    if(startCRLRefresh){
+        myOpts |= XrdTlsContext::rfCRL;
+    } else {
+        myOpts &= ~XrdTlsContext::rfCRL;
+    }
+   XrdTlsContext *xtc = new XrdTlsContext(cert, pkey, caD, caF, myOpts);
 
 // Verify that the context was built
 //

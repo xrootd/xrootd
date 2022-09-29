@@ -1685,7 +1685,7 @@ bool XrdHttpProtocol::InitTLS() {
 
    std::string eMsg;
    uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF |
-                   XrdTlsContext::artON | XrdTlsContext::scRefr;
+                   XrdTlsContext::artON | XrdTlsContext::rfCRL;
 
 // Create a new TLS context
 //
