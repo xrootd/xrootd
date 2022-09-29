@@ -16,5 +16,27 @@ Prerelease Notes
   **Commit** 016a28f7 
   **[Server]** Add O_RDWR open flag when creating file to avoid fs issue
   **Commit** 0a665900
+  **[HTTP]** allow VO names with spaces and other quoted chars
+  **Commit** 639387b0 504dfb78
 
 + **Miscellaneous**
+  **[TLS]** Shutdown the socket if a SSL error happens during an accept
+  **Commit** 9a48ecf4 ebbe8397
+  **[TLS]** Trigger CRL refresh thread via the constructor.
+  **Commit** 19038b5a b180a248 f1acf6d4 87da7f2f f1dfad02
+  **[TLS]** Free current context when a new context is generated.
+  **Commit** e4187ee6 411d3eb4
+  **[Cmake]** add ENABLE_ switch for scitokens and macaroons, closes #1728. 
+  **Commit** 8847a1db
+  **[TLS]** he CRL refresh thread logic only starts when there is a need for it.
+  **Commit** bbb5feea b11f8c00
+  **[TLS]** The server certificate is also renewed by the Refresh thread
+  **Commit** 449d3e93 ff90fe2f
+  **[CI]** Replace cc7 builds with centos 7, part 4.
+  **Commit** 2f22f2d1
+  **[CI]** Replace cc7 builds with centos 7, part 3.
+  **Commit** 4d7565a7
+  **[CI]** Replace cc7 builds with centos 7, part 2.
+  **Commit** f3af43e9
+  **[CI]** Replace cc7 builds with centos 7, part 1.
+  **Commit** 4bb71080
