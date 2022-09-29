@@ -130,6 +130,7 @@ static const int scNone = 0x00000000; //!< Do not change any option settings
 static const int scOff  = 0x00010000; //!< Turn off cache
 static const int scSrvr = 0x00020000; //!< Turn on  cache server mode (default)
 static const int scClnt = 0x00040000; //!< Turn on  cache client mode
+static const int scRefr = 0x20000000; //!< Turn on the CRL refresh thread
 static const int scKeep = 0x40000000; //!< Info: TLS-controlled flush disabled
 static const int scIdErr= 0x80000000; //!< Info: Id not set, is too long
 static const int scFMax = 0x00007fff; //!< Maximum flush interval in seconds
@@ -238,7 +239,7 @@ static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
-                     uint64_t opts=0, std::string *eMsg=0,const bool startCRLRefreshThread = false);
+                     uint64_t opts=0, std::string *eMsg=0);
 
 //------------------------------------------------------------------------
 //! Destructor
