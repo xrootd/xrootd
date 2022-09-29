@@ -52,7 +52,7 @@ public:
 //!       the session cache is set to off with no identifier.
 //------------------------------------------------------------------------
 
-XrdTlsContext *Clone(bool full=true);
+XrdTlsContext *Clone(bool full=true, bool startCRLRefresh = false);
 
 //------------------------------------------------------------------------
 //! Get the underlying context (should not be used).
@@ -130,6 +130,7 @@ static const int scNone = 0x00000000; //!< Do not change any option settings
 static const int scOff  = 0x00010000; //!< Turn off cache
 static const int scSrvr = 0x00020000; //!< Turn on  cache server mode (default)
 static const int scClnt = 0x00040000; //!< Turn on  cache client mode
+static const int scRefr = 0x20000000; //!< Turn on the CRL refresh thread
 static const int scKeep = 0x40000000; //!< Info: TLS-controlled flush disabled
 static const int scIdErr= 0x80000000; //!< Info: Id not set, is too long
 static const int scFMax = 0x00007fff; //!< Maximum flush interval in seconds

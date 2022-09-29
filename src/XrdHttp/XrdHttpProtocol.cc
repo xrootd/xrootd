@@ -1133,11 +1133,6 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
    eDest.Say("------ HTTPS initialization ", how);
    if (NoGo) return NoGo;
 
-// Turn on the refreshing
-//
-   if (!NoGo && xrdctx->x509Verify() && !(xrdctx->SetCrlRefresh()))
-      eDest.Say("Config warning: CRL refreshing could not be enabled!");
-
 // We can now load all the external handlers
 //
    if (LoadExtHandler(extHIVec, ConfigFN, *myEnv)) return 1;
@@ -1690,7 +1685,7 @@ bool XrdHttpProtocol::InitTLS() {
 
    std::string eMsg;
    uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF |
-                   XrdTlsContext::artON;
+                   XrdTlsContext::artON | XrdTlsContext::scRefr;
 
 // Create a new TLS context
 //
