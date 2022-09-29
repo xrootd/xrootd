@@ -1685,13 +1685,13 @@ bool XrdHttpProtocol::InitTLS() {
 
    std::string eMsg;
    uint64_t opts = XrdTlsContext::servr | XrdTlsContext::logVF |
-                   XrdTlsContext::artON;
+                   XrdTlsContext::artON | XrdTlsContext::scRefr;
 
 // Create a new TLS context
 //
    if (sslverifydepth > 255) sslverifydepth = 255;
    opts = TLS_SET_VDEPTH(opts, sslverifydepth);
-   xrdctx = new XrdTlsContext(sslcert,sslkey,sslcadir,sslcafile,opts,&eMsg,true);
+   xrdctx = new XrdTlsContext(sslcert,sslkey,sslcadir,sslcafile,opts,&eMsg);
 
 // Make sure the context was created
 //
