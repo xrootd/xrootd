@@ -52,7 +52,7 @@ public:
 //!       the session cache is set to off with no identifier.
 //------------------------------------------------------------------------
 
-XrdTlsContext *Clone(bool full=true);
+XrdTlsContext *Clone(bool full=true, bool startCRLRefresh = false);
 
 //------------------------------------------------------------------------
 //! Get the underlying context (should not be used).
@@ -238,7 +238,7 @@ static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
 
        XrdTlsContext(const char *cert=0,  const char *key=0,
                      const char *cadir=0, const char *cafile=0,
-                     uint64_t opts=0, std::string *eMsg=0);
+                     uint64_t opts=0, std::string *eMsg=0,const bool startCRLRefreshThread = false);
 
 //------------------------------------------------------------------------
 //! Destructor

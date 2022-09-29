@@ -540,7 +540,7 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                              const char *caDir, const char *caFile,
-                             uint64_t opts, std::string *eMsg)
+                             uint64_t opts, std::string *eMsg,const bool startCRLRefreshThread)
                             : pImpl( new XrdTlsContextImpl(this) )
 {
    class ctx_helper
@@ -724,8 +724,11 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    if (SSL_CTX_check_private_key(pImpl->ctx) != 1 )
       FATAL_SSL("Unable to create TLS context; cert-key mismatch.");
 
-// All went well, so keep the context.
+// All went well, start the CRL refresh thread and keep the context.
 //
+   if(startCRLRefreshThread) {
+       SetCrlRefresh();
+   }
    ctx_tracker.Keep();
 }
   
@@ -749,7 +752,7 @@ XrdTlsContext::~XrdTlsContext()
 /*                                 C l o n e                                  */
 /******************************************************************************/
 
-XrdTlsContext *XrdTlsContext::Clone(bool full)
+XrdTlsContext *XrdTlsContext::Clone(bool full,bool startCRLRefresh)
 {
   XrdTlsContext::CTX_Params &my = pImpl->Parm;
   const char *cert = (my.cert.size()   ? my.cert.c_str()   : 0);
@@ -763,7 +766,7 @@ XrdTlsContext *XrdTlsContext::Clone(bool full)
 
 // Cloning simply means getting a object with the old parameters.
 //
-   XrdTlsContext *xtc = new XrdTlsContext(cert, pkey, caD, caF, my.opts);
+   XrdTlsContext *xtc = new XrdTlsContext(cert, pkey, caD, caF, my.opts,nullptr,startCRLRefresh);
 
 // Verify that the context was built
 //
