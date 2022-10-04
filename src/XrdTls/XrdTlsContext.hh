@@ -62,6 +62,9 @@ XrdTlsContext *Clone(bool full=true, bool startCRLRefresh = false);
 
 void          *Context();
 
+//! Default CRL refresh interval in seconds
+static const int DEFAULT_CRL_REF_INT_SEC = 8 * 60 * 60;
+
 //------------------------------------------------------------------------
 //! Get parameters used to create the context.
 //!
@@ -77,7 +80,7 @@ struct CTX_Params
        int         crlRT;  //!< crl refresh interval time in seconds
        int         rsvd;
 
-       CTX_Params() : opts(0), crlRT(8*60*60), rsvd(0) {}
+       CTX_Params() : opts(0), crlRT(DEFAULT_CRL_REF_INT_SEC), rsvd(0) {}
       ~CTX_Params() {}
       };
 
@@ -233,7 +236,7 @@ static const uint64_t nopxy = 0x0000000100000000; //!< Do not allow proxy certs
 static const uint64_t rfCRL = 0x0000004000000000; //!< Turn on the CRL refresh thread
 static const uint64_t crlON = 0x0000008000000000; //!< Enables crl checking
 static const uint64_t crlFC = 0x000000C000000000; //!< Full crl chain checking
-static const uint64_t crlRF = 0x000000003fff0000; //!< Init crl refresh in Min
+static const uint64_t crlRF = 0x00000000ffff0000; //!< Mask to isolate crl refresh in min
 static const int      crlRS = 16;                 //!< Bits to shift   vdept
 static const uint64_t artON = 0x0000002000000000; //!< Auto retry Handshake
 

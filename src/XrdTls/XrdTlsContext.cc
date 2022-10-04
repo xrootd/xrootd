@@ -627,8 +627,10 @@ XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
    if (caDir)  pImpl->Parm.cadir  = caDir;
    if (caFile) pImpl->Parm.cafile = caFile;
    pImpl->Parm.opts   = opts;
-   if (opts & crlRF)
-      pImpl->Parm.crlRT = static_cast<int>((opts & crlRF)>>crlRS);
+   if (opts & crlRF) {
+       // What we store in crlRF is the time in minutes, convert it back to seconds
+       pImpl->Parm.crlRT = static_cast<int>((opts & crlRF) >> crlRS) * 60;
+   }
 
 // Get the correct method to use for TLS and check if successful create a
 // server context that uses the method.
@@ -1025,7 +1027,7 @@ bool XrdTlsContext::SetCrlRefresh(int refsec)
       {pImpl->crlMutex.WriteLock();
        refsec = pImpl->Parm.crlRT;
        pImpl->crlMutex.UnLock();
-       if (!refsec) refsec = 8*60*60;
+       if (!refsec) refsec = XrdTlsContext::DEFAULT_CRL_REF_INT_SEC;
       }
 
 // Make sure this is at least 60 seconds between refreshes

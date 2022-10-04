@@ -47,6 +47,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <algorithm>
+#include <limits>
 
 #include "XrdVersion.hh"
 
@@ -2450,7 +2452,7 @@ int XrdConfig::xtlsca(XrdSysError *eDest, XrdOucStream &Config)
                }
        else if (!strcmp(kword, "refresh"))
                {if (XrdOuca2x::a2tm(*eDest, "tlsca refresh interval",
-                                    val, &rt)) return 1;
+                                    val, &rt,1,std::min(int((XrdTlsContext::crlRF >> XrdTlsContext::crlRS) * 60),std::numeric_limits<int>::max()))) return 1;
                 if (rt < 60) rt = 60;
                    else if (rt % 60) rt += 60;
                 rt = rt/60;
