@@ -13,15 +13,27 @@ Version 5.5.1
 + **Major bug fixes**
 **[XrdFfs]** Fix a bug in xrootdfs reported by issue #1777
 **[Server]** Avoid SEGV when client tries to access file after deferred closed.
+**[XrdHttp]** The server certificate is renewed by the Refresh thread of the
+              XrdTlsContext object.
+**[XrdTls]** Shutdown the socket if a SSL error happens when trying to accept
+             a connection.
 
 + **Minor bug fixes**
 **[Apps]** Avoid SEGV when asking for help.
 **[XrdCl]** copy job: fix memory leak (buffers not queued on error).
+**[Server]** Add O_RDWR open flag when creating file to avoid fs issue.
+**[XrdHttp]** Allow VO names with spaces and other quoted chars.
 
 + **Miscellaneous**
 **[XrdCl]** Introduce new error code for handling local errors.
 **[XrdCl]** local file handler: obtain error code with aio_error.
 **[XrdCl]** xrdfs ls: sanitize ls entry.
+**[CMake]** Add ENABLE_ switch for scitokens and macaroons, closes #1728.
+**[XrdTls]** Start the CRLRefresh thread in XrdTlsContext constructor.
+**[XrdTls]** Changed the bit set for the activation of the Refresh thread.
+**[XrdTls]** The CRL refresh thread logic only starts when there is a need
+             for it.
+**[XrdTls]** Free current context when a new context is generated.
 
 -------------
 Version 5.5.0
