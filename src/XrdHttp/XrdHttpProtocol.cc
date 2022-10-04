@@ -75,6 +75,7 @@ char *XrdHttpProtocol::Port_str = 0;
 char *XrdHttpProtocol::sslcert = 0;
 char *XrdHttpProtocol::sslkey = 0;
 char *XrdHttpProtocol::sslcadir = 0;
+int XrdHttpProtocol::crlRefIntervalSec = XrdTlsContext::DEFAULT_CRL_REF_INT_SEC;
 char *XrdHttpProtocol::sslcipherfilter = 0;
 char *XrdHttpProtocol::listredir = 0;
 bool XrdHttpProtocol::listdeny = false;
@@ -1087,7 +1088,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
 //
    if (httpsmode == hsmAuto && xrdctx)
       {const XrdTlsContext::CTX_Params *cP = xrdctx->GetParams();
-       const char *what1 = 0, *what2 = 0;
+       const char *what1 = 0, *what2 = 0, *what3 = 0;
 
        if (!sslcert && cP->cert.size())
           {sslcert = strdup(cP->cert.c_str());
@@ -1103,8 +1104,13 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
            what2 = (what2 ? "xrd.tlsca to supply 'cadir' and 'cafile'."
                           : "xrd.tlsca to supply 'cafile'.");
           }
+       if(cP->crlRT != XrdTlsContext::DEFAULT_CRL_REF_INT_SEC) {
+           crlRefIntervalSec = cP->crlRT;
+           what3 = "xrd.tlsca to supply 'refresh' interval.";
+       }
        if (!httpsspec && what1) eDest.Say("Config Using ", what1);
        if (!httpsspec && what2) eDest.Say("Config Using ", what2);
+       if (!httpsspec && what3) eDest.Say("Config Using ", what3);
       }
 
 // If a gridmap or secxtractor is present then we must be able to verify certs
@@ -1691,6 +1697,8 @@ bool XrdHttpProtocol::InitTLS() {
 //
    if (sslverifydepth > 255) sslverifydepth = 255;
    opts = TLS_SET_VDEPTH(opts, sslverifydepth);
+   //TLS_SET_REFINT will set the refresh interval in minutes, hence the division by 60
+   opts = TLS_SET_REFINT(opts, crlRefIntervalSec/60);
    xrdctx = new XrdTlsContext(sslcert,sslkey,sslcadir,sslcafile,opts,&eMsg);
 
 // Make sure the context was created
