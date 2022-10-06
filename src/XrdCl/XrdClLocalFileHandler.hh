@@ -331,11 +331,6 @@ namespace XrdCl
                               ResponseHandler  *handler );
 
       //---------------------------------------------------------------------
-      // Receives LocalFileTasks to handle them async
-      //---------------------------------------------------------------------
-      JobManager *jmngr;
-
-      //---------------------------------------------------------------------
       // Internal filedescriptor, which is used by all operations after open
       //---------------------------------------------------------------------
       int fd;

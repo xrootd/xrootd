@@ -201,7 +201,7 @@ namespace
         // and return there is no need to execute this in the thread-pool
         SyncResponseHandler *syncHandler =
             dynamic_cast<SyncResponseHandler*>( handler );
-        if( syncHandler )
+        if( syncHandler || DefaultEnv::GetPostMaster() == nullptr )
         {
           syncHandler->HandleResponse( status, resp );
         }
@@ -230,7 +230,6 @@ namespace XrdCl
   LocalFileHandler::LocalFileHandler() :
       fd( -1 )
   {
-    jmngr = DefaultEnv::GetPostMaster()->GetJobManager();
   }
 
   //------------------------------------------------------------------------
@@ -767,7 +766,7 @@ namespace XrdCl
     // and return there is no need to execute this in the thread-pool
     SyncResponseHandler *syncHandler =
         dynamic_cast<SyncResponseHandler*>( handler );
-    if( syncHandler )
+    if( syncHandler || DefaultEnv::GetPostMaster() == nullptr )
     {
       syncHandler->HandleResponse( st, resp );
       return XRootDStatus();
@@ -775,7 +774,7 @@ namespace XrdCl
 
     HostList *hosts = pHostList.empty() ? 0 : new HostList( pHostList );
     LocalFileTask *task = new LocalFileTask( st, resp, hosts, handler );
-    jmngr->QueueJob( task );
+    DefaultEnv::GetPostMaster()->GetJobManager()->QueueJob( task );
     return XRootDStatus();
   }
 
