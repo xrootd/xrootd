@@ -23,6 +23,7 @@ Version 5.5.1
 **[XrdCl]** copy job: fix memory leak (buffers not queued on error).
 **[Server]** Add O_RDWR open flag when creating file to avoid fs issue.
 **[XrdHttp]** Allow VO names with spaces and other quoted chars.
+**[XrdCl]** LocalFileHandler: fail gracefuly on overloaded machines.
 
 + **Miscellaneous**
 **[XrdCl]** Introduce new error code for handling local errors.
