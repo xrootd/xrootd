@@ -710,7 +710,7 @@ int main( int argc, char **argv )
     URL target( dest );
     FileSystem fs( target );
     StatInfo *statInfo = 0;
-    XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
+    XRootDStatus st = fs.Stat( target.GetPathWithParams(), statInfo );
     if( st.IsOK() )
     {
       if( statInfo->TestFlags( StatInfo::IsDir ) )
@@ -722,6 +722,12 @@ int main( int argc, char **argv )
       int n = strlen(config.dstFile->Path);
       if( config.dstFile->Path[n-1] == '/' )
         targetIsDir = true;
+    }
+    else if( st.errNo == kXR_NotAuthorized )
+    {
+      log->Error( AppMsg, "%s (destination)", st.ToString().c_str() );
+      std::cerr << st.ToStr() << std::endl;
+      return st.GetShellCode();
     }
 
     delete statInfo;
