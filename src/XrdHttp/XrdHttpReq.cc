@@ -409,11 +409,19 @@ int XrdHttpReq::parseFirstLine(char *line, int len) {
     return -1;
   }
 
-  // The first token cannot be too long
+
   pos = p - line;
+  // The first token cannot be too long
   if (pos > MAX_TK_LEN - 1) {
     request = rtMalformed;
     return -2;
+  }
+
+  // The first space-delimited char cannot be the first one
+  // this allows to deal with the case when a client sends a first line that starts with a space " GET / HTTP/1.1"
+  if(pos == 0) {
+      request = rtMalformed;
+      return -4;
   }
 
   // the first token must be non empty
