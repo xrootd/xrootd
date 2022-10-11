@@ -113,7 +113,7 @@ namespace XrdCl
                 //--------------------------------------------------------------
                 // We run out of space, the server has send too much data
                 //--------------------------------------------------------------
-                if( choff == ( *chunks )[chidx].length )
+                if( chidx >= chunks->size() )
                 {
                   readstage = ReadDiscard;
                   continue;
