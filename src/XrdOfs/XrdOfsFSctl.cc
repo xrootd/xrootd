@@ -146,7 +146,7 @@ int XrdOfs::fsctl(      int               cmd,
        if (cmd & SFS_O_TRUNC)           locArg = (char *)"*";
           else {     if (*Path == '*') {locArg = Path; Path++;}
                         else            locArg = Path;
-                AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
+                AUTHORIZE(client,&loc_Env,AOP_Stat,"locate",Path,einfo);
                }
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Locate(einfo, locArg, find_flag, &loc_Env)))
@@ -178,7 +178,7 @@ int XrdOfs::fsctl(      int               cmd,
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv fs_Env(opq ? opq+1 : 0,0,client);
        ZTRACE(fsctl, "statfs args=" <<(args ? args : "''"));
-       AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
+       AUTHORIZE(client,&fs_Env,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Space(einfo, Path, &fs_Env)))
           return fsError(einfo, retc);
@@ -196,7 +196,7 @@ int XrdOfs::fsctl(      int               cmd,
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
        ZTRACE(fsctl, "statls args=" <<(args ? args : "''"));
-       AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
+       AUTHORIZE(client,&statls_Env,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote())
           {statls_Env.Put("cms.qvfs", "1");
            if ((retc = Finder->Space(einfo, Path, &statls_Env)))
@@ -218,7 +218,7 @@ int XrdOfs::fsctl(      int               cmd,
        const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv xa_Env(opq ? opq+1 : 0,0,client);
        ZTRACE(fsctl, "statxa args=" <<(args ? args : "''"));
-       AUTHORIZE(client,0,AOP_Stat,"statxa",Path,einfo);
+       AUTHORIZE(client,&xa_Env,AOP_Stat,"statxa",Path,einfo);
        if (Finder && Finder->isRemote()
        && (retc = Finder->Locate(einfo,Path,SFS_O_RDONLY|SFS_O_STAT,&xa_Env)))
           return fsError(einfo, retc);

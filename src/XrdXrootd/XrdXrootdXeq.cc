@@ -915,10 +915,16 @@ int XrdXrootdProtocol::do_Locate()
        if (!doDig && !Squash(Path))return vpEmsg("Locating", Path);
       }
 
-// Preform the actual function
+// Preform the actual function. For regular Fs add back any opaque info
 //
    if (doDig) rc = digFS->fsctl(fsctl_cmd, fn, myError, CRED);
-      else    rc =  osFS->fsctl(fsctl_cmd, fn, myError, CRED);
+      else   {if (opaque)
+                 {int n = strlen(argp->buff); argp->buff[n] = '?';
+                  if ((argp->buff)+n != opaque-1)
+                  memmove(&argp->buff[n+1], opaque, strlen(opaque)+1);
+                 }
+              rc =  osFS->fsctl(fsctl_cmd, fn, myError, CRED);
+             }
    TRACEP(FS, "rc=" <<rc <<" locate " <<fn);
    return fsError(rc, (doDig ? 0 : XROOTD_MON_LOCATE), myError, Path, opaque);
 }
@@ -2303,6 +2309,14 @@ int XrdXrootdProtocol::do_Qxattr()
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Stating", argp->buff);
    if (!Squash(argp->buff))          return vpEmsg("Stating", argp->buff);
 
+// Add back opaque information is present
+//
+   if (opaque)
+      {int n = strlen(argp->buff); argp->buff[n] = '?';
+       if ((argp->buff)+n != opaque-1)
+          memmove(&argp->buff[n+1], opaque, strlen(opaque)+1);
+      }
+
 // Preform the actual function
 //
    rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
@@ -2862,10 +2876,15 @@ int XrdXrootdProtocol::do_Stat()
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Stating", argp->buff);
    if (!doDig && !Squash(argp->buff))return vpEmsg("Stating", argp->buff);
 
-// Preform the actual function
+// Preform the actual function, we may been to add back the opaque info
 //
    if (Request.stat.options & kXR_vfs)
-      {rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
+      {if (opaque)
+          {int n = strlen(argp->buff); argp->buff[n] = '?';
+           if ((argp->buff)+n != opaque-1)
+           memmove(&argp->buff[n+1], opaque, strlen(opaque)+1);
+          }
+       rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
        TRACEP(FS, "rc=" <<rc <<" statfs " <<argp->buff);
        if (rc == SFS_OK) Response.Send("");
       } else {
