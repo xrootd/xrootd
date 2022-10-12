@@ -2657,6 +2657,7 @@ const char * XrdOfs::Split(const char *Args, const char **Opq,
    xlen = (*Opq)-Args;
    if (xlen >= Plen) xlen = Plen-1;
    strncpy(Path, Args, xlen);
+   Path[xlen] = 0;
    return Path;
 }
 
