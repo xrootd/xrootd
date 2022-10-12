@@ -12,6 +12,8 @@ Prerelease Notes
   **Commit** 360e0d47
 
 + **Minor bug fixes**
+  **[Server]** Properly handle opaque info for fsctl operations.
+  **Commit** 0d3cb7e6
   **[Apps]** Avoid SEGV when asking for help.
   **Commit** 016a28f7 
   **[Server]** Add O_RDWR open flag when creating file to avoid fs issue
