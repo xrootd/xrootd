@@ -38,12 +38,14 @@ void State::Move(State &other)
     m_headers = other.m_headers;
     m_headers_copy = other.m_headers_copy;
     m_resp_protocol = other.m_resp_protocol;
-
+    m_is_transfer_state = other.m_is_transfer_state;
     curl_easy_setopt(m_curl, CURLOPT_HEADERDATA, this);
-    if (m_push) {
-        curl_easy_setopt(m_curl, CURLOPT_READDATA, this);
-    } else {
-        curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
+    if (m_is_transfer_state) {
+        if (m_push) {
+            curl_easy_setopt(m_curl, CURLOPT_READDATA, this);
+        } else {
+            curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
+        }
     }
     other.m_headers_copy.clear();
     other.m_curl = NULL;
@@ -56,17 +58,19 @@ bool State::InstallHandlers(CURL *curl) {
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "xrootd-tpc/" XrdVERSION);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &State::HeaderCB);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, this);
-    if (m_push) {
-        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-        curl_easy_setopt(curl, CURLOPT_READFUNCTION, &State::ReadCB);
-        curl_easy_setopt(curl, CURLOPT_READDATA, this);
-        struct stat buf;
-        if (SFS_OK == m_stream->Stat(&buf)) {
-            curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, buf.st_size);
+    if(m_is_transfer_state) {
+        if (m_push) {
+            curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+            curl_easy_setopt(curl, CURLOPT_READFUNCTION, &State::ReadCB);
+            curl_easy_setopt(curl, CURLOPT_READDATA, this);
+            struct stat buf;
+            if (SFS_OK == m_stream->Stat(&buf)) {
+                curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, buf.st_size);
+            }
+        } else {
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &State::WriteCB);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
         }
-    } else {
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &State::WriteCB);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
     }
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
