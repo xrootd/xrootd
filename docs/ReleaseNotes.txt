@@ -38,6 +38,7 @@ Version 5.5.1
 **[XrdTls]** The CRL refresh thread logic only starts when there is a need
              for it.
 **[XrdTls]** Free current context when a new context is generated.
+**[XrdHttpTpc]** Pass src size to OFS via occ.asize.
 
 -------------
 Version 5.5.0
