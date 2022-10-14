@@ -96,7 +96,9 @@ private:
 
 #ifdef XRD_CHUNK_RESP
     int DetermineXferSize(CURL *curl, XrdHttpExtReq &req, TPC::State &state,
-                          bool &success, TPCLogRecord &);
+                          bool &success, TPCLogRecord &, bool shouldReturnErrorToClient = true);
+
+    int GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t & contentLength, bool & success, TPCLogRecord &rec);
 
     // Send a 'performance marker' back to the TPC client, informing it of our
     // progress.  The TPC client will use this information to determine whether

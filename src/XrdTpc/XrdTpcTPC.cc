@@ -144,33 +144,41 @@ if (purpose == CURLSOCKTYPE_IPCXN && clientp)
 // One special key is `authz`; this is always stripped out and copied to the Authorization
 // header (which will later be used for XrdSecEntity).  The latter copy is only done if
 // the Authorization header is not already present.
-static std::string prepareURL(XrdHttpExtReq &req) {
-  std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-query");
-  if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
+//
+// hasSetOpaque will be set to true if at least one opaque data has been set in the URL that is returned,
+// false otherwise
+static std::string prepareURL(XrdHttpExtReq &req, bool & hasSetOpaque) {
+    std::map<std::string, std::string>::const_iterator iter = req.headers.find("xrd-http-query");
+    if (iter == req.headers.end() || iter->second.empty()) {return req.resource;}
 
-  auto has_authz_header = req.headers.find("Authorization") != req.headers.end();
+    auto has_authz_header = req.headers.find("Authorization") != req.headers.end();
 
-  std::istringstream requestStream(iter->second);
-  std::string token;
-  std::stringstream result;
-  bool found_first_header = false;
-  while (std::getline(requestStream, token, '&')) {
-    if (token.empty()) {
-      continue;
-    } else if (!strncmp(token.c_str(), "authz=", 6)) {
-      if (!has_authz_header) {
-        req.headers["Authorization"] = token.substr(6);
-        has_authz_header = true;
-      }
-    } else if (!found_first_header) {
-      result << "?" << token;
-      found_first_header = true;
-    } else {
-      result << "&" << token;
+    std::istringstream requestStream(iter->second);
+    std::string token;
+    std::stringstream result;
+    bool found_first_header = false;
+    while (std::getline(requestStream, token, '&')) {
+        if (token.empty()) {
+            continue;
+        } else if (!strncmp(token.c_str(), "authz=", 6)) {
+            if (!has_authz_header) {
+                req.headers["Authorization"] = token.substr(6);
+                has_authz_header = true;
+            }
+        } else if (!found_first_header) {
+            result << "?" << token;
+            found_first_header = true;
+        } else {
+            result << "&" << token;
+        }
     }
-  }
+    hasSetOpaque = found_first_header;
+    return req.resource + result.str().c_str();
+}
 
-  return req.resource + result.str().c_str();
+static std::string prepareURL(XrdHttpExtReq &req) {
+    bool foundHeader;
+    return prepareURL(req,foundHeader);
 }
 
 /******************************************************************************/
@@ -401,9 +409,11 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
           opaque = resource.substr(pos + 1);
         }
 
-        // Append the authz information
-        opaque += (opaque.empty() ? "" : "&");
-        opaque += authz;
+        // Append the authz information if there are some
+        if(!authz.empty()) {
+            opaque += (opaque.empty() ? "" : "&");
+            opaque += authz;
+        }
         open_result = fh.open(path.c_str(), mode, openMode, &sec, opaque.c_str());
 
         if ((open_result == SFS_STALL) || (open_result == SFS_STARTED)) {
@@ -422,11 +432,14 @@ int TPCHandler::OpenWaitStall(XrdSfsFile &fh, const std::string &resource,
 /******************************************************************************/
   
 #ifdef XRD_CHUNK_RESP
+
+
+
 /**
  * Determine size at remote end.
  */
 int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
-                                  bool &success, TPCLogRecord &rec) {
+                                  bool &success, TPCLogRecord &rec, bool shouldReturnErrorToClient) {
     success = false;
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
     CURLcode res;
@@ -436,20 +449,20 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
         ss << "Remote server failed request: " << curl_easy_strerror(res);
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
-        return req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(curl_easy_strerror(res)), 0);
+        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(curl_easy_strerror(res)), 0) : -1;
     } else if (state.GetStatusCode() >= 400) {
         std::stringstream ss;
         ss << "Remote side failed with status code " << state.GetStatusCode();
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
-        return req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(ss.str().c_str()), 0);
+        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, const_cast<char *>(ss.str().c_str()), 0): -1;
     } else if (res) {
         std::stringstream ss;
         ss << "HTTP library failed: " << curl_easy_strerror(res);
         rec.status = 500;
         logTransferEvent(LogMask::Error, rec, "SIZE_FAIL", ss.str());
         char msg[] = "Unknown internal transfer failure";
-        return req.SendSimpleResp(rec.status, NULL, NULL, msg, 0);
+        return shouldReturnErrorToClient ? req.SendSimpleResp(rec.status, NULL, NULL, msg, 0) : -1;
     }
     std::stringstream ss;
     ss << "Successfully determined remote size for pull request: "
@@ -458,6 +471,17 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
     success = true;
     return 0;
+}
+
+int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, bool & success, TPCLogRecord &rec) {
+    State state(curl);
+    int result;
+    //In case we cannot get the content length, we don't return anything to the client
+    if ((result = DetermineXferSize(curl, req, state, success, rec, false)) || !success) {
+        return result;
+    }
+    contentLength = state.GetContentLength();
+    return result;
 }
   
 /******************************************************************************/
@@ -936,9 +960,26 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         }
     }
     rec.streams = streams;
-    std::string full_url = prepareURL(req);
+    bool hasSetOpaque;
+    std::string full_url = prepareURL(req, hasSetOpaque);
     std::string authz = GetAuthz(req);
-
+    curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
+#ifdef XRD_CHUNK_RESP
+    {
+        //Get the content-length of the source file and pass it to the OSS layer
+        //during the open
+        uint64_t sourceFileContentLength = 0;
+        bool success;
+        TPCLogRecord getContentLengthRec;
+        GetContentLengthTPCPull(curl, req, sourceFileContentLength, success, getContentLengthRec);
+        if(success) {
+            //In the case we cannot get the information from the source server (offline or other error)
+            //we just don't add the size information to the opaque of the local file to open
+            full_url += hasSetOpaque ? "&" : "?";
+            full_url += "oss.asize=" + std::to_string(sourceFileContentLength);
+        }
+    }
+#endif
     int open_result = OpenWaitStall(*fh, full_url, mode|SFS_O_WRONLY, 0644,
                                     req.GetSecEntity(), authz);
     if (SFS_REDIRECT == open_result) {
@@ -959,7 +1000,6 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         return resp_result;
     }
     ConfigureCurlCA(curl);
-    curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
     Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
     State state(0, stream, curl, false);
     state.CopyHeaders(req);

@@ -31,8 +31,30 @@ public:
         m_content_length(-1),
         m_stream(NULL),
         m_curl(NULL),
-        m_headers(NULL)
+        m_headers(NULL),
+        m_is_transfer_state(true)
     {}
+
+    /**
+     * Don't use that constructor if you want to do some transfers.
+     * @param curl the curl handle
+     */
+    State(CURL * curl):
+        m_push(true),
+        m_recv_status_line(false),
+        m_recv_all_headers(false),
+        m_offset(0),
+        m_start_offset(0),
+        m_status_code(-1),
+        m_error_code(0),
+        m_content_length(-1),
+        m_stream(NULL),
+        m_curl(curl),
+        m_headers(NULL),
+        m_is_transfer_state(false)
+    {
+        InstallHandlers(curl);
+    }
 
     // Note that we are "borrowing" a reference to the curl handle;
     // it is not owned / freed by the State object.  However, we use it
@@ -48,7 +70,8 @@ public:
         m_content_length(-1),
         m_stream(&stream),
         m_curl(curl),
-        m_headers(NULL)
+        m_headers(NULL),
+        m_is_transfer_state(true)
     {
         InstallHandlers(curl);
     }
@@ -143,6 +166,7 @@ private:
     std::vector<std::string> m_headers_copy; // Copies of custom headers.
     std::string m_resp_protocol;  // Response protocol in the HTTP status line.
     std::string m_error_buf;  // Any error associated with a response.
+    bool m_is_transfer_state; // If set to true, this state will be used to perform some transfers
 };
 
 };
