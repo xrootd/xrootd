@@ -3,6 +3,7 @@ global:
   XrdAccAuthorizeObject*;
   XrdAccAuthorizeObjAdd*;
   XrdHttpGetExtHandler*;
+  SciTokensHelper;
 
 local:
   *;

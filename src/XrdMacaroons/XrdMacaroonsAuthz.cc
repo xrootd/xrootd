@@ -24,6 +24,7 @@ public:
     AuthzCheck(const char *req_path, const Access_Operation req_oper, ssize_t m_max_duration, XrdSysError &log);
 
     const std::string &GetSecName() const {return m_sec_name;}
+    const std::string &GetErrorMessage() const {return m_emsg;}
 
     static int verify_before_s(void *authz_ptr,
                                const unsigned char *pred,
@@ -49,6 +50,7 @@ private:
 
     ssize_t m_max_duration;
     XrdSysError &m_log;
+    std::string m_emsg;
     const std::string m_path;
     std::string m_desired_activity;
     std::string m_sec_name;
@@ -105,6 +107,24 @@ static XrdAccPrivs AddPriv(Access_Operation op, XrdAccPrivs privs)
     return static_cast<XrdAccPrivs>(new_privs);
 }
 
+
+// Accept any value of the path, name, or activity caveats
+int validate_verify_empty(void *emsg_ptr,
+                          const unsigned char *pred,
+                          size_t pred_sz)
+{
+    if ((pred_sz >= 5) && (!memcmp(reinterpret_cast<const char *>(pred), "path:", 5) ||
+                           !memcmp(reinterpret_cast<const char *>(pred), "name:", 5)))
+    {
+        return 0;
+    }
+    if ((pred_sz >= 9) && (!memcmp(reinterpret_cast<const char *>(pred), "activity:", 9)))
+    {
+        return 0;
+    }
+    return 1;
+}
+
 }
 
 
@@ -144,19 +164,29 @@ XrdAccPrivs
 Authz::Access(const XrdSecEntity *Entity, const char *path,
               const Access_Operation oper, XrdOucEnv *env)
 {
-    const char *authz = env ? env->Get("authz") : nullptr;
     // We don't allow any testing to occur in this authz module, preventing
     // a macaroon to be used to receive further macaroons.
     if (oper == AOP_Any)
     {
         return m_chain ? m_chain->Access(Entity, path, oper, env) : XrdAccPriv_None;
     }
-    if (!authz || strncmp(authz, "Bearer%20", 9))
+
+    const char *authz = env ? env->Get("authz") : nullptr;
+    if (authz && !strncmp(authz, "Bearer%20", 9))
     {
-        //m_log.Emsg("Access", "No bearer token present");
+        authz += 9;
+    }
+
+        // If there's no request-specific token, check for a ZTN session token
+    if (!authz && Entity && !strcmp("ztn", Entity->prot) && Entity->creds &&
+        Entity->credslen && Entity->creds[Entity->credslen] == '\0')
+    {
+        authz = Entity->creds;
+    }
+
+    if (!authz) {
         return OnMissing(Entity, path, oper, env);
     }
-    authz += 9;
 
     macaroon_returncode mac_err = MACAROON_SUCCESS;
     struct macaroon* macaroon = macaroon_deserialize(
@@ -236,6 +266,77 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
 
     // We passed verification - give the correct privilege.
     return AddPriv(oper, XrdAccPriv_None);
+}
+
+bool Authz::Validate(const char   *token,
+                     std::string  &emsg,
+                     long long    *expT,
+                     XrdSecEntity *entP)
+{
+    macaroon_returncode mac_err = MACAROON_SUCCESS;
+    std::unique_ptr<struct macaroon, decltype(&macaroon_destroy)> macaroon(
+        macaroon_deserialize(token, &mac_err),
+        &macaroon_destroy);
+
+    if (!macaroon)
+    {
+        emsg = "Failed to deserialize the token as a macaroon";
+        // Purposely log at debug level in case if this validation is ever
+        // chained so we don't have overly-chatty logs.
+        m_log.Log(LogMask::Debug, "Validate", emsg.c_str());
+        return false;
+    }
+
+    std::unique_ptr<struct macaroon_verifier, decltype(&macaroon_verifier_destroy)> verifier(
+        macaroon_verifier_create(), &macaroon_verifier_destroy);
+    if (!verifier)
+    {
+        emsg = "Internal error: failed to create a verifier.";
+        m_log.Log(LogMask::Error, "Validate", emsg.c_str());
+        return false;
+    }
+
+    // Note the path and operation here are ignored as we won't use those validators
+    AuthzCheck check_helper("/", AOP_Read, m_max_duration, m_log);
+
+    if (macaroon_verifier_satisfy_general(verifier.get(), AuthzCheck::verify_before_s, &check_helper, &mac_err) ||
+        macaroon_verifier_satisfy_general(verifier.get(), validate_verify_empty, nullptr, &mac_err))
+    {
+        emsg = "Failed to configure the verifier";
+        m_log.Log(LogMask::Error, "Validate", emsg.c_str());
+        return false;
+    }
+
+    const unsigned char *macaroon_loc;
+    size_t location_sz;
+    macaroon_location(macaroon.get(), &macaroon_loc, &location_sz);
+    if (strncmp(reinterpret_cast<const char *>(macaroon_loc), m_location.c_str(), location_sz))
+    {
+        emsg = "Macaroon contains incorrect location: " +
+            std::string(reinterpret_cast<const char *>(macaroon_loc), location_sz);
+        m_log.Log(LogMask::Warning, "Validate", emsg.c_str(), ("all.sitename is " + m_location).c_str());
+        return false;
+    }
+
+    if (macaroon_verify(verifier.get(), macaroon.get(),
+                        reinterpret_cast<const unsigned char *>(m_secret.c_str()),
+                        m_secret.size(),
+                        nullptr, 0,
+                        &mac_err))
+    {
+        emsg = "Macaroon verification error" + (check_helper.GetErrorMessage().size() ?
+            (", " + check_helper.GetErrorMessage()) : "");
+        m_log.Log(LogMask::Warning, "Validate", emsg.c_str());
+        return false;
+    }
+
+    const unsigned char *macaroon_id;
+    size_t id_sz;
+    macaroon_identifier(macaroon.get(), &macaroon_id, &id_sz);
+    m_log.Log(LogMask::Info, "Validate", ("Macaroon verification successful; ID " +
+        std::string(reinterpret_cast<const char *>(macaroon_id), id_sz)).c_str());
+
+    return true;
 }
 
 
@@ -325,12 +426,13 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
     {
         return 1;
     }
-    m_log.Log(LogMask::Debug, "AuthzCheck", "running verify before", pred_str.c_str());
+    m_log.Log(LogMask::Debug, "AuthzCheck", "Checking macaroon for expiration; caveat:", pred_str.c_str());
 
     struct tm caveat_tm;
     if (strptime(&pred_str[7], "%Y-%m-%dT%H:%M:%SZ", &caveat_tm) == nullptr)
     {
-        m_log.Log(LogMask::Debug, "AuthzCheck", "failed to parse time string", &pred_str[7]);
+        m_emsg = "Failed to parse time string: " + pred_str.substr(7);
+        m_log.Log(LogMask::Warning, "AuthzCheck", m_emsg.c_str());
         return 1;
     }
     caveat_tm.tm_isdst = -1;
@@ -338,18 +440,27 @@ AuthzCheck::verify_before(const unsigned char * pred, size_t pred_sz)
     time_t caveat_time = timegm(&caveat_tm);
     if (-1 == caveat_time)
     {
-        m_log.Log(LogMask::Debug, "AuthzCheck", "failed to generate unix time", &pred_str[7]);
+        m_emsg = "Failed to generate unix time: " + pred_str.substr(7);
+        m_log.Log(LogMask::Warning, "AuthzCheck", m_emsg.c_str());
         return 1;
     }
     if ((m_max_duration > 0) && (caveat_time > m_now + m_max_duration))
     {
-        m_log.Log(LogMask::Warning, "AuthzCheck", "Max token age is greater than configured max duration; rejecting");
+        m_emsg = "Max token age is greater than configured max duration; rejecting";
+        m_log.Log(LogMask::Warning, "AuthzCheck", m_emsg.c_str());
         return 1;
     }
 
     int result = (m_now >= caveat_time);
-    if (!result) m_log.Log(LogMask::Debug, "AuthzCheck", "verify before successful");
-    else m_log.Log(LogMask::Debug, "AuthzCheck", "verify before failed");
+    if (!result)
+    {
+        m_log.Log(LogMask::Debug, "AuthzCheck", "Macaroon has not expired.");
+    }
+    else
+    {
+        m_emsg = "Macaroon expired at " + pred_str.substr(7);
+        m_log.Log(LogMask::Debug, "AuthzCheck", m_emsg.c_str());
+    }
     return result;
 }
 
