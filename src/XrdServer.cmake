@@ -191,6 +191,7 @@ target_link_libraries(
   XrdUtils
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
+  ${ATOMIC_LIBRARY}
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
