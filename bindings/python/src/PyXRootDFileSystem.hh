@@ -124,7 +124,7 @@ namespace PyXRootD
       { "del_xattr",
           (PyCFunction) PyXRootD::FileSystem::DelXAttr,    METH_VARARGS | METH_KEYWORDS, NULL },
       { "list_xattr",
-          (PyCFunction) PyXRootD::FileSystem::DelXAttr,    METH_VARARGS | METH_KEYWORDS, NULL },
+          (PyCFunction) PyXRootD::FileSystem::ListXAttr,    METH_VARARGS | METH_KEYWORDS, NULL },
       { NULL } /* Sentinel */
     };
 
