@@ -333,7 +333,7 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *envP)
 
    if (!stat(local_path, &Stat) && S_ISDIR(Stat.st_mode)
    && mode == (Stat.st_mode & accBits)) return XrdOssOK;
-   return EEXIST;
+   return -EEXIST;
 }
 
 /******************************************************************************/
