@@ -60,7 +60,7 @@ void XrdSecEntity::Display(XrdSysError &mDest)
    class AttrCB : public XrdSecEntityAttrCB
         {public:
          XrdSecEntityAttrCB::Action Attr(const char *key, const char *val)
-                           {mDest.Say(Tid, "Attr  ",key," = '", val, "'");
+                           {mDest.Say(Tid, " Attr ",key," = '", val, "'");
                             return XrdSecEntityAttrCB::Next;
                            }
          AttrCB(XrdSysError &erp, const char *tid) : mDest(erp), Tid(tid) {}
@@ -92,6 +92,7 @@ void XrdSecEntity::Display(XrdSysError &mDest)
    mDest.Say(tident, " Grps '", (grps ? grps : ""), "'");
    mDest.Say(tident, " Caps '", (caps ? caps : ""), "'");
    mDest.Say(tident, " Pidn '", (pident ? pident : ""), "'");
+   mDest.Say(tident, " Mon  '", (moninfo ? moninfo : ""), "'");
 
    mDest.Say(tident, " Crlen ", std::to_string((LLint)credslen).c_str());
    mDest.Say(tident, " ueid  ", std::to_string((ULint)ueid).c_str());
