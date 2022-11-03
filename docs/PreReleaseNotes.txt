@@ -12,5 +12,6 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
 
 + **Miscellaneous**
