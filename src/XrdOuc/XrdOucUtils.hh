@@ -100,6 +100,8 @@ static bool  makeHome(XrdSysError &eDest, const char *inst,
 
 static int   makePath(char *path, mode_t mode, bool reset=false);
 
+static bool  mode2mask(const char *mode, mode_t &mask);
+
 static bool  parseLib(XrdSysError &eDest, XrdOucStream &Config,
                       const char *libName, char *&path, char **libparm);
 

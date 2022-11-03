@@ -935,6 +935,47 @@ int XrdOucUtils::makePath(char *path, mode_t mode, bool reset)
 }
  
 /******************************************************************************/
+/*                             m o d e 2 m a s k                              */
+/******************************************************************************/
+
+bool XrdOucUtils::mode2mask(const char *mode, mode_t &mask)
+{
+   mode_t mval[3] = {0}, mbit[3] = {0x04, 0x02, 0x01};
+   const char *mok = "rwx";
+   char mlet;
+
+// Accept octal mode
+//
+   if (isdigit(*mode))
+      {char *eP;
+       mask = strtol(mode, &eP, 8);
+       return *eP == 0;
+      }
+
+// Make sure we have the correct number of characters
+//
+   int n = strlen(mode);
+   if (!n || n > 9 || n/3*3 != n) return false;
+
+// Convert groups of three
+//
+   int k = 0;
+   do {for (int i = 0; i < 3; i++)
+           {mlet = *mode++;
+            if (mlet != '-')
+               {if (mlet != mok[i]) return false;
+                mval[k] |= mbit[i]; 
+               }
+           } 
+       } while(++k < 3 && *mode);
+
+// Combine the modes and return success
+//
+   mask = mval[0]<<6 | mval[1]<<3 | mval[2];
+   return true;
+}
+  
+/******************************************************************************/
 /*                              p a r s e L i b                               */
 /******************************************************************************/
   

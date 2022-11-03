@@ -379,6 +379,11 @@ enum {Authorize = 0x0001,    // Authorization wanted
 int   Options;               // Various options
 int   myPort;                // Port number being used
 
+// Directory and file creation mode controls
+//
+mode_t            dMask[2];  // Min/Max directory mode
+mode_t            fMask[2];  // Min/Max file      mode
+
 // TPC related things
 //
 char             *tpcRdrHost[2];  // TPC redirect target or null if none
@@ -510,6 +515,7 @@ int           FSctl(XrdOfsFile &file, int cmd, int alen, const char *args,
 int           Reformat(XrdOucErrInfo &);
 const char   *theRole(int opts);
 int           xcrds(XrdOucStream &, XrdSysError &);
+int           xcrm(XrdOucStream &, XrdSysError &);
 int           xdirl(XrdOucStream &, XrdSysError &);
 int           xexp(XrdOucStream &, XrdSysError &, bool);
 int           xforward(XrdOucStream &, XrdSysError &);

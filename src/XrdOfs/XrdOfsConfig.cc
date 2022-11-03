@@ -216,6 +216,11 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    if (ossRW == ' ') ossRW = 'w';
 
+// Adjust the umask to correspond to the maximum mode allowed
+//
+   mode_t uMask = 0777 & (~(dMask[1] | fMask[1]));
+   umask(uMask);
+
 // Export our role if we actually have one
 //
    if (myRole) XrdOucEnv::Export("XRDROLE", myRole);
@@ -780,6 +785,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_XPI("ckslib",        theCksLib);
     TS_Xeq("cksrdsz",       xcrds);
     TS_XPI("cmslib",        theCmsLib);
+    TS_Xeq("crmode",        xcrm);
     TS_XPI("ctllib",        theCtlLib);
     TS_Xeq("dirlist",       xdirl);
     TS_Xeq("forward",       xforward);
@@ -847,6 +853,138 @@ int XrdOfs::xcrds(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (XrdOuca2x::a2sz(Eroute, "cksrdsz size", val, &rdsz, 1, maxRds)) return 1;
    ofsConfig->SetCksRdSz(static_cast<int>(rdsz));
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                  x c r m                                   */
+/******************************************************************************/
+  
+/* Function: xcrm
+
+   Purpose:  To parse the directive: crmode [dirs <mspec>] [files <mspec>]
+
+             <mspec>: common | legacy | [raw] <modes>
+
+             common  uses dirs 0700:0755 and files 0600:0644
+
+             legacy  uses dirs 0000:0775 and files 0000:0775
+
+             raw     Allows actual specification of mode bits without enforcing 
+                     default requirements. The resulting modes may not be 0.
+                     Otherwise, the specified values are made consistent with
+                     the default mode settings.
+
+             <modes>: <minv> | :<maxv> | <minv>:<maxv>
+
+             <minv>: The minimum mode value required (always set), see <mval>.
+             <maxv>: The maximum mode value to be enforced, see <mval>.
+
+             <mval>  is either an octal mode specifiation or a standard ls type
+                     mode specification (i.e. 'rwx'). The specification is in
+                     groups of 3 letters. The first group designates user mode,
+                     the scond group mode, and the last other mode. To disallow
+                     a mode specify a dash. Note that for files, the 'x'
+                     character must be a dash unless raw mode is enabled. It is
+                     impossible to disllow any mode for user except for raw mode.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xcrm(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   static const mode_t dMin = 0700, dMax = 0775, fMin = 0600, fMax = 0664;
+   static const mode_t xBit = 0111, wBit = 0002;
+   const char *mtype;
+   char *colon, *val, *minM, *maxM;
+   mode_t mMask[2];
+   bool isDirs, isRaw;
+
+// Get the size
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "crmode argument not specified"); return 1;}
+
+// Process all of the specs
+//
+do{if (!strcmp("dirs", val)) {isDirs = true; mtype = "dirs mode";}
+      else if (!strcmp("files", val)) {isDirs = false; mtype = "files mode";}
+              else {Eroute.Emsg("Config", "invalid mode type - ", val);
+                    return 1;
+                   }
+
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", mtype, "value not specified"); return 1;}
+
+   if (!strcmp(val, "common"))
+      {if (isDirs) {dMask[0] = dMin; dMask[1] = dMax;}
+          else     {fMask[0] = fMin; fMask[1] = fMax;}
+       continue;
+      }
+
+   if (!strcmp(val, "legacy"))
+      {if (isDirs) {dMask[0] = 0; dMask[1] = 0775;}
+          else     {fMask[0] = 0; fMask[1] = 0775;}
+       continue;
+      }
+
+   if ((isRaw = !strcmp(val, "raw")))
+      {if (!(val = Config.GetWord()) || !val[0])
+          {Eroute.Emsg("Config", mtype, "value not specified"); return 1;}
+      }
+
+   colon = index(val, ':');
+   if (!colon || colon == val || *(colon+1) == 0)
+      {Eroute.Emsg("Config",mtype,"mode spec requires min and max values");
+       return 1;
+      }
+    minM = val; *colon = 0; maxM = colon + 1;
+
+    if (!XrdOucUtils::mode2mask(minM, mMask[0]))
+       {Eroute.Emsg("Config", mtype, "value is invalid -", minM);
+        return 1;
+       }
+
+    if (!XrdOucUtils::mode2mask(maxM, mMask[1]))
+       {Eroute.Emsg("Config", mtype, "value is invalid -", maxM);
+        return 1;
+       }
+
+   if (isDirs)
+      {if (isRaw) {dMask[0] = mMask[0]; dMask[1] = mMask[1];}
+          else {if ((mMask[0] | mMask[1]) & wBit)
+                   {Eroute.Say("Config warning: 'other' w-mode removed from dirs mode!");
+                    mMask[0] &= ~wBit; mMask[1] &= ~wBit;
+                   }
+                dMask[0] = (mMask[0] | dMin) & dMax;
+                dMask[1] = (mMask[1] | dMin) & dMax;
+               }
+       if ((dMask[0] & dMask[1]) != dMask[0])
+          {Eroute.Emsg("Config","dirs mode min and max values are inconsistent!");
+           return 1;
+          }
+      } else { // Files
+       if (isRaw) {fMask[0] = mMask[0]; fMask[1] = mMask[1];}
+          else {if ((mMask[0] | mMask[1]) & wBit)
+                   {Eroute.Say("Config warning: 'other' w-mode removed from files mode!");
+                    mMask[0] &= ~wBit; mMask[1] &= ~wBit;
+                   }
+                if ((mMask[0] | mMask[1]) & xBit)
+                   {Eroute.Say("Config warning: x-mode removed from files mode!");
+                    mMask[0] &= ~xBit; mMask[1] &= ~xBit;
+                   }
+                fMask[0] = (mMask[0] | fMin) & fMax;
+                fMask[1] = (mMask[1] | fMin) & fMax;
+               }
+       if ((fMask[0] & fMask[1]) != fMask[0])
+          {Eroute.Emsg("Config","files mode min and max values are inconsistent!");
+           return 1;
+          }
+      }
+   } while((val = Config.GetWord()) && val[0]);
+
+// All done, return success
+//
    return 0;
 }
   
