@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+**[Server]** Allow specfication of minimum and maximum creation mode.
+**Commit: 8a6d7c0
 
 + **Major bug fixes**
 
