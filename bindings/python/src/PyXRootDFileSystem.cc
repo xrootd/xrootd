@@ -608,15 +608,15 @@ namespace PyXRootD
   {
     static const char         *kwlist[] = { "files", "flags", "priority",
                                             "timeout", "callback", NULL };
-    XrdCl::PrepareFlags::Flags flags;
+    uint16_t                   flagval  = 0;
     uint8_t                    priority = 0;
     uint16_t                   timeout  = 0;
     PyObject                  *pyfiles = NULL, *callback = NULL;
     PyObject                  *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "OK|bHO:prepare",
-         (char**) kwlist, &pyfiles, &flags, &priority, &timeout, &callback ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "OH|bHO:prepare",
+         (char**) kwlist, &pyfiles, &flagval, &priority, &timeout, &callback ) )
       return NULL;
 
     if ( !PyList_Check( pyfiles ) ) {
@@ -635,6 +635,9 @@ namespace PyXRootD
       file = PyBytes_AsString( pyfile );
       files.push_back( std::string( file ) );
     }
+
+    XrdCl::PrepareFlags::Flags flags;
+    flags = static_cast<XrdCl::PrepareFlags::Flags>(flagval);
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
