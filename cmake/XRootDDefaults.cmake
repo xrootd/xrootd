@@ -9,6 +9,8 @@ if( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
   endif()
 endif()
 
+include( CMakeDependentOption )
+
 define_default( PLUGIN_VERSION    5 )
 option( ENABLE_FUSE      "Enable the fuse filesystem driver if possible."                 TRUE )
 option( ENABLE_CRYPTO    "Enable the OpenSSL cryprography support."                       TRUE )
@@ -28,7 +30,7 @@ option( ENABLE_XRDEC     "Enable erasure coding component."                     
 option( ENABLE_ASAN      "Enable adress sanitizer."                                       FALSE )
 option( ENABLE_TSAN      "Enable thread sanitizer."                                       FALSE )
 option( ENABLE_XRDCLHTTP "Enable xrdcl-http plugin."                                      TRUE )
-option( ENABLE_SCITOKENS "Enable SciTokens plugin."                                       TRUE )
-option( ENABLE_MACAROONS "Enable Macaroons plugin."                                       TRUE )
+cmake_dependent_option( ENABLE_SCITOKENS "Enable SciTokens plugin." TRUE "NOT XRDCL_ONLY" FALSE )
+cmake_dependent_option( ENABLE_MACAROONS "Enable Macaroons plugin." TRUE "NOT XRDCL_ONLY" FALSE )
 option( FORCE_ENABLED    "Fail build if enabled components cannot be built."              FALSE )
 define_default( XRD_PYTHON_REQ_VERSION 3 )
