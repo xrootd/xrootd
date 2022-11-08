@@ -56,7 +56,7 @@ else( READLINE_INCLUDE_DIR AND READLINE_LIBRARY )
     endif()
 
   find_package_handle_standard_args(
-    READLINE
+    Readline
     DEFAULT_MSG
     READLINE_LIBRARY READLINE_INCLUDE_DIR )
 

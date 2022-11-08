@@ -3,7 +3,7 @@
 #-------------------------------------------------------------------------------
 find_package( ZLIB REQUIRED)
 
-find_package( LibUuid REQUIRED )
+find_package( libuuid REQUIRED )
 
 if( ENABLE_READLINE )
   if( FORCE_ENABLED )
@@ -30,7 +30,7 @@ if( LIBXML2_FOUND )
   add_definitions( -DHAVE_XML2 )
 endif()
 
-find_package( Systemd )
+find_package( systemd )
 if( SYSTEMD_FOUND )
   add_definitions( -DHAVE_SYSTEMD )
 endif()
@@ -82,9 +82,9 @@ endif()
 
 if( ENABLE_TESTS )
   if( FORCE_ENABLED )
-    find_package( CPPUnit REQUIRED )
+    find_package( CppUnit REQUIRED )
   else()
-    find_package( CPPUnit )
+    find_package( CppUnit )
   endif()
   if( CPPUNIT_FOUND )
     set( BUILD_TESTS TRUE )
