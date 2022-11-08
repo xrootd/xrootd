@@ -150,7 +150,7 @@ fi
 # Deal with release candidates
 #-------------------------------------------------------------------------------
 RELEASE=1
-if test x`echo $VERSION | egrep $RCEXP` != x; then
+if test x`echo $VERSION | grep -E $RCEXP` != x; then
   RELEASE=0.`echo $VERSION | sed 's/.*-rc/rc/'`
   VERSION=`echo $VERSION | sed 's/-rc.*//'`
 fi
@@ -158,7 +158,7 @@ fi
 #-------------------------------------------------------------------------------
 # Deal with CERN releases
 #-------------------------------------------------------------------------------
-if test x`echo $VERSION | egrep $CERNEXP` != x; then
+if test x`echo $VERSION | grep -E $CERNEXP` != x; then
   RELEASE=`echo $VERSION | sed 's/.*-//'` 
   VERSION=`echo $VERSION | sed 's/-.*\.CERN//'`
 fi
@@ -281,7 +281,7 @@ gzip -9fn $RPMSOURCES/xrootd.tar
 # Check if we need some other versions
 #-------------------------------------------------------------------------------
 OTHER_VERSIONS=`cat $TEMPDIR/xrootd.spec | \
-    egrep '^Source[0-9]+:[[:space:]]*xrootd-.*.gz$' |\
+    grep -E '^Source[0-9]+:[[:space:]]*xrootd-.*.gz$' |\
     awk  '{ print $2; }'`
 
 for VER in $OTHER_VERSIONS; do
