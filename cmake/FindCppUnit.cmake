@@ -27,4 +27,4 @@ set(CPPUNIT_INCLUDE_DIRS ${CPPUNIT_INCLUDE_DIR})
 set(CPPUNIT_LIBRARIES ${CPPUNIT_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(cppunit DEFAULT_MSG CPPUNIT_INCLUDE_DIRS CPPUNIT_LIBRARIES)
+find_package_handle_standard_args(CppUnit DEFAULT_MSG CPPUNIT_INCLUDE_DIRS CPPUNIT_LIBRARIES)
