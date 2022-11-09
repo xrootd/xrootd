@@ -173,7 +173,7 @@ jobs:
     container: centos:7
 
     steps:
-    # python2-pip is broken on CentOS so can't upgrade pip or setuptools
+    # python2-pip is broken on CentOS so can't upgrade pip, setuptools, or wheel
     - name: Install external dependencies with yum
       run: |
         yum update -y
@@ -195,7 +195,6 @@ jobs:
             git \
             cppunit-devel
         yum clean all
-        python2 -m pip --no-cache-dir install --upgrade wheel
 
     # Need to use v1 of action as image Git is too old
     - name: Clone repository now that Git is available
