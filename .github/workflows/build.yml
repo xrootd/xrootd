@@ -336,9 +336,7 @@ jobs:
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
-            -DOPENSSL_SSL_LIBRARY=$(find $(find $(brew --cellar openssl) -type d -iname "lib") -type f -iname "libssl*.dylib") \
-            -DOPENSSL_CRYPTO_LIBRARY=$(find $(find $(brew --cellar openssl) -type d -iname "lib") -type f -iname "libcrypto*.dylib") \
-            -DOPENSSL_INCLUDE_DIR=$(find $(brew --cellar openssl) -type d -iname "include") \
+            -DCMAKE_PREFIX_PATH=/usr/local/opt/openssl@3 \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
