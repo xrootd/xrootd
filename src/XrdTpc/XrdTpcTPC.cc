@@ -444,6 +444,9 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
     CURLcode res;
     res = curl_easy_perform(curl);
+    //Immediately set the CURLOPT_NOBODY flag to 0 as we anyway
+    //don't want the next curl call to do be a HEAD request
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
     if (res == CURLE_HTTP_RETURNED_ERROR) {
         std::stringstream ss;
         ss << "Remote server failed request: " << curl_easy_strerror(res);
@@ -468,13 +471,15 @@ int TPCHandler::DetermineXferSize(CURL *curl, XrdHttpExtReq &req, State &state,
     ss << "Successfully determined remote size for pull request: "
        << state.GetContentLength();
     logTransferEvent(LogMask::Debug, rec, "SIZE_SUCCESS", ss.str());
-    curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
     success = true;
     return 0;
 }
 
 int TPCHandler::GetContentLengthTPCPull(CURL *curl, XrdHttpExtReq &req, uint64_t &contentLength, bool & success, TPCLogRecord &rec) {
     State state(curl);
+    //Don't forget to copy the headers of the client's request before doing the HEAD call. Otherwise, if there is a need for authentication,
+    //it will fail
+    state.CopyHeaders(req);
     int result;
     //In case we cannot get the content length, we don't return anything to the client
     if ((result = DetermineXferSize(curl, req, state, success, rec, false)) || !success) {
