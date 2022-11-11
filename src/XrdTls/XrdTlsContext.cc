@@ -21,6 +21,7 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/opensslv.h>
 #include <sys/stat.h>
 
 #include "XrdOuc/XrdOucUtils.hh"
@@ -429,7 +430,7 @@ void Fatal(std::string *eMsg, const char *msg, bool sslmsg=false)
 
 const char *GetTlsMethod(const SSL_METHOD *&meth)
 {
-#ifdef HAVE_TLS
+#if OPENSSL_VERSION_NUMBER > 0x1010000fL /* v1.1.0 */
   meth = TLS_method();
 #else
   meth = SSLv23_method();
