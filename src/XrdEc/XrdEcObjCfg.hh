@@ -10,7 +10,7 @@
 
 #include "XrdOuc/XrdOucCRC32C.hh"
 
-#include "isa-l/crc.h"
+#include <isa-l/crc.h>
 
 #include <cstdlib>
 #include <string>
