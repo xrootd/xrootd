@@ -13,7 +13,7 @@ EXP3='^v[0-9]+\.[0-9]+\.[0-9]+\-rc.*$'
 function getNumericVersion()
 {
   VERSION=$1
-  if test x`echo $VERSION | egrep $EXP2` == x; then
+  if test x`echo $VERSION | grep -E $EXP2` == x; then
     echo "1000000";
     return;
   fi
@@ -37,16 +37,16 @@ function getVersionFromRefs()
   VERSION="unknown"
 
   for i in ${REFS[@]}; do
-    if test x`echo $i | egrep $EXP2` != x; then
+    if test x`echo $i | grep -E $EXP2` != x; then
        echo "$i"
        return 0
     fi
 
-    if test x`echo $i | egrep $EXP1` != x; then
+    if test x`echo $i | grep -E $EXP1` != x; then
       VERSION="$i"
     fi
 
-    if test x`echo $i | egrep $EXP3` != x; then
+    if test x`echo $i | grep -E $EXP3` != x; then
       VERSION="$i"
     fi
 

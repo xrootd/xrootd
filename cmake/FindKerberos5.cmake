@@ -32,7 +32,7 @@ else()
   set( KERBEROS5_LIBRARIES ${KERBEROS5_LIBRARY} ${COM_ERR_LIBRARY} )
 
   find_package_handle_standard_args(
-    KERBEROS5
+    Kerberos5
     DEFAULT_MSG
     KERBEROS5_LIBRARIES KERBEROS5_INCLUDE_DIR )
 

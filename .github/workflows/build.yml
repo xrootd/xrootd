@@ -173,7 +173,7 @@ jobs:
     container: centos:7
 
     steps:
-    # python2-pip is broken on CentOS so can't upgrade pip or setuptools
+    # python2-pip is broken on CentOS so can't upgrade pip, setuptools, or wheel
     - name: Install external dependencies with yum
       run: |
         yum update -y
@@ -195,7 +195,6 @@ jobs:
             git \
             cppunit-devel
         yum clean all
-        python2 -m pip --no-cache-dir install --upgrade wheel
 
     # Need to use v1 of action as image Git is too old
     - name: Clone repository now that Git is available
@@ -334,10 +333,10 @@ jobs:
       run: |
         cd ..
         cmake \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
-            -DOPENSSL_SSL_LIBRARY=$(find $(find $(brew --cellar openssl) -type d -iname "lib") -type f -iname "libssl*.dylib") \
-            -DOPENSSL_CRYPTO_LIBRARY=$(find $(find $(brew --cellar openssl) -type d -iname "lib") -type f -iname "libcrypto*.dylib") \
-            -DOPENSSL_INCLUDE_DIR=$(find $(brew --cellar openssl) -type d -iname "include") \
+            -DCMAKE_PREFIX_PATH=/usr/local/opt/openssl@3 \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
@@ -349,6 +348,7 @@ jobs:
             --clean-first \
             --parallel $(($(sysctl -n hw.ncpu) - 1))
         cmake --build build --target install
+        python3 -m pip install --user build/bindings/python
         python3 -m pip list
 
     - name: Verify install
@@ -358,6 +358,7 @@ jobs:
 
     - name: Verify Python bindings
       run: |
+        export DYLD_LIBRARY_PATH=/usr/local/lib
         python3 --version --version
         python3 -m pip list
         python3 -m pip show xrootd
