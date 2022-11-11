@@ -1,9 +1,6 @@
 include( XRootDCommon )
 include( ExternalProject )
 
-link_directories( ${ISAL_LIBDIR} )
-include_directories( ${ISAL_INCDIR} )
-
 #-------------------------------------------------------------------------------
 # The XrdEc shared library
 #-------------------------------------------------------------------------------
@@ -27,19 +24,14 @@ add_library(
 target_link_libraries(
   XrdEc
   XrdCl
-  isal
 )
 
 set_target_properties(
   XrdEc
   PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES ""
   VERSION   ${XRD_EC_VERSION}
   SOVERSION ${XRD_EC_SOVERSION} )
   
-add_dependencies( XrdEc isa-l )
-
 #------------------------------------------------------------------------------
 # Install XrdEc library
 #------------------------------------------------------------------------------

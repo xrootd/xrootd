@@ -15,7 +15,7 @@
 
 #include "XrdEc/XrdEcRedundancyProvider.hh"
 
-#include "isa-l/isa-l.h"
+#include <isa-l.h>
 #include <cstring>
 #include <sstream>
 #include <algorithm>

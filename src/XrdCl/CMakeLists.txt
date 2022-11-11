@@ -28,8 +28,6 @@ endif()
 # XrdEc sources
 #-------------------------------------------------------------------------------
 if( BUILD_XRDEC )
-  link_directories( ${ISAL_LIBDIR} )
-  include_directories( ${ISAL_INCDIR} )
   set( XrdEcSources
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcRedundancyProvider.cc
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcUtilities.cc
@@ -37,7 +35,6 @@ if( BUILD_XRDEC )
        ${CMAKE_SOURCE_DIR}/src/XrdEc/XrdEcReader.cc
        XrdClEcHandler.cc
   )
-  set( ISAL_LIB isal )
   add_compile_definitions( WITH_XRDEC )
 endif()
 
@@ -119,19 +116,17 @@ target_link_libraries(
   ${ZLIB_LIBRARIES}
   ${EXTRA_LIBS}
   ${CMAKE_DL_LIBS}
-  ${OPENSSL_LIBRARIES}
-  ${ISAL_LIB})
+  ${OPENSSL_LIBRARIES})
 
 set_target_properties(
   XrdCl
   PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES ""
   VERSION   ${XRD_CL_VERSION}
   SOVERSION ${XRD_CL_SOVERSION} )
 
 if( BUILD_XRDEC )
-  add_dependencies( XrdCl isa-l )
+  target_include_directories(XrdCl PUBLIC ${ISAL_INCLUDE_DIRS})
+  target_link_libraries(XrdCl ${ISAL_LIBRARIES})
 endif()
 
 #-------------------------------------------------------------------------------
