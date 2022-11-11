@@ -203,7 +203,7 @@ namespace XrdEc
       }
       Element element = std::move( elements.front() );
       elements.pop();
-      return std::move( element );
+      return element;
     }
 
     //-------------------------------------------------------------------------

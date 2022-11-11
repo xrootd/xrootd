@@ -164,7 +164,7 @@ namespace XrdEc
         AnyJob<FUNC, RET, ARGs...> *job = new AnyJob<FUNC, RET, ARGs...>( func, std::move( args )... );
         std::future<RET> ftr = job->GetFuture();
         threadpool.QueueJob( job, nullptr );
-        return std::move( ftr );
+        return ftr;
       }
 
     private:

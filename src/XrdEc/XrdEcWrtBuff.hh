@@ -71,7 +71,7 @@ namespace XrdEc
         {
           XrdCl::Buffer buffer( std::move( pool.front() ) );
           pool.pop();
-          return std::move( buffer );
+          return buffer;
         }
         //---------------------------------------------------------------------
         // Check if we can create a new buffer object without exceeding the
@@ -81,7 +81,7 @@ namespace XrdEc
         {
           XrdCl::Buffer buffer( objcfg.blksize );
           ++currentsize;
-          return std::move( buffer );
+          return buffer;
         }
         //---------------------------------------------------------------------
         // If not, we have to wait until there is a buffer we can recycle
@@ -89,7 +89,7 @@ namespace XrdEc
         while( pool.empty() ) cv.wait( lck );
         XrdCl::Buffer buffer( std::move( pool.front() ) );
         pool.pop();
-        return std::move( buffer );
+        return buffer;
       }
 
       //-----------------------------------------------------------------------
