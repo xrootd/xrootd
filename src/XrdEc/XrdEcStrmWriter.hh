@@ -238,7 +238,7 @@ namespace XrdEc
       {
         std::future<WrtBuff*> ftr = buffers.dequeue();
         std::unique_ptr<WrtBuff> result( ftr.get() );
-        return std::move( result );
+        return result;
       }
 
       //-----------------------------------------------------------------------
