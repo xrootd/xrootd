@@ -887,7 +887,7 @@ int XrdLinkXeq::SendIOV(const struct iovec *iov, int iocnt, int bytes)
                       {if (errno == EINTR) continue;
                           else break;
                       }
-                   n -= retc; Buff += retc;
+                   n -= retc; Buff += retc; bytesleft -= retc;
                   }
          if (retc < 0 || iocnt < 1) break;
         }
