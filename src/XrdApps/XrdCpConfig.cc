@@ -317,7 +317,7 @@ do{while(optind < Argc && Legacy(optind)) {}
                                   if (!a2z(optarg, &xRateThreashold, 10*1024LL, -1)) Usage(22);
                                   break;
           case OpParallel:      OpSpec |= DoParallel;
-                                if (!a2i(optarg, &Parallel, 1, 4)) Usage(22);
+                                if (!a2i(optarg, &Parallel, 1, 128)) Usage(22);
                                 break;
           case OpAllowHttp:     OpSpec |= DoAllowHttp;
                                 break;
