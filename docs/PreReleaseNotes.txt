@@ -6,14 +6,16 @@ Prerelease Notes
 ================
 
 + **New Features**
-**[Server]** Add gsi option to display DN when it differs from entity name.
-**Commit: 2630fe1
-**[Server]** Allow specfication of minimum and maximum creation mode.
-**Commit: 8a6d7c0
+  **[Server]** Add gsi option to display DN when it differs from entity name.
+  **Commit: 2630fe1
+  **[Server]** Allow specfication of minimum and maximum creation mode.
+  **Commit: 8a6d7c0
 
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[Server]** Correct formatting when displaying the SecEntity structure.
+  **Commit: f7c423
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
 
 + **Miscellaneous**
