@@ -60,7 +60,7 @@ void XrdSecEntity::Display(XrdSysError &mDest)
    class AttrCB : public XrdSecEntityAttrCB
         {public:
          XrdSecEntityAttrCB::Action Attr(const char *key, const char *val)
-                           {mDest.Say(Tid, "Attr  ",key," = '", val, "'");
+                           {mDest.Say(Tid, " Attr  ",key," = '", val, "'");
                             return XrdSecEntityAttrCB::Next;
                            }
          AttrCB(XrdSysError &erp, const char *tid) : mDest(erp), Tid(tid) {}
