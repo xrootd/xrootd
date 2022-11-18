@@ -177,6 +177,7 @@ int    XrdSecProtocolgsi::VOMSCertFmt = -1;
 int    XrdSecProtocolgsi::MonInfoOpt = 0;
 bool   XrdSecProtocolgsi::HashCompatibility = 1;
 bool   XrdSecProtocolgsi::TrustDNS = false;
+bool   XrdSecProtocolgsi::ShowDN = false;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -572,6 +573,11 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    // Honour trust / unstrust DNS settings (switch or env)
    TrustDNS = opt.trustdns;
    DEBUG("trust DNS option: "<<TrustDNS);
+
+   //
+   // Enable/disable displaying the DN
+   ShowDN = opt.showDN;
+   DEBUG("show DN option: "<<ShowDN);
 
    //
    // Server specific options
@@ -1970,8 +1976,14 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       }
 
       // Add the DN as default moninfo if requested (the authz plugin may change this)
-      if (MonInfoOpt > 0) {
-         Entity.moninfo = strdup(hs->Chain->EECname());
+      if (MonInfoOpt > 0 || ShowDN) {
+         const char *theDN = hs->Chain->EECname();
+         if (theDN) {
+            if (ShowDN && !GMAPuseDNname) {
+               PRINT(Entity.name<<" Subject DN='"<<theDN<<"'");
+            }
+            if (MonInfoOpt > 0) Entity.moninfo = strdup(theDN);
+         }
       }
 
       if (VOMSAttrOpt > vatIgnore && VOMSFun) {
@@ -2338,6 +2350,7 @@ void gsiOptions::Print(XrdOucTrace *t)
       POPTS(t, " MonInfo option: "<< moninfo);
       if (!hashcomp)
          POPTS(t, " Name hashing algorithm compatibility OFF");
+      POPTS(t, " Show DN option: "<<showDN);
    }
    // Crypto options
    POPTS(t, " Crypto modules: "<< (clist ? clist : XrdSecProtocolgsi::DefCrypto));
@@ -2625,6 +2638,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int moninfo = 0;
       int hashcomp = 1;
       int trustdns = false;
+      int showDN = false;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -2693,6 +2707,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                hashcomp = 0;
             } else if (!strncmp(op, "-trustdns:",10)) {
                trustdns = getOptVal(tdnsOpts, op+10);
+            } else if (!strncmp(op, "-showdn:",8)) {
+               showDN = getOptVal(tdnsOpts, op+8);
             } else {
                PRINT("ignoring unknown switch: "<<op);
             }
@@ -2726,6 +2742,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.moninfo = moninfo;
       opts.hashcomp = hashcomp;
       opts.trustdns = (trustdns <= 0) ? false : true;
+      opts.showDN = (showDN > 0) ? true : false;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)
