@@ -15,7 +15,9 @@ Prerelease Notes
 
 + **Minor bug fixes**
   **[Server]** Correct formatting when displaying the SecEntity structure.
-  **Commit: f7c423
+  **Commit: 0f7c423
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
 
 + **Miscellaneous**
+  **[Apps]** Cleanup xrdcp help information.
+  **Commit: b36bd9d
