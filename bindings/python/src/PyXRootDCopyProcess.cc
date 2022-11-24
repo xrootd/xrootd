@@ -35,7 +35,7 @@
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
-  // Set the unmber of parallel jobs
+  // Set the number of parallel jobs
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::Parallel( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
