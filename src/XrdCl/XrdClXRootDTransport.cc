@@ -348,19 +348,24 @@ namespace XrdCl
   {
     //--------------------------------------------------------------------------
     // Retrieve the body
+    // In case of non kXR_status responses we read all the response, including
+    // data. For kXR_status responses we first read only the remainder of the
+    // header. The header must then be unmarshalled, and then a second call of
+    // GetBody (repeated for suRetry as needed) will read the data.
     //--------------------------------------------------------------------------
     size_t   leftToBeRead = 0;
     uint32_t bodySize = 0;
     ServerResponseHeader* rsphdr = (ServerResponseHeader*)message.GetBuffer();
-    if( rsphdr->status != kXR_status )
-      bodySize = rsphdr->dlen;
-    else
+    bodySize = rsphdr->dlen;
+    if( rsphdr->status == kXR_status )
     {
-      size_t stlen = sizeof( ServerResponseStatus ); // we read everything up to the offset
-      if( message.GetCursor() < stlen )
-        bodySize = rsphdr->dlen;
-      else
+      if( message.GetCursor() >= bodySize+8 ) // we read everything up to the data[]
       {
+        const size_t stlen = sizeof( ServerResponseStatus );
+        if( bodySize+8 < stlen )
+          return XRootDStatus( stError, errInvalidMessage, 0,
+                              "kXR_status: invalid message size." );
+
         ServerResponseStatus *rspst = (ServerResponseStatus*)message.GetBuffer();
         bodySize = rspst->hdr.dlen + rspst->bdy.dlen;
       }
