@@ -19,6 +19,8 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include <cstdlib>
 #include <ctime>
+#include <random>
+#include <chrono>
 #include "Server.hh"
 #include "Utils.hh"
 #include "TestEnv.hh"
@@ -26,6 +28,89 @@
 #include "XrdCl/XrdClUtils.hh"
 
 using namespace XrdClTests;
+
+//------------------------------------------------------------------------------
+// Mock socket for testing
+//------------------------------------------------------------------------------
+struct MockSocket : public XrdCl::Socket
+{
+  public:
+
+    MockSocket() : size( sizeof( ServerResponseHeader ) + sizeof( ServerResponseBody_Protocol ) ),
+                   buffer( reinterpret_cast<char*>( &response ) ), offset( 0 ),
+                   random_engine( std::chrono::system_clock::now().time_since_epoch().count() ),
+                   retrygen( 0, 9 ),
+                   retry_threshold( retrygen( random_engine ) )
+    {
+      response.hdr.status = kXR_ok;
+      response.hdr.streamid[0] = 1;
+      response.hdr.streamid[1] = 2;
+      response.hdr.dlen = htonl( sizeof( ServerResponseBody_Protocol ) );
+
+      response.body.protocol.flags = 123;
+      response.body.protocol.pval  = 4567;
+      response.body.protocol.secreq.rsvd   = 'A';
+      response.body.protocol.secreq.seclvl = 'B';
+      response.body.protocol.secreq.secopt = 'C';
+      response.body.protocol.secreq.secver = 'D';
+      response.body.protocol.secreq.secvsz = 'E';
+      response.body.protocol.secreq.theTag = 'F';
+      response.body.protocol.secreq.secvec.reqindx = 'G';
+      response.body.protocol.secreq.secvec.reqsreq = 'H';
+    }
+
+    virtual XrdCl::XRootDStatus Read( char *outbuf, size_t rdsize, int &bytesRead )
+    {
+      size_t btsleft = size - offset;
+      if( btsleft == 0 || nodata() )
+        return XrdCl::XRootDStatus( XrdCl::stOK, XrdCl::suRetry );
+
+      if( rdsize > btsleft )
+        rdsize = btsleft;
+
+      std::uniform_int_distribution<size_t> sizegen( 0, rdsize );
+      rdsize = sizegen( random_engine );
+
+      if( rdsize == 0 )
+        return XrdCl::XRootDStatus( XrdCl::stOK, XrdCl::suRetry );
+
+      memcpy( outbuf, buffer + offset, rdsize );
+      offset += rdsize;
+      bytesRead = rdsize;
+
+      return XrdCl::XRootDStatus();
+    }
+
+    virtual XrdCl::XRootDStatus Send( const char *buffer, size_t size, int &bytesWritten )
+    {
+      return XrdCl::XRootDStatus( XrdCl::stError, XrdCl::errNotSupported );
+    }
+
+    inline bool IsEqual( XrdCl::Message &msg )
+    {
+      response.hdr.dlen = ntohl( response.hdr.dlen );
+      bool ok = ( memcmp( msg.GetBuffer(), &response, size ) == 0 );
+      response.hdr.dlen = htonl( response.hdr.dlen );
+      return ok;
+    }
+
+  private:
+
+    inline bool nodata()
+    {
+      size_t doretry = retrygen( random_engine );
+      return doretry > retry_threshold;
+    }
+
+    ServerResponse response;
+    const size_t size;
+    char *buffer;
+    size_t offset;
+
+    std::default_random_engine random_engine;
+    std::uniform_int_distribution<size_t> retrygen;
+    const size_t retry_threshold;
+};
 
 //------------------------------------------------------------------------------
 // Client handler
