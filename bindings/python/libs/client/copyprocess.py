@@ -89,7 +89,7 @@ class CopyProcess(object):
               tpctimeout      = 1800,
               rmBadCksum      = False,
               cptimeout       = 0,
-              xrateThreashold = 0,
+              xrateThreshold  = 0,
               xrate           = 0,
               retry           = 0,
               cont            = False,
@@ -134,8 +134,8 @@ class CopyProcess(object):
     :type      rmBadCksum: boolean
     :param      cptimeout: timeout for classic cp operation
     :type       cptimeout: integer
-    :param xrateThreashold: data transfer rate threshold
-    :type  xrateThreashold: integer
+    :param xrateThreshold: data transfer rate threshold
+    :type  xrateThreshold: integer
     :param           xrate: data transfer rate limit
     :type            xrate: integer
     :param     retry: number of retries
@@ -148,7 +148,7 @@ class CopyProcess(object):
     self.__process.add_job(source, target, sourcelimit, force, posc,
                            coerce, mkdir, thirdparty, checksummode, checksumtype,
                            checksumpreset, dynamicsource, chunksize, parallelchunks, inittimeout,
-                           tpctimeout, rmBadCksum, cptimeout, retry, xrateThreashold,
+                           tpctimeout, rmBadCksum, cptimeout, retry, xrateThreshold,
                            xrate, cont, rtrplc )
 
   def prepare(self):

@@ -426,7 +426,7 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
     properties.Set( "source",          sourceURL        );
     properties.Set( "target",          targetURL        );
     properties.Set( "xrate",           1024 * 1024 * 32 ); //< limit the transfer rate to 32MB/s
-    properties.Set( "xrateThreashold", 1024 * 1024 * 30 ); //< fail the job if the transfer rate drops under 30MB/s
+    properties.Set( "xrateThreshold", 1024 * 1024 * 30 ); //< fail the job if the transfer rate drops under 30MB/s
     CPPUNIT_ASSERT_XRDST( process14.AddJob( properties, &results ) );
     CPPUNIT_ASSERT_XRDST( process14.Prepare() );
     CPPUNIT_ASSERT_XRDST( process14.Run(0) );

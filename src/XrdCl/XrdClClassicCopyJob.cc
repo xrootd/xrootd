@@ -2456,7 +2456,7 @@ namespace XrdCl
     pProperties->Get( "xcpBlockSize",    blockSize );
     pProperties->Get( "preserveXAttr",   preserveXAttr );
     pProperties->Get( "xrate",           xRate );
-    pProperties->Get( "xrateThreashold", xRateThreshold );
+    pProperties->Get( "xrateThreshold",  xRateThreshold );
     pProperties->Get( "rmOnBadCksum",    rmOnBadCksum );
     pProperties->Get( "continue",        continue_ );
     pProperties->Get( "cpTimeout",       cpTimeout );
