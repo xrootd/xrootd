@@ -116,7 +116,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "version",        0, 0, XrdCpConfig::OpVersion},
       {OPT_TYPE "xattr",          0, 0, XrdCpConfig::OpXAttr},
       {OPT_TYPE "xrate",          1, 0, XrdCpConfig::OpXrate},
-      {OPT_TYPE "xrate-threshold",1, 0, XrdCpConfig::OpXrateThreashold},
+      {OPT_TYPE "xrate-threshold",1, 0, XrdCpConfig::OpXrateThreshold},
       {OPT_TYPE "zip",            1, 0, XrdCpConfig::OpZip},
       {OPT_TYPE "zip-append",     0, 0, XrdCpConfig::OpZipAppend},
       {OPT_TYPE "zip-mtln-cksum", 0, 0, XrdCpConfig::OpZipMtlnCksum},
@@ -141,7 +141,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    pHost    = 0;
    pPort    = 0;
    xRate    = 0;
-   xRateThreashold = 0;
+   xRateThreshold = 0;
    Parallel = 1;
    OpSpec   = 0;
    Dlvl     = 0;
@@ -313,8 +313,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpXrate:         OpSpec |= DoXrate;
                                 if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
                                 break;
-          case OpXrateThreashold: OpSpec |= DoXrateThreashold;
-                                  if (!a2z(optarg, &xRateThreashold, 10*1024LL, -1)) Usage(22);
+          case OpXrateThreshold: OpSpec |= DoXrateThreshold;
+                                  if (!a2z(optarg, &xRateThreshold, 10*1024LL, -1)) Usage(22);
                                   break;
           case OpParallel:      OpSpec |= DoParallel;
                                 if (!a2i(optarg, &Parallel, 1, 128)) Usage(22);
