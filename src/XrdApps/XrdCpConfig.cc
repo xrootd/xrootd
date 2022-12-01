@@ -176,6 +176,7 @@ XrdCpConfig::~XrdCpConfig()
    if (inFile)  free(inFile);
    if (pHost)   free(pHost);
    if (parmVal) free(parmVal);
+   if (CksObj)  delete CksObj;
    if (CksMan)  delete CksMan;
    if (zipFile) free(zipFile);
    if (dstFile) delete dstFile;
