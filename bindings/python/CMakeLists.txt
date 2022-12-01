@@ -83,20 +83,29 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
   install(
     CODE
     "EXECUTE_PROCESS(
+      COMMAND_ECHO STDOUT
+      RESULT_VARIABLE INSTALL_STATUS
       COMMAND /usr/bin/env ${XROOTD_PYBUILD_ENV} ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
                 --verbose \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
                 ${DEB_INSTALL_ARGS}
-    )"
-  )
-
+    )
+    if(NOT INSTALL_STATUS EQUAL 0)
+      message(FATAL_ERROR \"Failed to install Python bindings\")
+    endif()
+  ")
 else()
   install(
     CODE
     "EXECUTE_PROCESS(
+      COMMAND_ECHO STDOUT
+      RESULT_VARIABLE INSTALL_STATUS
       COMMAND /usr/bin/env ${XROOTD_PYBUILD_ENV} ${PYTHON_EXECUTABLE} -m pip install \
                 ${PIP_OPTIONS} \
                 ${CMAKE_CURRENT_BINARY_DIR}
-      )"
-  )
+      )
+      if(NOT INSTALL_STATUS EQUAL 0)
+        message(FATAL_ERROR \"Failed to install Python bindings\")
+      endif()
+  ")
 endif()
