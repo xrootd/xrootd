@@ -14,6 +14,8 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[XrdApps]** Fix small memory leak when checksum fails
+  **Commit: a8ad65a
   **[Server]** Correct formatting when displaying the SecEntity structure.
   **Commit: 0f7c423
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
