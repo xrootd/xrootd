@@ -11,6 +11,6 @@ set(PLUGIN_NAME "XrdClHttp-${PLUGIN_VERSION}")
 
 add_library(${PLUGIN_NAME} MODULE ${libXrdClHttp_sources})
 
-target_link_libraries(${PLUGIN_NAME} ${Davix_LIBRARIES} XrdCl)
+target_link_libraries(${PLUGIN_NAME} ${Davix_LIBRARIES} XrdCl XrdUtils)
 
 install(TARGETS ${PLUGIN_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
