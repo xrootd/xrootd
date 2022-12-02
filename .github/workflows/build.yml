@@ -608,7 +608,7 @@ jobs:
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
         python3 -m pip list
 
-    - name: Show site-pacakges layout for XRootD modules
+    - name: Show site-packages layout for XRootD modules
       run: |
         find $(python3 -c 'import XRootD; import pathlib; print(str(pathlib.Path(XRootD.__path__[0]).parent))') \
           -type d \
@@ -664,7 +664,7 @@ jobs:
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
         python3 -m pip list
 
-    - name: Show site-pacakges layout for XRootD modules
+    - name: Show site-packages layout for XRootD modules
       run: |
         find $(python3 -c 'import XRootD; import pathlib; print(str(pathlib.Path(XRootD.__path__[0]).parent))') \
           -type d \
@@ -718,7 +718,7 @@ jobs:
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
         python3 -m pip list
 
-    - name: Show site-pacakges layout for XRootD modules
+    - name: Show site-packages layout for XRootD modules
       run: |
         find $(python3 -c 'import XRootD; import pathlib; print(str(pathlib.Path(XRootD.__path__[0]).parent))') \
           -type d \
