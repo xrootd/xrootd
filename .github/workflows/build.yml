@@ -269,7 +269,7 @@ jobs:
       run: |
         cd ..
         cmake \
-            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
+            -DCMAKE_INSTALL_PREFIX=/usr \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
@@ -290,9 +290,6 @@ jobs:
 
     - name: Verify Python bindings
       run: |
-        export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
-        export PYTHON_VERSION_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info.minor}")')
-        export PYTHONPATH="/usr/local/lib/python3.${PYTHON_VERSION_MINOR}/site-packages:${PYTHONPATH}"
         python3 --version --version
         python3 -m pip list
         python3 -m pip show xrootd
