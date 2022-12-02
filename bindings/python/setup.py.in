@@ -1,22 +1,14 @@
 from __future__ import print_function
 
-# setuptools._distutils added in setuptools v48.0.0
-# c.f. https://setuptools.pypa.io/en/latest/history.html#v48-0-0
-try:
-    from setuptools._distutils.core import setup, Extension
-    # sysconfig v48.0.0+ is incompatible for Python 3.6 only, so fall back to distutils.
-    # Instead of checking setuptools.__version__ explicitly, use the knowledge that
-    # to get here in the 'try' block requires setuptools v48.0.0+.
-    # FIXME: When support for Python 3.6 is dropped simplify this
-    import sys
+from setuptools import setup, Extension
+# sysconfig with setuptools v48.0.0+ is incompatible for Python 3.6 only, so fall back to distutils.
+# FIXME: When support for Python 3.6 is dropped simplify this
+import sys
 
-    if sys.version_info < (3, 7):
-        from distutils import sysconfig
-    else:
-        import sysconfig
-except ImportError:
-    from distutils.core import setup, Extension
+if sys.version_info < (3, 7):
     from distutils import sysconfig
+else:
+    import sysconfig
 
 from os import getenv, walk, path
 import subprocess
