@@ -269,7 +269,7 @@ jobs:
       run: |
         cd ..
         cmake \
-            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
+            -DCMAKE_INSTALL_PREFIX=/usr \
             -DPYTHON_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
@@ -290,9 +290,6 @@ jobs:
 
     - name: Verify Python bindings
       run: |
-        export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
-        export PYTHON_VERSION_MINOR=$(python3 -c 'import sys; print(f"{sys.version_info.minor}")')
-        export PYTHONPATH="/usr/local/lib/python3.${PYTHON_VERSION_MINOR}/site-packages:${PYTHONPATH}"
         python3 --version --version
         python3 -m pip list
         python3 -m pip show xrootd
@@ -528,18 +525,13 @@ jobs:
 
     - name: Build .deb
       run: |
+        mv packaging/debian/python3-xrootd.install.new packaging/debian/python3-xrootd.install
         cp -R packaging/debian/ .
         mk-build-deps --build-dep debian/control
         sudo gdebi -n xrootd-build-deps-depends*.deb
         version=`./genversion.sh --print-only`
-        dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution ${DIST} -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
-        dpkg_version=`dpkg-query --showformat='${Version}' --show dpkg`
-        rc=0 ; dpkg --compare-versions $dpkg_version "ge" "1.18.11" || rc=$?
-        if [ $rc -eq "0" ]; then
-          dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" ;
-        else
-          dpkg-buildpackage -b -us -uc -tc --changes-option="-udeb_packages" ;
-        fi
+        dch --create -v `echo $version | sed 's/^v\(.*\)/\1/'` --package xrootd --urgency low --distribution $(lsb_release -cs) -M "This package is built and released automatically. For important notices and releases subscribe to our maling lists or visit our website."
+        dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/xrootd_$(dpkg-parsechangelog -S version)_$(dpkg-architecture -qDEB_BUILD_ARCH).changes"
 
     - name: Install
       run: |
@@ -608,7 +600,7 @@ jobs:
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
         python3 -m pip list
 
-    - name: Show site-pacakges layout for XRootD modules
+    - name: Show site-packages layout for XRootD modules
       run: |
         find $(python3 -c 'import XRootD; import pathlib; print(str(pathlib.Path(XRootD.__path__[0]).parent))') \
           -type d \
@@ -664,7 +656,7 @@ jobs:
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
         python3 -m pip list
 
-    - name: Show site-pacakges layout for XRootD modules
+    - name: Show site-packages layout for XRootD modules
       run: |
         find $(python3 -c 'import XRootD; import pathlib; print(str(pathlib.Path(XRootD.__path__[0]).parent))') \
           -type d \
@@ -718,7 +710,7 @@ jobs:
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
         python3 -m pip list
 
-    - name: Show site-pacakges layout for XRootD modules
+    - name: Show site-packages layout for XRootD modules
       run: |
         find $(python3 -c 'import XRootD; import pathlib; print(str(pathlib.Path(XRootD.__path__[0]).parent))') \
           -type d \
