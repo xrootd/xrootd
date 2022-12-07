@@ -359,6 +359,19 @@ namespace XrdCl
       virtual XRootDStatus GetBody( Message &message, Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
+      //! Read more of the message body from the socket, the socket is
+      //! non-blocking the method may be called multiple times - see GetHeader
+      //! for details
+      //!
+      //! @param message the message buffer containing the header
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual XRootDStatus GetMore( Message &message, Socket *socket ) = 0;
+
+      //------------------------------------------------------------------------
       //! Initialize channel
       //------------------------------------------------------------------------
       virtual void InitializeChannel( const URL  &url,
