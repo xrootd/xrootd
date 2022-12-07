@@ -348,29 +348,11 @@ namespace XrdCl
   {
     //--------------------------------------------------------------------------
     // Retrieve the body
-    // In case of non kXR_status responses we read all the response, including
-    // data. For kXR_status responses we first read only the remainder of the
-    // header. The header must then be unmarshalled, and then a second call of
-    // GetBody (repeated for suRetry as needed) will read the data.
     //--------------------------------------------------------------------------
     size_t   leftToBeRead = 0;
     uint32_t bodySize = 0;
     ServerResponseHeader* rsphdr = (ServerResponseHeader*)message.GetBuffer();
     bodySize = rsphdr->dlen;
-    if( rsphdr->status == kXR_status )
-    {
-      if( message.GetCursor() >= bodySize+8 ) // we read everything up to the data[]
-      {
-        const size_t stlen = sizeof( ServerResponseStatus );
-        if( bodySize+8 < stlen )
-          return XRootDStatus( stError, errInvalidMessage, 0,
-                              "kXR_status: invalid message size." );
-
-        ServerResponseStatus *rspst = (ServerResponseStatus*)message.GetBuffer();
-        bodySize = rspst->hdr.dlen + rspst->bdy.dlen;
-      }
-
-    }
 
     if( message.GetSize() < bodySize + 8 )
       message.ReAllocate( bodySize + 8 );
@@ -386,6 +368,66 @@ namespace XrdCl
 
       leftToBeRead -= bytesRead;
       message.AdvanceCursor( bytesRead );
+    }
+
+    return XRootDStatus( stOK, suDone );
+  }
+
+  //----------------------------------------------------------------------------
+  // Read more of the message body from socket
+  //----------------------------------------------------------------------------
+  XRootDStatus XRootDTransport::GetMore( Message &message, Socket *socket )
+  {
+    ServerResponseHeader* rsphdr = (ServerResponseHeader*)message.GetBuffer();
+    if( rsphdr->status != kXR_status )
+      return XRootDStatus( stError, errInvalidOp );
+
+    //--------------------------------------------------------------------------
+    // In case of non kXR_status responses we read all the response, including
+    // data. For kXR_status responses we first read only the remainder of the
+    // header. The header must then be unmarshalled, and then a second call to
+    // GetMore (repeated for suRetry as needed) will read the data.
+    //--------------------------------------------------------------------------
+
+    uint32_t bodySize = rsphdr->dlen;
+    if( bodySize+8 < sizeof( ServerResponseStatus ) )
+      return XRootDStatus( stError, errInvalidMessage, 0,
+                          "kXR_status: invalid message size." );
+
+    ServerResponseStatus *rspst = (ServerResponseStatus*)message.GetBuffer();
+    bodySize += rspst->bdy.dlen;
+
+    if( message.GetSize() < bodySize + 8 )
+      message.ReAllocate( bodySize + 8 );
+
+    size_t leftToBeRead = bodySize-(message.GetCursor()-8);
+    while( leftToBeRead )
+    {
+      int bytesRead = 0;
+      XRootDStatus status = socket->Read( message.GetBufferAtCursor(), leftToBeRead, bytesRead );
+
+      if( !status.IsOK() || status.code == suRetry )
+        return status;
+
+      leftToBeRead -= bytesRead;
+      message.AdvanceCursor( bytesRead );
+    }
+
+    // Unmarchal to message body
+    Log *log = DefaultEnv::GetLog();
+    XRootDStatus st = XRootDTransport::UnMarchalStatusMore( message );
+    if( !st.IsOK() && st.code == errDataError )
+    {
+      log->Error( XRootDTransportMsg, "[msg: 0x%x] %s", &message,
+                  st.GetErrorMessage().c_str() );
+      return st;
+    }
+
+    if( !st.IsOK() )
+    {
+      log->Error( XRootDTransportMsg, "[msg: 0x%x] Failed to unmarshall status body.",
+                  &message );
+      return st;
     }
 
     return XRootDStatus( stOK, suDone );
@@ -1334,53 +1376,64 @@ namespace XrdCl
     return XRootDStatus();
   }
 
-  //----------------------------------------------------------------------------
-  // Unmarshall the correction-segment of the status response for pgwrite
-  //----------------------------------------------------------------------------
-  XRootDStatus XRootDTransport::UnMarchalStatusCSE( Message &msg )
+  XRootDStatus XRootDTransport::UnMarchalStatusMore( Message &msg )
   {
     ServerResponseV2 *rsp = (ServerResponseV2*)msg.GetBuffer();
-    //--------------------------------------------------------------------------
-    // If there's no additional data there's nothing to unmarshal
-    //--------------------------------------------------------------------------
-    if( rsp->status.bdy.dlen == 0 ) return XRootDStatus();
-    //--------------------------------------------------------------------------
-    // If there's not enough data to form correction-segment report an error
-    //--------------------------------------------------------------------------
-    if( size_t( rsp->status.bdy.dlen ) < sizeof( ServerResponseBody_pgWrCSE ) )
-      return XRootDStatus( stError, errInvalidMessage, 0,
-                           "kXR_status: invalid message size." );
+    uint16_t reqType = rsp->status.bdy.requestid + kXR_1stRequest;
 
-    //--------------------------------------------------------------------------
-    // Calculate the crc32c for the additional data
-    //--------------------------------------------------------------------------
-    ServerResponseBody_pgWrCSE *cse = (ServerResponseBody_pgWrCSE*)msg.GetBuffer( sizeof( ServerResponseV2 ) );
-    cse->cseCRC = ntohl( cse->cseCRC );
-    size_t length = rsp->status.bdy.dlen - sizeof( uint32_t );
-    void*  buffer = msg.GetBuffer( sizeof( ServerResponseV2 ) + sizeof( uint32_t ) );
-    uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
-
-    //--------------------------------------------------------------------------
-    // Do the integrity checks
-    //--------------------------------------------------------------------------
-    if( crcval != cse->cseCRC )
+    switch( reqType )
     {
-      return XRootDStatus( stError, errDataError, 0, "kXR_status response header "
-                           "corrupted (crc32c integrity check failed)." );
+      case kXR_pgwrite:
+      {
+        //--------------------------------------------------------------------------
+        // If there's no additional data there's nothing to unmarshal
+        //--------------------------------------------------------------------------
+        if( rsp->status.bdy.dlen == 0 ) return XRootDStatus();
+        //--------------------------------------------------------------------------
+        // If there's not enough data to form correction-segment report an error
+        //--------------------------------------------------------------------------
+        if( size_t( rsp->status.bdy.dlen ) < sizeof( ServerResponseBody_pgWrCSE ) )
+          return XRootDStatus( stError, errInvalidMessage, 0,
+                               "kXR_status: invalid message size." );
+
+        //--------------------------------------------------------------------------
+        // Calculate the crc32c for the additional data
+        //--------------------------------------------------------------------------
+        ServerResponseBody_pgWrCSE *cse = (ServerResponseBody_pgWrCSE*)msg.GetBuffer( sizeof( ServerResponseV2 ) );
+        cse->cseCRC = ntohl( cse->cseCRC );
+        size_t length = rsp->status.bdy.dlen - sizeof( uint32_t );
+        void*  buffer = msg.GetBuffer( sizeof( ServerResponseV2 ) + sizeof( uint32_t ) );
+        uint32_t crcval = XrdOucCRC::Calc32C( buffer, length );
+
+        //--------------------------------------------------------------------------
+        // Do the integrity checks
+        //--------------------------------------------------------------------------
+        if( crcval != cse->cseCRC )
+        {
+          return XRootDStatus( stError, errDataError, 0, "kXR_status response header "
+                               "corrupted (crc32c integrity check failed)." );
+        }
+
+        cse->dlFirst = ntohs( cse->dlFirst );
+        cse->dlLast  = ntohs( cse->dlLast );
+
+        size_t pgcnt = ( rsp->status.bdy.dlen  - sizeof( ServerResponseBody_pgWrCSE ) ) /
+                       sizeof( kXR_int64 );
+        kXR_int64 *pgoffs = (kXR_int64*)msg.GetBuffer( sizeof( ServerResponseV2 ) +
+                                                        sizeof( ServerResponseBody_pgWrCSE ) );
+
+        for( size_t i = 0; i < pgcnt; ++i )
+          pgoffs[i] = ntohll( pgoffs[i] );
+
+        return XRootDStatus();
+        break;
+      }
+
+      default:
+        break;
     }
 
-    cse->dlFirst = ntohs( cse->dlFirst );
-    cse->dlLast  = ntohs( cse->dlLast );
-
-    size_t pgcnt = ( rsp->status.bdy.dlen  - sizeof( ServerResponseBody_pgWrCSE ) ) /
-                   sizeof( kXR_int64 );
-    kXR_int64 *pgoffs = (kXR_int64*)msg.GetBuffer( sizeof( ServerResponseV2 ) +
-                                                    sizeof( ServerResponseBody_pgWrCSE ) );
-
-    for( size_t i = 0; i < pgcnt; ++i )
-      pgoffs[i] = ntohll( pgoffs[i] );
-
-    return XRootDStatus();
+    return XRootDStatus( stError, errNotSupported );
   }
 
   //----------------------------------------------------------------------------
