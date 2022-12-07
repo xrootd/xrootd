@@ -1,5 +1,5 @@
 #.rst:
-# Finduuid
+# Findlibuuid
 # -----------
 #
 # Find libuuid, DCE compatible Universally Unique Identifier library.
@@ -52,5 +52,5 @@ unset(CMAKE_REQUIRED_INCLUDES)
 unset(_uuid_header_only)
 unset(_have_libuuid)
 
-find_package_handle_standard_args(uuid DEFAULT_MSG UUID_INCLUDE_DIR)
+find_package_handle_standard_args(libuuid DEFAULT_MSG UUID_INCLUDE_DIR)
 mark_as_advanced(UUID_INCLUDE_DIR UUID_LIBRARY)

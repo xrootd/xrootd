@@ -877,7 +877,7 @@ int main( int argc, char **argv )
     properties.Set( "targetIsDir",     targetIsDir            );
     properties.Set( "preserveXAttr",   preserveXAttr          );
     properties.Set( "xrate",           config.xRate           );
-    properties.Set( "xrateThreashold", config.xRateThreashold );
+    properties.Set( "xrateThreshold",  config.xRateThreshold  );
     properties.Set( "rmOnBadCksum",    rmOnBadCksum           );
     properties.Set( "continue",        continue_              );
     properties.Set( "zipAppend",       zipappend              );

@@ -35,7 +35,7 @@
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
-  // Set the unmber of parallel jobs
+  // Set the number of parallel jobs
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::Parallel( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
@@ -82,7 +82,7 @@ namespace PyXRootD
     const char  *checkSumPreset    = "";
     bool         dynamicSource     = false;
     bool         rmBadCksum        = false;
-    long long    xRateThreashold   = 0;
+    long long    xRateThreshold    = 0;
     long long    xRate             = 0;
     long long    retry             = 0;
     bool         cont              = false;
@@ -114,7 +114,7 @@ namespace PyXRootD
          &source, &target, &sourceLimit, &force, &posc,
          &coerce, &mkdir, &thirdParty, &checkSumMode, &checkSumType,
          &checkSumPreset, &dynamicSource, &chunkSize, &parallelChunks, &initTimeout,
-         &tpcTimeout, &rmBadCksum, &cpTimeout, &xRateThreashold, &xRate,
+         &tpcTimeout, &rmBadCksum, &cpTimeout, &xRateThreshold, &xRate,
          &retry, &cont, &rtrplc ) )
       return NULL;
 
@@ -138,7 +138,7 @@ namespace PyXRootD
     properties.Set( "tpcTimeout",      tpcTimeout      );
     properties.Set( "rmOnBadCksum",    rmBadCksum      );
     properties.Set( "cpTimeout",       cpTimeout       );
-    properties.Set( "xrateThreashold", xRateThreashold );
+    properties.Set( "xrateThreshold",  xRateThreshold  );
     properties.Set( "xrate",           xRate           );
     properties.Set( "continue",        cont );
 

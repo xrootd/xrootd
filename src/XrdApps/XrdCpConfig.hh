@@ -66,7 +66,7 @@ struct defVar
        const char  *srcOpq;          // -> -OS setting (src  opaque)
        const char  *Pgm;             // -> Program name
         long long   xRate;           // -> xrate value in bytes/sec   (0 if not set)
-        long long   xRateThreashold; // -> xrate threshold value in bytes/sec (0 if not set)
+        long long   xRateThreshold; // -> xrate threshold value in bytes/sec (0 if not set)
              int    Parallel;       // Number of simultaneous copy ops (1 to 4)
              char  *pHost;          // -> SOCKS4 proxy hname       (0 if none)
              int    pPort;          //    SOCKS4 proxy port
@@ -194,8 +194,8 @@ static const uint64_t    DoRmOnBadCksum = 0x0000000080000000LL; // --rm-bad-cksu
 static const uint64_t    OpContinue     = 0x10;
 static const uint64_t    DoContinue     = 0x0000000100000000LL; // --continue
 
-static const uint64_t    OpXrateThreashold = 0x11;
-static const uint64_t    DoXrateThreashold = 0x0000000200000000LL; // --xrate-threashold
+static const uint64_t    OpXrateThreshold = 0x11;
+static const uint64_t    DoXrateThreshold = 0x0000000200000000LL; // --xrate-threshold
 
 static const uint64_t    OpRetryPolicy     = 0x12;
 static const uint64_t    DoRetryPolicy     = 0x0000000400000000LL; // --retry-policy

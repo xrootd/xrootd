@@ -149,13 +149,11 @@ function(check_working_cxx_atomics varname)
 #include <atomic>
 #include <cstdint>
 int main() {
-   std::atomic<int> a1(0);
-   int a1val = a1.load();
-   (void)a1val;
-   std::atomic<uint64_t> a2(0);
-   uint64_t a2val = a2.load(std::memory_order_relaxed);
-   (void)a2val;
-   return 0;
+   std::atomic<uint8_t> a1;
+   std::atomic<uint16_t> a2;
+   std::atomic<uint32_t> a3;
+   std::atomic<uint64_t> a4;
+   return a1++ + a2++ + a3++ + a4++;
 }
 " ${varname})
   set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})

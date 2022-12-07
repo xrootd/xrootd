@@ -27,6 +27,7 @@ extern XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger   *lp,
                                                      const char     *parm,
                                                      XrdVersionInfo &myVer);
 
+XrdSciTokensHelper *SciTokensHelper = nullptr;
 
 extern "C" {
 
@@ -38,7 +39,9 @@ XrdAccAuthorize *XrdAccAuthorizeObjAdd(XrdSysLogger *log,
 {
     try
     {
-        return new Macaroons::Authz(log, config, chain_authz);
+        auto new_authz = new Macaroons::Authz(log, config, chain_authz);
+        SciTokensHelper = new_authz;
+        return new_authz;
     }
     catch (std::runtime_error &e)
     {
@@ -109,7 +112,9 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *log,
     }
     try
     {
-        return new Macaroons::Authz(log, config, chain_authz);
+        auto new_authz = new Macaroons::Authz(log, config, chain_authz);
+        SciTokensHelper = new_authz;
+        return new_authz;
     }
     catch (const std::runtime_error &e)
     {
