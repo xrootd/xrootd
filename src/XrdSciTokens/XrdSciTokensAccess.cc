@@ -1083,7 +1083,7 @@ private:
                      section.c_str());
                 continue;
             }
-	    // prevent two 
+	    // prevent two identical issuer break the config 
 	    for (size_t i = 0; i < issuer.length(); i++)
             {
                   if (issuer[i] == '\n')
