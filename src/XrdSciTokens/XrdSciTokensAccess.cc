@@ -1083,6 +1083,16 @@ private:
                      section.c_str());
                 continue;
             }
+	    // prevent two 
+	    for (size_t i = 0; i < issuer.length(); i++)
+            {
+                  if (issuer[i] == '\n')
+                  {
+                      issuer = issuer.substr(0,i);
+                      break;
+                  }
+            }
+
             m_log.Log(LogMask::Debug, "Reconfig", "Configuring issuer", issuer.c_str());
 
             std::vector<MapRule> rules;
