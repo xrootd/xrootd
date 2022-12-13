@@ -1354,12 +1354,13 @@ int XrdPssSys::P2URL(char *pbuff, int pblen, XrdPssUrlInfo &uInfo, bool doN2N)
 // Format the header into the buffer and check if we overflowed. Note that we
 // defer substitution of the path as we need to know where the path is.
 //
-   pfxLen = snprintf(pbuff, pblen, hdrData, uInfo.getID(), path);
+   if (fileOrgn) pfxLen = snprintf(pbuff, pblen, hdrData, path);
+      else pfxLen = snprintf(pbuff, pblen, hdrData, uInfo.getID(), path);
    if (pfxLen >= pblen) return -ENAMETOOLONG;
 
 // Add any cgi information
 //
-   if (uInfo.hasCGI())
+   if (!fileOrgn && uInfo.hasCGI())
       {if (!uInfo.addCGI(pbuff, pbuff+pfxLen, pblen-pfxLen))
           return -ENAMETOOLONG;
       }

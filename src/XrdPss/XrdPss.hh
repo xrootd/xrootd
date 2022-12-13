@@ -190,6 +190,7 @@ XrdOucPListAnchor   XPList;        // Exported path list
 
 static XrdNetSecurity *Police[PolNum];
 static XrdOucTList *ManList;
+static       char  *fileOrgn;
 static const char  *protName;
 static const char  *hdrData;
 static int          hdrLen;
