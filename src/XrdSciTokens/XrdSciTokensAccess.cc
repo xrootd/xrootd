@@ -1086,7 +1086,7 @@ private:
 	    
 	    // prevent two identical issuers break the config 
 	    char* issuer_c = const_cast<char*>(issuer.c_str());
-            char* issuer_first = index(issuer_c,'\n');
+            char* issuer_first = rindex(issuer_c,'\n');
             if (issuer_first)
             {
                 issuer_first++;
@@ -1114,7 +1114,7 @@ private:
             }
 	    
 	    char* base_path_c = const_cast<char*>(base_path.c_str());
-            char* base_path_first = index(base_path_c,'\n');
+            char* base_path_first = rindex(base_path_c,'\n');
             if (base_path_first)
             {
                 base_path_first++;
