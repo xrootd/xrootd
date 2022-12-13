@@ -55,6 +55,20 @@ default_user = osg
 name_mapfile = /path/to/mapfile
 ```
 
+Duplicate section and settings names (not values) will take the value of the last entry in the file.  For example:
+
+```
+[Issuer https://chtc.cs.wisc.edu/icecube]
+issuer = https://chtc.cs.wisc.edu/icecube
+base_path = /icecube/path1
+
+[Issuer https://chtc.cs.wisc.edu/icecube]
+issuer = https://chtc.cs.wisc.edu/icecube
+base_path = /icecube/path2
+```
+
+Will result in a configuration with `issuer =  https://chtc.cs.wisc.edu/icecube` and `base_path = /icecube/path2`.
+
 Within the `Global` section, the available attributes are:
 
    - `audience` (optional): A comma separated list of acceptable audiences.  The tokens must have an `aud` attribute
