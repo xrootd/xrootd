@@ -1083,17 +1083,17 @@ private:
                      section.c_str());
                 continue;
             }
+	    
 	    // prevent two identical issuers break the config 
-	    for (size_t i = 0; i < issuer.length(); i++)
+	    char* issuer_c = const_cast<char*>(issuer.c_str());
+            char* issuer_first = index(issuer_c,'\n');
+            if (issuer_first)
             {
-                  if (issuer[i] == '\n')
-                  {
-                      issuer = issuer.substr(0,i);
-                      break;
-                  }
+                issuer_first++;
+                issuer = issuer_first;
             }
-
             m_log.Log(LogMask::Debug, "Reconfig", "Configuring issuer", issuer.c_str());
+
 
             std::vector<MapRule> rules;
             auto name_mapfile = reader.Get(section, "name_mapfile", "");
@@ -1112,6 +1112,16 @@ private:
                      section.c_str());
                 continue;
             }
+	    
+	    char* base_path_c = const_cast<char*>(base_path.c_str());
+            char* base_path_first = index(base_path_c,'\n');
+            if (base_path_first)
+            {
+                base_path_first++;
+                base_path = base_path_first;
+            }
+            m_log.Log(LogMask::Debug, "Reconfig", "Configuring issuer base_path", base_path.c_str());
+
 
             size_t pos = 7;
             while (section.size() > pos && std::isspace(section[pos])) {pos++;}
