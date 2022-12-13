@@ -288,17 +288,12 @@ struct IssuerConfig
 
 class OverrideINIReader: public INIReader {
 public:
-    OverrideINIReader(XrdSysError log)
-    : m_log(log) {};
-    OverrideINIReader(std::string filename, XrdSysError log)
-    : INIReader(filename), 
-    m_log(log) {
-
+    OverrideINIReader() {};
+    inline OverrideINIReader(std::string filename) {
+        _error = ini_parse(filename.c_str(), ValueHandler, this);
     }
-    OverrideINIReader(FILE *file, XrdSysError log)
-    : INIReader(file),
-    m_log(log) {
-
+    inline OverrideINIReader(FILE *file) {
+        _error = ini_parse_file(file, ValueHandler, this);
     }
 protected:
     /**
@@ -314,22 +309,16 @@ protected:
     * 
     * Will result in a configuration with base_path set to /icecube/path2
     */
-    inline int ValueHandler(void* user, const char* section, const char* name,
+    inline static int ValueHandler(void* user, const char* section, const char* name,
                             const char* value) {
         OverrideINIReader* reader = (OverrideINIReader*)user;
         std::string key = MakeKey(section, name);
-        if (reader->_values[key].size() > 0) {
-            std::ostringstream os;
-            os << "Duplicate section and value, overriding previous value: section=" << section << ", name=" << name;
-            m_log.Log(LogMask::Debug, "INIConfig", os.str().c_str());
-        }
 
+        // Overwrite existing values, if they exist
         reader->_values[key] = value;
         reader->_sections.insert(section);
         return 1;
     }
-
-    XrdSysError m_log;
 
 };
 
@@ -1055,7 +1044,7 @@ private:
         }
         m_log.Log(LogMask::Info, "Reconfig", "Parsing configuration file:", m_cfg_file.c_str());
 
-        OverrideINIReader reader(m_cfg_file, m_log);
+        OverrideINIReader reader(m_cfg_file);
         if (reader.ParseError() < 0) {
             std::stringstream ss;
             ss << "Error opening config file (" << m_cfg_file << "): " << strerror(errno);
