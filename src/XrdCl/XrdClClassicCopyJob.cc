@@ -1798,9 +1798,13 @@ namespace
         {
           std::string targeturl;
           pFile->GetProperty( "LastURL", targeturl );
+          targeturl = URL( targeturl ).GetLocation();
           if( symlink( targeturl.c_str(), cptarget.c_str() ) == -1 )
             log->Warning( UtilityMsg, "Could not create cp-target symlink: %s",
                           XrdSysE2T( errno ) );
+          else
+            log->Info( UtilityMsg, "Created cp-target symlink: %s -> %s",
+                       cptarget.c_str(), targeturl.c_str() );
         }
 
         StatInfo *info = 0;
