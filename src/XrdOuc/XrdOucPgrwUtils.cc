@@ -203,9 +203,11 @@ bool XrdOucPgrwUtils::csVer(dataInfo &dInfo, off_t &bado, int &badc)
        if (pgNum >= 0)
           {bado = dInfo.offs + (pgPageSize * pgNum);
            int xlen = (bado - dInfo.offs);
+           dInfo.data  += xlen;
            dInfo.offs  += xlen;
            dInfo.count -= xlen;
            badc = (dInfo.count <= pgPageSize ? dInfo.count : pgPageSize);
+           dInfo.data  += badc;
            dInfo.offs  += badc;
            dInfo.count -= badc;
            dInfo.csval += (pgNum+1);
