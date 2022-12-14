@@ -24,6 +24,6 @@ Prerelease Notes
 
 + **Miscellaneous**
   **[SciTokens]** Add the OverrideINIReader for SciTokens to fix value parsing
-  **Commit: cdae187
+  **Commit: cdae187a 5c696e3d
   **[Apps]** Cleanup xrdcp help information.
   **Commit: b36bd9d
