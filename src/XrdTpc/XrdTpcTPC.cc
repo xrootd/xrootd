@@ -965,7 +965,7 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         }
     }
     rec.streams = streams;
-    bool hasSetOpaque;
+    bool hasSetOpaque = false;
     std::string full_url = prepareURL(req, hasSetOpaque);
     std::string authz = GetAuthz(req);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
