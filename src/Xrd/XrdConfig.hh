@@ -30,6 +30,7 @@
 /******************************************************************************/
 
 #include <vector>
+#include <string>
 
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
@@ -94,7 +95,7 @@ static const char  *TraceID;
 XrdNetSecurity     *Police;
 XrdTcpMonInfo      *tmoInfo;
 const char         *myProg;
-const char         *myName;
+std::string         myName;
 const char         *myDomain;
 const char         *mySitName;
 const char         *myInsName;

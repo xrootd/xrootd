@@ -572,11 +572,19 @@ int XrdConfig::Configure(int argc, char **argv)
 // run in v4 mode and that doesn't get set until after the options are scanned.
 //
    static XrdNetAddr *myIPAddr = new XrdNetAddr((int)0);
-   if (!(myName = myIPAddr->Name(0, &temp))) myName = "";
+   auto envName = getenv("XRDHOST");
+   const char *ipAddrName;
+   if (envName) {
+      myName = envName;
+   } else if ((ipAddrName = myIPAddr->Name(0, &temp))) {
+      myName = ipAddrName;
+   } else {
+      myName = "";
+   }
 
 // Get our IP address and FQN
 //
-   ProtInfo.myName = myName;
+   ProtInfo.myName = myName.c_str();
    ProtInfo.myAddr = myIPAddr->SockAddr();
    ProtInfo.myInst = XrdOucUtils::InstName(myInsName);
    ProtInfo.myProg = myProg;
@@ -585,11 +593,11 @@ int XrdConfig::Configure(int argc, char **argv)
 // XRDINSTANCE=<pgm> <instance name>@<host name>
 //                 XrdOucEnv::Export("XRDINSTANCE")
 //
-   sprintf(buff,"%s%s %s@%s", xrdInst, myProg, ProtInfo.myInst, myName);
+   sprintf(buff,"%s%s %s@%s", xrdInst, myProg, ProtInfo.myInst, myName.c_str());
    myInstance = strdup(buff);
    putenv(myInstance);   // XrdOucEnv::Export("XRDINSTANCE",...)
    myInstance += strlen(xrdInst);
-   XrdOucEnv::Export("XRDHOST", myName);
+   XrdOucEnv::Export("XRDHOST", myName.c_str());
    XrdOucEnv::Export("XRDNAME", ProtInfo.myInst);
    XrdOucEnv::Export("XRDPROG", myProg);
 
@@ -608,7 +616,7 @@ int XrdConfig::Configure(int argc, char **argv)
 // We can't really continue without some kind of name at this point. Note that
 // vriable temp should still be valid from the previous NetAddr call.
 //
-   if (!(*myName))
+   if (myName.empty())
       {Log.Emsg("Config", "Unable to determine host name; ",
                            (temp ? temp : "reason unknown"),
                            "; execution terminated.");
@@ -633,13 +641,13 @@ int XrdConfig::Configure(int argc, char **argv)
 // Otherwise, determine our domain name.
 //
    if (!myIPAddr->isRegistered())
-      {Log.Emsg("Config",myName,"does not appear to be registered in the DNS.");
+      {Log.Emsg("Config",myName.c_str(),"does not appear to be registered in the DNS.");
        Log.Emsg("Config","Verify that the '/etc/hosts' file is correct and "
                          "this machine is registered in DNS.");
        Log.Emsg("Config", "Execution continues but connection failures may occur.");
        myDomain = 0;
-      } else if (!(myDomain = index(myName, '.')))
-                Log.Say("Config warning: this hostname, ", myName,
+      } else if (!(myDomain = index(myName.c_str(), '.')))
+                Log.Say("Config warning: this hostname, ", myName.c_str(),
                             ", is registered without a domain qualification.");
 
 // Setup the initial required protocol.
@@ -1885,7 +1893,7 @@ int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
     strncpy(cport, val, sizeof(cport)-1); cport[sizeof(cport)-1] = '\0';
 
     if ((val = Config.GetWord()) && !strcmp("if", val))
-       if ((rc = XrdOucUtils::doIf(eDest,Config, "port directive", myName,
+       if ((rc = XrdOucUtils::doIf(eDest,Config, "port directive", myName.c_str(),
                               ProtInfo.myInst, myProg)) <= 0)
           {if (!rc) Config.noEcho(); return (rc < 0);}
 
