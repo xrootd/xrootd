@@ -21,6 +21,8 @@ Prerelease Notes
   **[Server]** Correct formatting when displaying the SecEntity structure.
   **Commit: 0f7c423
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
+  **[XrdTpcTPC]** Fix wrong delimiter of file's opaque data when "oss.asize" is appended
+  **Commit: 0f79a38
 
 + **Miscellaneous**
   **[Pss]** Convert leftover print statement to debug action.
