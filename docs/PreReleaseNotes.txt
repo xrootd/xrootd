@@ -23,6 +23,8 @@ Prerelease Notes
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
 
 + **Miscellaneous**
+  **[Pss]** Convert leftover print statement to debug action.
+  **Commit: 0aef86b
   **[SciTokens]** Add the OverrideINIReader for SciTokens to fix value parsing
   **Commit: cdae187a 5c696e3d
   **[Apps]** Cleanup xrdcp help information.
