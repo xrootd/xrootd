@@ -1111,6 +1111,8 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 
 int XrdPssFile::Fstat(struct stat *buff)
 {
+   EPNAME("fstat");
+
 // If we have a file descriptor then return a stat for it
 //
    if (fd >= 0) return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
@@ -1148,8 +1150,7 @@ int XrdPssFile::Fstat(struct stat *buff)
             if (rpInfo->dstURL) free(rpInfo->dstURL);
             rpInfo->dstURL = strdup(lnkbuff);
             rpInfo->fSize = 1;
-std::cerr<<"Pss_fstat: "<<tident<<" "<<rpInfo->tprPath<<" maps "
-         <<tpcPath<<" -> "<<lnkbuff<<"\n"<<std::flush;
+            DEBUG(tident,rpInfo->tprPath<<" maps "<<tpcPath<<" -> "<<lnkbuff);
           }
       }
 
