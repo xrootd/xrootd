@@ -23,7 +23,7 @@
 
   XRootD requires at minimum following packages (RHEL distro):
 
-  * gcc-c++, cmake(3), krb5-devel, libuuid-devel, libxml2-devel, openssl-devel, systemd-devel, zlib-devel
+  * gcc-c++ cmake(3) krb5-devel libuuid-devel libxml2-devel openssl-devel systemd-devel zlib-devel
   * devtoolset-7 (only RHEL7)
 
 2.1 Build system
