@@ -7,7 +7,7 @@ Prerelease Notes
 
 + **New Features**
   **[PSS]** Allow origin to be a directory of a locally mounted file system.
-  **Commit: 850a14f
+  **Commit: 850a14f bb550ea
   **[Server]** Add gsi option to display DN when it differs from entity name.
   **Commit: 2630fe1
   **[Server]** Allow specfication of minimum and maximum creation mode.
