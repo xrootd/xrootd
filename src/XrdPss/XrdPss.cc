@@ -759,9 +759,12 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // If we are opening this in r/w mode make sure we actually can
 //
-   if (rwMode && (popts & XRDEXP_NOTRW))
-      {if (popts & XRDEXP_FORCERO && !tpcMode) Oflag = O_RDONLY;
-          else return -EROFS;
+   if (rwMode)
+      {if (XrdPssSys::fileOrgn) return -EROFS;
+       if (popts & XRDEXP_NOTRW)
+          {if (popts & XRDEXP_FORCERO && !tpcMode) Oflag = O_RDONLY;
+              else return -EROFS;
+          }
       }
 
 // If this is a third party copy open, then strange rules apply. If this is an
