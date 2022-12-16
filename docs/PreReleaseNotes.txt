@@ -25,6 +25,8 @@ Prerelease Notes
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
   **[XrdTpcTPC]** Fix wrong delimiter of file's opaque data when "oss.asize" is appended
   **Commit: 0f79a38
+  **[XrdMacaroons] Fix authentication when different tokens are used in the same TCP session**
+  **Commit: 4410d56
 
 + **Miscellaneous**
   **[Pss]** Convert leftover print statement to debug action.
