@@ -261,7 +261,7 @@ Authz::Access(const XrdSecEntity *Entity, const char *path,
     if (Entity && check_helper.GetSecName().size()) {
         const std::string &username = check_helper.GetSecName();
         m_log.Log(LogMask::Debug, "Access", "Setting the request name to", username.c_str());
-        Entity->eaAPI->Add("request.name", username);
+        Entity->eaAPI->Add("request.name", username,true);
     }
 
     // We passed verification - give the correct privilege.
