@@ -3,6 +3,10 @@
 #-------------------------------------------------------------------------------
 
 include( CheckCXXSourceRuns )
+include( CheckFunctionExists )
+include( CheckSymbolExists ) 
+include( CheckIncludeFile )
+
 
 set( LINUX    FALSE )
 set( KFREEBSD FALSE )
@@ -70,6 +74,20 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
   set( LINUX TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
+
+  check_symbol_exists( __GLIBC__ features.h HAVE_GLIBC )
+  if ( LINUX AND NOT HAVE_GLIBC )
+    check_function_exists( __fseterr HAVE_fseterr )
+    check_include_file( bits/alltypes.h HAVE_BITS_ALLTYPES )
+    check_include_file( stdio_ext.h HAVE_STDIO_EXT )
+    if ( HAVE_fseterr AND HAVE_BITS_ALLTYPES AND HAVE_STDIO_EXT )
+      add_definitions( -DHAVE_MUSL_LIBC )
+      check_include_file( execinfo.h HAVE_EXECINFO )
+      if ( NOT HAVE_EXECINFO )
+        message(FATAL_ERROR "Cannot find execinfo.h!")
+      endif()
+    endif()
+  endif()
 endif()
 
 #-------------------------------------------------------------------------------
