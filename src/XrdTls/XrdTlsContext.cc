@@ -72,6 +72,8 @@ struct XrdTlsContextImpl
     bool                          crlRunning;
     bool                          flsRunning;
     time_t                        lastCertModTime = 0;
+    int                           sessionCacheOpts = -1;
+    std::string                   sessionCacheId;
 };
   
 /******************************************************************************/
@@ -779,7 +781,13 @@ XrdTlsContext *XrdTlsContext::Clone(bool full,bool startCRLRefresh)
 
 // Verify that the context was built
 //
-   if (xtc->isOK()) return xtc;
+   if (xtc->isOK()) {
+       if(pImpl->sessionCacheOpts != -1){
+           //A SessionCache() call was done for the current context, so apply it for this new cloned context
+           xtc->SessionCache(pImpl->sessionCacheOpts,pImpl->sessionCacheId.c_str(),pImpl->sessionCacheId.size());
+       }
+       return xtc;
+   }
 
 // We failed, cleanup.
 //
@@ -939,6 +947,9 @@ int XrdTlsContext::SessionCache(int opts, const char *id, int idlen)
    static const int doSet = scSrvr | scClnt | scOff;
    long sslopt = 0;
    int flushT = opts & scFMax;
+
+   pImpl->sessionCacheOpts = opts;
+   pImpl->sessionCacheId = id;
 
 // If initialization failed there is nothing to do
 //
