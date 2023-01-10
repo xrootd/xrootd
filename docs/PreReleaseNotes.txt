@@ -14,6 +14,8 @@ Prerelease Notes
   **Commit: 8a6d7c0
 
 + **Major bug fixes**
+  **[TLS]** XrdTlsContext: Recreate session cache in the Clone() method.
+  **Commit: 93c9d24
   **[XrdOuc]** Fix checksum verification in XrdOucPgrwUtils::csVer
   **Commit: e88666b
 
