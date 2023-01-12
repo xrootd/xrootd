@@ -269,11 +269,11 @@ XrdVomsMapfile::Apply(XrdSecEntity &entity)
 
     int from_vorg = 0, from_role = 0, from_grps = 0;
     XrdOucString vorg = entity.vorg, entry_vorg;
-    XrdOucString role = entity.role, entry_role;
+    XrdOucString role = entity.role ? entity.role : "", entry_role = "NULL";
     XrdOucString grps = entity.grps, entry_grps;
     if (m_edest) m_edest->Log(LogMask::Debug, "VOMSMapfile", "Applying VOMS mapfile to incoming credential");
     while (((from_vorg = vorg.tokenize(entry_vorg, from_vorg, ' ')) != -1) &&
-           ((from_role = role.tokenize(entry_role, from_role, ' ')) != -1) &&
+           ((role == "") || (from_role = role.tokenize(entry_role, from_role, ' ')) != -1) &&
            ((from_grps = grps.tokenize(entry_grps, from_grps, ' ')) != -1))
     {
         auto fqan = MakePath(entry_grps);
