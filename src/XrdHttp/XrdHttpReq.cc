@@ -148,13 +148,13 @@ static bool needs_base64_padding(const std::string &rfc_name)
     return true;
   } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
     return false;
-  } else if (strcasecmp(rfc_name.c_str(), "SHA")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA")) {
     return true;
-  } else if (strcasecmp(rfc_name.c_str(), "SHA-256")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA-256")) {
     return true;
-  } else if (strcasecmp(rfc_name.c_str(), "SHA-512")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA-512")) {
     return true;
-  } else if (strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
     return false;
   }
   return false;
