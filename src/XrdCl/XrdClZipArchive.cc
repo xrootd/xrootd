@@ -438,14 +438,15 @@ namespace XrdCl
                                         else
                                           std::tie( cdvec, cdmap ) = CDFH::Parse( buff, eocd->cdSize, eocd->nbCdRec );
                                         log->Dump( ZipMsg, "[0x%x] CD records parsed.", this );
-										uint64_t sumCompSize = 0;
-										for (auto it = cdvec.begin(); it != cdvec.end(); it++) {
-											sumCompSize += (*it)->compressedSize;
-											if ((*it)->offset > archsize || (*it)->offset + (*it)->compressedSize > archsize)
-												throw bad_data();
-										}
-										if (sumCompSize > archsize)
-											throw bad_data();
+                                        uint64_t sumCompSize = 0;
+                                        for (auto it = cdvec.begin(); it != cdvec.end(); it++)
+                                        {
+                                          sumCompSize += (*it)->IsZIP64() ? (*it)->extra->compressedSize : (*it)->compressedSize;
+                                          if ((*it)->offset > archsize || (*it)->offset + (*it)->compressedSize > archsize)
+                                            throw bad_data();
+                                        }
+                                        if (sumCompSize > archsize)
+                                          throw bad_data();
                                       }
                                       catch( const bad_data &ex )
                                       {
