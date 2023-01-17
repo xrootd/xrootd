@@ -38,6 +38,7 @@
 #include "XrdOssCsiRanges.hh"
 #include <memory>
 #include <mutex>
+#include <string>
 #include <utility>
 #include <cinttypes>
 #include <cstdio>
