@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <cerrno>
+#include <limits>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -66,6 +67,8 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 // Allocate an array large enough to hold this information
 //
    if (!(i = info->GetSize())) {delete info; return 0;}
+   if (i > std::numeric_limits<ptrdiff_t>::max() / sizeof(XrdCl::URL))
+      {delete info; return 0;}
    uVec = new XrdCl::URL[i];
 
 // Now start filling out the array
