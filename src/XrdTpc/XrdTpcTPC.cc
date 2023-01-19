@@ -969,14 +969,14 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
     std::string full_url = prepareURL(req, hasSetOpaque);
     std::string authz = GetAuthz(req);
     curl_easy_setopt(curl, CURLOPT_URL, resource.c_str());
+    ConfigureCurlCA(curl);
 #ifdef XRD_CHUNK_RESP
     {
         //Get the content-length of the source file and pass it to the OSS layer
         //during the open
         uint64_t sourceFileContentLength = 0;
         bool success;
-        TPCLogRecord getContentLengthRec;
-        GetContentLengthTPCPull(curl, req, sourceFileContentLength, success, getContentLengthRec);
+        GetContentLengthTPCPull(curl, req, sourceFileContentLength, success, rec);
         if(success) {
             //In the case we cannot get the information from the source server (offline or other error)
             //we just don't add the size information to the opaque of the local file to open
@@ -1004,7 +1004,6 @@ int TPCHandler::ProcessPullReq(const std::string &resource, XrdHttpExtReq &req) 
         fh->close();
         return resp_result;
     }
-    ConfigureCurlCA(curl);
     Stream stream(std::move(fh), streams * m_pipelining_multiplier, streams > 1 ? m_block_size : m_small_block_size, m_log);
     State state(0, stream, curl, false);
     state.CopyHeaders(req);
