@@ -184,6 +184,8 @@ Requires(postun):	initscripts
 
 %if %{?rhel}%{!?rhel:0} == 7
 BuildRequires: devtoolset-7
+%else
+BuildRequires: gcc-c++
 %endif
 
 %description
