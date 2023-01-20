@@ -442,7 +442,7 @@ jobs:
   rpm-fedora:
 
     runs-on: ubuntu-latest
-    container: fedora:35
+    container: fedora:37
 
     steps:
     - name: Install external dependencies with dnf
