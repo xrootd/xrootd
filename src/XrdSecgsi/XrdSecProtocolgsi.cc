@@ -3080,6 +3080,13 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
       hs->Chain = 0;
       return -1;
    }
+
+   if (!po.cbck) {
+     emsg = "failed to initialize user proxies";
+     hs->Chain = 0;
+     return -1;
+   }
+
    // Save the result
    hs->PxyChain = po.chain;
    hs->Cbck = new XrdSutBucket(*((XrdSutBucket *)(po.cbck)));
