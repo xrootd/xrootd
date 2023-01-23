@@ -25,6 +25,7 @@ Version 5.5.2
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
   **[XrdApps]** Fix small memory leak when checksum fails
   **[XrdClHttp]** Link against XrdUtils for XrdOucCRC::Calc32C symbol
+  **[XrdSecgsi]** Avoid nullptr dereference in XrdSecProtocolgsi::ClientDoInit
   **[XrdVoms]** Fix handling of VOMS attributes when role is empty
 
 + **Miscellaneous**
