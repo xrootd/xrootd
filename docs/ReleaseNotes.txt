@@ -11,9 +11,13 @@ Version 5.5.2
 
 + **Major bug fixes**
   **[Python]** Avoid crash during prepare call
+  **[TLS]** XrdTlsContext: Recreate session cache in the Clone() method.
   **[XrdCl]** Be sure to only read the header of kXR_status messages at first
   **[XrdCl]** Ensure URL::GetChannelId returns an Id which can be parsed again as a url
+  **[XrdCl]** Fix regression in ZIP CD parsing.
   **[XrdHttpTPC]** Fixes the HTTP TPC PULL transfer issue when authentication is necessary to perform a transfer
+  **[XrdHttpTPC]** Fix file size request failure due to missing configuration of the server CA before calling the HEAD request
+  **[XrdOuc]** Fix checksum verification in XrdOucPgrwUtils::csVer
 
 + **Minor bug fixes**
   **[Server]** Fix a short writev recovery case
@@ -21,14 +25,18 @@ Version 5.5.2
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
   **[XrdApps]** Fix small memory leak when checksum fails
   **[XrdClHttp]** Link against XrdUtils for XrdOucCRC::Calc32C symbol
+  **[XrdVoms]** Fix handling of VOMS attributes when role is empty
 
 + **Miscellaneous**
   **[Apps]** Cleanup xrdcp help information.
   **[CMake]** Use upstream FindOpenSSL.cmake
   **[CMake]** Make switches for server-only options dependent on XRCL_ONLY=FALSE
   **[Macaroons]** Implement XrdSciTokensHelper interface for macaroons
+  **[Pss]** Convert leftover print statement to debug action
   **[Python]** Use setuptools over setuptools._distutils.core
   **[XrdCl]** xrdcp: extended # of parallel copy jobs to 128.
+  **[XrdOssCsi]** Fix build failure with GCC 13
+  **[XrdPosix]** Fix build failure due to possible large memory allocation
 
 -------------
 Version 5.5.1
