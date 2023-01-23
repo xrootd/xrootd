@@ -20,6 +20,8 @@ Prerelease Notes
   **Commit: e88666b
 
 + **Minor bug fixes**
+  **[Server]** Part 1: Follow RFC for multiple chksums in http (issue 1707).
+  **Commit: e63fe75
   **[XrdApps]** Fix small memory leak when checksum fails
   **Commit: a8ad65a
   **[Server]** Correct formatting when displaying the SecEntity structure.
