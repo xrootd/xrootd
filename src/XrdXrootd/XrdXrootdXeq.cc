@@ -1979,18 +1979,14 @@ int XrdXrootdProtocol::do_Qconf()
             bp += n; bleft -= n;
            }
    else if (!strcmp("chksum", val))
-           {if (!JobCKT)
+           {const char *csList = getenv("XRD_CSLIST");
+            if (!JobCKT || !csList)
                {n = snprintf(bp, bleft, "chksum\n");
                 bp += n; bleft -= n;
                 continue;
                }
-            XrdOucTList *tP = JobCKTLST;
-            char sep;
-            do {sep = (tP->next ? ',' :'\n');
-                n = snprintf(bp, bleft, "%d:%s%c", tP->ival[0], tP->text, sep);
-                bp += n; bleft -= n;
-                tP = tP->next;
-               } while(tP && bleft > 0);
+            n = snprintf(bp, bleft, "%s\n", csList);
+            bp += n; bleft -= n;
            }
    else if (!strcmp("cid", val))
            {const char *cidval = getenv("XRDCMSCLUSTERID");

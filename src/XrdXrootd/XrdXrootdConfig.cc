@@ -316,14 +316,20 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (JobCKT && JobLCL)
       {XrdOucErrInfo myError("Config");
+       XrdOucString csList(1024);
        XrdOucTList *tP = JobCKTLST;
+       int csNum = 0;
        do {if (osFS->chksum(XrdSfsFileSystem::csSize,tP->text,0,myError))
               {eDest.Emsg("Config",tP->text,"checksum is not natively supported.");
                return 0;
               }
            tP->ival[1] = myError.getErrInfo();
+           if (csNum) csList += ',';
+           csList.append(csNum); csList.append(':'); csList.append(tP->text); 
+           csNum++;
            tP = tP->next;
           } while(tP);
+       if (csNum) XrdOucEnv::Export("XRD_CSLIST", csList.c_str());
       }
 
 // Initialiaze for AIO. If we are not in debug mode and aio is enabled then we
