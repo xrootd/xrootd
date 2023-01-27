@@ -26,6 +26,97 @@ concurrency:
 
 jobs:
 
+  cmake-almalinux8:
+
+    runs-on: ubuntu-latest
+    container: almalinux:8
+
+    steps:
+    - name: Install external dependencies with yum
+      run: |
+        dnf update -y
+        dnf clean all
+        dnf install -y epel-release
+        dnf install -y --enablerepo=powertools \
+            cmake \
+            cppunit-devel \
+            curl-devel \
+            davix-devel \
+            diffutils \
+            file \
+            fuse-devel \
+            gcc-c++ \
+            git \
+            json-c-devel \
+            krb5-devel \
+            libmacaroons-devel \
+            libtool \
+            libuuid-devel \
+            libxml2-devel \
+            make \
+            openssl-devel \
+            python3-devel \
+            python3-setuptools \
+            readline-devel \
+            scitokens-cpp-devel \
+            systemd-devel \
+            tinyxml-devel \
+            voms-devel \
+            yasm \
+            zlib-devel
+        dnf clean all
+
+    - name: Clone repository
+      uses: actions/checkout@v2
+
+    - name: Build with cmake
+      run: |
+        cd ..
+        cmake \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DFORCE_ENABLED=ON \
+            -DENABLE_TESTS=ON \
+            -DENABLE_XRDEC=ON \
+            -DENABLE_MACAROONS=ON \
+            -DENABLE_SCITOKENS=ON \
+            -DPIP_OPTIONS="--verbose" \
+            -S xrootd \
+            -B build
+        cmake build -LH
+        cmake \
+            --build build \
+            --clean-first \
+            --parallel $(($(nproc) - 1))
+        cmake --build build --target install
+        python3 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 --version --version
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+    - name: Run libXrdCl tests
+      run: |
+        cd ../build/tests
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/UtilsTest/'
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/SocketTest/'
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PollerTest/'
+        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PostMasterTest/'
+        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/FileSystemTest/'
+        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/LocalFileHandlerTest/'
+
   cmake-centos7:
 
     runs-on: ubuntu-latest
