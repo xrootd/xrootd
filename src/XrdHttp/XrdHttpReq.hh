@@ -116,6 +116,14 @@ private:
   
   // Sanitize the resource from http[s]://[host]/ questionable prefix
   void sanitizeResourcePfx();
+
+   /**
+   * Select the checksum to be computed depending on the userDigest passed in parameter
+   * @param userDigest the digest request from the user (extracted from the Want-Digest header)
+   * @param selectedChecksum the checksum that will be performed
+   */
+  void selectChecksum(const std::string & userDigest, std::string & selectedChecksum);
+
 public:
 
   XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {

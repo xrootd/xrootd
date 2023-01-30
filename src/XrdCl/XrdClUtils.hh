@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdUtils/XrdUtils.hh"
 
 #include <sys/time.h>
 
@@ -56,25 +57,7 @@ namespace XrdCl
                                const std::string &input,
                                const std::string &delimiter )
       {
-        size_t start  = 0;
-        size_t end    = 0;
-        size_t length = 0;
-
-        do
-        {
-          end = input.find( delimiter, start );
-
-          if( end != std::string::npos )
-            length = end - start;
-          else
-            length = input.length() - start;
-
-          if( length )
-            result.push_back( input.substr( start, length ) );
-
-          start = end + delimiter.size();
-        }
-        while( end != std::string::npos );
+        XrdUtils::Utils::splitString(result,input,delimiter);
       }
 
       //------------------------------------------------------------------------
