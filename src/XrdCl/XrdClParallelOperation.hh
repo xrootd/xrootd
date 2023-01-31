@@ -313,7 +313,7 @@ namespace XrdCl
           // although we might have the minimum to succeed we wait for the rest
           if( status.IsOK() ) return ( pending == 0 );
           size_t nb = failed_cnt.fetch_add( 1, std::memory_order_relaxed );
-          if( nb == failed_threshold ) res = status; // we dropped below the threshold
+          if( nb + 1 == failed_threshold ) res = status; // we dropped below the threshold
           // if we still have to wait for pending operations return false,
           // otherwise all is done, return true
           return ( pending == 0 );
