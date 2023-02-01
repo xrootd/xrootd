@@ -108,6 +108,7 @@ XrdSysError XrdHttpProtocol::eDest = 0; // Error message handler
 XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 int XrdHttpProtocol::m_bio_type = 0; // BIO type identifier for our custom BIO.
 BIO_METHOD *XrdHttpProtocol::m_bio_method = NULL; // BIO method constructor.
+char *XrdHttpProtocol::xrd_cslist = nullptr;
 
 XrdSysTrace XrdHttpTrace("http");
 
@@ -1633,6 +1634,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   BPool = pi->BPool;
   hailWait = 10000;
   readWait = 30000;
+  xrd_cslist = getenv("XRD_CSLIST");
 
   Port = pi->Port;
 
