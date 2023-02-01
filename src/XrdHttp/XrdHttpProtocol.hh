@@ -415,5 +415,8 @@ protected:
 
   /// C-style vptr table for our custom BIO objects.
   static BIO_METHOD *m_bio_method;
+
+  /// The list of checksums that were configured via the xrd.cksum parameter on the server config file
+  static char * xrd_cslist;
 };
 #endif

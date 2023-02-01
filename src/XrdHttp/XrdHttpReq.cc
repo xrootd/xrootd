@@ -1056,9 +1056,9 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
  * @param selectedChecksum the checksum that will be performed
  */
 void XrdHttpReq::selectChecksum(const std::string &userDigest, std::string & selectedChecksum) {
-    char * configChecksumList;
+    char * configChecksumList = XrdHttpProtocol::xrd_cslist;
     selectedChecksum = "unknown";
-    if((configChecksumList = getenv("XRD_CSLIST"))) {
+    if(configChecksumList != nullptr) {
         //The env variable is set, some checksums have been configured
         std::vector<std::string> userDigestsVec;
         XrdUtils::Utils::splitString(userDigestsVec,userDigest,",");
