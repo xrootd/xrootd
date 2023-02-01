@@ -31,7 +31,7 @@
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdNet/XrdNetUtils.hh"
-#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 
 #include <sys/time.h>
 
@@ -63,7 +63,7 @@ namespace XrdCl
            * TODO: Maybe this method could be collapsed
            * to avoid this middle-man call here
            */
-        XrdOucUtils::splitString(result,input,delimiter);
+          XrdOucTUtils::splitString(result,input,delimiter);
       }
 
       //------------------------------------------------------------------------
