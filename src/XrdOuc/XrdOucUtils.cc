@@ -31,6 +31,8 @@
 #include <cctype>
 #include <grp.h>
 #include <cstdio>
+#include <list>
+#include <vector>
 
 #ifdef WIN32
 #include <direct.h>

@@ -32,6 +32,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string>
   
 class XrdSysError;
 class XrdOucString;
@@ -130,7 +131,7 @@ static bool PidFile(XrdSysError &eDest, const char *path);
 
 static int getModificationTime(const char * path, time_t & modificationTime);
 
-       XrdOucUtils() {}
-      ~XrdOucUtils() {}
+    XrdOucUtils() {}
+    ~XrdOucUtils() {}
 };
 #endif

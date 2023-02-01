@@ -49,12 +49,12 @@
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "Xrd/XrdBuffer.hh"
-
 #include <algorithm> 
 #include <functional> 
 #include <cctype>
 #include <locale>
 #include <string>
+#include "XrdOuc/XrdOucTUtils.hh"
 
 #include "XrdHttpUtils.hh"
 
@@ -91,6 +91,10 @@ static std::string convert_digest_rfc_name(const std::string &rfc_name_multiple)
       return "SHA-512";
     } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
       return "UNIXcksum";
+    } else if (!strcasecmp(rfc_name.c_str(), "crc32")) {
+        return "crc32";
+    } else if (!strcasecmp(rfc_name.c_str(), "crc32c")) {
+        return "crc32c";
     }
   }
   return "unknown";
@@ -117,6 +121,10 @@ static XrdOucString convert_digest_name(const std::string &rfc_name_multiple)
       return "sha512";
     } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
       return "cksum";
+    } else if (!strcasecmp(rfc_name.c_str(), "crc32")) {
+      return "crc32";
+    } else if (!strcasecmp(rfc_name.c_str(), "crc32c")) {
+      return "crc32c";
     }
   }
   return "unknown";
@@ -137,6 +145,10 @@ static std::string convert_xrootd_to_rfc_name(const std::string &xrootd_name)
     return "SHA-512";
   } else if (!strcasecmp(xrootd_name.c_str(), "cksum")) {
     return "UNIXcksum";
+  } else if (!strcasecmp(xrootd_name.c_str(), "crc32")) {
+    return "crc32";
+  } else if (!strcasecmp(xrootd_name.c_str(), "crc32c")) {
+    return "crc32c";
   }
   return "unknown";
 }
@@ -148,14 +160,18 @@ static bool needs_base64_padding(const std::string &rfc_name)
     return true;
   } else if (!strcasecmp(rfc_name.c_str(), "adler32")) {
     return false;
-  } else if (strcasecmp(rfc_name.c_str(), "SHA")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA")) {
     return true;
-  } else if (strcasecmp(rfc_name.c_str(), "SHA-256")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA-256")) {
     return true;
-  } else if (strcasecmp(rfc_name.c_str(), "SHA-512")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "SHA-512")) {
     return true;
-  } else if (strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
+  } else if (!strcasecmp(rfc_name.c_str(), "UNIXcksum")) {
     return false;
+  } else if (!strcasecmp(rfc_name.c_str(), "crc32")) {
+    return false;
+  } else if (!strcasecmp(rfc_name.c_str(), "crc32c")) {
+    return true;
   }
   return false;
 }
@@ -271,6 +287,8 @@ int XrdHttpReq::parseLine(char *line, int len) {
     } else if (!strcmp(key, "Want-Digest")) {
       m_req_digest.assign(val, line + len - val);
       trim(m_req_digest);
+      //Transform the user requests' want-digest to lowercase
+      std::transform(m_req_digest.begin(),m_req_digest.end(),m_req_digest.begin(),::tolower);
     } else if (!strcmp(key, "Depth")) {
       depth = -1;
       if (strcmp(val, "infinity"))
@@ -1032,6 +1050,42 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
   }
 }
 
+/**
+ * Select the checksum to be computed depending on the userDigest passed in parameter
+ * @param userDigest the digest request from the user (extracted from the Want-Digest header)
+ * @param selectedChecksum the checksum that will be performed
+ */
+void XrdHttpReq::selectChecksum(const std::string &userDigest, std::string & selectedChecksum) {
+    char * configChecksumList = XrdHttpProtocol::xrd_cslist;
+    selectedChecksum = "unknown";
+    if(configChecksumList != nullptr) {
+        //The env variable is set, some checksums have been configured
+        std::vector<std::string> userDigestsVec;
+        XrdOucTUtils::splitString(userDigestsVec,userDigest,",");
+        std::vector<std::string> configChecksums;
+        XrdOucTUtils::splitString(configChecksums,configChecksumList,",");
+        selectedChecksum = configChecksums[0];
+        auto configChecksumItor = configChecksums.end();
+        std::find_if(userDigestsVec.begin(), userDigestsVec.end(), [&configChecksums, &configChecksumItor](const std::string & userDigest){
+            configChecksumItor = std::find_if(configChecksums.begin(),configChecksums.end(),[&userDigest](const std::string & configChecksum){
+                std::string userDigestTrimmed = userDigest;
+                trim(userDigestTrimmed);
+                if(configChecksum.find(userDigestTrimmed) != std::string::npos) {
+                    return true;
+                }
+                return false;
+            });
+            return configChecksumItor != configChecksums.end();
+        });
+        //By default, the selected checksum is the first one of the configured checksum list.
+        // If the user gave a checksum that do not exist, then the checksum returned will be the default one
+        configChecksumItor = configChecksumItor != configChecksums.end() ? configChecksumItor : configChecksums.begin();
+        std::vector<std::string> checksumIdName;
+        XrdOucTUtils::splitString(checksumIdName,*configChecksumItor,":");
+        selectedChecksum = checksumIdName[1];
+    }
+}
+
 int XrdHttpReq::ProcessHTTPReq() {
 
   kXR_int32 l;
@@ -1105,12 +1159,15 @@ int XrdHttpReq::ProcessHTTPReq() {
         const char *opaque = strchr(resourceplusopaque.c_str(), '?');
         // Note that doChksum requires that the memory stays alive until the callback is invoked.
         m_resource_with_digest = resourceplusopaque;
+        std::string selectedChecksum;
+        selectChecksum(m_req_digest,selectedChecksum);
+        m_req_digest = convert_digest_name(selectedChecksum).c_str();
         if (!opaque) {
           m_resource_with_digest += "?cks.type=";
-          m_resource_with_digest += convert_digest_name(m_req_digest);
+          m_resource_with_digest += m_req_digest.c_str();
         } else {
           m_resource_with_digest += "&cks.type=";
-          m_resource_with_digest += convert_digest_name(m_req_digest);
+          m_resource_with_digest += m_req_digest.c_str();
         }
         if (prot->doChksum(m_resource_with_digest) < 0) {
           // In this case, the Want-Digest header was set and PostProcess gave the go-ahead to do a checksum.
