@@ -57,6 +57,12 @@ namespace XrdCl
                                const std::string &input,
                                const std::string &delimiter )
       {
+          /*
+           * This was done in order to not duplicate code as this method
+           * is also used in XrdHttp
+           * TODO: Maybe this method could be collapsed
+           * to avoid this middle-man call here
+           */
         XrdOucUtils::splitString(result,input,delimiter);
       }
 
