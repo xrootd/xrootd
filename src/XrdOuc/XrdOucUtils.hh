@@ -129,12 +129,6 @@ static bool PidFile(XrdSysError &eDest, const char *path);
 
 static int getModificationTime(const char * path, time_t & modificationTime);
 
-//------------------------------------------------------------------------
-//! Split a string
-//------------------------------------------------------------------------
-template<class Container>
-static void splitString( Container &result,  const std::string &input, const std::string &delimiter );
-
     XrdOucUtils() {}
     ~XrdOucUtils() {}
 };

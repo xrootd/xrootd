@@ -54,7 +54,7 @@
 #include <cctype>
 #include <locale>
 #include <string>
-#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOucTUtils.hh"
 
 #include "XrdHttpUtils.hh"
 
@@ -1061,9 +1061,9 @@ void XrdHttpReq::selectChecksum(const std::string &userDigest, std::string & sel
     if(configChecksumList != nullptr) {
         //The env variable is set, some checksums have been configured
         std::vector<std::string> userDigestsVec;
-        XrdOucUtils::splitString(userDigestsVec,userDigest,",");
+        XrdOucTUtils::splitString(userDigestsVec,userDigest,",");
         std::vector<std::string> configChecksums;
-        XrdOucUtils::splitString(configChecksums,configChecksumList,",");
+        XrdOucTUtils::splitString(configChecksums,configChecksumList,",");
         selectedChecksum = configChecksums[0];
         auto configChecksumItor = configChecksums.end();
         std::find_if(userDigestsVec.begin(), userDigestsVec.end(), [&configChecksums, &configChecksumItor](const std::string & userDigest){
@@ -1081,7 +1081,7 @@ void XrdHttpReq::selectChecksum(const std::string &userDigest, std::string & sel
         // If the user gave a checksum that do not exist, then the checksum returned will be the default one
         configChecksumItor = configChecksumItor != configChecksums.end() ? configChecksumItor : configChecksums.begin();
         std::vector<std::string> checksumIdName;
-        XrdOucUtils::splitString(checksumIdName,*configChecksumItor,":");
+        XrdOucTUtils::splitString(checksumIdName,*configChecksumItor,":");
         selectedChecksum = checksumIdName[1];
     }
 }
