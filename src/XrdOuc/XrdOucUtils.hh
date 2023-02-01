@@ -32,6 +32,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string>
   
 class XrdSysError;
 class XrdOucString;
@@ -128,7 +129,36 @@ static bool PidFile(XrdSysError &eDest, const char *path);
 
 static int getModificationTime(const char * path, time_t & modificationTime);
 
-       XrdOucUtils() {}
-      ~XrdOucUtils() {}
+    //------------------------------------------------------------------------
+    //! Split a string
+    //------------------------------------------------------------------------
+    template<class Container>
+    static void splitString( Container         &result,
+                             const std::string &input,
+                             const std::string &delimiter )
+    {
+        size_t start  = 0;
+        size_t end    = 0;
+        size_t length = 0;
+
+        do
+        {
+            end = input.find( delimiter, start );
+
+            if( end != std::string::npos )
+                length = end - start;
+            else
+                length = input.length() - start;
+
+            if( length )
+                result.push_back( input.substr( start, length ) );
+
+            start = end + delimiter.size();
+        }
+        while( end != std::string::npos );
+    }
+
+    XrdOucUtils() {}
+    ~XrdOucUtils() {}
 };
 #endif

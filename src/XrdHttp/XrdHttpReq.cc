@@ -49,12 +49,12 @@
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "Xrd/XrdBuffer.hh"
-#include "XrdUtils/XrdUtils.hh"
 #include <algorithm> 
 #include <functional> 
 #include <cctype>
 #include <locale>
 #include <string>
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdHttpUtils.hh"
 
@@ -1061,9 +1061,9 @@ void XrdHttpReq::selectChecksum(const std::string &userDigest, std::string & sel
     if(configChecksumList != nullptr) {
         //The env variable is set, some checksums have been configured
         std::vector<std::string> userDigestsVec;
-        XrdUtils::Utils::splitString(userDigestsVec,userDigest,",");
+        XrdOucUtils::splitString(userDigestsVec,userDigest,",");
         std::vector<std::string> configChecksums;
-        XrdUtils::Utils::splitString(configChecksums,configChecksumList,",");
+        XrdOucUtils::splitString(configChecksums,configChecksumList,",");
         selectedChecksum = configChecksums[0];
         auto configChecksumItor = configChecksums.end();
         std::find_if(userDigestsVec.begin(), userDigestsVec.end(), [&configChecksums, &configChecksumItor](const std::string & userDigest){
@@ -1081,7 +1081,7 @@ void XrdHttpReq::selectChecksum(const std::string &userDigest, std::string & sel
         // If the user gave a checksum that do not exist, then the checksum returned will be the default one
         configChecksumItor = configChecksumItor != configChecksums.end() ? configChecksumItor : configChecksums.begin();
         std::vector<std::string> checksumIdName;
-        XrdUtils::Utils::splitString(checksumIdName,*configChecksumItor,":");
+        XrdOucUtils::splitString(checksumIdName,*configChecksumItor,":");
         selectedChecksum = checksumIdName[1];
     }
 }
