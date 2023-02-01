@@ -609,7 +609,7 @@ XRootDStatus DoRm( FileSystem                      *fs,
     std::mutex mtx;
   };
   std::shared_ptr<print_t> print;
-  if( argc - 1 > 1 )
+  if( argc - 1 > 0 )
     print = std::make_shared<print_t>();
 
   std::vector<Pipeline> rms;
