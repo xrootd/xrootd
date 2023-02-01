@@ -31,8 +31,8 @@ Prerelease Notes
   **Commit: 0f79a38
   **[XrdMacaroons] Fix authentication when different tokens are used in the same TCP session**
   **Commit: 4410d56
-  **[XrdHttp] 500 Internal Server Error on unknown checksum algorithm**
-  **Commit: 8c9fbb3
+  **[XrdHttp] Follow RFC checksum requirements in XRootD http**
+  **Commit: TO_BE_MODIFIED
 
 + **Miscellaneous**
   **[Pss]** Convert leftover print statement to debug action.
