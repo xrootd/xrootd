@@ -18,13 +18,18 @@ Version 5.5.2
   **[XrdHttpTPC]** Fixes the HTTP TPC PULL transfer issue when authentication is necessary to perform a transfer
   **[XrdHttpTPC]** Fix file size request failure due to missing configuration of the server CA before calling the HEAD request
   **[XrdOuc]** Fix checksum verification in XrdOucPgrwUtils::csVer
+  **[XrdSecgsi]** Fix server crash with OpenSSL 3.x (issue 1877)
 
 + **Minor bug fixes**
   **[Server]** Fix a short writev recovery case
   **[Server]** Correct formatting when displaying the SecEntity structure.
   **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
+  **[Server]** Follow RFC for multiple checksums in HTTP (issue 1707).
   **[XrdApps]** Fix small memory leak when checksum fails
+  **[XrdCl]** xrdfs: unify rm output on error (issue 1885)
+  **[XrdCl]** AtLeastPolicy: correctly return the status
   **[XrdClHttp]** Link against XrdUtils for XrdOucCRC::Calc32C symbol
+  **[XrdHttp]** Follow RFC checksum requirements in XRootD HTTP
   **[XrdSecgsi]** Avoid nullptr dereference in XrdSecProtocolgsi::ClientDoInit
   **[XrdVoms]** Fix handling of VOMS attributes when role is empty
 
