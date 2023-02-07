@@ -5,6 +5,44 @@ XRootD
 Release Notes
 =============
 
+-------------
+Version 5.5.2
+-------------
+
++ **Major bug fixes**
+  **[Python]** Avoid crash during prepare call
+  **[TLS]** XrdTlsContext: Recreate session cache in the Clone() method.
+  **[XrdCl]** Be sure to only read the header of kXR_status messages at first
+  **[XrdCl]** Ensure URL::GetChannelId returns an Id which can be parsed again as a url
+  **[XrdCl]** Fix regression in ZIP CD parsing.
+  **[XrdHttpTPC]** Fixes the HTTP TPC PULL transfer issue when authentication is necessary to perform a transfer
+  **[XrdHttpTPC]** Fix file size request failure due to missing configuration of the server CA before calling the HEAD request
+  **[XrdOuc]** Fix checksum verification in XrdOucPgrwUtils::csVer
+  **[XrdSecgsi]** Fix server crash with OpenSSL 3.x (issue 1877)
+
++ **Minor bug fixes**
+  **[Server]** Fix a short writev recovery case
+  **[Server]** Correct formatting when displaying the SecEntity structure.
+  **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
+  **[Server]** Follow RFC for multiple checksums in HTTP (issue 1707).
+  **[XrdApps]** Fix small memory leak when checksum fails
+  **[XrdCl]** xrdfs: unify rm output on error (issue 1885)
+  **[XrdCl]** AtLeastPolicy: correctly return the status
+  **[XrdClHttp]** Link against XrdUtils for XrdOucCRC::Calc32C symbol
+  **[XrdHttp]** Follow RFC checksum requirements in XRootD HTTP
+  **[XrdSecgsi]** Avoid nullptr dereference in XrdSecProtocolgsi::ClientDoInit
+  **[XrdVoms]** Fix handling of VOMS attributes when role is empty
+
++ **Miscellaneous**
+  **[Apps]** Cleanup xrdcp help information.
+  **[CMake]** Use upstream FindOpenSSL.cmake
+  **[CMake]** Make switches for server-only options dependent on XRCL_ONLY=FALSE
+  **[Macaroons]** Implement XrdSciTokensHelper interface for macaroons
+  **[Pss]** Convert leftover print statement to debug action
+  **[Python]** Use setuptools over setuptools._distutils.core
+  **[XrdCl]** xrdcp: extended # of parallel copy jobs to 128.
+  **[XrdOssCsi]** Fix build failure with GCC 13
+  **[XrdPosix]** Fix build failure due to possible large memory allocation
 
 -------------
 Version 5.5.1
@@ -154,6 +192,7 @@ Version 5.4.3
   **[XrdHttp]** Redirect PUT and POST with 307.
   **[XrdHttp]** Use 307 to redirect anything that is not GET.
   **[XrdCl]** Remove the leading ? from auto generated login token, fixes #1535.
+  **[XrdCl]** xrdfs ls: don't use deep locate in case of data server.
   **[XrdSciTokens]** Also grant Readdir when token grants read permission.
 
 + **Miscellaneous**
@@ -164,6 +203,7 @@ Version 5.4.3
   **[XrdCl]** Use pgread only is server version is kXR_PROTPGRWVERSION.
   **[OpenSSL]** Provide OpenSSL3 compability.
   **[TLS]** Display all OpenSSL messages upon fatal error; fixes #1554.
+  **[XrdPosix]** Fix a bug that return wrong info about file size in EC.
   **[GSI]** Increase default bits from 512 to 2048.
   **[PIP]** Add PIP_OPTIONS CMake option for greater control of Python bindings
             install.

@@ -14,30 +14,7 @@ Prerelease Notes
   **Commit: 8a6d7c0
 
 + **Major bug fixes**
-  **[TLS]** XrdTlsContext: Recreate session cache in the Clone() method.
-  **Commit: 93c9d24
-  **[XrdOuc]** Fix checksum verification in XrdOucPgrwUtils::csVer
-  **Commit: e88666b
 
 + **Minor bug fixes**
-  **[Server]** Part 1: Follow RFC for multiple chksums in http (issue 1707).
-  **Commit: 0fc83b4
-  **[XrdApps]** Fix small memory leak when checksum fails
-  **Commit: a8ad65a
-  **[Server]** Correct formatting when displaying the SecEntity structure.
-  **Commit: 0f7c423
-  **[Server]** Make sure Mkdir returns a negative code for an EEXIST error
-  **[XrdTpcTPC]** Fix wrong delimiter of file's opaque data when "oss.asize" is appended
-  **Commit: 0f79a38
-  **[XrdMacaroons] Fix authentication when different tokens are used in the same TCP session**
-  **Commit: 4410d56
-  **[XrdHttp] Follow RFC checksum requirements in XRootD http**
-  **Commit: TO_BE_MODIFIED
 
 + **Miscellaneous**
-  **[Pss]** Convert leftover print statement to debug action.
-  **Commit: 0aef86b
-  **[SciTokens]** Add the OverrideINIReader for SciTokens to fix value parsing
-  **Commit: cdae187a 5c696e3d
-  **[Apps]** Cleanup xrdcp help information.
-  **Commit: b36bd9d

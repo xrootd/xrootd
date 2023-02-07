@@ -3097,10 +3097,17 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
       hs->Chain = 0;
       return -1;
    }
+
+   if (!po.cbck) {
+     emsg = "failed to initialize user proxies";
+     hs->Chain = 0;
+     return -1;
+   }
+
    // Save the result
    hs->PxyChain = po.chain;
    hs->Cbck = new XrdSutBucket(*((XrdSutBucket *)(po.cbck)));
-   if (!(sessionKsig = sessionCF->RSA(*(po.ksig)))) {
+   if (!po.ksig || !(sessionKsig = sessionCF->RSA(*(po.ksig)))) {
       emsg = "could not get a copy of the signing key:";
       hs->Chain = 0;
       return -1;

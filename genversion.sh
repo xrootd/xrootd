@@ -184,16 +184,16 @@ else
       echo "[!] Setting the version tag to unknown" 1>&2
     else
       #-------------------------------------------------------------------------
-      # Can we match the exact tag?
+      # Can we match the exact annotated tag?
       #-------------------------------------------------------------------------
-      git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
+      git describe --abbrev=0 --exact-match >/dev/null 2>&1
+
       if test ${?} -eq 0; then
-        VERSION="`git describe --tags --abbrev=0 --exact-match`"
+        VERSION=$(git describe --abbrev=0 --exact-match)
       else
-        LOGINFO="`git log -1 --format='%ai %h'`"
-	if test ${?} -eq 0; then
-          VERSION="`getVersionFromLog $LOGINFO`"
-        fi
+        VERSION=$(git describe --abbrev=0)
+        # Append .postN with N equal to number of commits since last tag
+        VERSION="${VERSION}.post$(git rev-list ${VERSION}.. | wc -l)"
       fi
     fi
     cd $CURRENTDIR

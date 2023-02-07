@@ -276,7 +276,7 @@ public:
    {
       m_dir_state = root;
       m_dir_level = 0;
-      m_current_path = root_path;
+      m_current_path = std::string(root_path);
       m_dir_usage_stack.push_back(0);
 
       TRACE_PURGE("FPurgeState::begin_traversal cur_path '" << m_current_path << "', usage=" << m_dir_usage_stack.back() << ", level=" << m_dir_level);

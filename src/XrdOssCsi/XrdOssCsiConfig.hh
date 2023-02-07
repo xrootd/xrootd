@@ -132,7 +132,7 @@ private:
       simplePath(prefix_);
       const size_t idx = prefix_.rfind("/");
       prefixstart_ = prefix_.substr(0,idx);
-      if (prefixstart_.empty()) prefixstart_="/";
+      if (prefixstart_.empty()) prefixstart_ = std::string("/");
       prefixend_ = prefix_.substr(idx+1,std::string::npos);
    }
 
