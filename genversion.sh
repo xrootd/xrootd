@@ -79,33 +79,32 @@ function getVersionFromLog()
 #-------------------------------------------------------------------------------
 function printHelp()
 {
-  echo "Usage:"                                                1>&2
-  echo "${0} [--help|--print-only|--version] [SOURCEPATH]"     1>&2
-  echo "  --help       prints this message"                    1>&2
-  echo "  --print-only prints the version to stdout and quits" 1>&2
-  echo "  --version    VERSION sets the version manually"      1>&2 
+  echo "Usage:"                                                           1>&2
+  echo "${0} [--help|--print-only|--version] [USER_VERSION] SOURCEPATH"   1>&2
+  echo "  --help       prints this message"                               1>&2
+  echo "  --print-only prints the version to stdout and quits"            1>&2
+  echo "  --version    VERSION sets the version manually"                 1>&2
 }
 
 #-------------------------------------------------------------------------------
 # Check the parameters
 #-------------------------------------------------------------------------------
-while test ${#} -ne 0; do
-  if test x${1} = x--help; then
-    PRINTHELP=1
-  elif test x${1} = x--print-only; then
-    PRINTONLY=1
-  elif test x${1} = x--version; then
-    if test ${#} -lt 2; then
-      echo "--version parameter needs an argument" 1>&2
-      exit 1
-    fi
-    USER_VERSION=${2}
-    shift
-  else
-    SOURCEPATH=${1}
+if test x${1} = x--help; then
+  PRINTHELP=1
+elif test x${1} = x--print-only || test x${1} = x--version; then
+  if test x${1} = x--print-only; then
+    PRINTONLY=1;
   fi
-  shift
-done
+  if test ${#} -lt 2; then
+    echo "option needs an argument" 1>&2
+    exit 1
+  elif test ${#} -eq 2; then
+    SOURCEPATH=${2}
+  elif test ${#} -eq 3; then
+    USER_VERSION=${2}
+    SOURCEPATH=${3}
+  fi
+fi
 
 if test x$PRINTHELP != x; then
   printHelp ${0}
@@ -122,10 +121,16 @@ fi
 
 VERSION="unknown"
 
+
+#-------------------------------------------------------------------------------
+# Check if the version has been specified by the user
+#-------------------------------------------------------------------------------
+if test x$USER_VERSION != x; then
+  VERSION=$USER_VERSION
 #-------------------------------------------------------------------------------
 # We're not inside a git repo
 #-------------------------------------------------------------------------------
-if test ! -d ${SOURCEPATH}.git; then
+elif test ! -d ${SOURCEPATH}.git; then
   #-----------------------------------------------------------------------------
   # We cannot figure out what version we are
   #----------------------------------------------------------------------------
@@ -155,13 +160,6 @@ if test ! -d ${SOURCEPATH}.git; then
       VERSION="`getVersionFromLog $DATE $SHORTHASH`"
     fi
   fi
-
-#-------------------------------------------------------------------------------
-# Check if the version has been specified by the user
-#-------------------------------------------------------------------------------
-elif test x$USER_VERSION != x; then
-  VERSION=$USER_VERSION
-
 #-------------------------------------------------------------------------------
 # We're in a git repo so we can try to determine the version using that
 #-------------------------------------------------------------------------------
@@ -191,7 +189,7 @@ else
         VERSION="`git describe --tags --abbrev=0 --exact-match`"
       else
         LOGINFO="`git log -1 --format='%ai %h'`"
-	if test ${?} -eq 0; then
+        if test ${?} -eq 0; then
           VERSION="`getVersionFromLog $LOGINFO`"
         fi
       fi
