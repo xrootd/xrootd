@@ -880,7 +880,7 @@ XRootDStatus DoLocate( FileSystem                      *fs,
 //------------------------------------------------------------------------------
 // Process stat query
 //------------------------------------------------------------------------------
-XRootDStatus ProcessStatQuery( StatInfo *info, const std::string &query )
+XRootDStatus ProcessStatQuery( StatInfo &info, const std::string &query )
 {
   Log *log = DefaultEnv::GetLog();
 
@@ -927,13 +927,13 @@ XRootDStatus ProcessStatQuery( StatInfo *info, const std::string &query )
   if( isOrQuery )
   {
     for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( info->TestFlags( flagMap[*it] ) )
+      if( info.TestFlags( flagMap[*it] ) )
         return XRootDStatus();
   }
   else
   {
     for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
-      if( !info->TestFlags( flagMap[*it] ) )
+      if( !info.TestFlags( flagMap[*it] ) )
         return XRootDStatus( stError, errResponseNegative );
   }
 
@@ -955,13 +955,13 @@ XRootDStatus DoStat( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc != 2 && argc != 4 )
+  if( argc < 2 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  std::string path;
+  std::vector<std::string> paths;
   std::string query;
 
   for( uint32_t i = 1; i < args.size(); ++i )
@@ -980,84 +980,101 @@ XRootDStatus DoStat( FileSystem                      *fs,
       }
     }
     else
-      path = args[i];
+      paths.emplace_back( args[i] );
   }
 
-  std::string fullPath;
-  if( !BuildPath( fullPath, env, path ).IsOK() )
+  std::vector<XrdCl::Pipeline> stats;
+  std::vector<std::tuple<std::future<StatInfo>, std::string>> results;
+  for( auto &path : paths )
   {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
+    std::string fullPath;
+    if( !BuildPath( fullPath, env, path ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+    std::future<XrdCl::StatInfo> ftr;
+    stats.emplace_back( XrdCl::Stat( fs, fullPath ) >> ftr );
+    results.emplace_back( std::move( ftr ), std::move( fullPath ) );
   }
 
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  StatInfo *info = 0;
-  XRootDStatus st = fs->Stat( fullPath, info );
-
-  if( !st.IsOK() )
-  {
-    log->Error( AppMsg, "Unable stat %s: %s",
-                        fullPath.c_str(),
-                        st.ToStr().c_str() );
-    return st;
-  }
+  XrdCl::Async( XrdCl::Parallel( stats ) );
 
   //----------------------------------------------------------------------------
   // Print the result
   //----------------------------------------------------------------------------
-  std::string flags;
-
-  if( info->TestFlags( StatInfo::XBitSet ) )
-    flags += "XBitSet|";
-  if( info->TestFlags( StatInfo::IsDir ) )
-    flags += "IsDir|";
-  if( info->TestFlags( StatInfo::Other ) )
-    flags += "Other|";
-  if( info->TestFlags( StatInfo::Offline ) )
-    flags += "Offline|";
-  if( info->TestFlags( StatInfo::POSCPending ) )
-    flags += "POSCPending|";
-  if( info->TestFlags( StatInfo::IsReadable ) )
-    flags += "IsReadable|";
-  if( info->TestFlags( StatInfo::IsWritable ) )
-    flags += "IsWritable|";
-  if( info->TestFlags( StatInfo::BackUpExists ) )
-    flags += "BackUpExists|";
-
-  if( !flags.empty() )
-    flags.erase( flags.length()-1, 1 );
-
-  std::cout <<   "Path:   " << fullPath << std::endl;
-  std::cout <<   "Id:     " << info->GetId() << std::endl;
-  std::cout <<   "Size:   " << info->GetSize() << std::endl;
-  std::cout <<   "MTime:  " << info->GetModTimeAsString() << std::endl;
-  // if extended stat information is available we can print also
-  // change time and access time
-  if( info->ExtendedFormat() )
+  XrdCl::XRootDStatus st;
+  for( auto &tpl : results )
   {
-    std::cout << "CTime:  " << info->GetChangeTimeAsString() << std::endl;
-    std::cout << "ATime:  " << info->GetAccessTimeAsString() << std::endl;
-  }
-  std::cout << "Flags:  " << info->GetFlags() << " (" << flags << ")";
+    auto &ftr      = std::get<0>( tpl );
+    auto &fullPath = std::get<1>( tpl );
+    std::cout << std::endl;
+    try
+    {
+      XrdCl::StatInfo info( ftr.get() );
+      std::string flags;
 
-  // check if extended stat information is available
-  if( info->ExtendedFormat() )
-  {
-    std::cout << "\nMode:   " << info->GetModeAsString() << std::endl;
-    std::cout << "Owner:  " << info->GetOwner() << std::endl;
-    std::cout << "Group:  " << info->GetGroup();
+      if( info.TestFlags( StatInfo::XBitSet ) )
+        flags += "XBitSet|";
+      if( info.TestFlags( StatInfo::IsDir ) )
+        flags += "IsDir|";
+      if( info.TestFlags( StatInfo::Other ) )
+        flags += "Other|";
+      if( info.TestFlags( StatInfo::Offline ) )
+        flags += "Offline|";
+      if( info.TestFlags( StatInfo::POSCPending ) )
+        flags += "POSCPending|";
+      if( info.TestFlags( StatInfo::IsReadable ) )
+        flags += "IsReadable|";
+      if( info.TestFlags( StatInfo::IsWritable ) )
+        flags += "IsWritable|";
+      if( info.TestFlags( StatInfo::BackUpExists ) )
+        flags += "BackUpExists|";
+
+      if( !flags.empty() )
+        flags.erase( flags.length()-1, 1 );
+
+      std::cout <<   "Path:   " << fullPath << std::endl;
+      std::cout <<   "Id:     " << info.GetId() << std::endl;
+      std::cout <<   "Size:   " << info.GetSize() << std::endl;
+      std::cout <<   "MTime:  " << info.GetModTimeAsString() << std::endl;
+      // if extended stat information is available we can print also
+      // change time and access time
+      if( info.ExtendedFormat() )
+      {
+        std::cout << "CTime:  " << info.GetChangeTimeAsString() << std::endl;
+        std::cout << "ATime:  " << info.GetAccessTimeAsString() << std::endl;
+      }
+      std::cout << "Flags:  " << info.GetFlags() << " (" << flags << ")";
+
+      // check if extended stat information is available
+      if( info.ExtendedFormat() )
+      {
+        std::cout << "\nMode:   " << info.GetModeAsString() << std::endl;
+        std::cout << "Owner:  " << info.GetOwner() << std::endl;
+        std::cout << "Group:  " << info.GetGroup();
+      }
+
+      std::cout << std::endl;
+
+      if( query.length() != 0 )
+      {
+        XRootDStatus s = ProcessStatQuery( info, query );
+        if( !s.IsOK() )
+          st = s;
+        std::cout << "Query:  " << query << " " << std::endl;
+      }
+    }
+    catch( XrdCl::PipelineException &ex )
+    {
+      st = ex.GetError();
+      log->Error( AppMsg, "Unable stat %s: %s", fullPath.c_str(), st.ToStr().c_str() );
+    }
   }
 
-  std::cout << std::endl;
-  if( query.length() != 0 )
-  {
-    st = ProcessStatQuery( info, query );
-    std::cout << "Query:  " << query << " " << std::endl;
-  }
-
-  delete info;
   return st;
 }
 
