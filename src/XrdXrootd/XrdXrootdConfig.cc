@@ -314,23 +314,29 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Check if we are going to be processing checksums locally
 //
-   if (JobCKT && JobLCL)
-      {XrdOucErrInfo myError("Config");
+   if (JobCKT) {
        XrdOucString csList(1024);
+       XrdOucErrInfo myError("Config");
        XrdOucTList *tP = JobCKTLST;
        int csNum = 0;
-       do {if (osFS->chksum(XrdSfsFileSystem::csSize,tP->text,0,myError))
-              {eDest.Emsg("Config",tP->text,"checksum is not natively supported.");
-               return 0;
-              }
+       do {
+           if(JobLCL) {
+               // Check natively supported checksum
+               if (osFS->chksum(XrdSfsFileSystem::csSize, tP->text, 0, myError)) {
+                   eDest.Emsg("Config", tP->text, "checksum is not natively supported.");
+                   return 0;
+               }
+           }
            tP->ival[1] = myError.getErrInfo();
            if (csNum) csList += ',';
-           csList.append(csNum); csList.append(':'); csList.append(tP->text); 
+           csList.append(csNum);
+           csList.append(':');
+           csList.append(tP->text);
            csNum++;
            tP = tP->next;
-          } while(tP);
+       } while (tP);
        if (csNum) XrdOucEnv::Export("XRD_CSLIST", csList.c_str());
-      }
+   }
 
 // Initialiaze for AIO. If we are not in debug mode and aio is enabled then we
 // turn off async I/O if tghe filesystem requests it or if this is a caching
