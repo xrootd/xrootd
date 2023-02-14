@@ -43,6 +43,8 @@
 
 #include "XrdCl/XrdClFileSystem.hh"
 
+#include <sys/time.h>
+
 namespace XrdCl
 {
   class URL;
