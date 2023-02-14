@@ -360,7 +360,7 @@ void XrdCmsRRQ::sendRedResp(XrdCmsRRQSlot *rP)
 // EPNAME("sendRedResp");
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsNode *nP;
-   int doredir, port, hlen = 0;
+   int doredir = 0, port = 0, hlen = 0;
 
 // Determine where the client should be redirected
 //
