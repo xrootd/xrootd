@@ -1164,7 +1164,8 @@ void File::ProcessDirectReadFinished(ReadRequest *rreq, int bytes_read, int erro
    // Called from DirectResponseHandler.
    // NOT under lock.
 
-   TRACEF(Error, "Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
+   if (error_cond)
+      TRACEF(Error, "Read(), direct read finished with error " << -error_cond << " " << XrdSysE2T(-error_cond));
 
    m_state_cond.Lock();
 
