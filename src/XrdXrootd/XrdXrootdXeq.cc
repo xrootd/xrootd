@@ -557,14 +557,24 @@ int XrdXrootdProtocol::do_Close()
    fp->cbArg = ReqID.getID();
    fp->XrdSfsp->error.setErrCB(&closeCB, (unsigned long long)fp);
 
+// Add a reference count to the file in case the close will be deferred. In
+// the deferred case the reference is used to prevent the callback from
+// deleting the file until we have done necessary processing of the object
+// during its removal from the open table.
+//
+   fp->Ref(1);
+
 // Do an explicit close of the file here; check for exceptions. Stall requests
 // leave the file open as there will be a retry. Otherwise, we remove the
 // file from our open table but a "started" return defers the the delete.
 //
    rc = fp->XrdSfsp->close();
    TRACEP(FS, " fh=" <<fh.handle <<" close rc=" <<rc);
-   if (rc >= SFS_STALL) return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
    if (rc == SFS_STARTED) doDel = false;
+      else {fp->Ref(-1);
+            if (rc >= SFS_STALL)
+               return fsError(rc, 0, fp->XrdSfsp->error, 0, 0);
+           }
 
 // Before we potentially delete the file handle in FTab->Del, generate the
 // appropriate error code (if necessary).  Note that we delay the call
@@ -579,6 +589,7 @@ int XrdXrootdProtocol::do_Close()
 //
    FTab->Del((Monitor.Files() ? Monitor.Agent : 0), fh.handle, doDel);
    numFiles--;
+   if (!doDel) fp->Ref(-1);
 
 // Send back the right response
 //
