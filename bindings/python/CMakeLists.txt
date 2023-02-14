@@ -45,7 +45,7 @@ endif()
 
 # Check it the Python interpreter has a valid version of pip
 execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -m pip --version
+        COMMAND ${Python_EXECUTABLE} -m pip --version
         RESULT_VARIABLE VALID_PIP_EXIT_CODE
         OUTPUT_QUIET
 )
@@ -53,18 +53,18 @@ execute_process(
 if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
   # Attempt to still install with deprecated invocation of setup.py
   message(WARNING
-         " ${PYTHON_EXECUTABLE} does not have a valid pip associated with it."
+         " ${Python_EXECUTABLE} does not have a valid pip associated with it."
          " It is recommended that you install a version of pip to install Python"
          " packages and bindings. If you are unable to install a version of pip"
          " through a package manager or with your Python build try using the PyPA's"
          " get-pip.py bootstrapping script ( https://github.com/pypa/get-pip ).\n"
          " The installation of the Python bindings will attempt to continue using"
-         " the deprecated method of `${PYTHON_EXECUTABLE} setup.py install`."
+         " the deprecated method of `${Python_EXECUTABLE} setup.py install`."
          )
 
   # https://docs.python.org/3/install/#splitting-the-job-up
   add_custom_command(OUTPUT ${OUTPUT}
-                     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} --verbose build
+                     COMMAND ${Python_EXECUTABLE} ${SETUP_PY} --verbose build
                      DEPENDS ${DEPS})
 
   add_custom_target(python_target ALL DEPENDS ${OUTPUT} XrdCl)
@@ -84,7 +84,7 @@ if ( NOT ${VALID_PIP_EXIT_CODE} EQUAL 0 )
     CODE
     "EXECUTE_PROCESS(
       RESULT_VARIABLE INSTALL_STATUS
-      COMMAND /usr/bin/env ${XROOTD_PYBUILD_ENV} ${PYTHON_EXECUTABLE} ${SETUP_PY} install \
+      COMMAND /usr/bin/env ${XROOTD_PYBUILD_ENV} ${Python_EXECUTABLE} ${SETUP_PY} install \
                 --verbose \
                 --prefix \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX} \
                 ${DEB_INSTALL_ARGS}
@@ -98,7 +98,7 @@ else()
     CODE
     "EXECUTE_PROCESS(
       RESULT_VARIABLE INSTALL_STATUS
-      COMMAND /usr/bin/env ${XROOTD_PYBUILD_ENV} ${PYTHON_EXECUTABLE} -m pip install \
+      COMMAND /usr/bin/env ${XROOTD_PYBUILD_ENV} ${Python_EXECUTABLE} -m pip install \
                 ${PIP_OPTIONS} \
                 ${CMAKE_CURRENT_BINARY_DIR}
       )

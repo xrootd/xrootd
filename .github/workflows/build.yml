@@ -76,7 +76,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=17 \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX=/usr \
-            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DPython_EXECUTABLE=$(command -v python3) \
             -DFORCE_ENABLED=ON \
             -DENABLE_TESTS=ON \
             -DENABLE_XRDEC=ON \
@@ -167,7 +167,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=17 \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX=/usr \
-            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DPython_EXECUTABLE=$(command -v python3) \
             -DFORCE_ENABLED=ON \
             -DENABLE_TESTS=ON \
             -DENABLE_XRDEC=ON \
@@ -245,7 +245,7 @@ jobs:
         cd ..
         cmake3 \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
-            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DPython_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
             -S xrootd \
@@ -322,7 +322,7 @@ jobs:
         cd ..
         cmake3 \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
-            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DPython_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose --force-reinstall --prefix /usr/local/" \
             -S xrootd \
@@ -391,7 +391,7 @@ jobs:
         cd ..
         cmake3 \
             -DCMAKE_INSTALL_PREFIX=/usr/ \
-            -DPYTHON_EXECUTABLE=$(command -v python2) \
+            -DPython_EXECUTABLE=$(command -v python2) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
             -DXRD_PYTHON_REQ_VERSION="2.7" \
@@ -453,7 +453,7 @@ jobs:
         cd ..
         cmake \
             -DCMAKE_INSTALL_PREFIX=/usr \
-            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DPython_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
             -S xrootd \
@@ -517,7 +517,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DCMAKE_PREFIX_PATH=/usr/local/opt/openssl@3 \
-            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DPython_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
             -DPIP_OPTIONS="--verbose" \
             -S xrootd \
