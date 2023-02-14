@@ -70,6 +70,21 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
   set( LINUX TRUE )
   include( GNUInstallDirs )
   set( EXTRA_LIBS rt )
+
+  # Check for musl libc with the compiler, since it provides way to detect it
+  execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpmachine
+    OUTPUT_VARIABLE TARGET_TRIPLE ERROR_VARIABLE TARGET_ERROR)
+
+  if (NOT TARGET_ERROR)
+    if ("${TARGET_TRIPLE}" MATCHES "musl")
+      message(STATUS "Detected musl libc")
+      add_definitions(-DMUSL=1)
+    endif()
+  else()
+    message(WARNING "Could not detect system information!")
+  endif()
+
+  unset(TARGET_ERROR)
 endif()
 
 #-------------------------------------------------------------------------------
