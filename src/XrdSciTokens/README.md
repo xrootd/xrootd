@@ -88,6 +88,10 @@ Within the `Global` section, the available attributes are:
      group or issuer information from the token.  The username is only populated if either scope-based mapping or
      the mapfile-based approach is successful.
 
+    - `validation` (optional): when the library is used for ZTN authentication the Validate() function is called as part of the
+      ZTN handshake. To disable validating tokens during the ZTN handshake this variable can be set to the following value:
+        - `none`: Don't validate a token during the ZTN handshake. This is useful when the passed token is not handled by the SciToken library!
+
 Each section name specifying a new issuer *MUST* be prefixed with `Issuer`.  Known attributes
 are:
 

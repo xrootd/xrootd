@@ -425,7 +425,8 @@ public:
         m_chain(chain),
         m_parms(parms ? parms : ""),
         m_next_clean(monotonic_time() + m_expiry_secs),
-        m_log(lp, "scitokens_")
+        m_log(lp, "scitokens_"),
+	m_validation(true)
     {
         pthread_rwlock_init(&m_config_lock, nullptr);
         m_config_lock_initialized = true;
@@ -617,6 +618,11 @@ public:
                           XrdSecEntity *Entity)
     {
         // Just check if the token is valid, no scope checking
+
+        // Consider if validation is disabled
+        if (!m_validation) {
+	  return true;
+	}
 
         // Deserialize the token
         SciToken scitoken;
@@ -1064,6 +1070,15 @@ private:
                 [](unsigned char c){ return std::tolower(c); });
 
             if (section_lower.substr(0, 6) == "global") {
+                auto validation = reader.Get(section, "validation", "");
+		if (!validation.empty()) {
+		  if (validation == "none") {
+		    m_validation = false;
+		    m_log.Say("------ XrdAccSciTokens: disabling validation ...");
+		    continue;
+		  }
+		}
+
                 auto audience = reader.Get(section, "audience", "");
                 if (!audience.empty()) {
                     size_t pos = 0;
@@ -1225,7 +1240,7 @@ private:
     XrdSysError m_log;
     AuthzBehavior m_authz_behavior{AuthzBehavior::PASSTHROUGH};
     std::string m_cfg_file;
-
+    bool m_validation{true};
     static constexpr uint64_t m_expiry_secs = 60;
 };
 
