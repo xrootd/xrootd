@@ -208,6 +208,91 @@ jobs:
         # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/FileSystemTest/'
         # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/LocalFileHandlerTest/'
 
+  cmake-alpine-musl:
+
+    runs-on: ubuntu-latest
+    container: alpine
+
+    steps:
+    - name: Install external dependencies
+      shell: sh
+      run: |
+        apk add \
+          bash \
+          cmake \
+          cppunit-dev \
+          curl-dev \
+          fuse-dev \
+          fuse3-dev \
+          g++ \
+          git \
+          json-c-dev \
+          krb5-dev \
+          libxml2-dev \
+          linux-headers \
+          make \
+          openssl-dev \
+          py3-pip \
+          python3-dev \
+          readline-dev \
+          tinyxml-dev \
+          util-linux-dev \
+          zlib-dev
+
+    - name: Clone repository
+      uses: actions/checkout@v2
+
+    - name: Build with cmake
+      run: |
+        cd ..
+        # need to fix ownership not to confuse git
+        chown -R -v "$( id -u; ):$( id -g; )" xrootd
+        cmake \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DFORCE_ENABLED=ON \
+            -DENABLE_HTTP=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_VOMS=OFF \
+            -DENABLE_XRDEC=OFF \
+            -DENABLE_XRDCLHTTP=OFF \
+            -DENABLE_MACAROONS=OFF \
+            -DENABLE_SCITOKENS=OFF \
+            -DPIP_OPTIONS="--verbose" \
+            -S xrootd \
+            -B build
+        cmake build -LH
+        cmake \
+            --build build \
+            --clean-first \
+            --parallel $(($(nproc) - 1))
+        cmake --build build --target install
+        python3 -m pip list
+
+    - name: Verify install
+      run: |
+        command -v xrootd
+        command -v xrdcp
+
+    - name: Verify Python bindings
+      run: |
+        python3 --version --version
+        python3 -m pip list
+        python3 -m pip show xrootd
+        python3 -c 'import XRootD; print(XRootD)'
+        python3 -c 'import pyxrootd; print(pyxrootd)'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
+
+    - name: Run libXrdCl tests
+      run: |
+        cd ../build/tests
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/UtilsTest/'
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/SocketTest/'
+        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PollerTest/'
+
   cmake-centos7:
 
     runs-on: ubuntu-latest
