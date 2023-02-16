@@ -68,7 +68,7 @@ namespace XrdSys
       int Create( size_t size )
       {
         this->size = size;
-        fd = shm_open( name.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600 );
+        fd = shm_open( name.c_str(), O_CREAT | O_RDWR, 0600 );
         if( fd < 0 )
           return -1;
         if( ftruncate( fd, size ) < 0 )
