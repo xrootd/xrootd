@@ -59,9 +59,7 @@ namespace XrdSys
   template<typename T>
   class shm_ptr
   {
-    /**
-     * Friend factory methods
-     */
+    /// Friend factory methods
     template<typename Obj, typename... Args>
     friend shm_ptr<Obj> make_shm( const std::string&, Args... );
     template<typename Obj>
@@ -70,54 +68,92 @@ namespace XrdSys
     friend shm_ptr<Obj> get_shm( const std::string& );
 
     public:
+
       /**
-       * Move constructor
+       * Constructor. Creates shared memory block (of size at least
+       * size) identified by name argument and maps it into user
+       * virtual address space and constructs within that memory
+       * object of type T using arguments args.
        */
-      shm_ptr( shm_ptr &&sp ) : ptr( sp.ptr )
+      template<typename... Args>
+      shm_ptr( const std::string &name, size_t size, Args&&... args )
       {
-        sp.ptr = nullptr;
+        void *mem = nullptr;
+        std::tie( mem, size ) = create_shm( name, size );
+        ptr = new( mem ) T( std::forward( args... ) );
       }
 
       /**
-       * Destructor
+       * Constructor. Creates shared memory block (of size at least
+       * size) identified by name argument and maps it into user
+       * virtual address space and constructs within that memory
+       * object of type T using default constructor.
        */
+      shm_ptr( const std::string &name, size_t size )
+      {
+        void *mem = nullptr;
+        std::tie( mem, size ) = create_shm( name, size );
+        ptr = new( mem ) T();
+      }
+
+      /**
+       * Constructor for initializing from existing shared memory block.
+       *
+       * @param name : name of the shared memory block (shared
+       *               memory object should be identified by a
+       *               name of the form /somename)
+       */
+      shm_ptr( const std::string &name )
+      {
+        int fd = shm_open( name.c_str(), O_RDWR, 0600 );
+        if( fd < 0 )
+          throw shm_error( errno );
+        struct stat statbuf;
+        if( fstat( fd, &statbuf ) < 0 )
+          throw shm_error( errno );
+        size = statbuf.st_size;
+        if( sizeof( T ) > size )
+          throw shm_error( EINVAL );
+        void *mem = map_shm( fd, size );
+        close( fd );
+        ptr = reinterpret_cast<T*>( mem );
+      }
+
+      /// Move constructor
+      shm_ptr( shm_ptr &&mv ) : ptr( mv.ptr ), size( mv.size )
+      {
+        mv.ptr = nullptr;
+        mv.size = 0;
+      }
+
+      /// Move assignment operator
+      shm_ptr& operator=( shm_ptr &&mv )
+      {
+        ptr  = mv.ptr;
+        size = mv.size;
+        mv.ptr  = nullptr;
+        mv.size = 0;
+        return *this;
+      }
+
+      /// Destructor
       ~shm_ptr()
       {
         if( ptr )
-          munmap( ptr, sizeof( T ) );
+          munmap( ptr, size );
       }
 
-      /**
-       * Member access operator
-       */
-      T* operator->()
-      {
-        return ptr;
-      }
+      /// Member access operator
+      T* operator->() { return ptr; }
 
-      /**
-       * Member access operator (const)
-       */
-      const T* operator->() const
-      {
-        return ptr;
-      }
+      /// Member access operator (const)
+      const T* operator->() const { return ptr; }
 
-      /**
-       * Dereferencing operator
-       */
-      T& operator*()
-      {
-        return *ptr;
-      }
+      /// Dereferencing operator
+      T& operator*() { return *ptr; }
 
-      /**
-       * Dereferencing operator (const)
-       */
-      const T& operator*() const
-      {
-        return *ptr;
-      }
+      /// Dereferencing operator (const)
+      const T& operator*() const { return *ptr; }
 
     private:
 
@@ -149,67 +185,24 @@ namespace XrdSys
        * @param size : size of the shared memory segment
        * @return     : pointer to the shared memory
        */
-      inline static void* create_shm( const std::string &name, size_t size )
+      inline static std::tuple<void*, size_t> create_shm( const std::string &name, size_t size )
       {
         int fd = shm_open( name.c_str(), O_CREAT | O_RDWR, 0600 );
         if( fd < 0 )
           throw shm_error( errno );
         if( ftruncate( fd, size ) < 0 )
           throw shm_error( errno );
-        void *mem = map_shm( fd, size );
-        close( fd );
-        return mem;
-      }
-
-      /**
-       * Helper function for initializing existing shared memory block
-       *
-       * @param name : name of the shared memory block (shared
-       *               memory object should be identified by a
-       *               name of the form /somename)
-       * @return     : pointer to the shared memory
-       */
-      inline static std::tuple<void*, size_t> init_shm( const std::string &name )
-      {
-        int fd = shm_open( name.c_str(), O_RDWR, 0600 );
-        if( fd < 0 )
-          throw shm_error( errno );
         struct stat statbuf;
         if( fstat( fd, &statbuf ) < 0 )
           throw shm_error( errno );
-        size_t size = statbuf.st_size;
+        size = statbuf.st_size;
         void *mem = map_shm( fd, size );
         close( fd );
         return std::make_tuple( mem, size );
       }
 
-      /**
-       * Constructor. Maps shared memory block identified by
-       * name argument into user virtual address space and
-       * constructs within that memory object of type T using
-       * arguments args.
-       */
-      template<typename... Args>
-      shm_ptr( void *mem, Args... args ) : ptr( new( mem ) T( std::forward( args... ) ) )
-      {
-      }
-
-      /**
-       * Constructor. Maps shared memory block identified by
-       * name argument into user virtual address space and
-       * constructs within that memory object of type T using
-       * default constructor.
-       */
-      shm_ptr( void *mem ) : ptr( new( mem ) T() )
-      {
-      }
-
-      /**
-       * Constructor. Takes ownership of a memory block.
-       */
-      shm_ptr( T *mem ) : ptr( mem ){}
-
-      T *ptr;
+      T *ptr; //< the pointer to the shared object
+      size_t size;
   };
 
   /**
@@ -224,10 +217,9 @@ namespace XrdSys
    * @throws     : an instance of shm_error in case of failure
    */
   template<typename T, typename... Args>
-  shm_ptr<T> make_shm( const std::string &name, Args... args )
+  inline shm_ptr<T> make_shm( const std::string &name, Args&&... args )
   {
-    void *mem = shm_ptr<T>::create_shm( name, sizeof( T ) );
-    return shm_ptr<T>( mem, std::forward( args... ) );
+    return shm_ptr<T>( name, sizeof( T ), std::forward( args... ) );
   }
 
   /**
@@ -240,10 +232,9 @@ namespace XrdSys
    * @throws     : an instance of shm_error in case of failure
    */
   template<typename T>
-  shm_ptr<T> make_shm( const std::string &name )
+  inline shm_ptr<T> make_shm( const std::string &name )
   {
-    void *mem = shm_ptr<T>::create_shm( name, sizeof( T ) );
-    return shm_ptr<T>( mem );
+    return shm_ptr<T>( name, sizeof( T ) );
   }
 
   /**
@@ -256,12 +247,9 @@ namespace XrdSys
    * @throws     : an instance of shm_error in case of failure
    */
   template<typename T>
-  shm_ptr<T> get_shm( const std::string &name )
+  inline shm_ptr<T> get_shm( const std::string &name )
   {
-    auto tpl = shm_ptr<T>::init_shm( name );
-    if( sizeof( T ) > std::get<1>( tpl ) )
-      throw shm_error( EINVAL );
-    return shm_ptr<T>( reinterpret_cast<T*>( std::get<0>( tpl ) ) );
+    return shm_ptr<T>( name );
   }
 
   /**
