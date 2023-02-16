@@ -50,14 +50,9 @@ if( CMAKE_COMPILER_IS_GNUCXX )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror" )
   endif()
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
-  # gcc 4.1 is retarded
+
   execute_process( COMMAND ${CMAKE_C_COMPILER} -dumpversion
                    OUTPUT_VARIABLE GCC_VERSION )
-  if( (GCC_VERSION VERSION_GREATER 4.1 OR GCC_VERSION VERSION_EQUAL 4.1)
-      AND GCC_VERSION VERSION_LESS 4.2 )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-strict-aliasing" )
-  endif()
-
   if( GCC_VERSION VERSION_GREATER 4.8.0 )
   	set( XrdClPipelines TRUE )
   endif()
