@@ -34,6 +34,8 @@
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
 
+#include <sys/types.h>
+
 class XrdSysError;
 class XrdTcpMonInfo;
 class XrdNetSecurity;

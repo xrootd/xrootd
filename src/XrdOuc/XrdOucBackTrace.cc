@@ -34,7 +34,7 @@
 #include <vector>
 #include <sys/syscall.h>
 
-#ifdef __GNUC__
+#ifndef MUSL /* glibc, uclibc, and macOS all have execinfo.h */
 #include <execinfo.h>
 #include <cxxabi.h>
 #endif
@@ -176,13 +176,11 @@ XrdInfo *CvtRsp(const char *name, int snum)
 /*                              D e m a n g l e                               */
 /******************************************************************************/
   
+#ifndef MUSL
 namespace
 {
 int Demangle(char *cSym, char *buff, int blen)
 {
-#ifndef __GNUC__
-   return -1;
-#else
    int   status;
    char *plus = index(cSym, '+');
    char *brak = (plus ? index(plus, '[') : 0);
@@ -201,7 +199,6 @@ int Demangle(char *cSym, char *buff, int blen)
    status = snprintf(buff, blen, "%s %s+%s\n", brak, realname, plus+1);
    free(realname);
    return status;
-#endif
 }
 }
 
@@ -221,6 +218,7 @@ int DumpDepth()
    return (depth <= maxDepth ? depth : maxDepth);
 }
 }
+#endif
 
 /******************************************************************************/
 /*                             D u m p S t a c k                              */
@@ -230,8 +228,8 @@ namespace
 {
 void DumpStack(char *bP, int bL, TidType tid)
 {
-#ifndef __GNUC__
-   snprintf(bP, bL, "TBT " TidFmt " No stack information available, not gnuc.", tid);
+#ifdef MUSL
+   snprintf(bP, bL, "TBT " TidFmt " No stack information available with musl libc.", tid);
    return;
 #else
    static int btDepth = DumpDepth(); // One time MT-safe call

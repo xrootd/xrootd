@@ -351,7 +351,7 @@ enum PrefType {prefWR=1};
 
         XrdSysRWLock(PrefType ptype)
                     {
-#ifdef __linux__
+#if defined(__linux__) && (defined(__GLIBC__) || defined(__UCLIBC__))
                      pthread_rwlockattr_t attr;
                      pthread_rwlockattr_setkind_np(&attr,
                              PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
@@ -367,7 +367,7 @@ enum PrefType {prefWR=1};
 inline void ReInitialize(PrefType ptype)
 {
   pthread_rwlock_destroy(&lock);
-#ifdef __linux__
+#if defined(__linux__) && (defined(__GLIBC__) || defined(__UCLIBC__))
   pthread_rwlockattr_t attr;
   pthread_rwlockattr_setkind_np(&attr,
                      PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);

@@ -46,6 +46,14 @@
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
 
+#ifdef MUSL
+int innetgr(const char *netgroup, const char *host, const char *user,
+             const char *domain)
+{
+   return 0;
+}
+#endif
+
 // Additionally, this routine does not support a user in more than
 // NGROUPS_MAX groups. This is a standard unix limit defined in limits.h.
   
