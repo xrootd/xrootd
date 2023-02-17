@@ -6,6 +6,21 @@ Release Notes
 =============
 
 -------------
+Version 5.5.3
+-------------
+
++ **Minor bug fixes**
+  **[Pfc]** Add missing if-error for a rare direct-read error trace
+  **[Server]** Avoid a race condition during deferred file close
+  **[XrdCms]** Fix compiler warning for potentially uninitialized variables
+  **[XrdCms]** Remove extraneous character from error output (issue 1501)
+  **[XrdHttp]** Support user-provided script for computing checksums
+  **[XrdPosix]** Add missing include
+
++ **Miscellaneous**
+  **[RPM]** Add g++ as build dependency
+
+-------------
 Version 5.5.2
 -------------
 

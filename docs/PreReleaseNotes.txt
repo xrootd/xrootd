@@ -16,7 +16,5 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
-  **[PFC]** Add a missing if-error for a rare direct-read error trace.
-  **Commit: 9d2973d1
 
 + **Miscellaneous**

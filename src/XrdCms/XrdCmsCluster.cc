@@ -2036,7 +2036,7 @@ int XrdCmsCluster::Unuseable(XrdCmsSelect &Sel)
 
    int n = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data),
                    "No servers are available to %s%s the %s.",
-                   Xmode, Amode, EType)+1;
+                   Xmode, Amode, EType);
     if (n < (int)sizeof(Sel.Resp.Data)) Sel.Resp.DLen = n+1;
        else Sel.Resp.DLen = sizeof(Sel.Resp.Data);
 
