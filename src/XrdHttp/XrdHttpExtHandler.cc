@@ -52,7 +52,7 @@ int XrdHttpExtReq::StartChunkedResp(int code, const char *desc, const char *head
 {
   if (!prot) return -1;
 
-  return prot->StartChunkedResp(code, desc, header_to_add, true);
+  return prot->StartChunkedResp(code, desc, header_to_add, -1, true);
 }
 
 int XrdHttpExtReq::ChunkResp(const char *body, long long bodylen)

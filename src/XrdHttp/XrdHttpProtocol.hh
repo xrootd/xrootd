@@ -271,15 +271,22 @@ private:
 
   /// Starts a chunked response; body of request is sent over multiple parts using the SendChunkResp
   //  API.
-  int StartChunkedResp(int code, const char *desc, const char *header_to_add, bool keepalive);
+  int StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive);
 
   /// Send a (potentially partial) body in a chunked response; invoking with NULL body
   //  indicates that this is the last chunk in the response.
   int ChunkResp(const char *body, long long bodylen);
-  
+
+  /// Send the beginning of a chunked response but not the body; useful when the size
+  //  of the chunk is known but the body is not immediately available.
+  int ChunkRespHeader(long long bodylen);
+
+  /// Send the footer of the chunk response
+  int ChunkRespFooter();
+
   /// Gets a string that represents the IP address of the client. Must be freed
   char *GetClientIPStr();
-  
+
   /// Tells that we are just logging in
   bool DoingLogin;
   

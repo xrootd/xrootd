@@ -1545,7 +1545,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
 /*                      S t a r t C h u n k e d R e s p                       */
 /******************************************************************************/
   
-int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add, bool keepalive) {
+int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive) {
   const std::string crlf = "\r\n";
 
   std::stringstream ss;
@@ -1555,7 +1555,7 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
   ss << "Transfer-Encoding: chunked";
 
   TRACEI(RSP, "Starting chunked response");
-  return StartSimpleResp(code, desc, ss.str().c_str(), -1, keepalive);
+  return StartSimpleResp(code, desc, ss.str().c_str(), bodylen, keepalive);
 }
 
 /******************************************************************************/
@@ -1563,23 +1563,36 @@ int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *he
 /******************************************************************************/
   
 int XrdHttpProtocol::ChunkResp(const char *body, long long bodylen) {
+  if (ChunkRespHeader((bodylen <= 0) ? (body ? strlen(body) : 0) : bodylen))
+    return -1;
+
+  if (body && SendData(body, bodylen))
+    return -1;
+
+  return ChunkRespFooter();
+}
+
+/******************************************************************************/
+/*                       C h u n k R e s p H e a d e r                        */
+/******************************************************************************/
+
+int XrdHttpProtocol::ChunkRespHeader(long long bodylen) {
   const std::string crlf = "\r\n";
-  long long chunk_length = bodylen;
-  if (bodylen <= 0) {
-    chunk_length = body ? strlen(body) : 0;
-  }
   std::stringstream ss;
 
-  ss << std::hex << chunk_length << std::dec << crlf;
+  ss << std::hex << bodylen << std::dec << crlf;
 
   const std::string &chunkhdr = ss.str();
-  TRACEI(RSP, "Sending encoded chunk of size " << chunk_length);
-  if (SendData(chunkhdr.c_str(), chunkhdr.size()))
-    return -1;
+  TRACEI(RSP, "Sending encoded chunk of size " << bodylen);
+  return (SendData(chunkhdr.c_str(), chunkhdr.size())) ? -1 : 0;
+}
 
-  if (body && SendData(body, chunk_length))
-    return -1;
+/******************************************************************************/
+/*                       C h u n k R e s p F o o t e r                        */
+/******************************************************************************/
 
+int XrdHttpProtocol::ChunkRespFooter() {
+  const std::string crlf = "\r\n";
   return (SendData(crlf.c_str(), crlf.size())) ? -1 : 0;
 }
 
