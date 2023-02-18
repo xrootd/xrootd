@@ -2378,8 +2378,10 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           default: //read or readv
           {
 
-            // Nothing to do if we are postprocessing a close
-            if (ntohs(xrdreq.header.requestid) == kXR_close) {
+            // If we are postprocessing a close, potentially send out informational trailers
+            if ((ntohs(xrdreq.header.requestid) == kXR_close) ||
+              ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
+            {
 
               if (m_transfer_encoding_chunked && m_trailer_headers) {
                 if (prot->ChunkRespHeader(0))
@@ -2400,10 +2402,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               return keepalive ? 1 : -1;
             }
 
-            // Close() if this was the third state of a readv, otherwise read the next chunk
-            if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return keepalive ? 1: -1;
-
-            // If we are here it's too late to send a proper error message...
+            // On error, we can only send out a message if trailers are enabled and the
+            // status response in trailer behavior is requested.
             if (xrdresp == kXR_error) {
               if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
                 // A trailer header is appropriate in this case; this is signified by
