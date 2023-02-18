@@ -737,7 +737,7 @@ int XrdOfsFile::open(const char          *path,      // In
           }
        if (XrdOfsFS->Balancer && retc == -ENOENT)
           XrdOfsFS->Balancer->Removed(path);
-       return XrdOfsFS->Emsg(epname, error, retc, "open", path);
+       return XrdOfsFS->Emsg(epname, error, retc, "open", path, oP.fP);
       }
 
 // Verify that we can actually use this file
@@ -2552,6 +2552,44 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 // Place the error message in the error object and return
 //
     einfo.setErrInfo(ecode, buffer);
+    return SFS_ERROR;
+}
+
+/******************************************************************************/
+
+int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
+                 XrdOucErrInfo &einfo,  // Place to put text & error code
+                 int            ecode,  // The error code
+                 const char    *op,     // Operation being performed
+                 const char    *target, // The target (e.g., fname)
+                 const XrdOssDF *fP)    // The file object generating this error
+{
+   char buffer[MAXPATHLEN+80];
+
+// If the error is EBUSY then we just need to stall the client. This is
+// a hack in order to provide for proxy support
+//
+    if (ecode < 0) ecode = -ecode;
+    if (ecode == EBUSY) return 5;  // A hack for proxy support
+
+// Check for timeout conditions that require a client delay
+//
+   if (ecode == ETIMEDOUT) return OSSDelay;
+
+// Format the error message
+//
+   XrdOucERoute::Format(buffer, sizeof(buffer), ecode, op, target);
+
+// Print it out if debugging is enabled
+//
+#ifndef NODEBUG
+    OfsEroute.Emsg(pfx, einfo.getErrUser(), buffer);
+#endif
+
+// Place the error message in the error object and return
+//
+    const XrdOucErrInfo *chainedErr = (OssHasErr && fP) ? fP->getError() : nullptr;
+    einfo.setErrInfo(ecode, buffer, chainedErr);
     return SFS_ERROR;
 }
 

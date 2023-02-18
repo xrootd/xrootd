@@ -138,14 +138,23 @@ inline int   setErrCode(int code) {return ErrInfo.code = code;}
 //-----------------------------------------------------------------------------
 //! Set error code and error text.
 //!
-//! @param  code    - The error number describing the error.
-//! @param  emsg    - The error message text.
+//! @param  code           - The error number describing the error.
+//! @param  emsg           - The error message text.
+//! @param  chainedErrInfo - Optionally, an error object triggering the current error
 //!
 //! @return code    - The error number.
 //-----------------------------------------------------------------------------
 
-inline int   setErrInfo(int code, const char *emsg)
-                {strlcpy(ErrInfo.message, emsg, sizeof(ErrInfo.message));
+inline int   setErrInfo(int code, const char *emsg, const XrdOucErrInfo *chainedErrInfo=nullptr)
+                {if (chainedErrInfo && chainedErrInfo->getErrText())
+                    {const char *txtlist[4];
+                     txtlist[0] = emsg;
+                     txtlist[1] = " (";
+                     txtlist[2] = chainedErrInfo->getErrText();
+                     txtlist[3] = ")";
+                     return setErrInfo(code, txtlist, 4);
+                    }
+                 strlcpy(ErrInfo.message, emsg, sizeof(ErrInfo.message));
                  if (dataBuff) {dataBuff->Recycle(); dataBuff = 0;}
                  return ErrInfo.code = code;
                 }
@@ -259,7 +268,7 @@ inline int          getErrInfo(XrdOucEI &errParm)
 //! @return The pointer to the internal error text.
 //-----------------------------------------------------------------------------
 
-inline const char  *getErrText()
+inline const char  *getErrText() const
                        {if (dataBuff) return dataBuff->Data();
                         return (const char *)ErrInfo.message;
                        }

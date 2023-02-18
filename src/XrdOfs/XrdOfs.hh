@@ -433,6 +433,8 @@ static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    XrdOfsHandle *hP);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    const char *y="");
+        int   Emsg(const char *, XrdOucErrInfo  &, int, const char *opName,
+                   const char *path, const XrdOssDF *fP);
 static  int   fsError(XrdOucErrInfo &myError, int rc);
 const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
         int   Stall(XrdOucErrInfo  &, int, const char *);
@@ -480,6 +482,7 @@ XrdSysMutex              ocMutex; // Global mutex for open/close
 bool              DirRdr;         // Opendir() can be redirected.
 bool              reProxy;        // Reproxying required for TPC
 bool              OssHasPGrw;     // True: oss implements full rgRead/Write
+bool              OssHasErr;      // True if the OSS can produce error messages
 
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */

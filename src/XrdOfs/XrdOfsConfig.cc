@@ -357,6 +357,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    OssHasPGrw = (ossFeatures & XRDOSS_HASPGRW) != 0;
 
+// Indicate whether the oss implementation has getError for additional error
+// message information.
+   OssHasErr = (ossFeatures & XRDOSS_HASAERR);
+
 // If POSC processing is enabled (as by default) do it. Warning! This must be
 // the last item in the configuration list as we need a working filesystem.
 // Note that in proxy mode we always disable posc!
