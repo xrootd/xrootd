@@ -63,6 +63,12 @@ int initErrTable()
            lastGood = i;
           }
       }
+   // NOTE: On systems without EAUTH (authentication error; currently all Glibc systems but GNU Hurd),
+   // EAUTH is remapped to EBADE ('invalid exchange').  Given there's no current XRootD use of a
+   // syscall that can return EBADE, we assume EBADE really means authentication denied.
+#if defined(EBADE)
+   Errno2String[EBADE] = "authentication failed - possible invalid exchange";
+#endif
 
 // Supply generic message for missing ones
 //
