@@ -2286,36 +2286,51 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
               getfhandle();
               
-              // Now parse the stat info if we still don't have it
-              if (filesize == 0) {
-                if (iovP[1].iov_len > 1) {
-                  TRACEI(REQ, "Stat for GET " << resource.c_str() 
-                           << " stat=" << (char *) iovP[1].iov_base);
-              
-                  long dummyl;
-                  sscanf((const char *) iovP[1].iov_base, "%ld %lld %ld %ld",
-                        &dummyl,
-                        &filesize,
-                        &fileflags,
-                        &filemodtime);
+              // Always try to parse response.  In the case of a caching proxy, the open
+              // will have created the file in cache
+              filectime = 0;
+              if (iovP[1].iov_len > 1) {
+                TRACEI(REQ, "Stat for GET " << resource.c_str()
+                         << " stat=" << (char *) iovP[1].iov_base);
 
-                  // As above: if the client specified a response size, we use that.
-                  // Otherwise, utilize the filesize
-                  if (!length) {
-                    length = filesize;
-                  }
+                long dummyl;
+                sscanf((const char *) iovP[1].iov_base, "%ld %lld %ld %ld %ld",
+                      &dummyl,
+                      &filesize,
+                      &fileflags,
+                      &filemodtime,
+                      &filectime);
+
+                // As above: if the client specified a response size, we use that.
+                // Otherwise, utilize the filesize
+                if (!length) {
+                  length = filesize;
                 }
-                else
-                  TRACEI(ALL, "GET returned no STAT information. Internal error?");
               }
-              
+              else {
+                TRACEI(ALL, "GET returned no STAT information. Internal error?");
+              }
+
+              std::string responseHeader;
+              if (!m_digest_header.empty()) {
+                responseHeader = m_digest_header;
+              }
+              long one;
+              if (filemodtime && XrdOucEnv::Import("XRDPFC", one)) {
+                  if (!responseHeader.empty()) {
+                    responseHeader += "\r\n";
+                  }
+                  long object_age = time(NULL) - filectime;
+                  responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
+              }
+
               if (rwOps.size() == 0) {
                 // Full file.
 
                 if (m_transfer_encoding_chunked && m_trailer_headers) {
-                  prot->StartChunkedResp(200, NULL, m_digest_header.empty() ? NULL : m_digest_header.c_str(), filesize, keepalive);
+                  prot->StartChunkedResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), filesize, keepalive);
                 } else {
-                  prot->SendSimpleResp(200, NULL, m_digest_header.empty() ? NULL : m_digest_header.c_str(), NULL, filesize, keepalive);
+                  prot->SendSimpleResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), NULL, filesize, keepalive);
                 }
                 return 0;
               } else
@@ -2329,9 +2344,9 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 XrdOucString s = "Content-Range: bytes ";
                 sprintf(buf, "%lld-%lld/%lld", rwOps[0].bytestart, rwOps[0].byteend, filesize);
                 s += buf;
-                if (!m_digest_header.empty()) {
+                if (!responseHeader.empty()) {
                   s += "\r\n";
-                  s += m_digest_header.c_str();
+                  s += responseHeader.c_str();
                 }
 
                 prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
