@@ -1016,6 +1016,9 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
   // Do error mapping
   if (xrdresp == kXR_error) {
     switch (xrderrcode) {
+      case kXR_AuthFailed:
+        httpStatusCode = 401; httpStatusText = "Unauthorized";
+        break;
       case kXR_NotAuthorized:
         httpStatusCode = 403; httpStatusText = "Operation not permitted";
         break;
