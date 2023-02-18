@@ -274,6 +274,7 @@ public:
   long long filesize;
   long fileflags;
   long filemodtime;
+  long filectime;
   char fhandle[4];
   bool fopened;
 

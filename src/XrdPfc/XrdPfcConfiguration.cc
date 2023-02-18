@@ -274,6 +274,9 @@ bool Cache::Config(const char *config_filename, const char *parameters)
    const char *theINS = getenv("XRDINSTANCE");
    m_isClient = (theINS != 0 && strncmp("*client ", theINS, 8) == 0);
 
+   // Tell everyone else we are a caching proxy
+   XrdOucEnv::Export("XRDPFC", 1);
+
    XrdOucEnv myEnv;
    XrdOucStream Config(&m_log, theINS, &myEnv, "=====> ");
 

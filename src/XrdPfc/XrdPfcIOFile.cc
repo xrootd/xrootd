@@ -83,7 +83,7 @@ int IOFile::initCachedStat(const char* path)
    int res = -1;
    struct stat tmpStat;
 
-   if (m_cache.GetOss()->Stat(path, &tmpStat) == XrdOssOK)
+   if (m_cache.GetOss()->Stat(GetFilename().c_str(), &tmpStat) == XrdOssOK)
    {
       XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
       XrdOucEnv myEnv;
@@ -115,6 +115,11 @@ int IOFile::initCachedStat(const char* path)
    {
       res = GetInput()->Fstat(tmpStat);
       TRACEIO(Debug, trace_pfx << "got stat from client res = " << res << ", size = " << tmpStat.st_size);
+      // The mtime / atime / ctime for cached responses come from the file on disk in the cache hit case.
+      // To avoid weirdness when two subsequent stat queries can give wildly divergent times (one from the
+      // origin, one from the cache), set the times to "now" so we effectively only report the *time as the
+      // cache service sees it.
+      tmpStat.st_ctime = tmpStat.st_mtime = tmpStat.st_atime = time(NULL);
    }
 
    if (res == 0)
