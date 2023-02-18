@@ -1171,8 +1171,10 @@ void File::ProcessDirectReadFinished(ReadRequest *rreq, int bytes_read, int erro
 
    if (error_cond)
       rreq->update_error_cond(error_cond);
-   else
+   else {
       rreq->m_stats.m_BytesBypassed += bytes_read;
+      rreq->m_bytes_read += bytes_read;
+   }
 
    rreq->m_direct_done = true;
 
