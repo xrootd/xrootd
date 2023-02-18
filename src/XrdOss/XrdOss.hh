@@ -39,10 +39,12 @@
 #include <sys/types.h>
 #include <cstring>
 
+#include "XrdVersion.hh"
 #include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
 class XrdOucEnv;
+class XrdOucErrInfo;
 class XrdSysLogger;
 class XrdSfsAio;
 
@@ -447,6 +449,21 @@ const char     *getTID() {return tident;}
 
 virtual        ~XrdOssDF() {}
 
+//-----------------------------------------------------------------------------
+//! Return advanced error information about the last error encountered by
+//! this object.  Only invoked if the XrdOSS indicates it has feature XRDOSS_AERR
+//! The advanced error feature provides the ability for more error information
+//! than is possible from the typical error code (e.g., unstructured error
+//! messages).
+//!
+//! @return Error object associated with the last error.  Caller does not own
+//! the returned memory.  Lifetime of the returned object is only guaranteed
+//! until the next method call.  May return nullptr even if an error occurred.
+//-----------------------------------------------------------------------------
+
+#if XrdMajorVNUM(XrdVNUMBER) > 5 || defined(__GNUC__)
+virtual const XrdOucErrInfo *getError() const;
+#endif
 
 protected:
 
@@ -479,6 +496,7 @@ short       rsvd;    // Reserved
 #define XRDOSS_HASCACH 0x0000000000000010ULL
 #define XRDOSS_HASNAIO 0x0000000000000020ULL
 #define XRDOSS_HASRPXY 0x0000000000000040ULL
+#define XRDOSS_HASAERR 0x0000000000000080ULL
 
 // Options that can be passed to Stat()
 //
@@ -895,6 +913,23 @@ const char       *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
 
                 XrdOss() {}
 virtual        ~XrdOss() {}
+
+//-----------------------------------------------------------------------------
+//! Return advanced error information about the last error encountered by
+//! this object.  Only invoked if the XrdOSS indicates it has feature XRDOSS_AERR
+//! The advanced error feature provides the ability for more error information
+//! than is possible from the typical error code (e.g., unstructured error
+//! messages).
+//!
+//! @return Error object associated with the last error.  Caller does not own
+//! the returned memory.  Lifetime of the returned object is only guaranteed
+//! until the next method call.  May return nullptr even if an error occurred.
+//-----------------------------------------------------------------------------
+
+#if XrdMajorVNUM(XrdVNUMBER) > 5 || defined(__GNUC__)
+virtual const XrdOucErrInfo *getError() const;
+#endif
+
 };
 
 /******************************************************************************/
