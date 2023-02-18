@@ -157,7 +157,7 @@ XrdOss *XrdOssGetStorageSystem2(XrdOss       *native_oss,
   
 XrdPssSys::XrdPssSys() : LocalRoot(0), theN2N(0), DirFlags(0),
                          myVersion(&XrdVERSIONINFOVAR(XrdOssGetStorageSystem2)),
-                         myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|XRDOSS_HASNOSF)
+                         myFeatures(XRDOSS_HASPRXY|XRDOSS_HASPGRW|XRDOSS_HASNOSF|XRDOSS_HASAERR)
                          {}
 
 /******************************************************************************/
@@ -816,7 +816,13 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 // Try to open and if we failed, return an error
 //
    if (!XrdPssSys::dcaCheck || !ioCache)
-      {if ((fd = XrdPosixXrootd::Open(pbuff,Oflag,Mode)) < 0) return -errno;
+      {if ((fd = XrdPosixXrootd::Open(pbuff,Oflag,Mode)) < 0)
+          {const char *txtlist[2];
+           txtlist[0] = "Failed to open file in cache: ";
+           txtlist[1] = XrdSysError::ec2text(errno);
+           errInfo.setErrInfo(errno, txtlist, 2);
+           return -errno;
+          }
       } else {
        XrdPosixInfo Info;
        Info.ffReady = XrdPssSys::dcaWorld;

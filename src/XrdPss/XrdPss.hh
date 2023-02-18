@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <vector>
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPList.hh"
@@ -85,6 +86,7 @@ int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
+const XrdOucErrInfo *getError() const override {return &errInfo;}
 ssize_t pgRead (void* buffer, off_t offset, size_t rdlen,
                 uint32_t* csvec, uint64_t opts);
 int     pgRead (XrdSfsAio* aioparm, uint64_t opts);
@@ -125,6 +127,8 @@ struct tprInfo
 
       char         *tpcPath;
 const XrdSecEntity *entity;
+
+XrdOucErrInfo errInfo; // Error info object for advanced error reporting.
 };
 
 /******************************************************************************/
@@ -159,6 +163,7 @@ virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 void      EnvInfo(XrdOucEnv *envP);
 uint64_t  Features() {return myFeatures;}
+const XrdOucErrInfo *getError() const override {return &errInfo;}
 int       Init(XrdSysLogger *, const char *) override {return -ENOTSUP;}
 int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP) override;
 int       Lfn2Pfn(const char *Path, char *buff, int blen);
@@ -216,6 +221,7 @@ unsigned long long DirFlags; // Defaults for exports
 XrdVersionInfo    *myVersion;// -> Compilation version
 XrdSecsssID       *idMapper; // -> Auth ID mapper
 uint64_t          myFeatures;// Our feature set
+XrdOucErrInfo     errInfo;   // Err info object for improved error message reporting
 
 int    Configure(const char *, XrdOucEnv *);
 int    ConfigProc(const char *ConfigFN);
