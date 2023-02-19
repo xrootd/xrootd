@@ -1976,7 +1976,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           if (m_req_digest.size()) {
             return 0;
           } else {
-            prot->SendSimpleResp(200, NULL, NULL, NULL, filesize, keepalive);
+            prot->SendSimpleResp(200, NULL, "Accept-Ranges: bytes", NULL, filesize, keepalive);
             return keepalive ? 1 : -1;
           }
         }
@@ -1986,12 +1986,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         return keepalive ? 1 : -1;
       } else { // We requested a checksum and now have its response.
         if (iovN > 0) {
-          std::string digest_response;
-          int response = PostProcessChecksum(digest_response);
+          std::string response_headers;
+          int response = PostProcessChecksum(response_headers);
           if (-1 == response) {
                 return -1;
           }
-          prot->SendSimpleResp(200, NULL, digest_response.c_str(), NULL, filesize, keepalive);
+          if (!response_headers.empty()) {response_headers += "\r\n";}
+          response_headers += "Accept-Ranges: bytes";
+          prot->SendSimpleResp(200, NULL, response_headers.c_str(), NULL, filesize, keepalive);
           return keepalive ? 1 : -1;
         } else {
           prot->SendSimpleResp(500, NULL, NULL, "Underlying filesystem failed to calculate checksum.", 0, false);
