@@ -2305,6 +2305,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               } else
                 if (rwOps.size() == 1) {
                 // Only one read to perform
+                if (rwOps[0].byteend < 0) // The requested range was along the lines of "Range: 1234-", meaning we need to fill in the end
+                  rwOps[0].byteend = filesize - 1;
                 int cnt = (rwOps[0].byteend - rwOps[0].bytestart + 1);
                 char buf[64];
                 
@@ -2312,7 +2314,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 sprintf(buf, "%lld-%lld/%lld", rwOps[0].bytestart, rwOps[0].byteend, filesize);
                 s += buf;
                 if (!m_digest_header.empty()) {
-                  s += "\n";
+                  s += "\r\n";
                   s += m_digest_header.c_str();
                 }
 
