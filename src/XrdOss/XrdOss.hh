@@ -52,6 +52,8 @@ class XrdSfsAio;
 #define XrdOssOK 0
 #endif
 
+#define XRDOSS_ERR (XrdMajorVNUM(XrdVNUMBER) > 5)
+
 /******************************************************************************/
 /*                        C l a s s   X r d O s s D F                         */
 /******************************************************************************/
@@ -461,8 +463,10 @@ virtual        ~XrdOssDF() {}
 //! until the next method call.  May return nullptr even if an error occurred.
 //-----------------------------------------------------------------------------
 
-#if XrdMajorVNUM(XrdVNUMBER) > 5 || defined(__GNUC__)
+#if XRDOSS_ERR
 virtual const XrdOucErrInfo *getError() const;
+#else
+const XrdOucErrInfo *getError() const;
 #endif
 
 protected:
@@ -926,8 +930,10 @@ virtual        ~XrdOss() {}
 //! until the next method call.  May return nullptr even if an error occurred.
 //-----------------------------------------------------------------------------
 
-#if XrdMajorVNUM(XrdVNUMBER) > 5 || defined(__GNUC__)
+#if XRDOSS_ERR
 virtual const XrdOucErrInfo *getError() const;
+#else
+const XrdOucErrInfo *getError() const;
 #endif
 
 };
