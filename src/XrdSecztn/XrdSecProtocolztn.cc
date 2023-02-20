@@ -107,6 +107,7 @@ inline uint64_t monotonic_time() {
 /******************************************************************************/
   
 int expiry = 1;
+bool tokenlib = true;
 }
 
 /******************************************************************************/
@@ -631,8 +632,9 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
 //
    std::string msgRC;
    long long   eTime;
+   bool validated = false;
    if (Entity.name) {free(Entity.name); Entity.name = 0;}
-   if (sthP->Validate(tResp->tkn, msgRC, (expiry ? &eTime : 0), &Entity))
+   if (tokenlib && sthP->Validate(tResp->tkn, msgRC, (expiry ? &eTime : 0), &Entity))
       {if (expiry)
           {if (eTime < 0 && expiry > 0)
               {Fatal(erp, "'ztn' token expiry missing", EINVAL, false);
@@ -642,7 +644,11 @@ int XrdSecProtocolztn::Authenticate(XrdSecCredentials *cred,
               {Fatal(erp, "'ztn' token expired", EINVAL, false);
                return -1;
               }
+	  }
+       validated = true;
       }
+   if (!tokenlib || validated)
+      {
        Entity.credslen = strlen(tResp->tkn);
        if (Entity.creds) free(Entity.creds);
        Entity.creds = (char *)malloc(Entity.credslen+1);
@@ -744,7 +750,12 @@ char  *XrdSecProtocolztnInit(const char     mode,
                      {Fatal(erp, "-acclib plugin path missing", EINVAL);
                       return 0;
                      }
-                  accPlugin = val;
+                  if (strcmp(val,"none"))
+                     {accPlugin = val;
+                     }
+                     else
+                     {tokenlib = false;
+                     }
                  }
 
          else {XrdOucString eTxt("Invalid parameter - "); eTxt += val;
@@ -753,11 +764,12 @@ char  *XrdSecProtocolztnInit(const char     mode,
               }
         }
 
-// We rely on the token authorization plugin to validate tokens. Load it to
+// We rely on the token authorization plugin to validate tokens unless
+// it is disabled using '-tokenlib none'. If active load it to
 // get the validation object pointer. This will be filled in later but we
 // want to know that it's actually present.
 //
-   if (!getLinkage(erp, accPlugin.c_str())) return 0;
+   if (tokenlib && !getLinkage(erp, accPlugin.c_str())) return 0;
 
 // Assemble the parameter line and return it
 //
@@ -799,16 +811,20 @@ XrdSecProtocol *XrdSecProtocolztnObject(const char              mode,
        return 0;
       }
 
+   XrdSciTokensHelper *sthP= nullptr;
+   if (tokenlib)
+      {
 // In server mode we need to make sure the token plugin was actually
 // loaded and initialized as we need a pointer to the helper.
 //
-   XrdSciTokensHelper *sthP= *sth_Linkage;
-   if (!sthP)
-      {char msg[1024];
-       snprintf(msg,sizeof(msg),"ztn required plugin (%s) has not been loaded!",
-                sth_piName);
-       Fatal(erp, msg, EIDRM,false);
-       return 0;
+       sthP= *sth_Linkage;
+       if (!sthP)
+          {char msg[1024];
+           snprintf(msg,sizeof(msg),"ztn required plugin (%s) has not been loaded!",
+                    sth_piName);
+           Fatal(erp, msg, EIDRM,false);
+           return 0;
+          }
       }
 
 // Get an authentication object and return it
