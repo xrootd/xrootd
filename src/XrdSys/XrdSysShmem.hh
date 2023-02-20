@@ -69,6 +69,100 @@ namespace XrdSys
 
     public:
 
+      /// Move constructor
+      shm_ptr( shm_ptr &&mv ) : ptr( mv.ptr ), size( mv.size )
+      {
+        mv.ptr = nullptr;
+        mv.size = 0;
+      }
+
+      /// Move assignment operator
+      shm_ptr& operator=( shm_ptr &&mv )
+      {
+        ptr  = mv.ptr;
+        size = mv.size;
+        mv.ptr  = nullptr;
+        mv.size = 0;
+        return *this;
+      }
+
+      /// Destructor
+      ~shm_ptr()
+      {
+        if( ptr )
+          munmap( ptr, size );
+      }
+
+      /// Member access operator
+      T* operator->() { return ptr; }
+
+      /// Member access operator (const)
+      const T* operator->() const { return ptr; }
+
+      /// Dereferencing operator
+      T& operator*() { return *ptr; }
+
+      /// Dereferencing operator (const)
+      const T& operator*() const { return *ptr; }
+
+      /// @return : the raw pointer to the shared memory block
+      inline void* get_raw()
+      {
+        return ptr;
+      }
+
+      /// @return : the size of the shared memory block
+      inline size_t get_size()
+      {
+        return size;
+      }
+
+    private:
+
+      /**
+       * Helper function for mapping the shared memory block
+       * into user virtual address space
+       *
+       * @param fd   : handle to the shared memory segment
+       * @param size : size of the shared memory segment
+       * @return     : pointer to the shared memory
+       */
+      inline static void* map_shm( int fd, size_t size )
+      {
+        void *mem = mmap( nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0 );
+        if( mem == MAP_FAILED )
+        {
+          mem = nullptr;
+          throw shm_error( errno );
+        }
+        return mem;
+      }
+
+      /**
+       * Helper function for creating shared memory block
+       *
+       * @param name : name of the shared memory block (shared
+       *               memory object should be identified by a
+       *               name of the form /somename)
+       * @param size : size of the shared memory segment
+       * @return     : pointer to the shared memory
+       */
+      inline static std::tuple<void*, size_t> create_shm( const std::string &name, size_t size )
+      {
+        int fd = shm_open( name.c_str(), O_CREAT | O_RDWR, 0600 );
+        if( fd < 0 )
+          throw shm_error( errno );
+        if( ftruncate( fd, size ) < 0 )
+          throw shm_error( errno );
+        struct stat statbuf;
+        if( fstat( fd, &statbuf ) < 0 )
+          throw shm_error( errno );
+        size = statbuf.st_size;
+        void *mem = map_shm( fd, size );
+        close( fd );
+        return std::make_tuple( mem, size );
+      }
+
       /**
        * Constructor. Creates shared memory block (of size at least
        * size) identified by name argument and maps it into user
@@ -117,88 +211,6 @@ namespace XrdSys
         void *mem = map_shm( fd, size );
         close( fd );
         ptr = reinterpret_cast<T*>( mem );
-      }
-
-      /// Move constructor
-      shm_ptr( shm_ptr &&mv ) : ptr( mv.ptr ), size( mv.size )
-      {
-        mv.ptr = nullptr;
-        mv.size = 0;
-      }
-
-      /// Move assignment operator
-      shm_ptr& operator=( shm_ptr &&mv )
-      {
-        ptr  = mv.ptr;
-        size = mv.size;
-        mv.ptr  = nullptr;
-        mv.size = 0;
-        return *this;
-      }
-
-      /// Destructor
-      ~shm_ptr()
-      {
-        if( ptr )
-          munmap( ptr, size );
-      }
-
-      /// Member access operator
-      T* operator->() { return ptr; }
-
-      /// Member access operator (const)
-      const T* operator->() const { return ptr; }
-
-      /// Dereferencing operator
-      T& operator*() { return *ptr; }
-
-      /// Dereferencing operator (const)
-      const T& operator*() const { return *ptr; }
-
-    private:
-
-      /**
-       * Helper function for mapping the shared memory block
-       * into user virtual address space
-       *
-       * @param fd   : handle to the shared memory segment
-       * @param size : size of the shared memory segment
-       * @return     : pointer to the shared memory
-       */
-      inline static void* map_shm( int fd, size_t size )
-      {
-        void *mem = mmap( nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0 );
-        if( mem == MAP_FAILED )
-        {
-          mem = nullptr;
-          throw shm_error( errno );
-        }
-        return mem;
-      }
-
-      /**
-       * Helper function for creating shared memory block
-       *
-       * @param name : name of the shared memory block (shared
-       *               memory object should be identified by a
-       *               name of the form /somename)
-       * @param size : size of the shared memory segment
-       * @return     : pointer to the shared memory
-       */
-      inline static std::tuple<void*, size_t> create_shm( const std::string &name, size_t size )
-      {
-        int fd = shm_open( name.c_str(), O_CREAT | O_RDWR, 0600 );
-        if( fd < 0 )
-          throw shm_error( errno );
-        if( ftruncate( fd, size ) < 0 )
-          throw shm_error( errno );
-        struct stat statbuf;
-        if( fstat( fd, &statbuf ) < 0 )
-          throw shm_error( errno );
-        size = statbuf.st_size;
-        void *mem = map_shm( fd, size );
-        close( fd );
-        return std::make_tuple( mem, size );
       }
 
       T *ptr; //< the pointer to the shared object
