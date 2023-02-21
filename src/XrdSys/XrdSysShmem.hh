@@ -66,11 +66,14 @@ namespace XrdSys
     friend shm_ptr<Obj> make_shm( const std::string& );
     template<typename Obj>
     friend shm_ptr<Obj> get_shm( const std::string& );
+    template<typename Obj>
+    friend void destroy_shm( shm_ptr<Obj> );
 
     public:
 
       /// Move constructor
-      shm_ptr( shm_ptr &&mv ) : ptr( mv.ptr ), size( mv.size )
+      shm_ptr( shm_ptr &&mv ) :
+        name( std::move( mv.name ) ), ptr( mv.ptr ), size( mv.size )
       {
         mv.ptr = nullptr;
         mv.size = 0;
@@ -81,6 +84,7 @@ namespace XrdSys
       {
         ptr  = mv.ptr;
         size = mv.size;
+        name = std::move( mv.name );
         mv.ptr  = nullptr;
         mv.size = 0;
         return *this;
@@ -106,15 +110,24 @@ namespace XrdSys
       const T& operator*() const { return *ptr; }
 
       /// @return : the raw pointer to the shared memory block
-      inline void* get_raw()
+      inline T* get()
       {
         return ptr;
       }
 
-      /// @return : the size of the shared memory block
+      /// @return : the actual size of the shared memory block
       inline size_t get_size()
       {
         return size;
+      }
+
+      /// release the ownership of the shared memory block
+      inline T* release()
+      {
+        T* ret = ptr;
+        ptr = nullptr;
+        size = 0;
+        return ret;
       }
 
     private:
@@ -164,13 +177,18 @@ namespace XrdSys
       }
 
       /**
+       * Consumes a shm_ptr
+       */
+      inline static void consume( shm_ptr<T> ptr ) { }
+
+      /**
        * Constructor. Creates shared memory block (of size at least
        * size) identified by name argument and maps it into user
        * virtual address space and constructs within that memory
        * object of type T using arguments args.
        */
       template<typename... Args>
-      shm_ptr( const std::string &name, size_t size, Args&&... args )
+      shm_ptr( const std::string &name, size_t size, Args&&... args ) : name( name )
       {
         void *mem = nullptr;
         std::tie( mem, size ) = create_shm( name, size );
@@ -183,7 +201,7 @@ namespace XrdSys
        * virtual address space and constructs within that memory
        * object of type T using default constructor.
        */
-      shm_ptr( const std::string &name, size_t size )
+      shm_ptr( const std::string &name, size_t size ) : name( name )
       {
         void *mem = nullptr;
         std::tie( mem, size ) = create_shm( name, size );
@@ -197,7 +215,7 @@ namespace XrdSys
        *               memory object should be identified by a
        *               name of the form /somename)
        */
-      shm_ptr( const std::string &name )
+      shm_ptr( const std::string &name ) : name( name )
       {
         int fd = shm_open( name.c_str(), O_RDWR, 0600 );
         if( fd < 0 )
@@ -213,8 +231,9 @@ namespace XrdSys
         ptr = reinterpret_cast<T*>( mem );
       }
 
-      T *ptr; //< the pointer to the shared object
-      size_t size;
+      std::string name; //< name of the shared memory block
+      T *ptr;           //< the pointer to the shared object
+      size_t size;      //< actual size of the shared memory block
   };
 
   /**
@@ -270,6 +289,23 @@ namespace XrdSys
    */
   inline void rm_shm( const std::string &name )
   {
+    int rc = shm_unlink( name.c_str() );
+    if( rc < 0 )
+      throw shm_error( errno );
+  }
+
+  /**
+   * Helper function for calling the object destructor and
+   * then destroying the shared memory block.
+   * @throws : an instance of shm_error in case of failure
+   */
+  template<typename T>
+  inline void destroy_shm( shm_ptr<T> ptr )
+  {
+    std::string name = ptr.name;
+    T* obj = ptr.get();
+    obj->~T();
+    shm_ptr<T>::consume( std::move( ptr ) );
     int rc = shm_unlink( name.c_str() );
     if( rc < 0 )
       throw shm_error( errno );
