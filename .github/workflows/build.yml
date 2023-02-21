@@ -2,14 +2,7 @@ name: build
 
 on:
   push:
-    branches:
-    - master
-    - stable-*
-    tags:
-    - v*
   pull_request:
-    branches:
-    - master
   schedule:
     - cron:  '23 1 * * 0'
   release:
