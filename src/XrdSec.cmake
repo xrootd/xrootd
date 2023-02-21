@@ -56,18 +56,11 @@ add_library(
   MODULE
   ${XrdSecProtectSources} )
 
-if( BUILD_CRYPTO )
-  target_link_libraries(
-    ${LIB_XRD_SEC_PROT}
-    XrdUtils
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${OPENSSL_CRYPTO_LIBRARY} )
-else()
-  target_link_libraries(
-    ${LIB_XRD_SEC_PROT}
-    XrdUtils
-    ${CMAKE_THREAD_LIBS_INIT} )
-endif()
+target_link_libraries(
+  ${LIB_XRD_SEC_PROT}
+  XrdUtils
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${OPENSSL_CRYPTO_LIBRARY} )
 
 set_target_properties(
   ${LIB_XRD_SEC_PROT}

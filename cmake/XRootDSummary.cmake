@@ -4,7 +4,6 @@
 set( TRUE_VAR TRUE )
 component_status( READLINE  ENABLE_READLINE   READLINE_FOUND )
 component_status( FUSE      BUILD_FUSE        FUSE_FOUND )
-component_status( CRYPTO    BUILD_CRYPTO      OPENSSL_FOUND )
 component_status( KRB5      BUILD_KRB5        KERBEROS5_FOUND )
 component_status( XRDCL     ENABLE_XRDCL      TRUE_VAR )
 component_status( XRDCLHTTP ENABLE_XRDCLHTTP  DAVIX_FOUND )

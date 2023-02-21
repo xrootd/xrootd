@@ -24,10 +24,7 @@ include( XrdPosix )
 include( XrdSec )
 include( XrdXml )
 include( XrdHeaders )
-
-if( BUILD_CRYPTO )
-  include( XrdSecgsi )
-endif()
+include( XrdSecgsi )
 
 if( BUILD_KRB5 )
   include( XrdSeckrb5 )
