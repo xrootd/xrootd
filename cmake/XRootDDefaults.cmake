@@ -13,7 +13,6 @@ include( CMakeDependentOption )
 
 define_default( PLUGIN_VERSION    5 )
 option( ENABLE_FUSE      "Enable the fuse filesystem driver if possible."                 TRUE )
-option( ENABLE_CRYPTO    "Enable the OpenSSL cryprography support."                       TRUE )
 option( ENABLE_KRB5      "Enable the Kerberos 5 authentication if possible."              TRUE )
 option( ENABLE_READLINE  "Enable the lib readline support in the commandline utilities."  TRUE )
 option( ENABLE_XRDCL     "Enable XRootD client."                                          TRUE )

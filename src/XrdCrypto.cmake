@@ -63,16 +63,10 @@ add_library(
   SHARED
   ${XrdCryptoLiteSources} )
 
-if( BUILD_CRYPTO )
-  target_link_libraries(
-    XrdCryptoLite
-    XrdUtils
-    ${OPENSSL_CRYPTO_LIBRARY} )
-else()
-  target_link_libraries(
-    XrdCryptoLite
-    XrdUtils )
-endif()
+target_link_libraries(
+  XrdCryptoLite
+  XrdUtils
+  ${OPENSSL_CRYPTO_LIBRARY} )
 
 set_target_properties(
   XrdCryptoLite
@@ -85,39 +79,37 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # The XrdCryptossl module
 #-------------------------------------------------------------------------------
-if( BUILD_CRYPTO )
-  include_directories( ${OPENSSL_INCLUDE_DIR} )
+include_directories( ${OPENSSL_INCLUDE_DIR} )
 
-  set( XrdCryptosslSources
-       XrdCrypto/XrdCryptosslAux.cc       XrdCrypto/XrdCryptosslAux.hh
-       XrdCrypto/XrdCryptosslgsiAux.cc
-       XrdCrypto/XrdCryptosslCipher.cc    XrdCrypto/XrdCryptosslCipher.hh
-       XrdCrypto/XrdCryptosslMsgDigest.cc XrdCrypto/XrdCryptosslMsgDigest.hh
-       XrdCrypto/XrdCryptosslRSA.cc       XrdCrypto/XrdCryptosslRSA.hh
-       XrdCrypto/XrdCryptosslX509.cc      XrdCrypto/XrdCryptosslX509.hh
-       XrdCrypto/XrdCryptosslX509Crl.cc   XrdCrypto/XrdCryptosslX509Crl.hh
-       XrdCrypto/XrdCryptosslX509Req.cc   XrdCrypto/XrdCryptosslX509Req.hh
-       XrdCrypto/XrdCryptosslTrace.hh
-       XrdCrypto/XrdCryptosslFactory.cc   XrdCrypto/XrdCryptosslFactory.hh )
+set( XrdCryptosslSources
+     XrdCrypto/XrdCryptosslAux.cc       XrdCrypto/XrdCryptosslAux.hh
+     XrdCrypto/XrdCryptosslgsiAux.cc
+     XrdCrypto/XrdCryptosslCipher.cc    XrdCrypto/XrdCryptosslCipher.hh
+     XrdCrypto/XrdCryptosslMsgDigest.cc XrdCrypto/XrdCryptosslMsgDigest.hh
+     XrdCrypto/XrdCryptosslRSA.cc       XrdCrypto/XrdCryptosslRSA.hh
+     XrdCrypto/XrdCryptosslX509.cc      XrdCrypto/XrdCryptosslX509.hh
+     XrdCrypto/XrdCryptosslX509Crl.cc   XrdCrypto/XrdCryptosslX509Crl.hh
+     XrdCrypto/XrdCryptosslX509Req.cc   XrdCrypto/XrdCryptosslX509Req.hh
+     XrdCrypto/XrdCryptosslTrace.hh
+     XrdCrypto/XrdCryptosslFactory.cc   XrdCrypto/XrdCryptosslFactory.hh )
 
-  add_library(
-    ${LIB_XRD_CRYPTOSSL}
-    MODULE
-    ${XrdCryptosslSources} )
+add_library(
+  ${LIB_XRD_CRYPTOSSL}
+  MODULE
+  ${XrdCryptosslSources} )
 
-  target_link_libraries(
-    ${LIB_XRD_CRYPTOSSL}
-    XrdCrypto
-    XrdUtils
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${OPENSSL_LIBRARIES} )
+target_link_libraries(
+  ${LIB_XRD_CRYPTOSSL}
+  XrdCrypto
+  XrdUtils
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${OPENSSL_LIBRARIES} )
 
-  set_target_properties(
-    ${LIB_XRD_CRYPTOSSL}
-    PROPERTIES
-    INTERFACE_LINK_LIBRARIES ""
-    LINK_INTERFACE_LIBRARIES "" )
-endif()
+set_target_properties(
+  ${LIB_XRD_CRYPTOSSL}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install
@@ -126,11 +118,9 @@ install(
   TARGETS XrdCrypto XrdCryptoLite
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
-if( BUILD_CRYPTO )
-  install(
-    TARGETS ${LIB_XRD_CRYPTOSSL}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-endif()
+install(
+  TARGETS ${LIB_XRD_CRYPTOSSL}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 # FIXME: Unused files
 #-rw-r--r-- 1 ljanyst ljanyst 16721 2011-03-21 16:13 XrdCryptotest.cc
 

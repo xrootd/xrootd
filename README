@@ -44,8 +44,6 @@ is neither recommended nor supported.
   * ENABLE_PERL          - enable the perl bindings if possible (default: TRUE)
   * ENABLE_FUSE          - enable the fuse filesystem driver if possible
                            (default: TRUE)
-  * ENABLE_CRYPTO        - enable the OpenSSL cryprography support (including
-                           the X509 authentication) if possible (default: TRUE)
   * ENABLE_KRB5          - enable the Kerberos 5 authentication if possible
                            (default: TRUE)
   * ENABLE_READLINE      - enable the lib readline support in the commandline
