@@ -4,6 +4,14 @@
 #
 # Find libuuid, DCE compatible Universally Unique Identifier library.
 #
+# Imported Targets
+# ^^^^^^^^^^^^^^^^
+#
+# This module defines :prop_tgt:`IMPORTED` target:
+#
+# ``uuid::uuid``
+#   The libuuid library, if found.
+#
 # Result Variables
 # ^^^^^^^^^^^^^^^^
 #
@@ -51,6 +59,12 @@ endif()
 unset(CMAKE_REQUIRED_INCLUDES)
 unset(_uuid_header_only)
 unset(_have_libuuid)
+
+if(NOT TARGET uuid::uuid)
+  add_library(uuid::uuid INTERFACE IMPORTED)
+  set_property(TARGET uuid::uuid PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${UUID_INCLUDE_DIRS}")
+  set_property(TARGET uuid::uuid PROPERTY INTERFACE_LINK_LIBRARIES "${UUID_LIBRARIES}")
+endif()
 
 find_package_handle_standard_args(libuuid DEFAULT_MSG UUID_INCLUDE_DIR)
 mark_as_advanced(UUID_INCLUDE_DIR UUID_LIBRARY)
