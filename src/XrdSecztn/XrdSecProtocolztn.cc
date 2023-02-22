@@ -51,6 +51,7 @@
 #include "XrdVersion.hh"
 
 #include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -347,6 +348,16 @@ XrdSecCredentials *XrdSecProtocolztn::findToken(XrdOucErrInfo *erp,
         if ((bTok = Strip(aTok, sz))) return retToken(erp, bTok, sz);
        }
 
+// We support passing the credential cache path via Url parameter
+//
+   char *ccn = (erp && erp->getEnv()) ? erp->getEnv()->Get("xrd.ztn") : 0;
+   if (ccn)
+     {
+       resp = readToken(erp, ccn, isbad);
+       if (resp || isbad) return resp;
+     }
+
+// Look through all of the possible envars   
 // Nothing found
 //
   isbad = false;
