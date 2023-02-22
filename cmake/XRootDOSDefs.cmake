@@ -18,7 +18,7 @@ define_default( LIBRARY_PATH_PREFIX "lib" )
 #-------------------------------------------------------------------------------
 # Enable c++14
 #-------------------------------------------------------------------------------
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ Standard")
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 if( ENABLE_ASAN )
