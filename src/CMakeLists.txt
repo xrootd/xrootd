@@ -49,6 +49,15 @@ if( BUILD_XRDEC )
   add_subdirectory( XrdEc )
 endif()
 
+if( BUILD_SCITOKENS )
+  find_package( SciTokensCpp REQUIRED )
+  include_directories(
+    ${SCITOKENS_CPP_INCLUDE_DIR}
+    XrdSciTokens/vendor/picojson
+    XrdSciTokens/vendor/inih )
+  include( XrdSecztn )
+endif()
+
 if( NOT XRDCL_ONLY )
   include( XrdServer )
   include( XrdDaemons )
@@ -82,7 +91,6 @@ if( NOT XRDCL_ONLY )
 
   if( BUILD_SCITOKENS )
     include( XrdSciTokens )
-    include( XrdSecztn )
   endif()
 
 endif()
