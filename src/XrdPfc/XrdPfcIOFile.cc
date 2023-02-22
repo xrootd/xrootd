@@ -54,12 +54,10 @@ IOFile::~IOFile()
 //______________________________________________________________________________
 int IOFile::Fstat(struct stat &sbuff)
 {
-   std::string name = GetFilename() + Info::s_infoExtension;
-
    int res = 0;
    if( ! m_localStat)
    {
-      res = initCachedStat(name.c_str());
+      res = initCachedStat();
       if (res) return res;
    }
 
@@ -74,7 +72,7 @@ long long IOFile::FSize()
 }
 
 //______________________________________________________________________________
-int IOFile::initCachedStat(const char* path)
+int IOFile::initCachedStat()
 {
    // Called indirectly from the constructor.
 
@@ -83,18 +81,24 @@ int IOFile::initCachedStat(const char* path)
    int res = -1;
    struct stat tmpStat;
 
-   if (m_cache.GetOss()->Stat(GetFilename().c_str(), &tmpStat) == XrdOssOK)
+   std::string fname = GetFilename();
+   std::string iname = fname + Info::s_infoExtension;
+   if (m_cache.GetOss()->Stat(fname.c_str(), &tmpStat) == XrdOssOK)
    {
       XrdOssDF* infoFile = m_cache.GetOss()->newFile(Cache::GetInstance().RefConfiguration().m_username.c_str());
       XrdOucEnv myEnv;
       int       res_open;
-      if ((res_open = infoFile->Open(path, O_RDONLY, 0600, myEnv)) == XrdOssOK)
+      if ((res_open = infoFile->Open(iname.c_str(), O_RDONLY, 0600, myEnv)) == XrdOssOK)
       {
          Info info(m_cache.GetTrace());
-         if (info.Read(infoFile, path))
+         if (info.Read(infoFile, iname.c_str()))
          {
+            // The filesize from the file itself may be misleading if its download is incomplete; take it from the cinfo.
             tmpStat.st_size = info.GetFileSize();
-            TRACEIO(Info, trace_pfx << "successfully read size from info file = " << tmpStat.st_size);
+            // We are arguably abusing the mtime to be the creation time of the file; then ctime becomes the
+            // last time additional data was cached.
+            tmpStat.st_mtime = info.GetCreationTime();
+            TRACEIO(Info, trace_pfx << "successfully read size " << tmpStat.st_size << " and creation time " << tmpStat.st_mtime << " from info file");
             res = 0;
          }
          else

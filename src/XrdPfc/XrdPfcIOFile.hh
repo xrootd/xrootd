@@ -87,7 +87,7 @@ private:
    int ReadVEnd(int retval, ReadReqRH *rh);
 
    struct stat *m_localStat;
-   int initCachedStat(const char* path);
+   int initCachedStat();
 
 
 };
