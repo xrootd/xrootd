@@ -2288,18 +2288,16 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               
               // Always try to parse response.  In the case of a caching proxy, the open
               // will have created the file in cache
-              filectime = 0;
               if (iovP[1].iov_len > 1) {
                 TRACEI(REQ, "Stat for GET " << resource.c_str()
                          << " stat=" << (char *) iovP[1].iov_base);
 
                 long dummyl;
-                sscanf((const char *) iovP[1].iov_base, "%ld %lld %ld %ld %ld",
+                sscanf((const char *) iovP[1].iov_base, "%ld %lld %ld %ld",
                       &dummyl,
                       &filesize,
                       &fileflags,
-                      &filemodtime,
-                      &filectime);
+                      &filemodtime);
 
                 // As above: if the client specified a response size, we use that.
                 // Otherwise, utilize the filesize
@@ -2320,7 +2318,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   if (!responseHeader.empty()) {
                     responseHeader += "\r\n";
                   }
-                  long object_age = time(NULL) - filectime;
+                  long object_age = time(NULL) - filemodtime;
                   responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
               }
 
