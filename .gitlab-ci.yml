@@ -261,20 +261,6 @@ build:fedora-36:
     - web
   allow_failure: true
  
-build:deb_ubuntu_bionic:
-  image: ubuntu:bionic
-  <<: *deb_ubuntu_build_def
-  variables:
-    DIST: bionic
-    DEBUG: "true"
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules 
-    - web
- 
 build:deb_ubuntu_focal:
   image: ubuntu:focal
   <<: *deb_ubuntu_build_def
@@ -420,17 +406,6 @@ release:cc7-x86_64:
     - cc-7-x86_64/
   tags:
     - docker_node
-  only:
-    - web
-  except:
-    - branches
-
-release:deb_ubuntu_bionic:
-  image: ubuntu:bionic
-  <<: *deb_ubuntu_build_def
-  variables:
-    DIST: bionic
-    DEBUG: "true"
   only:
     - web
   except:
@@ -697,7 +672,7 @@ publish:rhel:
     
 publish:debian:
   stage: publish
-  image: ubuntu:bionic
+  image: ubuntu:jammy
   script: 
     - apt-get update
     - apt-get install -y sudo apt-utils sssd gpg
@@ -709,7 +684,6 @@ publish:debian:
   tags:
     - docker_node
   dependencies:
-    - build:deb_ubuntu_bionic
     - build:deb_ubuntu_focal
     - build:deb_ubuntu_jammy
   only:
@@ -746,7 +720,7 @@ publish:rhel:release:
 
 publish:debian:release:
   stage: publish
-  image: ubuntu:bionic
+  image: ubuntu:jammy
   script:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd gpg
@@ -760,7 +734,6 @@ publish:debian:release:
   tags:
     - docker_node
   dependencies:
-    - release:deb_ubuntu_bionic
     - release:deb_ubuntu_focal
     - release:deb_ubuntu_jammy
   only:

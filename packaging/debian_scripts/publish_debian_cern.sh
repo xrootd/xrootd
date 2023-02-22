@@ -10,7 +10,7 @@ set -e
 comp=$1
 prefix=/eos/project/s/storage-ci/www/debian/xrootd
 
-for dist in bionic focal jammy; do
+for dist in focal jammy; do
   echo "Publishing for $dist";
   path=$prefix/pool/$dist/$comp/x/xrootd/;
   mkdir -p $path;
