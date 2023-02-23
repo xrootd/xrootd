@@ -298,6 +298,10 @@ int XrdHttpReq::parseLine(char *line, int len) {
       sendcontinue = true;
     } else if (!strcasecmp(key, "Transfer-Encoding") && strstr(val, "chunked")) {
       m_transfer_encoding_chunked = true;
+    } else if (!strcasecmp(key, "TE") && strstr(val, "trailers")) {
+      m_trailer_headers = true;
+    } else if (!strcasecmp(key, "X-Transfer-Status") && strstr(val, "true")) {
+      m_status_trailer = true;
     } else {
       // Some headers need to be translated into "local" cgi info.
       std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
@@ -1050,6 +1054,9 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
                  << "] to status code [" << httpStatusCode << "]");
 
     httpStatusText += "\n";
+  } else {
+      httpStatusCode = 200;
+      httpStatusText = "OK";
   }
 }
 
@@ -1420,7 +1427,9 @@ int XrdHttpReq::ProcessHTTPReq() {
               xrdreq.read.rlen = htonl(l);
             }
 
-            if (prot->ishttps) {
+            // If we are using HTTPS or if the client requested trailers, disable sendfile
+            // (in the latter case, the chunked encoding prevents sendfile usage)
+            if (prot->ishttps || (m_transfer_encoding_chunked && m_trailer_headers)) {
               if (!prot->Bridge->setSF((kXR_char *) fhandle, false)) {
                 TRACE(REQ, " XrdBridge::SetSF(false) failed.");
 
@@ -2302,8 +2311,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               
               if (rwOps.size() == 0) {
                 // Full file.
-                
-                prot->SendSimpleResp(200, NULL, m_digest_header.empty() ? NULL : m_digest_header.c_str(), NULL, filesize, keepalive);
+
+                if (m_transfer_encoding_chunked && m_trailer_headers) {
+                  prot->StartChunkedResp(200, NULL, m_digest_header.empty() ? NULL : m_digest_header.c_str(), filesize, keepalive);
+                } else {
+                  prot->SendSimpleResp(200, NULL, m_digest_header.empty() ? NULL : m_digest_header.c_str(), NULL, filesize, keepalive);
+                }
                 return 0;
               } else
                 if (rwOps.size() == 1) {
@@ -2372,11 +2385,59 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           default: //read or readv
           {
 
-            // Nothing to do if we are postprocessing a close
-            if (ntohs(xrdreq.header.requestid) == kXR_close) return keepalive ? 1 : -1;
-            
-            // Close() if this was the third state of a readv, otherwise read the next chunk
-            if ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)) return keepalive ? 1: -1;
+            // If we are postprocessing a close, potentially send out informational trailers
+            if ((ntohs(xrdreq.header.requestid) == kXR_close) ||
+              ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
+            {
+
+              if (m_transfer_encoding_chunked && m_trailer_headers) {
+                if (prot->ChunkRespHeader(0))
+                  return -1;
+
+                const std::string crlf = "\r\n";
+                std::stringstream ss;
+                ss << "X-Transfer-Status: " << httpStatusCode << ": " << httpStatusText << crlf;
+
+                const auto header = ss.str();
+                if (prot->SendData(header.c_str(), header.size()))
+                  return -1;
+
+                if (prot->ChunkRespFooter())
+                  return -1;
+              }
+
+              return keepalive ? 1 : -1;
+            }
+
+            // On error, we can only send out a message if trailers are enabled and the
+            // status response in trailer behavior is requested.
+            if (xrdresp == kXR_error) {
+              if (m_transfer_encoding_chunked && m_trailer_headers && m_status_trailer) {
+                // A trailer header is appropriate in this case; this is signified by
+                // a chunk with size zero, then the trailer, then a crlf.
+                //
+                // We only send the status trailer when explicitly requested; otherwise a
+                // "normal" HTTP client might simply see a short response and think it's a
+                // success
+                if (prot->ChunkRespHeader(0))
+                  return -1;
+
+                const std::string crlf = "\r\n";
+                std::stringstream ss;
+                ss << "X-Transfer-Status: " << httpStatusCode << ": " << httpStatusText << crlf;
+
+		const auto header = ss.str();
+                if (prot->SendData(header.c_str(), header.size()))
+                  return -1;
+
+                if (prot->ChunkRespFooter())
+                  return -1;
+
+                return -1;
+              } else {
+                return -1;
+              }
+            }
 
             // Prevent scenario where data is expected but none is actually read
             // E.g. Accessing files which return the results of a script
@@ -2387,8 +2448,6 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               return -1;
             }
 
-            // If we are here it's too late to send a proper error message...
-            if (xrdresp == kXR_error) return -1;
 
             TRACEI(REQ, "Got data vectors to send:" << iovN);
             if (ntohs(xrdreq.header.requestid) == kXR_readv) {
@@ -2438,11 +2497,21 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 if (prot->SendData((char *) s.c_str(), s.size())) return -1;
               }
 
-            } else
+            } else {
+              // Send chunked encoding header
+              if (m_transfer_encoding_chunked && m_trailer_headers) {
+                int sum = 0;
+                for (int i = 0; i < iovN; i++) sum += iovP[i].iov_len;
+                prot->ChunkRespHeader(sum);
+              }
               for (int i = 0; i < iovN; i++) {
                 if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return -1;
                 writtenbytes += iovP[i].iov_len;
               }
+              if (m_transfer_encoding_chunked && m_trailer_headers) {
+                prot->ChunkRespFooter();
+              }
+            }
               
             // Let's make sure that we avoid sending the same data twice,
             // in the case where PostProcessHTTPReq is invoked again
@@ -2907,6 +2976,9 @@ void XrdHttpReq::reset() {
   m_transfer_encoding_chunked = false;
   m_current_chunk_size = -1;
   m_current_chunk_offset = 0;
+
+  m_trailer_headers = false;
+  m_status_trailer = false;
 
   /// State machine to talk to the bridge
   reqstate = 0;

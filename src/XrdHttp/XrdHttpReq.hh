@@ -85,6 +85,14 @@ private:
   long long m_current_chunk_offset;
   long long m_current_chunk_size;
 
+  // Whether trailer headers were enabled
+  bool m_trailer_headers{false};
+
+  // Whether the client understands our special status trailer.
+  // The status trailer allows us to report when an IO error occurred
+  // after a response body has started
+  bool m_status_trailer{false};
+
   int parseContentRange(char *);
   int parseHost(char *);
   int parseRWOp(char *);
