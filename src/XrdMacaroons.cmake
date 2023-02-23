@@ -10,7 +10,7 @@ set( LIB_XRD_MACAROONS  XrdMacaroons-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 
 if( BUILD_MACAROONS )
-  include_directories(${MACAROONS_INCLUDES} ${JSON_INCLUDE_DIRS} ${UUID_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR})
+  include_directories(${MACAROONS_INCLUDES} ${JSON_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR})
 
   add_library(
     ${LIB_XRD_MACAROONS}
@@ -25,10 +25,10 @@ if( BUILD_MACAROONS )
     XrdHttpUtils
     XrdUtils
     XrdServer
+    uuid::uuid
     ${MACAROONS_LIB}
     ${JSON_LIBRARIES}
     ${XROOTD_HTTP_LIB}
-    ${UUID_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})
 
   if( MacOSX )
