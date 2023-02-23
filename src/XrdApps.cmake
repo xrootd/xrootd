@@ -29,8 +29,8 @@ if( NOT XRDCL_ONLY )
     xrdadler32
     XrdPosix
     XrdUtils
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${ZLIB_LIBRARIES} )
+    ZLIB::ZLIB
+    ${CMAKE_THREAD_LIBS_INIT})
 
   #-----------------------------------------------------------------------------
   # xrdcks
