@@ -66,7 +66,7 @@ add_library(
 target_link_libraries(
   XrdCryptoLite
   XrdUtils
-  ${OPENSSL_CRYPTO_LIBRARY} )
+  OpenSSL::Crypto )
 
 set_target_properties(
   XrdCryptoLite
@@ -79,7 +79,6 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # The XrdCryptossl module
 #-------------------------------------------------------------------------------
-include_directories( ${OPENSSL_INCLUDE_DIR} )
 
 set( XrdCryptosslSources
      XrdCrypto/XrdCryptosslAux.cc       XrdCrypto/XrdCryptosslAux.hh
@@ -103,7 +102,7 @@ target_link_libraries(
   XrdCrypto
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT}
-  ${OPENSSL_LIBRARIES} )
+  OpenSSL::SSL )
 
 set_target_properties(
   ${LIB_XRD_CRYPTOSSL}
