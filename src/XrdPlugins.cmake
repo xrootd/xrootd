@@ -136,7 +136,7 @@ add_library(
 target_link_libraries(
   ${LIB_XRD_ZCRC32}
   XrdUtils
-  ${ZLIB_LIBRARIES} )
+  ZLIB::ZLIB)
 
 set_target_properties(
   ${LIB_XRD_ZCRC32}

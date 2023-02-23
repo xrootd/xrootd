@@ -32,7 +32,7 @@ target_link_libraries(
   XrdClTestsHelper
   ${CMAKE_THREAD_LIBS_INIT}
   ${CPPUNIT_LIBRARIES}
-  ${ZLIB_LIBRARIES}
+  ZLIB::ZLIB
   XrdCl )
 
 add_library(

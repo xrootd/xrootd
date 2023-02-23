@@ -10,7 +10,7 @@ target_link_libraries(
   XrdCephTests
   ${CMAKE_THREAD_LIBS_INIT}
   ${CPPUNIT_LIBRARIES}
-  ${ZLIB_LIBRARIES}
+  ZLIB::ZLIB
   XrdCephPosix )
 
 #-------------------------------------------------------------------------------
