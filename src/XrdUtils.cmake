@@ -291,9 +291,9 @@ add_library(
 
 target_link_libraries(
   XrdUtils
+  OpenSSL::SSL
   ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS}
-  ${OPENSSL_LIBRARIES}
   ${SOCKET_LIBRARY}
   ${SENDFILE_LIBRARY}
   ${EXTRA_LIBS} )

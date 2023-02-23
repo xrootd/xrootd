@@ -113,10 +113,10 @@ target_link_libraries(
   XrdUtils
   uuid::uuid
   ZLIB::ZLIB
+  OpenSSL::SSL
   ${CMAKE_THREAD_LIBS_INIT}
   ${EXTRA_LIBS}
-  ${CMAKE_DL_LIBS}
-  ${OPENSSL_LIBRARIES})
+  ${CMAKE_DL_LIBS})
 
 set_target_properties(
   XrdCl

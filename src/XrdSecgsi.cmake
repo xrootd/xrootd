@@ -82,7 +82,7 @@ target_link_libraries(
   xrdgsiproxy
   XrdCrypto
   XrdUtils
-  ${OPENSSL_CRYPTO_LIBRARY} )
+  OpenSSL::Crypto )
 
 #-------------------------------------------------------------------------------
 # xrdgsitest
@@ -95,7 +95,7 @@ target_link_libraries(
   xrdgsitest
   XrdCrypto
   XrdUtils
-  ${OPENSSL_CRYPTO_LIBRARY} )
+  OpenSSL::Crypto )
 endif()
 
 #-------------------------------------------------------------------------------

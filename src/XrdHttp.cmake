@@ -16,7 +16,6 @@ if( BUILD_HTTP )
   #-----------------------------------------------------------------------------
   # The XrdHttp library
   #-----------------------------------------------------------------------------
-  include_directories( ${OPENSSL_INCLUDE_DIR} )
 
   set( XrdHttpSources
     XrdHttp/XrdHttpProtocol.cc        XrdHttp/XrdHttpProtocol.hh
@@ -47,8 +46,8 @@ if( BUILD_HTTP )
     XrdCrypto
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
-    ${OPENSSL_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY} )
+    OpenSSL::SSL
+    OpenSSL::Crypto )
 
   target_link_libraries(
     ${MOD_XRD_HTTP}
@@ -59,16 +58,12 @@ if( BUILD_HTTP )
     ${LIB_XRD_HTTP_UTILS}
     PROPERTIES
     VERSION   ${XRD_HTTP_UTILS_VERSION}
-    SOVERSION ${XRD_HTTP_UTILS_SOVERSION}
-    INTERFACE_LINK_LIBRARIES ""
-    LINK_INTERFACE_LIBRARIES "" )
+    SOVERSION ${XRD_HTTP_UTILS_SOVERSION})
 
   set_target_properties(
     ${MOD_XRD_HTTP}
     PROPERTIES
-    INTERFACE_LINK_LIBRARIES ""
-    SUFFIX ".so"
-    LINK_INTERFACE_LIBRARIES "" )
+    SUFFIX ".so")
 
   #-----------------------------------------------------------------------------
   # Install
