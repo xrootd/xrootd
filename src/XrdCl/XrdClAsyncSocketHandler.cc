@@ -46,6 +46,7 @@ namespace XrdCl
     pStreamName( ToStreamName( url, subStreamNum ) ),
     pSocket( new Socket() ),
     pHandShakeDone( false ),
+    pCloseCount( 0 ),
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
     pHSWaitStarted( 0 ),
@@ -190,6 +191,7 @@ namespace XrdCl
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
+    pCloseCount++;
     return XRootDStatus();
   }
 
@@ -212,6 +214,12 @@ namespace XrdCl
     // write events and vice-versa.
     //--------------------------------------------------------------------------
     type = pSocket->MapEvent( type );
+
+    //--------------------------------------------------------------------------
+    // In case we'll be handling both read and write events be prepared to
+    // detect a close between the handling of each.
+    //--------------------------------------------------------------------------
+    const uint32_t closeCount = pCloseCount;
 
     //--------------------------------------------------------------------------
     // Read event
@@ -240,6 +248,15 @@ namespace XrdCl
       else
         OnTimeoutWhileHandshaking();
     }
+
+    //--------------------------------------------------------------------------
+    // We check to see if any of the read event handlers above may have caused
+    // us to be closed. If so, we may have been re-opened, added to another
+    // poller and now be concurrently handling requests for another connection.
+    // Discontinue processing if a close is detected.
+    //--------------------------------------------------------------------------
+    if( closeCount != pCloseCount )
+      return;
 
     //--------------------------------------------------------------------------
     // Write event

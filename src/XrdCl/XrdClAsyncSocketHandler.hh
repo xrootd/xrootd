@@ -30,6 +30,7 @@
 #include "XrdCl/XrdClAsyncHSReader.hh"
 #include "XrdCl/XrdClAsyncMsgWriter.hh"
 #include "XrdCl/XrdClAsyncHSWriter.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
 namespace XrdCl
 {
@@ -264,6 +265,7 @@ namespace XrdCl
       std::unique_ptr<HandShakeData> pHandShakeData;
       bool                           pHandShakeDone;
       uint16_t                       pTimeoutResolution;
+      RAtomic_uint32_t               pCloseCount;
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
       time_t                         pLastActivity;
