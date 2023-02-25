@@ -1,9 +1,16 @@
 include( XRootDCommon )
 
+find_package( SciTokensCpp REQUIRED )
+
 #-------------------------------------------------------------------------------
 # Modules
 #-------------------------------------------------------------------------------
 set( LIB_XRD_SCITOKENS  XrdAccSciTokens-${PLUGIN_VERSION} )
+
+include_directories(
+   ${SCITOKENS_CPP_INCLUDE_DIR}
+   XrdSciTokens/vendor/picojson
+   XrdSciTokens/vendor/inih )
 
 #-------------------------------------------------------------------------------
 # The XrdPfc library

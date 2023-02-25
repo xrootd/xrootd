@@ -25,6 +25,7 @@ include( XrdSec )
 include( XrdXml )
 include( XrdHeaders )
 include( XrdSecgsi )
+include( XrdSecztn )
 
 if( BUILD_KRB5 )
   include( XrdSeckrb5 )
@@ -46,15 +47,6 @@ if( BUILD_XRDEC )
   add_subdirectory( XrdEc )
 endif()
 
-if( BUILD_SCITOKENS )
-  find_package( SciTokensCpp REQUIRED )
-  include_directories(
-    ${SCITOKENS_CPP_INCLUDE_DIR}
-    XrdSciTokens/vendor/picojson
-    XrdSciTokens/vendor/inih )
-  include( XrdSecztn )
-endif()
-
 if( NOT XRDCL_ONLY )
   include( XrdServer )
   include( XrdDaemons )
@@ -62,7 +54,6 @@ if( NOT XRDCL_ONLY )
   include( XrdFfs )
   include( XrdPlugins )
   include( XrdSsi )
-
   include( XrdPfc )
 
   if( CMAKE_COMPILER_IS_GNUCXX )
