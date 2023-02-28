@@ -626,8 +626,6 @@ class ActionExecutor
           });
       else
       {
-	for (auto& ch : chunks)
-	  delete[](char*) ch.buffer;
         ending.reset();
         closing.reset();
       }
@@ -658,8 +656,6 @@ class ActionExecutor
               });
       else
       {
-	for (auto& ch : chunks)
-	  delete[](char*) ch.buffer;
         ending.reset();
         closing.reset();
       }
