@@ -16,5 +16,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[SSI]** Avoid file system+SSI feature interference that caused problems.
+  **Commit: 7096e2e
 
 + **Miscellaneous**
