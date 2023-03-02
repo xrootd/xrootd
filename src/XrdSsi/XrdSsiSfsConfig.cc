@@ -219,8 +219,14 @@ bool XrdSsiSfsConfig::Configure(const char *cFN, XrdOucEnv *envP)
 
 // Configure filesystem callout as needed
 //
-   fsChk = FSPath.NotEmpty();
-   if (isServer && !theFS) fsChk = false;
+   if ((fsChk = FSPath.NotEmpty()))
+      {if (!theFS && !isCms)
+          {Log.Emsg("Config", "Specifying an fspath requires SSI to be stacked "
+                              "with a file system!");
+           return false;
+          }
+       if (isServer && !theFS && !isCms) fsChk = false;
+      }
 
 // Perform historical phase 2 initialization
 //
@@ -293,8 +299,10 @@ class XrdOss;
   
 int XrdSsiSfsConfig::ConfigCms(XrdOucEnv *envP)
 {
+   EPNAME("SsiSfsConfig");
    static const int cmsOpt = XrdCms::IsTarget;
-   XrdCmsClient *cmsP, *(*CmsGC)(XrdSysLogger *, int, int, XrdOss *);
+   const char *tident = "";
+   XrdCmsClient *cmsP = 0, *(*CmsGC)(XrdSysLogger *, int, int, XrdOss *);
    XrdSysLogger *myLogger = Log.logger();
 
 // Check if we are configuring a simple standalone server
@@ -306,18 +314,31 @@ int XrdSsiSfsConfig::ConfigCms(XrdOucEnv *envP)
        return 0;
       }
 
-// If a cmslib was specified then create a plugin object and get the client.
-// Otherwise, simply get the default client.
+// We now must make sure only one cms client is in effect.
 //
-   if (CmsLib)
-      {XrdSysPlugin myLib(&Log, CmsLib, "cmslib", myVersion);
-       CmsGC = (XrdCmsClient *(*)(XrdSysLogger *, int, int, XrdOss *))
-                                  (myLib.getPlugin("XrdCmsGetClient"));
-       if (!CmsGC) return 1;
-       myLib.Persist();
-       cmsP = CmsGC(myLogger, cmsOpt, myPort, 0);
+   if ((cmsP = (XrdCmsClient*)envP->GetPtr("XrdCmsClientT*")))
+      {if (CmsLib) Log.Say("Config warning: ignoring cmslib directive; "
+                           "using existing cms instance!");
+       SsiCms = new XrdSsiCms(cmsP);
+       DEBUG("Config: Using cms clientT from environment!");
+       return 0;
       }
-      else cmsP = XrdCms::GetDefaultClient(myLogger, cmsOpt, myPort);
+   DEBUG("Config: Allocating new cms clientT!");
+
+// If a cmslib was specified then create a plugin object and get the client.
+// Otherwise, simply get the default client. In any case configure them.
+//
+   if (!cmsP)
+      {if (CmsLib)
+          {XrdSysPlugin myLib(&Log, CmsLib, "cmslib", myVersion);
+           CmsGC = (XrdCmsClient *(*)(XrdSysLogger *, int, int, XrdOss *))
+                                      (myLib.getPlugin("XrdCmsGetClient"));
+           if (!CmsGC) return 1;
+           myLib.Persist();
+           cmsP = CmsGC(myLogger, cmsOpt, myPort, 0);
+          }
+          else cmsP = XrdCms::GetDefaultClient(myLogger, cmsOpt, myPort);
+      }
 
 // If we have a client object onfigure it
 //

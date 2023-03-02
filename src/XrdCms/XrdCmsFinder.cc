@@ -994,6 +994,12 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
 //     if (XrdSysThread::Run(&tid, StartRsp, (void *)this, 0, "cms i/f"))
           {Say.Emsg("Config", errno, "start performance monitor."); return 0;}
       }
+
+// Record the address of this cms client
+//
+   if (What == XrdCmsClientConfig::configServer)
+      envP->PutPtr("XrdCmsClientT*", (XrdCmsClient*)this);
+
 // All done
 //
    return 1;
