@@ -219,7 +219,6 @@ int XrdCephOss::Configure(const char *configfn, XrdSysError &Eroute) {
          }
        }
 
-       int pread_flag_set = !strncmp(var, "ceph.usedefaultpreadalg", 24);
        int readv_flag_set = !strncmp(var, "ceph.usedefaultreadvalg", 24);
        if (pread_flag_set or readv_flag_set) {
          var = Config.GetWord();
@@ -407,7 +406,6 @@ int XrdCephOss::Rename(const char *from,
 
 /**
  *
-
  * @brief Extract a pool name (string before the first colon ':') from an object ID.
  * @param (in) possPool the object ID
  * @return pool name or unchanged object ID
