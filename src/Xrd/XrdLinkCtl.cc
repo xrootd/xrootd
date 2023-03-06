@@ -117,7 +117,8 @@ XrdLink *XrdLinkCtl::Alloc(XrdNetAddr &peer, int opts)
    LTMutex.Lock();
    if (LinkBat[peerFD])
       {LTMutex.UnLock();
-       Log.Emsg("Link", "attempt to reuse active link");
+       snprintf(hName, sizeof(hName), "%d", peerFD);
+       Log.Emsg("Link", "attempt to reuse active link FD -",hName);
        return (XrdLink *)0;
       }
 
