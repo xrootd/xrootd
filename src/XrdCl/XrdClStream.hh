@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClUtils.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include <list>
 #include <vector>
@@ -371,6 +372,11 @@ namespace XrdCl
       // Data stream on-connect handler
       //------------------------------------------------------------------------
       std::shared_ptr<Job>           pOnDataConnJob;
+
+      //------------------------------------------------------------------------
+      // Track last assigned Id across all Streams, to ensure unique sessionId
+      //------------------------------------------------------------------------
+      static RAtomic_uint64_t        sSessCntGen;
   };
 }
 
