@@ -45,6 +45,11 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
+  // Statics
+  //----------------------------------------------------------------------------
+  RAtomic_uint64_t        Stream::sSessCntGen{0};
+
+  //----------------------------------------------------------------------------
   // Incoming message helper
   //----------------------------------------------------------------------------
   struct InMessageHelper
@@ -615,7 +620,7 @@ namespace XrdCl
       pLastFatalError  = XRootDStatus();
       pConnectionCount = 0;
       uint16_t numSub = pTransport->SubStreamNumber( *pChannelData );
-      ++pSessionId;
+      pSessionId = ++sSessCntGen;
 
       //------------------------------------------------------------------------
       // Create the streams if they don't exist yet
