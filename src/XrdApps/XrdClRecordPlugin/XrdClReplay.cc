@@ -626,6 +626,7 @@ class ActionExecutor
           });
       else
       {
+        buffers.clear();
         ending.reset();
         closing.reset();
       }
@@ -656,6 +657,7 @@ class ActionExecutor
               });
       else
       {
+        buffers.clear();
         ending.reset();
         closing.reset();
       }
