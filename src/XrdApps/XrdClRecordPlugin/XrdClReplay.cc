@@ -87,7 +87,7 @@ class BufferPool
     //--------------------------------------------------------------------------
     void Reclaim( size_t length )
     {
-      std::unique_lock<std::mutex> lck;
+      std::unique_lock<std::mutex> lck(mtx);
       available += length;
       cv.notify_all();
     }
