@@ -131,7 +131,7 @@ class RandomHandler: public ClientHandler
       char     buffer[50000];
       log->Debug( 1, "Sending %d packets to the client", packets );
 
-      if( ::write( socket, &packets, 1 ) != 1 )
+      if( ::Utils::Write( socket, &packets, 1 ) != 1 )
       {
         log->Error( 1, "Unable to send the packet count" );
         return;
@@ -147,12 +147,12 @@ class RandomHandler: public ClientHandler
           return;
         }
 
-        if( ::write( socket, &packetSize, 2 ) != 2 )
+        if( ::Utils::Write( socket, &packetSize, 2 ) != 2 )
         {
           log->Error( 1, "Unable to send the packet size" );
           return;
         }
-        if( ::write( socket, buffer, packetSize ) != packetSize )
+        if( ::Utils::Write( socket, buffer, packetSize ) != packetSize )
         {
           log->Error( 1, "Unable to send the %d bytes of random data",
                       packetSize );
@@ -164,10 +164,7 @@ class RandomHandler: public ClientHandler
       //------------------------------------------------------------------------
       // Receive some data
       //------------------------------------------------------------------------
-      ssize_t  totalRead;
-      char    *current;
-
-      if( ::read( socket, &packets, 1 ) != 1 )
+      if( ::Utils::Read( socket, &packets, 1 ) != 1 )
       {
         log->Error( 1, "Unable to receive the packet count" );
         return;
@@ -177,28 +174,17 @@ class RandomHandler: public ClientHandler
 
       for( int i = 0; i < packets; ++i )
       {
-        totalRead = 0;
-        current   = buffer;
-        if( ::read( socket, &packetSize, 2 ) != 2 )
+        if( ::Utils::Read( socket, &packetSize, 2 ) != 2 )
         {
           log->Error( 1, "Unable to receive the packet size" );
           return;
         }
 
-        while(1)
+        if ( ::Utils::Read( socket, buffer, packetSize ) != packetSize )
         {
-          ssize_t dataRead  = ::read( socket, current, packetSize );
-          if( dataRead <= 0 )
-          {
-            log->Error( 1, "Unable to receive the %d bytes of data",
-                        packetSize );
-            return;
-          }
-
-          totalRead += dataRead;
-          current   += dataRead;
-          if( totalRead == packetSize )
-            break;
+          log->Error( 1, "Unable to receive the %d bytes of data",
+                      packetSize );
+          return;
         }
         UpdateReceivedData( buffer, packetSize );
         log->Dump( 1, "Received %d bytes from the client", packetSize );
