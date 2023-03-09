@@ -92,6 +92,16 @@ class Utils
     {
       return crc32_combine( crc1, crc2, len2 );
     }
+
+    //--------------------------------------------------------------------------
+    //! Read a buffer from a socket
+    //--------------------------------------------------------------------------
+    static ssize_t Read( int fd, void *buf, size_t count );
+
+    //--------------------------------------------------------------------------
+    //! Write a buffer to a socket
+    //--------------------------------------------------------------------------
+    static ssize_t Write( int fd, const void *buf, size_t count );
 };
 };
 
