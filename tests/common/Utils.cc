@@ -20,6 +20,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <vector>
 #include <cstdlib>
@@ -66,4 +67,50 @@ ssize_t Utils::GetRandomBytes( char *buffer, size_t size )
   return size-toRead;;
 }
 
+//------------------------------------------------------------------------------
+// Write buffer to a socket
+//------------------------------------------------------------------------------
+ssize_t Utils::Write( int fd, const void *buf, size_t count )
+{
+  ssize_t ret;
+  size_t remain = count;
+  const uint8_t *p = (uint8_t*)buf;
+  while( remain )
+  {
+    do
+    {
+      ret = ::write( fd, p, remain );
+    } while( ret<0 && errno == EINTR );
+    if( ret <= 0 )
+      return ret;
+    p += ret;
+    remain -= ret;
+  }
+  return count;
+}
+
+//------------------------------------------------------------------------------
+// Read buffer from a socket
+//------------------------------------------------------------------------------
+ssize_t Utils::Read( int fd, void *buf, size_t count )
+{
+  ssize_t ret;
+  size_t remain = count, totRead = 0;
+  uint8_t *p = (uint8_t*)buf;
+  while( remain )
+  {
+    do
+    {
+      ret = ::read( fd, p, remain );
+    } while( ret<0 && errno == EINTR );
+    if( ret == 0 )
+      break;
+    if( ret < 0 )
+      return ret;
+    p += ret;
+    remain -= ret;
+    totRead += ret;
+  }
+  return totRead;
+}
 }
