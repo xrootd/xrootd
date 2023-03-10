@@ -43,6 +43,7 @@
 
 #include "XProtocol/XProtocol.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
+#include "XrdHttpChecksumHandler.hh"
 
 #include <vector>
 #include <string>
@@ -125,15 +126,22 @@ private:
   // Sanitize the resource from http[s]://[host]/ questionable prefix
   void sanitizeResourcePfx();
 
-   /**
-   * Select the checksum to be computed depending on the userDigest passed in parameter
-   * @param userDigest the digest request from the user (extracted from the Want-Digest header)
-   * @param selectedChecksum the checksum that will be performed
+  /**
+   * Extract a comma separated list of checksums+metadata into a vector
+   * @param checksumList the list like "0:sha1, 1:adler32, 2:md5"
+   * @param extractedChecksum the vector with the elements {0:sha,1:adler32,2:md5}
    */
-  void selectChecksum(const std::string & userDigest, std::string & selectedChecksum);
+  static void extractChecksumFromList(const std::string & checksumList, std::vector<std::string> & extractedChecksum);
+
+  /**
+   * Determine the XRootD-compliant checksum algorithm from the user digest string
+   * @param userDigest the string containing the digest names. e.g: adler32, md5;q=0.4, md5
+   * @param xrootdChecksums the vector that will contain the corresponding xrootd-compliant names
+   * These xrootd-compliant names are located in the static XrdOucString convert_digest_name(const std::string &rfc_name_multiple) function
+   */
+  static void determineXRootDChecksumFromUserDigest(const std::string & userDigest, std::vector<std::string> & xrootdChecksums);
 
 public:
-
   XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {
 
     prot = protinstance;
@@ -236,6 +244,10 @@ public:
 
   /// The requested digest type
   std::string m_req_digest;
+
+  /// The checksum that was ran for this request
+  XrdHttpChecksumHandler::XrdHttpChecksumRawPtr m_req_cksum = nullptr;
+
   /// The checksum algorithm is specified as part of the opaque data in the URL.
   /// Hence, when a digest is generated to satisfy a request, we cache the tweaked
   /// URL in this data member.
@@ -412,10 +424,6 @@ public:
           int port, //!< the port number
           const char *hname //!< the destination host
           );
-
-
-
-
 
 };
 

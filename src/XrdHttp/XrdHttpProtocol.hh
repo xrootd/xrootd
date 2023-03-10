@@ -46,6 +46,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "Xrd/XrdProtocol.hh"
 #include "XrdOuc/XrdOucHash.hh"
+#include "XrdHttpChecksumHandler.hh"
 
 #include <openssl/ssl.h>
 
@@ -124,6 +125,9 @@ public:
 
   /// Authentication area
   XrdSecEntity SecEntity;
+
+  // XrdHttp checksum handling class
+  static XrdHttpChecksumHandler cksumHandler;
 
   /// called via https
   bool isHTTPS() { return ishttps; }
