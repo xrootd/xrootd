@@ -25,7 +25,9 @@ if( BUILD_HTTP )
     XrdHttp/XrdHttpExtHandler.cc      XrdHttp/XrdHttpExtHandler.hh
                                       XrdHttp/XrdHttpStatic.hh
                                       XrdHttp/XrdHttpTrace.hh
-    XrdHttp/XrdHttpUtils.cc           XrdHttp/XrdHttpUtils.hh )
+    XrdHttp/XrdHttpUtils.cc           XrdHttp/XrdHttpUtils.hh
+    XrdHttp/XrdHttpChecksumHandler.cc XrdHttp/XrdHttpChecksumHandler.hh
+    XrdHttp/XrdHttpChecksum.cc        XrdHttp/XrdHttpChecksum.hh)
 
   # Note this is marked as a shared library as XrdHttp plugins are expected to
   # link against this for the XrdHttpExt class implementations.
