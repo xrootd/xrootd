@@ -1,5 +1,6 @@
 include(GoogleTest)
 add_subdirectory( XrdCl )
+add_subdirectory(XrdHttpTests)
 
 add_subdirectory( common )
 add_subdirectory( XrdClTests )
