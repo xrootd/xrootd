@@ -1359,5 +1359,14 @@ int XrdOucUtils::getModificationTime(const char *path, time_t &modificationTime)
     return statRet;
 }
 
+void XrdOucUtils::trim(std::string &str) {
+    // Trim leading non-letters
+    while( str.size() && !isgraph(str[0]) ) str.erase(str.begin());
+
+    // Trim trailing non-letters
+
+    while( str.size() && !isgraph(str[str.size()-1]) )
+        str.resize (str.size () - 1);
+}
 #endif
 

@@ -129,6 +129,8 @@ static bool PidFile(XrdSysError &eDest, const char *path);
 
 static int getModificationTime(const char * path, time_t & modificationTime);
 
+static void trim(std::string & str);
+
     XrdOucUtils() {}
     ~XrdOucUtils() {}
 };

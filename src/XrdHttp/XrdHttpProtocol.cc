@@ -109,6 +109,7 @@ XrdSecService *XrdHttpProtocol::CIA = 0; // Authentication Server
 int XrdHttpProtocol::m_bio_type = 0; // BIO type identifier for our custom BIO.
 BIO_METHOD *XrdHttpProtocol::m_bio_method = NULL; // BIO method constructor.
 char *XrdHttpProtocol::xrd_cslist = nullptr;
+XrdHttpChecksumHandler XrdHttpProtocol::cksumHandler = XrdHttpChecksumHandler();
 
 XrdSysTrace XrdHttpTrace("http");
 
@@ -949,6 +950,19 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
   char *var;
   int cfgFD, GoNo, NoGo = 0, ismine;
 
+  cksumHandler.configure(xrd_cslist);
+  auto nonIanaChecksums = cksumHandler.getNonIANAConfiguredCksums();
+  if(nonIanaChecksums.size()) {
+      std::stringstream warningMsgSS;
+      warningMsgSS << "Config warning: the following checksum algorithms are not IANA compliant: [";
+      std::string unknownCksumString;
+      for(auto unknownCksum: nonIanaChecksums) {
+          unknownCksumString += unknownCksum + ",";
+      }
+      unknownCksumString.erase(unknownCksumString.size() - 1);
+      warningMsgSS << unknownCksumString << "]" << ". They therefore cannot be queried by a user via HTTP." ;
+      eDest.Say(warningMsgSS.str().c_str());
+  }
 
   // Initialize our custom BIO type.
   if (!m_bio_type) {
