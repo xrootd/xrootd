@@ -102,6 +102,7 @@ set ( XrdOucSources
   XrdOuc/XrdOucBuffer.cc        XrdOuc/XrdOucBuffer.hh
   XrdOuc/XrdOucCache.cc         XrdOuc/XrdOucCache.hh
                                 XrdOuc/XrdOucCacheStats.hh
+  XrdOuc/XrdOucCacheDirective.cc XrdOuc/XrdOucCacheDirective.hh
   XrdOuc/XrdOucCallBack.cc      XrdOuc/XrdOucCallBack.hh
                                 XrdOuc/XrdOucChkPnt.hh
   XrdOuc/XrdOucCRC.cc           XrdOuc/XrdOucCRC.hh
