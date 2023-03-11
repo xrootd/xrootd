@@ -301,6 +301,8 @@ public:
    void initiate_emergency_shutdown();
    bool is_in_emergency_shutdown() { return m_in_shutdown; }
 
+   void SetStore(bool val) {m_store = val;}
+
 private:
    //! Constructor.
    File(const std::string &path, long long offset, long long fileSize);
@@ -309,6 +311,8 @@ private:
    bool Open();
 
    static const char *m_traceID;
+
+   bool           m_store{true};        //!< indicates the file should cached
 
    int            m_ref_cnt;            //!< number of references from IO or sync
    

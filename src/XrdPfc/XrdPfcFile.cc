@@ -656,7 +656,7 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadR
 
    // Shortcut -- file is fully downloaded.
 
-   if (m_cfi.IsComplete())
+   if (m_store && m_cfi.IsComplete())
    {
       m_state_cond.UnLock();
       int ret = m_data_file->Read(iUserBuff, iUserOff, iUserSize);
@@ -685,7 +685,7 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqRH *rh)
 
    // Shortcut -- file is fully downloaded.
 
-   if (m_cfi.IsComplete())
+   if (m_store && m_cfi.IsComplete())
    {
       m_state_cond.UnLock();
       int ret = m_data_file->ReadV(const_cast<XrdOucIOVec*>(readV), readVnum);
@@ -751,7 +751,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
          overlap(block_idx, m_block_size, iUserOff, iUserSize, off, blk_off, size);
 
          // In RAM or incoming?
-         if (bi != m_block_map.end())
+         if (m_store && bi != m_block_map.end())
          {
             inc_ref_count(bi->second);
             TRACEF(Dump, tpfx << (void*) iUserBuff << " inc_ref_count for existing block " << bi->second << " idx = " <<  block_idx);
@@ -782,7 +782,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
             lbe = LB_other;
          }
          // On disk?
-         else if (m_cfi.TestBitWritten(offsetIdx(block_idx)))
+         else if (m_store && m_cfi.TestBitWritten(offsetIdx(block_idx)))
          {
             TRACEF(DumpXL, tpfx << "read from disk " <<  (void*)iUserBuff << " idx = " << block_idx);
 
@@ -804,7 +804,7 @@ int File::ReadOpusCoalescere(IO *io, const XrdOucIOVec *readV, int readVnum,
                read_req = new ReadRequest(io, rh);
 
             // Is there room for one more RAM Block?
-            Block *b = PrepareBlockRequest(block_idx, io, read_req, false);
+            Block *b = m_store ? PrepareBlockRequest(block_idx, io, read_req, false) : nullptr;
             if (b)
             {
                TRACEF(Dump, tpfx << "inc_ref_count new " <<  (void*)iUserBuff << " idx = " << block_idx);

@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
 
+#include "XrdOuc/XrdOucCacheDirective.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
@@ -228,6 +229,19 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
            // errno is set during IOFile construction.
            TRACE(Error, tpfx << "Failed opening local file, falling back to remote access " << io->Path());
            return io;
+         }
+
+         XrdCl::URL url(io->Path());
+         auto params = url.GetParams();
+         auto iter = params.find("cache-control");
+         if (iter != params.end())
+         {
+           XrdOucCacheDirective directive(iter->second);
+           if (directive.NoStore() || directive.NoCache())
+           {
+             TRACE(Debug, tpfx << "Disabling set store");
+             iof->SetStore(false);
+           }
          }
 
          cio = iof;
