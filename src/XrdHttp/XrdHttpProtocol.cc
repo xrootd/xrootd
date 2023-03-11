@@ -1041,6 +1041,10 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
        return 1;
       }
 
+// Some headers must always be converted to CGI key=value pairs
+//
+   hdr2cgimap["Cache-Control"] = "cache-control";
+
 // Test if XrdEC is loaded
    if (getenv("XRDCL_EC")) usingEC = true;
 
