@@ -242,6 +242,8 @@ public:
   XrdOucString m_resource_with_digest;
   /// The computed digest for the HTTP response header.
   std::string m_digest_header;
+  /// The contents of the cache-control header for the request
+  std::string m_cache_control;
 
   /// Additional opaque info that may come from the hdr2cgi directive
   std::string hdr2cgistr;

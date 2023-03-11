@@ -166,7 +166,8 @@ void Info::SetBufferSizeFileSizeAndCreationTime(long long bs, long long fs)
    m_store.m_buffer_size = bs;
    m_store.m_file_size = fs;
    ResizeBits();
-   m_store.m_creationTime = time(0);
+   // Defer setting the creation time until we've had a single block write
+   m_store.m_creationTime = 0;
 }
 
 //------------------------------------------------------------------------------

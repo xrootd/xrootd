@@ -276,9 +276,14 @@ public:
    const std::vector<AStat>& RefAStats()     const { return m_astats; }
 
    //---------------------------------------------------------------------
-   //! Get file size
+   //! Get file creation time
    //---------------------------------------------------------------------
    time_t GetCreationTime() const { return m_store.m_creationTime; }
+
+   //---------------------------------------------------------------------
+   //! Set the file creation time
+   //
+   void SetCreationTime(time_t new_time) { m_store.m_creationTime = new_time; }
 
    //---------------------------------------------------------------------
    //! Get cksum, MD5 is for backward compatibility with V2 and V3.

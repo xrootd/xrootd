@@ -98,6 +98,10 @@ int IOFile::initCachedStat()
             // We are arguably abusing the mtime to be the creation time of the file; then ctime becomes the
             // last time additional data was cached.
             tmpStat.st_mtime = info.GetCreationTime();
+            // If no blocks have been written, assume it's newly created
+            if (!tmpStat.st_mtime) {
+               tmpStat.st_mtime = time(NULL);
+            }
             TRACEIO(Info, trace_pfx << "successfully read size " << tmpStat.st_size << " and creation time " << tmpStat.st_mtime << " from info file");
             res = 0;
          }

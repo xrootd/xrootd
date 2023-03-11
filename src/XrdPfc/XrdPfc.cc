@@ -231,19 +231,6 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
            return io;
          }
 
-         XrdCl::URL url(io->Path());
-         auto params = url.GetParams();
-         auto iter = params.find("cache-control");
-         if (iter != params.end())
-         {
-           XrdOucCacheDirective directive(iter->second);
-           if (directive.NoStore() || directive.NoCache())
-           {
-             TRACE(Debug, tpfx << "Disabling set store");
-             iof->SetStore(false);
-           }
-         }
-
          cio = iof;
       }
 
@@ -476,6 +463,27 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
    if (filesize >= 0)
    {
       file = File::FileOpen(path, off, filesize);
+   }
+
+   if (file)
+   {
+      XrdCl::URL url(io->Path());
+      auto params = url.GetParams();
+      auto iter = params.find("cache-control");
+      if (iter != params.end())
+      {
+         XrdOucCacheDirective directive(iter->second);
+         if (directive.NoStore() || directive.NoCache())
+         {
+            TRACE(Debug, "GetFile: Disabling set store");
+            file->SetStore(false);
+         }
+         if (directive.OnlyIfCached())
+         {
+            TRACE(Debug, "GetFile: Setting `only if cached` mode");
+            file->SetOnlyIfCached(true);
+         }
+      }
    }
 
    {

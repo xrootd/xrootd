@@ -313,8 +313,10 @@ void File::AddIO(IO *io)
 
       insert_remote_location(loc);
 
-      if (m_prefetch_state == kStopped)
+      // In the case of "only if cached" mode, do not fire off a prefetch.
+      if (!m_only_if_cached && m_prefetch_state == kStopped)
       {
+         TRACEF(Debug, "AddIO() io = " << (void*)io << " enabling prefetch");
          m_prefetch_state = kOn;
          cache()->RegisterPrefetchFile(this);
       }
@@ -942,6 +944,9 @@ void File::WriteBlockToDisk(Block* b)
    long long   offset = b->m_offset - m_offset;
    long long   size   = b->get_size();
    ssize_t     retval;
+
+   if (m_cfi.GetCreationTime() == 0)
+      m_cfi.SetCreationTime(time(NULL));
 
    if (m_cfi.IsCkSumCache())
       if (b->has_cksums())

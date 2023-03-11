@@ -44,6 +44,7 @@
 #include <arpa/inet.h>
 #include <sstream>
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdOuc/XrdOucCacheDirective.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdHttpProtocol.hh"
 #include "Xrd/XrdLink.hh"
@@ -316,6 +317,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
         hdr2cgistr.append(it->second);
         hdr2cgistr.append("=");
         hdr2cgistr.append(s);
+      }
+      if (!strcasecmp(key, "Cache-Control")) {
+        m_cache_control.assign(val, line + len - val);
       }
     }
 
@@ -2320,6 +2324,17 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   }
                   long object_age = time(NULL) - filemodtime;
                   responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
+
+
+                  if (!m_cache_control.empty()) {
+                    XrdOucCacheDirective directive(m_cache_control);
+                    // To avoid some off-by-one errors, treat an object of age 1 as a cache miss.
+                    if (directive.OnlyIfCached() && object_age <= 1) {
+                      prot->SendSimpleResp(504, "Gateway Timeout",
+                        responseHeader.empty() ? nullptr : responseHeader.c_str(), nullptr, 0, false);
+                      return -1;
+                    }
+                  }
               }
 
               if (rwOps.size() == 0) {
@@ -2979,6 +2994,7 @@ void XrdHttpReq::reset() {
   m_req_digest.clear();
   m_resource_with_digest = "";
 
+  m_cache_control.clear();
   headerok = false;
   keepalive = true;
   length = 0;

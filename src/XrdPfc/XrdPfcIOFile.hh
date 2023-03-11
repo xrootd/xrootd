@@ -77,8 +77,6 @@ public:
 
    long long FSize() override;
 
-   void SetStore(bool val) {if (m_file) m_file->SetStore(val);}
-
 private:
    File        *m_file;
 

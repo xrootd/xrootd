@@ -302,6 +302,7 @@ public:
    bool is_in_emergency_shutdown() { return m_in_shutdown; }
 
    void SetStore(bool val) {m_store = val;}
+   void SetOnlyIfCached(bool val) {m_only_if_cached = val;}
 
 private:
    //! Constructor.
@@ -313,6 +314,7 @@ private:
    static const char *m_traceID;
 
    bool           m_store{true};        //!< indicates the file should cached
+   bool           m_only_if_cached{false}; //!< indicates the 'only if cached' directive is set; disables prefetch
 
    int            m_ref_cnt;            //!< number of references from IO or sync
    
