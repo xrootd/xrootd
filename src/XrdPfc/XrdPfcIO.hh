@@ -48,6 +48,11 @@ public:
 
    XrdOucCacheIO* GetInput();
 
+   //---------------------------------------------------------------------
+   //! Reset the cached statistics
+   //---------------------------------------------------------------------
+   virtual void ResetCachedStat() {}
+
 protected:
    Cache       &m_cache;   //!< reference to Cache object
    const char  *m_traceID;

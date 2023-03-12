@@ -465,6 +465,7 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
       file = File::FileOpen(path, off, filesize);
    }
 
+   auto should_invalidate = false;
    if (file)
    {
       XrdCl::URL url(io->Path());
@@ -483,7 +484,28 @@ File* Cache::GetFile(const std::string& path, IO* io, long long off, long long f
             TRACE(Debug, "GetFile: Setting `only if cached` mode");
             file->SetOnlyIfCached(true);
          }
+
+         int max_age;
+         if ((max_age = directive.MaxAge()) > 0)
+         {
+            time_t cur_age = time(NULL) - file->GetCreationTime();
+            should_invalidate = cur_age > max_age;
+         }
       }
+   }
+   if (should_invalidate) {
+      {
+         XrdSysCondVarHelper lock(&m_active_cond);
+         m_active.erase(it);
+         delete file;
+      }
+      UnlinkFile(path, false);
+      {
+         XrdSysCondVarHelper lock(&m_active_cond);
+         it = m_active.insert(std::make_pair(path, (File*) 0)).first;
+      }
+      file = File::FileOpen(path, off, filesize);
+      io->ResetCachedStat();
    }
 
    {

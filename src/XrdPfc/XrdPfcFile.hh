@@ -303,6 +303,8 @@ public:
 
    void SetStore(bool val) {m_store = val;}
    void SetOnlyIfCached(bool val) {m_only_if_cached = val;}
+   time_t GetCreationTime() const {return m_cfi.GetCreationTime();}
+
 
 private:
    //! Constructor.

@@ -36,7 +36,7 @@ namespace XrdPfc
 //! \brief Downloads original file into a single file on local disk.
 //! Handles read requests as they come along.
 //----------------------------------------------------------------------------
-class IOFile : public IO
+class IOFile final : public IO
 {
 public:
    IOFile(XrdOucCacheIO *io, Cache &cache);
@@ -76,6 +76,11 @@ public:
    int  Fstat(struct stat &sbuff) override;
 
    long long FSize() override;
+
+   //---------------------------------------------------------------------
+   //! Reset the cached statistics
+   //---------------------------------------------------------------------
+   virtual void ResetCachedStat() override {if (m_localStat) {delete m_localStat; m_localStat = nullptr;}}
 
 private:
    File        *m_file;
