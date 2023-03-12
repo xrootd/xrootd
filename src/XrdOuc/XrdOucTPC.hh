@@ -31,6 +31,11 @@
 /******************************************************************************/
 
 #include <cstdlib>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysRAtomic.hh"
 
 class XrdOucTPC
 {
@@ -66,6 +71,25 @@ static const char *tpcStr;
 static const char *tpcTpr;
 static const char *tpcTtl;
 static const char *tpcDlgOn;
+
+union ipAddr {sockaddr saddr; sockaddr_in6 in6; sockaddr_in in;};
+
+struct ProxyStat
+{
+       RAtomic_int64_t st_Size;        //  8: Byte size of dest file
+       RAtomic_int64_t st_Ctime;       //  8: Unix time of dest file creation
+       char            reserved[32];
+       XrdSysMutex     slotMutex;
+       ipAddr          srcAddr;        // 28: Source address
+       ipAddr          dstAddr;        // 28: Dest   address
+       char            pad[256-sizeof(st_Size)-sizeof(st_Ctime)-
+                           sizeof(reserved)-sizeof(srcAddr)-sizeof(dstAddr)];
+
+       ProxyStat() {}
+      ~ProxyStat() {}
+};
+
+static const int psCount = 64*1024/sizeof(ProxyStat);
 
             XrdOucTPC() {}
            ~XrdOucTPC() {}

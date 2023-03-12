@@ -675,11 +675,9 @@ int XrdOfs::ConfigTPC(XrdSysError &Eroute, XrdOucEnv *envP)
        free(cpath);
       }
 
-// Construct the reproxy path. We always do this as need to solve the cart-horse
-// problem of plugin loading. If we don't need it it will be ignored later.
+// Signal a check for reproxying, it may have been disabled
 //
-   if (!(Cfg.rPath = ConfigTPCDir(Eroute, ".ofs/.tpcproxy"))) return 1;
-   if (envP) envP->Put("tpc.rpdir", Cfg.rPath);
+   if (envP) envP->Put("tpc.reproxy", "1");
 
 // Check if TPC monitoring is wanted and set it up
 //
@@ -701,10 +699,17 @@ int XrdOfs::ConfigTPC(XrdSysError &Eroute)
 //
    if (ossFeatures & XRDOSS_HASRPXY && Cfg.rPath)
       {char rPBuff[1024];
+       int rc;
        reProxy = true;
-       snprintf(rPBuff,sizeof(rPBuff),"%s/%x-%%d.rpx",Cfg.rPath,int(time(0)));
+       if (!(Cfg.rPath = ConfigTPCDir(Eroute, ".ofs/.tpcproxy"))) return 1;
+       snprintf(rPBuff,sizeof(rPBuff),"%s/tpcslots.shm",Cfg.rPath);
        free(Cfg.rPath);
        Cfg.rPath = strdup(rPBuff);
+       Cfg.tpcSlots = new XrdOucMemSlot<XrdOucTPC::ProxyStat>(rc,
+                                                              XrdOucTPC::psCount,
+                                                              Cfg.rPath);
+       if (!rc && !Cfg.tpcSlots->Available()) rc = ENOSPC;
+       if (rc) return Eroute.Emsg("Config", rc, "create tcp memslots");
       } else {
        if (Cfg.rPath) free(Cfg.rPath);
        Cfg.rPath = 0;

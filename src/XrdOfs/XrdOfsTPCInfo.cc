@@ -74,9 +74,12 @@ XrdOfsTPCInfo::~XrdOfsTPCInfo()
    if (Spr) {free(Spr); Spr = 0;}
    if (Tpr) {free(Tpr); Tpr = 0;}
    if (Cks) {free(Cks); Cks = 0;}
-   if (Rpx) {free(Rpx); Rpx = 0;}
    if (Crd) {free(Crd); Crd = 0; Csz = 0;}
    if (cbP) delete cbP;
+
+// Recycle the reproxy slot if one was allocated
+//
+   if (Rpx >= 0) XrdOfsTPCParms::Cfg.tpcSlots->Ret(Rpx);
 }
   
 /******************************************************************************/

@@ -349,8 +349,9 @@ int XrdOfsTPCProg::Xeq(bool &isIPv4)
 // If we need to reproxy, export the path
 //
    char rpxBuff[1024];
-   if (Job->Info.Rpx)
-      {snprintf(rpxBuff, sizeof(rpxBuff), "XRD_CPTARGET=%s", Job->Info.Rpx);
+   if (Job->Info.Rpx >= 0)
+      {snprintf(rpxBuff, sizeof(rpxBuff), "XRD_REPROXY=%d@%s",
+                Job->Info.Rpx, Cfg.rPath);
        eVec[i++] = rpxBuff;
       }
 

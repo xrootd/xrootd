@@ -118,8 +118,6 @@ static const char   *osslclCGI = "oss.lcl=1";
 
 static const int     PBsz = 4096;
 
-       int           rpFD = -1;
-
        bool          idMapAll = false;
 
        bool          outProxy = false; // True means outgoing proxy
@@ -838,11 +836,8 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
           {if (rwMode)
               {tpcPath = strdup(path);
                if (XrdPssSys::reProxy)
-                  {const char *rPath = Env.Get("tpc.reproxy");
-                   if (!rPath || *rPath != '/') return -ENOATTR;
-                   if (!(rPath = rindex(rPath, '/')) || *(rPath+1) == 0)
-                      return -EFAULT;
-                   rpInfo = new tprInfo(rPath+1);
+                  {rpInfo = (XrdOucTPC::ProxyStat*)Env.GetPtr("ProxyStat*");
+                   if (!rpInfo) return -ENOATTR;
                   }
                return XrdOssOK;
               }
@@ -914,9 +909,8 @@ int XrdPssFile::Close(long long *retsz)
 // If the file is not open, then this may be OK if it is a 3rd party copy
 //
     if (fd < 0)
-       {if (!tpcPath) return -XRDOSS_E8004;
-        free(tpcPath);
-        tpcPath = 0;
+       {if (!rpInfo) return -XRDOSS_E8004;
+        rpInfo = 0;
         return XrdOssOK;
        }
 
@@ -1175,6 +1169,8 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 int XrdPssFile::Fstat(struct stat *buff)
 {
    EPNAME("fstat");
+   static uid_t myUID = getuid();
+   static gid_t myGID = getgid();
 
 // If we have a file descriptor then return a stat for it
 //
@@ -1191,59 +1187,25 @@ int XrdPssFile::Fstat(struct stat *buff)
        return XrdProxySS.Stat(tpcPath, buff, 0, &fstatEnv);
       }
 
-// This is a reproxy tpc, if we have not yet dertermined the true dest, do so.
+// This is a reproxy tpc, the information we need is in the ProxyStat struct
 //
-   struct stat Stat;
+   int64_t stsz = rpInfo->st_Size;
+   int64_t stct = rpInfo->st_Ctime;
 
-   if (rpInfo->dstURL == 0
-   ||  !fstatat(rpFD, rpInfo->tprPath, &Stat, AT_SYMLINK_NOFOLLOW))
-      {char lnkbuff[2048]; int lnklen;
-       lnklen = readlinkat(rpFD, rpInfo->tprPath, lnkbuff, sizeof(lnkbuff)-1);
-       if (lnklen <= 0)
-          {int rc = 0;
-           if (lnklen < 0) {if (errno != ENOENT) rc = -errno;}
-               else rc = -EFAULT;
-           if (rc)
-              {unlinkat(rpFD, rpInfo->tprPath, 0);
-               return rc;
-              }
-          } else {
-            unlinkat(rpFD, rpInfo->tprPath, 0);
-            lnkbuff[lnklen] = 0;
-            if (rpInfo->dstURL) free(rpInfo->dstURL);
-            rpInfo->dstURL = strdup(lnkbuff);
-            rpInfo->fSize = 1;
-            DEBUG(tident,rpInfo->tprPath<<" maps "<<tpcPath<<" -> "<<lnkbuff);
-          }
-      }
+   memset(buff, 0, sizeof(struct stat));
+   buff->st_mode   = S_IRWXU | S_IFREG;
+   buff->st_nlink  = 1;
+   buff->st_uid    = myUID;
+   buff->st_gid    = myGID;
+   buff->st_size   = stsz;
+   buff->st_blksize= 64*1024;
+   buff->st_blocks = stsz/128 + (stsz % 128 ? 1 : 0);
+   buff->st_mtime  = buff->st_atime = time(0);
+   buff->st_ctime  = stct;
 
-// At this point we may or may not have the final endpoint. An error here could
-// be due to write error recovery, so make allowance for that.
+// All done
 //
-   if (rpInfo->dstURL)
-      {if (!XrdPosixXrootd::Stat(rpInfo->dstURL, buff))
-          {if (!(rpInfo->fSize = buff->st_size)) rpInfo->fSize = 1;
-           return XrdOssOK;
-          }
-       free(rpInfo->dstURL);
-       rpInfo->dstURL = 0;
-      }
-
-// We don't have the final endpoint. If we ever had it before, then punt.
-//
-   if (rpInfo->fSize)
-      {memset(buff, 0, sizeof(struct stat));
-       buff->st_size = rpInfo->fSize;
-       return XrdOssOK;
-      }
-
-// If we are here then maybe the reproxy option was the wrong config setting.
-// Give stat a try on the origin we'll retry resolution on the next stat.
-//
-   XrdOucEnv fstatEnv(0, 0, entity);
-
-   if (XrdProxySS.Stat(tpcPath, buff, 0, &fstatEnv))
-       memset(buff, 0, sizeof(struct stat));
+   DEBUG(tident, "fstat() size = " <<stsz);
    return XrdOssOK;
 }
 

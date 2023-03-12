@@ -40,6 +40,7 @@
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucSid.hh"
+#include "XrdOuc/XrdOucTPC.hh"
 #include "XrdOss/XrdOss.hh"
 
 /******************************************************************************/
@@ -103,29 +104,17 @@ int     Write(XrdSfsAio *aiop);
          // Constructor and destructor
          XrdPssFile(const char *tid)
                    : XrdOssDF(tid, XrdOssDF::DF_isFile|XrdOssDF::DF_isProxy),
-                     rpInfo(0), tpcPath(0), entity(0) {}
+                     tpcPath(0), entity(0), rpInfo(0) {}
 
 virtual ~XrdPssFile() {if (fd >= 0) Close();
-                       if (rpInfo) delete(rpInfo);
                        if (tpcPath) free(tpcPath);
                       }
 
 private:
 
-struct tprInfo
-      {char  *tprPath;
-       char  *dstURL;
-       size_t fSize;
-
-              tprInfo(const char *fn) : tprPath(strdup(fn)),dstURL(0),fSize(0)
-                                        {}
-             ~tprInfo() {if (tprPath) free(tprPath);
-                         if (dstURL)  free(dstURL);
-                        }
-      } *rpInfo;
-
-      char         *tpcPath;
-const XrdSecEntity *entity;
+      char           *tpcPath;
+const XrdSecEntity   *entity;
+XrdOucTPC::ProxyStat *rpInfo;
 };
 
 /******************************************************************************/

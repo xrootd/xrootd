@@ -128,8 +128,6 @@ extern XrdOucEnv       *envP;
 
 extern XrdSecsssID     *idMapper; // -> Auth ID mapper
 
-extern int              rpFD;
-
 extern bool             idMapAll;
 
 extern bool             outProxy; // True means outgoing proxy
@@ -243,17 +241,10 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 // will ne placed. The path is in the Env.
 //
    if (reProxy)
-      {char *rPath;
-       if (!envP || !(rPath = envP->Get("tpc.rpdir")))
+      {if (!envP || !(envP->Get("tpc.reproxy")))
           {eDest.Say("Config warning: ignoring 'pss.reproxy'; TPC is not enabled!");
            reProxy = false;
            myFeatures &= ~XRDOSS_HASRPXY;
-          } else {
-           rpFD = XrdSysFD_Open(rPath, O_DIRECTORY);
-           if (rpFD < 0)
-              {eDest.Emsg("Config", "to open reproxy directory", rPath);
-               return 1;
-              }
           }
       }
 

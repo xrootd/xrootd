@@ -1,10 +1,10 @@
-#ifndef __XRDOFSTPCCONFIG_HH__
-#define __XRDOFSTPCCONFIG_HH__
+#ifndef __XRDOUCMEMSLOT_HH__
+#define __XRDOUCMEMSLOT_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                    X r d O f s T p c C o n f i g . h h                     */
+/*                      X r d O u c M e m S l o t . h h                       */
 /*                                                                            */
-/* (c) 2021 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2023 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,40 +30,76 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdOuc/XrdOucMemSlot.hh"
-#include "XrdOuc/XrdOucTPC.hh"
+#include <errno.h>
 
-class XrdXrootdTpcMon;
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysShmem.hh"
 
-struct XrdOfsTPCConfig
+template<class T>
+class XrdOucMemSlot
 {
-XrdXrootdTpcMon* tpcMon;
+public:
 
-XrdOucMemSlot<XrdOucTPC::ProxyStat> *tpcSlots;
+bool Available() {return freeSlot != 0;}
 
-char  *XfrProg;
-char  *cksType;
-char  *cPath;
-char  *rPath;
-int    maxTTL;
-int    dflTTL;
-int    tcpSTRM;
-int    tcpSMax;
-int    xfrMax;
-int    errMon;
-bool   LogOK;
-bool   doEcho;
-bool   autoRM;
-bool   noids;
-bool   fCreds;
+T*   Get(int* offset=0)
+        {theSlot* urSlot;
+         msMutex.Lock();
+         if ((urSlot = freeSlot)) freeSlot = freeSlot->nxtSlot;
+         msMutex.UnLock();
+         if (offset) *offset = (urSlot ? urSlot - slotVec : -1);
+         return (urSlot ? &(urSlot->memSlot) : 0);
+        }
 
-       XrdOfsTPCConfig() : tpcMon(0),  tpcSlots(0),
-                           XfrProg(0), cksType(0), cPath(0), rPath(0),
-                           maxTTL(15), dflTTL(7),  tcpSTRM(0),   tcpSMax(15),
-                           xfrMax(9),  errMon(-3), LogOK(false), doEcho(false),
-                           autoRM(false), noids(true), fCreds(false)
-                           {}
+void Ret(T *item)
+        {if (item)
+            {theSlot* mySlot = slotVec + (vecSlot - item);
+             msMutex.Lock();
+             mySlot->nxtSlot = freeSlot;
+             freeSlot = mySlot;
+             msMutex.UnLock();
+            }
+        }
 
-      ~XrdOfsTPCConfig() {} // Never deleted
+void Ret(int iOffs) {Ret(&((slotVec + iOffs)->memSlot));}
+
+     XrdOucMemSlot(int &rc, int count, const char *shmemfn="")
+                  : freeSlot(0), slotVec(0)
+                  {rc = 0;
+                   if (!*shmemfn) slotVec = new theSlot[count];
+                      else {std::tuple<T*, size_t> tpl;
+                            std::string mfn(shmemfn);
+                            try {tpl = XrdSys::shm::make_array<T>(shmemfn,count);
+                                 vecSlot = std::get<0>(tpl);
+                                }
+                                catch(XrdSys::shm_error shmerr)
+                                     {rc = shmerr.errcode; return;}
+                           }
+                   for (int i = 0; i < count-1; i++)
+                       {slotVec[i].nxtSlot = &slotVec[i+1];}
+                   slotVec[count-1].nxtSlot = 0;
+                   freeSlot = &slotVec[0];
+                  }
+
+    ~XrdOucMemSlot() {}
+
+private:
+
+union theSlot
+{
+   theSlot*  nxtSlot;
+   T         memSlot;
+
+   theSlot() {}
+  ~theSlot() {}
+};
+
+XrdSysMutex msMutex;
+theSlot*    freeSlot;
+union
+{
+   theSlot*    slotVec;
+   T*          vecSlot;
+};
 };
 #endif

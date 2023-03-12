@@ -151,11 +151,6 @@ XrdOfsTPCAllow    *XrdOfsTPC::ALList   = 0;
 XrdAccAuthorize   *XrdOfsTPC::fsAuth   = 0;
 
 char              *XrdOfsTPC::cPath    = 0;
-
-namespace
-{
-std::atomic<int> rpInst = {0};
-}
   
 /******************************************************************************/
 /*                               A d d A u t h                                */
@@ -657,12 +652,10 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 
 // Setup reproxing if this is required
 //
-   if (Cfg.rPath)
-      {int inst = rpInst++;
-       char rpBuff[1024];
-       snprintf(rpBuff, sizeof(rpBuff), Cfg.rPath, inst);
-       myTPC->Info.SetRPath(rpBuff);
-       Args.Env->Put("tpc.reproxy", rpBuff);
+   if (Cfg.tpcSlots)
+      {XrdOucTPC::ProxyStat* slotP = Cfg.tpcSlots->Get(&(myTPC->Info.Rpx));
+       if (slotP == 0) return Death(Args, "insufficient slots", ENOSPC);
+       Args.Env->PutPtr("tpc.ProxyStat*", (void*)slotP);
       }
 
 // Set number of streams to use

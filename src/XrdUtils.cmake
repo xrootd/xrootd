@@ -119,6 +119,7 @@ set ( XrdOucSources
                                 XrdOuc/XrdOucJson.hh
   XrdOuc/XrdOucLogging.cc       XrdOuc/XrdOucLogging.hh
                                 XrdOuc/XrdOucMapP2X.hh
+                                XrdOuc/XrdOucMemSlot.hh
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
   XrdOuc/XrdOucName2Name.cc     XrdOuc/XrdOucName2Name.hh
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh
