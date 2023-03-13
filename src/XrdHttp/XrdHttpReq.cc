@@ -1254,7 +1254,13 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
           }
-      
+
+      // The reqstate parameter basically moves us through a simple state machine.
+      // - 0: Perform a stat on the resource
+      // - 1: Perform a checksum request on the resource (only if requested in header; otherwise skipped)
+      // - 2: Perform an open request (dirlist as appropriate).
+      // - 3: Unlink the underlying file (only for a too-old cache object; otherwise skipped)
+      // - 4+: Reads from file; if at end, perform a close.
       switch (reqstate) {
         case 0: // Stat()
           
@@ -1267,9 +1273,32 @@ int XrdHttpReq::ProcessHTTPReq() {
           }
 
           return 0;
-        case 1: // Open() or dirlist
+        case 1: // Checksum request
+          if (!m_req_digest.empty()) {
+            // In this case, the Want-Digest header was set.
+            bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
+            // Note that doChksum requires that the memory stays alive until the callback is invoked.
+            m_resource_with_digest = resourceplusopaque;
+            if (has_opaque) {
+              m_resource_with_digest += "&cks.type=";
+              m_resource_with_digest += convert_digest_name(m_req_digest);
+            } else {
+              m_resource_with_digest += "?cks.type=";
+              m_resource_with_digest += convert_digest_name(m_req_digest);
+            }
+            if (prot->doChksum(m_resource_with_digest) < 0) {
+              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
+              return -1;
+            }
+            return 0;
+          } else {
+            // We are not
+            TRACEI(DEBUG, "No checksum requested; skipping to request state 2");
+            reqstate += 1;
+          }
+        // fallthrough
+        case 2: // Open() or dirlist
         {
-
           if (!prot->Bridge) {
               prot->SendSimpleResp(500, NULL, NULL, (char *) "prot->Bridge is NULL.", 0, false);
               return -1;
@@ -1316,23 +1345,6 @@ int XrdHttpReq::ProcessHTTPReq() {
             // We don't want to be invoked again after this request is finished
             return 1;
 
-          } else if (!m_req_digest.empty()) {
-            // In this case, the Want-Digest header was set.
-            bool has_opaque = strchr(resourceplusopaque.c_str(), '?');
-            // Note that doChksum requires that the memory stays alive until the callback is invoked.
-            m_resource_with_digest = resourceplusopaque;
-            if (has_opaque) {
-              m_resource_with_digest += "&cks.type=";
-              m_resource_with_digest += convert_digest_name(m_req_digest);
-            } else {
-              m_resource_with_digest += "?cks.type=";
-              m_resource_with_digest += convert_digest_name(m_req_digest);
-            }
-            if (prot->doChksum(m_resource_with_digest) < 0) {
-              prot->SendSimpleResp(500, NULL, NULL, (char *) "Failed to start internal checksum request to satisfy Want-Digest header.", 0, false);
-              return -1;
-            }
-            return 0;
           }
           else {
 
@@ -1359,39 +1371,35 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 
         }
-        case 2:  // Open() in the case the user also requested a checksum.
-        {
-          if (!m_req_digest.empty()) {
-            // --------- OPEN
-            memset(&xrdreq, 0, sizeof (ClientRequest));
-            xrdreq.open.requestid = htons(kXR_open);
-            l = resourceplusopaque.length() + 1;
-            xrdreq.open.dlen = htonl(l);
-            xrdreq.open.mode = 0;
-            xrdreq.open.options = htons(kXR_retstat | kXR_open_read);
+        case 3:  // Unlink() in case of an expired cache entry.
+        if (m_unlink_entry) {
+          TRACEI(DEBUG, "Unlinking expired cache entry")
+          memset(&xrdreq, 0, sizeof (ClientRequest));
+          xrdreq.rm.requestid = htons(kXR_rm);
 
-            if (!prot->Bridge->Run((char *) &xrdreq, (char *) resourceplusopaque.c_str(), l)) {
-              prot->SendSimpleResp(404, NULL, NULL, (char *) "Could not run request.", 0, false);
+          std::string unlink_path = resourceplusopaque.c_str();
+          unlink_path += std::string((unlink_path.find('?') == std::string::npos) ? "?" : "&") + "xrdposix.target=cache";
+
+          auto data_len = unlink_path.size() + 1;
+          xrdreq.rm.dlen = htonl(data_len);
+
+          if (!prot->Bridge->Run((char *) &xrdreq, (char *) unlink_path.c_str(), data_len)) {
+              prot->SendSimpleResp(501, NULL, NULL, (char *) "Could not run cache unlink request.", 0, false);
               return -1;
-            }
-
-            // Prepare to chunk up the request
-            writtenbytes = 0;
-
-            // We want to be invoked again after this request is finished
-            return 0;
           }
+          return 0;
+        } else {
+          TRACEI(DEBUG, "No unlink requested; skipping to request state 4");
+          reqstate += 1;
         }
         // fallthrough
-        default: // Read() or Close()
+        default: // Read() or Close(); reqstate is 4+
         {
 
-          if ( ((reqstate == 3 || (!m_req_digest.empty() && (reqstate == 4))) && (rwOps.size() > 1)) ||
-            (writtenbytes >= length) ) {
-
-            // Close() if this was a readv or we have finished, otherwise read the next chunk
-
-            // --------- CLOSE
+          // --------- CLOSE
+          if ( ((reqstate == 4) && (rwOps.size() > 1)) || // In this case, we performed a ReadV and it's done.
+            (writtenbytes >= length) ) // No ReadV but we have completed the request.
+          {
 
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.close.requestid = htons(kXR_close);
@@ -1406,6 +1414,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             return 1;
 
           }
+          // --------- READ or READV
 	  
           if (rwOps.size() <= 1) {
             // No chunks or one chunk... Request the whole file or single read
@@ -1466,7 +1475,7 @@ int XrdHttpReq::ProcessHTTPReq() {
               return -1;
             }
           } else {
-            // More than one chunk to read... use readv
+            // --------- READV
 
             length = ReqReadV();
 
@@ -1479,12 +1488,12 @@ int XrdHttpReq::ProcessHTTPReq() {
 
           // We want to be invoked again after this request is finished
           return 0;
-        }
+        } // case 4+
         
-      }
+      } // switch (reqstate)
 
 
-    }
+    } // case XrdHttpReq::rtGET
 
     case XrdHttpReq::rtPUT:
     {
@@ -1948,6 +1957,22 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
 }
 
 
+int
+XrdHttpReq::SendGetResponse()
+{
+  if (rwOps.size() == 0) {
+    if (m_transfer_encoding_chunked && m_trailer_headers) {
+      prot->StartChunkedResp(200, NULL, m_get_response.empty() ? NULL : m_get_response.c_str(), filesize, keepalive);
+    } else {
+      prot->SendSimpleResp(200, NULL, m_get_response.empty() ? NULL : m_get_response.c_str(), NULL, filesize, keepalive);
+    }
+  } else {
+      prot->SendSimpleResp(206, NULL, m_get_response.c_str(), NULL, m_get_response_length, keepalive);
+  }
+  return 0;
+}
+
+
 // This is invoked by the callbacks, after something has happened in the bridge
 
 int XrdHttpReq::PostProcessHTTPReq(bool final_) {
@@ -2223,10 +2248,16 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         }
 
 
-      } else {
+      }  // end handling of dirlist
+      else
+      {  // begin handling of open-read-close
 
-
-
+        // To duplicate the state diagram from the rtGET request state
+        // - 0: Perform a stat on the resource
+        // - 1: Perform a checksum request on the resource (only if requested in header; otherwise skipped)
+        // - 2: Perform an open request (dirlist as appropriate).
+        // - 3: Unlink the underlying file (only for a too-old cache object; otherwise skipped)
+        // - 4+: Reads from file; if at end, perform a close.
         switch (reqstate) {
           case 0: //stat
           {
@@ -2272,21 +2303,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             // We are here in the case of a negative response in a non-manager
 
             return 0;
-          }
-          case 1:  // open
-          case 2:  // open when digest was requested
+          } // end stat
+          case 1:  // checksum was requested and now we have its response.
           {
-
-            if (reqstate == 1 && !m_req_digest.empty()) { // We requested a checksum and now have its response.
-              int response = PostProcessChecksum(m_digest_header);
-              if (-1 == response) {
-                return -1;
-              }
-              return 0;
-            } else if (((reqstate == 2 && !m_req_digest.empty()) ||
-                        (reqstate == 1 && m_req_digest.empty()))
-              && (xrdresp == kXR_ok)) {
-
+            return PostProcessChecksum(m_digest_header);
+          }
+          case 2:  // open
+          {
+            if (xrdresp == kXR_ok) {
 
               getfhandle();
               
@@ -2323,8 +2347,6 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                     responseHeader += "\r\n";
                   }
                   long object_age = time(NULL) - filemodtime;
-                  responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
-
 
                   if (!m_cache_control.empty()) {
                     XrdOucCacheDirective directive(m_cache_control);
@@ -2333,23 +2355,21 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                       prot->SendSimpleResp(504, "Gateway Timeout",
                         responseHeader.empty() ? nullptr : responseHeader.c_str(), nullptr, 0, false);
                       return -1;
+                    } else if (object_age > directive.MaxAge()) {
+                      m_unlink_entry = true;
+                      object_age = 0;
                     }
                   }
+                  responseHeader += std::string("Age: ") + std::to_string(object_age < 0 ? 0 : object_age);
               }
 
               if (rwOps.size() == 0) {
-                // Full file.
-
-                if (m_transfer_encoding_chunked && m_trailer_headers) {
-                  prot->StartChunkedResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), filesize, keepalive);
-                } else {
-                  prot->SendSimpleResp(200, NULL, responseHeader.empty() ? NULL : responseHeader.c_str(), NULL, filesize, keepalive);
-                }
-                return 0;
-              } else
-                if (rwOps.size() == 1) {
+                m_get_response_length = filesize;
+                m_get_response = responseHeader;
+              } else if (rwOps.size() == 1) {
                 // Only one read to perform
-                if (rwOps[0].byteend < 0) // The requested range was along the lines of "Range: 1234-", meaning we need to fill in the end
+                if (rwOps[0].byteend < 0) // The requested range was along the lines of "Range: 1234-",
+                                          // meaning we need to fill in the end
                   rwOps[0].byteend = filesize - 1;
                 int cnt = (rwOps[0].byteend - rwOps[0].bytestart + 1);
                 char buf[64];
@@ -2362,8 +2382,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   s += responseHeader.c_str();
                 }
 
-                prot->SendSimpleResp(206, NULL, (char *)s.c_str(), NULL, cnt, keepalive);
-                return 0;
+                m_get_response_length = cnt;
+                m_get_response = s.c_str();
               } else
                 if (rwOps.size() > 1) {
                 // Multiple reads to perform, compose and send the header
@@ -2388,34 +2408,38 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   header += m_digest_header;
                 }
 
-                prot->SendSimpleResp(206, NULL, header.c_str(), NULL, cnt, keepalive);
-                return 0;
+                m_get_response_length = cnt;
+                m_get_response = header;
               }
 
-
-
-            } else if (xrdresp != kXR_ok) {
+              if (m_unlink_entry)
+                return 0;
+              else
+                return SendGetResponse();
+            } else { // xrdresp indicates an error occurred
               
-              // If it's a dir then we are in the wrong place and we did the wrong thing.
-              //if (xrderrcode == 3016) {
-              //  fileflags &= kXR_isDir;
-              //  reqstate--;
-              //  return 0;
-              //}
               prot->SendSimpleResp(httpStatusCode, NULL, NULL,
                                    httpStatusText.c_str(), httpStatusText.length(), false);
               return -1;
             }
-
-            // Remaining case: reqstate == 2 and we didn't ask for a digest (should be a read).
+            // Case should not be reachable
+            return -1;
           }
-          // fallthrough
-          default: //read or readv
+          case 3: // Unlink an entry from the cache
+          {
+            if (xrdresp != kXR_ok) {
+              prot->SendSimpleResp(httpStatusCode, NULL, NULL,
+                                   httpStatusText.c_str(), httpStatusText.length(), keepalive);
+              return -1;
+            }
+            return SendGetResponse();
+          }
+          default: // read or readv
           {
 
             // If we are postprocessing a close, potentially send out informational trailers
             if ((ntohs(xrdreq.header.requestid) == kXR_close) ||
-              ((reqstate == 3) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
+              ((reqstate == 4) && (ntohs(xrdreq.header.requestid) == kXR_readv)))
             {
 
               if (m_transfer_encoding_chunked && m_trailer_headers) {
@@ -2546,12 +2570,11 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             this->iovN = 0;
             
             return 0;
-          }
+          }  // end read or readv
 
         } // switch reqstate
 
-
-      }
+      } // End handling of the open-read+-close case
 
 
       break;
@@ -2994,8 +3017,12 @@ void XrdHttpReq::reset() {
   m_req_digest.clear();
   m_resource_with_digest = "";
 
+  m_digest_header.clear();
   m_cache_control.clear();
+  m_get_response.clear();
+  m_get_response_length = 0;
   headerok = false;
+  m_unlink_entry = false;
   keepalive = true;
   length = 0;
   filesize = 0;

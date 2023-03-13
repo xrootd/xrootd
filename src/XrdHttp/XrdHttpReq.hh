@@ -132,6 +132,11 @@ private:
    */
   void selectChecksum(const std::string & userDigest, std::string & selectedChecksum);
 
+  /**
+   * A helper function for sending the response headers for the GET.
+   */
+  int SendGetResponse();
+
 public:
 
   XrdHttpReq(XrdHttpProtocol *protinstance) : keepalive(true) {
@@ -216,6 +221,15 @@ public:
   /// Tells if we have finished reading the header
   bool headerok;
 
+  /// Set to true if we should flush the cache contents prior to
+  //  proceeding
+  bool m_unlink_entry{false};
+
+  /// We have a helper function for sending the GET response (which may
+  //  be deferred across an asynchronous callback).
+  //  This is all the state needed to send it
+  std::string m_get_response;
+  long long m_get_response_length{0};
 
   // This can be largely optimized...
   /// The original list of multiple reads to perform
