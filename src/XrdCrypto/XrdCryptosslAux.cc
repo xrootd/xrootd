@@ -735,7 +735,7 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // Init also the ones not used by mktime
    ltm.tm_wday  = 0;        // day of the week 
    ltm.tm_yday  = 0;        // day in the year
-   ltm.tm_isdst = -1;       // daylight saving time
+   ltm.tm_isdst = 0;        // we will correct with an offset without dst
    //
    // Renormalize some values: year should be modulo 1900
    if (ltm.tm_year < 90)
@@ -744,10 +744,10 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    // month should in [0, 11]
    (ltm.tm_mon)--;
    //
-   // Calculate UTC
+   // Calculate as if the UTC stamp was a localtime with no dst
    etime = mktime(&ltm);
-   // Include DST shift; here, because we have the information
-   if (ltm.tm_isdst > 0) etime += XrdCryptoDSTShift;
+   // Correct to UTC
+   etime += XrdCryptoTZCorr();
    // Notify, if requested
 // DEBUG(" UTC: "<<etime<<"  isdst: "<<ltm.tm_isdst);
    //

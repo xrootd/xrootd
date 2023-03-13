@@ -77,6 +77,7 @@ void XrdCryptoSetTrace(kXR_int32 trace)
 time_t XrdCryptoTZCorr()
 {
    // Time Zone correction (wrt UTC)
+   // Assumes no DST, the correction is not expected to change during the year
    
    if (!TZInitialized) {
       time_t now = time(0);
