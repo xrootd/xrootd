@@ -1044,8 +1044,8 @@ int Cache::Stat(const char *curl, struct stat &sbuff)
 //______________________________________________________________________________
 // virtual method of XrdOucCache.
 //!
-//! @return <0 - Stat failed, value is -errno.
-//!         =0 - Stat succeeded, sbuff holds stat information.
+//! @return <0 - Unlink failed, value is -errno.
+//!         =0 - Unlink succeeded.
 //------------------------------------------------------------------------------
 
 int Cache::Unlink(const char *curl)
@@ -1084,8 +1084,7 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
          }
 
          file = it->second;
-         file->initiate_emergency_shutdown();
-         it->second = 0;
+         file->initiate_reopen();
       }
       else
       {
@@ -1105,12 +1104,5 @@ int Cache::UnlinkFile(const std::string& f_name, bool fail_if_open)
    int i_ret = m_oss->Unlink(i_name.c_str());
 
    TRACE(Debug, "UnlinkCommon " << f_name << ", f_ret=" << f_ret << ", i_ret=" << i_ret);
-
-   {
-      XrdSysCondVarHelper lock(&m_active_cond);
-
-      m_active.erase(it);
-   }
-
    return std::min(f_ret, i_ret);
 }

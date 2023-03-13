@@ -111,7 +111,6 @@ File* File::FileOpen(const std::string &path, long long offset, long long fileSi
 
 void File::initiate_emergency_shutdown()
 {
-   // Called from Cache::Unlink() when the file is currently open.
    // Cache::Unlink is also called on FSync error and when wrong number of bytes
    // is received from a remote read.
    //
@@ -135,6 +134,22 @@ void File::initiate_emergency_shutdown()
       }
    }
 
+}
+
+//------------------------------------------------------------------------------
+
+void File::initiate_reopen()
+{
+   // Called from Cache::Unlink() when the file is currently open.
+   XrdSysCondVarHelper _lck(m_state_cond);
+
+   m_needs_reopen = true;
+
+   if (m_prefetch_state != kStopped && m_prefetch_state != kComplete)
+   {
+      m_prefetch_state = kStopped;
+      cache()->DeRegisterPrefetchFile(this);
+   }
 }
 
 //------------------------------------------------------------------------------
@@ -654,6 +669,16 @@ int File::Read(IO *io, char* iUserBuff, long long iUserOff, int iUserSize, ReadR
    {
       m_state_cond.UnLock();
       return m_in_shutdown ? -ENOENT : -EBADF;
+   } else if (m_needs_reopen)
+   {
+      m_state_cond.UnLock();
+      if (!Open()) {
+        XrdSysCondVarHelper _lck(m_state_cond);
+        m_needs_reopen = false;
+        return -EIO;
+      }
+      m_state_cond.Lock();
+      m_needs_reopen = false;
    }
 
    // Shortcut -- file is fully downloaded.
@@ -683,6 +708,16 @@ int File::ReadV(IO *io, const XrdOucIOVec *readV, int readVnum, ReadReqRH *rh)
    {
       m_state_cond.UnLock();
       return m_in_shutdown ? -ENOENT : -EBADF;
+   } else if (m_needs_reopen)
+   {
+      m_state_cond.UnLock();
+      if (!Open()) {
+        XrdSysCondVarHelper _lck(m_state_cond);
+        m_needs_reopen = false;
+        return -EIO;
+      }
+      m_state_cond.Lock();
+      m_needs_reopen = false;
    }
 
    // Shortcut -- file is fully downloaded.

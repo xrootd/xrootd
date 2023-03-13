@@ -299,6 +299,7 @@ public:
    int dec_ref_cnt() { return --m_ref_cnt; }
 
    void initiate_emergency_shutdown();
+   void initiate_reopen();
    bool is_in_emergency_shutdown() { return m_in_shutdown; }
 
    void SetStore(bool val) {m_store = val;}
@@ -344,6 +345,7 @@ private:
    bool m_in_sync;
    bool m_detach_time_logged;
    bool m_in_shutdown;        //!< file is in emergency shutdown due to irrecoverable error or unlink request
+   bool m_needs_reopen{false}; //!< cached file was unlinked while open; needs to be reopened on next read.
 
    // Block state and management
 
