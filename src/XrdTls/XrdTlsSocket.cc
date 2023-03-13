@@ -505,6 +505,11 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
    if (hsm) pImpl->hsNoBlock = false;
       else  pImpl->hsNoBlock = true;
 
+// Reset the handshake and fatal error indicators
+//
+   pImpl->hsDone = false;
+   pImpl->fatal = 0;
+
 // The glories of OpenSSL require that we do some fancy footwork with the
 // handshake timeout. If there is one and this is a server and the server
 // wants blocking reads, we initially set the socket as non-blocking as the
@@ -536,6 +541,7 @@ const char *XrdTlsSocket::Init( XrdTlsContext &ctx, int sfd,
   
 XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
   {
+   EPNAME("Peek");
    XrdSysMutexHelper mHelper;
    int ssler;
 
@@ -550,7 +556,10 @@ XrdTls::RC XrdTlsSocket::Peek( char *buffer, size_t size, int &bytesPeek )
     // SEGV when called after such an error.
     //------------------------------------------------------------------------
 
-    if (pImpl->fatal) return (XrdTls::RC)pImpl->fatal;
+    if (pImpl->fatal)
+       {DBG_SIO("Failing due to previous error, fatal=" << (int)pImpl->fatal);
+        return (XrdTls::RC)pImpl->fatal;
+       }
 
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
@@ -640,7 +649,10 @@ XrdTls::RC XrdTlsSocket::Read( char *buffer, size_t size, int &bytesRead )
     // SEGV when called after such an error.
     //------------------------------------------------------------------------
 
-    if (pImpl->fatal) return (XrdTls::RC)pImpl->fatal;
+    if (pImpl->fatal) 
+       {DBG_SIO("Failing due to previous error, fatal=" << (int)pImpl->fatal);
+        return (XrdTls::RC)pImpl->fatal;
+       }
 
     //------------------------------------------------------------------------
     // If necessary, SSL_read() will negotiate a TLS/SSL session, so we don't
@@ -785,7 +797,10 @@ XrdTls::RC XrdTlsSocket::Write( const char *buffer, size_t size,
     // SEGV when called after such an error.
     //------------------------------------------------------------------------
 
-    if (pImpl->fatal) return (XrdTls::RC)pImpl->fatal;
+    if (pImpl->fatal)
+       {DBG_SIO("Failing due to previous error, fatal=" << (int)pImpl->fatal);
+        return (XrdTls::RC)pImpl->fatal;
+       }
 
     //------------------------------------------------------------------------
     // If necessary, SSL_write() will negotiate a TLS/SSL session, so we don't
