@@ -64,7 +64,7 @@ build:cs9:
   script:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git
-    - dnf install -y cppunit-devel
+    - dnf install -y cppunit-devel gtest-devel
     - cd packaging/
     - ./makesrpm.sh --define "_with_python3 1" --define "_with_tests 1" --define "_without_xrootd_user 1" --define "_with_xrdclhttp 1" --define "_with_scitokens 1" -D "dist .el9"
     - dnf builddep --nogpgcheck -y *.src.rpm
@@ -325,7 +325,7 @@ release:cs8-x86_64:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git python-macros
     - dnf config-manager --set-enabled powertools
-    - dnf install -y cppunit-devel
+    - dnf install -y cppunit-devel gtest-devel
     - dnf -y update libarchive
     - mkdir cs-8-x86_64
     - ./gen-tarball.sh $CI_COMMIT_TAG
@@ -357,7 +357,7 @@ release:rocky8-x86_64:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git python-macros
     - dnf config-manager --set-enabled powertools
-    - dnf install -y cppunit-devel
+    - dnf install -y cppunit-devel gtest-devel
     - dnf -y update libarchive
     - mkdir rocky-8-x86_64
     - ./gen-tarball.sh $CI_COMMIT_TAG
@@ -475,7 +475,7 @@ weekly:cs8:
     - dnf install -y epel-release
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git python-macros
     - dnf config-manager --set-enabled powertools
-    - dnf install -y cppunit-devel
+    - dnf install -y cppunit-devel gtest-devel
     - dnf -y update libarchive
     - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v' | grep -v 'rc.*$' | grep -v 'osghotfix' | grep -v 'CERN$' | sed -e '$!d')
     - xrootd_version=${xrootd_version:11}
@@ -508,7 +508,7 @@ weekly:cc7:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - head -n -6 /etc/yum.repos.d/epel.repo > /tmp/epel.repo ; mv -f /tmp/epel.repo /etc/yum.repos.d/epel.repo
-    - yum install --nogpg -y gcc-c++ rpm-build git cppunit-devel python-srpm-macros centos-release-scl
+    - yum install --nogpg -y gcc-c++ rpm-build git cppunit-devel gtest-devel python-srpm-macros centos-release-scl
     - xrootd_version=$(git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags | grep '^refs/tags/v5' | grep -v 'rc.*$' | grep -v 'osghotfix' | grep -v 'CERN$' | sed -e '$!d')
     - xrootd_version=${xrootd_version:11}
     - echo $xrootd_version

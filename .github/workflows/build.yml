@@ -40,6 +40,7 @@ jobs:
             fuse-devel \
             gcc-c++ \
             git \
+            gtest-devel \
             json-c-devel \
             krb5-devel \
             libmacaroons-devel \
@@ -131,6 +132,7 @@ jobs:
             fuse-devel \
             gcc-c++ \
             git \
+            gtest-devel \
             json-c-devel \
             krb5-devel \
             libmacaroons-devel \
@@ -219,6 +221,7 @@ jobs:
           fuse3-dev \
           g++ \
           git \
+          gtest-dev \
           json-c-dev \
           krb5-dev \
           libxml2-dev \
@@ -310,7 +313,8 @@ jobs:
             python3-devel \
             python3-setuptools \
             git \
-            cppunit-devel
+            cppunit-devel \
+            gtest-devel
         yum clean all
 
     # Need to use v1 of action as image Git is too old
@@ -384,7 +388,8 @@ jobs:
             python3-devel \
             python3-setuptools \
             git \
-            cppunit-devel
+            cppunit-devel \
+            gtest-devel
         yum clean all
         python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
 
@@ -454,7 +459,8 @@ jobs:
             python2-setuptools \
             python2-devel \
             git \
-            cppunit-devel
+            cppunit-devel \
+            gtest-devel
         yum clean all
 
     # Need to use v1 of action as image Git is too old
@@ -512,6 +518,8 @@ jobs:
           cmake \
           uuid-dev \
           dpkg-dev \
+          libcppunit-dev \
+          libgtest-dev \
           libssl-dev \
           libx11-dev \
           python3 \
@@ -567,8 +575,10 @@ jobs:
       run: |
         brew install \
           cmake \
+          cppunit \
           make \
           gcc \
+          googletest \
           zlib \
           krb5 \
           ossp-uuid \
@@ -846,7 +856,8 @@ jobs:
             python3-setuptools \
             git \
             tree \
-            cppunit-devel
+            cppunit-devel \
+            gtest-devel
         yum clean all
         python3 -m pip --no-cache-dir install wheel
 
@@ -902,7 +913,8 @@ jobs:
             python3-setuptools \
             git \
             tree \
-            cppunit-devel
+            cppunit-devel \
+            gtest-devel
         yum clean all
         python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
 
