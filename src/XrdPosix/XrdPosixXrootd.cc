@@ -1342,7 +1342,12 @@ int XrdPosixXrootd::Unlink(const char *path)
    if (XrdPosixGlobals::theCache)
       {LfnPath remf("unlink", path);
        if (!remf.path) return -1;
-       XrdPosixGlobals::theCache->Unlink(remf.path);
+       auto retval = XrdPosixGlobals::theCache->Unlink(remf.path);
+       // If the path specifies to only target the cache, stop here.
+       auto iter = admin.Url.GetParams().find("xrdposix.target");
+       if (iter != admin.Url.GetParams().end() && iter->second == "cache") {
+           return retval;
+       }
       }
 
 // Issue the UnLink
