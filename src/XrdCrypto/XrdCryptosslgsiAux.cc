@@ -887,7 +887,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    }
 
    // Make sure the certificate is not expired
-   int timeleft = xcpi->NotAfter() - (int)time(0) + XrdCryptoTZCorr();
+   int timeleft = xcpi->NotAfter() - (int)time(0);
    if (timeleft < 0) {
       PRINT("EEC certificate has expired");
       return -kErrPX_ExpiredEEC;
