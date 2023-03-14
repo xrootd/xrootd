@@ -582,6 +582,14 @@ pushd build/bindings/python
 %endif
 popd
 
+%check
+cd xrootd/build
+%if %{use_cmake3}
+ctest3 --output-on-failure
+%else
+ctest --output-on-failure
+%endif
+
 #-------------------------------------------------------------------------------
 # Installation
 #-------------------------------------------------------------------------------
