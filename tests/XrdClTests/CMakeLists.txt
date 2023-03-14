@@ -45,6 +45,22 @@ target_link_libraries(
   XrdClTestsHelper
   XrdCl )
 
+foreach(TEST_SUITE
+    # File
+    # FileCopy
+    # FileSystem
+    # LocalFileHandler
+    Poller
+    # PostMaster
+    Socket
+    # Threading
+    Utils
+    # Workflow
+)
+  add_test(NAME XrdCl::${TEST_SUITE}
+    COMMAND $<TARGET_FILE:test-runner> $<TARGET_FILE:XrdClTests> "All Tests/${TEST_SUITE}Test")
+endforeach()
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
