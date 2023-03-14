@@ -101,15 +101,9 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
-    - name: Run libXrdCl tests
+    - name: Run tests with CTest
       run: |
-        cd ../build/tests
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/UtilsTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/SocketTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PollerTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PostMasterTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/FileSystemTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/LocalFileHandlerTest/'
+        ctest --output-on-failure --test-dir ../build
 
   cmake-almalinux9:
 
@@ -193,15 +187,9 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
-    - name: Run libXrdCl tests
+    - name: Run tests with CTest
       run: |
-        cd ../build/tests
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/UtilsTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/SocketTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PollerTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PostMasterTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/FileSystemTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/LocalFileHandlerTest/'
+        ctest --output-on-failure --test-dir ../build
 
   cmake-alpine-musl:
 
@@ -282,12 +270,9 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
-    - name: Run libXrdCl tests
+    - name: Run tests with CTest
       run: |
-        cd ../build/tests
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/UtilsTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/SocketTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PollerTest/'
+        ctest --output-on-failure --test-dir ../build
 
   cmake-centos7:
 
@@ -354,15 +339,10 @@ jobs:
         python3 -c 'import pyxrootd; print(pyxrootd)'
         python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
-    - name: Run libXrdCl tests
+    - name: Run tests with CTest
       run: |
-        cd ../build/tests
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/UtilsTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/SocketTest/'
-        ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PollerTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/PostMasterTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/FileSystemTest/'
-        # ./common/test-runner ./XrdClTests/libXrdClTests.so 'All Tests/LocalFileHandlerTest/'
+        cd ../build
+        ctest3 --output-on-failure
 
   cmake-centos7-updated-python:
 
@@ -618,6 +598,10 @@ jobs:
         cmake --build build --target install
         python3 -m pip install --user build/bindings/python
         python3 -m pip list
+
+    - name: Run tests with CTest
+      run: |
+        ctest --output-on-failure --test-dir ../build
 
     - name: Verify install
       run: |
