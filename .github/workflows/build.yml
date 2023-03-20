@@ -236,7 +236,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX=/usr \
             -DCMAKE_INSTALL_LIBDIR=lib \
-            -DPYTHON_EXECUTABLE=$(command -v python3) \
+            -DPython_EXECUTABLE=$(command -v python3) \
             -DFORCE_ENABLED=ON \
             -DENABLE_HTTP=OFF \
             -DENABLE_TESTS=ON \
