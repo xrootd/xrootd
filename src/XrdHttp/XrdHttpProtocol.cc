@@ -1745,11 +1745,26 @@ void XrdHttpProtocol::Cleanup() {
   }
 
   if (ssl) {
-
-
-    if (SSL_shutdown(ssl) != 1) {
-      TRACE(ALL, " SSL_shutdown failed");
-      ERR_print_errors(sslbio_err);
+    // Shutdown the SSL/TLS connection
+    // https://www.openssl.org/docs/man1.0.2/man3/SSL_shutdown.html
+    // We don't need a bidirectional shutdown as
+    // when we are here, the connection will not be re-used.
+    // In the case SSL_shutdown returns 0,
+    // "the output of SSL_get_error(3) may be misleading, as an erroneous SSL_ERROR_SYSCALL may be flagged even though no error occurred."
+    // we will then just flush the thread's queue.
+    // In the case an error really happened, we print the error that happened
+    int ret = SSL_shutdown(ssl);
+    if (ret != 1) {
+        if(ret == 0) {
+            // Clean this thread's error queue for the old openssl versions
+            #if OPENSSL_VERSION_NUMBER < 0x10100000L
+                ERR_remove_thread_state(nullptr);
+            #endif
+        } else {
+            //ret < 0, an error really happened.
+            TRACE(ALL, " SSL_shutdown failed");
+            ERR_print_errors(sslbio_err);
+        }
     }
 
     if (secxtractor)
