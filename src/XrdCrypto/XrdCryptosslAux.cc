@@ -730,7 +730,14 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
        &(ltm.tm_year), &(ltm.tm_mon), &(ltm.tm_mday),
        &(ltm.tm_hour), &(ltm.tm_min), &(ltm.tm_sec),
                                       &zz) != 7) || (zz != 'Z')) {
-       return -1;
+       // Try GeneralizedTime
+       if ((sscanf((const char *)(tsn1->data),
+           "%04d%02d%02d%02d%02d%02d%c", 
+           &(ltm.tm_year), &(ltm.tm_mon), &(ltm.tm_mday),
+           &(ltm.tm_hour), &(ltm.tm_min), &(ltm.tm_sec),
+                                          &zz) != 7) || (zz != 'Z')) {
+           return -1;
+       }
    }
    // Init also the ones not used by mktime
    ltm.tm_wday  = 0;        // day of the week 
@@ -738,8 +745,11 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    ltm.tm_isdst = 0;        // we will correct with an offset without dst
    //
    // Renormalize some values: year should be modulo 1900
-   if (ltm.tm_year < 90)
+   if (ltm.tm_year < 50)
       ltm.tm_year += 100;
+   // In case GeneralizedTime is used
+   if (ltm.tm_year > 2000)
+      ltm.tm_year -= 1900;
    //
    // month should in [0, 11]
    (ltm.tm_mon)--;
