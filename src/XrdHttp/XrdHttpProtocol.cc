@@ -1528,7 +1528,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
   if ((bodylen >= 0) && (code != 100))
     ss << "Content-Length: " << bodylen << crlf;
 
-  if (header_to_add)
+  if (header_to_add && (header_to_add[0] != '\0'))
     ss << header_to_add << crlf;
 
   ss << crlf;
@@ -1547,13 +1547,13 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
   
 int XrdHttpProtocol::StartChunkedResp(int code, const char *desc, const char *header_to_add, long long bodylen, bool keepalive) {
   const std::string crlf = "\r\n";
-
   std::stringstream ss;
-  if (header_to_add) {
+
+  if (header_to_add && (header_to_add[0] != '\0')) {
     ss << header_to_add << crlf;
   }
-  ss << "Transfer-Encoding: chunked";
 
+  ss << "Transfer-Encoding: chunked";
   TRACEI(RSP, "Starting chunked response");
   return StartSimpleResp(code, desc, ss.str().c_str(), bodylen, keepalive);
 }
