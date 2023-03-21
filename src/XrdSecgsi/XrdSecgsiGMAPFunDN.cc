@@ -204,7 +204,7 @@ int XrdSecgsiGMAPInit(const char *parms)
          if (len < 2) continue;
          if (l[0] == '#') continue;
          if (l[len-1] == '\n') l[len-1] = '\0';
-         if (sscanf(l, "%4096s %256s", val, usr) >= 2) {
+         if (sscanf(l, "%4095s %255s", val, usr) >= 2) {
             XrdOucString stype = "matching";
             char *p = &val[0];
             int type = kFull;
