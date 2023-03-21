@@ -526,22 +526,23 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
       TRACEI(DEBUG, " Entering SSL_accept...");
       int res = SSL_accept(ssl);
       TRACEI(DEBUG, " SSL_accept returned :" << res);
-      ERR_print_errors(sslbio_err);
-
       if ((res == -1) && (SSL_get_error(ssl, res) == SSL_ERROR_WANT_READ)) {
           TRACEI(DEBUG, " SSL_accept wants to read more bytes... err:" << SSL_get_error(ssl, res));
           return 1;
         }
 
-      if (res < 0) {
+      if(res <= 0) {
           ERR_print_errors(sslbio_err);
-          SSL_free(ssl);
-          ssl = 0;
-          return -1;
-        }
+          if (res < 0) {
+
+              SSL_free(ssl);
+              ssl = 0;
+              return -1;
+          }
+      }
 
       BIO_set_nbio(sbio, 0);
-      ERR_print_errors(sslbio_err);
+
       strcpy(SecEntity.prot, "https");
 
       // Get the voms string and auth information
