@@ -744,12 +744,13 @@ time_t XrdCryptosslASN1toUTC(const ASN1_TIME *tsn1)
    ltm.tm_yday  = 0;        // day in the year
    ltm.tm_isdst = 0;        // we will correct with an offset without dst
    //
-   // Renormalize some values: year should be modulo 1900
-   if (ltm.tm_year < 50)
-      ltm.tm_year += 100;
-   // In case GeneralizedTime is used
-   if (ltm.tm_year > 2000)
-      ltm.tm_year -= 1900;
+   // Renormalize some values (year should be modulo 1900), honouring all cases
+   if (ltm.tm_year < 50) {
+      ltm.tm_year += 2000;
+   } else if (ltm.tm_year < 100) {
+      ltm.tm_year += 1900;
+   }
+   ltm.tm_year -= 1900;
    //
    // month should in [0, 11]
    (ltm.tm_mon)--;
