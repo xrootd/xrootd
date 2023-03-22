@@ -579,6 +579,8 @@ jobs:
     # be given explicitly.
     - name: Build with cmake
       run: |
+        # workaround for issue #1772, should be removed when that's fixed
+        sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
         cd ..
         cmake \
             -DCMAKE_C_COMPILER=clang \
