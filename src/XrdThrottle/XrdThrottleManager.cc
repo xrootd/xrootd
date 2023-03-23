@@ -459,7 +459,7 @@ XrdThrottleManager::GetUid(const char *username)
       hval %= m_max_users;
       cur++;
    }
-   //cerr << "Calculated UID " << hval << " for " << username << endl;
+   //std::cerr << "Calculated UID " << hval << " for " << username << std::endl;
    return hval;
 }
 

@@ -1287,7 +1287,7 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
 
 
   // Check for buffer overflow first
-  maxread = min(blen, BuffAvailable());
+  maxread = std::min(blen, BuffAvailable());
   TRACE(DEBUG, "getDataOneShot BuffAvailable: " << BuffAvailable() << " maxread: " << maxread);
 
   if (!maxread)
@@ -1299,7 +1299,7 @@ int XrdHttpProtocol::getDataOneShot(int blen, bool wait) {
     if (!wait) {
       int l = SSL_pending(ssl);
       if (l > 0)
-        sslavail = min(maxread, SSL_pending(ssl));
+        sslavail = std::min(maxread, SSL_pending(ssl));
     }
 
     if (sslavail < 0) {
@@ -1472,10 +1472,10 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   // And now make available the data taken from the buffer. Note that the buffer
   // may be empty...
   if (myBuffStart <= myBuffEnd) {
-    rlen = min( (long) blen, (long)(myBuffEnd - myBuffStart) );
+    rlen = std::min( (long) blen, (long)(myBuffEnd - myBuffStart) );
 
   } else
-    rlen = min( (long) blen, (long)(myBuff->buff + myBuff->bsize - myBuffStart) );
+    rlen = std::min( (long) blen, (long)(myBuff->buff + myBuff->bsize - myBuffStart) );
 
   *data = myBuffStart;
   BuffConsume(rlen);

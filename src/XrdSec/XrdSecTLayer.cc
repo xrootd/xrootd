@@ -329,7 +329,7 @@ void XrdSecTLayer::secError(const char *Msg, int rc, int iserrno)
    int i, n = sizeof(tlist)/sizeof(const char *);
 
    if (eDest) eDest->setErrInfo(rc, tlist, n);
-      else {for (i = 0; i < n; i++) cerr <<tlist[i]; cerr <<endl;}
+      else {for (i = 0; i < n; i++) std::cerr <<tlist[i]; std::cerr <<std::endl;}
 
    secDrain();
 }

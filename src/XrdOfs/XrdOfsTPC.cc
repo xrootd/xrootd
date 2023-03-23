@@ -154,7 +154,7 @@ char              *XrdOfsTPC::cPath    = 0;
 
 namespace
 {
-atomic_int rpInst = {0};
+std::atomic<int> rpInst = {0};
 }
   
 /******************************************************************************/

@@ -1273,7 +1273,7 @@ char *XrdCmsConfig::setupSid()
   
 void XrdCmsConfig::Usage(int rc)
 {
-cerr <<"\nUsage: cmsd [xrdopts] [-i] [-m] [-s] -c <cfile>" <<endl;
+std::cerr <<"\nUsage: cmsd [xrdopts] [-i] [-m] [-s] -c <cfile>" <<std::endl;
 exit(rc);
 }
   

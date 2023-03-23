@@ -45,7 +45,7 @@
 //! @param  Cache         Reference to the object that interacts with the cache.
 //! @param  Logger     -> The message routing object to be used in conjunction
 //!                       with an XrdSysError object for error messages. When
-//!                       nil, you should use cerr.
+//!                       nil, you should use std::cerr.
 //! @param  Config     -> The name of the config file. When nil there was no
 //!                       configuration file.
 //! @param  Parms      -> Any parameters specified after the path on the

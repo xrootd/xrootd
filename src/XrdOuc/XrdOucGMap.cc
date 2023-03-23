@@ -57,8 +57,8 @@ enum XrdOucGMap_Match {kFull     = 0,
                        kContains = 4
                       };
 
-#define PRINT(t,n,y)    {if (t) {t->Beg(n); cerr <<y; t->End();}}
-#define DEBUG(d,t,n,y)  {if (d && t) {t->Beg(n); cerr <<y; t->End();}}
+#define PRINT(t,n,y)    {if (t) {t->Beg(n); std::cerr <<y; t->End();}}
+#define DEBUG(d,t,n,y)  {if (d && t) {t->Beg(n); std::cerr <<y; t->End();}}
 
 //__________________________________________________________________________
 static int FindMatchingCondition(const char *, XrdSecGMapEntry_t *mc, void *xmp)

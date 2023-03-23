@@ -40,7 +40,7 @@ extern XrdOucTrace BwmTrace;
 #define GTRACE(act)         BwmTrace.What & TRACE_ ## act
 
 #define TRACES(x) \
-        {BwmTrace.Beg(epname,tident); cerr <<x; BwmTrace.End();}
+        {BwmTrace.Beg(epname,tident); std::cerr <<x; BwmTrace.End();}
 
 #define FTRACE(act, x) \
    if (GTRACE(act)) \

@@ -496,7 +496,7 @@ bool XrdSysPlugin::VerCmp(XrdVersionInfo &vInfo1,
       else mTxt = " which is incompatible!";
 
    if (!noMsg)
-      cerr <<"Plugin: " <<v1buff <<" is using " <<v2buff <<mTxt <<endl;
+      std::cerr <<"Plugin: " <<v1buff <<" is using " <<v2buff <<mTxt <<std::endl;
 
    return (*mTxt == 0);
 }

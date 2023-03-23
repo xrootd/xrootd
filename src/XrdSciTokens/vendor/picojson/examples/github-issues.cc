@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, memfwrite);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, mf);
   if (curl_easy_perform(curl) != CURLE_OK) {
-    cerr << error << endl;
+    std::cerr << error << std::endl;
   } else {
     value v;
     string err;
@@ -92,11 +92,11 @@ int main(int argc, char *argv[]) {
       array::iterator it;
       for (it = arr.begin(); it != arr.end(); it++) {
         object obj = it->get<object>();
-        cout << "#" << obj["number"].to_str() << ": " << obj["title"].to_str() << endl;
-        cout << "  " << obj["html_url"].to_str() << endl << endl;
+        std::cout << "#" << obj["number"].to_str() << ": " << obj["title"].to_str() << std::endl;
+        std::cout << "  " << obj["html_url"].to_str() << std::endl << endl;
       }
     } else {
-      cerr << err << endl;
+      std::cerr << err << std::endl;
     }
   }
   curl_easy_cleanup(curl);

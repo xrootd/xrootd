@@ -51,7 +51,7 @@ static XrdOucTrace  *dnTrace = 0;
 
 #define TRACE_Authen   0x0002
 #define EPNAME(x)    static const char *epname = x;
-#define PRINT(y)    {if (dnTrace) {dnTrace->Beg(epname); cerr <<y; dnTrace->End();}}
+#define PRINT(y)    {if (dnTrace) {dnTrace->Beg(epname); std::cerr <<y; dnTrace->End();}}
 #define DEBUG(y)   if (dnTrace && (dnTrace->What & TRACE_Authen)) PRINT(y)
 
 

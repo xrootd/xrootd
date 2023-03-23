@@ -38,7 +38,7 @@
 /******************************************************************************/
 /*                 M i s c e l l a n e o u s   D e f i n e s                  */
 /******************************************************************************/
-#define ABSTRACTMETHOD(x) {cerr <<"Method "<<x<<" must be overridden!" <<endl;}
+#define ABSTRACTMETHOD(x) {std::cerr <<"Method "<<x<<" must be overridden!" <<std::endl;}
 
 /******************************************************************************/
 /*          E r r o r   L o g g i n g / T r a c i n g   F l a g s             */

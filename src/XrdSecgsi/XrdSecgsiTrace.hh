@@ -36,7 +36,7 @@
 
 #define QTRACE(act) (gsiTrace && (gsiTrace->What & TRACE_ ## act))
 #define PRINT(y)    {if (gsiTrace) {gsiTrace->Beg(epname); \
-                                       cerr <<y; gsiTrace->End();}}
+                                       std::cerr <<y; gsiTrace->End();}}
 #define TRACE(act,x) if (QTRACE(act)) PRINT(x)
 #define NOTIFY(y)    TRACE(Debug,y)
 #define DEBUG(y)     TRACE(Authen,y)

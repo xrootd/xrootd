@@ -276,7 +276,7 @@ int XrdPosixLinkage::Resolve()
 int XrdPosixLinkage::Load_Error(const char *epname, int retv)
 {
     if (*Write != &Xrd_U_Write && *Writev != &Xrd_U_Writev)
-       cerr << "PosixPreload: Unable to resolve Unix '" <<epname <<"()'" <<endl;
+       std::cerr << "PosixPreload: Unable to resolve Unix '" <<epname <<"()'" <<std::endl;
     errno = ELIBACC;
     return retv;
 }
@@ -300,8 +300,8 @@ void XrdPosixLinkage::Missing(const char *epname)
 
    if (epname) epList = new Missing(epList, epname);
       else {Missing *np = epList;
-            while(np) cerr << "PosixPreload: Unable to resolve Unix '" 
-                           <<np->What <<"()'" <<endl;
+            while(np) std::cerr << "PosixPreload: Unable to resolve Unix '" 
+                           <<np->What <<"()'" <<std::endl;
             np = np->Next;
            }
 }

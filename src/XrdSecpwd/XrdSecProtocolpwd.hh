@@ -200,7 +200,7 @@ typedef struct {
 #define REL3(x,y,z) { if (x) delete x; if (y) delete y; if (z) delete z; }
 #if 0
 #ifndef NODEBUG
-#define PRINT(y) {{SecTrace->Beg(epname); cerr <<y; SecTrace->End();}}
+#define PRINT(y) {{SecTrace->Beg(epname); std::cerr <<y; SecTrace->End();}}
 #else
 #define PRINT(y) { }
 #endif

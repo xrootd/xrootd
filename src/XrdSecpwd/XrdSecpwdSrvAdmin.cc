@@ -212,7 +212,7 @@ bool GetEntry(XrdSutPFile *ff, XrdOucString tag,
 bool AskConfirm(const char *msg1, bool defact, const char *msg2 = 0);
 int LocateFactoryIndex(char *tag, int &id);
 
-#define PRT(x) {cerr <<x <<endl;}
+#define PRT(x) {std::cerr <<x <<std::endl;}
 // Max number of attemps entreing a password
 #define kMAXPWDATT 3
 

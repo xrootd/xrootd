@@ -169,7 +169,7 @@ int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status, bool retneg1)
 // make this messae useful like the opteration and path).
 //
 // if (eNum != ENOENT && !eText.empty() && Debug)
-//    cerr <<"XrdPosix: " <<eText <<endl;
+//    std::cerr <<"XrdPosix: " <<eText <<std::endl;
 
 // Return
 //

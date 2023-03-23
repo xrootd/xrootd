@@ -1036,7 +1036,7 @@ void XrdCryptosslCipher::PrintPublic(BIGNUM *pub)
          char *bpub = new char[lpub];
          if (bpub) {
             BIO_read(biop,(void *)bpub,lpub);
-            cerr << bpub << endl;
+            std::cerr << bpub << std::endl;
             delete[] bpub;
          }
          EVP_PKEY_free(dsa);

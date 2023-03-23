@@ -107,14 +107,14 @@ void help(int);
 /*Make sure no more parameters exist.
 */
    if (optind < argc) 
-      {cerr <<"testClient: Extraneous parameter, '" <<argv[optind] <<"'." <<endl;
+      {std::cerr <<"testClient: Extraneous parameter, '" <<argv[optind] <<"'." <<std::endl;
        help(2);
       }
 
 // Determine protocol string
 //
    if (!protocols && !(protocols = getenv("XrdSecSECTOKEN")))
-      {cerr <<"testClient: Security protocol string not specified." <<endl;
+      {std::cerr <<"testClient: Security protocol string not specified." <<std::endl;
        help(2);
       }
    SecToken.size = strlen(protocols);
@@ -123,7 +123,7 @@ void help(int);
 // if hostname given, get the hostname address
 //
    if (hostspec && (eText = theAddr(hostspec,0)))
-      {cerr <<"testServer: Unable to resolve '" <<hostspec <<"'; " <<eText <<endl;
+      {std::cerr <<"testServer: Unable to resolve '" <<hostspec <<"'; " <<eText <<std::endl;
        exit(1);
       } else theAddr.Set("localhost",0);
 
@@ -131,34 +131,34 @@ void help(int);
 //
    if (DebugON)
       {putenv((char *)"XrdSecDEBUG=1");
-       cerr <<"testClient: security token='" <<protocols <<"'" <<endl;
+       std::cerr <<"testClient: security token='" <<protocols <<"'" <<std::endl;
       }
 
 // Get the protocol
 //
    pp = XrdSecGetProtocol(hostspec, theAddr, SecToken, 0);
-   if (!pp) {cerr << "Unable to get protocol." <<endl; exit(1);}
+   if (!pp) {std::cerr << "Unable to get protocol." <<std::endl; exit(1);}
 
 // Get credentials using this context
 //
    pp->addrInfo = &theAddr;
    cred = pp->getCredentials();
    if (!cred)
-      {cerr << "Unable to get credentials," <<endl;
+      {std::cerr << "Unable to get credentials," <<std::endl;
        exit(1);
       }
    if (DebugON)
-      cerr << "testClient: credentials size=" <<cred->size <<endl;
+      std::cerr << "testClient: credentials size=" <<cred->size <<std::endl;
 
 // Write out the credentials
 //
    if (putbin)
       {if (putlen)
           {if (fwrite(&cred->size, sizeof(cred->size), 1, stdout) != sizeof(cred->size))
-	      {cerr << "Unable to write credentials length" <<endl; 
+	      {std::cerr << "Unable to write credentials length" <<std::endl; 
 	       exit(1);}}
        if (fwrite((char *) cred->buffer, cred->size, 1, stdout) != (size_t) cred->size)
-          {cerr << "Unable to write credentials" <<endl; 
+          {std::cerr << "Unable to write credentials" <<std::endl; 
            exit(1);}
       } else {
        if (putlen) printf("%s",

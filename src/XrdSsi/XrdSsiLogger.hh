@@ -118,14 +118,14 @@ enum mcbType {mcbAll=0, mcbClient, mcbServer};
 static bool SetMCB(MCB_t &mcbP, mcbType mcbt=mcbAll);
 
 //-----------------------------------------------------------------------------
-//! Define helper functions to allow ostream cerr output to appear in the log.
+//! Define helper functions to allow std::ostream std::cerr output to appear in the log.
 //! The following two functions are used with the macros below.
 //! The SSI_LOG macro preceedes the message with a time stamp; SSI_SAY does not.
-//! The endl ostream output item is automatically added to all output!
+//! The std::endl std::ostream output item is automatically added to all output!
 //-----------------------------------------------------------------------------
 
-#define SSI_LOG(x) {cerr <<XrdSSiLogger::TBeg()      <<x; XrdSsiLogger::TEnd();}
-#define SSI_SAY(x)        {XrdSSiLogger::TBeg();cerr <<x; XrdSsiLogger::TEnd();}
+#define SSI_LOG(x) {std::cerr <<XrdSSiLogger::TBeg()      <<x; XrdSsiLogger::TEnd();}
+#define SSI_SAY(x)        {XrdSSiLogger::TBeg();std::cerr <<x; XrdSsiLogger::TEnd();}
 
 static const char *TBeg();
 static void        TEnd();

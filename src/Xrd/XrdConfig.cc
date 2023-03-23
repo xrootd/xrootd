@@ -462,7 +462,7 @@ int XrdConfig::Configure(int argc, char **argv)
                  Log.Emsg("Config", buff, "parameter not specified.");
                  Usage(1);
                  break;
-       case 'v': cerr <<XrdVSTRING <<endl;
+       case 'v': std::cerr <<XrdVSTRING <<std::endl;
                  _exit(0);
                  break;
        case 'w': if (HomePath) free(HomePath);
@@ -1468,11 +1468,11 @@ void XrdConfig::Usage(int rc)
 {
   extern const char *XrdLicense;
 
-  if (rc < 0) cerr <<XrdLicense;
+  if (rc < 0) std::cerr <<XrdLicense;
      else
-     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
+     std::cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
             "[-k {n|sz|sig}] [-l [=]<fn>] [-n name] [-p <port>] [-P <prot>] [-L <libprot>]\n"
-            "[-R] [-s pidfile] [-S site] [-v] [-z] [<prot_options>]" <<endl;
+            "[-R] [-s pidfile] [-S site] [-v] [-z] [<prot_options>]" <<std::endl;
      _exit(rc > 0 ? rc : 0);
 }
 

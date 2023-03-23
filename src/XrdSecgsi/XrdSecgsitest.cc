@@ -62,7 +62,7 @@
 //
 // Globals 
 
-// #define PRINT(x) {cerr <<x <<endl;}
+// #define PRINT(x) {std::cerr <<x <<std::endl;}
 XrdCryptoFactory *gCryptoFactory = 0;
 
 XrdOucString EEcert = "";

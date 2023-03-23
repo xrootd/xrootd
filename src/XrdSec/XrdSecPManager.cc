@@ -54,7 +54,7 @@
 /*                 M i s c e l l a n e o u s   D e f i n e s                  */
 /******************************************************************************/
 
-#define DEBUG(x) {if (DebugON) cerr <<"sec_PM: " <<x <<endl;}
+#define DEBUG(x) {if (DebugON) std::cerr <<"sec_PM: " <<x <<std::endl;}
   
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -235,7 +235,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                      return pp;
                     }
                 }
-             if (erp->getErrInfo() != ENOENT) cerr <<erp->getErrText() <<endl;
+             if (erp->getErrInfo() != ENOENT) std::cerr <<erp->getErrText() <<std::endl;
             } else {DEBUG("Skipping " <<pname <<" only want " <<wantProt);}
          if (!nscan) break;
          *nscan = '&'; bp = nscan;

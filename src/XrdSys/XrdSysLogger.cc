@@ -103,7 +103,7 @@ void Snatch(struct iovec *iov, int iovnum) // Called with logger mutex locked!
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
 
-#define BLAB(x) cerr <<"Logger " <<x <<"!!!" <<endl
+#define BLAB(x) std::cerr <<"Logger " <<x <<"!!!" <<std::endl
 
 bool XrdSysLogger::doForward = false;
 

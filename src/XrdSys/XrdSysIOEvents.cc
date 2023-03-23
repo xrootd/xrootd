@@ -85,7 +85,7 @@ namespace
 
 #define DO_TRACE(x,fd,y) \
                 {PollerInit::traceMTX.Lock(); \
-                 cerr <<"IOE fd "<<fd<<' '<<#x <<": "<<y<<'\n'<<flush; \
+                 std::cerr <<"IOE fd "<<fd<<' '<<#x <<": "<<y<<'\n'<< std::flush; \
                  PollerInit::traceMTX.UnLock();}
 
 #define TRACING PollerInit::doTrace
@@ -345,7 +345,7 @@ void XrdSys::IOEvents::Channel::Delete()
       }
 // It is now safe to release the storage
 //
-   IF_TRACE(Delete,chFD,"chan="<<hex<<(void *)this<<dec);
+   IF_TRACE(Delete,chFD,"chan="<< std::hex<<(void *)this<< std::dec);
    delete this;
 }
   
@@ -886,7 +886,7 @@ int XrdSys::IOEvents::Poller::GetRequest()
    do {rlen = read(reqFD, pipeBuff, pipeBlen);} 
       while(rlen < 0 && errno == EINTR);
    if (rlen <= 0)
-      {cerr <<"Poll: "<<XrdSysE2T(errno)<<" reading from request pipe\n"<<flush;
+      {std::cerr <<"Poll: "<<XrdSysE2T(errno)<<" reading from request pipe\n"<< std::flush;
        return 0;
       }
 
@@ -1094,7 +1094,7 @@ bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP, int tmoSet)
 
 // Do some tracing
 //
-   IF_TRACE(TmoAdd,cP->chFD,"chan="<<hex<<(void*)cP<<dec
+   IF_TRACE(TmoAdd,cP->chFD,"chan="<< std::hex<<(void*)cP<< std::dec
             <<" inTOQ="<<BOOLNAME(cP->inTOQ)<<" status="<<STATUSOF(cP));
 
 // Remove element from timeout queue if it is there
@@ -1158,7 +1158,7 @@ void XrdSys::IOEvents::Poller::TmoDel(XrdSys::IOEvents::Channel *cP)
 
 // Do some tracing
 //
-   IF_TRACE(TmoDel,cP->chFD,"chan="<<hex<<(void*)cP<<dec
+   IF_TRACE(TmoDel,cP->chFD,"chan="<< std::hex<<(void*)cP<< std::dec
             <<" inTOQ="<<BOOLNAME(cP->inTOQ)<<" status="<<STATUSOF(cP));
 
 // Get the timeout queue lock and remove the channel from the queue

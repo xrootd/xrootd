@@ -198,7 +198,7 @@ void *mainOutput(void *parg)
   
 void Usage(int rc)
 {
-   cerr <<"\nUsage: mpxstats [-f {cgi|flat|xml}] -p <port> [-s]" <<endl;
+   std::cerr <<"\nUsage: mpxstats [-f {cgi|flat|xml}] -p <port> [-s]" <<std::endl;
    exit(rc);
 }
 

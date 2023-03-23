@@ -96,7 +96,7 @@ virtual ~CallBack() {}
 void         setCallBack(CallBack *cbP=0) {edCB = cbP;}
 
 // When erp in the constructor is null, no error messages are printed. Such
-// messages can be routed to "cerr" if setMsgOn is called to establish a
+// messages can be routed to "std::cerr" if setMsgOn is called to establish a
 // messages prefix (e.g. "<cmd>:") for use by command line commands.
 //
 void         setMsgOn(const char *pfx) {mPfx = pfx;}

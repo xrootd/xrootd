@@ -1249,7 +1249,7 @@ void XrdFrmConfig::InsertXD(const char *Path)
   
 void XrdFrmConfig::Usage(int rc)
 {
-     cerr <<"\nUsage: " <<myProg <<" " <<uInfo <<endl;
+     std::cerr <<"\nUsage: " <<myProg <<" " <<uInfo <<std::endl;
      _exit(rc);
 }
 

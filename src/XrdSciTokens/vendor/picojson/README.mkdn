@@ -157,7 +157,7 @@ Please refer to the implementation of picojson::default_parse_context and picojs
 
 ## Serializing to JSON
 
-Instances of the picojson::value class can be serialized in three ways, to ostream, to std::string, or to an output iterator.
+Instances of the picojson::value class can be serialized in three ways, to std::ostream, to std::string, or to an output iterator.
 
 <pre>
 picojson::value v;

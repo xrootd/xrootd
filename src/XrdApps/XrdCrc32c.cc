@@ -61,7 +61,7 @@ void Fatal(const char *op, const char *target)
 
 // Generate the message
 //
-   cerr <<"xrdcrc32c: Unable to "<<op<<' '<<target<<"; "<<XrdSysE2T(errno)<<endl;
+   std::cerr <<"xrdcrc32c: Unable to "<<op<<' '<<target<<"; "<<XrdSysE2T(errno)<<std::endl;
    exit(3);
 }
   
@@ -71,7 +71,7 @@ void Fatal(const char *op, const char *target)
   
 void Usage(int rc)
 {
-   cerr <<"\nUsage: xrdcrc32c [opts] {<path> | -}\n"
+   std::cerr <<"\nUsage: xrdcrc32c [opts] {<path> | -}\n"
           "\n<path> the path to the file whose checksum if to be computed."
           "\n-      compute checksum from data presented at standard in;"
           "\n       example: xrdcp <url> - | xrdcrc32c -\n"
@@ -81,7 +81,7 @@ void Usage(int rc)
           "\n-n do not end output with a newline character."
           "\n-s do not include file path in output result."
           "\n-x do not print leading zeroes in the checksum, if any."
-          <<endl;
+          <<std::endl;
    exit(rc);
 }
 
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
                  break;
        case 'x': fmt = "%x";
                  break;
-       default:  cerr <<pgm <<'-' <<char(optopt) <<" option is invalid" <<endl;
+       default:  std::cerr <<pgm <<'-' <<char(optopt) <<" option is invalid" <<std::endl;
                  Usage(1);
                  break;
        }
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 // Make sure a path has been specified
 //
    if (optind >= argc)
-      {cerr <<pgm <<"File path has not been specified." <<endl; Usage(1);}
+      {std::cerr <<pgm <<"File path has not been specified." <<std::endl; Usage(1);}
 
 // Get the source argument
 //
@@ -156,9 +156,9 @@ int main(int argc, char *argv[])
 // Produce the result
 //
    sprintf(csBuff, fmt, csVal);
-   cout <<(char *)csBuff;
-   if (addPath) cout << ' ' <<fPath;
-   if (addNL)   cout << endl;
+   std::cout <<(char *)csBuff;
+   if (addPath) std::cout << ' ' <<fPath;
+   if (addNL)   std::cout << std::endl;
 
 // All done
 //

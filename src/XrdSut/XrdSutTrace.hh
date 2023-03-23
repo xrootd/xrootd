@@ -41,7 +41,7 @@
 
 #define QTRACE(act) (sutTrace && (sutTrace->What & sutTRACE_ ## act))
 #define PRINT(y)    {if (sutTrace) {sutTrace->Beg(epname); \
-                                    cerr <<y; sutTrace->End();}}
+                                    std::cerr <<y; sutTrace->End();}}
 #define TRACE(act,x) if (QTRACE(act)) PRINT(x)
 #define DEBUG(y)     TRACE(Debug,y)
 #define EPNAME(x)    static const char *epname = x;

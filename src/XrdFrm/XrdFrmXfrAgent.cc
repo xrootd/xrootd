@@ -189,7 +189,7 @@ void XrdFrmXfrAgent::List(XrdOucStream &Request, char *Tok)
    if (!(*Tok)) {StgAgent.List(Items, n); GetAgent.List(Items, n);}
       else do {if ((agentP = Agent(*Tok))) agentP->List(Items, n);
               } while(*(++Tok));
-   cout <<endl;
+   std::cout <<std::endl;
 }
 
 /******************************************************************************/

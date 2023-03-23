@@ -1163,7 +1163,7 @@ int XrdOucString::operator==(const int i)
 }
 
 //______________________________________________________________________________
-ostream &operator<< (ostream &os, const XrdOucString s)
+std::ostream &operator<< (std::ostream &os, const XrdOucString s)
 {
    // Operator << is useful to print a string into a stream
 

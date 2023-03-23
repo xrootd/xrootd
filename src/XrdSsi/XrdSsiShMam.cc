@@ -196,7 +196,7 @@ inline bool ShMam_Flush(void *memP, int sOpt)
 {
    if (msync((void *)((uintptr_t)memP & PageMask), PageSize, sOpt))
       return true;
-   cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
+   std::cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<std::endl;
    return false;
 }
 */
@@ -206,7 +206,7 @@ inline bool ShMam_Flush(void *memP, int mLen, int sOpt)
    uintptr_t memE = ((uintptr_t)memP) + mLen;
    int rc;
    if ((rc = msync((void *)memB, memE-memB, sOpt)))
-      cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
+      std::cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<std::endl;
    return rc == 0;
 }
 */
@@ -768,8 +768,8 @@ bool XrdSsiShMam::ExportIt(bool fLocked)
            if (pwrite(oldFD, &vnum, sizeof(vnum), 0) != (ssize_t)sizeof(vnum))
               noGo = true;
           } else noGo = true;
-       if (noGo) cerr <<"SsiShMam: Unable to update version for " <<shmPath
-                      <<"; " <<XrdSysE2T(errno) <<endl;
+       if (noGo) std::cerr <<"SsiShMam: Unable to update version for " <<shmPath
+                      <<"; " <<XrdSysE2T(errno) <<std::endl;
        close(oldFD);
       }
 
@@ -839,7 +839,7 @@ bool XrdSsiShMam::Flush()
 //
    if (rc)
       {rc = errno;
-       cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<endl;
+       std::cerr <<"ShMam: msync() failed; " <<XrdSysE2T(errno) <<std::endl;
        errno = rc; rc = -1;
       }
 

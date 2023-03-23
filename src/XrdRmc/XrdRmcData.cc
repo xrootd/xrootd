@@ -137,7 +137,7 @@ bool XrdRmcData::Detach(XrdOucCacheIOCD &iocd)
                           Statistics.X.BytesPead,
                           Statistics.X.HitsPR,    Statistics.X.MissPR,
                           ioObj->Path());
-           cerr <<sBuff;
+           std::cerr <<sBuff;
           }
        delete this;
        return true;
@@ -177,9 +177,9 @@ do{if ((oVal = prOpt[prNext]))
        if (prNext >= prMax) prNext = 0;
        if (oVal == prSKIP) continue;
        prActive = prRun;
-       if (Debug > 1) cerr <<"prD: beg " <<(VNum >>XrdRmcReal::Shift) <<' '
+       if (Debug > 1) std::cerr <<"prD: beg " <<(VNum >>XrdRmcReal::Shift) <<' '
                            <<(segEnd-segBeg+1)*SegSize <<'@' <<(segBeg*SegSize)
-                           <<" f=" <<int(oVal) <<' ' <<ioObj->Path() <<endl;
+                           <<" f=" <<int(oVal) <<' ' <<ioObj->Path() <<std::endl;
        DMutex.UnLock();
        oVal = (oVal == prSUSE ? XrdRmcSlot::isSUSE : 0) | XrdRmcSlot::isNew;
        segBeg |= VNum; segEnd |= VNum;
@@ -188,8 +188,8 @@ do{if ((oVal = prOpt[prNext]))
                   else   {pVal = oVal; bPead += rLen; prPages++;}
               }
           } while(cBuff && Cache->Ref(cBuff, 0, pVal) && segBeg++ < segEnd);
-       if (Debug > 1) cerr <<"PrD: end " <<(VNum >>XrdRmcReal::Shift)
-                           <<' ' <<prPages <<" pgs " <<bPead <<endl;
+       if (Debug > 1) std::cerr <<"PrD: end " <<(VNum >>XrdRmcReal::Shift)
+                           <<' ' <<prPages <<" pgs " <<bPead <<std::endl;
        if (bPead)
           {Statistics.Lock();
            Statistics.X.BytesPead += bPead;
@@ -260,7 +260,7 @@ void XrdRmcData::QueuePR(long long segBeg, int rLen, int prHow, int isAuto)
 
 // Scuttle everything if we are stopping
 //
-   if (Debug) cerr <<"prQ: req " <<rLen <<'@' <<(segBeg*SegSize) <<endl;
+   if (Debug) std::cerr <<"prQ: req " <<rLen <<'@' <<(segBeg*SegSize) <<std::endl;
    if (prStop) return;
 
 // Verify that this offset is not in the table of recent offsets
@@ -286,7 +286,7 @@ void XrdRmcData::QueuePR(long long segBeg, int rLen, int prHow, int isAuto)
    for (i = 0; i < prMax; i++)
        if (segBeg == prBeg[i] || (segBeg >  prBeg[i] && segEnd <= prEnd[i]))
           {if (prHow == prSKIP)
-              {if (Debug) cerr <<"pDQ: " <<rLen <<'@' <<(segBeg*SegSize) <<endl;
+              {if (Debug) std::cerr <<"pDQ: " <<rLen <<'@' <<(segBeg*SegSize) <<std::endl;
                prOpt[i] = prSKIP;
               }
            return;
@@ -305,11 +305,11 @@ void XrdRmcData::QueuePR(long long segBeg, int rLen, int prHow, int isAuto)
        crPerf = (Statistics.X.MissPR?
                     (Statistics.X.HitsPR*100)/Statistics.X.MissPR : 0);
        Statistics.UnLock();
-       if (Debug) cerr <<"PrD: perf " <<crPerf <<"% " <<ioObj->Path() <<endl;
+       if (Debug) std::cerr <<"PrD: perf " <<crPerf <<"% " <<ioObj->Path() <<std::endl;
        if (prPerf >= 0)
           {if ( crPerf < Apr.minPerf && prPerf < Apr.minPerf
            &&  (crPerf <= prPerf || crPerf <= prPerf*2))
-              {if (Debug) cerr <<"PrD: Disabled for " <<ioObj->Path() <<endl;
+              {if (Debug) std::cerr <<"PrD: Disabled for " <<ioObj->Path() <<std::endl;
                prAuto = 0;
                if (isAuto) return;
               }
@@ -326,7 +326,7 @@ void XrdRmcData::QueuePR(long long segBeg, int rLen, int prHow, int isAuto)
 
 // If nothing pending then activate a preread
 //
-   if (Debug) cerr <<"prQ: add " <<rLen <<'@' <<(segBeg*SegSize) <<endl;
+   if (Debug) std::cerr <<"prQ: add " <<rLen <<'@' <<(segBeg*SegSize) <<std::endl;
    if (!prActive) {prActive = prWait; Cache->PreRead(&prReq);}
 }
   
@@ -376,7 +376,7 @@ int XrdRmcData::Read(char *Buff, long long Offs, int rLen)
            DMutex.UnLock();
           }
       }
-   if (Debug > 1) cerr <<"Rdr: " <<rLen <<'@' <<Offs <<" pr=" <<doPR <<endl;
+   if (Debug > 1) std::cerr <<"Rdr: " <<rLen <<'@' <<Offs <<" pr=" <<doPR <<std::endl;
 
 // Get the segment pointer, offset and the initial read amount
 //
@@ -414,8 +414,8 @@ int XrdRmcData::Read(char *Buff, long long Offs, int rLen)
 // All done, if we ended fine, return amount read. If there is no page buffer
 // then the cache returned the error in the amount present variable.
 //
-   if (Debug > 1) cerr <<"Rdr: ret " <<(cBuff ? Dest-Buff : rGot) <<" hits "
-                       <<Now.X.Hits <<" pr " <<Now.X.HitsPR <<endl;
+   if (Debug > 1) std::cerr <<"Rdr: ret " <<(cBuff ? Dest-Buff : rGot) <<" hits "
+                       <<Now.X.Hits <<" pr " <<Now.X.HitsPR <<std::endl;
    return (cBuff ? Dest-Buff : rGot);
 }
 
@@ -434,7 +434,7 @@ int XrdRmcData::Read(XrdOucCacheStats &Now,
    segOff = Offs & OffMask;
    rAmt   = SegSize - segOff;
    if (rAmt > rLen) rAmt = rLen;
-   if (Debug > 1) cerr <<"Rdr: " <<rLen <<'@' <<Offs <<" pr=" <<prOK <<endl;
+   if (Debug > 1) std::cerr <<"Rdr: " <<rLen <<'@' <<Offs <<" pr=" <<prOK <<std::endl;
 
 // Optimize here when this is R/O and prereads are disabled. Otherwise, cancel
 // any pre-read for this read as we will be bypassing the cache.
@@ -476,8 +476,8 @@ do{if ((cBuff = Cache->Get(0, segNum, rGot, noIO)))
 
 // Update stats and return read length
 //
-   if (Debug > 1) cerr <<"Rdr: ret " <<(Dest-Buff) <<" hits " <<Now.X.Hits
-                       <<" pr " <<Now.X.HitsPR <<endl;
+   if (Debug > 1) std::cerr <<"Rdr: ret " <<(Dest-Buff) <<" hits " <<Now.X.Hits
+                       <<" pr " <<Now.X.HitsPR <<std::endl;
    Statistics.Add(Now);
    return Dest-Buff;
 }

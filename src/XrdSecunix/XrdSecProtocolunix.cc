@@ -147,7 +147,7 @@ int XrdSecProtocolunix::Authenticate(XrdSecCredentials *cred,
                 "Secunix: Authentication protocol id mismatch (unix != %.4s).",
                 cred->buffer);
        if (erp) erp->setErrInfo(EINVAL, msg);
-          else cerr <<msg <<endl;
+          else std::cerr <<msg <<std::endl;
        return -1;
       }
 
@@ -209,7 +209,7 @@ XrdSecProtocol *XrdSecProtocolunixObject(const char              mode,
    if (!(prot = new XrdSecProtocolunix(hostname, endPoint)))
       {const char *msg = "Seckunix: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
-          else cerr <<msg <<endl;
+          else std::cerr <<msg <<std::endl;
        return (XrdSecProtocol *)0;
       }
 

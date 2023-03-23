@@ -40,7 +40,7 @@
 // ---------------------------------------------------------------------------//
 
 // For test dumps, to avoid interfering with the trace mutex
-#define LOCDUMP(y)    { cerr << epname << ":" << y << endl; }
+#define LOCDUMP(y)    { std::cerr << epname << ":" << y << std::endl; }
 
 // Description of errors
 static const char *X509ChainErrStr[] = {

@@ -86,7 +86,7 @@ std::string ISOdatetime(time_t t) {
   gmtime_r(&t, &t1);
 
   strftime(datebuf, 127, "%a, %d %b %Y %H:%M:%S GMT", &t1);
-  return (string) datebuf;
+  return (std::string) datebuf;
 
 }
 
@@ -192,9 +192,9 @@ int XrdHttpReq::parseLine(char *line, int len) {
       m_status_trailer = true;
     } else {
       // Some headers need to be translated into "local" cgi info.
-      std::map< std:: string, std:: string > ::iterator it = prot->hdr2cgimap.find(key);
+      std::map< std::string, std::string > ::iterator it = prot->hdr2cgimap.find(key);
       if (it != prot->hdr2cgimap.end() && (opaque ? (0 == opaque->Get(it->second.c_str())) : true)) {
-        std:: string s;
+        std::string s;
         s.assign(val, line+len-val);
         trim(s);
 
@@ -281,13 +281,13 @@ int XrdHttpReq::parseRWOp(char *str) {
     kXR_int32 newlen = sz;
 
     if (filesize > 0)
-      newlen = (kXR_int32) min(filesize - o1.bytestart, sz);
+      newlen = (kXR_int32) std::min(filesize - o1.bytestart, sz);
 
     rwOps.push_back(o1);
 
     while (len_ok < newlen) {
       ReadWriteOp nfo;
-      int len = min(newlen - len_ok, READV_MAXCHUNKSIZE);
+      int len = std::min(newlen - len_ok, READV_MAXCHUNKSIZE);
 
       nfo.bytestart = o1.bytestart + len_ok;
       nfo.byteend = nfo.bytestart + len - 1;
@@ -479,7 +479,7 @@ int XrdHttpReq::ReqReadV() {
 }
 
 std::string XrdHttpReq::buildPartialHdr(long long bytestart, long long byteend, long long fsz, char *token) {
-  ostringstream s;
+  std::ostringstream s;
 
   s << "\r\n--" << token << "\r\n";
   s << "Content-type: text/plain; charset=UTF-8\r\n";
@@ -489,7 +489,7 @@ std::string XrdHttpReq::buildPartialHdr(long long bytestart, long long byteend, 
 }
 
 std::string XrdHttpReq::buildPartialHdrEnd(char *token) {
-  ostringstream s;
+  std::ostringstream s;
 
   s << "\r\n--" << token << "--\r\n";
 
@@ -1149,7 +1149,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             }
 
 
-            string res;
+            std::string res;
             res = resourceplusopaque.c_str();
             //res += "?xrd.dirstat=1";
 
@@ -1278,12 +1278,12 @@ int XrdHttpReq::ProcessHTTPReq() {
             xrdreq.read.dlen = 0;
             
             if (rwOps.size() == 0) {
-              l = (long)min(filesize-writtenbytes, (long long)1024*1024);
+              l = (long)std::min(filesize-writtenbytes, (long long)1024*1024);
               offs = writtenbytes;
               xrdreq.read.offset = htonll(writtenbytes);
               xrdreq.read.rlen = htonl(l);
             } else {
-              l = min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
+              l = std::min(rwOps[0].byteend - rwOps[0].bytestart + 1 - writtenbytes, (long long)1024*1024);
               offs = rwOps[0].bytestart + writtenbytes;
               xrdreq.read.offset = htonll(offs);
               xrdreq.read.rlen = htonl(l);
@@ -1447,7 +1447,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             memcpy(xrdreq.write.fhandle, fhandle, 4);
 
             long long chunk_bytes_remaining = m_current_chunk_size - m_current_chunk_offset;
-            long long bytes_to_write = min(static_cast<long long>(prot->BuffUsed()),
+            long long bytes_to_write = std::min(static_cast<long long>(prot->BuffUsed()),
                                            chunk_bytes_remaining);
 
             xrdreq.write.offset = htonll(writtenbytes);
@@ -1470,7 +1470,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           xrdreq.write.requestid = htons(kXR_write);
           memcpy(xrdreq.write.fhandle, fhandle, 4);
 
-          long long bytes_to_read = min(static_cast<long long>(prot->BuffUsed()),
+          long long bytes_to_read = std::min(static_cast<long long>(prot->BuffUsed()),
                                         length - writtenbytes);
 
           xrdreq.write.offset = htonll(writtenbytes);
@@ -1534,7 +1534,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           // --------- STAT is always the first step
           memset(&xrdreq, 0, sizeof (ClientRequest));
           xrdreq.stat.requestid = htons(kXR_stat);
-          string s = resourceplusopaque.c_str();
+          std::string s = resourceplusopaque.c_str();
 
 
           l = resourceplusopaque.length() + 1;
@@ -1555,7 +1555,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.rmdir.requestid = htons(kXR_rmdir);
 
-            string s = resourceplusopaque.c_str();
+            std::string s = resourceplusopaque.c_str();
 
             l = s.length() + 1;
             xrdreq.rmdir.dlen = htonl(l);
@@ -1569,7 +1569,7 @@ int XrdHttpReq::ProcessHTTPReq() {
             memset(&xrdreq, 0, sizeof (ClientRequest));
             xrdreq.rm.requestid = htons(kXR_rm);
 
-            string s = resourceplusopaque.c_str();
+            std::string s = resourceplusopaque.c_str();
 
             l = s.length() + 1;
             xrdreq.rm.dlen = htonl(l);
@@ -1628,7 +1628,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           // --------- STAT is always the first step
           memset(&xrdreq, 0, sizeof (ClientRequest));
           xrdreq.stat.requestid = htons(kXR_stat);
-          string s = resourceplusopaque.c_str();
+          std::string s = resourceplusopaque.c_str();
 
 
           l = resourceplusopaque.length() + 1;
@@ -1659,7 +1659,7 @@ int XrdHttpReq::ProcessHTTPReq() {
           memset(&xrdreq, 0, sizeof (ClientRequest));
           xrdreq.dirlist.requestid = htons(kXR_dirlist);
 
-          string s = resourceplusopaque.c_str();
+          std::string s = resourceplusopaque.c_str();
           xrdreq.dirlist.options[0] = kXR_dstat;
           //s += "?xrd.dirstat=1";
 
@@ -1686,7 +1686,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       memset(&xrdreq, 0, sizeof (ClientRequest));
       xrdreq.mkdir.requestid = htons(kXR_mkdir);
 
-      string s = resourceplusopaque.c_str();
+      std::string s = resourceplusopaque.c_str();
       xrdreq.mkdir.options[0] = (kXR_char) kXR_mkdirpath;
 
       l = s.length() + 1;
@@ -1707,7 +1707,7 @@ int XrdHttpReq::ProcessHTTPReq() {
       memset(&xrdreq, 0, sizeof (ClientRequest));
       xrdreq.mv.requestid = htons(kXR_mv);
 
-      string s = resourceplusopaque.c_str();
+      std::string s = resourceplusopaque.c_str();
       s += " ";
 
       char buf[256];
@@ -1953,7 +1953,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
             if (e.path.length() && (e.path != ".") && (e.path != "..")) {
               // The entry is filled. <td class="ft-file"><a href="file1.txt">file1.txt</a></td>
-              string p = "<tr>"
+              std::string p = "<tr>"
                       "<td class=\"mode\">";
 
               if (e.flags & kXR_isDir) p += "d";
@@ -2340,7 +2340,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                   // Now we have a chunk coming from the server. This may be a partial chunk
 
                   if (rwOpPartialDone == 0) {
-                    string s = buildPartialHdr(rwOps[rwOpDone].bytestart,
+                    std::string s = buildPartialHdr(rwOps[rwOpDone].bytestart,
                             rwOps[rwOpDone].byteend,
                             filesize,
                             (char *) "123456");
@@ -2367,7 +2367,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               }
 
               if (rwOpDone == rwOps.size()) {
-                string s = buildPartialHdrEnd((char *) "123456");
+                std::string s = buildPartialHdrEnd((char *) "123456");
                 if (prot->SendData((char *) s.c_str(), s.size())) return -1;
               }
 
@@ -2419,7 +2419,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
         fopened = true;
 
         // We try to completely fill up our buffer before flushing
-        prot->ResumeBytes = min(length - writtenbytes, (long long) prot->BuffAvailable());
+        prot->ResumeBytes = std::min(length - writtenbytes, (long long) prot->BuffAvailable());
 
         if (sendcontinue) {
           prot->SendSimpleResp(100, NULL, NULL, 0, 0, keepalive);
@@ -2446,7 +2446,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           }
 
           // We try to completely fill up our buffer before flushing
-          prot->ResumeBytes = min(length - writtenbytes, (long long) prot->BuffAvailable());
+          prot->ResumeBytes = std::min(length - writtenbytes, (long long) prot->BuffAvailable());
 
           return 0;
         }
@@ -2557,7 +2557,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
               /* The entry is filled. */
 
 
-              string p;
+              std::string p;
               stringresp += "<D:response xmlns:lp1=\"DAV:\" xmlns:lp2=\"http://apache.org/dav/props/\" xmlns:lp3=\"LCGDM:\">\n";
               
               char *estr = escapeXML(e.path.c_str());
@@ -2611,7 +2611,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
           // If this was the last bunch of entries, send the buffer and empty it immediately
           if ((depth == 0) || !(e.flags & kXR_isDir)) {
-            string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
+            std::string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",
@@ -2673,7 +2673,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                  */
 
 
-                string p = resource.c_str();
+                std::string p = resource.c_str();
                 if (*p.rbegin() != '/') p += "/";
                 
                 p += e.path;
@@ -2735,7 +2735,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
           // If this was the last bunch of entries, send the buffer and empty it immediately
           if (final_) {
-            string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
+            std::string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
             prot->SendSimpleResp(207, (char *) "Multi-Status", (char *) "Content-Type: text/xml; charset=\"utf-8\"",

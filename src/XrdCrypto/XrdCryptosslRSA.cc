@@ -354,7 +354,7 @@ void XrdCryptosslRSA::Dump()
       char *btmp = new char[GetPublen()+1];
       if (btmp) {
          ExportPublic(btmp,GetPublen()+1);
-         DEBUG("export pub key:"<<endl<<btmp);
+         DEBUG("export pub key:"<<std::endl<<btmp);
          delete[] btmp;
       } else {
          DEBUG("cannot allocate memory for public key");
@@ -421,7 +421,7 @@ int XrdCryptosslRSA::ExportPublic(char *out, int)
    memcpy(out, cbio, lbio);
    // Null terminate
    out[lbio] = 0;
-   DEBUG("("<<lbio<<" bytes) "<< endl <<out);
+   DEBUG("("<<lbio<<" bytes) "<< std::endl <<out);
    BIO_free(bkey);
 
    return 0;
@@ -484,7 +484,7 @@ int XrdCryptosslRSA::ExportPrivate(char *out, int)
    memcpy(out, cbio, lbio);
    // Null terminate
    out[lbio] = 0;
-   DEBUG("("<<lbio<<" bytes) "<< endl <<out);
+   DEBUG("("<<lbio<<" bytes) "<< std::endl <<out);
    BIO_free(bkey);
 
    return 0;

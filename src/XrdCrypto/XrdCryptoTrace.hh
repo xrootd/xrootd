@@ -38,7 +38,7 @@
 
 #define QTRACE(act) (cryptoTrace && (cryptoTrace->What & cryptoTRACE_ ## act))
 #define PRINT(y)    {if (cryptoTrace) {cryptoTrace->Beg(epname); \
-                                       cerr <<y; cryptoTrace->End();}}
+                                       std::cerr <<y; cryptoTrace->End();}}
 #define TRACE(act,x) if (QTRACE(act)) PRINT(x)
 #define DEBUG(y)     TRACE(Debug,y)
 #define EPNAME(x)    static const char *epname = x;

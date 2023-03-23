@@ -62,8 +62,8 @@ char XrdFrcUtils::Ask(char dflt, const char *Msg1, const char *Msg2,
 
    Hint = (dflt == 'y' ? " (y | n | a): " : " (n | y | a): ");
 
-   do {cerr <<"frm_admin: " <<Msg1 <<Msg2 <<Msg3 <<Hint;
-       cin.getline(Answer, sizeof(Answer));
+   do {std::cerr <<"frm_admin: " <<Msg1 <<Msg2 <<Msg3 <<Hint;
+       std::cin.getline(Answer, sizeof(Answer));
        if (!*Answer) return dflt;
 
        n = strlen(Answer);

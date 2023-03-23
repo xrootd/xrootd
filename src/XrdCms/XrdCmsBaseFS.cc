@@ -91,7 +91,7 @@ int XrdCmsBaseFS::Bypass()
        if (Interval >= 450)
           {theQ.rLeft = theQ.rAgain;
            Window.Reset();
-           cerr <<"BYPASS " <<Interval <<"ms left=" <<theQ.rLeft <<endl;
+           std::cerr <<"BYPASS " <<Interval <<"ms left=" <<theQ.rLeft <<std::endl;
           }
       }
 
