@@ -247,8 +247,6 @@
 #include <cstdlib>
 #include <cstdarg>
 
-using namespace std;
-
 #define STR_NPOS -1
 
 class XrdOucString {
