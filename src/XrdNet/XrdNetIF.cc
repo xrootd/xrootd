@@ -47,7 +47,6 @@
 #include "XrdSys/XrdSysError.hh"
 
 #include <iostream>
-using namespace std;
   
 /******************************************************************************/
 /*                         L o c a l   S t a t i c s                          */

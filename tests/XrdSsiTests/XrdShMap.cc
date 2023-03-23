@@ -41,7 +41,6 @@
 
 #include "XrdSsi/XrdSsiShMap.hh"
 
-using namespace std;
 
 /* Gentoo removed OF from their copy of zconf.h but we need it here.
    See https://bugs.gentoo.org/show_bug.cgi?id=383179 for the sad history.

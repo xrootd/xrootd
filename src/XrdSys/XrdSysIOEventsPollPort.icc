@@ -35,7 +35,6 @@
 
 @include "XrdSys/XrdSysE2T.hh"
 
-using namespace std;
   
 /******************************************************************************/
 /*                        C l a s s   P o l l P o r t                         */

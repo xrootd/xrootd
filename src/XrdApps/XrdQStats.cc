@@ -40,7 +40,6 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-using namespace std;
   
 /******************************************************************************/
 /*                                 F a t a l                                  */
