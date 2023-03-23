@@ -47,7 +47,6 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
-using namespace std;
 
 /******************************************************************************/
 /*                         D e f i n e   M a c r o s                          */

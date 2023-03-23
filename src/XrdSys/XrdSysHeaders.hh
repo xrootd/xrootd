@@ -38,7 +38,6 @@
 
 // gcc >= 4.3, cl require this
 #  include <iostream>
-using namespace std;
 
 #else
 
