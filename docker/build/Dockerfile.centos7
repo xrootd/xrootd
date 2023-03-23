@@ -1,0 +1,43 @@
+FROM cern/cc7-base
+
+# Install tools necessary for RPM development
+RUN yum install -y rpm-build rpmdevtools yum-utils
+
+# Create directory tree for building RPMs
+RUN rpmdev-setuptree
+
+WORKDIR /root
+
+# XRootD source tarball must be created in the
+# current directory in order to build this image
+COPY xrootd.tar.gz rpmbuild/SOURCES
+
+# Extract spec file to build RPMs
+RUN tar xzf rpmbuild/SOURCES/xrootd.tar.gz --strip-components=1 xrootd/xrootd.spec
+
+# Install build dependencies with yum
+RUN yum-builddep -y --define '_with_isal 1' --define '_with_python3 1' \
+  --define '_with_scitokens 1' --define '_with_tests 1' --define '_with_xrdclhttp 1' \
+  --define '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' xrootd.spec 
+
+# Build RPMS for XRootD
+RUN rpmbuild -bb --define '_with_isal 1' --define '_with_python3 1' \
+  --define '_with_scitokens 1' --define '_with_tests 1' --define '_with_xrdclhttp 1' \
+  --define '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' xrootd.spec
+
+# Second stage, build test image
+FROM cern/cc7-base
+
+COPY --from=0 /root/rpmbuild/RPMS/* /tmp/
+
+# Install RPMS for XRootD and cleanup unneeded files
+RUN rm /tmp/*-{devel,doc}* \
+ && yum install -y wget /tmp/*.rpm \
+ && yum autoremove -y \
+ && rm -rf /tmp/*
+
+# Copy configuration files
+COPY config/*.cfg /etc/xrootd/
+COPY scripts/setup.sh /bin/setup.sh
+
+CMD [ "/sbin/init" ]
