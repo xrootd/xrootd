@@ -20,6 +20,8 @@ config.status
 config.sub
 configure
 depcomp
+docker/data
+docker/xrootd.tar.gz
 install-sh
 lib/
 libtool
