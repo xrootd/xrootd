@@ -40,7 +40,6 @@
 #include "XrdApps/XrdMpxXml.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 
-using namespace std;
 
 /******************************************************************************/
 /*                      v n M a p   D e f i n i t i o n                       */
