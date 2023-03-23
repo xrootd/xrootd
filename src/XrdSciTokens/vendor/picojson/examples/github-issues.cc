@@ -67,7 +67,6 @@ char *memfstrdup(MEMFILE *mf) {
   return buf;
 }
 
-using namespace std;
 using namespace picojson;
 
 int main(int argc, char *argv[]) {
