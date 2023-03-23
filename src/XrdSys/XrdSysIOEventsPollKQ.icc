@@ -40,7 +40,6 @@
 #define Atomic(x) x
 #endif
 
-using namespace std;
   
 /******************************************************************************/
 /*                           C l a s s   P o l l E                            */

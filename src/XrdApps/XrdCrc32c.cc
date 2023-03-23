@@ -42,7 +42,6 @@
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdSys/XrdSysE2T.hh"
 
-using namespace std;
 
 namespace
 {const char *pgm = "xrdcrc32c";

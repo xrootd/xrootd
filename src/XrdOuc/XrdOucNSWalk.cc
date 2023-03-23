@@ -40,7 +40,6 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace std;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */

@@ -51,7 +51,6 @@ namespace XrdSsi
 extern XrdSsiLogger::MCB_t *msgCB;
 }
 
-using namespace std;
 using namespace XrdSsi;
 
 /******************************************************************************/
