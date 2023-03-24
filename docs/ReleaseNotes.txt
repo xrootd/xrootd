@@ -6,6 +6,32 @@ Release Notes
 =============
 
 -------------
+Version 5.5.4
+-------------
+
++ **Minor bug fixes**
+ **[SSI]** Avoid file system+SSI feature interference that caused problems
+ **[Server]** Fix dropped connections when link is reused (issue 1928)
+ **[Server]** Limit max number of sockets in poller (issue 1962)
+ **[Tests]** Fix intermittent failure of SocketTest
+ **[XrdApps]** Fix crashes and deadlocks in xrdreplay tool (issue 1937)
+ **[XrdCl]** Remove interference between sessions in the client (issue 1942)
+ **[XrdCrypto]** Allow ASN1 GeneralizedTime in certificates (issue 1969)
+ **[XrdCrypto]** Fix handling of daylight savings time (issues 985, 1955)
+ **[XrdHttp]** Avoid sending empty headers in the HTTP response
+ **[XrdHttp]** Clear digest header between requests (issue 1956)
+ **[XrdHttp]** Fix for HTTP requests with open-ended byte range
+ **[XrdHttp]** Fix handling of SSL shutdown during cleanup (issue 1967)
+ **[XrdHttp]** Fix parsing of configuration with weighted checksums (issue 1944)
+ **[XrdHttp]** Only call ERR_print_errors() if an error occurred
+ **[XrdPfc]** Fix HTTP request failures with direct read mode enabled
+ **[XrdTls]** Fix intermittent clients disconnections on login (issue 1952)
+
++ **Miscellaneous**
+ **[XrdHttp]** Map authentication failure to HTTP 401 instead of 500
+ **[XrdSecztn]** Enable ZTN plugin by default
+
+-------------
 Version 5.5.3
 -------------
 
