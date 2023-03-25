@@ -218,22 +218,27 @@ void ParseCanonicalPaths(const std::string &path, std::vector<std::string> &resu
 struct MapRule
 {
     MapRule(const std::string &sub,
+            const std::string &username,
             const std::string &path_prefix,
             const std::string &group,
-            const std::string &name)
+            const std::string &result)
         : m_sub(sub),
+          m_username(username),
           m_path_prefix(path_prefix),
           m_group(group),
-          m_name(name)
+          m_result(result)
     {
-        //std::cerr << "Making a rule {sub=" << sub << ", path=" << path_prefix << ", group=" << group << ", result=" << name << "}" << std::endl;
+        //std::cerr << "Making a rule {sub=" << sub << ", username=" << username << ", path=" << path_prefix << ", group=" << group << ", result=" << name << "}" << std::endl;
     }
 
-    const std::string match(const std::string sub,
-                              const std::string req_path,
-                              const std::vector<std::string> groups) const
+    const std::string match(const std::string &sub,
+                            const std::string &username,
+                            const std::string &req_path,
+                            const std::vector<std::string> &groups) const
     {
         if (!m_sub.empty() && sub != m_sub) {return "";}
+
+        if (!m_username.empty() && username != username) {return "";}
 
         if (!m_path_prefix.empty() &&
             strncmp(req_path.c_str(), m_path_prefix.c_str(), m_path_prefix.size()))
@@ -244,17 +249,18 @@ struct MapRule
         if (!m_group.empty()) {
             for (const auto &group : groups) {
                 if (group == m_group)
-                    return m_name;
+                    return m_result;
             }
             return "";
         }
-        return m_name;
+        return m_result;
     }
 
     std::string m_sub;
+    std::string m_username;
     std::string m_path_prefix;
     std::string m_group;
-    std::string m_name;
+    std::string m_result;
 };
 
 struct IssuerConfig
@@ -265,11 +271,13 @@ struct IssuerConfig
                  const std::vector<std::string> &restricted_paths,
                  bool map_subject,
                  const std::string &default_user,
+                 const std::string &username_claim,
                  const std::vector<MapRule> rules)
-        : m_map_subject(map_subject),
+        : m_map_subject(map_subject || !username_claim.empty()),
           m_name(issuer_name),
           m_url(issuer_url),
           m_default_user(default_user),
+          m_username_claim(username_claim),
           m_base_paths(base_paths),
           m_restricted_paths(restricted_paths),
           m_map_rules(rules)
@@ -279,6 +287,7 @@ struct IssuerConfig
     const std::string m_name;
     const std::string m_url;
     const std::string m_default_user;
+    const std::string m_username_claim;
     const std::vector<std::string> m_base_paths;
     const std::vector<std::string> m_restricted_paths;
     const std::vector<MapRule> m_map_rules;
@@ -358,7 +367,7 @@ public:
     std::string get_username(const std::string &req_path) const
     {
         for (const auto &rule : m_map_rules) {
-            std::string name = rule.match(m_token_subject, req_path, m_groups);
+            std::string name = rule.match(m_token_subject, m_username, req_path, m_groups);
             if (!name.empty()) {
                 return name;
             }
@@ -614,7 +623,7 @@ public:
     }
 
     virtual bool Validate(const char *token, std::string &emsg, long long *expT,
-                          XrdSecEntity *Entity)
+                          XrdSecEntity *Entity) override
     {
         // Just check if the token is valid, no scope checking
 
@@ -811,10 +820,18 @@ private:
         token_subject = std::string(value);
         free(value);
 
-        std::string tmp_username;
-        if (config.m_map_subject) {
-            tmp_username = token_subject;
-        } else {
+        auto tmp_username = token_subject;
+        if (!config.m_username_claim.empty()) {
+            if (scitoken_get_claim_string(token, config.m_username_claim.c_str(), &value, &err_msg)) {
+                pthread_rwlock_unlock(&m_config_lock);
+                m_log.Log(LogMask::Warning, "GenerateAcls", "Failed to get token username:", err_msg);
+                free(err_msg);
+                scitoken_destroy(token);
+                return false;
+            }
+            tmp_username = std::string(value);
+            free(value);
+        } else if (!config.m_map_subject) {
             tmp_username = config.m_default_user;
         }
 
@@ -972,6 +989,7 @@ private:
             std::string path;
             std::string group;
             std::string sub;
+            std::string username;
             std::string result;
             bool ignore = false;
             for (const auto &entry : rule.get<picojson::object>()) {
@@ -989,8 +1007,9 @@ private:
                 }
                 else if (entry.first == "sub") {
                     sub = entry.second.get<std::string>();
-                }
-                else if (entry.first == "path") {
+                } else if (entry.first == "username") {
+                    username = entry.second.get<std::string>();
+                } else if (entry.first == "path") {
                     std::string norm_path;
                     if (!MakeCanonical(entry.second.get<std::string>(), norm_path)) {
                         ss << "In mapfile " << filename << " encountered a path " << entry.second.get<std::string>()
@@ -1011,7 +1030,7 @@ private:
                 m_log.Log(LogMask::Error, "ParseMapfile", ss.str().c_str());
                 return false;
             }
-            rules.emplace_back(sub, path, group, result);
+            rules.emplace_back(sub, username, path, group, result);
         }
 
         return true;
@@ -1158,11 +1177,12 @@ private:
 
             auto default_user = reader.Get(section, "default_user", "");
             auto map_subject = reader.GetBoolean(section, "map_subject", false);
+            auto username_claim = reader.Get(section, "username_claim", "");
 
             issuers.emplace(std::piecewise_construct,
                             std::forward_as_tuple(issuer),
                             std::forward_as_tuple(name, issuer, base_paths, restricted_paths,
-                                                  map_subject, default_user, rules));
+                                                  map_subject, default_user, username_claim, rules));
         }
 
         if (issuers.empty()) {
