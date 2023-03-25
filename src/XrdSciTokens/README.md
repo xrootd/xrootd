@@ -35,6 +35,14 @@ ofs.authlib [++] libXrdAccSciTokens.so config=/path/to/config/file
 
 If not given, it defaults to `/etc/xrootd/scitokens.cfg`.  Restart the service for new settings to take effect.
 
+The SciTokens plugin has multiple levels of logging output.  To manage these, set:
+
+```
+scitokens.trace LEVEL_NAME
+```
+
+Valid levels include `error`, `warning`, `info`, `debug`, and `all`.
+
 SciTokens Configuration File
 ----------------------------
 
