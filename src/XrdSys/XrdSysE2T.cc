@@ -54,7 +54,7 @@ int initErrTable()
 
 // Premap all known error codes.
 //
-   for(int i = 1; i <errSlots; i++)
+   for(int i = 1; i < errSlots; i++)
       {eTxt = strerror(ERRNOBASE + i);
        if (eTxt)
           { eTxt = strdup(eTxt);
@@ -67,11 +67,15 @@ int initErrTable()
    // EAUTH is remapped to EBADE ('invalid exchange').  Given there's no current XRootD use of a
    // syscall that can return EBADE, we assume EBADE really means authentication denied.
 #if defined(EBADE)
+   if (Errno2String[EBADE]) {
+     free((char*)Errno2String[EBADE]);
+   }
+
    Errno2String[EBADE] = "authentication failed - possible invalid exchange";
 #endif
 
-// Supply generic message for missing ones
-//
+   // Supply generic message for missing ones
+   //
    for (int i = 1; i < lastGood; i++)
        {if (!Errno2String[i])
            {snprintf(eBuff, sizeof(eBuff), "unknown error %d", ERRNOBASE + i);
