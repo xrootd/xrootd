@@ -205,7 +205,7 @@ int XrdXrootdProtocol::do_PgRIO()
 // We restrict the maximum transfer size to generate no more than 1023 iovec
 // elements where the first is used for the header.
 //
-   static const int maxCSSZ = 1022;
+   static const int maxCSSZ = 511;
 // static const int maxCSSZ = 32;
    static const int maxPGRD = maxCSSZ*pgPageSize; // 2,093,056 usually
    static const int maxIOVZ = maxCSSZ*2+1;
