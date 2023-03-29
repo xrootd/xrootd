@@ -347,11 +347,14 @@ namespace XrdCl
   void Stream::ForceConnect()
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    pSubStreams[0]->status = Socket::Disconnected;
-    XrdCl::PathID path( 0, 0 );
-    XrdCl::XRootDStatus st = EnableLink( path );
-    if( !st.IsOK() )
-      OnConnectError( 0, st );
+    if( pSubStreams[0]->status == Socket::Connecting )
+    {
+      pSubStreams[0]->status = Socket::Disconnected;
+      XrdCl::PathID path( 0, 0 );
+      XrdCl::XRootDStatus st = EnableLink( path );
+      if( !st.IsOK() )
+        OnConnectError( 0, st );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -399,11 +402,11 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StreamConnectorTask( XrdCl::Stream *stream ):
-        pStream( stream )
+      StreamConnectorTask( const XrdCl::URL &url, const std::string &n ):
+        url( url )
       {
         std::string name = "StreamConnectorTask for ";
-        name += stream->GetName();
+        name += n;
         SetName( name );
       }
 
@@ -412,12 +415,12 @@ namespace
       //------------------------------------------------------------------------
       time_t Run( time_t )
       {
-        pStream->ForceConnect();
+        XrdCl::DefaultEnv::GetPostMaster()->ForceReconnect( url );
         return 0;
       }
 
     private:
-      XrdCl::Stream *pStream;
+      XrdCl::URL url;
   };
 }
 
@@ -775,7 +778,7 @@ namespace XrdCl
       log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
                  "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
 
-      Task *task = new ::StreamConnectorTask( this );
+      Task *task = new ::StreamConnectorTask( *pUrl, pStreamName );
       pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
       return;
     }

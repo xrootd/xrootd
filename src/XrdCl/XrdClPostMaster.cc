@@ -245,7 +245,11 @@ namespace XrdCl
                                      AnyObject &result )
   {
     XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock );
-    Channel *channel = GetChannel( url );
+    PostMasterImpl::ChannelMap::iterator it =
+        pImpl->pChannelMap.find( url.GetChannelId() );
+    if( it == pImpl->pChannelMap.end() )
+      return Status( stError, errInvalidOp );
+    Channel *channel = it->second;
 
     if( !channel )
       return Status( stError, errNotSupported );
@@ -317,6 +321,19 @@ namespace XrdCl
     delete it->second;
     pImpl->pChannelMap.erase( it );
 
+    return Status();
+  }
+
+  Status PostMaster::ForceReconnect( const URL &url )
+  {
+    XrdSysRWLockHelper scopedLock( pImpl->pDisconnectLock, false );
+    PostMasterImpl::ChannelMap::iterator it =
+        pImpl->pChannelMap.find( url.GetChannelId() );
+
+    if( it == pImpl->pChannelMap.end() )
+      return Status( stError, errInvalidOp );
+
+    it->second->ForceReconnect();
     return Status();
   }
 
