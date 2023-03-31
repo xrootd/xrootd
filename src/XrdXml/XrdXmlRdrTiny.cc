@@ -80,7 +80,7 @@ const char *NodeName(int ntype)
 /*                        C o n s t r c u t o r   # 1                         */
 /******************************************************************************/
   
-XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc) : reader(0) // make sure the pointer is nil initialized otherwise if stat fails the destructor segfaults
+XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc, const char *buff) : reader(0) // make sure the pointer is nil initialized otherwise if stat fails the destructor segfaults
 {
    struct stat Stat;
    const char *etext;
@@ -96,7 +96,7 @@ XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc) : re
 
 // Make sure this file exists
 //
-   if (stat(fname, &Stat))
+   if (!buff && stat(fname, &Stat))
       {eCode = errno;
        snprintf(eText,sizeof(eText),"%s opening %s", XrdSysE2T(errno), fname);
        aOK = false;
@@ -106,7 +106,14 @@ XrdXmlRdrTiny::XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc) : re
 // Get a file reader
 //
    reader = new TiXmlDocument(fname);
-   if (reader->LoadFile())
+   bool result;
+   if (buff) {
+       reader->Parse(buff);
+       result = !reader->Error();
+   } else {
+       result = reader->LoadFile();
+   }
+   if (result)
       {curNode = (TiXmlNode *)reader;
        curElem = 0;
        elmNode = curNode;

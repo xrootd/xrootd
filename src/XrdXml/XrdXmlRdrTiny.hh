@@ -58,7 +58,7 @@ static  bool    Init();
 //! Constructor & Destructor
 //-----------------------------------------------------------------------------
 
-                XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc=0);
+                XrdXmlRdrTiny(bool &aOK, const char *fname, const char *enc=0, const char *buff=nullptr);
 virtual        ~XrdXmlRdrTiny();
 
 private:

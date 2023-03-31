@@ -100,7 +100,7 @@ const char *NodeName(int ntype)
 /*                        C o n s t r c u t o r   # 1                         */
 /******************************************************************************/
   
-XrdXmlRdrXml2::XrdXmlRdrXml2(bool &aOK, const char *fname, const char *enc)
+XrdXmlRdrXml2::XrdXmlRdrXml2(bool &aOK, const char *fname, const char *enc, const char *buffer)
 {
 // Initialize the standard values
 //
@@ -112,7 +112,12 @@ XrdXmlRdrXml2::XrdXmlRdrXml2(bool &aOK, const char *fname, const char *enc)
 
 // Get a file reader
 //
-   if (!(reader = xmlNewTextReaderFilename(fname)))
+   if (buffer) {
+       reader = xmlReaderForMemory(buffer, strlen(buffer), fname, enc, 0);
+   } else {
+       reader = xmlNewTextReaderFilename(fname);
+   }
+   if (!reader)
       {if ((eCode = errno)) 
 	  {size_t size = sizeof(eText) - 1;
            strncpy(eText, XrdSysE2T(errno), size);

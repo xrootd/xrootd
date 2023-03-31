@@ -37,11 +37,11 @@
 #endif
 
 /******************************************************************************/
-/*                             G e t R e a d e r                              */
+/*                         G e t R e a d e r I m p l                          */
 /******************************************************************************/
   
-XrdXmlReader *XrdXmlReader::GetReader(const char *fname, const char *enc,
-                                      const char *impl)
+XrdXmlReader *XrdXmlReader::GetReaderImpl(const char *fname, const char *buff,
+                                      const char *enc, const char *impl)
 {
    XrdXmlReader *rP;
    int rc;
@@ -50,7 +50,7 @@ XrdXmlReader *XrdXmlReader::GetReader(const char *fname, const char *enc,
 // Check if this is the default implementation
 //                                                                             c
    if (!impl || !strcmp(impl, "tinyxml"))
-      {rP = new XrdXmlRdrTiny(aOK, fname, enc);
+      {rP = new XrdXmlRdrTiny(aOK, fname, enc, buff);
        if (aOK) return rP;
        rP->GetError(rc);
        delete rP;
@@ -62,7 +62,7 @@ XrdXmlReader *XrdXmlReader::GetReader(const char *fname, const char *enc,
 //
 #ifdef HAVE_XML2
    if (!strcmp(impl, "libxml2"))
-      {rP = new XrdXmlRdrXml2(aOK, fname, enc);
+      {rP = new XrdXmlRdrXml2(aOK, fname, enc, buff);
        if (aOK) return rP;
        rP->GetError(rc);
        delete rP;

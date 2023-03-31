@@ -58,7 +58,7 @@ static  bool    Init();
 //! Constructor & Destructor
 //-----------------------------------------------------------------------------
 
-                XrdXmlRdrXml2(bool &aOK, const char *fname, const char *enc=0);
+                XrdXmlRdrXml2(bool &aOK, const char *fname, const char *enc=0, const char *buff=nullptr);
 virtual        ~XrdXmlRdrXml2();
 
 private:

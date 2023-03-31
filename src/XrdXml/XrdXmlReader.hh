@@ -122,7 +122,46 @@ const char     *GetError(int &ecode)=0;
 //-----------------------------------------------------------------------------
 static
 XrdXmlReader   *GetReader(const char *fname,
-                          const char *enc=0, const char *impl=0);
+                          const char *enc=0, const char *impl=0)
+{
+    return GetReaderImpl(fname, nullptr, enc, impl);
+}
+
+//-----------------------------------------------------------------------------
+//! Get a reader object to parse an XML buffer in memory.
+//!
+//! @param  buff     Pointer to a NUL-terminated buffer in memory containing XML
+//!
+//! @param  enc      Pointer to the encoding specification. When nil, UTF-8 is
+//!                  used. Currently, this parameter is ignored.
+//!
+//! @param  impl     Pointer to the desired implementation. When nil, the
+//!                  default implementation, tinyxml, is used. The following
+//!                  are supported
+//!
+//!                  tinyxml   - builtin xml reader. Each instance is independent
+//!                              Since it builds a full DOM tree in memory, it
+//!                              is only good for small amounts of xml. Certain
+//!                              esoteric xml features are not supported.
+//!
+//!                  libxml2   - full-fledged xml reader. Instances are not
+//!                              independent if multiple uses involve setting
+//!                              callbacks, allocators, or I/O overrides. For
+//!                              MT-safeness, it must be initialized in the
+//!                              main thread (see Init() below). It is used in
+//!                              streaming mode and is good for large documents.
+//!
+//!
+//! @return !0       Pointer to an XML reader object.
+//! @return =0       An XML reader object could not be created; errno holds
+//!                  the error code of the reason.
+//-----------------------------------------------------------------------------
+static
+XrdXmlReader   *GetReaderFromBuffer(const char *buff,
+                                    const char *enc=0, const char *impl=0)
+{
+    return GetReaderImpl("User-provided Buffer", buff, enc, impl);
+}
 
 //-----------------------------------------------------------------------------
 //! Get the text portion of an XML tag element. GetText() should only be called
@@ -165,6 +204,10 @@ static bool     Init(const char *impl=0);
 virtual        ~XrdXmlReader() {}
 
 private:
+
+static
+XrdXmlReader   *GetReaderImpl(const char *fname, const char *buff,
+                              const char *enc=0, const char *impl=0);
 
 };
 #endif
