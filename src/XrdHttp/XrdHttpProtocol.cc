@@ -1076,6 +1076,11 @@ int XrdHttpProtocol::Config(const char *ConfigFN, XrdOucEnv *myEnv) {
           {eDest.Say("Config failure: ", what, " HTTPS but it ", why);
            NoGo = 1;
           }
+
+       // Load external handlers now without HTTPS enabled first
+       //
+       if (LoadExtHandler(extHIVec, ConfigFN, *myEnv)) return 1;
+
        return NoGo;
       }
 
