@@ -1320,6 +1320,7 @@ int XrdConfig::Setup(char *dfltp, char *libProt)
    ProtInfo.Stats = new XrdStats(&Log, &Sched, &BuffPool,
                                  ProtInfo.myName, Firstcp->port,
                                  ProtInfo.myInst, ProtInfo.myProg, mySitName);
+   theEnv.PutPtr("XrdStats*", ProtInfo.Stats);
 
 // If the base protocol is xroot, then save the base port number so we can
 // extend the port to the http protocol should it have been loaded. That way

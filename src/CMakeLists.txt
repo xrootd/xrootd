@@ -81,6 +81,10 @@ if( NOT XRDCL_ONLY )
     include( XrdSciTokens )
   endif()
 
+  if( BUILD_PROMETHEUS )
+    include( XrdPrometheus )
+  endif()
+
 endif()
 
 #-------------------------------------------------------------------------------
