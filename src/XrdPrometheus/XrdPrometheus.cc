@@ -69,7 +69,7 @@ ReadOutLL(XrdHttpExtReq &req, XrdXmlReader &reader, const char *elem, long long 
        }
        send_result = req.SendSimpleResp(500, nullptr, nullptr, ss.str().c_str(), 0);
        return false;
-    } 
+    }
     try {
         result = std::stoll(out_text.get());
     } catch (...) {
@@ -97,10 +97,19 @@ bool
 AnyMissing(const char **attr, char **results)
 {
     for (auto idx = 0; attr[idx]; idx++) {
-        if (!results[idx]) {printf("Missing attribute: %s\n", attr[idx]); return true;}
+        if (!results[idx]) {return true;}
         idx += 1;
     }
     return false;
+}
+
+
+void
+IncrementTo(prometheus::Counter &ctr, double new_val)
+{
+    auto cur_val = ctr.Value();
+    auto inc_val = new_val - cur_val;
+    if (inc_val > 0) {ctr.Increment(inc_val);}
 }
 
 } //end namespace
@@ -110,17 +119,28 @@ using namespace XrdPrometheus;
 
 
 Handler::Handler(XrdSysError *log, const char *config, XrdStats *stats, XrdAccAuthorize *chain) :
-        m_chain(chain),
         m_log(*log),
         m_stats(*stats),
+        m_chain(chain),
         m_bytes_family(prometheus::BuildCounter()
-                       .Name("server_bytes")
+                       .Name("xrootd_server_bytes")
                        .Help("Number of bytes read into the server")
                        .Register(m_registry)),
         m_bytes_in_ctr(m_bytes_family.Add({{"direction", "rx"}})),
         m_bytes_out_ctr(m_bytes_family.Add({{"direction", "tx"}})),
+        m_connections_family(prometheus::BuildCounter()
+                             .Name("xrootd_server_connections")
+                             .Help("Aggregate number of server connections")
+                             .Register(m_registry)),
+        m_connections_ctr(m_connections_family.Add({})),
+        m_threads_family(prometheus::BuildGauge()
+                       .Name("xrootd_sched_threads")
+                       .Help("Number of scheduler threads")
+                       .Register(m_registry)),
+        m_threads_idle(m_threads_family.Add({{"state", "idle"}})),
+        m_threads_running(m_threads_family.Add({{"state", "running"}})),
         m_metadata(prometheus::BuildGauge()
-                   .Name("server_metadata")
+                   .Name("xrootd_server_metadata")
                    .Help("XRootD server metadata")
                    .Register(m_registry))
 {
@@ -202,27 +222,37 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
         attrs[1] = nullptr;
         result[0] = nullptr;
         std::unique_ptr<char, decltype(&free)> id_text(nullptr, &free);
-        if (reader->GetAttributes(attrs, result) && !strcmp(result[0], "link")) {
-            id_text.reset(result[0]);
-            result[0] = nullptr;
+        if (!reader->GetAttributes(attrs, result)) {
+            return req.SendSimpleResp(500, nullptr, nullptr, "Summary stat missing 'id' attribute", 0);
+        }
+        std::string stat_type(result[0]);
+        free(result[0]);
 
-            long long bytes_in, bytes_out;
-            int send_result;
+        int send_result;
+        if (stat_type == "link") {
+
+            long long bytes_in, bytes_out, tot;
+            if (!ReadOutLL(req, *reader, "tot", tot, send_result)) {return send_result;}
             if (!ReadOutLL(req, *reader, "in", bytes_in, send_result)) {return send_result;}
             if (!ReadOutLL(req, *reader, "out", bytes_out, send_result)) {return send_result;}
+            reader->GetElement(names, false); // Reset to top level
 
             {
                 std::lock_guard<std::mutex> lock(m_stats_mutex);
-                auto cur_val = m_bytes_in_ctr.Value();
-                auto inc_val = static_cast<double>(bytes_in) - cur_val;
-                if (inc_val > 0) {m_bytes_in_ctr.Increment(inc_val);}
-
-                cur_val = m_bytes_out_ctr.Value();
-                inc_val = static_cast<double>(bytes_out) - cur_val;
-                if (inc_val > 0) {m_bytes_out_ctr.Increment(inc_val);}
+                IncrementTo(m_bytes_in_ctr, static_cast<double>(bytes_in));
+                IncrementTo(m_bytes_out_ctr, static_cast<double>(bytes_out));
+                IncrementTo(m_connections_ctr, static_cast<double>(tot));
             }
+        } else if (stat_type == "sched")
+        {
+            long long idle, threads;
+            if (!ReadOutLL(req, *reader, "threads", threads, send_result)) {return send_result;}
+            if (!ReadOutLL(req, *reader, "idle", idle, send_result)) {return send_result;}
+            reader->GetElement(names, false);
+
+            m_threads_idle.Set(idle);
+            m_threads_running.Set(threads - idle);
         }
-        id_text.reset(result[0]);
 
         count = reader->GetElement(stats, false);
     }

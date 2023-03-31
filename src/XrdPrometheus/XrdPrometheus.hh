@@ -65,6 +65,13 @@ private:
     prometheus::Counter &m_bytes_in_ctr;
     prometheus::Counter &m_bytes_out_ctr;
 
+    prometheus::Family<prometheus::Counter> &m_connections_family;
+    prometheus::Counter &m_connections_ctr;
+
+    prometheus::Family<prometheus::Gauge> &m_threads_family;
+    prometheus::Gauge &m_threads_idle;
+    prometheus::Gauge &m_threads_running;
+
     prometheus::Family<prometheus::Gauge> &m_metadata;
 };
 
