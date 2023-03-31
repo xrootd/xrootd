@@ -9,7 +9,9 @@
 #include <prometheus/counter.h>
 #include <prometheus/text_serializer.h>
 
+#include "XrdAcc/XrdAccAccess.hh"
 #include "XrdHttp/XrdHttpExtHandler.hh"
+#include "XrdHttp/XrdHttpUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "Xrd/XrdStats.hh"
 #include "XrdVersion.hh"
@@ -146,9 +148,17 @@ bool Handler::MatchesPath(const char *verb, const char *path)
 
 int Handler::ProcessReq(XrdHttpExtReq &req)
 {
-    if (req.verb != "GET")
-    {       
-        return req.SendSimpleResp(405, nullptr, nullptr, "Only POST is valid for token request.", 0);
+    if (m_chain) {
+        auto iter = req.headers.find("Authorization");
+        std::unique_ptr<XrdOucEnv> env;
+        if (iter != req.headers.end()) {
+            env.reset(new XrdOucEnv());
+            std::unique_ptr<char, decltype(&free)> quoted_authz(quote(iter->second.c_str()), &free);
+            env->Put("authz", quoted_authz.get());
+        }
+        if (!m_chain->Access(&req.GetSecEntity(), req.resource.c_str(), AOP_Read, env.get())) {
+            return req.SendSimpleResp(403, nullptr, nullptr, "Insufficient privileges to access metrics", 0);
+        }
     }
 
     FrameworkStats fstats;
