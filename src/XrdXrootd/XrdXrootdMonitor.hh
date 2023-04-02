@@ -33,6 +33,8 @@
 #include <cinttypes>
 #include <cstdlib>
 #include <ctime>
+#include <memory>
+#include <vector>
 #include <netinet/in.h>
 #include <sys/types.h>
 
@@ -164,6 +166,21 @@ static  Hello     *First;
         char      *theDest;
         char       theMode;
 };
+
+/******************************************************************************/
+/* Callback that is available as a destination of formatted monitoring messages
+ * instead of as a UDP destination                                            */
+/******************************************************************************/
+class Callback
+{
+public:
+    Callback() {}
+    Callback(Callback &&) = default;
+    virtual ~Callback() {}
+    virtual void Send(void *buff, int size) const = 0;
+};
+
+static void              RegisterCallback(std::unique_ptr<Callback> cb);
 
 /******************************************************************************/
 
@@ -303,5 +320,6 @@ static char               monAUTH;
 static char               monACTIVE;
 static char               monFSTAT;
 static char               monCLOCK;
+static std::vector<std::unique_ptr<Callback>> monCallbacks;
 };
 #endif

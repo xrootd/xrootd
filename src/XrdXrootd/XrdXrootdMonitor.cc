@@ -91,6 +91,7 @@ char               XrdXrootdMonitor::monAUTH    = 0;
 char               XrdXrootdMonitor::monACTIVE  = 0;
 char               XrdXrootdMonitor::monFSTAT   = 0;
 char               XrdXrootdMonitor::monCLOCK   = 0;
+std::vector<std::unique_ptr<XrdXrootdMonitor::Callback>> XrdXrootdMonitor::monCallbacks;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -935,6 +936,15 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
 
 
 /******************************************************************************/
+/*                          R e g i s t e r C a l l b a c k                   */
+/******************************************************************************/
+void
+XrdXrootdMonitor::RegisterCallback(std::unique_ptr<Callback> cb)
+{
+    monCallbacks.emplace_back(std::move(cb));
+}
+
+/******************************************************************************/
 /*                                  T i c k                                   */
 /******************************************************************************/
   
@@ -1198,6 +1208,10 @@ int XrdXrootdMonitor::Send(int monMode, void *buff, int blen, bool setseq)
        }
        else rc2 = 0;
     sendMutex.UnLock();
+
+    for (const auto &callback : monCallbacks) {
+        callback->Send(buff, blen);
+    }
 
     return (rc1 ? rc1 : rc2);
 }

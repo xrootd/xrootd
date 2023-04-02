@@ -5,6 +5,7 @@
 /******************************************************************************/
 
 #include "XrdPrometheus.hh"
+#include "XrdDictMgr.hh"
 
 #include <prometheus/counter.h>
 #include <prometheus/text_serializer.h>
@@ -13,9 +14,11 @@
 #include "XrdHttp/XrdHttpExtHandler.hh"
 #include "XrdHttp/XrdHttpUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include <XrdOuc/XrdOucString.hh>
 #include "Xrd/XrdStats.hh"
 #include "XrdVersion.hh"
 #include "XrdXml/XrdXmlReader.hh"
+#include "XrdXrootd/XrdXrootdMonitor.hh"
 
 #include <sstream>
 
@@ -112,6 +115,43 @@ IncrementTo(prometheus::Counter &ctr, double new_val)
     if (inc_val > 0) {ctr.Increment(inc_val);}
 }
 
+
+class Callback final : public XrdXrootdMonitor::Callback {
+public:
+    Callback(XrdPrometheus::Handler *parent) : m_parent(parent) {}
+
+    Callback(Callback &&) = default;
+
+    virtual void Send(void *buff, int blen) const override
+    {
+        m_parent->Send(buff, blen);
+    }
+
+private:
+    const XrdPrometheus::Handler *m_parent;
+};
+
+
+bool
+GetSIDRest(const std::string &info, UserRecord::sid_t &sid, std::string &rest)
+{
+    auto newline_pos = info.find('\n');
+    if (newline_pos == std::string::npos) {
+        return false;
+    }
+    rest = info.substr(newline_pos + 1);
+    auto sid_pos = info.find_last_of(':', newline_pos);
+    if (sid_pos == std::string::npos) {
+        return false;
+    }
+    try {
+        sid = std::stol(info.substr(sid_pos + 1, newline_pos - sid_pos - 1));
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
 } //end namespace
 
 
@@ -129,16 +169,28 @@ Handler::Handler(XrdSysError *log, const char *config, XrdStats *stats, XrdAccAu
         m_bytes_in_ctr(m_bytes_family.Add({{"direction", "rx"}})),
         m_bytes_out_ctr(m_bytes_family.Add({{"direction", "tx"}})),
         m_connections_family(prometheus::BuildCounter()
-                             .Name("xrootd_server_connections")
+                             .Name("xrootd_server_connection_count")
                              .Help("Aggregate number of server connections")
                              .Register(m_registry)),
         m_connections_ctr(m_connections_family.Add({})),
         m_threads_family(prometheus::BuildGauge()
-                       .Name("xrootd_sched_threads")
+                       .Name("xrootd_sched_thread_count")
                        .Help("Number of scheduler threads")
                        .Register(m_registry)),
         m_threads_idle(m_threads_family.Add({{"state", "idle"}})),
         m_threads_running(m_threads_family.Add({{"state", "running"}})),
+        m_transfer_ops_family(prometheus::BuildCounter()
+                       .Name("xrootd_transfer_operations_count")
+                       .Help("Number of transfer operations performed")
+                       .Register(m_registry)),
+        m_transfer_readv_segments_family(prometheus::BuildCounter()
+                       .Name("xrootd_transfer_readv_segments_count")
+                       .Help("Number of segments in readv operations")
+                       .Register(m_registry)),
+        m_transfer_bytes_family(prometheus::BuildCounter()
+                       .Name("xrootd_transfer_bytes")
+                       .Help("Bytes of transfers")
+                       .Register(m_registry)),
         m_metadata(prometheus::BuildGauge()
                    .Name("xrootd_server_metadata")
                    .Help("XRootD server metadata")
@@ -155,6 +207,9 @@ Handler::Handler(XrdSysError *log, const char *config, XrdStats *stats, XrdAccAu
     {
         throw std::runtime_error("Prometheus handler config failed.");
     }
+
+    XrdXrootdMonitor::RegisterCallback(std::make_unique<Callback>(this));
+
 
     m_log.Log(LogMask::Info, "Initialization", "Successfully enabled Prometheus handler");
 }
@@ -262,6 +317,255 @@ int Handler::ProcessReq(XrdHttpExtReq &req)
     std::string text_metrics = serializer.Serialize(metrics);
 
     return req.SendSimpleResp(200, nullptr, nullptr, text_metrics.c_str(), text_metrics.size());
+}
+
+
+std::string
+Handler::ComputePrefix(const std::string &path) const
+{
+    if (m_monitor_paths.empty()) {return "/";}
+
+    PathList segments;
+    XrdOucString path_tmp(path.c_str()), segment;
+    int from = 0;
+    while ((from = path_tmp.tokenize(segment, from, '/')) != -1) {
+        if (segment.length() == 0) {continue;}
+        segments.emplace_back(segment.c_str());
+    }
+
+    size_t maxlen = 0;
+    for (const auto &path : m_monitor_paths) {
+        size_t curlen = 0;
+        for (const auto &segment : path) {
+            if (segments.size() <= curlen) {break;}
+            if ((segments[curlen] != segment) &&
+                (segment != "*"))
+            {
+                break;
+            }
+            curlen ++;
+        }
+        if (curlen > maxlen) {maxlen = curlen;}
+    }
+    if (maxlen == 0) {return "/";}
+
+    std::string result;
+    for (size_t idx = 0; idx < maxlen; idx++) {
+        result += "/" + segments[idx];
+    }
+    return result;
+}
+
+void
+Handler::Send(void *buff, size_t blen) const
+{
+    m_log.Log(LogMask::Debug, "MonPacket", "Received a new monitor packet");
+
+    auto mHdr = static_cast<XrdXrootdMonHeader*>(buff);
+
+    switch (mHdr->code) {
+    case 'd': // User has opened a file
+    {
+        m_log.Log(LogMask::Debug, "MonPacket", "Received a file-open packet");
+        auto mMap = static_cast<XrdXrootdMonMap*>(buff);
+        FileRecord::id_t fileid = ntohl(mMap->dictid);
+        UserRecord::sid_t userid;
+        std::string rest;
+        if (GetSIDRest(mMap->info, userid, rest)) {
+            auto path = ComputePrefix(rest);
+            {
+                std::lock_guard<std::mutex> guard(m_transfers_mutex);
+                const_cast<Handler*>(this)->m_transfers.insert({fileid, {userid, path}});
+            }
+        }
+        break;
+    }
+    case 'f': // f-stream records.  Could be open / close / disconnect.
+    {
+        m_log.Log(LogMask::Debug, "MonPacket", "Received a f-stream packet");
+        auto buffc = static_cast<char*>(buff);
+        std::ptrdiff_t offset = sizeof(XrdXrootdMonHeader) + sizeof(XrdXrootdMonFileTOD);
+        size_t bytesRemain = ntohs(mHdr->plen) - offset;
+        while (bytesRemain) {
+            auto curPtr = static_cast<void*>(buffc + offset);
+            auto mFileHdr = static_cast<XrdXrootdMonFileHdr*>(curPtr);
+            bytesRemain -= ntohs(mFileHdr->recSize);
+            offset += ntohs(mFileHdr->recSize);
+
+            switch (mFileHdr->recType) {
+            case XrdXrootdMonFileHdr::isClose:
+            {
+                m_log.Log(LogMask::Debug, "MonPacket", "Received a f-stream file-close packet");
+                auto mCLS = static_cast<XrdXrootdMonFileCLS*>(curPtr);
+                FileRecord::id_t fileid = ntohl(mCLS->Hdr.fileID);
+                prometheus::Labels labels;
+                std::string path;
+                FileRecord record;
+                {
+                    std::lock_guard<std::mutex> guard(m_transfers_mutex);
+                    decltype(m_transfers) &transfers = const_cast<Handler*>(this)->m_transfers;
+                    auto iter = transfers.find(fileid);
+                    if (iter != transfers.end()) {
+                        record = iter->second;
+                        transfers.erase(iter);
+                    }
+                }
+                labels["path"] = record.path;
+                std::string ap, dn, role, org;
+                {
+                    std::lock_guard<std::mutex> guard(m_sessions_mutex);
+                    decltype(m_sessions) &sessions = const_cast<Handler*>(this)->m_sessions;
+                    auto iter = sessions.find(record.userid);
+                    if (iter != sessions.end()) {
+                        ap = iter->second.authenticationProtocol;
+                        dn = iter->second.dn;
+                        role = iter->second.role;
+                        org = iter->second.org;
+                    }
+                }
+                labels["auth_protocol"] = ap;
+                labels["username"] = dn;
+                labels["role"] = role;
+                labels["org"] = org;
+                if (mCLS->Hdr.recFlag & XrdXrootdMonFileHdr::hasOPS) {
+                    auto &ctr_rsegs = m_transfer_readv_segments_family.Add(labels);
+                    ctr_rsegs.Increment(ntohll(mCLS->Ops.rsegs) - record.readv_segs);
+                    labels["type"] = "read";
+                    auto &ctr_r = m_transfer_ops_family.Add(labels);
+                    ctr_r.Increment(ntohl(mCLS->Ops.read) - record.read_ops);
+                    labels["type"] = "readv";
+                    auto &ctr_rv = m_transfer_ops_family.Add(labels);
+                    ctr_rv.Increment(ntohl(mCLS->Ops.readv) - record.readv_ops);
+                    labels["type"] = "write";
+                    auto &ctr_w = m_transfer_ops_family.Add(labels);
+                    ctr_w.Increment(ntohl(mCLS->Ops.write) - record.write_ops);
+                }
+                labels["type"] = "read";
+                auto &ctr_r = m_transfer_bytes_family.Add(labels);
+                ctr_r.Increment(ntohll(mCLS->Xfr.read) - record.read_bytes);
+                labels["type"] = "readv";
+                auto &ctr_rv = m_transfer_bytes_family.Add(labels);
+                ctr_rv.Increment(ntohll(mCLS->Xfr.readv) - record.readv_bytes);
+                labels["type"] = "write";
+                auto &ctr_wr = m_transfer_bytes_family.Add(labels);
+                ctr_wr.Increment(ntohll(mCLS->Xfr.write) - record.write_bytes);
+                break;
+            }
+            case XrdXrootdMonFileHdr::isDisc:
+            {
+                m_log.Log(LogMask::Debug, "MonPacket", "Received a f-stream disconnect packet");
+                auto mDSC = static_cast<XrdXrootdMonFileDSC*>(curPtr);
+                UserRecord::id_t userid = ntohl(mDSC->Hdr.userID);
+                {
+                    std::lock_guard<std::mutex> guard(m_sessions_mutex);
+                    decltype(m_sessions) &sessions = const_cast<Handler*>(this)->m_sessions;
+                    sessions.erase(userid);
+                }
+                break;
+            }
+            case XrdXrootdMonFileHdr::isOpen:
+            {
+                m_log.Log(LogMask::Debug, "MonPacket", "Received a f-stream file-open packet");
+                auto mOPN = static_cast<XrdXrootdMonFileOPN*>(curPtr);
+                FileRecord::id_t fileid = ntohl(mOPN->Hdr.fileID);
+                std::string path;
+                if (mOPN->Hdr.recFlag & XrdXrootdMonFileHdr::hasLFN) {
+                    path = ComputePrefix(mOPN->ufn.lfn);
+                    if (m_log.getMsgMask() & LogMask::Debug)
+                    {
+                        std::stringstream ss;
+                        ss << "User LFN " << mOPN->ufn.lfn << " matches prefix " << path;
+                        m_log.Log(LogMask::Debug, "MonPacket", ss.str().c_str());
+                    }
+                }
+                UserRecord::id_t userid = ntohll(mOPN->ufn.user);
+                {
+                    std::lock_guard<std::mutex> guard(m_transfers_mutex);
+                    const_cast<Handler*>(this)->m_transfers.insert({fileid, {userid, path}});
+                }
+                break;
+            }
+            // Timestamp record -- no apparent need for this in Prometheus?
+            case XrdXrootdMonFileHdr::isTime:
+            {
+                m_log.Log(LogMask::Debug, "MonPacket", "Received a f-stream time packet");
+                break;
+            }
+            case XrdXrootdMonFileHdr::isXfr:
+            {
+                m_log.Log(LogMask::Debug, "MonPacket", "Received a f-stream time packet");
+                auto mXFR = static_cast<XrdXrootdMonFileXFR*>(curPtr);
+                FileRecord::id_t fileid = ntohl(mXFR->Hdr.fileID);
+                std::string path;
+                FileRecord record;
+                {
+                    std::lock_guard<std::mutex> guard(m_transfers_mutex);
+                    decltype(m_transfers) &transfers = const_cast<Handler*>(this)->m_transfers;
+                    auto iter = transfers.find(fileid);
+                    if (iter == transfers.end()) {
+                        break;
+                    }
+                    auto &record = iter->second;
+                    record.read_bytes = ntohll(mXFR->Xfr.read);
+                    record.readv_bytes = ntohll(mXFR->Xfr.readv);
+                    record.write_bytes = ntohll(mXFR->Xfr.write);
+                }
+                break;
+            }
+            default:
+            {
+                if (m_log.getMsgMask() & LogMask::Debug)
+                {
+                    std::stringstream ss;
+                    ss << "Received an unhandled monitoring packet of type " << mHdr->code;
+                    m_log.Log(LogMask::Debug, "MonPacket", ss.str().c_str());
+                }
+            }
+            }
+        }
+        break;
+    }
+    case 'g':
+    {
+        m_log.Log(LogMask::Debug, "MonPacket", "Received a g-stream packet");
+        break;
+    }
+    case 'u':
+    {
+        m_log.Log(LogMask::Debug, "MonPacket", "Received a user login packet");
+        auto mMap = static_cast<XrdXrootdMonMap*>(buff);
+        UserRecord::id_t userid;
+        std::string auth;
+        if (GetSIDRest(mMap->info, userid, auth)) {
+            XrdOucEnv env(auth.c_str(), auth.size());
+            UserRecord record;
+            auto dn = env.Get("n");
+            if (dn) record.dn = std::string(dn);
+            auto ap = env.Get("p");
+            if (ap) record.authenticationProtocol = std::string(ap);
+            auto on = env.Get("o");
+            if (on) record.org = std::string(on);
+            auto rn = env.Get("r");
+            if (rn) record.role = std::string(rn);
+
+            std::lock_guard<std::mutex> guard(m_sessions_mutex);
+            decltype(m_sessions) &sessions = const_cast<Handler*>(this)->m_sessions;
+            sessions.insert({userid, record});
+        }
+        break;
+    }
+    default:
+    {
+        if (m_log.getMsgMask() & LogMask::Debug)
+        {
+            std::stringstream ss;
+            ss << "Received an unhandled monitoring packet of type " << mHdr->code;
+            m_log.Log(LogMask::Debug, "MonPacket", ss.str().c_str());
+        }
+        break;
+    }
+    }
+    return;
 }
 
 

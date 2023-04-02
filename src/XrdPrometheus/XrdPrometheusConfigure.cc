@@ -3,13 +3,14 @@
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucGatherConf.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysError.hh>
 
 using namespace XrdPrometheus;
 
 bool Handler::Config(const char *config_filename)
 {
-    XrdOucGatherConf prometheus_conf("prometheus", &m_log);
+    XrdOucGatherConf prometheus_conf("prometheus.trace prometheus.monpath", &m_log);
     int result;
     if ( (result = prometheus_conf.Gather(config_filename, XrdOucGatherConf::trim_lines)) < 0) {
         m_log.Emsg("Config", -result, "parsing config file", config_filename);
@@ -18,7 +19,10 @@ bool Handler::Config(const char *config_filename)
 
     while (prometheus_conf.GetLine()) {
         auto val = prometheus_conf.GetToken();
-        if (!strcmp(val, "prometheus.trace") && !ConfigureTrace(prometheus_conf)) {
+        if (!strcmp(val, "trace") && !ConfigureTrace(prometheus_conf)) {
+            return false;
+        }
+        else if (!strcmp(val, "monpath") && !ConfigurePaths(prometheus_conf)) {
             return false;
         }
     }
@@ -72,3 +76,25 @@ bool Handler::ConfigureTrace(XrdOucGatherConf &config_obj)
     return true;
 }
 
+
+bool Handler::ConfigurePaths(XrdOucGatherConf &config_obj)
+{
+    char *val = config_obj.GetToken();
+    if (!val || !val[0])
+    {
+        m_log.Emsg("Config", "prometheus.monpath requires a path!");
+        return false;
+    }
+
+    XrdOucString path(val), segment;
+    m_log.Emsg("Config", "Configuring path for monitoring", val);
+    int from = 0;
+    std::vector<std::string> monpath;
+    while ((from = path.tokenize(segment, from, '/')) != -1) {
+        if (!segment.length()) {continue;}
+        monpath.emplace_back(segment.c_str());
+    }
+    m_monitor_paths.emplace_back(monpath);
+
+    return true;
+}
