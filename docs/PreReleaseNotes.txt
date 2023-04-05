@@ -18,5 +18,7 @@ Prerelease Notes
   **Commit: 2572e83
 
 + **Minor bug fixes**
+  **[Server]** Use correct format to print size_t; fixes #1989
+  **Commit: 4626bc2
 
 + **Miscellaneous**
