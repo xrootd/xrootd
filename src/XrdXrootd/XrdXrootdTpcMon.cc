@@ -44,7 +44,7 @@ namespace
 const char *json_fmt = "{\"TPC\":\"%s\",\"Client\":\"%s\","
 "\"Xeq\":{\"Beg\":\"%s\",\"End\":\"%s\",\"RC\":%d,\"Strm\":%u,\"Type\":\"%s\","
         "\"IPv\":%c},"
-"\"Src\":\"%s\",\"Dst\":\"%s\",\"Size\":%d}";
+"\"Src\":\"%s\",\"Dst\":\"%s\",\"Size\":%zu}";
 
 const char *urlFMT = "";
 
