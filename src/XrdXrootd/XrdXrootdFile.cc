@@ -170,7 +170,10 @@ void XrdXrootdFile::Ref(int num)
    fileMutex.Lock();
    refCount += num;
    TRACEI(FSAIO,"File::Ref="<<refCount<<" after +"<<num<<' '<<FileKey);
-   if (num < 0 && syncWait && refCount <= 0) syncWait->Post();
+   if (num < 0 && syncWait && refCount <= 0)
+      {syncWait->Post();
+       syncWait = nullptr;
+      }
    fileMutex.UnLock();
 }
 
