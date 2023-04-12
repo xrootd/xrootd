@@ -25,18 +25,18 @@
 
 #define CPPUNIT_ASSERT_XRDST_NOTOK( x, err )         \
 {                                                    \
-  XrdCl::XRootDStatus st = x;                        \
+  XrdCl::XRootDStatus _st = x;                       \
   std::string msg = "["; msg += #x; msg += "]: ";    \
-  msg += st.ToStr();                                 \
-  CPPUNIT_ASSERT_MESSAGE( msg, !st.IsOK() && st.code == err ); \
+  msg += _st.ToStr();                                \
+  CPPUNIT_ASSERT_MESSAGE( msg, !_st.IsOK() && _st.code == err ); \
 }
 
 #define CPPUNIT_ASSERT_XRDST( x )                    \
 {                                                    \
-  XrdCl::XRootDStatus st = x;                        \
+  XrdCl::XRootDStatus _st = x;                       \
   std::string msg = "["; msg += #x; msg += "]: ";    \
-  msg += st.ToStr();                                 \
-  CPPUNIT_ASSERT_MESSAGE( msg, st.IsOK() );          \
+  msg += _st.ToStr();                                \
+  CPPUNIT_ASSERT_MESSAGE( msg, _st.IsOK() );         \
 }
 
 #define CPPUNIT_ASSERT_ERRNO( x )                    \
