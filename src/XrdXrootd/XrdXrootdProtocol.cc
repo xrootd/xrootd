@@ -1501,7 +1501,7 @@ void XrdXrootdProtocol::Reset()
    doTLS              = tlsNot; // Assume client is not capable. This will be
    ableTLS            = false;  // resolved during the kXR_protocol interchange.
    isTLS              = false;  // Made true when link converted to TLS
-   linkAioReq         = {0};
+   linkAioReq         = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isLinkWT= isNOP = isDead = false;
    sigNeed = sigHere = sigRead = false;
