@@ -48,7 +48,7 @@ XrdXrootdAioBuff*       Alloc(XrdXrootdAioTask *arp);
 
         void            doneWrite() override;
 
-virtual void            Recycle();
+virtual void            Recycle() override;
 
 XrdXrootdAioBuff*       next;
 

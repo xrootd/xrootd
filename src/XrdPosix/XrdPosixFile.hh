@@ -166,7 +166,7 @@ inline void          UpdtSize(size_t newsz)
 
        using         XrdPosixObject::Who;
 
-inline bool          Who(XrdPosixFile **fileP)
+inline bool          Who(XrdPosixFile **fileP) override
                           {*fileP = this; return true;}
 
        int           Write(char *Buff, long long Offs, int Len) override;
