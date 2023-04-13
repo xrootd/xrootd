@@ -28,6 +28,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#if defined(__clang__) && defined(_FORTIFY_SOURCE)
+#undef _FORTIFY_SOURCE
+#endif
+
 #ifdef  _LARGEFILE_SOURCE
 #undef  _LARGEFILE_SOURCE
 #endif
