@@ -218,6 +218,7 @@ int XrdXrootdFileTable::Add(XrdXrootdFile *fp)
           else {i -= XRD_FTABSIZE;
                 if (XTab && i < XTnum) fP = &XTab[i];
                    else fP = 0;
+                i += XRD_FTABSIZE;
                }
        if (fP && *fP == heldSpotP)
           {*fP = fp;
