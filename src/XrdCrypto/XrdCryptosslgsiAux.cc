@@ -455,7 +455,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
    }
    //
    // Sign the request
-   if (!(X509_REQ_sign(preq, ekPX, EVP_sha256()))) {
+   if (!(X509_REQ_sign(preq, ekPX, XrdCryptosslSHAFun()))) {
       PRINT("problems signing the request");
       return -kErrPX_Signing;
    }
@@ -549,7 +549,7 @@ int XrdCryptosslX509CreateProxy(const char *fnc, const char *fnk,
 
    //
    // Sign the certificate
-   if (!(X509_sign(xPX, ekEEC, EVP_sha256()))) {
+   if (!(X509_sign(xPX, ekEEC, XrdCryptosslSHAFun()))) {
       PRINT("problems signing the certificate");
       return -kErrPX_Signing;
    }
@@ -851,7 +851,7 @@ int XrdCryptosslX509CreateProxyReq(XrdCryptoX509 *xcpi,
    }
    //
    // Sign the request
-   if (!(X509_REQ_sign(xro, ekro, EVP_sha256()))) {
+   if (!(X509_REQ_sign(xro, ekro, XrdCryptosslSHAFun()))) {
       PRINT("problems signing the request");
       return -kErrPX_Signing;
    }
@@ -1155,7 +1155,7 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
 
    //
    // Sign the certificate
-   if (!(X509_sign(xpo, ekpi, EVP_sha256()))) {
+   if (!(X509_sign(xpo, ekpi, XrdCryptosslSHAFun()))) {
       PRINT("problems signing the certificate");
       return -kErrPX_Signing;
    }
@@ -1422,4 +1422,17 @@ int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *xcpi, XrdOucString &emsg) {
 
    // Done
    return 0;
+}
+
+//____________________________________________________________________________
+const EVP_MD *XrdCryptosslSHAFun() {
+   //
+   // SHA function
+   // Default SHA-256, controlled by var XrdCryptoGSISHA
+   static const EVP_MD *sslSHAFun = 0;
+   if (!sslSHAFun) {
+      const char *_md = getenv("XrdCryptoGSISHA") ? getenv("XrdCryptoGSISHA") : "sha256";           
+      sslSHAFun = EVP_get_digestbyname(_md);
+   }
+   return sslSHAFun;  
 }

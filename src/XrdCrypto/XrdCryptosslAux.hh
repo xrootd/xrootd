@@ -50,6 +50,7 @@ class XrdTlsPeerCerts;
 int XrdCryptosslKDFunLen(); // default buffer length
 int XrdCryptosslKDFun(const char *pass, int plen, const char *salt, int slen,
                       char *key, int len);
+
 //
 // X509 manipulation: certificate verification
 bool XrdCryptosslX509VerifyCert(XrdCryptoX509 *c, XrdCryptoX509 *r);
@@ -96,6 +97,8 @@ int XrdCryptosslX509SignProxyReq(XrdCryptoX509 *, XrdCryptoRSA *,
 int XrdCryptosslX509CheckProxy3(XrdCryptoX509 *, XrdOucString &);
 // Get VOMS attributes, if any
 int XrdCryptosslX509GetVOMSAttr(XrdCryptoX509 *, XrdOucString &);
+// SHA function (used for signing)
+const EVP_MD *XrdCryptosslSHAFun();
 
 /******************************************************************************/
 /*          E r r o r   L o g g i n g / T r a c i n g   F l a g s             */
