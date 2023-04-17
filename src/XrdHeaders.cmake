@@ -175,7 +175,6 @@ if( NOT XRDCL_ONLY )
     XrdCrypto/XrdCryptoX509Crl.hh
     XrdCrypto/XrdCryptoX509Req.hh
     XrdCrypto/XrdCryptoRSA.hh
-    XrdCrypto/XrdCryptosslgsiAux.hh
 
     XrdSut/XrdSutAux.hh
     XrdSut/XrdSutBucket.hh
