@@ -83,7 +83,7 @@ set ( XrdCryptoSources
       XrdCrypto/XrdCryptoX509Chain.cc           XrdCrypto/XrdCryptoX509Chain.hh
       XrdCrypto/XrdCryptosslRSA.cc              XrdCrypto/XrdCryptosslRSA.hh
       XrdCrypto/XrdCryptoRSA.cc                 XrdCrypto/XrdCryptoRSA.hh
-      XrdCrypto/XrdCryptosslgsiAux.cc           XrdCrypto/XrdCryptosslgsiAux.hh
+      XrdCrypto/XrdCryptosslgsiAux.cc
       XrdCrypto/XrdCryptosslX509Req.cc          XrdCrypto/XrdCryptosslX509Req.hh
       XrdCrypto/XrdCryptoX509Req.cc             XrdCrypto/XrdCryptoX509Req.hh
       XrdCrypto/XrdCryptoAux.cc                 XrdCrypto/XrdCryptoAux.hh
