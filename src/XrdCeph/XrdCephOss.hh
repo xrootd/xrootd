@@ -67,6 +67,7 @@ public:
   virtual int     Rename(const char *, const char *, XrdOucEnv *eP1=0, XrdOucEnv *eP2=0);
   virtual int     Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0);
   virtual int     StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP=0);
+  virtual int     StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);  
   virtual int     StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0);
   virtual int     Truncate(const char *, unsigned long long, XrdOucEnv *eP=0);
   virtual int     Unlink(const char *path, int Opts=0, XrdOucEnv *eP=0);
@@ -74,13 +75,14 @@ public:
   virtual XrdOssDF *newFile(const char *tident);
 
   private:
+
     bool m_configBufferEnable=false; //! config option for buffering
     size_t m_configBufferSize=16*1024*1024L;  //! Buffer size
     std::string m_configBufferIOmode = "aio";
     bool m_configReadVEnable=false; //! enable readV decorator
     std::string m_configReadVAlgName="passthrough"; // readV algorithm type
     size_t m_configMaxSimulBufferCount=10;  //! max number of buffers in a single Oss instance (.e.g simul. reads)
-
+    std::string m_configPoolnames;
 };
 
 #endif /* __CEPH_OSS_HH__ */
