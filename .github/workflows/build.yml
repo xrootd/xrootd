@@ -954,9 +954,6 @@ jobs:
           pkg-config \
           tree
         sudo apt-get autoclean -y
-        # Remove packages with invalid versions which cause sdist build to fail
-        sudo apt-get remove python3-debian python3-distro-info
-        python3 -m pip --no-cache-dir install --upgrade pip setuptools wheel
         python3 -m pip list
 
     - name: Clone repository
