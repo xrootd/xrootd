@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Xcache]** Implement a file evict function.
+  **Commit: 952bd9a
   **[PSS]** Allow origin to be a directory of a locally mounted file system.
   **Commit: 850a14f bb550ea
   **[Server]** Add gsi option to display DN when it differs from entity name.
