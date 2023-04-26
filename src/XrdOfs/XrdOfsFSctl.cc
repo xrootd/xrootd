@@ -265,9 +265,21 @@ int XrdOfs::FSctl(const int            cmd,
                   XrdOucErrInfo        &eInfo,
                   const XrdSecEntity  *client)
 {
-// If we have a plugin to handle this, use it.
+   EPNAME("FSctl");
+
+// If this is the cache-specfic we need to do a lot more work. Otherwise this
+// is a simple case of wheter we have a plug-in for this or not.
 //
-   if (FSctl_PI) return FSctl_PI->FSctl(cmd, args, eInfo, client);
+   if (cmd == SFS_FSCTL_PLUGXC)
+      {if (FSctl_PC)
+          {if (args.Arg2Len == -2)
+              {XrdOucEnv pc_Env(args.ArgP[1] ? args.ArgP[1] : 0, 0, client);
+               AUTHORIZE(client,&pc_Env,AOP_Read,"FSctl",args.ArgP[0],eInfo);
+              }
+           return FSctl_PC->FSctl(cmd, args, eInfo, client);
+          }
+      }
+      else if (FSctl_PI) return FSctl_PI->FSctl(cmd, args, eInfo, client);
 
 // Operation is not supported
 //

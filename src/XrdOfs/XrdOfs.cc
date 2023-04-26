@@ -173,6 +173,7 @@ XrdOfs::XrdOfs() : dMask{0000,0775}, fMask{0000,0775}, // Legacy
 // Establish defaults
 //
    ofsConfig     = 0;
+   FSctl_PC      = 0;
    FSctl_PI      = 0;
    Authorization = 0;
    Finder        = 0;

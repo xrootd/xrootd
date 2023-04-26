@@ -285,6 +285,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Rm();
        int   do_Rmdir();
        int   do_Set();
+       int   do_Set_Cache(XrdOucTokenizer &setargs);
        int   do_Set_Mon(XrdOucTokenizer &setargs);
        int   do_Stat();
        int   do_Statx();

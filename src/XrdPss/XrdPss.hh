@@ -158,7 +158,9 @@ bool      ConfigMapID();
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0) override;
 void      EnvInfo(XrdOucEnv *envP) override;
+//uint64_t  Features() override {std::cerr<<myFeatures<<std::endl;return 256|myFeatures;}
 uint64_t  Features() override {return myFeatures;}
+//uint64_t  Features() override;
 int       Init(XrdSysLogger *, const char *) override {return -ENOTSUP;}
 int       Init(XrdSysLogger *, const char *, XrdOucEnv *envP) override;
 int       Lfn2Pfn(const char *Path, char *buff, int blen) override;

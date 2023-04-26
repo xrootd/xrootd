@@ -446,6 +446,7 @@ const char   *Split(const char *Args, const char **Opq, char *Path, int Plen);
 private:
   
 char             *myRole;
+XrdOfsFSctl_PI   *FSctl_PC;       //    ->FSctl plugin (cache specific)
 XrdOfsFSctl_PI   *FSctl_PI;       //    ->FSctl plugin
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface

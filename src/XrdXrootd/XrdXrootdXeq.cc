@@ -2770,12 +2770,57 @@ int XrdXrootdProtocol::do_Set()
             return Response.Send();
            }
    else if (!strcmp("monitor", val)) return do_Set_Mon(setargs);
+   else if (!strcmp("cache",   val)) return do_Set_Cache(setargs);
 
 // All done
 //
    return Response.Send(kXR_ArgInvalid, "invalid set parameter");
 }
 
+/******************************************************************************/
+/*                          d o _ S e t _ C a c h e                           */
+/******************************************************************************/
+
+// Process: set cache <cmd> <args>
+
+int XrdXrootdProtocol::do_Set_Cache(XrdOucTokenizer &setargs)
+{
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
+   XrdSfsFSctl myData;
+   char *cmd, *cargs, *opaque;
+   const char *myArgs[2];
+
+// This set is valid only if we implement a cache
+//
+   if ((fsFeatures & XrdSfs::hasCACH) == 0)
+      return Response.Send(kXR_ArgInvalid, "invalid set parameter");
+
+// Get the command and argument
+//
+   if (!(cmd = setargs.GetToken(&cargs)))
+      return Response.Send(kXR_ArgMissing,"set cache argument not specified.");
+
+// Prescreen the path if the next token starts with a slash
+//
+   if (cargs && *cargs == '/')
+      {if (rpCheck(cargs, &opaque)) return rpEmsg("Setting", cargs);
+       if (!Squash(cargs))          return vpEmsg("Setting", cargs);
+       myData.ArgP = myArgs; myData.Arg2Len = -2;
+       myArgs[0] = cargs;
+       myArgs[1] = opaque;
+      } else {
+       myData.Arg2 = opaque; myData.Arg2Len = (opaque ? strlen(opaque) : 0);
+      }
+   myData.Arg1 = cmd; myData.Arg1Len = strlen(cmd);
+
+// Preform the actual function using the supplied arguments
+//
+   int rc = osFS->FSctl(SFS_FSCTL_PLUGXC, myData, myError, CRED);
+   TRACEP(FS, "rc=" <<rc <<"set cache " <<myData.Arg1 <<' ' <<cargs);
+   if (rc == SFS_OK) return Response.Send("");
+   return fsError(rc, 0, myError, 0, 0);
+}
+  
 /******************************************************************************/
 /*                            d o _ S e t _ M o n                             */
 /******************************************************************************/
