@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Client]** Add xrdfs cache subcommand to allow for cache evictions.
+  **Commit: 39f9e0a
   **[Xcache]** Implement a file evict function.
   **Commit: 952bd9a
   **[PSS]** Allow origin to be a directory of a locally mounted file system.
