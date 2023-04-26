@@ -1870,6 +1870,35 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Send cache info to the server - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::SendCache( const std::string &info,
+                                      ResponseHandler   *handler,
+                                      uint16_t           timeout )
+  {
+  // Note: adding SendCache() to the FileSystemPlugin class breaks ABI!
+  // So, the class is missing this until we do a major release. TODO
+  //if( pPlugIn )
+  //  return pPlugIn->SendCache( info, handler, timeout );
+    return SendSet("cache ", info, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Send cache info to the server - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::SendCache( const std::string  &info,
+                                      Buffer            *&response,
+                                      uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = SendCache( info, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
   // Send info to the server - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::SendInfo( const std::string &info,
@@ -1878,22 +1907,7 @@ namespace XrdCl
   {
     if( pPlugIn )
       return pPlugIn->SendInfo( info, handler, timeout );
-
-    Message          *msg;
-    ClientSetRequest *req;
-    const char *prefix    = "monitor info ";
-    size_t      prefixLen = strlen( prefix );
-    MessageUtils::CreateRequest( msg, req, info.length()+prefixLen );
-
-    req->requestid  = kXR_set;
-    req->dlen       = info.length()+prefixLen;
-    msg->Append( prefix, prefixLen, 24 );
-    msg->Append( info.c_str(), info.length(), 24+prefixLen );
-    MessageSendParams params; params.timeout = timeout;
-    MessageUtils::ProcessSendParams( params );
-    XRootDTransport::SetDescription( msg );
-
-    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
+    return SendSet("monitor info ", info, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -1909,6 +1923,31 @@ namespace XrdCl
       return st;
 
     return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
+  // Send set request to the server - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::SendSet(  const char        *prefix,
+                                     const std::string &info,
+                                     ResponseHandler   *handler,
+                                     uint16_t           timeout )
+  {
+
+    Message          *msg;
+    ClientSetRequest *req;
+    size_t      prefixLen = strlen( prefix );
+    MessageUtils::CreateRequest( msg, req, info.length()+prefixLen );
+
+    req->requestid  = kXR_set;
+    req->dlen       = info.length()+prefixLen;
+    msg->Append( prefix, prefixLen, 24 );
+    msg->Append( info.c_str(), info.length(), 24+prefixLen );
+    MessageSendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+
+    return FileSystemData::Send( pImpl->fsdata, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
