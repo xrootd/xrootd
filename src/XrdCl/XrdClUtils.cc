@@ -865,4 +865,54 @@ namespace XrdCl
       if( dst_supported.count( *itr ) ) return *itr;
     return std::string();
   }
+
+  //----------------------------------------------------------------------------
+  //! Split chunks in a ChunkList into one or more ChunkLists
+  //----------------------------------------------------------------------------
+  void Utils::SplitChunks( std::vector<ChunkList> &listsvec,
+                           const ChunkList        &chunks,
+                           const uint32_t          maxcs,
+                           const size_t            maxc )
+  {
+    listsvec.clear();
+    if( !chunks.size() ) return;
+
+    listsvec.emplace_back();
+    ChunkList *c    = &listsvec.back();
+    const size_t cs = chunks.size();
+    size_t idx      = 0;
+    size_t nc       = 0;
+    ChunkInfo tmpc;
+
+    c->reserve( cs );
+
+    while( idx < cs )
+    {
+      if( maxc && nc >= maxc )
+      {
+        listsvec.emplace_back();
+        c = &listsvec.back();
+        c->reserve( cs - idx );
+        nc = 0;
+      }
+
+      if( tmpc.length == 0 )
+        tmpc = chunks[idx];
+
+      if( maxcs && tmpc.length > maxcs )
+      {
+        c->emplace_back( tmpc.offset, maxcs, tmpc.buffer );
+        tmpc.offset += maxcs;
+        tmpc.length -= maxcs;
+        tmpc.buffer  = static_cast<char*>( tmpc.buffer ) + maxcs;
+      }
+      else
+      {
+        c->emplace_back( tmpc.offset, tmpc.length, tmpc.buffer );
+        tmpc.length = 0;
+        ++idx;
+      }
+      ++nc;
+    }
+  }
 }
