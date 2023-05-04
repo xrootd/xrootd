@@ -123,6 +123,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void Assign( std::function<void(const XRootDStatus&)>  final );
 
+      //------------------------------------------------------------------------
+      //! Called by a pipeline on the handler of its first operation before Run
+      //------------------------------------------------------------------------
+      void PreparePipelineStart();
+
     private:
 
       //------------------------------------------------------------------------
@@ -487,6 +492,10 @@ namespace XrdCl
         if( !operation ) std::logic_error( "Empty pipeline!" );
 
         Operation<true> *opr = operation.release();
+        PipelineHandler *h = opr->handler.get();
+        if( h )
+          h->PreparePipelineStart();
+
         opr->Run( timeout, std::move( prms ), std::move( final ) );
       }
 
