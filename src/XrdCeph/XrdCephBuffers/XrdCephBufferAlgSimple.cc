@@ -18,8 +18,10 @@ using namespace XrdCephBuffer;
 
 
 XrdCephBufferAlgSimple::XrdCephBufferAlgSimple(std::unique_ptr<IXrdCephBufferData> buffer, 
-                                               std::unique_ptr<ICephIOAdapter> cephio, int fd ):
-m_bufferdata(std::move(buffer)), m_cephio(std::move(cephio)), m_fd(fd){
+                                               std::unique_ptr<ICephIOAdapter> cephio, int fd,
+                                               bool useStriperlessReads):
+m_bufferdata(std::move(buffer)), m_cephio(std::move(cephio)), m_fd(fd),
+m_useStriperlessReads(useStriperlessReads) {
 
 }
 
@@ -105,13 +107,14 @@ ssize_t XrdCephBufferAlgSimple::read(volatile void *buf,   off_t offset, size_t 
      * Invalidate the cache in anycase
      */
     if (blen >= m_bufferdata->capacity()) {
-        BUFLOG("XrdCephBufferAlgSimple::read: Readthrough cache: fd: " << m_fd 
-                 << " " << offset << " " << blen);
+        //BUFLOG("XrdCephBufferAlgSimple::read: Readthrough cache: fd: " << m_fd 
+        //         << " " << offset << " " << blen);
         // larger than cache, so read through, and invalidate the cache anyway
         m_bufferdata->invalidate();
         m_bufferLength =0; // ensure cached data is set to zero length
         // #FIXME JW: const_cast is probably a bit poor.
-        ssize_t rc = ceph_posix_pread(m_fd, const_cast<void*>(buf), blen, offset);
+        
+        ssize_t rc = ceph_posix_maybestriper_pread (m_fd, const_cast<void*>(buf), blen, offset, m_useStriperlessReads);
         if (rc > 0) {
             m_stats_bytes_fromceph += rc;
             m_stats_bytes_toclient += rc;

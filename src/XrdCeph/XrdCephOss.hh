@@ -74,8 +74,12 @@ public:
   virtual XrdOssDF *newDir(const char *tident);
   virtual XrdOssDF *newFile(const char *tident);
 
-  private:
+  //If set to 1, striper-based algorithm is used for pread
+  int m_useDefaultPreadAlg = 0;
+  //If set to 1, striper-based algorithm is used for readv
+  int m_useDefaultReadvAlg = 0;
 
+  private:
     bool m_configBufferEnable=false; //! config option for buffering
     size_t m_configBufferSize=16*1024*1024L;  //! Buffer size
     std::string m_configBufferIOmode = "aio";

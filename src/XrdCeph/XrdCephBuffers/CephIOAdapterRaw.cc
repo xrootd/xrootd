@@ -11,8 +11,10 @@ using namespace XrdCephBuffer;
 using myclock = std::chrono::steady_clock;
 //using myseconds = std::chrono::duration<float,
 
-CephIOAdapterRaw::CephIOAdapterRaw(IXrdCephBufferData * bufferdata, int fd) : 
-  m_bufferdata(bufferdata),m_fd(fd) {
+CephIOAdapterRaw::CephIOAdapterRaw(IXrdCephBufferData * bufferdata, int fd,
+            bool useStriperlessReads) : 
+  m_bufferdata(bufferdata),m_fd(fd), 
+  m_useStriperlessReads(useStriperlessReads) {
 }
 
 CephIOAdapterRaw::~CephIOAdapterRaw() {
@@ -30,7 +32,9 @@ CephIOAdapterRaw::~CephIOAdapterRaw() {
                                 << " write_MBs:" << write_speed 
                                 << " nread:" << m_stats_read_req << " bytesread:" << m_stats_read_bytes << " read_s:"
                                 << m_stats_read_timer * 1e-3 << "  readmax_s:" << m_stats_read_longest * 1e-3 
-                                << " read_MBs:" << read_speed );
+                                << " read_MBs:" << read_speed 
+                                << " striperlessRead: " << m_useStriperlessReads
+                                );
 
 }
 
@@ -60,10 +64,11 @@ ssize_t CephIOAdapterRaw::read(off64_t offset, size_t count) {
     if (!buf) {
       return -EINVAL;
     }
+    ssize_t rc {0};
 
     // no check is made whether the buffer has sufficient capacity
     auto start = std::chrono::steady_clock::now();
-    ssize_t rc = ceph_posix_pread(m_fd,buf,count,offset);
+    rc = ceph_posix_maybestriper_pread(m_fd,buf,count,offset, m_useStriperlessReads);
     auto end = std::chrono::steady_clock::now();
     //auto elapsed = end-start;
     auto int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
