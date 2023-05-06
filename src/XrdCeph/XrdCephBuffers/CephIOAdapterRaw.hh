@@ -27,7 +27,8 @@ namespace XrdCephBuffer {
  */
 class CephIOAdapterRaw: public  virtual ICephIOAdapter {
     public:
-        CephIOAdapterRaw(IXrdCephBufferData * bufferdata, int fd);
+        CephIOAdapterRaw(IXrdCephBufferData * bufferdata, int fd,
+                    bool useStriperlessReads);
         virtual ~CephIOAdapterRaw();
 
         /**
@@ -57,6 +58,7 @@ class CephIOAdapterRaw: public  virtual ICephIOAdapter {
     private:
         IXrdCephBufferData * m_bufferdata; //!< no ownership of pointer (consider shared ptrs, etc)
         int m_fd;
+        bool m_useStriperlessReads {true}; //!< use the striperless read code
 
         // timer and counter info
         std::atomic< long> m_stats_read_timer{0}, m_stats_write_timer{0};

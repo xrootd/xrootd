@@ -50,40 +50,11 @@
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include <XrdOss/XrdOss.hh>
-
+#include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdCeph/XrdCephPosix.hh"
-
+#include "XrdCeph/XrdCephBulkAioRead.hh"
 #include "XrdSfs/XrdSfsFlags.hh" // for the OFFLINE flag status 
 
-/// small structs to store file metadata
-struct CephFile {
-  std::string name;
-  std::string pool;
-  std::string userId;
-  unsigned int nbStripes;
-  unsigned long long stripeUnit;
-  unsigned long long objectSize;
-};
-
-struct CephFileRef : CephFile {
-  int flags;
-  mode_t mode;
-  uint64_t offset;
-  // This mutex protects against parallel updates of the stats.
-  XrdSysMutex statsMutex;
-  uint64_t maxOffsetWritten;
-  uint64_t bytesAsyncWritePending;
-  uint64_t bytesWritten;
-  unsigned rdcount;
-  unsigned wrcount;
-  unsigned asyncRdStartCount;
-  unsigned asyncRdCompletionCount;
-  unsigned asyncWrStartCount;
-  unsigned asyncWrCompletionCount;
-  ::timeval lastAsyncSubmission;
-  double longestAsyncWriteTime;
-  double longestCallbackInvocation;
-};
 
 /// small struct for directory listing
 struct DirIterator {
@@ -115,6 +86,9 @@ std::vector<librados::Rados*> g_cluster;
 XrdSysMutex g_striper_mutex;
 /// index of current Striper/IoCtx to be used
 unsigned int g_cephPoolIdx = 0;
+///If aio read operation takes longer than this value, a warning
+///will be issued 
+unsigned int g_cephAioWaitThresh = 15;
 /// size of the Striper/IoCtx pool, defaults to 1
 /// may be overwritten in the configuration file
 /// (See XrdCephOss::configure)
@@ -261,6 +235,7 @@ static unsigned int stoui(const std::string &s) {
   }
   return (unsigned int)res;
 }
+
 
 void dumpClusterInfo() {
   //JW
@@ -703,6 +678,8 @@ int ceph_posix_open(XrdOucEnv* env, const char *pathname, int flags, mode_t mode
  
   bool fileExists = (rc != -ENOENT); //Make clear what condition we are testing
 
+  logwrapper((char*)"Access Mode: %s flags&O_ACCMODE %d ", pathname, flags);
+
   if ((flags&O_ACCMODE) == O_RDONLY) {  // Access mode is READ
 
     if (fileExists) {
@@ -924,6 +901,82 @@ ssize_t ceph_aio_write(int fd, XrdSfsAio *aiop, AioCB *cb) {
   }
 }
 
+ssize_t ceph_nonstriper_readv(int fd, XrdOucIOVec *readV, int n) {
+  CephFileRef* fr = getFileRef(fd);
+  if (fr) {
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
+    if ((fr->flags & O_WRONLY) != 0) {
+      return -EBADF;
+    }
+    if (fr->nbStripes != 1) {
+      //Non-striper based read method works only with a single stripe
+      return -ENOTSUP;
+    }
+
+    ssize_t read_bytes;
+    int rc;
+
+    librados::IoCtx *ioctx = getIoCtx(*fr);
+    if (0 == ioctx) {
+      return -EINVAL;
+    }
+
+    try {
+      //Constructor can throw bad alloc
+      bulkAioRead readOp(ioctx, logwrapper, fr);
+
+      for (int i = 0; i < n; i++) {
+        rc = readOp.read(readV[i].data, readV[i].size, readV[i].offset);
+        if (rc < 0) {
+          logwrapper( (char*)"Can not declare read request\n");
+          return rc;
+        }
+      }
+
+      std::time_t wait_time = std::time(0);
+      rc = readOp.submit_and_wait_for_complete();
+      wait_time = std::time(0) - wait_time;
+      if (wait_time > g_cephAioWaitThresh) {
+        logwrapper(
+          (char*)"Waiting for AIO results in readv for %s took %ld seconds, too long!\n",
+          fr->name.c_str(),
+          wait_time
+        );
+      }
+      if (rc < 0) {
+        logwrapper( (char*)"Can not submit read requests\n");
+        return rc;
+      }
+      read_bytes = readOp.get_results();
+      XrdSysMutexHelper lock(fr->statsMutex);
+      //We consider readv as a single operation
+      fr->rdcount += 1;
+      return read_bytes;
+    } catch(std::bad_alloc&) {
+      return -ENOMEM;
+    }
+  } else {
+    return -EBADF;
+  }
+}
+
+ssize_t ceph_striper_readv(int fd, XrdOucIOVec *readV, int n) {
+  /**
+   * Sequential, striper-based readv implementation.
+   */
+  ssize_t nbytes = 0, curCount = 0;
+  for (int i=0; i<n; i++) {
+    curCount = ceph_posix_pread(fd, (void *)readV[i].data, (size_t)readV[i].size, (off_t)readV[i].offset);
+    if (curCount != readV[i].size) {
+      if (curCount < 0) return curCount;
+        return -ESPIPE;
+    }
+    nbytes += curCount;
+  }
+  return nbytes;
+}
+
 ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
   CephFileRef* fr = getFileRef(fd);
   if (fr) {
@@ -944,6 +997,68 @@ ssize_t ceph_posix_read(int fd, void *buf, size_t count) {
     fr->offset += rc;
     fr->rdcount++;
     return rc;
+  } else {
+    return -EBADF;
+  }
+}
+
+ssize_t ceph_posix_nonstriper_pread(int fd, void *buf, size_t count, off64_t offset) {
+  //The same as pread, but do not relies on rados striper library. Uses direct atomic
+  //reads from ceph object (see BulkAioRead class for details).
+  CephFileRef* fr = getFileRef(fd);
+  if (fr) {
+    // TODO implement proper logging level for this plugin - this should be only debug
+    //logwrapper((char*)"ceph_read: for fd %d, count=%d", fd, count);
+    if ((fr->flags & O_WRONLY) != 0) {
+      return -EBADF;
+    }
+    if (fr->nbStripes != 1) {
+      //Non-striper based read method works only with a single stripe
+      return -ENOTSUP;
+    }
+
+    int rc;
+    ssize_t bytes_read;
+
+    librados::IoCtx *ioctx = getIoCtx(*fr);
+    if (0 == ioctx) {
+      return -EINVAL;
+    }
+
+    try {
+      //Constructor can throw bad alloc
+      bulkAioRead readOp(ioctx, logwrapper, fr);
+      rc = readOp.read(buf, count, offset);
+      if (rc < 0) {
+        logwrapper( (char*)"Can not declare read request\n");
+        return rc;
+      }
+      std::time_t wait_time = std::time(0);
+      rc = readOp.submit_and_wait_for_complete();
+      wait_time = std::time(0) - wait_time;
+      if (wait_time > g_cephAioWaitThresh) {
+        logwrapper(
+          (char*)"Waiting for AIO results in pread for %s took %ld seconds, too long!\n",
+          fr->name.c_str(),
+          wait_time
+        );
+      }
+      if (rc < 0) {
+        logwrapper( (char*)"Can not submit read request\n");
+        return rc;
+      }
+      bytes_read = readOp.get_results();
+
+      if (bytes_read > 0) {
+        XrdSysMutexHelper lock(fr->statsMutex);
+        fr->rdcount++;
+      } else {
+        logwrapper( (char*)"Error while read\n");
+      }
+      return bytes_read;
+    } catch (std::bad_alloc&) {
+      return -ENOMEM;
+    }
   } else {
     return -EBADF;
   }
@@ -972,6 +1087,26 @@ ssize_t ceph_posix_pread(int fd, void *buf, size_t count, off64_t offset) {
     return -EBADF;
   }
 }
+
+ssize_t ceph_posix_maybestriper_pread(int fd, void *buf, size_t count, off64_t offset, bool allowStriper) {
+  ssize_t rc {0};
+  if (!allowStriper) {
+    rc = ceph_posix_pread(fd,buf,count,offset);
+    return rc; 
+  }
+  rc = ceph_posix_nonstriper_pread(fd, buf, count,offset);
+  if (-ENOENT == rc || -ENOTSUP == rc) {
+    //This might be a sparse file or nbstripes > 1, so let's try striper read
+    rc = ceph_posix_pread(fd, buf, count,offset);
+    if (rc >= 0) {
+      char err_str[100]; //99 symbols should be enough for the short message
+      snprintf(err_str, 100, "WARNING! The file (fd %d) seem to be sparse, this is not expected", fd);
+      logwrapper(err_str);
+    }
+  }
+  return rc; 
+}
+
 
 static void ceph_aio_read_complete(rados_completion_t c, void *arg) {
   AioArgs *awa = reinterpret_cast<AioArgs*>(arg);

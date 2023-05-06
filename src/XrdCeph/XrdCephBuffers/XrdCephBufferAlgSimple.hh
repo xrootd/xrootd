@@ -26,7 +26,8 @@ namespace XrdCephBuffer {
 
 class XrdCephBufferAlgSimple : public virtual  IXrdCephBufferAlg {
     public:
-        XrdCephBufferAlgSimple(std::unique_ptr<IXrdCephBufferData> buffer, std::unique_ptr<ICephIOAdapter> cephio, int fd ); 
+        XrdCephBufferAlgSimple(std::unique_ptr<IXrdCephBufferData> buffer, std::unique_ptr<ICephIOAdapter> cephio, int fd,
+                               bool useStriperlessReads = true ); 
         virtual ~XrdCephBufferAlgSimple();
 
         virtual ssize_t read_aio (XrdSfsAio *aoip) override;
@@ -49,6 +50,7 @@ class XrdCephBufferAlgSimple : public virtual  IXrdCephBufferAlg {
         std::unique_ptr<IXrdCephBufferData> m_bufferdata; //! this algorithm takes ownership of the buffer, and will delete it on destruction
         std::unique_ptr<ICephIOAdapter>     m_cephio ; // no ownership is taken here
         int m_fd = -1;
+        bool m_useStriperlessReads {true};
 
         off_t m_bufferStartingOffset = 0;
         size_t m_bufferLength = 0;

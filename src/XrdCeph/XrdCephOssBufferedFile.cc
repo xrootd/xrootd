@@ -327,7 +327,8 @@ std::unique_ptr<XrdCephBuffer::IXrdCephBufferAlg> XrdCephOssBufferedFile::create
       if (m_bufferIOmode == "aio") {
           cephio = std::unique_ptr<ICephIOAdapter>(new CephIOAdapterAIORaw(cephbuffer.get(),m_fd));
       } else if (m_bufferIOmode == "io") {
-          cephio = std::unique_ptr<ICephIOAdapter>(new CephIOAdapterRaw(cephbuffer.get(),m_fd));
+          cephio = std::unique_ptr<ICephIOAdapter>(new CephIOAdapterRaw(cephbuffer.get(),m_fd,
+                                                  !m_cephoss->m_useDefaultPreadAlg));
       } else {
             BUFLOG("XrdCephOssBufferedFile: buffer mode needs to be one of aio|io " );
             m_xrdOssDF->Close();
