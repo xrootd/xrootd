@@ -6,6 +6,28 @@ Release Notes
 =============
 
 -------------
+Version 5.5.5
+-------------
+
++ **Major bug fixes**
+  **[HTTP]** Initialize SecEntity.addrInfo to avoid SEGV (issue 1986)
+  **[Server]** Allow XrdXrootdFile::Serialize() to be used to wait more than once (issue 1995)
+  **[Server]** Correct file handle returned when reusing it from external table
+  **[XrdCl]** Fix client crash on early closed connection (issue 1934)
+
++ **Minor bug fixes**
+  **[Server]** Use correct format to print size_t (issue 1989)
+  **[XrdApps]** Let XrdClProxyPlugin work with PgRead (issue 1993)
+  **[XrdCl]** Avoid possibility of Channel unregistering the wrong task (issue 1883)
+  **[XrdCl]** Fix ZipArchive issuing VectorWrite which is too large during CloseArchive (issue 2004)
+  **[XrdSys]** Avoid memory leak when overwriting the default message for EBADE
+
++ **Miscellaneous**
+  **[CMake]** Adjust build rules to not depend on scitokenscpp to build libXrdSecztn
+  **[Server,XrdPosix,XrdSecgsi]** Fix compile warnings with Clang compiler
+  **[XrdPosix]** Fix build with Clang and _FORTIFY_SOURCE enabled (issue 1975)
+
+-------------
 Version 5.5.4
 -------------
 
