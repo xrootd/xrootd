@@ -60,16 +60,21 @@ fetch() {
 
 package() {
 	REPODIR=$(git rev-parse --show-toplevel)
-	VERSION=$(git describe ${1:-HEAD} | tr '-' '.' | cut -d. -f-4)
+	VERSION=$(git describe ${1:-HEAD})
+
+	# sanitize version name to work with RPMs
+	VERSION=${VERSION#v} # remove "v" prefix
+	VERSION=${VERSION/-rc/~rc} # release candidates use ~ in RPMs
+	VERSION=${VERSION/-g/^$(date +%Y%m%d)git} # snapshots use a caret
+	VERSION=${VERSION/-/.post} # handle git describe for post releases
+	VERSION=${VERSION//-/.} # replace remaining dashes with dots
 
 	pushd ${REPODIR} >/dev/null
 	echo Creating tarball for XRootD ${VERSION}
-	genversion.sh --version ${VERSION}
 	sed -e "s/__VERSION__/${VERSION}/" -e 's/__RELEASE__/1/' \
 		packaging/rhel/xrootd.spec.in >| xrootd.spec
-	git archive --prefix=xrootd/src/ --add-file src/XrdVersion.hh \
-		    --prefix=xrootd/ --add-file xrootd.spec -o xrootd.tar.gz ${1:-HEAD}
-	rm ${REPODIR}/src/XrdVersion.hh xrootd.spec
+	git archive --prefix=xrootd/ --add-file xrootd.spec -o xrootd.tar.gz ${1:-HEAD}
+	rm xrootd.spec
 	popd >/dev/null
 	mv ${REPODIR}/xrootd.tar.gz .
 }

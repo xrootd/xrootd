@@ -251,7 +251,7 @@ install(
       MESSAGE( \"-- Processing: \" \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1/\${MANPAGE} )
       EXECUTE_PROCESS(
         COMMAND cat \${MANPAGE}
-        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+        COMMAND sed  -e \"s/__VERSION__/${XRootD_VERSION}/\"
         OUTPUT_FILE \${MANPAGE}.new
         WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )
       EXECUTE_PROCESS(

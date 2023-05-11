@@ -1,5 +1,5 @@
 include *.sh *.py *.in
-include CMakeLists.txt VERSION_INFO README COPYING* LICENSE
+include CMakeLists.txt VERSION README COPYING* LICENSE
 
 recursive-include bindings *
 recursive-include cmake *

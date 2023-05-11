@@ -9,6 +9,8 @@ set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
  ${PROJECT_SOURCE_DIR}/cmake )
 
+include(XRootDVersion)
+
 #-------------------------------------------------------------------------------
 # A 'plugins' phony target to simplify building build-tree binaries.
 # Plugins are responsible for adding themselves to this target, where
@@ -30,29 +32,8 @@ add_definitions( -DXRDPLUGIN_SOVERSION="${PLUGIN_VERSION}" )
 #-------------------------------------------------------------------------------
 # Generate the version header
 #-------------------------------------------------------------------------------
-if (USER_VERSION)
-  set(XROOTD_VERSION "${USER_VERSION}")
-else ()
-execute_process(
-  COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh --print-only ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE XROOTD_VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE )
-endif()
 
-add_custom_target(
-  XrdVersion.hh
-  ${CMAKE_SOURCE_DIR}/genversion.sh --version ${XROOTD_VERSION} ${CMAKE_SOURCE_DIR})
-
-# sigh, yet another ugly hack :(
-macro( add_library _target )
-  _add_library( ${_target} ${ARGN} )
-  add_dependencies( ${_target} XrdVersion.hh )
-endmacro()
-
-macro( add_executable _target )
-  _add_executable( ${_target} ${ARGN} )
-  add_dependencies( ${_target} XrdVersion.hh )
-endmacro()
+configure_file(src/XrdVersion.hh.in src/XrdVersion.hh)
 
 #-------------------------------------------------------------------------------
 # Build in subdirectories
