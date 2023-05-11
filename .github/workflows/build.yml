@@ -70,6 +70,7 @@ jobs:
       run: |
         cd ..
         cmake \
+            --log-level=DEBUG \
             -DCMAKE_CXX_STANDARD=17 \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX=/usr \
@@ -156,6 +157,7 @@ jobs:
       run: |
         cd ..
         cmake \
+            --log-level=DEBUG \
             -DCMAKE_CXX_STANDARD=17 \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX=/usr \
@@ -235,6 +237,7 @@ jobs:
         # need to fix ownership not to confuse git
         chown -R -v "$( id -u; ):$( id -g; )" xrootd
         cmake \
+            --log-level=DEBUG \
             -DCMAKE_CXX_STANDARD=17 \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX=/usr \
@@ -314,6 +317,7 @@ jobs:
         . /opt/rh/devtoolset-7/enable
         cd ..
         cmake3 \
+            --log-level=DEBUG \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DPython_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
@@ -387,6 +391,7 @@ jobs:
         . /opt/rh/devtoolset-7/enable
         cd ..
         cmake3 \
+            --log-level=DEBUG \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
             -DPython_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
@@ -457,6 +462,7 @@ jobs:
         . /opt/rh/devtoolset-7/enable
         cd ..
         cmake3 \
+            --log-level=DEBUG \
             -DCMAKE_INSTALL_PREFIX=/usr/ \
             -DPython_EXECUTABLE=$(command -v python2) \
             -DENABLE_TESTS=ON \
@@ -521,6 +527,7 @@ jobs:
       run: |
         cd ..
         cmake \
+            --log-level=DEBUG \
             -DCMAKE_INSTALL_PREFIX=/usr \
             -DPython_EXECUTABLE=$(command -v python3) \
             -DENABLE_TESTS=ON \
@@ -586,6 +593,7 @@ jobs:
         sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
         cd ..
         cmake \
+            --log-level=DEBUG \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_INSTALL_PREFIX=/usr/local/ \
