@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 include_directories( ${CPPUNIT_INCLUDE_DIRS} ../common )
 
 link_directories( ${ISAL_LIBDIR} )

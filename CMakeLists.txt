@@ -57,6 +57,9 @@ endmacro()
 #-------------------------------------------------------------------------------
 # Build in subdirectories
 #-------------------------------------------------------------------------------
+
+include_directories(BEFORE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
+
 add_subdirectory( src )
 add_subdirectory( bindings )
 

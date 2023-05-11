@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 if ( TINYXML_FOUND )
    set( TINYXML_FILES "" )

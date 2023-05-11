@@ -1,4 +1,3 @@
-include( XRootDCommon )
 
 find_package( SciTokensCpp REQUIRED )
 

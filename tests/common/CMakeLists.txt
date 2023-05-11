@@ -1,5 +1,4 @@
 
-include(XRootDCommon)
 
 add_library(
   XrdClTestsHelper SHARED

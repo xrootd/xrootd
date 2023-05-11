@@ -1,5 +1,4 @@
 
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # Plugin version (this protocol loaded eithr as a plugin or as builtin).

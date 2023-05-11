@@ -1,5 +1,4 @@
 #include_directories( ${KERBEROS5_INCLUDE_DIR} )
-include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
 # The XrdSecztn module
