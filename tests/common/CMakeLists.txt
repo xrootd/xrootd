@@ -16,6 +16,9 @@ target_link_libraries(
   XrdCl
   XrdUtils)
 
+target_include_directories(
+  XrdClTestsHelper PUBLIC ${CPPUNIT_INCLUDE_DIRS})
+
 add_executable(
   test-runner
   TextRunner.cc
@@ -26,6 +29,9 @@ target_link_libraries(
   ${CMAKE_DL_LIBS}
   ${CPPUNIT_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
+target_include_directories(
+  test-runner PRIVATE ${CPPUNIT_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # Install
