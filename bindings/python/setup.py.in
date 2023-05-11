@@ -51,49 +51,16 @@ xrdcllibdir  = "${XRDCL_LIBDIR}"
 xrdlibdir    = "${XRD_LIBDIR}"
 xrdsrcincdir = "${XRD_SRCINCDIR}"
 xrdbinincdir = "${XRD_BININCDIR}"
-version      = "${XROOTD_VERSION}"
 
-if version.startswith('unknown'):
-  try:
-    import os
-    version_file_path = os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'VERSION')
-    print('Version file path: {}'.format(version_file_path))
-    with open(version_file_path, 'r') as f:
-      version = f.read().split('/n')[0]
-      print('Version from file: {}'.format(version))
-  except Exception as e:
-    print('{} \nCannot open VERSION_INFO file. {} will be used'.format(e, version))
+version = "${XRootD_VERSION_STRING}"
 
-# Sanitize in keeping with PEP 440
-# c.f. https://www.python.org/dev/peps/pep-0440/
-# c.f. https://github.com/pypa/pip/issues/8368
-# version needs to pass pip._vendor.packaging.version.Version()
-version = version.replace("-", ".")
+# Sanitize version to conform to PEP 440
+# https://www.python.org/dev/peps/pep-0440
 
-if version.startswith("v"):
-    version = version[1:]
-
-version_parts = version.split(".")
-
-# Ensure release candidates sanitized to <major>.<minor>.<patch>rc<candidate>
-if version_parts[-1].startswith("rc"):
-    version = ".".join(version_parts[:-1]) + version_parts[-1]
-    version_parts = version.split(".")
-
-if len(version_parts[0]) == 8:
-    # CalVer
-    date = version_parts[0]
-    year = date[:4]
-    incremental = date[4:]
-    if incremental.startswith("0"):
-      incremental = incremental[1:]
-
-    version = year + "." + incremental
-
-    if len(version_parts) > 1:
-      # https://github.com/pypa/pip/issues/9188#issuecomment-736025963
-      hash = version_parts[1]
-      version = version + "+" + hash
+version = version.replace('-rc', 'rc')
+version = version.replace('-g', '+git.')
+version = version.replace('-', '.post', 1)
+version = version.replace('-', '.')
 
 print('XRootD library dir:    ', xrdlibdir)
 print('XRootD src include dir:', xrdsrcincdir)

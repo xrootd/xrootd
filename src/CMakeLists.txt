@@ -108,7 +108,7 @@ install(
   CODE "
     EXECUTE_PROCESS(
       COMMAND cat ${CMAKE_SOURCE_DIR}/utils/xrootd-config
-      COMMAND sed -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+      COMMAND sed -e \"s/__VERSION__/${XRootD_VERSION}/\"
       COMMAND sed -e \"s|__INCLUDEDIR__|${CMAKE_INSTALL_INCLUDEDIR}|\"
       COMMAND sed -e \"s/__PLUGIN_VERSION__/${PLUGIN_VERSION}/\"
       COMMAND sed -e \"s|__PREFIX__|${CMAKE_INSTALL_PREFIX}|\"
@@ -128,7 +128,7 @@ install(
       MESSAGE( \"-- Processing: \" \${MANPAGE} )
       EXECUTE_PROCESS(
         COMMAND cat \${MANPAGE}
-        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+        COMMAND sed  -e \"s/__VERSION__/${XRootD_VERSION}/\"
         OUTPUT_FILE \${MANPAGE}.new )
       EXECUTE_PROCESS(
         COMMAND mv -f \${MANPAGE}.new \${MANPAGE} )

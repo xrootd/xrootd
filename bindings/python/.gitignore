@@ -4,4 +4,3 @@ build
 .cproject
 *.py[co]
 MANIFEST
-VERSION_INFO
