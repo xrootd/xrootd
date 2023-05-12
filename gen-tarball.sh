@@ -29,8 +29,6 @@ if [ $? -ne 0 ] ; then
     exit 1
 fi
 git archive --prefix xrootd-${fver}/ ${ver} -o ${tdir}/xrootd-${fver}.tar
-git submodule update --init
-git submodule foreach --recursive "git archive --prefix xrootd-${fver}/\$path/ \$sha1 -o ${tdir}/\$sha1.tar ; tar -A -f ${tdir}/xrootd-${fver}.tar ${tdir}/\$sha1.tar ; rm ${tdir}/\$sha1.tar"
 cd ${tdir}
 gzip xrootd-${fver}.tar
 mv xrootd-${fver}.tar.gz ${curdir}
