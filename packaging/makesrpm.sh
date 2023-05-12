@@ -240,39 +240,6 @@ if test $? -ne 0; then
 fi
 
 #-------------------------------------------------------------------------------
-# Make sure submodules are in place
-#-------------------------------------------------------------------------------
-git submodule init
-git submodule update -- src/XrdClHttp
-git submodule update -- src/XrdCeph
-#git submodule foreach git pull origin master
-
-#-------------------------------------------------------------------------------
-# Add XrdCeph sub-module to our tarball
-#-------------------------------------------------------------------------------
-cd src/XrdCeph
-
-if [ -z ${TAG+x} ]; then
-  COMMIT=`git log --pretty=format:"%H" -1`
-else
-  COMMIT=$TAG
-fi
-
-git archive --prefix=xrootd/src/XrdCeph/ --format=tar $COMMIT > $RPMSOURCES/xrootd-ceph.tar
-if test $? -ne 0; then
-  echo "[!] Unable to create the xrootd-ceph source tarball" 1>&2
-  exit 6
-fi
-
-tar --concatenate --file $RPMSOURCES/xrootd.tar $RPMSOURCES/xrootd-ceph.tar
-if test $? -ne 0; then
-  echo "[!] Unable to add xrootd-ceph to xrootd tarball" 1>&2
-  exit 6
-fi
-
-cd - > /dev/null
-
-#-------------------------------------------------------------------------------
 # gzip the tarball
 #-------------------------------------------------------------------------------
 gzip -9fn $RPMSOURCES/xrootd.tar
