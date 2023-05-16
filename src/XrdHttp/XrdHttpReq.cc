@@ -184,11 +184,10 @@ int XrdHttpReq::parseLine(char *line, int len) {
 
     } else if (!strcmp(key, "Expect") && strstr(val, "100-continue")) {
       sendcontinue = true;
-    } else if (!strcasecmp(key, "Transfer-Encoding") && strstr(val, "chunked")) {
-      m_transfer_encoding_chunked = true;
     } else if (!strcasecmp(key, "TE") && strstr(val, "trailers")) {
       m_trailer_headers = true;
     } else if (!strcasecmp(key, "X-Transfer-Status") && strstr(val, "true")) {
+      m_transfer_encoding_chunked = true;
       m_status_trailer = true;
     } else {
       // Some headers need to be translated into "local" cgi info.
