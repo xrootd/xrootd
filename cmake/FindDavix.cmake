@@ -8,6 +8,7 @@ find_library(
     Davix_LIBRARIES
     NAMES davix
     HINTS ${Davix_LIBRARY_DIRS}
+    PATH_SUFFIXES lib64 lib
 )
 
 include(FindPackageHandleStandardArgs)
