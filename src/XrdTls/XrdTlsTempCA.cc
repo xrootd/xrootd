@@ -50,8 +50,8 @@
 #include <atomic>
 
 namespace {
-    
-typedef std::unique_ptr<FILE, decltype(&fclose)> file_smart_ptr;
+
+typedef std::unique_ptr<FILE, int(*)(FILE*)> file_smart_ptr;
 
 
 static uint64_t monotonic_time_s() {
