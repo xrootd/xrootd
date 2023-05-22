@@ -22,3 +22,5 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+  **[Server]** Also check for IPv6 ULA's to determine if an address is private.
+  **Commit: cd970d5
