@@ -1,0 +1,3 @@
+usr/include/xrootd/private
+usr/lib/*/libXrdSsiLib.so
+usr/lib/*/libXrdSsiShMap.so

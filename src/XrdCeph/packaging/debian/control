@@ -1,0 +1,48 @@
+Source: xrootd
+Maintainer: Jozsef Makai <jozsef.makai@cern.ch>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 9), cmake (>=3.3.0), zlib1g-dev, libfuse-dev, python-dev, libssl-dev, libxml2-dev, ncurses-dev, libkrb5-dev, libreadline-dev, libsystemd-dev, selinux-policy-dev, systemd
+Homepage: https://github.com/xrootd/xrootd
+Vcs-Git: https://github.com/xrootd/xrootd.git
+Vcs-Browser: https://github.com/xrootd/xrootd
+
+Package: xrootd-libs
+Architecture: any
+Description: This package contains libraries used by the xrootd servers and clients.
+
+Package: xrootd-devel
+Architecture: any
+Depends: ${shlibs:Depends}, xrootd-libs (=${binary:Version})
+Description: This package contains header files and development libraries for xrootd development.
+
+Package: xrootd-client-libs
+Architecture: any
+Depends: ${shlibs:Depends}, xrootd-libs (=${binary:Version})
+Description: This package contains libraries used by xrootd clients.
+
+Package: xrootd-client-devel
+Architecture: any
+Depends: ${shlibs:Depends}, xrootd-devel (=${binary:Version}), xrootd-client-libs (=${binary:Version})
+Description: This package contains header files and development libraries for xrootd client development.
+
+Package: xrootd-client
+Architecture: any
+Depends: ${shlibs:Depends}, libxml2, xrootd-libs (=${binary:Version}), xrootd-client-libs (=${binary:Version})
+Description: This package contains the command line tools used to communicate with xrootd servers.
+
+Package: xrootd-private-devel
+Architecture: any
+Depends: ${shlibs:Depends}, xrootd-libs (=${binary:Version})
+Description: This package contains some private xrootd headers. The use of these headers is strongly discouraged. Backward compatibility between versions is not guaranteed for these headers.
+
+Package: xrootd-server-libs
+Architecture: any
+Depends: ${shlibs:Depends}, xrootd-libs (=${binary:Version}), xrootd-client-libs (=${binary:Version})
+Description: This package contains libraries used by xrootd servers.
+
+Package: xrootd-server-devel
+Architecture: any
+Depends: ${shlibs:Depends}, xrootd-devel (=${binary:Version}), xrootd-client-devel (=${binary:Version}), xrootd-server-libs (=${binary:Version})
+Description: This package contains header files and development libraries for xrootd server development.

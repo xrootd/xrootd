@@ -1,0 +1,75 @@
+stages:
+  - build:rpm
+
+release:cc7:ceph:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y cmake3 make gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
+    - git checkout tags/${CI_COMMIT_TAG}
+    - cd packaging/
+    - ./makesrpm.sh --define "dist .el7"
+    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-nautilus/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
+    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.org/binaries/testing/slc/7/$basearch http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=1\nenabled=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\n' >> /etc/yum.repos.d/xrootd-testing.repo
+    - echo -e '[xrootd-stable]\nname=XRootD Stable repository\nbaseurl=http://xrootd.org/binaries/stable/slc/7/$basearch http://xrootd.cern.ch/sw/repos/stable/slc/7/$basearch\ngpgcheck=1\nenabled=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\n' >> /etc/yum.repos.d/xrootd-stable.repo
+    - yum-builddep --setopt=cern*.exclude=xrootd* --nogpgcheck -y *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" -D "dist .el7" *.src.rpm
+    - repo=/eos/project/s/storage-ci/www/xrootd/ceph-release/cc-7/x86_64/
+    - sudo -u stci -H mkdir -p $repo
+    - sudo -u stci -H cp *.src.rpm $repo
+    - sudo -u stci -H cp RPMS/* $repo
+    - sudo -u stci -H createrepo --update -q $repo
+  tags:
+    - docker_node
+  only:
+    - tags
+  except:
+    - schedules
+    
+weekly:cc7:ceph:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y cmake3 make gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
+    - cd packaging/
+    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-nautilus/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
+    - echo -e '[xrootd-experimental]\nname=XRootD Experimental repository\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/xrootd/experimental/epel-7/$basearch\ngpgcheck=1\nenabled=1\nprotect=0\n' >> /etc/yum.repos.d/xrootd-experimental.repo
+    - yum clean all
+    - version=$(yum info xrootd-devel | grep Version | cut -d':' -f2 | tr -d "[:blank:]")
+    - release=$(yum info xrootd-devel | grep Release | cut -d':' -f2 | tr -d "[:blank:]")
+    - release=${release%.el7.cern}
+    - ./makesrpm.sh --version "$version-$release"
+    - yum-builddep --setopt=cern*.exclude=xrootd* --nogpgcheck -y *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+  tags:
+    - docker_node
+  only:
+    - schedules
+
+build:cc7:ceph:
+  stage: build:rpm
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y cmake3 make gcc-c++ rpm-build which git yum-plugin-priorities sssd-client sudo createrepo
+    - cd packaging/
+    - echo -e '[ceph]\nname=ceph\nbaseurl=http://linuxsoft.cern.ch/mirror/download.ceph.com/rpm-nautilus/el7/x86_64/\npriority=4\ngpgcheck=0\nenabled=1\n' >> /etc/yum.repos.d/ceph.repo
+    - echo -e '[xrootd-experimental]\nname=XRootD Experimental repository\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/xrootd/experimental/epel-7/$basearch\ngpgcheck=1\nenabled=1\nprotect=0\n' >> /etc/yum.repos.d/xrootd-experimental.repo
+    - yum clean all
+    - version=$(yum info xrootd-devel | grep Version | cut -d':' -f2 | tr -d "[:blank:]")
+    - release=$(yum info xrootd-devel | grep Release | cut -d':' -f2 | tr -d "[:blank:]")
+    - release=${release%.el7.cern}
+    - ./makesrpm.sh --version "$version-$release"
+    - yum-builddep --setopt=cern*.exclude=xrootd* --nogpgcheck -y *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - path=/eos/project/s/storage-ci/www/xrootd/ceph/cc-7/x86_64/$(date +'%Y%m%d')
+    - sudo -u stci -H mkdir -p $path;
+    - sudo -u stci -H find ${path} -type f -name '*.rpm' -delete;
+    - sudo -u stci -H cp RPMS/* $path;
+    - sudo -u stci -H createrepo --update -q $path;
+  tags:
+    - docker_node
+  only:
+    - master
+  except:
+    - tags
+

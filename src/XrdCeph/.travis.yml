@@ -1,0 +1,22 @@
+sudo: false
+dist: trusty
+addons:
+  apt:
+    packages:
+      - libxml2-dev
+      - libcppunit-dev
+language: cpp
+compiler:
+  - clang
+  - gcc
+script:
+  - mkdir build
+  - pushd build
+  - cmake -DCMAKE_INSTALL_PREFIX=$HOME/xrootd -DENABLE_TESTS=1 ..
+  - make
+  - make install
+  - popd
+#after_script:
+#  - pushd build
+#  - ./tests/common/text-runner ./tests/XrdClTests/libXrdClTests.so 'All Tests'
+#  - popd
