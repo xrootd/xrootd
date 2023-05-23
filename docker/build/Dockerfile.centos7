@@ -1,12 +1,12 @@
-FROM cern/cc7-base
+FROM centos:7
 
 # Install tools necessary for RPM development
-RUN yum install -y rpm-build rpmdevtools yum-utils
+RUN yum install -y centos-release-scl epel-release rpm-build rpmdevtools yum-utils
+
+WORKDIR /root
 
 # Create directory tree for building RPMs
 RUN rpmdev-setuptree
-
-WORKDIR /root
 
 # XRootD source tarball must be created in the
 # current directory in order to build this image
@@ -26,12 +26,13 @@ RUN rpmbuild -bb --define '_with_isal 1' --define '_with_python3 1' \
   --define '_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm' xrootd.spec
 
 # Second stage, build test image
-FROM cern/cc7-base
+FROM centos:7
 
 COPY --from=0 /root/rpmbuild/RPMS/* /tmp/
 
 # Install RPMS for XRootD and cleanup unneeded files
 RUN rm /tmp/*-{devel,doc}* \
+ && yum install -y epel-release \
  && yum install -y wget /tmp/*.rpm \
  && yum autoremove -y \
  && rm -rf /tmp/*

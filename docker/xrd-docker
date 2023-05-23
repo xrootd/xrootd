@@ -2,17 +2,19 @@
 
 trap 'exit 1' TERM KILL INT QUIT ABRT
 
+: ${DOCKER:=$(command -v docker || command -v podman)}
+
 build() {
 	OS=${1:-centos7}
 	[[ -f xrootd.tar.gz ]] || package
 	[[ -f build/Dockerfile.${OS} ]] || die "unknwon OS: $OS"
-	docker build -f build/Dockerfile.${OS} -t xrootd -t xrootd:${OS} .
+	${DOCKER} build -f build/Dockerfile.${OS} -t xrootd -t xrootd:${OS} .
 }
 
 clean() {
 	rm -f xrootd.tar.gz
-	docker rm -f metaman man1 man2 srv1 srv2 srv3 srv4
-	docker system prune -f
+	${DOCKER} rm -f metaman man1 man2 srv1 srv2 srv3 srv4
+	${DOCKER} system prune -f
 }
 
 die() {
@@ -67,7 +69,7 @@ package() {
 		packaging/rhel/xrootd.spec.in >| xrootd.spec
 	git archive --prefix=xrootd/src/ --add-file src/XrdVersion.hh \
 		    --prefix=xrootd/ --add-file xrootd.spec -o xrootd.tar.gz ${1:-HEAD}
-	rm xrootd.spec
+	rm ${REPODIR}/src/XrdVersion.hh xrootd.spec
 	popd >/dev/null
 	mv ${REPODIR}/xrootd.tar.gz .
 }
@@ -87,47 +89,50 @@ run() {
 	)
 
 	for T in ${@:-${TEST_SUITE[@]}}; do
-		docker exec -it metaman test-runner /usr/lib64/libXrdClTests.so "All Tests/${T}Test"
+		${DOCKER} exec -it metaman test-runner /usr/lib64/libXrdClTests.so "All Tests/${T}Test"
 	done
 
 	# XrdEc tests are not working
-	# docker exec -it metaman test-runner /usr/lib64/libXrdEcTests.so 'All Tests'
+	# ${DOCKER} exec -it metaman test-runner /usr/lib64/libXrdEcTests.so 'All Tests'
 }
 
 search() {
 	for container in metaman srv{1..4}; do
 		echo ${container}:
-		docker exec ${container} find /data $@
+		${DOCKER} exec ${container} find /data $@
 		echo
 	done
 }
 
 setup() {
-	docker network create xrootd
+	${DOCKER} network create xrootd
 
+	if [[ ${DOCKER} =~ podman ]]; then
+		EXTRA_OPTS="--group-add keep-groups"
+	else
+		EXTRA_OPTS="--privileged"
+	fi
 	for container in metaman man{1,2} srv{1..4}; do
 		echo ">>> Start ${container} container"
-		[[ ${container} =~ ^man* ]] && ALIAS=--net-alias=manalias || ALIAS=''
-		docker run -d --privileged -e "container=docker" \
-			-v ${PWD}/data:/downloads:z --name ${container} -h ${container} \
-			--net=xrootd --net-alias=multiip ${ALIAS} --net-alias=${container} \
-			xrootd:${1:-latest} /sbin/init
+		[[ ${container} =~ ^man* ]] && ALIAS=--network-alias=manalias || ALIAS=''
+		${DOCKER} run -d ${EXTRA_OPTS} --name ${container} -h ${container} \
+			-v ${PWD}/data:/downloads:z --net=xrootd --network-alias=multiip ${ALIAS} \
+			--network-alias=${container} xrootd:${1:-latest} /sbin/init
 		echo ">>> Setup ${container}"
-		docker exec ${container} setup.sh
+		${DOCKER} exec ${container} setup.sh
 		echo ">>> Start xrootd and cmsd in ${container}"
-		docker exec ${container} systemctl start xrootd@clustered
-		docker exec ${container} systemctl start cmsd@clustered
+		${DOCKER} exec ${container} systemctl start xrootd@clustered
+		${DOCKER} exec ${container} systemctl start cmsd@clustered
 		echo
 	done
 
 	echo ">>> Start xrootd@srv2 in srv2"
-	docker exec srv2 systemctl start xrootd@srv2
-
-	docker ps
+	${DOCKER} exec srv2 systemctl start xrootd@srv2
+	${DOCKER} ps
 }
 
 shell() {
-	docker exec -it ${1:-metaman} /bin/bash
+	${DOCKER} exec -it ${1:-metaman} /bin/bash
 }
 
 usage() {
