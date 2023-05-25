@@ -926,7 +926,14 @@ void XrdHttpReq::mapXrdErrorToHttpStatus() {
         httpStatusCode = 409; httpStatusText = "Resource is a directory";
         break;
       case kXR_ItExists:
-        httpStatusCode = 409; httpStatusText = "File already exists";
+        if(request != ReqType::rtDELETE) {
+          httpStatusCode = 409; httpStatusText = "File already exists";
+        } else {
+          // In the case the XRootD layer returns a kXR_ItExists after a deletion
+          // was submitted, we return a 405 status code with the error message set by
+          // the XRootD layer
+          httpStatusCode = 405;
+        }
         break;
       case kXR_InvalidRequest:
         httpStatusCode = 405; httpStatusText = "Method is not allowed";
