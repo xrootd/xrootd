@@ -1370,7 +1370,12 @@ static int mapError(int rc)
            case ENOTBLK:       return kXR_NotFile;
            case ENOTSUP:       return kXR_Unsupported;
            case EISDIR:        return kXR_isDirectory;
-           case EEXIST:        return kXR_ItExists;
+           case ENOTEMPTY: [[fallthrough]];
+           // In the case one tries to delete a non-empty directory
+           // we have decided that until the next major release
+           // the kXR_ItExists flag will be returned
+           case EEXIST:
+                return kXR_ItExists;
            case EBADRQC:       return kXR_InvalidRequest;
            case ETXTBSY:       return kXR_inProgress;
            case ENODEV:        return kXR_FSError;
@@ -1391,10 +1396,6 @@ static int mapError(int rc)
            case ETIMEDOUT:     return kXR_ReqTimedOut;
            case EBADF:         return kXR_FileNotOpen;
            case ECANCELED:     return kXR_Cancelled;
-           // In the case one tries to delete a non-empty directory
-           // we have decided that until the next major release
-           // the kXR_ItExists flag will be returned
-           case ENOTEMPTY:     return kXR_ItExists;
            default:            return kXR_FSError;
           }
       }
