@@ -31,16 +31,14 @@ ExternalProject_add(isa-l
   BUILD_BYPRODUCTS  ${ISAL_LIBRARY} ${ISAL_INCLUDE_DIRS}
 )
 
-add_library(isal STATIC IMPORTED)
-
-set(ISAL_LIBRARIES isal)
+add_library(isal INTERFACE)
 add_dependencies(isal isa-l)
 
-set_target_properties(isal
-  PROPERTIES
-    IMPORTED_LOCATION "${ISAL_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${ISAL_INCLUDE_DIRS}>"
-)
+target_link_libraries(isal INTERFACE $<BUILD_INTERFACE:${ISAL_LIBRARY}>)
+target_include_directories(isal INTERFACE $<BUILD_INTERFACE:${ISAL_INCLUDE_DIRS}>)
+
+set(ISAL_LIBRARIES isal CACHE INTERNAL "" FORCE)
+set(ISAL_INCLUDE_DIRS ${ISAL_INCLUDE_DIRS} CACHE INTERNAL "" FORCE)
 
 # Emulate what happens when find_package(isal) succeeds
 find_package_handle_standard_args(isal
