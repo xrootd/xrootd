@@ -1,9 +1,4 @@
 
-include_directories( ${CPPUNIT_INCLUDE_DIRS} ../common )
-
-link_directories( ${ISAL_LIBDIR} )
-include_directories( ${ISAL_INCDIR} )
-
 add_library(
   XrdEcTests MODULE
   MicroTest.cc
@@ -11,7 +6,11 @@ add_library(
 
 target_link_libraries(
   XrdEcTests
+  PRIVATE
   XrdEc )
+
+target_link_libraries(XrdEcTests PRIVATE ${ISAL_LIBRARIES})
+target_include_directories(XrdEcTests PRIVATE ../common ${CPPUNIT_UNCLUDE_DIRS} ${ISAL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # Install

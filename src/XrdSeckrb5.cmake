@@ -12,14 +12,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_KRB5}
+  PRIVATE
   XrdUtils
   ${KERBEROS5_LIBRARIES} )
-
-set_target_properties(
-  ${LIB_XRD_SEC_KRB5}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

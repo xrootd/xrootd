@@ -290,6 +290,7 @@ add_library(
 
 target_link_libraries(
   XrdUtils
+  PRIVATE
   OpenSSL::SSL
   ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS}
@@ -299,7 +300,7 @@ target_link_libraries(
 
 if ( SYSTEMD_FOUND )
    target_link_libraries(
-     XrdUtils
+     XrdUtils PRIVATE
      ${SYSTEMD_LIBRARIES}
    )
 endif()
@@ -309,9 +310,7 @@ set_target_properties(
   PROPERTIES
   BUILD_RPATH ${CMAKE_CURRENT_BINARY_DIR}
   VERSION   ${XRD_UTILS_VERSION}
-  SOVERSION ${XRD_UTILS_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_UTILS_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # Install

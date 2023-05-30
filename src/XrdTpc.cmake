@@ -44,6 +44,7 @@ if( BUILD_TPC )
 
   target_link_libraries(
     ${LIB_XRD_TPC}
+    PRIVATE
     XrdServer
     XrdUtils
     XrdHttpUtils
@@ -60,8 +61,6 @@ if( BUILD_TPC )
   set_target_properties(
     ${LIB_XRD_TPC}
     PROPERTIES
-    INTERFACE_LINK_LIBRARIES ""
-    LINK_INTERFACE_LIBRARIES ""
     LINK_FLAGS "${TPC_LINK_FLAGS}"
     COMPILE_DEFINITIONS "${XRD_COMPILE_DEFS}")
 

@@ -21,17 +21,12 @@ add_library(
                                        XrdSciTokens/XrdSciTokensHelper.hh )
 target_link_libraries(
    ${LIB_XRD_SCITOKENS}
+   PRIVATE
    ${SCITOKENS_CPP_LIBRARIES}
    XrdUtils
    XrdServer
    ${CMAKE_DL_LIBS}
    ${CMAKE_THREAD_LIBS_INIT} )
-
-set_target_properties(
-   ${LIB_XRD_SCITOKENS}
-   PROPERTIES
-   INTERFACE_LINK_LIBRARIES ""
-   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

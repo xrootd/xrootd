@@ -34,6 +34,7 @@ add_library(
 
 target_link_libraries(
   XrdPosix
+  PRIVATE
   XrdCl
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT} )
@@ -42,9 +43,7 @@ set_target_properties(
   XrdPosix
   PROPERTIES
   VERSION   ${XRD_POSIX_VERSION}
-  SOVERSION ${XRD_POSIX_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_POSIX_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # The XrdPosixPreload library
@@ -61,6 +60,7 @@ add_library(
 
 target_link_libraries(
   XrdPosixPreload
+  PRIVATE
   XrdPosix
   ${CMAKE_DL_LIBS} )
 
@@ -68,9 +68,7 @@ set_target_properties(
   XrdPosixPreload
   PROPERTIES
   VERSION   ${XRD_POSIX_PRELOAD_VERSION}
-  SOVERSION ${XRD_POSIX_PRELOAD_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_POSIX_PRELOAD_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # Install
