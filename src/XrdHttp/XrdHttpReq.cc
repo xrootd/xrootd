@@ -1805,7 +1805,7 @@ XrdHttpReq::PostProcessChecksum(std::string &digest_header) {
     if (convert_to_base64) {free(digest_value);}
     return 0;
   } else {
-    prot->SendSimpleResp(500, NULL, NULL, "Underlying filesystem failed to calculate checksum.", 0, false);
+    prot->SendSimpleResp(httpStatusCode, NULL, NULL, httpStatusText.c_str(), httpStatusText.length(), false);
     return -1;
   }
 }
