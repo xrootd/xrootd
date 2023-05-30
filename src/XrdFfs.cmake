@@ -21,6 +21,7 @@ add_library(
 
 target_link_libraries(
   XrdFfs
+  PRIVATE
   XrdCl
   XrdPosix
   XrdUtils
@@ -30,9 +31,7 @@ set_target_properties(
   XrdFfs
   PROPERTIES
   VERSION   ${XRD_FFS_VERSION}
-  SOVERSION ${XRD_FFS_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_FFS_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # xrootdfs

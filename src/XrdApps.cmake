@@ -162,6 +162,7 @@ add_library(
 
 target_link_libraries(
   XrdAppUtils
+  PRIVATE
   XrdUtils )
 
 set_target_properties(
@@ -179,13 +180,7 @@ add_library(
   XrdApps/XrdClProxyPlugin/ProxyPrefixPlugin.cc
   XrdApps/XrdClProxyPlugin/ProxyPrefixFile.cc)
 
-target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} XrdCl)
-
-set_target_properties(
-  ${LIB_XRDCL_PROXY_PLUGIN}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+target_link_libraries(${LIB_XRDCL_PROXY_PLUGIN} PRIVATE XrdCl)
 
 #-------------------------------------------------------------------------------
 # XrdClRecorder library
@@ -195,13 +190,7 @@ add_library(
   MODULE
   XrdApps/XrdClRecordPlugin/XrdClRecorderPlugin.cc )
 
-target_link_libraries(${LIB_XRDCL_RECORDER_PLUGIN} XrdCl)
-
-set_target_properties(
-  ${LIB_XRDCL_RECORDER_PLUGIN}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+target_link_libraries(${LIB_XRDCL_RECORDER_PLUGIN} PRIVATE XrdCl)
 
 add_executable(
   xrdreplay

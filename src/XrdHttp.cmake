@@ -42,16 +42,19 @@ if( BUILD_HTTP )
 
   target_link_libraries(
     ${LIB_XRD_HTTP_UTILS}
+    PRIVATE
     XrdServer
     XrdUtils
     XrdCrypto
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
+    PUBLIC
     OpenSSL::SSL
     OpenSSL::Crypto )
 
   target_link_libraries(
     ${MOD_XRD_HTTP}
+    PRIVATE
     XrdUtils
     ${LIB_XRD_HTTP_UTILS} )
 

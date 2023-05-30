@@ -24,6 +24,7 @@ set_property(SOURCE XrdCeph/XrdCephPosix.cc
 
 target_link_libraries(
   XrdCephPosix
+  PRIVATE
   ${XROOTD_LIBRARIES}  
   ${RADOS_LIBS} )
 
@@ -31,9 +32,7 @@ set_target_properties(
   XrdCephPosix
   PROPERTIES
   VERSION   ${XRD_CEPH_POSIX_VERSION}
-  SOVERSION ${XRD_CEPH_POSIX_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_CEPH_POSIX_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # The XrdCeph module
@@ -49,14 +48,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_CEPH}
+  PRIVATE
   ${XROOTD_LIBRARIES}  
   XrdCephPosix )
-
-set_target_properties(
-  ${LIB_XRD_CEPH}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdCephXattr module
@@ -70,14 +64,9 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_CEPH_XATTR}
+  PRIVATE
   ${XROOTD_LIBRARIES}  
   XrdCephPosix )
-
-set_target_properties(
-  ${LIB_XRD_CEPH_XATTR}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

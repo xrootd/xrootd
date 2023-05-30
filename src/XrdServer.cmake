@@ -187,6 +187,7 @@ add_library(
 
 target_link_libraries(
   XrdServer
+  PRIVATE
   XrdUtils
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
@@ -198,9 +199,7 @@ set_target_properties(
   XrdServer
   PROPERTIES
   VERSION   ${XRD_SERVER_VERSION}
-  SOVERSION ${XRD_SERVER_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
+  SOVERSION ${XRD_SERVER_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # The XRootD protocol plugin
@@ -212,15 +211,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_PROTOCOL}
+  PRIVATE
   XrdServer
   XrdUtils
   ${EXTRA_LIBS} )
-
-set_target_properties(
-  ${LIB_XRD_PROTOCOL}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

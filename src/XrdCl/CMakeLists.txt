@@ -108,6 +108,7 @@ add_library(
 
 target_link_libraries(
   XrdCl
+  PRIVATE
   XrdXml
   XrdUtils
   uuid::uuid
@@ -125,7 +126,7 @@ set_target_properties(
 
 if( BUILD_XRDEC )
   target_include_directories(XrdCl PUBLIC ${ISAL_INCLUDE_DIRS})
-  target_link_libraries(XrdCl ${ISAL_LIBRARIES})
+  target_link_libraries(XrdCl PRIVATE ${ISAL_LIBRARIES})
 endif()
 
 #-------------------------------------------------------------------------------
@@ -157,6 +158,7 @@ add_executable(
 target_link_libraries(
   xrdcp
   XrdCl
+  XrdUtils
   XrdAppUtils )
 endif()
 

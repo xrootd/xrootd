@@ -19,14 +19,9 @@ add_library(
 
 target_link_libraries(
    ${LIB_XRD_VOMS}
+   PRIVATE
    XrdCrypto
    ${VOMS_LIBRARIES} )
-
-set_target_properties(
-   ${LIB_XRD_VOMS}
-   PROPERTIES
-   INTERFACE_LINK_LIBRARIES ""
-   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

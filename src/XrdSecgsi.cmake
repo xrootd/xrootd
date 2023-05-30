@@ -23,15 +23,10 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI}
+  PRIVATE
   XrdCrypto
   XrdUtils
   ${CMAKE_THREAD_LIBS_INIT} )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdSecgsiAuthzVO module
@@ -43,13 +38,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI_AUTHZVO}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI_AUTHZVO}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdSecgsiGMAPDN module
@@ -61,13 +51,8 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI_GMAPDN}
+  PRIVATE
   XrdUtils )
-
-set_target_properties(
-  ${LIB_XRD_SEC_GSI_GMAPDN}
-  PROPERTIES
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
 
 if( NOT XRDCL_LIB_ONLY )
 #-------------------------------------------------------------------------------
