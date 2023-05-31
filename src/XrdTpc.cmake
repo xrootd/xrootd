@@ -12,8 +12,6 @@ if( BUILD_TPC )
   #-----------------------------------------------------------------------------
   # The XrdHttp library
   #-----------------------------------------------------------------------------
-  include_directories( ${CURL_INCLUDE_DIRS} )
-
   # On newer versions of libcurl, we can use pipelining of requests.
   include (CheckCSourceCompiles)
   SET( CMAKE_REQUIRED_INCLUDES "${CURL_INCLUDE_DIRS}" )
@@ -51,6 +49,8 @@ if( BUILD_TPC )
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     ${CURL_LIBRARIES} )
+
+  target_include_directories( ${LIB_XRD_TPC} PRIVATE ${CURL_INCLUDE_DIRS} )
 
   if( MacOSX )
     set( TPC_LINK_FLAGS, "-Wl" )

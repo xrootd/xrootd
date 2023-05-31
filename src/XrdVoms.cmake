@@ -3,8 +3,6 @@
 # The XrdSecgsiVOMS library
 #-------------------------------------------------------------------------------
 
-include_directories( ${VOMS_INCLUDE_DIR} )
-
 set( LIB_XRD_VOMS             XrdVoms-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_VOMS     XrdSecgsiVOMS-${PLUGIN_VERSION} )
 set( LIB_XRD_HTTP_VOMS        XrdHttpVOMS-${PLUGIN_VERSION} )
@@ -22,6 +20,8 @@ target_link_libraries(
    PRIVATE
    XrdCrypto
    ${VOMS_LIBRARIES} )
+
+target_include_directories( ${LIB_XRD_VOMS} PRIVATE ${VOMS_INCLUDE_DIR} )
 
 #-------------------------------------------------------------------------------
 # Install

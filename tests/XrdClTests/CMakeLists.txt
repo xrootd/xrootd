@@ -1,6 +1,4 @@
 
-include_directories( ${CPPUNIT_INCLUDE_DIRS} ../common)
-
 add_subdirectory( tls )
 
 set( LIB_XRD_CL_TEST_MONITOR XrdClTestMonitor-${PLUGIN_VERSION} )
@@ -34,6 +32,8 @@ target_link_libraries(
   ZLIB::ZLIB
   XrdCl )
 
+target_include_directories( XrdClTests PRIVATE ../common ${CPPUNIT_INCLUDE_DIRS} )
+
 add_library(
   ${LIB_XRD_CL_TEST_MONITOR} MODULE
   MonitorTestLib.cc
@@ -43,6 +43,8 @@ target_link_libraries(
   ${LIB_XRD_CL_TEST_MONITOR}
   XrdClTestsHelper
   XrdCl )
+
+target_include_directories( ${LIB_XRD_CL_TEST_MONITOR} PRIVATE ../common )
 
 foreach(TEST_SUITE
     # File
