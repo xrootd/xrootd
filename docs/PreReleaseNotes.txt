@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Make maxfd be configurable (default is 256k).
+  **Commit: 937b5ee
   **[Client]** Add xrdfs cache subcommand to allow for cache evictions.
   **Commit: 39f9e0a
   **[Xcache]** Implement a file evict function.
