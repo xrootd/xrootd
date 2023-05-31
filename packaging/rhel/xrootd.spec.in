@@ -68,15 +68,17 @@ Group:     System Environment/Daemons
 License:   LGPLv3+
 URL:       http://xrootd.org/
 
-%define compat_version 4.12.3
+%define compat_version 4.12.9
 
 # git clone http://xrootd.org/repo/xrootd.git xrootd
 # cd xrootd
 # git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
 Source0:   xrootd.tar.gz
 
+# Need to keep in sync with the compat_version above
+# Cannot use variable, as makesrpm.sh cannot expand it
 %if 0%{?_with_compat}
-Source1:   xrootd-%{compat_version}.tar.gz
+Source1:   xrootd-4.12.9.tar.gz
 %endif
 
 BuildRoot: %{_tmppath}/%{name}-root
