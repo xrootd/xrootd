@@ -274,6 +274,7 @@ XrdConfig::XrdConfig()
    NetADM     = 0;
    coreV      = 1;
    Specs      = 0;
+   maxFD      = 256*1024;  // 256K default
 
    Firstcp = Lastcp = 0;
 
@@ -805,6 +806,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
    TS_Xeq("homepath",      xhpath);
+   TS_Xeq("maxfd",         xmaxfd);
    TS_Xeq("pidpath",       xpidf);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
@@ -1176,7 +1178,6 @@ void XrdConfig::setCFG(bool start)
   
 int XrdConfig::setFDL()
 {
-   static const int maxFD = 65535; // was 1048576 see XrdNetAddrInfo::sockNum
    struct rlimit rlim;
    char buff[100];
 
@@ -1646,6 +1647,36 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
           return 1;
 
     BuffPool.Set((int)blim, bint);
+    return 0;
+}
+
+
+/******************************************************************************/
+/*                                x m a x f d                                 */
+/******************************************************************************/
+
+/* Function: xmaxfd
+
+   Purpose:  To parse the directive: maxfd <numfd>
+
+             <numfd>    maximum number of fs that can be established.
+                        Specify a value optionally suffixed with 'k'.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdConfig::xmaxfd(XrdSysError *eDest, XrdOucStream &Config)
+{
+    long long minFD = 1024, maxFD = 1024LL*1024LL; // between 1k and 1m
+    long long fdVal;
+    char *val;
+
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("Config", "file descriptor limit not specified"); return 1;}
+
+    if (XrdOuca2x::a2sz(*eDest,"maxfd value",val,&fdVal,minFD,maxFD)) return 1;
+
+    maxFD = static_cast<unsigned int>(fdVal);
+
     return 0;
 }
 
