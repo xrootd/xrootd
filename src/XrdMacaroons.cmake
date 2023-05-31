@@ -9,8 +9,6 @@ set( LIB_XRD_MACAROONS  XrdMacaroons-${PLUGIN_VERSION} )
 #-------------------------------------------------------------------------------
 
 if( BUILD_MACAROONS )
-  include_directories(${MACAROONS_INCLUDES} ${JSON_INCLUDE_DIRS})
-
   add_library(
     ${LIB_XRD_MACAROONS}
     MODULE
@@ -31,6 +29,9 @@ if( BUILD_MACAROONS )
     ${XROOTD_HTTP_LIB}
     OpenSSL::Crypto
     ${CMAKE_DL_LIBS})
+
+  target_include_directories(${LIB_XRD_MACAROONS}
+    PRIVATE ${MACAROONS_INCLUDES} ${JSON_INCLUDE_DIRS})
 
   if( MacOSX )
     SET( MACAROONS_LINK_FLAGS "-Wl")

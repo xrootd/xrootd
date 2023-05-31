@@ -6,11 +6,6 @@ find_package( SciTokensCpp REQUIRED )
 #-------------------------------------------------------------------------------
 set( LIB_XRD_SCITOKENS  XrdAccSciTokens-${PLUGIN_VERSION} )
 
-include_directories(
-   ${SCITOKENS_CPP_INCLUDE_DIR}
-   XrdSciTokens/vendor/picojson
-   XrdSciTokens/vendor/inih )
-
 #-------------------------------------------------------------------------------
 # The XrdPfc library
 #-------------------------------------------------------------------------------
@@ -27,6 +22,13 @@ target_link_libraries(
    XrdServer
    ${CMAKE_DL_LIBS}
    ${CMAKE_THREAD_LIBS_INIT} )
+
+target_include_directories(
+   ${LIB_XRD_SCITOKENS}
+   PRIVATE
+   ${SCITOKENS_CPP_INCLUDE_DIR}
+   XrdSciTokens/vendor/picojson
+   XrdSciTokens/vendor/inih )
 
 #-------------------------------------------------------------------------------
 # Install

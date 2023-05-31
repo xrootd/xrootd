@@ -1,5 +1,3 @@
-include_directories( ${KERBEROS5_INCLUDE_DIR} )
-
 #-------------------------------------------------------------------------------
 # The XrdSeckrb5 module
 #-------------------------------------------------------------------------------
@@ -15,6 +13,8 @@ target_link_libraries(
   PRIVATE
   XrdUtils
   ${KERBEROS5_LIBRARIES} )
+
+target_include_directories( ${LIB_XRD_SEC_KRB5} PRIVATE ${KERBEROS5_INCLUDE_DIR} )
 
 #-------------------------------------------------------------------------------
 # Install
