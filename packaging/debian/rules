@@ -1,12 +1,12 @@
 #!/usr/bin/make -f
+export DH_VERBOSE=1
 export PYBUILD_NAME=xrootd
-# --install-layout deb
 
 %:
-	dh $@ --builddirectory=build --destdir=deb_packages --with python3
+	dh $@ --builddirectory=build --destdir=deb_packages --with python3 --buildsystem=cmake
 
 override_dh_auto_configure:
-	dh_auto_configure -- -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_LIBDIR=lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH) -DPython_EXECUTABLE=/usr/bin/python3 -DCMAKE_SKIP_INSTALL_RPATH=ON -DENABLE_XRDCLHTTP=TRUE
+	dh_auto_configure -- -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_LIBDIR=lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH) -DPython_EXECUTABLE=/usr/bin/python3 -DCMAKE_SKIP_INSTALL_RPATH=ON -DENABLE_XRDCLHTTP=TRUE -DINSTALL_PYTHON_BINDINGS=TRUE -DPIP_OPTIONS='--no-deps --disable-pip-version-check --verbose'
 
 override_dh_install:
 	install -D -m 644 packaging/common/client.conf deb_packages/etc/xrootd/client.conf

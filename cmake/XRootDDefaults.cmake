@@ -19,8 +19,6 @@ option( ENABLE_XRDCL     "Enable XRootD client."                                
 option( ENABLE_TESTS     "Enable unit tests."                                             FALSE )
 option( ENABLE_HTTP      "Enable HTTP component."                                         TRUE )
 option( ENABLE_PYTHON    "Enable python bindings."                                        TRUE )
-# As PIP_OPTIONS uses the cache, make sure to clean cache if rebuilding (e.g. cmake --build <build dir> --clean-first)
-SET(PIP_OPTIONS "" CACHE STRING "pip options used during the Python bindings install.")
 option( XRDCL_ONLY       "Build only the client and necessary dependencies"               FALSE )
 option( XRDCL_LIB_ONLY   "Build only the client libraries and necessary dependencies"     FALSE )
 option( PYPI_BUILD       "The project is being built for PyPI release"                    FALSE )
