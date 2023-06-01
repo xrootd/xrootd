@@ -1531,6 +1531,7 @@ int XrdHttpProtocol::StartSimpleResp(int code, const char *desc, const char *hea
     else if (code == 404) ss << "Not Found";
     else if (code == 405) ss << "Method Not Allowed";
     else if (code == 500) ss << "Internal Server Error";
+    else if (code == 400) ss << "Bad Request";
     else ss << "Unknown";
   }
   ss << crlf;
