@@ -59,4 +59,3 @@ test/testconfig.sh
 xrootd.spec
 dist
 *.egg-info
-bindings/python/VERSION

@@ -532,7 +532,8 @@ cmake  \
 %if %{?_with_isal:1}%{!?_with_isal:0}
       -DENABLE_XRDEC=TRUE \
 %endif
-      -DUSER_VERSION=v%{version} \
+      -DXRootD_VERSION_STRING=v%{version} \
+      -DINSTALL_PYTHON_BINDINGS=FALSE \
       ../
 
 make -i VERBOSE=1 %{?_smp_mflags}
