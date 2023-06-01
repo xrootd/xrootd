@@ -2218,6 +2218,12 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
                 return 0;
               } else
                 if (rwOps.size() > 1) {
+                // First, check that the amount of range request can be handled by the vector read of the XRoot layer
+                if(rwOps.size() > XrdProto::maxRvecsz) {
+                  std::string errMsg = "Too many range requests provided. Maximum range requests supported is " + std::to_string(XrdProto::maxRvecsz);
+                  prot->SendSimpleResp(400, NULL, NULL,errMsg.c_str(), errMsg.size(), false);
+                  return -1;
+                }
                 // Multiple reads to perform, compose and send the header
                 int cnt = 0;
                 for (size_t i = 0; i < rwOps.size(); i++) {
