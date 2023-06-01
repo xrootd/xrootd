@@ -136,6 +136,7 @@ signed char         coreV;
 char                Specs;
 static const int    hpSpec = 0x01;
 
+bool                isStrict;
 unsigned int        maxFD;
 };
 #endif

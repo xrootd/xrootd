@@ -274,6 +274,7 @@ XrdConfig::XrdConfig()
    NetADM     = 0;
    coreV      = 1;
    Specs      = 0;
+   isStrict   = false;
    maxFD      = 256*1024;  // 256K default
 
    Firstcp = Lastcp = 0;
@@ -1188,7 +1189,8 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
-   if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > maxFD) rlim.rlim_cur = maxFD;
+   if (rlim.rlim_max == RLIM_INFINITY || (isStrict && rlim.rlim_max > maxFD))
+      rlim.rlim_cur = maxFD;
       else rlim.rlim_cur = rlim.rlim_max;
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
    if (rlim.rlim_cur > OPEN_MAX) rlim.rlim_max = rlim.rlim_cur = OPEN_MAX;
@@ -1657,8 +1659,10 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
 /* Function: xmaxfd
 
-   Purpose:  To parse the directive: maxfd <numfd>
+   Purpose:  To parse the directive: maxfd [strict] <numfd>
 
+             strict     when specified, the limits is always applied. Otherwise,
+                        it is only applied when rlimit is infinite.
              <numfd>    maximum number of fs that can be established.
                         Specify a value optionally suffixed with 'k'.
 
@@ -1666,14 +1670,22 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 */
 int XrdConfig::xmaxfd(XrdSysError *eDest, XrdOucStream &Config)
 {
-    long long minFD = 1024, maxFD = 1024LL*1024LL; // between 1k and 1m
+    long long minV = 1024, maxV = 1024LL*1024LL; // between 1k and 1m
     long long fdVal;
     char *val;
 
-    if (!(val = Config.GetWord()))
+    if ((val = Config.GetWord()))
+       {if (!strcmp(val, "strict")) 
+           {isStrict = true;
+            val = Config.GetWord();
+           } else isStrict = false;
+       }
+
+    if (!val)
        {eDest->Emsg("Config", "file descriptor limit not specified"); return 1;}
 
-    if (XrdOuca2x::a2sz(*eDest,"maxfd value",val,&fdVal,minFD,maxFD)) return 1;
+
+    if (XrdOuca2x::a2sz(*eDest,"maxfd value",val,&fdVal,minV,maxV)) return 1;
 
     maxFD = static_cast<unsigned int>(fdVal);
 
