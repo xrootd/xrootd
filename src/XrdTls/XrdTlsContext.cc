@@ -538,8 +538,11 @@ int VerCB(int aOK, X509_STORE_CTX *x509P)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-#define FATAL(msg) {Fatal(eMsg, msg); return;}
-#define FATAL_SSL(msg) {Fatal(eMsg, msg, true); return;}
+#define KILL_CTX(x) if (x) {SSL_CTX_free(x); x = 0;}
+
+#define FATAL(msg) {Fatal(eMsg, msg); KILL_CTX(pImpl->ctx); return;}
+
+#define FATAL_SSL(msg) {Fatal(eMsg, msg, true); KILL_CTX(pImpl->ctx); return;}
   
 XrdTlsContext::XrdTlsContext(const char *cert,  const char *key,
                              const char *caDir, const char *caFile,
