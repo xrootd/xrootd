@@ -22,6 +22,8 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[TLS]** Make sure context is marked invalid if not properly constructed.
+  **Commit: c6928f0
 
 + **Miscellaneous**
   **[Server]** Also check for IPv6 ULA's to determine if an address is private.
