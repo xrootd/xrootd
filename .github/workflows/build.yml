@@ -864,6 +864,7 @@ jobs:
 
     - name: Build sdist using publishing workflow
       run: |
+        . /opt/rh/devtoolset-7/enable
         cp packaging/wheel/* .
         ./publish.sh
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
@@ -921,6 +922,7 @@ jobs:
 
     - name: Build sdist using publishing workflow
       run: |
+        . /opt/rh/devtoolset-7/enable
         cp packaging/wheel/* .
         ./publish.sh
         python3 -m pip --verbose install --upgrade ./dist/xrootd-*.tar.gz
