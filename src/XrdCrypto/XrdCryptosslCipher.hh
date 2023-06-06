@@ -39,7 +39,12 @@
 #include <openssl/evp.h>
 #include <openssl/dh.h>
 
-#define kDHMINBITS 512
+// This is not used as we no longer dynamically generate the DH parameters;
+// see the comments in XrdCryptosslCipher.cc for more context.
+// Purposely keeping it around to help make the issue visible to future readers
+// of the code.
+//
+// #define kDHMINBITS 512
 
 // ---------------------------------------------------------------------------//
 //
