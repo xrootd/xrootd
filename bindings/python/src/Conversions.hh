@@ -241,7 +241,7 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::Buffer *buffer )
       {
-        return PyBytes_FromStringAndSize( buffer->GetBuffer(), buffer->GetSize() );
+        return PyUnicode_FromStringAndSize( buffer->GetBuffer(), buffer->GetSize() );
       }
   };
 
@@ -249,7 +249,7 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::ChunkInfo *chunk )
       {
-        PyObject *o = PyBytes_FromStringAndSize( (const char*)chunk->buffer,
+        PyObject *o = PyUnicode_FromStringAndSize( (const char*)chunk->buffer,
                                                   chunk->length );
         delete[] (char*) chunk->buffer;
         return o;
@@ -268,7 +268,7 @@ namespace PyXRootD
         for ( uint32_t i = 0; i < chunks.size(); ++i ) {
           XrdCl::ChunkInfo chunk = chunks.at( i );
 
-          PyObject *buffer = PyBytes_FromStringAndSize( (const char *) chunk.buffer,
+          PyObject *buffer = PyUnicode_FromStringAndSize( (const char *) chunk.buffer,
                                                         chunk.length );
           delete[] (char*) chunk.buffer;
 
