@@ -32,23 +32,18 @@
 
 #if PY_MAJOR_VERSION >= 3
 #define IS_PY3K
+#define Py_TPFLAGS_HAVE_ITER 0
+#else
+#define PyUnicode_AsUTF8             PyString_AsString
+#define PyUnicode_Check              PyString_Check
+#define PyUnicode_FromString         PyString_FromString
+#define PyUnicode_FromStringAndSize  PyString_FromStringAndSize
+#define PyUnicode_GET_LENGTH         PyString_Size
 #endif
 
 #define async( func )    \
   Py_BEGIN_ALLOW_THREADS \
   func;                  \
   Py_END_ALLOW_THREADS   \
-
-#ifdef IS_PY3K
-#define Py_TPFLAGS_HAVE_ITER 0
-#else
-#if PY_MINOR_VERSION <= 5
-#define PyUnicode_FromString PyString_FromString
-#endif
-#define PyBytes_Size PyString_Size
-#define PyBytes_Check PyString_Check
-#define PyBytes_FromString PyString_FromString
-#define PyBytes_FromStringAndSize PyString_FromStringAndSize
-#endif
 
 #endif /* PYXROOTD_HH_ */

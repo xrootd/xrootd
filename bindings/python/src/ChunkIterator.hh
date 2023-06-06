@@ -98,7 +98,7 @@ namespace PyXRootD
 
     else {
       self->currentOffset += self->chunksize;
-      pychunk = PyBytes_FromStringAndSize( (const char*) chunk->GetBuffer(),
+      pychunk = PyUnicode_FromStringAndSize( (const char*) chunk->GetBuffer(),
                                                          chunk->GetSize() );
     }
 
