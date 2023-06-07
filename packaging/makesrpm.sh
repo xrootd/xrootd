@@ -127,12 +127,9 @@ echo "[i] Working with version: $VERSION"
 
 VERSION=${VERSION#v} # remove "v" prefix
 VERSION=${VERSION/-rc/~rc} # release candidates use ~ in RPMs
-VERSION=${VERSION/-g/^$(date +%Y%m%d)git} # snapshots use a caret
+VERSION=${VERSION/-g*/} # snapshots versions not supported well, filter out
 VERSION=${VERSION/-/.post} # handle git describe for post releases
 VERSION=${VERSION//-/.} # replace remaining dashes with dots
-
-# CentOS 7 cannot handle snapshot versions, filter out
-[[ `rpm -E '%{dist}'` =~ el7 ]] && VERSION=${VERSION/^*/}
 
 echo "[i] RPM compliant version: $VERSION-$RELEASE"
 
