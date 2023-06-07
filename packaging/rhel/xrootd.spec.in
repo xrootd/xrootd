@@ -574,6 +574,8 @@ popd
 popd
 %endif
 
+%undefine _hardened_build
+
 pushd build/bindings/python
 # build python3 bindings
 %if %{_with_python2}
