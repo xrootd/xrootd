@@ -148,52 +148,24 @@ build:cc7:
     - schedules
     - web
     
-#build:fedora-36:
-#  stage: build:rpm
-#  image: fedora:36
-#  script:
-#    - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git
-#    - cd packaging/
-#    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
-#    - dnf builddep --nogpgcheck -y *.src.rpm
-#    - mkdir RPMS
-#    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-#    - cd ..
-#    - mkdir fc-rawhide
-#    - cp packaging/*.src.rpm fc-rawhide
-#    - cp packaging/RPMS/* fc-rawhide
-#  artifacts:
-#    expire_in: 1 day
-#    paths:
-#    - fc-rawhide/
-#  tags:
-#    - docker_node
-#  only:
-#    - master
-#    - /^stable-.*$/
-#  except:
-#    - tags
-#    - schedules
-#    - web
-
-build:fedora-35:
+build:fedora-37:
   stage: build:rpm
-  image: fedora:35
+  image: fedora:37
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git
     - cd packaging/
-    - ./makesrpm.sh --define "_with_python3 1" --define "_with_ceph11 1"
+    - ./makesrpm.sh --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1"
     - dnf builddep --nogpgcheck -y *.src.rpm
     - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-35/
-    - cp packaging/*.src.rpm fc-35
-    - cp packaging/RPMS/* fc-35
+    - mkdir fc-37/
+    - cp packaging/*.src.rpm fc-37
+    - cp packaging/RPMS/* fc-37
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-35/
+    - fc-37/
   tags:
     - docker_node
   only:
@@ -203,10 +175,11 @@ build:fedora-35:
     - tags
     - schedules
     - web
+  allow_failure: true
 
-build:fedora-34:
+build:fedora-38:
   stage: build:rpm
-  image: fedora:34
+  image: fedora:38
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git
     - cd packaging/
@@ -215,13 +188,13 @@ build:fedora-34:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-34/
-    - cp packaging/*.src.rpm fc-34
-    - cp packaging/RPMS/* fc-34
+    - mkdir fc-38/
+    - cp packaging/*.src.rpm fc-38
+    - cp packaging/RPMS/* fc-38
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-34/
+    - fc-38/
   tags:
     - docker_node
   only:
@@ -231,10 +204,11 @@ build:fedora-34:
     - tags
     - schedules
     - web
+  allow_failure: true
 
-build:fedora-36:
+build:fedora-39:
   stage: build:rpm
-  image: fedora:36
+  image: fedora:39
   script:
     - dnf install --nogpg -y gcc-c++ rpm-build tar dnf-plugins-core git
     - cd packaging/
@@ -243,13 +217,13 @@ build:fedora-36:
     - mkdir RPMS
     - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_with_python3 1" --define "_with_xrdclhttp 1" --define "_with_ceph11 1" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
     - cd ..
-    - mkdir fc-36/
-    - cp packaging/*.src.rpm fc-36
-    - cp packaging/RPMS/* fc-36
+    - mkdir fc-39/
+    - cp packaging/*.src.rpm fc-39
+    - cp packaging/RPMS/* fc-39
   artifacts:
     expire_in: 1 day
     paths:
-    - fc-36/
+    - fc-39/
   tags:
     - docker_node
   only:
@@ -651,7 +625,7 @@ publish:rhel:
   script:
     - yum install --nogpg -y sssd-client sudo createrepo
     - prefix=/eos/project/s/storage-ci/www/xrootd
-    - "for platform in cs-8 cc-7 fc-35 fc-34; do
+    - "for platform in cs-8 cc-7 fc-{37..39}; do
          repo=$prefix/${CI_COMMIT_REF_NAME}/$platform/x86_64
          path=$repo/$(date +'%Y%m%d');
          sudo -u stci -H mkdir -p $path;
