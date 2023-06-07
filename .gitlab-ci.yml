@@ -262,36 +262,6 @@ build:deb_ubuntu_jammy:
     - web
   allow_failure: true
 
-build:macosx:
-  stage: build:rpm
-  script:
-    - mkdir build
-    - mkdir -p tarball/xrootd
-    - cd build
-    - cmake -DCMAKE_PREFIX_PATH='/usr/local/opt/zlib;/usr/local/opt/openssl' -DCMAKE_INSTALL_PREFIX=../tarball/xrootd ..
-    - cd src/XrdCl/
-    - make -j4
-    - make install
-    - cd ../../../tarball
-    - tar -zcf xrootd.tar.gz xrootd
-    - cd ..
-    - mkdir osx
-    - cp tarball/xrootd.tar.gz osx
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - osx/
-  tags:
-    - macosx-shell
-  only:
-    - master
-    - /^stable-.*$/
-  except:
-    - tags
-    - schedules
-    - web
-  allow_failure: true
-
 release:cs8-x86_64:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cs8-base
