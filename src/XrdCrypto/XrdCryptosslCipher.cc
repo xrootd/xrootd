@@ -902,6 +902,7 @@ bool XrdCryptosslCipher::Finalize(bool padded,
             EVP_PKEY_derive_set_peer(pkctx, peer);
             EVP_PKEY_derive(pkctx, (unsigned char *)ktmp, &ltmp);
             EVP_PKEY_CTX_free(pkctx);
+            EVP_PKEY_free(peer);
             if (ltmp > 0) {
 #if OPENSSL_VERSION_NUMBER < 0x10101000L
                if (padded) {
