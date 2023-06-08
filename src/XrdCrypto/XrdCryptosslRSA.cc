@@ -322,6 +322,8 @@ int XrdCryptosslRSA::ImportPrivate(const char *pri, int lpri)
 
    if (!fEVP)
       return -1;
+
+   int rc = -1;
    prilen = -1;
 
    // Bio for exporting the pub key
@@ -337,9 +339,10 @@ int XrdCryptosslRSA::ImportPrivate(const char *pri, int lpri)
    if (PEM_read_bio_PrivateKey(bpri, &fEVP, 0, 0)) {
       // Update status
       status = kComplete;
-      return 0;
+      rc = 0;
    }
-   return -1;
+   BIO_free(bpri);
+   return rc;
 }
 
 //_____________________________________________________________________________
