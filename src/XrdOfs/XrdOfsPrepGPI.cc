@@ -13,6 +13,7 @@
 #include "XrdOss/XrdOss.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucGatherConf.hh"
@@ -51,6 +52,8 @@ namespace XrdOfsPrepGPIReal
 {
 XrdSysMutex      gpiMutex;
 
+XrdOucBuffPool  *bPool    = 0;;
+
 XrdOss          *ossP     = 0;
 XrdScheduler    *schedP   = 0;
 XrdSysError     *eLog     = 0;
@@ -62,6 +65,7 @@ int              qryWait  = 0;   // Ditto
 static const int qryMaxWT = 33;  // Maximum wait time
 
 int              maxFiles = 48;
+int              maxResp  = XrdOucEI::Max_Error_Len;
 
 bool             addCGI   = false;
 bool             Debug    = false;
@@ -619,6 +623,10 @@ int PrepGPI::query(      XrdSfsPrep      &pargs,
                    const XrdSecEntity    *client)
 {
    EPNAME("Query");
+   struct OucBuffer {XrdOucBuffer *pBuff;
+                                   OucBuffer() : pBuff(0) {}
+                                  ~OucBuffer() {if (pBuff) pBuff->Recycle();}
+                    } OucBuff;
    const char *tid = (client ? client->tident : "anon");
    int rc, bL;
    char *bP = eInfo.getMsgBuff(bL);
@@ -629,12 +637,22 @@ int PrepGPI::query(      XrdSfsPrep      &pargs,
    if (!(okReq & okQuery))
       {PrepRequest *rPP, *rP;
        if (reqFind(pargs.reqid, rPP, rP))
-          {bL = snprintf(bP, bL, "Request %s queued.", pargs.reqid);
+          {bL = snprintf(bP, bL, "Request %s queued.", pargs.reqid)+1;
           } else {
-           bL = snprintf(bP, bL, "Request %s not queued.", pargs.reqid);
+           bL = snprintf(bP, bL, "Request %s not queued.", pargs.reqid)+1;
           }
        eInfo.setErrCode(bL);
        return SFS_DATA;
+      }
+
+// Allocate a buffer if need be
+//
+   if (bPool)
+      {OucBuff.pBuff = bPool->Alloc(maxResp);
+       if (OucBuff.pBuff)
+          {bP = OucBuff.pBuff->Buffer();
+           bL = maxResp;
+          }
       }
 
 // Get a request request object
@@ -679,7 +697,11 @@ int PrepGPI::query(      XrdSfsPrep      &pargs,
 
 // Return response
 //
-   eInfo.setErrCode(rc);
+   if (!OucBuff.pBuff) eInfo.setErrCode(rc);
+      else {OucBuff.pBuff->SetLen(rc);
+            eInfo.setErrInfo(rc, OucBuff.pBuff);
+            OucBuff.pBuff = 0;
+           }
    return SFS_DATA;
 }
 }
@@ -789,7 +811,7 @@ int PrepGPI::Xeq(PrepRequest *rP)
 /******************************************************************************/
 
 // Parameters: -admit <reqlist> [-cgi] [-maxfiles <n> [-maxreq <n>]
-//             [-maxquery <n>] [-pfn] -run <pgm>
+//             [-maxquery <n>] [-maxresp <sz>] [-pfn] -run <pgm>
 //
 // <request>: cancel | evict | prep | query | stage
 // <reqlist>: <request>[,<request>]
@@ -878,6 +900,16 @@ XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments)
                   if (XrdOuca2x::a2i(*eLog, "PrepPGI -maxreq", tokP,
                                             &maxReq, 1, 64)) return 0;
                  }
+         else if (Token == "-maxresp")
+                 {if (!(tokP = gpiConf.GetToken()) || *tokP == '-')
+                     {eLog->Emsg("PrepGPI", "-maxresp argument not specified.");
+                      return 0;
+                     }
+                  long long rspsz;
+                  if (XrdOuca2x::a2sz(*eLog, "PrepPGI -maxresp", tokP,
+                                            &rspsz, 2048, 16777216)) return 0;
+                  maxResp = static_cast<int>(rspsz);
+                 }
          else if (Token == "-pfn")   usePFN = true;
          else if (Token == "-run")
                  {if (!(tokP = gpiConf.GetToken()) || *tokP == '-')
@@ -904,6 +936,11 @@ XrdOfsPrepare *XrdOfsgetPrepare(XrdOfsgetPrepareArguments)
       {eLog->Emsg("PrepGPI", "prepare program not specified.");
        return 0;
       }
+
+// Create a buffer pool for query responses if we need to
+//
+   if (maxResp > (int)XrdOucEI::Max_Error_Len)
+      bPool = new XrdOucBuffPool(maxResp, maxResp);
 
 // Set final debug flags
 //
