@@ -70,6 +70,12 @@ set_target_properties(
   VERSION   ${XRD_POSIX_PRELOAD_VERSION}
   SOVERSION ${XRD_POSIX_PRELOAD_SOVERSION} )
 
+# This is a special library meant to be loaded with LD_PRELOAD.
+# It is meant to replace symbols from the system and as such
+# must not be compiled with link-time optimizations.
+
+target_compile_options(XrdPosixPreload PRIVATE -fno-lto)
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
