@@ -6,6 +6,14 @@ Requires=network-online.target
 After=network-online.target
 
 [Service]
+#PrivateDevices=true
+#ProtectHostname=true
+#ProtectClock=true
+#ProtectKernelTunables=true
+#ProtectKernelModules=true
+#ProtectKernelLogs=true
+#ProtectControlGroups=true
+#RestrictRealtime=true
 ExecStart=/usr/bin/xrootd -l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-%i.cfg -k fifo -s /run/xrootd/xrootd-%i.pid -n %i
 User=xrootd
 Group=xrootd
