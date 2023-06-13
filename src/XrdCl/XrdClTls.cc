@@ -112,7 +112,7 @@ namespace XrdCl
     //----------------------------------------------------------------------
     // we only need one instance of TLS
     //----------------------------------------------------------------------
-    std::string emsg;
+    std::string emsg = "Failed to initialize TLS context";
     static XrdTlsContext tlsContext( 0, 0, GetCaDir(), 0, 0, &emsg );
 
     //----------------------------------------------------------------------
