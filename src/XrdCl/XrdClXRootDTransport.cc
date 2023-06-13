@@ -1758,6 +1758,13 @@ namespace XrdCl
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
 
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+    int notlsok = DefaultNoTlsOK;
+    env->GetInt( "NoTlsOK", notlsok );
+
+    if( notlsok )
+      return info->encrypted;
+
     // Did the server instructed us to switch to TLS right away?
     if( info->serverFlags & kXR_gotoTLS )
     {
@@ -1894,8 +1901,10 @@ namespace XrdCl
     request->requestid = htons(kXR_protocol);
     request->clientpv  = htonl(kXR_PROTOCOLVERSION);
     request->flags     = ClientProtocolRequest::kXR_secreqs |
-                         ClientProtocolRequest::kXR_bifreqs |
-                         ClientProtocolRequest::kXR_ableTLS;
+                         ClientProtocolRequest::kXR_bifreqs;
+
+    if (info->encrypted)
+      request->flags |= ClientProtocolRequest::kXR_ableTLS;
 
     bool nodata = false;
     if( expect & ClientProtocolRequest::kXR_ExpBind )
