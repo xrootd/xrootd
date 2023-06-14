@@ -6,35 +6,3 @@ XRootD
 
 Prerelease Notes
 ================
-
-+ **New Features**
-  **[Server]** Include token information in the monitoring stream (phase 1).
-  **Commit: d7f4b61
-  **[Server]** Allow generic prepare plug-in to handle large responses, fixes #2023
-  **Commit: 564f0b2
-  **[Server]** Make maxfd be configurable (default is 256k).
-  **Commit: 937b5ee e1ba7a2
-  **[Client]** Add xrdfs cache subcommand to allow for cache evictions.
-  **Commit: 39f9e0a
-  **[Xcache]** Implement a file evict function.
-  **Commit: 952bd9a
-  **[PSS]** Allow origin to be a directory of a locally mounted file system.
-  **Commit: 850a14f bb550ea
-  **[Server]** Add gsi option to display DN when it differs from entity name.
-  **Commit: 2630fe1
-  **[Server]** Allow specfication of minimum and maximum creation mode.
-  **Commit: 8a6d7c0
-
-+ **Major bug fixes**
-
-+ **Minor bug fixes**
-  **[Server]** Use correct value for testing vector size.
-  **Commit: 2c31fdb
-  **[TLS]** Make sure context is marked invalid if not properly constructed.
-  **Commit: c6928f0
-
-+ **Miscellaneous**
-  **[Apps]** Make xrdcrc32c consistent with xrdadler32. Fixes #204
-  **Commit: a06c635
-  **[Server]** Also check for IPv6 ULA's to determine if an address is private.
-  **Commit: cd970d5

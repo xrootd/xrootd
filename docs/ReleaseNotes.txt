@@ -6,6 +6,70 @@ Release Notes
 =============
 
 -------------
+Version 5.6.0
+-------------
+
++ **New Features**
+  **[CMake]** Modernization of build system, now requires CMake 3.16
+  **[Client]** Add xrdfs cache subcommand to allow for cache evictions
+  **[Misc]** Add support for building with musl libc (issue #1645)
+  **[Python]** Modernization of build system, better support for creating binary wheels,
+               properly propagating CXXFLAGS (issues #1768, #1807, #1833, #1844, #2001, #2002)
+  **[Python]** Better handling of unicode strings in the API (issue #2011)
+  **[Server]** Add gsi option to display DN when it differs from entity name
+  **[Server]** Allow generic prepare plug-in to handle large responses (issue #2023)
+  **[Server]** Allow specfication of minimum and maximum creation mode (issue #649)
+  **[Server]** Make maxfd be configurable (default is 256k) (issue #2010)
+  **[Server]** Include token information in the monitoring stream (phase 1).
+  **[Xcache]** Implement a file evict function
+  **[Xcache,XrdCl]** Increase default number of parallel event loops to 10 (#2047)
+  **[XrdCl]** xrdcp: number of parallel copy jobs increased from 4 to 128
+  **[XrdHttp]** Allow XRootD to return trailers indicating failure (#1912)
+  **[XrdHttp]** Denote Accept-Ranges in HEAD response (issue #1889)
+  **[XrdHttp]** Report cache object age for caching proxy mode (#1919)
+  **[XrdPss]** Allow origin to be a directory of a locally mounted file system
+  **[XrdSciTokens]** Implement ability to have the token username as a separate claim (#1978)
+  **[XrdSecgsi]** Use SHA-256 for signatures, and message digest algorithm (issues #1992, #2030)
+  **[XrdSecztn]** Allow option '-tokenlib none' to disable token validation (issue #1895)
+  **[XrdSecztn]** Allow to point to a token file using CGI '?xrd.ztn=tokenfile' (#1926)
+
++ **Major bug fixes**
+  **[XrdHttp]** Fix SEGV in case request has object for opaque data but no content (#2007)
+  **[XrdSecgsi]** Fix memory leaks in GSI authentication (issue #2021)
+
++ **Minor bug fixes**
+  **[Server]** Use correct value for testing vector size
+  **[XrdCl]** Fix off by one error in failure recovery check in parallel operation (issue #2040)
+  **[XrdCl]** Fix potential stream timeout when a new request is sent to an idle stream (issue #2042)
+  **[XrdCl]** Do not enforce TLS when --notlsok option is used in combination with root:// URL.
+              This allows falling back to e.g. Kerberos authentication on a server with ZTN plugin
+              enabled if the client has no certificates, hence not able to use TLS (issue #2020)
+  **[XrdEc]** Fix compilation issues and underlinking on macOS
+  **[XrdHttp]** Fix error returned when a client provides too many range requests (issue #2003)
+  **[XrdHttp]** Fix regression where performance markers were missing during an HTTP TPC transfer (#2017)
+  **[XrdHttp]** Return 404 instead of 500 error code on GET request on non-existent file (issue #2018)
+  **[XrdHttp]** Return 405 instead of 500 error code on deletion of non-empty directory (issue #1896)
+  **[XrdHttp]** Update HTTP header handling for chunked encoding and status trailer (#2009)
+  **[XrdTls]** Make sure TLS context is marked invalid if not properly constructed (issue #2020)
+  **[XrdTls]** Fix build failure with latest glibc (#2012)
+
++ **Miscellaneous**
+  **[Apps]** Make xrdcrc32c consistent with xrdadler32 (issue #2045)
+  **[CMake]** Build option ENABLE_CRYPTO has been removed. OpenSSL is always required with XRootD 5 (issue #1827)
+  **[CMake]** New test.cmake script added to automate configure/build/test cycle
+  **[CMake]** Fix build with link-time optimizations on 32bit systems (issue #2032)
+  **[docs]** Update READMEs, contribution, installation, and testing documentation
+  **[Misc]** Fix warnings from Clang compiler (#1997)
+  **[Misc]** Add sandboxing settings to systemd service files (initially commented out) (issue #2033)
+  **[Server]** Also check for IPv6 ULA's to determine if an address is private
+  **[Tests]** New script xrd-docker added to automate running of dockerized tests (#1974)
+  **[XProtocol]** Add fallthrough statement for ENOTEMPTY errno code mapping
+  **[XRootD] ** Update code to no longer rely on using namespace std; (needed to support C++17)
+  **[XrdCeph]** Submodule merged back into main repository (#2008)
+  **[XrdCeph]** Minor build system updates and integration with main repository
+  **[XrdCrypto]** Switch to a fixed set of DH parameters compatible with older OpenSSL (issue #2014)
+
+-------------
 Version 5.5.5
 -------------
 
