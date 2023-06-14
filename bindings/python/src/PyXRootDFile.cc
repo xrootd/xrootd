@@ -195,7 +195,7 @@ namespace PyXRootD
     else {
       uint32_t bytesRead = 0;
       async( status = self->file->Read( offset, size, buffer, bytesRead, timeout ) );
-      pyresponse = PyUnicode_FromStringAndSize( buffer, bytesRead );
+      pyresponse = PyBytes_FromStringAndSize( buffer, bytesRead );
       delete[] buffer;
     }
 
