@@ -60,6 +60,7 @@ foreach(TEST_SUITE
 )
   add_test(NAME XrdCl::${TEST_SUITE}
     COMMAND $<TARGET_FILE:test-runner> $<TARGET_FILE:XrdClTests> "All Tests/${TEST_SUITE}Test")
+  set_tests_properties(XrdCl::${TEST_SUITE} PROPERTIES RUN_SERIAL TRUE)
 endforeach()
 
 #-------------------------------------------------------------------------------
