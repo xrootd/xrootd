@@ -12,6 +12,25 @@ target_link_libraries(
 target_link_libraries(XrdEcTests PRIVATE ${ISAL_LIBRARIES})
 target_include_directories(XrdEcTests PRIVATE ../common ${CPPUNIT_UNCLUDE_DIRS} ${ISAL_INCLUDE_DIRS})
 
+foreach(TEST
+  AlignedWriteTest
+  SmallWriteTest
+  BigWriteTest
+  VectorReadTest
+  IllegalVectorReadTest
+  AlignedWrite1MissingTest
+  AlignedWrite2MissingTest
+  AlignedWriteTestIsalCrcNoMt
+  SmallWriteTestIsalCrcNoMt
+  BigWriteTestIsalCrcNoMt
+  AlignedWrite1MissingTestIsalCrcNoMt
+  AlignedWrite2MissingTestIsalCrcNoMt)
+    add_test(NAME XrdEc::${TEST}
+      COMMAND $<TARGET_FILE:test-runner> $<TARGET_FILE:XrdEcTests>
+        "All Tests/MicroTest/MicroTest::${TEST}"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endforeach()
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
