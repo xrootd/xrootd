@@ -26,6 +26,8 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+  **[Server]** Use correct value for testing vector size.
+  **Commit: 2c31fdb
   **[TLS]** Make sure context is marked invalid if not properly constructed.
   **Commit: c6928f0
 
