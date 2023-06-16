@@ -18,6 +18,8 @@
 
 #include "XrdCl/XrdClSIDManager.hh"
 
+#include <algorithm>
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -48,6 +50,7 @@ namespace XrdCl
     }
 
     memcpy( sid, &allocSID, 2 );
+    pAllocTime[allocSID] = time(0);
     return Status();
   }
 
@@ -60,6 +63,7 @@ namespace XrdCl
     uint16_t relSID = 0;
     memcpy( &relSID, sid, 2 );
     pFreeSIDs.push_back( relSID );
+    pAllocTime.erase( relSID );
   }
 
   //----------------------------------------------------------------------------
@@ -71,6 +75,20 @@ namespace XrdCl
     uint16_t tiSID = 0;
     memcpy( &tiSID, sid, 2 );
     pTimeOutSIDs.insert( tiSID );
+    pAllocTime.erase( tiSID );
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if any SID was allocated at or before a given time
+  //----------------------------------------------------------------------------
+  bool SIDManager::IsAnySIDOldAs( const time_t tlim ) const
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    return std::any_of( pAllocTime.begin(), pAllocTime.end(),
+                        [tlim](const auto& p)
+    {
+      return p.second <= tlim;
+    } );
   }
 
   //----------------------------------------------------------------------------

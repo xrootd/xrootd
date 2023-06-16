@@ -795,20 +795,22 @@ namespace XrdCl
 
     XrdSysMutexHelper scopedLock( info->mutex );
 
-    uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
+    const time_t now  = time(0);
+    const bool anySID =
+      info->sidManager->IsAnySIDOldAs( now - streamTimeout );
 
     log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
-               "stream timeout: %d, allocated SIDs: %d, wait barrier: %s",
+               "stream timeout: %d, any SID: %d, wait barrier: %s",
                info->streamName.c_str(), inactiveTime, streamTimeout,
-               allocatedSIDs, Utils::TimeToString(info->waitBarrier).c_str() );
+               anySID, Utils::TimeToString(info->waitBarrier).c_str() );
 
     if( inactiveTime < streamTimeout )
       return Status();
 
-    if( time(0) < info->waitBarrier )
+    if( now < info->waitBarrier )
       return Status();
 
-    if( !allocatedSIDs )
+    if( !anySID )
       return Status();
 
     return Status( stError, errSocketTimeout );
