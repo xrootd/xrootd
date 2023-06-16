@@ -106,7 +106,7 @@ set(CMAKE_ARGS $ENV{CMAKE_ARGS} ${CMAKE_ARGS})
 
 if(COVERAGE)
   find_program(CTEST_COVERAGE_COMMAND NAMES gcov)
-  list(PREPEND CMAKE_ARGS "-DCMAKE_CXX_FLAGS=--coverage")
+  list(PREPEND CMAKE_ARGS "-DCMAKE_CXX_FLAGS=--coverage -fprofile-update=atomic")
 endif()
 
 if(MEMCHECK)
