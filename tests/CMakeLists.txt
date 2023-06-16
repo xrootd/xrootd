@@ -13,3 +13,5 @@ endif()
 if( BUILD_CEPH )
   add_subdirectory( XrdCephTests )
 endif()
+
+add_subdirectory(XRootD)
