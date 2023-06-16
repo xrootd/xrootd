@@ -2551,7 +2551,7 @@ int XrdXrootdProtocol::do_ReadV()
 // partial elements.
 //
    rdVecNum = rdVecLen / sizeof(readahead_list);
-   if ( (rdVecLen <= 0) || (rdVecNum*hdrSZ != rdVecLen) )
+   if ( (rdVecNum <= 0) || (rdVecNum*hdrSZ != rdVecLen) )
       return Response.Send(kXR_ArgInvalid, "Read vector is invalid");
 
 // Make sure that we can copy the read vector to our local stack. We must impose 
