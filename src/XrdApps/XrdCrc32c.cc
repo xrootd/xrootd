@@ -71,7 +71,7 @@ void Fatal(const char *op, const char *target)
   
 void Usage(int rc)
 {
-   std::cerr <<"\nUsage: xrdcrc32c [opts] {<path> | -}\n"
+   std::cerr <<"\nUsage: xrdcrc32c [opts] [<path> | -]\n"
           "\n<path> the path to the file whose checksum if to be computed."
           "\n-      compute checksum from data presented at standard in;"
           "\n       example: xrdcp <url> - | xrdcrc32c -\n"
@@ -123,14 +123,9 @@ int main(int argc, char *argv[])
        }
      }
 
-// Make sure a path has been specified
-//
-   if (optind >= argc)
-      {std::cerr <<pgm <<"File path has not been specified." <<std::endl; Usage(1);}
-
 // Get the source argument
 //
-   if (strcmp(argv[optind], "-"))
+   if (optind < argc && strcmp(argv[optind], "-"))
       {fPath = argv[optind];
        if ((fd = open(fPath, opts)) < 0) Fatal("open", fPath);
       } else {
