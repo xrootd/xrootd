@@ -479,6 +479,7 @@ int XrdOfsFile::open(const char          *path,      // In
                         SFS_O_NOTPC  - Disallow TPC opens
                         SFS_O_REPLICA- Open file for replication
                         SFS_O_CREAT  - Create the file open in RW mode
+                        SFS_O_CREATAT- As above but with colocation.
                         SFS_O_TRUNC  - Trunc  the file open in RW mode
                         SFS_O_POSC   - Presist    file on successful close
                         SFS_O_SEQIO  - Primarily sequential I/O (e.g. xrdcp)
@@ -637,6 +638,10 @@ int XrdOfsFile::open(const char          *path,      // In
               return XrdOfsFS->Emsg(epname, error, oP.poscNum, "pcreate", path,
                      "+ofs_open: failed to enter file into posc queue");
           }
+
+       // If placement information is present provide a hint to the oss plugin
+       //
+       if ((open_mode & ~SFS_O_CREAT) & SFS_O_CREATAT) crOpts |= XRDOSS_coloc;
 
        // Create the file. If ENOTSUP is returned, promote the creation to
        // the subsequent open. This is to accomodate proxy support.
@@ -819,6 +824,59 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    XrdOfsFS->ocMutex.Lock(); oh = oP.hP; XrdOfsFS->ocMutex.UnLock();
    return oP.OK();
+}
+
+/******************************************************************************/
+/*                                 C l o n e                                  */
+/******************************************************************************/
+/*
+  Function: Clone the file object from another file object.
+
+  Input:    n/a
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+
+int XrdOfsFile::Clone(XrdSfsFile& srcFile)
+{
+   EPNAME("Clone");
+   XrdOfsFile& ofsFile = static_cast<XrdOfsFile&>(srcFile);
+   int rc = oh->Select().Clone(ofsFile.oh->Select());
+
+   if (rc < 0)
+      {char etxt[4096];
+       snprintf(etxt,sizeof(etxt),"%s from %s",oh->Name(),ofsFile.oh->Name()); 
+       return XrdOfsFS->Emsg(epname, error, rc, "clone", etxt);
+      }
+
+   return SFS_OK;
+}
+  
+/******************************************************************************/
+
+int XrdOfsFile::Clone(XrdOucCloneSeg cVec[], int n)
+{
+   EPNAME("Clone");
+   int i, j = 0;
+
+do{XrdOfsFile& curFile = *cVec[j].src.ofsFile;
+   XrdOssDF*   ossFile = &curFile.oh->Select();
+
+   for (i = j+1; i < n && cVec[i].src.ofsFile == &curFile; i++)
+       {cVec[i].src.ossFile = ossFile;}
+   int k = i - j;
+   int rc = curFile.oh->Select().Clone(&cVec[j], k);
+
+   if (rc < 0)
+      {char etxt[4096];
+       snprintf(etxt,sizeof(etxt),"%s from %s",oh->Name(),curFile.oh->Name()); 
+       return XrdOfsFS->Emsg(epname, error, rc, "clone", etxt);
+      }
+
+   j = i;
+  } while(j < n);
+
+  return SFS_OK;
 }
 
 /******************************************************************************/
