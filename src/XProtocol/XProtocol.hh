@@ -141,6 +141,7 @@ enum XRequestTypes {
    kXR_sigver,  // 3029
    kXR_pgread,  // 3030 was kXR_decrypt
    kXR_writev,  // 3031
+   kXR_clone,   // 3032
    kXR_REQFENCE // Always last valid request code +1
 };
 
@@ -218,6 +219,33 @@ static const int kXR_ckpXeq     = 4;  // Execute trunc, write, or writev
 // The minimum size of a checkpoint data limit
 //
 static const int kXR_ckpMinMax  = 104857604;  // 10 MB
+  
+/******************************************************************************/
+/*                     k X R _ c l o n e   R e q u e s t                      */
+/******************************************************************************/
+   
+struct ClientCloneRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];  // dst handle open for writing
+   kXR_char  reserved[12];
+   kXR_int32 dlen;
+// This struct followed by the clone_list
+};
+
+namespace XrdProto  // Always use this namespace for new additions
+{
+struct clone_list {
+   kXR_char  srcFH[4];   // src file handle
+   kXR_char  rsvd[4];    // Reserved
+   kXR_unt64 srcOffs;    // src offset
+   kXR_unt64 srcLen;     // src length
+   kXR_unt64 dstOffs;    // dst offset
+};
+static const int clItemLen = sizeof(clone_list);
+static const int maxCloneln = 32768;
+static const int maxClonesz = maxCloneln/clItemLen;
+}
   
 /******************************************************************************/
 /*                     k X R _ c l o s e   R e q u e s t                      */
@@ -469,7 +497,7 @@ enum XOpenRequestOption {
    kXR_open_wrto= 0x8000  // 32768
 };
 
-enum XOpenRequestOption2 {
+enum XOpenRequestOption2 {// Set in optiont
    kXR_dup      = 0x0001, //     1
    kXR_samefs   = 0x0002, //     2
    kXR_directio = 0x0004  //     4
@@ -480,7 +508,9 @@ struct ClientOpenRequest {
    kXR_unt16 requestid;
    kXR_unt16 mode;
    kXR_unt16 options;
-   kXR_char  reserved[12];
+   kXR_unt16 optiont;
+   kXR_char  reserved[6];
+   kXR_char  fhtemplt[4];
    kXR_int32  dlen;
 };
 
@@ -851,6 +881,7 @@ typedef union {
    struct ClientBindRequest bind;
    struct ClientChkPointRequest chkpoint;
    struct ClientChmodRequest chmod;
+   struct ClientCloneRequest clone;
    struct ClientCloseRequest close;
    struct ClientDirlistRequest dirlist;
    struct ClientEndsessRequest endsess;

@@ -43,6 +43,7 @@
 #include "XrdOss/XrdOssVS.hh"
 #include "XrdOuc/XrdOucIOVec.hh"
 
+class XrdOucCloneSeg;
 class XrdOucEnv;
 class XrdSysLogger;
 class XrdSfsAio;
@@ -111,6 +112,28 @@ virtual int     StatRet(struct stat *buff) {return -ENOTSUP;}
 /******************************************************************************/
 /*                 F i l e   O r i e n t e d   M e t h o d s                  */
 /******************************************************************************/
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from another file.
+//!
+//! @param  srcFile - Reference to the file to used to clone contents of this file,
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Clone(XrdOssDF& srcFile) {return -ENOTSUP;}
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from one or more oher files.
+//!
+//! @param  cVec  - A vector of struct XrdOucCloneSeg describing the action.
+//! @param  n     - The number of elements in cVec.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Clone(XrdOucCloneSeg cVec[], int n) {return -ENOTSUP;}
+
 //-----------------------------------------------------------------------------
 //! Change file mode settings.
 //!
@@ -488,6 +511,7 @@ short       rsvd;    // Reserved
 #define XRDOSS_mkpath  0x01
 #define XRDOSS_new     0x02
 #define XRDOSS_Online  0x04
+#define XRDOSS_coloc   0x08
 #define XRDOSS_isPFN   0x10
 #define XRDOSS_isMIG   0x20
 #define XRDOSS_setnoxa 0x40
@@ -572,6 +596,8 @@ virtual void      Connect(XrdOucEnv &env);
 //! @param  mode   - The new file mode setting.
 //! @param  env    - Reference to environmental information.
 //! @param  opts   - Create options:
+//!                  XRDOSS_coloc  - Colocate file relative to file object
+//!                                  in env with key "oss.coloc*"
 //!                  XRDOSS_mkpath - create dir path if it does not exist.
 //!                  XRDOSS_new    - the file must not already exist.
 //!                  oflags<<8     - open flags shifted 8 bits to the left/

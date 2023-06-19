@@ -54,6 +54,7 @@
 #define SFS_O_TRUNC   0x00000200         // used for file truncation
 #define SFS_O_MULTIW  0x00000400         // used for multi-write locations
 #define SFS_O_NOTPC   0x00000800         // used to suppress TPC opens
+#define SFS_O_CREATAT 0x00001100         // used for file creation at FS
 #define SFS_O_DIRLIST 0x00010000         // used for locate only
 #define SFS_O_POSC    0x00100000         // persist on successful close
 #define SFS_O_FORCE   0x00200000         // used for locate only
@@ -185,6 +186,7 @@ struct XrdSfsPrep  //!< Prepare parameters
 /******************************************************************************/
 
 class  XrdOucEnv;
+class  XrdOucCloneSeg;
 class  XrdSecEntity;
 struct XrdSfsFACtl;
 
@@ -385,6 +387,7 @@ public:
 //! @param  fileName   - Pointer to the path of the file to be opened.
 //! @param  openMode   - Flags indicating how the open is to be handled.
 //!                      SFS_O_CREAT   create the file
+//!                      SFS_O_CREATAT create the file in a perticular FS
 //!                      SFS_O_MKPTH   Make directory path if missing
 //!                      SFS_O_NOWAIT  do not impose operational delays
 //!                      SFS_O_NOTPC   do not allow TPC operation
@@ -399,8 +402,13 @@ public:
 //! @param  createMode - The file's mode if it will be created.
 //! @param  client     - Client's identify (see common description).
 //! @param  opaque     - path's CGI information (see common description).
+//! @param  file       - path's CGI information (see common description).
 //!
 //! @return One of SFS_OK, SFS_ERROR, SFS_REDIRECT, SFS_STALL, or SFS_STARTED
+//!
+//! @note When SFS_O_CREATAT is specified, the CGI should contain an element
+//!       oss.coloc=<path> where <path> determines the filesystem in which
+//!       the new file should be created.
 //-----------------------------------------------------------------------------
 
 virtual int            open(const char                *fileName,
@@ -441,6 +449,27 @@ enum cpAct {cpCreate=0,   //!< Create a checkpoint, one must not be active.
            };
 
 virtual int            checkpoint(cpAct act, struct iov *range=0, int n=0);
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from another file.
+//!
+//! @param  srcFile - Reference to the file to used to clone contents of this file,
+//!
+//! @return One of SFS_OK or SFS_ERROR.
+//-----------------------------------------------------------------------------
+
+virtual int            Clone(XrdSfsFile& srcFile);
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from one or more oher files.
+//!
+//! @param  cVec  - A vector of struct XrdOucCloneSeg describing the action.
+//! @param  n     - The number of elements in cVec.
+//!
+//! @return One of SFS_OK or SFS_ERROR.
+//-----------------------------------------------------------------------------
+
+virtual int            Clone(XrdOucCloneSeg cVec[], int n);
 
 //-----------------------------------------------------------------------------
 //! Close the file.
