@@ -32,5 +32,7 @@ Prerelease Notes
   **Commit: c6928f0
 
 + **Miscellaneous**
+  **[Apps]** Make xrdcrc32c consistent with xrdadler32. Fixes #204
+  **Commit: a06c635
   **[Server]** Also check for IPv6 ULA's to determine if an address is private.
   **Commit: cd970d5
