@@ -99,6 +99,28 @@ virtual int     StatRet(struct stat *Stat) {return wrapDF.StatRet(Stat);}
 /******************************************************************************/
 /*                 F i l e   O r i e n t e d   M e t h o d s                  */
 /******************************************************************************/
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from another file.
+//!
+//! @param  srcFile - Reference to the file to used to clone contents of this file,
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Clone(XrdOssDF& srcFile) {return wrapDF.Clone(srcFile);}
+
+//-----------------------------------------------------------------------------
+//! Clone contents of a file from one or more oher files.
+//!
+//! @param  cVec  - A vector of struct XrdOucCloneSeg describing the action.
+//! @param  n     - The number of elements in cVec.
+//!
+//! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
+//-----------------------------------------------------------------------------
+
+virtual int     Clone(XrdOucCloneSeg cVec[], int n) {return wrapDF.Clone(cVec, n);
+
 //-----------------------------------------------------------------------------
 //! Change file mode settings.
 //!
@@ -106,7 +128,7 @@ virtual int     StatRet(struct stat *Stat) {return wrapDF.StatRet(Stat);}
 //!
 //! @return 0 upon success or -errno or -osserr (see XrdOssError.hh).
 //-----------------------------------------------------------------------------
-
+x
 virtual int     Fchmod(mode_t mode) {return wrapDF.Fchmod(mode);}
 
 //-----------------------------------------------------------------------------

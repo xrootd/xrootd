@@ -251,6 +251,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Chmod();
        int   do_CKsum(int canit);
        int   do_CKsum(char *algT, const char *Path, char *Opaque);
+       int   do_Clone();
        int   do_Close();
        int   do_Dirlist();
        int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, char *opaque);

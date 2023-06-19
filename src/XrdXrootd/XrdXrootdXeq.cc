@@ -30,6 +30,7 @@
 #include <cctype>
 #include <cstdio>
 #include <map>
+#include <memory>
 #include <string>
 #include <sys/time.h>
 
@@ -39,6 +40,7 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdCks/XrdCksData.hh"
+#include "XrdOuc/XrdOucCloneSeg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -513,6 +515,79 @@ int XrdXrootdProtocol::do_CKsum(char *algT, const char *Path, char *Opaque)
 // Return indicating that we should try calculating the checksum
 //
    return 1;
+}
+
+/******************************************************************************/
+/*                              d o _ C l o n e                               */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_Clone()
+{
+   XrdXrootdFHandle fh(Request.clone.fhandle);
+   XrdXrootdFile* fP;
+   XrdSfsFile *dstFile, *srcFile = 0;
+   int clVecNum, clVecLen = Request.header.dlen;
+   int currFH =- -1;
+
+// Make sure we can do this operation
+//
+   if (!(fsFeatures & XrdSfs::hasFICL))
+      return Response.Send(kXR_Unsupported, "file cloning is not supported");
+
+// Make sure target file is actually open
+//
+   if (!FTab || !(fP = FTab->Get(fh.handle)))
+      return Response.Send(kXR_FileNotOpen,
+                           "clone does not refer to an open dest file");
+   dstFile = fP->XrdSfsp;
+
+// Compute number of elements in the clone vector and make sure we have no
+// partial elements.
+//
+   clVecNum = clVecLen / sizeof(XrdProto::clone_list);
+   if ( (clVecNum <= 0) ||
+         (clVecNum*(int)sizeof(XrdProto::clone_list) != clVecLen) )
+      return Response.Send(kXR_ArgInvalid, "Clone vector is invalid");
+
+// Make sure that we can copy the read vector to our local stack. We must impose 
+// a limit on it's size. We do this to be able to reuse the data buffer to 
+// prevent cross-cpu memory cache synchronization.
+//
+   if (clVecNum > XrdProto::maxClonesz)
+      return Response.Send(kXR_ArgTooLong, "Clone vector is too long");
+
+// Allocate a new cloe vector
+//
+   std::unique_ptr<XrdOucCloneSeg[]> u_clVecP(new XrdOucCloneSeg[clVecNum]);
+   XrdOucCloneSeg* clVec = u_clVecP.get();
+
+// Setup for clone vector creation
+//
+   XrdProto::clone_list* clList = (XrdProto::clone_list *)argp->buff;
+
+// Create new clone vector
+//
+   for (int i = 0; i < clVecNum; i++)
+       {fh.Set(clList[i].srcFH);
+        if (!srcFile || currFH != fh.handle)
+           {currFH = fh.handle;
+            if (!(fP = FTab->Get(currFH)))
+               return Response.Send(kXR_FileNotOpen,
+                                    "clone does not refer to an open src file");
+            srcFile = fP->XrdSfsp;
+           }
+        clVec[i].src.sfsFile = srcFile;
+        n2hll(clList[i].srcOffs, clVec[i].srcOffs);
+        n2hll(clList[i].srcLen,  clVec[i].srcLen);
+        n2hll(clList[i].dstOffs, clVec[i].dstOffs);
+       }
+
+// Now execute the clone request
+//
+   int rc = dstFile->Clone(clVec, clVecNum);
+   if (SFS_OK != rc) return fsError(rc, 0, dstFile->error, 0, 0);
+
+   return Response.Send();
 }
 
 /******************************************************************************/
@@ -1373,13 +1448,13 @@ int XrdXrootdProtocol::do_Open()
 {
    static XrdXrootdCallBack openCB("open file", XROOTD_MON_OPENR);
    int fhandle;
-   int rc, mode, opts, openopts, compchk = 0;
+   int rc, mode, opts, optt, openopts, compchk = 0;
    int popt, retStat = 0;
    char *opaque, usage, ebuff[2048], opC;
-   bool doDig, doforce = false, isAsync = false;
-   char *fn = argp->buff, opt[16], *op=opt;
+   bool doDig, doforce = false, isAsync = false, doClone = false;
+   char *fn = argp->buff, opt[24], *op=opt;
    XrdSfsFile *fp;
-   XrdXrootdFile *xp;
+   XrdXrootdFile *xp, *sameFS = 0;
    struct stat statbuf;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
@@ -1393,6 +1468,7 @@ int XrdXrootdProtocol::do_Open()
 //
    mode = (int)ntohs(Request.open.mode);
    opts = (int)ntohs(Request.open.options);
+   optt = (int)ntohs(Request.open.optiont);
 
 // Map the mode and options
 //
@@ -1442,6 +1518,23 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
    if (opts & kXR_posc)               {*op++ = 'p'; openopts |= SFS_O_POSC;}
    if (opts & kXR_seqio)              {*op++ = 'S'; openopts |= SFS_O_SEQIO;}
+   if (optt & kXR_samefs || optt & kXR_dup)
+      {XrdXrootdFHandle fh(Request.open.fhtemplt);
+       if (optt & kXR_dup)
+          {if (!(fsFeatures & XrdSfs::hasFICL))
+              return Response.Send(kXR_Unsupported,
+                                  "file cloning is not supported");
+           if (usage != 'w') return Response.Send(kXR_ArgInvalid,
+                                    "cloned file is not being opened R/W");
+                                      {*op++ = 'K'; doClone = true;}
+          }
+       if (openopts &= SFS_O_CREAT)   {*op++ = 'L'; openopts |= SFS_O_CREATAT;}
+
+       if (!FTab || !(sameFS = FTab->Get(fh.handle)))
+          return Response.Send(kXR_FileNotOpen,
+                           "file template does not refer to an open file");
+      }
+
    *op = '\0';
 
 // Do some tracing, avoid exposing any security token in the URL
@@ -1518,9 +1611,12 @@ int XrdXrootdProtocol::do_Open()
    oHelp.fp = fp;
 
 // The open is elegible for a deferred response, indicate we're ok with that
+// unless a clone is required. Then this needs to be done synchrnously.
 //
-   fp->error.setErrCB(&openCB, ReqID.getID());
-   fp->error.setUCap(clientPV);
+   if (!doClone)
+      {fp->error.setErrCB(&openCB, ReqID.getID());
+       fp->error.setUCap(clientPV);
+      }
 
 // If TPC opens require TLS but this is not a TLS connection, prohibit TPC
 //
@@ -1531,7 +1627,12 @@ int XrdXrootdProtocol::do_Open()
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
                      (mode_t)mode, CRED, opaque)))
-      {rc = fsError(rc, opC, fp->error, fn, opaque); return rc;}
+      return fsError(rc, opC, fp->error, fn, opaque);
+
+// If file needs to be cloned, do so now
+//
+   if (doClone && (rc = fp->Clone(*(sameFS->XrdSfsp))))
+      return fsError(rc, opC, fp->error, fn, opaque);
 
 // Obtain a hyper file object
 //
