@@ -70,7 +70,7 @@ namespace XrdCl
   const int DefaultTCPKeepAliveInterval    = 75;
   const int DefaultTCPKeepAliveProbes      = 9;
   const int DefaultMultiProtocol           = 0;
-  const int DefaultParallelEvtLoop         = 1;
+  const int DefaultParallelEvtLoop         = 10;
   const int DefaultMetalinkProcessing      = 1;
   const int DefaultLocalMetalinkFile       = 0;
   const int DefaultXRateThreshold          = 0;

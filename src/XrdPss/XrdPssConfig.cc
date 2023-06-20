@@ -199,7 +199,7 @@ int XrdPssSys::Configure(const char *cfn, XrdOucEnv *envP)
 
 // Set default number of event loops
 //
-   XrdPosixConfig::SetEnv("ParallelEvtLoop", 3);
+   XrdPosixConfig::SetEnv("ParallelEvtLoop", 10);
 
 // Turn off the fork handler as we always exec after forking.
 //
