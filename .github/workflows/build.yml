@@ -17,9 +17,6 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  USER_VERSION: v5.6-rc1
-
 jobs:
 
   cmake-almalinux8:
