@@ -76,7 +76,7 @@ extern XrdSsiLogger::MCB_t *msgCBCl;
        Atomic(int)   contactN(1);
        short         maxTCB   = 300;
        short         maxCLW   =  30;
-       short         maxPEL   =   3;
+       short         maxPEL   =  10;
        Atomic(bool)  initDone(false);
        bool          dsTTLSet = false;
        bool          reqTOSet = false;
