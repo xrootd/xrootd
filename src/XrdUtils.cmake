@@ -265,6 +265,7 @@ set ( XrdSecSources
   XrdSec/XrdSecEntityAttr.cc       XrdSec/XrdSecEntityAttr.hh
   XrdSec/XrdSecEntityXtra.cc       XrdSec/XrdSecEntityXtra.hh
   XrdSec/XrdSecLoadSecurity.cc     XrdSec/XrdSecLoadSecurity.hh
+                                   XrdSec/XrdSecMonitor.hh
   XrdSecsss/XrdSecsssCon.cc        XrdSecsss/XrdSecsssCon.hh
   XrdSecsss/XrdSecsssEnt.cc        XrdSecsss/XrdSecsssEnt.hh
   XrdSecsss/XrdSecsssID.cc         XrdSecsss/XrdSecsssID.hh

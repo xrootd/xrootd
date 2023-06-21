@@ -48,6 +48,7 @@
 
 class XrdNetAddrInfo;
 class XrdSecEntityAttr;
+class XrdSecMonitor;
 class XrdSysError;
   
 /******************************************************************************/
@@ -85,7 +86,8 @@ const    char   *pident;                  //!< Trace identifier (originator)
          uid_t   uid;                     //!< Unix uid or 0 if none
          gid_t   gid;                     //!< Unix gid or 0 if none
 
-         void   *future[3];               //!< Reserved for future expansion
+XrdSecMonitor   *secMon;                  //!< If !0 security monitoring enabled
+         void   *future[2];               //!< Reserved for future expansion
 
 XrdSecEntityAttr *eaAPI;                  //!< non-const API to attributes
 

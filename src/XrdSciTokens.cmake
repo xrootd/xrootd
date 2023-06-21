@@ -13,7 +13,8 @@ add_library(
    ${LIB_XRD_SCITOKENS}
    MODULE
    XrdSciTokens/XrdSciTokensAccess.cc
-                                       XrdSciTokens/XrdSciTokensHelper.hh )
+                                       XrdSciTokens/XrdSciTokensHelper.hh
+   XrdSciTokens/XrdSciTokensMon.cc     XrdSciTokens/XrdSciTokensMon.hh )
 target_link_libraries(
    ${LIB_XRD_SCITOKENS}
    PRIVATE

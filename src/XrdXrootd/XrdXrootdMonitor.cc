@@ -335,6 +335,23 @@ void XrdXrootdMonitor::User::Report(int eCode, int aCode)
 }
   
 /******************************************************************************/
+  
+bool XrdXrootdMonitor::User::Report(WhatInfo infoT, const char *info)
+{
+   char buff[4096];
+
+// Currently we support only the token external report
+//
+   if (infoT != TokenInfo) return false;
+
+   snprintf(buff, sizeof(buff), "&Uc=%d%s%s", ntohl(Did),
+                                (*info == '&' ? "" : "&"), info);
+
+   XrdXrootdMonitor::Map(XROOTD_MON_MAPTOKN,*this,buff);
+
+   return true;
+}
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
@@ -836,6 +853,7 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
 //
         if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
    else if (code == XROOTD_MON_MAPUSER
+        ||  code == XROOTD_MON_MAPTOKN
         ||  code == XROOTD_MON_MAPUEAC) montype = XROOTD_MON_USER;
    else                                 montype = XROOTD_MON_INFO;
    Send(montype, (void *)&map, size);

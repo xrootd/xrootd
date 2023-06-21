@@ -24,6 +24,7 @@
 
 #include "scitokens/scitokens.h"
 #include "XrdSciTokens/XrdSciTokensHelper.hh"
+#include "XrdSciTokens/XrdSciTokensMon.hh"
 
 // The status-quo to retrieve the default object is to copy/paste the
 // linker definition and invoke directly.
@@ -420,7 +421,8 @@ class XrdAccSciTokens;
 XrdAccSciTokens *accSciTokens = nullptr;
 XrdSciTokensHelper *SciTokensHelper = nullptr;
 
-class XrdAccSciTokens : public XrdAccAuthorize, public XrdSciTokensHelper
+class XrdAccSciTokens : public XrdAccAuthorize, public XrdSciTokensHelper,
+                        public XrdSciTokensMon
 {
 
     enum class AuthzBehavior {
@@ -528,6 +530,7 @@ public:
         new_secentity.vorg = nullptr;
         new_secentity.grps = nullptr;
         new_secentity.role = nullptr;
+        new_secentity.secMon = Entity->secMon;
         const auto &issuer = access_rules->get_issuer();
         if (!issuer.empty()) {
             new_secentity.vorg = strdup(issuer.c_str());
@@ -592,6 +595,12 @@ public:
 
         // When the scope authorized this access, allow immediately.  Otherwise, chain
         XrdAccPrivs returned_op = scope_success ? AddPriv(oper, XrdAccPriv_None) : OnMissing(&new_secentity, path, oper, env);
+
+        // Since we are doing an early return, insert token info into the
+        // monitoring stream if monitoring is in effect and access granted
+        //
+        if (Entity->secMon && scope_success && returned_op && Mon_isIO(oper))
+           Mon_Report(new_secentity, token_subject, username);
 
         // Cleanup the new_secentry
         if (new_secentity.vorg != nullptr) free(new_secentity.vorg);

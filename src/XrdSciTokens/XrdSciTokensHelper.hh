@@ -1,3 +1,5 @@
+#ifndef __XrdSciTokensHelper_hh__
+#define __XrdSciTokensHelper_hh__
 /******************************************************************************/
 /*                                                                            */
 /*                 X r d S c i T o k e n s H e l p e r . h h                  */
@@ -65,3 +67,4 @@ virtual  bool    Validate(const char   *token,
          XrdSciTokensHelper() {}
 virtual ~XrdSciTokensHelper() {}
 };
+#endif

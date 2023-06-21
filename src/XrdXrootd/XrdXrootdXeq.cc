@@ -1113,6 +1113,7 @@ int XrdXrootdProtocol::do_Login()
        if (Monitor.Logins() && (!Monitor.Auths() || !(Status & XRD_NEED_AUTH)))
           {Monitor.Report(Entity.moninfo);
            if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
+           Entity.secMon = &Monitor;
           }
       }
 
@@ -4079,7 +4080,7 @@ void XrdXrootdProtocol::MonAuth()
    const char *bP = Buff;
 
    if (Client == &Entity) bP = Entity.moninfo;
-      else snprintf(Buff,sizeof(Buff),
+      else {snprintf(Buff,sizeof(Buff),
                     "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s&I=%c",
                      Client->prot,
                     (Client->name ? Client->name : ""),
@@ -4091,6 +4092,8 @@ void XrdXrootdProtocol::MonAuth()
                     (Entity.moninfo  ? Entity.moninfo  : ""),
                     (clientPV & XrdOucEI::uIPv4 ? '4' : '6')
                    );
+            Client->secMon = &Monitor;
+           }
 
    Monitor.Report(bP);
    if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
