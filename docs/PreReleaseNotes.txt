@@ -8,6 +8,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+  **[Server]** Include token information in the monitoring stream (phase 1).
+  **Commit: d7f4b61
   **[Server]** Allow generic prepare plug-in to handle large responses, fixes #2023
   **Commit: 564f0b2
   **[Server]** Make maxfd be configurable (default is 256k).
