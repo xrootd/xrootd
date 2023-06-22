@@ -10,7 +10,7 @@ target_link_libraries(
   XrdEc )
 
 target_link_libraries(XrdEcTests PRIVATE ${ISAL_LIBRARIES})
-target_include_directories(XrdEcTests PRIVATE ../common ${CPPUNIT_UNCLUDE_DIRS} ${ISAL_INCLUDE_DIRS})
+target_include_directories(XrdEcTests PRIVATE ../common ${CPPUNIT_INCLUDE_DIRS} ${ISAL_INCLUDE_DIRS})
 
 foreach(TEST
   AlignedWriteTest
