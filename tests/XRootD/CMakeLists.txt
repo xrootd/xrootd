@@ -23,7 +23,8 @@ add_test(NAME XRootD::start
   $<TARGET_FILE:xrootd> -b -k fifo -l xrootd.log -s xrootd.pid -c xrootd.cfg")
 set_tests_properties(XRootD::start PROPERTIES FIXTURES_SETUP   XRootD)
 
-add_test(NAME XRootD::stop COMMAND sh -c "sleep 1 && rm -rf data && kill $(< xrootd.pid)")
+add_test(NAME XRootD::stop
+  COMMAND sh -c "sleep 1 && rm -rf data && kill -s TERM $(cat xrootd.pid)")
 set_tests_properties(XRootD::stop  PROPERTIES FIXTURES_CLEANUP XRootD)
 
 add_test(NAME XRootD::smoke-test
