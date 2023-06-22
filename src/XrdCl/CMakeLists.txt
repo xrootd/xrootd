@@ -145,6 +145,10 @@ target_link_libraries(
   XrdUtils
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
+
+if( READLINE_FOUND )
+  target_include_directories(xrdfs PRIVATE ${READLINE_INCLUDE_DIR})
+endif()
 endif()
 
 #-------------------------------------------------------------------------------

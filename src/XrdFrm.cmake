@@ -45,6 +45,10 @@ target_link_libraries(
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
+if( READLINE_FOUND )
+  target_include_directories(frm_admin PRIVATE ${READLINE_INCLUDE_DIR})
+endif()
+
 #-------------------------------------------------------------------------------
 # frm_purged
 #-------------------------------------------------------------------------------

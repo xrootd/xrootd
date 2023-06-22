@@ -47,6 +47,8 @@ if( BUILD_FUSE )
     XrdPosix
     ${CMAKE_THREAD_LIBS_INIT}
     ${FUSE_LIBRARIES} )
+
+target_include_directories(xrootdfs PRIVATE ${FUSE_INCLUDE_DIR})
 endif()
 
 #-------------------------------------------------------------------------------
