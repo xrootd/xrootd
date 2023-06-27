@@ -20,7 +20,7 @@ add_library(
   XrdEcReader.hh               XrdEcReader.cc
 )
 
-target_link_libraries(XrdEc PRIVATE XrdCl ${ISAL_LIBRARIES})
+target_link_libraries(XrdEc PRIVATE XrdCl XrdUtils ${ISAL_LIBRARIES})
 target_include_directories(XrdEc PRIVATE ${ISAL_INCLUDE_DIRS})
 
 set_target_properties(

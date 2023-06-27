@@ -7,9 +7,12 @@ add_library(
 target_link_libraries(
   XrdEcTests
   PRIVATE
-  XrdEc )
+  XrdEc
+  XrdCl
+  XrdUtils
+  ${ISAL_LIBRARIES}
+  ${CPPUNIT_LIBRARIES})
 
-target_link_libraries(XrdEcTests PRIVATE ${ISAL_LIBRARIES})
 target_include_directories(XrdEcTests PRIVATE ../common ${CPPUNIT_INCLUDE_DIRS} ${ISAL_INCLUDE_DIRS})
 
 foreach(TEST
