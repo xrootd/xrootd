@@ -32,11 +32,11 @@ namespace XrdCl
     std::string address;
     uint64_t freeSpace;
     FreeSpace() {};
-    bool operator<(const FreeSpace &a)
+    bool operator<(const FreeSpace &a) const
     {
       return ((freeSpace > a.freeSpace) ? true : false);
     }
-    void Dump()
+    void Dump() const
     {
       std::cout << address << " : " << freeSpace << std::endl;
     }
