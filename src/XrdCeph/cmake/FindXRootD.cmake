@@ -32,4 +32,4 @@ set(XROOTD_INCLUDE_DIR ${XROOTD_INCLUDE_DIRS})
 set(XROOTD_LIBRARY     ${XROOTD_LIBRARIES})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(xrootd DEFAULT_MSG XROOTD_INCLUDE_DIRS XROOTD_LIBRARIES)
+find_package_handle_standard_args(XRootD DEFAULT_MSG XROOTD_INCLUDE_DIRS XROOTD_LIBRARIES)
