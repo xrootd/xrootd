@@ -1,8 +1,3 @@
-include_directories( ${CPPUNIT_INCLUDE_DIRS} )
-include_directories( ${XROOTD_INCLUDE_DIR} )
-include_directories( ${RADOS_INCLUDE_DIR} )
-include_directories( ${CMAKE_SOURCE_DIR}/src )
-
 message( "XROOTD_INCLUDE_DIR : ${XROOTD_INCLUDE_DIR}" )
 
 add_library(
@@ -16,6 +11,12 @@ target_link_libraries(
   ${CPPUNIT_LIBRARIES}
   ${ZLIB_LIBRARY}
   XrdCephPosix )
+
+target_include_directories(XrdCephTests PRIVATE
+  ${CPPUNIT_INCLUDE_DIRS}
+  ${RADOS_INCLUDE_DIR}
+  ${XROOTD_INCLUDE_DIR}
+  ${PROJECT_SOURCE_DIR}/src)
 
 #-------------------------------------------------------------------------------
 # Install
