@@ -78,8 +78,8 @@ for i in $FILES; do
        REFA32=$(${ADLER32} < ${TMPDIR}/${i}.ref | cut -d' '  -f1)
        NEWA32=$(${ADLER32} < ${TMPDIR}/${i}.dat | cut -d' '  -f1)
        SRVA32=$(${XRDFS} ${HOST} query checksum ${TMPDIR}/${i}.ref?cks.type=adler32 | cut -d' ' -f2)
-       echo "${i}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${REFA32}"
-       echo "${i}: adler32: reference: ${NEW32C}, server: ${SRVA32}, downloaded: ${NEWA32}"
+       echo "${i}:  crc32c: reference: ${REF32C}, server: ${SRV32C}, downloaded: ${REF32C}"
+       echo "${i}: adler32: reference: ${NEWA32}, server: ${SRVA32}, downloaded: ${NEWA32}"
 
        if [[ "${NEWA32}" != "${REFA32}" || "${SRVA32}" != "${REFA32}" ]]; then
                echo 1>&2 "$(basename $0): error: adler32 checksum check failed for file: ${i}.dat"
