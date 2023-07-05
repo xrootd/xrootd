@@ -61,10 +61,10 @@ class CephIOAdapterRaw: public  virtual ICephIOAdapter {
         bool m_useStriperlessReads {true}; //!< use the striperless read code
 
         // timer and counter info
-        std::atomic< long> m_stats_read_timer{0}, m_stats_write_timer{0};
-        std::atomic< long> m_stats_read_bytes{0}, m_stats_write_bytes{0};
-        std::atomic< long> m_stats_read_req{0},   m_stats_write_req{0};
-        long m_stats_read_longest{0}, m_stats_write_longest{0};
+        std::atomic< long long> m_stats_read_timer{0}, m_stats_write_timer{0};
+        std::atomic< long long> m_stats_read_bytes{0}, m_stats_write_bytes{0};
+        std::atomic< long long> m_stats_read_req{0},   m_stats_write_req{0};
+        long long m_stats_read_longest{0}, m_stats_write_longest{0};
 
 };
 

@@ -1053,7 +1053,7 @@ ssize_t ceph_posix_nonstriper_pread(int fd, void *buf, size_t count, off64_t off
         XrdSysMutexHelper lock(fr->statsMutex);
         fr->rdcount++;
       } else {
-        logwrapper( (char*)"Error while read\n");
+        logwrapper( (char*)"Error while read: %d\n", bytes_read);
       }
       return bytes_read;
     } catch (std::bad_alloc&) {
