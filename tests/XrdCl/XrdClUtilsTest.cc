@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
-// Author: Lukasz Janyst <ljanyst@cern.ch>
+// Copyright (c) 2023 by European Organization for Nuclear Research (CERN)
+// Author: Angelo Galavotti <agalavottib@gmail.com>
 //------------------------------------------------------------------------------
 // This file is part of the XRootD software suite.
 //
@@ -22,9 +22,8 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
-#include <cppunit/extensions/HelperMacros.h>
-#include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClAnyObject.hh"
+#include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClPropertyList.hh"
@@ -32,22 +31,6 @@
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
-class UtilsTest: public CppUnit::TestCase
-{
-  public:
-    CPPUNIT_TEST_SUITE( UtilsTest );
-      CPPUNIT_TEST( AnyTest );
-      CPPUNIT_TEST( TaskManagerTest );
-      CPPUNIT_TEST( SIDManagerTest );
-      CPPUNIT_TEST( PropertyListTest );
-    CPPUNIT_TEST_SUITE_END();
-    void AnyTest();
-    void TaskManagerTest();
-    void SIDManagerTest();
-    void PropertyListTest();
-};
-
-CPPUNIT_TEST_SUITE_REGISTRATION( UtilsTest );
 
 class A
 {
@@ -65,9 +48,14 @@ class B
 };
 
 //------------------------------------------------------------------------------
+// UtilityTest class declaration
+//------------------------------------------------------------------------------
+class UtilsTest : public ::testing::Test {};
+
+//------------------------------------------------------------------------------
 // Any test
 //------------------------------------------------------------------------------
-void UtilsTest::AnyTest()
+TEST(UtilsTest, AnyTest)
 {
   bool destructorCalled1 = false;
   bool destructorCalled2 = false;
@@ -86,23 +74,23 @@ void UtilsTest::AnyTest()
   any1->Set( a1 );
   any1->Get( b );
   any1->Get( a4 );
-  CPPUNIT_ASSERT( !b );
-  CPPUNIT_ASSERT( a4 );
-  CPPUNIT_ASSERT( any1->HasOwnership() );
+  EXPECT_TRUE( !b );
+  EXPECT_TRUE( a4 );
+  EXPECT_TRUE( any1->HasOwnership() );
 
   delete any1;
-  CPPUNIT_ASSERT( destructorCalled1 );
+  EXPECT_TRUE( destructorCalled1 );
 
   any2->Set( a2 );
   any2->Set( (int*)0 );
   delete any2;
-  CPPUNIT_ASSERT( !destructorCalled2 );
+  EXPECT_TRUE( !destructorCalled2 );
   delete a2;
 
   any3->Set( a3, false );
-  CPPUNIT_ASSERT( !any3->HasOwnership() );
+  EXPECT_TRUE( !any3->HasOwnership() );
   delete any3;
-  CPPUNIT_ASSERT( !destructorCalled3 );
+  EXPECT_TRUE( !destructorCalled3 );
   delete a3;
 
   // test destruction of an empty object
@@ -150,7 +138,7 @@ class TestTask2: public XrdCl::Task
 //------------------------------------------------------------------------------
 // Task Manager test
 //------------------------------------------------------------------------------
-void UtilsTest::TaskManagerTest()
+TEST(UtilsTest, TaskManagerTest)
 {
   using namespace XrdCl;
 
@@ -159,7 +147,7 @@ void UtilsTest::TaskManagerTest()
   Task *tsk2 = new TestTask2( runs2 );
 
   TaskManager taskMan;
-  CPPUNIT_ASSERT( taskMan.Start() );
+  EXPECT_TRUE( taskMan.Start() );
 
   time_t now = ::time(0);
   taskMan.RegisterTask( tsk1, now+2 );
@@ -170,15 +158,15 @@ void UtilsTest::TaskManagerTest()
 
   ::sleep( 2 );
 
-  CPPUNIT_ASSERT( runs1.size() == 1 );
-  CPPUNIT_ASSERT( runs2.size() == 3 );
-  CPPUNIT_ASSERT( taskMan.Stop() );
+  EXPECT_TRUE( runs1.size() == 1 );
+  EXPECT_TRUE( runs2.size() == 3 );
+  EXPECT_TRUE( taskMan.Stop() );
 }
 
 //------------------------------------------------------------------------------
 // SID Manager test
 //------------------------------------------------------------------------------
-void UtilsTest::SIDManagerTest()
+TEST(UtilsTest, SIDManagerTest)
 {
   using namespace XrdCl;
   std::shared_ptr<SIDManager> manager = SIDMgrPool::Instance().GetSIDMgr( "root://fake:1094//dir/file" );
@@ -189,32 +177,32 @@ void UtilsTest::SIDManagerTest()
   uint8_t sid4[2];
   uint8_t sid5[2];
 
-  CPPUNIT_ASSERT_XRDST( manager->AllocateSID( sid1 ) );
-  CPPUNIT_ASSERT_XRDST( manager->AllocateSID( sid2 ) );
+  GTEST_ASSERT_XRDST( manager->AllocateSID( sid1 ) );
+  GTEST_ASSERT_XRDST( manager->AllocateSID( sid2 ) );
   manager->ReleaseSID( sid2 );
-  CPPUNIT_ASSERT_XRDST( manager->AllocateSID( sid3 ) );
-  CPPUNIT_ASSERT_XRDST( manager->AllocateSID( sid4 ) );
-  CPPUNIT_ASSERT_XRDST( manager->AllocateSID( sid5 ) );
+  GTEST_ASSERT_XRDST( manager->AllocateSID( sid3 ) );
+  GTEST_ASSERT_XRDST( manager->AllocateSID( sid4 ) );
+  GTEST_ASSERT_XRDST( manager->AllocateSID( sid5 ) );
 
-  CPPUNIT_ASSERT( (sid1[0] != sid2[0]) || (sid1[1] != sid2[1]) );
-  CPPUNIT_ASSERT( manager->NumberOfTimedOutSIDs() == 0 );
+  EXPECT_TRUE( (sid1[0] != sid2[0]) || (sid1[1] != sid2[1]) );
+  EXPECT_TRUE( manager->NumberOfTimedOutSIDs() == 0 );
   manager->TimeOutSID( sid4 );
   manager->TimeOutSID( sid5 );
-  CPPUNIT_ASSERT( manager->NumberOfTimedOutSIDs() == 2 );
-  CPPUNIT_ASSERT( manager->IsTimedOut( sid3 ) == false );
-  CPPUNIT_ASSERT( manager->IsTimedOut( sid1 ) == false );
-  CPPUNIT_ASSERT( manager->IsTimedOut( sid4 ) == true );
-  CPPUNIT_ASSERT( manager->IsTimedOut( sid5 ) == true );
+  EXPECT_TRUE( manager->NumberOfTimedOutSIDs() == 2 );
+  EXPECT_TRUE( manager->IsTimedOut( sid3 ) == false );
+  EXPECT_TRUE( manager->IsTimedOut( sid1 ) == false );
+  EXPECT_TRUE( manager->IsTimedOut( sid4 ) == true );
+  EXPECT_TRUE( manager->IsTimedOut( sid5 ) == true );
   manager->ReleaseTimedOut( sid5 );
-  CPPUNIT_ASSERT( manager->IsTimedOut( sid5 ) == false );
+  EXPECT_TRUE( manager->IsTimedOut( sid5 ) == false );
   manager->ReleaseAllTimedOut();
-  CPPUNIT_ASSERT( manager->NumberOfTimedOutSIDs() == 0 );
+  EXPECT_TRUE( manager->NumberOfTimedOutSIDs() == 0 );
 }
 
 //------------------------------------------------------------------------------
 // Property List test
 //------------------------------------------------------------------------------
-void UtilsTest::PropertyListTest()
+TEST(UtilsTest, PropertyListTest)
 {
   using namespace XrdCl;
   PropertyList l;
@@ -224,13 +212,13 @@ void UtilsTest::PropertyListTest()
   uint64_t i1;
   std::string s1;
 
-  CPPUNIT_ASSERT( l.Get( "s1", s1 ) );
-  CPPUNIT_ASSERT( s1 == "test string 1" );
-  CPPUNIT_ASSERT( l.Get( "i1", i1 ) );
-  CPPUNIT_ASSERT( i1 == 123456789123ULL );
-  CPPUNIT_ASSERT( l.HasProperty( "s1" ) );
-  CPPUNIT_ASSERT( !l.HasProperty( "s2" ) );
-  CPPUNIT_ASSERT( l.HasProperty( "i1" ) );
+  EXPECT_TRUE( l.Get( "s1", s1 ) );
+  EXPECT_TRUE( s1 == "test string 1" );
+  EXPECT_TRUE( l.Get( "i1", i1 ) );
+  EXPECT_TRUE( i1 == 123456789123ULL );
+  EXPECT_TRUE( l.HasProperty( "s1" ) );
+  EXPECT_TRUE( !l.HasProperty( "s2" ) );
+  EXPECT_TRUE( l.HasProperty( "i1" ) );
 
   for( int i = 0; i < 1000; ++i )
     l.Set( "vect_int", i, i+1000 );
@@ -239,26 +227,26 @@ void UtilsTest::PropertyListTest()
   int num;
   for( i = 0; l.HasProperty( "vect_int", i ); ++i )
   {
-    CPPUNIT_ASSERT( l.Get( "vect_int", i, num ) );
-    CPPUNIT_ASSERT( num = i+1000 );
+    EXPECT_TRUE( l.Get( "vect_int", i, num ) );
+    EXPECT_TRUE( num = i+1000 );
   }
-  CPPUNIT_ASSERT( i == 1000 );
+  EXPECT_TRUE( i == 1000 );
 
   XRootDStatus st1, st2;
   st1.SetErrorMessage( "test error message" );
   l.Set( "status", st1 );
-  CPPUNIT_ASSERT( l.Get( "status", st2 ) );
-  CPPUNIT_ASSERT( st2.status == st1.status );
-  CPPUNIT_ASSERT( st2.code   == st1.code );
-  CPPUNIT_ASSERT( st2.errNo  == st1.errNo );
-  CPPUNIT_ASSERT( st2.GetErrorMessage() == st1.GetErrorMessage() );
+  EXPECT_TRUE( l.Get( "status", st2 ) );
+  EXPECT_TRUE( st2.status == st1.status );
+  EXPECT_TRUE( st2.code   == st1.code );
+  EXPECT_TRUE( st2.errNo  == st1.errNo );
+  EXPECT_TRUE( st2.GetErrorMessage() == st1.GetErrorMessage() );
 
   std::vector<std::string> v1, v2;
   v1.push_back( "test string 1" );
   v1.push_back( "test string 2" );
   v1.push_back( "test string 3" );
   l.Set( "vector", v1 );
-  CPPUNIT_ASSERT( l.Get( "vector", v2 ) );
+  EXPECT_TRUE( l.Get( "vector", v2 ) );
   for( size_t i = 0; i < v1.size(); ++i )
-    CPPUNIT_ASSERT( v1[i] == v2[i] );
+    EXPECT_TRUE( v1[i] == v2[i] );
 }

@@ -24,8 +24,13 @@
 #include <cerrno>
 #include <cstring>
 
-#define GTEST_ASSERT_XRDST( x )                    \
-{                                                    \
-  XrdCl::XRootDStatus _st = x;                       \
+/** @brief Equivalent of CPPUNIT_ASSERT_XRDST
+ *
+ * Shows the code that we are asserting and its value
+ * in the final evaluation.
+ */
+#define GTEST_ASSERT_XRDST( x )                                              \
+{                                                                            \
+  XrdCl::XRootDStatus _st = x;                                               \
   EXPECT_TRUE(_st.IsOK()) << "[" << #x << "]: " << _st.ToStr() << std::endl; \
 }
