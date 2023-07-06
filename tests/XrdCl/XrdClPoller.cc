@@ -28,12 +28,11 @@
 
 #include <vector>
 
-
 #include "XrdCl/XrdClPollerBuiltIn.hh"
-
 
 using namespace XrdClTests;
 using namespace testing;
+
 //------------------------------------------------------------------------------
 // Client handler
 //------------------------------------------------------------------------------
@@ -194,11 +193,16 @@ class SocketHandler: public XrdCl::SocketHandler
     XrdCl::Poller   *pPoller;
 };
 
+
 //------------------------------------------------------------------------------
-// Test the functionality the built-in poller
+// PollerTest class declaration
 //------------------------------------------------------------------------------
 
 class PollerTest : public ::testing::Test {};
+
+//------------------------------------------------------------------------------
+// Test the functionality the built-in poller
+//------------------------------------------------------------------------------
 
 TEST(PollerTest, FunctionTest)
 {

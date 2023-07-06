@@ -205,9 +205,8 @@ class RandomHandlerFactory: public ClientHandlerFactory
 };
 
 //------------------------------------------------------------------------------
-// Declaration
+// SocketTest class declaration
 //------------------------------------------------------------------------------
-
 class SocketTest : public ::testing::Test {};
 
 //------------------------------------------------------------------------------
