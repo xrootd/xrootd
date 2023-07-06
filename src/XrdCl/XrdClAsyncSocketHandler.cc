@@ -624,7 +624,7 @@ namespace XrdCl
           Log *log = DefaultEnv::GetLog();
           log->Debug( AsyncSockMsg, "[%s] Received a wait response to endsess request, "
                       "will wait for %d seconds before replaying the endsess request",
-                      waitSeconds );
+                      pStreamName.c_str(), waitSeconds );
           pHSWaitStarted = time( 0 );
           pHSWaitSeconds = waitSeconds;
         }
