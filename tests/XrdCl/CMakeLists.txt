@@ -2,6 +2,7 @@
 add_executable(xrdcl-unit-tests
   XrdClURL.cc
   XrdClPoller.cc
+  XrdClSocket.cc
   ../common/Server.cc
   ../common/Utils.cc
   ../common/TestEnv.cc
