@@ -8,6 +8,7 @@ add_subdirectory( XrdSsiTests )
 
 if( BUILD_XRDEC )
   add_subdirectory( XrdEcTests )
+  add_subdirectory( XrdEc ) # new tests with GTest
 endif()
 
 if( BUILD_CEPH )
