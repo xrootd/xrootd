@@ -22,6 +22,7 @@
 // or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
+#include <gtest/gtest.h>
 #include "XrdCl/XrdClAnyObject.hh"
 #include "GTestXrdHelpers.hh"
 #include "XrdCl/XrdClTaskManager.hh"
