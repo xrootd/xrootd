@@ -132,15 +132,15 @@ brew install \
     libxcrypt \
     make \
     openssl@1.1 \
-    ossp-uuid \
     pkg-config \
     python@3.11 \
     readline \
     zlib \
 ```
 
-Homebrew is also available on Linux. The dependency `ossp-uuid` is not required
-in this case, and `libfuse@2` can be installed to enable FUSE support.
+Homebrew is also available on Linux, where `utils-linux` is required as
+an extra dependency since uuid symbols are not provided by the kernel like
+on macOS. On Linux, `libfuse@2` may be installed to enable FUSE support.
 
 ## Building from Source Code with CMake
 
