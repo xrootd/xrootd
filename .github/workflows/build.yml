@@ -557,76 +557,48 @@ jobs:
 
     runs-on: macos-latest
 
-    steps:
-    - name: Install external dependencies with homebrew
-      run: |
-        brew install \
-          cmake \
-          cppunit \
-          make \
-          gcc \
-          googletest \
-          zlib \
-          krb5 \
-          ossp-uuid \
-          libxml2 \
-          openssl@3
+    env:
+      CC: clang
+      CXX: clang++
+      CMAKE_ARGS: "-DUSE_SYSTEM_ISAL=TRUE;-DINSTALL_PYTHON_BINDINGS=FALSE"
+      CMAKE_PREFIX_PATH: /usr/local/opt/openssl@3
 
-    - name: Install necessary Python libraries
+    steps:
+    - name: Install dependencies with Homebrew
       run: |
+        brew install cmake cppunit davix googletest isa-l openssl@3 python@3.11
+
+    - name: Install Python dependencies with pip
+      run: |
+        python3 --version --version
         python3 -m pip install --upgrade pip setuptools wheel
         python3 -m pip list
+        python3 -m site
 
     - name: Clone repository
       uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
 
-    # Given how homebrew installs things, openssl needs to be have its locations
-    # be given explicitly.
-    - name: Build with cmake
+    - name: Build and Run Tests with CTest
       run: |
         # workaround for issue #1772, should be removed when that's fixed
         sudo sed -i -e "s/localhost/localhost $(hostname)/g" /etc/hosts
-        cd ..
-        cmake \
-            --log-level=DEBUG \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_INSTALL_PREFIX=/usr/local/ \
-            -DCMAKE_PREFIX_PATH=/usr/local/opt/openssl@3 \
-            -DPython_EXECUTABLE=$(command -v python3) \
-            -DENABLE_TESTS=ON \
-            -DPIP_OPTIONS="--verbose" \
-            -S xrootd \
-            -B build
-        cmake build -LH
-        cmake \
-            --build build \
-            --clean-first \
-            --parallel $(($(sysctl -n hw.ncpu) - 1))
-        cmake --build build --target install
-        python3 -m pip install --user build/bindings/python
-        python3 -m pip list
+        ctest -VV -S test.cmake
 
-    - name: Run tests with CTest
-      run: |
-        ctest --output-on-failure --test-dir ../build
+    - name: Install with CMake
+      run: cmake --install build
 
-    - name: Verify install
-      run: |
-        command -v xrootd
-        command -v xrdcp
+    - name: Install Python Bindings
+      run: python3 -m pip install --verbose --use-pep517 --user build/bindings/python
 
-    - name: Verify Python bindings
+    - name: Run Post-install Tests
       run: |
         export DYLD_LIBRARY_PATH=/usr/local/lib
-        python3 --version --version
-        python3 -m pip list
+        xrdcp --version
+        python3 -c 'import XRootD; print(XRootD);'
+        python3 -c 'from pyxrootd import client; print(client);'
+        python3 -c 'from pyxrootd import client; print(client.XrdVersion_cpp())'
+        python3 -c 'from XRootD import client; print(client.FileSystem("root://localhost:1094"))'
         python3 -m pip show xrootd
-        python3 -c 'import XRootD; print(XRootD)'
-        python3 -c 'import pyxrootd; print(pyxrootd)'
-        python3 -c 'from XRootD import client; print(client.FileSystem("root://someserver:1094"))'
 
   rpm-centos7:
 
