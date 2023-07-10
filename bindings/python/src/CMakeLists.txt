@@ -33,8 +33,7 @@ target_compile_options(client PRIVATE -w) # TODO: fix build warnings
 if(APPLE)
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  set_target_properties(client PROPERTIES
-    INSTALL_NAME_DIR "@rpath" INSTALL_RPATH "@loader_path")
+  set_target_properties(client PROPERTIES INSTALL_NAME_DIR "@rpath")
 endif()
 
 # Avoid a call to find_package(XRootD) in order to be able to override

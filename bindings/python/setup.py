@@ -99,10 +99,14 @@ class CMakeBuild(build_ext):
             cmake_args = [
                 '-DPython_EXECUTABLE={}'.format(sys.executable),
                 '-DCMAKE_BUILD_WITH_INSTALL_RPATH=TRUE',
-                '-DCMAKE_INSTALL_RPATH=$ORIGIN/../../../../$LIB',
                 '-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY={}/{}'.format(self.build_temp, ext.name),
                 '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}/{}'.format(extdir, ext.name),
             ]
+
+            if sys.platform == 'darwin':
+                cmake_args += [ '-DCMAKE_INSTALL_RPATH=@loader_path/../../..' ]
+            else:
+                cmake_args += [ '-DCMAKE_INSTALL_RPATH=$ORIGIN/../../../../$LIB' ]
 
             cmake_args += cmdline_args
 
