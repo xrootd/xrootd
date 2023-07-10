@@ -43,6 +43,7 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdVersion.hh"
   
@@ -418,6 +419,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    // Static method to load/locate the crypto factory named factoryid
  
    static XrdVERSIONINFODEF(myVer,cryptoloader,XrdVNUMBER,XrdVERSION);
+   static XrdSysMutex    fMutex;
    static FactoryEntry  *factorylist = 0;
    static int            factorynum = 0;
    static XrdOucHash<XrdOucPinLoader> plugins;
@@ -425,6 +427,10 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    XrdCryptoFactory *factory;
    char factobjname[80], libfn[80];
    EPNAME("Factory::GetCryptoFactory");
+
+   // Factory entries are tracked in a static list.
+   // Make sure only one thread may be using or modifying the list at a time.
+   XrdSysMutexHelper mHelp(fMutex);
 
    //
    // The id must be defined
