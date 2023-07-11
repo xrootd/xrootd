@@ -2,7 +2,13 @@ cmake_minimum_required(VERSION 3.16...3.25)
 
 project(PyXRootD LANGUAGES CXX)
 
-find_package(Python REQUIRED COMPONENTS Interpreter Development)
+if( CMAKE_VERSION VERSION_LESS 3.18 )
+  set(PYTHON_COMPONENTS Interpreter Development)
+else()
+  set(PYTHON_COMPONENTS Interpreter Development.Module)
+endif()
+
+find_package(Python REQUIRED COMPONENTS ${PYTHON_COMPONENTS})
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR OR PYPI_BUILD)
   add_subdirectory(src)
