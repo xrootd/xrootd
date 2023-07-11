@@ -6,6 +6,23 @@ Release Notes
 =============
 
 -------------
+Version 5.6.1
+-------------
+
++ **Minor bug fixes**
+  **[CMake]** Fix Findlibuuid.cmake to use kernel provided uuid on macOS
+  **[XrdCl]** Avoid race in postmaster QueryTransport
+  **[XrdCl]** Add missing argument in call to debug log message.
+    This fixes sporadic crashes seen in FTS when debug logging is enabled.
+  **[XrdCrypto]** Avoid race in GetCryptoFactory
+
++ **Miscellaneous**
+  **[CMake]** Make sure Python is required in PyPI build
+  **[CMake]** Set RPATH that works for binaries and libraries on macOS
+  **[CMake,Python]** Handle RPATH for Python bindings on macOS
+  **[Python]** Use PEP517 by default when building Python bindings
+
+-------------
 Version 5.6.0
 -------------
 
