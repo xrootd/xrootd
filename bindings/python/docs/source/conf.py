@@ -29,6 +29,16 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest',
               'sphinx.ext.intersphinx', 'sphinx.ext.todo',
               'sphinx.ext.coverage', 'sphinx.ext.viewcode']
 
+try:
+    import sphinx_mdinclude
+    extensions.extend(['sphinx_mdinclude'])
+except ImportError:
+    try:
+        import m2r
+        extensions.extend(['m2r'])
+    except ImportError:
+        pass
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['.templates']
 
