@@ -4,10 +4,19 @@ add_executable(xrdcl-unit-tests
   XrdClPoller.cc
   XrdClSocket.cc
   XrdClUtilsTest.cc
+  IdentityPlugIn.cc
+  XrdClFileTest.cc
+  XrdClFileCopyTest.cc
+  XrdClFileSystemTest.cc
+  XrdClOperationsWorkflowTest.cc
+  XrdClLocalFileHandlerTest.cc
+  XrdClPostMasterTest.cc
+  XrdClThreadingTest.cc
   ../common/Server.cc
   ../common/Utils.cc
   ../common/TestEnv.cc
 )
+
 
 target_link_libraries(xrdcl-unit-tests
   XrdCl
