@@ -29,8 +29,42 @@
  * Shows the code that we are asserting and its value
  * in the final evaluation.
  */
-#define GTEST_ASSERT_XRDST( x )                                              \
-{                                                                            \
-  XrdCl::XRootDStatus _st = x;                                               \
-  EXPECT_TRUE(_st.IsOK()) << "[" << #x << "]: " << _st.ToStr() << std::endl; \
+#define GTEST_ASSERT_XRDST( x )                                                                  \
+{                                                                                                \
+  XrdCl::XRootDStatus _st = x;                                                                   \
+  EXPECT_TRUE(_st.IsOK()) << "[" << #x << "]: " << _st.ToStr() << std::endl;                     \
 }
+
+/** @brief Equivalent of CPPUNIT_ASSERT_XRDST_NOTOK
+ *
+ * Shows the code that we are asserting and asserts that its
+ * execution is throwing an error.
+ */
+#define GTEST_ASSERT_XRDST_NOTOK( x, err )                                                       \
+{                                                                                                \
+  XrdCl::XRootDStatus _st = x;                                                                   \
+  EXPECT_TRUE(!_st.IsOK() && _st.code == err) << "[" << #x << "]: " << _st.ToStr() << std::endl; \
+}
+
+/** @brief Equivalent of CPPUNIT_ASSERT_ERRNO
+ *
+ * Shows the code that we are asserting and its error
+ * number.
+ */
+#define GTEST_ASSERT_ERRNO( x )                                                                  \
+{                                                                                                \
+  EXPECT_TRUE(x) << "[" << #x << "]: " << strerror(errno) << std::endl;                          \
+}
+
+/** @brief Equivalent of GTEST_ASSERT_PTHREAD
+ *
+ * Shows the code that we are asserting and its error
+ * number, in a thread-safe manner.
+ */
+#define GTEST_ASSERT_PTHREAD( x )                                                                \
+{                                                                                                \
+  errno = x;                                                                                     \
+  EXPECT_TRUE(errno == 0) << "[" << #x << "]: " << strerror(errno) << std::endl;                 \
+}
+
+#endif // __GTEST_XRD_HELPERS_HH__
