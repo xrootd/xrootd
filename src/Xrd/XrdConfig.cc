@@ -93,6 +93,9 @@
 #if defined(__linux__) || defined(__GNU__)
 #include <netinet/tcp.h>
 #endif
+#if defined(__linux__)
+#include <sys/epoll.h>
+#endif
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #endif
@@ -1194,6 +1197,11 @@ int XrdConfig::setFDL()
       else rlim.rlim_cur = rlim.rlim_max;
 #if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
    if (rlim.rlim_cur > OPEN_MAX) rlim.rlim_max = rlim.rlim_cur = OPEN_MAX;
+#endif
+#if defined(__linux__)
+// Setting a limit beyond this value on Linux is guaranteed to fail during epoll_wait()
+   unsigned int epoll_max_fd = (INT_MAX / sizeof(struct epoll_event));
+   if (rlim.rlim_cur > (rlim_t)epoll_max_fd) rlim.rlim_max = rlim.rlim_cur = epoll_max_fd;
 #endif
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
       return Log.Emsg("Config", errno,"set FD limit");
