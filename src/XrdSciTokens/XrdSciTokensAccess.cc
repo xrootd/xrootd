@@ -239,7 +239,7 @@ struct MapRule
     {
         if (!m_sub.empty() && sub != m_sub) {return "";}
 
-        if (!m_username.empty() && username != username) {return "";}
+        if (!m_username.empty() && username != m_username) {return "";}
 
         if (!m_path_prefix.empty() &&
             strncmp(req_path.c_str(), m_path_prefix.c_str(), m_path_prefix.size()))
