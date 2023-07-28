@@ -1,0 +1,133 @@
+# This dockerfile assumes that you're passing the binary with its corresponding arguments to run it.
+# Example: docker run xrootd:latest xrootd -c /etc/xrootd/xrootd.cfg
+# But you could also run cmsd or other xrootd binaries in the same way.
+#
+# The VERSION argument must correspond to a github tag name.
+#
+ARG VERSION=v5.6.1
+ARG ENABLE_HTTP=ON
+ARG ENABLE_FUSE=OFF
+ARG ENABLE_KRB5=OFF
+ARG ENABLE_SCITOKENS=ON
+ARG ENABLE_MACAROONS=ON
+ARG ENABLE_XRDCEPH=ON
+ARG ENABLE_PYTHON=ON
+
+FROM almalinux:9 AS builder
+# Re-declare the ARGs for use in this stage
+ARG VERSION
+ARG ENABLE_HTTP
+ARG ENABLE_FUSE
+ARG ENABLE_KRB5
+ARG ENABLE_SCITOKENS
+ARG ENABLE_MACAROONS
+ARG ENABLE_XRDCEPH
+ARG ENABLE_PYTHON
+
+# Set the workdir to a source directory and copy the entire project into the Docker image
+WORKDIR /xrootd
+COPY ../../ .
+
+# Enable codeready builder repos
+RUN dnf install -y yum-utils
+RUN dnf config-manager --set-enabled crb
+
+# Install dependencies
+RUN dnf install -y epel-release && \
+    dnf install -y \
+    git \
+    cmake \
+    gcc-c++ \
+    cppunit-devel \
+    curl-devel \
+    davix-devel \
+    diffutils \
+    file \
+    fuse-devel \
+    gcc-c++ \
+    git \
+    gtest-devel \
+    json-c-devel \
+    libmacaroons-devel \
+    libtool \
+    libuuid-devel \
+    libxml2-devel \
+    libcurl-devel \
+    make \
+    openssl-devel \
+    python3-devel \
+    python3-setuptools \
+    readline-devel \
+    scitokens-cpp-devel \
+    tinyxml-devel \
+    yasm \
+    zlib-devel 
+
+# Install Ceph dependencies to enable XRDCEPH
+RUN dnf install -y \
+    centos-release-ceph-quincy
+RUN dnf install -y \
+    librados-devel \
+    libradosstriper-devel
+
+RUN ls -l
+RUN cmake -S . -B xrootd_build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DENABLE_HTTP=${ENABLE_HTTP} \
+    -DENABLE_FUSE=${ENABLE_FUSE} \
+    -DENABLE_KRB5=${ENABLE_KRB5} \
+    -DENABLE_SCITOKENS=${ENABLE_SCITOKENS} \
+    -DENABLE_MACAROONS=${ENABLE_MACAROONS} \
+    -DENABLE_PYTHON=${ENABLE_PYTHON} \
+    -DXRDCEPH_SUBMODULE=${ENABLE_XRDCEPH} && \
+    cmake --build xrootd_build --parallel && \
+    cmake --install xrootd_build --prefix=/opt/xrootd
+
+# Second stage: create minimal image with xrootd installed
+FROM almalinux:9
+
+# Re-declare the ARGs for use in this stage
+ARG ENABLE_HTTP
+ARG ENABLE_FUSE
+ARG ENABLE_KRB5
+ARG ENABLE_SCITOKENS
+ARG ENABLE_MACAROONS
+ARG ENABLE_XRDCEPH
+ARG ENABLE_PYTHON
+
+# Enable additional repos for dependencies
+RUN dnf install -y yum-utils
+RUN dnf config-manager --set-enabled crb
+RUN dnf install -y \
+    centos-release-ceph-quincy \
+    epel-release
+
+# Install runtime dependencies
+RUN dnf install -y \
+    openssl \
+    libuuid \
+    libxml2 \
+    python3 \
+    zlib \
+    tinyxml \
+    davix-libs
+
+RUN if [ "${ENABLE_KRB5}" =  "ON" ]; then dnf install -y krb5-libs; fi
+RUN if [ "${ENABLE_HTTP}" = "ON" ]; then dnf install -y libcurl-minimal; fi
+RUN if [ "${ENABLE_FUSE}" = "ON" ]; then dnf install -y fuse-libs; fi
+RUN if [ "${ENABLE_PYTHON}" = "ON" ]; then dnf install -y python3; fi
+RUN if [ "${ENABLE_SCITOKENS}" = "ON" ]; then dnf install -y scitokens-cpp; fi
+RUN if [ "${ENABLE_MACAROONS}" = "ON" ]; then dnf install -y libmacaroons; fi
+RUN if [ "${ENABLE_XRDCEPH}" = "ON" ]; then dnf install -y librados2 libradosstriper1; fi
+
+# Setup xrootd installation from builder stage
+COPY --from=builder /opt/xrootd /opt/xrootd
+RUN echo /opt/xrootd/lib64 > /etc/ld.so.conf.d/xrootd.conf
+RUN ldconfig
+ENV PATH="/opt/xrootd/bin:${PATH}"
+
+RUN groupadd -g 1000 xrootd
+RUN useradd -r -s /sbin/nologin -u 1000 -g xrootd xrootd
+RUN mkdir -p /var/run/xrootd && chown xrootd:xrootd /var/run/xrootd
+RUN mkdir -p /var/spool/xrootd && chown xrootd:xrootd /var/spool/xrootd
+
+CMD ["xrootd"]
