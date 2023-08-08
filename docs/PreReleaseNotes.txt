@@ -6,3 +6,14 @@ XRootD
 
 Prerelease Notes
 ================
+
++ **New Features**
+
++ **Major bug fixes**
+
++ **Minor bug fixes**
+
++ **Miscellaneous**
+  **[Server]** Default ffdest as per current pmark specification.
+  **Commit: f5f7839
+
