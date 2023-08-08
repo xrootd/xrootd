@@ -273,20 +273,16 @@ XrdNetPMark *XrdNetPMarkCfg::Config(XrdSysError *eLog, XrdScheduler *sched,
 // If firefly is enabled, make sure we have an ffdest
 //
    if (useFFly < 0)
-      {if (ffPortD || ffPortO) useFFly = true;
-          else {useFFly = false;
-                eLog->Say("Config warning: firefly disabled; "
-                          "configuration incomplete!");
-                return 0;
-               }
-      } else {
-       if (useFFly && !ffPortD && !ffPortO)
-          {eLog->Say("Config invalid: pmark 'use firefly' requires "
-                     "specifying 'ffdest'!");
-           fatal = true;
+      {if (ffPortD || ffPortO)
+          {useFFly = true;
+           if (!ffPortO) ffPortO = ffPORT;
+          } else {
+           useFFly = false;
+           eLog->Say("Config warning: firefly disabled; "
+                     "configuration incomplete!");
            return 0;
           }
-      }
+      } else if (useFFly && !ffPortO) ffPortO = ffPORT;
 
 // Resolve trace and debug settings
 //
@@ -1042,6 +1038,9 @@ do{if (!strcmp("debug", val) || !strcmp("nodebug", val))
         continue;
        }
 
+   // We accept 'origin' as a dest for backward compatibility. That is the
+   // enforced default should 'use firefly' be specified.
+   //
    if (!strcmp("ffdest", val))
       {const char *addtxt = "";
        char *colon, *comma;
