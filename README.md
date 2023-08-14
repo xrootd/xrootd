@@ -27,7 +27,7 @@ systems like [ceph](https://ceph.io).
 
 ## Documentation
 
-Genral documentation such as configuration reference guides, and user manuals
+General documentation such as configuration reference guides, and user manuals
 can be found on the XRootD website at http://xrootd.org/docs.html.
 
 ## Supported Operating Systems
